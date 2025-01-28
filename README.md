@@ -1,5 +1,5 @@
 # Yosemite-Crew
-Open source operating system for animals health
+Open source operating system for animal health
 
 
 ## Run tasks
