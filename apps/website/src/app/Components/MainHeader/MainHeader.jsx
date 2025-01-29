@@ -2,8 +2,8 @@
 import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types"; // Import PropTypes
 import "./MainHeader.css";
-import Logo from "/public/Images/Logo.png";
-import Chatt from "/public/Images/chatt.png";
+import Logo from "../../../../public/Images/Logo.png";
+import Chatt from "../../../../public/Images/chatt.png";
 import { IoIosArrowDown } from "react-icons/io";
 import { FaGithub } from "react-icons/fa6";
 import { useAuth } from "../../context/AuthContext";

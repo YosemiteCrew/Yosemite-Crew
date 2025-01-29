@@ -15,7 +15,7 @@ jobs:
         files: |
           package.json
           apps/api/**
-    website-build:
+    build:
         needs: changed-files-check
         if: needs.changed-files-check.outputs.any_changed == 'true'
         runs-on: ubuntu-latest
@@ -36,7 +36,7 @@ jobs:
         if: always() && !cancelled()
         timeout-minutes: 1
         runs-on: ubuntu-latest
-        needs: [changed-files-check, website-build]
+        needs: [changed-files-check, build]
         steps:
         - name: Fail job if any needs failed
           if: contains(needs.*.result, 'failure')

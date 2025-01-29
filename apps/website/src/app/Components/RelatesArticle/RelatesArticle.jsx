@@ -9,7 +9,7 @@ import Rls4 from "../../../../public/Images/ArticlePage/Rls4.png"
 
 const RelatesArticle = () => {
 
-    var settings = {
+    const settings = {
         dots: true,
         infinite: true,
         speed: 500,

@@ -328,7 +328,7 @@ export function DashModal() {
                               type="radio"
                               name="recommend"
                               className="radio-button"
-                              arial-label="rate 1"
+                              aria-label="rate 1"
                               data-text="1"
                             />
                           </li>
@@ -337,7 +337,7 @@ export function DashModal() {
                               type="radio"
                               name="recommend"
                               className="radio-button"
-                              arial-label="rate 2"
+                              aria-label="rate 2"
                               data-text="2"
                             />
                           </li>
@@ -352,7 +352,7 @@ export function DashModal() {
                               type="radio"
                               name="recommend"
                               className="radio-button"
-                              arial-label="rate 3"
+                              aria-label="rate 3"
                               data-text="3"
                             />
                           </li>
@@ -361,7 +361,7 @@ export function DashModal() {
                               type="radio"
                               name="recommend"
                               className="radio-button"
-                              arial-label="rate 4"
+                              aria-label="rate 4"
                               data-text="4"
                             />
                           </li>
@@ -376,7 +376,7 @@ export function DashModal() {
                               type="radio"
                               name="recommend"
                               className="radio-button"
-                              arial-label="rate 5"
+                              aria-label="rate 5"
                               data-text="5"
                             />
                           </li>
@@ -385,7 +385,7 @@ export function DashModal() {
                               type="radio"
                               name="recommend"
                               className="radio-button"
-                              arial-label="rate 6"
+                              aria-label="rate 6"
                               data-text="6"
                             />
                           </li>
@@ -426,7 +426,7 @@ export function DashModal() {
                               type="radio"
                               name="recommend"
                               className="radio-button"
-                              arial-label="rate 9"
+                              aria-label="rate 9"
                               data-text="9"
                             />
                           </li>
@@ -435,7 +435,7 @@ export function DashModal() {
                               type="radio"
                               name="recommend"
                               className="radio-button"
-                              arial-label="rate 10"
+                              aria-label="rate 10"
                               data-text="10"
                             />
                           </li>

@@ -1,5 +1,5 @@
 <!--
-We, the rest of the NativeScript community, thank you for your
+We, the rest of the Yosemite community, thank you for your
 contribution! 
 To help the rest of the community review your change, please follow the instructions in the template.
 -->
@@ -24,7 +24,7 @@ To help the rest of the community review your change, please follow the instruct
 
 Fixes #
 
-<!-- If this PR contains a breaking change, please describe the impact and migration path for existing applications below. -->
+<!-- If this PR contains a breaking change, please describe the impact for existing applications below. -->
 
 <!-- 
 BREAKING CHANGES:
@@ -32,7 +32,4 @@ BREAKING CHANGES:
 
 [Describe the impact of the changes here.]
 
-Migration steps:
-[Provide a migration path for existing applications.]
--->
 

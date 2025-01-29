@@ -16,8 +16,7 @@ const verifyTokenAndRefresh = (req, res, next) => {
       return res
         .status(401)
         .json({ message: "Unauthorized", error: err.message });
-    } else {
-    }
+    } else { /* empty */ }
     console.log("verify");
     req.user = decoded; // Attach the decoded user information to the request
     next(); // Proceed to the next middleware or route handler
