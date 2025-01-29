@@ -66,3 +66,12 @@ Learn more:
 - [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
 - [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
 
+## Star History
+
+<a href="https://star-history.com/#YosemiteCrew/Yosemite-Crew&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=YosemiteCrew/Yosemite-Crew&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=YosemiteCrew/Yosemite-Crew&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=YosemiteCrew/Yosemite-Crew&type=Date" />
+ </picture>
+</a>

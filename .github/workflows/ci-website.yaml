@@ -29,7 +29,8 @@ jobs:
                 cache: 'npm'
             - name: Install dependencies
               run: npm ci --legacy-peer-deps
-            - uses: nrwl/nx-set-shas@v4
+            - name: Linting
+              run: npx nx lint website
             - name: Website / Build Website
               run: npx nx build website
     ci-website-status-check:
