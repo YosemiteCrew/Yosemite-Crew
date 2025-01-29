@@ -167,7 +167,7 @@ const authController = {
       const accessToken = jwt.sign(
         { username: authData.AuthenticationResult.IdToken },
         process.env.JWT_SECRET,
-        { expiresIn: "1h" }
+        { expiresIn: "7d" }
       );
   
       // Convert Mongoose document to plain object and remove password
@@ -285,7 +285,7 @@ const authController = {
       const accessToken = jwt.sign(
         { username: data.AuthenticationResult.IdToken },
         process.env.JWT_SECRET,
-        { expiresIn: "36000" }
+        { expiresIn: "7d" }
       );
   
       // Convert Mongoose document to plain object and add token

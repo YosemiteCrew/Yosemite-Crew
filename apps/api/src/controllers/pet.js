@@ -5,7 +5,7 @@ const path = require('path');
 async function handleAddPet(req,res){
   const token = req.headers.authorization.split(' ')[1]; // Extract token
   const decoded = jwt.verify(token, process.env.JWT_SECRET); // Verify token
-  console.log(decoded)
+  
   const cognitoUserId = decoded.username; // Get user ID from token
     var PetImage = "";
     if (req.files && req.files.petImage) {
@@ -15,7 +15,7 @@ async function handleAddPet(req,res){
       const allowedExtensions = /jpg|jpeg|png|gif/;
       const extension = path.extname(petImage.name).toLowerCase();
       if (!allowedExtensions.test(extension)) {
-          return res.status(400).json({ message: 'Only image files are allowed.' });
+          return res.status(200).json({ message: 'Only image files are allowed.' });
       }
 
       // Generate a unique file name
@@ -50,11 +50,10 @@ async function handleAddPet(req,res){
         petImage: PetImage
     });
     if(addPet){
-        res.status(201).json({
+        res.status(200).json({
+            status: 1,
             message: 'Pet Added successfully',
-            user: {
-              id: addPet.cognitoUserId,
-            }
+            data: addPet
           });
     }
    
