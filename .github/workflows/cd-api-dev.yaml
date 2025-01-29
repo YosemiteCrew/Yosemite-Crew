@@ -30,10 +30,11 @@ jobs:
                 cache: 'npm'
             - name: Install dependencies
               run: npm ci --legacy-peer-deps
-            - uses: nrwl/nx-set-shas@v4
+            - name: Linting
+              run: npx nx lint api
             - name: Website / Build Website
               run: npx nx build api
-    ci-website-status-check:
+    cd-api-dev-status-check:
         if: always() && !cancelled()
         timeout-minutes: 1
         runs-on: ubuntu-latest
