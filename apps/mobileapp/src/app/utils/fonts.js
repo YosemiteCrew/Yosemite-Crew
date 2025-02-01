@@ -1,0 +1,17 @@
+export const fonts = {
+  CLASH_DISPLAY_BOLD: 'ClashDisplay-Bold',
+  CLASH_DISPLAY_EXTRA_LIGHT: 'ClashDisplay-Extralight',
+  CLASH_DISPLAY_LIGHT: 'ClashDisplay-Light',
+  CLASH_DISPLAY_MEDIUM: 'ClashDisplay-Medium',
+  CLASH_DISPLAY_REGULAR: 'ClashDisplay-Regular',
+  CLASH_DISPLAY_SEMIBOLD: 'ClashDisplay-Semibold',
+  CLASH_DISPLAY_VARIABLE: 'ClashDisplay-Variable',
+  CLASH_GRO_MEDIUM: 'ClashGrotesk-Medium',
+  SATOSHI_BLACK: 'Satoshi-Black',
+  SATOSHI_BOLD: 'Satoshi-Bold',
+  SATOSHI_LIGHT: 'Satoshi-Light',
+  SATOSHI_MEDIUM: 'Satoshi-Medium',
+  SATOSHI_REGULAR: 'Satoshi-Regular',
+  SF_PRO_TEXT_SEMIBOLD: 'SFProText-semibold',
+  SF_PRO_TEXT_REGULAR: 'SFProText-regular',
+};
