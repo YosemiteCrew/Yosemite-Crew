@@ -117,7 +117,7 @@
     align-items: center;
     gap: 10px;
 }
-.srchbr{
+.lftinnr .srchbr{
     position: relative;
     border: 1px solid #37223CB2;
     padding: 10px;
@@ -127,7 +127,7 @@
     width: 190px;
     height: 40px;
 }
-.srchbr input{
+.lftinnr .srchbr input{
     width: 100%;
     border: none;
     background: transparent;
@@ -136,14 +136,14 @@
     font-weight: 400;
     padding: .375rem 0 .375rem .75rem;
 }
-.srchbr input::placeholder{
+.lftinnr .srchbr input::placeholder{
     font-size: 14px;
     font-weight: 400;
     line-height: 18px;
     letter-spacing: -0.02em;
     color: #312943;
 }
-.srchbr svg{
+.lftinnr .srchbr svg{
     color: var(--chilli-red);
     position: absolute;
     right: 15px;

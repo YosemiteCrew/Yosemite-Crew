@@ -26,7 +26,7 @@ const Dashboard = () => {
   ];
 
   return (
-    <>
+
       <section className="DashboardSection">
         <div className="container">
           <div className="MainDash">
@@ -146,7 +146,7 @@ const Dashboard = () => {
           </div>
         </div>
       </section>
-    </>
+
   );
 };
 

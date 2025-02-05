@@ -145,7 +145,7 @@ const Doctor_Dashboard = () => {
   };
 
   return (
-    <>
+
       <section className="DoctorDashBoardSec">
         <div className="container">
           <div className="MainDash">
@@ -375,7 +375,7 @@ const Doctor_Dashboard = () => {
           </div>
         </div>
       </section>
-    </>
+
   );
 };
 

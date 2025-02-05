@@ -394,7 +394,7 @@ const Add_Vet = () => {
     { value: "120", label: "2 hours" },
   ];
   return (
-    <>
+
       <section className="ProfileSec">
         <div className="container">
           <div className="mb-3">
@@ -964,7 +964,7 @@ const Add_Vet = () => {
           </div>
         </div>
       </section>
-    </>
+      
   );
 };
 
