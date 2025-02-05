@@ -1,0 +1,83 @@
+.ClientStatementDetailSec{
+    padding: 100px 0px;
+}
+.TopDivDetails{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.leftdetails {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+.clienttitle h2{
+    font-family: var(--grotesk-font);
+    font-size: 35px;
+    font-weight: 500;
+    line-height: 42px;
+    letter-spacing: -0.02em;
+    color: var(--black-text);
+    margin: 0;
+}
+.ForDetails{
+    display: flex;
+    flex-direction: column;
+}
+.ForDetails p , .ForDetails span{
+    font-family: var(--grotesk-font);
+    font-size: 21px;
+    font-weight: 500;
+    line-height: 34.5px;
+    letter-spacing: -0.02em;
+    margin: 0;
+    color: #000000;
+}
+.ForDetails span{
+    color: var(--chilli-red);
+}
+.Rytdetails{
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+.stdtldiv , .stamutdiv{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+    grid-gap: 40px;
+}
+.stdtldiv p , .stamutdiv p{
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 21.6px;
+    letter-spacing: -0.02em;
+    margin: 0;
+    color: #595958;
+    text-align: end;
+}
+.stdtldiv h6 , .stamutdiv h6{
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 21.6px;
+    letter-spacing: -0.02em;
+    font-family: var(--satoshi-font);
+    margin: 0;
+    color: #595958;
+    text-align: left;
+}
+.stamutdiv p , .stamutdiv h6{
+    color: var(--chilli-red) !important;
+}
+
+
+.DetailstabDiv{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.DateTimedetail{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}

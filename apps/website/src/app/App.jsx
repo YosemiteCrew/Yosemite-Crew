@@ -49,6 +49,8 @@ import RevenueManagement from "./Pages/RevenueManagement/RevenueManagement";
 import MainHeader from "./Components/MainHeader/MainHeader";
 import ChatScreen from "./Pages/ChatScreen/ChatScreen";
 import DoctorProfile from "./Pages/DoctorProfile/DoctorProfile";
+import ClientStatement from "./Pages/ClientStatement/ClientStatement";
+import ClientStatementDetail from "./Pages/ClientStatementDetail/ClientStatementDetail";
 
 const Layout = () => {
   const navigate = useNavigate();
@@ -216,6 +218,8 @@ const Layout = () => {
         <Route path="/revenuemangement" element={<RevenueManagement />} />
         <Route path="/chatscreen" element={<ChatScreen />} />
         <Route path="/doctorprofile" element={<DoctorProfile />} />
+        <Route path="/chatstatement" element={<ClientStatement />} />
+        <Route path="/chatstatementdetails" element={<ClientStatementDetail />} />
       </Routes>
       {showFooter && <Footer />}
     </>
