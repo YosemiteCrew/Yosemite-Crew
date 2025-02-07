@@ -1,13 +1,13 @@
-import axios from "axios";
+import axios from 'axios';
 
 export const getProfiledata = async (userId) => {
   try {
     const response = await axios.get(
-      `${import.meta.env.NX_PUBLIC_VITE_BASE_URL}api/auth/getProfile/${userId}`
+      `${process.env.NX_PUBLIC_VITE_BASE_URL}api/auth/getProfile/${userId}`
     );
     return response.data;
   } catch (error) {
-    console.error("Error fetching profile data:", error);
+    console.error('Error fetching profile data:', error);
     throw error;
   }
 };
@@ -15,11 +15,11 @@ export const getProfiledata = async (userId) => {
 export const getdoctorprofile = async (userId) => {
   try {
     const response = await axios.get(
-      `${import.meta.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/getDoctors/${userId}`
+      `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/getDoctors/${userId}`
     );
     return response.data;
   } catch (error) {
-    console.error("Error fetching doctor profile data:", error);
+    console.error('Error fetching doctor profile data:', error);
     throw error;
   }
 };
@@ -30,7 +30,7 @@ export const getdoctorprofile = async (userId) => {
 //     try {
 //       console.log("helllllll", refreshToken);
 //       const refreshResponse = await axios.post(
-//         `${import.meta.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/refreshToken`,
+//         `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/refreshToken`,
 //         { refreshToken }
 //       );
 

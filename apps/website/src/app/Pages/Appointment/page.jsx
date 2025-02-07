@@ -1,37 +1,113 @@
 // eslint-disable-next-line no-unused-vars
-import React from "react";
-import PropTypes from "prop-types";
-import { BoxDiv, DivHeading, ListSelect, TopHeading } from "../Dashboard/page";
-import "./Appointment.css";
-import UplodeImage from "../../Components/UplodeImage/UplodeImage";
-import AssesmentResponse from "../../Components/AssesmentResponse/AssesmentResponse";
-import whtmsg from "../../../../public/Images/whtmsg.png";
-import pet1 from "../../../../public/Images/pet1.png";
-import whtcheck from "../../../../public/Images/whtcheck.png";
-import report1 from "../../../../public/Images/report1.png";
-import report2 from "../../../../public/Images/report2.png";
-import box2 from "../../../../public/Images/box2.png";
-import box4 from "../../../../public/Images/box4.png";
-import box5 from "../../../../public/Images/box5.png";
-import box6 from "../../../../public/Images/box6.png";
-import btn1 from "../../../../public/Images/btn1.png";
-import btn2 from "../../../../public/Images/btn2.png";
-import btn3 from "../../../../public/Images/btn3.png";
-import btn4 from "../../../../public/Images/btn4.png";
-import ChatApp from "../../Components/ChatApp/ChatApp";
-import ActionsTable from "../../Components/ActionsTable/ActionsTable";
-import Accpt from "../../../../public/Images/acpt.png";
-import Decln from "../../../../public/Images/decline.png";
-import DocterWiseAppoint from "../../Components/DocterWiseAppoint/DocterWiseAppoint";
+import React, { useEffect, useState } from 'react';
+import PropTypes from 'prop-types';
+import { BoxDiv, DivHeading, ListSelect, TopHeading } from '../Dashboard/page';
+import './Appointment.css';
+import UplodeImage from '../../Components/UplodeImage/UplodeImage';
+import AssesmentResponse from '../../Components/AssesmentResponse/AssesmentResponse';
+import whtmsg from '../../../../public/Images/whtmsg.png';
+import pet1 from '../../../../public/Images/pet1.png';
+import whtcheck from '../../../../public/Images/whtcheck.png';
+import report1 from '../../../../public/Images/report1.png';
+import report2 from '../../../../public/Images/report2.png';
+import box2 from '../../../../public/Images/box2.png';
+import box4 from '../../../../public/Images/box4.png';
+import box5 from '../../../../public/Images/box5.png';
+import box6 from '../../../../public/Images/box6.png';
+import btn1 from '../../../../public/Images/btn1.png';
+import btn2 from '../../../../public/Images/btn2.png';
+import btn3 from '../../../../public/Images/btn3.png';
+import btn4 from '../../../../public/Images/btn4.png';
+import ChatApp from '../../Components/ChatApp/ChatApp';
+import ActionsTable from '../../Components/ActionsTable/ActionsTable';
+import Accpt from '../../../../public/Images/acpt.png';
+import Decln from '../../../../public/Images/decline.png';
+import DocterWiseAppoint from '../../Components/DocterWiseAppoint/DocterWiseAppoint';
+import axios from 'axios';
+import Swal from 'sweetalert2';
+// import { Button } from 'react-bootstrap';
 
 const Appointment = () => {
   // dropdown
   const optionsList1 = [
-    "Last 7 Days",
-    "Last 10 Days",
-    "Last 20 Days",
-    "Last 21 Days",
+    'Last 7 Days',
+    'Last 10 Days',
+    'Last 20 Days',
+    'Last 21 Days',
   ];
+  const [allAppointments, setAllAppointments] = useState([]);
+  const [total, setTotal] = useState();
+  const getAllAppointments = async (offset) => {
+    console.log('ssssssss');
+    try {
+      const response = await axios.get(
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/getAllAppointments?offset=${offset}`
+      );
+      if (response) {
+        console.log('hospitalssss', response.data);
+        setAllAppointments(response.data.Appointments);
+        setTotal(response.data.totalAppointments);
+      }
+    } catch (error) {
+      console.log('error', error);
+    }
+  };
+  const AppointmentActions = async (id, status, offset) => {
+    console.log('iddd', id, status, offset);
+    try {
+      const response = await axios.put(
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/AppointmentAcceptedAndCancel/${id}`,
+        { status }
+      );
+      if (response.status == 200) {
+        Swal.fire({
+          title: 'Appointment Status Changed',
+          text: 'Appointment Status Changed Successfully',
+          icon: 'success',
+        });
+      }
+      getAllAppointments(offset);
+      // getlast7daysAppointMentsCount();
+    } catch (error) {
+      Swal.fire({
+        title: 'Error',
+        text: 'Failed to Change Appointment Status',
+        icon: 'error',
+      });
+    }
+  };
+  const [AppointmentStatusAndCounts, setAppointmentStatusAndCounts] = useState(
+    {}
+  );
+
+  const getAppUpcCompCanTotalCounts = async (selectedOption) => {
+    const days = parseInt(selectedOption.match(/\d+/)[0], 10);
+    console.log(`Selected Days: ${days}`);
+    try {
+      const response = await axios.get(
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/getAppUpcCompCanTotalCountOnDayBasis`,
+        {
+          params: {
+            LastDays: days,
+          },
+        }
+      );
+      if (response) {
+        setAppointmentStatusAndCounts(response.data);
+      }
+    } catch (error) {
+      Swal.fire({
+        title: 'Error',
+        text: 'Failed to Get Appointments Counts',
+        icon: 'error',
+      });
+    }
+  };
+
+  useEffect(() => {
+    getAllAppointments(0);
+    getAppUpcCompCanTotalCounts('Last 7 Days');
+  }, []);
 
   return (
     <>
@@ -46,7 +122,10 @@ const Appointment = () => {
             <div className="overviewDiv">
               <div className="OverviewTop">
                 <h5>Overview</h5>
-                <ListSelect options={optionsList1} />
+                <ListSelect
+                  options={optionsList1}
+                  onChange={getAppUpcCompCanTotalCounts}
+                />
               </div>
               <div className="overviewitem">
                 <BoxDiv
@@ -54,35 +133,44 @@ const Appointment = () => {
                   ovradcls=" fawndark"
                   ovrtxt="New Appointments"
                   boxcoltext="frowntext"
-                  overnumb="12"
+                  overnumb={AppointmentStatusAndCounts.newAppointments}
                 />
                 <BoxDiv
                   boximg={box2}
                   ovradcls=" purple"
                   ovrtxt="Upcoming"
                   boxcoltext="purpletext"
-                  overnumb="02"
+                  overnumb={AppointmentStatusAndCounts.upcomingAppointments}
                 />
                 <BoxDiv
                   boximg={box5}
                   ovradcls=" cambrageblue"
                   ovrtxt="Completed"
                   boxcoltext="greentext"
-                  overnumb="6"
+                  overnumb={AppointmentStatusAndCounts.completedAppointments}
                 />
                 <BoxDiv
                   boximg={box6}
                   ovradcls="chillibg"
                   ovrtxt="Cancelled"
                   boxcoltext="ciltext"
-                  overnumb="35"
+                  overnumb={AppointmentStatusAndCounts.canceledAppointments}
                 />
               </div>
             </div>
 
             <div>
-              <DivHeading TableHead="New Appointments" tablespan="(3)" />
-              <ActionsTable actimg1={Accpt} actimg2={Decln} />
+              <DivHeading
+                TableHead="New Appointments"
+                tablespan={`(${total})`}
+              />
+              <ActionsTable
+                onClick={getAllAppointments}
+                appointments={allAppointments}
+                onClicked={AppointmentActions}
+                actimg1={Accpt}
+                actimg2={Decln}
+              />
             </div>
 
             <div className="DashCardData">
@@ -294,12 +382,12 @@ export function DashModal() {
 
                 <div className="modlbtn">
                   <button type="button" className="confirm">
-                    {" "}
-                    <img src={box5} alt="" /> Confirm{" "}
+                    {' '}
+                    <img src={box5} alt="" /> Confirm{' '}
                   </button>
                   <button type="button" className="cancel">
-                    {" "}
-                    <img src={box6} alt="" /> Cancel{" "}
+                    {' '}
+                    <img src={box6} alt="" /> Cancel{' '}
                   </button>
                 </div>
               </div>
@@ -328,7 +416,7 @@ export function DashModal() {
                               type="radio"
                               name="recommend"
                               className="radio-button"
-                              aria-label="rate 1"
+                              // arial-label="rate 1"
                               data-text="1"
                             />
                           </li>
@@ -337,7 +425,7 @@ export function DashModal() {
                               type="radio"
                               name="recommend"
                               className="radio-button"
-                              aria-label="rate 2"
+                              // arial-label="rate 2"
                               data-text="2"
                             />
                           </li>
@@ -352,7 +440,7 @@ export function DashModal() {
                               type="radio"
                               name="recommend"
                               className="radio-button"
-                              aria-label="rate 3"
+                              // arial-label="rate 3"
                               data-text="3"
                             />
                           </li>
@@ -361,7 +449,7 @@ export function DashModal() {
                               type="radio"
                               name="recommend"
                               className="radio-button"
-                              aria-label="rate 4"
+                              // arial-label="rate 4"
                               data-text="4"
                             />
                           </li>
@@ -376,7 +464,7 @@ export function DashModal() {
                               type="radio"
                               name="recommend"
                               className="radio-button"
-                              aria-label="rate 5"
+                              // arial-label="rate 5"
                               data-text="5"
                             />
                           </li>
@@ -385,7 +473,7 @@ export function DashModal() {
                               type="radio"
                               name="recommend"
                               className="radio-button"
-                              aria-label="rate 6"
+                              // arial-label="rate 6"
                               data-text="6"
                             />
                           </li>
@@ -401,7 +489,7 @@ export function DashModal() {
                               name="recommend"
                               className="radio-button"
                               // eslint-disable-next-line react/no-unknown-property
-                              arial-label="rate 7"
+                              // arial-label="rate 7"
                               data-text="7"
                             />
                           </li>
@@ -411,7 +499,7 @@ export function DashModal() {
                               name="recommend"
                               className="radio-button"
                               // eslint-disable-next-line react/no-unknown-property
-                              arial-label="rate 8"
+                              // arial-label="rate 8"
                               data-text="8"
                             />
                           </li>
@@ -426,7 +514,7 @@ export function DashModal() {
                               type="radio"
                               name="recommend"
                               className="radio-button"
-                              aria-label="rate 9"
+                              // arial-label="rate 9"
                               data-text="9"
                             />
                           </li>
@@ -435,7 +523,7 @@ export function DashModal() {
                               type="radio"
                               name="recommend"
                               className="radio-button"
-                              aria-label="rate 10"
+                              // arial-label="rate 10"
                               data-text="10"
                             />
                           </li>
@@ -525,15 +613,6 @@ export function TextAreaDiv({ Arealabl }) {
 }
 
 // Main Btn
-MainBtn.propTypes = {
-  bimg: PropTypes.string,
-  btext: PropTypes.string,
-  optclas: PropTypes.string,
-  mdtarget: PropTypes.string,
-  btntyp: PropTypes.string,
-  onClick: PropTypes.string,
-  disabled: PropTypes.bool,
-};
 export function MainBtn({
   bimg,
   btext,
@@ -548,8 +627,9 @@ export function MainBtn({
       <button
         type={btntyp}
         disabled={disabled}
-        data-bs-toggle="modal"
-        data-bs-target={mdtarget}
+        {...(mdtarget
+          ? { 'data-bs-toggle': 'modal', 'data-bs-target': mdtarget }
+          : {})}
         onClick={onClick}
       >
         {bimg && <img src={bimg} alt="button icon" />} {btext}
@@ -557,11 +637,21 @@ export function MainBtn({
     </div>
   );
 }
-MainBtn.defaultProps = {
-  optclas: "",
-  disabled: false,
+
+MainBtn.propTypes = {
+  bimg: PropTypes.string,
+  btext: PropTypes.string,
+  optclas: PropTypes.string,
+  mdtarget: PropTypes.string,
+  btntyp: PropTypes.string,
+  onClick: PropTypes.func, // ✅ Fix here
+  disabled: PropTypes.bool,
 };
 
+MainBtn.defaultProps = {
+  optclas: '',
+  disabled: false,
+};
 // AppointCard start
 AppointCard.propTypes = {
   crdimg: PropTypes.string,

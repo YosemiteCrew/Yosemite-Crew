@@ -1,29 +1,62 @@
 // eslint-disable-next-line no-unused-vars
-import React, { useState } from "react";
-import "./Dashboard.css";
-import PropTypes from "prop-types";
-import grph1 from "../../../../public/Images/graph1.png";
-import grph2 from "../../../../public/Images/graph2.png";
-import grph3 from "../../../../public/Images/graph3.png";
-import Accpt from "../../../../public/Images/acpt.png";
-import Decln from "../../../../public/Images/decline.png";
-import box1 from "../../../../public/Images/box1.png";
-import box2 from "../../../../public/Images/box2.png";
-import box3 from "../../../../public/Images/box3.png";
-import box4 from "../../../../public/Images/box4.png";
-import { Link } from "react-router-dom";
-// import Topic from "../../../../public/Images/topic.png";
-import ActionsTable from "../../Components/ActionsTable/ActionsTable";
-import StatusTable from "../../Components/StatusTable/StatusTable";
+import React, { useEffect, useState } from 'react';
+import './Dashboard.css';
+import PropTypes from 'prop-types';
+import grph1 from '../../../../public/Images/graph1.png';
+import grph2 from '../../../../public/Images/graph2.png';
+import grph3 from '../../../../public/Images/graph3.png';
+import Accpt from '../../../../public/Images/acpt.png';
+import Decln from '../../../../public/Images/decline.png';
+import box1 from '../../../../public/Images/box1.png';
+import box2 from '../../../../public/Images/box2.png';
+import box3 from '../../../../public/Images/box3.png';
+import box4 from '../../../../public/Images/box4.png';
+import { Link } from 'react-router-dom';
+// import Topic from "../../../public/Images/topic.png";
+import ActionsTable from '../../Components/ActionsTable/ActionsTable';
+import StatusTable from '../../Components/StatusTable/StatusTable';
+import axios from 'axios';
+import StackedBarChart from '../Graph/page';
 
 const Dashboard = () => {
   // Dropdown options
   const optionsList = [
-    "Last 6 Months",
-    "Last 6 Months",
-    "Last 6 Months",
-    "Last 6 Months",
+    'Last 6 Months',
+    'Last 7 Months',
+    'Last 8 Months',
+    'Last 9 Months',
   ];
+  const [CancelCompletedGraph, setCancelCompletedGraph] = useState(null);
+  console.table(CancelCompletedGraph);
+  const AppointmentGraphOnMonthBase = async (selectedOption) => {
+    const days = parseInt(selectedOption.match(/\d+/)[0], 10);
+    console.log(`Selected Days: ${days}`);
+    try {
+      const response = await axios.get(
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/AppointmentGraphOnMonthBase`,
+        {
+          params: {
+            days: days,
+          },
+        }
+      );
+      console.log(response.data);
+      if (response) {
+        setCancelCompletedGraph(
+          response.data.data.map((v) => ({
+            month: v.monthName,
+            completed: v.successful,
+            cancelled: v.canceled,
+          }))
+        );
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+  useEffect(() => {
+    AppointmentGraphOnMonthBase('Last 6 Months');
+  }, []);
 
   return (
 
@@ -38,7 +71,7 @@ const Dashboard = () => {
               />
               <div className="dashvisible">
                 <Link to="/clinicvisible">
-                  {" "}
+                  {' '}
                   <a>
                     <i className="ri-eye-fill"></i> Manage Clinic Visibility
                   </a>
@@ -85,10 +118,13 @@ const Dashboard = () => {
               <div className="DashGraphCard">
                 <div className="GraphTop">
                   <h5>Appointments</h5>
-                  <ListSelect options={optionsList} />
+                  <ListSelect
+                    options={optionsList}
+                    onChange={AppointmentGraphOnMonthBase}
+                  />
                 </div>
                 <div className="graphimg">
-                  <img src={grph1} alt="graph1" />
+                  <StackedBarChart data={CancelCompletedGraph} />
                 </div>
               </div>
 
@@ -155,14 +191,19 @@ export default Dashboard;
 // ListSelect Component
 ListSelect.propTypes = {
   options: PropTypes.arrayOf(PropTypes.string).isRequired,
+  onChange: PropTypes.func.isRequired,
 };
 
-export function ListSelect({ options }) {
+export function ListSelect({ options, onChange }) {
   return (
     <div className="grphSlect">
-      <select className="form-select" aria-label="Default select example">
+      <select
+        className="form-select"
+        aria-label="Default select example"
+        onChange={(e) => onChange(e.target.value)}
+      >
         {options.map((option, index) => (
-          <option key={index} value={index}>
+          <option key={index} value={option}>
             {option}
           </option>
         ))}
@@ -235,7 +276,7 @@ export function TopHeading({ spantext, heding, notif }) {
       </div>
       <div className="RytNotify">
         <a href="#">
-          <i className="ri-notification-3-fill"></i> {notif}{" "}
+          <i className="ri-notification-3-fill"></i> {notif}{' '}
         </a>
       </div>
     </div>

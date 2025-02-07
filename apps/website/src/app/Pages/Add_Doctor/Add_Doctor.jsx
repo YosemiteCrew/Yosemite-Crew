@@ -1,20 +1,20 @@
 // eslint-disable-next-line no-unused-vars
-import React, { useEffect, useState } from "react";
-import "./Add_Doctor.css";
-import PropTypes, { object } from "prop-types";
-import { BoxDiv } from "../Dashboard/page";
-import { TextSpan } from "../Appointment/page";
-import { DashHeadtext } from "../Doctor_Dashboard/Doctor_Dashboard";
+import React, { useEffect, useState } from 'react';
+import './Add_Doctor.css';
+import PropTypes, { object } from 'prop-types';
+import { BoxDiv } from '../Dashboard/page';
+import { TextSpan } from '../Appointment/page';
+import { DashHeadtext } from '../Doctor_Dashboard/Doctor_Dashboard';
 // import Header from '../../Components/Header/Header';
-import box1 from "../../../../public/Images/box1.png";
-import box2 from "../../../../public/Images/box2.png";
-import box3 from "../../../../public/Images/box3.png";
-import box4 from "../../../../public/Images/box4.png";
-import Doctor1 from "../../../../public/Images/Doctor1.png";
-import axios from "axios";
-import { Link, useNavigate } from "react-router-dom";
-import { propTypes } from "react-bootstrap/esm/Image";
-import { useAuth } from "../../context/AuthContext";
+import box1 from '../../../../public/Images/box1.png';
+import box2 from '../../../../public/Images/box2.png';
+import box3 from '../../../../public/Images/box3.png';
+import box4 from '../../../../public/Images/box4.png';
+import Doctor1 from '../../../../public/Images/Doctor1.png';
+import axios from 'axios';
+import { Link, useNavigate } from 'react-router-dom';
+import { propTypes } from 'react-bootstrap/esm/Image';
+import { useAuth } from '../../context/AuthContext';
 
 const useDebounce = (value, delay) => {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -35,24 +35,22 @@ const Add_Doctor = () => {
 
   const [doctorsData, setDoctorsData] = useState([]);
   const [overview, setOverview] = useState([]);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState('');
   // console.log("doctorsData", doctorsData);
 
   const debouncedSearch = useDebounce(search, 500);
   const getaDoctors = async () => {
     try {
       // Get the token from sessionStorage
-      const token = sessionStorage.getItem("token");
+      const token = sessionStorage.getItem('token');
 
       if (!token) {
-        console.error("No token found in sessionStorage");
+        console.error('No token found in sessionStorage');
         // await verifyAndRefreshToken(navigate); // Call the function from AuthContext
-        navigate("/signin");
+        navigate('/signin');
       }
       const response = await axios.get(
-        `${
-          import.meta.env.NX_PUBLIC_VITE_BASE_URL
-        }api/doctors/searchDoctorsByName?name=${debouncedSearch}`,
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/searchDoctorsByName?name=${debouncedSearch}`,
         {
           headers: {
             Authorization: `Bearer ${token}`, // Attach the token to the request headers
@@ -63,23 +61,23 @@ const Add_Doctor = () => {
       if (response && response.data) {
         setDoctorsData(response.data);
       } else {
-        console.log("No data found");
+        console.log('No data found');
       }
     } catch (error) {
-      console.error("Error fetching doctors data:", error);
+      console.error('Error fetching doctors data:', error);
     }
   };
 
   const getOverview = async () => {
     try {
       const response = await axios.get(
-        `${import.meta.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/getOverview`
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/getOverview`
       );
       if (response) {
         setOverview(response.data);
       }
     } catch (error) {
-      console.error("Error fetching overview:", error);
+      console.error('Error fetching overview:', error);
     }
   };
 
@@ -158,11 +156,11 @@ const Add_Doctor = () => {
                           doctimg={doctor.image} // Replace with dynamic image if available
                           doctname={doctor.doctorName}
                           doctpotion={doctor.qualification}
-                          dutyname={doctor.dutyname || "On-Duty"} // Ensure dutyname is handled
+                          dutyname={doctor.dutyname || 'On-Duty'} // Ensure dutyname is handled
                           offclass={
-                            doctor.dutyname === "Off-Duty"
-                              ? "OffDuty"
-                              : "OnDuty"
+                            doctor.dutyname === 'Off-Duty'
+                              ? 'OffDuty'
+                              : 'OnDuty'
                           } // Add dynamic class based on duty
                         />
                       ))}
@@ -208,7 +206,7 @@ export function DoctorCard({
         <p>{doctpotion}</p>
       </div>
       <a className={`dutybtn ${offclass}`} href="#">
-        {dutyname}{" "}
+        {dutyname}{' '}
       </a>
     </div>
   );
@@ -244,7 +242,7 @@ export function AddSerchHead({ adtext, adbtntext, adhrf, onChange }) {
         </div>
         <Link to={adhrf}>
           <i className="ri-add-circle-line"></i>
-          {adbtntext}{" "}
+          {adbtntext}{' '}
         </Link>
       </div>
     </div>

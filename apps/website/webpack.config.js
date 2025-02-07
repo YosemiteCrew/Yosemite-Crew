@@ -1,7 +1,7 @@
 const { NxAppWebpackPlugin } = require('@nx/webpack/app-plugin');
 const { NxReactWebpackPlugin } = require('@nx/react/webpack-plugin');
 const { join } = require('path');
-const webpack = require('webpack')
+const webpack = require('webpack');
 const dotenv = require('dotenv');
 dotenv.config();
 
@@ -11,6 +11,7 @@ module.exports = {
   },
   devServer: {
     port: 4200,
+    allowedHosts: 'all',
     historyApiFallback: {
       index: '/index.html',
       disableDotRule: true,
@@ -28,7 +29,7 @@ module.exports = {
       styles: ['./src/app/index.css'],
       outputHashing: process.env['NODE_ENV'] === 'production' ? 'all' : 'none',
       optimization: process.env['NODE_ENV'] === 'production',
-      generatePackageJson: true
+      generatePackageJson: true,
     }),
     new NxReactWebpackPlugin({
       // Uncomment this line if you don't want to use SVGR
@@ -36,7 +37,9 @@ module.exports = {
       // svgr: false
     }),
     new webpack.DefinePlugin({
-      'process.env.NX_PUBLIC_VITE_BASE_URL': JSON.stringify(process.env.NX_PUBLIC_VITE_BASE_URL),
+      'process.env.NX_PUBLIC_VITE_BASE_URL': JSON.stringify(
+        process.env.NX_PUBLIC_VITE_BASE_URL
+      ),
     }),
   ],
 };

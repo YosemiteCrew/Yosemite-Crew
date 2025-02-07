@@ -1,9 +1,9 @@
-const AWS = require("aws-sdk");
-const crypto = require("crypto");
-const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
-const { WebUser, ProfileData } = require("../models/WebUser");
-const path = require("path");
+const AWS = require('aws-sdk');
+const crypto = require('crypto');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const { WebUser, ProfileData } = require('../models/WebUser');
+const path = require('path');
 
 const secretKey = process.env.ENCRYPTION_KEY;
 const SES = new AWS.SES();
@@ -27,108 +27,211 @@ const WebController = {
       if (!email || !password) {
         return res
           .status(400)
-          .json({ message: "Email and password are required." });
+          .json({ message: 'Email and password are required.' });
       }
 
-      const existingUser = await WebUser.findOne({ email });
-      console.log("existingUser", existingUser);
+      console.log('Checking if user exists in Cognito...');
 
-      if (existingUser) {
-        return res.status(409).json({ message: "User already exists." });
+      // Check if user exists in Cognito
+      try {
+        const params = {
+          UserPoolId: process.env.COGNITO_USER_POOL_ID_WEB,
+          Username: email,
+        };
+        const userData = await cognito.adminGetUser(params).promise();
+
+        console.log('User found in Cognito:', userData);
+
+        // Check if email is verified
+        const emailVerified =
+          userData.UserAttributes.find((attr) => attr.Name === 'email_verified')
+            ?.Value === 'true';
+
+        console.log('Email verified status:', emailVerified);
+
+        if (emailVerified) {
+          return res
+            .status(409)
+            .json({ message: 'User already exists. Please login.' });
+        }
+
+        // If user exists but is NOT verified, resend OTP
+        console.log('User exists but is not verified. Resending OTP...');
+        const resendParams = {
+          ClientId: process.env.COGNITO_CLIENT_ID_WEB,
+          Username: email,
+        };
+
+        if (process.env.COGNITO_CLIENT_SECRET) {
+          resendParams.SecretHash = getSecretHash(email);
+        }
+
+        await cognito.resendConfirmationCode(resendParams).promise();
+
+        return res.status(200).json({ message: 'New OTP sent to your email.' });
+      } catch (err) {
+        if (err.code !== 'UserNotFoundException') {
+          console.error('Error checking Cognito user:', err);
+          return res
+            .status(500)
+            .json({ message: 'Error checking user status.' });
+        }
       }
-      console.log("existingUser", existingUser);
 
-      const hashedPassword = await hashPassword(password);
-      const secretHash = getSecretHash(email);
+      // If user is not found, proceed with registration
+      console.log('User not found. Proceeding with registration...');
 
-      const countryCode = +91;
-      const mobilePhone = 7985897358;
-      const city = "nothing";
-      const firstName = "hello";
-      const lastName = "world";
-
-      const params = {
-        ClientId: process.env.COGNITO_CLIENT_ID,
-        SecretHash: secretHash,
+      const signUpParams = {
+        ClientId: process.env.COGNITO_CLIENT_ID_WEB,
         Username: email,
         Password: password,
-        UserAttributes: [
-          { Name: "email", Value: email },
-          { Name: "phone_number", Value: `+${countryCode}${mobilePhone}` },
-          { Name: "address", Value: city },
-          { Name: "name", Value: `${firstName} ${lastName}` },
-        ],
+        UserAttributes: [{ Name: 'email', Value: email }],
       };
 
-      const signUpCognito = () =>
-        new Promise((resolve, reject) => {
-          cognito.signUp(params, (err, data) => {
-            if (err) return reject(err);
-            resolve(data);
-          });
-        });
+      if (process.env.COGNITO_CLIENT_SECRET) {
+        signUpParams.SecretHash = getSecretHash(email);
+      }
 
+      let data;
       try {
-        await signUpCognito();
-
-        const newUser = new WebUser({
-          email,
-          password: hashedPassword,
-          businessType,
-        });
-
-        const savedUser = await newUser.save();
-        const token = await jwt.sign(
-          {
-            email: savedUser.email,
-            userId: savedUser._id,
-            userType: savedUser.businessType,
-          },
-          process.env.JWT_SECRET,
-          { expiresIn: process.env.EXPIRE_IN }
-        );
-        console.log("token", token);
-        // const refreshToken = await jwt.sign(
-        //   {
-        //     email: savedUser.email,
-        //     userId: savedUser._id,
-        //     userType: savedUser.businessType,
-        //   },
-        //   process.env.JWT_SECRET,
-        //   { expiresIn: process.env.EXPIRE_IN_REFRESH }
-        // );
-
-        // res.cookie("accessToken", token, {
-        //   httpOnly: false,
-        //   secure: process.env.NODE_ENV === "production",
-        //   maxAge: 60 * 60 * 1000,
-        //   sameSite: "Strict",
-        //   path: "/",
-        // });
-
-        // res.cookie("refreshToken", refreshToken, {
-        //   httpOnly: false,
-        //   secure: process.env.NODE_ENV === "production",
-        //   maxAge: 24 * 60 * 60 * 1000,
-        //   sameSite: "Strict",
-        //   path: "/",
-        // });
-        return res.status(200).json({
-          message: "User registered successfully!",
-          userId: savedUser._id,
-          token,
-        });
-      } catch (dbError) {
-        console.error("Error saving user to DB:", dbError);
+        data = await cognito.signUp(signUpParams).promise();
+        console.log('User successfully registered in Cognito:', data);
+      } catch (err) {
+        if (err.code === 'UsernameExistsException') {
+          return res.status(409).json({
+            message:
+              'User already exists in Cognito. Please verify your email.',
+          });
+        }
+        console.error('Cognito Signup Error:', err);
         return res
           .status(500)
-          .json({ message: "Error while saving user to the database." });
+          .json({ message: 'Error registering user. Please try again later.' });
       }
+
+      // Save only CognitoId and BusinessType in MongoDB
+      const newUser = new WebUser({
+        cognitoId: data.UserSub,
+        businessType,
+      });
+
+      await newUser.save();
+
+      return res.status(200).json({
+        message:
+          'User registered successfully! Please verify your email with OTP.',
+      });
     } catch (error) {
-      console.error("Error:", error);
+      console.error('Unexpected Error:', error);
       return res
         .status(500)
-        .json({ message: "Internal Server Error. Please try again later." });
+        .json({ message: 'Internal Server Error. Please try again later.' });
+    }
+  },
+
+  verifyUser: async (req, res) => {
+    try {
+      const { email, otp } = req.body;
+
+      if (!email || !otp) {
+        return res.status(400).json({ message: 'Email and OTP are required.' });
+      }
+
+      console.log('Verifying OTP for email:', email);
+
+      const secretHash = getSecretHash(email);
+
+      // Retrieve Cognito user details to check if the user is already confirmed
+      const params = {
+        UserPoolId: process.env.COGNITO_USER_POOL_ID_WEB,
+        Username: email,
+      };
+
+      let cognitoId;
+      let isUserVerified = false;
+
+      try {
+        const userData = await cognito.adminGetUser(params).promise();
+        console.log('Cognito User Data:', JSON.stringify(userData, null, 2));
+
+        // Check if user is already verified
+        const emailVerified =
+          userData?.UserAttributes?.find(
+            (attr) => attr.Name === 'email_verified'
+          )?.Value === 'true';
+
+        if (emailVerified) {
+          isUserVerified = true;
+        }
+
+        // Extract Cognito ID (sub)
+        cognitoId = userData?.UserAttributes?.find(
+          (attr) => attr.Name === 'sub'
+        )?.Value;
+
+        if (!cognitoId) {
+          console.error('Cognito ID (sub) not found:', userData.UserAttributes);
+          return res.status(500).json({ message: 'Cognito ID not found.' });
+        }
+
+        console.log('Cognito ID:', cognitoId);
+      } catch (err) {
+        console.error('Error retrieving Cognito user:', err);
+        return res
+          .status(500)
+          .json({ message: 'Error retrieving user details.' });
+      }
+
+      // If the user is not verified yet, proceed with OTP confirmation
+      if (!isUserVerified) {
+        // Confirm user signup with OTP in Cognito
+        const confirmParams = {
+          ClientId: process.env.COGNITO_CLIENT_ID_WEB,
+          SecretHash: secretHash,
+          Username: email,
+          ConfirmationCode: String(otp),
+        };
+
+        try {
+          await cognito.confirmSignUp(confirmParams).promise();
+          console.log('User confirmed with OTP');
+        } catch (err) {
+          console.error('Cognito Verification Error:', err);
+          return res.status(400).json({
+            message: 'Invalid OTP or user already verified.',
+          });
+        }
+      }
+
+      // Find the user in MongoDB using cognitoId
+      const user = await WebUser.findOne({ cognitoId });
+
+      if (!user) {
+        return res
+          .status(404)
+          .json({ message: 'User not found in the system' });
+      }
+
+      // Generate JWT token
+      const token = jwt.sign(
+        {
+          userId: cognitoId,
+          email,
+          userType: user.businessType,
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: process.env.EXPIRE_IN }
+      );
+
+      return res.status(200).json({
+        message: 'User verified successfully!',
+        token,
+      });
+    } catch (error) {
+      console.error('Unexpected Error:', error);
+      return res
+        .status(500)
+        .json({ message: 'Internal Server Error. Please try again later.' });
     }
   },
 
@@ -139,83 +242,99 @@ const WebController = {
       if (!email || !password) {
         return res
           .status(400)
-          .json({ message: "Email and password are required" });
+          .json({ message: 'Email and password are required' });
       }
 
-      const getEmail = await WebUser.findOne({ email });
-      if (!getEmail) {
-        return res.status(404).json({ message: "User not found" });
+      const secretHash = getSecretHash(email);
+
+      const params = {
+        AuthFlow: 'USER_PASSWORD_AUTH',
+        ClientId: process.env.COGNITO_CLIENT_ID_WEB,
+        AuthParameters: {
+          SECRET_HASH: secretHash,
+          USERNAME: email,
+          PASSWORD: password,
+        },
+      };
+
+      // Authenticate user with Cognito
+      const data = await cognito.initiateAuth(params).promise();
+
+      if (!data.AuthenticationResult) {
+        return res.status(401).json({ message: 'Invalid credentials' });
       }
 
-      const isValidPassword = await bcrypt.compare(password, getEmail.password);
-      if (!isValidPassword) {
-        return res.status(401).json({ message: "Invalid password" });
+      // Get user details from Cognito to extract cognitoId (sub)
+      const userDetails = await cognito
+        .adminGetUser({
+          UserPoolId: process.env.COGNITO_USER_POOL_ID_WEB,
+          Username: email,
+        })
+        .promise();
+
+      const cognitoId = userDetails.UserAttributes.find(
+        (attr) => attr.Name === 'sub'
+      )?.Value;
+
+      if (!cognitoId) {
+        return res
+          .status(500)
+          .json({ message: 'Failed to retrieve Cognito ID' });
       }
 
+      // Find user in MongoDB using cognitoId
+      const user = await WebUser.findOne({ cognitoId });
+
+      if (!user) {
+        return res
+          .status(404)
+          .json({ message: 'User not found in the system' });
+      }
+
+      // Generate JWT token
       const token = jwt.sign(
         {
-          email: getEmail.email,
-          userId: getEmail._id,
-          userType: getEmail.businessType,
+          userId: cognitoId,
+          email,
+          userType: user.businessType,
         },
         process.env.JWT_SECRET,
         { expiresIn: process.env.EXPIRE_IN }
       );
 
-      // const refreshToken = jwt.sign(
-      //   {
-      //     email: getEmail.email,
-      //     userId: getEmail._id,
-      //     userType: getEmail.businessType,
-      //   },
-      //   process.env.JWT_SECRET,
-      //   { expiresIn: process.env.EXPIRE_IN_REFRESH }
-      // );
-
-      // res.cookie("accessToken", token, {
-      //   httpOnly: false,
-      //   secure: process.env.NODE_ENV === "production",
-      //   maxAge: 60 * 60 * 1000,
-      //   sameSite: "Strict",
-      //   path: "/",
-      // });
-
-      // res.cookie("refreshToken", refreshToken, {
-      //   httpOnly: false,
-      //   secure: process.env.NODE_ENV === "production",
-      //   maxAge: 24 * 60 * 60 * 1000,
-      //   sameSite: "Strict",
-      //   path: "/",
-      // });
-
-      return res.status(200).json({
-        message: "Login Successful",
+      return res.json({
         token,
-        // refreshToken,
+        message: 'Logged in successfully',
       });
     } catch (error) {
-      console.error("Error during sign-in:", error);
-      return res.status(500).json({ message: "Internal server error", error });
+      console.error('Error during sign-in:', error);
+
+      if (error.code === 'NotAuthorizedException') {
+        return res.status(401).json({ message: 'Invalid email or password' });
+      }
+
+      return res.status(500).json({ message: 'Internal server error', error });
     }
   },
+
   signOut: async (req, res) => {
     try {
-      res.clearCookie("accessToken", {
+      res.clearCookie('accessToken', {
         httpOnly: false,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "Strict",
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'Strict',
       });
 
-      res.clearCookie("refreshToken", {
+      res.clearCookie('refreshToken', {
         httpOnly: false,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "Strict",
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'Strict',
       });
 
-      return res.status(200).json({ message: "Logout successful" });
+      return res.status(200).json({ message: 'Logout successful' });
     } catch (error) {
-      console.error("Error during sign-out:", error);
-      return res.status(500).json({ message: "Internal server error" });
+      console.error('Error during sign-out:', error);
+      return res.status(500).json({ message: 'Internal server error' });
     }
   },
 
@@ -224,78 +343,78 @@ const WebController = {
       const { email } = req.body;
       console.log(email);
 
-      const user = await WebUser.findOne({ email });
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      } else {
-        const otp = Math.floor(1000 + Math.random() * 9000);
-        const otpExpiry = Date.now() + 5 * 60 * 1000;
-        await WebUser.updateOne({ email }, { $set: { otp, otpExpiry } });
-        const params = {
-          Source: process.env.MAIL_DRIVER,
-          Destination: {
-            ToAddresses: [email],
-          },
-          Message: {
-            Subject: { Data: "Your OTP Code" },
-            Body: {
-              Text: { Data: `Your OTP is: ${otp}. It is valid for 5 minutes.` },
-            },
-          },
-        };
-        const emailSent = await SES.sendEmail(params).promise();
-        console.log("Email sent:", emailSent);
-        res.status(200).json({ message: "Otp sent successfully" });
+      // Check if user exists in Cognito
+      const params = {
+        UserPoolId: process.env.COGNITO_USER_POOL_ID_WEB,
+        Username: email,
+      };
+
+      try {
+        await cognito.adminGetUser(params).promise(); // Ensure user exists
+      } catch (err) {
+        if (err.code === 'UserNotFoundException') {
+          return res.status(404).json({ message: 'User not found in Cognito' });
+        }
+        console.error('Error checking user in Cognito:', err);
+        return res
+          .status(500)
+          .json({ message: 'Error checking user status in Cognito.' });
       }
+
+      // Send a password reset code to the user using Cognito's forgotPassword API
+      const resetParams = {
+        ClientId: process.env.COGNITO_CLIENT_ID_WEB,
+        Username: email,
+      };
+
+      if (process.env.COGNITO_CLIENT_SECRET_WEB) {
+        resetParams.SecretHash = getSecretHash(email);
+      }
+
+      await cognito.forgotPassword(resetParams).promise();
+
+      // Success
+      return res.status(200).json({
+        message:
+          'Password reset code sent to your email. Please check your inbox.',
+      });
     } catch (error) {
-      console.error("Login error:", error);
-      res
-        .status(500)
-        .json({ message: "Error during login", error: error.message });
+      console.error('Error during forgotPassword:', error);
+      return res.status(500).json({
+        message: 'Error during password reset process',
+        error: error.message,
+      });
     }
   },
+
   verifyOtp: async (req, res) => {
     try {
       const { email, otp } = req.body;
 
-      console.log("Received OTP:", otp);
-
       if (!email || !otp) {
-        return res.status(400).json({ message: "Email and OTP are required" });
+        return res.status(400).json({ message: 'Email and OTP are required.' });
       }
 
-      const user = await WebUser.findOne({ email });
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      const confirmParams = {
+        ClientId: process.env.COGNITO_CLIENT_ID_WEB,
+        Username: email,
+        ConfirmationCode: otp, // OTP received from the user
+      };
+
+      if (process.env.COGNITO_CLIENT_SECRET) {
+        confirmParams.SecretHash = getSecretHash(email);
       }
 
-      const formattedOtp = Array.isArray(otp)
-        ? parseInt(otp.join(""), 10)
-        : parseInt(otp, 10);
-
-      const isOtpValid = user.otp === formattedOtp;
-      const isOtpExpired = Date.now() > user.otpExpiry;
-
-      if (!isOtpValid) {
-        return res.status(401).json({ message: "Invalid OTP" });
-      }
-
-      if (isOtpExpired) {
-        return res.status(401).json({ message: "OTP has expired" });
-      }
-
-      await WebUser.updateOne(
-        { email },
-        { $unset: { otp: "", otpExpiry: "" } }
-      );
-
-      res.status(200).json({ message: "OTP verified successfully" });
-    } catch (error) {
-      console.error("OTP verification error:", error);
-      res.status(500).json({
-        message: "Error during OTP verification",
-        error: error.message,
+      // Verify OTP
+      await cognito.confirmForgotPassword(confirmParams).promise();
+      res.status(200).json({
+        message: 'OTP verified successfully. You can now reset your password.',
       });
+    } catch (error) {
+      console.error('Error verifying OTP:', error);
+      res
+        .status(500)
+        .json({ message: 'Error verifying OTP.', error: error.message });
     }
   },
   updatePassword: async (req, res) => {
@@ -303,24 +422,24 @@ const WebController = {
       const { email, password } = req.body;
       const getdata = await WebUser.findOne({ email });
       if (!getdata) {
-        return res.status(404).json({ message: "User not found" });
+        return res.status(404).json({ message: 'User not found' });
       } else {
         const hashedPassword = await bcrypt.hash(password, 10);
         await WebUser.updateOne(
           { email },
           { $set: { password: hashedPassword } }
         );
-        res.status(200).json({ message: "Password updated successfully" });
+        res.status(200).json({ message: 'Password updated successfully' });
       }
     } catch (error) {
-      console.error("Error updating password:", error);
+      console.error('Error updating password:', error);
       res.status(500).json({
-        message: "Error updating password",
+        message: 'Error updating password',
       });
     }
   },
   setupProfile: async (req, res) => {
-    console.log("Files:", req.files?.prescription_upload);
+    console.log('Files:', req.files?.prescription_upload);
     try {
       const {
         userId,
@@ -337,7 +456,7 @@ const WebController = {
         activeModes,
         selectedServices,
       } = req.body;
-      console.log("selectedServices", selectedServices);
+      console.log('selectedServices', selectedServices);
       const uploadToS3 = (file, folderName) => {
         return new Promise((resolve, reject) => {
           const params = {
@@ -349,7 +468,7 @@ const WebController = {
 
           s3.upload(params, (err, data) => {
             if (err) {
-              console.error("Error uploading to S3:", err);
+              console.error('Error uploading to S3:', err);
               reject(err);
             } else {
               resolve(data.Key);
@@ -359,10 +478,10 @@ const WebController = {
       };
 
       const logo = req.files?.logo
-        ? await uploadToS3(req.files.logo, "logo")
+        ? await uploadToS3(req.files.logo, 'logo')
         : undefined; // Don't overwrite if no new logo is provided
       const prescriptionUpload = req.files?.prescription_upload
-        ? await uploadToS3(req.files.prescription_upload, "prescriptions")
+        ? await uploadToS3(req.files.prescription_upload, 'prescriptions')
         : undefined; // Don't overwrite if no new prescription file is provided
 
       const profile = await ProfileData.findOne({ userId });
@@ -386,7 +505,7 @@ const WebController = {
             },
           }
         );
-        res.status(200).json({ message: "Profile updated successfully" });
+        res.status(200).json({ message: 'Profile updated successfully' });
       } else {
         // Create a new profile if it doesn't exist
         const newProfile = await ProfileData.create({
@@ -403,13 +522,13 @@ const WebController = {
           prescription_upload: prescriptionUpload || null,
         });
         if (newProfile) {
-          res.status(200).json({ message: "Profile created successfully" });
+          res.status(200).json({ message: 'Profile created successfully' });
         }
       }
     } catch (error) {
-      console.error("Error updating profile:", error.message, error.stack);
+      console.error('Error updating profile:', error.message, error.stack);
       res.status(500).json({
-        message: "Error updating profile",
+        message: 'Error updating profile',
       });
     }
   },
@@ -437,22 +556,22 @@ const WebController = {
           prescriptionUploadUrl,
         });
       } else {
-        res.status(404).json({ message: "Profile not found" });
+        res.status(404).json({ message: 'Profile not found' });
       }
     } catch (error) {
-      console.error("Error getting profile:", error);
-      res.status(500).json({ message: "Error retrieving profile" });
+      console.error('Error getting profile:', error);
+      res.status(500).json({ message: 'Error retrieving profile' });
     }
   },
 };
 function getSecretHash(email) {
-  const clientId = process.env.COGNITO_CLIENT_ID;
-  const clientSecret = process.env.COGNITO_CLIENT_SECRET;
+  const clientId = process.env.COGNITO_CLIENT_ID_WEB;
+  const clientSecret = process.env.COGNITO_CLIENT_SECRET_WEB;
 
   return crypto
-    .createHmac("SHA256", clientSecret)
+    .createHmac('SHA256', clientSecret)
     .update(email + clientId)
-    .digest("base64");
+    .digest('base64');
 }
 
 module.exports = WebController;

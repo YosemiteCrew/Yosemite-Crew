@@ -1,25 +1,25 @@
 // eslint-disable-next-line no-unused-vars
-import React, { useEffect, useState } from "react";
-import "./DoctorProfile.css";
-import PropTypes from "prop-types";
-import { Button, Col, Container, Form, Row } from "react-bootstrap";
-import whtcheck from "../../../../public/Images/whtcheck.png";
-import { Link, useNavigate } from "react-router-dom";
-import { FiEdit3 } from "react-icons/fi";
-import doctprofile from "../../../../public/Images/doctprofile.png";
-import { IoIosAddCircle } from "react-icons/io";
-import { BsFileDiffFill } from "react-icons/bs";
-import { AiFillFileImage } from "react-icons/ai";
-import { RxCrossCircled } from "react-icons/rx";
-import Modal from "react-bootstrap/Modal";
-import camera from "../../../../public/Images/camera.png";
-import { Forminput } from "../SignUp/SignUp";
-import DynamicDatePicker from "../../Components/DynamicDatePicker/DynamicDatePicker";
-import axios from "axios";
-import { useAuth } from "../../context/AuthContext";
-import { FaFileWord } from "react-icons/fa";
-import { MainBtn } from "../Appointment/page";
-import Swal from "sweetalert2";
+import React, { useEffect, useState } from 'react';
+import './DoctorProfile.css';
+import PropTypes from 'prop-types';
+import { Button, Col, Container, Form, Row } from 'react-bootstrap';
+import whtcheck from '../../../../public/Images/whtcheck.png';
+import { Link, useNavigate } from 'react-router-dom';
+import { FiEdit3 } from 'react-icons/fi';
+import doctprofile from '../../../../public/Images/doctprofile.png';
+import { IoIosAddCircle } from 'react-icons/io';
+import { BsFileDiffFill } from 'react-icons/bs';
+import { AiFillFileImage } from 'react-icons/ai';
+import { RxCrossCircled } from 'react-icons/rx';
+import Modal from 'react-bootstrap/Modal';
+import camera from '../../../../public/Images/camera.png';
+import { Forminput } from '../SignUp/SignUp';
+import DynamicDatePicker from '../../Components/DynamicDatePicker/DynamicDatePicker';
+import axios from 'axios';
+import { FaFileWord } from 'react-icons/fa';
+import { MainBtn } from '../Appointment/page';
+import Swal from 'sweetalert2';
+import { useAuth } from '../../context/useAuth';
 
 function DoctorProfile() {
   const { doctorProfile, userId } = useAuth();
@@ -30,69 +30,69 @@ function DoctorProfile() {
   const [modalShow2, setModal2Show] = useState(false);
   const [uploadedfiles, setUploadedFiles] = useState([]);
   const [personalInfo, setPersonalInfo] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    image: "",
-    gender: "",
-    dateOfBirth: "",
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    image: '',
+    gender: '',
+    dateOfBirth: '',
   });
-  console.log("personalInfo", uploadedfiles);
+  console.log('personalInfo', uploadedfiles);
   const [residentialAddress, setResidentialAddress] = useState({
-    addressLine1: "",
-    city: "",
-    stateProvince: "",
-    country: "",
-    zipCode: "",
+    addressLine1: '',
+    city: '',
+    stateProvince: '',
+    country: '',
+    zipCode: '',
   });
   const [professionalBackground, setProfessionalBackground] = useState({
-    qualification: "",
-    specialization: "",
-    medicalLicenseNumber: "",
-    yearsOfExperience: "",
-    languagesSpoken: "",
-    biography: "",
+    qualification: '',
+    specialization: '',
+    medicalLicenseNumber: '',
+    yearsOfExperience: '',
+    languagesSpoken: '',
+    biography: '',
     document: [],
   });
   console.log(
-    "professionalBackground.document",
+    'professionalBackground.document',
     professionalBackground.document
   );
   useEffect(() => {
     if (doctorProfile) {
       setPersonalInfo({
-        firstName: doctorProfile?.personalInfo?.firstName || "",
-        lastName: doctorProfile?.personalInfo?.lastName || "",
-        email: doctorProfile?.personalInfo?.email || "",
-        phone: doctorProfile?.personalInfo?.phone || "",
-        image: doctorProfile?.personalInfo?.image || "",
-        gender: doctorProfile?.personalInfo?.gender || "",
-        dateOfBirth: doctorProfile?.personalInfo?.dateOfBirth || "",
+        firstName: doctorProfile?.personalInfo?.firstName || '',
+        lastName: doctorProfile?.personalInfo?.lastName || '',
+        email: doctorProfile?.personalInfo?.email || '',
+        phone: doctorProfile?.personalInfo?.phone || '',
+        image: doctorProfile?.personalInfo?.image || '',
+        gender: doctorProfile?.personalInfo?.gender || '',
+        dateOfBirth: doctorProfile?.personalInfo?.dateOfBirth || '',
       });
 
       // Update residentialAddress
       setResidentialAddress({
-        addressLine1: doctorProfile?.residentialAddress?.addressLine1 || "",
-        city: doctorProfile?.residentialAddress?.city || "",
-        stateProvince: doctorProfile?.residentialAddress?.stateProvince || "",
-        country: doctorProfile?.residentialAddress?.country || "",
-        zipCode: doctorProfile?.residentialAddress?.zipCode || "",
+        addressLine1: doctorProfile?.residentialAddress?.addressLine1 || '',
+        city: doctorProfile?.residentialAddress?.city || '',
+        stateProvince: doctorProfile?.residentialAddress?.stateProvince || '',
+        country: doctorProfile?.residentialAddress?.country || '',
+        zipCode: doctorProfile?.residentialAddress?.zipCode || '',
       });
 
       // Update professionalBackground
       setProfessionalBackground({
         qualification:
-          doctorProfile?.professionalBackground?.qualification || "",
+          doctorProfile?.professionalBackground?.qualification || '',
         specialization:
-          doctorProfile?.professionalBackground?.specialization || "",
+          doctorProfile?.professionalBackground?.specialization || '',
         medicalLicenseNumber:
-          doctorProfile?.professionalBackground?.medicalLicenseNumber || "",
+          doctorProfile?.professionalBackground?.medicalLicenseNumber || '',
         yearsOfExperience:
-          doctorProfile?.professionalBackground?.yearsOfExperience || "",
+          doctorProfile?.professionalBackground?.yearsOfExperience || '',
         languagesSpoken:
-          doctorProfile?.professionalBackground?.languagesSpoken || "",
-        biography: doctorProfile?.professionalBackground?.biography || "",
+          doctorProfile?.professionalBackground?.languagesSpoken || '',
+        biography: doctorProfile?.professionalBackground?.biography || '',
         document: doctorProfile?.professionalBackground?.document || [],
       });
     }
@@ -106,7 +106,7 @@ function DoctorProfile() {
       }));
 
       setUploadedFiles(updatedDocuments);
-      console.log("updatedDocuments", updatedDocuments);
+      console.log('updatedDocuments', updatedDocuments);
     }
   }, [doctorProfile]);
 
@@ -114,27 +114,27 @@ function DoctorProfile() {
     const files = Array.from(e.target.files);
 
     const allowedTypes = [
-      "application/pdf", // PDF
-      "application/msword", // DOC
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // DOCX
-      "image/jpeg", // JPG
-      "image/png", // PNG
-      "image/gif", // GIF
-      "image/webp", // WebP
-      "image/bmp", // BMP
+      'application/pdf', // PDF
+      'application/msword', // DOC
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // DOCX
+      'image/jpeg', // JPG
+      'image/png', // PNG
+      'image/gif', // GIF
+      'image/webp', // WebP
+      'image/bmp', // BMP
     ];
 
     const validFiles = files.filter((file) => allowedTypes.includes(file.type));
 
     if (validFiles.length === 0) {
-      alert("Only PDF, DOC, DOCX, and image files are allowed!");
+      alert('Only PDF, DOC, DOCX, and image files are allowed!');
       return;
     }
 
     const filesWithDate = validFiles.map((file) => ({
       name: file.name,
       type: file.type,
-      date: new Date().toLocaleDateString("en-GB"),
+      date: new Date().toLocaleDateString('en-GB'),
     }));
 
     setUploadedFiles((prev) => [...prev, ...filesWithDate]);
@@ -148,23 +148,21 @@ function DoctorProfile() {
   const removeFile = (index) => {
     setUploadedFiles((prevFiles) => {
       const fileToRemove = prevFiles[index];
-      console.log("fileToRemove", fileToRemove);
+      console.log('fileToRemove', fileToRemove);
 
       if (fileToRemove._id) {
         Swal.fire({
-          title: "Are you sure?",
-          text: "This file is stored on the backend. Deleting it will remove it permanently.",
-          icon: "warning",
+          title: 'Are you sure?',
+          text: 'This file is stored on the backend. Deleting it will remove it permanently.',
+          icon: 'warning',
           showCancelButton: true,
-          confirmButtonText: "Yes, delete it!",
-          cancelButtonText: "Cancel",
+          confirmButtonText: 'Yes, delete it!',
+          cancelButtonText: 'Cancel',
         }).then((result) => {
           if (result.isConfirmed) {
             axios
               .delete(
-                `${
-                  import.meta.env.NX_PUBLIC_VITE_BASE_URL
-                }api/doctors/${userId}/documents/${fileToRemove._id}`
+                `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/${userId}/documents/${fileToRemove._id}`
               )
               .then(() => {
                 setUploadedFiles((prev) =>
@@ -178,10 +176,10 @@ function DoctorProfile() {
                   ),
                 }));
 
-                Swal.fire("Deleted!", "The file has been deleted.", "success");
+                Swal.fire('Deleted!', 'The file has been deleted.', 'success');
               })
               .catch(() => {
-                Swal.fire("Error!", "Failed to delete the file.", "error");
+                Swal.fire('Error!', 'Failed to delete the file.', 'error');
               });
           }
         });
@@ -206,14 +204,14 @@ function DoctorProfile() {
   const updateProfileWithFiles = async () => {
     const formData = new FormData();
     if (personalInfo.image) {
-      formData.append("image", personalInfo.image);
+      formData.append('image', personalInfo.image);
     }
     // Documents (files)
     professionalBackground.document.forEach((file) => {
-      formData.append("document", file);
+      formData.append('document', file);
     });
     formData.append(
-      "formData",
+      'formData',
       JSON.stringify({
         personalInfo: personalInfo,
         residentialAddress: residentialAddress,
@@ -222,11 +220,11 @@ function DoctorProfile() {
     );
     try {
       const response = await axios.put(
-        `${import.meta.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/updateProfile/${userId}`,
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/updateProfile/${userId}`,
         formData,
         {
           headers: {
-            "Content-Type": "multipart/form-data",
+            'Content-Type': 'multipart/form-data',
             // Add any necessary authorization headers, like a JWT token, if needed
             // Authorization: `Bearer ${authToken}`,
           },
@@ -236,19 +234,19 @@ function DoctorProfile() {
       if (response.status === 200) {
         // Success Alert
         Swal.fire({
-          icon: "success",
-          title: "Success",
-          text: "Profile updated successfully!",
+          icon: 'success',
+          title: 'Success',
+          text: 'Profile updated successfully!',
         });
         // Optionally navigate to another page, or reset the form
-        navigate("/dashboard");
+        navigate('/dashboard');
       }
     } catch (error) {
-      console.error("Error updating profile:", error);
+      console.error('Error updating profile:', error);
       Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "Failed to update the profile. Please try again later.",
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to update the profile. Please try again later.',
       });
     }
   };
@@ -408,9 +406,9 @@ function DoctorProfile() {
                         {uploadedfiles?.map((file, index) => (
                           <div key={index} className="file-item">
                             {/* Display icons based on file type */}
-                            {file.type.startsWith("image/") ? (
+                            {file.type.startsWith('image/') ? (
                               <AiFillFileImage />
-                            ) : file.type === "application/pdf" ? (
+                            ) : file.type === 'application/pdf' ? (
                               <BsFileDiffFill />
                             ) : (
                               <FaFileWord /> // Icon for DOC/DOCX files
@@ -440,7 +438,7 @@ function DoctorProfile() {
                           accept=".pdf,.doc,.docx,image/*" // Allow PDF, DOC, DOCX, and images
                           multiple
                           onChange={handleFileChange}
-                          style={{ display: "none" }}
+                          style={{ display: 'none' }}
                         />
                       </div>
                     </div>
@@ -471,8 +469,8 @@ function PersonalInfo({ show, onHide, personalInfo, setPersonalInfo }) {
 
   const handleImageChange = (e) => {
     const { name, files } = e.target;
-    console.log("e.target.files[0]", files[0]);
-    console.log("e.target.name", name);
+    console.log('e.target.files[0]', files[0]);
+    console.log('e.target.name', name);
 
     if (files && files.length > 0) {
       setImage(files[0]);
@@ -482,7 +480,7 @@ function PersonalInfo({ show, onHide, personalInfo, setPersonalInfo }) {
       }));
     }
   };
-  const businessTypes = ["Male", "Female", "Others"];
+  const businessTypes = ['Male', 'Female', 'Others'];
   const handleSelectType = (type) => {
     // setPersonalInfo(type); // Update the selected type
     setPersonalInfo((prev) => ({
@@ -518,12 +516,12 @@ function PersonalInfo({ show, onHide, personalInfo, setPersonalInfo }) {
                 accept="image/*"
                 name="image"
                 onChange={handleImageChange}
-                style={{ display: "none" }}
+                style={{ display: 'none' }}
               />
               <label
                 htmlFor="logo-upload"
                 className="upload-label"
-                style={{ flexDirection: "row", gap: "10px" }}
+                style={{ flexDirection: 'row', gap: '10px' }}
               >
                 {image ? (
                   <img
@@ -573,7 +571,7 @@ function PersonalInfo({ show, onHide, personalInfo, setPersonalInfo }) {
                         <li
                           key={type}
                           className={`business-button ${
-                            personalInfo.gender === type ? "selected" : ""
+                            personalInfo.gender === type ? 'selected' : ''
                           }`}
                           onClick={() => handleSelectType(type)}
                         >
