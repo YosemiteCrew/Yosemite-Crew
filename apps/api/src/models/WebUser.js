@@ -1,17 +1,28 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 const UserSchema = new mongoose.Schema({
-  email: {
+  cognitoId: {
     type: String,
-    require: true,
+    required: true,
   },
-  password: {
-    type: String,
-    require: true,
-  },
+  // email: {
+  //   type: String,
+  //   required: true,
+  // },
+  // password: {
+  //   type: String,
+  //   required: true,
+  // },
   businessType: {
     type: String,
-    require: true,
+    required: true,
   },
+  bussinessId: {
+    type: String,
+  },
+  // status: {
+  //   type: Number,
+  //   default: 0,
+  // },
   otp: {
     type: Number,
   },
@@ -20,7 +31,7 @@ const UserSchema = new mongoose.Schema({
   },
 });
 
-const WebUser = mongoose.model("WebUser", UserSchema);
+const WebUser = mongoose.model('WebUser', UserSchema);
 
 const ProfileDataSchema = new mongoose.Schema({
   userId: {
@@ -84,6 +95,6 @@ const ProfileDataSchema = new mongoose.Schema({
   },
 });
 
-const ProfileData = mongoose.model("ProfileData", ProfileDataSchema);
+const ProfileData = mongoose.model('ProfileData', ProfileDataSchema);
 
 module.exports = { WebUser, ProfileData };

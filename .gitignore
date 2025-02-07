@@ -111,3 +111,4 @@ yarn-error.log
 
 # testing
 /coverage
+apps/api/src/config/global-bundle.pem
