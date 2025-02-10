@@ -5,7 +5,6 @@ const path = require('path');
 async function handleAddPet(req,res){
   const token = req.headers.authorization.split(' ')[1]; // Extract token
   const decoded = jwt.verify(token, process.env.JWT_SECRET); // Verify token
-  
   const cognitoUserId = decoded.username; // Get user ID from token
     var PetImage = "";
     if (req.files && req.files.petImage) {
@@ -59,11 +58,27 @@ async function handleAddPet(req,res){
    
 }
 
-async function handleGetPet(req,res) {
-    const userid = req.body.userId;
-    const result = await pet.find({ userId: userid });
-    if (result.length === 0) return res.status(200).json({ status: 1, data: result, message: "No pets found for this user" });
-    res.status(200).json({status: 1, data: result});
+async function handleGetPet(req, res) {
+  const token = req.headers.authorization.split(' ')[1]; // Extract token
+  const decoded = jwt.verify(token, process.env.JWT_SECRET); // Verify token
+  const cognitoUserId = decoded.username; // Get user ID from token
+  try {
+
+      const { limit = 10, offset = 0 } = req.body;
+      const pets = await pet.find({ cognitoUserId })
+          .skip(parseInt(offset))
+          .limit(parseInt(limit));
+
+     // const total = await pet.countDocuments({ cognitoUserId });
+
+      res.status(200).json({
+          status: 1,
+          data: pets,
+          message: pets.length === 0 ? "No pets found for this user" : "Pets retrieved successfully"
+      });
+  } catch (error) {
+      res.status(500).json({ status: 0, message: "Server error", error: error.message });
+  }
 }
 
 async function handleDeletePet(req,res) {
