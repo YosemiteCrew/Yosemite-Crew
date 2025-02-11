@@ -110,204 +110,199 @@ const Appointment = () => {
   }, []);
 
   return (
-    <>
-      <section className="AppintmentSection">
-        <div className="container">
-          <div className="MainDash">
-            <TopHeading
-              heding="Appointment Management"
-              notif="3 New Appointments"
-            />
+    <section className="AppintmentSection">
+      <div className="container">
+        <div className="MainDash">
+          <TopHeading
+            heding="Appointment Management"
+            notif="3 New Appointments"
+          />
 
-            <div className="overviewDiv">
-              <div className="OverviewTop">
-                <h5>Overview</h5>
-                <ListSelect
-                  options={optionsList1}
-                  onChange={getAppUpcCompCanTotalCounts}
-                />
-              </div>
-              <div className="overviewitem">
-                <BoxDiv
-                  boximg={box4}
-                  ovradcls=" fawndark"
-                  ovrtxt="New Appointments"
-                  boxcoltext="frowntext"
-                  overnumb={AppointmentStatusAndCounts.newAppointments}
-                />
-                <BoxDiv
-                  boximg={box2}
-                  ovradcls=" purple"
-                  ovrtxt="Upcoming"
-                  boxcoltext="purpletext"
-                  overnumb={AppointmentStatusAndCounts.upcomingAppointments}
-                />
-                <BoxDiv
-                  boximg={box5}
-                  ovradcls=" cambrageblue"
-                  ovrtxt="Completed"
-                  boxcoltext="greentext"
-                  overnumb={AppointmentStatusAndCounts.completedAppointments}
-                />
-                <BoxDiv
-                  boximg={box6}
-                  ovradcls="chillibg"
-                  ovrtxt="Cancelled"
-                  boxcoltext="ciltext"
-                  overnumb={AppointmentStatusAndCounts.canceledAppointments}
-                />
-              </div>
-            </div>
-
-            <div>
-              <DivHeading
-                TableHead="New Appointments"
-                tablespan={`(${total})`}
-              />
-              <ActionsTable
-                onClick={getAllAppointments}
-                appointments={allAppointments}
-                onClicked={AppointmentActions}
-                actimg1={Accpt}
-                actimg2={Decln}
+          <div className="overviewDiv">
+            <div className="OverviewTop">
+              <h5>Overview</h5>
+              <ListSelect
+                options={optionsList1}
+                onChange={getAppUpcCompCanTotalCounts}
               />
             </div>
-
-            <div className="DashCardData">
-              <div className="DashCardDiv">
-                <CardHead Cdtxt="Confirmed" Cdnumb="03" CdNClas="fawn" />
-                <div className="DashCardItem fawnbg">
-                  <AppointCard
-                    crdimg={pet1}
-                    cdowner="Kizie"
-                    crdtpe="Sky B"
-                    btnimg={btn1}
-                    btntext="Tuesday, 10 Sep - 11:00 AM"
-                    crddoctor="Dr. Emily Johnson"
-                    drjob="Cardiology"
-                    CardbtnClass="btnfown"
-                  />
-                  <AppointCard
-                    crdimg={pet1}
-                    cdowner="Max"
-                    crdtpe="David Martin"
-                    btnimg={btn1}
-                    btntext="Tuesday, 10 Sep - 11:00 AM"
-                    crddoctor="Dr. Olivia Harris"
-                    drjob="Neurology"
-                    CardbtnClass="btnfown"
-                  />
-                  <AppointCard
-                    crdimg={pet1}
-                    cdowner="Molly"
-                    crdtpe="Lucas Miller"
-                    btnimg={btn1}
-                    btntext="Tuesday, 10 Sep - 11:00 AM"
-                    crddoctor="Dr. Grace Walker"
-                    drjob="Dentistry"
-                    CardbtnClass="btnfown"
-                  />
-                </div>
-              </div>
-
-              <div className="DashCardDiv">
-                <CardHead Cdtxt="Upcoming" Cdnumb="02" CdNClas="purpl" />
-                <div className="DashCardItem purplebg">
-                  <AppointCard
-                    crdimg={pet1}
-                    cdowner="Bella"
-                    crdtpe="Sarah Johnson"
-                    btnimg={btn2}
-                    btntext="Tuesday, 10 Sep - 11:00 AM"
-                    crddoctor="Dr. Michael Lee"
-                    drjob="Orthopedics"
-                    CardbtnClass="btnPurple"
-                  />
-                  <AppointCard
-                    crdimg={pet1}
-                    cdowner="Max"
-                    crdtpe="David Martin"
-                    btnimg={btn2}
-                    btntext="Tuesday, 10 Sep - 11:00 AM"
-                    crddoctor="Dr. Olivia Harris"
-                    drjob="Neurology"
-                    CardbtnClass="btnPurple"
-                  />
-                </div>
-              </div>
-
-              <div className="DashCardDiv">
-                <CardHead Cdtxt="Completed" Cdnumb="02" CdNClas="ltgren" />
-                <div className="DashCardItem greenbg">
-                  <AppointCard
-                    crdimg={pet1}
-                    cdowner="Bella"
-                    crdtpe="Sarah Johnson"
-                    btnimg={btn3}
-                    btntext="Tuesday, 10 Sep - 11:00 AM"
-                    crddoctor="Dr. Michael Lee"
-                    drjob="Orthopedics"
-                    CardbtnClass="btngreen"
-                  />
-                  <AppointCard
-                    crdimg={pet1}
-                    cdowner="Max"
-                    crdtpe="David Martin"
-                    btnimg={btn3}
-                    btntext="Tuesday, 10 Sep - 11:00 AM"
-                    crddoctor="Dr. Olivia Harris"
-                    drjob="Neurology"
-                    CardbtnClass="btngreen"
-                  />
-                  <AppointCard
-                    crdimg={pet1}
-                    cdowner="Max"
-                    crdtpe="David Martin"
-                    btnimg={btn3}
-                    btntext="Tuesday, 10 Sep - 11:00 AM"
-                    crddoctor="Dr. Olivia Harris"
-                    drjob="Neurology"
-                    CardbtnClass="btngreen"
-                  />
-                </div>
-              </div>
-
-              <div className="DashCardDiv">
-                <CardHead Cdtxt="Cancelled" Cdnumb="02" CdNClas="chill" />
-                <div className="DashCardItem chillybg">
-                  <AppointCard
-                    crdimg={pet1}
-                    cdowner="Bella"
-                    crdtpe="Sarah Johnson"
-                    btnimg={btn4}
-                    btntext="Tuesday, 10 Sep - 11:00 AM"
-                    crddoctor="Dr. Michael Lee"
-                    drjob="Orthopedics"
-                    CardbtnClass="btnchilly"
-                  />
-                  <AppointCard
-                    crdimg={pet1}
-                    cdowner="Max"
-                    crdtpe="David Martin"
-                    btnimg={btn4}
-                    btntext="Tuesday, 10 Sep - 11:00 AM"
-                    crddoctor="Dr. Olivia Harris"
-                    drjob="Neurology"
-                    CardbtnClass="btnchilly"
-                  />
-                </div>
-              </div>
-
-              <DashModal />
-            </div>
-
-            <div className="dd">
-              <DocterWiseAppoint />
+            <div className="overviewitem">
+              <BoxDiv
+                boximg={box4}
+                ovradcls=" fawndark"
+                ovrtxt="New Appointments"
+                boxcoltext="frowntext"
+                overnumb={AppointmentStatusAndCounts.newAppointments}
+              />
+              <BoxDiv
+                boximg={box2}
+                ovradcls=" purple"
+                ovrtxt="Upcoming"
+                boxcoltext="purpletext"
+                overnumb={AppointmentStatusAndCounts.upcomingAppointments}
+              />
+              <BoxDiv
+                boximg={box5}
+                ovradcls=" cambrageblue"
+                ovrtxt="Completed"
+                boxcoltext="greentext"
+                overnumb={AppointmentStatusAndCounts.completedAppointments}
+              />
+              <BoxDiv
+                boximg={box6}
+                ovradcls="chillibg"
+                ovrtxt="Cancelled"
+                boxcoltext="ciltext"
+                overnumb={AppointmentStatusAndCounts.canceledAppointments}
+              />
             </div>
           </div>
+
+          <div>
+            <DivHeading TableHead="New Appointments" tablespan={`(${total})`} />
+            <ActionsTable
+              onClick={getAllAppointments}
+              appointments={allAppointments}
+              onClicked={AppointmentActions}
+              actimg1={Accpt}
+              actimg2={Decln}
+            />
+          </div>
+
+          <div className="DashCardData">
+            <div className="DashCardDiv">
+              <CardHead Cdtxt="Confirmed" Cdnumb="03" CdNClas="fawn" />
+              <div className="DashCardItem fawnbg">
+                <AppointCard
+                  crdimg={pet1}
+                  cdowner="Kizie"
+                  crdtpe="Sky B"
+                  btnimg={btn1}
+                  btntext="Tuesday, 10 Sep - 11:00 AM"
+                  crddoctor="Dr. Emily Johnson"
+                  drjob="Cardiology"
+                  CardbtnClass="btnfown"
+                />
+                <AppointCard
+                  crdimg={pet1}
+                  cdowner="Max"
+                  crdtpe="David Martin"
+                  btnimg={btn1}
+                  btntext="Tuesday, 10 Sep - 11:00 AM"
+                  crddoctor="Dr. Olivia Harris"
+                  drjob="Neurology"
+                  CardbtnClass="btnfown"
+                />
+                <AppointCard
+                  crdimg={pet1}
+                  cdowner="Molly"
+                  crdtpe="Lucas Miller"
+                  btnimg={btn1}
+                  btntext="Tuesday, 10 Sep - 11:00 AM"
+                  crddoctor="Dr. Grace Walker"
+                  drjob="Dentistry"
+                  CardbtnClass="btnfown"
+                />
+              </div>
+            </div>
+
+            <div className="DashCardDiv">
+              <CardHead Cdtxt="Upcoming" Cdnumb="02" CdNClas="purpl" />
+              <div className="DashCardItem purplebg">
+                <AppointCard
+                  crdimg={pet1}
+                  cdowner="Bella"
+                  crdtpe="Sarah Johnson"
+                  btnimg={btn2}
+                  btntext="Tuesday, 10 Sep - 11:00 AM"
+                  crddoctor="Dr. Michael Lee"
+                  drjob="Orthopedics"
+                  CardbtnClass="btnPurple"
+                />
+                <AppointCard
+                  crdimg={pet1}
+                  cdowner="Max"
+                  crdtpe="David Martin"
+                  btnimg={btn2}
+                  btntext="Tuesday, 10 Sep - 11:00 AM"
+                  crddoctor="Dr. Olivia Harris"
+                  drjob="Neurology"
+                  CardbtnClass="btnPurple"
+                />
+              </div>
+            </div>
+
+            <div className="DashCardDiv">
+              <CardHead Cdtxt="Completed" Cdnumb="02" CdNClas="ltgren" />
+              <div className="DashCardItem greenbg">
+                <AppointCard
+                  crdimg={pet1}
+                  cdowner="Bella"
+                  crdtpe="Sarah Johnson"
+                  btnimg={btn3}
+                  btntext="Tuesday, 10 Sep - 11:00 AM"
+                  crddoctor="Dr. Michael Lee"
+                  drjob="Orthopedics"
+                  CardbtnClass="btngreen"
+                />
+                <AppointCard
+                  crdimg={pet1}
+                  cdowner="Max"
+                  crdtpe="David Martin"
+                  btnimg={btn3}
+                  btntext="Tuesday, 10 Sep - 11:00 AM"
+                  crddoctor="Dr. Olivia Harris"
+                  drjob="Neurology"
+                  CardbtnClass="btngreen"
+                />
+                <AppointCard
+                  crdimg={pet1}
+                  cdowner="Max"
+                  crdtpe="David Martin"
+                  btnimg={btn3}
+                  btntext="Tuesday, 10 Sep - 11:00 AM"
+                  crddoctor="Dr. Olivia Harris"
+                  drjob="Neurology"
+                  CardbtnClass="btngreen"
+                />
+              </div>
+            </div>
+
+            <div className="DashCardDiv">
+              <CardHead Cdtxt="Cancelled" Cdnumb="02" CdNClas="chill" />
+              <div className="DashCardItem chillybg">
+                <AppointCard
+                  crdimg={pet1}
+                  cdowner="Bella"
+                  crdtpe="Sarah Johnson"
+                  btnimg={btn4}
+                  btntext="Tuesday, 10 Sep - 11:00 AM"
+                  crddoctor="Dr. Michael Lee"
+                  drjob="Orthopedics"
+                  CardbtnClass="btnchilly"
+                />
+                <AppointCard
+                  crdimg={pet1}
+                  cdowner="Max"
+                  crdtpe="David Martin"
+                  btnimg={btn4}
+                  btntext="Tuesday, 10 Sep - 11:00 AM"
+                  crddoctor="Dr. Olivia Harris"
+                  drjob="Neurology"
+                  CardbtnClass="btnchilly"
+                />
+              </div>
+            </div>
+
+            <DashModal />
+          </div>
+
+          <div className="dd">
+            <DocterWiseAppoint />
+          </div>
         </div>
-      </section>
-    </>
+      </div>
+    </section>
   );
 };
 

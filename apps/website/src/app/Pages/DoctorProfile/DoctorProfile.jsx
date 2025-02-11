@@ -97,7 +97,7 @@ function DoctorProfile() {
       });
     }
 
-    if (doctorProfile?.documents.length > 0) {
+    if (doctorProfile?.documents?.length > 0) {
       const updatedDocuments = doctorProfile.documents.map((doc) => ({
         _id: doc._id,
         name: doc.name.slice(75),
@@ -252,212 +252,204 @@ function DoctorProfile() {
   };
 
   return (
-    <>
-      <section className="DoctorProfileSec">
-        <Container>
-          <div className="DoctProfileMain">
-            <div className="PrileDoctHead">
-              <h3>Profile Settings</h3>
+    <section className="DoctorProfileSec">
+      <Container>
+        <div className="DoctProfileMain">
+          <div className="PrileDoctHead">
+            <h3>Profile Settings</h3>
+          </div>
+
+          <div className="DoctProfileData">
+            <div className="DoctProfItems">
+              <div className="PerInfoHead">
+                <h5>Personal Information</h5>
+                <Link to="#" onClick={() => setModalShow(true)}>
+                  <FiEdit3 /> Edit
+                </Link>
+                <PersonalInfo
+                  show={modalShow}
+                  onHide={() => setModalShow(false)}
+                  personalInfo={personalInfo}
+                  setPersonalInfo={setPersonalInfo}
+                />
+              </div>
+              <div className="DoctProfDiv">
+                <img
+                  src={
+                    personalInfo.image
+                      ? personalInfo.image instanceof File
+                        ? URL.createObjectURL(personalInfo.image)
+                        : personalInfo.image
+                      : doctprofile
+                  }
+                  alt="Profile"
+                />
+
+                <div className="DoctProfText">
+                  <h4>
+                    {personalInfo.firstName} {personalInfo.lastName}
+                  </h4>
+                  <h6>{professionalBackground.specialization}</h6>
+                </div>
+              </div>
+              <div className="ProfPersnlInfo">
+                <div className="ThreeGridProf">
+                  <InfoDiv
+                    infpara="First Name"
+                    infhed={personalInfo.firstName}
+                  />
+                  <InfoDiv infpara="Last Name" infhed={personalInfo.lastName} />
+                  <InfoDiv infpara="Gender" infhed={personalInfo.gender} />
+                </div>
+                <div className="ThreeGridProf">
+                  <InfoDiv
+                    infpara="Date of Birth"
+                    infhed={personalInfo.dateOfBirth}
+                  />
+                  <InfoDiv
+                    infpara="Email Address"
+                    infhed={personalInfo.email}
+                  />
+                  <InfoDiv infpara="Phone Number" infhed={personalInfo.phone} />
+                </div>
+              </div>
             </div>
 
-            <div className="DoctProfileData">
-              <div className="DoctProfItems">
-                <div className="PerInfoHead">
-                  <h5>Personal Information</h5>
-                  <Link to="#" onClick={() => setModalShow(true)}>
-                    <FiEdit3 /> Edit
-                  </Link>
-                  <PersonalInfo
-                    show={modalShow}
-                    onHide={() => setModalShow(false)}
-                    personalInfo={personalInfo}
-                    setPersonalInfo={setPersonalInfo}
+            <div className="DoctProfItems">
+              <div className="PerInfoHead">
+                <h5>Residential Address</h5>
+                <Link to="#" onClick={() => setModal1Show(true)}>
+                  <FiEdit3 /> Edit
+                </Link>
+                <ResidentalAdrss
+                  show={modalShow1}
+                  onHide={() => setModal1Show(false)}
+                  address={residentialAddress}
+                  setResidentialAddress={setResidentialAddress}
+                />
+              </div>
+              <div className="ProfPersnlInfo">
+                <div className="ThreeGridProf">
+                  <InfoDiv
+                    infpara="Address Line 1"
+                    infhed={residentialAddress.addressLine1}
+                  />
+                  <InfoDiv infpara="City" infhed={residentialAddress.city} />
+                  <InfoDiv
+                    infpara="State/ Province"
+                    infhed={residentialAddress.stateProvince}
                   />
                 </div>
-                <div className="DoctProfDiv">
-                  <img
-                    src={
-                      personalInfo.image
-                        ? personalInfo.image instanceof File
-                          ? URL.createObjectURL(personalInfo.image)
-                          : personalInfo.image
-                        : doctprofile
-                    }
-                    alt="Profile"
+                <div className="ThreeGridProf">
+                  <InfoDiv
+                    infpara="Country"
+                    infhed={residentialAddress.country}
                   />
-
-                  <div className="DoctProfText">
-                    <h4>
-                      {personalInfo.firstName} {personalInfo.lastName}
-                    </h4>
-                    <h6>{professionalBackground.specialization}</h6>
-                  </div>
-                </div>
-                <div className="ProfPersnlInfo">
-                  <div className="ThreeGridProf">
-                    <InfoDiv
-                      infpara="First Name"
-                      infhed={personalInfo.firstName}
-                    />
-                    <InfoDiv
-                      infpara="Last Name"
-                      infhed={personalInfo.lastName}
-                    />
-                    <InfoDiv infpara="Gender" infhed={personalInfo.gender} />
-                  </div>
-                  <div className="ThreeGridProf">
-                    <InfoDiv
-                      infpara="Date of Birth"
-                      infhed={personalInfo.dateOfBirth}
-                    />
-                    <InfoDiv
-                      infpara="Email Address"
-                      infhed={personalInfo.email}
-                    />
-                    <InfoDiv
-                      infpara="Phone Number"
-                      infhed={personalInfo.phone}
-                    />
-                  </div>
+                  <InfoDiv
+                    infpara="ZIP Code"
+                    infhed={residentialAddress.zipCode}
+                  />
                 </div>
               </div>
+            </div>
 
-              <div className="DoctProfItems">
-                <div className="PerInfoHead">
-                  <h5>Residential Address</h5>
-                  <Link to="#" onClick={() => setModal1Show(true)}>
-                    <FiEdit3 /> Edit
-                  </Link>
-                  <ResidentalAdrss
-                    show={modalShow1}
-                    onHide={() => setModal1Show(false)}
-                    address={residentialAddress}
-                    setResidentialAddress={setResidentialAddress}
-                  />
-                </div>
-                <div className="ProfPersnlInfo">
-                  <div className="ThreeGridProf">
-                    <InfoDiv
-                      infpara="Address Line 1"
-                      infhed={residentialAddress.addressLine1}
-                    />
-                    <InfoDiv infpara="City" infhed={residentialAddress.city} />
-                    <InfoDiv
-                      infpara="State/ Province"
-                      infhed={residentialAddress.stateProvince}
-                    />
-                  </div>
-                  <div className="ThreeGridProf">
-                    <InfoDiv
-                      infpara="Country"
-                      infhed={residentialAddress.country}
-                    />
-                    <InfoDiv
-                      infpara="ZIP Code"
-                      infhed={residentialAddress.zipCode}
-                    />
-                  </div>
-                </div>
+            <div className="DoctProfItems">
+              <div className="PerInfoHead">
+                <h5>Professional Background</h5>
+                <Link to="#" onClick={() => setModal2Show(true)}>
+                  <FiEdit3 /> Edit
+                </Link>
+                <Professionalbackground
+                  show={modalShow2}
+                  onHide={() => setModal2Show(false)}
+                  professionalInfo={professionalBackground}
+                  setProfessionalBackground={setProfessionalBackground}
+                />
               </div>
-
-              <div className="DoctProfItems">
-                <div className="PerInfoHead">
-                  <h5>Professional Background</h5>
-                  <Link to="#" onClick={() => setModal2Show(true)}>
-                    <FiEdit3 /> Edit
-                  </Link>
-                  <Professionalbackground
-                    show={modalShow2}
-                    onHide={() => setModal2Show(false)}
-                    professionalInfo={professionalBackground}
-                    setProfessionalBackground={setProfessionalBackground}
+              <div className="ProfPersnlInfo">
+                <div className="ThreeGridProf">
+                  <InfoDiv
+                    infpara="Qualification"
+                    infhed={professionalBackground.qualification}
+                  />
+                  <InfoDiv
+                    infpara="Medical License Number"
+                    infhed={professionalBackground.medicalLicenseNumber}
+                  />
+                  <InfoDiv
+                    infpara="Years of Experience"
+                    infhed={professionalBackground.yearsOfExperience}
                   />
                 </div>
-                <div className="ProfPersnlInfo">
-                  <div className="ThreeGridProf">
-                    <InfoDiv
-                      infpara="Qualification"
-                      infhed={professionalBackground.qualification}
-                    />
-                    <InfoDiv
-                      infpara="Medical License Number"
-                      infhed={professionalBackground.medicalLicenseNumber}
-                    />
-                    <InfoDiv
-                      infpara="Years of Experience"
-                      infhed={professionalBackground.yearsOfExperience}
-                    />
-                  </div>
-                  <div className="TwoGridProf">
-                    <InfoDiv
-                      infpara="Languages Spoken"
-                      infhed={professionalBackground.languagesSpoken}
-                    />
-                    <InfoDiv
-                      infpara="Biography/ Short Description"
-                      infhed={professionalBackground.biography}
-                    />
-                  </div>
+                <div className="TwoGridProf">
+                  <InfoDiv
+                    infpara="Languages Spoken"
+                    infhed={professionalBackground.languagesSpoken}
+                  />
+                  <InfoDiv
+                    infpara="Biography/ Short Description"
+                    infhed={professionalBackground.biography}
+                  />
+                </div>
 
-                  <div className="DoctProfpdf">
-                    <h5>Uploaded Documents</h5>
-                    <div className="PdfUpldpf">
-                      <div className="uploaded_files">
-                        {uploadedfiles?.map((file, index) => (
-                          <div key={index} className="file-item">
-                            {/* Display icons based on file type */}
-                            {file.type.startsWith('image/') ? (
-                              <AiFillFileImage />
-                            ) : file.type === 'application/pdf' ? (
-                              <BsFileDiffFill />
-                            ) : (
-                              <FaFileWord /> // Icon for DOC/DOCX files
-                            )}
-                            <div className="pdfnme">
-                              <span>
-                                {file.name.length > 15
-                                  ? `${file.name.substring(0, 12)}...`
-                                  : file.name}
-                              </span>
-                              <span className="file-date">{file.date}</span>
-                            </div>
-                            <button onClick={() => removeFile(index)}>
-                              <RxCrossCircled />
-                            </button>
+                <div className="DoctProfpdf">
+                  <h5>Uploaded Documents</h5>
+                  <div className="PdfUpldpf">
+                    <div className="uploaded_files">
+                      {uploadedfiles?.map((file, index) => (
+                        <div key={index} className="file-item">
+                          {/* Display icons based on file type */}
+                          {file.type.startsWith('image/') ? (
+                            <AiFillFileImage />
+                          ) : file.type === 'application/pdf' ? (
+                            <BsFileDiffFill />
+                          ) : (
+                            <FaFileWord /> // Icon for DOC/DOCX files
+                          )}
+                          <div className="pdfnme">
+                            <span>
+                              {file.name.length > 15
+                                ? `${file.name.substring(0, 12)}...`
+                                : file.name}
+                            </span>
+                            <span className="file-date">{file.date}</span>
                           </div>
-                        ))}
-                      </div>
+                          <button onClick={() => removeFile(index)}>
+                            <RxCrossCircled />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
 
-                      <div className="pdfUpldeButton">
-                        <label htmlFor="file-upload" className="upload-btn">
-                          <IoIosAddCircle /> Upload
-                        </label>
-                        <input
-                          type="file"
-                          id="file-upload"
-                          accept=".pdf,.doc,.docx,image/*" // Allow PDF, DOC, DOCX, and images
-                          multiple
-                          onChange={handleFileChange}
-                          style={{ display: 'none' }}
-                        />
-                      </div>
+                    <div className="pdfUpldeButton">
+                      <label htmlFor="file-upload" className="upload-btn">
+                        <IoIosAddCircle /> Upload
+                      </label>
+                      <input
+                        type="file"
+                        id="file-upload"
+                        accept=".pdf,.doc,.docx,image/*" // Allow PDF, DOC, DOCX, and images
+                        multiple
+                        onChange={handleFileChange}
+                        style={{ display: 'none' }}
+                      />
                     </div>
                   </div>
                 </div>
               </div>
-
-              <MainBtn
-                btntyp="button"
-                bimg={whtcheck}
-                btext="Update Profile"
-                optclas=""
-                onClick={() => updateProfileWithFiles()}
-              />
             </div>
+
+            <MainBtn
+              btntyp="button"
+              bimg={whtcheck}
+              btext="Update Profile"
+              optclas=""
+              onClick={() => updateProfileWithFiles()}
+            />
           </div>
-        </Container>
-      </section>
-    </>
+        </div>
+      </Container>
+    </section>
   );
 }
 
@@ -602,6 +594,7 @@ function PersonalInfo({ show, onHide, personalInfo, setPersonalInfo }) {
                   intype="email"
                   inname="email"
                   value={personalInfo.email}
+                  readOnly={true}
                   onChange={handleChange}
                 />
               </Col>

@@ -57,12 +57,15 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const onLogout = async () => {
+  const onLogout = async (navigate) => {
+    sessionStorage.removeItem('token');
     setTokens(null);
     setUserId(null);
     setUserType(null);
     setProfileData(null);
-    sessionStorage.removeItem('token');
+    setTimeout(() => {
+      navigate('/signin'); // Ensures navigation happens after state is cleared
+    }, 100);
   };
 
   return (

@@ -3,10 +3,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { WebUser, ProfileData } = require('../models/WebUser');
-const path = require('path');
 
-const secretKey = process.env.ENCRYPTION_KEY;
-const SES = new AWS.SES();
 const cognito = new AWS.CognitoIdentityServiceProvider();
 
 const s3 = new AWS.S3({
@@ -14,10 +11,6 @@ const s3 = new AWS.S3({
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
   region: process.env.AWS_REGION,
 });
-
-async function hashPassword(password) {
-  return await bcrypt.hash(password, 10);
-}
 
 const WebController = {
   Register: async (req, res) => {

@@ -144,8 +144,7 @@ const MainHeader = ({ isMainHeader }) => {
               'You have been logged out successfully.',
               'success'
             );
-            onLogout();
-            navigate('/signin');
+            onLogout(navigate);
           } else {
             console.error('Failed to logout');
             Swal.fire(
@@ -176,54 +175,51 @@ const MainHeader = ({ isMainHeader }) => {
         {/* Navigation Links */}
         <nav id="navmenu" className="navmenu">
           {isMainHeader ? (
-            <>
-              <ul>
+            <ul>
+              <li>
+                <Link to="/dashboard" className="active">
+                  Home
+                </Link>
+              </li>
+              {profileDataa?.activeModes === 'yes' ? (
                 <li>
-                  <Link to="/dashboard" className="active">
-                    Home
-                  </Link>
+                  <Link to="/department">Specialities</Link>
                 </li>
-                {profileDataa?.activeModes === 'yes' ? (
-                  <li>
-                    <Link to="/department">Specialities</Link>
-                  </li>
-                ) : null}
-                <li>
-                  <Link to="/addoctor">Doctors</Link>
-                </li>
-                <li>
-                  <Link to="/appointment">Appointments</Link>
-                </li>
-                <li>
-                  <Link to="/AssessmentManagement">Assessments</Link>
-                </li>
-                <li>
-                  <Link to="/inventory">Inventory</Link>
-                </li>
-                <li>
-                  <Link to="/lblogpage">Blog</Link>
-                </li>
-              </ul>
-            </>
+              ) : null}
+              <li>
+                <Link to="/addoctor">Doctors</Link>
+              </li>
+              <li>
+                <Link to="/appointment">Appointments</Link>
+              </li>
+              <li>
+                <Link to="/AssessmentManagement">Assessments</Link>
+              </li>
+              <li>
+                <Link to="/inventory">Inventory</Link>
+              </li>
+              <li>
+                <Link to="/lblogpage">Blog</Link>
+              </li>
+            </ul>
           ) : (
-            <>
-              <ul>
-                <li>
-                  <Link to="/" className="active">
-                    Home
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/downlodeapp">Pet App</Link>
-                </li>
-                <li>
-                  <Link to="/homepage">PMS</Link>
-                </li>
-                <li className="dropdown">
-                  <Link to="/DeveloperLandingPage">
-                    <span>Developer Home</span> <IoIosArrowDown />
-                  </Link>
-                  {/* <ul>
+            <ul>
+              <li>
+                <Link to="/" className="active">
+                  Home
+                </Link>
+              </li>
+              <li>
+                <Link to="/downlodeapp">Pet App</Link>
+              </li>
+              <li>
+                <Link to="/homepage">PMS</Link>
+              </li>
+              <li className="dropdown">
+                <Link to="/DeveloperLandingPage">
+                  <span>Developer Home</span> <IoIosArrowDown />
+                </Link>
+                {/* <ul>
                     <li>
                       <Link to="#">Dropdown 1</Link>
                     </li>
@@ -237,18 +233,17 @@ const MainHeader = ({ isMainHeader }) => {
                       <Link to="#">Dropdown 4</Link>
                     </li>
                   </ul> */}
-                </li>
-                <li>
-                  <Link to="/blogpage">Blogs</Link>
-                </li>
-                <li>
-                  <Link to="/aboutus">About Us</Link>
-                </li>
-                <li>
-                  <Link to="/contact">Contact Us</Link>
-                </li>
-              </ul>
-            </>
+              </li>
+              <li>
+                <Link to="/blogpage">Blogs</Link>
+              </li>
+              <li>
+                <Link to="/aboutus">About Us</Link>
+              </li>
+              <li>
+                <Link to="/contact">Contact Us</Link>
+              </li>
+            </ul>
           )}
         </nav>
 
@@ -347,16 +342,14 @@ const MainHeader = ({ isMainHeader }) => {
               </div>
             </>
           ) : (
-            <>
-              <div className="gitbtn">
-                <Link to="#">
-                  <span>
-                    <FaGithub />
-                  </span>
-                  Star us on GitHub
-                </Link>
-              </div>
-            </>
+            <div className="gitbtn">
+              <Link to="#">
+                <span>
+                  <FaGithub />
+                </span>
+                Star us on GitHub
+              </Link>
+            </div>
           )}
         </div>
 

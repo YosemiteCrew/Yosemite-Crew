@@ -39,6 +39,7 @@ const Doctor_Dashboard = () => {
   console.log('timeSlots', profile);
   useEffect(() => {
     if (doctorProfile) {
+      console.log('doctorProfile.timeDuration', doctorProfile.timeDuration);
       setduration(doctorProfile.timeDuration);
       setprofile(doctorProfile.personalInfo);
     }
@@ -91,6 +92,14 @@ const Doctor_Dashboard = () => {
     selectedDate
   ) => {
     const slots = [];
+    console.log(
+      ' filteredAvailability, duration,userId,day,selectedDate',
+      filteredAvailability,
+      duration,
+      userId,
+      day,
+      selectedDate
+    );
 
     filteredAvailability?.forEach(({ from, to }) => {
       const fromDate = parseTime(from); // Parse the 'from' time into a Date object
@@ -132,16 +141,18 @@ const Doctor_Dashboard = () => {
           },
         }
       );
+      console.log('hello');
+      setTimeSlots(data.timeSlots);
+    } catch (error) {
+      console.error(
+        'Error fetching doctor slots:',
+        error.response?.data || error
+      );
 
-      console.log('data', data);
-      if (data?.timeSlots) {
-        setTimeSlots(data.timeSlots);
-      } else {
+      if (error.response?.status === 404) {
         console.log('Generated Slots:', slots);
         setTimeSlots(slots);
       }
-    } catch (error) {
-      console.error('Error fetching doctor slots:', error);
     }
   };
 

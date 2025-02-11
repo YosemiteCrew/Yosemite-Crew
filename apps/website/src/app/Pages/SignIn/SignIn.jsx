@@ -1,7 +1,7 @@
 // eslint-disable-next-line no-unused-vars
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import './SignIn.css';
-import { Button, Form } from 'react-bootstrap';
+import { Form } from 'react-bootstrap';
 import { Forminput, FormPassw } from '../SignUp/SignUp';
 import { MainBtn } from '../Appointment/page';
 import whtcheck from '../../../../public/Images/whtcheck.png';
@@ -230,152 +230,150 @@ function SignIn() {
   };
 
   return (
-    <>
-      <section className="SignInSec">
-        <div className="leftSignIn"></div>
-        <div className="RightSignIn">
-          {/* SignIn Page */}
-          {!showForgotPassword && !showVerifyCode && !showNewPassword && (
-            <div className="SignIninner">
-              <h2>
-                <span>Sign in</span> to your account
-              </h2>
-              <Form
-              // onSubmit={handleSignIn}
-              >
-                <Forminput
-                  inlabel="Email Address"
-                  intype="text"
-                  inname="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-                <FormPassw
-                  paswlabel="Password"
-                  intype="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                <div className="forgtbtn">
-                  <Link
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setShowForgotPassword(true); // Show forgot password section
-                    }}
-                  >
-                    Forgot Password?
-                  </Link>
-                </div>
-                <div className="sinbtn">
-                  <MainBtn
-                    // btntyp="submit"
-                    bimg={whtcheck}
-                    btext="Sign In"
-                    onClick={handleSignIn}
-                  />
-                  <h6>
-                    Don’t have an account? <Link to="/signup">Sign up.</Link>
-                  </h6>
-                </div>
-              </Form>
-            </div>
-          )}
-
-          {/* Forgot Password Page */}
-          {showForgotPassword && !showVerifyCode && !showNewPassword && (
-            <div className="SignIninner">
-              <div className="signhed">
-                <h2>
-                  <span>Forgot</span> password?
-                </h2>
-                <p>
-                  Enter your registered email, and we’ll send you a code to
-                  reset it.
-                </p>
+    <section className="SignInSec">
+      <div className="leftSignIn"></div>
+      <div className="RightSignIn">
+        {/* SignIn Page */}
+        {!showForgotPassword && !showVerifyCode && !showNewPassword && (
+          <div className="SignIninner">
+            <h2>
+              <span>Sign in</span> to your account
+            </h2>
+            <Form
+            // onSubmit={handleSignIn}
+            >
+              <Forminput
+                inlabel="Email Address"
+                intype="text"
+                inname="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <FormPassw
+                paswlabel="Password"
+                intype="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <div className="forgtbtn">
+                <Link
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setShowForgotPassword(true); // Show forgot password section
+                  }}
+                >
+                  Forgot Password?
+                </Link>
               </div>
-
-              <Form>
-                <Forminput
-                  inlabel="Email Address"
-                  intype="text"
-                  inname="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-                <MainBtn btext="Send Code" onClick={handleOtp} />
-              </Form>
-            </div>
-          )}
-
-          {/* Verify Code Page */}
-          {showVerifyCode && !showNewPassword && (
-            <div className="SignIninner">
-              <div className="signhed">
-                <h2>
-                  <span>Verify</span> Code
-                </h2>
-                <p>
-                  Enter the code we just sent to your email to proceed with
-                  resetting your password.
-                </p>
-              </div>
-
-              <Form>
-                <div className="verifyInput">
-                  {otp.map((digit, index) => (
-                    <Form.Control
-                      key={index}
-                      type="text"
-                      value={digit}
-                      id={`otp-input-${index}`}
-                      onChange={(e) => handleChange(e, index)}
-                      onKeyDown={(e) => handleKeyDown(e, index)} // Handle backspace
-                      maxLength="1"
-                    />
-                  ))}
-                </div>
-
-                <div className="sinbtn">
-                  <MainBtn btext="Verify Code" onClick={handleVerifyOtp} />
-                  <h6>
-                    Didn’t receive the code?{' '}
-                    <Link to="/signup">Request New Code.</Link>
-                  </h6>
-                </div>
-              </Form>
-            </div>
-          )}
-
-          {/* New Password Page */}
-          {showNewPassword && (
-            <div className="SignIninner">
-              <h2>
-                <span>Set</span> new password
-              </h2>
-
-              <Form>
-                <FormPassw
-                  paswlabel="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                <FormPassw
-                  paswlabel="Confirm Password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                />
-
+              <div className="sinbtn">
                 <MainBtn
+                  // btntyp="submit"
                   bimg={whtcheck}
-                  btext="Reset Password"
-                  onClick={handleResetPassword}
+                  btext="Sign In"
+                  onClick={handleSignIn}
                 />
-              </Form>
+                <h6>
+                  Don’t have an account? <Link to="/signup">Sign up.</Link>
+                </h6>
+              </div>
+            </Form>
+          </div>
+        )}
+
+        {/* Forgot Password Page */}
+        {showForgotPassword && !showVerifyCode && !showNewPassword && (
+          <div className="SignIninner">
+            <div className="signhed">
+              <h2>
+                <span>Forgot</span> password?
+              </h2>
+              <p>
+                Enter your registered email, and we’ll send you a code to reset
+                it.
+              </p>
             </div>
-          )}
-        </div>
-      </section>
-    </>
+
+            <Form>
+              <Forminput
+                inlabel="Email Address"
+                intype="text"
+                inname="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <MainBtn btext="Send Code" onClick={handleOtp} />
+            </Form>
+          </div>
+        )}
+
+        {/* Verify Code Page */}
+        {showVerifyCode && !showNewPassword && (
+          <div className="SignIninner">
+            <div className="signhed">
+              <h2>
+                <span>Verify</span> Code
+              </h2>
+              <p>
+                Enter the code we just sent to your email to proceed with
+                resetting your password.
+              </p>
+            </div>
+
+            <Form>
+              <div className="verifyInput">
+                {otp.map((digit, index) => (
+                  <Form.Control
+                    key={index}
+                    type="text"
+                    value={digit}
+                    id={`otp-input-${index}`}
+                    onChange={(e) => handleChange(e, index)}
+                    onKeyDown={(e) => handleKeyDown(e, index)} // Handle backspace
+                    maxLength="1"
+                  />
+                ))}
+              </div>
+
+              <div className="sinbtn">
+                <MainBtn btext="Verify Code" onClick={handleVerifyOtp} />
+                <h6>
+                  Didn’t receive the code?{' '}
+                  <Link to="/signup">Request New Code.</Link>
+                </h6>
+              </div>
+            </Form>
+          </div>
+        )}
+
+        {/* New Password Page */}
+        {showNewPassword && (
+          <div className="SignIninner">
+            <h2>
+              <span>Set</span> new password
+            </h2>
+
+            <Form>
+              <FormPassw
+                paswlabel="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <FormPassw
+                paswlabel="Confirm Password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+
+              <MainBtn
+                bimg={whtcheck}
+                btext="Reset Password"
+                onClick={handleResetPassword}
+              />
+            </Form>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 
