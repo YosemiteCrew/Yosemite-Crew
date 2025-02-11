@@ -5,14 +5,14 @@ import { Forminput, FormPassw, HeadText } from '../SignUp/SignUp';
 import camera from '../../../../public/Images/camera.png';
 import { ProfileProg } from '../SignUpDetails/SignUpDetails';
 import { Col, Form, Row } from 'react-bootstrap';
-import UplodeImage from '../../Components/UplodeImage/UplodeImage';
+// import UplodeImage from '../../Components/UplodeImage/UplodeImage';
 import DynamicSelect from '../../Components/DynamicSelect/DynamicSelect';
 import OperatingHours from '../../Components/OperatingHours/OperatingHours';
 import { Modal, Button } from 'react-bootstrap';
 import Switch from 'react-switch';
 import { MainBtn } from '../Appointment/page';
 import whtcheck from '../../../../public/Images/whtcheck.png';
-import { MdOpacity } from 'react-icons/md';
+// import { MdOpacity } from 'react-icons/md';
 import axios from 'axios';
 import DynamicDatePicker from '../../Components/DynamicDatePicker/DynamicDatePicker';
 import Swal from 'sweetalert2';
@@ -84,7 +84,7 @@ const Add_Vet = () => {
   const getSpecilization = async () => {
     try {
       const response = await axios.get(
-        `${import.meta.env.NX_PUBLIC_VITE_BASE_URL}api/auth/getAddDepartment`
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/auth/getAddDepartment`
       );
       const departmentOptions = response.data.map((department) => ({
         value: department._id,
@@ -321,7 +321,7 @@ const Add_Vet = () => {
 
     try {
       const response = await fetch(
-        `${import.meta.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/add-doctors`,
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/add-doctors`,
         {
           method: 'POST',
           body: formData,

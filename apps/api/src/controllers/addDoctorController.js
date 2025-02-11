@@ -1,19 +1,50 @@
 const Department = require('../models/AddDepartment');
 const AddDoctors = require('../models/addDoctor');
-const bcrypt = require('bcrypt');
+const crypto = require('crypto');
+
+import {
+  CognitoIdentityProviderClient,
+  AdminGetUserCommand,
+  AdminConfirmSignUpCommand,
+  SignUpCommand,
+  AdminUpdateUserAttributesCommand,
+} from '@aws-sdk/client-cognito-identity-provider';
 const AWS = require('aws-sdk');
 const SES = new AWS.SES();
 const { WebUser } = require('../models/WebUser');
 const DoctorsTimeSlotes = require('../models/DoctorsSlotes');
 const webAppointments = require('../models/WebAppointment');
-const mongoose = require('mongoose');
-
+const cognito = new CognitoIdentityProviderClient({
+  region: process.env.AWS_REGION,
+});
+const confirmUser = async (userPoolId, username) => {
+  try {
+    await cognito.send(
+      new AdminConfirmSignUpCommand({
+        UserPoolId: userPoolId,
+        Username: username,
+      })
+    );
+    console.log('User successfully confirmed.');
+  } catch (error) {
+    console.error('Error confirming user:', error);
+    throw error;
+  }
+};
 const s3 = new AWS.S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
   region: process.env.AWS_REGION,
 });
+function getSecretHash(email) {
+  const clientId = process.env.COGNITO_CLIENT_ID_WEB;
+  const clientSecret = process.env.COGNITO_CLIENT_SECRET_WEB;
 
+  return crypto
+    .createHmac('SHA256', clientSecret)
+    .update(email + clientId)
+    .digest('base64');
+}
 function convertTo24HourFormat(time) {
   const [hour, minute, period] = time
     .replace(/(\s+)/g, '') // Remove any spaces
@@ -28,44 +59,154 @@ function convertTo24HourFormat(time) {
 }
 const AddDoctorsController = {
   addDoctor: async (req, res) => {
-    const formData = req.body.formData ? JSON.parse(req.body.formData) : {};
-    const {
-      personalInfo,
-      residentialAddress,
-      professionalBackground,
-      availability,
-      consultFee,
-      loginCredentials,
-      activeModes,
-      authSettings,
-      timeDuration,
-    } = formData;
-    console.log(formData);
-
-    const uploadToS3 = (file, folderName) => {
-      return new Promise((resolve, reject) => {
-        const params = {
-          Bucket: process.env.AWS_S3_BUCKET_NAME,
-          Key: `${folderName}/${Date.now()}_${file.name}`,
-          Body: file.data,
-          ContentType: file.mimetype,
-        };
-
-        s3.upload(params, (err, data) => {
-          if (err) {
-            console.error('Error uploading to S3:', err);
-            reject(err);
-          } else {
-            resolve(data.Key);
-          }
-        });
-      });
-    };
-
-    let image,
-      documents = [];
-
     try {
+      const formData = req.body.formData ? JSON.parse(req.body.formData) : {};
+      const {
+        personalInfo,
+        residentialAddress,
+        professionalBackground,
+        availability,
+        consultFee,
+        loginCredentials,
+        activeModes,
+        authSettings,
+        timeDuration,
+        bussinessId,
+      } = formData;
+
+      if (!loginCredentials?.username || !loginCredentials?.password) {
+        return res
+          .status(400)
+          .json({ message: 'Email and password are required.' });
+      }
+
+      const userPoolId = process.env.COGNITO_USER_POOL_ID_WEB;
+      const clientId = process.env.COGNITO_CLIENT_ID_WEB;
+      const username = loginCredentials.username;
+
+      // Check if user exists in Cognito
+      let userExists = false;
+      try {
+        await cognito.send(
+          new AdminGetUserCommand({
+            UserPoolId: userPoolId,
+            Username: username,
+          })
+        );
+        userExists = true;
+      } catch (error) {
+        if (error.name !== 'UserNotFoundException') {
+          console.error('Error checking user:', error);
+          return res
+            .status(500)
+            .json({ message: 'Error checking user existence.' });
+        }
+      }
+
+      if (userExists) {
+        return res
+          .status(409)
+          .json({ message: 'User already exists. Please login.' });
+      }
+
+      // Register user in Cognito
+      const signUpParams = {
+        ClientId: clientId,
+        Username: username,
+        Password: loginCredentials.password,
+        UserAttributes: [{ Name: 'email', Value: username }],
+      };
+
+      if (process.env.COGNITO_CLIENT_SECRET_WEB) {
+        signUpParams.SecretHash = getSecretHash(username);
+      }
+
+      let data;
+      try {
+        data = await cognito.send(new SignUpCommand(signUpParams));
+        console.log('User successfully registered in Cognito:', data);
+      } catch (err) {
+        console.error('Cognito Signup Error:', err);
+        return res
+          .status(500)
+          .json({ message: 'Error registering user. Please try again later.' });
+      }
+
+      // Verify email in Cognito
+      try {
+        await cognito.send(
+          new AdminUpdateUserAttributesCommand({
+            UserPoolId: userPoolId,
+            Username: username,
+            UserAttributes: [{ Name: 'email_verified', Value: 'true' }],
+          })
+        );
+        console.log('Email verified successfully.');
+      } catch (error) {
+        console.error('Error verifying email:', error);
+      }
+
+      console.log('Email verified successfully.');
+
+      await confirmUser(userPoolId, username);
+
+      const login = await WebUser.create({
+        cognitoId: data.UserSub,
+        businessType: 'Doctor',
+        bussinessId,
+      });
+
+      if (!login) {
+        return res
+          .status(500)
+          .json({ message: 'Failed to create login credentials.' });
+      }
+
+      // Send email with password
+      const emailParams = {
+        Source: process.env.MAIL_DRIVER,
+        Destination: { ToAddresses: [username] },
+        Message: {
+          Subject: { Data: 'Your password' },
+          Body: {
+            Text: {
+              Data: `Your password is: ${loginCredentials.password}. Keep it safe.`,
+            },
+          },
+        },
+      };
+
+      try {
+        const emailSent = await SES.sendEmail(emailParams).promise();
+        console.log('Password sent:', emailSent);
+      } catch (error) {
+        console.error('Error sending email:', error);
+      }
+
+      // Upload files to S3
+      const uploadToS3 = (file, folderName) => {
+        return new Promise((resolve, reject) => {
+          const params = {
+            Bucket: process.env.AWS_S3_BUCKET_NAME,
+            Key: `${folderName}/${Date.now()}_${file.name}`,
+            Body: file.data,
+            ContentType: file.mimetype,
+          };
+
+          s3.upload(params, (err, data) => {
+            if (err) {
+              console.error('Error uploading to S3:', err);
+              reject(err);
+            } else {
+              resolve(data.Key);
+            }
+          });
+        });
+      };
+
+      let image,
+        documents = [];
+
       if (req.files && req.files.image) {
         image = await uploadToS3(req.files.image, 'images');
       }
@@ -83,36 +224,8 @@ const AddDoctorsController = {
           });
         }
       }
-      console.log('documentss', documents);
-      const hashedPassword = await bcrypt.hash(loginCredentials.password, 10);
 
-      const login = await WebUser.create({
-        email: loginCredentials.username,
-        password: hashedPassword,
-        businessType: 'Doctor',
-      });
-      if (!login) {
-        return res
-          .status(500)
-          .json({ message: 'Failed to create login credentials' });
-      }
-      const params = {
-        Source: process.env.MAIL_DRIVER,
-        Destination: {
-          ToAddresses: [loginCredentials.username],
-        },
-        Message: {
-          Subject: { Data: 'Your password' },
-          Body: {
-            Text: {
-              Data: `Your password is: ${loginCredentials.password}. Keep it safe.`,
-            },
-          },
-        },
-      };
-      const emailSent = await SES.sendEmail(params).promise();
-      console.log('Password sent:', emailSent);
-
+      // Save doctor details
       const newDoctor = new AddDoctors({
         userId: login._id,
         personalInfo: { ...personalInfo, image },
@@ -128,16 +241,16 @@ const AddDoctorsController = {
 
       const savedDoctor = await newDoctor.save();
 
-      // Respond with success status and data
+      // Respond with success
       res.status(201).json({
         message: 'Doctor added successfully',
         doctor: savedDoctor,
-        login,
       });
     } catch (error) {
-      // Handle errors
       console.error('Error saving doctor:', error);
-      res.status(400).json({ error: error.message });
+      res
+        .status(500)
+        .json({ message: 'Internal server error', error: error.message });
     }
   },
 
@@ -341,13 +454,15 @@ const AddDoctorsController = {
           console.log('updatedDocuments', updatedDocuments);
           return res.status(200).json({
             ...doctor._doc,
+            timeDuration: doctor.timeDuration,
+            availability: doctor.availability,
             residentialAddress: doctor.residentialAddress,
             personalInfo: { ...doctor.personalInfo, image: imageUrl },
             professionalBackground: {
               ...doctor.professionalBackground,
               specialization: department?.departmentName,
             },
-            documents: updatedDocuments, // Adding the documents separately
+            documents: updatedDocuments,
           });
         }
       } else {
@@ -673,7 +788,7 @@ const AddDoctorsController = {
           timeSlots: updatedTimeSlots,
         });
       } else {
-        return res.status(200).json({
+        return res.status(404).json({
           // message: "Data fetch Failed",
           // timeSlots: [],
         });

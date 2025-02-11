@@ -55,8 +55,8 @@ import { useAuth } from './context/useAuth';
 
 const Layout = () => {
   const navigate = useNavigate();
-  const { tokens, userType, profileData, initializeUser } = useAuth();
-  // console.log("layout", profileData);
+  const { tokens, userType } = useAuth();
+
   const location = useLocation();
   // console.log("yyy", tokens);
 
@@ -132,7 +132,7 @@ const Layout = () => {
   useEffect(() => {
     // console.log("Tokens:", tokens);
     // console.log("Current Path:", location.pathname);
-    initializeUser();
+
     const currentPath = location.pathname;
 
     const shouldRedirect = !tokens && protectedRoutes.includes(currentPath);
@@ -141,7 +141,7 @@ const Layout = () => {
       // console.log(`Unauthorized access to protected route: ${currentPath}`);
       navigate('/signin');
     }
-  }, [tokens, location.pathname, navigate]);
+  }, [tokens, location.pathname]);
 
   useEffect(() => {
     // console.log("Current Path:", location.pathname);
@@ -169,7 +169,7 @@ const Layout = () => {
     } else {
       navigate(currentPath);
     }
-  }, [tokens, location.pathname, navigate]);
+  }, [tokens, location.pathname]);
   // console.log("<Doctor_Dashboard />", userType);
   return (
     <>

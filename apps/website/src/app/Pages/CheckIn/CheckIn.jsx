@@ -19,9 +19,13 @@ import DynamicDatePicker from '../../Components/DynamicDatePicker/DynamicDatePic
 import { MainBtn } from '../Appointment/page';
 import PatientsTable from '../../Components/PatientsTable/PatientsTable';
 import axios from 'axios';
+import { useAuth } from '../../context/useAuth';
 
 function CheckInModal(props) {
+  const { userId } = useAuth();
+
   const [AllData, setAllData] = useState({
+    userId,
     ownerName: '',
     phone: '',
     addressline1: '',
@@ -37,18 +41,42 @@ function CheckInModal(props) {
     appointmentType: '',
     veterinarian: '',
     appointmentDate: '',
+    day: '',
     petType: '',
     gender: '',
     appointmentSource: '',
     Time: '',
+    timeSlots: [],
   });
-  // console.log("AllData", AllData);
+  const [AvailableSlots, setAvailableSlots] = useState([]);
+  console.log('AvailableSlots', AvailableSlots);
+  console.log('AllData.timeSlots', AllData.userId);
+  useEffect(() => {
+    setAllData((prev) => ({
+      ...prev,
+      userId,
+    }));
+  }, [userId]);
   const handleClick = (category, value) => {
     setAllData((prev) => ({
       ...prev,
       [category]: value,
     }));
   };
+  const handleClicked = (category, value) => {
+    if (!category || value === undefined) {
+      console.error('Invalid category or value passed to handleClick');
+      return;
+    }
+
+    console.log(`Updating ${category} with value:`, value);
+
+    setAllData((prev) => ({
+      ...prev,
+      [category]: [value],
+    }));
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setAllData((prev) => ({
@@ -112,11 +140,11 @@ function CheckInModal(props) {
 
       if (response && response.data) {
         const data = response.data;
-        // console.log("data", data);
+        console.log('data', data);
 
         setVeterinarian(
           data.map((v) => ({
-            value: v._id,
+            value: v.userId,
             label: `${v.personalInfo.firstName} ${v.personalInfo.lastName}`,
           }))
         );
@@ -131,11 +159,40 @@ function CheckInModal(props) {
       veterinarian: value,
     }));
   };
-  const handleDateChange = (date) => {
+  const handleDateChange = async (date) => {
     setAllData((prev) => ({
       ...prev,
       appointmentDate: date,
     }));
+    const day = new Date(date).toLocaleDateString('en-US', {
+      weekday: 'long',
+    });
+    setAllData((pre) => ({
+      ...pre,
+      day: day,
+    }));
+    try {
+      const { data } = await axios.get(
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/appointments/getslots`,
+        {
+          params: {
+            doctorId: AllData.veterinarian,
+            day,
+            date,
+          },
+        }
+      );
+      console.log('data', data);
+      if (data?.timeSlots) {
+        setAvailableSlots(data.timeSlots);
+      } else {
+        console.log('hello');
+        setAvailableSlots([]);
+      }
+    } catch (error) {
+      console.error('Error fetching doctor slots:', error);
+      setAvailableSlots([]);
+    }
   };
   const [validationErrors, setValidationErrors] = useState({});
 
@@ -201,7 +258,7 @@ function CheckInModal(props) {
         veterinarian: '',
         appointmentDate: '',
       });
-      props.onHide();
+      // props.onHide(() => setModalShow(false));
     } catch (error) {
       // Error alert
       Swal.fire({
@@ -515,30 +572,53 @@ function CheckInModal(props) {
             <div className="PetTypeDiv">
               <p>Appointment Time</p>
               <ul className="SelectUl">
-                {[
-                  '10:30 AM',
-                  '10:45 AM',
-                  '11:00 AM',
-                  '11:15 AM',
-                  '11:30 AM',
-                  '11:45 AM',
-                  '12:00 PM',
-                  '12:15 PM',
-                  '12:30 PM',
-                  '2:30 PM',
-                  '3:15 PM',
-                  '3:45 PM',
-                  '4:30 PM',
-                  '5:15 PM',
-                ].map((Time) => (
-                  <li
-                    key={Time}
-                    className={AllData.Time === Time ? 'active' : ''}
-                    onClick={() => handleClick('Time', Time)}
-                  >
-                    {Time}
-                  </li>
-                ))}
+                {
+                  // [
+                  //   "10:30 AM",
+                  //   "10:45 AM",
+                  //   "11:00 AM",
+                  //   "11:15 AM",
+                  //   "11:30 AM",
+                  //   "11:45 AM",
+                  //   "12:00 PM",
+                  //   "12:15 PM",
+                  //   "12:30 PM",
+                  //   "2:30 PM",
+                  //   "3:15 PM",
+                  //   "3:45 PM",
+                  //   "4:30 PM",
+                  //   "5:15 PM",
+                  // ]
+
+                  AvailableSlots && AvailableSlots.length > 0 ? (
+                    AvailableSlots.map((timeSlot) => (
+                      <li
+                        key={timeSlot._id} // Ensure _id is unique
+                        className={`${
+                          AllData.timeSlots.some(
+                            (v) => v.time === timeSlot.time
+                          ) || timeSlot.isBooked
+                            ? 'active'
+                            : ''
+                        }`}
+                        onClick={
+                          !timeSlot.isBooked
+                            ? () => handleClicked('timeSlots', timeSlot)
+                            : null
+                        } // Disable click if isBooked is true
+                        style={{
+                          pointerEvents: timeSlot.isBooked ? 'none' : 'auto', // Disable pointer events if isBooked is true
+                          opacity: timeSlot.isBooked ? 0.6 : 1, // Optional: Dim the slot if it is booked
+                        }}
+                      >
+                        {timeSlot.time || 'No Time Available'}{' '}
+                        {/* Fallback in case `time` is undefined */}
+                      </li>
+                    ))
+                  ) : (
+                    <div>No Slots Available For Today</div>
+                  )
+                }
               </ul>
             </div>
           </div>

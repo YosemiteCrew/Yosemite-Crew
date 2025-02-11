@@ -211,110 +211,108 @@ const SignUp = () => {
   };
 
   return (
-    <>
-      <section className="SignUpSec">
-        <div className="container">
-          <div className="SignupData">
-            <div className="SignUpText">
-              <h1>
-                <span>Join the Future</span> of <br /> Veterinary Practice{' '}
-                <br /> Management
-              </h1>
-              <p>
-                Streamline your operations, improve patient care, and grow your
-                practice with our comprehensive PIMS.
-              </p>
-            </div>
+    <section className="SignUpSec">
+      <div className="container">
+        <div className="SignupData">
+          <div className="SignUpText">
+            <h1>
+              <span>Join the Future</span> of <br /> Veterinary Practice <br />{' '}
+              Management
+            </h1>
+            <p>
+              Streamline your operations, improve patient care, and grow your
+              practice with our comprehensive PIMS.
+            </p>
+          </div>
 
-            <div className="SignFormDiv">
-              <form onSubmit={handleSubmit}>
-                <HeadText Spntext="Sign up" blktext="now" />
+          <div className="SignFormDiv">
+            <form onSubmit={handleSubmit}>
+              <HeadText Spntext="Sign up" blktext="now" />
 
-                <div className="">
-                  <Forminput
-                    inlabel="Email Address"
-                    intype="text"
-                    inname="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                  <div className="pasdiv">
-                    <FormPassw
-                      paswlabel="Password"
-                      intype="password"
-                      inname="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                    />
-                    <p>
-                      Password must be at least 8 characters long, including an
-                      uppercase letter, a number, and a special character.
-                    </p>
-                  </div>
-                  <FormPassw
-                    paswlabel="Confirm Password"
-                    intype="password"
-                    inname="confirmPassword"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                  />
-
-                  <div className="business-type-container">
-                    <p>Select Your Business Type</p>
-                    <div className="button-group">
-                      <ul>
-                        {businessTypes.map((type) => (
-                          <li
-                            key={type}
-                            className={`business-button ${
-                              selectedType === type ? 'selected' : ''
-                            }`}
-                            onClick={() => handleSelectType(type)}
-                          >
-                            {type}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="Sign_check">
-                  <input
-                    type="checkbox"
-                    className="check-input"
-                    id="exampleCheck1"
-                    required
-                  />
-                  <label className="form-check-label" htmlFor="exampleCheck1">
-                    I agree to Yosemite Crew’s <span>Terms and Conditions</span>{' '}
-                    and <span>Privacy Policy</span>
-                  </label>
-                </div>
-
-                <div className="sinbtn">
-                  <MainBtn
-                    btntyp="submit"
-                    bimg={whtcheck}
-                    btext="Sign Up"
-                    // onClick={handleSubmit}
-                  />
-                  <h6>
-                    Already have an account? <Link to="/signin">Login</Link>
-                  </h6>
-                </div>
-
-                <SignOtp
-                  show={modalShow}
-                  onHide={() => setModalShow(false)}
-                  email={email}
+              <div className="">
+                <Forminput
+                  inlabel="Email Address"
+                  intype="text"
+                  inname="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                 />
-              </form>
-            </div>
+                <div className="pasdiv">
+                  <FormPassw
+                    paswlabel="Password"
+                    intype="password"
+                    inname="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                  <p>
+                    Password must be at least 8 characters long, including an
+                    uppercase letter, a number, and a special character.
+                  </p>
+                </div>
+                <FormPassw
+                  paswlabel="Confirm Password"
+                  intype="password"
+                  inname="confirmPassword"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+
+                <div className="business-type-container">
+                  <p>Select Your Business Type</p>
+                  <div className="button-group">
+                    <ul>
+                      {businessTypes.map((type) => (
+                        <li
+                          key={type}
+                          className={`business-button ${
+                            selectedType === type ? 'selected' : ''
+                          }`}
+                          onClick={() => handleSelectType(type)}
+                        >
+                          {type}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="Sign_check">
+                <input
+                  type="checkbox"
+                  className="check-input"
+                  id="exampleCheck1"
+                  required
+                />
+                <label className="form-check-label" htmlFor="exampleCheck1">
+                  I agree to Yosemite Crew’s <span>Terms and Conditions</span>{' '}
+                  and <span>Privacy Policy</span>
+                </label>
+              </div>
+
+              <div className="sinbtn">
+                <MainBtn
+                  btntyp="submit"
+                  bimg={whtcheck}
+                  btext="Sign Up"
+                  // onClick={handleSubmit}
+                />
+                <h6>
+                  Already have an account? <Link to="/signin">Login</Link>
+                </h6>
+              </div>
+
+              <SignOtp
+                show={modalShow}
+                onHide={() => setModalShow(false)}
+                email={email}
+              />
+            </form>
           </div>
         </div>
-      </section>
-    </>
+      </div>
+    </section>
   );
 };
 
@@ -327,10 +325,18 @@ Forminput.propTypes = {
   inname: PropTypes.string.isRequired,
   value: PropTypes.string,
   onChange: PropTypes.func,
+  readOnly: PropTypes.bool, // Add this line
 };
-export function Forminput({ inlabel, intype, inname, value, onChange }) {
+export function Forminput({
+  inlabel,
+  intype,
+  inname,
+  value,
+  onChange,
+  readOnly,
+}) {
   return (
-    <div className="signup__field ">
+    <div className="signup__field">
       <input
         className="signup__input"
         type={intype}
@@ -338,6 +344,7 @@ export function Forminput({ inlabel, intype, inname, value, onChange }) {
         id={inname}
         value={value}
         onChange={onChange}
+        readOnly={readOnly} // Add this line
         required
       />
       <label className="signup__label" htmlFor={inname}>
@@ -376,9 +383,9 @@ export function FormPassw({ paswlabel, intype, inname, value, onChange }) {
       <label className="signup__label" htmlFor={inname}>
         {paswlabel}
       </label>
-      <a href="#" onClick={togglePasswordVisibility}>
+      <Link type="button" onClick={togglePasswordVisibility}>
         <img src={eys} alt="eyes" />
-      </a>
+      </Link>
     </div>
   );
 }

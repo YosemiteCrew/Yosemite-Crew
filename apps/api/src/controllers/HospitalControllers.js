@@ -328,6 +328,7 @@ const HospitalController = {
           },
         },
       ]);
+      console.table(weeklyAppointments);
 
       const weekData = {
         Monday: 0,
