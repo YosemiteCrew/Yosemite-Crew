@@ -55,14 +55,14 @@ const {
 const router = express.Router();
 const multer = require("multer");
 const fs = require('fs');
-const uploadDir = './Uploads/Images';
+const uploadDir = './apps/api/src/Uploads/Images';
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir);
 }
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    return cb(null, "./Uploads/Images");
+    return cb(null, "./apps/api/src/Uploads/Images");
   },
   filename: function (req, file, cb) {
     return cb(null, `${Date.now()}-${file.originalname}`);
@@ -82,7 +82,7 @@ router.post("/addVetDetails", verifyTokenAndRefresh, handleVetClinic);
 router.post("/addBreederDetails", verifyTokenAndRefresh,  handleBreeder);
 router.post("/addPetGroomer",verifyTokenAndRefresh, handlePetGroomer);
 router.post("/addPetBoarding",verifyTokenAndRefresh, handlePetBoarding);
-router.post("/bookappointment",upload.single("document"),handleBookAppointment);
+router.post("/bookappointment",handleBookAppointment);
 router.post("/getappointments", verifyTokenAndRefresh, handleGetAppointment);
 router.post("/getTimeSlots", verifyTokenAndRefresh, handleGetTimeSlots);
 router.post("/rescheduleAppointment",verifyTokenAndRefresh, handleRescheduleAppointment);
