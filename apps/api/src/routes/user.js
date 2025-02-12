@@ -17,7 +17,7 @@ const {
   handlePetBoarding,
 } = require("../controllers/details");
 const {
-  handleAddAppointment,
+  handleBookAppointment,
   handleGetAppointment,
   handleCancelAppointment,
   handleGetTimeSlots,
@@ -54,17 +54,24 @@ const {
 } = require("../controllers/lists");
 const router = express.Router();
 const multer = require("multer");
-
+const fs = require('fs');
+const uploadDir = './Uploads/Images';
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    return cb(null, "./uploads");
+    return cb(null, "./Uploads/Images");
   },
   filename: function (req, file, cb) {
     return cb(null, `${Date.now()}-${file.originalname}`);
   },
 });
-const upload = multer({ storage });
+const upload = multer({ 
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }  // 5MB limit
+});
 const { verifyTokenAndRefresh } = require('../middlewares/authMiddleware');
 
 router.post("/addPet", verifyTokenAndRefresh,handleAddPet);
@@ -75,11 +82,7 @@ router.post("/addVetDetails", verifyTokenAndRefresh, handleVetClinic);
 router.post("/addBreederDetails", verifyTokenAndRefresh,  handleBreeder);
 router.post("/addPetGroomer",verifyTokenAndRefresh, handlePetGroomer);
 router.post("/addPetBoarding",verifyTokenAndRefresh, handlePetBoarding);
-router.post(
-  "/bookappointment", verifyTokenAndRefresh,
-  upload.single("document"),
-  handleAddAppointment
-);
+router.post("/bookappointment",upload.single("document"),handleBookAppointment);
 router.post("/getappointments", verifyTokenAndRefresh, handleGetAppointment);
 router.post("/getTimeSlots", verifyTokenAndRefresh, handleGetTimeSlots);
 router.post("/rescheduleAppointment",verifyTokenAndRefresh, handleRescheduleAppointment);

@@ -3,35 +3,49 @@ const DoctorsTimeSlotes = require('../models/DoctorsSlotes');
 const webAppointment = require("../models/WebAppointment");
 const jwt = require('jsonwebtoken');
 const moment = require('moment');
+//const { handleFileUpload, handleMultipleFileUpload } = require('../middlewares/upload');
 
 
-async function handleAddAppointment(req, res) {
+
+async function handleBookAppointment(req, res) {
     var fileName = "";
-    const { day, month, userId, hospitalId, departmentId, doctorId, time, message,appointmentDate } = req.body;
+    const appointDate = req.body.appointmentDate;
+    console.log(appointDate)
+    const purposeOfVisit = req.body.purposeOfVisit;
+    const dateObj = new Date(appointDate);
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dayofweek = days[dateObj.getDay()];
+    const appointmentTime = req.body.timeslot;
+    const appointmentTime24 = convertTo24Hour(appointmentTime);
+
+    const { userId,hospitalId,department,doctorId,petId, slotsId,concernOfVisit } = req.body;
     
   
     const document = req.file;
+    console.log(document)
     if (document) fileName = document.filename;
   
-    const addappointment = await appointment.create({
+    const addappointment = await webAppointment.create({
       userId,
       hospitalId,
-      departmentId,
-      doctorId,
-      dayFor: day,
-      timeFor: time,
-      monthFor: month,
-      appointmentDate: appointmentDate,
-      message,
+      department,
+      veterinarian: doctorId,
+      petId,
+      day: dayofweek,
+      appointmentDate: appointDate,
+      slotsId,
+      appointmentTime,
+      appointmentTime24,
+      purposeOfVisit,
+      concernOfVisit,
+      appointmentSource: "App",
       document: fileName,
     });
   
     if (addappointment) {
-      res.status(201).json({
+      res.status(200).json({
+        status: 1,
         message: "Appointment Booked successfully",
-        appointment: {
-          id: addappointment.id,
-        }
       });
     }
   }
@@ -91,15 +105,12 @@ async function handleGetTimeSlots(req, res) {
     const slots = await DoctorsTimeSlotes.find({ doctorId, day });
    
     const timeSlots = slots[0].timeSlots;
+    console.log(timeSlots)
 
     if (slots.length === 0) {
       return res.status(200).json({ status: 0, data: [], message: "No slots found for this doctor on this day" });
     }
     const bookedappointments = await webAppointment.find({veterinarian:doctorId, appointmentDate:appointDate });
-    if (bookedappointments.length === 0) {
-      return res.status(200).json({ status: 0, data: [], message: "no appointments for this date" });
-    }
-
     const updatedSlots = timeSlots.map(slot => ({
       slot,
       booked: bookedappointments.some(app => app.slotsId === slot._id.toString()) // Convert ObjectId to string for comparison
@@ -232,7 +243,7 @@ const convertTo24Hour = (time12h) => {
 
 
 module.exports = {
-    handleAddAppointment,
+    handleBookAppointment,
     handleGetAppointment,
     handleCancelAppointment,
     handleGetTimeSlots,

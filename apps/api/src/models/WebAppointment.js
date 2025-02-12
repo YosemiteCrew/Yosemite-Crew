@@ -3,43 +3,46 @@ const appointmentSchema = mongoose.Schema(
   {
     userId: {
       type: String,
-      required: true,
+    
     },
     ownerName: {
       type: String,
-      required: true,
+     
     },
     phone: {
       type: String,
-      required: true,
+     
     },
     addressline1: {
       type: String,
-      required: true,
+    
     },
     street: {
       type: String,
-      required: true,
+      
     },
     city: {
       type: String,
-      required: true,
+     
     },
     state: {
       type: String,
-      required: true,
+      
     },
     zipCode: {
       type: String,
-      required: true,
+      
+    },
+    petId: {
+      type: String,
     },
     petName: {
       type: String,
-      required: true,
+     
     },
     petAge: {
       type: String,
-      required: true,
+     
     },
     petType: {
       type: String,
@@ -55,13 +58,14 @@ const appointmentSchema = mongoose.Schema(
       type: String,
       required: true,
     },
+    concernOfVisit: {
+      type: String,
+    },
     appointmentType: {
       type: String,
-      required: true,
     },
     appointmentSource: {
       type: String,
-      required: true,
     },
     department: {
       type: String,
@@ -86,6 +90,9 @@ const appointmentSchema = mongoose.Schema(
     day: {
       type: String,
       required: true,
+    },
+    hospitalId: {
+      type: String,
     },
     slotsId: {
       type: String,
