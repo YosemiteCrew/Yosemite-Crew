@@ -1,7 +1,8 @@
 const appointment = require('../models/appointment');
 const DoctorsTimeSlotes = require('../models/DoctorsSlotes');
 const webAppointment = require("../models/WebAppointment");
-const jwt = require('jsonwebtoken')
+const jwt = require('jsonwebtoken');
+const moment = require('moment');
 
 
 async function handleAddAppointment(req, res) {
@@ -37,18 +38,19 @@ async function handleAddAppointment(req, res) {
 
 async function handleGetAppointment(req, res) {
     try {
-      const { userId } = req.body;
+      const token = req.headers.authorization.split(' ')[1]; // Extract token
+      const decoded = jwt.verify(token, process.env.JWT_SECRET); // Verify token
+      const cognitoUserId = decoded.username; // Get user ID from token
       const startOfToday = new Date().toISOString().split("T")[0]; 
-      const [allAppointments, confirmedAppointments, upcomingAppointments, pastAppointments] = await Promise.all([
-        appointment.find({ userId }),
-        appointment.find({ userId, appointmentStatus: 1 }),
-        appointment.find({ userId, appointmentDate: { $gt: startOfToday } }),
-        appointment.find({ userId, appointmentDate: { $lt: startOfToday } })
+      const endOfToday = new Date(new Date().setHours(23, 59, 59, 999)).toISOString().split("T")[0]; 
+      
+      const [allAppointments, confirmedAppointments, upcomingAppointments, pastAppointments, todayAppointments] = await Promise.all([
+        webAppointment.find({ userId: cognitoUserId }),
+        webAppointment.find({ userId: cognitoUserId, appointmentStatus: 1 }),
+        webAppointment.find({ userId: cognitoUserId, appointmentDate: { $gte: startOfToday, $lte: endOfToday }, appointmentStatus: 0 }), // Include today
+        webAppointment.find({ userId: cognitoUserId, appointmentDate: { $lt: startOfToday }, appointmentStatus: 0 }),
+        webAppointment.find({ userId: cognitoUserId, appointmentDate: startOfToday, appointmentStatus: 0 }) // Explicit today filter
       ]);
-  
-      if (allAppointments.length === 0) {
-        return res.status(404).json({ message: "No appointments found for this user" });
-      }
       res.json({
         allAppointments,
         confirmedAppointments,
@@ -79,7 +81,7 @@ async function handleCancelAppointment(req,res) {
 
 async function handleGetTimeSlots(req, res) {
   try {
-    const appointDate = req.body.appointmentdate;
+    const appointDate = req.body.appointmentDate;
     const doctorId = req.body.doctorId;
 
     const dateObj = new Date(appointDate);
@@ -125,14 +127,22 @@ async function handleRescheduleAppointment(req, res){
   const targetTime =  AppointmentData.timeslot
 
   const matchingSlot = timeslotArray.find(slot => slot.time === targetTime);
+  
   if (matchingSlot) {
     const appointmentDate = appointmentDated;
     const appointmentTime = targetTime;
     const appointmentTime24 =  convertTo24Hour(targetTime); 
     const slotsId = matchingSlot.id;
     const day = appointmentday;
-    const reschdule = await webAppointment.updateMany({id,$set: { appointmentDate,appointmentTime,appointmentTime24,slotsId,day } });
-    if(!reschdule){
+    const reschedule = await webAppointment.findByIdAndUpdate(
+      id,
+      {
+        $set: { appointmentDate, appointmentTime, appointmentTime24, slotsId, day }
+      },
+      { new: true, runValidators: true }
+    );
+    
+    if(!reschedule){
       return res.status(200).json({ status: 0, message:"error while Rescheduling Appointment" });
     }else{
       const appointmentupdatedRecord = await webAppointment.findById(id);
@@ -142,6 +152,70 @@ async function handleRescheduleAppointment(req, res){
     return res.status(200).json({ status: 0, message:"This time slot is not available" });
   }
 }
+
+async function handleTimeSlotsByMonth(req, res) {
+  const doctorId = req.body.doctorId;
+  const slotMonth = req.body.slotMonth;
+  const slotYear = req.body.slotYear;
+
+  try {
+    // 1. Generate the calendar for the specified month and year
+    const startDate = moment({ year: slotYear, month: slotMonth - 1, day: 1 });
+    const endDate = startDate.clone().endOf('month');
+    const calendar = [];
+    for (let date = startDate.clone(); date.isBefore(endDate); date.add(1, 'day')) {
+      calendar.push(date.clone());
+    }
+
+    // 2. Retrieve the weekly schedule for the doctor
+    const weeklySchedule = await DoctorsTimeSlotes.find({ doctorId }).lean();
+
+    // 3. Retrieve the booked appointments for the specified month and year
+    const bookedAppointments = await webAppointment.find({
+      veterinarian: doctorId,
+      appointmentDate: {
+        $gte: startDate.toDate(),
+        $lte: endDate.toDate(),
+      },
+    }).lean();
+
+    // 4. Extract the slotsId from the booked appointments
+    const bookedSlotIds = bookedAppointments.map((appointment) => appointment.slotsId);
+
+    // 5. Calculate available slots per date
+    const calendarWithSlots = calendar.map((date) => {
+      const dayOfWeek = date.format('dddd'); // e.g., 'Monday'
+      const daySchedule = weeklySchedule.find((schedule) => schedule.day === dayOfWeek);
+
+      if (!daySchedule) {
+        // No schedule available for this day
+        return {
+          date: date.format('YYYY-MM-DD'),
+          day: dayOfWeek,
+          availableSlotsCount: 0,
+        };
+      }
+
+      // Filter out the booked time slots
+      const availableTimeSlots = daySchedule.timeSlots.filter(
+        (slot) => !bookedSlotIds.includes(slot._id.toString())
+      );
+
+      return {
+        date: date.format('YYYY-MM-DD'),
+        day: dayOfWeek,
+        availableSlotsCount: availableTimeSlots.length,
+      };
+    });
+
+    return res.json(calendarWithSlots);
+  } catch (error) {
+    console.error('Error generating calendar with available slots:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+}
+
+
 
 const convertTo24Hour = (time12h) => {
   const [time, modifier] = time12h.split(' '); // Split into time and AM/PM
@@ -154,7 +228,7 @@ const convertTo24Hour = (time12h) => {
   }
 
   return `${hours}:${minutes}`;
-};
+}
 
 
 module.exports = {
@@ -163,4 +237,5 @@ module.exports = {
     handleCancelAppointment,
     handleGetTimeSlots,
     handleRescheduleAppointment,
+    handleTimeSlotsByMonth,
 }

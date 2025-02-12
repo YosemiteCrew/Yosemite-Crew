@@ -22,6 +22,7 @@ const {
   handleCancelAppointment,
   handleGetTimeSlots,
   handleRescheduleAppointment,
+  handleTimeSlotsByMonth,
 } = require("../controllers/appointment");
 const { handleContactUs } = require("../controllers/contact");
 const {
@@ -48,6 +49,9 @@ const {
   handleEditSharedDuties,
   handleGetSharedDuties,
 } = require("../controllers/sharedDuties");
+const {
+  handlelists,
+} = require("../controllers/lists");
 const router = express.Router();
 const multer = require("multer");
 
@@ -80,7 +84,9 @@ router.post("/getappointments", verifyTokenAndRefresh, handleGetAppointment);
 router.post("/getTimeSlots", verifyTokenAndRefresh, handleGetTimeSlots);
 router.post("/rescheduleAppointment",verifyTokenAndRefresh, handleRescheduleAppointment);
 router.post("/cancelappointment", verifyTokenAndRefresh, handleCancelAppointment);
+router.post("/getTimeSlotsByMonth",handleTimeSlotsByMonth);
 router.post("/sendquery", verifyTokenAndRefresh,handleContactUs);
+router.post("/getLists",handlelists);
 router.post(
   "/addVaccinationRecord",verifyTokenAndRefresh,
   upload.single("vaccineImage"),
