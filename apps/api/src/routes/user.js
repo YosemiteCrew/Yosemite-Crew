@@ -82,7 +82,7 @@ router.post("/addVetDetails", verifyTokenAndRefresh, handleVetClinic);
 router.post("/addBreederDetails", verifyTokenAndRefresh,  handleBreeder);
 router.post("/addPetGroomer",verifyTokenAndRefresh, handlePetGroomer);
 router.post("/addPetBoarding",verifyTokenAndRefresh, handlePetBoarding);
-router.post("/bookappointment",handleBookAppointment);
+router.post("/bookAppointment",handleBookAppointment);
 router.post("/getappointments", verifyTokenAndRefresh, handleGetAppointment);
 router.post("/getTimeSlots", verifyTokenAndRefresh, handleGetTimeSlots);
 router.post("/rescheduleAppointment",verifyTokenAndRefresh, handleRescheduleAppointment);

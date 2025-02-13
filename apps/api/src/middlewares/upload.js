@@ -4,15 +4,15 @@ const AWS = require('aws-sdk');
 
 // Configure AWS S3
 const s3 = new AWS.S3({
-    accessKeyId: process.env.S3_ACCESS_KEY,
-    secretAccessKey: process.env.S3_SECRET_KEY,
-    region: process.env.S3_REGION
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    region: process.env.AWS_REGION
 });
 
 // Function to upload to S3
 async function uploadToS3(fileName, fileContent) {
     const params = {
-        Bucket: process.env.S3_BUCKET_NAME,
+        Bucket: process.env.AWS_S3_BUCKET_NAME,
         Key: fileName,
         Body: fileContent,
         ContentType: 'image/jpeg',
@@ -45,7 +45,7 @@ async function handleFileUpload(file) {
 
         fs.unlinkSync(filePath);
 
-        return imageUrl;
+        return filePath;
     } catch (err) {
         console.error('Error in file upload process:', err);
         throw err;
