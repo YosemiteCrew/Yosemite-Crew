@@ -1,36 +1,45 @@
 const appointment = require('../models/appointment');
 const DoctorsTimeSlotes = require('../models/DoctorsSlotes');
 const webAppointment = require("../models/WebAppointment");
+const pet = require("../models/YoshPet");
+const YoshUser = require("../models/YoshUser");
 const jwt = require('jsonwebtoken');
 const moment = require('moment');
-//const { handleFileUpload, handleMultipleFileUpload } = require('../middlewares/upload');
+const {  handleMultipleFileUpload } = require('../middlewares/upload');
 
 
 
 async function handleBookAppointment(req, res) {
-    var fileName = "";
     const appointDate = req.body.appointmentDate;
-    console.log(appointDate)
     const purposeOfVisit = req.body.purposeOfVisit;
+    const userId = req.body.cognitoId;
     const dateObj = new Date(appointDate);
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const dayofweek = days[dateObj.getDay()];
     const appointmentTime = req.body.timeslot;
     const appointmentTime24 = convertTo24Hour(appointmentTime);
-
-    const { userId,hospitalId,department,doctorId,petId, slotsId,concernOfVisit } = req.body;
-    
-  
-    const document = req.file;
-    console.log(document)
-    if (document) fileName = document.filename;
-  
+    let imageUrls = '';
+    const { hospitalId,department,doctorId,petId, slotsId,concernOfVisit } = req.body;
+      if (req.files) {
+        const files = Array.isArray(req.files.files) ? req.files.files : [req.files.files];
+         imageUrls = await handleMultipleFileUpload(files);
+      }
+      const id = petId;
+     const petDetails =  await pet.findById(id);
+     const petOwner =  await YoshUser.find({cognitoId: userId});
+     
     const addappointment = await webAppointment.create({
       userId,
       hospitalId,
       department,
       veterinarian: doctorId,
       petId,
+      ownerName: petOwner[0].firstName + ' ' + petOwner[0].lastName,
+      petName: petDetails.petName,
+      petAge: petDetails.petAge,
+      petType: petDetails.petType,
+      gender: petDetails.petGender,
+      breed: petDetails.petBreed,
       day: dayofweek,
       appointmentDate: appointDate,
       slotsId,
@@ -39,7 +48,7 @@ async function handleBookAppointment(req, res) {
       purposeOfVisit,
       concernOfVisit,
       appointmentSource: "App",
-      document: fileName,
+      document: imageUrls,
     });
   
     if (addappointment) {

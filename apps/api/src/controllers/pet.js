@@ -27,7 +27,8 @@ async function handleAddPet(req,res){
           await petImage.mv(uploadPath);
           PetImage = uniqueName;
   }
-  const { petType, petBreed, petName, petdateofBirth, petCurrentWeight, petColor, petBloodGroup, isNeutered,ageWhenNeutered,microChipNumber,isInsured,insuranceCompany,policyNumber,passportNumber,petFrom  } = req.body; // Data from request body
+  const { petType, petBreed, petName, petGender, petdateofBirth, petCurrentWeight, petColor, petBloodGroup, isNeutered,ageWhenNeutered,microChipNumber,isInsured,insuranceCompany,policyNumber,passportNumber,petFrom  } = req.body; // Data from request body
+
 
     const addPet = await pet.create({
         cognitoUserId,
@@ -35,6 +36,8 @@ async function handleAddPet(req,res){
         petBreed,
         petName,
         petdateofBirth,
+        petGender,
+        petAge: calculateAge(petdateofBirth),
         petCurrentWeight,
         petColor,
         petBloodGroup,
@@ -111,6 +114,20 @@ async function handleEditPet(req,res) {
     
 }
 
+function calculateAge(dob) {
+  const birthDate = new Date(dob);
+  const today = new Date();
+
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+
+  // If the birth month hasn't occurred yet this year, or it's the birth month but the day hasn't occurred yet
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+
+  return age;
+}
 
 
 module.exports = {
