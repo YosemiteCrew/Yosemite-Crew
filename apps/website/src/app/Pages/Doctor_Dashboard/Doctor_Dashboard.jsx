@@ -35,8 +35,9 @@ const Doctor_Dashboard = () => {
   const [Day, setDay] = useState(null);
   const [timeSlots, setTimeSlots] = useState([]);
   const [profile, setprofile] = useState([]);
-  const [availabilityTimes, setAvailbilityTimes] = useState(null);
-  console.log('timeSlots', profile);
+  const [status, setStatus] = useState('');
+  // const [availabilityTimes, setAvailbilityTimes] = useState(null);
+  console.log('status', status);
   useEffect(() => {
     if (doctorProfile) {
       console.log('doctorProfile.timeDuration', doctorProfile.timeDuration);
@@ -54,14 +55,47 @@ const Doctor_Dashboard = () => {
   };
 
   // Toggle Button
-  const [isAvailable, setIsAvailable] = useState(false);
+  // const [isAvailable, setIsAvailable] = useState(false);
   const [showModal, setShowModal] = useState(false);
-
-  const handleToggle = () => {
-    setIsAvailable(!isAvailable);
-    setShowModal(true);
+  const getStatus = async () => {
+    try {
+      const response = await axios.get(
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/getAvailabilityStatus?userId=${userId}`
+      );
+      console.log('response.data', response.data.isAvailable);
+      setStatus(response.data.isAvailable.toString());
+    } catch (error) {
+      console.log('error', error);
+    }
   };
 
+  const handleToggle = async () => {
+    const newStatus = status === '1' ? '0' : '1';
+    try {
+      const response = await axios.put(
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/updateAvailability?userId=${userId}&status=${newStatus}`
+      );
+
+      if (response) {
+        getStatus();
+        Swal.fire({
+          title: 'Success',
+          text: 'Availability updated successfully',
+          icon: 'success',
+        });
+      }
+    } catch (error) {
+      console.log('error', error);
+      Swal.fire({
+        title: 'Error',
+        text: 'Failed to update availability',
+        icon: 'error',
+      });
+    }
+  };
+  const opneModel = () => {
+    setShowModal(true);
+  };
   const closeModal = () => setShowModal(false);
 
   const handleDateChange = (selectedDate) => {
@@ -280,7 +314,8 @@ const Doctor_Dashboard = () => {
   useEffect(() => {
     getAllAppointments(0);
     getlast7daysAppointMentsCount();
-  }, []);
+    getStatus();
+  }, [userId]);
   return (
     <section className="DoctorDashBoardSec">
       <div className="container">
@@ -301,19 +336,23 @@ const Doctor_Dashboard = () => {
                 <h6>Availability Status</h6>
                 <div className="togalrt">
                   <div
-                    className={`toggle-switch ${isAvailable ? 'active' : ''}`}
+                    className={`toggle-switch ${
+                      status === '1' ? 'active' : ''
+                    }`}
                     onClick={handleToggle}
                   >
                     <div className="toggle-circle"></div>
                   </div>
                   <p
                     className="avlbl"
-                    style={{ color: isAvailable ? '#8AC1B1' : 'gray' }}
+                    style={{ color: status === '1' ? '#8AC1B1' : 'gray' }}
                   >
-                    {isAvailable ? 'Available' : ''}
+                    {status === '1' ? 'Available' : ''}
                   </p>
                 </div>
-                <p className="mngevigible">Manage Availability</p>
+                <p onClick={opneModel} className="mngevigible">
+                  Manage Availability
+                </p>
               </div>
 
               <Modal
@@ -327,13 +366,15 @@ const Doctor_Dashboard = () => {
                   <div className="avltog">
                     <h6>Availability Status</h6>
                     <div
-                      className={`toggle-switch ${isAvailable ? 'active' : ''}`}
+                      className={`toggle-switch ${
+                        status === '1' ? 'active' : ''
+                      }`}
                       onClick={handleToggle}
                     >
                       <div className="toggle-circle"></div>
                     </div>
-                    <p style={{ color: isAvailable ? '#8AC1B1' : 'gray' }}>
-                      {isAvailable ? 'Available' : ''}
+                    <p style={{ color: status === '1' ? '#8AC1B1' : 'gray' }}>
+                      {status === '1' ? 'Available' : ''}
                     </p>
                   </div>
                 </Modal.Header>

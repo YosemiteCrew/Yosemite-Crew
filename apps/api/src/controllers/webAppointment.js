@@ -1,12 +1,15 @@
 const DoctorsTimeSlotes = require('../models/DoctorsSlotes');
-const webAppointments = require('../models/WebAppointment');
-const webAppointment = require('../models/WebAppointment');
+const {
+  AppointmentsToken,
+  webAppointments,
+} = require('../models/WebAppointment');
 
 const webAppointmentController = {
   createWebAppointment: async (req, res) => {
     try {
       const {
-        userId,
+        hospitalId,
+        HospitalName,
         ownerName,
         phone,
         addressline1,
@@ -28,9 +31,27 @@ const webAppointmentController = {
         day,
         timeSlots,
       } = req.body;
-      console.log(req.body);
-      const response = await webAppointment.create({
-        userId,
+
+      console.log('Received Request Body:', req.body);
+
+      const initials = HospitalName.split(' ')
+        .map((word) => word[0])
+        .join('');
+
+      let Appointmenttoken = await AppointmentsToken.findOneAndUpdate(
+        { hospitalId, appointmentDate },
+        { $inc: { tokenCounts: 1 } },
+        { new: true, upsert: true }
+      );
+
+      console.log('Token Record Found:', Appointmenttoken);
+
+      const tokenNumber = `${initials}00${Appointmenttoken.tokenCounts}-${appointmentDate}`;
+      console.log('Generated Token Number:', tokenNumber);
+
+      const response = await webAppointments.create({
+        hospitalId,
+        tokenNumber,
         ownerName,
         phone,
         addressline1,
@@ -54,17 +75,24 @@ const webAppointmentController = {
         appointmentTime24: timeSlots[0].time24,
         slotsId: timeSlots[0]._id,
       });
+
+      console.log('Web Appointment Created:', response);
+
       if (response) {
-        res.status(200).json({ message: 'Appointment created successfully' });
-      } else {
-        console.log('failed ');
-        res.status(400).json({ message: 'Failed to create Appointment' });
+        return res.status(200).json({
+          message: 'Appointment created successfully',
+          data: response,
+        });
       }
+
+      console.log('Failed to create appointment');
+      return res.status(400).json({ message: 'Failed to create Appointment' });
     } catch (error) {
-      console.log(error);
+      console.error('Error in createWebAppointment:', error);
       res.status(500).json({ message: 'Internal Server Error' });
     }
   },
+
   getDoctorsSlotes: async (req, res) => {
     try {
       const { doctorId, day, date } = req.query;

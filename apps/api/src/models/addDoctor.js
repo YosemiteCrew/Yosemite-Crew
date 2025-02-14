@@ -4,6 +4,11 @@ const vetSchema = new mongoose.Schema(
   {
     userId: {
       type: String,
+      required: true,
+    },
+    bussinessId: {
+      type: String,
+      required: true,
     },
     personalInfo: {
       image: { type: String },
@@ -15,6 +20,9 @@ const vetSchema = new mongoose.Schema(
       },
       dateOfBirth: { type: String },
       email: { type: String },
+      countrycode: {
+        type: String,
+      },
       phone: {
         type: String,
 
@@ -93,6 +101,10 @@ const vetSchema = new mongoose.Schema(
     activeModes: {
       type: [String],
       enum: ['In-person', 'Online', 'Both'],
+    },
+    isAvailable: {
+      type: String,
+      default: '0',
     },
     consultFee: { type: Number },
     DoctorPrescriptions: {

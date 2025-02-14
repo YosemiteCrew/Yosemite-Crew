@@ -182,7 +182,9 @@ const Layout = () => {
         />
         <Route path="/appointment" element={<Appointment />} />
         {/* <Route path="/doctordashboard" element={<Doctor_Dashboard />} /> */}
-        <Route path="/addoctor" element={<Add_Doctor />} />
+        {userType === 'Hospital' ? (
+          <Route path="/addoctor" element={<Add_Doctor />} />
+        ) : null}
         <Route path="/signup" element={<SignUp />} />
         <Route path="/signin" element={<SignIn />} />
         <Route path="/signupdetails" element={<SignUpDetails />} />
@@ -211,7 +213,9 @@ const Layout = () => {
         <Route path="/checkin" element={<CheckIn />} />
         <Route path="/devSignup" element={<DevlpSignup />} />
         <Route path="/devSignin" element={<DevlpSignin />} />
-        <Route path="/inventory" element={<Inventory />} />
+        {userType === 'Hospital' ? (
+          <Route path="/inventory" element={<Inventory />} />
+        ) : null}
         <Route path="/inventorydetails" element={<InventoryDetail />} />
         <Route path="/AddInventory" element={<AddInventory />} />
         <Route path="/AddProcedurePackage" element={<AddProcedurePackage />} />

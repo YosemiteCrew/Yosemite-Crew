@@ -153,8 +153,15 @@ function SignIn() {
       });
       return;
     }
-
-    const data = { email, otp: otp.join('') };
+    if (password !== confirmPassword) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Error',
+        text: 'Passwords do not match',
+      });
+      return;
+    }
+    const data = { email, otp: otp.join(''), password };
     try {
       const response = await axios.post(
         `${process.env.NX_PUBLIC_VITE_BASE_URL}api/auth/verifyotp`,
@@ -166,7 +173,8 @@ function SignIn() {
           title: 'Success',
           text: 'OTP verified successfully',
         });
-        setShowNewPassword(true);
+        // setShowNewPassword(true);
+        setShowNewPassword(false);
         setShowVerifyCode(false);
       }
     } catch (error) {
@@ -186,48 +194,52 @@ function SignIn() {
     }
   };
 
-  const handleResetPassword = async (e) => {
-    e.preventDefault();
-    if (password !== confirmPassword) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Error',
-        text: 'Passwords do not match',
-      });
-      return;
-    }
-    const data = { password, email };
-    try {
-      const response = await axios.post(
-        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/auth/updatepassword`,
-        data
-      );
-      if (response.status === 200) {
-        Swal.fire({
-          icon: 'success',
-          title: 'Success',
-          text: 'Password updated successfully',
-        });
-        setShowNewPassword(false);
-        setShowForgotPassword(false);
-        setShowVerifyCode(false);
-      }
-    } catch (error) {
-      if (error.response) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: `Password reset failed: ${error.response.data.message}`,
-        });
-      } else {
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'Password reset failed: Unable to connect to the server.',
-        });
-      }
-    }
-  };
+  // const handleResetPassword = async (e) => {
+  //   setShowNewPassword(false);
+  //   setShowForgotPassword(false);
+  //   setShowVerifyCode(false);
+  //   e.preventDefault();
+
+  //   if (password !== confirmPassword) {
+  //     Swal.fire({
+  //       icon: 'warning',
+  //       title: 'Error',
+  //       text: 'Passwords do not match',
+  //     });
+  //     return;
+  //   }
+  //   const data = { password, email };
+  //   try {
+  //     const response = await axios.post(
+  //       // `${process.env.NX_PUBLIC_VITE_BASE_URL}api/auth/updatepassword`,
+  //       data
+  //     );
+  //     if (response.status === 200) {
+  //       Swal.fire({
+  //         icon: 'success',
+  //         title: 'Success',
+  //         text: 'Password updated successfully',
+  //       });
+  //       setShowNewPassword(false);
+  //       setShowForgotPassword(false);
+  //       setShowVerifyCode(false);
+  //     }
+  //   } catch (error) {
+  //     if (error.response) {
+  //       Swal.fire({
+  //         icon: 'error',
+  //         title: 'Error',
+  //         text: `Password reset failed: ${error.response.data.message}`,
+  //       });
+  //     } else {
+  //       Swal.fire({
+  //         icon: 'error',
+  //         title: 'Error',
+  //         text: 'Password reset failed: Unable to connect to the server.',
+  //       });
+  //     }
+  //   }
+  // };
 
   return (
     <section className="SignInSec">
@@ -308,45 +320,72 @@ function SignIn() {
 
         {/* Verify Code Page */}
         {showVerifyCode && !showNewPassword && (
-          <div className="SignIninner">
-            <div className="signhed">
-              <h2>
-                <span>Verify</span> Code
-              </h2>
-              <p>
-                Enter the code we just sent to your email to proceed with
-                resetting your password.
-              </p>
+          <div className="ss">
+            <div className="SignIninner">
+              <div className="signhed">
+                <h2>
+                  <span>Verify</span> Code
+                </h2>
+                <p>
+                  Enter the code we just sent to your email to proceed with
+                  resetting your password.
+                </p>
+              </div>
+
+              <Form>
+                <div className="verifyInput">
+                  {otp.map((digit, index) => (
+                    <Form.Control
+                      key={index}
+                      type="text"
+                      value={digit}
+                      id={`otp-input-${index}`}
+                      onChange={(e) => handleChange(e, index)}
+                      onKeyDown={(e) => handleKeyDown(e, index)} // Handle backspace
+                      maxLength="1"
+                    />
+                  ))}
+                </div>
+
+                <div className="sinbtn">
+                  <h6>
+                    Didn’t receive the code?{' '}
+                    <Link to="/signup">Request New Code.</Link>
+                  </h6>
+                </div>
+              </Form>
             </div>
 
-            <Form>
-              <div className="verifyInput">
-                {otp.map((digit, index) => (
-                  <Form.Control
-                    key={index}
-                    type="text"
-                    value={digit}
-                    id={`otp-input-${index}`}
-                    onChange={(e) => handleChange(e, index)}
-                    onKeyDown={(e) => handleKeyDown(e, index)} // Handle backspace
-                    maxLength="1"
-                  />
-                ))}
-              </div>
+            <div className="SignIninner">
+              <h2>
+                <span>Set</span> new password
+              </h2>
 
-              <div className="sinbtn">
-                <MainBtn btext="Verify Code" onClick={handleVerifyOtp} />
-                <h6>
-                  Didn’t receive the code?{' '}
-                  <Link to="/signup">Request New Code.</Link>
-                </h6>
-              </div>
-            </Form>
+              <Form>
+                <FormPassw
+                  paswlabel="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <FormPassw
+                  paswlabel="Confirm Password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+
+                <MainBtn
+                  bimg={whtcheck}
+                  btext="Reset Password"
+                  onClick={handleVerifyOtp}
+                  // onClick={handleResetPassword}
+                />
+              </Form>
+            </div>
           </div>
         )}
 
         {/* New Password Page */}
-        {showNewPassword && (
+        {/* {showNewPassword && (
           <div className="SignIninner">
             <h2>
               <span>Set</span> new password
@@ -371,7 +410,7 @@ function SignIn() {
               />
             </Form>
           </div>
-        )}
+        )} */}
       </div>
     </section>
   );

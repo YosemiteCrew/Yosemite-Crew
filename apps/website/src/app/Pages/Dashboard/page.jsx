@@ -17,8 +17,10 @@ import ActionsTable from '../../Components/ActionsTable/ActionsTable';
 import StatusTable from '../../Components/StatusTable/StatusTable';
 import axios from 'axios';
 import StackedBarChart from '../Graph/page';
+import { useAuth } from '../../context/useAuth';
 
 const Dashboard = () => {
+  const { userId } = useAuth();
   // Dropdown options
   const optionsList = [
     'Last 6 Months',
@@ -28,12 +30,12 @@ const Dashboard = () => {
   ];
   const [CancelCompletedGraph, setCancelCompletedGraph] = useState(null);
   console.table(CancelCompletedGraph);
-  const AppointmentGraphOnMonthBase = async (selectedOption) => {
+  const AppointmentGraphOnMonthBase = async (selectedOption, userId) => {
     const days = parseInt(selectedOption.match(/\d+/)[0], 10);
     console.log(`Selected Days: ${days}`);
     try {
       const response = await axios.get(
-        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/AppointmentGraphOnMonthBase`,
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/AppointmentGraphOnMonthBase?userId=${userId}`,
         {
           params: {
             days: days,
@@ -55,134 +57,132 @@ const Dashboard = () => {
     }
   };
   useEffect(() => {
-    AppointmentGraphOnMonthBase('Last 6 Months');
-  }, []);
+    AppointmentGraphOnMonthBase('Last 6 Months', userId);
+  }, [userId]);
 
   return (
+    <section className="DashboardSection">
+      <div className="container">
+        <div className="MainDash">
+          <div className="DashBoardTopDiv">
+            <TopHeading
+              spantext="Welcome"
+              heding="Your Dashboard"
+              notif="3 New Appointments"
+            />
+            <div className="dashvisible">
+              <Link to="/clinicvisible">
+                {' '}
+                <a>
+                  <i className="ri-eye-fill"></i> Manage Clinic Visibility
+                </a>
+              </Link>
+            </div>
+          </div>
 
-      <section className="DashboardSection">
-        <div className="container">
-          <div className="MainDash">
-            <div className="DashBoardTopDiv">
-              <TopHeading
-                spantext="Welcome"
-                heding="Your Dashboard"
-                notif="3 New Appointments"
+          <div className="overviewDiv">
+            <div className="overviewitem">
+              <BoxDiv
+                boximg={box1}
+                ovradcls="chillibg"
+                ovrtxt="Appointments"
+                spanText="(Last 7 days)"
+                boxcoltext="ciltext"
+                overnumb="35"
               />
-              <div className="dashvisible">
-                <Link to="/clinicvisible">
-                  {' '}
-                  <a>
-                    <i className="ri-eye-fill"></i> Manage Clinic Visibility
-                  </a>
-                </Link>
+              <BoxDiv
+                boximg={box2}
+                ovradcls="purple"
+                ovrtxt="Doctors"
+                boxcoltext="purpletext"
+                overnumb="12"
+              />
+              <BoxDiv
+                boximg={box3}
+                ovradcls="cambrageblue"
+                ovrtxt="Specialities"
+                boxcoltext="greentext"
+                overnumb="6"
+              />
+              <BoxDiv
+                boximg={box4}
+                ovradcls="fawndark"
+                ovrtxt="Revenue "
+                spanText="(Last 7 days)"
+                boxcoltext="frowntext"
+                overnumb="$7,298"
+              />
+            </div>
+          </div>
+
+          <div className="DashGraphDiv">
+            <div className="DashGraphCard">
+              <div className="GraphTop">
+                <h5>Appointments</h5>
+                <ListSelect
+                  options={optionsList}
+                  onChange={AppointmentGraphOnMonthBase}
+                />
+              </div>
+              <div className="graphimg">
+                <StackedBarChart data={CancelCompletedGraph} />
               </div>
             </div>
 
-            <div className="overviewDiv">
-              <div className="overviewitem">
-                <BoxDiv
-                  boximg={box1}
-                  ovradcls="chillibg"
-                  ovrtxt="Appointments"
-                  spanText="(Last 7 days)"
-                  boxcoltext="ciltext"
-                  overnumb="35"
-                />
-                <BoxDiv
-                  boximg={box2}
-                  ovradcls="purple"
-                  ovrtxt="Doctors"
-                  boxcoltext="purpletext"
-                  overnumb="12"
-                />
-                <BoxDiv
-                  boximg={box3}
-                  ovradcls="cambrageblue"
-                  ovrtxt="Specialities"
-                  boxcoltext="greentext"
-                  overnumb="6"
-                />
-                <BoxDiv
-                  boximg={box4}
-                  ovradcls="fawndark"
-                  ovrtxt="Revenue "
-                  spanText="(Last 7 days)"
-                  boxcoltext="frowntext"
-                  overnumb="$7,298"
-                />
+            <div className="DashGraphCard">
+              <div className="GraphTop">
+                <h5>Revenue</h5>
+                <ListSelect options={optionsList} />
+              </div>
+              <div className="graphimg">
+                <img src={grph2} alt="graph2" />
               </div>
             </div>
+          </div>
 
-            <div className="DashGraphDiv">
-              <div className="DashGraphCard">
-                <div className="GraphTop">
-                  <h5>Appointments</h5>
-                  <ListSelect
-                    options={optionsList}
-                    onChange={AppointmentGraphOnMonthBase}
-                  />
-                </div>
-                <div className="graphimg">
-                  <StackedBarChart data={CancelCompletedGraph} />
-                </div>
-              </div>
+          <div>
+            <DivHeading TableHead="New Appointments" tablespan="(3)" />
+            <ActionsTable actimg1={Accpt} actimg2={Decln} />
+            <SeeAll seehrf="/appointment" seetext="See All" />
+          </div>
 
-              <div className="DashGraphCard">
+          <div>
+            <DivHeading TableHead="Upcoming Assessments" tablespan="(3)" />
+            <StatusTable />
+            <SeeAll seehrf="/appointment" seetext="See All" />
+          </div>
+
+          <div>
+            <DivHeading TableHead="Prescription Management" tablespan="" />
+            <StatusTable />
+            <SeeAll seehrf="/prescription" seetext="See All" />
+          </div>
+
+          <div className="SpecilityAppoint">
+            <div className="row">
+              <div className="col-md-6">
                 <div className="GraphTop">
-                  <h5>Revenue</h5>
+                  <h5>Speciality-wise appointments</h5>
                   <ListSelect options={optionsList} />
                 </div>
                 <div className="graphimg">
-                  <img src={grph2} alt="graph2" />
+                  <img src={grph3} alt="graph3" />
                 </div>
               </div>
-            </div>
-
-            <div>
-              <DivHeading TableHead="New Appointments" tablespan="(3)" />
-              <ActionsTable actimg1={Accpt} actimg2={Decln} />
-              <SeeAll seehrf="/appointment" seetext="See All" />
-            </div>
-
-            <div>
-              <DivHeading TableHead="Upcoming Assessments" tablespan="(3)" />
-              <StatusTable />
-              <SeeAll seehrf="/appointment" seetext="See All" />
-            </div>
-
-            <div>
-              <DivHeading TableHead="Prescription Management" tablespan="" />
-              <StatusTable />
-              <SeeAll seehrf="/prescription" seetext="See All" />
-            </div>
-
-            <div className="SpecilityAppoint">
-              <div className="row">
-                <div className="col-md-6">
-                  <div className="GraphTop">
-                    <h5>Speciality-wise appointments</h5>
-                    <ListSelect options={optionsList} />
-                  </div>
-                  <div className="graphimg">
-                    <img src={grph3} alt="graph3" />
-                  </div>
+              <div className="col-md-6">
+                <div className="GraphTop">
+                  <h5>Doctor-wise appointments</h5>
+                  <ListSelect options={optionsList} />
                 </div>
-                <div className="col-md-6">
-                  <div className="GraphTop">
-                    <h5>Doctor-wise appointments</h5>
-                    <ListSelect options={optionsList} />
-                  </div>
-                  <div className="graphimg">
-                    <img src={grph3} alt="graph3" />
-                  </div>
+                <div className="graphimg">
+                  <img src={grph3} alt="graph3" />
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </section>
-
+      </div>
+    </section>
   );
 };
 

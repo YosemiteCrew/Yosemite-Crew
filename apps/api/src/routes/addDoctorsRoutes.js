@@ -38,4 +38,9 @@ router.put(
   '/AppointmentAcceptedAndCancel/:id',
   AddDoctorsControllers.AppointmentAcceptedAndCancel
 );
+router.put('/updateAvailability', AddDoctorsControllers.updateAvailability);
+router.get(
+  '/getAvailabilityStatus',
+  AddDoctorsControllers.getAvailabilityStatus
+);
 module.exports = router;

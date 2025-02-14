@@ -1,5 +1,5 @@
 // eslint-disable-next-line no-unused-vars
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import './CheckIn.css';
 import Modal from 'react-bootstrap/Modal';
 import Swal from 'sweetalert2';
@@ -20,12 +20,14 @@ import { MainBtn } from '../Appointment/page';
 import PatientsTable from '../../Components/PatientsTable/PatientsTable';
 import axios from 'axios';
 import { useAuth } from '../../context/useAuth';
+import { Link } from 'react-router-dom';
 
 function CheckInModal(props) {
-  const { userId } = useAuth();
+  const { userId, profileData } = useAuth();
 
   const [AllData, setAllData] = useState({
-    userId,
+    hospitalId: '',
+    HospitalName: '',
     ownerName: '',
     phone: '',
     addressline1: '',
@@ -44,13 +46,21 @@ function CheckInModal(props) {
     day: '',
     petType: '',
     gender: '',
-    appointmentSource: '',
+    appointmentSource: 'In-Hospital',
     Time: '',
     timeSlots: [],
   });
+  useEffect(() => {
+    setAllData((prev) => ({
+      ...prev,
+      hospitalId: userId || prev.hospitalId,
+      HospitalName: profileData?.businessName,
+    }));
+  }, [userId, profileData]); // Include profileData to ensure re-run when it changes
+
   const [AvailableSlots, setAvailableSlots] = useState([]);
   console.log('AvailableSlots', AvailableSlots);
-  console.log('AllData.timeSlots', AllData.userId);
+  console.log('AllData.hospitalId', AllData.HospitalName);
   useEffect(() => {
     setAllData((prev) => ({
       ...prev,
@@ -85,27 +95,40 @@ function CheckInModal(props) {
     }));
   };
   // Select options
-  const options = [
-    { value: '1', label: 'Vaccination' },
-    { value: '2', label: 'Surgery' },
-    { value: '3', label: 'Grooming' },
-  ];
-  const options2 = [
-    { value: '1', label: 'OPD' },
-    { value: '2', label: 'Follow-up' },
-    { value: '3', label: 'Walk-in' },
-  ];
-  const options3 = [
-    { value: '1', label: 'German Shepherd' },
-    { value: '2', label: 'Poodle' },
-    { value: '3', label: 'Labrador' },
-  ];
+  const options = useMemo(
+    () => [
+      { value: '1', label: 'Vaccination' },
+      { value: '2', label: 'Surgery' },
+      { value: '3', label: 'Grooming' },
+    ],
+    []
+  );
+
+  const options2 = useMemo(
+    () => [
+      { value: '1', label: 'OPD' },
+      { value: '2', label: 'Follow-up' },
+      { value: '3', label: 'Walk-in' },
+    ],
+    []
+  );
+
+  const options3 = useMemo(
+    () => [
+      { value: '1', label: 'German Shepherd' },
+      { value: '2', label: 'Poodle' },
+      { value: '3', label: 'Labrador' },
+    ],
+    []
+  );
+
   const [department, setDepartment] = useState([]);
 
   const getSpecializationDepartment = async () => {
+    console.log('userId', userId);
     try {
       const response = await axios.get(
-        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/auth/getAddDepartment`
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/auth/getAddDepartment?userId=${userId}`
       );
       if (response && response.data) {
         const data = response.data;
@@ -123,7 +146,7 @@ function CheckInModal(props) {
 
   useEffect(() => {
     getSpecializationDepartment();
-  }, []);
+  }, [userId]);
   const [veterinarian, setVeterinarian] = useState(null);
   console.log('veterinarian', veterinarian);
   const handleDepartmentSelect = async (value) => {
@@ -135,7 +158,7 @@ function CheckInModal(props) {
     try {
       console.log('id', value);
       const response = await axios.get(
-        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/getDoctorsBySpecilizationId/${value}`
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/getDoctorsBySpecilizationId/${value}?userId=${userId}`
       );
 
       if (response && response.data) {
@@ -212,8 +235,8 @@ function CheckInModal(props) {
       errors.purposeOfVisit = 'Purpose of visit is required.';
     if (!AllData.appointmentType)
       errors.appointmentType = 'Appointment type is required';
-    if (!AllData.appointmentSource)
-      errors.appointmentSource = 'Appointment source is required';
+    // if (!AllData.appointmentSource)
+    //   errors.appointmentSource = 'Appointment source is required';
     if (!AllData.department) errors.department = 'Department is required.';
     if (!AllData.veterinarian)
       errors.veterinarian = 'Veterinarian is required.';
@@ -226,6 +249,7 @@ function CheckInModal(props) {
     return Object.keys(errors).length === 0;
   };
   const handleSave = async () => {
+    // console.log('AllData', AllData);
     if (!validateFields()) return;
     try {
       const response = await axios.post(
@@ -258,7 +282,7 @@ function CheckInModal(props) {
         veterinarian: '',
         appointmentDate: '',
       });
-      // props.onHide(() => setModalShow(false));
+      props.onHide();
     } catch (error) {
       // Error alert
       Swal.fire({
@@ -504,7 +528,7 @@ function CheckInModal(props) {
               </Col>
             </Row>
 
-            <div className="PetTypeDiv">
+            {/* <div className="PetTypeDiv">
               <p>Appointment Source</p>
               <ul className="SelectUl">
                 {['In-Hospital', 'App'].map((App) => (
@@ -524,7 +548,7 @@ function CheckInModal(props) {
                   {validationErrors.appointmentSource}
                 </div>
               )}
-            </div>
+            </div> */}
 
             <Row>
               <Col md={6}>
@@ -560,6 +584,7 @@ function CheckInModal(props) {
                 <DynamicDatePicker
                   onDateChange={handleDateChange}
                   placeholder="Select Appointment Date"
+                  minDate={Date.now()}
                 />
                 {validationErrors.appointmentDate && (
                   <div className="error-text">
@@ -732,12 +757,12 @@ const CheckIn = () => {
                       <h2>#12</h2>
                     </div>
                     <div className="ServPrevBtn">
-                      <a href="#">
+                      <Link to="#">
                         <CiCircleChevLeft /> Previous
-                      </a>
-                      <a href="#" className="active">
+                      </Link>
+                      <Link to="#" className="active">
                         Next Token <CiCircleChevRight />
-                      </a>
+                      </Link>
                     </div>
                   </div>
                 </div>

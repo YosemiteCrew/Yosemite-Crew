@@ -1,7 +1,11 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const DepartmentSchema = new mongoose.Schema({
   departmentName: {
+    type: String,
+    required: true,
+  },
+  bussinessId: {
     type: String,
     required: true,
   },
@@ -14,6 +18,10 @@ const DepartmentSchema = new mongoose.Schema({
     required: true,
     match: /.+\@.+\..+/,
   },
+  countrycode: {
+    type: String,
+    required: true,
+  },
   phone: {
     type: String,
     required: true,
@@ -24,20 +32,20 @@ const DepartmentSchema = new mongoose.Schema({
     {
       type: String,
       enum: [
-        "Cardiac Health Screenings",
-        "Echocardiograms",
-        "Electrocardiograms (ECG)",
-        "Blood Pressure Monitoring",
-        "Holter Monitoring",
-        "Cardiac Catheterization",
-        "Congenital Heart Disease Management",
+        'Cardiac Health Screenings',
+        'Echocardiograms',
+        'Electrocardiograms (ECG)',
+        'Blood Pressure Monitoring',
+        'Holter Monitoring',
+        'Cardiac Catheterization',
+        'Congenital Heart Disease Management',
       ],
     },
   ],
   departmentHeadId: {
     // type: mongoose.Schema.Types.ObjectId,
     // ref: "User",
-    type: Number,
+    type: String,
     required: true,
   },
   // operatingHours: [
@@ -85,24 +93,24 @@ const DepartmentSchema = new mongoose.Schema({
   // ],
   consultationModes: {
     type: [String],
-    enum: ["In-person", "Online", "Both"],
+    enum: ['In-person', 'Online', 'Both'],
     required: true,
   },
   conditionsTreated: [
     {
       type: String,
       enum: [
-        "Congestive Heart Failure",
-        "Arrhythmias",
-        "Heart Murmurs",
-        "Dilated Cardiomyopathy",
-        "Valvular Heart Disease",
-        "Pericardial Effusion",
-        "Myocarditis",
+        'Congestive Heart Failure',
+        'Arrhythmias',
+        'Heart Murmurs',
+        'Dilated Cardiomyopathy',
+        'Valvular Heart Disease',
+        'Pericardial Effusion',
+        'Myocarditis',
       ],
     },
   ],
 });
 
-const Department = mongoose.model("Department", DepartmentSchema);
+const Department = mongoose.model('Department', DepartmentSchema);
 module.exports = Department;

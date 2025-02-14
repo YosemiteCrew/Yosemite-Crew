@@ -10,6 +10,7 @@ export const AuthProvider = ({ children }) => {
   const [userType, setUserType] = useState(null);
   const [profileData, setProfileData] = useState(null);
   const [doctorProfile, setDoctorProfile] = useState(null);
+  console.log('profileData', profileData);
 
   console.log('User Type:', userType);
   const initializeUser = async () => {
