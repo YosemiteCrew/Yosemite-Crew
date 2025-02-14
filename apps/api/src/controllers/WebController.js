@@ -3,6 +3,13 @@ const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { WebUser, ProfileData } = require('../models/WebUser');
+import {
+  ConfirmForgotPasswordCommand,
+  CognitoIdentityProviderClient,
+} from '@aws-sdk/client-cognito-identity-provider';
+const cognitoo = new CognitoIdentityProviderClient({
+  region: process.env.AWS_REGION,
+});
 
 const cognito = new AWS.CognitoIdentityServiceProvider();
 
@@ -382,32 +389,32 @@ const WebController = {
 
   verifyOtp: async (req, res) => {
     try {
-      const { email, otp } = req.body;
+      const { email, otp, password: newPassword } = req.body;
 
-      if (!email || !otp) {
-        return res.status(400).json({ message: 'Email and OTP are required.' });
+      if (!email || !otp || !newPassword) {
+        return res
+          .status(400)
+          .json({ message: 'Email, OTP, and new password are required.' });
       }
 
-      const confirmParams = {
+      const params = {
         ClientId: process.env.COGNITO_CLIENT_ID_WEB,
         Username: email,
-        ConfirmationCode: otp, // OTP received from the user
+        SecretHash: getSecretHash(email),
+        ConfirmationCode: String(otp).trim(), // Ensure OTP is a string
+        Password: newPassword,
       };
 
-      if (process.env.COGNITO_CLIENT_SECRET) {
-        confirmParams.SecretHash = getSecretHash(email);
-      }
+      await cognitoo.send(new ConfirmForgotPasswordCommand(params));
 
-      // Verify OTP
-      await cognito.confirmForgotPassword(confirmParams).promise();
-      res.status(200).json({
-        message: 'OTP verified successfully. You can now reset your password.',
-      });
+      res
+        .status(200)
+        .json({ message: 'Password reset successfully. You can now log in.' });
     } catch (error) {
-      console.error('Error verifying OTP:', error);
+      console.error('Error resetting password:', error);
       res
         .status(500)
-        .json({ message: 'Error verifying OTP.', error: error.message });
+        .json({ message: 'Error resetting password.', error: error.message });
     }
   },
   updatePassword: async (req, res) => {

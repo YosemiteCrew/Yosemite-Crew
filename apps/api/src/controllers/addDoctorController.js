@@ -227,7 +227,7 @@ const AddDoctorsController = {
 
       // Save doctor details
       const newDoctor = new AddDoctors({
-        userId: login._id,
+        userId: data.UserSub,
         personalInfo: { ...personalInfo, image },
         residentialAddress,
         professionalBackground,
@@ -237,6 +237,7 @@ const AddDoctorsController = {
         activeModes,
         authSettings,
         documents: documents,
+        bussinessId,
       });
 
       const savedDoctor = await newDoctor.save();
@@ -332,9 +333,11 @@ const AddDoctorsController = {
   getDoctorsBySpecilizationId: async (req, res) => {
     try {
       const { id } = req.params;
+      const { userId } = req.query;
 
       const doctors = await AddDoctors.find({
-        'professionalBackground.specialization': id,
+        'professionalBackground.specialization': { $exists: true, $eq: id },
+        bussinessId: { $exists: true, $eq: userId },
       }).select('userId personalInfo.firstName personalInfo.lastName');
 
       if (!doctors || doctors.length === 0) {
@@ -352,31 +355,41 @@ const AddDoctorsController = {
   },
   searchDoctorsByName: async (req, res) => {
     try {
-      const { name } = req.query;
+      const { name, bussinessId } = req.query;
+      console.log('name', name);
 
-      const searchFilter = name
-        ? {
-            $or: [
-              { 'personalInfo.firstName': { $regex: name, $options: 'i' } },
-              { 'personalInfo.lastName': { $regex: name, $options: 'i' } },
-            ],
-          }
-        : {};
-
-      const doctors = await AddDoctors.find(searchFilter).select(
-        'personalInfo.firstName personalInfo.lastName personalInfo.image professionalBackground.specialization professionalBackground.qualification'
-      );
-
-      if (!doctors || doctors.length === 0) {
-        return res.status(404).json({ message: 'No doctors found' });
+      if (!bussinessId) {
+        return res.status(400).json({ message: 'Business ID is required' });
       }
 
+      const [firstName = '', lastName = ''] = name.split(' ');
+
+      const searchFilter = {
+        bussinessId, // Ensure we only fetch doctors belonging to this business
+        $or: [
+          { 'personalInfo.firstName': { $regex: firstName, $options: 'i' } },
+          { 'personalInfo.lastName': { $regex: lastName, $options: 'i' } },
+        ],
+      };
+
+      const doctors = await AddDoctors.find(searchFilter).select(
+        'personalInfo.firstName personalInfo.lastName personalInfo.image professionalBackground.specialization professionalBackground.qualification userId isAvailable'
+      );
+
+      // if (!doctors.length) {
+      //   return res.status(200).json({ message: 'No doctors found', data: {} });
+      // }
+
+      // Extract unique specialization IDs
       const specializationIds = [
         ...new Set(
-          doctors.map((doctor) => doctor.professionalBackground.specialization)
+          doctors
+            .map((doctor) => doctor.professionalBackground?.specialization)
+            .filter(Boolean) // Removes undefined/null values
         ),
       ];
 
+      // Fetch department details
       const departments = await Department.find({
         _id: { $in: specializationIds },
       }).select('_id departmentName');
@@ -385,19 +398,23 @@ const AddDoctorsController = {
         acc[department._id] = department.departmentName;
         return acc;
       }, {});
+
       const doctorDataWithSpecializations = doctors.map((doctor) => {
-        const specializationId = doctor.professionalBackground.specialization;
+        const specializationId = doctor.professionalBackground?.specialization;
         return {
+          userId: doctor.userId,
+          isAvailable: doctor.isAvailable,
           doctorName: `${doctor.personalInfo.firstName} ${doctor.personalInfo.lastName}`,
-          qualification: doctor.professionalBackground.qualification,
+          qualification: doctor.professionalBackground?.qualification || 'N/A',
           specialization:
             specializationMap[specializationId] || 'No specialization found',
-          image:
-            ` https://${process.env.AWS_S3_BUCKET_NAME}.s3.amazonaws.com/${doctor.personalInfo.image}` ||
-            '',
+          image: doctor.personalInfo.image
+            ? `https://${process.env.AWS_S3_BUCKET_NAME}.s3.amazonaws.com/${doctor.personalInfo.image}`
+            : '',
         };
       });
 
+      // Grouping doctors by specialization
       const groupedBySpecialization = doctorDataWithSpecializations.reduce(
         (acc, doctor) => {
           const { specialization } = doctor;
@@ -409,12 +426,14 @@ const AddDoctorsController = {
         },
         {}
       );
+
       res.status(200).json(groupedBySpecialization);
     } catch (error) {
       console.error('Error fetching doctors data:', error);
       res.status(500).json({ message: 'Failed to fetch doctors data', error });
     }
   },
+
   getDoctors: async (req, res) => {
     try {
       const { id } = req.params;
@@ -972,6 +991,53 @@ const AddDoctorsController = {
       console.error('Error in AppointmentAcceptedAndCancel:', error);
       return res.status(500).json({
         message: 'An error occurred while updating appointment status.',
+        error: error.message,
+      });
+    }
+  },
+  updateAvailability: async (req, res) => {
+    try {
+      const { userId, status } = req.query;
+
+      const result = await AddDoctors.updateOne(
+        { userId: userId },
+        { $set: { isAvailable: status } }
+      );
+
+      console.log('Update Result:', result);
+
+      if (result.matchedCount === 0) {
+        return res.status(404).json({ message: 'User not found.' });
+      }
+
+      return res.status(200).json({
+        message: 'Availability updated successfully.',
+        // isAvailable: status,
+      });
+    } catch (error) {
+      console.error('Error in updateAvailability:', error);
+      return res.status(500).json({
+        message: 'An error occurred while updating user availability.',
+        error: error.message,
+      });
+    }
+  },
+  getAvailabilityStatus: async (req, res) => {
+    try {
+      const { userId } = req.query;
+      const result = await AddDoctors.findOne({ userId: userId });
+      console.log('Availability Status:', result);
+      if (!result) {
+        return res.status(404).json({ message: 'User not found.' });
+      }
+      return res.status(200).json({
+        message: 'Availability status retrieved successfully.',
+        isAvailable: result.isAvailable,
+      });
+    } catch (error) {
+      console.error('Error in getAvailabilityStatus:', error);
+      return res.status(500).json({
+        message: 'An error occurred while retrieving user availability status.',
         error: error.message,
       });
     }

@@ -23,21 +23,25 @@ import { FaFileWord } from 'react-icons/fa';
 import { RxCrossCircled } from 'react-icons/rx';
 import { IoIosAddCircle } from 'react-icons/io';
 import { useAuth } from '../../context/useAuth';
+import countrycode from '../Add_Department/countriescities.json';
 
 const Add_Vet = () => {
   const { userId } = useAuth();
   const navigate = useNavigate();
   const [OperatingHour, setOperatingHours] = useState([]);
   const [uploadedfiles, setUploadedFiles] = useState([]);
+  // const [selectedCode, setSelectedCode] = useState('+91');
+  const [searchTerms, setSearchTerms] = useState('');
   const [PersonalInfoForm, setPersonalInfoForm] = useState({
     firstName: '',
     lastName: '',
     gender: '',
     email: '',
+    countrycode: '+91',
     phone: '',
     dateOfBirth: '',
   });
-  console.log('PersonalInfoForm.dateOfBirth', PersonalInfoForm.dateOfBirth);
+  console.log('PersonalInfoForm.dateOfBirth', PersonalInfoForm.countrycode);
 
   const [ResidentialAddressForm, setResidentialAddressForm] = useState({
     addressLine1: '',
@@ -72,7 +76,13 @@ const Add_Vet = () => {
   });
   const [options, setOptions] = useState([]);
   const [timeDuration, setTimeDuration] = useState(null);
-  console.log('timeDuration', timeDuration);
+
+  // Filter countries based on search input
+  const filteredCountries = countrycode.filter(
+    (country) =>
+      country.countryCode.includes(searchTerms) ||
+      country.label.toLowerCase().includes(searchTerms.toLowerCase())
+  );
 
   const handleDateChange = (date) => {
     setPersonalInfoForm((pre) => ({
@@ -84,7 +94,7 @@ const Add_Vet = () => {
   const getSpecilization = async () => {
     try {
       const response = await axios.get(
-        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/auth/getAddDepartment`
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/auth/getAddDepartment?userId=${userId}`
       );
       const departmentOptions = response.data.map((department) => ({
         value: department._id,
@@ -143,7 +153,7 @@ const Add_Vet = () => {
 
   useEffect(() => {
     getSpecilization();
-  }, []);
+  }, [userId]);
 
   const handleprofessionalBackground = (e) => {
     const { name, value } = e.target;
@@ -477,6 +487,7 @@ const Add_Vet = () => {
                     <DynamicDatePicker
                       onDateChange={handleDateChange} // Pass the handler function
                       placeholder="Date of Birth"
+                      maxDate={Date.now()}
                     />
                   </Col>
                 </Row>
@@ -493,11 +504,31 @@ const Add_Vet = () => {
                 </Row>
                 <Row>
                   <Col md={3}>
-                    <Forminput
-                      inlabel="First Name"
-                      intype="text"
-                      inname="name"
-                    />
+                    <div className="ff">
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="Search country code..."
+                        value={searchTerms}
+                        onChange={(e) => setSearchTerms(e.target.value)}
+                      />
+                      <select
+                        className="form-control"
+                        value={PersonalInfoForm.countrycode}
+                        onChange={(e) =>
+                          setPersonalInfoForm((pre) => ({
+                            ...pre,
+                            countrycode: e.target.value,
+                          }))
+                        }
+                      >
+                        {filteredCountries.map((country, index) => (
+                          <option key={index} value={country.countryCode}>
+                            {country.emoji} {country.countryCode}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </Col>
                   <Col md={9}>
                     <Forminput

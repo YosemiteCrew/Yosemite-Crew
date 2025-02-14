@@ -25,9 +25,11 @@ import Decln from '../../../../public/Images/decline.png';
 import DocterWiseAppoint from '../../Components/DocterWiseAppoint/DocterWiseAppoint';
 import axios from 'axios';
 import Swal from 'sweetalert2';
+import { useAuth } from '../../context/useAuth';
 // import { Button } from 'react-bootstrap';
 
 const Appointment = () => {
+  const { userId } = useAuth();
   // dropdown
   const optionsList1 = [
     'Last 7 Days',
@@ -37,11 +39,11 @@ const Appointment = () => {
   ];
   const [allAppointments, setAllAppointments] = useState([]);
   const [total, setTotal] = useState();
-  const getAllAppointments = async (offset) => {
+  const getAllAppointments = async (offset, userId) => {
     console.log('ssssssss');
     try {
       const response = await axios.get(
-        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/getAllAppointments?offset=${offset}`
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/getAllAppointments?offset=${offset}&userId=${userId}`
       );
       if (response) {
         console.log('hospitalssss', response.data);
@@ -66,7 +68,7 @@ const Appointment = () => {
           icon: 'success',
         });
       }
-      getAllAppointments(offset);
+      getAllAppointments(offset, userId);
       // getlast7daysAppointMentsCount();
     } catch (error) {
       Swal.fire({
@@ -85,7 +87,7 @@ const Appointment = () => {
     console.log(`Selected Days: ${days}`);
     try {
       const response = await axios.get(
-        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/getAppUpcCompCanTotalCountOnDayBasis`,
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/getAppUpcCompCanTotalCountOnDayBasis?userId=${userId}`,
         {
           params: {
             LastDays: days,
@@ -98,16 +100,16 @@ const Appointment = () => {
     } catch (error) {
       Swal.fire({
         title: 'Error',
-        text: 'Failed to Get Appointments Counts',
+        text: `${error}`,
         icon: 'error',
       });
     }
   };
 
   useEffect(() => {
-    getAllAppointments(0);
+    getAllAppointments(0, userId);
     getAppUpcCompCanTotalCounts('Last 7 Days');
-  }, []);
+  }, [userId]);
 
   return (
     <section className="AppintmentSection">

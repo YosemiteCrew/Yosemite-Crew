@@ -13,7 +13,7 @@ import Swal from 'sweetalert2';
 import { useAuth } from '../../context/useAuth';
 
 const MainHeader = ({ isMainHeader }) => {
-  const { profileData, onLogout } = useAuth();
+  const { profileData, onLogout, userType } = useAuth();
   const navigate = useNavigate();
 
   const [profileDataa, setupProfileData] = useState([]);
@@ -181,23 +181,34 @@ const MainHeader = ({ isMainHeader }) => {
                   Home
                 </Link>
               </li>
+              {userType === 'Hospital' ? (
+                <li>
+                  <Link to="/checkin">Waiting Room</Link>
+                </li>
+              ) : null}
               {profileDataa?.activeModes === 'yes' ? (
                 <li>
                   <Link to="/department">Specialities</Link>
                 </li>
               ) : null}
-              <li>
-                <Link to="/addoctor">Doctors</Link>
-              </li>
+
+              {userType === 'Hospital' ? (
+                <li>
+                  <Link to="/addoctor">Doctors</Link>
+                </li>
+              ) : null}
               <li>
                 <Link to="/appointment">Appointments</Link>
               </li>
               <li>
                 <Link to="/AssessmentManagement">Assessments</Link>
               </li>
-              <li>
-                <Link to="/inventory">Inventory</Link>
-              </li>
+              {userType === 'Hospital' ? (
+                <li>
+                  <Link to="/inventory">Inventory</Link>
+                </li>
+              ) : null}
+
               <li>
                 <Link to="/lblogpage">Blog</Link>
               </li>
@@ -291,7 +302,11 @@ const MainHeader = ({ isMainHeader }) => {
                       <li>
                         <Link
                           className="dropdown-item d-flex align-items-center"
-                          to="/doctorprofile"
+                          to={
+                            userType === 'Doctor'
+                              ? '/doctorprofile'
+                              : '/clinicvisible'
+                          }
                         >
                           <i className="ri-user-fill"></i>
                           <span>My Profile</span>

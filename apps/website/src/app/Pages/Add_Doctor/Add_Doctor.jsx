@@ -14,7 +14,7 @@ import Doctor1 from '../../../../public/Images/Doctor1.png';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import { propTypes } from 'react-bootstrap/esm/Image';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth';
 
 const useDebounce = (value, delay) => {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -30,13 +30,13 @@ const useDebounce = (value, delay) => {
   return debouncedValue;
 };
 const Add_Doctor = () => {
-  // const { verifyAndRefreshToken } = useAuth();
+  const { userId, onLogout } = useAuth();
   const navigate = useNavigate();
 
-  const [doctorsData, setDoctorsData] = useState([]);
+  const [doctorsData, setDoctorsData] = useState({});
   const [overview, setOverview] = useState([]);
   const [search, setSearch] = useState('');
-  // console.log("doctorsData", doctorsData);
+  console.log('doctorsData', doctorsData);
 
   const debouncedSearch = useDebounce(search, 500);
   const getaDoctors = async () => {
@@ -44,13 +44,8 @@ const Add_Doctor = () => {
       // Get the token from sessionStorage
       const token = sessionStorage.getItem('token');
 
-      if (!token) {
-        console.error('No token found in sessionStorage');
-        // await verifyAndRefreshToken(navigate); // Call the function from AuthContext
-        navigate('/signin');
-      }
       const response = await axios.get(
-        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/searchDoctorsByName?name=${debouncedSearch}`,
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/searchDoctorsByName?name=${debouncedSearch}&bussinessId=${userId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`, // Attach the token to the request headers
@@ -58,13 +53,19 @@ const Add_Doctor = () => {
         }
       );
 
-      if (response && response.data) {
+      if (response.status === 200) {
         setDoctorsData(response.data);
       } else {
         console.log('No data found');
       }
     } catch (error) {
       console.error('Error fetching doctors data:', error);
+
+      // If the session is expired or token is invalid (401 Unauthorized)
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout();
+      }
     }
   };
 
@@ -84,7 +85,7 @@ const Add_Doctor = () => {
   useEffect(() => {
     getaDoctors();
     getOverview();
-  }, [debouncedSearch]);
+  }, [debouncedSearch, userId]);
 
   const handleSearch = (e) => {
     setSearch(e.target.value);
@@ -141,7 +142,7 @@ const Add_Doctor = () => {
             <div></div>
 
             <div>
-              {Object.keys(doctorsData).map((specialization, index) => {
+              {Object.keys(doctorsData || {})?.map((specialization, index) => {
                 const doctors = doctorsData[specialization];
                 return (
                   <div className="DoctorCardData" key={index}>
@@ -156,11 +157,11 @@ const Add_Doctor = () => {
                           doctimg={doctor.image} // Replace with dynamic image if available
                           doctname={doctor.doctorName}
                           doctpotion={doctor.qualification}
-                          dutyname={doctor.dutyname || 'On-Duty'} // Ensure dutyname is handled
+                          dutyname={
+                            doctor.isAvailable === '0' ? 'Off-Duty' : 'On-Duty'
+                          } // Ensure dutyname is handled
                           offclass={
-                            doctor.dutyname === 'Off-Duty'
-                              ? 'OffDuty'
-                              : 'OnDuty'
+                            doctor.isAvailable === '0' ? 'OffDuty' : 'OnDuty'
                           } // Add dynamic class based on duty
                         />
                       ))}

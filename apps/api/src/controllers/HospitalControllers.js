@@ -1,11 +1,11 @@
-const webAppointments = require('../models/WebAppointment');
+const { webAppointments } = require('../models/WebAppointment');
 const Department = require('../models/AddDepartment');
 const AddDoctors = require('../models/addDoctor');
 
 const HospitalController = {
   getAllAppointments: async (req, res) => {
     try {
-      const { offset = 0, limit = 5 } = req.query;
+      const { offset = 0, limit = 5, userId } = req.query;
       console.log(req.query);
 
       const parsedOffset = parseInt(offset, 10);
@@ -15,6 +15,7 @@ const HospitalController = {
         {
           $match: {
             isCanceled: { $ne: 2 },
+            hospitalId: userId,
           },
         },
         {
@@ -65,6 +66,7 @@ const HospitalController = {
                 as: 'appointment',
                 in: {
                   _id: '$$appointment._id',
+                  tokenNumber: '$$appointment.tokenNumber',
                   petName: '$$appointment.petName',
                   ownerName: '$$appointment.ownerName',
                   slotsId: '$$appointment.slotsId',
@@ -115,9 +117,9 @@ const HospitalController = {
   },
   getAppUpcCompCanTotalCountOnDayBasis: async (req, res) => {
     try {
-      const { LastDays } = req.query;
+      const { LastDays, userId } = req.query;
       const days = parseInt(LastDays, 10) || 7; // Default to 7 days if not provided
-
+      console.log('req.query', req.query);
       const endDate = new Date();
       const startDate = new Date();
       startDate.setDate(endDate.getDate() - (days - 1)); // FIXED PARENTHESIS
@@ -132,6 +134,7 @@ const HospitalController = {
               $gte: startDate,
               $lte: endDate,
             },
+            hospitalId: userId,
           },
         },
         {
@@ -380,35 +383,35 @@ const HospitalController = {
     ];
 
     try {
-      const { days } = req.query;
+      const { days, userId } = req.query;
       const Month = parseInt(days, 10) || 6;
-      // console.log("Months", days);
+      console.log('UserId:', userId);
+
       const endMonth = new Date();
       const startMonth = new Date();
       startMonth.setDate(1);
       startMonth.setMonth(endMonth.getMonth() - (Month - 1));
 
-      const gt = new Date(startMonth.getFullYear(), startMonth.getMonth(), 1)
-        .toISOString()
-        .split('T')[0];
+      // Ensure correct date range
+      const gt = new Date(startMonth.getFullYear(), startMonth.getMonth(), 1);
+      const lt = new Date(endMonth.getFullYear(), endMonth.getMonth() + 1, 1);
 
-      const lt = new Date(endMonth.getFullYear(), endMonth.getMonth() + 2, 1)
-        .toISOString()
-        .split('T')[0];
       console.log('Fetching data from:', gt, 'to', lt);
+
       const aggregatedAppointments = await webAppointments.aggregate([
         {
           $match: {
+            hospitalId: userId, // Ensure userId is string
             appointmentDate: {
-              $gte: gt,
-              $lt: lt,
+              $gte: gt.toISOString().split('T')[0], // Convert dates to string format
+              $lt: lt.toISOString().split('T')[0],
             },
           },
         },
         {
           $group: {
             _id: {
-              year: { $year: { $toDate: '$appointmentDate' } },
+              year: { $year: { $toDate: '$appointmentDate' } }, // Convert string date to actual Date
               month: { $month: { $toDate: '$appointmentDate' } },
             },
             totalAppointments: { $sum: 1 },
@@ -425,9 +428,6 @@ const HospitalController = {
             _id: 0,
             year: '$_id.year',
             month: '$_id.month',
-            monthName: {
-              $arrayElemAt: [monthNames, { $subtract: ['$_id.month', 1] }],
-            },
             totalAppointments: 1,
             successful: 1,
             canceled: 1,
@@ -435,6 +435,9 @@ const HospitalController = {
         },
       ]);
 
+      console.log('Aggregated Data:', aggregatedAppointments);
+
+      // Fill missing months
       const results = [];
       let currentDate = new Date(startMonth);
 
@@ -462,7 +465,8 @@ const HospitalController = {
       }
 
       results.sort((a, b) => a.year - b.year || a.month - b.month);
-      console.log('results', results);
+      console.log('Final Results:', results);
+
       return res.status(200).json({
         message: 'Appointment data for the last X months fetched successfully',
         data: results,
