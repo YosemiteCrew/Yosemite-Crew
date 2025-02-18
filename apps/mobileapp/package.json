@@ -1,5 +1,5 @@
 {
-  "name": "YosemiteCrew_Mobile",
+  "name": "YosemiteCrewMobile",
   "version": "0.0.1",
   "private": true,
   "dependencies": {
@@ -41,6 +41,9 @@
     "react-native-swiper": "*",
     "moment": "*",
     "react-native-gifted-charts": "*",
+    "react-native-image-crop-picker": "*",
+    "react-native-keyboard-aware-scroll-view": "*",
+    "react-native-permissions": "*",
     "axios": "*",
     "react-dom": "*",
     "@nx/webpack": "*",
