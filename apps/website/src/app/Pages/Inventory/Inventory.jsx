@@ -33,7 +33,7 @@ function Inventory() {
   ];
 
   return (
-    <>
+
       <section className="InventorySec">
         <Container>
           <div className="InventoryData">
@@ -403,7 +403,7 @@ function Inventory() {
           </div>
         </Container>
       </section>
-    </>
+
   );
 }
 

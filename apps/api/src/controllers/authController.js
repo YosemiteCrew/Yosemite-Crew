@@ -4,7 +4,9 @@ const user = require("../models/YoshUser");
 const path = require("path");
 const jwt = require("jsonwebtoken");
 const algorithm = "aes-256-cbc"; // Algorithm
-const secretKey = process.env.ENCRYPTION_KEY;
+const secretKey = crypto.createHash('sha256')
+  .update(process.env.ENCRYPTION_KEY)
+  .digest();
 const iv = crypto.randomBytes(16); // Initialization vector
 const SES = new AWS.SES();
 
@@ -29,23 +31,18 @@ const authController = {
       professionType,
       pimsCode,
     } = req.body;
-    //console.log("professionType",professionType);
-
-    // if(professionType.length === 0){
-    //     var isProfessional = 'no';
-    //   }else{
-    //     var isProfessional = 'yes';
-    //   }
+   
     if (Array.isArray(professionType)) {
       isProfessional = professionType.length === 0 ? "no" : "yes";
     } else {
       isProfessional = "no"; // Default to 'no' if it's not an array
     }
     let parsedDataprofessionType;
-    if (professionType.startsWith("'") && professionType.endsWith("'")) {
-      professionType = professionType.slice(1, -1);
+    let cleanedProfessionType = professionType;
+    if (cleanedProfessionType.startsWith("'") && cleanedProfessionType.endsWith("'")) {
+      cleanedProfessionType = cleanedProfessionType.slice(1, -1);
     }
-    parsedDataprofessionType = JSON.parse(professionType);
+    parsedDataprofessionType = JSON.parse(cleanedProfessionType);
    
     // Calculate the SECRET_HASH using the getSecretHash function
     const secretHash = getSecretHash(email);
@@ -88,7 +85,7 @@ const authController = {
         fileName = uniqueName;
       }
 
-      //console.log(encryptPassword);
+     // console.log(password);
       const encrypt_Password = await encryptPassword(password);
       const result = await user.findOne({ email });
      
@@ -162,17 +159,12 @@ const authController = {
       };
   
       const authData = await cognito.initiateAuth(authParams).promise();
-  
-      // Step 5: Generate a JWT token
-      const accessToken = jwt.sign(
-        { username: authData.AuthenticationResult.IdToken },
-        process.env.JWT_SECRET,
-        { expiresIn: "7d" }
-      );
-  
+      const accessToken = authData.AuthenticationResult.AccessToken;
+      const decodedToken = jwt.decode(accessToken);
+      const accessTokenRes = jwt.sign({username:decodedToken.sub, accessToken},process.env.JWT_SECRET,{expiresIn:process.env.JWT_EXPIRE_TIME});
       // Convert Mongoose document to plain object and remove password
       const userData = result.toObject();
-      userData.token = accessToken;
+      userData.token = accessTokenRes;
       delete userData.password;
   
       // Step 6: Respond with success
@@ -216,7 +208,7 @@ const authController = {
         },
       };
       const emailSent = await SES.sendEmail(params).promise();
-      console.log("Email sent:", emailSent); // Log email send response
+     // console.log("Email sent:", emailSent); // Log email send response
       res.status(200).json({status: 1, message: "Otp sent successfully" });
     } catch (error) {
       console.error("Login error:", error);
@@ -252,7 +244,7 @@ const authController = {
     const { email, otp } = req.body;
     try {
       const result = await user.findOne({ email });
-  
+       console.log(result);
       if (!result) {
         return res.status(200).json({ status: 0, message: "User not found" });
       }
@@ -268,6 +260,7 @@ const authController = {
   
       const [{ encryptedData, iv }] = result.password;
       const decrypt_Password = decryptPassword(encryptedData, iv);
+      console.log(decrypt_Password)
   
       const secretHash = getSecretHash(email);
       const params = {
@@ -280,17 +273,13 @@ const authController = {
         },
       };
       const data = await cognito.initiateAuth(params).promise();
-  
-      // Create JWT token
-      const accessToken = jwt.sign(
-        { username: data.AuthenticationResult.IdToken },
-        process.env.JWT_SECRET,
-        { expiresIn: "7d" }
-      );
-  
+ 
+      const accessToken = data.AuthenticationResult.AccessToken;
+      const decodedToken = jwt.decode(accessToken);
+      const accessTokenRes = jwt.sign({username:decodedToken.sub, accessToken},process.env.JWT_SECRET,{expiresIn:process.env.JWT_EXPIRE_TIME});
       // Convert Mongoose document to plain object and add token
       const userData = result.toObject(); // Convert to plain object
-      userData.token = accessToken; // Add token to the plain object
+      userData.token = accessTokenRes; // Add token to the plain object
       delete userData.password;
       res.status(200).json({
         status: 1,
@@ -380,11 +369,13 @@ function generatePassword(length) {
 }
 
 function encryptPassword(password) {
+  // Create the cipher using the algorithm, key, and IV
   const cipher = crypto.createCipheriv(algorithm, secretKey, iv);
   let encrypted = cipher.update(password, "utf-8", "hex");
   encrypted += cipher.final("hex");
   return { encryptedData: encrypted, iv: iv.toString("hex") };
 }
+
 
 // Decrypt
 function decryptPassword(encryptedData, iv) {

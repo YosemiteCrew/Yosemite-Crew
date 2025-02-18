@@ -5,7 +5,6 @@ const path = require('path');
 async function handleAddPet(req,res){
   const token = req.headers.authorization.split(' ')[1]; // Extract token
   const decoded = jwt.verify(token, process.env.JWT_SECRET); // Verify token
-  
   const cognitoUserId = decoded.username; // Get user ID from token
     var PetImage = "";
     if (req.files && req.files.petImage) {
@@ -28,7 +27,8 @@ async function handleAddPet(req,res){
           await petImage.mv(uploadPath);
           PetImage = uniqueName;
   }
-  const { petType, petBreed, petName, petdateofBirth, petCurrentWeight, petColor, petBloodGroup, isNeutered,ageWhenNeutered,microChipNumber,isInsured,insuranceCompany,policyNumber,passportNumber,petFrom  } = req.body; // Data from request body
+  const { petType, petBreed, petName, petGender, petdateofBirth, petCurrentWeight, petColor, petBloodGroup, isNeutered,ageWhenNeutered,microChipNumber,isInsured,insuranceCompany,policyNumber,passportNumber,petFrom  } = req.body; // Data from request body
+
 
     const addPet = await pet.create({
         cognitoUserId,
@@ -36,6 +36,8 @@ async function handleAddPet(req,res){
         petBreed,
         petName,
         petdateofBirth,
+        petGender,
+        petAge: calculateAge(petdateofBirth),
         petCurrentWeight,
         petColor,
         petBloodGroup,
@@ -59,11 +61,27 @@ async function handleAddPet(req,res){
    
 }
 
-async function handleGetPet(req,res) {
-    const userid = req.body.userId;
-    const result = await pet.find({ userId: userid });
-    if (result.length === 0) return res.status(200).json({ status: 1, data: result, message: "No pets found for this user" });
-    res.status(200).json({status: 1, data: result});
+async function handleGetPet(req, res) {
+  const token = req.headers.authorization.split(' ')[1]; // Extract token
+  const decoded = jwt.verify(token, process.env.JWT_SECRET); // Verify token
+  const cognitoUserId = decoded.username; // Get user ID from token
+  try {
+
+      const { limit = 10, offset = 0 } = req.body;
+      const pets = await pet.find({ cognitoUserId })
+          .skip(parseInt(offset))
+          .limit(parseInt(limit));
+
+     // const total = await pet.countDocuments({ cognitoUserId });
+
+      res.status(200).json({
+          status: 1,
+          data: pets,
+          message: pets.length === 0 ? "No pets found for this user" : "Pets retrieved successfully"
+      });
+  } catch (error) {
+      res.status(500).json({ status: 0, message: "Server error", error: error.message });
+  }
 }
 
 async function handleDeletePet(req,res) {
@@ -96,6 +114,20 @@ async function handleEditPet(req,res) {
     
 }
 
+function calculateAge(dob) {
+  const birthDate = new Date(dob);
+  const today = new Date();
+
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+
+  // If the birth month hasn't occurred yet this year, or it's the birth month but the day hasn't occurred yet
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+
+  return age;
+}
 
 
 module.exports = {

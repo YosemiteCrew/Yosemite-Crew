@@ -473,13 +473,16 @@ input[type=number] {
   flex-direction: column;
   gap: 25px;
 }
-.Appointtable , .MangeInvttable , .Prceduretable{
+.Appointtable , .MangeInvttable , .Prceduretable , .ChatStatemtTableDiv{
   width: 100%;
   background: #FFFFFF;
   padding: 24px;
   box-shadow: 4px 4px 18px -5px #55413414;
   border-radius: 26px;
-  display: block;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  align-items: center;
   overflow-x: auto;
 }
 .Appointtable thead tr , .Appointtable tbody tr {
@@ -554,6 +557,9 @@ input[type=number] {
   letter-spacing: -0.03em;
   color: var(--black-text);
   opacity: 60%;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 .actionDiv{
   display: flex;

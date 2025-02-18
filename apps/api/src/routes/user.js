@@ -17,9 +17,12 @@ const {
   handlePetBoarding,
 } = require("../controllers/details");
 const {
-  handleAddAppointment,
+  handleBookAppointment,
   handleGetAppointment,
   handleCancelAppointment,
+  handleGetTimeSlots,
+  handleRescheduleAppointment,
+  handleTimeSlotsByMonth,
 } = require("../controllers/appointment");
 const { handleContactUs } = require("../controllers/contact");
 const {
@@ -46,64 +49,76 @@ const {
   handleEditSharedDuties,
   handleGetSharedDuties,
 } = require("../controllers/sharedDuties");
+const {
+  handlelists,
+} = require("../controllers/lists");
 const router = express.Router();
 const multer = require("multer");
+const fs = require('fs');
+const uploadDir = './apps/api/src/Uploads/Images';
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    return cb(null, "./uploads");
+    return cb(null, "./apps/api/src/Uploads/Images");
   },
   filename: function (req, file, cb) {
     return cb(null, `${Date.now()}-${file.originalname}`);
   },
 });
-const upload = multer({ storage });
+const upload = multer({ 
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }  // 5MB limit
+});
+const { verifyTokenAndRefresh } = require('../middlewares/authMiddleware');
 
-router.post("/addPet", handleAddPet);
-router.post("/editPet", upload.single("petImage"), handleEditPet);
-router.post("/getpets", handleGetPet);
-router.post("/deletepet", handleDeletePet);
-router.post("/addVetDetails", handleVetClinic);
-router.post("/addBreederDetails", handleBreeder);
-router.post("/addPetGroomer", handlePetGroomer);
-router.post("/addPetBoarding", handlePetBoarding);
+router.post("/addPet", verifyTokenAndRefresh,handleAddPet);
+router.post("/editPet", verifyTokenAndRefresh, upload.single("petImage"), handleEditPet);
+router.post("/getpets", verifyTokenAndRefresh,handleGetPet);
+router.post("/deletepet", verifyTokenAndRefresh, handleDeletePet);
+router.post("/addVetDetails", verifyTokenAndRefresh, handleVetClinic);
+router.post("/addBreederDetails", verifyTokenAndRefresh,  handleBreeder);
+router.post("/addPetGroomer",verifyTokenAndRefresh, handlePetGroomer);
+router.post("/addPetBoarding",verifyTokenAndRefresh, handlePetBoarding);
+router.post("/bookAppointment",handleBookAppointment);
+router.post("/getappointments", verifyTokenAndRefresh, handleGetAppointment);
+router.post("/getTimeSlots", verifyTokenAndRefresh, handleGetTimeSlots);
+router.post("/rescheduleAppointment",verifyTokenAndRefresh, handleRescheduleAppointment);
+router.post("/cancelappointment", verifyTokenAndRefresh, handleCancelAppointment);
+router.post("/getTimeSlotsByMonth",handleTimeSlotsByMonth);
+router.post("/sendquery", verifyTokenAndRefresh,handleContactUs);
+router.post("/getLists",handlelists);
 router.post(
-  "/bookappointment",
-  upload.single("document"),
-  handleAddAppointment
-);
-router.post("/getappointments", handleGetAppointment);
-router.post("/cancelappointment", handleCancelAppointment);
-router.post("/sendquery", handleContactUs);
-router.post(
-  "/addVaccinationRecord",
+  "/addVaccinationRecord",verifyTokenAndRefresh,
   upload.single("vaccineImage"),
   handleAddVaccination
 );
 router.post(
-  "/editVaccinationRecord",
+  "/editVaccinationRecord", verifyTokenAndRefresh,
   upload.single("vaccineImage"),
   handleEditVaccination
 );
-router.post("/getVaccinationRecord", handleGetVaccination);
-router.post("/savePhysioPlan", handlePhysioPlan);
-router.post("/getphysio-list", handleGetPhysioPlan);
-router.post("/savepainjournal", handleAddPainJournal);
-router.post("/getpainjournal", handleGetPainJournal);
+router.post("/getVaccinationRecord", verifyTokenAndRefresh,handleGetVaccination);
+router.post("/savePhysioPlan",verifyTokenAndRefresh, handlePhysioPlan);
+router.post("/getphysio-list",verifyTokenAndRefresh, handleGetPhysioPlan);
+router.post("/savepainjournal",verifyTokenAndRefresh, handleAddPainJournal);
+router.post("/getpainjournal",verifyTokenAndRefresh, handleGetPainJournal);
 router.post(
-  "/saveMedicalRecord",
+  "/saveMedicalRecord", verifyTokenAndRefresh,
   upload.array("medicalDocs"),
   handlesaveMedicalRecord
 );
-router.post("/getMedicalRecordList", handleMedicalRecordList);
+router.post("/getMedicalRecordList",verifyTokenAndRefresh, handleMedicalRecordList);
 router.post(
-  "/saveDiabetesRecords",
+  "/saveDiabetesRecords",verifyTokenAndRefresh,
   upload.array("PetImage"),
   handleDiabetesRecords
 );
-router.post("/getDiabetesLogs", handleDiabetesLogs);
-router.post("/saveSharedDuties", handleSaveSharedDuties);
-router.post("/getSharedDuties", handleGetSharedDuties);
-router.post("/editSharedDuties", handleEditSharedDuties);
+router.post("/getDiabetesLogs", verifyTokenAndRefresh,handleDiabetesLogs);
+router.post("/saveSharedDuties",verifyTokenAndRefresh, handleSaveSharedDuties);
+router.post("/getSharedDuties",verifyTokenAndRefresh, handleGetSharedDuties);
+router.post("/editSharedDuties",verifyTokenAndRefresh, handleEditSharedDuties);
 router.get("/", handlehome);
 module.exports = router;

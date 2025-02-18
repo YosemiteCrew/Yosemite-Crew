@@ -1,18 +1,19 @@
 // eslint-disable-next-line no-unused-vars
-import React, { useState, useEffect } from "react";
-import PropTypes from "prop-types"; // Import PropTypes
-import "./MainHeader.css";
-import Logo from "../../../../public/Images/Logo.png";
-import Chatt from "../../../../public/Images/chatt.png";
-import { IoIosArrowDown } from "react-icons/io";
-import { FaGithub } from "react-icons/fa6";
-import { useAuth } from "../../context/AuthContext";
-import { Button } from "react-bootstrap";
-import { Link, useNavigate } from "react-router-dom";
-import Swal from "sweetalert2";
+import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types'; // Import PropTypes
+import './MainHeader.css';
+import Logo from '../../../../public/Images/Logo.png';
+import Chatt from '../../../../public/Images/chatt.png';
+import { IoIosArrowDown } from 'react-icons/io';
+import { FaGithub } from 'react-icons/fa6';
+
+import { Button } from 'react-bootstrap';
+import { Link, useNavigate } from 'react-router-dom';
+import Swal from 'sweetalert2';
+import { useAuth } from '../../context/useAuth';
 
 const MainHeader = ({ isMainHeader }) => {
-  const { profileData, onLogout } = useAuth();
+  const { profileData, onLogout, userType } = useAuth();
   const navigate = useNavigate();
 
   const [profileDataa, setupProfileData] = useState([]);
@@ -22,84 +23,84 @@ const MainHeader = ({ isMainHeader }) => {
   }, [profileData]);
   useEffect(() => {
     const toggleScrolled = () => {
-      const selectBody = document.querySelector("body");
-      const selectHeader = document.querySelector("#header");
+      const selectBody = document.querySelector('body');
+      const selectHeader = document.querySelector('#header');
       if (
-        !selectHeader.classList.contains("scroll-up-sticky") &&
-        !selectHeader.classList.contains("sticky-top") &&
-        !selectHeader.classList.contains("fixed-top")
+        !selectHeader.classList.contains('scroll-up-sticky') &&
+        !selectHeader.classList.contains('sticky-top') &&
+        !selectHeader.classList.contains('fixed-top')
       )
         return;
       window.scrollY > 100
-        ? selectBody.classList.add("scrolled")
-        : selectBody.classList.remove("scrolled");
+        ? selectBody.classList.add('scrolled')
+        : selectBody.classList.remove('scrolled');
     };
 
     const handleNavClick = () => {
       // Toggle mobile nav if active
-      if (document.querySelector(".mobile-nav-active")) {
+      if (document.querySelector('.mobile-nav-active')) {
         toggleMobileNav();
       }
     };
 
     const toggleMobileNav = () => {
-      document.querySelector("body").classList.toggle("mobile-nav-active");
-      const mobileNavToggleBtn = document.querySelector(".mobile-nav-toggle");
-      mobileNavToggleBtn.classList.toggle("ri-bar-chart-horizontal-line");
-      mobileNavToggleBtn.classList.toggle("ri-close-line");
+      document.querySelector('body').classList.toggle('mobile-nav-active');
+      const mobileNavToggleBtn = document.querySelector('.mobile-nav-toggle');
+      mobileNavToggleBtn.classList.toggle('ri-bar-chart-horizontal-line');
+      mobileNavToggleBtn.classList.toggle('ri-close-line');
     };
 
     const handleDropdownClick = (event) => {
       event.preventDefault();
       const target = event.currentTarget;
-      target.parentNode.classList.toggle("active");
-      target.parentNode.nextElementSibling.classList.toggle("dropdown-active");
+      target.parentNode.classList.toggle('active');
+      target.parentNode.nextElementSibling.classList.toggle('dropdown-active');
       event.stopImmediatePropagation();
     };
 
     // Set active class based on the current path
-    document.querySelectorAll("#navmenu a").forEach((link) => {
-      if (link.getAttribute("href") === location.pathname) {
-        link.classList.add("active");
+    document.querySelectorAll('#navmenu a').forEach((link) => {
+      if (link.getAttribute('href') === location.pathname) {
+        link.classList.add('active');
       } else {
-        link.classList.remove("active");
+        link.classList.remove('active');
       }
     });
 
     // Event listeners
-    window.addEventListener("scroll", toggleScrolled);
-    window.addEventListener("load", toggleScrolled);
+    window.addEventListener('scroll', toggleScrolled);
+    window.addEventListener('load', toggleScrolled);
 
-    const mobileNavToggleBtn = document.querySelector(".mobile-nav-toggle");
+    const mobileNavToggleBtn = document.querySelector('.mobile-nav-toggle');
     if (mobileNavToggleBtn) {
-      mobileNavToggleBtn.addEventListener("click", toggleMobileNav);
+      mobileNavToggleBtn.addEventListener('click', toggleMobileNav);
     }
 
     document
-      .querySelectorAll("#navmenu a")
-      .forEach((navmenu) => navmenu.addEventListener("click", handleNavClick));
+      .querySelectorAll('#navmenu a')
+      .forEach((navmenu) => navmenu.addEventListener('click', handleNavClick));
 
     document
-      .querySelectorAll(".navmenu .toggle-dropdown")
+      .querySelectorAll('.navmenu .toggle-dropdown')
       .forEach((dropdown) =>
-        dropdown.addEventListener("click", handleDropdownClick)
+        dropdown.addEventListener('click', handleDropdownClick)
       );
 
     return () => {
-      window.removeEventListener("scroll", toggleScrolled);
-      window.removeEventListener("load", toggleScrolled);
+      window.removeEventListener('scroll', toggleScrolled);
+      window.removeEventListener('load', toggleScrolled);
       if (mobileNavToggleBtn) {
-        mobileNavToggleBtn.removeEventListener("click", toggleMobileNav);
+        mobileNavToggleBtn.removeEventListener('click', toggleMobileNav);
       }
       document
-        .querySelectorAll("#navmenu a")
+        .querySelectorAll('#navmenu a')
         .forEach((navmenu) =>
-          navmenu.removeEventListener("click", handleNavClick)
+          navmenu.removeEventListener('click', handleNavClick)
         );
       document
-        .querySelectorAll(".navmenu .toggle-dropdown")
+        .querySelectorAll('.navmenu .toggle-dropdown')
         .forEach((dropdown) =>
-          dropdown.removeEventListener("click", handleDropdownClick)
+          dropdown.removeEventListener('click', handleDropdownClick)
         );
     };
   }, [location.pathname]); // Dependency on the current path
@@ -111,54 +112,53 @@ const MainHeader = ({ isMainHeader }) => {
   useEffect(() => {
     if (isMobileNavOpen) {
       const handleOutsideClick = () => setIsMobileNavOpen(false);
-      window.addEventListener("click", handleOutsideClick);
-      return () => window.removeEventListener("click", handleOutsideClick);
+      window.addEventListener('click', handleOutsideClick);
+      return () => window.removeEventListener('click', handleOutsideClick);
     }
   }, [isMobileNavOpen]);
 
   const handleLogout = async () => {
     Swal.fire({
-      title: "Are you sure?",
-      text: "You will be logged out!",
-      icon: "warning",
+      title: 'Are you sure?',
+      text: 'You will be logged out!',
+      icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: "#3085d6",
-      cancelButtonColor: "#d33",
-      confirmButtonText: "Yes, log out!",
-      cancelButtonText: "Cancel",
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Yes, log out!',
+      cancelButtonText: 'Cancel',
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
           const response = await fetch(
-            `${import.meta.env.NX_PUBLIC_VITE_BASE_URL}api/auth/signOut`,
+            `${process.env.NX_PUBLIC_VITE_BASE_URL}api/auth/signOut`,
             {
-              method: "POST",
+              method: 'POST',
               // credentials: "include", // Include cookies in the request
             }
           );
           if (response.ok) {
             // Navigate to the Signin page
             Swal.fire(
-              "Logged Out!",
-              "You have been logged out successfully.",
-              "success"
+              'Logged Out!',
+              'You have been logged out successfully.',
+              'success'
             );
-            onLogout();
-            navigate("/signin");
+            onLogout(navigate);
           } else {
-            console.error("Failed to logout");
+            console.error('Failed to logout');
             Swal.fire(
-              "Error!",
-              "There was an issue logging you out. Please try again.",
-              "error"
+              'Error!',
+              'There was an issue logging you out. Please try again.',
+              'error'
             );
           }
         } catch (error) {
-          console.error("Error during logout:", error);
+          console.error('Error during logout:', error);
           Swal.fire(
-            "Error!",
-            "An unexpected error occurred. Please try again later.",
-            "error"
+            'Error!',
+            'An unexpected error occurred. Please try again later.',
+            'error'
           );
         }
       }
@@ -175,54 +175,62 @@ const MainHeader = ({ isMainHeader }) => {
         {/* Navigation Links */}
         <nav id="navmenu" className="navmenu">
           {isMainHeader ? (
-            <>
-              <ul>
+            <ul>
+              <li>
+                <Link to="/dashboard" className="active">
+                  Home
+                </Link>
+              </li>
+              {userType === 'Hospital' ? (
                 <li>
-                  <Link to="/dashboard" className="active">
-                    Home
-                  </Link>
+                  <Link to="/checkin">Waiting Room</Link>
                 </li>
-                {profileDataa?.activeModes === "yes" ? (
-                  <li>
-                    <Link to="/department">Specialities</Link>
-                  </li>
-                ) : null}
+              ) : null}
+              {profileDataa?.activeModes === 'yes' ? (
+                <li>
+                  <Link to="/department">Specialities</Link>
+                </li>
+              ) : null}
+
+              {userType === 'Hospital' ? (
                 <li>
                   <Link to="/addoctor">Doctors</Link>
                 </li>
-                <li>
-                  <Link to="/appointment">Appointments</Link>
-                </li>
-                <li>
-                  <Link to="/AssessmentManagement">Assessments</Link>
-                </li>
+              ) : null}
+              <li>
+                <Link to="/appointment">Appointments</Link>
+              </li>
+              <li>
+                <Link to="/AssessmentManagement">Assessments</Link>
+              </li>
+              {userType === 'Hospital' ? (
                 <li>
                   <Link to="/inventory">Inventory</Link>
                 </li>
-                <li>
-                  <Link to="/lblogpage">Blog</Link>
-                </li>
-              </ul>
-            </>
+              ) : null}
+
+              <li>
+                <Link to="/lblogpage">Blog</Link>
+              </li>
+            </ul>
           ) : (
-            <>
-              <ul>
-                <li>
-                  <Link to="/" className="active">
-                    Home
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/downlodeapp">Pet App</Link>
-                </li>
-                <li>
-                  <Link to="/homepage">PMS</Link>
-                </li>
-                <li className="dropdown">
-                  <Link to="/DeveloperLandingPage">
-                    <span>Developer Home</span> <IoIosArrowDown />
-                  </Link>
-                  {/* <ul>
+            <ul>
+              <li>
+                <Link to="/" className="active">
+                  Home
+                </Link>
+              </li>
+              <li>
+                <Link to="/downlodeapp">Pet App</Link>
+              </li>
+              <li>
+                <Link to="/homepage">PMS</Link>
+              </li>
+              <li className="dropdown">
+                <Link to="/DeveloperLandingPage">
+                  <span>Developer Home</span> <IoIosArrowDown />
+                </Link>
+                {/* <ul>
                     <li>
                       <Link to="#">Dropdown 1</Link>
                     </li>
@@ -236,18 +244,17 @@ const MainHeader = ({ isMainHeader }) => {
                       <Link to="#">Dropdown 4</Link>
                     </li>
                   </ul> */}
-                </li>
-                <li>
-                  <Link to="/blogpage">Blogs</Link>
-                </li>
-                <li>
-                  <Link to="/aboutus">About Us</Link>
-                </li>
-                <li>
-                  <Link to="/contact">Contact Us</Link>
-                </li>
-              </ul>
-            </>
+              </li>
+              <li>
+                <Link to="/blogpage">Blogs</Link>
+              </li>
+              <li>
+                <Link to="/aboutus">About Us</Link>
+              </li>
+              <li>
+                <Link to="/contact">Contact Us</Link>
+              </li>
+            </ul>
           )}
         </nav>
 
@@ -295,7 +302,11 @@ const MainHeader = ({ isMainHeader }) => {
                       <li>
                         <Link
                           className="dropdown-item d-flex align-items-center"
-                          to="/doctorprofile"
+                          to={
+                            userType === 'Doctor'
+                              ? '/doctorprofile'
+                              : '/clinicvisible'
+                          }
                         >
                           <i className="ri-user-fill"></i>
                           <span>My Profile</span>
@@ -346,16 +357,14 @@ const MainHeader = ({ isMainHeader }) => {
               </div>
             </>
           ) : (
-            <>
-              <div className="gitbtn">
-                <Link to="#">
-                  <span>
-                    <FaGithub />
-                  </span>
-                  Star us on GitHub
-                </Link>
-              </div>
-            </>
+            <div className="gitbtn">
+              <Link to="#">
+                <span>
+                  <FaGithub />
+                </span>
+                Star us on GitHub
+              </Link>
+            </div>
           )}
         </div>
 

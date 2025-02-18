@@ -1,125 +1,39 @@
-// eslint-disable-next-line no-unused-vars
 import React, { useState } from 'react';
-import PropTypes from 'prop-types'; 
-import pet1 from "../../../../public/Images/pet1.png"
-import pet2 from "../../../../public/Images/pet2.png"
-import pet3 from "../../../../public/Images/pet3.png"
+import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
+import pet1 from '../../../../public/Images/pet1.png';
+import pet2 from '../../../../public/Images/pet2.png';
+import pet3 from '../../../../public/Images/pet3.png';
 
-const ActionsTable = ({ appointments = [], actimg1, actimg2 }) => {
-  // Fallback data if appointments prop is not provided
-  const appointmentsActionList = [
-    {
-      id: 'DR001-03-23-2024',
-      petName: 'Kizie',
-      ownerName: 'Sky B',
-      petType: 'Dog',
-      breed: 'Beagle',
-      appointmentDate: '01 Sep 2024',
-      appointmentTime: '11:30 AM',
-      doctorName: 'Dr. Emily Johnson',
-      specialization: 'Cardiology',
-      petImage: pet1,
-      acceptAction: '#',  
-      declineAction: '#sss', 
-    },
-    {
-      id: 'DR002-03-23-2024',
-      petName: 'Oscar',
-      ownerName: 'Pika K',
-      petType: 'Cat',
-      breed: 'Egyptian Mau',
-      appointmentDate: '01 Sep 2024',
-      appointmentTime: '12:00 PM',
-      doctorName: 'Dr. David Brown',
-      specialization: 'Gastroenterology',
-      petImage: pet2,
-      acceptAction: '#',  
-      declineAction: '#', 
-    },
-    {
-      id: 'DR003-03-23-2024',
-      petName: 'King',
-      ownerName: 'Henry C',
-      petType: 'Horse',
-      breed: 'Paso Finos',
-      appointmentDate: '01 Sep 2024',
-      appointmentTime: '01:00 PM',
-      doctorName: 'Dr. Megan Clark',
-      specialization: 'Endocrinology',
-      petImage: pet3,
-      acceptAction: '#',  
-      declineAction: '#', 
-    },
-    {
-      id: 'DR004-03-23-2024',
-      petName: 'Bella',
-      ownerName: 'John D',
-      petType: 'Dog',
-      breed: 'Golden Retriever',
-      appointmentDate: '02 Sep 2024',
-      appointmentTime: '09:30 AM',
-      doctorName: 'Dr. James White',
-      specialization: 'Orthopedics',
-      petImage: pet1,
-      acceptAction: '#',  
-      declineAction: '#', 
-    },
-    {
-      id: 'DR005-03-23-2024',
-      petName: 'Lucy',
-      ownerName: 'Alice M',
-      petType: 'Cat',
-      breed: 'Persian',
-      appointmentDate: '02 Sep 2024',
-      appointmentTime: '10:00 AM',
-      doctorName: 'Dr. Sarah Green',
-      specialization: 'Dermatology',
-      petImage: pet2,
-      acceptAction: '#',  
-      declineAction: '#', 
-    },
-    {
-      id: 'DR006-03-23-2024',
-      petName: 'Max',
-      ownerName: 'Bruce W',
-      petType: 'Dog',
-      breed: 'Bulldog',
-      appointmentDate: '02 Sep 2024',
-      appointmentTime: '02:00 PM',
-      doctorName: 'Dr. Alan Blue',
-      specialization: 'Neurology',
-      petImage: pet3,
-      acceptAction: '#',  
-      declineAction: '#', 
-    },
-    // Add more items as needed
-  ];
+const ActionsTable = ({
+  appointments = [],
+  actimg1,
+  actimg2,
+  onClick,
+  onClicked,
+}) => {
+  const itemsPerPage = 5; // Should match the backend limit
+  const [offset, setOffset] = useState(0); // Tracks the current offset
 
-  // Use the provided `appointments` or fallback to `appointmentsActionList`
-  const dataToRender = appointments.length > 0 ? appointments : appointmentsActionList;
+  console.log('actiontable', appointments);
 
-  // Pagination states
-  const [currentPage, setCurrentPage] = useState(0);
-  const itemsPerPage = 5;
-
-  // Get the current page data
-  const currentData = dataToRender.slice(
-    currentPage * itemsPerPage,
-    (currentPage + 1) * itemsPerPage
-  );
-
-  // Handlers for pagination
   const handleNext = () => {
-    if (currentPage < Math.ceil(dataToRender.length / itemsPerPage) - 1) {
-      setCurrentPage(currentPage + 1);
-    }
+    setOffset((prevOffset) => prevOffset + itemsPerPage);
+    onClick(offset + itemsPerPage); // Fetch next set of data
   };
 
   const handlePrev = () => {
-    if (currentPage > 0) {
-      setCurrentPage(currentPage - 1);
+    if (offset > 0) {
+      setOffset((prevOffset) => prevOffset - itemsPerPage);
+      onClick(offset - itemsPerPage); // Fetch previous set of data
     }
+  };
+
+  const handleAccept = (id, status, offset) => {
+    onClicked(id, status, offset);
+  };
+  const handleCancel = (id, status, offset) => {
+    onClicked(id, status, offset);
   };
 
   return (
@@ -127,32 +41,37 @@ const ActionsTable = ({ appointments = [], actimg1, actimg2 }) => {
       <table className="Appointtable">
         <thead>
           <tr>
-            <th scope="col"></th>
-            <th scope="col">Name</th>
-            <th scope="col">Appointment ID</th>
-            <th scope="col">Pet Type</th>
-            <th scope="col">Breed</th>
-            <th scope="col">Date</th>
-            <th scope="col">Doctor</th>
-            <th scope="col">Actions</th>
+            <th></th>
+            <th>Name</th>
+            <th>Appointment ID</th>
+            <th>Reason for Appointment</th>
+            <th>Pet Type</th>
+            <th>Breed</th>
+            <th>Date</th>
+            <th>Doctor</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
-          {currentData.map((appointment, index) => (
+          {appointments.map((appointment, index) => (
             <tr key={index}>
-              <td scope="row">
+              <td>
                 <div className="dogimg">
-                  <img src={appointment.petImage} alt={appointment.petName} />
+                  <img src={pet1} alt={appointment.petName} />
                 </div>
               </td>
               <td>
                 <div className="tblDiv">
                   <h4>{appointment.petName}</h4>
-                  <p><i className="ri-user-fill"></i> {appointment.ownerName}</p>
+                  <p>
+                    <i className="ri-user-fill"></i> {appointment.ownerName}
+                  </p>
                 </div>
               </td>
-              <td>{appointment.id}</td>
+              <td>{appointment.tokenNumber}</td>
+              <td>{appointment.purposeOfVisit}</td>
               <td>{appointment.petType}</td>
+
               <td>{appointment.breed}</td>
               <td>
                 <div className="tblDiv">
@@ -162,14 +81,22 @@ const ActionsTable = ({ appointments = [], actimg1, actimg2 }) => {
               </td>
               <td>
                 <div className="tblDiv">
-                  <h4>{appointment.doctorName}</h4>
-                  <p>{appointment.specialization}</p>
+                  <h4>{appointment.veterinarian}</h4>
+                  <p>{appointment.department}</p>
                 </div>
               </td>
               <td>
                 <div className="actionDiv">
-                  <Link to={appointment.acceptAction}> <img src={actimg1} alt="Accept" /></Link>
-                  <Link to={appointment.declineAction}> <img src={actimg2} alt="Decline" /></Link>
+                  <Link
+                    onClick={() => handleAccept(appointment._id, 1, offset)}
+                  >
+                    <img src={actimg1} alt="Accept" />
+                  </Link>
+                  <Link
+                    onClick={() => handleCancel(appointment._id, 2, offset)}
+                  >
+                    <img src={actimg2} alt="Decline" />
+                  </Link>
                 </div>
               </td>
             </tr>
@@ -179,28 +106,19 @@ const ActionsTable = ({ appointments = [], actimg1, actimg2 }) => {
 
       {/* Pagination Controls */}
       <div className="PaginationDiv">
-        {/* Previous Button */}
-        <button 
-          onClick={handlePrev} 
-          disabled={currentPage === 0} // Disable if we're on the first page
-        >
+        <button onClick={handlePrev} disabled={offset === 0}>
           <i className="ri-arrow-left-line"></i>
         </button>
-
-        {/* Pagination Range */}
         <h6 className="PagiName">
-          Responses 
+          Responses
           <span>
-            {currentPage * itemsPerPage + 1} -{' '}
-            {Math.min((currentPage + 1) * itemsPerPage, dataToRender.length)} 
-            {/* You can also show total here like: "of {dataToRender.length}" */}
+            {offset + 1} -{' '}
+            {Math.min(offset + itemsPerPage, appointments.length)}
           </span>
         </h6>
-
-        {/* Next Button */}
-        <button 
-          onClick={handleNext} 
-          disabled={currentPage >= Math.ceil(dataToRender.length / itemsPerPage) - 1} // Disable if on last page
+        <button
+          onClick={handleNext}
+          disabled={appointments.length < itemsPerPage}
         >
           <i className="ri-arrow-right-line"></i>
         </button>
@@ -210,8 +128,6 @@ const ActionsTable = ({ appointments = [], actimg1, actimg2 }) => {
 };
 
 ActionsTable.propTypes = {
-  actimg1: PropTypes.string.isRequired,
-  actimg2: PropTypes.string.isRequired,
   appointments: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.string.isRequired,
@@ -227,7 +143,10 @@ ActionsTable.propTypes = {
       acceptAction: PropTypes.string.isRequired,
       declineAction: PropTypes.string.isRequired,
     })
-  ),
+  ).isRequired,
+  actimg1: PropTypes.string.isRequired,
+  actimg2: PropTypes.string.isRequired,
+  onClick: PropTypes.func.isRequired,
 };
 
 export default ActionsTable;

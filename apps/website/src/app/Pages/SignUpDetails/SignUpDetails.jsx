@@ -1,41 +1,42 @@
-import React, { useEffect, useState } from "react";
-import axios from "axios"; // Make sure axios is installed
-import "./SignUpDetails.css";
-import { Forminput, HeadText } from "../SignUp/SignUp";
-import UplodeImage from "../../Components/UplodeImage/UplodeImage";
-import { MainBtn } from "../Appointment/page";
-import PropTypes from "prop-types";
-import camera from "../../../../public/Images/camera.png";
-import whtcheck from "../../../../public/Images/whtcheck.png";
-import comp from "../../../../public/Images/comp.png";
-import host1 from "../../../../public/Images/host1.png";
-import host2 from "../../../../public/Images/host2.png";
-import whtcloud from "../../../../public/Images/whtcloud.png";
-import { useAuth } from "../../context/AuthContext";
-import Swal from "sweetalert2";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from 'react';
+import axios from 'axios'; // Make sure axios is installed
+import './SignUpDetails.css';
+import { Forminput, HeadText } from '../SignUp/SignUp';
+import UplodeImage from '../../Components/UplodeImage/UplodeImage';
+import { MainBtn } from '../Appointment/page';
+import PropTypes from 'prop-types';
+import camera from '../../../../public/Images/camera.png';
+import whtcheck from '../../../../public/Images/whtcheck.png';
+import comp from '../../../../public/Images/comp.png';
+import host1 from '../../../../public/Images/host1.png';
+import host2 from '../../../../public/Images/host2.png';
+import whtcloud from '../../../../public/Images/whtcloud.png';
+
+import Swal from 'sweetalert2';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/useAuth';
 
 const SignUpDetails = () => {
   const { userId, refreshProfileData } = useAuth();
   const navigate = useNavigate();
-
+  console.log('userId', userId);
   const [image, setImage] = useState(null);
   const [preImage, setPreImage] = useState(null);
   const [formData, setFormData] = useState({
-    businessName: "",
-    registrationNumber: "",
-    yearOfEstablishment: "",
-    phoneNumber: "",
-    website: "",
-    addressLine1: "",
-    street: "",
-    city: "",
-    state: "",
-    zipCode: "",
+    businessName: '',
+    registrationNumber: '',
+    yearOfEstablishment: '',
+    phoneNumber: '',
+    website: '',
+    addressLine1: '',
+    street: '',
+    city: '',
+    state: '',
+    zipCode: '',
   });
   // console.log(formData);
   // console.log(image);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   // console.log("selectedFile", selectedFile);
@@ -77,17 +78,17 @@ const SignUpDetails = () => {
   // DropeDown Services
 
   const servicesList = [
-    { id: 1, name: "24/7 Emergency Care" },
-    { id: 2, name: "Surgery and Operating Rooms" },
-    { id: 3, name: "Veterinary ICU" },
-    { id: 4, name: "Dental Care Services" },
-    { id: 5, name: "Behavioral Therapy" },
+    { id: 1, name: '24/7 Emergency Care' },
+    { id: 2, name: 'Surgery and Operating Rooms' },
+    { id: 3, name: 'Veterinary ICU' },
+    { id: 4, name: 'Dental Care Services' },
+    { id: 5, name: 'Behavioral Therapy' },
   ];
 
   const [selectedServices, setSelectedServices] = useState([]);
   // console.log(selectedServices);
 
-  const [activeModes, setActiveModes] = useState("yes");
+  const [activeModes, setActiveModes] = useState('yes');
 
   const handleSearch = (event) => {
     setSearchTerm(event.target.value);
@@ -107,7 +108,7 @@ const SignUpDetails = () => {
   );
 
   const handleModeClick = (mode) => {
-    if (activeModes.includes("yes") && activeModes.includes("no")) {
+    if (activeModes.includes('yes') && activeModes.includes('no')) {
       setActiveModes(mode);
     } else {
       setActiveModes(mode);
@@ -122,59 +123,59 @@ const SignUpDetails = () => {
     const formDataToSend = new FormData();
 
     // Append file inputs
-    if (image) formDataToSend.append("logo", image); // Assuming 'image' is the file for the logo
+    if (image) formDataToSend.append('logo', image); // Assuming 'image' is the file for the logo
     if (selectedFile)
-      formDataToSend.append("prescription_upload", selectedFile); // File for prescription
+      formDataToSend.append('prescription_upload', selectedFile); // File for prescription
 
     // Append other fields from formData state
-    formDataToSend.append("userId", userId);
-    formDataToSend.append("businessName", formData.businessName);
-    formDataToSend.append("registrationNumber", formData.registrationNumber);
-    formDataToSend.append("yearOfEstablishment", formData.yearOfEstablishment);
-    formDataToSend.append("phoneNumber", formData.phoneNumber);
-    formDataToSend.append("website", formData.website);
-    formDataToSend.append("addressLine1", formData.addressLine1);
-    formDataToSend.append("street", formData.street);
-    formDataToSend.append("city", formData.city);
-    formDataToSend.append("state", formData.state);
-    formDataToSend.append("zipCode", formData.zipCode);
+    formDataToSend.append('userId', userId);
+    formDataToSend.append('businessName', formData.businessName);
+    formDataToSend.append('registrationNumber', formData.registrationNumber);
+    formDataToSend.append('yearOfEstablishment', formData.yearOfEstablishment);
+    formDataToSend.append('phoneNumber', formData.phoneNumber);
+    formDataToSend.append('website', formData.website);
+    formDataToSend.append('addressLine1', formData.addressLine1);
+    formDataToSend.append('street', formData.street);
+    formDataToSend.append('city', formData.city);
+    formDataToSend.append('state', formData.state);
+    formDataToSend.append('zipCode', formData.zipCode);
 
     selectedServices.forEach((service) => {
-      formDataToSend.append("selectedServices", service); // Notice the use of [] to indicate it's an array
+      formDataToSend.append('selectedServices', service); // Notice the use of [] to indicate it's an array
     });
-    formDataToSend.append("activeModes", activeModes);
+    formDataToSend.append('activeModes', activeModes);
 
     try {
       const response = await axios.post(
-        `${import.meta.env.NX_PUBLIC_VITE_BASE_URL}api/auth/setupProfile`,
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/auth/setupProfile`,
         formDataToSend
       );
 
       if (response.status === 200) {
         Swal.fire({
-          icon: "success",
-          title: "Form submitted successfully!",
-          text: "Your profile has been set up successfully.",
+          icon: 'success',
+          title: 'Form submitted successfully!',
+          text: 'Your profile has been set up successfully.',
         });
 
         setSelectedServices(null);
-        navigate("/dashboard");
+        navigate('/dashboard');
         if (userId) {
           // Trigger profile data refresh
           refreshProfileData();
         }
       } else {
         Swal.fire({
-          icon: "error",
-          title: "Failed to submit form!",
-          text: "There was an issue while submitting the form. Please try again.",
+          icon: 'error',
+          title: 'Failed to submit form!',
+          text: 'There was an issue while submitting the form. Please try again.',
         });
       }
     } catch (error) {
       Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "An error occurred while submitting the form.",
+        icon: 'error',
+        title: 'Error',
+        text: 'An error occurred while submitting the form.',
       });
     }
   };
@@ -183,7 +184,7 @@ const SignUpDetails = () => {
     // console.log("hello");
     try {
       const response = await axios.get(
-        `${import.meta.env.NX_PUBLIC_VITE_BASE_URL}api/auth/getProfile/${userId}`
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/auth/getProfile/${userId}`
       );
 
       if (response.data) {
@@ -208,25 +209,25 @@ const SignUpDetails = () => {
           yearOfEstablishment,
           phoneNumber,
           website,
-          addressLine1: address?.addressLine1 || "",
-          street: address?.street || "",
-          city: address?.city || "",
-          state: address?.state || "",
-          zipCode: address?.zipCode || "",
+          addressLine1: address?.addressLine1 || '',
+          street: address?.street || '',
+          city: address?.city || '',
+          state: address?.state || '',
+          zipCode: address?.zipCode || '',
         });
 
         setSelectedServices(selectedServices || []);
         setImage(logoUrl || null);
         setSelectedFile(prescriptionUploadUrl || null);
-        setActiveModes(activeModes || "");
+        setActiveModes(activeModes || '');
       }
     } catch (error) {
-      console.error("Error fetching profile data:", error);
-      Swal.fire({
-        icon: "error",
-        title: "Error fetching profile data",
-        text: "There was an issue fetching your profile data. Please try again.",
-      });
+      console.error('Error fetching profile data:', error);
+      // Swal.fire({
+      //   icon: "error",
+      //   title: "Error fetching profile data",
+      //   text: "There was an issue fetching your profile data. Please try again.",
+      // });
     }
   };
 
@@ -246,14 +247,16 @@ const SignUpDetails = () => {
           <div className="Sign_Details_Data">
             <div className="LeftProfile">
               <div className="ProfileDiv">
-                <form onSubmit={handleSubmit}>
+                <form
+                //  onSubmit={handleSubmit}
+                >
                   <div className="add-logo-container">
                     <input
                       type="file"
                       id="logo-upload"
                       accept="image/*"
                       onChange={handleImageChange}
-                      style={{ display: "none" }}
+                      style={{ display: 'none' }}
                     />
                     <label htmlFor="logo-upload" className="upload-label">
                       {preImage || image ? (
@@ -459,14 +462,14 @@ const SignUpDetails = () => {
                     <div className="ConstModeUl">
                       <ul>
                         <li
-                          className={activeModes === "yes" ? "active" : ""}
-                          onClick={() => handleModeClick("yes")}
+                          className={activeModes === 'yes' ? 'active' : ''}
+                          onClick={() => handleModeClick('yes')}
                         >
                           Yes
                         </li>
                         <li
-                          className={activeModes === "no" ? "active" : ""}
-                          onClick={() => handleModeClick("no")}
+                          className={activeModes === 'no' ? 'active' : ''}
+                          onClick={() => handleModeClick('no')}
                         >
                           No
                         </li>
@@ -476,12 +479,12 @@ const SignUpDetails = () => {
 
                   <div className="services_dropdown">
                     <div
-                      className={`ServHeadr ${isDropdownOpen ? "open" : ""}`}
+                      className={`ServHeadr ${isDropdownOpen ? 'open' : ''}`}
                       onClick={toggleDropdown}
                     >
                       <span>Add Services</span>
                       <span className="arrow">
-                        {isDropdownOpen ? "▲" : "▼"}
+                        {isDropdownOpen ? '▲' : '▼'}
                       </span>
                     </div>
                     {isDropdownOpen && (
@@ -502,8 +505,8 @@ const SignUpDetails = () => {
                               key={service.id}
                               className={`service-item ${
                                 selectedServices.includes(service.id)
-                                  ? "selected"
-                                  : ""
+                                  ? 'selected'
+                                  : ''
                               }`}
                             >
                               <label>
@@ -533,7 +536,7 @@ const SignUpDetails = () => {
 
                   {selectedFile && (
                     <div>
-                      {typeof selectedFile === "object" &&
+                      {typeof selectedFile === 'object' &&
                       selectedFile instanceof Blob ? (
                         <>
                           <h3>Selected File:</h3>
@@ -549,11 +552,11 @@ const SignUpDetails = () => {
 
                   <MainBtn
                     bimg={whtcheck}
-                    btext="Submit"
+                    // btext="submit"
                     optclas=""
-                    mdtarget="#ProfModal"
+                    // mdtarget="#ProfModal"
                     btntyp="submit"
-                    // onClick={() => handleSubmit()}
+                    onClick={handleSubmit}
                   />
                   {/* <ProfileModal /> */}
                 </form>
@@ -586,7 +589,7 @@ export function ProfileProg({ blname, spname }) {
         </div>
         <div className="ProgDiv">
           <div className="progress-bar">
-            <span className="progress-fill" style={{ width: "48%" }}></span>
+            <span className="progress-fill" style={{ width: '48%' }}></span>
           </div>
           <p className="progress-text">
             48% <span>Complete</span>
@@ -595,8 +598,8 @@ export function ProfileProg({ blname, spname }) {
       </div>
       <div className="Profcomp">
         <button className="complete-button">
-          {" "}
-          <img src={comp} alt="" /> Complete Later{" "}
+          {' '}
+          <img src={comp} alt="" /> Complete Later{' '}
         </button>
       </div>
     </div>
@@ -630,9 +633,9 @@ export function ProfileModal() {
               <div className="hosting-options">
                 <div
                   className={`option-card ${
-                    selectedOption === "cloud" ? "active" : ""
+                    selectedOption === 'cloud' ? 'active' : ''
                   }`}
-                  onClick={() => handleSelect("cloud")}
+                  onClick={() => handleSelect('cloud')}
                 >
                   <img src={host1} alt="Cloud Hosting" />
                   <h5>Cloud Hosting</h5>
@@ -644,9 +647,9 @@ export function ProfileModal() {
 
                 <div
                   className={`option-card ${
-                    selectedOption === "self" ? "active" : ""
+                    selectedOption === 'self' ? 'active' : ''
                   }`}
-                  onClick={() => handleSelect("self")}
+                  onClick={() => handleSelect('self')}
                 >
                   <img src={host2} alt="Self Hosting" />
                   <h5>Self-Hosting</h5>

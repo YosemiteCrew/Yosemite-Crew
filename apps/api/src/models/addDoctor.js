@@ -1,9 +1,14 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const vetSchema = new mongoose.Schema(
   {
     userId: {
       type: String,
+      required: true,
+    },
+    bussinessId: {
+      type: String,
+      required: true,
     },
     personalInfo: {
       image: { type: String },
@@ -11,10 +16,13 @@ const vetSchema = new mongoose.Schema(
       lastName: { type: String },
       gender: {
         type: String,
-        enum: ["Male", "Female", "Other"],
+        enum: ['Male', 'Female', 'Other'],
       },
       dateOfBirth: { type: String },
       email: { type: String },
+      countrycode: {
+        type: String,
+      },
       phone: {
         type: String,
 
@@ -32,7 +40,7 @@ const vetSchema = new mongoose.Schema(
     professionalBackground: {
       specialization: {
         type: String,
-        ref: "Department",
+        ref: 'Department',
       },
       qualification: { type: String },
       medicalLicenseNumber: { type: String },
@@ -45,7 +53,7 @@ const vetSchema = new mongoose.Schema(
       {
         day: {
           type: String,
-          enum: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+          enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
         },
         times: [
           {
@@ -58,7 +66,7 @@ const vetSchema = new mongoose.Schema(
               },
               period: {
                 type: String,
-                enum: ["AM", "PM"],
+                enum: ['AM', 'PM'],
               },
             },
             to: {
@@ -70,19 +78,33 @@ const vetSchema = new mongoose.Schema(
               },
               period: {
                 type: String,
-                enum: ["AM", "PM"],
+                enum: ['AM', 'PM'],
               },
             },
           },
         ],
       },
     ],
+    documents: {
+      type: [
+        {
+          name: { type: String, required: true },
+          type: { type: String, required: true },
+          date: { type: Date, default: Date.now },
+        },
+      ],
+      default: [], // Ensures an empty array if no documents are provided
+    },
     timeDuration: {
       type: Number,
     },
     activeModes: {
       type: [String],
-      enum: ["In-person", "Online", "Both"],
+      enum: ['In-person', 'Online', 'Both'],
+    },
+    isAvailable: {
+      type: String,
+      default: '0',
     },
     consultFee: { type: Number },
     DoctorPrescriptions: {
@@ -100,5 +122,5 @@ const vetSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const AddDoctors = mongoose.model("AddDoctors", vetSchema);
+const AddDoctors = mongoose.model('AddDoctors', vetSchema);
 module.exports = AddDoctors;

@@ -1,54 +1,92 @@
 // eslint-disable-next-line no-unused-vars
-import React, { useEffect, useState } from "react";
-import "./CheckIn.css";
-import Modal from "react-bootstrap/Modal";
-import Swal from "sweetalert2";
+import React, { useEffect, useMemo, useState } from 'react';
+import './CheckIn.css';
+import Modal from 'react-bootstrap/Modal';
+import Swal from 'sweetalert2';
 
 import {
   CiBookmarkCheck,
   CiCircleChevLeft,
   CiCircleChevRight,
-} from "react-icons/ci";
-import { BoxDiv, DivHeading } from "../Dashboard/page";
-import box2 from "../../../../public/Images/box2.png";
-import box5 from "../../../../public/Images/box5.png";
-import { Forminput } from "../SignUp/SignUp";
-import { Col, Row } from "react-bootstrap";
-import DynamicSelect from "../../Components/DynamicSelect/DynamicSelect";
-import DynamicDatePicker from "../../Components/DynamicDatePicker/DynamicDatePicker";
-import { MainBtn } from "../Appointment/page";
-import PatientsTable from "../../Components/PatientsTable/PatientsTable";
-import axios from "axios";
+} from 'react-icons/ci';
+import { BoxDiv, DivHeading } from '../Dashboard/page';
+import box2 from '../../../../public/Images/box2.png';
+import box5 from '../../../../public/Images/box5.png';
+import { Forminput } from '../SignUp/SignUp';
+import { Col, Row } from 'react-bootstrap';
+import DynamicSelect from '../../Components/DynamicSelect/DynamicSelect';
+import DynamicDatePicker from '../../Components/DynamicDatePicker/DynamicDatePicker';
+import { MainBtn } from '../Appointment/page';
+import PatientsTable from '../../Components/PatientsTable/PatientsTable';
+import axios from 'axios';
+import { useAuth } from '../../context/useAuth';
+import { Link } from 'react-router-dom';
 
 function CheckInModal(props) {
+  const { userId, profileData } = useAuth();
+
   const [AllData, setAllData] = useState({
-    ownerName: "",
-    phone: "",
-    addressline1: "",
-    street: "",
-    city: "",
-    state: "",
-    zipCode: "",
-    petName: "",
-    petAge: "",
-    breed: "",
-    purposeOfVisit: "",
-    department: "",
-    appointmentType: "",
-    veterinarian: "",
-    appointmentDate: "",
-    petType: "",
-    gender: "",
-    appointmentSource: "",
-    Time: "",
+    hospitalId: '',
+    HospitalName: '',
+    ownerName: '',
+    phone: '',
+    addressline1: '',
+    street: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    petName: '',
+    petAge: '',
+    breed: '',
+    purposeOfVisit: '',
+    department: '',
+    appointmentType: '',
+    veterinarian: '',
+    appointmentDate: '',
+    day: '',
+    petType: '',
+    gender: '',
+    appointmentSource: 'In-Hospital',
+    Time: '',
+    timeSlots: [],
   });
-  // console.log("AllData", AllData);
+  useEffect(() => {
+    setAllData((prev) => ({
+      ...prev,
+      hospitalId: userId || prev.hospitalId,
+      HospitalName: profileData?.businessName,
+    }));
+  }, [userId, profileData]); // Include profileData to ensure re-run when it changes
+
+  const [AvailableSlots, setAvailableSlots] = useState([]);
+  console.log('AvailableSlots', AvailableSlots);
+  console.log('AllData.hospitalId', AllData.HospitalName);
+  useEffect(() => {
+    setAllData((prev) => ({
+      ...prev,
+      userId,
+    }));
+  }, [userId]);
   const handleClick = (category, value) => {
     setAllData((prev) => ({
       ...prev,
       [category]: value,
     }));
   };
+  const handleClicked = (category, value) => {
+    if (!category || value === undefined) {
+      console.error('Invalid category or value passed to handleClick');
+      return;
+    }
+
+    console.log(`Updating ${category} with value:`, value);
+
+    setAllData((prev) => ({
+      ...prev,
+      [category]: [value],
+    }));
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setAllData((prev) => ({
@@ -57,27 +95,40 @@ function CheckInModal(props) {
     }));
   };
   // Select options
-  const options = [
-    { value: "1", label: "Vaccination" },
-    { value: "2", label: "Surgery" },
-    { value: "3", label: "Grooming" },
-  ];
-  const options2 = [
-    { value: "1", label: "OPD" },
-    { value: "2", label: "Follow-up" },
-    { value: "3", label: "Walk-in" },
-  ];
-  const options3 = [
-    { value: "1", label: "German Shepherd" },
-    { value: "2", label: "Poodle" },
-    { value: "3", label: "Labrador" },
-  ];
+  const options = useMemo(
+    () => [
+      { value: '1', label: 'Vaccination' },
+      { value: '2', label: 'Surgery' },
+      { value: '3', label: 'Grooming' },
+    ],
+    []
+  );
+
+  const options2 = useMemo(
+    () => [
+      { value: '1', label: 'OPD' },
+      { value: '2', label: 'Follow-up' },
+      { value: '3', label: 'Walk-in' },
+    ],
+    []
+  );
+
+  const options3 = useMemo(
+    () => [
+      { value: '1', label: 'German Shepherd' },
+      { value: '2', label: 'Poodle' },
+      { value: '3', label: 'Labrador' },
+    ],
+    []
+  );
+
   const [department, setDepartment] = useState([]);
 
   const getSpecializationDepartment = async () => {
+    console.log('userId', userId);
     try {
       const response = await axios.get(
-        `${import.meta.env.NX_PUBLIC_VITE_BASE_URL}api/auth/getAddDepartment`
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/auth/getAddDepartment?userId=${userId}`
       );
       if (response && response.data) {
         const data = response.data;
@@ -89,15 +140,15 @@ function CheckInModal(props) {
         );
       }
     } catch (error) {
-      console.error("Error fetching departments:", error);
+      console.error('Error fetching departments:', error);
     }
   };
 
   useEffect(() => {
     getSpecializationDepartment();
-  }, []);
+  }, [userId]);
   const [veterinarian, setVeterinarian] = useState(null);
-  console.log("veterinarian", veterinarian);
+  console.log('veterinarian', veterinarian);
   const handleDepartmentSelect = async (value) => {
     setAllData((prev) => ({
       ...prev,
@@ -105,26 +156,24 @@ function CheckInModal(props) {
     }));
 
     try {
-      console.log("id", value);
+      console.log('id', value);
       const response = await axios.get(
-        `${
-          import.meta.env.NX_PUBLIC_VITE_BASE_URL
-        }api/doctors/getDoctorsBySpecilizationId/${value}`
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/getDoctorsBySpecilizationId/${value}?userId=${userId}`
       );
 
       if (response && response.data) {
         const data = response.data;
-        // console.log("data", data);
+        console.log('data', data);
 
         setVeterinarian(
           data.map((v) => ({
-            value: v._id,
+            value: v.userId,
             label: `${v.personalInfo.firstName} ${v.personalInfo.lastName}`,
           }))
         );
       }
     } catch (error) {
-      console.error("Error fetching doctors:", error);
+      console.error('Error fetching doctors:', error);
     }
   };
   const handleveternarian = (value) => {
@@ -133,85 +182,115 @@ function CheckInModal(props) {
       veterinarian: value,
     }));
   };
-  const handleDateChange = (date) => {
+  const handleDateChange = async (date) => {
     setAllData((prev) => ({
       ...prev,
       appointmentDate: date,
     }));
+    const day = new Date(date).toLocaleDateString('en-US', {
+      weekday: 'long',
+    });
+    setAllData((pre) => ({
+      ...pre,
+      day: day,
+    }));
+    try {
+      const { data } = await axios.get(
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/appointments/getslots`,
+        {
+          params: {
+            doctorId: AllData.veterinarian,
+            day,
+            date,
+          },
+        }
+      );
+      console.log('data', data);
+      if (data?.timeSlots) {
+        setAvailableSlots(data.timeSlots);
+      } else {
+        console.log('hello');
+        setAvailableSlots([]);
+      }
+    } catch (error) {
+      console.error('Error fetching doctor slots:', error);
+      setAvailableSlots([]);
+    }
   };
   const [validationErrors, setValidationErrors] = useState({});
 
   const validateFields = () => {
     const errors = {};
-    if (!AllData.ownerName) errors.ownerName = "Owner name is required.";
-    if (!AllData.phone) errors.phone = "Phone number is required.";
-    if (!AllData.addressline1) errors.addressline1 = "Address is required.";
-    if (!AllData.city) errors.city = "City is required.";
-    if (!AllData.street) errors.street = "Street is required.";
-    if (!AllData.state) errors.state = "State is required.";
-    if (!AllData.zipCode) errors.zipCode = "ZIP Code is required.";
-    if (!AllData.petName) errors.petName = "Pet name is required.";
-    if (!AllData.petAge) errors.petAge = "Pet age is required.";
-    if (!AllData.breed) errors.breed = "Breed is required.";
+    if (!AllData.ownerName) errors.ownerName = 'Owner name is required.';
+    if (!AllData.phone) errors.phone = 'Phone number is required.';
+    if (!AllData.addressline1) errors.addressline1 = 'Address is required.';
+    if (!AllData.city) errors.city = 'City is required.';
+    if (!AllData.street) errors.street = 'Street is required.';
+    if (!AllData.state) errors.state = 'State is required.';
+    if (!AllData.zipCode) errors.zipCode = 'ZIP Code is required.';
+    if (!AllData.petName) errors.petName = 'Pet name is required.';
+    if (!AllData.petAge) errors.petAge = 'Pet age is required.';
+    if (!AllData.breed) errors.breed = 'Breed is required.';
     if (!AllData.purposeOfVisit)
-      errors.purposeOfVisit = "Purpose of visit is required.";
+      errors.purposeOfVisit = 'Purpose of visit is required.';
     if (!AllData.appointmentType)
-      errors.appointmentType = "Appointment type is required";
-    if (!AllData.appointmentSource)
-      errors.appointmentSource = "Appointment source is required";
-    if (!AllData.department) errors.department = "Department is required.";
+      errors.appointmentType = 'Appointment type is required';
+    // if (!AllData.appointmentSource)
+    //   errors.appointmentSource = 'Appointment source is required';
+    if (!AllData.department) errors.department = 'Department is required.';
     if (!AllData.veterinarian)
-      errors.veterinarian = "Veterinarian is required.";
+      errors.veterinarian = 'Veterinarian is required.';
     if (!AllData.appointmentDate)
-      errors.appointmentDate = "Appointment date is required.";
-    if (!AllData.petType) errors.petType = "PetType is required";
-    if (!AllData.gender) errors.gender = "Gender i required";
+      errors.appointmentDate = 'Appointment date is required.';
+    if (!AllData.petType) errors.petType = 'PetType is required';
+    if (!AllData.gender) errors.gender = 'Gender i required';
 
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
   const handleSave = async () => {
+    // console.log('AllData', AllData);
     if (!validateFields()) return;
     try {
       const response = await axios.post(
-        `${import.meta.env.NX_PUBLIC_VITE_BASE_URL}api/appointments/webappointment`,
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/appointments/webappointment`,
         AllData
       );
 
       if (response.status === 200) {
         // Success alert
         Swal.fire({
-          icon: "success",
-          title: "Appointment Created Successfully!",
-          text: "Your appointment has been booked.",
+          icon: 'success',
+          title: 'Appointment Created Successfully!',
+          text: 'Your appointment has been booked.',
         });
       }
       setAllData({
-        ownerName: "",
-        phone: "",
-        addressline1: "",
-        street: "",
-        city: "",
-        state: "",
-        zipCode: "",
-        petName: "",
-        petAge: "",
-        breed: "",
-        purposeOfVisit: "",
-        department: "",
-        appointmentType: "",
-        veterinarian: "",
-        appointmentDate: "",
+        ownerName: '',
+        phone: '',
+        addressline1: '',
+        street: '',
+        city: '',
+        state: '',
+        zipCode: '',
+        petName: '',
+        petAge: '',
+        breed: '',
+        purposeOfVisit: '',
+        department: '',
+        appointmentType: '',
+        veterinarian: '',
+        appointmentDate: '',
       });
       props.onHide();
     } catch (error) {
       // Error alert
       Swal.fire({
-        icon: "error",
-        title: "Something went wrong!",
-        text: "There was an issue creating the appointment. Please try again.",
+        icon: 'error',
+        title: 'Something went wrong!',
+        text: 'There was an issue creating the appointment. Please try again.',
       });
-      console.error("Error:", error);
+      console.error('Error:', error);
     }
   };
   return (
@@ -364,11 +443,11 @@ function CheckInModal(props) {
               <div className="PetTypeDiv">
                 <p>Pet Type</p>
                 <ul className="SelectUl">
-                  {["Cat", "Dog", "Horse"].map((pet) => (
+                  {['Cat', 'Dog', 'Horse'].map((pet) => (
                     <li
                       key={pet}
-                      className={AllData.petType === pet ? "active" : ""}
-                      onClick={() => handleClick("petType", pet)}
+                      className={AllData.petType === pet ? 'active' : ''}
+                      onClick={() => handleClick('petType', pet)}
                     >
                       {pet}
                     </li>
@@ -382,11 +461,11 @@ function CheckInModal(props) {
               <div className="PetTypeDiv">
                 <p>Gender</p>
                 <ul className="SelectUl">
-                  {["Male", "Female"].map((gender) => (
+                  {['Male', 'Female'].map((gender) => (
                     <li
                       key={gender}
-                      className={AllData.gender === gender ? "active" : ""}
-                      onClick={() => handleClick("gender", gender)}
+                      className={AllData.gender === gender ? 'active' : ''}
+                      onClick={() => handleClick('gender', gender)}
                     >
                       {gender}
                     </li>
@@ -449,16 +528,16 @@ function CheckInModal(props) {
               </Col>
             </Row>
 
-            <div className="PetTypeDiv">
+            {/* <div className="PetTypeDiv">
               <p>Appointment Source</p>
               <ul className="SelectUl">
-                {["In-Hospital", "App"].map((App) => (
+                {['In-Hospital', 'App'].map((App) => (
                   <li
                     key={App}
                     className={
-                      AllData.appointmentSource === App ? "active" : ""
+                      AllData.appointmentSource === App ? 'active' : ''
                     }
-                    onClick={() => handleClick("appointmentSource", App)}
+                    onClick={() => handleClick('appointmentSource', App)}
                   >
                     {App}
                   </li>
@@ -469,7 +548,7 @@ function CheckInModal(props) {
                   {validationErrors.appointmentSource}
                 </div>
               )}
-            </div>
+            </div> */}
 
             <Row>
               <Col md={6}>
@@ -505,6 +584,7 @@ function CheckInModal(props) {
                 <DynamicDatePicker
                   onDateChange={handleDateChange}
                   placeholder="Select Appointment Date"
+                  minDate={Date.now()}
                 />
                 {validationErrors.appointmentDate && (
                   <div className="error-text">
@@ -517,30 +597,53 @@ function CheckInModal(props) {
             <div className="PetTypeDiv">
               <p>Appointment Time</p>
               <ul className="SelectUl">
-                {[
-                  "10:30 AM",
-                  "10:45 AM",
-                  "11:00 AM",
-                  "11:15 AM",
-                  "11:30 AM",
-                  "11:45 AM",
-                  "12:00 PM",
-                  "12:15 PM",
-                  "12:30 PM",
-                  "2:30 PM",
-                  "3:15 PM",
-                  "3:45 PM",
-                  "4:30 PM",
-                  "5:15 PM",
-                ].map((Time) => (
-                  <li
-                    key={Time}
-                    className={AllData.Time === Time ? "active" : ""}
-                    onClick={() => handleClick("Time", Time)}
-                  >
-                    {Time}
-                  </li>
-                ))}
+                {
+                  // [
+                  //   "10:30 AM",
+                  //   "10:45 AM",
+                  //   "11:00 AM",
+                  //   "11:15 AM",
+                  //   "11:30 AM",
+                  //   "11:45 AM",
+                  //   "12:00 PM",
+                  //   "12:15 PM",
+                  //   "12:30 PM",
+                  //   "2:30 PM",
+                  //   "3:15 PM",
+                  //   "3:45 PM",
+                  //   "4:30 PM",
+                  //   "5:15 PM",
+                  // ]
+
+                  AvailableSlots && AvailableSlots.length > 0 ? (
+                    AvailableSlots.map((timeSlot) => (
+                      <li
+                        key={timeSlot._id} // Ensure _id is unique
+                        className={`${
+                          AllData.timeSlots.some(
+                            (v) => v.time === timeSlot.time
+                          ) || timeSlot.isBooked
+                            ? 'active'
+                            : ''
+                        }`}
+                        onClick={
+                          !timeSlot.isBooked
+                            ? () => handleClicked('timeSlots', timeSlot)
+                            : null
+                        } // Disable click if isBooked is true
+                        style={{
+                          pointerEvents: timeSlot.isBooked ? 'none' : 'auto', // Disable pointer events if isBooked is true
+                          opacity: timeSlot.isBooked ? 0.6 : 1, // Optional: Dim the slot if it is booked
+                        }}
+                      >
+                        {timeSlot.time || 'No Time Available'}{' '}
+                        {/* Fallback in case `time` is undefined */}
+                      </li>
+                    ))
+                  ) : (
+                    <div>No Slots Available For Today</div>
+                  )
+                }
               </ul>
             </div>
           </div>
@@ -570,7 +673,7 @@ const CheckIn = () => {
               <div className="CheckInHead">
                 <div className="CheckInName">
                   <h2>
-                    {" "}
+                    {' '}
                     <span>Waiting Room</span> Overview
                   </h2>
                 </div>
@@ -654,12 +757,12 @@ const CheckIn = () => {
                       <h2>#12</h2>
                     </div>
                     <div className="ServPrevBtn">
-                      <a href="#">
+                      <Link to="#">
                         <CiCircleChevLeft /> Previous
-                      </a>
-                      <a href="#" className="active">
+                      </Link>
+                      <Link to="#" className="active">
                         Next Token <CiCircleChevRight />
-                      </a>
+                      </Link>
                     </div>
                   </div>
                 </div>

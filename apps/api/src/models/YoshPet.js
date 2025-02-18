@@ -18,6 +18,12 @@ const patSchema = new mongoose.Schema({
     petdateofBirth: {
         type: Date,
     },
+    petGender: {
+        type: String,
+    },
+    petAge: {
+        type: String,
+    },
     petCurrentWeight: {
         type: String,
     },
