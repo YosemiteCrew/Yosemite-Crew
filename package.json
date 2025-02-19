@@ -93,7 +93,7 @@
     "@nx/js": "20.4.0",
     "@nx/node": "^20.4.0",
     "@nx/react": "20.4.0",
-    "@nx/react-native": "20.4.0",
+    "@nx/react-native": "20.4.5",
     "@nx/web": "20.4.0",
     "@nx/webpack": "20.4.0",
     "@nx/workspace": "20.4.0",
