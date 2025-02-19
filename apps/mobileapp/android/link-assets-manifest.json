@@ -1,0 +1,65 @@
+{
+  "migIndex": 1,
+  "data": [
+    {
+      "path": "src/assets/fonts/ClashDisplay-Bold.ttf",
+      "sha1": "ad48ac96269d34e5ac4b3149edc0720f118fac06"
+    },
+    {
+      "path": "src/assets/fonts/ClashDisplay-Extralight.ttf",
+      "sha1": "5c41f3ee91656387612a53a2773450022b9d5b2c"
+    },
+    {
+      "path": "src/assets/fonts/ClashDisplay-Light.ttf",
+      "sha1": "8690274d9e6e5287f0f34f989c46019d97183196"
+    },
+    {
+      "path": "src/assets/fonts/ClashDisplay-Medium.ttf",
+      "sha1": "3ab838ddae9140be8d61192e527ac5c526361038"
+    },
+    {
+      "path": "src/assets/fonts/ClashDisplay-Regular.ttf",
+      "sha1": "18352f4b2de32328e43311a0365af391ded2bc0a"
+    },
+    {
+      "path": "src/assets/fonts/ClashDisplay-Semibold.ttf",
+      "sha1": "0837f8844612c82b5067d898d3f0619af9aa86fa"
+    },
+    {
+      "path": "src/assets/fonts/ClashDisplay-Variable.ttf",
+      "sha1": "63e020df60007f8077f7d2b86a5cc2573fb26022"
+    },
+    {
+      "path": "src/assets/fonts/ClashGrotesk-Medium.otf",
+      "sha1": "dacc45a62aeb471bf95e4b7ed5eb3c409f1829e3"
+    },
+    {
+      "path": "src/assets/fonts/SFProText-regular.ttf",
+      "sha1": "cded5e96ac169b65519e822d4ae6428e2ada9f31"
+    },
+    {
+      "path": "src/assets/fonts/SFProText-semibold.ttf",
+      "sha1": "eb4d4aa16e23ce6374667c66fc750501a34ac9a4"
+    },
+    {
+      "path": "src/assets/fonts/Satoshi-Black.otf",
+      "sha1": "d92baad4dab9ca55bc72f1a8a0a6de72829e709f"
+    },
+    {
+      "path": "src/assets/fonts/Satoshi-Bold.otf",
+      "sha1": "57a9e1c24984708865f7d0c31a03773912fb975f"
+    },
+    {
+      "path": "src/assets/fonts/Satoshi-Light.otf",
+      "sha1": "3b1b977f00db442bdf30f63603112e6e251b7dda"
+    },
+    {
+      "path": "src/assets/fonts/Satoshi-Medium.otf",
+      "sha1": "704faccb5fff19f25c0b914d42d135ab75794a24"
+    },
+    {
+      "path": "src/assets/fonts/Satoshi-Regular.otf",
+      "sha1": "7dcb59994f2bee1a4ef1f6c079ba0e99b409878b"
+    }
+  ]
+}
