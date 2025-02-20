@@ -23,7 +23,7 @@
     "cors": "^2.8.5",
     "countup.js": "^2.8.0",
     "crypto": "^1.0.1",
-    "documentdb": "^1.15.3",
+    "documentdb": "1.9.0",
     "dotenv": "^16.4.7",
     "ejs": "^3.1.10",
     "express": "^4.21.2",
@@ -80,7 +80,7 @@
     "remixicon": "^4.6.0",
     "shortid": "^2.2.17",
     "slick-carousel": "^1.8.1",
-    "sweetalert2": "^11.15.10"
+    "sweetalert2": "11.4.8"
   },
   "devDependencies": {
     "@babel/core": "^7.14.5",
@@ -92,8 +92,8 @@
     "@nx/jest": "20.4.0",
     "@nx/js": "20.4.0",
     "@nx/node": "^20.4.0",
-    "@nx/react": "20.4.5",
-    "@nx/react-native": "20.4.5",
+    "@nx/react": "^20.1.4",
+    "@nx/react-native": "^20.1.4",
     "@nx/web": "20.4.0",
     "@nx/webpack": "20.4.0",
     "@nx/workspace": "20.4.0",
@@ -118,7 +118,7 @@
     "@types/react": "18.3.1",
     "@types/react-dom": "18.3.1",
     "babel-jest": "^29.7.0",
-    "esbuild": "^0.25.0",
+    "esbuild": "0.25.0",
     "eslint": "^9.8.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-import": "2.31.0",
@@ -144,5 +144,8 @@
     "typescript": "~5.7.2",
     "typescript-eslint": "^8.19.0",
     "webpack-cli": "^5.1.4"
+  },
+  "overrides": {
+    "esbuild": "0.25.0"
   }
 }
