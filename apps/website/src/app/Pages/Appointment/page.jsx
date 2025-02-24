@@ -40,7 +40,7 @@ const Appointment = () => {
   const [allAppointments, setAllAppointments] = useState([]);
   const [total, setTotal] = useState();
   const getAllAppointments = async (offset, userId) => {
-    console.log('ssssssss');
+    // console.log('ssssssss');
     try {
       const response = await axios.get(
         `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/getAllAppointments?offset=${offset}&userId=${userId}`
@@ -84,7 +84,7 @@ const Appointment = () => {
 
   const getAppUpcCompCanTotalCounts = async (selectedOption) => {
     const days = parseInt(selectedOption.match(/\d+/)[0], 10);
-    console.log(`Selected Days: ${days}`);
+    // console.log(`Selected Days: ${days}`);
     try {
       const response = await axios.get(
         `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/getAppUpcCompCanTotalCountOnDayBasis?userId=${userId}`,
@@ -161,7 +161,10 @@ const Appointment = () => {
           </div>
 
           <div>
-            <DivHeading TableHead="New Appointments" tablespan={`(${total})`} />
+            <DivHeading
+              TableHead="New Appointments"
+              tablespan={`(${total ? total : 0})`}
+            />
             <ActionsTable
               onClick={getAllAppointments}
               appointments={allAppointments}

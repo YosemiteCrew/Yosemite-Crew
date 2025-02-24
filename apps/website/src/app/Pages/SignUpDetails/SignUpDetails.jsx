@@ -11,18 +11,31 @@ import comp from '../../../../public/Images/comp.png';
 import host1 from '../../../../public/Images/host1.png';
 import host2 from '../../../../public/Images/host2.png';
 import whtcloud from '../../../../public/Images/whtcloud.png';
+import { BsFileDiffFill } from 'react-icons/bs';
+import { AiFillFileImage } from 'react-icons/ai';
 
 import Swal from 'sweetalert2';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/useAuth';
+import { FaFileWord } from 'react-icons/fa';
+import { RxCrossCircled } from 'react-icons/rx';
+import { IoIosAddCircle } from 'react-icons/io';
+import { Button } from 'react-bootstrap';
 
 const SignUpDetails = () => {
-  const { userId, refreshProfileData } = useAuth();
+  const location = useLocation();
+  const cognitoId = location.state?.cognitoId;
+  const { userId, refreshProfileData, initializeUser } = useAuth();
+
   const navigate = useNavigate();
   console.log('userId', userId);
-  const [image, setImage] = useState(null);
+  console.log('cognitoId', cognitoId);
+  const [image, setImage] = useState([]);
+  const [uploadedfiles, setUploadedFiles] = useState([]);
+  console.log('uploadedfiles', uploadedfiles);
   const [preImage, setPreImage] = useState(null);
   const [formData, setFormData] = useState({
+    userId: cognitoId || '',
     businessName: '',
     registrationNumber: '',
     yearOfEstablishment: '',
@@ -34,12 +47,20 @@ const SignUpDetails = () => {
     state: '',
     zipCode: '',
   });
-  // console.log(formData);
+  console.log(formData);
+  useEffect(() => {
+    if (userId && userId !== formData.userId) {
+      setFormData((prev) => ({
+        ...prev,
+        userId: userId,
+      }));
+    }
+  }, [userId, formData.userId]);
   // console.log(image);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFile, setSelectedFile] = useState([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  // console.log("selectedFile", selectedFile);
+  console.log('selectedFile', selectedFile);
 
   const handleInputChange = (event) => {
     const { name, value } = event.target;
@@ -57,9 +78,6 @@ const SignUpDetails = () => {
     }
   };
 
-  const handleFileChange = (file) => {
-    setSelectedFile(file);
-  };
   // // checkbox
   // const [services, setServices] = useState({
   //   emergencyServices: "Yes",
@@ -124,11 +142,13 @@ const SignUpDetails = () => {
 
     // Append file inputs
     if (image) formDataToSend.append('logo', image); // Assuming 'image' is the file for the logo
-    if (selectedFile)
-      formDataToSend.append('prescription_upload', selectedFile); // File for prescription
+    selectedFile.forEach((file) => {
+      formDataToSend.append('prescription_upload', file);
+    });
+    // File for prescription
 
     // Append other fields from formData state
-    formDataToSend.append('userId', userId);
+    formDataToSend.append('userId', formData.userId);
     formDataToSend.append('businessName', formData.businessName);
     formDataToSend.append('registrationNumber', formData.registrationNumber);
     formDataToSend.append('yearOfEstablishment', formData.yearOfEstablishment);
@@ -159,6 +179,7 @@ const SignUpDetails = () => {
         });
 
         setSelectedServices(null);
+        initializeUser();
         navigate('/dashboard');
         if (userId) {
           // Trigger profile data refresh
@@ -217,8 +238,15 @@ const SignUpDetails = () => {
         });
 
         setSelectedServices(selectedServices || []);
-        setImage(logoUrl || null);
-        setSelectedFile(prescriptionUploadUrl || null);
+        // setUploadedFiles([logoUrl]);
+        setImage(logoUrl || []);
+        const updatedDocuments = prescriptionUploadUrl.map((doc) => ({
+          _id: doc._id,
+          name: doc.name.slice(72),
+          type: doc.type,
+          date: new Date(doc.date).toLocaleDateString(),
+        }));
+        setUploadedFiles(updatedDocuments);
         setActiveModes(activeModes || '');
       }
     } catch (error) {
@@ -230,6 +258,73 @@ const SignUpDetails = () => {
       // });
     }
   };
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
+
+    const allowedTypes = [
+      'application/pdf', // PDF
+      'application/msword', // DOC
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // DOCX
+      'image/jpeg', // JPG
+      'image/png', // PNG
+      'image/gif', // GIF
+      'image/webp', // WebP
+      'image/bmp', // BMP
+    ];
+
+    const validFiles = files.filter((file) => allowedTypes.includes(file.type));
+
+    if (validFiles.length === 0) {
+      alert('Only PDF, DOC, DOCX, and image files are allowed!');
+      return;
+    }
+
+    const filesWithDate = validFiles.map((file) => ({
+      name: file.name,
+      type: file.type,
+      date: new Date().toLocaleDateString('en-GB'),
+    }));
+
+    setUploadedFiles((prev) => [...prev, ...filesWithDate]);
+
+    setSelectedFile((prev) => [...prev, ...validFiles]);
+  };
+
+  const removeFile = (fileToRemove) => {
+    console.log("hello', fileToRemove", fileToRemove);
+    if (fileToRemove._id) {
+      // API File: Ask confirmation before deleting
+      Swal.fire({
+        title: 'Are you sure?',
+        text: 'This file is stored on the backend. Deleting it will remove it permanently.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, delete it!',
+        cancelButtonText: 'Cancel',
+      }).then((result) => {
+        if (result.isConfirmed) {
+          axios
+            .delete(
+              `${process.env.NX_PUBLIC_VITE_BASE_URL}api/auth/${userId}/deleteDocumentsToUpdate/${fileToRemove._id}`
+            )
+            .then(() => {
+              setUploadedFiles((prev) =>
+                prev.filter((file) => file._id !== fileToRemove._id)
+              );
+              Swal.fire('Deleted!', 'The file has been deleted.', 'success');
+            })
+            .catch(() => {
+              Swal.fire('Error!', 'Failed to delete the file.', 'error');
+            });
+        }
+      });
+    } else {
+      setUploadedFiles((prev) => prev.filter((file) => file !== fileToRemove));
+      setSelectedFile((prev) =>
+        prev.filter((file) => file.name !== fileToRemove.name)
+      );
+    }
+  };
 
   useEffect(() => {
     if (userId) {
@@ -238,141 +333,140 @@ const SignUpDetails = () => {
   }, [userId]);
 
   return (
-    <>
-      <section className="SignDetailsSec">
-        <div className="container">
-          <div className="mb-3">
-            <HeadText Spntext="Set up" blktext="your profile " />
-          </div>
-          <div className="Sign_Details_Data">
-            <div className="LeftProfile">
-              <div className="ProfileDiv">
-                <form
-                //  onSubmit={handleSubmit}
-                >
-                  <div className="add-logo-container">
-                    <input
-                      type="file"
-                      id="logo-upload"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      style={{ display: 'none' }}
-                    />
-                    <label htmlFor="logo-upload" className="upload-label">
-                      {preImage || image ? (
-                        <img
-                          src={preImage || image} // This will use preImage if available, otherwise image
-                          alt="Preview"
-                          className="preview-image"
-                        />
-                      ) : (
-                        <div className="upload-placeholder">
-                          <img src={camera} alt="camera" className="icon" />
-                        </div>
-                      )}
-                    </label>
-                    <h5>Add Logo</h5>
+    <section className="SignDetailsSec">
+      <div className="container">
+        <div className="mb-3">
+          <HeadText Spntext="Set up" blktext="your profile " />
+        </div>
+        <div className="Sign_Details_Data">
+          <div className="LeftProfile">
+            <div className="ProfileDiv">
+              <form
+              //  onSubmit={handleSubmit}
+              >
+                <div className="add-logo-container">
+                  <input
+                    type="file"
+                    id="logo-upload"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    style={{ display: 'none' }}
+                  />
+                  <label htmlFor="logo-upload" className="upload-label">
+                    {preImage || image ? (
+                      <img
+                        src={preImage || image} // This will use preImage if available, otherwise image
+                        alt="Preview"
+                        className="preview-image"
+                      />
+                    ) : (
+                      <div className="upload-placeholder">
+                        <img src={camera} alt="camera" className="icon" />
+                      </div>
+                    )}
+                  </label>
+                  <h5>Add Logo</h5>
+                </div>
+
+                <div className="DetailInput">
+                  <Forminput
+                    inlabel="Business Name"
+                    intype="text"
+                    inname="businessName"
+                    value={formData.businessName}
+                    onChange={handleInputChange}
+                  />
+                  <div className="row">
+                    <div className="col-md-6">
+                      <Forminput
+                        inlabel="Registration Number"
+                        intype="number"
+                        inname="registrationNumber"
+                        value={formData.registrationNumber}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <Forminput
+                        inlabel="Year of Establishment"
+                        intype="number"
+                        inname="yearOfEstablishment"
+                        value={formData.yearOfEstablishment}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                  </div>
+                  <div className="row">
+                    <div className="col-md-3">
+                      <Forminput
+                        inlabel="Phone Number"
+                        intype="number"
+                        inname="phoneNumber"
+                        value={formData.phoneNumber}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="col-md-9">
+                      <Forminput
+                        inlabel="Website"
+                        intype="text"
+                        inname="website"
+                        value={formData.website}
+                        onChange={handleInputChange}
+                      />
+                    </div>
                   </div>
 
-                  <div className="DetailInput">
-                    <Forminput
-                      inlabel="Business Name"
-                      intype="text"
-                      inname="businessName"
-                      value={formData.businessName}
-                      onChange={handleInputChange}
-                    />
-                    <div className="row">
-                      <div className="col-md-6">
-                        <Forminput
-                          inlabel="Registration Number"
-                          intype="number"
-                          inname="registrationNumber"
-                          value={formData.registrationNumber}
-                          onChange={handleInputChange}
-                        />
-                      </div>
-                      <div className="col-md-6">
-                        <Forminput
-                          inlabel="Year of Establishment"
-                          intype="number"
-                          inname="yearOfEstablishment"
-                          value={formData.yearOfEstablishment}
-                          onChange={handleInputChange}
-                        />
-                      </div>
+                  <h6>Address</h6>
+                  <Forminput
+                    inlabel="Address Line 1"
+                    intype="text"
+                    inname="addressLine1"
+                    value={formData.addressLine1}
+                    onChange={handleInputChange}
+                  />
+                  <div className="row">
+                    <div className="col-md-6">
+                      <Forminput
+                        inlabel="Street"
+                        intype="text"
+                        inname="street"
+                        value={formData.street}
+                        onChange={handleInputChange}
+                      />
                     </div>
-                    <div className="row">
-                      <div className="col-md-3">
-                        <Forminput
-                          inlabel="Phone Number"
-                          intype="number"
-                          inname="phoneNumber"
-                          value={formData.phoneNumber}
-                          onChange={handleInputChange}
-                        />
-                      </div>
-                      <div className="col-md-9">
-                        <Forminput
-                          inlabel="Website"
-                          intype="text"
-                          inname="website"
-                          value={formData.website}
-                          onChange={handleInputChange}
-                        />
-                      </div>
+                    <div className="col-md-6">
+                      <Forminput
+                        inlabel="City"
+                        intype="text"
+                        inname="city"
+                        value={formData.city}
+                        onChange={handleInputChange}
+                      />
                     </div>
+                  </div>
+                  <div className="row">
+                    <div className="col-md-6">
+                      <Forminput
+                        inlabel="State"
+                        intype="text"
+                        inname="state"
+                        value={formData.state}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <Forminput
+                        inlabel="ZIP Code"
+                        intype="number"
+                        inname="zipCode"
+                        value={formData.zipCode}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                  </div>
 
-                    <h6>Address</h6>
-                    <Forminput
-                      inlabel="Address Line 1"
-                      intype="text"
-                      inname="addressLine1"
-                      value={formData.addressLine1}
-                      onChange={handleInputChange}
-                    />
-                    <div className="row">
-                      <div className="col-md-6">
-                        <Forminput
-                          inlabel="Street"
-                          intype="text"
-                          inname="street"
-                          value={formData.street}
-                          onChange={handleInputChange}
-                        />
-                      </div>
-                      <div className="col-md-6">
-                        <Forminput
-                          inlabel="City"
-                          intype="text"
-                          inname="city"
-                          value={formData.city}
-                          onChange={handleInputChange}
-                        />
-                      </div>
-                    </div>
-                    <div className="row">
-                      <div className="col-md-6">
-                        <Forminput
-                          inlabel="State"
-                          intype="text"
-                          inname="state"
-                          value={formData.state}
-                          onChange={handleInputChange}
-                        />
-                      </div>
-                      <div className="col-md-6">
-                        <Forminput
-                          inlabel="ZIP Code"
-                          intype="number"
-                          inname="zipCode"
-                          value={formData.zipCode}
-                          onChange={handleInputChange}
-                        />
-                      </div>
-                    </div>
-
-                    {/* <div className="service-options-container">
+                  {/* <div className="service-options-container">
                       <div className="service-group">
                         <label className="service-label">
                           Emergency Services
@@ -455,120 +549,175 @@ const SignUpDetails = () => {
                         </label>
                       </div>
                     </div> */}
-                  </div>
+                </div>
 
-                  <div className="sddsd">
-                    <h6>Does your business have specialized departments?</h6>
-                    <div className="ConstModeUl">
-                      <ul>
-                        <li
-                          className={activeModes === 'yes' ? 'active' : ''}
-                          onClick={() => handleModeClick('yes')}
-                        >
-                          Yes
-                        </li>
-                        <li
-                          className={activeModes === 'no' ? 'active' : ''}
-                          onClick={() => handleModeClick('no')}
-                        >
-                          No
-                        </li>
+                <div className="sddsd">
+                  <h6>Does your business have specialized departments?</h6>
+                  <div className="ConstModeUl">
+                    <ul>
+                      <li
+                        className={activeModes === 'yes' ? 'active' : ''}
+                        onClick={() => handleModeClick('yes')}
+                      >
+                        Yes
+                      </li>
+                      <li
+                        className={activeModes === 'no' ? 'active' : ''}
+                        onClick={() => handleModeClick('no')}
+                      >
+                        No
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="services_dropdown">
+                  <div
+                    className={`ServHeadr ${isDropdownOpen ? 'open' : ''}`}
+                    onClick={toggleDropdown}
+                  >
+                    <span>Add Services</span>
+                    <span className="arrow">{isDropdownOpen ? '▲' : '▼'}</span>
+                  </div>
+                  {isDropdownOpen && (
+                    <div className="ServDropcontent">
+                      <div className="serchbtn">
+                        <i className="ri-search-line"></i>
+                        <input
+                          type="text"
+                          className="search-input"
+                          placeholder="Search"
+                          value={searchTerm}
+                          onChange={handleSearch}
+                        />
+                      </div>
+                      <ul className="services-list">
+                        {filteredServices.map((service) => (
+                          <li
+                            key={service.id}
+                            className={`service-item ${
+                              selectedServices.includes(service.id)
+                                ? 'selected'
+                                : ''
+                            }`}
+                          >
+                            <label>
+                              <input
+                                type="checkbox"
+                                className="form-check-input"
+                                checked={selectedServices.includes(
+                                  service.name
+                                )}
+                                onChange={() =>
+                                  handleSelectService(service.name)
+                                }
+                              />
+                              <p>{service.name}</p>
+                            </label>
+                          </li>
+                        ))}
                       </ul>
                     </div>
-                  </div>
+                  )}
+                </div>
 
-                  <div className="services_dropdown">
-                    <div
-                      className={`ServHeadr ${isDropdownOpen ? 'open' : ''}`}
-                      onClick={toggleDropdown}
-                    >
-                      <span>Add Services</span>
-                      <span className="arrow">
-                        {isDropdownOpen ? '▲' : '▼'}
-                      </span>
+                <UplodeImage
+                  selectedFile={selectedFile}
+                  onFileChange={handleFileChange}
+                />
+
+                <div className="DoctProfpdf">
+                  <h5>Uploaded Documents</h5>
+                  <div className="PdfUpldpf">
+                    <div className="uploaded_files">
+                      {uploadedfiles.map((file, index) => {
+                        // Handle files properly (old API files have type as string, new ones are File objects)
+                        let fileType =
+                          file.type ||
+                          (file.name.includes('.')
+                            ? `.${file.name.split('.').pop()}`
+                            : '');
+
+                        return (
+                          <div key={index} className="file-item">
+                            {/* Ensure fileType exists before calling startsWith */}
+                            {fileType.startsWith('image/') ? (
+                              <AiFillFileImage />
+                            ) : fileType === 'application/pdf' ? (
+                              <BsFileDiffFill />
+                            ) : (
+                              <FaFileWord /> // Icon for DOC/DOCX files
+                            )}
+
+                            <div className="pdfnme">
+                              <span>
+                                {file.name.length > 15
+                                  ? `${file.name.substring(0, 12)}...`
+                                  : file.name}
+                              </span>
+                              <span className="file-date">
+                                {file.date || new Date().toLocaleDateString()}
+                              </span>
+                            </div>
+
+                            <Button onClick={() => removeFile(file)}>
+                              <RxCrossCircled />
+                            </Button>
+                          </div>
+                        );
+                      })}
                     </div>
-                    {isDropdownOpen && (
-                      <div className="ServDropcontent">
-                        <div className="serchbtn">
-                          <i className="ri-search-line"></i>
-                          <input
-                            type="text"
-                            className="search-input"
-                            placeholder="Search"
-                            value={searchTerm}
-                            onChange={handleSearch}
-                          />
-                        </div>
-                        <ul className="services-list">
-                          {filteredServices.map((service) => (
-                            <li
-                              key={service.id}
-                              className={`service-item ${
-                                selectedServices.includes(service.id)
-                                  ? 'selected'
-                                  : ''
-                              }`}
-                            >
-                              <label>
-                                <input
-                                  type="checkbox"
-                                  className="form-check-input"
-                                  checked={selectedServices.includes(
-                                    service.name
-                                  )}
-                                  onChange={() =>
-                                    handleSelectService(service.name)
-                                  }
-                                />
-                                <p>{service.name}</p>
-                              </label>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
+
+                    <div className="pdfUpldeButton">
+                      <label htmlFor="file-upload" className="upload-btn">
+                        <IoIosAddCircle /> Upload
+                      </label>
+                      <input
+                        type="file"
+                        id="file-upload"
+                        accept=".pdf,.doc,.docx,image/*" // Allow PDF, DOC, DOCX, and images
+                        multiple
+                        onChange={handleFileChange}
+                        style={{ display: 'none' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {selectedFile && (
+                  <div>
+                    {typeof selectedFile === 'object' &&
+                    selectedFile instanceof Blob ? (
+                      <>
+                        <h3>Selected File:</h3>
+                        <p>File Name: {selectedFile.name}</p>
+                        <p>File Type: {selectedFile.type}</p>
+                        <p>File Size: {selectedFile.size} bytes</p>
+                      </>
+                    ) : (
+                      <p></p>
                     )}
                   </div>
+                )}
 
-                  <UplodeImage
-                    selectedFile={selectedFile}
-                    onFileChange={handleFileChange}
-                  />
-
-                  {selectedFile && (
-                    <div>
-                      {typeof selectedFile === 'object' &&
-                      selectedFile instanceof Blob ? (
-                        <>
-                          <h3>Selected File:</h3>
-                          <p>File Name: {selectedFile.name}</p>
-                          <p>File Type: {selectedFile.type}</p>
-                          <p>File Size: {selectedFile.size} bytes</p>
-                        </>
-                      ) : (
-                        <p></p>
-                      )}
-                    </div>
-                  )}
-
-                  <MainBtn
-                    bimg={whtcheck}
-                    // btext="submit"
-                    optclas=""
-                    // mdtarget="#ProfModal"
-                    btntyp="submit"
-                    onClick={handleSubmit}
-                  />
-                  {/* <ProfileModal /> */}
-                </form>
-              </div>
+                <MainBtn
+                  bimg={whtcheck}
+                  // btext="submit"
+                  optclas=""
+                  // mdtarget="#ProfModal"
+                  btntyp="submit"
+                  onClick={handleSubmit}
+                />
+                {/* <ProfileModal /> */}
+              </form>
             </div>
-            <div className="rightProfile">
-              <ProfileProg blname="Profile" spname="Progress" />
-            </div>
+          </div>{' '}
+          <div className="rightProfile">
+            <ProfileProg blname="Profile" spname="Progress" />
           </div>
         </div>
-      </section>
-    </>
+      </div>
+    </section>
   );
 };
 

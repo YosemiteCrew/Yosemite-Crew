@@ -61,6 +61,7 @@ const Layout = () => {
   // console.log("yyy", tokens);
 
   const mainHeaderRoutes = [
+    // "/signupdetails",
     '/doctorprofile',
     '/dashboard',
     '/appointment',

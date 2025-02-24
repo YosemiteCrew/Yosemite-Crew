@@ -1,12 +1,22 @@
 const { webAppointments } = require('../models/WebAppointment');
 const Department = require('../models/AddDepartment');
 const AddDoctors = require('../models/addDoctor');
+const { ProfileData } = require('../models/WebUser');
+const AWS = require('aws-sdk');
+const ProfileVisibility = require('../models/profileVisibility');
+
+const s3 = new AWS.S3({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION,
+}); // Replace with your CloudFront domain if applicable
 
 const HospitalController = {
   getAllAppointments: async (req, res) => {
     try {
       const { offset = 0, limit = 5, userId } = req.query;
       console.log(req.query);
+      const today = new Date().toISOString().split('T')[0]; // Today's date in "YYYY-MM-DD" format
 
       const parsedOffset = parseInt(offset, 10);
       const parsedLimit = parseInt(limit, 10);
@@ -15,7 +25,8 @@ const HospitalController = {
         {
           $match: {
             isCanceled: { $ne: 2 },
-            hospitalId: userId,
+            $or: [{ hospitalId: userId }, { veterinarian: userId }],
+            appointmentDate: today,
           },
         },
         {
@@ -120,21 +131,25 @@ const HospitalController = {
       const { LastDays, userId } = req.query;
       const days = parseInt(LastDays, 10) || 7; // Default to 7 days if not provided
       console.log('req.query', req.query);
+
       const endDate = new Date();
       const startDate = new Date();
-      startDate.setDate(endDate.getDate() - (days - 1)); // FIXED PARENTHESIS
+      startDate.setDate(endDate.getDate() - (days - 1));
 
       console.log('startDate', startDate, 'endDate', endDate);
-      const today = new Date().toISOString().split('T')[0];
+
+      const today = new Date().toISOString().split('T')[0]; // Today's date in "YYYY-MM-DD" format
 
       const appointments = await webAppointments.aggregate([
         {
+          $addFields: {
+            appointmentDateObj: { $toDate: '$appointmentDate' }, // Convert string to Date
+          },
+        },
+        {
           $match: {
-            createdAt: {
-              $gte: startDate,
-              $lte: endDate,
-            },
-            hospitalId: userId,
+            appointmentDateObj: { $gte: startDate, $lte: endDate },
+            $or: [{ hospitalId: userId }, { veterinarian: userId }],
           },
         },
         {
@@ -145,7 +160,7 @@ const HospitalController = {
             },
             upcomingAppointments: {
               $sum: {
-                $cond: [{ $gt: ['$appointmentDate', today] }, 1, 0],
+                $cond: [{ $gt: ['$appointmentDateObj', new Date()] }, 1, 0],
               },
             },
             canceledAppointments: {
@@ -179,23 +194,35 @@ const HospitalController = {
   },
   departmentsOverView: async (req, res) => {
     try {
-      const { LastDays } = req.query;
+      const { LastDays, userId } = req.query;
       const days = parseInt(LastDays, 10) || 7;
 
       const endDate = new Date();
       const startDate = new Date();
       startDate.setDate(endDate.getDate() - (days - 1));
 
-      console.log('Fetching data from:', startDate, 'to', endDate);
+      console.log(
+        'Fetching data from:',
+        startDate,
+        'to',
+        endDate,
+        'userId',
+        userId
+      );
+
+      const matchConditions = {
+        createdAt: {
+          $gte: startDate,
+          $lte: endDate,
+        },
+        $or: [{ hospitalId: userId }, { bussinessId: userId }],
+      };
+
+      // Add `hospitalId` if it exists
 
       const countAggregation = [
         {
-          $match: {
-            createdAt: {
-              $gte: startDate,
-              $lte: endDate,
-            },
-          },
+          $match: matchConditions, // Dynamically generated match conditions
         },
         {
           $count: 'totalCount',
@@ -207,7 +234,6 @@ const HospitalController = {
           Department.aggregate(countAggregation),
           AddDoctors.aggregate(countAggregation),
           webAppointments.aggregate(countAggregation),
-          // Pets.aggregate(countAggregation), // Uncommented to include pets count
         ]);
 
       console.log(
@@ -240,7 +266,7 @@ const HospitalController = {
   },
   DepartmentBasisAppointmentGraph: async (req, res) => {
     try {
-      const { LastDays } = req.query;
+      const { LastDays, userId } = req.query;
       const days = parseInt(LastDays, 10) || 7;
 
       console.log('LastDays', LastDays);
@@ -255,6 +281,7 @@ const HospitalController = {
         {
           $match: {
             createdAt: { $gte: startDate, $lte: endDate },
+            hospitalId: userId,
           },
         },
         {
@@ -307,6 +334,7 @@ const HospitalController = {
   },
   getDataForWeeklyAppointmentChart: async (req, res) => {
     try {
+      const { userId } = req.query;
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
       sevenDaysAgo.setHours(0, 0, 0, 0);
@@ -315,6 +343,7 @@ const HospitalController = {
         {
           $match: {
             appointmentDate: { $gte: sevenDaysAgo.toISOString().split('T')[0] },
+            hospitalId: userId,
           },
         },
         {
@@ -437,7 +466,6 @@ const HospitalController = {
 
       console.log('Aggregated Data:', aggregatedAppointments);
 
-      // Fill missing months
       const results = [];
       let currentDate = new Date(startMonth);
 
@@ -477,6 +505,316 @@ const HospitalController = {
         message: 'An error occurred while fetching data.',
         error: error.message,
       });
+    }
+  },
+  WaitingRoomOverView: async (req, res) => {
+    try {
+      const { userId } = req.query;
+      if (!userId) {
+        return res.status(400).json({ message: 'userId is required' });
+      }
+
+      const currentDate = new Date().toISOString().split('T')[0];
+      const currentDateStart = new Date();
+      currentDateStart.setHours(0, 0, 0, 0);
+      const currentDateEnd = new Date();
+      currentDateEnd.setHours(23, 59, 59, 999);
+
+      const appointmentStats = await webAppointments.aggregate([
+        {
+          $match: { hospitalId: userId, appointmentDate: currentDate },
+        },
+        {
+          $group: {
+            _id: null,
+            totalAppointments: {
+              $sum: { $cond: [{ $not: { $eq: ['$isCanceled', 2] } }, 1, 0] },
+            },
+            successful: {
+              $sum: { $cond: [{ $eq: ['$isCanceled', 5] }, 1, 0] },
+            },
+            canceled: {
+              $sum: { $cond: [{ $in: ['$isCanceled', [2, 3]] }, 1, 0] },
+            },
+            checkedIn: {
+              $sum: { $cond: [{ $eq: ['$isCanceled', 4] }, 1, 0] },
+            },
+          },
+        },
+      ]);
+
+      const availableDoctorsCount = await AddDoctors.countDocuments({
+        bussinessId: userId,
+        isAvailable: '1',
+      });
+
+      const appointmentsCreatedTodayCount =
+        await webAppointments.countDocuments({
+          hospitalId: userId,
+          createdAt: { $gte: currentDateStart, $lte: currentDateEnd },
+        });
+
+      const result = {
+        totalAppointments: appointmentStats[0]?.totalAppointments || 0,
+        successful: appointmentStats[0]?.successful || 0,
+        canceled: appointmentStats[0]?.canceled || 0,
+        checkedIn: appointmentStats[0]?.checkedIn || 0,
+        availableDoctors: availableDoctorsCount,
+        appointmentsCreatedToday: appointmentsCreatedTodayCount,
+      };
+
+      res.status(200).json(result);
+    } catch (error) {
+      console.error('Error in WaitingRoomOverView:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  },
+  WaittingRoomOverViewPatientInQueue: async (req, res) => {
+    try {
+      const { userId, offset = 0, limit = 10 } = req.query;
+      console.log(req.query);
+
+      const parsedOffset = parseInt(offset);
+      const parsedLimit = parseInt(limit);
+      const currentDate = new Date().toISOString().split('T')[0];
+
+      const response = await webAppointments.aggregate([
+        {
+          $match: {
+            hospitalId: userId,
+            appointmentDate: currentDate,
+          },
+        },
+        {
+          $addFields: {
+            departmentObjId: { $toObjectId: '$department' },
+          },
+        },
+        {
+          $lookup: {
+            from: 'adddoctors',
+            localField: 'veterinarian',
+            foreignField: 'userId',
+            as: 'doctorInfo',
+          },
+        },
+        {
+          $lookup: {
+            from: 'departments',
+            localField: 'departmentObjId',
+            foreignField: '_id',
+            as: 'departmentInfo',
+          },
+        },
+        {
+          $unwind: {
+            path: '$doctorInfo',
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $unwind: {
+            path: '$departmentInfo',
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $sort: { appointmentDate: 1 }, // Sort by appointment date (optional)
+        },
+        {
+          $skip: parsedOffset,
+        },
+        {
+          $limit: parsedLimit,
+        },
+        {
+          $project: {
+            _id: 1,
+            petName: 1,
+            tokenNumber: 1,
+            ownerName: 1,
+            slotsId: 1,
+            petType: 1,
+            breed: 1,
+            appointmentSource: 1,
+            isCanceled: 1,
+            purposeOfVisit: 1,
+            appointmentDate: {
+              $dateToString: {
+                format: '%d %b %Y',
+                date: { $toDate: '$appointmentDate' },
+              },
+            },
+            appointmentTime: 1,
+            appointmentStatus: 1,
+            department: '$departmentInfo.departmentName',
+            veterinarian: {
+              $concat: [
+                '$doctorInfo.personalInfo.firstName',
+                ' ',
+                '$doctorInfo.personalInfo.lastName',
+              ],
+            },
+          },
+        },
+      ]);
+
+      const totalAppointments = await webAppointments.countDocuments({
+        hospitalId: userId,
+        appointmentDate: currentDate,
+      });
+
+      if (!response.length) {
+        return res
+          .status(404)
+          .json({ message: 'No slots found for the doctor.' });
+      }
+
+      console.log(response, totalAppointments);
+      return res.status(200).json({
+        message: 'Data fetched successfully',
+        totalAppointments,
+        Appointments: response,
+      });
+    } catch (error) {
+      console.error('Error in getAppointmentsForDoctorDashboard:', error);
+      return res.status(500).json({
+        message: 'An error occurred while fetching slots.',
+        error: error.message,
+      });
+    }
+  },
+  getDepartmentDataForHospitalProfile: async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      // Fetch profile data
+      const profileData = await ProfileData.findOne(
+        { userId },
+        {
+          _id: 0,
+          'address.addressLine1': 1,
+          'address.city': 1,
+          'address.street': 1,
+          'address.state': 1,
+          'address.zipCode': 1,
+          'address.email': 1,
+          phoneNumber: 1,
+          businessName: 1,
+          logo: 1,
+          website: 1,
+          selectedServices: 1,
+        }
+      );
+
+      if (profileData?.logo) {
+        profileData.logo = s3.getSignedUrl('getObject', {
+          Bucket: process.env.AWS_S3_BUCKET_NAME,
+          Key: profileData.logo,
+        });
+      }
+
+      const departmentData = await Department.aggregate([
+        {
+          $match: { bussinessId: userId },
+        },
+        {
+          $lookup: {
+            from: 'adddoctors',
+            let: { deptId: { $toString: '$_id' } },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $eq: ['$professionalBackground.specialization', '$$deptId'],
+                  },
+                },
+              },
+              {
+                $project: {
+                  _id: 0,
+                  fullName: {
+                    $concat: [
+                      { $ifNull: ['$personalInfo.firstName', ''] },
+                      ' ',
+                      { $ifNull: ['$personalInfo.lastName', ''] },
+                    ],
+                  },
+                },
+              },
+            ],
+            as: 'doctors',
+          },
+        },
+        {
+          $addFields: {
+            doctorCount: { $size: '$doctors' },
+            doctorNames: '$doctors.fullName',
+          },
+        },
+        {
+          $project: {
+            departmentName: 1,
+            doctorCount: 1,
+            doctorNames: 1,
+            description: 1,
+            email: 1,
+            phone: 1,
+            _id: 1,
+          },
+        },
+      ]);
+
+      console.log('Response:', departmentData, 'Profile Data:', profileData);
+
+      res.status(200).json({
+        profile: profileData,
+        departments: departmentData,
+      });
+    } catch (error) {
+      console.error('Error getting department data:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  },
+  saveVisibility: async (req, res) => {
+    try {
+      const { facilitys, selectedServices, selectedDepartments, images } =
+        req.body;
+      const { userId } = req.query;
+      console.log('req.body;', req.body);
+      // Delete the old data for the given hospitalId (or another identifier)
+      await ProfileVisibility.deleteOne({ hospitalId: userId });
+
+      // Create and save the new profile visibility data
+      const profileVisibility = new ProfileVisibility({
+        hospitalId: userId,
+        facility: facilitys,
+        department: selectedDepartments,
+        services: selectedServices,
+        images,
+        createdAt: new Date(), // Set the current timestamp
+      });
+
+      await profileVisibility.save();
+      res.status(201).json(profileVisibility);
+    } catch (error) {
+      console.error('Error saving visibility:', error);
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  getVisibility: async (req, res) => {
+    try {
+      const { userId } = req.query;
+      const visibilityData = await ProfileVisibility.findOne({
+        hospitalId: userId,
+      });
+
+      if (visibilityData) {
+        res.status(200).json(visibilityData);
+      }
+    } catch (error) {
+      console.error('Error getting visibility:', error);
     }
   },
 };

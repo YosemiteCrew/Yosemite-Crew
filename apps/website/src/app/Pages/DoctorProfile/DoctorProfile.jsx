@@ -22,7 +22,7 @@ import Swal from 'sweetalert2';
 import { useAuth } from '../../context/useAuth';
 
 function DoctorProfile() {
-  const { doctorProfile, userId } = useAuth();
+  const { doctorProfile, userId, initializeUser } = useAuth();
   const navigate = useNavigate();
 
   const [modalShow, setModalShow] = useState(false);
@@ -38,7 +38,7 @@ function DoctorProfile() {
     gender: '',
     dateOfBirth: '',
   });
-  console.log('personalInfo', uploadedfiles);
+  // console.log('personalInfo', uploadedfiles);
   const [residentialAddress, setResidentialAddress] = useState({
     addressLine1: '',
     city: '',
@@ -55,10 +55,10 @@ function DoctorProfile() {
     biography: '',
     document: [],
   });
-  console.log(
-    'professionalBackground.document',
-    professionalBackground.document
-  );
+  // console.log(
+  //   'professionalBackground.document',
+  //   professionalBackground.document
+  // );
   useEffect(() => {
     if (doctorProfile) {
       setPersonalInfo({
@@ -99,6 +99,7 @@ function DoctorProfile() {
 
     if (doctorProfile?.documents?.length > 0) {
       const updatedDocuments = doctorProfile.documents.map((doc) => ({
+        
         _id: doc._id,
         name: doc.name.slice(75),
         type: doc.type,
@@ -106,7 +107,7 @@ function DoctorProfile() {
       }));
 
       setUploadedFiles(updatedDocuments);
-      console.log('updatedDocuments', updatedDocuments);
+      // console.log('updatedDocuments', updatedDocuments);
     }
   }, [doctorProfile]);
 
@@ -239,6 +240,7 @@ function DoctorProfile() {
           text: 'Profile updated successfully!',
         });
         // Optionally navigate to another page, or reset the form
+        initializeUser();
         navigate('/dashboard');
       }
     } catch (error) {
@@ -436,6 +438,7 @@ function DoctorProfile() {
                     </div>
                   </div>
                 </div>
+
               </div>
             </div>
 

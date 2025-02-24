@@ -226,6 +226,7 @@ const WebController = {
       return res.status(200).json({
         message: 'User verified successfully!',
         token,
+        cognitoId,
       });
     } catch (error) {
       console.error('Unexpected Error:', error);
@@ -439,8 +440,9 @@ const WebController = {
     }
   },
   setupProfile: async (req, res) => {
-    console.log('Files:', req.files?.prescription_upload);
     try {
+      console.log('Received Files:', req.files);
+
       const {
         userId,
         businessName,
@@ -456,7 +458,8 @@ const WebController = {
         activeModes,
         selectedServices,
       } = req.body;
-      console.log('selectedServices', selectedServices);
+
+      // Function to upload files to S3
       const uploadToS3 = (file, folderName) => {
         return new Promise((resolve, reject) => {
           const params = {
@@ -477,58 +480,65 @@ const WebController = {
         });
       };
 
+      let prescriptionUpload = [];
+
+      // Upload logo if provided
       const logo = req.files?.logo
         ? await uploadToS3(req.files.logo, 'logo')
-        : undefined; // Don't overwrite if no new logo is provided
-      const prescriptionUpload = req.files?.prescription_upload
-        ? await uploadToS3(req.files.prescription_upload, 'prescriptions')
-        : undefined; // Don't overwrite if no new prescription file is provided
+        : undefined;
 
-      const profile = await ProfileData.findOne({ userId });
+      // Check and process multiple prescription_upload files
+      if (req.files && req.files.prescription_upload) {
+        const documentFiles = Array.isArray(req.files.prescription_upload)
+          ? req.files.prescription_upload
+          : [req.files.prescription_upload]; // Convert to array if single file
 
-      if (profile) {
-        await ProfileData.updateOne(
-          { userId },
-          {
-            $set: {
-              businessName,
-              registrationNumber,
-              yearOfEstablishment,
-              phoneNumber,
-              website,
-              address: { addressLine1, street, city, state, zipCode },
-              activeModes,
-              selectedServices,
-              logo: logo || profile.logo,
-              prescription_upload:
-                prescriptionUpload || profile.prescription_upload,
-            },
-          }
-        );
-        res.status(200).json({ message: 'Profile updated successfully' });
-      } else {
-        // Create a new profile if it doesn't exist
-        const newProfile = await ProfileData.create({
-          userId,
-          businessName,
-          registrationNumber,
-          yearOfEstablishment,
-          phoneNumber,
-          website,
-          address: { addressLine1, street, city, state, zipCode },
-          activeModes,
-          selectedServices,
-          logo: logo || null,
-          prescription_upload: prescriptionUpload || null,
-        });
-        if (newProfile) {
-          res.status(200).json({ message: 'Profile created successfully' });
+        for (let file of documentFiles) {
+          const documentKey = await uploadToS3(file, 'prescription_upload');
+          console.log('Uploaded Document Key:', documentKey);
+          prescriptionUpload.push({
+            name: documentKey,
+            type: file.mimetype,
+            date: new Date(),
+          });
         }
       }
+
+      // Update Profile in Database
+      const updatedProfile = await ProfileData.findOneAndUpdate(
+        { userId },
+        {
+          $set: {
+            businessName,
+            registrationNumber,
+            yearOfEstablishment,
+            phoneNumber,
+            website,
+            address: { addressLine1, street, city, state, zipCode },
+            activeModes,
+            selectedServices,
+            logo: logo || undefined, // Keep existing logo if not updated
+          },
+          $push: {
+            prescription_upload: { $each: prescriptionUpload }, // Append new files
+          },
+        },
+        { new: true, upsert: true }
+      );
+
+      if (updatedProfile) {
+        return res.status(200).json({
+          message: 'Profile updated successfully',
+          profile: updatedProfile,
+        });
+      }
+
+      res.status(400).json({ message: 'Profile update failed' });
     } catch (error) {
-      console.error('Error updating profile:', error.message, error.stack);
+      console.error('Error updating profile:', error);
       res.status(500).json({
-        message: 'Error updating profile',
+        message: 'Internal server error',
+        error: error.message,
       });
     }
   },
@@ -547,8 +557,15 @@ const WebController = {
         };
 
         const logoUrl = getS3Url(profile.logo);
-        const prescriptionUploadUrl = getS3Url(profile.prescription_upload);
-        console.log(logoUrl, prescriptionUploadUrl);
+        console.log('profile.prescription_upload', profile.prescription_upload);
+        const prescriptionUploadUrl = profile.prescription_upload.map(
+          (file) => ({
+            name: getS3Url(file.name),
+            type: file.type,
+            date: file.date,
+            _id: file._id,
+          })
+        ); // Convert prescription upload to desired format
 
         res.status(200).json({
           ...profile.toObject(),
@@ -561,6 +578,83 @@ const WebController = {
     } catch (error) {
       console.error('Error getting profile:', error);
       res.status(500).json({ message: 'Error retrieving profile' });
+    }
+  },
+  deleteDocumentsToUpdate: async (req, res) => {
+    const { userId, docId } = req.params;
+    console.log('User ID:', userId);
+    console.log('Document ID:', docId);
+
+    try {
+      const user = await ProfileData.findOne({ userId }).lean();
+
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      if (!user.prescription_upload || user.prescription_upload.length === 0) {
+        return res
+          .status(404)
+          .json({ message: 'No documents found for this user' });
+      }
+
+      const documentToDelete = user.prescription_upload.find(
+        (doc) => doc._id.toString() === docId
+      );
+
+      if (!documentToDelete) {
+        return res.status(404).json({ message: 'Document not found' });
+      }
+
+      const s3Key = documentToDelete.name;
+      console.log('S3 Key to delete:', s3Key);
+
+      const deleteParams = {
+        Bucket: process.env.AWS_S3_BUCKET_NAME,
+        Key: s3Key,
+      };
+
+      try {
+        const headObject = await s3.headObject(deleteParams).promise();
+        console.log('S3 File Found:', headObject);
+      } catch (headErr) {
+        console.error('S3 File Not Found:', headErr);
+        return res.status(404).json({ message: 'File not found in S3' });
+      }
+
+      try {
+        const deleteResponse = await s3.deleteObject(deleteParams).promise();
+        console.log('S3 Delete Response:', deleteResponse);
+      } catch (deleteErr) {
+        console.error('S3 Deletion Error:', deleteErr);
+        return res
+          .status(500)
+          .json({ message: 'Failed to delete file from S3', error: deleteErr });
+      }
+
+      const updatedUser = await ProfileData.findOneAndUpdate(
+        { userId },
+        { $pull: { prescription_upload: { _id: docId } } },
+        { new: true }
+      );
+
+      if (!updatedUser) {
+        return res
+          .status(404)
+          .json({ message: 'Document not found in the database' });
+      }
+
+      console.log('Document deleted successfully from both database and S3');
+      res.status(200).json({
+        message: 'Document deleted successfully from both database and S3',
+        updatedUser,
+      });
+    } catch (err) {
+      console.error('Unexpected Error:', err);
+      res.status(500).json({
+        message: 'An error occurred while deleting the document',
+        error: err,
+      });
     }
   },
 };

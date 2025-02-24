@@ -13,7 +13,7 @@ const AWS = require('aws-sdk');
 const SES = new AWS.SES();
 const { WebUser } = require('../models/WebUser');
 const DoctorsTimeSlotes = require('../models/DoctorsSlotes');
-const webAppointments = require('../models/WebAppointment');
+const { webAppointments } = require('../models/WebAppointment');
 const cognito = new CognitoIdentityProviderClient({
   region: process.env.AWS_REGION,
 });
@@ -884,6 +884,7 @@ const AddDoctorsController = {
                 as: 'appointment',
                 in: {
                   _id: '$$appointment._id',
+                  tokenNumber: '$$appointment.tokenNumber',
                   petName: '$$appointment.petName',
                   ownerName: '$$appointment.ownerName',
                   slotsId: '$$appointment.slotsId',
