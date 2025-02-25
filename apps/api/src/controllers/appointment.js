@@ -10,9 +10,12 @@ const {  handleMultipleFileUpload } = require('../middlewares/upload');
 
 
 async function handleBookAppointment(req, res) {
+    
+    const token = req.headers.authorization.split(' ')[1]; // Extract token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET); // Verify token
+    const userId = decoded.username; // Get user ID from token
     const appointDate = req.body.appointmentDate;
     const purposeOfVisit = req.body.purposeOfVisit;
-    const userId = req.body.cognitoId;
     const dateObj = new Date(appointDate);
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const dayofweek = days[dateObj.getDay()];
