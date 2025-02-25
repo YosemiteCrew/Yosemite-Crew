@@ -1,37 +1,35 @@
 const {  WebUser } = require('../models/WebUser');
 const   AddDoctors  = require('../models/addDoctor');
+
 async function handleGetLists(req, res) {
     try {
         const TypeOfBusiness = req.body.BusinessType;
-        const offset = parseInt(req.body.offset) || 0; 
-        const limit = parseInt(req.body.limit) || 10;  
-        let getLists;
+        const offset = parseInt(req.body.offset) || 0;
+        const limit = parseInt(req.body.limit) || 10;
 
         if (TypeOfBusiness) {
-            getLists = await WebUser.aggregate([
-                {
-                    $match: {
-                        businessType: TypeOfBusiness,
-                    },
-                },
+            const totalCount = await WebUser.countDocuments({ businessType: TypeOfBusiness });
+
+            const getLists = await WebUser.aggregate([
+                { $match: { businessType: TypeOfBusiness } },
                 {
                     $lookup: {
                         from: 'profiledatas',
                         localField: 'cognitoId',
                         foreignField: 'userId',
-                        as: `${TypeOfBusiness} Info`,  
+                        as: "profileData",
                     },
                 },
+                { $unwind: { path: "$profileData", preserveNullAndEmptyArrays: true } }, // Convert array to object
                 { $skip: offset },
                 { $limit: limit }
             ]);
 
-            const totalCount = await WebUser.countDocuments({ businessType: TypeOfBusiness });
-
-            res.status(200).json({ 
+            res.status(200).json({
                 [TypeOfBusiness]: getLists,
-                count: getLists.length,
+                count: totalCount
             });
+
         } else {
             const allTypes = await WebUser.distinct('businessType');
             const allData = {};
@@ -39,29 +37,26 @@ async function handleGetLists(req, res) {
             for (let type of allTypes) {
                 if (type === 'Doctor') continue;
 
+                const totalCount = await WebUser.countDocuments({ businessType: type });
+
                 const list = await WebUser.aggregate([
-                    {
-                        $match: {
-                            businessType: type,
-                        },
-                    },
+                    { $match: { businessType: type } },
                     {
                         $lookup: {
                             from: 'profiledatas',
                             localField: 'cognitoId',
                             foreignField: 'userId',
-                            as: `${type} Info`,  
+                            as: "profileData",
                         },
                     },
+                    { $unwind: { path: "$profileData", preserveNullAndEmptyArrays: true } }, // Convert array to object
                     { $skip: offset },
                     { $limit: limit }
                 ]);
 
-                const totalCount = await WebUser.countDocuments({ businessType: type });
-
                 allData[type] = {
                     data: list,
-                    count: list.length,
+                    count: totalCount
                 };
             }
 
@@ -72,6 +67,7 @@ async function handleGetLists(req, res) {
         res.status(500).json({ error: 'Internal server error' });
     }
 }
+
 
 async function handlegetDoctorsLists(req, res) {
     const BussinessId = req.body.bussinessId;
