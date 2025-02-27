@@ -17,7 +17,7 @@ export const getdoctorprofile = async (userId) => {
     const response = await axios.get(
       `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/getDoctors/${userId}`
     );
-    console.log(response.data);
+    // console.log(response.data);
     return response.data;
   } catch (error) {
     console.error('Error fetching doctor profile data:', error);

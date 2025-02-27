@@ -9,11 +9,12 @@ import {
   SignUpCommand,
   AdminUpdateUserAttributesCommand,
 } from '@aws-sdk/client-cognito-identity-provider';
+import { equal } from 'assert';
 const AWS = require('aws-sdk');
 const SES = new AWS.SES();
 const { WebUser } = require('../models/WebUser');
 const DoctorsTimeSlotes = require('../models/DoctorsSlotes');
-const webAppointments = require('../models/WebAppointment');
+const { webAppointments } = require('../models/WebAppointment');
 const cognito = new CognitoIdentityProviderClient({
   region: process.env.AWS_REGION,
 });
@@ -302,7 +303,6 @@ const AddDoctorsController = {
   getOverview: async (req, res) => {
     try {
       const aggregation = await AddDoctors.aggregate([
-        // Group by specialization and count the occurrences
         {
           $group: {
             _id: '$professionalBackground.specialization',
@@ -315,20 +315,36 @@ const AddDoctorsController = {
           },
         },
       ]);
-
+  
       const totalDoctors = await AddDoctors.countDocuments();
-
+  
+      // Aggregation to count doctors where isAvailable = 1
+      const availableDoctorsAggregation = await AddDoctors.aggregate([
+        {
+          $match: { isAvailable: '1' }, // Filter only available doctors
+        },
+        {
+          $group: {
+            _id: null,
+            availableDoctors: { $sum: 1 }, // Count them
+          },
+        },
+      ]);
+  
+      const availableDoctors = availableDoctorsAggregation[0]?.availableDoctors || 0;
+  
       const overview = {
         totalDoctors,
         totalSpecializations: aggregation[0]?.totalSpecializations || 0,
+        availableDoctors, // Doctors with isAvailable = 1
       };
-
+  
       return res.status(200).json(overview);
     } catch (error) {
       console.error('Error fetching overview data:', error);
       return res.status(500).json({ message: 'Internal server error', error });
     }
-  },
+  },  
 
   getDoctorsBySpecilizationId: async (req, res) => {
     try {
@@ -884,6 +900,7 @@ const AddDoctorsController = {
                 as: 'appointment',
                 in: {
                   _id: '$$appointment._id',
+                  tokenNumber: '$$appointment.tokenNumber',
                   petName: '$$appointment.petName',
                   ownerName: '$$appointment.ownerName',
                   slotsId: '$$appointment.slotsId',

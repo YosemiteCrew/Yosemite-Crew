@@ -125,7 +125,7 @@ function CheckInModal(props) {
   const [department, setDepartment] = useState([]);
 
   const getSpecializationDepartment = async () => {
-    console.log('userId', userId);
+    // console.log('userId', userId);
     try {
       const response = await axios.get(
         `${process.env.NX_PUBLIC_VITE_BASE_URL}api/auth/getAddDepartment?userId=${userId}`
@@ -146,6 +146,7 @@ function CheckInModal(props) {
 
   useEffect(() => {
     getSpecializationDepartment();
+    // getWaittingRoomOverView();
   }, [userId]);
   const [veterinarian, setVeterinarian] = useState(null);
   console.log('veterinarian', veterinarian);
@@ -293,6 +294,7 @@ function CheckInModal(props) {
       console.error('Error:', error);
     }
   };
+
   return (
     <div className="CheckInModalSec">
       <Modal
@@ -663,7 +665,45 @@ function CheckInModal(props) {
 }
 
 const CheckIn = () => {
+  const { userId } = useAuth();
   const [modalShow, setModalShow] = React.useState(false);
+  const [waittingRoomOverView, setWaitingRoomOverView] = useState({});
+  const [
+    WaitingRoomOverViewPatientInQueue,
+    setWaitingRoomOverViewPatientInQueue,
+  ] = useState([]);
+  console.log(
+    'WaitingRoomOverViewPatientInQueue',
+    WaitingRoomOverViewPatientInQueue
+  );
+  const getWaittingRoomOverView = async () => {
+    try {
+      const response = await axios.get(
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/WaitingRoomOverView?userId=${userId}`
+      );
+      if (response.status === 200) {
+        setWaitingRoomOverView(response.data);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+  const WaittingRoomOverViewPatientInQueue = async () => {
+    try {
+      const response = await axios.get(
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/WaittingRoomOverViewPatientInQueue?userId=${userId}`
+      );
+      if (response.status === 200) {
+        setWaitingRoomOverViewPatientInQueue(response.data.Appointments);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+  useEffect(() => {
+    getWaittingRoomOverView();
+    WaittingRoomOverViewPatientInQueue();
+  }, [userId]);
   return (
     <>
       <section className="CheckInSec">
@@ -713,42 +753,42 @@ const CheckIn = () => {
                       ovradcls="purple"
                       ovrtxt="Patients in Waiting Room"
                       boxcoltext="purpletext"
-                      overnumb="48"
+                      overnumb={waittingRoomOverView.totalAppointments}
                     />
                     <BoxDiv
                       boximg={box2}
                       ovradcls=" fawndark"
                       ovrtxt="Tokens Generated Today"
                       boxcoltext="frowntext"
-                      overnumb="65"
+                      overnumb={waittingRoomOverView.appointmentsCreatedToday}
                     />
                     <BoxDiv
                       boximg={box5}
                       ovradcls=" cambrageblue"
                       ovrtxt="Checked-In Patients"
                       boxcoltext="greentext"
-                      overnumb="12"
+                      overnumb={waittingRoomOverView.checkedIn}
                     />
                     <BoxDiv
                       boximg={box2}
                       ovradcls="chillibg"
                       ovrtxt="Consultations Completed"
                       boxcoltext="ciltext"
-                      overnumb="48"
+                      overnumb={waittingRoomOverView.successful}
                     />
                     <BoxDiv
                       boximg={box2}
                       ovradcls="purple"
                       ovrtxt="Cancelled Tokens"
                       boxcoltext="purpletext"
-                      overnumb="65"
+                      overnumb={waittingRoomOverView.canceled}
                     />
                     <BoxDiv
                       boximg={box2}
                       ovradcls=" fawndark"
                       ovrtxt="Doctors On-Duty"
                       boxcoltext="frowntext"
-                      overnumb="12"
+                      overnumb={waittingRoomOverView.availableDoctors}
                     />
                   </div>
                   <div className="CheckInServing">
@@ -770,7 +810,10 @@ const CheckIn = () => {
             </div>
             <div className="BottomCheckIn">
               <DivHeading TableHead="Patients in Queue" tablespan="(48)" />
-              <PatientsTable />
+              <PatientsTable
+                // onClick={WaittingRoomOverViewPatientInQueue}
+                appointments={WaitingRoomOverViewPatientInQueue}
+              />
             </div>
           </div>
         </div>

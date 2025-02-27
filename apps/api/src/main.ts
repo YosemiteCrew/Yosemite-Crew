@@ -10,6 +10,7 @@ const authRoutes = require('./routes/authRoutes');
 const fileUpload = require('express-fileupload');
 const apointmentRoutes = require('./routes/appointmentRoutes');
 const hospitalRoutes = require('./routes/HospitalRoutes');
+const InventoryRoutes = require('./routes/InventoryRoutes');
 var cors = require('cors');
 const app = express();
 const PORT = process.env.PORT;
@@ -45,6 +46,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/doctors', doctorRoutes);
 app.use('/api/appointments', apointmentRoutes);
 app.use('/api/hospitals', hospitalRoutes);
+app.use('/api/inventory', InventoryRoutes);
 
 // Global error handler
 app.use((err, req, res, next) => {

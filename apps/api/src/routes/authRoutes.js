@@ -19,10 +19,13 @@ router.post('/updatepassword', WebController.updatePassword);
 router.post('/setupProfile', WebController.setupProfile);
 router.get('/getProfile/:id', WebController.getProfile);
 router.post('/signOut', WebController.signOut);
+router.delete(
+  '/:userId/deleteDocumentsToUpdate/:docId',
+  WebController.deleteDocumentsToUpdate
+);
 
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Add Department >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 router.post('/addDepartment', AddDepartmentController.addDepartment);
 router.get('/getAddDepartment', AddDepartmentController.getAddDepartment);
-
 module.exports = router;
