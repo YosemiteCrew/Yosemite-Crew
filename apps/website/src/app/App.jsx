@@ -52,6 +52,7 @@ import DoctorProfile from './Pages/DoctorProfile/DoctorProfile';
 import ClientStatement from './Pages/ClientStatement/ClientStatement';
 import ClientStatementDetail from './Pages/ClientStatementDetail/ClientStatementDetail';
 import { useAuth } from './context/useAuth';
+import ViewProcedurePackage from './Pages/AddProcedurePackage/ViewProcedurePackage';
 
 const Layout = () => {
   const navigate = useNavigate();
@@ -86,11 +87,20 @@ const Layout = () => {
     // "/DeveloperLandingPage",
     '/Chatting',
     '/checkin',
-    '/inventorydetails',
+    '/inventorydetails/:id',
     '/AddProcedurePackage',
     '/lblogpage',
+    '/viewprocedurepackage/:id',
+    '/chatscreen'
   ];
-  const isMainHeader = tokens && mainHeaderRoutes.includes(location.pathname);
+  const isMainHeader = tokens && mainHeaderRoutes.some(route => {
+    if (route.includes(':')) {
+      // Convert '/inventorydetails/:id' to a regex pattern '/inventorydetails/([^/]+)'
+      const regex = new RegExp(`^${route.replace(/:\w+/g, '([^/]+)')}$`);
+      return regex.test(location.pathname);
+    }
+    return route === location.pathname;
+  });
 
   // List of routes where the footer should be displayed
   const footerRoutes = [
@@ -126,23 +136,28 @@ const Layout = () => {
     '/add_department',
     '/Chatting',
     '/checkin',
-    '/inventorydetails',
+    '/inventorydetails/:id',
     '/lblogpage',
+    '/viewprocedurepackage/:id',
+    '/chatscreen'
   ];
 
   useEffect(() => {
-    // console.log("Tokens:", tokens);
-    // console.log("Current Path:", location.pathname);
+  const currentPath = location.pathname;
 
-    const currentPath = location.pathname;
-
-    const shouldRedirect = !tokens && protectedRoutes.includes(currentPath);
-    // console.log("apppppp", tokens);
-    if (shouldRedirect) {
-      // console.log(`Unauthorized access to protected route: ${currentPath}`);
-      navigate('/signin');
+  const isProtected = protectedRoutes.some(route => {
+    if (route.includes(':')) {
+      // Convert '/inventorydetails/:id' to a regex pattern '/inventorydetails/([^/]+)'
+      const regex = new RegExp(`^${route.replace(/:\w+/g, '([^/]+)')}$`);
+      return regex.test(currentPath);
     }
-  }, [tokens, location.pathname]);
+    return route === currentPath;
+  });
+
+  if (!tokens && isProtected) {
+    navigate('/signin');
+  }
+}, [tokens, location.pathname]);
 
   useEffect(() => {
     // console.log("Current Path:", location.pathname);
@@ -204,6 +219,7 @@ const Layout = () => {
           path="/AssessmentManagement"
           element={<AssessmentManagement />}
         />
+        <Route path='/viewprocedurepackage/:id' element={<ViewProcedurePackage />} />
         <Route path="/add_department" element={<Add_Department />} />
         <Route
           path="/DeveloperLandingPage"
@@ -217,7 +233,7 @@ const Layout = () => {
         {userType === 'Hospital' ? (
           <Route path="/inventory" element={<Inventory />} />
         ) : null}
-        <Route path="/inventorydetails" element={<InventoryDetail />} />
+        <Route path="/inventorydetails/:id" element={<InventoryDetail />} />
         <Route path="/AddInventory" element={<AddInventory />} />
         <Route path="/AddProcedurePackage" element={<AddProcedurePackage />} />
         <Route path="/revenuemangement" element={<RevenueManagement />} />

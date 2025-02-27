@@ -31,4 +31,9 @@ router.get(
 );
 router.post('/saveVisibility', HospitalController.saveVisibility);
 router.get('/getVisibility', HospitalController.getVisibility);
+router.get('/getConfirmedAppointments', HospitalController.getConfirmedAppointments);
+router.get('/getCompletedAppointments', HospitalController.getCompletedAppointments);
+router.get('/getCanceledAppointments', HospitalController.getCanceledAppointments);
+router.get('/getUpcomingAppointments', HospitalController.getUpcomingAppointments);
+
 module.exports = router;

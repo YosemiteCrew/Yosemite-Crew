@@ -14,6 +14,8 @@ import whtcloud from '../../../../public/Images/whtcloud.png';
 import { BsFileDiffFill } from 'react-icons/bs';
 import { AiFillFileImage } from 'react-icons/ai';
 
+import Autocomplete from "react-google-autocomplete";
+
 import Swal from 'sweetalert2';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/useAuth';
@@ -78,22 +80,7 @@ const SignUpDetails = () => {
     }
   };
 
-  // // checkbox
-  // const [services, setServices] = useState({
-  //   emergencyServices: "Yes",
-  //   cashlessFacility: "No",
-  //   services24x7: "Yes",
-  // });
-
-  // const handleChange = (event) => {
-  //   const { name, value } = event.target;
-  //   setServices((prevState) => ({
-  //     ...prevState,
-  //     [name]: value,
-  //   }));
-  // };
-
-  // DropeDown Services
+  
 
   const servicesList = [
     { id: 1, name: '24/7 Emergency Care' },
@@ -418,6 +405,13 @@ const SignUpDetails = () => {
                   </div>
 
                   <h6>Address</h6>
+                  <Autocomplete
+  apiKey={"AIzaSyCqCSn4ynrSh-_1XscVEFNj-s4HqXYvAfQ"}
+  onPlaceSelected={(place) => {
+    console.log("place",place);
+  }}
+/>
+
                   <Forminput
                     inlabel="Address Line 1"
                     intype="text"

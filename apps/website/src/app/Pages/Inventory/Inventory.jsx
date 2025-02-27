@@ -18,6 +18,7 @@ import ManageInvetryTable from '../../Components/ManageInvetryTable/ManageInvetr
 import axios from 'axios';
 import { useAuth } from '../../context/useAuth';
 import DynamicDatePicker from '../../Components/DynamicDatePicker/DynamicDatePicker';
+import Swal from 'sweetalert2';
 
 const INVENTORY_TABS = [
   'Pharmaceuticals',
@@ -78,31 +79,81 @@ function Inventory() {
   const handleCategory = (tab) => setCategory(tab);
   // const handleNextPage = () => setCurrentPage((prev) => prev + 1);
   // const handlePrevPage = () => setCurrentPage((prev) => Math.max(prev - 1, 1));
-  useEffect(() => {
-    const getProcedureData = async () => {
-      try {
-        const response = await axios.get(
-          `${process.env.NX_PUBLIC_VITE_BASE_URL}api/inventory/getProceurePackage`,
-          {
-            params: {
-              userId,
-              skip: (procedureCurrentPage - 1) * itemsPerPage,
-              limit: itemsPerPage,
-            },
-          }
-        );
-        if (response.status === 200) {
-          setProcedureData(response.data.procedurePackage[0]);
-          setProcedureTotalPages(response.data.procedurePackage[0].totalPages);
-        } else {
-          console.log('error');
+  const getProcedureData = async () => {
+    try {
+      const response = await axios.get(
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/inventory/getProceurePackage`,
+        {
+          params: {
+            userId,
+            skip: (procedureCurrentPage - 1) * itemsPerPage,
+            limit: itemsPerPage,
+          },
         }
-      } catch (error) {
-        console.error('Error fetching inventory:', error);
+      );
+      if (response.status === 200) {
+        setProcedureData(response.data.procedurePackage[0]);
+        setProcedureTotalPages(response.data.procedurePackage[0].totalPages);
+      } else {
+        console.log('error');
       }
-    };
+    } catch (error) {
+      console.error('Error fetching inventory:', error);
+    }
+  };
+  useEffect(() => {
+    
     if (userId) getProcedureData();
-  }, [userId]);
+  }, [userId,procedureCurrentPage]);
+
+  const handleDeleteItem = async (id) => {
+    Swal.fire({
+      title: 'Are you sure you want to delete this item?',
+      text: "You won't be able to revert this!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Yes, delete it!',
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          const response = await axios.delete(
+            `${process.env.NX_PUBLIC_VITE_BASE_URL}api/inventory/deleteProcedurePackage`,
+            {
+              params: {
+                userId,
+                id,
+              },
+            }
+          );
+  console.log(response);
+          if (response.status===200) {
+            Swal.fire({
+              title: 'Deleted!',
+              text: 'Item has been deleted successfully.',
+              icon: 'success',
+            });
+            getProcedureData() // Refresh data after deletion
+          } else {
+            Swal.fire({
+              title: 'Error',
+              text: 'Failed to delete the item.',
+              icon: 'error',
+            });
+          }
+        } catch (error) {
+          console.error('Error deleting item:', error);
+          Swal.fire({
+            title: 'Error',
+            text: 'Something went wrong. Please try again!',
+            icon: 'error',
+          });
+        }
+      }
+    });
+  };
+  
   return (
     <section className="InventorySec">
       <Container>
@@ -249,6 +300,7 @@ function Inventory() {
                 setProcedureCurrentPage={setProcedureCurrentPage}
                 procedureCurrentPage={procedureCurrentPage}
                 setProcedureTotalPages={setProcedureTotalPages}
+                handleDeleteItem={handleDeleteItem}
               />
             </div>
           </div>

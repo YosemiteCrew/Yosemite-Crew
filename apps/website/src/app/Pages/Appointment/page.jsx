@@ -1,5 +1,5 @@
 // eslint-disable-next-line no-unused-vars
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { BoxDiv, DivHeading, ListSelect, TopHeading } from '../Dashboard/page';
 import './Appointment.css';
@@ -26,6 +26,7 @@ import DocterWiseAppoint from '../../Components/DocterWiseAppoint/DocterWiseAppo
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { useAuth } from '../../context/useAuth';
+import { Link } from 'react-router-dom';
 // import { Button } from 'react-bootstrap';
 
 const Appointment = () => {
@@ -61,7 +62,7 @@ const Appointment = () => {
         `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/AppointmentAcceptedAndCancel/${id}`,
         { status }
       );
-      if (response.status == 200) {
+      if (response.status === 200) {
         Swal.fire({
           title: 'Appointment Status Changed',
           text: 'Appointment Status Changed Successfully',
@@ -110,6 +111,153 @@ const Appointment = () => {
     getAllAppointments(0, userId);
     getAppUpcCompCanTotalCounts('Last 7 Days');
   }, [userId]);
+  const [confirmedAppointments, setConfirmedAppointments] = useState([]);
+  const [confirmedPage, setConfirmedPage] = useState(1);
+  const [confirmedLoading, setConfirmedLoading] = useState(false);
+  const [confirmedHasMore, setConfirmedHasMore] = useState(true);
+  const [totalConfirmedAppointments, setTotalConfirmedAppointments] =
+    useState(0);
+  const confirmedObserverRef = useRef(null);
+
+  const [upcomingAppointments, setUpcomingAppointments] = useState([]);
+  const [upcomingPage, setUpcomingPage] = useState(1);
+  const [upcomingLoading, setUpcomingLoading] = useState(false);
+  const [upcomingHasMore, setUpcomingHasMore] = useState(true);
+  const [totalUpcomingAppointments, setTotalUpcomingAppointments] = useState(0);
+  const upcomingObserverRef = useRef(null);
+
+  const [canceledAppointments, setCanceledAppointments] = useState([]);
+  const [canceledPage, setCanceledPage] = useState(1);
+  const [canceledLoading, setCanceledLoading] = useState(false);
+  const [canceledHasMore, setCanceledHasMore] = useState(true);
+  const [totalCanceledAppointments, setTotalCanceledAppointments] = useState(0);
+  const canceledObserverRef = useRef(null);
+
+  const [CompletedAppointments, setCompletedAppointments] = useState([]);
+  const [CompletedPage, setCompletedPage] = useState(1);
+  const [CompletedLoading, setCompletedLoading] = useState(false);
+  const [CompletedHasMore, setCompletedHasMore] = useState(true);
+  const [totalCompletedAppointments, setTotalCompletedAppointments] =
+    useState(0);
+  const CompletedObserverRef = useRef(null);
+
+  const limit = 8;
+
+  const fetchAppointments = async (
+    type,
+    page,
+    setData,
+    setLoading,
+    setHasMore,
+    setTotal
+  ) => {
+    if (setLoading) setLoading(true);
+
+    try {
+      const response = await axios.get(
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/get${type}Appointments`,
+        { params: { userId, page, limit } }
+      );
+
+      if (response.status === 200) {
+        setData((prev) => [...prev, ...response.data.appointments]);
+        setTotal(response.data.totalCount);
+        setHasMore(response.data.appointments.length === limit);
+      }
+    } catch (error) {
+      Swal.fire({
+        title: 'Error',
+        text: `Failed to fetch ${type.toLowerCase()} appointments`,
+        icon: 'error',
+      });
+    } finally {
+      if (setLoading) setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (userId) {
+      fetchAppointments(
+        'Confirmed',
+        confirmedPage,
+        setConfirmedAppointments,
+        setConfirmedLoading,
+        setConfirmedHasMore,
+        setTotalConfirmedAppointments
+      );
+    }
+  }, [userId, confirmedPage]);
+
+  useEffect(() => {
+    if (userId) {
+      fetchAppointments(
+        'UpComing',
+        upcomingPage,
+        setUpcomingAppointments,
+        setUpcomingLoading,
+        setUpcomingHasMore,
+        setTotalUpcomingAppointments
+      );
+    }
+  }, [userId, upcomingPage]);
+
+  useEffect(() => {
+    if (userId) {
+      fetchAppointments(
+        'Canceled',
+        canceledPage,
+        setCanceledAppointments,
+        setCanceledLoading,
+        setCanceledHasMore,
+        setTotalCanceledAppointments
+      );
+    }
+  }, [userId, canceledPage]);
+  useEffect(() => {
+    if (userId) {
+      fetchAppointments(
+        'Completed',
+        CompletedPage,
+        setCompletedAppointments,
+        setCompletedLoading,
+        setCompletedHasMore,
+        setTotalCompletedAppointments
+      );
+    }
+  }, [userId, CompletedPage]);
+
+  const createObserver = (setPage, hasMore, observerRef) => (node) => {
+    if (!node || !hasMore) return;
+    if (observerRef.current) observerRef.current.disconnect();
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setPage((prev) => prev + 1);
+        }
+      },
+      { threshold: 1.0 }
+    );
+
+    observerRef.current.observe(node);
+  };
+
+  const lastConfirmedAppointmentRef = useCallback(
+    createObserver(setConfirmedPage, confirmedHasMore, confirmedObserverRef),
+    [confirmedHasMore]
+  );
+  const lastUpcomingAppointmentRef = useCallback(
+    createObserver(setUpcomingPage, upcomingHasMore, upcomingObserverRef),
+    [upcomingHasMore]
+  );
+  const lastCanceledAppointmentRef = useCallback(
+    createObserver(setCanceledPage, canceledHasMore, canceledObserverRef),
+    [canceledHasMore]
+  );
+  const lastCompletedAppointmentRef = useCallback(
+    createObserver(setCompletedPage, CompletedHasMore, CompletedObserverRef),
+    [CompletedHasMore]
+  );
 
   return (
     <section className="AppintmentSection">
@@ -175,127 +323,135 @@ const Appointment = () => {
           </div>
 
           <div className="DashCardData">
+            <div className="DashCardData">
+              {/* Confirmed Appointments Section */}
+              <div className="DashCardDiv">
+                <CardHead
+                  Cdtxt="Confirmed"
+                  Cdnumb={totalConfirmedAppointments}
+                  CdNClas="fawn"
+                />
+                <div className="DashCardItem fawnbg">
+                  {confirmedAppointments.map((appointment, index) => (
+                    <div
+                      ref={
+                        index === confirmedAppointments.length - 1
+                          ? lastConfirmedAppointmentRef
+                          : null
+                      }
+                      key={appointment._id}
+                    >
+                      <AppointCard
+                        crdimg={pet1}
+                        cdowner={appointment.ownerName}
+                        crdtpe={appointment.petName}
+                        btnimg={btn1}
+                        btntext={`${appointment.appointmentDate} - ${appointment.appointmentTime}`}
+                        crddoctor={appointment.veterinarian}
+                        drjob={appointment.department}
+                        CardbtnClass="btnfown"
+                      />
+                    </div>
+                  ))}
+                  {confirmedLoading && <p>Loading more appointments...</p>}
+                </div>
+              </div>
+
+              {/* Upcoming Appointments Section */}
+              <div className="DashCardDiv">
+                <CardHead
+                  Cdtxt="Upcoming"
+                  Cdnumb={totalUpcomingAppointments}
+                  CdNClas="fawn"
+                />
+                <div className="DashCardItem fawnbg">
+                  {upcomingAppointments.map((appointment, index) => (
+                    <div
+                      ref={
+                        index === upcomingAppointments.length - 1
+                          ? lastUpcomingAppointmentRef
+                          : null
+                      }
+                      key={appointment._id}
+                    >
+                      <AppointCard
+                        crdimg={pet1}
+                        cdowner={appointment.ownerName}
+                        crdtpe={appointment.petName}
+                        btnimg={btn1}
+                        btntext={`${appointment.appointmentDate} - ${appointment.appointmentTime}`}
+                        crddoctor={appointment.veterinarian}
+                        drjob={appointment.department}
+                        CardbtnClass="btnPurple"
+                      />
+                    </div>
+                  ))}
+                  {upcomingLoading && <p>Loading more appointments...</p>}
+                </div>
+              </div>
+            </div>
+
             <div className="DashCardDiv">
-              <CardHead Cdtxt="Confirmed" Cdnumb="03" CdNClas="fawn" />
+              <CardHead
+                Cdtxt="Completed"
+                Cdnumb={totalCompletedAppointments}
+                CdNClas="fawn"
+              />
               <div className="DashCardItem fawnbg">
-                <AppointCard
-                  crdimg={pet1}
-                  cdowner="Kizie"
-                  crdtpe="Sky B"
-                  btnimg={btn1}
-                  btntext="Tuesday, 10 Sep - 11:00 AM"
-                  crddoctor="Dr. Emily Johnson"
-                  drjob="Cardiology"
-                  CardbtnClass="btnfown"
-                />
-                <AppointCard
-                  crdimg={pet1}
-                  cdowner="Max"
-                  crdtpe="David Martin"
-                  btnimg={btn1}
-                  btntext="Tuesday, 10 Sep - 11:00 AM"
-                  crddoctor="Dr. Olivia Harris"
-                  drjob="Neurology"
-                  CardbtnClass="btnfown"
-                />
-                <AppointCard
-                  crdimg={pet1}
-                  cdowner="Molly"
-                  crdtpe="Lucas Miller"
-                  btnimg={btn1}
-                  btntext="Tuesday, 10 Sep - 11:00 AM"
-                  crddoctor="Dr. Grace Walker"
-                  drjob="Dentistry"
-                  CardbtnClass="btnfown"
-                />
+                {CompletedAppointments.map((appointment, index) => (
+                  <div
+                    ref={
+                      index === CompletedAppointments.length - 1
+                        ? lastCompletedAppointmentRef
+                        : null
+                    }
+                    key={appointment._id}
+                  >
+                    <AppointCard
+                      crdimg={pet1}
+                      cdowner={appointment.ownerName}
+                      crdtpe={appointment.petName}
+                      btnimg={btn1}
+                      btntext={`${appointment.appointmentDate} - ${appointment.appointmentTime}`}
+                      crddoctor={appointment.veterinarian}
+                      drjob={appointment.department}
+                      CardbtnClass="btngreen"
+                    />
+                  </div>
+                ))}
+                {CompletedLoading && <p>Loading more appointments...</p>}
               </div>
             </div>
 
             <div className="DashCardDiv">
-              <CardHead Cdtxt="Upcoming" Cdnumb="02" CdNClas="purpl" />
-              <div className="DashCardItem purplebg">
-                <AppointCard
-                  crdimg={pet1}
-                  cdowner="Bella"
-                  crdtpe="Sarah Johnson"
-                  btnimg={btn2}
-                  btntext="Tuesday, 10 Sep - 11:00 AM"
-                  crddoctor="Dr. Michael Lee"
-                  drjob="Orthopedics"
-                  CardbtnClass="btnPurple"
-                />
-                <AppointCard
-                  crdimg={pet1}
-                  cdowner="Max"
-                  crdtpe="David Martin"
-                  btnimg={btn2}
-                  btntext="Tuesday, 10 Sep - 11:00 AM"
-                  crddoctor="Dr. Olivia Harris"
-                  drjob="Neurology"
-                  CardbtnClass="btnPurple"
-                />
-              </div>
-            </div>
-
-            <div className="DashCardDiv">
-              <CardHead Cdtxt="Completed" Cdnumb="02" CdNClas="ltgren" />
-              <div className="DashCardItem greenbg">
-                <AppointCard
-                  crdimg={pet1}
-                  cdowner="Bella"
-                  crdtpe="Sarah Johnson"
-                  btnimg={btn3}
-                  btntext="Tuesday, 10 Sep - 11:00 AM"
-                  crddoctor="Dr. Michael Lee"
-                  drjob="Orthopedics"
-                  CardbtnClass="btngreen"
-                />
-                <AppointCard
-                  crdimg={pet1}
-                  cdowner="Max"
-                  crdtpe="David Martin"
-                  btnimg={btn3}
-                  btntext="Tuesday, 10 Sep - 11:00 AM"
-                  crddoctor="Dr. Olivia Harris"
-                  drjob="Neurology"
-                  CardbtnClass="btngreen"
-                />
-                <AppointCard
-                  crdimg={pet1}
-                  cdowner="Max"
-                  crdtpe="David Martin"
-                  btnimg={btn3}
-                  btntext="Tuesday, 10 Sep - 11:00 AM"
-                  crddoctor="Dr. Olivia Harris"
-                  drjob="Neurology"
-                  CardbtnClass="btngreen"
-                />
-              </div>
-            </div>
-
-            <div className="DashCardDiv">
-              <CardHead Cdtxt="Cancelled" Cdnumb="02" CdNClas="chill" />
-              <div className="DashCardItem chillybg">
-                <AppointCard
-                  crdimg={pet1}
-                  cdowner="Bella"
-                  crdtpe="Sarah Johnson"
-                  btnimg={btn4}
-                  btntext="Tuesday, 10 Sep - 11:00 AM"
-                  crddoctor="Dr. Michael Lee"
-                  drjob="Orthopedics"
-                  CardbtnClass="btnchilly"
-                />
-                <AppointCard
-                  crdimg={pet1}
-                  cdowner="Max"
-                  crdtpe="David Martin"
-                  btnimg={btn4}
-                  btntext="Tuesday, 10 Sep - 11:00 AM"
-                  crddoctor="Dr. Olivia Harris"
-                  drjob="Neurology"
-                  CardbtnClass="btnchilly"
-                />
+              <CardHead
+                Cdtxt="Canceled"
+                Cdnumb={totalCanceledAppointments}
+                CdNClas="fawn"
+              />
+              <div className="DashCardItem fawnbg">
+                {canceledAppointments.map((appointment, index) => (
+                  <div
+                    ref={
+                      index === canceledAppointments.length - 1
+                        ? lastCanceledAppointmentRef
+                        : null
+                    }
+                    key={appointment._id}
+                  >
+                    <AppointCard
+                      crdimg={pet1}
+                      cdowner={appointment.ownerName}
+                      crdtpe={appointment.petName}
+                      btnimg={btn1}
+                      btntext={`${appointment.appointmentDate} - ${appointment.appointmentTime}`}
+                      crddoctor={appointment.veterinarian}
+                      drjob={appointment.department}
+                      CardbtnClass="btnchilly"
+                    />
+                  </div>
+                ))}
+                {canceledLoading && <p>Loading more appointments...</p>}
               </div>
             </div>
 
@@ -358,9 +514,9 @@ export function DashModal() {
                   </div>
                 </div>
                 <div className="ryttop">
-                  <a href="#">
+                  <Link to="#">
                     <i className="ri-star-fill"></i> New
-                  </a>
+                  </Link>
                 </div>
               </div>
 

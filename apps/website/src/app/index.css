@@ -44,6 +44,16 @@ body {
 body {
   background-color: var(--mainBg) !important;
 }
+::-webkit-scrollbar {
+  width: 5px;
+  height: 8px;
+  background-color: #fef8f4; /* or add it to the track */
+}
+
+/* Add a thumb */
+::-webkit-scrollbar-thumb {
+  background: #d04122;
+}
 h1,
 h2 {
   font-family: var(--grotesk-font);
@@ -809,6 +819,8 @@ input[type='number'] {
   padding: 10px;
   width: 100%;
   height: 100%;
+  overflow: auto;
+  max-height: 742px;
 }
 .fawnbg {
   background: #fff2e3;

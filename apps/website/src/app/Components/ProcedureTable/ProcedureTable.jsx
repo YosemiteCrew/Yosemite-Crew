@@ -1,6 +1,7 @@
 // eslint-disable-next-line no-unused-vars
 // import React, { useState } from 'react';
 import PropTypes from 'prop-types';
+import { Button } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 
 const ProcedureTable = ({
@@ -10,6 +11,7 @@ const ProcedureTable = ({
   procedureTotalPages,
   setProcedureCurrentPage,
   procedureCurrentPage,
+  handleDeleteItem
 }) => {
   console.log('procedureData', procedureData);
   // Fallback data if appointments prop is not provided
@@ -24,7 +26,9 @@ const ProcedureTable = ({
       setProcedureCurrentPage(procedureCurrentPage - 1);
     }
   };
-
+const HandleDelete = async(id) => {
+  handleDeleteItem(id)
+}
   return (
     <div className="MainTableDiv">
       <table className="Prceduretable">
@@ -44,39 +48,39 @@ const ProcedureTable = ({
           {procedureData?.map((procedure, index) => (
             <tr key={index} style={{ alignItems: 'center' }}>
               <td scope="row">
-                <div className="proceicon ">
+                {/* <div className="proceicon ">
                   <i className="ri-checkbox-blank-circle-fill"></i>
-                </div>
+                </div> */}
               </td>
               <td>
-                <strong>{procedure.name}</strong>
+                <strong>{procedure.packageName}</strong>
               </td>
               <td>
                 <strong> {procedure.category}</strong>
               </td>
               <td>
-                <strong>{procedure.item}</strong>
+                <strong>{procedure.packageItems.length}</strong>
               </td>
               <td>
-                <strong>{procedure.totalcost}</strong>
+                <strong>{procedure.totalSubtotal}</strong>
               </td>
               {/* <td>
                 <strong>{procedure.created}</strong>
               </td> */}
               <td>
-                <strong>{procedure.lstupdte}</strong>
+                <strong>{procedure.formattedUpdatedAt}</strong>
               </td>
 
               <td>
                 <div className="actionDiv">
-                  <Link to={procedure.acceptAction}>
+                  <Link to={`/viewprocedurepackage/${procedure._id}`}>
                     {' '}
                     <img src={actimg1} alt="Accept" />
                   </Link>
-                  <Link to={procedure.declineAction}>
+                  <Button onClick={()=>HandleDelete(procedure._id)}>
                     {' '}
                     <img src={actimg2} alt="Decline" />
-                  </Link>
+                  </Button>
                 </div>
               </td>
             </tr>

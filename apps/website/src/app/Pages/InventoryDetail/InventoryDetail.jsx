@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import './InventoryDetail.css';
 import { Container } from 'react-bootstrap';
 import { BiSolidEditAlt } from 'react-icons/bi';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/useAuth';
 import axios from 'axios';
 import ProgressBar from 'react-bootstrap/ProgressBar';
@@ -11,10 +11,11 @@ import whtcheck from '../../../../public/Images/whtcheck.png';
 import { MainBtn } from '../Appointment/page';
 
 function InventoryDetail() {
-  const location = useLocation();
+  
   const { userId } = useAuth();
-  const itemId = location.state?.itemData; // Extract itemId correctly
+  const itemId = useParams().id // Extract itemId correctly
   const [itemDetails, setItemDetails] = useState(null);
+  console.log("itemId", itemId);
 
   const fetchItemDetails = async () => {
     if (!itemId) return; // Prevent API call if itemId is undefined
@@ -25,20 +26,19 @@ function InventoryDetail() {
         { params: { userId, itemId } }
       );
       console.log('Fetched Data:', response.data.inventory);
-      setItemDetails(response.data.inventory[0]); // Store the first object in state
+      setItemDetails(response.data.inventory); // Store the first object in state
     } catch (error) {
       console.error('Error fetching inventory details:', error);
     }
   };
 
   useEffect(() => {
-    fetchItemDetails();
+
+        fetchItemDetails();
+    
   }, [itemId, userId]);
 
-  if (!itemDetails) {
-    return <p>Loading...</p>; // Show loading state while fetching
-  }
-
+ 
   return (
     <section className="InventoryDetailsSec">
       <Container>
@@ -59,19 +59,19 @@ function InventoryDetail() {
             <div className="detaildivInner">
               <h5>Basic</h5>
               <div className="baskdetail">
-                <Dtlitems dpara="Category" dname={itemDetails.category} />
-                <Dtlitems dpara="Item Name" dname={itemDetails.itemName} />
+                <Dtlitems dpara="Category" dname={itemDetails?.category} />
+                <Dtlitems dpara="Item Name" dname={itemDetails?.itemName} />
                 <Dtlitems
                   dpara="Generic Name"
-                  dname={itemDetails.genericName}
+                  dname={itemDetails?.genericName}
                 />
                 <Dtlitems
                   dpara="Item Category"
-                  dname={itemDetails.itemCategory}
+                  dname={itemDetails?.itemCategory}
                 />
                 <Dtlitems
                   dpara="Manufacturer"
-                  dname={itemDetails.manufacturer}
+                  dname={itemDetails?.manufacturer}
                 />
               </div>
             </div>
@@ -81,25 +81,25 @@ function InventoryDetail() {
               <div className="baskdetail">
                 <Dtlitems
                   dpara="Batch Number"
-                  dname={itemDetails.batchNumber}
+                  dname={itemDetails?.batchNumber}
                 />
-                <Dtlitems dpara="SKU" dname={itemDetails.sku} />
-                <Dtlitems dpara="Strength" dname={itemDetails.strength} />
+                <Dtlitems dpara="SKU" dname={itemDetails?.sku} />
+                <Dtlitems dpara="Strength" dname={itemDetails?.strength} />
                 <Dtlitems
                   dpara="Expiry Date"
-                  dname={new Date(itemDetails.expiryDate).toDateString()}
+                  dname={new Date(itemDetails?.expiryDate).toDateString()}
                 />
               </div>
               <div className="baskdetail">
-                <Dtlitems dpara="Total Stock" dname={itemDetails.quantity} />
+                <Dtlitems dpara="Total Stock" dname={itemDetails?.quantity} />
                 <Dtlitems
                   dpara="Stock Reorder Level"
-                  dname={itemDetails.stockReorderLevel}
+                  dname={itemDetails?.stockReorderLevel}
                 />
                 <Dtlitems
                   dpara="Status"
                   dname={
-                    itemDetails.quantity < itemDetails.stockReorderLevel
+                    itemDetails?.quantity < itemDetails?.stockReorderLevel
                       ? 'Low Stock'
                       : 'Available'
                   }
@@ -109,12 +109,12 @@ function InventoryDetail() {
                 <p>Remaining</p>
                 <ProgressBar
                   now={
-                    (itemDetails.quantity / itemDetails.stockReorderLevel) * 100
+                    (itemDetails?.quantity / itemDetails?.stockReorderLevel) * 100
                   }
                 />
                 <h6>
                   {Math.round(
-                    (itemDetails.quantity / itemDetails.stockReorderLevel) * 100
+                    (itemDetails?.quantity / itemDetails?.stockReorderLevel) * 100
                   )}
                   %
                 </h6>
@@ -126,13 +126,13 @@ function InventoryDetail() {
               <div className="baskdetail">
                 <Dtlitems
                   dpara="Manufacturer Price"
-                  dname={`$ ${itemDetails.manufacturerPrice}`}
+                  dname={`$ ${itemDetails?.manufacturerPrice}`}
                 />
                 <Dtlitems
                   dpara="Markup Percentage"
-                  dname={`% ${itemDetails.markup}`}
+                  dname={`% ${itemDetails?.markup}`}
                 />
-                <Dtlitems dpara="Price" dname={`$ ${itemDetails.price}`} />
+                <Dtlitems dpara="Price" dname={`$ ${itemDetails?.price}`} />
               </div>
             </div>
           </div>

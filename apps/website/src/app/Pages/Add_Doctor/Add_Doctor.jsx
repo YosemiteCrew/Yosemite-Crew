@@ -75,6 +75,7 @@ const Add_Doctor = () => {
       );
       if (response) {
         setOverview(response.data);
+        console.log('overview', response.data);
       }
     } catch (error) {
       console.error('Error fetching overview:', error);
@@ -126,7 +127,7 @@ const Add_Doctor = () => {
                   ovradcls=" cambrageblue"
                   ovrtxt="On-Duty"
                   boxcoltext="greentext"
-                  overnumb="12"
+                  overnumb={overview.availableDoctors}
                 />
                 <BoxDiv
                   boximg={box1}

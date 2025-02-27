@@ -8,6 +8,7 @@ import { MainBtn } from '../Appointment/page';
 import whtcheck from '../../../../public/Images/whtcheck.png';
 import axios from 'axios';
 import { useAuth } from '../../context/useAuth';
+import Swal from 'sweetalert2';
 
 function AddProcedurePackage() {
   const { userId } = useAuth();
@@ -47,9 +48,19 @@ function AddProcedurePackage() {
         `${process.env.NX_PUBLIC_VITE_BASE_URL}api/inventory/AddProcedurePackage?userId=${userId}`,
         procedureData
       );
-      console.log('Procedure package added:', response.data);
+      if(response){
+        Swal.fire({
+          title: 'Procedure Package Added Successfully',
+          text: 'Procedure Package Added Successfully',
+          icon:'success',
+        })
+      }
     } catch (error) {
-      console.error('Error adding procedure package:', error);
+      Swal.fire({
+        title: 'Error',
+        text: 'Failed to add Procedure Package.',
+        icon: 'error',
+      })
     }
   };
 

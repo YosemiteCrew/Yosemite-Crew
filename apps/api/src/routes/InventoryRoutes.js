@@ -10,4 +10,11 @@ router.get(
   InventoryControllers.getToViewItemsDetaild
 );
 router.get('/getProceurePackage', InventoryControllers.getProceurePackage);
+router.get('/GetProcedurePackageByid', InventoryControllers.GetProcedurePackageByid);
+router.put('/updateProcedurePackage', InventoryControllers.updateProcedurePackage);
+router.delete(
+  '/deleteProcedureitems',
+  InventoryControllers.deleteProcedureitems
+);
+router.delete('/deleteProcedurePackage', InventoryControllers.deleteProcedurePackage);
 module.exports = router;

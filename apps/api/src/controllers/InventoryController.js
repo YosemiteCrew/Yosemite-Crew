@@ -166,7 +166,7 @@ const InventoryControllers = {
     try {
       const { userId } = req.query;
       const { itemId } = req.query;
-      const inventory = await Inventory.find({
+      const inventory = await Inventory.findOne({
         _id: itemId,
         bussinessId: userId,
       })
@@ -183,7 +183,7 @@ const InventoryControllers = {
   getProceurePackage: async (req, res) => {
     try {
       const { userId, skip, limit } = req.query;
-
+  
       const procedurePackage = await ProcedurePackage.aggregate([
         { $match: { bussinessId: userId } },
         { $sort: { createdAt: -1 } },
@@ -193,8 +193,22 @@ const InventoryControllers = {
             data: [
               { $skip: parseInt(skip) || 0 },
               { $limit: parseInt(limit) || 5 },
-            ],
-          },
+              {
+                $addFields: {
+                  totalSubtotal: {
+                    $sum: "$packageItems.subtotal" 
+                  },
+                  formattedUpdatedAt: {
+                    $dateToString: {
+                      format: "%d %b %Y",
+                      date: "$updatedAt",
+                      timezone: "UTC"
+                    }
+                  }
+                }
+              }
+            ]
+          }
         },
         {
           $addFields: {
@@ -204,21 +218,102 @@ const InventoryControllers = {
             totalPages: {
               $ceil: {
                 $divide: [
-                  {
-                    $ifNull: [{ $arrayElemAt: ['$metadata.totalItems', 0] }, 0],
-                  },
+                  { $ifNull: [{ $arrayElemAt: ['$metadata.totalItems', 0] }, 0] },
                   parseInt(limit) || 5,
                 ],
               },
             },
           },
-        },
+        }
       ]);
+  
       res.status(200).json({ procedurePackage });
     } catch (error) {
       res.status(400).json({ message: error.message });
     }
+  }  ,
+  GetProcedurePackageByid: async (req, res) => {
+    try {
+      const { userId, id } = req.query;
+      const procedurePackage = await ProcedurePackage.findOne({
+        _id: id,
+        bussinessId: userId,
+      }).lean().exec();
+      if (!procedurePackage) {
+        res.status(404).json({ message: 'Procedure Package not found' });
+      }
+      res.status(200).json({ procedurePackage });
+
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+  
+    }
   },
+  updateProcedurePackage: async (req, res) => {
+    try {
+      const { userId, id } = req.query;
+      const { packageName, category, description, packageItems } = req.body;
+  
+      const procedurePackage = await ProcedurePackage.findOneAndUpdate(
+        { _id: id, bussinessId: userId },
+        {
+          packageName,
+          category,
+          description,
+          packageItems: packageItems.map(item => ({
+            _id: item._id,
+            name: item.name,
+            itemType: item.itemType,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            subtotal: item.subtotal,
+            notes: item.notes,
+          })),
+        },
+        { new: true }
+      ).lean().exec();
+  
+      if (!procedurePackage) {
+        return res.status(404).json({ message: 'Procedure Package not found' });
+      }
+  
+      res.status(200).json({ procedurePackage });
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  }  ,
+  // Delete Procedure Package
+  deleteProcedureitems: async (req, res) => {
+    try {
+      const { userId, id } = req.query;
+      const procedurePackage = await ProcedurePackage.findOneAndUpdate({
+        "packageItems._id": id,
+        bussinessId: userId,
+      },{ $pull: { packageItems: { _id: id } } },  { new: true }).lean()
+      if (!procedurePackage) {
+        return res.status(404).json({ message: 'Procedure Package not found' });
+      }
+      res.status(200).json({ message: 'Procedure Package deleted successfully' });
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+  deleteProcedurePackage: async(req,res)=>{
+    try {
+      const { userId, id } = req.query;
+      const procedurePackage = await ProcedurePackage.findOneAndDelete({
+        _id: id,
+        bussinessId: userId,
+      }).lean().exec();
+      if (!procedurePackage) {
+        return res.status(404).json({ message: 'Procedure Package not found' });
+      }
+      res.status(200).json({ message: 'Procedure Package deleted successfully' });
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+      
+    }
+  }
 };
 
 module.exports = InventoryControllers;

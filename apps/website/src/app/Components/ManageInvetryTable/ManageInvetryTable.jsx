@@ -25,7 +25,7 @@ const ManageInvetryTable = ({
     }
   };
   const viewDetails = (item) => {
-    navigate('/inventorydetails', { state: { itemData: item } });
+    navigate(`/inventorydetails/${item}`);
   };
   return (
     <div className="MainTableDiv">
