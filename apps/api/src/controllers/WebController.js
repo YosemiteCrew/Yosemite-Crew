@@ -1,6 +1,7 @@
 const AWS = require('aws-sdk');
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
+const axios = require('axios');
 const jwt = require('jsonwebtoken');
 const { WebUser, ProfileData } = require('../models/WebUser');
 import {
@@ -657,6 +658,60 @@ const WebController = {
       });
     }
   },
+  getLocationdata: async (req, res) => {
+   
+      try {
+          const placeId = req.query.placeid;
+          const apiKey = 'AIzaSyBKuPqcVG84Pwqvb_nnPp5sYbs-mby9SuI'
+          const url = `https://maps.googleapis.com/maps/api/place/details/json?placeid=${placeId}&key=${apiKey}`;
+  
+          const response = await axios
+          .get(url);
+          const extractAddressDetails = (geoLocationResp) => {
+            const addressResp = {
+              address: '',
+              street: '',
+              city: '',
+              state: '',
+              zipCode: '',
+              country: '',
+              lat: geoLocationResp.geometry.location.lat,
+              long: geoLocationResp.geometry.location.lng,
+            };
+        
+            const address_components = geoLocationResp.address_components || [];
+        
+            address_components.forEach((component) => {
+              const types = component.types;
+        
+              if (types.includes('route')) {
+                addressResp.street = component.long_name;
+              }
+              if (types.includes('locality')) {
+                addressResp.city = component.long_name;
+              }
+              if (types.includes('administrative_area_level_1')) {
+                addressResp.state = component.short_name;
+              }
+              if (types.includes('postal_code')) {
+                addressResp.zipCode = component.long_name;
+              }
+              if (types.includes('country')) {
+                addressResp.country = component.long_name;
+              }
+            });
+        
+            return addressResp;
+          };
+const data = extractAddressDetails(
+  response.data.result
+)
+          res.json(data) 
+      } catch (error) {
+          res.status(500).json({ error: error.message });
+      }
+  }
+  
 };
 function getSecretHash(email) {
   const clientId = process.env.COGNITO_CLIENT_ID_WEB;

@@ -18,4 +18,5 @@ router.delete(
 );
 router.delete('/deleteProcedurePackage', InventoryControllers.deleteProcedurePackage);
 router.get('/getApproachngExpiryGraphs',InventoryControllers.getApproachngExpiryGraphs)
+router.get('/inventoryOverView',InventoryControllers.inventoryOverView)
 module.exports = router;

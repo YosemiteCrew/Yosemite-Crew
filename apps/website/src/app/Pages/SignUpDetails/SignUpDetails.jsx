@@ -383,10 +383,15 @@ const SignUpDetails = () => {
   };
 
   // Handle Place Selection
-  const handlePlaceSelect = async () => {
+  const handlePlaceSelect = async (data, details) => {
+    console.log('data=>>>', data,details);
+    
     if (autoCompleteRef.current) {
       const place = autoCompleteRef.current.getPlace();
+      console.log('place', place);
       if (!place || !place.place_id) return;
+    
+      
 
       const placeDetails = await fetchPlaceDetails(place.place_id);
 
@@ -501,7 +506,9 @@ const SignUpDetails = () => {
                       <Autocomplete
                         fields="geometry"
                         onLoad={(ref) => (autoCompleteRef.current = ref)}
-                        onPlaceChanged={handlePlaceSelect}
+                        onPlaceChanged={(data, details)=>{
+                          handlePlaceSelect(data, details)
+                        }}
                       >
                         <input
                           type="text"
