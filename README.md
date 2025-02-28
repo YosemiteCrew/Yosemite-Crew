@@ -1,8 +1,6 @@
-<br>
-
 <p align="center">
   <a href="https://yosemitecrew.com/">
-    <img src="https://avatars.githubusercontent.com/u/180446025?s=200&v=4" alt="YC logo" />
+    <img src="https://d1g0w8b65hklyd.cloudfront.net/YC.svg" width="200px" alt="YC logo" />
   </a>
 </p>
 
