@@ -1,6 +1,7 @@
 const {  WebUser } = require('../models/WebUser');
 const   AddDoctors  = require('../models/addDoctor');
 const Department = require('../models/AddDepartment');
+const feedbacks = require("../models/FeedBack");
 
 async function handleGetLists(req, res) {
     try {
@@ -30,6 +31,14 @@ async function handleGetLists(req, res) {
             if (TypeOfBusiness === 'Hospital') {
                 for (let hospital of getLists) {
                     const departments = await Department.find({ businessId: hospital.cognitoId });
+                    const feedbacksList =  await feedbacks.find({ toId: hospital.cognitoId });
+                        let hospitalRating = 0;
+                        if (feedbacksList.length > 0) {
+                            const ratingCount = feedbacksList.length;
+                            const totalRating = feedbacksList.reduce((sum, feedback) => sum + feedback.rating, 0); // Assuming 'rating' is a field in feedback
+                            hospitalRating = totalRating / ratingCount;
+                        }
+
 
                     const departmentData = await Promise.all(
                         departments.map(async (dept) => {
@@ -47,6 +56,7 @@ async function handleGetLists(req, res) {
                     );
 
                     hospital.departments = departmentData;
+                    hospital.rating = hospitalRating;
                 }
             }
 
@@ -85,7 +95,13 @@ async function handleGetLists(req, res) {
                     for (let hospital of list) {
                         
                         const departments = await Department.find({ bussinessId: hospital.cognitoId });
-                       
+                        const feedbacksList =  await feedbacks.find({ toId: hospital.cognitoId });
+                        let hospitalRating = 0;
+                        if (feedbacksList.length > 0) {
+                            const ratingCount = feedbacksList.length;
+                            const totalRating = feedbacksList.reduce((sum, feedback) => sum + feedback.rating, 0); // Assuming 'rating' is a field in feedback
+                            hospitalRating = totalRating / ratingCount;
+                        }
 
                         const departmentData = await Promise.all(
                             departments.map(async (dept) => {
@@ -105,6 +121,7 @@ async function handleGetLists(req, res) {
 
 
                         hospital.departments = departmentData;
+                        hospital.rating = hospitalRating;
                     }
                 }
 
@@ -125,7 +142,7 @@ async function handleGetLists(req, res) {
 
 
 async function handlegetDoctorsLists(req, res) {
-    const BussinessId = req.body.bussinessId;
+    const BussinessId = req.body.businessId;
     const departmentId = req.body.departmentId;
     try {
         const doctors = await AddDoctors.find({
