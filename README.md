@@ -22,7 +22,7 @@ Yosemite Crew is an open-source operating system designed for animal health indu
 For Pet Owners:
 
 - **Ultimate Convenience:** A user-friendly mobile app enables pet owners to effortlessly schedule appointments, conduct virtual consultations, manage pet health records, and access a wealth of resources.
-Enhanced Accessibility: Whether in remote locations or facing mobility challenges, pet owners can tap into quality veterinary care anytime, anywhere.
+- **Enhanced Accessibility:** Whether in remote locations or facing mobility challenges, pet owners can tap into quality veterinary care anytime, anywhere.
 
 For Veterinary Clinics and Pet Care Providers:
 
