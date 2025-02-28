@@ -14,7 +14,7 @@
 
 <br>
 
-# Overview
+# 📝 Overview
 Yosemite Crew is an open-source operating system designed for animal health industry. At its core is a free, fully customizable Practice Management System (PMS) that unifies pet care operations, bringing together pet owners, veterinary clinics, and developers into one innovative ecosystem.
 
 For Pet Owners
@@ -35,15 +35,27 @@ For Developers
 - **Flexible Development Environment:** Equipped with robust public APIs, comprehensive documentation, and ready-to-use MVP templates, developers can quickly create, install, and manage custom plugins that extend the platform's core functionalities.
 - **Community-Driven Growth:** This open-source approach fosters a collaborative environment where developers can continuously innovate and expand veterinary care options, driving the evolution of animal healthcare technology.
 
-# Stack
-- [TypeScript](https://www.typescriptlang.org/)
-- [Nx](https://nx.dev/)
-- [Express](https://expressjs.com/), with [MongoDB](https://www.mongodb.com/), [Redis](https://redis.io/)
-- [React](https://reactjs.org/), with [Redux](https://redux.js.org/)
-- [React Native](https://reactnative.dev/)
-- [AWS](https://aws.amazon.com)
+<br>
 
-## Star History
+# 🚀 Our Tech Stack
+- [TypeScript](https://www.typescriptlang.org/) for type safety
+- [Nx](https://nx.dev/) for a powerful monorepo structure and efficient build system
+- [Express](https://expressjs.com/)  as a backend framework, with [MongoDB](https://www.mongodb.com/) for data storage, [Redis](https://redis.io/)  for lightning-fast caching
+- [React](https://reactjs.org/) for the frontend, with [Redux](https://redux.js.org/) for state management
+- [React Native](https://reactnative.dev/) for mobile app development
+- [AWS](https://aws.amazon.com) to ensure reliable and scalable cloud infrastructure
+
+<br>
+
+# 💬 Join Our Growing Community
+- Star our repo and show your support!
+- Follow us on [Twitter](https://github.com/YosemiteCrew/Yosemite-Crew) or [LinkedIn](https://www.linkedin.com/company/yosemitecrew/) to get all the latest news
+- Join our [Discord](https://discord.com/invite/yosemite-crew) to chat with fellow contributors and users
+- [Contribute](https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md) — we love contributions! Whether it’s code, docs, or ideas, your help is always welcome!
+
+<br>
+
+# ⭐ Star History
 
 <a href="https://star-history.com/#YosemiteCrew/Yosemite-Crew&Date">
  <picture>
