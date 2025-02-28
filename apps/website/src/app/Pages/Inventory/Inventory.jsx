@@ -6,7 +6,7 @@ import box9 from '../../../../public/Images/box9.png';
 import box10 from '../../../../public/Images/box10.png';
 import box11 from '../../../../public/Images/box11.png';
 import box12 from '../../../../public/Images/box12.png';
-import WeeklyAppointmentsChart from '../../Components/BarGraph/WeeklyAppointmentsChart';
+// import WeeklyAppointmentsChart from '../../Components/BarGraph/WeeklyAppointmentsChart';
 import DepartmentAppointmentsChart from '../../Components/BarGraph/DepartmentAppointmentsChart';
 import { AiFillPlusCircle } from 'react-icons/ai';
 import { IoSearch } from 'react-icons/io5';
@@ -34,6 +34,7 @@ const INVENTORY_TABS = [
 function Inventory() {
   const { userId } = useAuth();
   const [date, setDate] = useState('');
+  const [Overview, setOverview] = useState([])
   const [inventoryData, setInventoryData] = useState([]);
   const [procedureData, setProcedureData] = useState([]);
 
@@ -182,8 +183,29 @@ function Inventory() {
       console.error('Error fetching inventory:', error);
     }
   }
+const getInventoryOverViewDetails = async () =>{
+  try {
+    const response = await axios.get(`${process.env.NX_PUBLIC_VITE_BASE_URL}api/inventory/inventoryOverView`, {
+      params: {
+        userId,
+      }
+    })
+    if (response.status === 200)
+      {
+        console.log(response.data.inventory[0]);
+        setOverview(response.data.inventory[0]);
+      }
+  } catch (error) {
+    console.error('Error fetching inventory:', error);
+  }
+}
+
+
   useEffect(()=>{
-   if (userId) GetApproachingExpiryGraph();
+   if (userId) {
+    GetApproachingExpiryGraph();
+    getInventoryOverViewDetails();
+   }
   }, [userId]);
   return (
     <section className="InventorySec">
@@ -196,7 +218,7 @@ function Inventory() {
           </div>
 
           <div className="overviewDiv">
-            <div className="OverviewTop">
+            {/* <div className="OverviewTop">
               <ListSelect
                 options={[
                   'Last 7 Days',
@@ -205,35 +227,35 @@ function Inventory() {
                   'Last 21 Days',
                 ]}
               />
-            </div>
+            </div> */}
             <div className="overviewitem">
               <BoxDiv
                 boximg={box9}
                 ovradcls="purple"
                 ovrtxt="Total Inventory Items"
                 boxcoltext="purpletext"
-                overnumb="5,250"
+                overnumb={Overview.totalQuantity}
               />
               <BoxDiv
                 boximg={box10}
                 ovradcls="cambrageblue"
                 ovrtxt="Stock Value"
                 boxcoltext="greentext"
-                overnumb="$15,089"
+                overnumb={Overview.totalValue}
               />
               <BoxDiv
                 boximg={box11}
                 ovradcls="fawndark"
                 ovrtxt="Items Low on Stock"
                 boxcoltext="frowntext"
-                overnumb="320"
+                overnumb={Overview.lowStockCount}
               />
               <BoxDiv
                 boximg={box12}
                 ovradcls="chillibg"
                 ovrtxt="Out-of-Stock Items"
                 boxcoltext="ciltext"
-                overnumb="45"
+                overnumb={Overview.outOfStockCount}
               />
             </div>
           </div>
