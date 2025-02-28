@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://yosemitecrew.com/">
-    <img src="https://avatars.githubusercontent.com/u/180446025?s=200&v=4" width="300px" alt="YC logo" />
+    <img src="https://avatars.githubusercontent.com/u/180446025?s=200&v=4" alt="YC logo" />
   </a>
 </p>
 
