@@ -14,6 +14,14 @@
 
 <br>
 
+<p align="center">
+  <a href="https://yosemitecrew.com/">
+      <img src="https://d1g0w8b65hklyd.cloudfront.net/Dashboard_2.png" alt="YC logo" />
+  </a>
+</p>
+
+<br>
+
 # 📝 Overview
 Yosemite Crew is an open-source operating system designed for animal health industry. At its core is a free, fully customizable Practice Management System (PMS) that unifies pet care operations, bringing together pet owners, veterinary clinics, and developers into one innovative ecosystem.
 
