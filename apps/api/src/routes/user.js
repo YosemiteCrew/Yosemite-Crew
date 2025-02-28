@@ -21,6 +21,7 @@ const {
   handleGetTimeSlots,
   handleRescheduleAppointment,
   handleTimeSlotsByMonth,
+  handlesaveFeedBack,
 } = require("../controllers/appointment");
 const { handleContactUs } = require("../controllers/contact");
 const {
@@ -90,6 +91,7 @@ router.post("/getTimeSlotsByMonth",handleTimeSlotsByMonth);
 router.post("/sendquery", verifyTokenAndRefresh,handleContactUs);
 router.post("/getLists",handleGetLists);
 router.post("/getDoctorsLists",handlegetDoctorsLists);
+router.post("/saveFeedBack",handlesaveFeedBack);
 router.post(
   "/addVaccinationRecord",verifyTokenAndRefresh,
   upload.single("vaccineImage"),
