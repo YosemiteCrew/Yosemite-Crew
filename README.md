@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://yosemitecrew.com/">
-    <img src="https://avatars.githubusercontent.com/u/180446025?s=200&v=4" width="300px" alt="Twenty logo" />
+    <img src="https://avatars.githubusercontent.com/u/180446025?s=200&v=4" width="300px" alt="YC logo" />
   </a>
 </p>
 
@@ -17,20 +17,25 @@
 <br>
 
 # Overview
-We aim develop an open source healthcare developer platform (SOC2, EU GDPR and ISO 27001 certified) that helps build, test, and deliver animal healthcare products such as telemedicine websites (and mobile applications) and practice information management systems in a click. The project objectives are:
-- **Convenience for Pet Owners**: Schedule appointments, conduct consultations, manage pet health information, and access resources - all from a user-friendly mobile app. Improved
-- **Accessibility**: Provide pet owners with access to veterinary care, especially in remote locations or for those with limited mobility.
-- **Enhanced Efficiency:** Streamline appointment scheduling and communication between pet owners and veterinarians.
-- **Expanding Veterinary Care Options:** Public APIs and MVP templates empower developers to-create innovative applications that extend the reach of Yosemite Crew and provide pet owners with even more choices for managing their pets' health.
-- **Simple UI:** Our PIMS will prioritize user-friendliness and simplicity, avoiding the complexity of many existing systems.
-- **Enhance customization:** We will offer an open-source solution, providing more flexibility and customization potential to meet the specific needs of different clinics.
-- **Easy to integrate:** Our system will be easy to deploy and integrate with existing systems, reducing the barriers to adoption.
-- **No locking:** We will not lock clinics into a subscription model, providing more flexibility in terms of pricing and usage.
-- **Privacy and security first:** Our PIMS will include robust data management and reporting capabilities to help clinics make informed decisions.
-- **Regular support:** We will provide ongoing support and updates to ensure the system remains effective and up-to-date.
-- **Community building:** We will encourage community contributions to continuously improve and expand the system.
-- **Compliant:** We will ensure our PIMS is compliant with all relevant regulatory standards to ensure data security and privacy.
-- **Scalable:** We will make our system scalable to support the growth of veterinary clinics.
+Yosemite Crew is an open-source operating system designed for animal health industry. At its core is a free, fully customizable Practice Management System (PMS) that unifies pet care operations, bringing together pet owners, veterinary clinics, and developers into one innovative ecosystem.
+
+For Pet Owners:
+
+- **Ultimate Convenience:** A user-friendly mobile app enables pet owners to effortlessly schedule appointments, conduct virtual consultations, manage pet health records, and access a wealth of resources.
+Enhanced Accessibility: Whether in remote locations or facing mobility challenges, pet owners can tap into quality veterinary care anytime, anywhere.
+
+For Veterinary Clinics and Pet Care Providers:
+
+- **Streamlined Efficiency:** Yosemite Crew simplifies appointment scheduling and enhances communication, reducing administrative burdens and boosting overall productivity.
+- **Customization & Integration:** As an open-source solution, the platform offers unmatched flexibility, allowing clinics to tailor the system to their unique needs without being locked into rigid subscription models. Seamless integration with existing systems further reduces barriers to adoption.
+- **Robust Security & Compliance:** With comprehensive data management, reporting capabilities, and adherence to regulatory standards, the system ensures that sensitive information remains secure and that clinics can make informed, data-driven decisions.
+- **Scalability & Support:** Designed to grow alongside veterinary practices, Yosemite Crew is scalable and supported by regular updates and a vibrant community of contributors, ensuring the platform remains state-of-the-art.
+
+For Developers:
+
+- **Empowering Innovation:** The dedicated developer portal is at the heart of an ecosystem that mirrors the versatility of the WordPress plugin model.
+- **Flexible Development Environment:** Equipped with robust public APIs, comprehensive documentation, and ready-to-use MVP templates, developers can quickly create, install, and manage custom plugins that extend the platform's core functionalities.
+- **Community-Driven Growth:** This open-source approach fosters a collaborative environment where developers can continuously innovate and expand veterinary care options, driving the evolution of animal healthcare technology.
 
 # Stack
 - [TypeScript](https://www.typescriptlang.org/)
@@ -40,6 +45,15 @@ We aim develop an open source healthcare developer platform (SOC2, EU GDPR and I
 - [React Native](https://reactnative.dev/)
 - [AWS](https://aws.amazon.com)
 
+## Star History
+
+<a href="https://star-history.com/#YosemiteCrew/Yosemite-Crew&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=YosemiteCrew/Yosemite-Crew&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=YosemiteCrew/Yosemite-Crew&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=YosemiteCrew/Yosemite-Crew&type=Date" />
+ </picture>
+</a>
 
 
 
