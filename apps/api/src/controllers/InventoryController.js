@@ -313,7 +313,68 @@ const InventoryControllers = {
       res.status(400).json({ message: error.message });
       
     }
-  }
+  },
+
+  getApproachngExpiryGraphs: async (req, res) => {
+    try {
+        const { userId } = req.query;
+        const today = new Date(); 
+
+        const response = await Inventory.aggregate([
+            { $match: { bussinessId: userId } },
+            {
+                $addFields: {
+                    expiryDateConverted: { $toDate: "$expiryDate" } 
+                }
+            },
+            {
+                $addFields: {
+                    daysUntilExpiry: {
+                        $dateDiff: {
+                            startDate: today,
+                            endDate: "$expiryDateConverted",
+                            unit: "day"
+                        }
+                    }
+                }
+            },
+            {
+                $match: {
+                    daysUntilExpiry: { $gte: 0, $lte: 60 } 
+                }
+            },
+            {
+                $group: {
+                    _id: {
+                        $switch: {
+                            branches: [
+                                { case: { $lte: ["$daysUntilExpiry", 7] }, then: "7 days" },
+                                { case: { $and: [{ $gt: ["$daysUntilExpiry", 7] }, { $lte: ["$daysUntilExpiry", 15] }] }, then: "15 days" },
+                                { case: { $and: [{ $gt: ["$daysUntilExpiry", 15] }, { $lte: ["$daysUntilExpiry", 30] }] }, then: "30 days" },
+                                { case: { $and: [{ $gt: ["$daysUntilExpiry", 30] }, { $lte: ["$daysUntilExpiry", 60] }] }, then: "60 days" }
+                            ],
+                            default: null
+                        }
+                    },
+                    totalCount: { $sum: 1 } 
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    category: "$_id",
+                    totalCount: 1
+                }
+            },
+            { $sort: { category: 1 } }
+        ]);
+
+        res.status(200).json({ data: response });
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+}
+
 };
 
 module.exports = InventoryControllers;
