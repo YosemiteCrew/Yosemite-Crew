@@ -19,6 +19,7 @@ import axios from 'axios';
 import { useAuth } from '../../context/useAuth';
 import DynamicDatePicker from '../../Components/DynamicDatePicker/DynamicDatePicker';
 import Swal from 'sweetalert2';
+import ApproachingExpiryChart from '../../Components/BarGraph/ApproachingExpiryChart';
 
 const INVENTORY_TABS = [
   'Pharmaceuticals',
@@ -44,7 +45,8 @@ function Inventory() {
   const [totalPages, setTotalPages] = useState(1);
   const [procedureTotalPages, setProcedureTotalPages] = useState(1);
   const [procedureCurrentPage, setProcedureCurrentPage] = useState(1);
-  console.log('procedureData', procedureData, procedureTotalPages);
+  const [ApproachingExpiry, setApproachingExpiry] = useState([]);
+  console.log('ApproachingExpiry', ApproachingExpiry);
 
   useEffect(() => {
     const getInventory = async () => {
@@ -153,7 +155,36 @@ function Inventory() {
       }
     });
   };
-  
+  const GetApproachingExpiryGraph = async ()=>{
+    try {
+      const response = await axios.get(
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/inventory/getApproachngExpiryGraphs`,
+        {
+          params: {
+            userId,
+          },
+        }
+      );
+      if (response.status === 200) {
+        // console.log(response.data);
+        setApproachingExpiry(response.data.data.map((item) => ({
+          category: item.category,
+          totalCount: item.totalCount,
+          color: item.category === "7 days" ? "#A72A19" :
+                 item.category === "15 days" ? "#C23723" :
+                 item.category === "30 days" ? "#E05D50" : "#E88E81",
+
+        })));
+      } else {
+        console.log('error');
+      }
+    } catch (error) {
+      console.error('Error fetching inventory:', error);
+    }
+  }
+  useEffect(()=>{
+   if (userId) GetApproachingExpiryGraph();
+  }, [userId]);
   return (
     <section className="InventorySec">
       <Container>
@@ -210,7 +241,7 @@ function Inventory() {
           <div className="InventoryGrph">
             <div className="Inventrygrphdiv">
               <h6>Approaching Expiry</h6>
-              <WeeklyAppointmentsChart />
+              <ApproachingExpiryChart data={ApproachingExpiry} />
             </div>
             <div className="Inventrygrphdiv">
               <h6>Category Breakdown</h6>

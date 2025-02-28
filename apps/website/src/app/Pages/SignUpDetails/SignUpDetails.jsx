@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import axios from 'axios'; // Make sure axios is installed
 import './SignUpDetails.css';
 import { Forminput, HeadText } from '../SignUp/SignUp';
+
 import UplodeImage from '../../Components/UplodeImage/UplodeImage';
 import { MainBtn } from '../Appointment/page';
 import PropTypes from 'prop-types';
@@ -13,8 +14,7 @@ import host2 from '../../../../public/Images/host2.png';
 import whtcloud from '../../../../public/Images/whtcloud.png';
 import { BsFileDiffFill } from 'react-icons/bs';
 import { AiFillFileImage } from 'react-icons/ai';
-
-import Autocomplete from "react-google-autocomplete";
+import { LoadScript, Autocomplete } from '@react-google-maps/api';
 
 import Swal from 'sweetalert2';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -23,8 +23,11 @@ import { FaFileWord } from 'react-icons/fa';
 import { RxCrossCircled } from 'react-icons/rx';
 import { IoIosAddCircle } from 'react-icons/io';
 import { Button } from 'react-bootstrap';
+const libraries = ['places'];
 
 const SignUpDetails = () => {
+  const autoCompleteRef = useRef(null);
+
   const location = useLocation();
   const cognitoId = location.state?.cognitoId;
   const { userId, refreshProfileData, initializeUser } = useAuth();
@@ -58,7 +61,7 @@ const SignUpDetails = () => {
       }));
     }
   }, [userId, formData.userId]);
-  // console.log(image);
+  // console.log("process.env.GOOGLE_MAPS_API_KEY",process.env.NX_PUBLIC_VITE_BASE_GOOGLE_MAPS_API_KEY);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFile, setSelectedFile] = useState([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -79,8 +82,6 @@ const SignUpDetails = () => {
       setImage(file);
     }
   };
-
-  
 
   const servicesList = [
     { id: 1, name: '24/7 Emergency Care' },
@@ -318,6 +319,89 @@ const SignUpDetails = () => {
       getProfiledata();
     }
   }, [userId]);
+  const fetchPlaceDetails = async (placeId) => {
+    const apiKey = process.env.NX_PUBLIC_VITE_BASE_GOOGLE_MAPS_API_KEY; // Vite env variable
+
+    try {
+      const response = await axios.get(
+        `https://maps.googleapis.com/maps/api/place/details/json?placeid=${placeId}&key=${apiKey}`,
+        {
+          params: {
+            placeid: placeId,
+            key: apiKey,
+          },
+        }
+      );
+      console.log('response=>>>', response);
+
+      if (response.data.result) {
+        return extractAddressDetails(response.data.result);
+      }
+      return null;
+    } catch (error) {
+      console.error('Error fetching place details:', error);
+      return null;
+    }
+  };
+
+  // Extract Address Components
+  const extractAddressDetails = (geoLocationResp) => {
+    const addressResp = {
+      address: '',
+      street: '',
+      city: '',
+      state: '',
+      zipCode: '',
+      country: '',
+      lat: geoLocationResp.geometry.location.lat,
+      long: geoLocationResp.geometry.location.lng,
+    };
+
+    const address_components = geoLocationResp.address_components || [];
+
+    address_components.forEach((component) => {
+      const types = component.types;
+
+      if (types.includes('route')) {
+        addressResp.street = component.long_name;
+      }
+      if (types.includes('locality')) {
+        addressResp.city = component.long_name;
+      }
+      if (types.includes('administrative_area_level_1')) {
+        addressResp.state = component.short_name;
+      }
+      if (types.includes('postal_code')) {
+        addressResp.zipCode = component.long_name;
+      }
+      if (types.includes('country')) {
+        addressResp.country = component.long_name;
+      }
+    });
+
+    return addressResp;
+  };
+
+  // Handle Place Selection
+  const handlePlaceSelect = async () => {
+    if (autoCompleteRef.current) {
+      const place = autoCompleteRef.current.getPlace();
+      if (!place || !place.place_id) return;
+
+      const placeDetails = await fetchPlaceDetails(place.place_id);
+
+      if (placeDetails) {
+        setFormData((prevState) => ({
+          ...prevState,
+          addressLine1: place.formatted_address,
+          street: placeDetails.address,
+          city: placeDetails.city,
+          state: placeDetails.state,
+          zipCode: placeDetails.pincode,
+        }));
+      }
+    }
+  };
 
   return (
     <section className="SignDetailsSec">
@@ -404,61 +488,80 @@ const SignUpDetails = () => {
                     </div>
                   </div>
 
-                  <h6>Address</h6>
-                  <Autocomplete
-  apiKey={"AIzaSyCqCSn4ynrSh-_1XscVEFNj-s4HqXYvAfQ"}
-  onPlaceSelected={(place) => {
-    console.log("place",place);
-  }}
-/>
+                  <LoadScript
+                    googleMapsApiKey={
+                      process.env.NX_PUBLIC_VITE_BASE_GOOGLE_MAPS_API_KEY
+                    }
+                    libraries={libraries}
+                  >
+                    <div>
+                      <h6>Address</h6>
 
-                  <Forminput
-                    inlabel="Address Line 1"
-                    intype="text"
-                    inname="addressLine1"
-                    value={formData.addressLine1}
-                    onChange={handleInputChange}
-                  />
-                  <div className="row">
-                    <div className="col-md-6">
+                      {/* Google Places Autocomplete */}
+                      <Autocomplete
+                        fields="geometry"
+                        onLoad={(ref) => (autoCompleteRef.current = ref)}
+                        onPlaceChanged={handlePlaceSelect}
+                      >
+                        <input
+                          type="text"
+                          placeholder="Search Address"
+                          className="form-control"
+                        />
+                      </Autocomplete>
+
+                      {/* Address Form */}
                       <Forminput
-                        inlabel="Street"
+                        inlabel="Address Line 1"
                         intype="text"
-                        inname="street"
-                        value={formData.street}
+                        inname="addressLine1"
+                        value={formData.addressLine1}
                         onChange={handleInputChange}
                       />
+
+                      <div className="row">
+                        <div className="col-md-6">
+                          <Forminput
+                            inlabel="Street"
+                            intype="text"
+                            inname="street"
+                            value={formData.street}
+                            onChange={handleInputChange}
+                          />
+                        </div>
+                        <div className="col-md-6">
+                          <Forminput
+                            inlabel="City"
+                            intype="text"
+                            inname="city"
+                            value={formData.city}
+                            onChange={handleInputChange}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="row">
+                        <div className="col-md-6">
+                          <Forminput
+                            inlabel="State"
+                            intype="text"
+                            inname="state"
+                            value={formData.state}
+                            onChange={handleInputChange}
+                          />
+                        </div>
+                        <div className="col-md-6">
+                          <Forminput
+                            inlabel="ZIP Code"
+                            intype="number"
+                            inname="zipCode"
+                            value={formData.zipCode}
+                            onChange={handleInputChange}
+                          />
+                        </div>
+                      </div>
                     </div>
-                    <div className="col-md-6">
-                      <Forminput
-                        inlabel="City"
-                        intype="text"
-                        inname="city"
-                        value={formData.city}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                  </div>
-                  <div className="row">
-                    <div className="col-md-6">
-                      <Forminput
-                        inlabel="State"
-                        intype="text"
-                        inname="state"
-                        value={formData.state}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                    <div className="col-md-6">
-                      <Forminput
-                        inlabel="ZIP Code"
-                        intype="number"
-                        inname="zipCode"
-                        value={formData.zipCode}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                  </div>
+                  </LoadScript>
 
                   {/* <div className="service-options-container">
                       <div className="service-group">
