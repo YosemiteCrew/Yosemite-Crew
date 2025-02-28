@@ -17,19 +17,19 @@
 # Overview
 Yosemite Crew is an open-source operating system designed for animal health industry. At its core is a free, fully customizable Practice Management System (PMS) that unifies pet care operations, bringing together pet owners, veterinary clinics, and developers into one innovative ecosystem.
 
-For Pet Owners:
+For Pet Owners
 
 - **Ultimate Convenience:** A user-friendly mobile app enables pet owners to effortlessly schedule appointments, conduct virtual consultations, manage pet health records, and access a wealth of resources.
 - **Enhanced Accessibility:** Whether in remote locations or facing mobility challenges, pet owners can tap into quality veterinary care anytime, anywhere.
 
-For Veterinary Clinics and Pet Care Providers:
+For Veterinary Clinics and Pet Care Providers
 
 - **Streamlined Efficiency:** Yosemite Crew simplifies appointment scheduling and enhances communication, reducing administrative burdens and boosting overall productivity.
 - **Customization & Integration:** As an open-source solution, the platform offers unmatched flexibility, allowing clinics to tailor the system to their unique needs without being locked into rigid subscription models. Seamless integration with existing systems further reduces barriers to adoption.
 - **Robust Security & Compliance:** With comprehensive data management, reporting capabilities, and adherence to regulatory standards, the system ensures that sensitive information remains secure and that clinics can make informed, data-driven decisions.
 - **Scalability & Support:** Designed to grow alongside veterinary practices, Yosemite Crew is scalable and supported by regular updates and a vibrant community of contributors, ensuring the platform remains state-of-the-art.
 
-For Developers:
+For Developers
 
 - **Empowering Innovation:** The dedicated developer portal is at the heart of an ecosystem that mirrors the versatility of the WordPress plugin model.
 - **Flexible Development Environment:** Equipped with robust public APIs, comprehensive documentation, and ready-to-use MVP templates, developers can quickly create, install, and manage custom plugins that extend the platform's core functionalities.
