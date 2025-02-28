@@ -1,5 +1,6 @@
 const {  WebUser } = require('../models/WebUser');
 const   AddDoctors  = require('../models/addDoctor');
+const Department = require('../models/AddDepartment');
 
 async function handleGetLists(req, res) {
     try {
@@ -20,10 +21,34 @@ async function handleGetLists(req, res) {
                         as: "profileData",
                     },
                 },
-                { $unwind: { path: "$profileData", preserveNullAndEmptyArrays: true } }, // Convert array to object
+                { $unwind: { path: "$profileData", preserveNullAndEmptyArrays: true } },
                 { $skip: offset },
                 { $limit: limit }
             ]);
+
+            // If business type is 'Hospital', fetch departments and doctor counts
+            if (TypeOfBusiness === 'Hospital') {
+                for (let hospital of getLists) {
+                    const departments = await Department.find({ businessId: hospital.cognitoId });
+
+                    const departmentData = await Promise.all(
+                        departments.map(async (dept) => {
+                            const doctorCount = await AddDoctors.countDocuments({
+                                bussinessId: hospital.cognitoId,
+                                "professionalBackground.specialization": dept._id.toString()
+                            });
+
+                            return {
+                                departmentId: dept._id,
+                                departmentName: dept.departmentName, 
+                                doctorCount: doctorCount
+                            };
+                        })
+                    );
+
+                    hospital.departments = departmentData;
+                }
+            }
 
             res.status(200).json({
                 [TypeOfBusiness]: getLists,
@@ -49,10 +74,39 @@ async function handleGetLists(req, res) {
                             as: "profileData",
                         },
                     },
-                    { $unwind: { path: "$profileData", preserveNullAndEmptyArrays: true } }, // Convert array to object
+                    { $unwind: { path: "$profileData", preserveNullAndEmptyArrays: true } },
                     { $skip: offset },
                     { $limit: limit }
                 ]);
+
+                // If business type is 'Hospital', fetch departments and doctor counts
+                if (type === 'Hospital') {
+                    
+                    for (let hospital of list) {
+                        
+                        const departments = await Department.find({ bussinessId: hospital.cognitoId });
+                       
+
+                        const departmentData = await Promise.all(
+                            departments.map(async (dept) => {
+                                const doctorCount = await AddDoctors.countDocuments({
+                                    bussinessId: hospital.cognitoId,
+                                    "professionalBackground.specialization": dept._id.toString()
+                                });
+                            
+
+                                return {
+                                    departmentId: dept._id,
+                                    departmentName: dept.departmentName, 
+                                    doctorCount: doctorCount
+                                };
+                            })
+                        );
+
+
+                        hospital.departments = departmentData;
+                    }
+                }
 
                 allData[type] = {
                     data: list,
@@ -67,6 +121,7 @@ async function handleGetLists(req, res) {
         res.status(500).json({ error: 'Internal server error' });
     }
 }
+
 
 
 async function handlegetDoctorsLists(req, res) {
