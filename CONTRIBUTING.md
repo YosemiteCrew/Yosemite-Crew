@@ -36,18 +36,20 @@ Before you submit your Pull Request (PR) consider the following guidelines:
 
 * Search [GitHub](https://github.com/YosemiteCrew/Yosemite-Crew/pulls) for an open or closed PR
   that relates to your submission. You don't want to duplicate effort.
-* Create a fork from nxdemo repository as it is described in [GitHub docs](https://docs.github.com/en/get-started/quickstart/fork-a-repo#forking-a-repository)
-* Clone your forked repository to your local machine using `git clone`.
+* Create a fork from Yosemite-Crew repository as it is described in [GitHub docs](https://docs.github.com/en/get-started/quickstart/fork-a-repo#forking-a-repository)
+* Clone your forked repository to your local machine using `git clone`. Clone dev branch if want to use the bleeding edge version.
 
      ```shell
      git clone https://github.com/yourusername/Yosemite-Crew.git
-     cd nxdemo
+     git clone -b dev https://github.com/yourusername/Yosemite-Crew.git
+     
+     cd Yosemite-Crew
      ```
      
 * Install the project dependencies.
 
      ```shell
-     npm ci --legacy-peer-deps
+     npm ci
      ```
      
 * Create a new branch for your changes instead of using the main branch.
@@ -57,6 +59,7 @@ Before you submit your Pull Request (PR) consider the following guidelines:
      ```
 
 * Follow our [Coding Rules](#rules).
+* Make your changes.
 * Run `npx nx run-many -t lint` to ensure that lints passes for all projects or run `npx nx lint {appName}` to ensure all lints pass for the given project.
 * Run `npx nx run-many -t test` to ensure that tests passes for all projects or run `npx nx test {appName}` to ensure all tests pass for the given project.
 * Run `npx nx run-many -t build` to build all projects or run `npx nx build {appName}` to build a single project.
