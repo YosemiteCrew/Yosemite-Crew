@@ -45,6 +45,31 @@ For Developers
 
 <br>
 
+# 💻 Installation
+
+### Prerequisites
+- Git
+- Node.js
+  
+### Steps
+- Create a fork from Yosemite-Crew repository as it is described in GitHub docs. You can skip this step if you want to just run the project and not contribute.
+- Clone your forked repository to your local machine using `git clone`. Clone dev branch if want to use the bleeding edge version.
+ 
+     ```shell
+     git clone https://github.com/yourusername/Yosemite-Crew.git
+     git clone -b dev https://github.com/yourusername/Yosemite-Crew.git
+     
+     cd Yosemite-Crew
+     ```
+     
+- Install the project dependencies.
+
+     ```shell
+     npm ci
+     ```
+
+<br>
+
 # 🚀 Our Tech Stack
 - [TypeScript](https://www.typescriptlang.org/) for type safety
 - [Nx](https://nx.dev/) for a powerful monorepo structure and efficient build system
