@@ -42,7 +42,7 @@ const Homepage = () => {
   // // animate banner
 
   return (
-    <>
+
       <div className="HomeMain">
         {/* HeroSection */}
         <section className="HeroSection">
@@ -177,7 +177,7 @@ const Homepage = () => {
                 focadcls="purplecard"
                 Focimg={focus2}
                 focname="Open Source"
-                focpara="Our platform is fully open source (Apache 2.0 license), eliminating vendor lock-in and fostering continuous innovation."
+                focpara="With Yosemite Crew’s GPL license, you own the software—SaaS simplicity with Open Source freedom and no vendor lock-in."
               />
               <FocusCard
                 focadcls="browncard"
@@ -323,7 +323,7 @@ const Homepage = () => {
           </div>
         </section>
       </div>
-    </>
+
   );
 };
 

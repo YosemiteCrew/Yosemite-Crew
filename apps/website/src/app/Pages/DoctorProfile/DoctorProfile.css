@@ -1,267 +1,268 @@
-.DoctorProfileSec{
-    padding: 100px 0px;
+.DoctorProfileSec {
+  padding: 100px 0px;
 }
-.PrileDoctHead h3{
-    font-family: var(--grotesk-font);
-    font-size: 33px;
-    font-weight: 500;
-    line-height: 59.6px;
-    letter-spacing: -0.02em;
-    color: var(--black-text); 
+.PrileDoctHead h3 {
+  font-family: var(--grotesk-font);
+  font-size: 33px;
+  font-weight: 500;
+  line-height: 59.6px;
+  letter-spacing: -0.02em;
+  color: var(--black-text);
 }
-.DoctProfileData{
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
+.DoctProfileData {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
-.DoctProfItems{
-    background: #FEEEDC33;
-    border: 1px solid #5D412F26;
-    border-radius: 28px;
-    padding: 30px 40px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+.DoctProfItems {
+  background: #feeedc33;
+  border: 1px solid #5d412f26;
+  border-radius: 28px;
+  padding: 30px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
-.PerInfoHead{
-    display: flex;
-    justify-content: space-between;
-    padding-bottom: 18px;
+.PerInfoHead {
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 18px;
 }
-.PerInfoHead h5{
-    font-size: 21px;
-    font-weight: 500;
-    line-height: 21.6px;
-    letter-spacing: -0.02em;
-    margin: 0;
-    color: var(--chilli-red);
+.PerInfoHead h5 {
+  font-size: 21px;
+  font-weight: 500;
+  line-height: 21.6px;
+  letter-spacing: -0.02em;
+  margin: 0;
+  color: var(--chilli-red);
 }
-.PerInfoHead a{
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    border-radius: 28px;
-    border: 1px solid var(--chilli-red);
-    padding: 10px 16px;
-    font-size: 16px;
-    font-weight: 500;
-    line-height: 19.2px;
-    letter-spacing: -0.02em;
-    color: var(--chilli-red);
+.PerInfoHead a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-radius: 28px;
+  border: 1px solid var(--chilli-red);
+  padding: 10px 16px;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 19.2px;
+  letter-spacing: -0.02em;
+  color: var(--chilli-red);
 }
-.PerInfoHead a:hover{
-    background: var(--chilli-red);
-    color: #fff;
+.PerInfoHead a:hover {
+  background: var(--chilli-red);
+  color: #fff;
 }
-.DoctProfDiv{
-    display: flex;
-    gap: 20px;
+.DoctProfDiv {
+  display: flex;
+  gap: 20px;
 }
-.DoctProfDiv img{
-    height: 80px;
+.DoctProfDiv img {
+  height: 80px;
 }
-.DoctProfText h4{
-    font-family: var(--grotesk-font);
-    font-size: 24px;
-    font-weight: 500;
-    line-height: 24.6px;
-    letter-spacing: -0.02em;
-    color: var(--black-text);
-    margin: 0;
+.DoctProfText h4 {
+  font-family: var(--grotesk-font);
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 24.6px;
+  letter-spacing: -0.02em;
+  color: var(--black-text);
+  margin: 0;
 }
-.DoctProfText h6{
-    font-family: var(--grotesk-font);
-    font-size: 18px;
-    font-weight: 500;
-    line-height: 22.8px;
-    letter-spacing: -0.02em;
-    color: #747473;
-    margin: 0;
+.DoctProfText h6 {
+  font-family: var(--grotesk-font);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 22.8px;
+  letter-spacing: -0.02em;
+  color: #747473;
+  margin: 0;
 }
 
-.ProfPersnlInfo{
-    display: flex;
-    flex-direction: column;
-    gap: 48px;
+.ProfPersnlInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
 }
-.ThreeGridProf{
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+.ThreeGridProf {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
 }
-.TwoGridProf{
-    display: grid;
-    grid-template-columns: 1fr 2fr;
+.TwoGridProf {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
 }
-.InfoProf{
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+.InfoProf {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
-.InfoProf p{
-    font-family: var(--grotesk-font);
-    font-size: 15px;
-    font-weight: 500;
-    line-height: 16px;
-    letter-spacing: -0.02em;
-    margin: 0;
-    color: #747473;
+.InfoProf p {
+  font-family: var(--grotesk-font);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 16px;
+  letter-spacing: -0.02em;
+  margin: 0;
+  color: #747473;
 }
-.InfoProf h5{
-    font-family: var(--grotesk-font);
-    font-size: 20px;
-    font-weight: 500;
-    line-height: 20.6px;
-    letter-spacing: -0.02em;
-    color: var(--black-text);
-    margin: 0;
+.InfoProf h5 {
+  font-family: var(--grotesk-font);
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 20.6px;
+  letter-spacing: -0.02em;
+  color: var(--black-text);
+  margin: 0;
 }
 
 /* uplode Pdf  */
 
-.DoctProfpdf{
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+.DoctProfpdf {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
-.DoctProfpdf h5{
-    font-family: var(--grotesk-font);
-    font-size: 16px;
-    font-weight: 500;
-    line-height: 16px;
-    letter-spacing: -0.02em;
-    color: #747473;
+.DoctProfpdf h5 {
+  font-family: var(--grotesk-font);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 16px;
+  letter-spacing: -0.02em;
+  color: #747473;
 }
 .PdfUpldpf {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex-direction: column-reverse;
 }
 .PdfUpldpf .uploaded_files {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    justify-content: flex-start;
-    flex-wrap: wrap;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: flex-start;
+  flex-wrap: wrap;
 }
 .PdfUpldpf .uploaded_files .file-item {
-    display: flex;
-    align-items: center;
-    background: #f2e3d7;
-    padding: 8px 12px;
-    border-radius: 8px;
-    gap: 8px;
-    font-size: 14px;
-    position: relative;
-    height: 59px;
+  display: flex;
+  align-items: center;
+  background: #f2e3d7;
+  padding: 8px 12px;
+  border-radius: 8px;
+  gap: 8px;
+  font-size: 14px;
+  position: relative;
+  height: 59px;
 }
 .PdfUpldpf .uploaded_files .file-item svg {
-    font-size: 24px;
-    color: var(--chilli-red);
+  font-size: 24px;
+  color: var(--chilli-red);
 }
 .PdfUpldpf .uploaded_files .file-item .pdfnme {
-    display: flex;
-    flex-direction: column;
+  display: flex;
+  flex-direction: column;
 }
 .PdfUpldpf .uploaded_files .file-item .pdfnme span:first-child {
-    font-family: var(--satoshi-font);
-    font-size: 15px;
-    font-weight: 700;
-    line-height: 18px;
-    letter-spacing: -0.02em;
-    color: #595958;
+  font-family: var(--satoshi-font);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 18px;
+  letter-spacing: -0.02em;
+  color: #595958;
 }
-.PdfUpldpf .uploaded_files .file-item .pdfnme span:last-child{
-    font-family: var(--satoshi-font);
-    font-size: 11px;
-    font-weight: 700;
-    line-height: 13.2px;
-    letter-spacing: -0.03em;
-    color: #747473;
+.PdfUpldpf .uploaded_files .file-item .pdfnme span:last-child {
+  font-family: var(--satoshi-font);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 13.2px;
+  letter-spacing: -0.03em;
+  color: #747473;
 }
 .PdfUpldpf .uploaded_files .file-item button {
-    background: none;
-    border: none;
-    cursor: pointer;
-    position: relative;
-    top: -16px;
-    right: -6px;
-    line-height: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  top: -16px;
+  right: -6px;
+  line-height: 0;
 }
 .PdfUpldpf .uploaded_files .file-item button svg {
-    font-size: 14px !important;
-    color: var(--chilli-red);
+  font-size: 14px !important;
+  color: var(--chilli-red);
 }
 .pdfUpldeButton label {
-    font-family: var(--satoshi-font);
-    border: 2px dotted var(--chilli-red);
-    background: #feeedc33;
-    padding: 15px 25px;
-    font-size: 15px;
-    font-weight: 700;
-    line-height: 18px;
-    letter-spacing: 0.02em;
-    color: var(--chilli-red);
-    border-radius: 8px;
-    cursor: pointer;
+  font-family: var(--satoshi-font);
+  border: 2px dotted var(--chilli-red);
+  background: #feeedc33;
+  padding: 15px 25px;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 18px;
+  letter-spacing: 0.02em;
+  color: var(--chilli-red);
+  border-radius: 8px;
+  cursor: pointer;
 }
 .pdfUpldeButton label svg {
-    font-size: 24px;
+  font-size: 24px;
 }
 .pdfUpldeButton label:hover {
-    background: var(--chilli-red);
-    color: #fff;
-    border: 2px dotted #fff;
+  background: var(--chilli-red);
+  color: #fff;
+  border: 2px dotted #fff;
 }
 
 /* Personal Info Modal  */
 
-.PersnlModl{
-    background: #000000a9;
+.PersnlModl {
+  background: #000000a9;
 }
-.PersnlModl .modal-header .modal-title{
-    color: var(--chilli-red) !important;
+.PersnlModl .modal-header .modal-title {
+  color: var(--chilli-red) !important;
 }
-.Doctmodlgen{
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 100%;
+.Doctmodlgen {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
 }
-.Doctmodlgen p{
-    margin: 0 !important;
+.Doctmodlgen p {
+  margin: 0 !important;
 }
 
-.ModUpldbtn{
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.ModUpldbtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.ModUpldbtn button{
-    background: var(--chilli-red);
-    border-radius: 28px;
-    padding: 12px 50px;
-    border: 1px solid var(--chilli-red) !important;
-    font-size: 18px;
-    font-weight: 500;
-    line-height: 27.6px;
-    letter-spacing: -0.02em;
-    color: #FFFEFE;
+.ModUpldbtn button {
+  background: var(--chilli-red);
+  border-radius: 28px;
+  padding: 12px 50px;
+  border: 1px solid var(--chilli-red) !important;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 27.6px;
+  letter-spacing: -0.02em;
+  color: #fffefe;
 }
-.ModUpldbtn button:hover{
-    background: transparent !important;
-    color: var(--chilli-red) !important;
+.ModUpldbtn button:hover {
+  background: transparent !important;
+  color: var(--chilli-red) !important;
 }
-.PersnlModl .modal-content{
-    background: #FEF8F4;
-    box-shadow: 0px 10px 20px 0px #47382729;
-    border-radius: 15px;
+.PersnlModl .modal-content {
+  background: #fef8f4;
+  box-shadow: 0px 10px 20px 0px #47382729;
+  border-radius: 15px;
 }
-.PersnlModl .modal-content .modal-body .PersonalInfoDiv form{
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
+.PersnlModl .modal-content .modal-body .PersonalInfoDiv form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 /* Personal Info Modal  */

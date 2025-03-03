@@ -35,18 +35,18 @@ const Add_Department = () => {
       country.label.toLowerCase().includes(searchTerms.toLowerCase())
   );
   const [servicesList, setservicesList] = useState([]);
-  console.log('servicesList', servicesList);
+  // console.log('servicesList', servicesList);
 
   const { userId } = useAuth();
   const navigate = useNavigate();
 
   const [searchTerm, setSearchTerm] = useState('');
-  console.log('searchTerm', searchTerm);
+  // console.log('searchTerm', searchTerm);
 
   const debouncedSearch = useDebounce(searchTerm, 500);
   // console.log('debouncedSearch', debouncedSearch);
   const getaDoctors = async () => {
-    console.log('debouncedSearch', debouncedSearch);
+    // console.log('debouncedSearch', debouncedSearch);
     try {
       // Get the token from sessionStorage
       const token = sessionStorage.getItem('token');
@@ -107,7 +107,7 @@ const Add_Department = () => {
   const [description, setDescription] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  console.log('selectedServices', selectedServices);
+  // console.log('selectedServices', selectedServices);
 
   const toggleDropdown = () => {
     setIsDropdownOpen(!isDropdownOpen);

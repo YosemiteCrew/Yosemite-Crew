@@ -37,10 +37,10 @@ const Doctor_Dashboard = () => {
   const [profile, setprofile] = useState([]);
   const [status, setStatus] = useState('');
   // const [availabilityTimes, setAvailbilityTimes] = useState(null);
-  console.log('status', status);
+  // console.log('status', status);
   useEffect(() => {
     if (doctorProfile) {
-      console.log('doctorProfile.timeDuration', doctorProfile.timeDuration);
+      // console.log('doctorProfile.timeDuration', doctorProfile.timeDuration);
       setduration(doctorProfile.timeDuration);
       setprofile(doctorProfile.personalInfo);
     }
@@ -256,7 +256,7 @@ const Doctor_Dashboard = () => {
 
   const [allAppointments, setAllAppointments] = useState([]);
   const [total, setTotal] = useState();
-  console.log('allappointments', allAppointments);
+  // console.log('allappointments', allAppointments);
   const getAllAppointments = async (offset) => {
     console.log('offset', offset);
     try {
@@ -467,7 +467,10 @@ const Doctor_Dashboard = () => {
             </div>
           </div>
           <div>
-            <DivHeading TableHead="New Appointments" tablespan={`(${total})`} />
+            <DivHeading
+              TableHead="New Appointments"
+              tablespan={`(${total ? total : 0})`}
+            />
             <ActionsTable
               onClick={getAllAppointments}
               appointments={allAppointments}

@@ -90,8 +90,16 @@ const ProfileDataSchema = new mongoose.Schema({
     type: String,
     required: false,
   },
+
   prescription_upload: {
-    type: String,
+    type: [
+      {
+        name: { type: String, required: true },
+        type: { type: String, required: true },
+        date: { type: Date, default: Date.now },
+      },
+    ],
+    default: [], // Ensures an empty array if no documents are provided
   },
 });
 

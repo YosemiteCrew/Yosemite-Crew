@@ -1,6 +1,7 @@
 // middlewares/upload.js
 const fs = require('fs');
 const AWS = require('aws-sdk');
+const path = require('path');
 
 // Configure AWS S3
 const s3 = new AWS.S3({
@@ -27,17 +28,22 @@ async function uploadToS3(fileName, fileContent) {
     }
 }
 
-// Function to handle single file upload
 async function handleFileUpload(file) {
     try {
         if (!file) {
             throw new Error('No file uploaded.');
         }
 
+        const uploadDir = path.resolve(__dirname, 'Uploads/Images');
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+
         const currentDate = Date.now();
         const originalFileName = file.name;
         const documentFileName = `${currentDate}-${originalFileName}`;
-        const filePath = `Uploads/Images/${documentFileName}`;
+        const filePath = path.join(uploadDir, documentFileName);
+        
         await file.mv(filePath);
 
         const fileContent = fs.readFileSync(filePath);
@@ -45,7 +51,7 @@ async function handleFileUpload(file) {
 
         fs.unlinkSync(filePath);
 
-        return filePath;
+        return imageUrl; // Return the S3 URL instead of the local file path
     } catch (err) {
         console.error('Error in file upload process:', err);
         throw err;

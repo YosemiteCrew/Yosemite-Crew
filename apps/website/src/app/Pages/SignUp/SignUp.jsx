@@ -11,8 +11,10 @@ import Modal from 'react-bootstrap/Modal';
 import Button from 'react-bootstrap/Button';
 import { Form } from 'react-bootstrap';
 import axios from 'axios';
+// import { useAuth } from '../../context/useAuth';
 
 function SignOtp({ show, onHide, email }) {
+  // const { initializeUser } = useAuth();
   const navigate = useNavigate();
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   // console.log('email', email);
@@ -65,7 +67,10 @@ function SignOtp({ show, onHide, email }) {
         onHide();
         console.log('response', response.data.token);
         sessionStorage.setItem('token', response.data.token);
-        navigate('/signupdetails');
+        // initializeUser();
+        navigate('/signupdetails', {
+          state: { cognitoId: response.data.cognitoId },
+        });
       }
     } catch (error) {
       Swal.fire({
@@ -126,8 +131,7 @@ function SignOtp({ show, onHide, email }) {
 
 const SignUp = () => {
   // types of business
-  // const { SignUp } = useAuth();
-  const navigate = useNavigate();
+
   const [selectedType, setSelectedType] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

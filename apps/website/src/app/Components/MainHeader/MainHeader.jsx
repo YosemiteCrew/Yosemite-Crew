@@ -263,7 +263,7 @@ const MainHeader = ({ isMainHeader }) => {
           {isMainHeader ? (
             <>
               <div className="chatbtn">
-                <Link to="/dashboard">
+                <Link to="/chatscreen">
                   <img src={Chatt} alt="ChatNotification" /> <span>5</span>
                 </Link>
               </div>

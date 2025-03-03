@@ -1,15 +1,15 @@
 // eslint-disable-next-line no-unused-vars
 import React, { useState } from 'react';
 import './Gallery.css';
-import gallery1 from "../../../../public/Images/gallery1.png"
-import gallery2 from "../../../../public/Images/gallery2.png"
-import gallery3 from "../../../../public/Images/gallery3.png"
-import gallery4 from "../../../../public/Images/gallery4.png"
-import gallery5 from "../../../../public/Images/gallery5.png"
-import gallery6 from "../../../../public/Images/gallery6.png"
-import gallery7 from "../../../../public/Images/gallery7.png"
-import gallery8 from "../../../../public/Images/gallery8.png"
-import gallery9 from "../../../../public/Images/gallery9.png"
+import gallery1 from '../../../../public/Images/gallery1.png';
+import gallery2 from '../../../../public/Images/gallery2.png';
+import gallery3 from '../../../../public/Images/gallery3.png';
+import gallery4 from '../../../../public/Images/gallery4.png';
+import gallery5 from '../../../../public/Images/gallery5.png';
+import gallery6 from '../../../../public/Images/gallery6.png';
+import gallery7 from '../../../../public/Images/gallery7.png';
+import gallery8 from '../../../../public/Images/gallery8.png';
+import gallery9 from '../../../../public/Images/gallery9.png';
 
 const Gallery = () => {
   const initialImages = [
@@ -33,7 +33,7 @@ const Gallery = () => {
 
   // Function to delete an image by ID
   const handleDelete = (id) => {
-    setImages(images.filter(image => image.id !== id));
+    setImages(images.filter((image) => image.id !== id));
   };
 
   // Function to handle file selection and automatically add the image
@@ -43,7 +43,10 @@ const Gallery = () => {
       const newId = images.length ? images[images.length - 1].id + 1 : 1; // Incremental ID for new images
       const reader = new FileReader();
       reader.onload = () => {
-        setImages([...images, { id: newId, src: reader.result, alt: `Image ${newId}` }]);
+        setImages([
+          ...images,
+          { id: newId, src: reader.result, alt: `Image ${newId}` },
+        ]);
       };
       reader.readAsDataURL(file); // Read the image as a data URL
     }
@@ -58,7 +61,9 @@ const Gallery = () => {
   return (
     <div className="galleryDiv">
       <div className="GalryTopdetl">
-        <h5>Images <span>({images.length})</span></h5>
+        <h5>
+          Images <span>({images.length})</span>
+        </h5>
         <label>
           <input type="file" accept="image/*" onChange={handleFileChange} />
           <i className="ri-add-circle-fill"></i> Add
@@ -67,13 +72,26 @@ const Gallery = () => {
       <div className="galleryimg-grid">
         {images.slice(0, visibleCount).map((image) => (
           <div className="glimage-container" key={image.id}>
-            <img src={image.src} alt={image.alt} className="image" />
-            <button className="delete-button" onClick={() => handleDelete(image.id)}><i className="ri-close-circle-line"></i></button>
+            <img
+              type="text/html"
+              src={image.src}
+              alt={image.alt}
+              className="image"
+            />
+
+        
+            
+            <button
+              className="delete-button"
+              onClick={() => handleDelete(image.id)}
+            >
+              <i className="ri-close-circle-line"></i>
+            </button>
           </div>
         ))}
       </div>
-      {images.length > 9 && ( 
-        <button className='glmore' onClick={handleToggleShowMore}>
+      {images.length > 9 && (
+        <button className="glmore" onClick={handleToggleShowMore}>
           {showMore ? 'Show Less' : 'Show More'}
         </button>
       )}

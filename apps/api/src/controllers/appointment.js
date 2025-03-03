@@ -1,8 +1,9 @@
 const appointment = require('../models/appointment');
 const DoctorsTimeSlotes = require('../models/DoctorsSlotes');
-const webAppointment = require("../models/WebAppointment");
+const { webAppointments } = require("../models/WebAppointment");
 const pet = require("../models/YoshPet");
 const YoshUser = require("../models/YoshUser");
+const feedbacks = require("../models/FeedBack");
 const jwt = require('jsonwebtoken');
 const moment = require('moment');
 const {  handleMultipleFileUpload } = require('../middlewares/upload');
@@ -10,9 +11,12 @@ const {  handleMultipleFileUpload } = require('../middlewares/upload');
 
 
 async function handleBookAppointment(req, res) {
+    
+    const token = req.headers.authorization.split(' ')[1]; // Extract token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET); // Verify token
+    const userId = decoded.username; // Get user ID from token
     const appointDate = req.body.appointmentDate;
     const purposeOfVisit = req.body.purposeOfVisit;
-    const userId = req.body.cognitoId;
     const dateObj = new Date(appointDate);
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const dayofweek = days[dateObj.getDay()];
@@ -28,7 +32,7 @@ async function handleBookAppointment(req, res) {
      const petDetails =  await pet.findById(id);
      const petOwner =  await YoshUser.find({cognitoId: userId});
      
-    const addappointment = await webAppointment.create({
+    const addappointment = await webAppointments.create({
       userId,
       hospitalId,
       department,
@@ -68,11 +72,11 @@ async function handleGetAppointment(req, res) {
       const endOfToday = new Date(new Date().setHours(23, 59, 59, 999)).toISOString().split("T")[0]; 
       
       const [allAppointments, confirmedAppointments, upcomingAppointments, pastAppointments, todayAppointments] = await Promise.all([
-        webAppointment.find({ userId: cognitoUserId }),
-        webAppointment.find({ userId: cognitoUserId, appointmentStatus: 1 }),
-        webAppointment.find({ userId: cognitoUserId, appointmentDate: { $gte: startOfToday, $lte: endOfToday }, appointmentStatus: 0 }), // Include today
-        webAppointment.find({ userId: cognitoUserId, appointmentDate: { $lt: startOfToday }, appointmentStatus: 0 }),
-        webAppointment.find({ userId: cognitoUserId, appointmentDate: startOfToday, appointmentStatus: 0 }) // Explicit today filter
+        webAppointments.find({ userId: cognitoUserId }),
+        webAppointments.find({ userId: cognitoUserId, appointmentStatus: 1 }),
+        webAppointments.find({ userId: cognitoUserId, appointmentDate: { $gte: startOfToday, $lte: endOfToday }, appointmentStatus: 0 }), // Include today
+        webAppointments.find({ userId: cognitoUserId, appointmentDate: { $lt: startOfToday }, appointmentStatus: 0 }),
+        webAppointments.find({ userId: cognitoUserId, appointmentDate: startOfToday, appointmentStatus: 0 }) // Explicit today filter
       ]);
       res.json({
         allAppointments,
@@ -119,7 +123,7 @@ async function handleGetTimeSlots(req, res) {
     if (slots.length === 0) {
       return res.status(200).json({ status: 0, data: [], message: "No slots found for this doctor on this day" });
     }
-    const bookedappointments = await webAppointment.find({veterinarian:doctorId, appointmentDate:appointDate });
+    const bookedappointments = await webAppointments.find({veterinarian:doctorId, appointmentDate:appointDate });
     const updatedSlots = timeSlots.map(slot => ({
       slot,
       booked: bookedappointments.some(app => app.slotsId === slot._id.toString()) // Convert ObjectId to string for comparison
@@ -134,7 +138,7 @@ async function handleRescheduleAppointment(req, res){
   const AppointmentData = req.body;
   const id = AppointmentData.appointmentId;
   const appointmentDated = AppointmentData.appointmentDate;
-  const appointmentRecord = await webAppointment.findById(id);
+  const appointmentRecord = await webAppointments.findById(id);
   if(!appointmentRecord){
     return res.status(200).json({ status: 0, message: "appointment not found" });
   }
@@ -154,7 +158,7 @@ async function handleRescheduleAppointment(req, res){
     const appointmentTime24 =  convertTo24Hour(targetTime); 
     const slotsId = matchingSlot.id;
     const day = appointmentday;
-    const reschedule = await webAppointment.findByIdAndUpdate(
+    const reschedule = await webAppointments.findByIdAndUpdate(
       id,
       {
         $set: { appointmentDate, appointmentTime, appointmentTime24, slotsId, day }
@@ -165,7 +169,7 @@ async function handleRescheduleAppointment(req, res){
     if(!reschedule){
       return res.status(200).json({ status: 0, message:"error while Rescheduling Appointment" });
     }else{
-      const appointmentupdatedRecord = await webAppointment.findById(id);
+      const appointmentupdatedRecord = await webAppointments.findById(id);
       return res.status(200).json({ status: 1, data:appointmentupdatedRecord}); 
     }
   } else {
@@ -191,7 +195,7 @@ async function handleTimeSlotsByMonth(req, res) {
     const weeklySchedule = await DoctorsTimeSlotes.find({ doctorId }).lean();
 
     // 3. Retrieve the booked appointments for the specified month and year
-    const bookedAppointments = await webAppointment.find({
+    const bookedAppointments = await webAppointments.find({
       veterinarian: doctorId,
       appointmentDate: {
         $gte: startDate.toDate(),
@@ -250,6 +254,33 @@ const convertTo24Hour = (time12h) => {
   return `${hours}:${minutes}`;
 }
 
+async function handlesaveFeedBack(req, res) {
+  try {
+    const token = req.headers.authorization.split(' ')[1]; // Extract token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET); // Verify token
+    const cognitoUserId = decoded.username; // Get user ID from token
+    const { toId,meetingId,feedback, rating } = req.body;
+
+    const saveFeedBack = await feedbacks.create({
+      fromId: cognitoUserId,
+      toId,
+      meetingId,
+      feedback,
+      rating,
+    });
+  
+    if (saveFeedBack) {
+      res.status(200).json({
+        status: 1,
+        message: "Feedback saved successfully",
+      });
+    }
+
+  } catch (error) {
+    console.error("Error saving feedback:", error);
+    res.status(500).json({ message: "An error occurred while retrieving appointments" });
+  }
+}
 
 module.exports = {
     handleBookAppointment,
@@ -258,4 +289,5 @@ module.exports = {
     handleGetTimeSlots,
     handleRescheduleAppointment,
     handleTimeSlotsByMonth,
+    handlesaveFeedBack,
 }

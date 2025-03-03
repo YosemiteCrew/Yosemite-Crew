@@ -103,7 +103,7 @@ const ChatApp = () => {
   };
 
   return (
-    <>
+    
       <div className="ChatAppData">
         <div className="ChatName">
           <h5>Chat with Sky B</h5>
@@ -198,7 +198,7 @@ const ChatApp = () => {
 
 
       </div>
-    </>
+  
   );
 };
 

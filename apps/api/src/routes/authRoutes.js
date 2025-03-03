@@ -2,6 +2,7 @@ const express = require('express');
 const authController = require('../controllers/authController');
 const WebController = require('../controllers/WebController');
 const AddDepartmentController = require('../controllers/addDepartmentController');
+const webAppointmentController = require('../controllers/webAppointment');
 const router = express.Router();
 
 router.post('/signup', authController.signup);
@@ -19,10 +20,17 @@ router.post('/updatepassword', WebController.updatePassword);
 router.post('/setupProfile', WebController.setupProfile);
 router.get('/getProfile/:id', WebController.getProfile);
 router.post('/signOut', WebController.signOut);
+router.delete(
+  '/:userId/deleteDocumentsToUpdate/:docId',
+  WebController.deleteDocumentsToUpdate
+);
 
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Add Department >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 router.post('/addDepartment', AddDepartmentController.addDepartment);
 router.get('/getAddDepartment', AddDepartmentController.getAddDepartment);
+
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Google Map>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+router.get('/getLocationdata',WebController.getLocationdata); 
 
 module.exports = router;

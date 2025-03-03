@@ -12,10 +12,11 @@ import DepartmentAppointmentsChart from '../../Components/BarGraph/DepartmentApp
 import WeeklyAppointmentsChart from '../../Components/BarGraph/WeeklyAppointmentsChart';
 import axios from 'axios';
 import Swal from 'sweetalert2';
+import { useAuth } from '../../context/useAuth';
 
 const DepartmentsMain = () => {
   const [DepartmentsOverView, SetDepartmentsOverView] = useState({});
-
+  const { userId } = useAuth();
   const optionsList1 = [
     'Last 7 Days',
     'Last 10 Days',
@@ -28,7 +29,7 @@ const DepartmentsMain = () => {
     console.log(`Selected Days: ${days}`);
     try {
       const response = await axios.get(
-        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/departmentsOverView`,
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/departmentsOverView?userId=${userId}`,
         {
           params: {
             LastDays: days,
@@ -56,7 +57,7 @@ const DepartmentsMain = () => {
 
     try {
       const response = await axios.get(
-        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/DepartmentBasisAppointmentGraph`,
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/DepartmentBasisAppointmentGraph?userId=${userId}`,
         {
           params: {
             LastDays: days,
@@ -85,7 +86,7 @@ const DepartmentsMain = () => {
   const getDataForWeeklyAppointmentChart = async () => {
     try {
       const response = await axios.get(
-        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/getDataForWeeklyAppointmentChart`
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/getDataForWeeklyAppointmentChart?userId=${userId}`
       );
       if (response) {
         const formattedData = response.data.data.map((item) => ({
@@ -107,82 +108,80 @@ const DepartmentsMain = () => {
     getDataForWeeklyAppointmentChart();
     DepartmentBasisAppointmentGraph('Last 7 Days');
     GetDepartmentsOverView('Last 7 Days');
-  }, []);
+  }, [userId]);
   return (
-    <>
-      <section className="Department_MainSec">
-        <div className="container">
-          <div className="MainDash">
-            <AddSerchHead
-              adtext="Departments"
-              adbtntext="Add Department"
-              adhrf="/add_department"
-            />
+    <section className="Department_MainSec">
+      <div className="container">
+        <div className="MainDash">
+          <AddSerchHead
+            adtext="Departments"
+            adbtntext="Add Department"
+            adhrf="/add_department"
+          />
 
-            <div className="overviewDiv">
-              <div className="OverviewTop">
-                <h5>Overview</h5>
+          <div className="overviewDiv">
+            <div className="OverviewTop">
+              <h5>Overview</h5>
+              <ListSelect
+                options={optionsList1}
+                onChange={GetDepartmentsOverView}
+              />
+            </div>
+            <div className="overviewitem">
+              <BoxDiv
+                boximg={box2}
+                ovradcls="purple"
+                ovrtxt="Departments"
+                boxcoltext="purpletext"
+                overnumb={DepartmentsOverView.departments}
+              />
+              <BoxDiv
+                boximg={box4}
+                ovradcls=" fawndark"
+                ovrtxt="Total Doctors "
+                boxcoltext="frowntext"
+                overnumb={DepartmentsOverView.doctors}
+              />
+              <BoxDiv
+                boximg={box3}
+                ovradcls=" cambrageblue"
+                ovrtxt="New Animal"
+                boxcoltext="greentext"
+                overnumb={
+                  DepartmentsOverView.pets ? DepartmentsOverView.pets : 0
+                }
+              />
+              <BoxDiv
+                boximg={box1}
+                ovradcls="chillibg"
+                ovrtxt="Appointments Today"
+                boxcoltext="ciltext"
+                overnumb={DepartmentsOverView.appointments}
+              />
+            </div>
+          </div>
+
+          <div className="DepartWeekGraph">
+            <div className="DashGraphCard">
+              <div className="GraphTop">
+                <h5>Appointments</h5>
                 <ListSelect
                   options={optionsList1}
-                  onChange={GetDepartmentsOverView}
+                  onChange={DepartmentBasisAppointmentGraph}
                 />
               </div>
-              <div className="overviewitem">
-                <BoxDiv
-                  boximg={box2}
-                  ovradcls="purple"
-                  ovrtxt="Departments"
-                  boxcoltext="purpletext"
-                  overnumb={DepartmentsOverView.departments}
-                />
-                <BoxDiv
-                  boximg={box4}
-                  ovradcls=" fawndark"
-                  ovrtxt="Total Doctors "
-                  boxcoltext="frowntext"
-                  overnumb={DepartmentsOverView.doctors}
-                />
-                <BoxDiv
-                  boximg={box3}
-                  ovradcls=" cambrageblue"
-                  ovrtxt="New Animal"
-                  boxcoltext="greentext"
-                  overnumb={
-                    DepartmentsOverView.pets ? DepartmentsOverView.pets : 0
-                  }
-                />
-                <BoxDiv
-                  boximg={box1}
-                  ovradcls="chillibg"
-                  ovrtxt="Appointments Today"
-                  boxcoltext="ciltext"
-                  overnumb={DepartmentsOverView.appointments}
-                />
+              <div className="graphimg">
+                <DepartmentAppointmentsChart data={graphData} />
               </div>
             </div>
 
-            <div className="DepartWeekGraph">
-              <div className="DashGraphCard">
-                <div className="GraphTop">
-                  <h5>Appointments</h5>
-                  <ListSelect
-                    options={optionsList1}
-                    onChange={DepartmentBasisAppointmentGraph}
-                  />
-                </div>
-                <div className="graphimg">
-                  <DepartmentAppointmentsChart data={graphData} />
-                </div>
-              </div>
-
-              <div className="DashGraphCard">
-                <WeeklyAppointmentsChart data={WeeklyAppointmentGraph} />
-              </div>
+            <div className="DashGraphCard">
+              <WeeklyAppointmentsChart data={WeeklyAppointmentGraph} />
             </div>
           </div>
         </div>
-      </section>
-    </>
+      </div>
+    </section>
   );
 };
 

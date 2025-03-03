@@ -1,72 +1,94 @@
-# Yosemite-Crew
-Open source operating system for animal health
+<p align="center">
+  <a href="https://yosemitecrew.com/">
+    <img src="https://d1g0w8b65hklyd.cloudfront.net/YC.svg" width="200px" alt="YC logo" />
+  </a>
+</p>
 
+<h1 align="center" >Open-Source Operating System for Animal Health</h1>
 
-## Run tasks
+<div align="center"> 
+  
+  [![Website](https://img.shields.io/badge/Yosemite%20Crew-D04122)](https://yosemitecrew.com/) [![Documentation](https://img.shields.io/badge/Docs-247AED)](https://yosemitecrew.com/) [![Contributing](https://img.shields.io/badge/Contribute-FF9800)](https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md) [![Github License](https://img.shields.io/badge/License-4CAF50)](License) [![Discord](https://img.shields.io/badge/Discord-lightblue?logo=discord)](https://discord.gg/R7eMnhwX)
+  
+</div>
 
-To run the dev server for your app, use:
+<br>
 
-```sh
-npx nx serve website
-```
+<p align="center">
+  <a href="https://yosemitecrew.com/">
+      <img src="https://d1g0w8b65hklyd.cloudfront.net/Dashboard_2.png" alt="YC logo" />
+  </a>
+</p>
 
-To create a production bundle:
+<br>
 
-```sh
-npx nx build website
-```
+# 📝 Overview
+Yosemite Crew is an open-source operating system designed for animal health industry. At its core is a free, fully customizable Practice Management System (PMS) that unifies pet care operations, bringing together pet owners, veterinary clinics, and developers into one innovative ecosystem.
 
-To see all available targets to run for a project, run:
+For Pet Owners
 
-```sh
-npx nx show project website
-```
+- **Ultimate Convenience:** A user-friendly mobile app enables pet owners to effortlessly schedule appointments, conduct virtual consultations, manage pet health records, and access a wealth of resources.
+- **Enhanced Accessibility:** Whether in remote locations or facing mobility challenges, pet owners can tap into quality veterinary care anytime, anywhere.
 
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
+For Veterinary Clinics and Pet Care Providers
 
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+- **Streamlined Efficiency:** Yosemite Crew simplifies appointment scheduling and enhances communication, reducing administrative burdens and boosting overall productivity.
+- **Customization & Integration:** As an open-source solution, the platform offers unmatched flexibility, allowing clinics to tailor the system to their unique needs without being locked into rigid subscription models. Seamless integration with existing systems further reduces barriers to adoption.
+- **Robust Security & Compliance:** With comprehensive data management, reporting capabilities, and adherence to regulatory standards, the system ensures that sensitive information remains secure and that clinics can make informed, data-driven decisions.
+- **Scalability & Support:** Designed to grow alongside veterinary practices, Yosemite Crew is scalable and supported by regular updates and a vibrant community of contributors, ensuring the platform remains state-of-the-art.
 
-## Add new projects
+For Developers
 
-While you could add new projects to your workspace manually, you might want to leverage [Nx plugins](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) and their [code generation](https://nx.dev/features/generate-code?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) feature.
+- **Empowering Innovation:** The dedicated developer portal is at the heart of an ecosystem that mirrors the versatility of the WordPress plugin model.
+- **Flexible Development Environment:** Equipped with robust public APIs, comprehensive documentation, and ready-to-use MVP templates, developers can quickly create, install, and manage custom plugins that extend the platform's core functionalities.
+- **Community-Driven Growth:** This open-source approach fosters a collaborative environment where developers can continuously innovate and expand veterinary care options, driving the evolution of animal healthcare technology.
 
-Use the plugin's generator to create new projects.
+<br>
 
-To generate a new application, use:
+# 💻 Installation
 
-```sh
-npx nx g @nx/react:app demo
-```
+### Prerequisites
+- Git
+- Node.js
+  
+### Steps
+- Create a fork from Yosemite-Crew repository as it is described in GitHub docs. You can skip this step if you want to just run the project and not contribute.
+- Clone your forked repository to your local machine using `git clone`. Clone dev branch if want to use the bleeding edge version.
+ 
+     ```shell
+     git clone https://github.com/yourusername/Yosemite-Crew.git
+     git clone -b dev https://github.com/yourusername/Yosemite-Crew.git
+     
+     cd Yosemite-Crew
+     ```
+     
+- Install the project dependencies.
 
-To generate a new library, use:
+     ```shell
+     npm ci
+     ```
 
-```sh
-npx nx g @nx/react:lib mylib
-```
+<br>
 
-You can use `npx nx list` to get a list of installed plugins. Then, run `npx nx list <plugin-name>` to learn about more specific capabilities of a particular plugin. Alternatively, [install Nx Console](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) to browse plugins and generators in your IDE.
+# 🚀 Our Tech Stack
+- [TypeScript](https://www.typescriptlang.org/) for type safety
+- [Nx](https://nx.dev/) for a powerful monorepo structure and efficient build system
+- [Express](https://expressjs.com/)  as a backend framework, with [MongoDB](https://www.mongodb.com/) for data storage, [Redis](https://redis.io/)  for lightning-fast caching
+- [React](https://reactjs.org/) for the frontend, with [Redux](https://redux.js.org/) for state management
+- [React Native](https://reactnative.dev/) for mobile app development
+- [AWS](https://aws.amazon.com) to ensure reliable and scalable cloud infrastructure
 
-[Learn more about Nx plugins &raquo;](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) | [Browse the plugin registry &raquo;](https://nx.dev/plugin-registry?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+<br>
 
+# 💬 Join Our Growing Community
+- Star our repo and show your support!
+- Follow us on [Twitter](https://github.com/YosemiteCrew/Yosemite-Crew) or [LinkedIn](https://www.linkedin.com/company/yosemitecrew/) to get all the latest news
+- Join our [Discord](https://discord.com/invite/yosemite-crew) to chat with fellow contributors and users
+- [Contribute](https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md) — we love contributions! Whether it’s code, docs, or ideas, your help is always welcome!
 
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+<br>
 
-## Install Nx Console
-
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
-
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Useful links
-
-Learn more:
-
-- [Learn more about this workspace setup](https://nx.dev/getting-started/tutorials/react-monorepo-tutorial?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects)
-- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Star History
+# ⭐ Star History
 
 <a href="https://star-history.com/#YosemiteCrew/Yosemite-Crew&Date">
  <picture>
@@ -75,3 +97,7 @@ Learn more:
    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=YosemiteCrew/Yosemite-Crew&type=Date" />
  </picture>
 </a>
+
+
+
+

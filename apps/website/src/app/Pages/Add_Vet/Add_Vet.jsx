@@ -41,7 +41,7 @@ const Add_Vet = () => {
     phone: '',
     dateOfBirth: '',
   });
-  console.log('PersonalInfoForm.dateOfBirth', PersonalInfoForm.countrycode);
+  // console.log('PersonalInfoForm.dateOfBirth', PersonalInfoForm.countrycode);
 
   const [ResidentialAddressForm, setResidentialAddressForm] = useState({
     addressLine1: '',
@@ -59,7 +59,7 @@ const Add_Vet = () => {
     biography: '',
     document: [],
   });
-  console.log(professionalBackground.specialization);
+  // console.log(professionalBackground.specialization);
 
   // const [selectedFile, setSelectedFile] = useState(null);
   const [consultFee, setConsultFee] = useState('');
@@ -223,7 +223,7 @@ const Add_Vet = () => {
   // Operating hours handler
   const handleSaveOperatingHours = (updatedHours) => {
     setOperatingHours(updatedHours);
-    console.log('Received operating hours:', updatedHours);
+    // console.log('Received operating hours:', updatedHours);
   };
 
   // Consultation mode handling

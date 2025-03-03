@@ -1,7 +1,6 @@
-// eslint-disable-next-line no-unused-vars
 import React, { useEffect, useState } from 'react';
 import './Add_Doctor.css';
-import PropTypes, { object } from 'prop-types';
+import PropTypes from 'prop-types';
 import { BoxDiv } from '../Dashboard/page';
 import { TextSpan } from '../Appointment/page';
 import { DashHeadtext } from '../Doctor_Dashboard/Doctor_Dashboard';
@@ -10,7 +9,7 @@ import box1 from '../../../../public/Images/box1.png';
 import box2 from '../../../../public/Images/box2.png';
 import box3 from '../../../../public/Images/box3.png';
 import box4 from '../../../../public/Images/box4.png';
-import Doctor1 from '../../../../public/Images/Doctor1.png';
+// import Doctor1 from '../../../../public/Images/Doctor1.png';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import { propTypes } from 'react-bootstrap/esm/Image';
@@ -64,7 +63,7 @@ const Add_Doctor = () => {
       // If the session is expired or token is invalid (401 Unauthorized)
       if (error.response && error.response.status === 401) {
         console.log('Session expired. Redirecting to signin...');
-        onLogout();
+        onLogout(navigate);
       }
     }
   };
@@ -76,6 +75,7 @@ const Add_Doctor = () => {
       );
       if (response) {
         setOverview(response.data);
+        console.log('overview', response.data);
       }
     } catch (error) {
       console.error('Error fetching overview:', error);
@@ -127,7 +127,7 @@ const Add_Doctor = () => {
                   ovradcls=" cambrageblue"
                   ovrtxt="On-Duty"
                   boxcoltext="greentext"
-                  overnumb="12"
+                  overnumb={overview.availableDoctors}
                 />
                 <BoxDiv
                   boximg={box1}
@@ -206,9 +206,9 @@ export function DoctorCard({
         <h6>{doctname}</h6>
         <p>{doctpotion}</p>
       </div>
-      <a className={`dutybtn ${offclass}`} href="#">
+      <Link className={`dutybtn ${offclass}`} to="#">
         {dutyname}{' '}
-      </a>
+      </Link>
     </div>
   );
 }
