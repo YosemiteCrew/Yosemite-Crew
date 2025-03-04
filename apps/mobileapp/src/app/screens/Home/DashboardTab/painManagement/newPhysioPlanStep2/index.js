@@ -9,7 +9,7 @@ import GButton from '../../../../../components/GButton';
 import GTextButton from '../../../../../components/GTextButton/GTextButton';
 import HeaderButton from '../../../../../components/HeaderButton';
 
-const NewPhysioPlanStep2 = ({navigation}) => {
+const NewExercisePlanStep2 = ({navigation}) => {
   const {t} = useTranslation();
   useEffect(() => {
     configureHeader();
@@ -157,7 +157,7 @@ const NewPhysioPlanStep2 = ({navigation}) => {
         </View>
         <GButton
           onPress={() => {}}
-          title={t('save_to_physio_plans_string')}
+          title={t('save_plans_string')}
           style={styles.createButton}
           textStyle={styles.buttonText}
         />
@@ -170,4 +170,4 @@ const NewPhysioPlanStep2 = ({navigation}) => {
   );
 };
 
-export default NewPhysioPlanStep2;
+export default NewExercisePlanStep2;

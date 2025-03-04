@@ -11,7 +11,7 @@ import GTextButton from '../../../../../components/GTextButton/GTextButton';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import HeaderButton from '../../../../../components/HeaderButton';
 
-const NewPhysioPlan = ({navigation}) => {
+const NewExercisePlan = ({navigation}) => {
   const {t} = useTranslation();
   const insets = useSafeAreaInsets();
   const [formValue, setFormValue] = useState({
@@ -94,7 +94,7 @@ const NewPhysioPlan = ({navigation}) => {
       <View style={styles.buttonView(insets)}>
         <GButton
           onPress={() => {
-            navigation?.navigate('NewPhysioPlanStep2');
+            navigation?.navigate('NewExercisePlanStep2');
           }}
           title={t('continue_string')}
           style={styles.createButton}
@@ -109,4 +109,4 @@ const NewPhysioPlan = ({navigation}) => {
   );
 };
 
-export default NewPhysioPlan;
+export default NewExercisePlan;

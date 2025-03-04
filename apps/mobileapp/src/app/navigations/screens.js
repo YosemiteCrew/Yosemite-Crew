@@ -14,13 +14,13 @@ export {default as ParasiticideReport} from '../screens/Home/DashboardTab/parasi
 export {default as VaccineRecords} from '../screens/Home/DashboardTab/vaccinationManagement/vaccineRecords';
 export {default as AddVaccineRecord} from '../screens/Home/DashboardTab/vaccinationManagement/addVaccineRecord';
 export {default as EditVaccineRecord} from '../screens/Home/DashboardTab/vaccinationManagement/editVaccineRecord';
-export {default as PhysioExercisePlans} from '../screens/Home/DashboardTab/painManagement/physioExercisePlans';
+export {default as ExercisePlans} from '../screens/Home/DashboardTab/painManagement/exerciseExercisePlans';
 export {default as CreateNewPlan} from '../screens/Home/DashboardTab/painManagement/createNewPlan';
 export {default as IndividualExercises} from '../screens/Home/DashboardTab/painManagement/individualExercises';
-export {default as NewPhysioPlan} from '../screens/Home/DashboardTab/painManagement/newPhysioPlan';
+export {default as NewExercisePlan} from '../screens/Home/DashboardTab/painManagement/newExercisePlan';
 export {default as PostOpExercises} from '../screens/Home/DashboardTab/painManagement/postExercise';
 export {default as TreadMill} from '../screens/Home/DashboardTab/painManagement/treadMill';
-export {default as NewPhysioPlanStep2} from '../screens/Home/DashboardTab/painManagement/newPhysioPlanStep2';
+export {default as NewExercisePlanStep2} from '../screens/Home/DashboardTab/painManagement/newExercisePlanStep2';
 export {default as PainJournal} from '../screens/Home/DashboardTab/painManagement/painJournal';
 export {default as NewPainAssessment} from '../screens/Home/DashboardTab/painManagement/newPainAssessment';
 export {default as GrimaceScale} from '../screens/Home/DashboardTab/painManagement/grimaceScale';

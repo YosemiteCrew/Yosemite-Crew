@@ -30,9 +30,9 @@ const {
   handleGetVaccination,
 } = require("../controllers/vaccination");
 const {
-  handlePhysioPlan,
+  handleExercisePlan,
   handleAddPainJournal,
-  handleGetPhysioPlan,
+  handleGetExercisePlan,
   handleGetPainJournal,
 } = require("../controllers/plan");
 const {
@@ -103,8 +103,8 @@ router.post(
   handleEditVaccination
 );
 router.post("/getVaccinationRecord", verifyTokenAndRefresh,handleGetVaccination);
-router.post("/savePhysioPlan",verifyTokenAndRefresh, handlePhysioPlan);
-router.post("/getphysio-list",verifyTokenAndRefresh, handleGetPhysioPlan);
+router.post("/saveExercisePlan",verifyTokenAndRefresh, handleExercisePlan);
+router.post("/getexercise-list",verifyTokenAndRefresh, handleGetExercisePlan);
 router.post("/savepainjournal",verifyTokenAndRefresh, handleAddPainJournal);
 router.post("/getpainjournal",verifyTokenAndRefresh, handleGetPainJournal);
 router.post(

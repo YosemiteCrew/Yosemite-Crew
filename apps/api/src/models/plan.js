@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const physioPlanSchema = new mongoose.Schema({
+const exercisePlanSchema = new mongoose.Schema({
 
     userId: {
         type: Number, 
@@ -27,5 +27,5 @@ const physioPlanSchema = new mongoose.Schema({
     },
 
 }, { timestamps: true});
-const YoshPhysioPlans = mongoose.model('YoshPhysioPlan',physioPlanSchema);
-module.exports = YoshPhysioPlans;
+const YoshExercisePlans = mongoose.model('YoshExercisePlans',exercisePlanSchema);
+module.exports = YoshExercisePlans;
