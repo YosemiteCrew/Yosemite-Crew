@@ -41,11 +41,11 @@ const PainManagementHome = ({navigation}) => {
   const quickAction = [
     {
       id: 1,
-      title: t('physio_exercise_plans_string'),
+      title: t('exercise_plans_string'),
       img: Images.DogExercise,
       onAction: () => {
         navigation?.navigate('StackScreens', {
-          screen: 'PhysioExercisePlans',
+          screen: 'ExercisePlans',
         });
       },
     },

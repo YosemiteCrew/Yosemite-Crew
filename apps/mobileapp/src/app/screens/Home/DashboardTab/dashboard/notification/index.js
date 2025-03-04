@@ -128,10 +128,10 @@ const Notifications = ({navigation}) => {
     },
     {
       id: 6,
-      title: 'Physio Activity Reminder',
+      title: 'Exercise Activity Reminder',
       timeAgo: '10d ago',
       message:
-        'Time for Kizie’s daily physio exercises. Let’s keep her on track with her recovery.',
+        'Time for Kizie’s daily exercises. Let’s keep her on track with her recovery.',
       icon: Images.Reminder,
       petImage: Images.Kizi,
       category: 'Reminders',

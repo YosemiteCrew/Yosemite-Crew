@@ -1,10 +1,10 @@
-const physioPlan = require('../models/plan');
+const exercisePlan = require('../models/plan');
 const { YoshPainJournals } = require('../models/painJournal');
 
 
-async function handlePhysioPlan(req,res) {
+async function handleExercisePlan(req,res) {
     const planData = req.body;
-    const physioPlans = await physioPlan.create({
+    const exercisePlans = await exercisePlan.create({
         userId: planData.userId,
         petId: planData.petId,
         typeOfPlan: planData.typeOfPlan,
@@ -13,11 +13,11 @@ async function handlePhysioPlan(req,res) {
         mobilityLevel: planData.mobilityLevel,
         painLevel: planData.painLevel,
     });
-    if(physioPlans){
+    if(exercisePlans){
         res.status(201).json({
-            message: 'Physio Plan saved successfully',
+            message: 'Exercise Plan saved successfully',
             plan: {
-              id: physioPlans.id,
+              id: exercisePlans.id,
             }
           });
     }
@@ -45,11 +45,11 @@ async function handleAddPainJournal(req,res){
 
 
 
-async function handleGetPhysioPlan(req,res){
+async function handleGetExercisePlan(req,res){
 
     const userid = req.body.userId;
-    const result = await physioPlan.find({ userId : userid });
-    if (result.length === 0) return res.status(404).json({ message: "No physio plans found for this user" });
+    const result = await exercisePlan.find({ userId : userid });
+    if (result.length === 0) return res.status(404).json({ message: "No exercise plans found for this user" });
     res.json(result);
 }
 
@@ -62,9 +62,9 @@ async function handleGetPainJournal(req,res){
 }
 
 module.exports = {
-    handlePhysioPlan,
+    handleExercisePlan,
     handleAddPainJournal,
-    handleGetPhysioPlan,
+    handleGetExercisePlan,
     handleGetPainJournal,
     
 }

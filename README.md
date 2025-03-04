@@ -67,6 +67,15 @@ For Developers
      ```shell
      npm ci
      ```
+     
+- Run the project.
+
+     ```shell
+     npx nx serve website                    -- Run the website
+     npx nx serve api                        -- Run the api
+     npx nx run-android mobileapp            -- Run the app on android
+     npx nx run-ios mobileapp                -- Run the app on IOS
+     ```
 
 <br>
 

@@ -63,7 +63,7 @@ const CreateNewPlan = ({navigation}) => {
     {
       id: 2,
       title: t('standard_exercise_string'),
-      screenName: 'NewPhysioPlan',
+      screenName: 'NewExercisePlan',
     },
   ];
 

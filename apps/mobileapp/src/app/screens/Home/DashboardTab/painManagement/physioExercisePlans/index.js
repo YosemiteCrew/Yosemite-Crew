@@ -9,7 +9,7 @@ import {scaledValue} from '../../../../../utils/design.utils';
 import CustomProgressBar from '../../../../../components/CustomProgressBar';
 import GButton from '../../../../../components/GButton';
 import HeaderButton from '../../../../../components/HeaderButton';
-const PhysioExercisePlans = ({navigation}) => {
+const ExercisePlans = ({navigation}) => {
   const {t} = useTranslation();
   useEffect(() => {
     configureHeader();
@@ -191,4 +191,4 @@ const PhysioExercisePlans = ({navigation}) => {
   );
 };
 
-export default PhysioExercisePlans;
+export default ExercisePlans;

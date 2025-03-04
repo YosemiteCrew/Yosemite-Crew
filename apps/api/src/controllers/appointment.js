@@ -106,33 +106,71 @@ async function handleCancelAppointment(req,res) {
         }   
 }
 
+
+
 async function handleGetTimeSlots(req, res) {
   try {
-    const appointDate = req.body.appointmentDate;
-    const doctorId = req.body.doctorId;
+    const { appointmentDate, doctorId } = req.body;
 
-    const dateObj = new Date(appointDate);
+    if (!appointmentDate || !doctorId) {
+      return res.status(400).json({ message: "Appointment date and doctor ID are required" });
+    }
+
+    const dateObj = new Date(appointmentDate);
+    if (isNaN(dateObj.getTime())) {
+      return res.status(400).json({ message: "Invalid appointment date" });
+    }
+
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const day = days[dateObj.getDay()];
 
-    const slots = await DoctorsTimeSlotes.find({ doctorId, day });
-   
-    const timeSlots = slots[0].timeSlots;
-    console.log(timeSlots)
+    console.log("Fetching slots for Doctor:", doctorId, "on", day);
 
-    if (slots.length === 0) {
+    const slots = await DoctorsTimeSlotes.find({ doctorId, day });
+
+    if (!slots.length) {
       return res.status(200).json({ status: 0, data: [], message: "No slots found for this doctor on this day" });
     }
-    const bookedappointments = await webAppointments.find({veterinarian:doctorId, appointmentDate:appointDate });
-    const updatedSlots = timeSlots.map(slot => ({
-      slot,
-      booked: bookedappointments.some(app => app.slotsId === slot._id.toString()) // Convert ObjectId to string for comparison
-    }));
-    return res.status(200).json({ status: 1, data:updatedSlots });
+
+    const timeSlots = slots[0].timeSlots;
+    console.log("Time Slots:", timeSlots);
+
+    if (!Array.isArray(timeSlots)) {
+      return res.status(500).json({ message: "Time slots data is not in the expected format" });
+    }
+
+    const bookedAppointments = await webAppointments.find({ veterinarian: doctorId, appointmentDate });
+
+    const currentTime = new Date();
+    const isToday = currentTime.toDateString() === dateObj.toDateString();
+
+    const updatedSlots = timeSlots
+      .filter(slot => {
+        if (!slot.time) {
+          console.log("Skipping invalid slot:", slot);
+          return false;
+        }
+
+        if (isToday) {
+          // Convert slot time (e.g., "10:00 AM") to a proper Date object for comparison
+          const slotDateTime = moment(`${appointmentDate} ${slot.time}`, "YYYY-MM-DD hh:mm A").toDate();
+          return slotDateTime > currentTime;
+        }
+        return true;
+      })
+      .map(slot => ({
+        slot,
+        booked: bookedAppointments.some(app => app.slotsId?.toString() === slot._id?.toString())
+      }));
+
+    console.log("Updated Slots:", updatedSlots);
+    return res.status(200).json({ status: 1, data: updatedSlots });
   } catch (error) {
-    res.status(500).json({ message: "Error while fetching time slots", error });
+    console.error("Error fetching time slots:", error);
+    res.status(500).json({ message: "Error while fetching time slots", error: error.message });
   }
 }
+
 
 async function handleRescheduleAppointment(req, res){
   const AppointmentData = req.body;
