@@ -5,17 +5,17 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import React, {useEffect, useState} from 'react';
-import {useTranslation} from 'react-i18next';
+import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import HeaderButton from '../../../../../components/HeaderButton';
-import {Images} from '../../../../../utils';
-import {colors} from '../../../../../../assets/colors';
-import {styles} from './styles';
+import { Images } from '../../../../../utils';
+import { colors } from '../../../../../../assets/colors';
+import { styles } from './styles';
 import GText from '../../../../../components/GText/GText';
-import {scaledValue} from '../../../../../utils/design.utils';
+import { scaledValue } from '../../../../../utils/design.utils';
 
-const Notifications = ({navigation}) => {
-  const {t} = useTranslation();
+const Notifications = ({ navigation }) => {
+  const { t } = useTranslation();
   const [selectedOption, setSelectedOption] = useState(t('all_string'));
   useEffect(() => {
     configureHeader();
@@ -36,15 +36,15 @@ const Notifications = ({navigation}) => {
   };
 
   const options = [
-    {id: 1, title: t('all_string')},
-    {id: 2, title: t('alert_string')},
-    {id: 3, title: t('appointments_string')},
-    {id: 4, title: t('messages_string')},
-    {id: 5, title: t('reminders_string')},
-    {id: 6, title: t('vaccinations_string')},
+    { id: 1, title: t('all_string') },
+    { id: 2, title: t('alert_string') },
+    { id: 3, title: t('appointments_string') },
+    { id: 4, title: t('messages_string') },
+    { id: 5, title: t('reminders_string') },
+    { id: 6, title: t('vaccinations_string') },
   ];
 
-  const renderOption = item => (
+  const renderOption = (item) => (
     <TouchableOpacity
       key={item.id}
       onPress={() => setSelectedOption(item.title)}
@@ -55,7 +55,8 @@ const Notifications = ({navigation}) => {
           backgroundColor:
             selectedOption === item.title ? colors.appRed : 'transparent',
         },
-      ]}>
+      ]}
+    >
       <GText
         GrMedium
         text={item.title}
@@ -73,7 +74,7 @@ const Notifications = ({navigation}) => {
     if (selectedOption == 'All') {
       return notifications;
     } else {
-      return notifications.filter(item => item.category == selectedOption);
+      return notifications.filter((item) => item.category == selectedOption);
     }
   };
 
@@ -128,17 +129,17 @@ const Notifications = ({navigation}) => {
     },
     {
       id: 6,
-      title: 'Physio Activity Reminder',
+      title: 'Exercise Reminder',
       timeAgo: '10d ago',
       message:
-        'Time for Kizie’s daily physio exercises. Let’s keep her on track with her recovery.',
+        'Time for Kizie’s daily exercises. Let’s keep her on track with her recovery.',
       icon: Images.Reminder,
       petImage: Images.Kizi,
       category: 'Reminders',
     },
   ];
 
-  const NotificationItem = ({item}) => (
+  const NotificationItem = ({ item }) => (
     <TouchableOpacity activeOpacity={0.5} style={styles.listTile}>
       <View style={styles.imgTextView}>
         <Image source={item?.icon} style={styles.messageImg} />
@@ -162,7 +163,8 @@ const Notifications = ({navigation}) => {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={styles.scrollView}>
+          style={styles.scrollView}
+        >
           <View style={styles.optionContainer}>
             {options.map(renderOption)}
           </View>
@@ -172,7 +174,7 @@ const Notifications = ({navigation}) => {
         data={filterNotifications()}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.flatListContainer}
-        renderItem={({item}) => <NotificationItem item={item} />}
+        renderItem={({ item }) => <NotificationItem item={item} />}
       />
     </View>
   );

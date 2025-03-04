@@ -1,14 +1,14 @@
-import {FlatList, Image, TouchableOpacity, View} from 'react-native';
-import React, {useEffect} from 'react';
-import {Images} from '../../../../../utils';
-import {colors} from '../../../../../../assets/colors';
-import {styles} from './styles';
+import { FlatList, Image, TouchableOpacity, View } from 'react-native';
+import React, { useEffect } from 'react';
+import { Images } from '../../../../../utils';
+import { colors } from '../../../../../../assets/colors';
+import { styles } from './styles';
 import GText from '../../../../../components/GText/GText';
-import {useTranslation} from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 import HeaderButton from '../../../../../components/HeaderButton';
 
-const PainManagementHome = ({navigation}) => {
-  const {t} = useTranslation();
+const PainManagementHome = ({ navigation }) => {
+  const { t } = useTranslation();
   useEffect(() => {
     configureHeader();
   }, []);
@@ -41,11 +41,11 @@ const PainManagementHome = ({navigation}) => {
   const quickAction = [
     {
       id: 1,
-      title: t('physio_exercise_plans_string'),
+      title: t('exercise_plans_string'),
       img: Images.DogExercise,
       onAction: () => {
         navigation?.navigate('StackScreens', {
-          screen: 'PhysioExercisePlans',
+          screen: 'ExercisePlans',
         });
       },
     },
@@ -83,13 +83,14 @@ const PainManagementHome = ({navigation}) => {
         numColumns={2}
         columnWrapperStyle={styles.quickActionsWrapper}
         contentContainerStyle={styles.quickActionsList}
-        renderItem={({item, index}) => {
+        renderItem={({ item, index }) => {
           return (
             <TouchableOpacity
               onPress={item?.onAction}
               activeOpacity={0.5}
               key={item?.id}
-              style={styles.quickActionItem}>
+              style={styles.quickActionItem}
+            >
               <Image source={item?.img} style={styles.quickActionImage} />
               <GText
                 GrMedium

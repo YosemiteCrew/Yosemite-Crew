@@ -1,10 +1,10 @@
-import {Platform, StyleSheet} from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 import {
   scaledHeightValue,
   scaledValue,
 } from '../../../../../utils/design.utils';
-import {fonts} from '../../../../../utils/fonts';
-import {colors} from '../../../../../../assets/colors';
+import { fonts } from '../../../../../utils/fonts';
+import { colors } from '../../../../../../assets/colors';
 
 export const styles = StyleSheet.create({
   dashboardMainView: {
@@ -41,7 +41,7 @@ export const styles = StyleSheet.create({
     marginHorizontal: scaledValue(20),
     borderRadius: scaledValue(20),
     shadowColor: '#47382726',
-    shadowOffset: {width: 10, height: 10},
+    shadowOffset: { width: 10, height: 10 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 10,
@@ -111,7 +111,7 @@ export const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: scaledValue(17),
   },
-  buttonView: insets => ({
+  buttonView: (insets) => ({
     position: 'absolute',
     bottom:
       Platform.OS == 'android'

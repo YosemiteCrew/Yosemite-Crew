@@ -1,10 +1,10 @@
-import {StyleSheet} from 'react-native';
+import { StyleSheet } from 'react-native';
 import {
   scaledHeightValue,
   scaledValue,
 } from '../../../../../utils/design.utils';
-import {fonts} from '../../../../../utils/fonts';
-import {colors} from '../../../../../../assets/colors';
+import { fonts } from '../../../../../utils/fonts';
+import { colors } from '../../../../../../assets/colors';
 
 export const styles = StyleSheet.create({
   dashboardMainView: {
@@ -118,7 +118,7 @@ export const styles = StyleSheet.create({
     borderRadius: scaledValue(20),
     paddingHorizontal: scaledValue(20),
     shadowColor: '#47382726',
-    shadowOffset: {width: 1, height: 5},
+    shadowOffset: { width: 1, height: 5 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 8,
@@ -129,8 +129,8 @@ export const styles = StyleSheet.create({
     marginTop: scaledValue(20),
     alignItems: 'center',
   },
-  petImgStyle: {width: scaledValue(40), height: scaledValue(40)},
-  nameView: {marginLeft: scaledValue(8)},
+  petImgStyle: { width: scaledValue(40), height: scaledValue(40) },
+  nameView: { marginLeft: scaledValue(8) },
   petNameView: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -142,7 +142,7 @@ export const styles = StyleSheet.create({
     borderRadius: scaledValue(10),
     backgroundColor: colors.appRed,
   },
-  progressView: {marginTop: scaledValue(20)},
+  progressView: { marginTop: scaledValue(20) },
   percentageView: {
     flexDirection: 'row',
     alignItems: 'center',

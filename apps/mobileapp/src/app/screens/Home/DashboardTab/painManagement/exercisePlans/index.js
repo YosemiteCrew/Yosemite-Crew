@@ -1,16 +1,16 @@
-import {FlatList, Image, ScrollView, View} from 'react-native';
-import React, {useEffect} from 'react';
-import {useTranslation} from 'react-i18next';
-import {Images} from '../../../../../utils';
-import {colors} from '../../../../../../assets/colors';
-import {styles} from './styles';
+import { FlatList, Image, ScrollView, View } from 'react-native';
+import React, { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Images } from '../../../../../utils';
+import { colors } from '../../../../../../assets/colors';
 import GText from '../../../../../components/GText/GText';
-import {scaledValue} from '../../../../../utils/design.utils';
+import { scaledValue } from '../../../../../utils/design.utils';
 import CustomProgressBar from '../../../../../components/CustomProgressBar';
 import GButton from '../../../../../components/GButton';
 import HeaderButton from '../../../../../components/HeaderButton';
-const PhysioExercisePlans = ({navigation}) => {
-  const {t} = useTranslation();
+import { styles } from './styles';
+const ExercisePlans = ({ navigation }) => {
+  const { t } = useTranslation();
   useEffect(() => {
     configureHeader();
   }, []);
@@ -97,7 +97,7 @@ const PhysioExercisePlans = ({navigation}) => {
         <View>
           <FlatList
             data={plansList}
-            renderItem={({item, index}) => {
+            renderItem={({ item, index }) => {
               return (
                 <View style={styles.cardStyle}>
                   <View style={styles.imgView}>
@@ -191,4 +191,4 @@ const PhysioExercisePlans = ({navigation}) => {
   );
 };
 
-export default PhysioExercisePlans;
+export default ExercisePlans;

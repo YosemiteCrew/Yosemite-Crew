@@ -1,17 +1,17 @@
-import {Image, TouchableOpacity, View} from 'react-native';
-import React, {useEffect, useState} from 'react';
-import {useTranslation} from 'react-i18next';
-import {Images} from '../../../../../utils';
-import {colors} from '../../../../../../assets/colors';
-import {styles} from './styles';
+import { Image, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Images } from '../../../../../utils';
+import { colors } from '../../../../../../assets/colors';
+import { styles } from './styles';
 import GText from '../../../../../components/GText/GText';
 import GButton from '../../../../../components/GButton';
-import {scaledValue} from '../../../../../utils/design.utils';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import { scaledValue } from '../../../../../utils/design.utils';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import HeaderButton from '../../../../../components/HeaderButton';
 
-const CreateNewPlan = ({navigation}) => {
-  const {t} = useTranslation();
+const CreateNewPlan = ({ navigation }) => {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [selectedPetId, setSelectedPetId] = useState(null);
   const [selectButton, setSelectButton] = useState(null);
@@ -46,7 +46,7 @@ const CreateNewPlan = ({navigation}) => {
     },
   ];
 
-  const handlePetSelection = pet => {
+  const handlePetSelection = (pet) => {
     if (selectedPetId?.id === pet.id) {
       setSelectedPetId(null);
     } else {
@@ -63,11 +63,11 @@ const CreateNewPlan = ({navigation}) => {
     {
       id: 2,
       title: t('standard_exercise_string'),
-      screenName: 'NewPhysioPlan',
+      screenName: 'NewExercisePlan',
     },
   ];
 
-  const handleButtonSelection = i => {
+  const handleButtonSelection = (i) => {
     if (selectButton?.id === i.id) {
       setSelectButton(null);
     } else {
@@ -91,15 +91,16 @@ const CreateNewPlan = ({navigation}) => {
             key={index}
             style={[
               styles.petItem,
-              {opacity: selectedPetId?.id === item.id ? 0.5 : 1},
+              { opacity: selectedPetId?.id === item.id ? 0.5 : 1 },
             ]}
-            onPress={() => handlePetSelection(item)}>
+            onPress={() => handlePetSelection(item)}
+          >
             <Image source={item?.img} style={styles.imgStyle} />
             <GText SatoshiBold text={item?.name} style={styles.petTitle} />
           </TouchableOpacity>
         ))}
       </View>
-      <View style={[styles.headerContainer, {marginTop: scaledValue(40)}]}>
+      <View style={[styles.headerContainer, { marginTop: scaledValue(40) }]}>
         <GText GrMedium text={t('type_string')} style={styles.ongoingText} />
         <GText
           GrMedium

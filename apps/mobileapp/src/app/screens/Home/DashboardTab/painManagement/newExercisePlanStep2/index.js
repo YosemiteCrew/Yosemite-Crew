@@ -1,16 +1,16 @@
-import {Image, ScrollView, TouchableOpacity, View} from 'react-native';
-import React, {useEffect} from 'react';
-import {useTranslation} from 'react-i18next';
-import {Images} from '../../../../../utils';
-import {colors} from '../../../../../../assets/colors';
-import {styles} from './styles';
+import { Image, ScrollView, TouchableOpacity, View } from 'react-native';
+import React, { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Images } from '../../../../../utils';
+import { colors } from '../../../../../../assets/colors';
 import GText from '../../../../../components/GText/GText';
 import GButton from '../../../../../components/GButton';
 import GTextButton from '../../../../../components/GTextButton/GTextButton';
 import HeaderButton from '../../../../../components/HeaderButton';
+import { styles } from './styles';
 
-const NewPhysioPlanStep2 = ({navigation}) => {
-  const {t} = useTranslation();
+const NewExercisePlanStep2 = ({ navigation }) => {
+  const { t } = useTranslation();
   useEffect(() => {
     configureHeader();
   }, []);
@@ -80,7 +80,8 @@ const NewPhysioPlanStep2 = ({navigation}) => {
     <View style={styles.dashboardMainView}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        style={styles.scrollView}>
+        style={styles.scrollView}
+      >
         <GText
           SatoshiBold
           text={`${t('step_string')} 2 ${t('of_string')} 2`}
@@ -157,7 +158,7 @@ const NewPhysioPlanStep2 = ({navigation}) => {
         </View>
         <GButton
           onPress={() => {}}
-          title={t('save_to_physio_plans_string')}
+          title={t('save_to_exercise_plans_string')}
           style={styles.createButton}
           textStyle={styles.buttonText}
         />
@@ -170,4 +171,4 @@ const NewPhysioPlanStep2 = ({navigation}) => {
   );
 };
 
-export default NewPhysioPlanStep2;
+export default NewExercisePlanStep2;

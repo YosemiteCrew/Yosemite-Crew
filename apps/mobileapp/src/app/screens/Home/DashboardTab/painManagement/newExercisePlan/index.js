@@ -1,18 +1,18 @@
-import {Image, TouchableOpacity, View} from 'react-native';
-import React, {useEffect, useState} from 'react';
-import {styles} from './styles';
-import {Images} from '../../../../../utils';
-import {colors} from '../../../../../../assets/colors';
-import {useTranslation} from 'react-i18next';
+import { Image, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Images } from '../../../../../utils';
+import { colors } from '../../../../../../assets/colors';
+import { useTranslation } from 'react-i18next';
 import GText from '../../../../../components/GText/GText';
 import Input from '../../../../../components/Input';
 import GButton from '../../../../../components/GButton';
 import GTextButton from '../../../../../components/GTextButton/GTextButton';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import HeaderButton from '../../../../../components/HeaderButton';
+import { styles } from './styles';
 
-const NewPhysioPlan = ({navigation}) => {
-  const {t} = useTranslation();
+const NewExercisePlan = ({ navigation }) => {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [formValue, setFormValue] = useState({
     concern: '',
@@ -58,20 +58,25 @@ const NewPhysioPlan = ({navigation}) => {
           <Input
             value={formValue.concern}
             label={t('conditions_or_concern_string')}
-            onChangeText={value => setFormValue({...formValue, concern: value})}
+            onChangeText={(value) =>
+              setFormValue({ ...formValue, concern: value })
+            }
             style={styles.input}
             keyboardType={'email-address'}
           />
           <Input
             value={formValue.weeks}
             label={t('weeks_since_surgery_string')}
-            onChangeText={value => setFormValue({...formValue, weeks: value})}
+            onChangeText={(value) =>
+              setFormValue({ ...formValue, weeks: value })
+            }
             style={styles.input}
             keyboardType={'email-address'}
           />
           <TouchableOpacity
             onPress={() => {}}
-            style={styles.professionalButton}>
+            style={styles.professionalButton}
+          >
             <GText
               SatoshiRegular
               text={t('current_mobility_string')}
@@ -81,7 +86,8 @@ const NewPhysioPlan = ({navigation}) => {
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => {}}
-            style={styles.professionalButton}>
+            style={styles.professionalButton}
+          >
             <GText
               SatoshiRegular
               text={t('pain_level')}
@@ -94,7 +100,7 @@ const NewPhysioPlan = ({navigation}) => {
       <View style={styles.buttonView(insets)}>
         <GButton
           onPress={() => {
-            navigation?.navigate('NewPhysioPlanStep2');
+            navigation?.navigate('newExercisePlanStep2');
           }}
           title={t('continue_string')}
           style={styles.createButton}
@@ -109,4 +115,4 @@ const NewPhysioPlan = ({navigation}) => {
   );
 };
 
-export default NewPhysioPlan;
+export default NewExercisePlan;

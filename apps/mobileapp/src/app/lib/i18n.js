@@ -1,5 +1,5 @@
 import i18n from 'i18next';
-import {initReactI18next} from 'react-i18next';
+import { initReactI18next } from 'react-i18next';
 const resources = {
   en: {
     translation: {
@@ -197,7 +197,7 @@ const resources = {
       create_new_record_string: 'Create new record',
       update_record_string: 'Update record',
       vaccination_images_string: 'Vaccination Images',
-      physio_exercise_plans_string: 'Physio\nExercise Plans',
+      exercise_plans_string: 'Exercise\nPlans',
       pain_journal_string: 'Pain\nJournal',
       knowledge_library_string: 'Knowledge Library',
       on_going_string: 'On-going',
@@ -246,7 +246,7 @@ const resources = {
       Daily_string: 'Daily',
       review_string: 'Review',
       fortnightly_string: 'Fortnightly',
-      save_to_physio_plans_string: 'Save to Physio Plans',
+      save_to_exercise_plans_string: 'Save to Exercise Plans',
       journal_string: 'Journal',
       assessment_string: 'assessment',
       grimace_scale_string: 'Grimace Scale',
@@ -521,7 +521,7 @@ const initializeI18n = async () => {
   });
 };
 
-initializeI18n().catch(error => {
+initializeI18n().catch((error) => {
   console.error('Error initializing i18n:', error);
 });
 
