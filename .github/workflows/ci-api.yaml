@@ -31,7 +31,7 @@ jobs:
               run: npm ci --legacy-peer-deps
             - name: Linting
               run: npx nx lint api
-            - name: Website / Build Website
+            - name: Build API
               run: npx nx build api
     ci-api-status-check:
         if: always() && !cancelled()
