@@ -9,11 +9,64 @@ import GText from '../../../../../components/GText/GText';
 import {styles} from './styles';
 import CategoryList from './CategoryList';
 import {scaledValue} from '../../../../../utils/design.utils';
+import {useAppDispatch} from '../../../../../redux/store/storeUtils';
+import {hospitals_centers_list} from '../../../../../redux/slices/appointmentSlice';
+import {BusinessListShimmer} from '../../../../../components/Shimmers/Shimmers';
 
 const BookAppointmentHome = ({navigation}) => {
   const insets = useSafeAreaInsets();
   const {t} = useTranslation();
+  const dispatch = useAppDispatch();
   const [selectedOption, setSelectedOption] = useState(t('all_string'));
+  const [hospitalData, setHospitalData] = useState({
+    hospitalList: [],
+    hospitalCount: '',
+  });
+  const [breederData, setBreederData] = useState({
+    breederList: [],
+    breederCount: '',
+  });
+
+  const [groomerData, setGroomerData] = useState({
+    groomerList: [],
+    groomerCount: '',
+  });
+
+  const [petCenterData, setPetCenterData] = useState({
+    petCenterList: [],
+    petCenterCount: '',
+  });
+
+  useEffect(() => {
+    getHospitalsCentersList();
+  }, []);
+
+  const getHospitalsCentersList = () => {
+    let api_credentials = {
+      offset: 0,
+      limit: 5,
+    };
+    dispatch(hospitals_centers_list(api_credentials)).then(res => {
+      if (hospitals_centers_list.fulfilled.match(res)) {
+        setHospitalData({
+          hospitalList: res.payload?.hospital?.data,
+          hospitalCount: res.payload?.hospital?.count,
+        });
+        setBreederData({
+          breederList: res.payload?.breederShop?.data,
+          breederCount: res.payload?.breederShop?.count,
+        });
+        setPetCenterData({
+          petCenterList: res.payload?.clinic?.data,
+          petCenterCount: res.payload?.clinic?.count,
+        });
+        setGroomerData({
+          groomerList: res.payload?.groomerShop?.data,
+          groomerCount: res.payload?.groomerShop?.count,
+        });
+      }
+    });
+  };
 
   const options = [
     {id: 1, title: t('all_string')},
@@ -97,28 +150,28 @@ const BookAppointmentHome = ({navigation}) => {
     </TouchableOpacity>
   );
 
-  const hospitalList = [
-    {
-      id: 1,
-      img: Images.Hospital1,
-      name: 'San Francisco Animal Medical Center',
-      time: 'Open 24 Hours',
-      description:
-        '24/7 Emergency Care, Surgery and Operating Rooms, Veterinary ICU, Diagnostic Imaging, Laboratory, Dental Care Services,',
-      distance: '2.5mi',
-      rating: '4.1',
-    },
-    {
-      id: 2,
-      img: Images.Hospital2,
-      name: 'OakVet Animal Specialty Hospital',
-      time: 'Open 24 Hours',
-      description:
-        'Vaccination and Preventive Care, Pain Management, Physical Rehabilitation and Therapy, Isolation Wards for Contagious Pets, Oncology Treatment,',
-      distance: '2.8mi',
-      rating: '4.5',
-    },
-  ];
+  // const hospitalList = [
+  //   {
+  //     id: 1,
+  //     img: Images.Hospital1,
+  //     name: 'San Francisco Animal Medical Center',
+  //     time: 'Open 24 Hours',
+  //     description:
+  //       '24/7 Emergency Care, Surgery and Operating Rooms, Veterinary ICU, Diagnostic Imaging, Laboratory, Dental Care Services,',
+  //     distance: '2.5mi',
+  //     rating: '4.1',
+  //   },
+  //   {
+  //     id: 2,
+  //     img: Images.Hospital2,
+  //     name: 'OakVet Animal Specialty Hospital',
+  //     time: 'Open 24 Hours',
+  //     description:
+  //       'Vaccination and Preventive Care, Pain Management, Physical Rehabilitation and Therapy, Isolation Wards for Contagious Pets, Oncology Treatment,',
+  //     distance: '2.8mi',
+  //     rating: '4.5',
+  //   },
+  // ];
 
   const breederList = [
     {
@@ -206,43 +259,32 @@ const BookAppointmentHome = ({navigation}) => {
           </View>
         </ScrollView>
         {/* Render different category lists */}
+        {/* <BusinessListShimmer /> */}
         <CategoryList
-          onPress={() => {
-            navigation?.navigate('StackScreens', {
-              screen: 'BookAppointmentDetail',
-            });
-          }}
-          data={hospitalList}
+          navigation={navigation}
+          data={hospitalData?.hospitalList}
+          total_count={hospitalData?.hospitalCount}
           categoryTitle={t('hospitals_string')}
           nearYouText={t('near_you_string')}
         />
         <CategoryList
-          onPress={() => {
-            navigation?.navigate('StackScreens', {
-              screen: 'BookAppointmentDetail',
-            });
-          }}
-          data={breederList}
+          navigation={navigation}
+          total_count={breederData?.breederCount}
+          data={breederData?.breederList}
           categoryTitle={t('breeders_string')}
           nearYouText={t('near_you_string')}
         />
         <CategoryList
-          onPress={() => {
-            navigation?.navigate('StackScreens', {
-              screen: 'BookAppointmentDetail',
-            });
-          }}
-          data={groomerList}
+          navigation={navigation}
+          total_count={groomerData?.groomerCount}
+          data={groomerData?.groomerList}
           categoryTitle={t('groomers_string')}
           nearYouText={t('near_you_string')}
         />
         <CategoryList
-          onPress={() => {
-            navigation?.navigate('StackScreens', {
-              screen: 'BookAppointmentDetail',
-            });
-          }}
-          data={petCenterList}
+          navigation={navigation}
+          total_count={petCenterData?.petCenterCount}
+          data={petCenterData?.petCenterList}
           categoryTitle={t('pet_centers_string')}
           nearYouText={t('near_you_string')}
         />

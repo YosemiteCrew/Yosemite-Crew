@@ -103,6 +103,7 @@ const Input = props => {
           onBlur={handleBlur}
           onSubmitEditing={props?.onSubmitEditing}
           returnKeyType={props?.returnKeyType}
+          maxLength={props.maxLength}
           disabled={props.disabled}
           numberOfLines={props.numberOfLines}
           multiline={props.multiline}
@@ -139,7 +140,7 @@ const Input = props => {
           }
           onChangeText={props.onChangeText}
           style={[styles.inputField, props.style]}
-          contentStyle={props.contentStyle}
+          contentStyle={[props.contentStyle, styles.contentStyle]}
           underlineColor={props.underlineColor}
           secureTextEntry={props.secureTextEntry}
           outlineColor={
@@ -354,6 +355,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     height: scaledValue(48),
     fontFamily: fonts?.SATOSHI_MEDIUM,
+  },
+  contentStyle: {
+    fontSize: scaledValue(16),
+    letterSpacing: scaledValue(16 * -0.03),
+    fontFamily: fonts?.SATOSHI_MEDIUM,
+    color: colors.darkPurple2,
+    lineHeight: scaledHeightValue(20),
   },
   helperTextStyle: {
     // marginTop: scaledValue(-24),

@@ -1,5 +1,5 @@
 import React from 'react';
-import {createStackNavigator} from '@react-navigation/stack';
+import { createStackNavigator } from '@react-navigation/stack';
 import {
   SignupOptions,
   CreateAccount,
@@ -14,7 +14,7 @@ import {
   GroomerDetails,
   PetBoardingDetails,
   VeterinaryDetails,
-  ConfirmSignUp
+  ConfirmSignUp,
 } from './screens';
 import getScreenOptions from '../helpers/screenOptions';
 
@@ -108,13 +108,13 @@ const AuthStack = () => {
   ];
   return (
     <Stack.Navigator>
-      {screens.map(({name, component, title, headerShown}) => (
+      {screens.map(({ name, component, title, headerShown }) => (
         <Stack.Screen
           key={name}
           name={name}
           component={component}
           // options={{headerShown: false}}
-          options={props =>
+          options={(props) =>
             getScreenOptions({
               ...props,
               title: title || '',

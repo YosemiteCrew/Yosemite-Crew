@@ -69,7 +69,7 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
     letterSpacing: scaledValue(14 * -0.03),
-    color: '#312943',
+    color: '#000000',
     marginHorizontal: scaledValue(5),
   },
   signUpText: {
@@ -94,16 +94,18 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(16),
     lineHeight: scaledHeightValue(19.2),
     letterSpacing: scaledValue(16 * -0.01),
-    color: '#aaa',
     marginHorizontal: scaledValue(5),
     marginLeft: scaledValue(16),
     marginRight: scaledValue(16),
+    color: colors.darkPurple,
+    opacity: 0.5,
   },
   socialButtonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: scaledValue(24),
     marginBottom: scaledValue(25),
+    gap: scaledValue(12),
   },
   iconStyle: {
     width: scaledValue(24),
@@ -113,7 +115,8 @@ export const styles = StyleSheet.create({
     height: scaledValue(48),
     alignSelf: 'center',
     borderRadius: scaledValue(28),
-    paddingHorizontal: 45,
+    paddingHorizontal: scaledValue(40),
+    // paddingHorizontal: 45,
   },
   borderButton: {
     borderWidth: 1,

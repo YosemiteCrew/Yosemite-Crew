@@ -9,10 +9,30 @@ import GText from '../../../../../components/GText/GText';
 import {scaledValue} from '../../../../../utils/design.utils';
 import Swiper from 'react-native-swiper';
 import AppointmentCard from '../../../../../components/AppointmentCard';
+import {
+  useAppDispatch,
+  useAppSelector,
+} from '../../../../../redux/store/storeUtils';
+import {get_appointment_list} from '../../../../../redux/slices/appointmentSlice';
 
 const AppointmentHistory = ({navigation}) => {
+  const loggedUserData = useAppSelector(state => state.auth.user);
   const {t} = useTranslation();
   const [scrollIndex, setScrollIndex] = useState(0);
+  const dispatch = useAppDispatch();
+  const [upComingAppointments, setUpComingAppointments] = useState([]);
+
+  useEffect(() => {
+    dispatch(
+      get_appointment_list({
+        userId: loggedUserData?.cognitoUserId,
+      }),
+    ).then(res => {
+      if (get_appointment_list.fulfilled.match(res)) {
+        setUpComingAppointments(res?.payload?.upcomingAppointments);
+      }
+    });
+  }, []);
 
   const swiperRef = useRef();
   const [selectedOption, setSelectedOption] = useState(t('all_string'));
@@ -29,7 +49,6 @@ const AppointmentHistory = ({navigation}) => {
 
   const configureHeader = () => {
     navigation.setOptions({
-   
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
@@ -37,7 +56,6 @@ const AppointmentHistory = ({navigation}) => {
           onPress={() => navigation.goBack()}
           style={{marginHorizontal: scaledValue(16)}}
         />
-        
       ),
     });
   };
@@ -84,7 +102,11 @@ const AppointmentHistory = ({navigation}) => {
             text={`${t('upcoming_string')} `}
             style={styles.teamText}
           />
-          <GText GrMedium text={'(5)'} style={styles.countText} />
+          <GText
+            GrMedium
+            text={`(${upComingAppointments?.length})`}
+            style={styles.countText}
+          />
         </View>
 
         <Swiper
@@ -98,7 +120,7 @@ const AppointmentHistory = ({navigation}) => {
           activeDotStyle={styles.activeDotStyle}
           dotStyle={styles.dotStyle}
           paginationStyle={styles.paginationStyle}>
-          {[1, 2].map((page, index) => (
+          {upComingAppointments?.map((page, index) => (
             <View key={index}>
               <AppointmentCard
                 key={index}

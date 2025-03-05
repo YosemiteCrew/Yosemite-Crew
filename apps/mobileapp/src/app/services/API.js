@@ -77,6 +77,8 @@ export default async function API(props) {
   try {
     let response = await axios(request);
     console.log('response=>>>>', JSON.stringify(response));
+    console.log('response=>>>>', JSON.stringify(response?.data));
+
     return response;
   } catch (error) {
     console.log('errors0012555', error);

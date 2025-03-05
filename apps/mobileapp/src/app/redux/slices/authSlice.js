@@ -59,11 +59,12 @@ export const send_otp_sign_in = createAsyncThunk(
       });
       dispatch(setLoading(false));
       console.log('sendOtp_response=>>', JSON.stringify(response));
-      if (response?.status === 200) {
-        showToast(1, response?.data?.message);
-      } else {
-        showToast(0, response?.data?.message);
-      }
+      showToast(response?.data?.status, response?.data?.message);
+      // if (response?.status === 200) {
+      //   showToast(1, response?.data?.message);
+      // } else {
+      //   showToast(0, response?.data?.message);
+      // }
       if (response?.status === 200) {
         // navigationContainerRef?.navigate()
       }
