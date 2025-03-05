@@ -198,3 +198,4 @@ export const addImage = require('../../assets/images/addImage.png');
 export const dollarImage = require('../../assets/images/dollarImage.png');
 export const tickImage = require('../../assets/images/tickImage.png');
 export const petWalkImage = require('../../assets/images/petWalkImage.png');
+export const Emergency = require('../../assets/images/emergency.png');

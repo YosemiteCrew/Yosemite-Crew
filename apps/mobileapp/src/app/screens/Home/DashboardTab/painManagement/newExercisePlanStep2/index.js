@@ -3,11 +3,11 @@ import React, {useEffect} from 'react';
 import {useTranslation} from 'react-i18next';
 import {Images} from '../../../../../utils';
 import {colors} from '../../../../../../assets/colors';
-import {styles} from './styles';
 import GText from '../../../../../components/GText/GText';
 import GButton from '../../../../../components/GButton';
 import GTextButton from '../../../../../components/GTextButton/GTextButton';
 import HeaderButton from '../../../../../components/HeaderButton';
+import {styles} from './styles';
 
 const NewExercisePlanStep2 = ({navigation}) => {
   const {t} = useTranslation();
@@ -157,7 +157,7 @@ const NewExercisePlanStep2 = ({navigation}) => {
         </View>
         <GButton
           onPress={() => {}}
-          title={t('save_plans_string')}
+          title={t('save_to_exercise_plans_string')}
           style={styles.createButton}
           textStyle={styles.buttonText}
         />

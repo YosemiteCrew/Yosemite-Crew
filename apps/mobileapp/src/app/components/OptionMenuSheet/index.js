@@ -1,14 +1,9 @@
 import React from 'react';
 import {View, Text, StyleSheet, TouchableOpacity} from 'react-native';
 import RBSheet from 'react-native-raw-bottom-sheet';
+import {getFontSize, scaledValue} from '../../utils/design.utils';
 import {Divider} from 'react-native-paper';
-import {fonts} from '../../utils/fonts';
-import {
-  getFontSize,
-  scaledHeightValue,
-  scaledValue,
-} from '../../utils/design.utils';
-import GText from '../GText/GText';
+import fonts from '../../utils/fonts';
 import {colors} from '../../../assets/colors';
 
 const OptionMenuSheet = props => {
@@ -16,18 +11,14 @@ const OptionMenuSheet = props => {
   const options = props.options || [];
   const onChoose = props.onChoose || null;
   const titleKey = props.titleKey || 'title';
-  const headerTitle = props?.headerTitle;
-  const headerSubTitle = props?.headerSubTitle;
   let optionsLength = options.length;
-  const headerHeight = props.headerHeight || 0;
+  const title = props?.title;
 
   return (
     <RBSheet
       ref={refRBSheet}
       height={
-        props.height
-          ? props.height
-          : (optionsLength + 1) * 61 + 19 + headerHeight
+        title ? (optionsLength + 2) * 61 + 18 : (optionsLength + 1) * 61 + 18
       }
       closeOnDragDown={true}
       closeOnPressMask={true}
@@ -46,49 +37,41 @@ const OptionMenuSheet = props => {
         },
       }}>
       <View style={styles.bottomSheetView}>
-        {headerTitle && (
+        {title && (
           <View
             style={{
-              backgroundColor: '#fff',
-              height: 86,
-              justifyContent: 'center',
+              backgroundColor: '#FFF4EC',
             }}>
-            <GText
-              GrMedium
-              text={headerTitle}
-              style={styles.menuTitle(colors.darkPurple, 18)}
-            />
-            <GText
-              SatoshiRegular
-              text={headerSubTitle}
-              style={styles.subTitle}
-            />
+            <Text
+              style={{
+                color: '#aaa',
+                textAlign: 'center',
+                paddingVertical: scaledValue(15),
+                fontWeight: '400',
+                fontSize: scaledValue(14),
+              }}>
+              {title}
+            </Text>
+            <Divider />
           </View>
         )}
-
-        <Divider />
         <View style={{borderRadius: scaledValue(10)}}>
           {options.map((c, i) =>
             i !== optionsLength - 1 ? (
               <React.Fragment key={i}>
-                <View style={styles.menuView(c?.height)}>
+                <View style={[styles.menuView]}>
                   <TouchableOpacity onPress={() => onChoose(c)}>
-                    <Text style={styles.menuTitle(c?.textColor, c?.fontSize)}>
+                    <Text style={styles.menuTitle(c?.textColor)}>
                       {c[titleKey]}
                     </Text>
                   </TouchableOpacity>
-                  {c?.subTitle && (
-                    <Text style={[styles.subTitle, props.subTitleStyle]}>
-                      {c?.subTitle}
-                    </Text>
-                  )}
                 </View>
                 <Divider />
               </React.Fragment>
             ) : (
               <View
                 style={[
-                  styles.menuView(c?.height),
+                  styles.menuView,
                   {
                     borderBottomLeftRadius: scaledValue(10),
                     borderBottomRightRadius: scaledValue(10),
@@ -96,7 +79,7 @@ const OptionMenuSheet = props => {
                 ]}
                 key={i}>
                 <TouchableOpacity onPress={() => onChoose(c)}>
-                  <Text style={styles.menuTitle(c?.textColor, c?.fontSize)}>
+                  <Text style={styles.menuTitle(c?.textColor)}>
                     {c[titleKey]}
                   </Text>
                 </TouchableOpacity>
@@ -106,11 +89,8 @@ const OptionMenuSheet = props => {
         </View>
         <View
           style={[
-            styles.menuView(56),
-            {
-              marginVertical: scaledValue(10),
-              borderRadius: scaledValue(10),
-            },
+            styles.menuView,
+            {marginVertical: 10, borderRadius: scaledValue(10)},
           ]}>
           <TouchableOpacity
             onPress={() => {
@@ -122,8 +102,8 @@ const OptionMenuSheet = props => {
             }}>
             <Text
               style={[
-                styles.menuTitle('#007AFF', 17),
-                {color: '#007AFF', fontFamily: fonts.SF_PRO_TEXT_SEMIBOLD},
+                styles.menuTitle(colors.blue),
+                {color: colors.blue, fontFamily: fonts?.SUSE_SEMIBOLD},
               ]}>
               {props?.cancelTitle || 'Cancel'}
             </Text>
@@ -136,23 +116,16 @@ const OptionMenuSheet = props => {
 export default OptionMenuSheet;
 
 const styles = StyleSheet.create({
-  menuTitle: (textColor, fontSize) => ({
-    fontSize: fontSize ? getFontSize(fontSize) : getFontSize(18),
-    color: textColor || '#707070',
-    fontFamily: fonts.SF_PRO_TEXT_REGULAR,
+  menuTitle: textColor => ({
+    fontSize: getFontSize(18),
+    color: textColor ? textColor : colors.blue,
+    fontFamily: fonts?.SUSE_MEDIUM,
     textAlign: 'center',
-    lineHeight: scaledValue(21.6),
+    lineHeight: scaledValue(21.48),
   }),
-  menuView: height => ({
-    height: height ? height : 60,
-    backgroundColor: '#FFFBFE',
+  menuView: {
+    height: 60,
+    backgroundColor: '#FFF4EC',
     justifyContent: 'center',
-  }),
-  subTitle: {
-    textAlign: 'center',
-    fontSize: scaledValue(14),
-    color: '#3D3D3D',
-    fontFamily: fonts.SATOSHI_REGULAR,
-    lineHeight: scaledHeightValue(16.8),
   },
 });

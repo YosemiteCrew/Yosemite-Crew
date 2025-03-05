@@ -8,8 +8,11 @@ import {styles} from './styles';
 import GText from '../../../../../components/GText/GText';
 import {scaledValue} from '../../../../../utils/design.utils';
 import GButton from '../../../../../components/GButton';
+import useDataFactory from '../../../../../components/UseDataFactory/useDataFactory';
+import GImage from '../../../../../components/GImage';
 
-const BookAppointmentDepartmentDetail = ({navigation}) => {
+const BookAppointmentDepartmentDetail = ({navigation, route}) => {
+  const {departmentDetail, businessDetails} = route?.params;
   const {t} = useTranslation();
   useEffect(() => {
     configureHeader();
@@ -28,6 +31,18 @@ const BookAppointmentDepartmentDetail = ({navigation}) => {
           }}
         />
       ),
+      headerTitle: () => (
+        <GText
+          GrMedium
+          text={departmentDetail?.departmentName}
+          style={{
+            fontSize: scaledValue(18),
+            letterSpacing: scaledValue(18 * -0.01),
+            color: colors.darkPurple,
+            textTransform: 'capitalize',
+          }}
+        />
+      ),
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
@@ -39,20 +54,40 @@ const BookAppointmentDepartmentDetail = ({navigation}) => {
       ),
     });
   };
+
+  const {
+    loading,
+    data,
+    setData,
+    extraData,
+    refreshData,
+    loadMore,
+    Placeholder,
+    Loader,
+  } = useDataFactory(
+    'getDoctorsLists',
+    true,
+    {
+      businessId: businessDetails?.cognitoId,
+      departmentId: departmentDetail?.departmentId,
+    },
+    'POST',
+  );
+
   return (
     <View style={styles.dashboardMainView}>
       <GText
         SatoshiBold
-        text={'San Francisco Animal Medical Center'}
+        text={businessDetails?.profileData?.businessName}
         style={styles.headerTitle}
       />
       <View style={styles.headerView}>
         <GText GrMedium text={`${t('team_string')} `} style={styles.teamText} />
-        <GText GrMedium text={'(5)'} style={styles.countText} />
+        <GText GrMedium text={`(${data?.length})`} style={styles.countText} />
       </View>
       <View style={{}}>
         <FlatList
-          data={[1, 2, 3, 4, 5]}
+          data={data}
           style={{marginBottom: scaledValue(100)}}
           contentContainerStyle={{
             gap: scaledValue(24),
@@ -63,10 +98,11 @@ const BookAppointmentDepartmentDetail = ({navigation}) => {
                 <View style={styles.card}>
                   <View style={styles.cardInnerView}>
                     <View style={styles.doctorImgView}>
-                      <Image
-                        source={Images.DoctorImg}
+                      <GImage
+                        image={item?.personalInfo?.image}
                         style={styles.doctorImg}
                       />
+
                       <View style={styles.starImgView}>
                         <Image source={Images.Star} style={styles.starImg} />
                         <GText
@@ -84,17 +120,21 @@ const BookAppointmentDepartmentDetail = ({navigation}) => {
                     <View style={{marginLeft: scaledValue(8)}}>
                       <GText
                         GrMedium
-                        text={'Dr. Emily Johnson'}
+                        text={`Dr. ${
+                          item?.personalInfo?.firstName +
+                          ' ' +
+                          item?.personalInfo?.lastName
+                        }`}
                         style={styles.doctorName}
                       />
-                      <GText
+                      {/* <GText
                         SatoshiBold
                         text={'Cardiology'}
                         style={styles.departmentText}
-                      />
+                      /> */}
                       <GText
                         SatoshiBold
-                        text={'DVM, DACVIM'}
+                        text={item?.professionalBackground?.qualification}
                         style={styles.departmentText}
                       />
                       <View style={styles.experienceView}>
@@ -105,7 +145,7 @@ const BookAppointmentDepartmentDetail = ({navigation}) => {
                         />
                         <GText
                           SatoshiBold
-                          text={`13 Years`}
+                          text={`${item?.professionalBackground?.yearsOfExperience} Years`}
                           style={styles.experienceTextStyle}
                         />
                       </View>
@@ -117,7 +157,7 @@ const BookAppointmentDepartmentDetail = ({navigation}) => {
                         />
                         <GText
                           SatoshiBold
-                          text={`$220`}
+                          text={`$${item?.consultFee}`}
                           style={styles.experienceTextStyle}
                         />
                       </View>
@@ -127,6 +167,9 @@ const BookAppointmentDepartmentDetail = ({navigation}) => {
                     onPress={() => {
                       navigation?.navigate('StackScreens', {
                         screen: 'BookAppointment',
+                        params: {
+                          doctorDetail: item,
+                        },
                       });
                     }}
                     icon={Images.Calender}

@@ -23,8 +23,12 @@ import GTextButton from '../../../components/GTextButton/GTextButton';
 import {navigationContainerRef} from '../../../../App';
 import {CommonActions} from '@react-navigation/native';
 import {useAppSelector} from '../../../redux/store/storeUtils';
+import {useDispatch} from 'react-redux';
+import {add_pet} from '../../../redux/slices/petSlice';
 
-const MorePetDetails = ({navigation}) => {
+const MorePetDetails = ({navigation, route}) => {
+  const {choosePetDetail} = route?.params;
+
   const insets = useSafeAreaInsets();
   const statusBarHeight = insets.top;
   const authState = useAppSelector(state => state.auth);
@@ -34,6 +38,7 @@ const MorePetDetails = ({navigation}) => {
   const handlePress = id => {
     setSelectedId(id);
   };
+  const dispatch = useDispatch();
   const [formValue, setFormValue] = useState({
     age: '',
     microchip_number: '',
@@ -43,6 +48,28 @@ const MorePetDetails = ({navigation}) => {
     passport_number: '',
     pert_comes_from: '',
   });
+  const add_pet_hit = () => {
+    let petData = {
+      userId: '678de8072c714fcc7e1e3bf0',
+      petType: 'Dog',
+      petBreed: 'Beagle',
+      petName: 'Wishky',
+      petDateOfBirth: '2023/01/15',
+      petCurrentWeight: '10Kg',
+      petColor: 'blue',
+      petBloodGroup: 'o',
+      isNeutered: 'Yes',
+      ageWhenNeutered: '1',
+      microChipNumber: '2455',
+      isInsured: 'yes',
+      insuranceCompany: 'abzza',
+      policyNumber: '2565',
+      passportNumber: '5655',
+      petFrom: 'breeder',
+    };
+
+    dispatch(add_pet(petData));
+  };
 
   const insured = [
     {
@@ -78,6 +105,22 @@ const MorePetDetails = ({navigation}) => {
     },
   ];
 
+  const calculateAge = dobString => {
+    const dob = new Date(dobString.split('/').reverse().join('-')); // Convert "DD/MM/YYYY" to "YYYY-MM-DD"
+    const today = new Date();
+
+    let age = today.getFullYear() - dob.getFullYear();
+    const monthDiff = today.getMonth() - dob.getMonth();
+    const dayDiff = today.getDate() - dob.getDate();
+
+    // Adjust if the birth date hasn't occurred yet this year
+    if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+      age--;
+    }
+
+    return age;
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -103,7 +146,7 @@ const MorePetDetails = ({navigation}) => {
             <GText GrMedium text={t('more_string')} style={styles.headerText} />
             <GText
               GrMedium
-              text={'Beagle'}
+              text={` ${choosePetDetail?.name}`}
               style={styles.headerTextHighlighted}
             />
           </View>
@@ -116,14 +159,34 @@ const MorePetDetails = ({navigation}) => {
             </TouchableOpacity>
           </View>
           <View style={styles.infoView}>
-            <GText GrMedium text={'Kizie'} style={styles.petName} />
-            <GText SatoshiMedium text={'Beagle'} style={styles.breed} />
+            <GText
+              GrMedium
+              text={choosePetDetail?.name}
+              style={styles.petName}
+            />
+            <GText
+              SatoshiMedium
+              text={choosePetDetail?.petBreed}
+              style={styles.breed}
+            />
             <View style={styles.otherInfoView}>
-              <GText SatoshiMedium text={'Female'} style={styles.gender} />
+              <GText
+                SatoshiMedium
+                text={choosePetDetail?.gender}
+                style={styles.gender}
+              />
               <View style={styles.pointer} />
-              <GText SatoshiMedium text={'3Y'} style={styles.gender} />
+              <GText
+                SatoshiMedium
+                text={`${calculateAge(choosePetDetail?.dob)}Y`}
+                style={styles.gender}
+              />
               <View style={styles.pointer} />
-              <GText SatoshiMedium text={'28 lbs'} style={styles.gender} />
+              <GText
+                SatoshiMedium
+                text={`${choosePetDetail?.weight} lbs`}
+                style={styles.gender}
+              />
             </View>
           </View>
         </View>
@@ -284,19 +347,10 @@ const MorePetDetails = ({navigation}) => {
           onPress={() => {
             if (!authState?.user) {
               navigation?.navigate('PetProfileList');
-              // navigationContainerRef?.navigate('MyPetStack');
             } else {
-              navigationContainerRef?.navigate('MyPets');
-              // navigation.dispatch(
-              //   CommonActions.reset({
-              //     // index: 1, // Second tab (0-based index)
-              //     name: 'MyPets',
-              //     routes: [
-              //       {name: 'Home'}, // Optional: reset first tab
-              //       {name: 'MyPets'}, // Navigate to second tab
-              //     ],
-              //   }),
-              // );
+              add_pet_hit();
+
+              // navigationContainerRef?.navigate('MyPets');
             }
           }}
           title={t('add_pet_string')}

@@ -32,6 +32,7 @@ export const styles = StyleSheet.create({
   doctorImg: {
     width: scaledValue(88),
     height: scaledValue(88),
+    borderRadius: scaledValue(12),
   },
   card: {
     backgroundColor: '#FFF6EB',
@@ -82,6 +83,7 @@ export const styles = StyleSheet.create({
     height: scaledValue(44),
     marginBottom: scaledValue(16),
     marginHorizontal: scaledValue(12),
+    backgroundColor: 'transparent',
   },
   iconStyle: {
     width: scaledValue(16),

@@ -19,6 +19,11 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Input from '../../../../components/Input';
 import GButton from '../../../../components/GButton';
 import ContactOption from './ContactOption';
+import {contact_us} from '../../../../redux/slices/petSlice';
+import {showToast} from '../../../../components/Toast';
+import {useAppDispatch} from '../../../../redux/store/storeUtils';
+import OptionMenuSheet from '../../../../components/OptionMenuSheet';
+import {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scroll-view';
 
 const ContactUs = ({navigation}) => {
   const {t} = useTranslation();
@@ -27,9 +32,22 @@ const ContactUs = ({navigation}) => {
   const statusBarHeight = insets.top;
   const [subject, setSubject] = useState('');
   const [contactOption, setContactOption] = useState('general');
+  const [selectTitle, setSelectTitle] = useState('General Enquiry');
   const [selectedSubmitRequest, setSelectedSubmitRequest] = useState('');
   const [selectedSubmitRequestTo, setSelectedSubmitRequestTo] = useState('');
-  const [selectedConfirmTerm, setSelectedConfirmTerm] = useState('');
+  // const [selectedConfirmTerm, setSelectedConfirmTerm] = useState('');
+  const [selectedConfirmTerms, setSelectedConfirmTerms] = useState([]);
+  const toggleSelection = id => {
+    setSelectedConfirmTerms(
+      prevSelected =>
+        prevSelected.includes(id)
+          ? prevSelected.filter(item => item !== id) // Remove if already selected
+          : [...prevSelected, id], // Add if not selected
+    );
+  };
+  const [message, setMessage] = useState('');
+  const [selectLaw, setSelectLaw] = useState('');
+  const dispatch = useAppDispatch();
 
   const options = [
     {type: 'general', title: 'General Enquiry'},
@@ -45,15 +63,88 @@ const ContactUs = ({navigation}) => {
           : Images.Circle_Button
       }
       title={title}
-      onPress={() => setContactOption(optionType)}
+      onPress={() => {
+        setContactOption(optionType);
+        setSelectTitle(title);
+        setMessage('');
+        setSubject('');
+      }}
       titleStyle={{
         color: contactOption === optionType ? colors.appRed : colors.darkPurple,
       }}
     />
   );
 
+  const contactUs = () => {
+    const input = {
+      type: selectTitle,
+      subject: subject,
+      message: message,
+    };
+
+    const requests = [
+      {
+        question: 'You are submitting this request as',
+        answer: selectedSubmitRequest?.name,
+        type: 'requestAs',
+      },
+      {
+        question: 'Under the rights of which law are you making this request?',
+        answer: selectLaw?.title,
+        type: 'laws',
+      },
+      {
+        question: 'You are submitting this request to',
+        answer: selectedSubmitRequestTo?.name,
+        type: 'requestTo',
+      },
+    ];
+
+    const DSARinput = {
+      type: selectTitle,
+      message: message,
+      requests: JSON.stringify(requests),
+    };
+    console.log('DSARinput', DSARinput);
+
+    if (contactOption === 'dsar') {
+      if (
+        !selectedSubmitRequest?.name ||
+        !selectedSubmitRequestTo?.name ||
+        !selectLaw?.title
+      ) {
+        showToast(
+          0,
+          'Please select submitting request as/submitting request to/select one law',
+        );
+      } else {
+        dispatch(contact_us(contactOption == 'dsar' ? DSARinput : input)).then(
+          res => {
+            if (contact_us.fulfilled.match(res)) {
+              setSubject('');
+              setMessage('');
+              setSelectedSubmitRequest({});
+              setSelectedSubmitRequestTo({});
+            }
+          },
+        );
+      }
+    } else {
+      dispatch(contact_us(contactOption == 'dsar' ? DSARinput : input)).then(
+        res => {
+          if (contact_us.fulfilled.match(res)) {
+            setSubject('');
+            setMessage('');
+            setSelectedSubmitRequest({});
+            setSelectedSubmitRequestTo({});
+          }
+        },
+      );
+    }
+  };
+
   return (
-    <KeyboardAvoidingView
+    <KeyboardAwareScrollView
       style={styles.dashboardMainView}
       behavior={Platform.OS === 'ios' ? 'padding' : ''}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}>
@@ -114,11 +205,14 @@ const ContactUs = ({navigation}) => {
             />
             <TextInput
               multiline={true}
+              value={message}
+              onChangeText={text => setMessage(text)}
               placeholder={t('your_message_string')}
               placeholderTextColor={'#aaa'}
               style={styles.textInputStyle}
             />
             <GButton
+              onPress={contactUs}
               title={'Send Message'}
               style={[
                 styles.buttonStyle,
@@ -140,10 +234,10 @@ const ContactUs = ({navigation}) => {
               <TouchableOpacity
                 key={item?.id}
                 style={styles.submitRequestView(index, submitRequestList)}
-                onPress={() => setSelectedSubmitRequest(item.id)}>
+                onPress={() => setSelectedSubmitRequest(item)}>
                 <Image
                   source={
-                    selectedSubmitRequest == item?.id
+                    selectedSubmitRequest?.id == item?.id
                       ? Images.Circle_Radio
                       : Images.Circle_Button
                   }
@@ -152,7 +246,7 @@ const ContactUs = ({navigation}) => {
                 <GText
                   text={item?.name}
                   style={styles.submitRequestItemName(
-                    selectedSubmitRequest,
+                    selectedSubmitRequest?.id,
                     item,
                   )}
                 />
@@ -165,12 +259,12 @@ const ContactUs = ({navigation}) => {
             />
             <TouchableOpacity
               onPress={() => {
-                // refRBSheet?.current?.open();
+                refRBSheet?.current?.open();
               }}
               style={styles.professionalButton}>
               <GText
                 SatoshiRegular
-                text={t('select_one_string')}
+                text={selectLaw?.title || t('select_one_string')}
                 style={styles.professionalText}
               />
               <Image source={Images.ArrowDown} style={styles.arrowIcon} />
@@ -185,10 +279,10 @@ const ContactUs = ({navigation}) => {
               <TouchableOpacity
                 key={item?.id}
                 style={styles.submitRequestView(index, submitRequestToList)}
-                onPress={() => setSelectedSubmitRequestTo(item.id)}>
+                onPress={() => setSelectedSubmitRequestTo(item)}>
                 <Image
                   source={
-                    selectedSubmitRequestTo == item?.id
+                    selectedSubmitRequestTo?.id == item?.id
                       ? Images.Circle_Radio
                       : Images.Circle_Button
                   }
@@ -197,7 +291,7 @@ const ContactUs = ({navigation}) => {
                 <GText
                   text={item?.name}
                   style={styles.submitRequestItemName(
-                    selectedSubmitRequestTo,
+                    selectedSubmitRequestTo?.id,
                     item,
                   )}
                 />
@@ -211,6 +305,8 @@ const ContactUs = ({navigation}) => {
             />
             <TextInput
               multiline={true}
+              value={message}
+              onChangeText={text => setMessage(text)}
               placeholder={t('your_message_string')}
               placeholderTextColor={'#aaa'}
               style={[
@@ -230,10 +326,10 @@ const ContactUs = ({navigation}) => {
               <TouchableOpacity
                 key={item?.id}
                 style={styles.submitRequestView(index, confirmList)}
-                onPress={() => setSelectedConfirmTerm(item.id)}>
+                onPress={() => toggleSelection(item.id)}>
                 <Image
                   source={
-                    selectedConfirmTerm == item?.id
+                    selectedConfirmTerms.includes(item.id)
                       ? Images.Check_fill
                       : Images.UnCheck
                   }
@@ -242,14 +338,16 @@ const ContactUs = ({navigation}) => {
                 <GText
                   text={item?.name}
                   style={styles.submitRequestItemName(
-                    selectedConfirmTerm,
+                    selectedConfirmTerms.includes(item.id),
                     item,
                   )}
                 />
               </TouchableOpacity>
             ))}
             <GButton
-              title={'Sumbit Request'}
+              disabled={selectedConfirmTerms?.length < 3}
+              onPress={contactUs}
+              title={'Submit Request'}
               style={[
                 styles.buttonStyle,
                 {
@@ -262,18 +360,17 @@ const ContactUs = ({navigation}) => {
           </>
         )}
       </ScrollView>
-      {/* <GMultipleOptions
+      <OptionMenuSheet
         refRBSheet={refRBSheet}
-        title="Are you a pet professional?"
-        options={professionalList}
-        search={false}
-        value={selectProfessional}
-        multiSelect={true}
+        title={'Select Law'}
+        options={lawsList}
         onChoose={val => {
-          setSelectProfessional(val);
+          setSelectLaw(val);
+          refRBSheet.current.close();
         }}
-      /> */}
-    </KeyboardAvoidingView>
+        onPressCancel={() => refRBSheet.current.close()}
+      />
+    </KeyboardAwareScrollView>
   );
 };
 
@@ -339,6 +436,19 @@ const confirmList = [
   {
     id: 3,
     name: 'I understand that I will be required to validate my request my email, and I may be contacted in order to complete the request.',
+  },
+];
+
+const lawsList = [
+  {
+    id: 0,
+    title: 'Personal laws',
+    textColor: '#3E3E3E',
+  },
+  {
+    id: 1,
+    title: 'Labour',
+    textColor: '#3E3E3E',
   },
 ];
 
