@@ -50,6 +50,7 @@ export const styles = StyleSheet.create({
   profileImage: {
     width: scaledValue(100),
     height: scaledValue(100),
+    borderRadius: scaledValue(50),
   },
   formContainer: {
     marginTop: scaledValue(13),
@@ -57,7 +58,7 @@ export const styles = StyleSheet.create({
   input: {
     width: '100%',
     backgroundColor: 'transparent',
-    fontSize: scaledValue(16),
+    fontSize: scaledValue(14),
     // lineHeight: scaledValue(16),
     marginTop: scaledValue(16),
     paddingLeft: scaledValue(10),

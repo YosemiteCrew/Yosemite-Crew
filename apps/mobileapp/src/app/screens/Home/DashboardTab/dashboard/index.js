@@ -28,17 +28,25 @@ const Dashboard = ({navigation}) => {
   const swiperRef = useRef();
   const [selectPet, setSelectPet] = useState({});
   const userData = useAppSelector(state => state.auth.user);
+
   const dispatch = useAppDispatch();
+  const getPetList = useAppSelector(state => state.pets?.petLists);
+  const petList = useAppSelector(state => state.pets?.petLists);
 
   useEffect(() => {
-    dispatch(get_pet_list());
+    dispatch(
+      get_pet_list({
+        offset: 0,
+        limit: 10,
+      }),
+    );
   }, []);
 
   const [scrollIndex, setScrollIndex] = useState(0);
   const [visible, setVisible] = useState(false);
 
   const handlePetSelection = pet => {
-    if (selectPet?.id === pet.id) {
+    if (selectPet?._id === pet._id) {
       setSelectPet(null);
     } else {
       setSelectPet(pet);
@@ -55,7 +63,14 @@ const Dashboard = ({navigation}) => {
             paddingRight: scaledValue(20),
           }}>
           <TouchableOpacity onPress={() => setVisible(true)}>
-            <GText text={'🚨'} style={{paddingRight: scaledValue(6.33)}} />
+            <Image
+              source={Images.Emergency}
+              style={{
+                width: scaledValue(24),
+                height: scaledValue(24),
+                marginRight: scaledValue(6),
+              }}
+            />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerRight}
@@ -81,16 +96,21 @@ const Dashboard = ({navigation}) => {
               borderRadius: scaledValue(40),
             }}
           />
-          <GText GrMedium text={'Henlo, Sky'} style={styles.greetingText} />
+          <GText
+            GrMedium
+            componentProps={{numberOfLines: 1, ellipsizeMode: 'tail'}}
+            text={`Henlo, ${userData?.firstName}`}
+            style={styles.greetingText}
+          />
         </View>
       ),
     });
   }, [navigation]);
 
-  const petList = [
-    {id: 1, name: 'Kizie', img: Images.Kizi},
-    {id: 2, name: 'Oscar', img: Images.CatImg},
-  ];
+  // const petList = [
+  //   {id: 1, name: 'Kizie', img: Images.Kizi},
+  //   {id: 2, name: 'Oscar', img: Images.CatImg},
+  // ];
 
   const modalData = [
     {
@@ -193,9 +213,9 @@ const Dashboard = ({navigation}) => {
   const renderPetItem = ({item}) => (
     <TouchableOpacity
       onPress={() => handlePetSelection(item)}
-      style={{opacity: selectPet?.id === item.id ? 0.5 : 1}}>
-      <Image source={item.img} style={styles.petImage} />
-      <GText SatoshiBold text={item.name} style={styles.petNameText} />
+      style={{opacity: selectPet?._id === item._id ? 0.4 : 1}}>
+      <Image source={Images.Kizi} style={styles.petImage} />
+      <GText SatoshiBold text={item.petName} style={styles.petNameText} />
     </TouchableOpacity>
   );
 

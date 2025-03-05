@@ -86,7 +86,7 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(18),
     lineHeight: scaledValue(21.6),
     color: colors.appRed,
-    marginTop: scaledValue(40),
+    marginTop: scaledValue(25),
     letterSpacing: scaledValue(18 * -0.01),
   },
   questionsContainer: {
@@ -117,6 +117,7 @@ export const styles = StyleSheet.create({
     lineHeight: scaledHeightValue(19.2),
     letterSpacing: scaledValue(16 * -0.02),
     color: colors.darkPurple,
+    textTransform: 'capitalize',
   },
   circleImg: {
     width: scaledValue(16),

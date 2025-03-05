@@ -1,12 +1,14 @@
 import {
+  Alert,
   Image,
   KeyboardAvoidingView,
+  PermissionsAndroid,
   Platform,
   ScrollView,
   TouchableOpacity,
   View,
 } from 'react-native';
-import React, {useState} from 'react';
+import React, {useRef, useState} from 'react';
 import {colors} from '../../../../assets/colors';
 import {scaledValue} from '../../../utils/design.utils';
 import {Images} from '../../../utils';
@@ -18,15 +20,22 @@ import {fonts} from '../../../utils/fonts';
 import LinearGradient from 'react-native-linear-gradient';
 import GButton from '../../../components/GButton';
 import DatePicker from 'react-native-date-picker';
+import ImagePicker from 'react-native-image-crop-picker';
 import {styles} from './styles';
+import {openSettings, PERMISSIONS, request} from 'react-native-permissions';
+import OptionMenuSheet from '../../../components/OptionMenuSheet';
 
 const AddPetDetails = ({navigation, route}) => {
-  const {petBreed} = route?.params;
+  const {choosePetData} = route?.params;
+
   const insets = useSafeAreaInsets();
   const statusBarHeight = insets.top;
   const {t} = useTranslation();
   const [selectedId, setSelectedId] = useState(null);
+  const refRBSheet = useRef();
   const [date, setDate] = useState('');
+  const [apiCallImage, setApiCallImage] = useState();
+  const [image, setImage] = useState();
   const [open, setOpen] = useState(false);
   const handlePress = id => {
     setSelectedId(id);
@@ -51,7 +60,9 @@ const AddPetDetails = ({navigation, route}) => {
     blood_group: '',
     zip: '',
     neutered: '',
+    weight: '',
   });
+  console.log(formValue?.dob);
 
   const gender = [
     {
@@ -73,6 +84,116 @@ const AddPetDetails = ({navigation, route}) => {
       neutered: t('not_neutered_string'),
     },
   ];
+
+  const handlePicker = async () => {
+    if (Platform.OS == 'android') {
+      const status = await PermissionsAndroid.request(
+        'android.permission.READ_MEDIA_IMAGES',
+      );
+
+      if (
+        status === 'granted' ||
+        status === 'unavailable' ||
+        status === 'never_ask_again'
+      ) {
+        console.log('underGranted');
+
+        ImagePicker.openPicker({
+          width: 800,
+          height: 800,
+          cropping: false,
+          compressImageMaxHeight: 800,
+          compressImageMaxWidth: 800,
+          // mediaType: 'photo',
+        })
+          .then(image => {
+            let name =
+              Platform.OS == 'android'
+                ? image?.path.substring(image?.path.lastIndexOf('/') + 1)
+                : image?.filename;
+            let type = image?.mime;
+            let localUri = image?.path;
+            console.log('herherhehher000', image);
+            setImage(image?.path);
+            setApiCallImage({name, uri: localUri, type});
+          })
+          .catch(error => {
+            console.error('Error opening picker:', error);
+          });
+        console.log('Permission granted');
+      } else if (status === 'denied' || status === 'blocked') {
+        Alert.alert(
+          'Permission Blocked',
+          'Please grant permission to access photos in order to select an image.',
+          [
+            {
+              text: 'Cancel',
+              style: 'cancel',
+              onPress: () => console.log('cancel'),
+            },
+            {
+              text: 'Open Settings',
+              onPress: () => openSettings(),
+            },
+          ],
+        );
+      }
+    } else {
+      const status = await request(PERMISSIONS.IOS.PHOTO_LIBRARY);
+      if (status === 'granted' || status === 'limited') {
+        ImagePicker.openPicker({
+          width: 800,
+          height: 800,
+          cropping: false,
+          compressImageMaxHeight: 800,
+          compressImageMaxWidth: 800,
+          mediaType: 'photo',
+        }).then(image => {
+          console.log('imagePickertss', image);
+          let name =
+            Platform.OS == 'android'
+              ? image?.path.substring(image?.path.lastIndexOf('/') + 1)
+              : image?.filename;
+          let type = image?.mime;
+          let localUri = image?.path;
+          setImage(image?.path);
+          setApiCallImage({name, uri: localUri, type});
+        });
+      } else if (status === 'denied') {
+        Alert.alert(
+          'Permission Denied',
+          'Please grant permission to access photos in order to select an image.',
+          [
+            {
+              text: 'Cancel',
+              style: 'cancel',
+              onPress: () => console.log('cancel'),
+            },
+            {
+              text: 'Open Settings',
+              onPress: () => openSettings(),
+            },
+          ],
+        );
+      } else if (status === 'blocked') {
+        Alert.alert(
+          'Permission Blocked',
+          'Please grant permission to access photos in order to select an image.',
+          [
+            {
+              text: 'Cancel',
+              style: 'cancel',
+              onPress: () => console.log('cancel'),
+            },
+            {
+              text: 'Open Settings',
+              onPress: () => openSettings(),
+            },
+          ],
+        );
+      }
+    }
+  };
 
   return (
     <KeyboardAvoidingView
@@ -106,13 +227,18 @@ const AddPetDetails = ({navigation, route}) => {
               componentProps={{
                 numberOfLines: 1,
               }}
-              text={petBreed}
+              text={choosePetData?.petBreed}
               style={styles.headerTextHighlighted}
             />
           </View>
         </View>
-        <TouchableOpacity style={styles.profileImageContainer}>
-          <Image source={Images.importProfile} style={styles.profileImage} />
+        <TouchableOpacity
+          onPress={handlePicker}
+          style={styles.profileImageContainer}>
+          <Image
+            source={image ? {uri: image} : Images.importProfile}
+            style={styles.profileImage}
+          />
         </TouchableOpacity>
         <View style={styles.formContainer}>
           <Input
@@ -124,11 +250,23 @@ const AddPetDetails = ({navigation, route}) => {
           />
           <TouchableOpacity
             onPress={() => setOpen(true)}
-            style={styles.datePickerContainer}>
+            style={[
+              styles.datePickerContainer,
+              {
+                borderWidth: date ? scaledValue(1) : scaledValue(0.5),
+                borderColor: date ? colors.primary : '#312943',
+              },
+            ]}>
             <GText
-              SatoshiRegular
               text={date ? formatDate(date) : t('dob_string')}
-              style={styles.dateText}
+              style={[
+                styles.dateText,
+                {
+                  fontFamily: date
+                    ? fonts?.SATOSHI_MEDIUM
+                    : fonts?.SATOSHI_REGULAR,
+                },
+              ]}
             />
             <Image source={Images.Calender} style={styles.dateIcon} />
           </TouchableOpacity>
@@ -176,17 +314,15 @@ const AddPetDetails = ({navigation, route}) => {
               </LinearGradient>
             ))}
           </View>
-          <TouchableOpacity style={styles.weightContainer}>
-            <GText
-              SatoshiRegular
-              text={t('current_weight_string')}
-              style={styles.weightText}
-            />
-            <View style={styles.weightIconContainer}>
-              <GText SatoshiBold text={'lbs'} style={styles.weightUnitText} />
-              <Image source={Images.ArrowDown} style={styles.weightIcon} />
-            </View>
-          </TouchableOpacity>
+          <Input
+            value={formValue.weight}
+            label={t('current_weight_string')}
+            onChangeText={value => setFormValue({...formValue, weight: value})}
+            style={styles.input}
+            maxLength={6}
+            keyboardType="number-pad"
+          />
+
           <Input
             value={formValue.color}
             label={t('color_string')}
@@ -194,11 +330,32 @@ const AddPetDetails = ({navigation, route}) => {
             style={styles.input}
             keyboardType={'default'}
           />
-          <TouchableOpacity style={styles.bloodGroupContainer}>
+          <TouchableOpacity
+            onPress={() => {
+              refRBSheet?.current?.open();
+            }}
+            style={[
+              styles.bloodGroupContainer,
+              {
+                borderWidth: formValue?.blood_group
+                  ? scaledValue(1)
+                  : scaledValue(0.5),
+                borderColor: formValue?.blood_group
+                  ? colors.primary
+                  : '#312943',
+              },
+            ]}>
             <GText
               SatoshiRegular
-              text={t('blood_group_string')}
-              style={styles.bloodGroupText}
+              text={formValue?.blood_group || t('blood_group_string')}
+              style={[
+                styles.bloodGroupText,
+                {
+                  fontFamily: formValue?.blood_group
+                    ? fonts.SATOSHI_MEDIUM
+                    : fonts.SATOSHI_REGULAR,
+                },
+              ]}
             />
             <Image source={Images.ArrowDown} style={styles.bloodGroupIcon} />
           </TouchableOpacity>
@@ -245,7 +402,12 @@ const AddPetDetails = ({navigation, route}) => {
           </View>
           <GButton
             onPress={() => {
-              navigation?.navigate('MorePetDetails');
+              navigation?.navigate('MorePetDetails', {
+                choosePetDetail: {
+                  ...formValue,
+                  ...choosePetData,
+                },
+              });
             }}
             title={t('confirm_button_string')}
             style={styles.createButton}
@@ -260,12 +422,51 @@ const AddPetDetails = ({navigation, route}) => {
           onConfirm={date => {
             setOpen(false);
             setDate(date);
+            setFormValue({...formValue, dob: formatDate(date)});
           }}
           onCancel={() => setOpen(false)}
         />
       </ScrollView>
+      <OptionMenuSheet
+        refRBSheet={refRBSheet}
+        title={'Select Blood Group'}
+        options={groupList}
+        onChoose={val => {
+          setFormValue({...formValue, blood_group: val?.title});
+          refRBSheet.current.close();
+        }}
+        onPressCancel={() => refRBSheet.current.close()}
+      />
     </KeyboardAvoidingView>
   );
 };
 
 export default AddPetDetails;
+
+const groupList = [
+  {
+    id: 0,
+    title: 'DEA 1',
+    textColor: '#3E3E3E',
+  },
+  {
+    id: 1,
+    title: 'DEA 3',
+    textColor: '#3E3E3E',
+  },
+  {
+    id: 2,
+    title: 'DEA 4',
+    textColor: '#3E3E3E',
+  },
+  {
+    id: 3,
+    title: 'DEA 5',
+    textColor: '#3E3E3E',
+  },
+  {
+    id: 4,
+    title: 'DEA 7',
+    textColor: '#3E3E3E',
+  },
+];

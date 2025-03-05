@@ -5,6 +5,7 @@ import {scaledValue} from '../../utils/design.utils';
 const HeaderButton = ({icon, tintColor, onPress, style}) => {
   return (
     <TouchableOpacity
+      activeOpacity={1}
       style={style ? style : styles.headerButton}
       onPress={onPress}>
       <Image source={icon} tintColor={tintColor} style={styles.headerIcon} />

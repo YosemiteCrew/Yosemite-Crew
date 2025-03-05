@@ -120,9 +120,13 @@ export const styles = StyleSheet.create({
   buttonStyle: {
     borderWidth: scaledValue(1),
     borderColor: colors.appRed,
-    marginTop: scaledValue(12),
+    // marginTop: scaledValue(12),
     borderRadius: scaledValue(28),
     height: scaledValue(38),
+    position: 'absolute',
+    bottom: 0,
+    width: '92%',
+    marginHorizontal: scaledValue(20),
   },
   iconStyle: {
     width: scaledValue(14),
@@ -137,9 +141,11 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingTop: scaledValue(12),
+    // position: 'absolute',
+    // bottom: -10,
   },
   flatListUnderView: {
-    flexDirection: 'column',
+    // flexDirection: 'column',
     width: scaledValue(200),
     marginLeft: scaledValue(20),
   },
@@ -147,7 +153,10 @@ export const styles = StyleSheet.create({
     // gap: scaledValue(20),
     // marginLeft: scaledValue(20),
   },
-  flatListView: {marginTop: scaledValue(12)},
+  flatListView: {
+    marginTop: scaledValue(12),
+    height: scaledValue(312),
+  },
   titleView: {
     marginTop: scaledValue(40),
     paddingHorizontal: scaledValue(20),

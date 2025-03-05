@@ -48,6 +48,7 @@ const ChooseYourPet = ({navigation}) => {
       id: 1,
       icon: Images.Cat,
       title: t('cat_string'),
+      value: 'Cat',
       style: {
         width: scaledValue(100),
         height: scaledValue(110.87),
@@ -58,6 +59,7 @@ const ChooseYourPet = ({navigation}) => {
     {
       id: 2,
       icon: Images.Dog,
+      value: 'Dog',
       title: t('dog_string'),
       style: {
         width: scaledValue(109),
@@ -69,6 +71,7 @@ const ChooseYourPet = ({navigation}) => {
     {
       id: 3,
       icon: Images.Horse,
+      value: 'Horse',
       title: t('horse_string'),
       style: {
         width: scaledValue(99.9),
@@ -118,7 +121,10 @@ const ChooseYourPet = ({navigation}) => {
           refRBSheet?.current?.close();
           setTimeout(() => {
             navigation?.navigate('AddPetDetails', {
-              petBreed: selectPetBreed,
+              choosePetData: {
+                petBreed: selectPetBreed,
+                petType: selectedPetId?.title,
+              },
             });
           }, 250);
         }}

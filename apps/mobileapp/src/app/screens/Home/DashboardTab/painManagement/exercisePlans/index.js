@@ -3,12 +3,13 @@ import React, {useEffect} from 'react';
 import {useTranslation} from 'react-i18next';
 import {Images} from '../../../../../utils';
 import {colors} from '../../../../../../assets/colors';
-import {styles} from './styles';
 import GText from '../../../../../components/GText/GText';
 import {scaledValue} from '../../../../../utils/design.utils';
 import CustomProgressBar from '../../../../../components/CustomProgressBar';
 import GButton from '../../../../../components/GButton';
 import HeaderButton from '../../../../../components/HeaderButton';
+import {styles} from './styles';
+
 const ExercisePlans = ({navigation}) => {
   const {t} = useTranslation();
   useEffect(() => {

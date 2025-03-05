@@ -63,11 +63,12 @@ export const styles = StyleSheet.create({
     height: scaledValue(28),
   },
   greetingText: {
-    fontSize: scaledValue(26),
+    fontSize: scaledValue(22),
     lineHeight: scaledHeightValue(31.2),
     letterSpacing: scaledValue(26 * -0.01),
     marginLeft: scaledValue(8),
     color: colors.darkPurple,
+    textTransform: 'capitalize',
   },
   petsText: {
     fontSize: scaledValue(20),
