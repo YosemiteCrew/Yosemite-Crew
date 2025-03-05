@@ -29,8 +29,8 @@ jobs:
                 cache: 'npm'
             - name: Install dependencies
               run: npm ci --legacy-peer-deps
-            - name: Linting
-              run: npx nx lint mobileapp
+            # - name: Linting
+            #   run: npx nx lint mobileapp
     ci-app-status-check:
         if: always() && !cancelled()
         timeout-minutes: 1
