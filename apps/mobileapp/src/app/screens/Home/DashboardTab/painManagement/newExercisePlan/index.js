@@ -1,6 +1,5 @@
 import {Image, TouchableOpacity, View} from 'react-native';
 import React, {useEffect, useState} from 'react';
-import {styles} from './styles';
 import {Images} from '../../../../../utils';
 import {colors} from '../../../../../../assets/colors';
 import {useTranslation} from 'react-i18next';
@@ -10,6 +9,7 @@ import GButton from '../../../../../components/GButton';
 import GTextButton from '../../../../../components/GTextButton/GTextButton';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import HeaderButton from '../../../../../components/HeaderButton';
+import {styles} from './styles';
 
 const NewExercisePlan = ({navigation}) => {
   const {t} = useTranslation();

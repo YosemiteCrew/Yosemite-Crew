@@ -86,7 +86,9 @@ const SignIn = ({navigation}) => {
 
     dispatch(send_otp_sign_in(input)).then(res => {
       if (send_otp_sign_in.fulfilled.match(res)) {
-        setShowButton(true);
+        if (res?.payload?.status === 1) {
+          setShowButton(true);
+        }
       }
     });
   };

@@ -128,7 +128,7 @@ const Notifications = ({navigation}) => {
     },
     {
       id: 6,
-      title: 'Exercise Activity Reminder',
+      title: 'Exercise Reminder',
       timeAgo: '10d ago',
       message:
         'Time for Kizie’s daily exercises. Let’s keep her on track with her recovery.',

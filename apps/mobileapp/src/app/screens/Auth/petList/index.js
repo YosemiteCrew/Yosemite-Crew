@@ -16,34 +16,41 @@ import GButton from '../../../components/GButton';
 import OptionMenuSheet from '../../../components/OptionMenuSheet';
 import {useAppSelector} from '../../../redux/store/storeUtils';
 
+import {addPet} from '../../../redux/slices/petSlice';
+import {useDispatch, useSelector} from 'react-redux';
+
 const PetProfileList = ({navigation}) => {
   const refRBSheet = useRef();
   const insets = useSafeAreaInsets();
   const statusBarHeight = insets.top;
   const {t} = useTranslation();
+  const dispatch = useDispatch();
+  const petList = useAppSelector(state => state.pets?.petLists);
+  console.log('petList0123', petList);
+
   const authState = useAppSelector(state => state.auth);
-  const petList = [
-    {
-      id: 1,
-      img: Images.Kizi,
-      name: 'Kizie',
-      breed: 'Beagle',
-      gender: 'Female',
-      age: '3Y',
-      weight: '28 lbs',
-      profile_percentage: '21',
-    },
-    {
-      id: 2,
-      img: Images.CatImg,
-      name: 'Oscar',
-      breed: 'Egyptian Mau',
-      gender: 'Male',
-      age: '2Y',
-      weight: '12 lbs',
-      profile_percentage: '96',
-    },
-  ];
+  // const petList = [
+  //   {
+  //     id: 1,
+  //     img: Images.Kizi,
+  //     name: 'Kizie',
+  //     breed: 'Beagle',
+  //     gender: 'Female',
+  //     age: '3Y',
+  //     weight: '28 lbs',
+  //     profile_percentage: '21',
+  //   },
+  //   {
+  //     id: 2,
+  //     img: Images.CatImg,
+  //     name: 'Oscar',
+  //     breed: 'Egyptian Mau',
+  //     gender: 'Male',
+  //     age: '2Y',
+  //     weight: '12 lbs',
+  //     profile_percentage: '96',
+  //   },
+  // ];
 
   const petListOptionMenu = [
     {
@@ -114,13 +121,13 @@ const PetProfileList = ({navigation}) => {
               <View style={styles.petProfileMainContainer}>
                 <View style={styles.petProfileContainer}>
                   <View style={{}}>
-                    <Image source={item?.img} style={styles.petImg} />
+                    <Image source={Images.CatImg} style={styles.petImg} />
                   </View>
                   <View style={styles.infoView}>
-                    <GText GrMedium text={item?.name} style={styles.petName} />
+                    <GText GrMedium text={item?.petName} style={styles.petName} />
                     <GText
                       SatoshiMedium
-                      text={item?.breed}
+                      text={item?.petBreed}
                       style={styles.breed}
                     />
                     <View style={styles.otherInfoView}>
@@ -132,21 +139,21 @@ const PetProfileList = ({navigation}) => {
                       <View style={styles.pointer} />
                       <GText
                         SatoshiMedium
-                        text={item?.age}
+                        text={item?.ageWhenNeutered}
                         style={styles.gender}
                       />
                       <View style={styles.pointer} />
                       <GText
                         SatoshiMedium
-                        text={item?.weight}
+                        text={item?.petCurrentWeight}
                         style={styles.gender}
                       />
                     </View>
-                    <CustomProgressBar percentage={item?.profile_percentage} />
+                    <CustomProgressBar percentage={10} />
                     <View style={{flexDirection: 'row'}}>
                       <GText
                         GrMedium
-                        text={`${item?.profile_percentage}%`}
+                        text={`${10}%`}
                         style={styles.percentageText}
                       />
                       <GText
@@ -168,7 +175,7 @@ const PetProfileList = ({navigation}) => {
         />
       </View>
       <GButton
-        onPress={() => {
+        onPress={async () => {
           if (!authState?.user) {
             navigation?.navigate('PetSummary');
           } else {
@@ -183,6 +190,7 @@ const PetProfileList = ({navigation}) => {
         style={styles.buttonStyle}
         textStyle={styles.buttonText}
       />
+
       <OptionMenuSheet
         refRBSheet={refRBSheet}
         options={petListOptionMenu}

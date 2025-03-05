@@ -14,7 +14,7 @@ export {default as ParasiticideReport} from '../screens/Home/DashboardTab/parasi
 export {default as VaccineRecords} from '../screens/Home/DashboardTab/vaccinationManagement/vaccineRecords';
 export {default as AddVaccineRecord} from '../screens/Home/DashboardTab/vaccinationManagement/addVaccineRecord';
 export {default as EditVaccineRecord} from '../screens/Home/DashboardTab/vaccinationManagement/editVaccineRecord';
-export {default as ExercisePlans} from '../screens/Home/DashboardTab/painManagement/exerciseExercisePlans';
+export {default as ExercisePlans} from '../screens/Home/DashboardTab/painManagement/exercisePlans';
 export {default as CreateNewPlan} from '../screens/Home/DashboardTab/painManagement/createNewPlan';
 export {default as IndividualExercises} from '../screens/Home/DashboardTab/painManagement/individualExercises';
 export {default as NewExercisePlan} from '../screens/Home/DashboardTab/painManagement/newExercisePlan';
@@ -68,4 +68,4 @@ export {default as AddBreederDetails} from '../screens/Auth/addBreederDetail';
 export {default as GroomerDetails} from '../screens/Auth/groomerDetail';
 export {default as PetBoardingDetails} from '../screens/Auth/petBoardingDetail';
 export {default as VeterinaryDetails} from '../screens/Auth/veterinaryDetails';
-export {default as ConfirmSignUp} from '../screens/Auth/confirmSignUp'
+export {default as ConfirmSignUp} from '../screens/Auth/confirmSignUp';
