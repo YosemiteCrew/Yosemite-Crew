@@ -83,9 +83,13 @@ async function handleBookAppointment(req, res) {
                 : app.appointmentDate >= today ? upcomingAppointments 
                 : pastAppointments).push(app);
 
-            app.veterinarian && veterinarianIds.add(app.veterinarian);
-            app.petId && petIds.add(app.petId);
-            app.hospitalId && hospitalIds.add(app.hospitalId);
+                // app.veterinarian && veterinarianIds.add(app.veterinarian);
+                // app.petId && petIds.add(app.petId);
+                // app.hospitalId && hospitalIds.add(app.hospitalId);
+            
+                if (app.veterinarian) veterinarianIds.add(app.veterinarian);
+                if (app.petId) petIds.add(app.petId);
+                if (app.hospitalId) hospitalIds.add(app.hospitalId);
         });
 
         const [veterinarians, pets, hospitals] = await Promise.all([
