@@ -22,6 +22,9 @@ const {
   handleRescheduleAppointment,
   handleTimeSlotsByMonth,
   handlesaveFeedBack,
+  handlegetFeedBack,
+  handleEditFeedBack,
+  handleDeleteFeedBack,
 } = require("../controllers/appointment");
 const { handleContactUs } = require("../controllers/contact");
 const {
@@ -50,7 +53,8 @@ const {
 } = require("../controllers/sharedDuties");
 const {
   handleGetLists,
-  handlegetDoctorsLists
+  handlegetDoctorsLists,
+  handlegetDoctorsTeam
 } = require("../controllers/lists");
 const router = express.Router();
 const multer = require("multer");
@@ -92,6 +96,10 @@ router.post("/sendquery", verifyTokenAndRefresh,handleContactUs);
 router.post("/getLists",handleGetLists);
 router.post("/getDoctorsLists",handlegetDoctorsLists);
 router.post("/saveFeedBack",handlesaveFeedBack);
+router.post("/getFeedBack",handlegetFeedBack);
+router.post("/editFeedBack",handleEditFeedBack);
+router.post("/deleteFeedBack",handleDeleteFeedBack);
+router.post("/getDoctorsTeam",handlegetDoctorsTeam);
 router.post(
   "/addVaccinationRecord",verifyTokenAndRefresh,
   upload.single("vaccineImage"),
