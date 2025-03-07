@@ -7,6 +7,10 @@ const feedbacks = require("../models/FeedBack");
 const jwt = require('jsonwebtoken');
 const moment = require('moment');
 const {  handleMultipleFileUpload } = require('../middlewares/upload');
+const adddoctors  = require('../models/addDoctor');
+const departments = require('../models/AddDepartment');
+const yoshpets = require('../models/YoshPet');
+const { ProfileData }= require('../models/WebUser');
 
 
 
@@ -63,32 +67,81 @@ async function handleBookAppointment(req, res) {
     }
   }
 
-async function handleGetAppointment(req, res) {
+  async function handleGetAppointment(req, res) {
     try {
-      const token = req.headers.authorization.split(' ')[1]; // Extract token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET); // Verify token
-      const cognitoUserId = decoded.username; // Get user ID from token
-      const startOfToday = new Date().toISOString().split("T")[0]; 
-      const endOfToday = new Date(new Date().setHours(23, 59, 59, 999)).toISOString().split("T")[0]; 
-      
-      const [allAppointments, confirmedAppointments, upcomingAppointments, pastAppointments, todayAppointments] = await Promise.all([
-        webAppointments.find({ userId: cognitoUserId }),
-        webAppointments.find({ userId: cognitoUserId, appointmentStatus: 1 }),
-        webAppointments.find({ userId: cognitoUserId, appointmentDate: { $gte: startOfToday, $lte: endOfToday }, appointmentStatus: 0 }), // Include today
-        webAppointments.find({ userId: cognitoUserId, appointmentDate: { $lt: startOfToday }, appointmentStatus: 0 }),
-        webAppointments.find({ userId: cognitoUserId, appointmentDate: startOfToday, appointmentStatus: 0 }) // Explicit today filter
-      ]);
-      res.json({
-        allAppointments,
-        confirmedAppointments,
-        upcomingAppointments,
-        pastAppointments
-      });
+        const token = req.headers.authorization.split(' ')[1];
+        const cognitoUserId = jwt.verify(token, process.env.JWT_SECRET).username;
+        const today = new Date().toISOString().split("T")[0];
+
+        const allAppointments = await webAppointments.find({ userId: cognitoUserId }).lean();
+        const [confirmedAppointments, upcomingAppointments, pastAppointments] = [[], [], []];
+
+        const veterinarianIds = new Set(), petIds = new Set(), hospitalIds = new Set();
+
+        allAppointments.forEach(app => {
+            (app.appointmentStatus === 1 ? confirmedAppointments 
+                : app.appointmentDate >= today ? upcomingAppointments 
+                : pastAppointments).push(app);
+
+                // app.veterinarian && veterinarianIds.add(app.veterinarian);
+                // app.petId && petIds.add(app.petId);
+                // app.hospitalId && hospitalIds.add(app.hospitalId);
+            
+                if (app.veterinarian) veterinarianIds.add(app.veterinarian);
+                if (app.petId) petIds.add(app.petId);
+                if (app.hospitalId) hospitalIds.add(app.hospitalId);
+        });
+
+        const [veterinarians, pets, hospitals] = await Promise.all([
+            veterinarianIds.size ? adddoctors.find({ userId: { $in: [...veterinarianIds] } })
+                .select("userId personalInfo professionalBackground").lean() : [],
+            petIds.size ? yoshpets.find({ _id: { $in: [...petIds] } }).select("_id petImage").lean() : [],
+            hospitalIds.size ? ProfileData.find({ userId: { $in: [...hospitalIds] } })
+                .select("userId businessName address.latitude address.longitude").lean() : []
+        ]);
+
+        const specializationMap = Object.fromEntries(
+            await departments.find({ _id: { $in: veterinarians.map(vet => vet.professionalBackground.specialization) } })
+                .select("_id departmentName").lean().then(specs => specs.map(spec => [spec._id.toString(), spec.departmentName]))
+        );
+
+        const veterinarianMap = Object.fromEntries(veterinarians.map(vet => [
+            vet.userId, {
+                firstName: vet.personalInfo.firstName,
+                lastName: vet.personalInfo.lastName,
+                image: vet.personalInfo.image,
+                qualification: vet.professionalBackground.qualification,
+                specialization: specializationMap[vet.professionalBackground.specialization] || "Unknown"
+            }
+        ]));
+
+        const petMap = Object.fromEntries(pets.map(pet => [pet._id.toString(), pet.petImage]));
+        const hospitalMap = Object.fromEntries(hospitals.map(hospital => [
+            hospital.userId, {
+                businessName: hospital.businessName,
+                latitude: hospital.address?.latitude || null,
+                longitude: hospital.address?.longitude || null
+            }
+        ]));
+
+        const enrichAppointments = appointments => appointments.map(app => ({
+            ...app, veterinarian: veterinarianMap[app.veterinarian] || null,
+            petImage: petMap[app.petId] || null, hospitalData: hospitalMap[app.hospitalId] || null
+        }));
+
+        res.json({
+            allAppointments: enrichAppointments(allAppointments),
+            confirmedAppointments: enrichAppointments(confirmedAppointments),
+            upcomingAppointments: enrichAppointments(upcomingAppointments),
+            pastAppointments: enrichAppointments(pastAppointments)
+        });
+
     } catch (error) {
-      console.error("Error fetching appointments:", error);
-      res.status(500).json({ message: "An error occurred while retrieving appointments" });
+        console.error("Error fetching appointments:", error);
+        res.status(500).json({ message: "An error occurred while retrieving appointments" });
     }
-  }
+}
+
 
 
 async function handleCancelAppointment(req,res) {
@@ -320,6 +373,67 @@ async function handlesaveFeedBack(req, res) {
   }
 }
 
+async function handlegetFeedBack(req, res) {
+  try {
+    const { doctorId,meetingId } = req.body;
+    const  doctorFeedBack= await feedbacks.find({
+      toId: doctorId,
+      meetingId
+    }).lean();
+    if (doctorFeedBack.length) {
+      return  res.status(200).json({
+        status: 1,
+        "Feedback" : doctorFeedBack
+      });
+    }else{
+      return res.status(200).json({ status: 0, message:"Feedback is not Found" });
+    } 
+  } catch (error) {
+    return res.status(500).json({ status: 0, message: "An error occurred while retrieving feedback" });
+  }
+}
+
+async function handleEditFeedBack(req, res) {
+  try {
+    const { feedbackId, feedback, rating } = req.body;
+    const feedbackExists = await feedbacks.findById(feedbackId).lean();
+    if (!feedbackExists) {
+      return res.status(200).json({ status: 0, message: "Feedback data not found" });
+    }
+    const updatedFeedback = await feedbacks.findByIdAndUpdate(
+      feedbackId,
+      { $set: { feedback, rating } }, 
+      { new: true } 
+    );
+
+    if (updatedFeedback) {
+      return res.status(200).json({ 
+        status: 1, 
+        message: "Feedback updated successfully", 
+        Feedback: updatedFeedback 
+      });
+    } else {
+      return res.status(200).json({ status: 0, message: "Error while updating feedback" });
+    }
+  } catch (error) {
+    return res.status(500).json({ status: 0, message: "An error occurred while updating feedback" });
+  }
+}
+
+async function handleDeleteFeedBack(req, res) {
+  try {
+    const feedbackId = req.body.feedbackId;
+    const result = await feedbacks.deleteOne({ _id: feedbackId });
+    if (result.deletedCount === 0) {
+      return res.status(200).json({ status: 0, message: "FeedBack data not found" });
+    }
+    return res.status(200).json({ status: 1, message: "Feedback deleted successfully" });
+  } catch (error) {
+    return res.status(500).json({ status: 0, message: "Error while deleting feedback" });
+  }
+}
+
+
 module.exports = {
     handleBookAppointment,
     handleGetAppointment,
@@ -328,4 +442,7 @@ module.exports = {
     handleRescheduleAppointment,
     handleTimeSlotsByMonth,
     handlesaveFeedBack,
+    handlegetFeedBack,
+    handleEditFeedBack,
+    handleDeleteFeedBack,
 }
