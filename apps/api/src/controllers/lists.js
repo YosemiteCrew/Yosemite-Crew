@@ -16,7 +16,7 @@ async function handleGetLists(req, res) {
         const fetchDepartmentsAndRating = async (hospitals) => {
             return Promise.all(hospitals.map(async (hospital) => {
                 const [departments, feedbacksList] = await Promise.all([
-                    Department.find({ businessId: hospital.cognitoId }),
+                    Department.find({ bussinessId: hospital.cognitoId }),
                     feedbacks.find({ toId: hospital.cognitoId })
                 ]);
 

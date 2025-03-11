@@ -260,7 +260,7 @@ const authController = {
   
       const [{ encryptedData, iv }] = result.password;
       const decrypt_Password = decryptPassword(encryptedData, iv);
-      console.log(decrypt_Password)
+    
   
       const secretHash = getSecretHash(email);
       const params = {
