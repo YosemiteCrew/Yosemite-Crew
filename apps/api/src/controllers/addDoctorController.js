@@ -301,42 +301,38 @@ const AddDoctorsController = {
   // },
 
   getOverview: async (req, res) => {
+    const { userId } = req.query;
+    console.log("userId",userId);
+  
     try {
+      // Count unique specializations
       const aggregation = await AddDoctors.aggregate([
+        {
+          $match: { bussinessId: userId },
+        },
         {
           $group: {
             _id: '$professionalBackground.specialization',
           },
         },
         {
-          $group: {
-            _id: null,
-            totalSpecializations: { $sum: 1 },
-          },
+          $count: 'totalSpecializations', // Directly count distinct specializations
         },
       ]);
   
-      const totalDoctors = await AddDoctors.countDocuments();
+      // Total doctors under this business
+      const totalDoctors = await AddDoctors.countDocuments({ bussinessId: userId });
   
-      // Aggregation to count doctors where isAvailable = 1
-      const availableDoctorsAggregation = await AddDoctors.aggregate([
-        {
-          $match: { isAvailable: '1' }, // Filter only available doctors
-        },
-        {
-          $group: {
-            _id: null,
-            availableDoctors: { $sum: 1 }, // Count them
-          },
-        },
-      ]);
-  
-      const availableDoctors = availableDoctorsAggregation[0]?.availableDoctors || 0;
+      // Count available doctors
+      const availableDoctors = await AddDoctors.countDocuments({ 
+        bussinessId: userId, 
+        isAvailable: '1' 
+      });
   
       const overview = {
         totalDoctors,
         totalSpecializations: aggregation[0]?.totalSpecializations || 0,
-        availableDoctors, // Doctors with isAvailable = 1
+        availableDoctors,
       };
   
       return res.status(200).json(overview);
@@ -344,8 +340,30 @@ const AddDoctorsController = {
       console.error('Error fetching overview data:', error);
       return res.status(500).json({ message: 'Internal server error', error });
     }
-  },  
+  },
+  getForAppDoctorsBySpecilizationId: async (req, res) => {
+    try {
+     
+      const { userId ,value} = req.query;
 
+      const doctors = await AddDoctors.find({
+        'professionalBackground.specialization': { $exists: true, $eq: value },
+        bussinessId: { $exists: true, $eq: userId },
+      }).select('userId personalInfo.firstName personalInfo.lastName');
+
+      if (!doctors || doctors.length === 0) {
+        return res
+          .status(404)
+          .json({ message: 'No doctors found for this specialization' });
+      }
+
+      return res.status(200).json(doctors);
+    } catch (error) {
+      console.error('Error fetching doctors by specialization ID:', error);
+
+      return res.status(500).json({ message: 'Internal server error', error });
+    }
+  },
   getDoctorsBySpecilizationId: async (req, res) => {
     try {
       const { id } = req.params;
@@ -372,16 +390,17 @@ const AddDoctorsController = {
   searchDoctorsByName: async (req, res) => {
     try {
       const { name, bussinessId } = req.query;
-      console.log('name', name);
+      console.log('name', name,bussinessId);
 
       if (!bussinessId) {
         return res.status(400).json({ message: 'Business ID is required' });
       }
 
-      const [firstName = '', lastName = ''] = name.split(' ');
+      const [firstName = '', lastName = ''] =name? name.split(' '):"";
+      
 
       const searchFilter = {
-        bussinessId, // Ensure we only fetch doctors belonging to this business
+        bussinessId, 
         $or: [
           { 'personalInfo.firstName': { $regex: firstName, $options: 'i' } },
           { 'personalInfo.lastName': { $regex: lastName, $options: 'i' } },
@@ -849,7 +868,7 @@ const AddDoctorsController = {
         {
           $match: {
             veterinarian: doctorId,
-            isCanceled: { $ne: 2 }, // Exclude appointments where isCanceled is 2
+            isCanceled: { $eq: 0 }, // Exclude appointments where isCanceled is 2
           },
         },
         {

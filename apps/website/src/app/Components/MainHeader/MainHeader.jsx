@@ -181,7 +181,7 @@ const MainHeader = ({ isMainHeader }) => {
                   Home
                 </Link>
               </li>
-              {userType === 'Hospital' ? (
+              {userType === 'Hospital'||userType === 'Groomer Shop' ? (
                 <li>
                   <Link to="/checkin">Waiting Room</Link>
                 </li>
@@ -192,7 +192,7 @@ const MainHeader = ({ isMainHeader }) => {
                 </li>
               ) : null}
 
-              {userType === 'Hospital' ? (
+              {userType === 'Hospital' ||userType === 'Groomer Shop'? (
                 <li>
                   <Link to="/addoctor">Doctors</Link>
                 </li>
@@ -203,7 +203,7 @@ const MainHeader = ({ isMainHeader }) => {
               <li>
                 <Link to="/AssessmentManagement">Assessments</Link>
               </li>
-              {userType === 'Hospital' ? (
+              {userType === 'Hospital'||userType === 'Groomer Shop' ? (
                 <li>
                   <Link to="/inventory">Inventory</Link>
                 </li>

@@ -78,6 +78,14 @@ const ProfileDataSchema = new mongoose.Schema({
       type: String,
       required: true,
     },
+    latitude: {
+      type: String,
+      required: true,
+    },
+    longitude: {
+      type: String,
+      required: true,
+    }
   },
   activeModes: {
     type: String,

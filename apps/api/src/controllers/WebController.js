@@ -456,6 +456,8 @@ const WebController = {
         city,
         state,
         zipCode,
+        latitude,
+        longitude,
         activeModes,
         selectedServices,
       } = req.body;
@@ -515,7 +517,7 @@ const WebController = {
             yearOfEstablishment,
             phoneNumber,
             website,
-            address: { addressLine1, street, city, state, zipCode },
+            address: { addressLine1, street, city, state, zipCode,latitude, longitude },
             activeModes,
             selectedServices,
             logo: logo || undefined, // Keep existing logo if not updated

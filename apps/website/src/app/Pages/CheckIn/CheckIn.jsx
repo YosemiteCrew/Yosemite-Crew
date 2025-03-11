@@ -1,5 +1,4 @@
-// eslint-disable-next-line no-unused-vars
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import './CheckIn.css';
 import Modal from 'react-bootstrap/Modal';
 import Swal from 'sweetalert2';
@@ -10,8 +9,15 @@ import {
   CiCircleChevRight,
 } from 'react-icons/ci';
 import { BoxDiv, DivHeading } from '../Dashboard/page';
+import box1 from '../../../../public/Images/box1.png';
+
 import box2 from '../../../../public/Images/box2.png';
+import box3 from '../../../../public/Images/box3.png';
+import box4 from '../../../../public/Images/box4.png';
+
 import box5 from '../../../../public/Images/box5.png';
+import box6 from '../../../../public/Images/box6.png';
+
 import { Forminput } from '../SignUp/SignUp';
 import { Col, Row } from 'react-bootstrap';
 import DynamicSelect from '../../Components/DynamicSelect/DynamicSelect';
@@ -20,10 +26,11 @@ import { MainBtn } from '../Appointment/page';
 import PatientsTable from '../../Components/PatientsTable/PatientsTable';
 import axios from 'axios';
 import { useAuth } from '../../context/useAuth';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 function CheckInModal(props) {
-  const { userId, profileData } = useAuth();
+  const { userId, profileData ,onLogout} = useAuth();
+  const navigate= useNavigate()
 
   const [AllData, setAllData] = useState({
     hospitalId: '',
@@ -123,12 +130,14 @@ function CheckInModal(props) {
   );
 
   const [department, setDepartment] = useState([]);
+  console.log("department",department)
 
-  const getSpecializationDepartment = async () => {
+  const getSpecializationDepartment = useCallback(async () => {
     // console.log('userId', userId);
     try {
+      const token = sessionStorage.getItem("token");
       const response = await axios.get(
-        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/auth/getAddDepartment?userId=${userId}`
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/auth/getAddDepartment?userId=${userId}`,{headers:{Authorization: `Bearer ${token}`}}
       );
       if (response && response.data) {
         const data = response.data;
@@ -140,26 +149,32 @@ function CheckInModal(props) {
         );
       }
     } catch (error) {
-      console.error('Error fetching departments:', error);
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
     }
-  };
+  },[userId,navigate,onLogout]);
 
   useEffect(() => {
     getSpecializationDepartment();
     // getWaittingRoomOverView();
-  }, [userId]);
+  }, [userId,getSpecializationDepartment]);
   const [veterinarian, setVeterinarian] = useState(null);
   console.log('veterinarian', veterinarian);
   const handleDepartmentSelect = async (value) => {
+    console.log('Department Selected:', value);
     setAllData((prev) => ({
       ...prev,
       department: value,
     }));
-
+    const token = sessionStorage.getItem('token');
     try {
       console.log('id', value);
       const response = await axios.get(
-        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/getDoctorsBySpecilizationId/${value}?userId=${userId}`
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/getForAppDoctorsBySpecilizationId`,{params: {value: value,userId: userId}, headers: {
+          Authorization: `Bearer ${token}`, // Attach the token to the request headers
+        },}
       );
 
       if (response && response.data) {
@@ -174,7 +189,10 @@ function CheckInModal(props) {
         );
       }
     } catch (error) {
-      console.error('Error fetching doctors:', error);
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
     }
   };
   const handleveternarian = (value) => {
@@ -196,6 +214,7 @@ function CheckInModal(props) {
       day: day,
     }));
     try {
+      const token = sessionStorage.getItem("token");  
       const { data } = await axios.get(
         `${process.env.NX_PUBLIC_VITE_BASE_URL}api/appointments/getslots`,
         {
@@ -204,6 +223,7 @@ function CheckInModal(props) {
             day,
             date,
           },
+          headers: {Authorization: `Bearer ${token}`},
         }
       );
       console.log('data', data);
@@ -214,6 +234,10 @@ function CheckInModal(props) {
         setAvailableSlots([]);
       }
     } catch (error) {
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
       console.error('Error fetching doctor slots:', error);
       setAvailableSlots([]);
     }
@@ -253,9 +277,10 @@ function CheckInModal(props) {
     // console.log('AllData', AllData);
     if (!validateFields()) return;
     try {
+      const token = sessionStorage.getItem("token");
       const response = await axios.post(
         `${process.env.NX_PUBLIC_VITE_BASE_URL}api/appointments/webappointment`,
-        AllData
+        AllData,{headers:{Authorization:`Bearer ${token}`}}
       );
 
       if (response.status === 200) {
@@ -285,13 +310,16 @@ function CheckInModal(props) {
       });
       props.onHide();
     } catch (error) {
-      // Error alert
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
       Swal.fire({
         icon: 'error',
         title: 'Something went wrong!',
         text: 'There was an issue creating the appointment. Please try again.',
       });
-      console.error('Error:', error);
+      
     }
   };
 
@@ -665,7 +693,8 @@ function CheckInModal(props) {
 }
 
 const CheckIn = () => {
-  const { userId } = useAuth();
+  const { userId, onLogout } = useAuth();
+  const navigate = useNavigate()
   const [modalShow, setModalShow] = React.useState(false);
   const [waittingRoomOverView, setWaitingRoomOverView] = useState({});
   const [
@@ -676,34 +705,42 @@ const CheckIn = () => {
     'WaitingRoomOverViewPatientInQueue',
     WaitingRoomOverViewPatientInQueue
   );
-  const getWaittingRoomOverView = async () => {
+  const getWaittingRoomOverView = useCallback(async () => {
     try {
+      const token = sessionStorage.getItem("token");
       const response = await axios.get(
-        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/WaitingRoomOverView?userId=${userId}`
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/WaitingRoomOverView?userId=${userId}`,{headers:{Authorization:`Bearer ${token}`}}
       );
       if (response.status === 200) {
         setWaitingRoomOverView(response.data);
       }
     } catch (error) {
-      console.error('Error:', error);
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
     }
-  };
-  const WaittingRoomOverViewPatientInQueue = async () => {
+  },[userId,onLogout,navigate]);
+  const WaittingRoomOverViewPatientInQueue = useCallback(async () => {
     try {
+      const token = sessionStorage.getItem("token");
       const response = await axios.get(
-        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/WaittingRoomOverViewPatientInQueue?userId=${userId}`
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/WaittingRoomOverViewPatientInQueue?userId=${userId}`,{headers:{Authorization:`Bearer ${token}`}}
       );
       if (response.status === 200) {
         setWaitingRoomOverViewPatientInQueue(response.data.Appointments);
       }
     } catch (error) {
-      console.error('Error:', error);
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
     }
-  };
+  },[userId, navigate,onLogout]);
   useEffect(() => {
     getWaittingRoomOverView();
     WaittingRoomOverViewPatientInQueue();
-  }, [userId]);
+  }, [userId,WaittingRoomOverViewPatientInQueue,getWaittingRoomOverView]);
   return (
     <>
       <section className="CheckInSec">
@@ -749,15 +786,15 @@ const CheckIn = () => {
                 <div className="CheckInOverview">
                   <div className="Boxsed">
                     <BoxDiv
-                      boximg={box2}
+                      boximg={box1}
                       ovradcls="purple"
                       ovrtxt="Patients in Waiting Room"
                       boxcoltext="purpletext"
                       overnumb={waittingRoomOverView.totalAppointments}
                     />
                     <BoxDiv
-                      boximg={box2}
-                      ovradcls=" fawndark"
+                      boximg={box3}
+                      ovradcls=" cambrageblue"
                       ovrtxt="Tokens Generated Today"
                       boxcoltext="frowntext"
                       overnumb={waittingRoomOverView.appointmentsCreatedToday}
@@ -770,22 +807,22 @@ const CheckIn = () => {
                       overnumb={waittingRoomOverView.checkedIn}
                     />
                     <BoxDiv
-                      boximg={box2}
-                      ovradcls="chillibg"
+                      boximg={box4}
+                      ovradcls="fawndark"
                       ovrtxt="Consultations Completed"
                       boxcoltext="ciltext"
                       overnumb={waittingRoomOverView.successful}
                     />
                     <BoxDiv
-                      boximg={box2}
-                      ovradcls="purple"
+                      boximg={box6}
+                      ovradcls="chillibg"
                       ovrtxt="Cancelled Tokens"
                       boxcoltext="purpletext"
                       overnumb={waittingRoomOverView.canceled}
                     />
                     <BoxDiv
                       boximg={box2}
-                      ovradcls=" fawndark"
+                      ovradcls=" purple"
                       ovrtxt="Doctors On-Duty"
                       boxcoltext="frowntext"
                       overnumb={waittingRoomOverView.availableDoctors}

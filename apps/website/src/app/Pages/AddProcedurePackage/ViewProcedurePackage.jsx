@@ -13,7 +13,7 @@ import Swal from 'sweetalert2';
 
 function ViewProcedurePackage(fetchPackageData) {
   const navigate = useNavigate();
-  const { userId } = useAuth();
+  const { userId ,onLogout} = useAuth();
   const { id } = useParams();
   const [procedureData, setProcedureData] = useState({
     id: '',
@@ -26,8 +26,9 @@ function ViewProcedurePackage(fetchPackageData) {
   useEffect(() => {
     const fetchPackageData = async () => {
       try {
-        const response = await axios.get(
-          `${process.env.NX_PUBLIC_VITE_BASE_URL}api/inventory/GetProcedurePackageByid?id=${id}&userId=${userId}`
+        const token = sessionStorage.getItem("token");
+        const response = await axios.get(                   
+          `${process.env.NX_PUBLIC_VITE_BASE_URL}api/inventory/GetProcedurePackageByid?id=${id}&userId=${userId}`,{headers:{Authorization:`Bearer ${token}`}}
         );
 
         const data = response.data.procedurePackage;
@@ -42,14 +43,17 @@ function ViewProcedurePackage(fetchPackageData) {
           })),
         });
       } catch (error) {
-        console.error('Error fetching procedure package:', error);
+        if (error.response && error.response.status === 401) {
+          console.log('Session expired. Redirecting to signin...');
+          onLogout(navigate);
+        }
       }
     };
 
     if (id) {
       fetchPackageData();
     }
-  }, [id, userId]);
+  }, [id, userId,navigate,onLogout]);
 
   // Function to handle deleting package items
   // const handleDeleteItem = (key) => {
@@ -62,9 +66,10 @@ function ViewProcedurePackage(fetchPackageData) {
   const handleUpdate = async (e) => {
     e.preventDefault();
     try {
+      const token = sessionStorage.getItem("token");
       const response = await axios.put(
         `${process.env.NX_PUBLIC_VITE_BASE_URL}api/inventory/updateProcedurePackage?id=${id}&userId=${userId}`,
-        procedureData
+        procedureData,{headers:{Authorization:`Bearer ${token}`}}
       );
      if(response){ 
        navigate('/inventory');
@@ -76,6 +81,10 @@ function ViewProcedurePackage(fetchPackageData) {
 
      }
     } catch (error) {
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
      Swal.fire({
       title: 'Error Updating Procedure Package',
       text: 'Error Updating Procedure Package',
