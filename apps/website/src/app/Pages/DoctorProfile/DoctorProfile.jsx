@@ -22,13 +22,15 @@ import Swal from 'sweetalert2';
 import { useAuth } from '../../context/useAuth';
 
 function DoctorProfile() {
-  const { doctorProfile, userId, initializeUser } = useAuth();
+  const { doctorProfile, userId, initializeUser,onLogout } = useAuth();
   const navigate = useNavigate();
 
   const [modalShow, setModalShow] = useState(false);
   const [modalShow1, setModal1Show] = useState(false);
   const [modalShow2, setModal2Show] = useState(false);
   const [uploadedfiles, setUploadedFiles] = useState([]);
+  const [MainUrl, setMainUrl] = useState('')
+  console.log("MainUrl",MainUrl);
   const [personalInfo, setPersonalInfo] = useState({
     firstName: '',
     lastName: '',
@@ -98,6 +100,8 @@ function DoctorProfile() {
     }
 
     if (doctorProfile?.documents?.length > 0) {
+      const url = doctorProfile?.documents[0].name.slice(0, 75)
+      console.log("url", url);
       const updatedDocuments = doctorProfile.documents.map((doc) => ({
         
         _id: doc._id,
@@ -105,7 +109,7 @@ function DoctorProfile() {
         type: doc.type,
         date: new Date(doc.date).toLocaleDateString(),
       }));
-
+      setMainUrl(url);
       setUploadedFiles(updatedDocuments);
       // console.log('updatedDocuments', updatedDocuments);
     }
@@ -219,6 +223,7 @@ function DoctorProfile() {
         professionalBackground: professionalBackground,
       })
     );
+    const token = sessionStorage.getItem('token');
     try {
       const response = await axios.put(
         `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/updateProfile/${userId}`,
@@ -227,7 +232,7 @@ function DoctorProfile() {
           headers: {
             'Content-Type': 'multipart/form-data',
             // Add any necessary authorization headers, like a JWT token, if needed
-            // Authorization: `Bearer ${authToken}`,
+            Authorization: `Bearer ${token}`,
           },
         }
       );
@@ -245,6 +250,10 @@ function DoctorProfile() {
       }
     } catch (error) {
       console.error('Error updating profile:', error);
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
       Swal.fire({
         icon: 'error',
         title: 'Error',

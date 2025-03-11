@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import './Add_Doctor.css';
 import PropTypes from 'prop-types';
 import { BoxDiv } from '../Dashboard/page';
@@ -38,7 +38,7 @@ const Add_Doctor = () => {
   console.log('doctorsData', doctorsData);
 
   const debouncedSearch = useDebounce(search, 500);
-  const getaDoctors = async () => {
+  const getaDoctors = useCallback(async () => {
     try {
       // Get the token from sessionStorage
       const token = sessionStorage.getItem('token');
@@ -66,12 +66,12 @@ const Add_Doctor = () => {
         onLogout(navigate);
       }
     }
-  };
+  },[userId, navigate, onLogout, debouncedSearch]);
 
-  const getOverview = async () => {
+  const getOverview = useCallback(async () => {
     try {
       const response = await axios.get(
-        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/getOverview`
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/getOverview`, {params: {userId}}
       );
       if (response) {
         setOverview(response.data);
@@ -80,12 +80,11 @@ const Add_Doctor = () => {
     } catch (error) {
       console.error('Error fetching overview:', error);
     }
-  };
-
+  },[]);
   useEffect(() => {
     getaDoctors();
     getOverview();
-  }, [debouncedSearch, userId]);
+  }, [debouncedSearch, userId,getOverview,getaDoctors]);
 
   const handleSearch = (e) => {
     setSearch(e.target.value);

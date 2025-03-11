@@ -16,7 +16,7 @@ import ActionsTable from '../../Components/ActionsTable/ActionsTable';
 import Accpt from '../../../../public/Images/acpt.png';
 import Decln from '../../../../public/Images/decline.png';
 import StatusTable from '../../Components/StatusTable/StatusTable';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button, Modal } from 'react-bootstrap';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
@@ -28,7 +28,8 @@ import Swal from 'sweetalert2';
 import { useAuth } from '../../context/useAuth';
 
 const Doctor_Dashboard = () => {
-  const { doctorProfile, userId } = useAuth();
+  const { doctorProfile, userId ,onLogout} = useAuth();
+  const navigate = useNavigate()
   const [showMore, setShowMore] = useState(false);
   const [duration, setduration] = useState(null);
   const [date, setDate] = useState(new Date());
@@ -59,12 +60,19 @@ const Doctor_Dashboard = () => {
   const [showModal, setShowModal] = useState(false);
   const getStatus = async () => {
     try {
+      const token = sessionStorage.getItem("token");
       const response = await axios.get(
-        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/getAvailabilityStatus?userId=${userId}`
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/getAvailabilityStatus?userId=${userId}`,{
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
       console.log('response.data', response.data.isAvailable);
       setStatus(response.data.isAvailable.toString());
     } catch (error) {
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
       console.log('error', error);
     }
   };
@@ -72,10 +80,15 @@ const Doctor_Dashboard = () => {
   const handleToggle = async () => {
     const newStatus = status === '1' ? '0' : '1';
     try {
+      const token = sessionStorage.getItem("token");
       const response = await axios.put(
-        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/updateAvailability?userId=${userId}&status=${newStatus}`
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/updateAvailability?userId=${userId}&status=${newStatus}`,
+        {}, // Empty body, since you're using query parameters
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
       );
-
+      
       if (response) {
         getStatus();
         Swal.fire({
@@ -85,6 +98,10 @@ const Doctor_Dashboard = () => {
         });
       }
     } catch (error) {
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
       console.log('error', error);
       Swal.fire({
         title: 'Error',
@@ -157,13 +174,14 @@ const Doctor_Dashboard = () => {
       }
     });
     try {
-      console.log('dayclicked try', day);
+     const token = sessionStorage.getItem("token");
       const { data } = await axios.get(
         `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/getDoctorsSlotes`,
         {
           params: {
             doctorId: userId,
             day,
+            
             date: `${new Date(selectedDate).getFullYear()}-${(
               new Date(selectedDate).getMonth() + 1
             )
@@ -172,6 +190,9 @@ const Doctor_Dashboard = () => {
               .getDate()
               .toString()
               .padStart(2, '0')}`,
+          },
+          headers:{
+            Authorization: `Bearer ${token}`,
           },
         }
       );
@@ -233,9 +254,12 @@ const Doctor_Dashboard = () => {
   const handleSlotes = async () => {
     try {
       console.log('hello');
+      const token = sessionStorage.getItem("token");
       const response = await axios.post(
         `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/addDoctorsSlots/${userId}`,
-        { slots: timeSlots, day: Day }
+        { slots: timeSlots, day: Day },{headers:{
+          Authorization: `$Bearer ${token}`,
+        }}
       );
       if (response) {
         Swal.fire({
@@ -246,6 +270,10 @@ const Doctor_Dashboard = () => {
         closeModal();
       }
     } catch (error) {
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
       Swal.fire({
         icon: 'error',
         title: 'Error',
@@ -260,39 +288,55 @@ const Doctor_Dashboard = () => {
   const getAllAppointments = async (offset) => {
     console.log('offset', offset);
     try {
+      const token = sessionStorage.getItem("token");
       const response = await axios.get(
         `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/getAppointmentForDoctorDashboard?doctorId=${userId}&offset=${offset}
 
-        `
+        `,{
+          headers: {
+            Authorization: `Bearer ${token}`, // Attach the token to the request headers
+          },
+        }
       );
       if (response) {
         setTotal(response.data.totalAppointments);
         setAllAppointments(response.data.Appointments);
       }
     } catch (error) {
-      console.log(error);
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
+      
     }
   };
   const [Last_7DaysCounts, setLast_7DaysCounts] = useState(null);
   const getlast7daysAppointMentsCount = async () => {
     try {
+      const token = sessionStorage.getItem('token')
       const response = await axios.get(
-        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/getLast7DaysAppointmentsTotalCount?doctorId=${userId}`
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/getLast7DaysAppointmentsTotalCount?doctorId=${userId}`,{headers:{
+          Authorization: `Bearer ${token}`,
+        }}
       );
       if (response) {
         setLast_7DaysCounts(response.data.totalAppointments);
       }
     } catch (error) {
-      console.log(error);
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
     }
   };
 
   const AppointmentActions = async (id, status, offset) => {
     console.log('iddd', id, status, offset);
     try {
+      const token = sessionStorage.getItem("token")
       const response = await axios.put(
         `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/AppointmentAcceptedAndCancel/${id}`,
-        { status }
+        { status }, {headers:{ Authorization: `Bearer ${token}`}}
       );
       if (response.status == 200) {
         Swal.fire({
@@ -304,6 +348,10 @@ const Doctor_Dashboard = () => {
       getAllAppointments(offset);
       getlast7daysAppointMentsCount();
     } catch (error) {
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
       Swal.fire({
         title: 'Error',
         text: 'Failed to Change Appointment Status',
