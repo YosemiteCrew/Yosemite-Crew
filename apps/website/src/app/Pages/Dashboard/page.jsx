@@ -1,5 +1,5 @@
 // eslint-disable-next-line no-unused-vars
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import './Dashboard.css';
 import PropTypes from 'prop-types';
 import grph1 from '../../../../public/Images/graph1.png';
@@ -11,16 +11,18 @@ import box1 from '../../../../public/Images/box1.png';
 import box2 from '../../../../public/Images/box2.png';
 import box3 from '../../../../public/Images/box3.png';
 import box4 from '../../../../public/Images/box4.png';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 // import Topic from "../../../public/Images/topic.png";
 import ActionsTable from '../../Components/ActionsTable/ActionsTable';
 import StatusTable from '../../Components/StatusTable/StatusTable';
 import axios from 'axios';
 import StackedBarChart from '../Graph/page';
 import { useAuth } from '../../context/useAuth';
+import Swal from 'sweetalert2';
 
 const Dashboard = () => {
-  const { userId } = useAuth();
+  const { userId,onLogout } = useAuth();
+  const navigate = useNavigate()
   // Dropdown options
   const optionsList = [
     'Last 6 Months',
@@ -28,37 +30,133 @@ const Dashboard = () => {
     'Last 8 Months',
     'Last 9 Months',
   ];
+  const [overView, setOverview] = useState({});
+  const [totalAppointments, setTotalAppointments] = useState(0);
+  const [appointments, setAllAppointments] = useState([]);
   const [CancelCompletedGraph, setCancelCompletedGraph] = useState(null);
-  console.table(CancelCompletedGraph);
-  const AppointmentGraphOnMonthBase = async (selectedOption, userId) => {
-    const days = parseInt(selectedOption.match(/\d+/)[0], 10);
-    console.log(`Selected Days: ${days}`);
-    try {
-      const response = await axios.get(
-        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/AppointmentGraphOnMonthBase?userId=${userId}`,
-        {
-          params: {
-            days: days,
-          },
-        }
-      );
-      console.log(response.data);
-      if (response) {
-        setCancelCompletedGraph(
-          response.data.data.map((v) => ({
-            month: v.monthName,
-            completed: v.successful,
-            cancelled: v.canceled,
-          }))
+  // console.table(CancelCompletedGraph);
+  const AppointmentGraphOnMonthBase = useCallback(
+    async (selectedOption, userId) => {
+      const days = parseInt(selectedOption.match(/\d+/)[0], 10);
+      console.log(`Selected Days: ${days}`);
+      try {
+        const token = sessionStorage.getItem("token");
+        const response = await axios.get(
+          `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/AppointmentGraphOnMonthBase?userId=${userId}`,
+          {
+            params: {
+              days: days,
+            },
+            headers: {Authorization: `Bearer ${token}`},
+          }
         );
+        console.log(response.data);
+        if (response) {
+          setCancelCompletedGraph(
+            response.data.data.map((v) => ({
+              month: v.monthName,
+              completed: v.successful,
+              cancelled: v.canceled,
+            }))
+          );
+        }
+      } catch (error) {
+        if (error.response && error.response.status === 401) {
+          console.log('Session expired. Redirecting to signin...');
+          onLogout(navigate);
+        }
+      }
+    },
+    [navigate,onLogout]
+  );
+
+  const getOverView = useCallback(async () => {
+    try {
+      const token = sessionStorage.getItem('token')
+      const response = await axios.get(
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/hospitalDashboard`,
+        { params: { userId } , headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (response) {
+        setOverview(response.data);
+        console.log('overview', response.data);
       }
     } catch (error) {
-      console.error(error);
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
+    }
+  }, [userId, onLogout,navigate]);
+
+  const getAllAppointments = useCallback(
+    async (offset) => {
+      console.log('offset', offset);
+      try {
+        const token = sessionStorage.getItem('token')
+        const response = await axios.get(
+          `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/getAppointmentsForHospitalDashboard?hospitalId=${userId}&offset=${offset}
+
+        `,{headers: { Authorization: `Bearer ${token}`} }
+        );
+        if (response) {
+          console.log('totalAppointments', response.data.totalAppointments);
+          setTotalAppointments(response.data.totalAppointments);
+          setAllAppointments(response.data.Appointments);
+        }
+      } catch (error) {
+        if (error.response && error.response.status === 401) {
+          console.log('Session expired. Redirecting to signin...');
+          onLogout(navigate);
+        }
+      }
+    },
+    [userId, onLogout,navigate]
+  );
+
+  const AppointmentActions = async (id, status, offset) => {
+    console.log('iddd', id, status, offset);
+    try {
+      const token = sessionStorage.getItem("token");
+      const response = await axios.put(
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/AppointmentAcceptedAndCancel/${id}`,
+        { status },{headers:{
+          Authorization: `Bearer ${token}`,
+        }}
+      );
+      if (response.status == 200) {
+        Swal.fire({
+          title: 'Appointment Status Changed',
+          text: 'Appointment Status Changed Successfully',
+          icon: 'success',
+        });
+      }
+      getAllAppointments(offset);
+      // getlast7daysAppointMentsCount();
+    } catch (error) {
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
+      Swal.fire({
+        title: 'Error',
+        text: 'Failed to Change Appointment Status',
+        icon: 'error',
+      });
     }
   };
+
   useEffect(() => {
-    AppointmentGraphOnMonthBase('Last 6 Months', userId);
-  }, [userId]);
+    if (userId) {
+      AppointmentGraphOnMonthBase('Last 6 Months', userId);
+      getOverView(userId);
+      getAllAppointments(0);
+    }
+  }, [userId, AppointmentGraphOnMonthBase, getOverView, getAllAppointments]);
+  const handleChangeAppointmentGraph = (value) => {
+    console.log('selected', value);
+    AppointmentGraphOnMonthBase(value, userId);
+  };
 
   return (
     <section className="DashboardSection">
@@ -73,9 +171,7 @@ const Dashboard = () => {
             <div className="dashvisible">
               <Link to="/clinicvisible">
                 {' '}
-                <a>
-                  <i className="ri-eye-fill"></i> Manage Clinic Visibility
-                </a>
+                <i className="ri-eye-fill"></i> Manage Clinic Visibility
               </Link>
             </div>
           </div>
@@ -88,21 +184,21 @@ const Dashboard = () => {
                 ovrtxt="Appointments"
                 spanText="(Last 7 days)"
                 boxcoltext="ciltext"
-                overnumb="35"
+                overnumb={overView.appointmentCounts}
               />
               <BoxDiv
                 boximg={box2}
                 ovradcls="purple"
                 ovrtxt="Doctors"
                 boxcoltext="purpletext"
-                overnumb="12"
+                overnumb={overView.totalDoctors}
               />
               <BoxDiv
                 boximg={box3}
                 ovradcls="cambrageblue"
                 ovrtxt="Specialities"
                 boxcoltext="greentext"
-                overnumb="6"
+                overnumb={overView.totalDepartments}
               />
               <BoxDiv
                 boximg={box4}
@@ -121,7 +217,7 @@ const Dashboard = () => {
                 <h5>Appointments</h5>
                 <ListSelect
                   options={optionsList}
-                  onChange={AppointmentGraphOnMonthBase}
+                  onChange={handleChangeAppointmentGraph}
                 />
               </div>
               <div className="graphimg">
@@ -141,8 +237,14 @@ const Dashboard = () => {
           </div>
 
           <div>
-            <DivHeading TableHead="New Appointments" tablespan="(3)" />
-            <ActionsTable actimg1={Accpt} actimg2={Decln} />
+            <DivHeading TableHead="New Appointments"  tablespan={`(${totalAppointments ? totalAppointments : 0})`}/>
+            <ActionsTable
+              actimg1={Accpt}
+              actimg2={Decln}
+              onClick={getAllAppointments}
+              appointments={appointments}
+              onClicked={AppointmentActions}
+            />
             <SeeAll seehrf="/appointment" seetext="See All" />
           </div>
 
@@ -232,7 +334,7 @@ BoxDiv.propTypes = {
   boxcoltext: PropTypes.string,
   spanText: PropTypes.string,
   ovrtxt: PropTypes.string,
-  overnumb: PropTypes.string,
+  overnumb: PropTypes.number,
   ovradcls: PropTypes.string.isRequired, // Make sure to mark required if necessary
 };
 

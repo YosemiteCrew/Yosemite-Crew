@@ -13,10 +13,12 @@ import WeeklyAppointmentsChart from '../../Components/BarGraph/WeeklyAppointment
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { useAuth } from '../../context/useAuth';
+import { useNavigate } from 'react-router-dom';
 
 const DepartmentsMain = () => {
   const [DepartmentsOverView, SetDepartmentsOverView] = useState({});
-  const { userId } = useAuth();
+  const { userId ,onLogout} = useAuth();
+  const navigate = useNavigate()
   const optionsList1 = [
     'Last 7 Days',
     'Last 10 Days',
@@ -28,12 +30,16 @@ const DepartmentsMain = () => {
     const days = parseInt(selectedOption.match(/\d+/)[0], 10);
     console.log(`Selected Days: ${days}`);
     try {
+      const token = sessionStorage.getItem("token");
       const response = await axios.get(
         `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/departmentsOverView?userId=${userId}`,
         {
           params: {
             LastDays: days,
           },
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
         }
       );
 
@@ -41,6 +47,10 @@ const DepartmentsMain = () => {
         SetDepartmentsOverView(response.data.data);
       }
     } catch (error) {
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
       Swal.fire({
         title: 'Error',
         text: 'Failed to get departments overview',
@@ -56,12 +66,14 @@ const DepartmentsMain = () => {
     console.log(`Selected Days: ${days}`);
 
     try {
+      const token = sessionStorage.getItem("token");
       const response = await axios.get(
         `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/DepartmentBasisAppointmentGraph?userId=${userId}`,
         {
           params: {
             LastDays: days,
           },
+          headers: {Authorization: `Bearer ${token}`},
         }
       );
       if (response) {
@@ -73,6 +85,10 @@ const DepartmentsMain = () => {
         setGraphData(formattedData);
       }
     } catch (error) {
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
       Swal.fire({
         title: 'Error',
         text: 'Failed to get department basis appointment graph',
@@ -85,8 +101,9 @@ const DepartmentsMain = () => {
   console.log('WeeklyAppointmentGraph', WeeklyAppointmentGraph);
   const getDataForWeeklyAppointmentChart = async () => {
     try {
+      const token = sessionStorage.getItem('token')
       const response = await axios.get(
-        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/getDataForWeeklyAppointmentChart?userId=${userId}`
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/getDataForWeeklyAppointmentChart?userId=${userId}`,{headers:{Authorization:`Bearer ${token}`}}
       );
       if (response) {
         const formattedData = response.data.data.map((item) => ({
@@ -96,6 +113,10 @@ const DepartmentsMain = () => {
         setweeklyAppoinmentGraph(formattedData);
       }
     } catch (error) {
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
       Swal.fire({
         title: 'Error',
         text: 'Failed to get weekly appointment chart data',

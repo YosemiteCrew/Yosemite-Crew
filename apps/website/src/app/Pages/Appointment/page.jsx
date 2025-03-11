@@ -1,4 +1,3 @@
-// eslint-disable-next-line no-unused-vars
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { BoxDiv, DivHeading, ListSelect, TopHeading } from '../Dashboard/page';
@@ -26,11 +25,12 @@ import DocterWiseAppoint from '../../Components/DocterWiseAppoint/DocterWiseAppo
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { useAuth } from '../../context/useAuth';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 // import { Button } from 'react-bootstrap';
 
 const Appointment = () => {
-  const { userId } = useAuth();
+  const { userId ,userType,onLogout} = useAuth();
+  const navigate = useNavigate()
   // dropdown
   const optionsList1 = [
     'Last 7 Days',
@@ -40,11 +40,12 @@ const Appointment = () => {
   ];
   const [allAppointments, setAllAppointments] = useState([]);
   const [total, setTotal] = useState();
-  const getAllAppointments = async (offset, userId) => {
+  const getAllAppointments = useCallback(async (offset, userId) => {
     // console.log('ssssssss');
     try {
+      const token = sessionStorage.getItem('token');
       const response = await axios.get(
-        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/getAllAppointments?offset=${offset}&userId=${userId}`
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/getAllAppointments?offset=${offset}&userId=${userId}`,{headers:{Authorization:`Bearer ${token}`}}
       );
       if (response) {
         console.log('hospitalssss', response.data);
@@ -52,15 +53,20 @@ const Appointment = () => {
         setTotal(response.data.totalAppointments);
       }
     } catch (error) {
-      console.log('error', error);
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
+     
     }
-  };
+  },[navigate,onLogout]);
   const AppointmentActions = async (id, status, offset) => {
     console.log('iddd', id, status, offset);
     try {
+      const token = sessionStorage.getItem("token");
       const response = await axios.put(
         `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/AppointmentAcceptedAndCancel/${id}`,
-        { status }
+        { status },{headers:{Authorization: `Bearer ${token}`}},
       );
       if (response.status === 200) {
         Swal.fire({
@@ -72,6 +78,10 @@ const Appointment = () => {
       getAllAppointments(offset, userId);
       // getlast7daysAppointMentsCount();
     } catch (error) {
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
       Swal.fire({
         title: 'Error',
         text: 'Failed to Change Appointment Status',
@@ -83,40 +93,45 @@ const Appointment = () => {
     {}
   );
 
-  const getAppUpcCompCanTotalCounts = async (selectedOption) => {
+  const getAppUpcCompCanTotalCounts = useCallback(async (selectedOption) => {
     const days = parseInt(selectedOption.match(/\d+/)[0], 10);
     // console.log(`Selected Days: ${days}`);
     try {
+      const token = sessionStorage.getItem("token");
       const response = await axios.get(
         `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/getAppUpcCompCanTotalCountOnDayBasis?userId=${userId}`,
         {
           params: {
             LastDays: days,
           },
+          headers: {Authorization: `Bearer ${token}`},
         }
       );
       if (response) {
         setAppointmentStatusAndCounts(response.data);
       }
     } catch (error) {
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
       Swal.fire({
         title: 'Error',
         text: `${error}`,
         icon: 'error',
       });
     }
-  };
+  },[userId,navigate,onLogout]);
 
   useEffect(() => {
     getAllAppointments(0, userId);
     getAppUpcCompCanTotalCounts('Last 7 Days');
-  }, [userId]);
+  }, [userId,getAppUpcCompCanTotalCounts,getAllAppointments]);
   const [confirmedAppointments, setConfirmedAppointments] = useState([]);
   const [confirmedPage, setConfirmedPage] = useState(1);
   const [confirmedLoading, setConfirmedLoading] = useState(false);
   const [confirmedHasMore, setConfirmedHasMore] = useState(true);
-  const [totalConfirmedAppointments, setTotalConfirmedAppointments] =
-    useState(0);
+  const [totalConfirmedAppointments, setTotalConfirmedAppointments] = useState(0);
   const confirmedObserverRef = useRef(null);
 
   const [upcomingAppointments, setUpcomingAppointments] = useState([]);
@@ -133,30 +148,22 @@ const Appointment = () => {
   const [totalCanceledAppointments, setTotalCanceledAppointments] = useState(0);
   const canceledObserverRef = useRef(null);
 
-  const [CompletedAppointments, setCompletedAppointments] = useState([]);
-  const [CompletedPage, setCompletedPage] = useState(1);
-  const [CompletedLoading, setCompletedLoading] = useState(false);
-  const [CompletedHasMore, setCompletedHasMore] = useState(true);
-  const [totalCompletedAppointments, setTotalCompletedAppointments] =
-    useState(0);
-  const CompletedObserverRef = useRef(null);
-
+  const [completedAppointments, setCompletedAppointments] = useState([]);
+  const [completedPage, setCompletedPage] = useState(1);
+  const [completedLoading, setCompletedLoading] = useState(false);
+  const [completedHasMore, setCompletedHasMore] = useState(true);
+  const [totalCompletedAppointments, setTotalCompletedAppointments] = useState(0);
+  const completedObserverRef = useRef(null);
   const limit = 8;
 
-  const fetchAppointments = async (
-    type,
-    page,
-    setData,
-    setLoading,
-    setHasMore,
-    setTotal
-  ) => {
+  const fetchAppointments = useCallback(async (type, page, setData, setLoading, setHasMore, setTotal) => {
     if (setLoading) setLoading(true);
 
     try {
+      const token = sessionStorage.getItem("token");
       const response = await axios.get(
         `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/get${type}Appointments`,
-        { params: { userId, page, limit } }
+        { params: { userId, page, limit },headers:{Authorization:`Bearer ${token}`} }
       );
 
       if (response.status === 200) {
@@ -165,20 +172,24 @@ const Appointment = () => {
         setHasMore(response.data.appointments.length === limit);
       }
     } catch (error) {
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
       Swal.fire({
-        title: 'Error',
+        title: "Error",
         text: `Failed to fetch ${type.toLowerCase()} appointments`,
-        icon: 'error',
+        icon: "error",
       });
     } finally {
       if (setLoading) setLoading(false);
     }
-  };
+  }, [userId,navigate,onLogout]); // Removed unnecessary dependencies
 
   useEffect(() => {
     if (userId) {
       fetchAppointments(
-        'Confirmed',
+        "Confirmed",
         confirmedPage,
         setConfirmedAppointments,
         setConfirmedLoading,
@@ -186,12 +197,12 @@ const Appointment = () => {
         setTotalConfirmedAppointments
       );
     }
-  }, [userId, confirmedPage]);
+  }, [userId, confirmedPage, fetchAppointments]);
 
   useEffect(() => {
     if (userId) {
       fetchAppointments(
-        'UpComing',
+        "UpComing",
         upcomingPage,
         setUpcomingAppointments,
         setUpcomingLoading,
@@ -199,12 +210,12 @@ const Appointment = () => {
         setTotalUpcomingAppointments
       );
     }
-  }, [userId, upcomingPage]);
+  }, [userId, upcomingPage, fetchAppointments]);
 
   useEffect(() => {
     if (userId) {
       fetchAppointments(
-        'Canceled',
+        "Canceled",
         canceledPage,
         setCanceledAppointments,
         setCanceledLoading,
@@ -212,21 +223,22 @@ const Appointment = () => {
         setTotalCanceledAppointments
       );
     }
-  }, [userId, canceledPage]);
+  }, [userId, canceledPage, fetchAppointments]);
+
   useEffect(() => {
     if (userId) {
       fetchAppointments(
-        'Completed',
-        CompletedPage,
+        "Completed",
+        completedPage,
         setCompletedAppointments,
         setCompletedLoading,
         setCompletedHasMore,
         setTotalCompletedAppointments
       );
     }
-  }, [userId, CompletedPage]);
+  }, [userId, completedPage, fetchAppointments]);
 
-  const createObserver = (setPage, hasMore, observerRef) => (node) => {
+  const createObserver = useCallback((setPage, hasMore, observerRef) => (node) => {
     if (!node || !hasMore) return;
     if (observerRef.current) observerRef.current.disconnect();
 
@@ -240,24 +252,28 @@ const Appointment = () => {
     );
 
     observerRef.current.observe(node);
-  };
+  }, []);
 
   const lastConfirmedAppointmentRef = useCallback(
-    createObserver(setConfirmedPage, confirmedHasMore, confirmedObserverRef),
-    [confirmedHasMore]
+    (node) => createObserver(setConfirmedPage, confirmedHasMore, confirmedObserverRef)(node),
+    [setConfirmedPage, confirmedHasMore,createObserver]
   );
+  
   const lastUpcomingAppointmentRef = useCallback(
-    createObserver(setUpcomingPage, upcomingHasMore, upcomingObserverRef),
-    [upcomingHasMore]
+    (node) => createObserver(setUpcomingPage, upcomingHasMore, upcomingObserverRef)(node),
+    [setUpcomingPage, upcomingHasMore,createObserver]
   );
+  
   const lastCanceledAppointmentRef = useCallback(
-    createObserver(setCanceledPage, canceledHasMore, canceledObserverRef),
-    [canceledHasMore]
+    (node) => createObserver(setCanceledPage, canceledHasMore, canceledObserverRef)(node),
+    [setCanceledPage, canceledHasMore,createObserver]
   );
+  
   const lastCompletedAppointmentRef = useCallback(
-    createObserver(setCompletedPage, CompletedHasMore, CompletedObserverRef),
-    [CompletedHasMore]
+    (node) => createObserver(setCompletedPage, completedHasMore, completedObserverRef)(node),
+    [setCompletedPage, completedHasMore,createObserver]
   );
+  
 
   return (
     <section className="AppintmentSection">
@@ -378,7 +394,7 @@ const Appointment = () => {
                         crdimg={pet1}
                         cdowner={appointment.ownerName}
                         crdtpe={appointment.petName}
-                        btnimg={btn1}
+                        btnimg={btn2}
                         btntext={`${appointment.appointmentDate} - ${appointment.appointmentTime}`}
                         crddoctor={appointment.veterinarian}
                         drjob={appointment.department}
@@ -398,10 +414,10 @@ const Appointment = () => {
                 CdNClas="fawn"
               />
               <div className="DashCardItem fawnbg">
-                {CompletedAppointments.map((appointment, index) => (
+                {completedAppointments.map((appointment, index) => (
                   <div
                     ref={
-                      index === CompletedAppointments.length - 1
+                      index === completedAppointments.length - 1
                         ? lastCompletedAppointmentRef
                         : null
                     }
@@ -411,7 +427,7 @@ const Appointment = () => {
                       crdimg={pet1}
                       cdowner={appointment.ownerName}
                       crdtpe={appointment.petName}
-                      btnimg={btn1}
+                      btnimg={btn3}
                       btntext={`${appointment.appointmentDate} - ${appointment.appointmentTime}`}
                       crddoctor={appointment.veterinarian}
                       drjob={appointment.department}
@@ -419,7 +435,7 @@ const Appointment = () => {
                     />
                   </div>
                 ))}
-                {CompletedLoading && <p>Loading more appointments...</p>}
+                {completedLoading && <p>Loading more appointments...</p>}
               </div>
             </div>
 
@@ -443,7 +459,7 @@ const Appointment = () => {
                       crdimg={pet1}
                       cdowner={appointment.ownerName}
                       crdtpe={appointment.petName}
-                      btnimg={btn1}
+                      btnimg={btn4}
                       btntext={`${appointment.appointmentDate} - ${appointment.appointmentTime}`}
                       crddoctor={appointment.veterinarian}
                       drjob={appointment.department}
@@ -459,7 +475,7 @@ const Appointment = () => {
           </div>
 
           <div className="dd">
-            <DocterWiseAppoint />
+           {userType==='Hospital'? <DocterWiseAppoint />: null}
           </div>
         </div>
       </div>
@@ -644,8 +660,7 @@ export function DashModal() {
                               type="radio"
                               name="recommend"
                               className="radio-button"
-                              // eslint-disable-next-line react/no-unknown-property
-                              // arial-label="rate 7"
+                             
                               data-text="7"
                             />
                           </li>
@@ -654,8 +669,7 @@ export function DashModal() {
                               type="radio"
                               name="recommend"
                               className="radio-button"
-                              // eslint-disable-next-line react/no-unknown-property
-                              // arial-label="rate 8"
+                             
                               data-text="8"
                             />
                           </li>

@@ -26,7 +26,7 @@ import { useAuth } from '../../context/useAuth';
 import countrycode from '../Add_Department/countriescities.json';
 
 const Add_Vet = () => {
-  const { userId } = useAuth();
+  const { userId ,onLogout} = useAuth();
   const navigate = useNavigate();
   const [OperatingHour, setOperatingHours] = useState([]);
   const [uploadedfiles, setUploadedFiles] = useState([]);
@@ -93,8 +93,9 @@ const Add_Vet = () => {
 
   const getSpecilization = async () => {
     try {
+      const token = sessionStorage.getItem("token");
       const response = await axios.get(
-        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/auth/getAddDepartment?userId=${userId}`
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/auth/getAddDepartment?userId=${userId}`,{headers:{Authorization:`Bearer ${token}`}}
       );
       const departmentOptions = response.data.map((department) => ({
         value: department._id,
@@ -102,7 +103,10 @@ const Add_Vet = () => {
       }));
       setOptions(departmentOptions);
     } catch (error) {
-      console.log(error);
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
     }
   };
   const handleFileChange = (e) => {
@@ -328,6 +332,7 @@ const Add_Vet = () => {
         bussinessId: userId,
       })
     );
+    const token = sessionStorage.getItem('token');
 
     try {
       const response = await fetch(
@@ -335,7 +340,11 @@ const Add_Vet = () => {
         {
           method: 'POST',
           body: formData,
-        }
+          headers: {
+            Authorization: `Bearer ${token}`, // Attach the token to the request headers
+          },
+        },
+        
       );
 
       if (response.ok) {
@@ -382,7 +391,10 @@ const Add_Vet = () => {
         // });
       } else {
         const errorData = await response.json();
-
+        if (error.response && error.response.status === 401) {
+          console.log('Session expired. Redirecting to signin...');
+          onLogout(navigate);
+        }
         Swal.fire({
           icon: 'error',
           title: 'Submission Failed',

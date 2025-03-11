@@ -36,7 +36,7 @@ export const AuthProvider = ({ children }) => {
 
   const refreshProfileData = async (userId, userType) => {
     try {
-      if (userType === 'Hospital') {
+      if (userType === 'Hospital'||userType === 'Groomer Shop') {
         const data = await getProfiledata(userId);
         setProfileData({
           logoUrl: data.logoUrl,

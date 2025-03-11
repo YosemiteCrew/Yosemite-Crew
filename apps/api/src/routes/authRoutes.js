@@ -2,7 +2,8 @@ const express = require('express');
 const authController = require('../controllers/authController');
 const WebController = require('../controllers/WebController');
 const AddDepartmentController = require('../controllers/addDepartmentController');
-const webAppointmentController = require('../controllers/webAppointment');
+
+const { verifyTokenAndRefresh } = require('../middlewares/authMiddleware');
 const router = express.Router();
 
 router.post('/signup', authController.signup);
@@ -27,8 +28,8 @@ router.delete(
 
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Add Department >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-router.post('/addDepartment', AddDepartmentController.addDepartment);
-router.get('/getAddDepartment', AddDepartmentController.getAddDepartment);
+router.post('/addDepartment', verifyTokenAndRefresh,AddDepartmentController.addDepartment);
+router.get('/getAddDepartment', verifyTokenAndRefresh,AddDepartmentController.getAddDepartment);
 
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Google Map>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 router.get('/getLocationdata',WebController.getLocationdata); 

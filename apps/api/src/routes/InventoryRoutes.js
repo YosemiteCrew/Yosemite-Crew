@@ -1,22 +1,23 @@
 const express = require('express');
 const InventoryControllers = require('../controllers/InventoryController');
+const { verifyTokenAndRefresh } = require('../middlewares/authMiddleware');
 const router = express.Router();
 
-router.post('/addInventory', InventoryControllers.AddInventory);
-router.get('/getInventory', InventoryControllers.getInventory);
-router.post('/AddProcedurePackage', InventoryControllers.AddProcedurePackage);
+router.post('/addInventory',verifyTokenAndRefresh, InventoryControllers.AddInventory);
+router.get('/getInventory',verifyTokenAndRefresh, InventoryControllers.getInventory);
+router.post('/AddProcedurePackage',verifyTokenAndRefresh, InventoryControllers.AddProcedurePackage);
 router.get(
-  '/getToViewItemsDetaild',
+  '/getToViewItemsDetaild',verifyTokenAndRefresh,
   InventoryControllers.getToViewItemsDetaild
 );
-router.get('/getProceurePackage', InventoryControllers.getProceurePackage);
-router.get('/GetProcedurePackageByid', InventoryControllers.GetProcedurePackageByid);
-router.put('/updateProcedurePackage', InventoryControllers.updateProcedurePackage);
+router.get('/getProceurePackage',verifyTokenAndRefresh, InventoryControllers.getProceurePackage);
+router.get('/GetProcedurePackageByid',verifyTokenAndRefresh, InventoryControllers.GetProcedurePackageByid);
+router.put('/updateProcedurePackage',verifyTokenAndRefresh, InventoryControllers.updateProcedurePackage);
 router.delete(
-  '/deleteProcedureitems',
+  '/deleteProcedureitems',verifyTokenAndRefresh,
   InventoryControllers.deleteProcedureitems
 );
-router.delete('/deleteProcedurePackage', InventoryControllers.deleteProcedurePackage);
-router.get('/getApproachngExpiryGraphs',InventoryControllers.getApproachngExpiryGraphs)
-router.get('/inventoryOverView',InventoryControllers.inventoryOverView)
+router.delete('/deleteProcedurePackage',verifyTokenAndRefresh, InventoryControllers.deleteProcedurePackage);
+router.get('/getApproachngExpiryGraphs',verifyTokenAndRefresh,InventoryControllers.getApproachngExpiryGraphs)
+router.get('/inventoryOverView',verifyTokenAndRefresh,InventoryControllers.inventoryOverView)
 module.exports = router;
