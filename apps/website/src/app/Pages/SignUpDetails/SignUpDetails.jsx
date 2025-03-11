@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios'; // Make sure axios is installed
 import './SignUpDetails.css';
 import { Forminput, HeadText } from '../SignUp/SignUp';
@@ -51,6 +51,8 @@ const SignUpDetails = () => {
     city: '',
     state: '',
     zipCode: '',
+    latitude: '',
+    longitude: '',
   });
   console.log(formData);
   useEffect(() => {
@@ -147,6 +149,8 @@ const SignUpDetails = () => {
     formDataToSend.append('city', formData.city);
     formDataToSend.append('state', formData.state);
     formDataToSend.append('zipCode', formData.zipCode);
+    formDataToSend.append('latitude', formData.latitude);
+    formDataToSend.append("longitude", formData.longitude)
 
     selectedServices.forEach((service) => {
       formDataToSend.append('selectedServices', service); // Notice the use of [] to indicate it's an array
@@ -189,7 +193,7 @@ const SignUpDetails = () => {
     }
   };
 
-  const getProfiledata = async () => {
+  const getProfiledata = useCallback(async () => {
     // console.log("hello");
     try {
       const response = await axios.get(
@@ -245,7 +249,7 @@ const SignUpDetails = () => {
       //   text: "There was an issue fetching your profile data. Please try again.",
       // });
     }
-  };
+  },[userId]);
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
 
@@ -318,34 +322,9 @@ const SignUpDetails = () => {
     if (userId) {
       getProfiledata();
     }
-  }, [userId]);
-  const fetchPlaceDetails = async (placeId) => {
-    const apiKey = process.env.NX_PUBLIC_VITE_BASE_GOOGLE_MAPS_API_KEY; // Vite env variable
-
-    try {
-      const response = await axios.get(
-        `https://maps.googleapis.com/maps/api/place/details/json?placeid=${placeId}&key=${apiKey}`,
-        {
-          params: {
-            placeid: placeId,
-            key: apiKey,
-          },
-        }
-      );
-      console.log('response=>>>', response);
-
-      if (response.data.result) {
-        return extractAddressDetails(response.data.result);
-      }
-      return null;
-    } catch (error) {
-      console.error('Error fetching place details:', error);
-      return null;
-    }
-  };
-
-  // Extract Address Components
-  const extractAddressDetails = (geoLocationResp) => {
+  }, [userId, getProfiledata]);
+  
+  const extractAddressDetails = (place) => {
     const addressResp = {
       address: '',
       street: '',
@@ -353,11 +332,11 @@ const SignUpDetails = () => {
       state: '',
       zipCode: '',
       country: '',
-      lat: geoLocationResp.geometry.location.lat,
-      long: geoLocationResp.geometry.location.lng,
+      lat: place.geometry?.location?.lat(),
+      long: place.geometry?.location?.lng(),
     };
 
-    const address_components = geoLocationResp.address_components || [];
+    const address_components = place.address_components || [];
 
     address_components.forEach((component) => {
       const types = component.types;
@@ -383,26 +362,26 @@ const SignUpDetails = () => {
   };
 
   // Handle Place Selection
-  const handlePlaceSelect = async (data, details) => {
-    console.log('data=>>>', data,details);
-    
+  const handlePlaceSelect = () => {
     if (autoCompleteRef.current) {
       const place = autoCompleteRef.current.getPlace();
-      console.log('place', place);
-      if (!place || !place.place_id) return;
-    
+      if (!place || !place.formatted_address) return; // Ensure a valid selection
+
+      const firstPartOfAddress = String(place.formatted_address).split(',')[0]; // Extract first part
+
       
-
-      const placeDetails = await fetchPlaceDetails(place.place_id);
-
+      const placeDetails = extractAddressDetails(place);
+      
       if (placeDetails) {
         setFormData((prevState) => ({
           ...prevState,
-          addressLine1: place.formatted_address,
-          street: placeDetails.address,
-          city: placeDetails.city,
-          state: placeDetails.state,
-          zipCode: placeDetails.pincode,
+          addressLine1: firstPartOfAddress, // Set first part of address
+          street: placeDetails.street || '',
+          city: placeDetails.city || '',
+          state: placeDetails.state || '',
+          zipCode: placeDetails.zipCode || '',
+          latitude: placeDetails.lat || "",
+          longitude: placeDetails.long || "",
         }));
       }
     }
@@ -502,29 +481,30 @@ const SignUpDetails = () => {
                     <div>
                       <h6>Address</h6>
 
-                      {/* Google Places Autocomplete */}
+                      {/* Google Places Autocomplete using Forminput */}
                       <Autocomplete
-                        fields="geometry"
+                        fields={[
+                          'geometry',
+                          'place_id',
+                          'formatted_address',
+                          'address_components',
+                        ]}
                         onLoad={(ref) => (autoCompleteRef.current = ref)}
-                        onPlaceChanged={(data, details)=>{
-                          handlePlaceSelect(data, details)
-                        }}
+                        onPlaceChanged={handlePlaceSelect}
                       >
-                        <input
-                          type="text"
-                          placeholder="Search Address"
+                        
+                        <Forminput
+                          inlabel="Address Line 1"
+                          intype="text"
+                          inname="addressLine1"
+                          value={formData.addressLine1}
+                          onChange={(e) => {
+                            handleInputChange(e); // Allow manual input
+                          }}
                           className="form-control"
+                          
                         />
                       </Autocomplete>
-
-                      {/* Address Form */}
-                      <Forminput
-                        inlabel="Address Line 1"
-                        intype="text"
-                        inname="addressLine1"
-                        value={formData.addressLine1}
-                        onChange={handleInputChange}
-                      />
 
                       <div className="row">
                         <div className="col-md-6">

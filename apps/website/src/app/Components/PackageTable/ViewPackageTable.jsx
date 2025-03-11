@@ -7,9 +7,11 @@ import { debounce } from 'lodash';
 import axios from 'axios';
 import { useAuth } from '../../context/useAuth';
 import Swal from 'sweetalert2';
+import { useNavigate } from 'react-router-dom';
 
 const ViewPackageTable = ({ updatePackageItems, packageItems,fetchPackageDataa }) => {
-    const {userId} = useAuth();
+    const {userId,onLogout} = useAuth();
+    const navigate = useNavigate()
   const [rows, setRows] = useState(packageItems || []);
   const [editRowId, setEditRowId] = useState(null);
   const [editedRow, setEditedRow] = useState(null);
@@ -55,6 +57,29 @@ console.log('rows', rows);
     updatePackageItems(rows);
   }, [editRowId, editedRow, rows, updatePackageItems]);
 
+  
+  const deleteItems = useCallback(async (id) => {
+    try {
+      const token = sessionStorage.getItem("token");
+      await axios.delete(`${process.env.NX_PUBLIC_VITE_BASE_URL}api/inventory/deleteProcedureitems?id=${id}&userId=${userId}`,{headers:{Authorization:`Bearer ${token}`}});
+      Swal.fire({
+        title: 'Deleted!',
+        text: 'Item has been deleted successfully.',
+        icon: 'success',
+      });
+    } catch (error) {
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
+      Swal.fire({
+        title: 'Error',
+        text: 'Failed to delete the item.',
+        icon: 'error',
+      });
+    }
+  },[navigate,onLogout,userId]);
+  
   const handleDeleteRow = useCallback((id) => {
     Swal.fire({
       title: 'Are you sure?',
@@ -70,25 +95,7 @@ console.log('rows', rows);
         deleteItems(id); // Call API after confirming
       }
     });
-  }, []);
-  
-  const deleteItems = async (id) => {
-    try {
-      await axios.delete(`${process.env.NX_PUBLIC_VITE_BASE_URL}api/inventory/deleteProcedureitems?id=${id}&userId=${userId}`);
-      Swal.fire({
-        title: 'Deleted!',
-        text: 'Item has been deleted successfully.',
-        icon: 'success',
-      });
-    } catch (error) {
-      console.error('Error deleting item:', error);
-      Swal.fire({
-        title: 'Error',
-        text: 'Failed to delete the item.',
-        icon: 'error',
-      });
-    }
-  };
+  }, [deleteItems]);
   
   
   return (

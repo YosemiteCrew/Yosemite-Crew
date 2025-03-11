@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 import React from 'react';
 import PropTypes from 'prop-types'; 
 import pet1 from "../../../../public/Images/pet1.png"; 
@@ -69,11 +68,11 @@ export function StatusTable({ appointments = [] }) {
           <tbody>
             {displayedAppointments.map((appointment, index) => (
               <tr key={index}>
-                <td scope="row">
+                <th scope="row">
                   <div className="dogimg">
                     <img src={appointment.petImage} alt={appointment.petName} />
                   </div>
-                </td>
+                </th>
                 <td>
                   <div className="tblDiv">
                     <h4>{appointment.petName}</h4>
@@ -97,7 +96,7 @@ export function StatusTable({ appointments = [] }) {
                 </td>
                 <td>
                   <div className="StatusDiv">
-                    <a className={appointment.status.toLowerCase()} href="#">
+                    <a className={appointment.status.toLowerCase()} href="dd">
                       {appointment.status}
                     </a>
                   </div>

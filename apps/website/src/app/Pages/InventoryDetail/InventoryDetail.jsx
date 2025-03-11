@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import './InventoryDetail.css';
 import { Container } from 'react-bootstrap';
 import { BiSolidEditAlt } from 'react-icons/bi';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { Link,  useNavigate,  useParams } from 'react-router-dom';
 import { useAuth } from '../../context/useAuth';
 import axios from 'axios';
 import ProgressBar from 'react-bootstrap/ProgressBar';
@@ -12,31 +12,37 @@ import { MainBtn } from '../Appointment/page';
 
 function InventoryDetail() {
   
-  const { userId } = useAuth();
+  const { userId,onLogout } = useAuth();
+  const navigate = useNavigate()
   const itemId = useParams().id // Extract itemId correctly
   const [itemDetails, setItemDetails] = useState(null);
   console.log("itemId", itemId);
 
-  const fetchItemDetails = async () => {
+  const fetchItemDetails = useCallback(async () => {
     if (!itemId) return; // Prevent API call if itemId is undefined
 
     try {
+      const token = sessionStorage.getItem('token');
       const response = await axios.get(
         `${process.env.NX_PUBLIC_VITE_BASE_URL}api/inventory/getToViewItemsDetaild`,
-        { params: { userId, itemId } }
+        { params: { userId, itemId },headers:{Authorization:`Bearer ${token}`} }
+      
       );
       console.log('Fetched Data:', response.data.inventory);
       setItemDetails(response.data.inventory); // Store the first object in state
     } catch (error) {
-      console.error('Error fetching inventory details:', error);
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
     }
-  };
+  },[userId,navigate,onLogout,itemId]);
 
   useEffect(() => {
 
         fetchItemDetails();
     
-  }, [itemId, userId]);
+  }, [itemId, userId,fetchItemDetails]);
 
  
   return (
