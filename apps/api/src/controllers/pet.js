@@ -1,34 +1,18 @@
 const pet = require('../models/YoshPet');
 const jwt = require('jsonwebtoken');
 const path = require('path');
+const {  handleMultipleFileUpload } = require('../middlewares/upload');
 
 async function handleAddPet(req,res){
   const token = req.headers.authorization.split(' ')[1]; // Extract token
   const decoded = jwt.verify(token, process.env.JWT_SECRET); // Verify token
   const cognitoUserId = decoded.username; // Get user ID from token
-    var PetImage = "";
-    if (req.files && req.files.petImage) {
-      const petImage = req.files.petImage;
-
-      // Validate file type
-      const allowedExtensions = /jpg|jpeg|png|gif/;
-      const extension = path.extname(petImage.name).toLowerCase();
-      if (!allowedExtensions.test(extension)) {
-          return res.status(200).json({ message: 'Only image files are allowed.' });
-      }
-
-      // Generate a unique file name
-          const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${extension}`;
-          
-          // Use the global upload path
-          const uploadPath = path.join(req.app.locals.uploadPath, uniqueName);
-
-          // Move the file to the upload directory
-          await petImage.mv(uploadPath);
-          PetImage = uniqueName;
-  }
+  let imageUrls = '';
   const { petType, petBreed, petName, petGender, petdateofBirth, petCurrentWeight, petColor, petBloodGroup, isNeutered,ageWhenNeutered,microChipNumber,isInsured,insuranceCompany,policyNumber,passportNumber,petFrom  } = req.body; // Data from request body
-
+ if (req.files) {
+        const files = Array.isArray(req.files.files) ? req.files.files : [req.files.files];
+         imageUrls = await handleMultipleFileUpload(files);
+    }
 
     const addPet = await pet.create({
         cognitoUserId,
@@ -49,7 +33,7 @@ async function handleAddPet(req,res){
         policyNumber,
         passportNumber,
         petFrom,
-        petImage: PetImage
+        petImage: imageUrls
     });
     if(addPet){
         res.status(200).json({

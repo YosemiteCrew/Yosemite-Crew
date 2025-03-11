@@ -59,7 +59,7 @@ const patSchema = new mongoose.Schema({
         type: String,
     },
     petImage:{
-        type: String,
+        type: [String],
     },
 
 }, { timestamps: true});
