@@ -1,4 +1,4 @@
-// eslint-disable-next-line no-unused-vars
+
 import React, { useEffect } from 'react';
 import './Glightbox.css';
 import PropTypes from 'prop-types';
@@ -17,7 +17,7 @@ const Glightbox = ({ videoLink, buttonColor, buttonBackground }) => {
   }, []);
 
   return (
-    <>
+
       <a
         href={videoLink}
         className="glightbox-link pulsating-play-btn"
@@ -25,8 +25,8 @@ const Glightbox = ({ videoLink, buttonColor, buttonBackground }) => {
           '--btn-color': buttonColor,
           '--btn-background': buttonBackground,
         }}
-      ></a>
-    </>
+      >..</a>
+ 
   );
 };
 

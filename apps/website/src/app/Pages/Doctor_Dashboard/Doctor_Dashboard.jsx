@@ -1,20 +1,20 @@
 /* eslint-disable react-refresh/only-export-components */
-// eslint-disable-next-line no-unused-vars
-import React, { useEffect, useState } from 'react';
+
+import React, { useCallback, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import './Doctor_Dashboard.css';
 import { BoxDiv, DivHeading } from '../Dashboard/page';
-import box1 from '../../../../public/Images/box1.png';
-import box7 from '../../../../public/Images/box7.png';
-import box8 from '../../../../public/Images/box8.png';
-import doctprofile from '../../../../public/Images/doctprofile.png';
-import reviw from '../../../../public/Images/reviw.png';
-import review1 from '../../../../public/Images/review1.png';
-import review2 from '../../../../public/Images/review2.png';
-import review3 from '../../../../public/Images/review3.png';
+// import box1 from '../../../../public/Images/box1.png';
+// import box7 from '../../../../public/Images/box7.png';
+// import box8 from '../../../../public/Images/box8.png';
+// import doctprofile from '../../../../public/Images/doctprofile.png';
+// import reviw from '../../../../public/Images/reviw.png';
+// import review1 from '../../../../public/Images/review1.png';
+// import review2 from '../../../../public/Images/review2.png';
+// import review3 from '../../../../public/Images/review3.png';
 import ActionsTable from '../../Components/ActionsTable/ActionsTable';
-import Accpt from '../../../../public/Images/acpt.png';
-import Decln from '../../../../public/Images/decline.png';
+// import Accpt from '../../../../public/Images/acpt.png';
+// import Decln from '../../../../public/Images/decline.png';
 import StatusTable from '../../Components/StatusTable/StatusTable';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button, Modal } from 'react-bootstrap';
@@ -58,7 +58,7 @@ const Doctor_Dashboard = () => {
   // Toggle Button
   // const [isAvailable, setIsAvailable] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const getStatus = async () => {
+  const getStatus = useCallback(async () => {
     try {
       const token = sessionStorage.getItem("token");
       const response = await axios.get(
@@ -75,7 +75,7 @@ const Doctor_Dashboard = () => {
       }
       console.log('error', error);
     }
-  };
+  },[navigate,onLogout,userId]);
 
   const handleToggle = async () => {
     const newStatus = status === '1' ? '0' : '1';
@@ -285,7 +285,7 @@ const Doctor_Dashboard = () => {
   const [allAppointments, setAllAppointments] = useState([]);
   const [total, setTotal] = useState();
   // console.log('allappointments', allAppointments);
-  const getAllAppointments = async (offset) => {
+  const getAllAppointments = useCallback(async (offset) => {
     console.log('offset', offset);
     try {
       const token = sessionStorage.getItem("token");
@@ -309,9 +309,9 @@ const Doctor_Dashboard = () => {
       }
       
     }
-  };
+  },[navigate,userId,onLogout]);
   const [Last_7DaysCounts, setLast_7DaysCounts] = useState(null);
-  const getlast7daysAppointMentsCount = async () => {
+  const getlast7daysAppointMentsCount = useCallback(async () => {
     try {
       const token = sessionStorage.getItem('token')
       const response = await axios.get(
@@ -328,7 +328,7 @@ const Doctor_Dashboard = () => {
         onLogout(navigate);
       }
     }
-  };
+  },[onLogout,navigate,userId]);
 
   const AppointmentActions = async (id, status, offset) => {
     console.log('iddd', id, status, offset);
@@ -338,7 +338,7 @@ const Doctor_Dashboard = () => {
         `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/AppointmentAcceptedAndCancel/${id}`,
         { status }, {headers:{ Authorization: `Bearer ${token}`}}
       );
-      if (response.status == 200) {
+      if (response.status === 200) {
         Swal.fire({
           title: 'Appointment Status Changed',
           text: 'Appointment Status Changed Successfully',
@@ -363,7 +363,7 @@ const Doctor_Dashboard = () => {
     getAllAppointments(0);
     getlast7daysAppointMentsCount();
     getStatus();
-  }, [userId]);
+  }, [userId,getlast7daysAppointMentsCount,getStatus,getAllAppointments]);
   return (
     <section className="DoctorDashBoardSec">
       <div className="container">
@@ -490,7 +490,7 @@ const Doctor_Dashboard = () => {
 
             <div className="overviewitem">
               <BoxDiv
-                boximg={box1}
+                boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box1.png`}
                 ovradcls="chillibg"
                 ovrtxt="Appointments"
                 spanText="(Last 7 days)"
@@ -498,7 +498,7 @@ const Doctor_Dashboard = () => {
                 overnumb={Last_7DaysCounts}
               />
               <BoxDiv
-                boximg={box7}
+                boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box7.png`}
                 ovradcls="purple"
                 ovrtxt="Assessments"
                 spanText="(Last 7 days)"
@@ -506,7 +506,7 @@ const Doctor_Dashboard = () => {
                 overnumb="04"
               />
               <BoxDiv
-                boximg={box8}
+                boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box8.png`}
                 ovradcls=" cambrageblue"
                 ovrtxt="Reviews"
                 boxcoltext="greentext"
@@ -522,8 +522,8 @@ const Doctor_Dashboard = () => {
             <ActionsTable
               onClick={getAllAppointments}
               appointments={allAppointments}
-              actimg1={Accpt}
-              actimg2={Decln}
+              actimg1={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/acpt.png`}
+              actimg2={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/decline.png`}
               onClicked={AppointmentActions}
             />
           </div>
@@ -537,7 +537,7 @@ const Doctor_Dashboard = () => {
               <div className="ReviewsData">
                 <ReviewCard
                   isNew="New"
-                  Revimg={review1}
+                  Revimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/review1.png`}
                   Revname="Sky B"
                   Revpetname="Kizie"
                   Revdate="25 August 2024"
@@ -546,7 +546,7 @@ const Doctor_Dashboard = () => {
                 />
                 <ReviewCard
                   isNew="New"
-                  Revimg={review2}
+                  Revimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/review2.png`}
                   Revname="Pika"
                   Revpetname="Oscar"
                   Revdate="30 August 2024"
@@ -554,7 +554,7 @@ const Doctor_Dashboard = () => {
                   Revpara1="Dr. Brown, the Gastroenterology Specialist was very thorough with Oscar. Zoey was pre diabetic so Doc changed her meds from Prednisolone to Budesonide. In 5 days, Oscar’s glucose numbers were lower and in normal range. We are staying with Dr. Brown as Oscar’s vet as I don’t feel any anxiety dealing with Oscar’s illness now."
                 />
                 <ReviewCard
-                  Revimg={review3}
+                  Revimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/review3.png`}
                   Revname="Henry C"
                   Revpetname="Kizie"
                   Revdate="15 August 2024"
@@ -573,7 +573,7 @@ const Doctor_Dashboard = () => {
               {showMore && (
                 <div className="ReviewsData">
                   <ReviewCard
-                    Revimg={review1}
+                    Revimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/review1.png`}
                     Revname="Sky B"
                     Revpetname="Kizie"
                     Revdate="25 August 2024"
@@ -581,7 +581,7 @@ const Doctor_Dashboard = () => {
                     Revpara1="We are very happy with the services so far. Dr. Brown has been extremely thorough and generous with his time and explaining everything to us. When one is dealing with serious health issues it makes a huge difference to understand what's going on and know that the health providers are doing their best. Thanks!"
                   />
                   <ReviewCard
-                    Revimg={review2}
+                    Revimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/review2.png`}
                     Revname="Pika"
                     Revpetname="Oscar"
                     Revdate="30 August 2024"
@@ -589,7 +589,7 @@ const Doctor_Dashboard = () => {
                     Revpara1="Dr. Brown, the Gastroenterology Specialist was very thorough with Oscar. Zoey was pre diabetic so Doc changed her meds from Prednisolone to Budesonide. In 5 days, Oscar’s glucose numbers were lower and in normal range. We are staying with Dr. Brown as Oscar’s vet as I don’t feel any anxiety dealing with Oscar’s illness now."
                   />
                   <ReviewCard
-                    Revimg={review3}
+                    Revimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/review3.png`}
                     Revname="Henry C"
                     Revpetname="Kizie"
                     Revdate="15 August 2024"
@@ -641,7 +641,7 @@ function ReviewCard({
         <div className="rbtext">
           <h6>{Revname}</h6>
           <p>
-            <img src={reviw} alt="reviw" /> {Revpetname}
+            <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/reviw.png`} alt="reviw" /> {Revpetname}
           </p>
         </div>
       </div>

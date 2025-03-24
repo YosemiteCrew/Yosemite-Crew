@@ -1,10 +1,10 @@
-// eslint-disable-next-line no-unused-vars
+
 import React, { useCallback, useEffect, useState } from 'react';
 import './Clinic_visiblity.css';
 import { HeadText } from '../SignUp/SignUp';
 import { MainBtn } from '../Appointment/page';
-import whtcheck from '../../../../public/Images/whtcheck.png';
-import pft from '../../../../public/Images/pft.png';
+// import whtcheck from '../../../../public/Images/whtcheck.png';
+// import pft from '../../../../public/Images/pft.png';
 import Gallery from '../../Components/Gallery/Gallery';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -91,13 +91,13 @@ const ClinicVisibility = () => {
   }, [userId, fetchData]);
 
   // Toggle Selections
-  const handleServiceToggle = (index) => {
-    setServices((prev) =>
-      prev.map((service, i) =>
-        i === index ? { ...service, checked: !service.checked } : service
-      )
-    );
-  };
+  // const handleServiceToggle = (index) => {
+  //   setServices((prev) =>
+  //     prev.map((service, i) =>
+  //       i === index ? { ...service, checked: !service.checked } : service
+  //     )
+  //   );
+  // };
 
   const handleDepartmentToggle = (index) => {
     setDepartments((prev) =>
@@ -155,7 +155,7 @@ const ClinicVisibility = () => {
         <div className="ClicVisibleData">
           <div className="LeftvisibleDiv">
             <div className="clicprofdiv">
-              <img src={pft} alt="Clinic Profile" />
+              <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/pft.png`} alt="Clinic Profile" />
               <div className="ClVDiv">
                 <div className="clpfname">
                   <h4>{profiles.businessName}</h4>
@@ -205,7 +205,7 @@ const ClinicVisibility = () => {
                 )}
               </div>
               <ul>
-                {(showAllServices ? services : services.slice(0, 7)).map(
+                {/* {(showAllServices ? services : services.slice(0, 7))?.map(
                   (service, index) => (
                     <li
                       key={index}
@@ -221,7 +221,7 @@ const ClinicVisibility = () => {
                       </label>
                     </li>
                   )
-                )}
+                )} */}
               </ul>
             </div>
 
@@ -262,7 +262,7 @@ const ClinicVisibility = () => {
             </div>
 
             <MainBtn
-              bimg={whtcheck}
+              bimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/whtcheck.png`}
               btext="Update Visibility"
               optclas=""
               onClick={saveProfile}

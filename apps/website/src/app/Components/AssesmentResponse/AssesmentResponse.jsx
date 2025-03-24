@@ -1,5 +1,4 @@
 
-// eslint-disable-next-line no-unused-vars
 import React , { useState } from 'react';
 import "./AssesmentResponse.css"
 
@@ -141,7 +140,7 @@ const AssesmentResponse = () => {
   };
 
   return (
-    <>
+
      <div className="assmtsec">
 
       <div className="accmthead">
@@ -193,7 +192,7 @@ const AssesmentResponse = () => {
       </div>
       
     </div>
-    </>
+
   )
 }
 

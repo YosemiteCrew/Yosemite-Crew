@@ -7,7 +7,7 @@ import { useAuth } from '../../context/useAuth';
 import axios from 'axios';
 import ProgressBar from 'react-bootstrap/ProgressBar';
 import PropTypes from 'prop-types';
-import whtcheck from '../../../../public/Images/whtcheck.png';
+// import whtcheck from '../../../../public/Images/whtcheck.png';
 import { MainBtn } from '../Appointment/page';
 
 function InventoryDetail() {
@@ -144,7 +144,7 @@ function InventoryDetail() {
           </div>
 
           <div className="ee">
-            <MainBtn bimg={whtcheck} btext="Update" optclas="" />
+            <MainBtn bimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/whtcheck.png`} btext="Update" optclas="" />
           </div>
         </div>
       </Container>

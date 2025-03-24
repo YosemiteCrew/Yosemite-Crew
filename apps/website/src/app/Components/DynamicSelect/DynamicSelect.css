@@ -16,7 +16,7 @@
     color: #3129437a;
     appearance: none;
     -webkit-appearance: none; 
-    background-image: url('/Images/selctarrow.png'); 
+    background-image: var(--background-image); 
     background-repeat: no-repeat;
     background-position: right 20px center; 
     background-size: 28px; 

@@ -2,15 +2,15 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import './Dashboard.css';
 import PropTypes from 'prop-types';
-import grph1 from '../../../../public/Images/graph1.png';
-import grph2 from '../../../../public/Images/graph2.png';
-import grph3 from '../../../../public/Images/graph3.png';
-import Accpt from '../../../../public/Images/acpt.png';
-import Decln from '../../../../public/Images/decline.png';
-import box1 from '../../../../public/Images/box1.png';
-import box2 from '../../../../public/Images/box2.png';
-import box3 from '../../../../public/Images/box3.png';
-import box4 from '../../../../public/Images/box4.png';
+// import grph1 from '../../../../public/Images/graph1.png';
+// import grph2 from '../../../../public/Images/graph2.png';
+// import grph3 from '../../../../public/Images/graph3.png';
+// import Accpt from '../../../../public/Images/acpt.png';
+// import Decln from '../../../../public/Images/decline.png';
+// import box1 from '../../../../public/Images/box1.png';
+// import box2 from '../../../../public/Images/box2.png';
+// import box3 from '../../../../public/Images/box3.png';
+// import box4 from '../../../../public/Images/box4.png';
 import { Link, useNavigate } from 'react-router-dom';
 // import Topic from "../../../public/Images/topic.png";
 import ActionsTable from '../../Components/ActionsTable/ActionsTable';
@@ -124,7 +124,7 @@ const Dashboard = () => {
           Authorization: `Bearer ${token}`,
         }}
       );
-      if (response.status == 200) {
+      if (response.status === 200) {
         Swal.fire({
           title: 'Appointment Status Changed',
           text: 'Appointment Status Changed Successfully',
@@ -179,7 +179,7 @@ const Dashboard = () => {
           <div className="overviewDiv">
             <div className="overviewitem">
               <BoxDiv
-                boximg={box1}
+                boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box1.png`}
                 ovradcls="chillibg"
                 ovrtxt="Appointments"
                 spanText="(Last 7 days)"
@@ -187,21 +187,21 @@ const Dashboard = () => {
                 overnumb={overView.appointmentCounts}
               />
               <BoxDiv
-                boximg={box2}
+                boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box2.png`}
                 ovradcls="purple"
                 ovrtxt="Doctors"
                 boxcoltext="purpletext"
                 overnumb={overView.totalDoctors}
               />
               <BoxDiv
-                boximg={box3}
+                boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box3.png`}
                 ovradcls="cambrageblue"
                 ovrtxt="Specialities"
                 boxcoltext="greentext"
                 overnumb={overView.totalDepartments}
               />
               <BoxDiv
-                boximg={box4}
+                boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box4.png`}
                 ovradcls="fawndark"
                 ovrtxt="Revenue "
                 spanText="(Last 7 days)"
@@ -231,7 +231,7 @@ const Dashboard = () => {
                 <ListSelect options={optionsList} />
               </div>
               <div className="graphimg">
-                <img src={grph2} alt="graph2" />
+                <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/graph2.png`} alt="graph2" />
               </div>
             </div>
           </div>
@@ -239,8 +239,8 @@ const Dashboard = () => {
           <div>
             <DivHeading TableHead="New Appointments"  tablespan={`(${totalAppointments ? totalAppointments : 0})`}/>
             <ActionsTable
-              actimg1={Accpt}
-              actimg2={Decln}
+              actimg1={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/acpt.png`}
+              actimg2={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/decline.png`}
               onClick={getAllAppointments}
               appointments={appointments}
               onClicked={AppointmentActions}
@@ -268,7 +268,7 @@ const Dashboard = () => {
                   <ListSelect options={optionsList} />
                 </div>
                 <div className="graphimg">
-                  <img src={grph3} alt="graph3" />
+                  <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/graph3.png`} alt="graph3" />
                 </div>
               </div>
               <div className="col-md-6">
@@ -277,7 +277,7 @@ const Dashboard = () => {
                   <ListSelect options={optionsList} />
                 </div>
                 <div className="graphimg">
-                  <img src={grph3} alt="graph3" />
+                  <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/graph1.png`} alt="graph3" />
                 </div>
               </div>
             </div>
@@ -377,7 +377,7 @@ export function TopHeading({ spantext, heding, notif }) {
         <h2>{heding}</h2>
       </div>
       <div className="RytNotify">
-        <a href="#">
+        <a href="/#">
           <i className="ri-notification-3-fill"></i> {notif}{' '}
         </a>
       </div>

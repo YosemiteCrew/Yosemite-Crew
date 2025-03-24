@@ -1,4 +1,4 @@
-// eslint-disable-next-line no-unused-vars
+
 import React, { useEffect, useState } from 'react';
 import './AddInventory.css';
 import { Col, Container, Form, Row } from 'react-bootstrap';
@@ -6,7 +6,7 @@ import { Forminput } from '../SignUp/SignUp';
 import DynamicSelect from '../../Components/DynamicSelect/DynamicSelect';
 import DynamicDatePicker from '../../Components/DynamicDatePicker/DynamicDatePicker';
 import { MainBtn } from '../Appointment/page';
-import whtcheck from '../../../../public/Images/whtcheck.png';
+// import whtcheck from '../../../../public/Images/whtcheck.png';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { useAuth } from '../../context/useAuth';
@@ -289,7 +289,7 @@ const AddInventory = () => {
 
           <div className="ee">
             <MainBtn
-              bimg={whtcheck}
+              bimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/whtcheck.png`}
               btext="Add Inventory"
               onClick={handleSubmit}
             />

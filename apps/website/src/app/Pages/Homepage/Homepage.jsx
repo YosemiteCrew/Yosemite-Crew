@@ -1,32 +1,32 @@
-// eslint-disable-next-line no-unused-vars
-import React, { useRef } from "react";
+
+
 import "./Homepage.css";
 import PropTypes from "prop-types";
-import heroImg from "../../../../public/Images/Homepage/Heroimg.png";
-import P1 from "../../../../public/Images/Homepage/P1.png";
-import P2 from "../../../../public/Images/Homepage/P2.png";
-import P3 from "../../../../public/Images/Homepage/P3.png";
-import P4 from "../../../../public/Images/Homepage/P4.png";
-import Pr1 from "../../../../public/Images/Homepage/Pr1.png";
-import Pr2 from "../../../../public/Images/Homepage/Pr2.png";
-import Pr3 from "../../../../public/Images/Homepage/Pr3.png";
-import Pr4 from "../../../../public/Images/Homepage/Pr4.png";
-import Pr5 from "../../../../public/Images/Homepage/Pr5.png";
-import Pr6 from "../../../../public/Images/Homepage/Pr6.png";
-import Pr7 from "../../../../public/Images/Homepage/Pr7.png";
-import Pr8 from "../../../../public/Images/Homepage/Pr8.png";
-import Betimg from "../../../../public/Images/Homepage/betterimg.png";
-import CR1 from "../../../../public/Images/Homepage/cr1.png";
-import CR2 from "../../../../public/Images/Homepage/cr2.png";
-import CR3 from "../../../../public/Images/Homepage/cr3.png";
-import exprt1 from "../../../../public/Images/Homepage/exprt1.png";
-import exprt2 from "../../../../public/Images/Homepage/exprt2.png";
-import exprt3 from "../../../../public/Images/Homepage/exprt3.png";
-import focus1 from "../../../../public/Images/Homepage/focus1.png";
-import focus2 from "../../../../public/Images/Homepage/focus2.png";
-import focus3 from "../../../../public/Images/Homepage/focus3.png";
-import focus4 from "../../../../public/Images/Homepage/focus4.png";
-import focus5 from "../../../../public/Images/Homepage/focus5.png";
+// import heroImg from "../../../../public/Images/Homepage/Heroimg.png";
+// import P1 from "../../../../public/Images/Homepage/P1.png";
+// import P2 from "../../../../public/Images/Homepage/P2.png";
+// import P3 from "../../../../public/Images/Homepage/P3.png";
+// import P4 from "../../../../public/Images/Homepage/P4.png";
+// import Pr1 from "../../../../public/Images/Homepage/Pr1.png";
+// import Pr2 from "../../../../public/Images/Homepage/Pr2.png";
+// import Pr3 from "../../../../public/Images/Homepage/Pr3.png";
+// import Pr4 from "../../../../public/Images/Homepage/Pr4.png";
+// import Pr5 from "../../../../public/Images/Homepage/Pr5.png";
+// import Pr6 from "../../../../public/Images/Homepage/Pr6.png";
+// import Pr7 from "../../../../public/Images/Homepage/Pr7.png";
+// import Pr8 from "../../../../public/Images/Homepage/Pr8.png";
+// import Betimg from "../../../../public/Images/Homepage/betterimg.png";
+// import CR1 from "../../../../public/Images/Homepage/cr1.png";
+// import CR2 from "../../../../public/Images/Homepage/cr2.png";
+// import CR3 from "../../../../public/Images/Homepage/cr3.png";
+// import exprt1 from "../../../../public/Images/Homepage/exprt1.png";
+// import exprt2 from "../../../../public/Images/Homepage/exprt2.png";
+// import exprt3 from "../../../../public/Images/Homepage/exprt3.png";
+// import focus1 from "../../../../public/Images/Homepage/focus1.png";
+// import focus2 from "../../../../public/Images/Homepage/focus2.png";
+// import focus3 from "../../../../public/Images/Homepage/focus3.png";
+// import focus4 from "../../../../public/Images/Homepage/focus4.png";
+// import focus5 from "../../../../public/Images/Homepage/focus5.png";
 import { SectionText } from "../Pricing/Pricing";
 import { Link } from "react-router-dom";
 // import useHover3d from '../../utils/hover';
@@ -45,7 +45,11 @@ const Homepage = () => {
 
       <div className="HomeMain">
         {/* HeroSection */}
-        <section className="HeroSection">
+        <section className="HeroSection"
+        style={{
+          "--background-image": `url(${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/heroafter.png)`
+        }}
+        >
           <div className="container">
             <div className="HeroData">
               <div className="LeftHeroDiv">
@@ -58,24 +62,24 @@ const Homepage = () => {
                 <div className="heroPara">
                   <div className="paraitem">
                     <p>
-                      <img src={P1} alt="Hero" /> Open source, cloud-based
+                      <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Homepage/P1.png`} alt="Hero" /> Open source, cloud-based
                       system
                     </p>
                   </div>
                   <div className="paraitem">
                     <p>
-                      <img src={P2} alt="Hero" /> Enhance your daily workflow
+                      <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Homepage/P2.png`} alt="Hero" /> Enhance your daily workflow
                     </p>
                   </div>
                   <div className="paraitem">
                     <p>
-                      <img src={P3} alt="Hero" /> Easy-to-use, time-saving
+                      <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Homepage/P3.png`} alt="Hero" /> Easy-to-use, time-saving
                       features
                     </p>
                   </div>
                   <div className="paraitem">
                     <p>
-                      <img src={P4} alt="Hero" /> Access data anytime, anywhere
+                      <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Homepage/P4.png`} alt="Hero" /> Access data anytime, anywhere
                     </p>
                   </div>
                 </div>
@@ -89,7 +93,7 @@ const Homepage = () => {
                 </div>
               </div>
               <div className="RytHeroDiv">
-                <img src={heroImg} alt="Hero" />
+                <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Homepage/Heroimg.png`} alt="Hero" />
               </div>
             </div>
           </div>
@@ -105,49 +109,49 @@ const Homepage = () => {
 
             <div className="Practice_Box_Data">
               <BoxPract
-                Bpimg={Pr1}
+                Bpimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Homepage/Pr1.png`}
                 BpTxt1="Appointment"
                 BpTxt2="Scheduling"
                 BpPara="Easily manage bookings, cancellations, and reminders to minimize no-shows."
               />
               <BoxPract
-                Bpimg={Pr2}
+                Bpimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Homepage/Pr2.png`}
                 BpTxt1="Medical Records"
                 BpTxt2="Management"
                 BpPara="Organize patient data, treatment history, and prescriptions in one secure platform."
               />
               <BoxPract
-                Bpimg={Pr3}
+                Bpimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Homepage/Pr3.png`}
                 BpTxt1="Client"
                 BpTxt2="Communication"
                 BpPara="Send automated reminders, updates, and follow-up messages via email or text."
               />
               <BoxPract
-                Bpimg={Pr4}
+                Bpimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Homepage/Pr4.png`}
                 BpTxt1="Billing &"
                 BpTxt2="Payments"
                 BpPara="Generate invoices, process payments, and track financials with ease."
               />
               <BoxPract
-                Bpimg={Pr5}
+                Bpimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Homepage/Pr5.png`}
                 BpTxt1="Invoicing"
                 BpTxt2="Management"
                 BpPara="Automate check-out with invoicing, quick payments, downpayments, split payments, and refunds."
               />
               <BoxPract
-                Bpimg={Pr6}
+                Bpimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Homepage/Pr6.png`}
                 BpTxt1="Pet Parent"
                 BpTxt2="App"
                 BpPara="Give clients a vet-in-your-pocket with a dedicated app for reminders, medical records, and invoices—all in one."
               />
               <BoxPract
-                Bpimg={Pr7}
+                Bpimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Homepage/Pr7.png`}
                 BpTxt1="Report &"
                 BpTxt2="Analytics"
                 BpPara="Monitor practice performance with detailed insights into appointments, revenue, and client retention."
               />
               <BoxPract
-                Bpimg={Pr8}
+                Bpimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Homepage/Pr8.png`}
                 BpTxt1="Inventory"
                 BpTxt2="Management"
                 BpPara="Keep track of stock levels, place orders, and receive notifications when supplies are low."
@@ -169,31 +173,31 @@ const Homepage = () => {
 
             <div className="Focus_data">
               <FocusCard
-                Focimg={focus1}
+                Focimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Homepage/focus1.png`}
                 focname="API-Driven"
                 focpara="Seamlessly integrate with external tools and systems, offering flexible data sharing and connectivity."
               />
               <FocusCard
                 focadcls="purplecard"
-                Focimg={focus2}
+                Focimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Homepage/focus2.png`}
                 focname="Open Source"
                 focpara="With Yosemite Crew’s GPL license, you own the software—SaaS simplicity with Open Source freedom and no vendor lock-in."
               />
               <FocusCard
                 focadcls="browncard"
-                Focimg={focus3}
+                Focimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Homepage/focus3.png`}
                 focname="Automated Workflows"
                 focpara="Automate invoicing, appointment scheduling, and reminders, freeing up your team to focus on what matters most."
               />
               <FocusCard
                 focadcls="greencard"
-                Focimg={focus4}
+                Focimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Homepage/focus4.png`}
                 focname="Secure & Compliant"
                 focpara="Built with GDPR, SOC2, and ISO 27001 compliance, ensuring the highest standards of security and trust."
               />
               <FocusCard
                 focadcls="blckcard"
-                Focimg={focus5}
+                Focimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Homepage/focus5.png`}
                 focname="Scalable"
                 focpara="Grow with confidence – whether you're a small clinic or a multi-location practice, our software evolves with your needs."
               />
@@ -206,7 +210,11 @@ const Homepage = () => {
           <div className="container">
             <SectionText secspan1="Trusted" secblk2="by Veterinary Experts" />
 
-            <div className="TrustExpertData">
+            <div className="TrustExpertData"
+            style={{
+              "--trust-image":`url(${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/heart.png)`
+            }}
+            >
               <div className="Expertitems">
                 <div className="expertPara">
                   <p>
@@ -216,7 +224,7 @@ const Homepage = () => {
                   </p>
                 </div>
                 <div className="expertBio">
-                  <img src={exprt1} alt="" />
+                  <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Homepage/exprt1.png`} alt="" />
                   <div className="exprtName">
                     <h6>Dr. Sarah Mitchell</h6>
                     <p>
@@ -235,7 +243,7 @@ const Homepage = () => {
                   </p>
                 </div>
                 <div className="expertBio purplebio">
-                  <img src={exprt2} alt="" />
+                  <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Homepage/exprt2.png`} alt="" />
                   <div className="exprtName">
                     <h6>Dr. Michael Lawson</h6>
                     <p>
@@ -255,7 +263,7 @@ const Homepage = () => {
                   </p>
                 </div>
                 <div className="expertBio greenbio">
-                  <img src={exprt3} alt="" />
+                  <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Homepage/exprt3.png`} alt="" />
                   <div className="exprtName">
                     <h6>Dr. Emily Carter</h6>
                     <p>
@@ -286,9 +294,9 @@ const Homepage = () => {
               <div className="rytcare">
                 <p>Our platform is fully compliant with:</p>
                 <div className="carelog">
-                  <img src={CR1} alt="" width={109} height={112} />
-                  <img src={CR2} alt="" width={261} height={196} />
-                  <img src={CR3} alt="" width={194} height={137} />
+                  <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Homepage/cr1.png`} alt="" width={109} height={112} />
+                  <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Homepage/cr2.png`} alt="" width={261} height={196} />
+                  <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Homepage/cr3.png`} alt="" width={194} height={137} />
                 </div>
               </div>
             </div>
@@ -296,7 +304,11 @@ const Homepage = () => {
         </section>
 
         {/* BettercareSec */}
-        <section className="BettercareSec">
+        <section className="BettercareSec"
+        style={{
+          "--better-image": `url(${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Homepage/LINES.png)`
+        }}
+        >
           <div className="container">
             <div className="BettercareBox">
               <div className="lftbetter">
@@ -317,7 +329,7 @@ const Homepage = () => {
                 </div>
               </div>
               <div className="lftbetter">
-                <img src={Betimg} alt="" />
+                <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Homepage/betterimg.png`} alt="" />
               </div>
             </div>
           </div>

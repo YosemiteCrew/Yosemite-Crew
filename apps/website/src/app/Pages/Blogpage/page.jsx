@@ -2,17 +2,17 @@ import React from 'react';
 import './Blogpage.css';
 import { AiFillPlusCircle } from 'react-icons/ai';
 import PropTypes from 'prop-types';
-import Puppy1 from '../../../../public/Images/Blogpage/Puppy1.jpg';
-import Puppy2 from '../../../../public/Images/Blogpage/Puppy2.jpg';
-import Puppy3 from '../../../../public/Images/Blogpage/Puppy3.jpg';
+// import Puppy1 from '../../../../public/Images/Blogpage/Puppy1.jpg';
+// import Puppy2 from '../../../../public/Images/Blogpage/Puppy2.jpg';
+// import Puppy3 from '../../../../public/Images/Blogpage/Puppy3.jpg';
 import { ExploreType } from '../ArticlePage/page';
-import cardpuppy1 from '../../../../public/Images/Blogpage/cardpuppy1.png';
-import cardpuppy2 from '../../../../public/Images/Blogpage/cardpuppy2.png';
-import cardpuppy3 from '../../../../public/Images/Blogpage/cardpuppy3.png';
-import cardpuppy4 from '../../../../public/Images/Blogpage/cardpuppy4.png';
-import cardpuppy5 from '../../../../public/Images/Blogpage/cardpuppy5.png';
-import cardpuppy6 from '../../../../public/Images/Blogpage/cardpuppy6.png';
-import drf from '../../../../public/Images/Blogpage/drf.jpg';
+// import cardpuppy1 from '../../../../public/Images/Blogpage/cardpuppy1.png';
+// import cardpuppy2 from '../../../../public/Images/Blogpage/cardpuppy2.png';
+// import cardpuppy3 from '../../../../public/Images/Blogpage/cardpuppy3.png';
+// import cardpuppy4 from '../../../../public/Images/Blogpage/cardpuppy4.png';
+// import cardpuppy5 from '../../../../public/Images/Blogpage/cardpuppy5.png';
+// import cardpuppy6 from '../../../../public/Images/Blogpage/cardpuppy6.png';
+// import drf from '../../../../public/Images/Blogpage/drf.jpg';
 
 const Blogpage = () => {
   return (
@@ -26,7 +26,7 @@ const Blogpage = () => {
           <div className="BlogPicData">
             <div className="blogPicLeft">
               <div className="Blogpic">
-                <img src={Puppy1} alt="puppy" width={847} height={680} />
+                <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Blogpage/Puppy1.jpg`} alt="puppy" width={847} height={680} />
                 <div className="bloginner">
                   <h3>
                     New Puppy Checklist: Everything You Need to Get Started{' '}
@@ -42,14 +42,14 @@ const Blogpage = () => {
             </div>
             <div className="blogPicRyt">
               <div className="Blogpic">
-                <img src={Puppy2} alt="puppy" width={413} height={325} />
+                <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Blogpage/Puppy2.jpg`} alt="puppy" width={413} height={325} />
                 <div className="bloginner">
                   <h3>Care For Your Teething Puppy With These 4 Tips</h3>
                 </div>
               </div>
 
               <div className="Blogpic">
-                <img src={Puppy3} alt="puppy" width={413} height={325} />
+                <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Blogpage/Puppy3.jpg`} alt="puppy" width={413} height={325} />
                 <div className="bloginner">
                   <h3>Does My Cat Love Me? Here&apos;s How To Tell</h3>
                 </div>
@@ -82,56 +82,56 @@ const Blogpage = () => {
               <ExploreType />
               <div className="ExploreCardData">
                 <ExplrCard
-                  expimg={cardpuppy1}
+                  expimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Blogpage/cardpuppy1.png`}
                   stnme="Skin Care"
                   stmint="5 mins read"
                   Extext="5 Home Remedies for Your Dog’s Itchy Skin"
-                  drimg={drf}
+                  drimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Blogpage/drf.jpg`}
                   drname="Dr. Jamie Sailor"
                   drdays="2 days ago"
                 />
                 <ExplrCard
-                  expimg={cardpuppy2}
+                  expimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Blogpage/cardpuppy2.png`}
                   stnme="Senior Cats"
                   stmint="8 mins read"
                   Extext="When Is a Cat Considered a Senior? What To Expect When Your Cat’s Aging"
-                  drimg={drf}
+                  drimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Blogpage/drf.jpg`}
                   drname="Dr. Ken Morrison"
                   drdays="Sep 25, 2024"
                 />
                 <ExplrCard
-                  expimg={cardpuppy3}
+                  expimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Blogpage/cardpuppy3.png`}
                   stnme="Nutrition"
                   stmint="5 mins read"
                   Extext="What Are Cat Supplements and How Do They Work?"
-                  drimg={drf}
+                  drimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Blogpage/drf.jpg`}
                   drname="Dr. John David"
                   drdays="Sep 18, 2024"
                 />
                 <ExplrCard
-                  expimg={cardpuppy4}
+                  expimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Blogpage/cardpuppy4.png`}
                   stnme="Healthy Living"
                   stmint="5 mins read"
                   Extext="Winter Care for Horses"
-                  drimg={drf}
+                  drimg={ `${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Blogpage/drf.jpg`}
                   drname="Dr. Lisa Maiden"
                   drdays="2 days ago"
                 />
                 <ExplrCard
-                  expimg={cardpuppy5}
+                  expimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Blogpage/cardpuppy5.png`}
                   stnme="Skin Care"
                   stmint="5 mins read"
                   Extext="Dog Not Drinking Water? Possible Causes and When To Call Your Vet"
-                  drimg={drf}
+                  drimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Blogpage/drf.jpg`}
                   drname="Dr. Benny David"
                   drdays="Aug 30, 2024"
                 />
                 <ExplrCard
-                  expimg={cardpuppy6}
+                  expimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Blogpage/cardpuppy6.png`}
                   stnme="Wellness"
                   stmint="5 mins read"
                   Extext="Why Horse Rearing Happens and How To Stop It"
-                  drimg={drf}
+                  drimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Blogpage/drf.jpg`}
                   drname="Dr. Susan Martin"
                   drdays="Aug 18, 2024"
                 />

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
-import pet1 from '../../../../public/Images/pet1.png';
-import pet2 from '../../../../public/Images/pet2.png';
-import pet3 from '../../../../public/Images/pet3.png';
+// import pet1 from '../../../../public/Images/pet1.png';
+// import pet2 from '../../../../public/Images/pet2.png';
+// import pet3 from '../../../../public/Images/pet3.png';
 
 const ActionsTable = ({
   appointments = [],
@@ -57,7 +57,7 @@ const ActionsTable = ({
             <tr key={index}>
               <td>
                 <div className="dogimg">
-                  <img src={pet1} alt={appointment.petName} />
+                  <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/pet1.png`} alt={appointment.petName} />
                 </div>
               </td>
               <td>

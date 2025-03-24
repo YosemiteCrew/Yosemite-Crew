@@ -1,11 +1,11 @@
-// eslint-disable-next-line no-unused-vars
+
 import React from 'react'
 import "./RelatesArticle.css"
 import Slider from "react-slick";
-import Rls1 from "../../../../public/Images/ArticlePage/Rls1.png"
-import Rls2 from "../../../../public/Images/ArticlePage/Rls2.png"
-import Rls3 from "../../../../public/Images/ArticlePage/Rls3.png"
-import Rls4 from "../../../../public/Images/ArticlePage/Rls4.png"
+// import Rls1 from "../../../../public/Images/ArticlePage/Rls1.png"
+// import Rls2 from "../../../../public/Images/ArticlePage/Rls2.png"
+// import Rls3 from "../../../../public/Images/ArticlePage/Rls3.png"
+// import Rls4 from "../../../../public/Images/ArticlePage/Rls4.png"
 
 const RelatesArticle = () => {
 
@@ -21,14 +21,14 @@ const RelatesArticle = () => {
 
 
   return (
-    <>
+   
     <div className='RelatesSliderSec'>
 
         <Slider {...settings}>
 
             <div className='RelateSlidecard'>
                 <div className="ReltartPic">
-                    <img src={Rls1} alt="Rls1" />
+                    <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/ArticlePage/Rls1.png`} alt="Rls1" />
                 </div>
                 <div className="RelateInner">
                     <div className="Reltdate">
@@ -41,7 +41,7 @@ const RelatesArticle = () => {
 
             <div className='RelateSlidecard'>
                 <div className="ReltartPic">
-                    <img src={Rls2} alt="Rls2" />
+                    <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/ArticlePage/Rls2.png`} alt="Rls2" />
                 </div>
                 <div className="RelateInner">
                     <div className="Reltdate">
@@ -54,7 +54,7 @@ const RelatesArticle = () => {
 
             <div className='RelateSlidecard'>
                 <div className="ReltartPic">
-                    <img src={Rls3} alt="Rls3" />
+                    <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/ArticlePage/Rls3.png`} alt="Rls3" />
                 </div>
                 <div className="RelateInner">
                     <div className="Reltdate">
@@ -67,7 +67,7 @@ const RelatesArticle = () => {
 
             <div className='RelateSlidecard'>
                 <div className="ReltartPic">
-                    <img src={Rls4} alt="Rls4" />
+                    <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/ArticlePage/Rls4.png`} alt="Rls4" />
                 </div>
                 <div className="RelateInner">
                     <div className="Reltdate">
@@ -89,7 +89,6 @@ const RelatesArticle = () => {
 
 
 
-    </>
   )
 }
 

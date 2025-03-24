@@ -1,12 +1,12 @@
-// eslint-disable-next-line no-unused-vars
-import React, { useEffect, useState } from 'react';
+
+import React, { useCallback, useEffect, useState } from 'react';
 import './DepartmentsMain.css';
 // import { TextSpan } from '../Appointment/page'
 import { BoxDiv, ListSelect } from '../Dashboard/page';
-import box1 from '../../../../public/Images/box1.png';
-import box2 from '../../../../public/Images/box2.png';
-import box3 from '../../../../public/Images/box3.png';
-import box4 from '../../../../public/Images/box4.png';
+// import box1 from '../../../../public/Images/box1.png';
+// import box2 from '../../../../public/Images/box2.png';
+// import box3 from '../../../../public/Images/box3.png';
+// import box4 from '../../../../public/Images/box4.png';
 import { AddSerchHead } from '../Add_Doctor/Add_Doctor';
 import DepartmentAppointmentsChart from '../../Components/BarGraph/DepartmentAppointmentsChart';
 import WeeklyAppointmentsChart from '../../Components/BarGraph/WeeklyAppointmentsChart';
@@ -26,7 +26,7 @@ const DepartmentsMain = () => {
     'Last 21 Days',
   ];
 
-  const GetDepartmentsOverView = async (selectedOption) => {
+  const GetDepartmentsOverView = useCallback(async (selectedOption) => {
     const days = parseInt(selectedOption.match(/\d+/)[0], 10);
     console.log(`Selected Days: ${days}`);
     try {
@@ -58,10 +58,10 @@ const DepartmentsMain = () => {
         confirmButtonText: 'OK',
       });
     }
-  };
+  },[onLogout,userId,navigate]);
   const [graphData, setGraphData] = useState([]);
   console.log('graph', graphData);
-  const DepartmentBasisAppointmentGraph = async (selectedOption) => {
+  const DepartmentBasisAppointmentGraph = useCallback(async (selectedOption) => {
     const days = parseInt(selectedOption.match(/\d+/)[0], 10);
     console.log(`Selected Days: ${days}`);
 
@@ -96,10 +96,10 @@ const DepartmentsMain = () => {
         confirmButtonText: 'OK',
       });
     }
-  };
+  },[onLogout,userId,navigate]);
   const [WeeklyAppointmentGraph, setweeklyAppoinmentGraph] = useState({});
   console.log('WeeklyAppointmentGraph', WeeklyAppointmentGraph);
-  const getDataForWeeklyAppointmentChart = async () => {
+  const getDataForWeeklyAppointmentChart = useCallback(async () => {
     try {
       const token = sessionStorage.getItem('token')
       const response = await axios.get(
@@ -124,12 +124,12 @@ const DepartmentsMain = () => {
         confirmButtonText: 'OK',
       });
     }
-  };
+  },[onLogout,navigate,userId]);
   useEffect(() => {
     getDataForWeeklyAppointmentChart();
     DepartmentBasisAppointmentGraph('Last 7 Days');
     GetDepartmentsOverView('Last 7 Days');
-  }, [userId]);
+  }, [userId,DepartmentBasisAppointmentGraph,GetDepartmentsOverView,getDataForWeeklyAppointmentChart]);
   return (
     <section className="Department_MainSec">
       <div className="container">
@@ -150,21 +150,21 @@ const DepartmentsMain = () => {
             </div>
             <div className="overviewitem">
               <BoxDiv
-                boximg={box2}
+                boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box2.png`}
                 ovradcls="purple"
                 ovrtxt="Departments"
                 boxcoltext="purpletext"
                 overnumb={DepartmentsOverView.departments}
               />
               <BoxDiv
-                boximg={box4}
+                boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box4.png`}
                 ovradcls=" fawndark"
                 ovrtxt="Total Doctors "
                 boxcoltext="frowntext"
                 overnumb={DepartmentsOverView.doctors}
               />
               <BoxDiv
-                boximg={box3}
+                boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box3.png`}
                 ovradcls=" cambrageblue"
                 ovrtxt="New Animal"
                 boxcoltext="greentext"
@@ -173,7 +173,7 @@ const DepartmentsMain = () => {
                 }
               />
               <BoxDiv
-                boximg={box1}
+                boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box1.png`}
                 ovradcls="chillibg"
                 ovrtxt="Appointments Today"
                 boxcoltext="ciltext"

@@ -1,4 +1,4 @@
-// eslint-disable-next-line no-unused-vars
+
 import React, { useState, useEffect } from 'react';
 import './DynamicDatePicker.css';
 import PropTypes from 'prop-types'; // Import PropTypes for prop validation
@@ -6,7 +6,7 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { FormControl } from 'react-bootstrap';
 import { FaCalendarAlt } from 'react-icons/fa';
-import { propTypes } from 'react-bootstrap/esm/Image';
+
 
 const DynamicDatePicker = ({
   placeholder,

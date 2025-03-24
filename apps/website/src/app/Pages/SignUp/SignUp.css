@@ -1,7 +1,9 @@
+
+
 .SignUpSec{
-    background: 
-    linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), 
-    url('../../../../public/Images/Signupbg.jpg')no-repeat; 
+    background:
+    linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)),
+    var(--dynamic-bg-image) no-repeat;
     background-size: cover; 
     height: 100%;
     min-height: 100vh;

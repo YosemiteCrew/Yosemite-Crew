@@ -2,18 +2,18 @@ import React, { useCallback, useEffect, useState } from 'react';
 import './Inventory.css';
 import { Container, Form, Tab, Tabs } from 'react-bootstrap';
 import { BoxDiv, ListSelect } from '../Dashboard/page';
-import box9 from '../../../../public/Images/box9.png';
-import box10 from '../../../../public/Images/box10.png';
-import box11 from '../../../../public/Images/box11.png';
-import box12 from '../../../../public/Images/box12.png';
+// import box9 from '../../../../public/Images/box9.png';
+// import box10 from '../../../../public/Images/box10.png';
+// import box11 from '../../../../public/Images/box11.png';
+// import box12 from '../../../../public/Images/box12.png';
 // import WeeklyAppointmentsChart from '../../Components/BarGraph/WeeklyAppointmentsChart';
 import DepartmentAppointmentsChart from '../../Components/BarGraph/DepartmentAppointmentsChart';
 import { AiFillPlusCircle } from 'react-icons/ai';
 import { IoSearch } from 'react-icons/io5';
 import { Link, useNavigate } from 'react-router-dom';
 import ProcedureTable from '../../Components/ProcedureTable/ProcedureTable';
-import Accpt from '../../../../public/Images/view.png';
-import Decln from '../../../../public/Images/delete.png';
+// import Accpt from '../../../../public/Images/view.png';
+// import Decln from '../../../../public/Images/delete.png';
 import ManageInvetryTable from '../../Components/ManageInvetryTable/ManageInvetryTable';
 import axios from 'axios';
 import { useAuth } from '../../context/useAuth';
@@ -273,28 +273,28 @@ function Inventory() {
             </div> */}
             <div className="overviewitem">
               <BoxDiv
-                boximg={box9}
+                boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box9.png`}
                 ovradcls="purple"
                 ovrtxt="Total Inventory Items"
                 boxcoltext="purpletext"
                 overnumb={Overview?.totalQuantity}
               />
               <BoxDiv
-                boximg={box10}
+                boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box10.png`}
                 ovradcls="cambrageblue"
                 ovrtxt="Stock Value"
                 boxcoltext="greentext"
                 overnumb={Overview?.totalValue}
               />
               <BoxDiv
-                boximg={box11}
+                boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box11.png`}
                 ovradcls="fawndark"
                 ovrtxt="Items Low on Stock"
                 boxcoltext="frowntext"
                 overnumb={Overview?.lowStockCount}
               />
               <BoxDiv
-                boximg={box12}
+                boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box12.png`}
                 ovradcls="chillibg"
                 ovrtxt="Out-of-Stock Items"
                 boxcoltext="ciltext"
@@ -366,8 +366,8 @@ function Inventory() {
                         </div>
                       </div>
                       <ManageInvetryTable
-                        actimg1={Accpt}
-                        actimg2={Decln}
+                        actimg1={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/view.png`}
+                        actimg2={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/delete.png`}
                         inventoryData={inventoryData}
                         currentPage={currentPage}
                         setCurrentPage={setCurrentPage}
@@ -389,8 +389,8 @@ function Inventory() {
             </div>
             <div className="Prof">
               <ProcedureTable
-                actimg1={Accpt}
-                actimg2={Decln}
+                actimg1={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/view.png`}
+                actimg2={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/delete.png`}
                 procedureData={procedureData.data}
                 procedureTotalPages={procedureTotalPages}
                 setProcedureCurrentPage={setProcedureCurrentPage}

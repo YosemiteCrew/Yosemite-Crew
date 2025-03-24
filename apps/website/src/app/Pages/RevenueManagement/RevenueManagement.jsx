@@ -1,4 +1,4 @@
-// eslint-disable-next-line no-unused-vars
+
 import React from "react";
 import "./RevenueManagement.css";
 import { Col, Container, ProgressBar, Row } from "react-bootstrap";
@@ -64,7 +64,7 @@ function RevenueManagement() {
   ];
 
   return (
-    <>
+
       <section className="RevenueDashBoardSec">
         <Container>
           <div className="RevnewDashBoardData">
@@ -310,14 +310,14 @@ function RevenueManagement() {
               <Col md={3}>
                 <div className="InsuredPetDiv">
                   <div className="topexpensive">
-                    <h5></h5>
+                    {/* <h5></h5> */}
                   </div>
                 </div>
               </Col>
               <Col md={3}>
                 <div className="InsuredPetDiv">
                   <div className="topexpensive">
-                    <h5></h5>
+                    {/* <h5></h5> */}
                   </div>
                 </div>
               </Col>
@@ -327,7 +327,7 @@ function RevenueManagement() {
               <Col md={6}>
                 <div className="InsuredPetDiv">
                   <div className="topexpensive">
-                    <h5></h5>
+                    {/* <h5></h5> */}
                   </div>
 
                   <div className="PetChartData">
@@ -381,7 +381,7 @@ function RevenueManagement() {
           </div>
         </Container>
       </section>
-    </>
+   
   );
 }
 

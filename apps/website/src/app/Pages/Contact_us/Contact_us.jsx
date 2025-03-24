@@ -1,4 +1,4 @@
-// eslint-disable-next-line no-unused-vars
+
 import React, { useState } from 'react'
 import "./Contact_us.css"
 import PropTypes from 'prop-types';
@@ -130,7 +130,11 @@ const Contact_us = () => {
         </div>
     </section>
 
-    <section className='Contact_Info'>
+    <section className='Contact_Info'
+    style={{
+        "--background-image":`url(${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/contactbg.png)`
+    }}
+    >
         <div className="container">
             <div className="ContInfoData">
                 <div className="lftinfo">
