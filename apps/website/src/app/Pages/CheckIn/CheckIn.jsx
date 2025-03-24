@@ -9,14 +9,14 @@ import {
   CiCircleChevRight,
 } from 'react-icons/ci';
 import { BoxDiv, DivHeading } from '../Dashboard/page';
-import box1 from '../../../../public/Images/box1.png';
+// import box1 from '../../../../public/Images/box1.png';
 
-import box2 from '../../../../public/Images/box2.png';
-import box3 from '../../../../public/Images/box3.png';
-import box4 from '../../../../public/Images/box4.png';
+// import box2 from '../../../../public/Images/box2.png';
+// import box3 from '../../../../public/Images/box3.png';
+// import box4 from '../../../../public/Images/box4.png';
 
-import box5 from '../../../../public/Images/box5.png';
-import box6 from '../../../../public/Images/box6.png';
+// import box5 from '../../../../public/Images/box5.png';
+// import box6 from '../../../../public/Images/box6.png';
 
 import { Forminput } from '../SignUp/SignUp';
 import { Col, Row } from 'react-bootstrap';
@@ -786,42 +786,42 @@ const CheckIn = () => {
                 <div className="CheckInOverview">
                   <div className="Boxsed">
                     <BoxDiv
-                      boximg={box1}
+                      boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box1.png`}
                       ovradcls="purple"
                       ovrtxt="Patients in Waiting Room"
                       boxcoltext="purpletext"
                       overnumb={waittingRoomOverView.totalAppointments}
                     />
                     <BoxDiv
-                      boximg={box3}
+                      boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box3.png`}
                       ovradcls=" cambrageblue"
                       ovrtxt="Tokens Generated Today"
                       boxcoltext="frowntext"
                       overnumb={waittingRoomOverView.appointmentsCreatedToday}
                     />
                     <BoxDiv
-                      boximg={box5}
+                      boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box5.png`}
                       ovradcls=" cambrageblue"
                       ovrtxt="Checked-In Patients"
                       boxcoltext="greentext"
                       overnumb={waittingRoomOverView.checkedIn}
                     />
                     <BoxDiv
-                      boximg={box4}
+                      boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box4.png`}
                       ovradcls="fawndark"
                       ovrtxt="Consultations Completed"
                       boxcoltext="ciltext"
                       overnumb={waittingRoomOverView.successful}
                     />
                     <BoxDiv
-                      boximg={box6}
+                      boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box6.png`}
                       ovradcls="chillibg"
                       ovrtxt="Cancelled Tokens"
                       boxcoltext="purpletext"
                       overnumb={waittingRoomOverView.canceled}
                     />
                     <BoxDiv
-                      boximg={box2}
+                      boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box2.png`}
                       ovradcls=" purple"
                       ovrtxt="Doctors On-Duty"
                       boxcoltext="frowntext"

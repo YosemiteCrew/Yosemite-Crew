@@ -1,9 +1,9 @@
-// eslint-disable-next-line no-unused-vars
+
 import React, {useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom'; 
 import "./Header.css"
-import Logo from "../../../../public/Images/Logo.png"
-import pfpic from "../../../../public/Images/pft.png"
+// import Logo from "../../../../public/Images/Logo.png"
+// import pfpic from "../../../../public/Images/pft.png"
 
 const Header = () => {
   
@@ -112,7 +112,7 @@ const Header = () => {
     <header id="header" className="header d-flex align-items-center ">
       <div className="container-fluid container-xl position-relative d-flex align-items-center justify-content-between">
         <a href="/"  className="logo d-flex align-items-center me-auto me-lg-0">
-        <img src={Logo} alt="" />
+        <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Logo.png`} alt="" />
            
         </a>
         <nav id="navmenu" className="navmenu">
@@ -155,13 +155,13 @@ const Header = () => {
             <div className="HeaderProfDiv">
               <ul className="NavUL">
                 <li className="nav-item dropdown">
-                  <a
+                  <a     href="/#"
                     className="nav-profile d-flex align-items-center"
-                    href="#"
+                
                     data-bs-toggle="dropdown"
                     aria-expanded="false"
                   >
-                    <img src={pfpic} alt="Profile" />
+                    <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/pft.png`} alt="Profile" />
                     <p className="">
                       San Francisco Animal <br /> Medical Center
                     </p>
@@ -177,7 +177,7 @@ const Header = () => {
                     </li>
 
                     <li>
-                      <a className="dropdown-item d-flex align-items-center" href="#">
+                      <a className="dropdown-item d-flex align-items-center" href="/#">
                         <i className="ri-user-fill"></i>
                         <span>My Profile</span>
                       </a>
@@ -187,7 +187,7 @@ const Header = () => {
                     </li>
 
                     <li>
-                      <a className="dropdown-item d-flex align-items-center" href="#">
+                      <a className="dropdown-item d-flex align-items-center" href="/#">
                         <i className="ri-settings-2-line"></i>
                         <span>Account Settings</span>
                       </a>
@@ -197,7 +197,7 @@ const Header = () => {
                     </li>
 
                     <li>
-                      <a className="dropdown-item d-flex align-items-center" href="#">
+                      <a className="dropdown-item d-flex align-items-center" href="/#">
                         <i className="ri-question-line"></i>
                         <span>Need Help?</span>
                       </a>

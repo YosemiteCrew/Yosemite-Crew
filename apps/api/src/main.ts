@@ -8,6 +8,7 @@ const { connectToDocumentDB } = require('./config/connect');
 const yoshmite = require('./routes/user');
 const doctorRoutes = require('./routes/addDoctorsRoutes');
 const authRoutes = require('./routes/authRoutes');
+const fhir = require('./routes/authRoutes');
 const fileUpload = require('express-fileupload');
 const apointmentRoutes = require('./routes/appointmentRoutes');
 const hospitalRoutes = require('./routes/HospitalRoutes');
@@ -76,6 +77,7 @@ app.use('/api/doctors', doctorRoutes);
 app.use('/api/appointments', apointmentRoutes);
 app.use('/api/hospitals', hospitalRoutes);
 app.use('/api/inventory', InventoryRoutes);
+app.use("/fhir",fhir)
 
 // Global error handler
 app.use((err, req, res, next) => {

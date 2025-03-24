@@ -6,12 +6,12 @@ import { Forminput, HeadText } from '../SignUp/SignUp';
 import UplodeImage from '../../Components/UplodeImage/UplodeImage';
 import { MainBtn } from '../Appointment/page';
 import PropTypes from 'prop-types';
-import camera from '../../../../public/Images/camera.png';
-import whtcheck from '../../../../public/Images/whtcheck.png';
-import comp from '../../../../public/Images/comp.png';
-import host1 from '../../../../public/Images/host1.png';
-import host2 from '../../../../public/Images/host2.png';
-import whtcloud from '../../../../public/Images/whtcloud.png';
+// import camera from '../../../../public/Images/camera.png';
+// import whtcheck from '../../../../public/Images/whtcheck.png';
+// import comp from '../../../../public/Images/comp.png';
+// import host1 from '../../../../public/Images/host1.png';
+// import host2 from '../../../../public/Images/host2.png';
+// import whtcloud from '../../../../public/Images/whtcloud.png';
 import { BsFileDiffFill } from 'react-icons/bs';
 import { AiFillFileImage } from 'react-icons/ai';
 import { LoadScript, Autocomplete } from '@react-google-maps/api';
@@ -86,15 +86,14 @@ const SignUpDetails = () => {
   };
 
   const servicesList = [
-    { id: 1, name: '24/7 Emergency Care' },
-    { id: 2, name: 'Surgery and Operating Rooms' },
-    { id: 3, name: 'Veterinary ICU' },
-    { id: 4, name: 'Dental Care Services' },
-    { id: 5, name: 'Behavioral Therapy' },
+    { code: 'E001', display: '24/7 Emergency Care' },
+    { code: 'S001', display: 'Surgery and Operating Rooms' },
+    { code: 'V001', display: 'Veterinary ICU' },
+    { code: 'D001', display: 'Dental Care Services' },
+    { code: 'B001', display: 'Behavioral Therapy' },
   ];
-
   const [selectedServices, setSelectedServices] = useState([]);
-  // console.log(selectedServices);
+  console.log("selectedServices",selectedServices);
 
   const [activeModes, setActiveModes] = useState('yes');
 
@@ -104,15 +103,17 @@ const SignUpDetails = () => {
   const toggleDropdown = () => {
     setIsDropdownOpen(!isDropdownOpen);
   };
-  const handleSelectService = (value) => {
-    setSelectedServices((prevSelected) =>
-      prevSelected.includes(value)
-        ? prevSelected.filter((serviceId) => serviceId !== value)
-        : [...prevSelected, value]
-    );
+  const handleSelectService = (service) => {
+    setSelectedServices((prevSelected) => {
+      const isSelected = prevSelected.some((s) => s.code === service.code);
+  
+      return isSelected
+        ? prevSelected.filter((s) => s.code !== service.code) // Remove if already selected
+        : [...prevSelected, { code: service.code, display: service.display }];
+    });
   };
   const filteredServices = servicesList.filter((service) =>
-    service.name.toLowerCase().includes(searchTerm.toLowerCase())
+    service.display.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleModeClick = (mode) => {
@@ -122,77 +123,156 @@ const SignUpDetails = () => {
       setActiveModes(mode);
     }
   };
-
+  const organizationFHIR = {
+    resourceType: "Organization",
+    id: formData.userId, // Use `userId` as Organization ID
+    identifier: [
+      {
+        system: "http://example.com/registration",
+        value: formData.registrationNumber,
+      },
+      {
+        system: "http://example.com/hospital-id",
+        value: formData.userId,
+      },
+    ],
+    name: formData.businessName,
+    telecom: [
+      {
+        system: "phone",
+        value: formData.phoneNumber,
+        use: "work",
+      },
+      ...(formData.website
+        ? [
+            {
+              system: "url",
+              value: formData.website,
+              use: "work",
+            },
+          ]
+        : []),
+    ],
+    address: [
+      {
+        line: [formData.addressLine1],
+        city: formData.city,
+        state: formData.state,
+        street: formData.street,
+        postalCode: formData.zipCode,
+        country: "US", // Default to United States (can be dynamic if needed)
+        extension: [
+          {
+            url: "http://hl7.org/fhir/StructureDefinition/geolocation",
+            extension: [
+              {
+                url: "latitude",
+                valueDecimal: parseFloat(formData.latitude) || 0.0,
+              },
+              {
+                url: "longitude",
+                valueDecimal: parseFloat(formData.longitude) || 0.0,
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    type: [
+      {
+        coding: [
+          {
+            system: "http://terminology.hl7.org/CodeSystem/organization-type",
+            code: "prov",
+            display: "Healthcare Provider",
+          },
+        ],
+      },
+    ],
+    active: formData.activeModes === "true", // Convert string to boolean
+  };
+  const healthcareServices = selectedServices.map((service) => ({
+    resourceType: "HealthcareService",
+    providedBy: {
+      reference: `Organization/${formData.userId}`, // Reference to the parent Organization
+    },
+    type: [
+      {
+        coding: [
+          {
+            system: "http://example.com/fhir/HealthcareService",
+            code: service.code,
+            display: service.display,
+          },
+        ],
+      },
+    ],
+    active: true, // Set services as active by default
+  }));
+    
   // API Submission
-
   const handleSubmit = async (event) => {
     event.preventDefault();
-
+  
+    // Create FormData to send files and FHIR data
     const formDataToSend = new FormData();
-
-    // Append file inputs
-    if (image) formDataToSend.append('logo', image); // Assuming 'image' is the file for the logo
+  
+    // Attach logo file if provided
+    if (image) formDataToSend.append("logo", image);
+  
+    // Attach documents as actual files
     selectedFile.forEach((file) => {
-      formDataToSend.append('prescription_upload', file);
+      formDataToSend.append("attachments", file);
     });
-    // File for prescription
-
-    // Append other fields from formData state
-    formDataToSend.append('userId', formData.userId);
-    formDataToSend.append('businessName', formData.businessName);
-    formDataToSend.append('registrationNumber', formData.registrationNumber);
-    formDataToSend.append('yearOfEstablishment', formData.yearOfEstablishment);
-    formDataToSend.append('phoneNumber', formData.phoneNumber);
-    formDataToSend.append('website', formData.website);
-    formDataToSend.append('addressLine1', formData.addressLine1);
-    formDataToSend.append('street', formData.street);
-    formDataToSend.append('city', formData.city);
-    formDataToSend.append('state', formData.state);
-    formDataToSend.append('zipCode', formData.zipCode);
-    formDataToSend.append('latitude', formData.latitude);
-    formDataToSend.append("longitude", formData.longitude)
-
-    selectedServices.forEach((service) => {
-      formDataToSend.append('selectedServices', service); // Notice the use of [] to indicate it's an array
-    });
-    formDataToSend.append('activeModes', activeModes);
-
+  
+    // Prepare final payload for submission
+    const fhirData = {
+      organization: organizationFHIR, // Organization Resource
+      healthcareServices: healthcareServices, // Array of Services
+    };
+  
+    // Add FHIR data to FormData as JSON
+    formDataToSend.append("fhirData", JSON.stringify(fhirData));
+  
     try {
+      // Send data to backend
       const response = await axios.post(
-        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/auth/setupProfile`,
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}fhir/organization`,
         formDataToSend
       );
-
+  
+      // Handle success
       if (response.status === 200) {
         Swal.fire({
-          icon: 'success',
-          title: 'Form submitted successfully!',
-          text: 'Your profile has been set up successfully.',
+          icon: "success",
+          title: "Form submitted successfully!",
+          text: "Your profile has been set up successfully.",
         });
-
-        setSelectedServices(null);
-        initializeUser();
-        navigate('/dashboard');
-        if (userId) {
-          // Trigger profile data refresh
-          refreshProfileData();
-        }
+  
+        // Reset selections and navigate to dashboard
+        setSelectedServices([]);
+        initializeUser(); // Reset form if needed
+        navigate("/dashboard");
+        if (formData.userId) refreshProfileData(); // Refresh profile data
       } else {
         Swal.fire({
-          icon: 'error',
-          title: 'Failed to submit form!',
-          text: 'There was an issue while submitting the form. Please try again.',
+          icon: "error",
+          title: "Failed to submit form!",
+          text: "There was an issue while submitting the form. Please try again.",
         });
       }
     } catch (error) {
+      console.error("Error submitting form:", error);
       Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'An error occurred while submitting the form.',
+        icon: "error",
+        title: "Error",
+        text: "An error occurred while submitting the form.",
       });
     }
   };
-
+  
+  
+  
   const getProfiledata = useCallback(async () => {
     // console.log("hello");
     try {
@@ -211,7 +291,7 @@ const SignUpDetails = () => {
           website,
           activeModes,
           address,
-          selectedServices,
+          // selectedServices,
           logoUrl,
           prescriptionUploadUrl,
         } = response.data;
@@ -229,7 +309,7 @@ const SignUpDetails = () => {
           zipCode: address?.zipCode || '',
         });
 
-        setSelectedServices(selectedServices || []);
+        // setSelectedServices(selectedServices || []);
         // setUploadedFiles([logoUrl]);
         setImage(logoUrl || []);
         const updatedDocuments = prescriptionUploadUrl.map((doc) => ({
@@ -416,7 +496,7 @@ const SignUpDetails = () => {
                       />
                     ) : (
                       <div className="upload-placeholder">
-                        <img src={camera} alt="camera" className="icon" />
+                        <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/camera.png`} alt="camera" className="icon" />
                       </div>
                     )}
                   </label>
@@ -678,9 +758,9 @@ const SignUpDetails = () => {
                       <ul className="services-list">
                         {filteredServices.map((service) => (
                           <li
-                            key={service.id}
+                            key={service.code}
                             className={`service-item ${
-                              selectedServices.includes(service.id)
+                              selectedServices.includes(service.code)
                                 ? 'selected'
                                 : ''
                             }`}
@@ -689,14 +769,12 @@ const SignUpDetails = () => {
                               <input
                                 type="checkbox"
                                 className="form-check-input"
-                                checked={selectedServices.includes(
-                                  service.name
-                                )}
+                                checked={selectedServices.some((s) => s.code === service.code)}
                                 onChange={() =>
-                                  handleSelectService(service.name)
+                                  handleSelectService(service)
                                 }
                               />
-                              <p>{service.name}</p>
+                              <p>{service.display}</p>
                             </label>
                           </li>
                         ))}
@@ -785,7 +863,7 @@ const SignUpDetails = () => {
                 )}
 
                 <MainBtn
-                  bimg={whtcheck}
+                  bimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/whtcheck.png`}
                   // btext="submit"
                   optclas=""
                   // mdtarget="#ProfModal"
@@ -832,7 +910,7 @@ export function ProfileProg({ blname, spname }) {
       <div className="Profcomp">
         <button className="complete-button">
           {' '}
-          <img src={comp} alt="" /> Complete Later{' '}
+          <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/comp.png`} alt="" /> Complete Later{' '}
         </button>
       </div>
     </div>
@@ -870,7 +948,7 @@ export function ProfileModal() {
                   }`}
                   onClick={() => handleSelect('cloud')}
                 >
-                  <img src={host1} alt="Cloud Hosting" />
+                  <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/host1.png`} alt="Cloud Hosting" />
                   <h5>Cloud Hosting</h5>
                   <p>
                     Enjoy secure, hassle-free hosting on our cloud with
@@ -884,7 +962,7 @@ export function ProfileModal() {
                   }`}
                   onClick={() => handleSelect('self')}
                 >
-                  <img src={host2} alt="Self Hosting" />
+                  <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/host2.png`} alt="Self Hosting" />
                   <h5>Self-Hosting</h5>
                   <p>
                     Host on your own infrastructure for complete control and
@@ -895,7 +973,7 @@ export function ProfileModal() {
 
               <div className="profmdbtn">
                 <MainBtn
-                  bimg={whtcloud}
+                  bimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/whtcloud.png`}
                   btext="Choose Cloud Hosting"
                   optclas=""
                 />

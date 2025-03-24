@@ -1,6 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types'; 
-import pet1 from "../../../../public/Images/pet1.png"; 
+// import pet1 from "../../../../public/Images/pet1.png"; 
 
 export function StatusTable({ appointments = [] }) {
   // Default appointment status list
@@ -16,7 +16,7 @@ export function StatusTable({ appointments = [] }) {
       doctorName: 'Dr. Emily Johnson',
       specialization: 'Cardiology',
       status: 'Pending', // Will map to "pending" class
-      petImage: pet1,
+      petImage: `${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/pet1.png`,
     },
     {
       id: 'DR002-03-23-2024',
@@ -29,7 +29,7 @@ export function StatusTable({ appointments = [] }) {
       doctorName: 'Dr. David Brown',
       specialization: 'Gastroenterology',
       status: 'Complete', // Will map to "complete" class
-      petImage: pet1,
+      petImage: `${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/pet1.png`,
     },
     {
       id: 'DR003-03-23-2024',
@@ -42,7 +42,7 @@ export function StatusTable({ appointments = [] }) {
       doctorName: 'Dr. Megan Clark',
       specialization: 'Endocrinology',
       status: 'Pending', // Will map to "pending" class
-      petImage: pet1,
+      petImage: `${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/pet1.png`,
     },
   ];
 

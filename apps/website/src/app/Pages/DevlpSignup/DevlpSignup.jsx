@@ -1,15 +1,19 @@
-// eslint-disable-next-line no-unused-vars
+
 import React from "react";
 import "./DevlpSignup.css";
 import { Col, Container, Row } from "react-bootstrap";
 import { Forminput, FormPassw, HeadText } from "../SignUp/SignUp";
 import { MainBtn } from "../Appointment/page";
-import whtcheck from "../../../../public/Images/whtcheck.png"
+// import whtcheck from "../../../../public/Images/whtcheck.png"
 
 function DevlpSignup() {
   return (
-    <>
-      <section className="DevlpSignUpSec">
+  
+      <section className="DevlpSignUpSec"
+      style={{
+        "--background-image":`url(${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/devlpbg.jpg)`
+      }}
+      >
         <Container>
           <div className="DevlpSignupData">
             <div className="DevSignUpText">
@@ -61,7 +65,7 @@ function DevlpSignup() {
                 </div>
 
                 <div className="sinbtn">
-                  <MainBtn bimg={whtcheck} btext="Sign up" />
+                  <MainBtn bimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/whtcheck.png`} btext="Sign up" />
                   <h6> Already have an account?{" "}<a href="/devSignin">Login</a></h6>
                 </div>
 
@@ -71,7 +75,7 @@ function DevlpSignup() {
           </div>
         </Container>
       </section>
-    </>
+  
   );
 }
 

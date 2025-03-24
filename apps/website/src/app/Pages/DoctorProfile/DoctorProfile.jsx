@@ -1,18 +1,18 @@
-// eslint-disable-next-line no-unused-vars
+
 import React, { useEffect, useState } from 'react';
 import './DoctorProfile.css';
 import PropTypes from 'prop-types';
 import { Button, Col, Container, Form, Row } from 'react-bootstrap';
-import whtcheck from '../../../../public/Images/whtcheck.png';
+// import whtcheck from '../../../../public/Images/whtcheck.png';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiEdit3 } from 'react-icons/fi';
-import doctprofile from '../../../../public/Images/doctprofile.png';
+// import doctprofile from '../../../../public/Images/doctprofile.png';
 import { IoIosAddCircle } from 'react-icons/io';
 import { BsFileDiffFill } from 'react-icons/bs';
 import { AiFillFileImage } from 'react-icons/ai';
 import { RxCrossCircled } from 'react-icons/rx';
 import Modal from 'react-bootstrap/Modal';
-import camera from '../../../../public/Images/camera.png';
+// import camera from '../../../../public/Images/camera.png';
 import { Forminput } from '../SignUp/SignUp';
 import DynamicDatePicker from '../../Components/DynamicDatePicker/DynamicDatePicker';
 import axios from 'axios';
@@ -291,7 +291,7 @@ function DoctorProfile() {
                       ? personalInfo.image instanceof File
                         ? URL.createObjectURL(personalInfo.image)
                         : personalInfo.image
-                      : doctprofile
+                      : `${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/doctprofile.png`
                   }
                   alt="Profile"
                 />
@@ -453,7 +453,7 @@ function DoctorProfile() {
 
             <MainBtn
               btntyp="button"
-              bimg={whtcheck}
+              bimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/whtcheck.png`}
               btext="Update Profile"
               optclas=""
               onClick={() => updateProfileWithFiles()}
@@ -536,7 +536,7 @@ function PersonalInfo({ show, onHide, personalInfo, setPersonalInfo }) {
                 ) : (
                   <div className="upload-placeholder">
                     <img
-                      src={personalInfo.image ? personalInfo.image : camera}
+                      src={personalInfo.image ? personalInfo.image : `${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/camera.png`}
                       alt="camera"
                       className="icon"
                     />

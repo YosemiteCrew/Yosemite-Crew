@@ -1,5 +1,11 @@
 const Department = require('../models/AddDepartment');
+const AWS = require('aws-sdk');
 
+const s3 = new AWS.S3({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION,
+});
 const AddDepartmentController = {
   addDepartment: async (req, res) => {
     console.log(JSON.stringify(req.body.operatingHours, null, 2));
@@ -44,6 +50,35 @@ const AddDepartmentController = {
       res.status(500).json({ message: error.message });
     }
   },
+  uploadimage: async (req, res) => {
+   try {
+    const {image} = req.files
+    const uploadToS3 = (file, folderName) => {
+      return new Promise((resolve, reject) => {
+        const params = {
+          Bucket: 'yosemitecrew-website',
+          Key: `${folderName}/${Date.now()}_${file.name}`,
+          Body: file.data,
+          ContentType: file.mimetype,
+        };
+
+        s3.upload(params, (err, data) => {
+          if (err) {
+            console.error('Error uploading to S3:', err);
+            reject(err);
+          } else {
+            resolve(data.Key);
+          }
+        });
+      });
+    };
+   const data =  await uploadToS3(image, 'images');
+   res.status(200).json(data)
+   } catch (error) {
+    console.log("error", error);
+   }
+  }
+  
 };
 
 module.exports = AddDepartmentController;

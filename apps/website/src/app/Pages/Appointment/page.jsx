@@ -4,23 +4,23 @@ import { BoxDiv, DivHeading, ListSelect, TopHeading } from '../Dashboard/page';
 import './Appointment.css';
 import UplodeImage from '../../Components/UplodeImage/UplodeImage';
 import AssesmentResponse from '../../Components/AssesmentResponse/AssesmentResponse';
-import whtmsg from '../../../../public/Images/whtmsg.png';
-import pet1 from '../../../../public/Images/pet1.png';
-import whtcheck from '../../../../public/Images/whtcheck.png';
-import report1 from '../../../../public/Images/report1.png';
-import report2 from '../../../../public/Images/report2.png';
-import box2 from '../../../../public/Images/box2.png';
-import box4 from '../../../../public/Images/box4.png';
-import box5 from '../../../../public/Images/box5.png';
-import box6 from '../../../../public/Images/box6.png';
-import btn1 from '../../../../public/Images/btn1.png';
-import btn2 from '../../../../public/Images/btn2.png';
-import btn3 from '../../../../public/Images/btn3.png';
-import btn4 from '../../../../public/Images/btn4.png';
+// import whtmsg from '../../../../public/Images/whtmsg.png';
+// import pet1 from '../../../../public/Images/pet1.png';
+// import whtcheck from '../../../../public/Images/whtcheck.png';
+// import report1 from '../../../../public/Images/report1.png';
+// import report2 from '../../../../public/Images/report2.png';
+// import box2 from '../../../../public/Images/box2.png';
+// import box4 from '../../../../public/Images/box4.png';
+// import box5 from '../../../../public/Images/box5.png';
+// import box6 from '../../../../public/Images/box6.png';
+// import btn1 from '../../../../public/Images/btn1.png';
+// import btn2 from '../../../../public/Images/btn2.png';
+// import btn3 from '../../../../public/Images/btn3.png';
+// import btn4 from '../../../../public/Images/btn4.png';
 import ChatApp from '../../Components/ChatApp/ChatApp';
 import ActionsTable from '../../Components/ActionsTable/ActionsTable';
-import Accpt from '../../../../public/Images/acpt.png';
-import Decln from '../../../../public/Images/decline.png';
+// import Accpt from '../../../../public/Images/acpt.png';
+// import Decln from '../../../../public/Images/decline.png';
 import DocterWiseAppoint from '../../Components/DocterWiseAppoint/DocterWiseAppoint';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -294,28 +294,28 @@ const Appointment = () => {
             </div>
             <div className="overviewitem">
               <BoxDiv
-                boximg={box4}
+                boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box4.png`}
                 ovradcls=" fawndark"
                 ovrtxt="New Appointments"
                 boxcoltext="frowntext"
                 overnumb={AppointmentStatusAndCounts.newAppointments}
               />
               <BoxDiv
-                boximg={box2}
+                boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box2.png`}
                 ovradcls=" purple"
                 ovrtxt="Upcoming"
                 boxcoltext="purpletext"
                 overnumb={AppointmentStatusAndCounts.upcomingAppointments}
               />
               <BoxDiv
-                boximg={box5}
+                boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box5.png`}
                 ovradcls=" cambrageblue"
                 ovrtxt="Completed"
                 boxcoltext="greentext"
                 overnumb={AppointmentStatusAndCounts.completedAppointments}
               />
               <BoxDiv
-                boximg={box6}
+                boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box6.png`}
                 ovradcls="chillibg"
                 ovrtxt="Cancelled"
                 boxcoltext="ciltext"
@@ -333,8 +333,8 @@ const Appointment = () => {
               onClick={getAllAppointments}
               appointments={allAppointments}
               onClicked={AppointmentActions}
-              actimg1={Accpt}
-              actimg2={Decln}
+              actimg1={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/acpt.png`}
+              actimg2={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/decline.png`}
             />
           </div>
 
@@ -358,10 +358,10 @@ const Appointment = () => {
                       key={appointment._id}
                     >
                       <AppointCard
-                        crdimg={pet1}
+                        crdimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/pet1.png`}
                         cdowner={appointment.ownerName}
                         crdtpe={appointment.petName}
-                        btnimg={btn1}
+                        btnimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/btn1.png`}
                         btntext={`${appointment.appointmentDate} - ${appointment.appointmentTime}`}
                         crddoctor={appointment.veterinarian}
                         drjob={appointment.department}
@@ -391,10 +391,10 @@ const Appointment = () => {
                       key={appointment._id}
                     >
                       <AppointCard
-                        crdimg={pet1}
+                        crdimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/pet1.png`}
                         cdowner={appointment.ownerName}
                         crdtpe={appointment.petName}
-                        btnimg={btn2}
+                        btnimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/btn2.png`}
                         btntext={`${appointment.appointmentDate} - ${appointment.appointmentTime}`}
                         crddoctor={appointment.veterinarian}
                         drjob={appointment.department}
@@ -424,10 +424,10 @@ const Appointment = () => {
                     key={appointment._id}
                   >
                     <AppointCard
-                      crdimg={pet1}
+                      crdimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/pet1.png`}
                       cdowner={appointment.ownerName}
                       crdtpe={appointment.petName}
-                      btnimg={btn3}
+                      btnimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/btn3.png`}
                       btntext={`${appointment.appointmentDate} - ${appointment.appointmentTime}`}
                       crddoctor={appointment.veterinarian}
                       drjob={appointment.department}
@@ -456,10 +456,10 @@ const Appointment = () => {
                     key={appointment._id}
                   >
                     <AppointCard
-                      crdimg={pet1}
+                      crdimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/pet1.png`}
                       cdowner={appointment.ownerName}
                       crdtpe={appointment.petName}
-                      btnimg={btn4}
+                      btnimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/btn4.png`}
                       btntext={`${appointment.appointmentDate} - ${appointment.appointmentTime}`}
                       crddoctor={appointment.veterinarian}
                       drjob={appointment.department}
@@ -521,7 +521,7 @@ export function DashModal() {
             <div className="LeftContent">
               <div className="TopContent">
                 <div className="lfttop">
-                  <img src={pet1} alt="" />
+                  <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/pet1.png`} alt="" />
                   <div className="owndt">
                     <h5>Appointment for Kizie</h5>
                     <p>
@@ -539,7 +539,7 @@ export function DashModal() {
               <div className="MidContent">
                 <h4>Appointment Details</h4>
                 <div className="lfttop">
-                  <img src={pet1} alt="" />
+                  <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/pet1.png`} alt="" />
                   <div className="owndt">
                     <h6>Dr. Emily Johnson</h6>
                     <p>Cardiology</p>
@@ -548,18 +548,18 @@ export function DashModal() {
 
                 <div className="cardbtn btnfown">
                   <button type="button">
-                    <img src={btn1} alt="" /> Tuesday, 10 Sep - 11:00 AM
+                    <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/btn1.png`} alt="" /> Tuesday, 10 Sep - 11:00 AM
                   </button>
                 </div>
 
                 <div className="modlbtn">
                   <button type="button" className="confirm">
                     {' '}
-                    <img src={box5} alt="" /> Confirm{' '}
+                    <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box5.png`} alt="" /> Confirm{' '}
                   </button>
                   <button type="button" className="cancel">
                     {' '}
-                    <img src={box6} alt="" /> Cancel{' '}
+                    <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box6.png`} alt="" /> Cancel{' '}
                   </button>
                 </div>
               </div>
@@ -567,8 +567,8 @@ export function DashModal() {
               <div className="ModlMedclRept">
                 <TextSpan Textname="Medical Reports " Textnspan="(2)" />
                 <div className="MedReport">
-                  <img src={report1} alt="" />
-                  <img src={report2} alt="" />
+                  <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/report1.png`} alt="" />
+                  <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/report2.png`} alt="" />
                 </div>
               </div>
 
@@ -720,13 +720,13 @@ export function DashModal() {
                 <UplodeImage />
               </div>
 
-              <MainBtn bimg={whtcheck} btext="Mark as Complete" optclas="opt" />
+              <MainBtn bimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/whtcheck.png`} btext="Mark as Complete" optclas="opt" />
             </div>
 
             <div className="RytContent">
               <div className="RytContDetails">
                 <div className="ownerImg">
-                  <img src={pet1} alt="" />
+                  <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/pet1.png`} alt="" />
                   <div className="owndetl">
                     <h4>Kizie</h4>
                     <p>Beagle</p>
@@ -752,7 +752,7 @@ export function DashModal() {
                   </div>
                 </div>
 
-                <MainBtn bimg={whtmsg} btext="Message Owner" optclas="" />
+                <MainBtn bimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/whtmsg.png`} btext="Message Owner" optclas="" />
               </div>
 
               <ChatApp />

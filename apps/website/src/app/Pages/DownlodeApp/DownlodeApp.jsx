@@ -1,21 +1,21 @@
-// eslint-disable-next-line no-unused-vars
+
 import React, { useState, useEffect } from "react";
 import "./DownlodeApp.css";
-import petapppic from "../../../../public/Images/DownlodeApp/petapppic.png";
-import apple from "../../../../public/Images/DownlodeApp/apple.png";
-import playstore from "../../../../public/Images/DownlodeApp/playstore.png";
-import glimpspic from "../../../../public/Images/DownlodeApp/glimpspic.png";
-import brown from "../../../../public/Images/DownlodeApp/brown.png";
-import purple from "../../../../public/Images/DownlodeApp/purple.png";
-import green from "../../../../public/Images/DownlodeApp/green.png";
-import ToolKitKeyItems1 from "../../../../public/Images/DownlodeApp/ToolKitKeyItems1.png";
-import ToolKitKeyItems2 from "../../../../public/Images/DownlodeApp/ToolKitKeyItems2.png";
-import ToolKitKeyItems3 from "../../../../public/Images/DownlodeApp/ToolKitKeyItems3.png";
-import ToolKitKeyItems4 from "../../../../public/Images/DownlodeApp/ToolKitKeyItems4.png";
-import cft1 from "../../../../public/Images/DownlodeApp/cft1.png";
-import cft2 from "../../../../public/Images/DownlodeApp/cft2.png";
-import cft3 from "../../../../public/Images/DownlodeApp/cft3.png";
-import cft4 from "../../../../public/Images/DownlodeApp/cft4.png";
+// import petapppic from "../../../../public/Images/DownlodeApp/petapppic.png";
+// import apple from "../../../../public/Images/DownlodeApp/apple.png";
+// import playstore from "../../../../public/Images/DownlodeApp/playstore.png";
+// import glimpspic from "../../../../public/Images/DownlodeApp/glimpspic.png";
+// import brown from "../../../../public/Images/DownlodeApp/brown.png";
+// import purple from "../../../../public/Images/DownlodeApp/purple.png";
+// import green from "../../../../public/Images/DownlodeApp/green.png";
+// import ToolKitKeyItems1 from "../../../../public/Images/DownlodeApp/ToolKitKeyItems1.png";
+// import ToolKitKeyItems2 from "../../../../public/Images/DownlodeApp/ToolKitKeyItems2.png";
+// import ToolKitKeyItems3 from "../../../../public/Images/DownlodeApp/ToolKitKeyItems3.png";
+// import ToolKitKeyItems4 from "../../../../public/Images/DownlodeApp/ToolKitKeyItems4.png";
+// import cft1 from "../../../../public/Images/DownlodeApp/cft1.png";
+// import cft2 from "../../../../public/Images/DownlodeApp/cft2.png";
+// import cft3 from "../../../../public/Images/DownlodeApp/cft3.png";
+// import cft4 from "../../../../public/Images/DownlodeApp/cft4.png";
 import { SectionText } from "../Pricing/Pricing";
 import { Link } from "react-router-dom";
 // import { CountUp } from "countup.js";
@@ -47,7 +47,12 @@ const DownlodeApp = () => {
 
   return (
     <>
-      <section className="DownlodeSec">
+      <section className="DownlodeSec"
+      style={{
+        "--background-image": `url(${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/downlodeapp.png)`,
+        "--background-img": `url(${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/downlodebgg.png)`
+      }}
+      >
         <div className="container ">
           <div className="Downlode_Data">
             <div className="downlodetext">
@@ -62,15 +67,27 @@ const DownlodeApp = () => {
             </div>
 
             <div className="downlodeReview">
-              <div className="reviewItems">
+              <div className="reviewItems"
+              style={{
+                "--background-wave": `url(${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/wave.png)`
+              }}
+              >
                 <h6>{formatCount(happyOwners, 10000)}</h6>
                 <p>Happy Pet Owners</p>
               </div>
-              <div className="reviewItems">
+              <div className="reviewItems"
+               style={{
+                "--background-wave": `url(${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/wave.png)`
+              }}
+              >
                 <h6>{formatCount(appointments, 5000)}</h6>
                 <p>Appointments Scheduled</p>
               </div>
-              <div className="reviewItems">
+              <div className="reviewItems"
+               style={{
+                "--background-wave": `url(${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/wave.png)`
+              }}
+              >
                 <h6>{formatCount(petsAdded, 8000)}</h6>
                 <p>Pets Added</p>
               </div>
@@ -89,13 +106,13 @@ const DownlodeApp = () => {
         <div className="ToolkitKeyData">
           <div className="ToolKitKeyItems">
             <img
-              src={ToolKitKeyItems1}
+              src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/ToolKitKeyItems1.png`}
               alt="ToolKitKeyItems1"
               width={290}
               height={290}
             />
             <div className="keyinner">
-              <img src={cft1} alt="cft1" width={60} height={60} />
+              <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/cft1.png`} alt="cft1" width={60} height={60} />
               <h6>
                 Book and Manage <br /> Vet Appointments
               </h6>
@@ -103,13 +120,13 @@ const DownlodeApp = () => {
           </div>
           <div className="ToolKitKeyItems">
             <img
-              src={ToolKitKeyItems2}
+              src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/ToolKitKeyItems2.png`}
               alt="ToolKitKeyItems2"
               width={290}
               height={290}
             />
             <div className="keyinner">
-              <img src={cft2} alt="cft2" width={60} height={60} />
+              <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/cft2.png`} alt="cft2" width={60} height={60} />
               <h6>
                 Access Medical <br /> Records Anytime
               </h6>
@@ -117,13 +134,13 @@ const DownlodeApp = () => {
           </div>
           <div className="ToolKitKeyItems">
             <img
-              src={ToolKitKeyItems3}
+              src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/ToolKitKeyItems3.png`}
               alt="ToolKitKeyItems3"
               width={290}
               height={290}
             />
             <div className="keyinner">
-              <img src={cft3} alt="cft3" width={60} height={60} />
+              <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/cft3.png`} alt="cft3" width={60} height={60} />
               <h6>
                 Wellness <br /> Management
               </h6>
@@ -131,13 +148,13 @@ const DownlodeApp = () => {
           </div>
           <div className="ToolKitKeyItems">
             <img
-              src={ToolKitKeyItems4}
+              src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/ToolKitKeyItems4.png`}
               alt="ToolKitKeyItems4"
               width={290}
               height={290}
             />
             <div className="keyinner">
-              <img src={cft4} alt="cft4" width={60} height={60} />
+              <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/cft4.png`} alt="cft4" width={60} height={60} />
               <h6>
                 Medication and <br /> Health Monitoring
               </h6>
@@ -145,13 +162,13 @@ const DownlodeApp = () => {
           </div>
           <div className="ToolKitKeyItems">
             <img
-              src={ToolKitKeyItems1}
+              src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/ToolKitKeyItems1.png`}
               alt="ToolKitKeyItems1"
               width={290}
               height={290}
             />
             <div className="keyinner">
-              <img src={cft1} alt="cft1" width={60} height={60} />
+              <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/cft1.png`} alt="cft1" width={60} height={60} />
               <h6>
                 Book and Manage <br /> Vet Appointments
               </h6>
@@ -159,13 +176,13 @@ const DownlodeApp = () => {
           </div>
           <div className="ToolKitKeyItems">
             <img
-              src={ToolKitKeyItems2}
+              src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/ToolKitKeyItems2.png`}
               alt="ToolKitKeyItems2"
               width={290}
               height={290}
             />
             <div className="keyinner">
-              <img src={cft2} alt="cft2" width={60} height={60} />
+              <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/cft2.png`} alt="cft2" width={60} height={60} />
               <h6>
                 Access Medical <br /> Records Anytime
               </h6>
@@ -173,13 +190,13 @@ const DownlodeApp = () => {
           </div>
           <div className="ToolKitKeyItems">
             <img
-              src={ToolKitKeyItems3}
+              src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/ToolKitKeyItems3.png`}
               alt="ToolKitKeyItems3"
               width={290}
               height={290}
             />
             <div className="keyinner">
-              <img src={cft3} alt="cft3" width={60} height={60} />
+              <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/cft3.png`} alt="cft3" width={60} height={60} />
               <h6>
                 Wellness <br /> Management
               </h6>
@@ -187,13 +204,13 @@ const DownlodeApp = () => {
           </div>
           <div className="ToolKitKeyItems">
             <img
-              src={ToolKitKeyItems4}
+              src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/ToolKitKeyItems4.png`}
               alt="ToolKitKeyItems4"
               width={290}
               height={290}
             />
             <div className="keyinner">
-              <img src={cft4} alt="cft4" width={60} height={60} />
+              <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/cft4.png`} alt="cft4" width={60} height={60} />
               <h6>
                 Medication and <br /> Health Monitoring
               </h6>
@@ -206,28 +223,48 @@ const DownlodeApp = () => {
         <SectionText secblk1="A Glimpse of" secspan2="Paw-sibilities" />
 
         <div className="PawsPrasData">
-          <div className="BrownDiv">
-            <img src={brown} alt="brown" height={294} />
+          <div className="BrownDiv"
+           style={{
+            "--background-Paws": `url(${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/PawsPras1.png)`
+          }}
+          >
+            <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/brown.png`} alt="brown" height={294} />
           </div>
-          <div className="PurpleDiv">
-            <img src={purple} alt="purple" height={233} />
+          <div className="PurpleDiv"
+          style={{
+            "--background-Paws2": `url(${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/PawsPras2.png)`
+          }}
+          >
+            <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/purple.png`} alt="purple" height={233} />
           </div>
-          <div className="GreenDiv">
-            <img src={green} alt="green" height={245} />
+          <div className="GreenDiv"
+              style={{
+                "--background-Paws3": `url(${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/PawsPras3.png)`
+              }}
+          >
+            <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/green.png`} alt="green" height={245} />
           </div>
         </div>
       </section>
 
-      <section className="GlimpseSec">
+      <section className="GlimpseSec"
+      style={{
+        "--background-glimpseafter": `url(${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/glimpseafter.png)`
+      }}
+      >
         <div className="container">
           <SectionText secblk1="A Glimpse of" secspan2="Paw-sibilities" />
           <div className="mt-5">
-            <img src={glimpspic} alt="glimpspic" height={925} />
+            <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/glimpspic.png`} alt="glimpspic" height={925} />
           </div>
         </div>
       </section>
 
-      <section className="PetAppSec">
+      <section className="PetAppSec"
+      style={{
+        "--background-petlines": `url(${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/petlines.png)`
+      }}
+      >
         <div className="container">
           <div className="PetAppData">
             <div className="LftpetApp">
@@ -243,7 +280,7 @@ const DownlodeApp = () => {
               <PetDownBtn />
             </div>
             <div className="RytpetApp">
-              <img src={petapppic} alt="petapppic" width={569} height={569} />
+              <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/petapppic.png`} alt="petapppic" width={569} height={569} />
             </div>
           </div>
         </div>
@@ -258,14 +295,14 @@ export function PetDownBtn() {
   return (
     <div className="PetAppBtn">
       <Link to="#">
-        <img src={apple} alt="apple" width={25} height={29} />{" "}
+        <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/apple.png`} alt="apple" width={25} height={29} />{" "}
         <span>
           {" "}
           <p>Download on the</p> <h6>App Store</h6>{" "}
         </span>{" "}
       </Link>
       <Link to="#">
-        <img src={playstore} alt="playstore" width={29} height={30} />{" "}
+        <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/DownlodeApp/playstore.png`} alt="playstore" width={29} height={30} />{" "}
         <span>
           {" "}
           <p>Get it on</p> <h6>Google Play</h6>{" "}

@@ -1,4 +1,4 @@
-// eslint-disable-next-line no-unused-vars
+
 import React , { useState } from 'react'
 import "./FAQ.css"
 
@@ -41,7 +41,7 @@ const FAQ = () => {
 
 
   return (
-    <>
+    
 
     <div className="accordion FAQ_Accordion" id="accordionExample">
       {items.map(item => (
@@ -53,6 +53,10 @@ const FAQ = () => {
               onClick={() => toggleAccordion(item.id)}
               aria-expanded={openItem === item.id}
               aria-controls={item.id}
+              style={{
+                "--dynamic-bg-img": `url(${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/faqarrow.png)`,
+                "--dynamic-bg-img-hover": `url(${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/faqarrowafter.png)`,
+              }}
             >
               {item.title}
             </button>
@@ -75,7 +79,7 @@ const FAQ = () => {
 
 
 
-    </>
+  
   )
 }
 

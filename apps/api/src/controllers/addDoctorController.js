@@ -9,7 +9,7 @@ import {
   SignUpCommand,
   AdminUpdateUserAttributesCommand,
 } from '@aws-sdk/client-cognito-identity-provider';
-import { equal } from 'assert';
+// import { equal } from 'assert';
 const AWS = require('aws-sdk');
 const SES = new AWS.SES();
 const { WebUser } = require('../models/WebUser');
@@ -255,50 +255,6 @@ const AddDoctorsController = {
         .json({ message: 'Internal server error', error: error.message });
     }
   },
-
-  // DoctorSDashboard: async (req, res) => {
-  //   try {
-  //     const doctors = await AddDoctors.find().select(
-  //       "personalInfo firstName lastName professionalBackground.specialization professionalBackground.qualification"
-  //     );
-  //     console.log(doctors);
-
-  //     const doctorDataWithSpecializations = await Promise.all(
-  //       doctors.map(async (doctor) => {
-  //         const department = await Department.findOne({
-  //           _id: doctor.professionalBackground.specialization,
-  //         }).select("departmentName");
-
-  //         return {
-  //           doctorName: `${doctor.personalInfo.firstName} ${doctor.personalInfo.lastName}`,
-  //           qualification: doctor.professionalBackground.qualification,
-  //           specialization: department
-  //             ? department.departmentName
-  //             : "No specialization found",
-  //         };
-  //       })
-  //     );
-
-  //     const groupedBySpecialization = doctorDataWithSpecializations.reduce(
-  //       (acc, doctor) => {
-  //         const { specialization } = doctor;
-  //         if (!acc[specialization]) {
-  //           acc[specialization] = [];
-  //         }
-
-  //         acc[specialization].push(doctor);
-
-  //         return acc;
-  //       },
-  //       {}
-  //     );
-
-  //     res.status(200).json(groupedBySpecialization);
-  //   } catch (error) {
-  //     console.error("Error fetching doctors data:", error);
-  //     res.status(500).json({ message: "Failed to fetch doctors data" });
-  //   }
-  // },
 
   getOverview: async (req, res) => {
     const { userId } = req.query;
