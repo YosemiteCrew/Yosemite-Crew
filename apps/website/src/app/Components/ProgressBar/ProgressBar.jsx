@@ -1,17 +1,17 @@
-// eslint-disable-next-line no-unused-vars
+
 import React from "react";
 import PropTypes from "prop-types";
 import "./ProgressBar.css"
 
 const ProgressBar = ({ progress }) => {
   return (
-    <>
+
 
     <div className="ProgressBarDiv">
         <div className="progress-bar" role="progressbar"aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100} style={{ width: `${progress}%` }} ></div>
         <span className="sr-only">{progress}% Complete</span>
     </div>
-    </>
+  
   );
 };
 

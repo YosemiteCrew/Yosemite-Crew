@@ -4,7 +4,7 @@
 .PricingSec::after{
     position: absolute;
     content: " ";
-    background: url('/Images/pricegrdint.png')no-repeat;
+    background: var(--background-image)no-repeat;
     background-size: 100% 100%;
     top: 0;
     right: 0;
@@ -517,7 +517,7 @@
 .Needhelpitem::after{
     position: absolute;
     content: " ";
-    background: url(../../../../public/Images/pricehlp.png)no-repeat;
+    background: var(--pricehelp-bg)no-repeat;
     background-size: 100% 100%;
     right: 0;
     bottom: 0;

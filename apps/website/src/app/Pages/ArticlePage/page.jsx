@@ -1,16 +1,17 @@
-// eslint-disable-next-line no-unused-vars
+
 import React, { useState, useEffect } from 'react'
 import "./ArticlePage.css"
-import puppy from "../../../../public/Images/ArticlePage/puppy.jpg"
-import fedding from "../../../../public/Images/ArticlePage/fedding.png"
-import artcart from "../../../../public/Images/ArticlePage/artcart.png"
-import drpic from "../../../../public/Images/ArticlePage/drpic.png"
-import P1 from "../../../../public/Images/Homepage/P1.png"
-import topic from "../../../../public/Images/topic.png"
+// import puppy from "../../../../public/Images/ArticlePage/puppy.jpg"
+// import fedding from "../../../../public/Images/ArticlePage/fedding.png"
+// import artcart from "../../../../public/Images/ArticlePage/artcart.png"
+// // import drpic from "../../../../public/Images/ArticlePage/drpic.png"
+// import P1 from "../../../../public/Images/Homepage/P1.png"
+// import topic from "../../../../public/Images/topic.png"
 import { IoIosLink } from "react-icons/io";
 import { FaFacebookF , FaLinkedinIn } from "react-icons/fa";
 import { RiTwitterXFill } from "react-icons/ri";
 import RelatesArticle from '../../Components/RelatesArticle/RelatesArticle'
+import { Link } from 'react-router-dom'
 
 const ArticlePage = () => {
 
@@ -35,7 +36,7 @@ const ArticlePage = () => {
 
 
   return (
-    <>
+
     <section className='ArticleSec'>
       <div className="container">
 
@@ -44,7 +45,7 @@ const ArticlePage = () => {
           <div className="LeftArticle">
 
             <div className="ArticleBg">
-              <img src={puppy} alt="puppy" />
+              <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/ArticlePage/puppy.jpg`} alt="puppy" />
               <div className="artinner">
                 <div className="tp">
                   <h6>Puppies</h6>
@@ -90,7 +91,7 @@ const ArticlePage = () => {
                 <h4>Puppy Food</h4>
                 <p>You’ll need to have plenty of high-quality puppy food on hand for your newly adopted pup.</p>
                 <p>To help them power through their days, select a puppy food with a nutritional adequacy statement for growth or all life stages from the Association of American Feed Control Officials (AAFCO). You’ll find this info on the pet food label.</p>
-                <img src={fedding} alt="fedding" />
+                <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/ArticlePage/fedding.png`} alt="fedding" />
                 <p>“It’s always a good idea to ask your vet for nutritional counseling, to make sure your dog’s specific calorie requirements and other nutritional needs are being met,” Dr. Hunter says.</p>
                 <p>If your puppy will be 50 pounds or more by adulthood, they may require large breed puppy food.</p>
                 
@@ -98,7 +99,7 @@ const ArticlePage = () => {
               
               <div className="artinfoinner">
                 <h4>Here are a few recommended large breed puppy food brand:</h4>
-                <img src={artcart} alt="artcart" id='Bedding' />
+                <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/ArticlePage/artcart.png`} alt="artcart" id='Bedding' />
               </div>
               
               <div className="artinfoinner" id='Conclusion'>
@@ -111,10 +112,10 @@ const ArticlePage = () => {
               <div className="ArticleShare">
                 <h6>Like what you see? Share with a friend.</h6>
                 <div className="blLinkgrn">
-                  <a href="#"><IoIosLink /></a>
-                  <a href="#"><FaFacebookF /></a>
-                  <a href="#"><RiTwitterXFill /></a>
-                  <a href="#"><FaLinkedinIn /></a>
+                  <Link to="#"><IoIosLink /></Link>
+                  <Link to="#"><FaFacebookF /></Link>
+                  <Link to="#"><RiTwitterXFill /></Link>
+                  <Link to="#"><FaLinkedinIn /></Link>
                 </div>
 
               </div>
@@ -127,7 +128,7 @@ const ArticlePage = () => {
 
             <div className="blgdr">
               <div className="bldrinfo">
-                <img src={drpic} alt="drpic" />
+                <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/ArticlePage/drpic.png`} alt="drpic" />
                 <div className="bldrtext">
                   <h6>Dr. Amanda Lee</h6>
                   <p>Cardiology</p>
@@ -139,10 +140,10 @@ const ArticlePage = () => {
             <div className="ShareCommunity">
               <h6>Share with your community!</h6>
               <div className="blLink">
-                <a href="#"><IoIosLink /></a>
-                <a href="#"><FaFacebookF /></a>
-                <a href="#"><RiTwitterXFill /></a>
-                <a href="#"><FaLinkedinIn /></a>
+                <Link to="#"><IoIosLink /></Link>
+                <Link to="#"><FaFacebookF /></Link>
+                <Link to="#"><RiTwitterXFill /></Link>
+                <Link to="#"><FaLinkedinIn /></Link>
               </div>
             </div>
 
@@ -189,7 +190,7 @@ const ArticlePage = () => {
 
 
 
-    </>
+
   )
 }
 
@@ -199,32 +200,32 @@ export function ExploreType() {
   return <div className="explorDiv">
     <div className="bltype">
       <div className="typtext">
-        <img src={P1} alt="P1" />
+        <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Homepage/P1.png`} alt="P1" />
         <h6>Animal Type</h6>
       </div>
       <div className="typeinfo">
-        <a href="#">Cats</a>
-        <a href="#">Dogs</a>
-        <a href="#">Horses</a>
+        <Link to="#">Cats</Link>
+        <Link to="#">Dogs</Link>
+        <Link to="#">Horses</Link>
       </div>
     </div>
     <div className="bltype">
       <div className="typtext">
-        <img src={topic} alt="topic" />
+        <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/topic.png`} alt="topic" />
         <h6>Topics</h6>
       </div>
       <div className="typeinfo">
-        <a href="#">Medication</a>
-        <a href="#">Nutrition</a>
-        <a href="#">Fleas and Ticks</a>
-        <a href="#">Pet Anxiety</a>
-        <a href="#">Mental Health</a>
-        <a href="#">Allergies</a>
-        <a href="#">Socialization</a>
-        <a href="#">Skin Care</a>
-        <a href="#">Limping</a>
-        <a href="#">Wellness</a>
-        <a href="#">Insurance</a>
+        <Link to="#">Nutrition</Link>
+        <Link to="#">Medication</Link>
+        <Link to="#">Fleas and Ticks</Link>
+        <Link to="#">Pet Anxiety</Link>
+        <Link to="#">Mental Health</Link>
+        <Link to="#">Allergies</Link>
+        <Link to="#">Socialization</Link>
+        <Link to="#">Skin Care</Link>
+        <Link to="#">Limping</Link>
+        <Link to="#">Wellness</Link>
+        <Link to="#">Insurance</Link>
       </div>
     </div>
   </div>

@@ -105,7 +105,7 @@
 
 /* Contact_Info */
 .Contact_Info{
-    background: url('/Images/contactbg.png')no-repeat;
+    background: var(--background-image)no-repeat;
     background-size: 100% 100%;
     padding: 50px 0px;
 }

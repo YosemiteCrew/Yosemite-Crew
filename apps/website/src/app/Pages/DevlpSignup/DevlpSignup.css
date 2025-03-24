@@ -2,7 +2,7 @@
 
     background: 
     linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), 
-    url('/Images/devlpbg.jpg')no-repeat; 
+   var(--background-image)no-repeat; 
     background-size: cover; 
     height: 100%;
     min-height: 100vh;

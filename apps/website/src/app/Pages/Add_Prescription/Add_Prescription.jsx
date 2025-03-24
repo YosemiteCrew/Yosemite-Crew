@@ -1,4 +1,4 @@
-// eslint-disable-next-line no-unused-vars
+
 import React, { useState } from 'react'
 import "./Add_Prescription.css"
 import { Forminput, HeadText } from '../SignUp/SignUp'
@@ -6,7 +6,7 @@ import { DashHeadtext } from '../Doctor_Dashboard/Doctor_Dashboard'
 import UplodeImage from '../../Components/UplodeImage/UplodeImage'
 import PropTypes from 'prop-types';
 import { MainBtn } from '../Appointment/page'
-import whtcheck from "../../../../public/Images/whtcheck.png"
+// import whtcheck from "../../../../public/Images/whtcheck.png"
 
 
 
@@ -29,7 +29,7 @@ const Add_Prescription = () => {
 
 
   return (
-    <>
+
 
     <section className='PrescripSec'>
         <div className="container">
@@ -79,7 +79,7 @@ const Add_Prescription = () => {
             </div>
 
             <div className="presbtn" >
-                <MainBtn bimg={whtcheck} btext="Sign up"  />
+                <MainBtn bimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/whtcheck.png`} btext="Sign up"  />
             </div>
             
 
@@ -90,7 +90,7 @@ const Add_Prescription = () => {
     
     
     
-    </>
+  
   )
 }
 

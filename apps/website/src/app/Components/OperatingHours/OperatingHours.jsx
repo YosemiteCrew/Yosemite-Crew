@@ -1,9 +1,8 @@
-// eslint-disable-next-line no-unused-vars
+
 import React, { useState, useEffect } from "react";
 import "./OperatingHours.css";
-import DynamicSelect from "../DynamicSelect/DynamicSelect";
+// import DynamicSelect from "../DynamicSelect/DynamicSelect";
 
-// eslint-disable-next-line react/prop-types
 const OperatingHours = ({ onSave }) => {
   const [hours, setHours] = useState([
     {
@@ -119,12 +118,12 @@ const OperatingHours = ({ onSave }) => {
     );
   };
 
-  const options = [
-    { value: "15", label: "15 mins" },
-    { value: "30", label: "30 mins" },
-    { value: "60", label: "1 hour" },
-    { value: "120", label: "2 hours" },
-  ];
+  // const options = [
+  //   { value: "15", label: "15 mins" },
+  //   { value: "30", label: "30 mins" },
+  //   { value: "60", label: "1 hour" },
+  //   { value: "120", label: "2 hours" },
+  // ];
 
   return (
     <div className="operating-hours">

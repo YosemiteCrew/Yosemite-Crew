@@ -8,7 +8,7 @@
 .DownlodeSec::after{
     content: " ";
     position: absolute;
-    background: url('/Images/DownlodeApp/downlodeapp.png')no-repeat;
+    background: var(--background-image)no-repeat;
     background-size: 100% 100%;
     width: 910px;
     height: 1035px;
@@ -19,7 +19,7 @@
 .DownlodeSec::before{
     content: " ";
     position: absolute;
-    background: url('/Images/DownlodeApp/downlodebgg.png')no-repeat;
+    background:var(--background-img)no-repeat;
     background-size: 100% 100%;
     width: 100%;
     height: 100%;
@@ -70,7 +70,7 @@
 .reviewItems::after{
     position: absolute;
     content: " ";
-    background: url('/Images/DownlodeApp/wave.png')no-repeat;
+    background:var(--background-wave)no-repeat;
     background-size: 100% 100%;
     left: -72px;
     top: 0px;
@@ -172,7 +172,7 @@
 .BrownDiv::after{
     position: absolute;
     content: " ";
-    background: url('/Images/DownlodeApp/PawsPras1.png')no-repeat;
+    background: var(--background-Paws)no-repeat;
     background-size: 100% 100%;
     left: 185px;
     top: -25px;
@@ -183,7 +183,7 @@
 .PurpleDiv::after{
     position: absolute;
     content: " ";
-    background: url('/Images/DownlodeApp/PawsPras2.png')no-repeat;
+    background: var(--background-Paws2)no-repeat;
     background-size: 100% 100%;
     top: -10px;
     right: 155px;
@@ -194,7 +194,7 @@
 .GreenDiv::after{
     position: absolute;
     content: " ";
-    background: url('/Images/DownlodeApp/PawsPras3.png')no-repeat;
+    background: var(--background-Paws3)no-repeat;
     background-size: 100% 100%;
     left: 160px;
     bottom: -22px;
@@ -221,7 +221,7 @@
 .GlimpseSec::after{
     position: absolute;
     content: " ";
-    background: url('/Images/DownlodeApp/glimpseafter.png')no-repeat;
+    background: var(--background-glimpseafter)no-repeat;
     background-size: 100% 100%;
     top: 0px;
     left: 0;
@@ -240,7 +240,7 @@
 .PetAppSec::after{
     position: absolute;
     content: " ";
-    background: url('/Images/DownlodeApp/petlines.png')no-repeat;
+    background: var(--background-petlines)no-repeat;
     background-size: 100% 100%;
     top: 50px;
     left: 0;

@@ -1,10 +1,10 @@
-// eslint-disable-next-line no-unused-vars
+
 import React, { useCallback, useEffect, useState } from 'react';
 import './Add_Department.css';
 import { Forminput, HeadText } from '../SignUp/SignUp';
 import { ProfileProg } from '../SignUpDetails/SignUpDetails';
 import { MainBtn } from '../Appointment/page';
-import whtcheck from '../../../../public/Images/whtcheck.png';
+// import whtcheck from '../../../../public/Images/whtcheck.png';
 // import OperatingHours from '../../Components/OperatingHours/OperatingHours';
 import axios from 'axios';
 import { useAuth } from '../../context/useAuth';
@@ -482,7 +482,7 @@ const Add_Department = () => {
             </div>
 
             <MainBtn
-              bimg={whtcheck}
+              bimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/whtcheck.png`}
               onClick={() => handleSubmit()}
               btext="Add Department"
               optclas=""

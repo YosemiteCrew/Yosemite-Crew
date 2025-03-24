@@ -5,7 +5,7 @@ import { Col, Container, Form, Row } from 'react-bootstrap';
 import { Forminput } from '../SignUp/SignUp';
 import DynamicSelect from '../../Components/DynamicSelect/DynamicSelect';
 import { MainBtn } from '../Appointment/page';
-import whtcheck from '../../../../public/Images/whtcheck.png';
+// import whtcheck from '../../../../public/Images/whtcheck.png';
 import axios from 'axios';
 import { useAuth } from '../../context/useAuth';
 import ViewPackageTable from '../../Components/PackageTable/ViewPackageTable';
@@ -161,7 +161,7 @@ function ViewProcedurePackage(fetchPackageData) {
               
                 /> 
               <div className="ee">
-                <MainBtn bimg={whtcheck} btext="Update Package" optclas="" />
+                <MainBtn bimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/whtcheck.png`} btext="Update Package" optclas="" />
               </div>
             </Form>
           </div>

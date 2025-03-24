@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './UplodeImage.css';
-import Upload from '../../../../public/Images/uplode.png';
+// import Upload from '../../../../public/Images/uplode.png';
 
 const UplodeImage = ({ onFileChange, selectedFiles }) => {
   const [files, setFiles] = useState([]);
@@ -47,7 +47,7 @@ const UplodeImage = ({ onFileChange, selectedFiles }) => {
         ) : (
           <>
             <div className="upload-icon">
-              <img src={Upload} alt="Upload Icon" />
+              <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/uplode.png`} alt="Upload Icon" />
             </div>
             <p className="upload-text">Upload files</p>
             <p className="file-info">

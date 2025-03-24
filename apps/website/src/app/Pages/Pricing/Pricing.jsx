@@ -1,14 +1,15 @@
-// eslint-disable-next-line no-unused-vars
+
 import React, { useState } from 'react'
 import "./Pricing.css"
 import PropTypes from 'prop-types';
 import FAQ from '../../Components/FAQ/FAQ';
-import heart from "../../../../public/Images/heart.png"
+// import heart from "../../../../public/Images/heart.png"
 // import { MainBtn } from '../Appointment/page';
-import batery from "../../../../public/Images/batery.png"
-import ftcheck from "../../../../public/Images/ftcheck.png"
-import host2 from "../../../../public/Images/host2.png"
-import host1 from "../../../../public/Images/host1.png"
+// import batery from "../../../../public/Images/batery.png"
+// import ftcheck from "../../../../public/Images/ftcheck.png"
+// import host2 from "../../../../public/Images/host2.png"
+// import host1 from "../../../../public/Images/host1.png"
+import { Link } from 'react-router-dom';
 
 
 const Pricing = () => {
@@ -28,8 +29,12 @@ const Pricing = () => {
 
 
   return (
-    <>
-    <section className='PricingSec'>
+
+    <section className='PricingSec'
+    style={{
+      "--background-image":`url(${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/pricegrdint.png)`
+    }}
+    >
         <div className="container">
 
           {/* TransparentsFee */}
@@ -45,7 +50,7 @@ const Pricing = () => {
               <div className="HostPriceDiv active">
 
                 <div className="hostinner">
-                  <img src={host1} alt="" width={50} height={50} />
+                  <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/host1.png`} alt="" width={50} height={50} />
                   <h4>Cloud Hosting</h4>
                   <p>Enjoy secure, hassle-free hosting on our cloud with automatic updates, backups, and 24/7 support.</p>
                 </div>
@@ -56,7 +61,7 @@ const Pricing = () => {
                 </div>
 
                 <div className="RedBtn">
-                  <a href="#"><img src={batery} alt="batery" width={18} height={18} /> Get Started</a>
+                  <Link to="#"><img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/batery.png`} alt="batery" width={18} height={18} /> Get Started</Link>
                 </div>
 
               </div>
@@ -64,7 +69,7 @@ const Pricing = () => {
               <div className="HostPriceDiv">
 
                 <div className="hostinner">
-                  <img src={host2} alt="" width={50} height={50} />
+                  <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/host2.png`} alt="" width={50} height={50} />
                   <h4>Self-Hosting</h4>
                   <p>Host on your own infrastructure for complete control and customization. We&apos;ll provide setup support.</p>
                 </div>
@@ -175,11 +180,11 @@ const Pricing = () => {
                   <h4>Authentication Options</h4>
                 </div>
                 <div className="fetiner">
-                  <p>Email Password <img src={ftcheck} alt="" width={24} height={24} /></p>
-                  <p>Social Logins (Google, GitHub, Facebook, and custom providers) <img src={ftcheck} alt="" width={24} height={24} /></p>
-                  <p>Email Verification, forgot password flows <img src={ftcheck} alt="" width={24} height={24} /></p>
-                  <p>M2M authentication <img src={ftcheck} alt="" width={24} height={24} /></p>
-                  <p>Single Sign-On (SSO) <img src={ftcheck} alt="" width={24} height={24} /></p>
+                  <p>Email Password <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/ftcheck.png`} alt="" width={24} height={24} /></p>
+                  <p>Social Logins (Google, GitHub, Facebook, and custom providers) <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/ftcheck.png`} alt="" width={24} height={24} /></p>
+                  <p>Email Verification, forgot password flows <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/ftcheck.png`} alt="" width={24} height={24} /></p>
+                  <p>M2M authentication <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/ftcheck.png`} alt="" width={24} height={24} /></p>
+                  <p>Single Sign-On (SSO) <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/ftcheck.png`} alt="" width={24} height={24} /></p>
                 </div>
               </div>
 
@@ -188,9 +193,9 @@ const Pricing = () => {
                   <h4>Account Management</h4>
                 </div>
                 <div className="fetiner">
-                  <p>Email Verification and Forgot Password flows <img src={ftcheck} alt="" width={24} height={24} /></p>
-                  <p>Multi-Factor Authentication (MFA) <img src={ftcheck} alt="" width={24} height={24} /></p>
-                  <p>M2M Authentication <img src={ftcheck} alt="" width={24} height={24} /></p>
+                  <p>Email Verification and Forgot Password flows <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/ftcheck.png`} alt="" width={24} height={24} /></p>
+                  <p>Multi-Factor Authentication (MFA) <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/ftcheck.png`} alt="" width={24} height={24} /></p>
+                  <p>M2M Authentication <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/ftcheck.png`} alt="" width={24} height={24} /></p>
                 </div>
               </div>
 
@@ -199,9 +204,9 @@ const Pricing = () => {
                   <h4>User Access Control</h4>
                 </div>
                 <div className="fetiner">
-                  <p>Role-Based Access Control (RBAC) <img src={ftcheck} alt="" width={24} height={24} /></p>
-                  <p>User Management Dashboard <img src={ftcheck} alt="" width={24} height={24} /></p>
-                  <p>Session Management <img src={ftcheck} alt="" width={24} height={24} /></p>
+                  <p>Role-Based Access Control (RBAC) <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/ftcheck.png`} alt="" width={24} height={24} /></p>
+                  <p>User Management Dashboard <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/ftcheck.png`} alt="" width={24} height={24} /></p>
+                  <p>Session Management <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/ftcheck.png`} alt="" width={24} height={24} /></p>
                 </div>
               </div>
 
@@ -210,9 +215,9 @@ const Pricing = () => {
                   <h4>Customization and Compliance</h4>
                 </div>
                 <div className="fetiner">
-                  <p>Custom Hooks and Actions <img src={ftcheck} alt="" width={24} height={24} /></p>
-                  <p>SOC2 Compliance <img src={ftcheck} alt="" width={24} height={24} /></p>
-                  <p>Overrides <img src={ftcheck} alt="" width={24} height={24} /></p>
+                  <p>Custom Hooks and Actions <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/ftcheck.png`} alt="" width={24} height={24} /></p>
+                  <p>SOC2 Compliance <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/ftcheck.png`} alt="" width={24} height={24} /></p>
+                  <p>Overrides <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/ftcheck.png`} alt="" width={24} height={24} /></p>
                 </div>
               </div>
 
@@ -286,7 +291,7 @@ const Pricing = () => {
                       <p>Free under 5K MAUs</p>
                     </div>
                     <div className="RedBtn">
-                      <a href="#"><img src={batery} alt="batery" width={18} height={18} /> Get Started</a>
+                      <Link to="#"><img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/batery.png`} alt="batery" width={18} height={18} /> Get Started</Link>
                     </div>
                   </div>
 
@@ -304,13 +309,17 @@ const Pricing = () => {
 
             {/* NeedHelpDiv */}
             <div className="NeedHelpDiv">
-                <div className="Needhelpitem">
+                <div className="Needhelpitem"
+                style={{
+                  "--pricehelp-bg": `url(${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/pricehlp.png)`,
+                }}
+                >
                     <div className="helpText">
                         <h3>Need Help? We’re All Ears!</h3>
                         <p>Got questions or need assistance? Just reach out! Our team is here to help.</p>
                     </div>
                     <div className="helpbtn">
-                        <button> <img src={heart} alt="" /> Get in Touch</button>
+                        <button> <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/heart.png`} alt="" /> Get in Touch</button>
                     </div>
                 </div>
             </div>
@@ -323,7 +332,6 @@ const Pricing = () => {
 
 
 
-    </>
   )
 }
 
