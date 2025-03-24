@@ -1,8 +1,8 @@
-// eslint-disable-next-line no-unused-vars
-import React, { useEffect, useState } from 'react';
+
+import React, { useCallback, useEffect, useState } from 'react';
 import './Add_Vet.css';
 import { Forminput, FormPassw, HeadText } from '../SignUp/SignUp';
-import camera from '../../../../public/Images/camera.png';
+// import camera from '../../../../public/Images/camera.png';
 import { ProfileProg } from '../SignUpDetails/SignUpDetails';
 import { Col, Form, Row } from 'react-bootstrap';
 // import UplodeImage from '../../Components/UplodeImage/UplodeImage';
@@ -11,7 +11,7 @@ import OperatingHours from '../../Components/OperatingHours/OperatingHours';
 import { Modal, Button } from 'react-bootstrap';
 import Switch from 'react-switch';
 import { MainBtn } from '../Appointment/page';
-import whtcheck from '../../../../public/Images/whtcheck.png';
+// import whtcheck from '../../../../public/Images/whtcheck.png';
 // import { MdOpacity } from 'react-icons/md';
 import axios from 'axios';
 import DynamicDatePicker from '../../Components/DynamicDatePicker/DynamicDatePicker';
@@ -91,7 +91,7 @@ const Add_Vet = () => {
     })); // Update the parent state with the selected date
   };
 
-  const getSpecilization = async () => {
+  const getSpecilization = useCallback(async () => {
     try {
       const token = sessionStorage.getItem("token");
       const response = await axios.get(
@@ -108,7 +108,7 @@ const Add_Vet = () => {
         onLogout(navigate);
       }
     }
-  };
+  },[navigate,onLogout,userId]);
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
 
@@ -157,7 +157,7 @@ const Add_Vet = () => {
 
   useEffect(() => {
     getSpecilization();
-  }, [userId]);
+  }, [userId,getSpecilization]);
 
   const handleprofessionalBackground = (e) => {
     const { name, value } = e.target;
@@ -448,7 +448,7 @@ const Add_Vet = () => {
                         />
                       ) : (
                         <div className="upload-placeholder">
-                          <img src={camera} alt="camera" className="icon" />
+                          <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/camera.png`} alt="camera" className="icon" />
                         </div>
                       )}
                     </label>
@@ -991,7 +991,7 @@ const Add_Vet = () => {
 
               <MainBtn
                 btntyp="button"
-                bimg={whtcheck}
+                bimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/whtcheck.png`}
                 btext="Add Vet"
                 optclas="opt5"
                 onClick={() => {

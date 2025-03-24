@@ -1,4 +1,4 @@
-// eslint-disable-next-line no-unused-vars
+
 import React from 'react';
 import PropTypes from 'prop-types';
 import { Form } from 'react-bootstrap';
@@ -6,7 +6,11 @@ import './DynamicSelect.css';
 
 const DynamicSelect = ({ options, placeholder, value, onChange, inname }) => {
   return (
-    <div className="SelectedInpt">
+    <div className="SelectedInpt"
+    style={{
+      "--background-image": `url(${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/selctarrow.png)`
+    }}
+    >
       <Form.Select
         aria-label="Dynamic select menu"
         name={inname}

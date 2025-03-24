@@ -1,11 +1,11 @@
-// eslint-disable-next-line no-unused-vars
+
 import React, { useState } from 'react';
 import "./Prescription.css";
 import { AddSerchHead } from '../Add_Doctor/Add_Doctor';
 import { SelectForm } from '../Add_Prescription/Add_Prescription';
 import ActionsTable from '../../Components/ActionsTable/ActionsTable';
-import Accpt from "../../../../public/Images/acpt.png";
-import Decln from "../../../../public/Images/decline.png";
+// import Accpt from "../../../../public/Images/acpt.png";
+// import Decln from "../../../../public/Images/decline.png";
 
 const Prescription = () => {
   // State to store the options for the select dropdowns
@@ -58,7 +58,7 @@ const Prescription = () => {
           </div>
 
           <div className="Prestable">
-            <ActionsTable actimg1={Accpt} actimg2={Decln} />
+            <ActionsTable actimg1={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Homepage/acpt.png`} actimg2={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Homepage/MainLanding/decline.png`} />
           </div>
 
 

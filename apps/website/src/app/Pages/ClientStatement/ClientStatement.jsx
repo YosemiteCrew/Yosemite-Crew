@@ -6,8 +6,8 @@ import { IoSearch } from 'react-icons/io5';
 import { ListSelect } from '../Dashboard/page';
 import { Link } from 'react-router-dom';
 import { MdOutlinePets } from 'react-icons/md';
-import eye from "../../../../public/Images/eye.png"
-import downlode from "../../../../public/Images/downlode.png"
+// import eye from "../../../../public/Images/eye.png"
+// import downlode from "../../../../public/Images/downlode.png"
 
 function ClientStatement({ Chatstatemnt = [] }) {
   // Fallback data if no props are passed
@@ -242,14 +242,14 @@ function ClientStatement({ Chatstatemnt = [] }) {
                       </td>
                       <td>{chatstatmnt.stmnt}</td>
                       <td>{chatstatmnt.stdate}</td>
-                      <td>{chatstatmnt.stamount}</td>
+                      <td>{chatstatmnt.stamount}</td> 
                       <td>{chatstatmnt.stamoutpaid}</td>
                       <td>{chatstatmnt.stbalance}</td>
                       <td className='ststatus'><span className={chatstatmnt.paidclass}>{chatstatmnt.Ststatus}</span></td>
                       <td>
                         <div className="chataction">
-                          <Link href={chatstatmnt.acceptAction}> <img src={eye} alt="eye" width={24} height={24} /></Link>
-                          <Link href={chatstatmnt.declineAction}><img src={downlode} alt="downlode" width={24} height={24} /></Link>
+                          <Link href={chatstatmnt.acceptAction}> <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/eye.png`} alt="eye" width={24} height={24} /></Link>
+                          <Link href={chatstatmnt.declineAction}><img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/downlode.png`} alt="downlode" width={24} height={24} /></Link>
                         </div>
                       </td>
                     </tr>

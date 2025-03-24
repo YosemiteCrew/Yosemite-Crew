@@ -1,10 +1,9 @@
-// eslint-disable-next-line no-unused-vars
+
 import React, { useState } from 'react';
 import './SignIn.css';
 import { Form } from 'react-bootstrap';
 import { Forminput, FormPassw } from '../SignUp/SignUp';
 import { MainBtn } from '../Appointment/page';
-import whtcheck from '../../../../public/Images/whtcheck.png';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
@@ -13,6 +12,7 @@ import { useAuth } from '../../context/useAuth';
 function SignIn() {
   const navigate = useNavigate();
   const { initializeUser } = useAuth();
+  console.log("llllllllllllll",process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL);
 
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showVerifyCode, setShowVerifyCode] = useState(false);
@@ -243,7 +243,11 @@ function SignIn() {
 
   return (
     <section className="SignInSec">
-      <div className="leftSignIn"></div>
+      <div className="leftSignIn"
+      style={{
+        "--background-image":`url(${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/SignInpic.png)`
+      }}
+      ></div>
       <div className="RightSignIn">
         {/* SignIn Page */}
         {!showForgotPassword && !showVerifyCode && !showNewPassword && (
@@ -280,7 +284,7 @@ function SignIn() {
               <div className="sinbtn">
                 <MainBtn
                   // btntyp="submit"
-                  bimg={whtcheck}
+                  bimg={  `${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/whtcheck.png`}
                   btext="Sign In"
                   onClick={handleSignIn}
                 />
@@ -374,7 +378,7 @@ function SignIn() {
                 />
 
                 <MainBtn
-                  bimg={whtcheck}
+                  bimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/whtcheck.png`}
                   btext="Reset Password"
                   onClick={handleVerifyOtp}
                   // onClick={handleResetPassword}

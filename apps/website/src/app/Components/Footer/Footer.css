@@ -6,7 +6,7 @@
 .Footersec::after{
     position: absolute;
     content: " ";
-    background: url(../../../../public/Images/Foot.png)no-repeat;
+    background: var(--background-image)no-repeat;
     background-size: 100% 100%;
     width: 80px;
     height: 80px;

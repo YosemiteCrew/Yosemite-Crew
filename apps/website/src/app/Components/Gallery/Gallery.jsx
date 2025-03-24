@@ -1,31 +1,32 @@
-// eslint-disable-next-line no-unused-vars
+
 import React, { useState } from 'react';
 import './Gallery.css';
-import gallery1 from '../../../../public/Images/gallery1.png';
-import gallery2 from '../../../../public/Images/gallery2.png';
-import gallery3 from '../../../../public/Images/gallery3.png';
-import gallery4 from '../../../../public/Images/gallery4.png';
-import gallery5 from '../../../../public/Images/gallery5.png';
-import gallery6 from '../../../../public/Images/gallery6.png';
-import gallery7 from '../../../../public/Images/gallery7.png';
-import gallery8 from '../../../../public/Images/gallery8.png';
-import gallery9 from '../../../../public/Images/gallery9.png';
+// import gallery1 from '../../../../public/Images/gallery1.png';
+// import gallery2 from '../../../../public/Images/gallery2.png';
+// import gallery3 from '../../../../public/Images/gallery3.png';
+// import gallery4 from '../../../../public/Images/gallery4.png';
+// import gallery5 from '../../../../public/Images/gallery5.png';
+// import gallery6 from '../../../../public/Images/gallery6.png';
+// import gallery7 from '../../../../public/Images/gallery7.png';
+// import gallery8 from '../../../../public/Images/gallery8.png';
+// import gallery9 from '../../../../public/Images/gallery9.png';
 
 const Gallery = () => {
   const initialImages = [
-    { id: 1, src: gallery1, alt: 'Placeholder Image 1' },
-    { id: 2, src: gallery2, alt: 'Placeholder Image 2' },
-    { id: 3, src: gallery3, alt: 'Placeholder Image 3' },
-    { id: 4, src: gallery4, alt: 'Placeholder Image 4' },
-    { id: 5, src: gallery5, alt: 'Placeholder Image 5' },
-    { id: 6, src: gallery6, alt: 'Placeholder Image 6' },
-    { id: 7, src: gallery7, alt: 'Placeholder Image 7' },
-    { id: 8, src: gallery8, alt: 'Placeholder Image 8' },
-    { id: 9, src: gallery9, alt: 'Placeholder Image 9' },
-    { id: 10, src: gallery1, alt: 'Placeholder Image 10' },
-    { id: 11, src: gallery2, alt: 'Placeholder Image 11' },
-    { id: 12, src: gallery3, alt: 'Placeholder Image 12' },
-  ]; // Placeholder images
+    { id: 1, src: `${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/gallery1.png`, alt: 'Placeholder Image 1' },
+    { id: 2, src: `${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/gallery2.png`, alt: 'Placeholder Image 2' },
+    { id: 3, src: `${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/gallery3.png`, alt: 'Placeholder Image 3' },
+    { id: 4, src: `${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/gallery4.png`, alt: 'Placeholder Image 4' },
+    { id: 5, src: `${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/gallery5.png`, alt: 'Placeholder Image 5' },
+    { id: 6, src: `${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/gallery6.png`, alt: 'Placeholder Image 6' },
+    { id: 7, src: `${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/gallery7.png`, alt: 'Placeholder Image 7' },
+    { id: 8, src: `${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/gallery8.png`, alt: 'Placeholder Image 8' },
+    { id: 9, src: `${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/gallery9.png`, alt: 'Placeholder Image 9' },
+    { id: 10, src: `${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/gallery1.png`, alt: 'Placeholder Image 10' },
+    { id: 11, src: `${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/gallery2.png`, alt: 'Placeholder Image 11' },
+    { id: 12, src: `${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/gallery3.png`, alt: 'Placeholder Image 12' },
+  ];
+  
 
   const [images, setImages] = useState(initialImages); // State to hold images
   const [visibleCount, setVisibleCount] = useState(9); // Initially show 9 images

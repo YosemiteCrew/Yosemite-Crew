@@ -5,7 +5,7 @@ import { Forminput } from '../SignUp/SignUp';
 import DynamicSelect from '../../Components/DynamicSelect/DynamicSelect';
 import PackageTable from '../../Components/PackageTable/PackageTable';
 import { MainBtn } from '../Appointment/page';
-import whtcheck from '../../../../public/Images/whtcheck.png';
+// import whtcheck from '../../../../public/Images/whtcheck.png';
 import axios from 'axios';
 import { useAuth } from '../../context/useAuth';
 import Swal from 'sweetalert2';
@@ -141,7 +141,7 @@ function AddProcedurePackage() {
               </Row>
               <PackageTable updatePackageItems={updatePackageItems} />
               <div className="ee">
-                <MainBtn bimg={whtcheck} btext="Add Package" optclas="" />
+                <MainBtn bimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/whtcheck.png`} btext="Add Package" optclas="" />
               </div>
             </Form>
           </div>

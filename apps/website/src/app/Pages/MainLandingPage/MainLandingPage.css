@@ -2,7 +2,7 @@
 .MainLandingSec{
     /* padding: 100px 0px; */
     position: relative;
-    background: url('/Images/MainLanding/lanherobg.png')no-repeat;
+    background: var(--background-image)no-repeat;
     background-size: 100% 100%;
     z-index: 1;
     background: #FFF2E3;
@@ -10,7 +10,7 @@
 .MainLandingSec::after{
     position: absolute;
     content: " ";
-    background: url('/Images/MainLanding/lanherobg.png')no-repeat;
+    background: var(--background-img)no-repeat;
     background-size: 100% 100%;
     top: 0;
     left: 0;

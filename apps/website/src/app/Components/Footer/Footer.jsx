@@ -1,17 +1,21 @@
-// eslint-disable-next-line no-unused-vars
+
 import React from "react";
 import "./Footer.css";
-import FtLogo from "../../../../public/Images/Logo.png";
+// import FtLogo from "../../../../public/Images/Logo.png";
 import { Link } from "react-router-dom";
 
 const Footer = () => {
   return (
-    <>
-      <footer className="Footersec">
+    
+      <footer className="Footersec"
+      style={{
+        "--background-image": `url(${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Foot.png)`
+      }}
+      >
         <div className="container">
           <div className="FootTopData">
             <div className="leftFooter">
-              <img src={FtLogo} alt="footerlogo" />
+              <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Logo.png`} alt="footerlogo" />
             </div>
             <div className="RytFooter">
               <div className="FtDiv">
@@ -59,7 +63,7 @@ const Footer = () => {
           </div>
         </div>
       </footer>
-    </>
+
   );
 };
 

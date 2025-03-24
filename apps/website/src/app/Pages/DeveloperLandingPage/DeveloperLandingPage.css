@@ -69,7 +69,7 @@
 .DevYousmiteBoxed::after{
     position: absolute;
     content: " ";
-    background: url('/Images/Devlperlanding/youslogo.png')no-repeat;
+    background: var(--background-image)no-repeat;
     background-size: 100% 100%;
     height: 223px;
     width: 223px;
@@ -180,7 +180,7 @@
 .DevlpToolSec::after{
     content: " ";
     position: absolute;
-    background: url('/Images/Devlperlanding/DevlpTool.png')no-repeat;
+    background: var(--background-img)no-repeat;
     background-size: 100% 100%;
     top: 0px;
     left: 0px;
@@ -237,7 +237,7 @@
 .SimpleStepSec::before{
    content: " ";
    position: absolute;
-   background: url('/Images/Devlperlanding/StepAfter.png')no-repeat;
+   background: var(--background-StepAfter)no-repeat;
    background-size: 100% 100%;
    width: 100%;
    left: 0px;
@@ -315,7 +315,7 @@
 .DevlpPricingSec::after{
     content: " ";
     position: absolute;
-    background: url('/Images/Devlperlanding/PricSecafter.png')no-repeat;
+    background: var(--background-PricSecafter)no-repeat;
     background-size: 100% 100%;
     width: 744px;
     left: -150px;
@@ -356,7 +356,7 @@
 .DevPricBox::after{
     content: " ";
     position: absolute;
-    background: url('/Images/Devlperlanding/DevPricBox1.png')no-repeat;
+    background: var(--background-DevPricBox1)no-repeat;
     background-size: 100% 100%;
     width: 116px;
     left: -8px;
@@ -394,7 +394,7 @@
     margin: 0;
 }
 .DevPricBox:nth-of-type(2)::after{
-    background: url('/Images/Devlperlanding/DevPricBox2.png')no-repeat;
+    background: var(--background-DevPricBox2)no-repeat;
     background-size: 100% 100%;
     width: 145px;
     left: 0px;
@@ -402,7 +402,7 @@
     height: 125px;
 }
 .DevPricBox:nth-of-type(3)::after{
-    background: url('/Images/Devlperlanding/DevPricBox3.png')no-repeat;
+    background: var(--background-DevPricBox3)no-repeat;
     background-size: 100% 100%;
     width: 150px;
     left: 0px;
@@ -430,7 +430,7 @@
 .ReadyBuildData::after{
     content: " ";
     position: absolute;
-    background: url('/Images/Devlperlanding/lftbuildafter.png')no-repeat;
+    background: var(--background-lftbuildafter)no-repeat;
     background-size: 100% 100%;
     width: 386px;
     left: -190px;
@@ -441,7 +441,7 @@
 .ReadyBuildData::before{
     content: " ";
     position: absolute;
-    background: url('/Images/Devlperlanding/rytbuildafter.png')no-repeat;
+    background: var(--background-rgtbuildafter)no-repeat;
     background-size: 100% 100%;
     width: 386px;
     right: -190px;

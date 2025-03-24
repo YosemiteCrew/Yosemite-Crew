@@ -1,4 +1,4 @@
-// eslint-disable-next-line no-unused-vars
+
 import React, { useState } from 'react'
 import "./LaunchGrowTab.css"
 import { FillBtn } from "../../Pages/Homepage/Homepage";
@@ -17,7 +17,7 @@ const LaunchGrowTab = () => {
       id: 1,
       title: "APIs",
       color: "#D04122",
-      icon: "/Images/Devlperlanding/apllcticon.png",
+      icon: `${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Devlperlanding/apllcticon.png`,
       heading: "Application Programming Interface",
       details: [
         "Integrate essential veterinary features like appointment scheduling and medical records.",
@@ -31,7 +31,7 @@ const LaunchGrowTab = () => {
       id: 2,
       title: "APIs",
       color: "#FDBD74",
-      icon: "/Images/Devlperlanding/apllcticon.png",
+      icon: `${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Devlperlanding/apllcticon.png`,
       heading: "Application Programming Interface",
       details: [
         "Integrate essential veterinary features like appointment scheduling and medical records.",
@@ -45,7 +45,7 @@ const LaunchGrowTab = () => {
       id: 3,
       title: "APIs",
       color: "#8E88D2",
-      icon: "/Images/Devlperlanding/apllcticon.png",
+      icon: `${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Devlperlanding/apllcticon.png`,
       heading: "Application Programming Interface",
       details: [
         "Integrate essential veterinary features like appointment scheduling and medical records.",
@@ -59,7 +59,7 @@ const LaunchGrowTab = () => {
       id: 4,
       title: "APIs",
       color: "#8AC1B1",
-      icon: "/Images/Devlperlanding/apllcticon.png",
+      icon: `${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Devlperlanding/apllcticon.png`,
       heading: "Application Programming Interface",
       details: [
         "Integrate essential veterinary features like appointment scheduling and medical records.",
