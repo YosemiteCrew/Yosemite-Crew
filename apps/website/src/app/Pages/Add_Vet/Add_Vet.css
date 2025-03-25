@@ -1,6 +1,163 @@
 .Add_VetSec {
   padding: 80px 0px;
 }
+
+
+.AddVetTabDiv .VetPills {
+  display: grid;
+  grid-template-columns: repeat(4,1fr);
+  width: 100%;
+  max-width: 702px;
+  margin: 30px auto;
+  grid-gap: 50px;
+  
+}
+.AddVetTabDiv .VetPills .nav-item a{
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  grid-gap: 8px;
+  color: #747473;
+  font-family: var(--grotesk-font);
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 100%;
+  padding: 0px;
+}
+.AddVetTabDiv .VetPills .nav-item a span{
+  display: flex;
+  align-items: center;
+  background: #A09F9F !important;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: #FEF8F4;
+  font-family: var(--grotesk-font);
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 100%;
+  background: transparent;
+}
+.AddVetTabDiv .VetPills .nav-item a.active{
+  color: #302F2E;
+  background: transparent;
+}
+.AddVetTabDiv .VetPills .nav-item a.active span{
+  background: var(--chilli-red) !important;
+}
+
+.LeftProfileDiv .BasicForm , .LeftProfileDiv .ProfesForm , .LeftProfileDiv .availbiltyForm{
+  display: flex;
+  flex-direction: column;
+  gap: 50px;
+}
+.TabsBtn{
+  display: flex;
+  justify-content: end;
+}
+.TabsBtn button , .ProfBtn button{
+  background: var(--chilli-red);
+  padding: 16px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 28px;
+  border: none;
+  font-family: var(--grotesk-font);
+  font-weight: 500;
+  font-size: 20px;
+  line-height: 120%;
+  color: #FFFEFE;
+  border: 1px solid var(--chilli-red) !important;
+}
+.TabsBtn button:hover , .ProfBtn button:hover{
+  background: transparent;
+  color: var(--chilli-red);
+}
+.ProfBtn button.Hov{
+  background: transparent;
+  color: var(--chilli-red);
+}
+ .ProfBtn button.Hov:hover{
+  color: #FFFEFE;
+  background: var(--chilli-red);
+}
+
+.ProfBtn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ProfBtn button img {
+  width: 24px;
+  height: 24px;
+}
+.ProfBtn button:hover img {
+  filter: invert(1);
+}
+
+
+
+
+.CvUplodeDiv{
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 10px 24px;
+  border-radius: 36px;
+  min-height: 55px;
+  border: 1px solid #37223CB2;
+  outline: var(--chilli-red);
+}
+.CvUplodeDiv input{
+  opacity: 0;
+}
+.CvLabel{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 100%;
+  left: 0;
+  padding: 0px 32px;
+}
+.CvLabel p{
+  font-family: var(--satoshi-font);
+  font-weight: 400;
+  font-size: 15px;
+  line-height: 120%;
+  color: #312943;
+  opacity: 60%;
+  margin: 0;
+}
+.CvLabel{
+  color: var(--chilli-red);
+  font-size: 22px;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 .Add_Vat_Data {
   display: grid;
   grid-template-columns: 68% 30%;
@@ -11,11 +168,11 @@
   padding: 40px;
   border-radius: 18px;
 }
-.LeftProfileDiv Form {
+/* .LeftProfileDiv Form {
   display: flex;
   flex-direction: column;
   gap: 40px;
-}
+} */
 .PersonlInfoDiv,
 .doctadressdiv,
 .ProfBackDiv,
