@@ -940,9 +940,6 @@ input[type='number'] {
   border: 1px solid #5d412f33;
   padding: 40px;
   border-radius: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 30px;
 }
 
 /* ProfileSec Ended  */
