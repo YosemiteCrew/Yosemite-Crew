@@ -80,7 +80,7 @@ const MainLandingPage = () => {
             <div className="RightInnovatr">
               <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/MainLanding/Glixbox4.png`} alt="" />
               <Glightbox
-                videoLink="https://youtu.be/Ce4Tsg6oQM8?si=GaFeI1C7PaagCIQj"
+                // videoLink=""
                 buttonColor=" #D04122"
                 buttonBackground="radial-gradient(circle, #D04122 50%, transparent 75%)"
               />
@@ -119,7 +119,7 @@ const MainLandingPage = () => {
             <div className="RightInnovatr">
               <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/MainLanding/Glixbox3.png`} alt="" />
               <Glightbox
-                videoLink="https://youtu.be/Ce4Tsg6oQM8?si=GaFeI1C7PaagCIQj"
+                // videoLink=""
                 buttonColor=" #D04122"
                 buttonBackground="radial-gradient(circle, #D04122 50%, transparent 75%)"
               />
@@ -157,7 +157,7 @@ const MainLandingPage = () => {
             <div className="RightInnovatr">
               <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/MainLanding/Glixbox2.png`} alt="" width={887} height={565} />
               <Glightbox
-                videoLink="https://youtu.be/Ce4Tsg6oQM8?si=GaFeI1C7PaagCIQj"
+                // videoLink=""
                 buttonColor=" #8E88D2"
                 buttonBackground="radial-gradient(circle, #8E88D2 50%, transparent 75%)"
               />
@@ -193,7 +193,7 @@ const MainLandingPage = () => {
             <div className="RightInnovatr">
               <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/MainLanding/Glixbox.png`} alt="" width={887} height={528} />
               <Glightbox
-                videoLink="https://youtu.be/Ce4Tsg6oQM8?si=GaFeI1C7PaagCIQj"
+                // videoLink=""
                 buttonColor=" #477A6B"
                 buttonBackground="radial-gradient(circle, #477A6B 50%, transparent 75%)"
               />
