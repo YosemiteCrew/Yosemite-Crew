@@ -21,7 +21,7 @@
           {
             "input": "apps/api/src/Uploads/Images/",
             "output": "apps/api/src/Uploads/Images/",
-            "glob": "*.png"
+            "glob": "*.jpeg"
           }
         ],
         "generatePackageJson": true,
