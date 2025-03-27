@@ -1,4 +1,4 @@
-// eslint-disable-next-line no-unused-vars
+
 // import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { Button } from 'react-bootstrap';
@@ -47,7 +47,7 @@ const HandleDelete = async(id) => {
         <tbody>
           {procedureData?.map((procedure, index) => (
             <tr key={index} style={{ alignItems: 'center' }}>
-              <td scope="row">
+              <td >
                 {/* <div className="proceicon ">
                   <i className="ri-checkbox-blank-circle-fill"></i>
                 </div> */}

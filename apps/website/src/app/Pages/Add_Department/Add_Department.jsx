@@ -1,10 +1,10 @@
-// eslint-disable-next-line no-unused-vars
-import React, { useEffect, useState } from 'react';
+
+import React, { useCallback, useEffect, useState } from 'react';
 import './Add_Department.css';
 import { Forminput, HeadText } from '../SignUp/SignUp';
 import { ProfileProg } from '../SignUpDetails/SignUpDetails';
 import { MainBtn } from '../Appointment/page';
-import whtcheck from '../../../../public/Images/whtcheck.png';
+// import whtcheck from '../../../../public/Images/whtcheck.png';
 // import OperatingHours from '../../Components/OperatingHours/OperatingHours';
 import axios from 'axios';
 import { useAuth } from '../../context/useAuth';
@@ -24,6 +24,7 @@ const useDebounce = (value, delay) => {
   return debouncedValue;
 };
 const Add_Department = () => {
+
   // Department Head
   const [selectedCode, setSelectedCode] = useState('+91');
   const [searchTerms, setSearchTerms] = useState('');
@@ -37,7 +38,7 @@ const Add_Department = () => {
   const [servicesList, setservicesList] = useState([]);
   // console.log('servicesList', servicesList);
 
-  const { userId } = useAuth();
+  const { userId,onLogout } = useAuth();
   const navigate = useNavigate();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -45,7 +46,7 @@ const Add_Department = () => {
 
   const debouncedSearch = useDebounce(searchTerm, 500);
   // console.log('debouncedSearch', debouncedSearch);
-  const getaDoctors = async () => {
+  const getaDoctors = useCallback(async () => {
     // console.log('debouncedSearch', debouncedSearch);
     try {
       // Get the token from sessionStorage
@@ -81,11 +82,11 @@ const Add_Department = () => {
     } catch (error) {
       console.error('Error fetching doctors data:', error);
     }
-  };
+  },[userId,debouncedSearch,navigate]);
 
   useEffect(() => {
     getaDoctors();
-  }, [debouncedSearch, userId]);
+  }, [debouncedSearch, userId,getaDoctors]);
   const handleSearch = (event) => {
     setSearchTerm(event.target.value);
     console.log('ssss', event.target.value);
@@ -241,14 +242,17 @@ const Add_Department = () => {
     console.log('departmentData', departmentData);
 
     try {
-      // Send data to backend (mock API request using axios)
+      const token = sessionStorage.getItem("token");
       const response = await axios.post(
         `${process.env.NX_PUBLIC_VITE_BASE_URL}api/auth/addDepartment`,
-        departmentData
+        departmentData ,{headers:{Authorization:`Bearer ${token}`}}
       );
       console.log('Department added:', response.data);
     } catch (error) {
-      console.error('Error adding department:', error);
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
     }
   };
   return (
@@ -478,7 +482,7 @@ const Add_Department = () => {
             </div>
 
             <MainBtn
-              bimg={whtcheck}
+              bimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/whtcheck.png`}
               onClick={() => handleSubmit()}
               btext="Add Department"
               optclas=""

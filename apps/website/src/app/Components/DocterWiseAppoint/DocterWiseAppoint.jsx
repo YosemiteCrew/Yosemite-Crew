@@ -1,213 +1,195 @@
-// eslint-disable-next-line no-unused-vars
-import React, { useState } from 'react';
-import "./DocterWiseAppoint.css";
-import PropTypes from 'prop-types'; 
-import { MdAttachMoney } from "react-icons/md";
-import doct1 from "../../../../public/Images/doct1.png"
-import doct2 from "../../../../public/Images/doct2.png"
-import doct3 from "../../../../public/Images/doct3.png"
-import doct4 from "../../../../public/Images/doct4.png"
+import React, { useCallback, useEffect, useState } from 'react';
+import './DocterWiseAppoint.css';
+import PropTypes from 'prop-types';
+import { MdAttachMoney } from 'react-icons/md';
+// import doct1 from "../../../../public/Images/doct1.png"
+// import doct2 from "../../../../public/Images/doct2.png"
+// import doct3 from "../../../../public/Images/doct3.png"
+// import doct4 from "../../../../public/Images/doct4.png"
+import axios from 'axios';
+import { useAuth } from '../../context/useAuth';
+import { useNavigate } from 'react-router-dom';
+const useDebounce = (value, delay) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+
+  return debouncedValue;
+};
 
 const DocterWiseAppoint = ({ DoctWiseTable = [] }) => {
-
-    // Dropdown options
-  const options = ['Select Doctor', 'Dr. Laura Evans', 'Dr. Emily Foster', 'Dr. Robert Anderson', 'Dr. James Wilson'];
-
-  // Fallback data if appointments prop is not provided
-  const DocterWiseAppointList = [
-    {
-        DoctImage: doct1,
-        DoctName: 'Dr. Laura Evans',
-        PostName:"Cardiology",
-        Apointid:"24",
-        Asistid:"12",
-        Renenu:"453",
-      },
-    {
-        DoctImage: doct2,
-        DoctName: 'Dr. Emily Foster',
-        PostName:"Dermatology",
-        Apointid:"28",
-        Asistid:"8",
-        Renenu:"671",
-      },
-    {
-        DoctImage: doct3,
-        DoctName: 'Dr. Robert Anderson',
-        PostName:"Oncology",
-        Apointid:"38",
-        Asistid:"18",
-        Renenu:"908",
-      },
-    {
-        DoctImage: doct4,
-        DoctName: 'Dr. James Wilson',
-        PostName:"Critical Care",
-        Apointid:"8",
-        Asistid:"14",
-        Renenu:"327",
-      },
-    {
-        DoctImage: doct1,
-        DoctName: 'Dr. Laura Evans',
-        PostName:"Cardiology",
-        Apointid:"24",
-        Asistid:"12",
-        Renenu:"453",
-      },
-    {
-        DoctImage: doct2,
-        DoctName: 'Dr. Emily Foster',
-        PostName:"Dermatology",
-        Apointid:"28",
-        Asistid:"8",
-        Renenu:"671",
-      },
-    {
-        DoctImage: doct3,
-        DoctName: 'Dr. Robert Anderson',
-        PostName:"Oncology",
-        Apointid:"38",
-        Asistid:"18",
-        Renenu:"908",
-      },
-    {
-        DoctImage: doct4,
-        DoctName: 'Dr. James Wilson',
-        PostName:"Critical Care",
-        Apointid:"8",
-        Asistid:"14",
-        Renenu:"327",
+  const { userId,onLogout } = useAuth();
+  const navigate = useNavigate()
+  const [search, setSearch] = useState('');
+  const [days, setDays] = useState('Last 7 Days');
+  // const [totalAppointments, setTotalAppointments] = useState(0)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPage, setTotalPage] = useState(1);
+  const [appointmentsData, setAppointmentsData] = useState([]);
+  console.log('appointmentsData', appointmentsData);
+  const debouncedSearch = useDebounce(search, 500);
+  const getAppointmentsData = useCallback(async () => {
+    try {
+      const token = sessionStorage.getItem("token");
+      const response = await axios.get(
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/getDoctorsTotalAppointments`,
+        { params: { userId: userId, search: debouncedSearch, LastDays: days } ,headers:{Authorization:`Bearer ${token}`}}
+      );
+      if (response) {
+        console.log('responseeeeee', response.data);
+        // setTotalAppointments(response.data.totalCount)
+        setCurrentPage(response.data.page);
+        setTotalPage(response.data.totalPages);
+        setAppointmentsData(response.data.totalAppointments);
+      }
+    } catch (error) {
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
     }
-    
-    ];
+  }, [userId, debouncedSearch,days, navigate, onLogout]);
+  useEffect(() => {
+    if (userId) {
+      getAppointmentsData();
+    }
+  }, [userId, getAppointmentsData]);
 
-  // Use the provided `appointments` or fallback to `DocterWiseAppointList`
-  const dataToRender = DoctWiseTable.length > 0 ? DoctWiseTable : DocterWiseAppointList;
+  const handleSearch = async (val) => {
+    console.log('search', val.target.value);
+    setSearch(val.target.value);
+  };
+const handleSelect = (val) => {
+  const day = parseInt(val.match(/\d+/)[0], 10);
+  // console.log('days', day)
+  setDays(day)
+}
+  // Dropdown options
+  const options = [
+    'Last 7 Days',
+    'Last 10 Days',
+    'Last 20 Days',
+    'Last 21 Days',
+  ];
 
-  // Pagination states
-  const [currentPage, setCurrentPage] = useState(0);
-  const itemsPerPage = 5;
-
-  // Get the current page data
-  const currentData = dataToRender.slice(
-    currentPage * itemsPerPage,
-    (currentPage + 1) * itemsPerPage
-  );
-
-  // Handlers for pagination
   const handleNext = () => {
-    if (currentPage < Math.ceil(dataToRender.length / itemsPerPage) - 1) {
-      setCurrentPage(currentPage + 1);
+    if (currentPage < totalPage) {
+      setCurrentPage((prevPage) => prevPage + 1);
     }
   };
 
   const handlePrev = () => {
-    if (currentPage > 0) {
-      setCurrentPage(currentPage - 1);
+    if (currentPage > 1) {
+      setCurrentPage((prevPage) => prevPage - 1);
     }
   };
 
   return (
     <>
-
-    <div className="WiseHeadDiv">
-        <h4>Doctor-wise appointments</h4>
+      <div className="WiseHeadDiv">
+        <h4>Doctor appointments</h4>
         <div className="DoctWiseSeclt">
+          <div className="Searchbar">
+            <input
+              type="text"
+              id="searchQueryInput"
+              name="searchQueryInput"
+              className="form-control"
+              placeholder="Search by name"
+              aria-label="Username"
+              aria-describedby="basic-addon1"
+              onChange={handleSearch}
+            />
+            <button
+              id="searchQuerySubmit"
+              type="submit"
+              name="searchQuerySubmit"
+            >
+              <i className="ri-search-line"></i>
+            </button>
+          </div>
 
-            <select className="form-select" aria-label="Default select example">
-                {options.map((option, index) => (
-                <option key={index} value={index}>{option}</option>
-                ))}
-            </select>
-
-            <select className="form-select" aria-label="Default select example">
-                {options.map((option, index) => (
-                <option key={index} value={index}>{option}</option>
-                ))}
-            </select>
-
-
+          <select className="form-select" aria-label="Default select example" onChange={(e) => handleSelect(e.target.value)}>
+            {options.map((option, index) => (
+              <option key={index} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
         </div>
-    </div>
-
-    <div className="MainTableDiv">
-      <table className="DoctWiseableDiv">
-        <thead>
-          <tr>
-            <th scope="col"></th>
-            <th scope="col">Doctor</th>
-            <th scope="col">Appointments</th>
-            <th scope="col">Assessments</th>
-            <th scope="col">Revenue</th>
-          </tr>
-        </thead>
-        <tbody>
-          {currentData.map((DoctWiseTable, index) => (
-            <tr key={index}>
-              <td scope="row">
-                <div className="dogimg">
-                  <img src={DoctWiseTable.DoctImage} alt={DoctWiseTable.DoctName} />
-                </div>
-              </td>
-              <td>
-                <div className="TBLDIV">
-                  <h4>{DoctWiseTable.DoctName}</h4>
-                  <p>{DoctWiseTable.PostName}</p>
-                </div>
-              </td>
-              <td>{DoctWiseTable.Apointid}</td>
-              <td>{DoctWiseTable.Asistid}</td>
-              <td><span><MdAttachMoney /></span>{DoctWiseTable.Renenu}</td>
-              
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {/* Pagination Controls */}
-      <div className="PaginationDiv">
-        {/* Previous Button */}
-        <button 
-          onClick={handlePrev} 
-          disabled={currentPage === 0} // Disable if we're on the first page
-        >
-          <i className="ri-arrow-left-line"></i>
-        </button>
-
-        {/* Pagination Range */}
-        <h6 className="PagiName">
-          Responses 
-          <span>
-            {currentPage * itemsPerPage + 1} -{' '}
-            {Math.min((currentPage + 1) * itemsPerPage, dataToRender.length)} 
-            {/* You can also show total here like: "of {dataToRender.length}" */}
-          </span>
-        </h6>
-
-        {/* Next Button */}
-        <button 
-          onClick={handleNext} 
-          disabled={currentPage >= Math.ceil(dataToRender.length / itemsPerPage) - 1} // Disable if on last page
-        >
-          <i className="ri-arrow-right-line"></i>
-        </button>
       </div>
-    </div>
 
+      <div className="MainTableDiv">
+        <table className="DoctWiseableDiv">
+          <thead>
+            <tr>
+              <th scope="col"></th>
+              <th scope="col">Doctor</th>
+              <th scope="col">Appointments</th>
+              <th scope="col">Assessments</th>
+              <th scope="col">Revenue</th>
+            </tr>
+          </thead>
+          <tbody>
+            {appointmentsData.map((DoctWiseTable, index) => (
+              <tr key={index}>
+                <th scope="row">
+                  <div className="dogimg">
+                    <img src={DoctWiseTable.image} alt={DoctWiseTable.image} />
+                  </div>
+                </th>
+                <td>
+                  <div className="TBLDIV">
+                    <h4>{DoctWiseTable.doctorName}</h4>
+                    <p>{DoctWiseTable.department}</p>
+                  </div>
+                </td>
+                <td>{DoctWiseTable.totalAppointments}</td>
+                <td>{DoctWiseTable?.Asistid}</td>
+                <td>
+                  <span>
+                    <MdAttachMoney />
+                  </span>
+                  {DoctWiseTable?.Renenu}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {/* Pagination Controls */}
+        <div className="PaginationDiv">
+          <button onClick={handlePrev} disabled={currentPage === 1}>
+            <i className="ri-arrow-left-line"></i>
+          </button>
+
+          <h6 className="PagiName">
+            Page {currentPage} of {totalPage}
+          </h6>
+
+          <button onClick={handleNext} disabled={currentPage >= totalPage}>
+            <i className="ri-arrow-right-line"></i>
+          </button>
+        </div>
+      </div>
     </>
   );
 };
 
 DocterWiseAppoint.propTypes = {
-    DoctWiseTable: PropTypes.arrayOf(
+  DoctWiseTable: PropTypes.arrayOf(
     PropTypes.shape({
-        DoctImage: PropTypes.string.isRequired,
-        DoctName: PropTypes.string.isRequired,
-        PostName: PropTypes.string.isRequired,
-        Apointid: PropTypes.string.isRequired,
-        Asistid: PropTypes.string.isRequired,
-        Renenu: PropTypes.string.isRequired
+      DoctImage: PropTypes.string.isRequired,
+      DoctName: PropTypes.string.isRequired,
+      PostName: PropTypes.string.isRequired,
+      Apointid: PropTypes.string.isRequired,
+      Asistid: PropTypes.string.isRequired,
+      Renenu: PropTypes.string.isRequired,
     })
   ),
 };

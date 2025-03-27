@@ -1,9 +1,9 @@
-// eslint-disable-next-line no-unused-vars
+
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types'; // Import PropTypes
 import './MainHeader.css';
-import Logo from '../../../../public/Images/Logo.png';
-import Chatt from '../../../../public/Images/chatt.png';
+// import Logo from '../../../../public/Images/Logo.png';
+// import Chatt from '../../../../public/Images/chatt.png';
 import { IoIosArrowDown } from 'react-icons/io';
 import { FaGithub } from 'react-icons/fa6';
 
@@ -169,7 +169,7 @@ const MainHeader = ({ isMainHeader }) => {
     <header id="header" className="header d-flex align-items-center ">
       <div className="container-fluid container-xl position-relative d-flex align-items-center justify-content-between">
         <Link to="/" className="logo d-flex align-items-center ">
-          <img src={Logo} alt="" />
+          <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Logo.png`} alt="" />
         </Link>
 
         {/* Navigation Links */}
@@ -181,7 +181,7 @@ const MainHeader = ({ isMainHeader }) => {
                   Home
                 </Link>
               </li>
-              {userType === 'Hospital' ? (
+              {userType === 'Hospital'||userType === 'Groomer Shop' ? (
                 <li>
                   <Link to="/checkin">Waiting Room</Link>
                 </li>
@@ -192,7 +192,7 @@ const MainHeader = ({ isMainHeader }) => {
                 </li>
               ) : null}
 
-              {userType === 'Hospital' ? (
+              {userType === 'Hospital' ||userType === 'Groomer Shop'? (
                 <li>
                   <Link to="/addoctor">Doctors</Link>
                 </li>
@@ -203,7 +203,7 @@ const MainHeader = ({ isMainHeader }) => {
               <li>
                 <Link to="/AssessmentManagement">Assessments</Link>
               </li>
-              {userType === 'Hospital' ? (
+              {userType === 'Hospital'||userType === 'Groomer Shop' ? (
                 <li>
                   <Link to="/inventory">Inventory</Link>
                 </li>
@@ -264,7 +264,7 @@ const MainHeader = ({ isMainHeader }) => {
             <>
               <div className="chatbtn">
                 <Link to="/chatscreen">
-                  <img src={Chatt} alt="ChatNotification" /> <span>5</span>
+                  <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/chatt.png`} alt="ChatNotification" /> <span>5</span>
                 </Link>
               </div>
 

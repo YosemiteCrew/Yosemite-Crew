@@ -1,17 +1,18 @@
-// eslint-disable-next-line no-unused-vars
-import React, { useEffect, useState } from 'react';
+
+import React, { useCallback, useEffect, useState } from 'react';
 import './Clinic_visiblity.css';
 import { HeadText } from '../SignUp/SignUp';
 import { MainBtn } from '../Appointment/page';
-import whtcheck from '../../../../public/Images/whtcheck.png';
-import pft from '../../../../public/Images/pft.png';
+// import whtcheck from '../../../../public/Images/whtcheck.png';
+// import pft from '../../../../public/Images/pft.png';
 import Gallery from '../../Components/Gallery/Gallery';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../context/useAuth';
 
 const ClinicVisibility = () => {
-  const { userId } = useAuth();
+  const { userId, onLogout } = useAuth();
+  const navigate = useNavigate()
 
   const [profiles, setProfiles] = useState({});
   const [services, setServices] = useState([]);
@@ -31,14 +32,15 @@ const ClinicVisibility = () => {
     'departments',
     Departments
   );
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
+      const token = sessionStorage.getItem("token");
       const deptResponse = await axios.get(
-        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/getDepartmentDataForHospitalProfile?userId=${userId}`
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/getDepartmentDataForHospitalProfile?userId=${userId}`,{headers:{Authorization:`Bearer ${token}`}}
       );
 
       const profileResponse = await axios.get(
-        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/getVisibility?userId=${userId}`
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/getVisibility?userId=${userId}`,
       );
 
       const { profile, departments } = deptResponse.data;
@@ -77,22 +79,25 @@ const ClinicVisibility = () => {
 
       setProfiles(profile);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
     }
-  };
+  },[onLogout,navigate,userId]);
 
   useEffect(() => {
     fetchData();
-  }, [userId]);
+  }, [userId, fetchData]);
 
   // Toggle Selections
-  const handleServiceToggle = (index) => {
-    setServices((prev) =>
-      prev.map((service, i) =>
-        i === index ? { ...service, checked: !service.checked } : service
-      )
-    );
-  };
+  // const handleServiceToggle = (index) => {
+  //   setServices((prev) =>
+  //     prev.map((service, i) =>
+  //       i === index ? { ...service, checked: !service.checked } : service
+  //     )
+  //   );
+  // };
 
   const handleDepartmentToggle = (index) => {
     setDepartments((prev) =>
@@ -113,6 +118,7 @@ const ClinicVisibility = () => {
   // Save Updated Profile to Backend
   const saveProfile = async () => {
     try {
+      const token = sessionStorage.getItem("token");
       const selectedServices = services
         .filter((s) => s.checked)
         .map((s) => s.name);
@@ -122,12 +128,15 @@ const ClinicVisibility = () => {
       const facilitys = facility.filter((s) => s.checked).map((s) => s.name);
       await axios.post(
         `${process.env.NX_PUBLIC_VITE_BASE_URL}api/hospitals/saveVisibility?userId=${userId}`,
-        { selectedServices, selectedDepartments, facilitys }
+        { selectedServices, selectedDepartments, facilitys },{headers:{Authorization: `Bearer ${token}`}}
       );
 
       console.log('Profile updated successfully');
     } catch (error) {
-      console.error('Error saving profile:', error);
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
     }
   };
 
@@ -146,7 +155,7 @@ const ClinicVisibility = () => {
         <div className="ClicVisibleData">
           <div className="LeftvisibleDiv">
             <div className="clicprofdiv">
-              <img src={pft} alt="Clinic Profile" />
+              <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/pft.png`} alt="Clinic Profile" />
               <div className="ClVDiv">
                 <div className="clpfname">
                   <h4>{profiles.businessName}</h4>
@@ -196,7 +205,7 @@ const ClinicVisibility = () => {
                 )}
               </div>
               <ul>
-                {(showAllServices ? services : services.slice(0, 7)).map(
+                {/* {(showAllServices ? services : services.slice(0, 7))?.map(
                   (service, index) => (
                     <li
                       key={index}
@@ -212,7 +221,7 @@ const ClinicVisibility = () => {
                       </label>
                     </li>
                   )
-                )}
+                )} */}
               </ul>
             </div>
 
@@ -253,7 +262,7 @@ const ClinicVisibility = () => {
             </div>
 
             <MainBtn
-              bimg={whtcheck}
+              bimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/whtcheck.png`}
               btext="Update Visibility"
               optclas=""
               onClick={saveProfile}

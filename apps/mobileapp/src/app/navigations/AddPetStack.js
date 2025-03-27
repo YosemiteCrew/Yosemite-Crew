@@ -1,5 +1,5 @@
 import React from 'react';
-import {createStackNavigator} from '@react-navigation/stack';
+import { createStackNavigator } from '@react-navigation/stack';
 import {
   CreatePetProfile,
   ChooseYourPet,
@@ -80,13 +80,13 @@ const AddPetStack = () => {
   ];
   return (
     <Stack.Navigator>
-      {screens.map(({name, component, title, headerShown}) => (
+      {screens.map(({ name, component, title, headerShown }) => (
         <Stack.Screen
           key={name}
           name={name}
           component={component}
           // options={{headerShown: false}}
-          options={props =>
+          options={(props) =>
             getScreenOptions({
               ...props,
               title: title || '',

@@ -23,7 +23,7 @@ import GButton from '../../../../../components/GButton';
 import React, {useState, useRef} from 'react';
 // import ContactOption from './ContactOption';
 
-const contactVet = ({navigation}) => {
+const ContactVet = ({navigation}) => {
   const {t} = useTranslation();
   const refRBSheet = useRef();
   const insets = useSafeAreaInsets();
@@ -192,4 +192,4 @@ const contactVet = ({navigation}) => {
   );
 };
 
-export default contactVet;
+export default ContactVet;

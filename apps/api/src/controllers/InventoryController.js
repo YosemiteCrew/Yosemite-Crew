@@ -59,46 +59,52 @@ const InventoryControllers = {
         limit = 5,
         expiryDate,
         category,
+        userId, // Add userId from query params
       } = req.query;
-
+  
       const sortBy = 'expiryDate';
       const order = 'asc';
       console.log('Received Query Params:', req.query);
-
+  
       let matchStage = {};
       let searchConditions = [];
-
+  
+      // Add userId to matchStage (mapped to bussinessID in the database)
+      if (userId) {
+        matchStage.bussinessId = userId; // Ensure this matches your database field name
+      }
+  
       if (searchItem) {
         const searchNumber = Number(searchItem);
         console.log('searchNumber:', searchNumber);
-
+  
         if (!isNaN(searchNumber)) {
           searchConditions.push(
             { stockReorderLevel: searchNumber },
             { quantity: searchNumber }
           );
         }
-
+  
         searchConditions.push(
           { itemName: { $regex: searchItem, $options: 'i' } },
           { genericName: { $regex: searchItem, $options: 'i' } },
           { sku: { $regex: searchItem, $options: 'i' } },
           { barcode: { $regex: searchItem, $options: 'i' } }
         );
-
+  
         matchStage.$or = searchConditions;
       }
-
+  
       if (category) {
         matchStage.category = { $regex: category, $options: 'i' };
       }
-
+  
       if (expiryDate) {
         matchStage.expiryDate = { $lte: expiryDate };
       }
-
+  
       const sortOrder = order === 'desc' ? -1 : 1;
-
+  
       const inventory = await Inventory.aggregate([
         { $match: matchStage },
         { $sort: { [sortBy]: sortOrder } },
@@ -129,7 +135,7 @@ const InventoryControllers = {
           },
         },
       ]);
-
+  
       res.status(200).json({
         totalItems: inventory[0]?.totalItems || 0,
         totalPages: inventory[0]?.totalPages || 0,
@@ -183,6 +189,7 @@ const InventoryControllers = {
   getProceurePackage: async (req, res) => {
     try {
       const { userId, skip, limit } = req.query;
+      console.log("getProceurePackage", userId, skip, limit);
 
       const procedurePackage = await ProcedurePackage.aggregate([
         { $match: { bussinessId: userId } },
@@ -332,6 +339,7 @@ const InventoryControllers = {
     try {
       const { userId } = req.query;
       const today = new Date();
+      console.log('getApproachngExpiryGraphs:', userId);
 
       const response = await Inventory.aggregate([
         { $match: { bussinessId: userId } },
@@ -415,6 +423,7 @@ const InventoryControllers = {
   inventoryOverView: async (req, res) => {
     try {
       const { userId } = req.query;
+      console.log("userId",userId);
       const inventory = await Inventory.aggregate([
         {
           $match: { bussinessId: userId },

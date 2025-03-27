@@ -6,6 +6,7 @@
     "@react-native/metro-config": "*",
     "@testing-library/jest-native": "*",
     "@testing-library/react-native": "*",
+    "@react-native-documents/picker": "*",
     "react": "*",
     "react-native": "*",
     "react-native-svg": "*",
@@ -47,7 +48,11 @@
     "axios": "*",
     "react-dom": "*",
     "@nx/webpack": "*",
-    "@nx/react": "*"
+    "@nx/react": "*",
+    "aws-sdk": "*",
+    "lodash": "*",
+    "react-native-month-year-picker": "*",
+    "react-native-shimmer-placeholder": "*"
   },
   "devDependencies": {}
 }

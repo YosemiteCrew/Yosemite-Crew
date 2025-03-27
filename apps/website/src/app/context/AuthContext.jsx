@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect } from 'react';
+import { createContext, useState, useEffect, useCallback } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { getProfiledata, getdoctorprofile } from '../profileApis/Api';
 
@@ -13,7 +13,7 @@ export const AuthProvider = ({ children }) => {
   console.log('profileData', profileData);
 
   console.log('User Type:', userType);
-  const initializeUser = async () => {
+  const initializeUser = useCallback(async () => {
     const token = sessionStorage.getItem('token');
 
     if (token) {
@@ -28,15 +28,15 @@ export const AuthProvider = ({ children }) => {
         console.error('Error decoding token:', error);
       }
     }
-  };
+  },[]);
 
   useEffect(() => {
     initializeUser();
-  }, []);
+  }, [initializeUser]);
 
   const refreshProfileData = async (userId, userType) => {
     try {
-      if (userType === 'Hospital') {
+      if (userType === 'Hospital'||userType === 'Groomer Shop') {
         const data = await getProfiledata(userId);
         setProfileData({
           logoUrl: data.logoUrl,

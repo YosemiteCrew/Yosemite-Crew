@@ -1,14 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import './Add_Doctor.css';
 import PropTypes from 'prop-types';
 import { BoxDiv } from '../Dashboard/page';
 import { TextSpan } from '../Appointment/page';
 import { DashHeadtext } from '../Doctor_Dashboard/Doctor_Dashboard';
 // import Header from '../../Components/Header/Header';
-import box1 from '../../../../public/Images/box1.png';
-import box2 from '../../../../public/Images/box2.png';
-import box3 from '../../../../public/Images/box3.png';
-import box4 from '../../../../public/Images/box4.png';
+// import box1 from '../../../../public/Images/box1.png';
+// import box2 from '../../../../public/Images/box2.png';
+// import box3 from '../../../../public/Images/box3.png';
+// import box4 from '../../../../public/Images/box4.png';
 // import Doctor1 from '../../../../public/Images/Doctor1.png';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
@@ -38,7 +38,7 @@ const Add_Doctor = () => {
   console.log('doctorsData', doctorsData);
 
   const debouncedSearch = useDebounce(search, 500);
-  const getaDoctors = async () => {
+  const getaDoctors = useCallback(async () => {
     try {
       // Get the token from sessionStorage
       const token = sessionStorage.getItem('token');
@@ -66,12 +66,12 @@ const Add_Doctor = () => {
         onLogout(navigate);
       }
     }
-  };
+  },[userId, navigate, onLogout, debouncedSearch]);
 
-  const getOverview = async () => {
+  const getOverview = useCallback(async () => {
     try {
       const response = await axios.get(
-        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/getOverview`
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/getOverview`, {params: {userId}}
       );
       if (response) {
         setOverview(response.data);
@@ -80,12 +80,11 @@ const Add_Doctor = () => {
     } catch (error) {
       console.error('Error fetching overview:', error);
     }
-  };
-
+  },[userId]);
   useEffect(() => {
     getaDoctors();
     getOverview();
-  }, [debouncedSearch, userId]);
+  }, [debouncedSearch, userId,getOverview,getaDoctors]);
 
   const handleSearch = (e) => {
     setSearch(e.target.value);
@@ -108,14 +107,14 @@ const Add_Doctor = () => {
               <TextSpan Textname="Overview" />
               <div className="overviewitem">
                 <BoxDiv
-                  boximg={box2}
+                  boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box2.png`}
                   ovradcls="purple"
                   ovrtxt="Specialities"
                   boxcoltext="purpletext"
                   overnumb={overview.totalSpecializations}
                 />
                 <BoxDiv
-                  boximg={box4}
+                  boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box4.png`}
                   ovradcls=" fawndark"
                   ovrtxt="Total Doctors"
                   boxcoltext="frowntext"
@@ -123,14 +122,14 @@ const Add_Doctor = () => {
                 />
 
                 <BoxDiv
-                  boximg={box3}
+                  boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box3.png`}
                   ovradcls=" cambrageblue"
                   ovrtxt="On-Duty"
                   boxcoltext="greentext"
                   overnumb={overview.availableDoctors}
                 />
                 <BoxDiv
-                  boximg={box1}
+                  boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box1.png`}
                   ovradcls="chillibg"
                   ovrtxt="Average Ratings"
                   boxcoltext="ciltext"

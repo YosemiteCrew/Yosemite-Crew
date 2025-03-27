@@ -1,19 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import './Inventory.css';
 import { Container, Form, Tab, Tabs } from 'react-bootstrap';
 import { BoxDiv, ListSelect } from '../Dashboard/page';
-import box9 from '../../../../public/Images/box9.png';
-import box10 from '../../../../public/Images/box10.png';
-import box11 from '../../../../public/Images/box11.png';
-import box12 from '../../../../public/Images/box12.png';
+// import box9 from '../../../../public/Images/box9.png';
+// import box10 from '../../../../public/Images/box10.png';
+// import box11 from '../../../../public/Images/box11.png';
+// import box12 from '../../../../public/Images/box12.png';
 // import WeeklyAppointmentsChart from '../../Components/BarGraph/WeeklyAppointmentsChart';
 import DepartmentAppointmentsChart from '../../Components/BarGraph/DepartmentAppointmentsChart';
 import { AiFillPlusCircle } from 'react-icons/ai';
 import { IoSearch } from 'react-icons/io5';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import ProcedureTable from '../../Components/ProcedureTable/ProcedureTable';
-import Accpt from '../../../../public/Images/view.png';
-import Decln from '../../../../public/Images/delete.png';
+// import Accpt from '../../../../public/Images/view.png';
+// import Decln from '../../../../public/Images/delete.png';
 import ManageInvetryTable from '../../Components/ManageInvetryTable/ManageInvetryTable';
 import axios from 'axios';
 import { useAuth } from '../../context/useAuth';
@@ -32,9 +32,10 @@ const INVENTORY_TABS = [
 ];
 
 function Inventory() {
-  const { userId } = useAuth();
+  const { userId, onLogout } = useAuth();
+  const navigate = useNavigate();
   const [date, setDate] = useState('');
-  const [Overview, setOverview] = useState([])
+  const [Overview, setOverview] = useState([]);
   const [inventoryData, setInventoryData] = useState([]);
   const [procedureData, setProcedureData] = useState([]);
 
@@ -52,6 +53,7 @@ function Inventory() {
   useEffect(() => {
     const getInventory = async () => {
       try {
+        const token = sessionStorage.getItem('token');
         const response = await axios.get(
           `${process.env.NX_PUBLIC_VITE_BASE_URL}api/inventory/getInventory`,
           {
@@ -64,17 +66,27 @@ function Inventory() {
               skip: (currentPage - 1) * itemsPerPage,
               limit: itemsPerPage,
             },
+            headers: { Authorization: `Bearer ${token}` },
           }
         );
         setInventoryData(response.data.inventory);
         setTotalPages(response.data.totalPages); // Ensure API returns totalCount
       } catch (error) {
-        console.error('Error fetching inventory:', error);
+        if (error.response && error.response.status === 401) {
+          console.log('Session expired. Redirecting to signin...');
+          onLogout(navigate);
+        } else if (error.response.status === 500) {
+          Swal.fire({
+            type: 'failed',
+            text: 'Network error',
+            icon: 'error',
+          });
+        }
       }
     };
 
     if (userId) getInventory();
-  }, [userId, searchItem, date, currentPage, category]);
+  }, [userId, searchItem, date, currentPage, category, onLogout, navigate]);
 
   const handleDateChange = (selectedDate) => setDate(selectedDate);
   const handleSearch = (e) => setSearchItem(e.target.value);
@@ -82,8 +94,9 @@ function Inventory() {
   const handleCategory = (tab) => setCategory(tab);
   // const handleNextPage = () => setCurrentPage((prev) => prev + 1);
   // const handlePrevPage = () => setCurrentPage((prev) => Math.max(prev - 1, 1));
-  const getProcedureData = async () => {
+  const getProcedureData = useCallback(async () => {
     try {
+      const token = sessionStorage.getItem("token");
       const response = await axios.get(
         `${process.env.NX_PUBLIC_VITE_BASE_URL}api/inventory/getProceurePackage`,
         {
@@ -92,24 +105,32 @@ function Inventory() {
             skip: (procedureCurrentPage - 1) * itemsPerPage,
             limit: itemsPerPage,
           },
+          headers:{Authorization:`Bearer ${token}`}
         }
       );
       if (response.status === 200) {
         setProcedureData(response.data.procedurePackage[0]);
         setProcedureTotalPages(response.data.procedurePackage[0].totalPages);
       } else {
-        console.log('error');
+        Swal.fire({
+          type: "failed",
+          text: "Failed to get procedure data ",
+          icon: "error",
+        })
       }
     } catch (error) {
-      console.error('Error fetching inventory:', error);
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
     }
-  };
+  }, [userId, procedureCurrentPage,onLogout,navigate]);
   useEffect(() => {
-    
     if (userId) getProcedureData();
-  }, [userId,procedureCurrentPage]);
+  }, [userId, procedureCurrentPage, getProcedureData]);
 
   const handleDeleteItem = async (id) => {
+
     Swal.fire({
       title: 'Are you sure you want to delete this item?',
       text: "You won't be able to revert this!",
@@ -121,6 +142,7 @@ function Inventory() {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
+          const token = sessionStorage.getItem("token");
           const response = await axios.delete(
             `${process.env.NX_PUBLIC_VITE_BASE_URL}api/inventory/deleteProcedurePackage`,
             {
@@ -128,16 +150,17 @@ function Inventory() {
                 userId,
                 id,
               },
+              headers: {Authorization: `Bearer ${token}`},
             }
           );
-  console.log(response);
-          if (response.status===200) {
+         
+          if (response.status === 200) {
             Swal.fire({
               title: 'Deleted!',
               text: 'Item has been deleted successfully.',
               icon: 'success',
             });
-            getProcedureData() // Refresh data after deletion
+            getProcedureData(); // Refresh data after deletion
           } else {
             Swal.fire({
               title: 'Error',
@@ -146,7 +169,10 @@ function Inventory() {
             });
           }
         } catch (error) {
-          console.error('Error deleting item:', error);
+          if (error.response && error.response.status === 401) {
+            console.log('Session expired. Redirecting to signin...');
+            onLogout(navigate);
+          }
           Swal.fire({
             title: 'Error',
             text: 'Something went wrong. Please try again!',
@@ -156,57 +182,74 @@ function Inventory() {
       }
     });
   };
-  const GetApproachingExpiryGraph = async ()=>{
+  const GetApproachingExpiryGraph = useCallback(async () => {
     try {
+      const token = sessionStorage.getItem('token')
       const response = await axios.get(
         `${process.env.NX_PUBLIC_VITE_BASE_URL}api/inventory/getApproachngExpiryGraphs`,
         {
           params: {
             userId,
           },
+          headers:{Authorization: `Bearer ${token}`},
         }
       );
       if (response.status === 200) {
         // console.log(response.data);
-        setApproachingExpiry(response.data.data.map((item) => ({
-          category: item.category,
-          totalCount: item.totalCount,
-          color: item.category === "7 days" ? "#A72A19" :
-                 item.category === "15 days" ? "#C23723" :
-                 item.category === "30 days" ? "#E05D50" : "#E88E81",
-
-        })));
+        setApproachingExpiry(
+          response.data.data?.map((item) => ({
+            category: item.category,
+            totalCount: item.totalCount,
+            color:
+              item.category === '7 days'
+                ? '#A72A19'
+                : item.category === '15 days'
+                ? '#C23723'
+                : item.category === '30 days'
+                ? '#E05D50'
+                : '#E88E81',
+          }))
+        );
       } else {
         console.log('error');
       }
     } catch (error) {
-      console.error('Error fetching inventory:', error);
-    }
-  }
-const getInventoryOverViewDetails = async () =>{
-  try {
-    const response = await axios.get(`${process.env.NX_PUBLIC_VITE_BASE_URL}api/inventory/inventoryOverView`, {
-      params: {
-        userId,
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
       }
-    })
-    if (response.status === 200)
-      {
+    }
+  }, [userId,onLogout,navigate]);
+  const getInventoryOverViewDetails = useCallback(async () => {
+    try {
+      const token = sessionStorage.getItem('token')
+      const response = await axios.get(
+        `${process.env.NX_PUBLIC_VITE_BASE_URL}api/inventory/inventoryOverView`,
+        {
+          params: {
+            userId,
+          },
+          headers: {Authorization: `Bearer ${token}`},
+        }
+      );
+      if (response.status === 200) {
         console.log(response.data.inventory[0]);
         setOverview(response.data.inventory[0]);
       }
-  } catch (error) {
-    console.error('Error fetching inventory:', error);
-  }
-}
+    } catch (error) {
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
+    }
+  }, [userId,onLogout,navigate]);
 
-
-  useEffect(()=>{
-   if (userId) {
-    GetApproachingExpiryGraph();
-    getInventoryOverViewDetails();
-   }
-  }, [userId]);
+  useEffect(() => {
+    if (userId) {
+      GetApproachingExpiryGraph();
+      getInventoryOverViewDetails();
+    }
+  }, [userId, GetApproachingExpiryGraph, getInventoryOverViewDetails]);
   return (
     <section className="InventorySec">
       <Container>
@@ -230,32 +273,32 @@ const getInventoryOverViewDetails = async () =>{
             </div> */}
             <div className="overviewitem">
               <BoxDiv
-                boximg={box9}
+                boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box9.png`}
                 ovradcls="purple"
                 ovrtxt="Total Inventory Items"
                 boxcoltext="purpletext"
-                overnumb={Overview.totalQuantity}
+                overnumb={Overview?.totalQuantity}
               />
               <BoxDiv
-                boximg={box10}
+                boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box10.png`}
                 ovradcls="cambrageblue"
                 ovrtxt="Stock Value"
                 boxcoltext="greentext"
-                overnumb={Overview.totalValue}
+                overnumb={Overview?.totalValue}
               />
               <BoxDiv
-                boximg={box11}
+                boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box11.png`}
                 ovradcls="fawndark"
                 ovrtxt="Items Low on Stock"
                 boxcoltext="frowntext"
-                overnumb={Overview.lowStockCount}
+                overnumb={Overview?.lowStockCount}
               />
               <BoxDiv
-                boximg={box12}
+                boximg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/box12.png`}
                 ovradcls="chillibg"
                 ovrtxt="Out-of-Stock Items"
                 boxcoltext="ciltext"
-                overnumb={Overview.outOfStockCount}
+                overnumb={Overview?.outOfStockCount}
               />
             </div>
           </div>
@@ -296,7 +339,7 @@ const getInventoryOverViewDetails = async () =>{
                 id="inventory-tabs"
                 className="mb-3"
               >
-                {INVENTORY_TABS.map((tab) => (
+                {INVENTORY_TABS?.map((tab) => (
                   <Tab eventKey={tab} title={tab} key={tab}>
                     <div className="InvttabsInner">
                       <div className="topInner">
@@ -323,8 +366,8 @@ const getInventoryOverViewDetails = async () =>{
                         </div>
                       </div>
                       <ManageInvetryTable
-                        actimg1={Accpt}
-                        actimg2={Decln}
+                        actimg1={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/view.png`}
+                        actimg2={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/delete.png`}
                         inventoryData={inventoryData}
                         currentPage={currentPage}
                         setCurrentPage={setCurrentPage}
@@ -346,8 +389,8 @@ const getInventoryOverViewDetails = async () =>{
             </div>
             <div className="Prof">
               <ProcedureTable
-                actimg1={Accpt}
-                actimg2={Decln}
+                actimg1={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/view.png`}
+                actimg2={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/delete.png`}
                 procedureData={procedureData.data}
                 procedureTotalPages={procedureTotalPages}
                 setProcedureCurrentPage={setProcedureCurrentPage}

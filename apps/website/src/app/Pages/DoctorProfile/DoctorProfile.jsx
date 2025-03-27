@@ -1,18 +1,18 @@
-// eslint-disable-next-line no-unused-vars
+
 import React, { useEffect, useState } from 'react';
 import './DoctorProfile.css';
 import PropTypes from 'prop-types';
 import { Button, Col, Container, Form, Row } from 'react-bootstrap';
-import whtcheck from '../../../../public/Images/whtcheck.png';
+// import whtcheck from '../../../../public/Images/whtcheck.png';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiEdit3 } from 'react-icons/fi';
-import doctprofile from '../../../../public/Images/doctprofile.png';
+// import doctprofile from '../../../../public/Images/doctprofile.png';
 import { IoIosAddCircle } from 'react-icons/io';
 import { BsFileDiffFill } from 'react-icons/bs';
 import { AiFillFileImage } from 'react-icons/ai';
 import { RxCrossCircled } from 'react-icons/rx';
 import Modal from 'react-bootstrap/Modal';
-import camera from '../../../../public/Images/camera.png';
+// import camera from '../../../../public/Images/camera.png';
 import { Forminput } from '../SignUp/SignUp';
 import DynamicDatePicker from '../../Components/DynamicDatePicker/DynamicDatePicker';
 import axios from 'axios';
@@ -22,13 +22,15 @@ import Swal from 'sweetalert2';
 import { useAuth } from '../../context/useAuth';
 
 function DoctorProfile() {
-  const { doctorProfile, userId, initializeUser } = useAuth();
+  const { doctorProfile, userId, initializeUser,onLogout } = useAuth();
   const navigate = useNavigate();
 
   const [modalShow, setModalShow] = useState(false);
   const [modalShow1, setModal1Show] = useState(false);
   const [modalShow2, setModal2Show] = useState(false);
   const [uploadedfiles, setUploadedFiles] = useState([]);
+  const [MainUrl, setMainUrl] = useState('')
+  console.log("MainUrl",MainUrl);
   const [personalInfo, setPersonalInfo] = useState({
     firstName: '',
     lastName: '',
@@ -98,6 +100,8 @@ function DoctorProfile() {
     }
 
     if (doctorProfile?.documents?.length > 0) {
+      const url = doctorProfile?.documents[0].name.slice(0, 75)
+      console.log("url", url);
       const updatedDocuments = doctorProfile.documents.map((doc) => ({
         
         _id: doc._id,
@@ -105,7 +109,7 @@ function DoctorProfile() {
         type: doc.type,
         date: new Date(doc.date).toLocaleDateString(),
       }));
-
+      setMainUrl(url);
       setUploadedFiles(updatedDocuments);
       // console.log('updatedDocuments', updatedDocuments);
     }
@@ -219,6 +223,7 @@ function DoctorProfile() {
         professionalBackground: professionalBackground,
       })
     );
+    const token = sessionStorage.getItem('token');
     try {
       const response = await axios.put(
         `${process.env.NX_PUBLIC_VITE_BASE_URL}api/doctors/updateProfile/${userId}`,
@@ -227,7 +232,7 @@ function DoctorProfile() {
           headers: {
             'Content-Type': 'multipart/form-data',
             // Add any necessary authorization headers, like a JWT token, if needed
-            // Authorization: `Bearer ${authToken}`,
+            Authorization: `Bearer ${token}`,
           },
         }
       );
@@ -245,6 +250,10 @@ function DoctorProfile() {
       }
     } catch (error) {
       console.error('Error updating profile:', error);
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
       Swal.fire({
         icon: 'error',
         title: 'Error',
@@ -282,7 +291,7 @@ function DoctorProfile() {
                       ? personalInfo.image instanceof File
                         ? URL.createObjectURL(personalInfo.image)
                         : personalInfo.image
-                      : doctprofile
+                      : `${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/doctprofile.png`
                   }
                   alt="Profile"
                 />
@@ -444,7 +453,7 @@ function DoctorProfile() {
 
             <MainBtn
               btntyp="button"
-              bimg={whtcheck}
+              bimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/whtcheck.png`}
               btext="Update Profile"
               optclas=""
               onClick={() => updateProfileWithFiles()}
@@ -527,7 +536,7 @@ function PersonalInfo({ show, onHide, personalInfo, setPersonalInfo }) {
                 ) : (
                   <div className="upload-placeholder">
                     <img
-                      src={personalInfo.image ? personalInfo.image : camera}
+                      src={personalInfo.image ? personalInfo.image : `${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/camera.png`}
                       alt="camera"
                       className="icon"
                     />

@@ -1,0 +1,42 @@
+name: CI App
+
+on:
+    pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Add Jobs for Linting & Testing
+jobs:
+    changed-files-check:
+      uses: ./.github/workflows/changed-files.yaml
+      with:
+        files: |
+          package.json
+          apps/mobileapp/**
+    build:
+        needs: changed-files-check
+        if: needs.changed-files-check.outputs.any_changed == 'true'
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with: 
+                fetch-depth: 0
+            - uses: actions/setup-node@v4
+              with:
+                node-version: 20
+                cache: 'npm'
+            - name: Install dependencies
+              run: npm ci --legacy-peer-deps
+            # - name: Linting
+            #   run: npx nx lint mobileapp
+    ci-app-status-check:
+        if: always() && !cancelled()
+        timeout-minutes: 1
+        runs-on: ubuntu-latest
+        needs: [changed-files-check, build]
+        steps:
+        - name: Fail job if any needs failed
+          if: contains(needs.*.result, 'failure')
+          run: exit 1

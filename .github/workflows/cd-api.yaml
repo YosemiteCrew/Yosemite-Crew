@@ -32,7 +32,7 @@ jobs:
               run: npm ci --legacy-peer-deps
             - name: Linting
               run: npx nx lint api
-            - name: Website / Build Website
+            - name: Build API
               run: npx nx build api
             - name: Create a Github release
               env:

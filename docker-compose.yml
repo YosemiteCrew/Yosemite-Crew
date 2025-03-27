@@ -1,0 +1,25 @@
+
+services:
+  website:
+    build:
+      context: .
+      dockerfile: apps/website/Dockerfile
+    ports:
+      - "4200:4200"
+    depends_on:
+      - api
+    networks:
+      - app-network
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "3000:3000"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

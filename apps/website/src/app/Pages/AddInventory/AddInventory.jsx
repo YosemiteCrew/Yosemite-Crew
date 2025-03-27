@@ -1,4 +1,4 @@
-// eslint-disable-next-line no-unused-vars
+
 import React, { useEffect, useState } from 'react';
 import './AddInventory.css';
 import { Col, Container, Form, Row } from 'react-bootstrap';
@@ -6,13 +6,15 @@ import { Forminput } from '../SignUp/SignUp';
 import DynamicSelect from '../../Components/DynamicSelect/DynamicSelect';
 import DynamicDatePicker from '../../Components/DynamicDatePicker/DynamicDatePicker';
 import { MainBtn } from '../Appointment/page';
-import whtcheck from '../../../../public/Images/whtcheck.png';
+// import whtcheck from '../../../../public/Images/whtcheck.png';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { useAuth } from '../../context/useAuth';
+import { useNavigate } from 'react-router-dom';
 
 const AddInventory = () => {
-  const { userId } = useAuth();
+  const { userId,onLogout } = useAuth();
+  const navigate = useNavigate()
   // Select options
 
   const options1 = [
@@ -80,9 +82,10 @@ const AddInventory = () => {
 
   const handleSubmit = async () => {
     try {
+      const token = sessionStorage.getItem("token");
       const response = await axios.post(
         `${process.env.NX_PUBLIC_VITE_BASE_URL}api/inventory/addInventory?userId=${userId}`,
-        inventoryData
+        inventoryData,{headers:{Authorization: `Bearer ${token}`}},
       );
       if (response) {
         Swal.fire({
@@ -92,7 +95,15 @@ const AddInventory = () => {
         });
       }
     } catch (error) {
-      console.log(error);
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
+      Swal.fire({
+        title: "Failed",
+        text:'Falied To Add Inventory',
+        icon: "error",
+      })
     }
   };
 
@@ -278,7 +289,7 @@ const AddInventory = () => {
 
           <div className="ee">
             <MainBtn
-              bimg={whtcheck}
+              bimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/whtcheck.png`}
               btext="Add Inventory"
               onClick={handleSubmit}
             />

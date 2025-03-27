@@ -5,13 +5,15 @@ import { Forminput } from '../SignUp/SignUp';
 import DynamicSelect from '../../Components/DynamicSelect/DynamicSelect';
 import PackageTable from '../../Components/PackageTable/PackageTable';
 import { MainBtn } from '../Appointment/page';
-import whtcheck from '../../../../public/Images/whtcheck.png';
+// import whtcheck from '../../../../public/Images/whtcheck.png';
 import axios from 'axios';
 import { useAuth } from '../../context/useAuth';
 import Swal from 'sweetalert2';
+import { useNavigate } from 'react-router-dom';
 
 function AddProcedurePackage() {
-  const { userId } = useAuth();
+  const { userId,onLogout } = useAuth();
+  const navigate = useNavigate()
 
   const [procedureData, setProcedureData] = useState({
     packageName: '',
@@ -44,9 +46,10 @@ function AddProcedurePackage() {
     }
 
     try {
+      const token = sessionStorage.getItem("token");
       const response = await axios.post(
         `${process.env.NX_PUBLIC_VITE_BASE_URL}api/inventory/AddProcedurePackage?userId=${userId}`,
-        procedureData
+        procedureData,{headers:{Authorization:`Bearer ${token}`}}
       );
       if(response){
         Swal.fire({
@@ -56,6 +59,10 @@ function AddProcedurePackage() {
         })
       }
     } catch (error) {
+      if (error.response && error.response.status === 401) {
+        console.log('Session expired. Redirecting to signin...');
+        onLogout(navigate);
+      }
       Swal.fire({
         title: 'Error',
         text: 'Failed to add Procedure Package.',
@@ -134,7 +141,7 @@ function AddProcedurePackage() {
               </Row>
               <PackageTable updatePackageItems={updatePackageItems} />
               <div className="ee">
-                <MainBtn bimg={whtcheck} btext="Add Package" optclas="" />
+                <MainBtn bimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/whtcheck.png`} btext="Add Package" optclas="" />
               </div>
             </Form>
           </div>

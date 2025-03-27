@@ -1,12 +1,12 @@
-// eslint-disable-next-line no-unused-vars
+
 import React from "react";
 import "./MainLandingPage.css";
 import { Container } from "react-bootstrap";
-import checkbook from "../../../../public/Images/MainLanding/check.svg";
-import Glixbox from "../../../../public/Images/MainLanding/Glixbox.png";
-import Glixbox2 from "../../../../public/Images/MainLanding/Glixbox2.png";
-import Glixbox3 from "../../../../public/Images/MainLanding/Glixbox3.png";
-import Glixbox4 from "../../../../public/Images/MainLanding/Glixbox4.png";
+// import checkbook from "../../../../public/Images/MainLanding/check.svg";
+// import Glixbox from "../../../../public/Images/MainLanding/Glixbox.png";
+// import Glixbox2 from "../../../../public/Images/MainLanding/Glixbox2.png";
+// import Glixbox3 from "../../../../public/Images/MainLanding/Glixbox3.png";
+// import Glixbox4 from "../../../../public/Images/MainLanding/Glixbox4.png";
 import Glightbox from "../../Components/Glightbox/Glightbox";
 import { FaClock } from "react-icons/fa";
 import { CiBookmarkCheck } from "react-icons/ci";
@@ -15,7 +15,12 @@ import { Link } from "react-router-dom";
 const MainLandingPage = () => {
   return (
     <>
-      <section className="MainLandingSec">
+      <section className="MainLandingSec"
+      style={{
+        "--background-image":`url(${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/MainLanding/lanherobg.png)`,
+        "--background-img":`url(${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/MainLanding/lanherobg.png)`
+      }}
+      >
         {/* <Container> */}
 
         <div className="MainLandingHero">
@@ -66,16 +71,16 @@ const MainLandingPage = () => {
                 </div>
                 <div className="InxtBtn">
                   <Link to="#">
-                    <img src={checkbook} alt="" width={18} height={18} /> Learn
+                    <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/MainLanding/check.svg`} alt="" width={18} height={18} /> Learn
                     more
                   </Link>
                 </div>
               </div>
             </div>
             <div className="RightInnovatr">
-              <img src={Glixbox4} alt="" />
+              <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/MainLanding/Glixbox4.png`} alt="" />
               <Glightbox
-                videoLink="https://youtu.be/Ce4Tsg6oQM8?si=GaFeI1C7PaagCIQj"
+                // videoLink=""
                 buttonColor=" #D04122"
                 buttonBackground="radial-gradient(circle, #D04122 50%, transparent 75%)"
               />
@@ -105,16 +110,16 @@ const MainLandingPage = () => {
                 </div>
                 <div className="InxtBtn">
                   <Link to="#">
-                    <img src={checkbook} alt="" width={18} height={18} /> Learn
+                    <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/MainLanding/check.svg`} alt="" width={18} height={18} /> Learn
                     more
                   </Link>
                 </div>
               </div>
             </div>
             <div className="RightInnovatr">
-              <img src={Glixbox3} alt="" />
+              <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/MainLanding/Glixbox3.png`} alt="" />
               <Glightbox
-                videoLink="https://youtu.be/Ce4Tsg6oQM8?si=GaFeI1C7PaagCIQj"
+                // videoLink=""
                 buttonColor=" #D04122"
                 buttonBackground="radial-gradient(circle, #D04122 50%, transparent 75%)"
               />
@@ -143,16 +148,16 @@ const MainLandingPage = () => {
                 </div>
                 <div className="InxtBtn">
                   <Link to="#">
-                    <img src={checkbook} alt="" width={18} height={18} /> Learn
+                    <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/MainLanding/check.svg`} alt="" width={18} height={18} /> Learn
                     more
                   </Link>
                 </div>
               </div>
             </div>
             <div className="RightInnovatr">
-              <img src={Glixbox2} alt="" width={887} height={565} />
+              <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/MainLanding/Glixbox2.png`} alt="" width={887} height={565} />
               <Glightbox
-                videoLink="https://youtu.be/Ce4Tsg6oQM8?si=GaFeI1C7PaagCIQj"
+                // videoLink=""
                 buttonColor=" #8E88D2"
                 buttonBackground="radial-gradient(circle, #8E88D2 50%, transparent 75%)"
               />
@@ -179,16 +184,16 @@ const MainLandingPage = () => {
                 </div>
                 <div className="InxtBtn">
                   <Link to="#">
-                    <img src={checkbook} alt="" width={18} height={18} /> Learn
+                    <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/MainLanding/check.svg`} alt="" width={18} height={18} /> Learn
                     more
                   </Link>
                 </div>
               </div>
             </div>
             <div className="RightInnovatr">
-              <img src={Glixbox} alt="" width={887} height={528} />
+              <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/MainLanding/Glixbox.png`} alt="" width={887} height={528} />
               <Glightbox
-                videoLink="https://youtu.be/Ce4Tsg6oQM8?si=GaFeI1C7PaagCIQj"
+                // videoLink=""
                 buttonColor=" #477A6B"
                 buttonBackground="radial-gradient(circle, #477A6B 50%, transparent 75%)"
               />

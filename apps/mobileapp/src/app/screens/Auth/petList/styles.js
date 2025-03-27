@@ -45,7 +45,6 @@ export const styles = StyleSheet.create({
   petImg: {
     width: scaledValue(100),
     height: scaledValue(100),
-    top: -5,
   },
   infoView: {marginLeft: scaledValue(8), gap: scaledValue(4)},
   petName: {
@@ -95,7 +94,7 @@ export const styles = StyleSheet.create({
   iconStyle: {width: scaledValue(16), height: scaledValue(16)},
   buttonStyle: {
     backgroundColor: '#FDBD74',
-    height: scaledValue(52),
+    // height: scaledValue(52),
     borderRadius: scaledValue(28),
     alignItems: 'center',
     justifyContent: 'center',
@@ -105,6 +104,7 @@ export const styles = StyleSheet.create({
     position: 'absolute',
     bottom: scaledValue(85),
     padding: scaledValue(15),
+    paddingVertical: scaledValue(15),
   },
   buttonText: {
     fontSize: scaledValue(18),

@@ -48,13 +48,13 @@
 }
 
 .accordion-button::after {
-    background: url(../../../../public/Images/faqarrow.png)no-repeat !important;
+    background: var(--dynamic-bg-img) !important;
     background-size: 100% 100% !important;
     width: 50px !important;
     height: 50px !important;
 }
 .accordion-button:not(.collapsed)::after {
-    background: url(../../../../public/Images/faqarrowafter.png)no-repeat !important;
+    background: var(--dynamic-bg-img-hover) !important;
     background-size: 100% 100% !important;
     width: 50px !important;
     height: 50px !important;

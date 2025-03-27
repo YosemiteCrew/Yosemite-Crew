@@ -45,13 +45,11 @@ export const styles = StyleSheet.create({
   },
   ongoingText: {
     fontSize: scaledValue(18),
-    lineHeight: scaledHeightValue(21.6),
     letterSpacing: scaledValue(18 * -0.01),
     color: colors.appRed,
   },
   plansText: {
     fontSize: scaledValue(18),
-    lineHeight: scaledHeightValue(21.6),
     letterSpacing: scaledValue(18 * -0.01),
     color: colors.darkPurple,
   },
@@ -79,12 +77,12 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     marginTop: scaledValue(16),
     gap: scaledValue(12),
-    paddingHorizontal: scaledValue(12),
+    paddingHorizontal: scaledValue(19),
   },
   professionalButton: {
     borderWidth: scaledValue(0.5),
     height: scaledValue(48),
-    marginTop: scaledValue(20),
+    marginTop: scaledValue(12),
     borderRadius: scaledValue(24),
     paddingHorizontal: scaledValue(20),
     flexDirection: 'row',
@@ -94,9 +92,8 @@ export const styles = StyleSheet.create({
   },
   professionalText: {
     fontSize: scaledValue(16),
-    lineHeight: scaledHeightValue(16),
     letterSpacing: scaledValue(16 * -0.03),
-    color: '#312943',
+    color: colors.darkPurple2,
   },
   arrowIcon: {
     width: scaledValue(20),
@@ -105,40 +102,38 @@ export const styles = StyleSheet.create({
   dayText: (pickSlot, item) => ({
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    color: pickSlot === item ? '#FFFEFE' : '#302F2E',
+    color: pickSlot === item ? colors.paletteWhite : colors.jetBlack,
     opacity: 0.7,
     marginTop: scaledValue(8),
   }),
   dateText: (pickSlot, item) => ({
     fontSize: scaledValue(20),
     lineHeight: scaledHeightValue(24),
-    color: pickSlot === item ? '#FFFEFE' : '#302F2E',
+    color: pickSlot === item ? colors.paletteWhite : colors.jetBlack,
     letterSpacing: scaledValue(20 * -0.01),
   }),
   slotText: (pickSlot, item) => ({
     fontSize: scaledValue(13),
     lineHeight: scaledHeightValue(15.6),
-    color: pickSlot === item ? '#FFFEFE' : colors.appRed,
+    color: pickSlot === item ? colors.paletteWhite : colors.appRed,
     marginTop: scaledValue(8),
     marginBottom: scaledValue(8),
   }),
   slotTime: (pickSlotTime, item) => ({
     fontSize: scaledValue(13),
     lineHeight: scaledHeightValue(15.6),
-    color: pickSlotTime === item ? colors.white : '#302F2E',
+    color: pickSlotTime === item?.slot?.time ? colors.white : colors.jetBlack,
     textAlign: 'center',
+    opacity: item?.booked ? 0.4 : 1,
   }),
   inputStyle: {
-    // borderWidth: scaledValue(0.5),
     height: scaledValue(114),
     marginTop: scaledValue(12),
-    borderRadius: scaledValue(16),
+    borderRadius: scaledValue(100),
     borderColor: '#312943',
-    textAlignVertical: 'top',
-    fontSize: scaledValue(16),
-    color: colors.darkPurple,
     backgroundColor: 'transparent',
     width: '100%',
+    // textAlignVertical: 'top',
   },
   uploadContainer: {
     width: scaledValue(335),
@@ -194,11 +189,11 @@ export const styles = StyleSheet.create({
     marginLeft: scaledValue(20),
   },
   slotCard: (pickSlot, item) => ({
-    backgroundColor: pickSlot === item?.id ? colors.appRed : '#FFF6EB',
+    backgroundColor: pickSlot === item?.date ? colors.appRed : '#FFF6EB',
     width: scaledValue(64),
     borderRadius: scaledValue(8),
     alignItems: 'center',
-    opacity: item?.slots === 'N/A' && 0.5,
+    opacity: item?.availableSlotsCount === 0 && 0.5,
     shadowColor: '#47382726',
     shadowOffset: {width: 1, height: 5},
     shadowOpacity: 0.3,
@@ -214,7 +209,8 @@ export const styles = StyleSheet.create({
     rowGap: scaledValue(16),
   },
   slotTimeCard: (pickSlotTime, i) => ({
-    backgroundColor: pickSlotTime?.id === i?.id ? colors.appRed : 'transparent',
+    backgroundColor:
+      pickSlotTime === i?.slot?.time ? colors.appRed : 'transparent',
     borderRadius: scaledValue(8),
     height: scaledValue(40),
     justifyContent: 'center',
@@ -223,8 +219,27 @@ export const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 8,
-    borderWidth: pickSlotTime?.id != i?.id ? scaledValue(0.75) : 0,
+    borderWidth: i?.booked
+      ? scaledValue(0.5)
+      : pickSlotTime != i?.slot?.time
+      ? scaledValue(0.75)
+      : 0,
     paddingHorizontal: scaledValue(11),
-    opacity: i?.status === 'Not-Available' && 0.4,
+    opacity: i?.booked && 0.4,
+    borderColor: colors.jetBlack,
   }),
+  timeContentContainer: {
+    gap: scaledValue(8),
+    backgroundColor: 'red',
+    // marginBottom: scaledHeightValue(16),
+    // paddingHorizontal: scaledValue(20),
+  },
+  input: {
+    width: '100%',
+    backgroundColor: 'transparent',
+    fontSize: scaledValue(16),
+    // lineHeight: scaledValue(16),
+    // marginTop: scaledValue(20),
+    paddingLeft: scaledValue(10),
+  },
 });

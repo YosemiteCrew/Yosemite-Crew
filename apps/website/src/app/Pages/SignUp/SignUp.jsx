@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import './SignUp.css';
 import PropTypes from 'prop-types';
 import { MainBtn } from '../Appointment/page';
-import eys from '../../../../public/Images/eys.png';
-import whtcheck from '../../../../public/Images/whtcheck.png';
 import { Link, useNavigate } from 'react-router-dom';
 // import { useAuth } from '../../context/AuthContext';
 import Swal from 'sweetalert2';
@@ -140,8 +138,8 @@ const SignUp = () => {
   const businessTypes = [
     'Hospital',
     'Clinic',
-    'Breeder Shop',
-    'Pet Stay Owner',
+    'Breeding facility',
+    'Pet Sitter',
     'Groomer Shop',
   ];
 
@@ -215,7 +213,9 @@ const SignUp = () => {
   };
 
   return (
-    <section className="SignUpSec">
+    <section className="SignUpSec" style={{
+      "--dynamic-bg-image": `url(${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/Signupbg.jpg)`,
+    }}>
       <div className="container">
         <div className="SignupData">
           <div className="SignUpText">
@@ -298,7 +298,7 @@ const SignUp = () => {
               <div className="sinbtn">
                 <MainBtn
                   btntyp="submit"
-                  bimg={whtcheck}
+                  bimg={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/whtcheck.png`}
                   btext="Sign Up"
                   // onClick={handleSubmit}
                 />
@@ -388,7 +388,7 @@ export function FormPassw({ paswlabel, intype, inname, value, onChange }) {
         {paswlabel}
       </label>
       <Link type="button" onClick={togglePasswordVisibility}>
-        <img src={eys} alt="eyes" />
+        <img src={`${process.env.NX_PUBLIC_VITE_BASE_IMAGE_URL}/eys.png`} alt="eyes" />
       </Link>
     </div>
   );

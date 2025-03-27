@@ -1,7 +1,11 @@
 const AWS = require('aws-sdk');
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
+ 
+
+const { v4: uuidv4 } = require("uuid");
 const axios = require('axios');
+const { validateFHIR } = require("../Fhirvalidator/FhirValidator");
 const jwt = require('jsonwebtoken');
 const { WebUser, ProfileData } = require('../models/WebUser');
 import {
@@ -440,27 +444,10 @@ const WebController = {
       });
     }
   },
+
   setupProfile: async (req, res) => {
     try {
       console.log('Received Files:', req.files);
-
-      const {
-        userId,
-        businessName,
-        registrationNumber,
-        yearOfEstablishment,
-        phoneNumber,
-        website,
-        addressLine1,
-        street,
-        city,
-        state,
-        zipCode,
-        activeModes,
-        selectedServices,
-      } = req.body;
-
-      // Function to upload files to S3
       const uploadToS3 = (file, folderName) => {
         return new Promise((resolve, reject) => {
           const params = {
@@ -480,23 +467,56 @@ const WebController = {
           });
         });
       };
+  console.log("bodyy data", req.body);
+     
+      const fhirData = JSON.parse(req.body.fhirData);
+console.log("validations",validateFHIR(fhirData));
 
-      let prescriptionUpload = [];
-
+const organization = fhirData.organization;
+      const healthcareServices = fhirData.healthcareServices;
+  
+      const userId = organization.identifier.find(
+        (id) => id.system === "http://example.com/hospital-id"
+      )?.value;
+  
+      const businessName = organization.name;
+      const registrationNumber = organization.identifier.find(
+        (id) => id.system === "http://example.com/registration"
+      )?.value;
+  
+      const phoneNumber = organization.telecom.find(
+        (telecom) => telecom.system === "phone"
+      )?.value;
+  
+      const website = organization.telecom.find(
+        (telecom) => telecom.system === "url"
+      )?.value;
+  
+      const address = organization.address?.[0] || {};
+      const latitude = address.extension?.[0]?.extension?.find(
+        (ext) => ext.url === "latitude"
+      )?.valueDecimal;
+      const longitude = address.extension?.[0]?.extension?.find(
+        (ext) => ext.url === "longitude"
+      )?.valueDecimal;
+  
+      const activeModes = organization.active ? "true" : "false";
+  
       // Upload logo if provided
       const logo = req.files?.logo
-        ? await uploadToS3(req.files.logo, 'logo')
+        ? await uploadToS3(req.files.logo, "logo")
         : undefined;
-
-      // Check and process multiple prescription_upload files
-      if (req.files && req.files.prescription_upload) {
-        const documentFiles = Array.isArray(req.files.prescription_upload)
-          ? req.files.prescription_upload
-          : [req.files.prescription_upload]; // Convert to array if single file
-
+  
+      // Upload attachments (documents)
+      let prescriptionUpload = [];
+      if (req.files && req.files.attachments) {
+        const documentFiles = Array.isArray(req.files.attachments)
+          ? req.files.attachments
+          : [req.files.attachments];
+  
         for (let file of documentFiles) {
-          const documentKey = await uploadToS3(file, 'prescription_upload');
-          console.log('Uploaded Document Key:', documentKey);
+          const documentKey = await uploadToS3(file, "prescription_upload");
+          console.log("Uploaded Document Key:", documentKey);
           prescriptionUpload.push({
             name: documentKey,
             type: file.mimetype,
@@ -504,7 +524,13 @@ const WebController = {
           });
         }
       }
-
+  
+      // Prepare Healthcare Services in expected format
+      const selectedServices = healthcareServices.map((service) => ({
+        code: service.type?.[0]?.coding?.[0]?.code || "",
+        display: service.type?.[0]?.coding?.[0]?.display || "",
+      }));
+  
       // Update Profile in Database
       const updatedProfile = await ProfileData.findOneAndUpdate(
         { userId },
@@ -512,38 +538,46 @@ const WebController = {
           $set: {
             businessName,
             registrationNumber,
-            yearOfEstablishment,
+            yearOfEstablishment: organization.extension?.[0]?.valueString,
             phoneNumber,
             website,
-            address: { addressLine1, street, city, state, zipCode },
+            address: {
+              addressLine1: address.line?.[0] || "",
+              city: address.city || "",
+              street: address.street || "",
+              state: address.state || "",
+              zipCode: address.postalCode || "",
+              latitude,
+              longitude,
+            },
             activeModes,
             selectedServices,
-            logo: logo || undefined, // Keep existing logo if not updated
+            logo: logo || undefined,
           },
           $push: {
-            prescription_upload: { $each: prescriptionUpload }, // Append new files
+            prescription_upload: { $each: prescriptionUpload },
           },
         },
         { new: true, upsert: true }
       );
-
+  
       if (updatedProfile) {
         return res.status(200).json({
-          message: 'Profile updated successfully',
+          message: "Profile updated successfully",
           profile: updatedProfile,
         });
       }
-
-      res.status(400).json({ message: 'Profile update failed' });
+  
+      res.status(400).json({ message: "Profile update failed" });
     } catch (error) {
-      console.error('Error updating profile:', error);
+      console.error("Error updating profile:", error);
       res.status(500).json({
-        message: 'Internal server error',
+        message: "Internal server error",
         error: error.message,
       });
     }
   },
-
+   
   getProfile: async (req, res) => {
     try {
       const userId = req.params.id;
@@ -658,11 +692,112 @@ const WebController = {
       });
     }
   },
+ 
+
+ getHospitalProfileFHIR: async (req, res) => {
+   try {
+     const { userId } = req.params;
+ 
+     // Fetch profile from MongoDB using userId
+     const profile = await ProfileData.findOne({ userId });
+ 
+     if (!profile) {
+       return res.status(404).json({
+         resourceType: "OperationOutcome",
+         issue: [{ severity: "error", code: "not-found", details: { text: "Hospital profile not found" } }],
+       });
+     }
+ 
+     // Generate S3 URL Helper
+     const getS3Url = (fileKey) =>
+       fileKey ? `https://${process.env.AWS_S3_BUCKET_NAME}.s3.amazonaws.com/${fileKey}` : null;
+ 
+     const logoUrl = getS3Url(profile.logo);
+ 
+     // Build Organization Resource
+     const organizationFHIR = {
+       resourceType: "Organization",
+       id: profile.userId.toLowerCase(), // ✅ Use profile.userId
+       text: {
+         status: "generated",
+         div: `<div xmlns="http://www.w3.org/1999/xhtml"><p>${profile.businessName} - ${profile.address.city}</p></div>`,
+       },
+       name: profile.businessName,
+       telecom: [{ system: "phone", value: profile.phoneNumber }],
+       address: [
+         {
+           use: "work",
+           line: [profile.address.addressLine1],
+           city: profile.address.city,
+           state: profile.address.state,
+           postalCode: profile.address.zipCode,
+           country: "US",
+         },
+       ],
+       active: profile.activeModes === "true",
+       ...(logoUrl && {
+         extension: [
+           {
+             url: "https://myorganization.com/fhir/StructureDefinition/logo", // ✅ Valid extension URL
+             valueUrl: logoUrl,
+           },
+         ],
+       }),
+     };
+ 
+     // Build DocumentReference Resources
+     const documentFHIR = profile.prescription_upload.map((file, index) => ({
+       resourceType: "DocumentReference",
+       id: uuidv4().toLowerCase(), // ✅ Valid UUIDs for documents
+       text: {
+         status: "generated",
+         div: `<div xmlns="http://www.w3.org/1999/xhtml"><p>Document ${index + 1}: ${file.name}</p></div>`,
+       },
+       status: "current",
+       type: { coding: [{ system: "http://loinc.org", code: "34133-9", display: "Summary of episode note" }] },
+       content: [
+         {
+           attachment: {
+             contentType: file.type,
+             url: getS3Url(file.name),
+           },
+         },
+       ],
+     }));
+ 
+     // Build FHIR Bundle with valid fullUrls
+     const fhirBundle = {
+       resourceType: "Bundle",
+       type: "collection",
+       entry: [
+         {
+           fullUrl: `urn:uuid:${profile.userId.toLowerCase()}`, // ✅ Valid fullUrl for organization
+           resource: organizationFHIR,
+         },
+         ...documentFHIR.map((doc) => ({
+           fullUrl: `urn:uuid:${doc.id}`, // ✅ Valid fullUrl for documents
+           resource: doc,
+         })),
+       ],
+     };
+ 
+     // ✅ Return Valid FHIR Bundle
+     res.status(200).json(fhirBundle);
+     console.log("FHIR Validation Result:", validateFHIR(fhirBundle)); // Optional for validation
+   } catch (error) {
+     console.error("Error fetching hospital profile:", error);
+     res.status(500).json({
+       resourceType: "OperationOutcome",
+       issue: [{ severity: "error", code: "exception", details: { text: "Internal server error while fetching profile." } }],
+     });
+   }
+ },
+ 
   getLocationdata: async (req, res) => {
    
       try {
           const placeId = req.query.placeid;
-          const apiKey = 'AIzaSyBKuPqcVG84Pwqvb_nnPp5sYbs-mby9SuI'
+          const apiKey = GOOGLE_MAPS_API_KEY
           const url = `https://maps.googleapis.com/maps/api/place/details/json?placeid=${placeId}&key=${apiKey}`;
   
           const response = await axios
@@ -710,7 +845,7 @@ const data = extractAddressDetails(
       } catch (error) {
           res.status(500).json({ error: error.message });
       }
-  }
+  },
   
 };
 function getSecretHash(email) {
@@ -724,3 +859,4 @@ function getSecretHash(email) {
 }
 
 module.exports = WebController;
+
