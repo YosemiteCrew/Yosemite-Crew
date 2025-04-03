@@ -341,8 +341,8 @@ importers:
         specifier: ^4.8.1
         version: 4.8.1
       sweetalert2:
-        specifier: ^11.17.2
-        version: 11.17.2
+        specifier: ^11.4.8
+        version: 11.4.8
     devDependencies:
       '@eslint/js':
         specifier: ^9.21.0
@@ -10766,8 +10766,8 @@ packages:
       picocolors: 1.1.1
     dev: false
 
-  /sweetalert2@11.17.2:
-    resolution: {integrity: sha512-HKxDr1IyV3Lxr3W6sb61qm/p2epFIEdr5EKwteRFHnIg6f8nHFl2kX++DBVz16Mac+fFiU3hMpjq1L6yE2Ge5w==}
+  /sweetalert2@11.4.8:
+    resolution: {integrity: sha512-BDS/+E8RwaekGSxCPUbPnsRAyQ439gtXkTF/s98vY2l9DaVEOMjGj1FaQSorfGREKsbbxGSP7UXboibL5vgTMA==}
     dev: false
 
   /tabbable@6.2.0:

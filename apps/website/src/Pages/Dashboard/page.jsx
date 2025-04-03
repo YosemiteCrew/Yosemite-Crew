@@ -19,7 +19,7 @@ import axios from 'axios';
 import StackedBarChart from '../Graph/page';
 import { useAuth } from '../../context/useAuth';
 import Swal from 'sweetalert2';
-import {  FHIRParser } from '../../utils/FhirMapper';
+import { FHIRParser } from '../../utils/FhirMapper';
 
 const Dashboard = () => {
   const { userId,onLogout } = useAuth();

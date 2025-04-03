@@ -383,7 +383,7 @@ ConvertToNormalDashboardGraph() {
 }
   
 }  
-module.exports = {
+export {
   FHIRMapper,
   FHIRToSlotConverter,
   FHIRSlotService,
