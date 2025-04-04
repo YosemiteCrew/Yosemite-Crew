@@ -14,6 +14,9 @@ function SignIn() {
   const { initializeUser } = useAuth();
   console.log("llllllllllllll",import.meta.env.VITE_BASE_IMAGE_URL);
 
+  console.log("All Vite Env Variables:", import.meta.env);
+
+
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showVerifyCode, setShowVerifyCode] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
