@@ -16,7 +16,7 @@
 
 <p align="center">
   <a href="https://yosemitecrew.com/">
-      <img src="https://d1g0w8b65hklyd.cloudfront.net/Dashboard_2.png" alt="YC logo" />
+      <img src="https://d2il6osz49gpup.cloudfront.net/Dashboard_2.png" alt="YC logo" />
   </a>
 </p>
 
@@ -52,6 +52,7 @@ For Developers
 
 - Git
 - Node.js
+- pnpm
 
 ### Steps
 
@@ -68,16 +69,25 @@ For Developers
 - Install the project dependencies.
 
   ```shell
-  npm ci
+  pnpm install
   ```
 
-- Run the project.
+- Run the website and api.
 
   ```shell
-  npx nx serve website                    -- Run the website
-  npx nx serve api                        -- Run the api
-  npx nx run-android mobileapp            -- Run the app on android
-  npx nx run-ios mobileapp                -- Run the app on IOS
+  pnpm run dev --filter website                    -- Run the website
+  pnpm run dev --filter api                        -- Run the api
+  pnpm run dev                                     -- To run website & api
+  ```
+
+- Run the Yosemite Crew mobileapp.
+
+  ```shell
+  // In apps/mobileApp directory
+
+  pnpm run start                                  -- Start the metro server for mobile development
+  pnpm run android                                -- Run the app on Andorid
+  pnpm run ios                                    -- Run the app on IOS
   ```
 
 <br>

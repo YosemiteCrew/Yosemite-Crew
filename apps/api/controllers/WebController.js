@@ -8,10 +8,10 @@ const axios = require('axios');
 const { validateFHIR } = require("../Fhirvalidator/FhirValidator");
 const jwt = require('jsonwebtoken');
 const { WebUser, ProfileData } = require('../models/WebUser');
-import {
+const {
   ConfirmForgotPasswordCommand,
   CognitoIdentityProviderClient,
-} from '@aws-sdk/client-cognito-identity-provider';
+} = require('@aws-sdk/client-cognito-identity-provider');
 const cognitoo = new CognitoIdentityProviderClient({
   region: process.env.AWS_REGION,
 });

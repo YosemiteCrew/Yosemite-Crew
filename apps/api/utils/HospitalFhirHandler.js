@@ -52,4 +52,4 @@ class GraphDataToFHIR {
     }
   }
 
-  export default GraphDataToFHIR;
+  module.exports = GraphDataToFHIR;

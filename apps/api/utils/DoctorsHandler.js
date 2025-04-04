@@ -129,5 +129,5 @@ class FHIRConverter {
 
 
 
-export default FHIRConverter;
+module.exports =  FHIRConverter;
   
