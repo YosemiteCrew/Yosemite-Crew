@@ -45,24 +45,24 @@ Before you submit your Pull Request (PR) consider the following guidelines:
      
      cd Yosemite-Crew
      ```
-     
-* Install the project dependencies.
 
-     ```shell
-     npm ci
-     ```
-     
 * Create a new branch for your changes instead of using the main branch.
 
      ```shell
      git checkout -b your-branch-name
      ```
 
+* Install the project dependencies.
+
+     ```shell
+     pnpm install
+     ```
+     
 * Follow our [Coding Rules](#rules).
 * Make your changes.
-* Run `npx nx run-many -t lint` to ensure that lints passes for all projects or run `npx nx lint {appName}` to ensure all lints pass for the given project.
-* Run `npx nx run-many -t test` to ensure that tests passes for all projects or run `npx nx test {appName}` to ensure all tests pass for the given project.
-* Run `npx nx run-many -t build` to build all projects or run `npx nx build {appName}` to build a single project.
+* Run `pnpm run lint` to ensure that lints passes for all projects or run `pnpm run lint --filter {appName}` to ensure all lints pass for the given project.
+* Run `pnpm run test` to ensure that tests passes for all projects or run `pnpm run test --filter {appName}` to ensure all tests pass for the given project.
+* Run `pnpm run build` to build all projects or run `pnpm run build --filter {appName}` to build a single project.
 * Commit your changes using a descriptive commit message that follows our
   [commit message conventions](#commit). Adherence to these conventions
   is necessary because release notes are automatically generated from these messages.
