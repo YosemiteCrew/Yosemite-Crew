@@ -11,6 +11,7 @@ const adddoctors  = require('../models/addDoctor');
 const departments = require('../models/AddDepartment');
 const yoshpets = require('../models/YoshPet');
 const { ProfileData }= require('../models/WebUser');
+const { v4: uuidv4 } = require('uuid');
 
 
 
@@ -160,18 +161,17 @@ async function handleCancelAppointment(req,res) {
 }
 
 
-
 async function handleGetTimeSlots(req, res) {
   try {
     const { appointmentDate, doctorId } = req.body;
 
     if (!appointmentDate || !doctorId) {
-      return res.status(400).json({ message: "Appointment date and doctor ID are required" });
+      return res.status(400).json({ issue: [{ severity: "error", code: "invalid", details: { text: "Appointment date and doctor ID are required" } }] });
     }
 
     const dateObj = new Date(appointmentDate);
     if (isNaN(dateObj.getTime())) {
-      return res.status(400).json({ message: "Invalid appointment date" });
+      return res.status(400).json({ issue: [{ severity: "error", code: "invalid", details: { text: "Invalid appointment date" } }] });
     }
 
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -179,24 +179,27 @@ async function handleGetTimeSlots(req, res) {
 
     console.log("Fetching slots for Doctor:", doctorId, "on", day);
 
+    // Fetch doctor's available slots based on the day
     const slots = await DoctorsTimeSlotes.find({ doctorId, day });
 
     if (!slots.length) {
-      return res.status(200).json({ status: 0, data: [], message: "No slots found for this doctor on this day" });
+      return res.status(200).json({ resourceType: "Bundle", type: "collection", entry: [] });
     }
 
     const timeSlots = slots[0].timeSlots;
     console.log("Time Slots:", timeSlots);
 
     if (!Array.isArray(timeSlots)) {
-      return res.status(500).json({ message: "Time slots data is not in the expected format" });
+      return res.status(500).json({ issue: [{ severity: "error", code: "processing", details: { text: "Time slots data is not in the expected format" } }] });
     }
 
+    // Get booked appointments
     const bookedAppointments = await webAppointments.find({ veterinarian: doctorId, appointmentDate });
 
     const currentTime = new Date();
     const isToday = currentTime.toDateString() === dateObj.toDateString();
 
+    // Prepare FHIR Slot resources
     const updatedSlots = timeSlots
       .filter(slot => {
         if (!slot.time) {
@@ -205,24 +208,39 @@ async function handleGetTimeSlots(req, res) {
         }
 
         if (isToday) {
-          // Convert slot time (e.g., "10:00 AM") to a proper Date object for comparison
           const slotDateTime = moment(`${appointmentDate} ${slot.time}`, "YYYY-MM-DD hh:mm A").toDate();
           return slotDateTime > currentTime;
         }
         return true;
       })
       .map(slot => ({
-        slot,
-        booked: bookedAppointments.some(app => app.slotsId?.toString() === slot._id?.toString())
+        resourceType: "Slot",
+        id: slot._id.toString(),
+        schedule: {
+          reference: `Schedule/${doctorId}`
+        },
+        isBooked: bookedAppointments.some(app => app.slotsId?.toString() === slot._id?.toString()) ? "true" : "false",
+        slotTime: `${slot.time}`, // Keeping the original time format
+       
       }));
 
-    console.log("Updated Slots:", updatedSlots);
-    return res.status(200).json({ status: 1, data: updatedSlots });
+    console.log("FHIR Updated Slots:", updatedSlots);
+
+    // Return FHIR-compliant response
+    return res.status(200).json({
+      resourceType: "Bundle",
+      type: "collection",
+      entry: updatedSlots.map(slot => ({ resource: slot }))
+    });
+
   } catch (error) {
     console.error("Error fetching time slots:", error);
-    res.status(500).json({ message: "Error while fetching time slots", error: error.message });
+    res.status(500).json({
+      issue: [{ severity: "error", code: "exception", details: { text: "Error while fetching time slots", diagnostics: error.message } }]
+    });
   }
 }
+
 
 
 async function handleRescheduleAppointment(req, res){
@@ -269,23 +287,22 @@ async function handleRescheduleAppointment(req, res){
 }
 
 async function handleTimeSlotsByMonth(req, res) {
-  const doctorId = req.body.doctorId;
-  const slotMonth = req.body.slotMonth;
-  const slotYear = req.body.slotYear;
+  const { doctorId, slotMonth, slotYear } = req.body;
 
   try {
-    // 1. Generate the calendar for the specified month and year
+    // Generate the calendar for the specified month and year
     const startDate = moment({ year: slotYear, month: slotMonth - 1, day: 1 });
-    const endDate = startDate.clone().endOf('month');
+    const endDate = startDate.clone().endOf("month");
     const calendar = [];
-    for (let date = startDate.clone(); date.isBefore(endDate); date.add(1, 'day')) {
+
+    for (let date = startDate.clone(); date.isBefore(endDate); date.add(1, "day")) {
       calendar.push(date.clone());
     }
 
-    // 2. Retrieve the weekly schedule for the doctor
+    // Retrieve the weekly schedule for the doctor
     const weeklySchedule = await DoctorsTimeSlotes.find({ doctorId }).lean();
 
-    // 3. Retrieve the booked appointments for the specified month and year
+    // Retrieve the booked appointments for the specified month and year
     const bookedAppointments = await webAppointments.find({
       veterinarian: doctorId,
       appointmentDate: {
@@ -294,42 +311,85 @@ async function handleTimeSlotsByMonth(req, res) {
       },
     }).lean();
 
-    // 4. Extract the slotsId from the booked appointments
-    const bookedSlotIds = bookedAppointments.map((appointment) => appointment.slotsId);
+    // Extract booked slot IDs
+    const bookedSlotIds = new Set(bookedAppointments.map((appointment) => appointment.slotsId.toString()));
 
-    // 5. Calculate available slots per date
-    const calendarWithSlots = calendar.map((date) => {
-      const dayOfWeek = date.format('dddd'); // e.g., 'Monday'
+    // Generate available slots per day
+    const availableSlotsPerDay = calendar.map((date) => {
+      const dayOfWeek = date.format("dddd");
       const daySchedule = weeklySchedule.find((schedule) => schedule.day === dayOfWeek);
 
-      if (!daySchedule) {
-        // No schedule available for this day
-        return {
-          date: date.format('YYYY-MM-DD'),
-          day: dayOfWeek,
-          availableSlotsCount: 0,
-        };
+      let availableSlotsCount = 0;
+
+      if (daySchedule) {
+        availableSlotsCount = daySchedule.timeSlots.filter(
+          (slot) => !bookedSlotIds.has(slot._id.toString())
+        ).length;
       }
 
-      // Filter out the booked time slots
-      const availableTimeSlots = daySchedule.timeSlots.filter(
-        (slot) => !bookedSlotIds.includes(slot._id.toString())
-      );
-
       return {
-        date: date.format('YYYY-MM-DD'),
+        date: date.format("YYYY-MM-DD"),
         day: dayOfWeek,
-        availableSlotsCount: availableTimeSlots.length,
+        availableSlotsCount,
       };
     });
 
-    return res.json(calendarWithSlots);
+    // Construct FHIR response
+    const fhirResponse = {
+      resourceType: "Bundle",
+      type: "collection",
+      entry: [
+        {
+          resource: {
+            resourceType: "Schedule",
+            id: uuidv4(),
+            identifier: [{ system: "https://example.com/schedule", value: doctorId }],
+            actor: [{ reference: `Practitioner/${doctorId}` }],
+            planningHorizon: {
+              start: startDate.toISOString(),
+              end: endDate.toISOString(),
+            },
+          },
+        },
+        {
+          resource: {
+            resourceType: "Observation",
+            id: uuidv4(),
+            status: "final",
+            code: {
+              coding: [
+                {
+                  system: "http://loinc.org",
+                  code: "TODO:DEFINE_CODE",
+                  display: "Available Slots Per Day",
+                },
+              ],
+              text: "Available slots per day for the doctor",
+            },
+            subject: { reference: `Practitioner/${doctorId}` },
+            effectivePeriod: {
+              start: startDate.toISOString(),
+              end: endDate.toISOString(),
+            },
+            component: availableSlotsPerDay.map((slot) => ({
+              code: {
+                text: `Available slots on ${slot.date} (${slot.day})`,
+                date: slot.date,
+                day: slot.day,
+              },
+              valueInteger: slot.availableSlotsCount,
+            })),
+          },
+        },
+      ],
+    };
+
+    return res.json(fhirResponse);
   } catch (error) {
-    console.error('Error generating calendar with available slots:', error);
-    return res.status(500).json({ error: 'Internal Server Error' });
+    console.error("Error generating FHIR-compliant response:", error);
+    return res.status(500).json({ error: "Internal Server Error" });
   }
 }
-
 
 
 const convertTo24Hour = (time12h) => {

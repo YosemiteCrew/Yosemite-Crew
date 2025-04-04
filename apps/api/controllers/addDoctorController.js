@@ -2,15 +2,15 @@ const Department = require('../models/AddDepartment');
 const AddDoctors = require('../models/addDoctor');
 const crypto = require('crypto');
 
-import {
+const {
   CognitoIdentityProviderClient,
   AdminGetUserCommand,
   AdminConfirmSignUpCommand,
   SignUpCommand,
   AdminUpdateUserAttributesCommand,
-} from '@aws-sdk/client-cognito-identity-provider';
-import FHIRConverter from '../utils/DoctorsHandler';
-import { validateFHIR } from '../Fhirvalidator/FhirValidator';
+} = require('@aws-sdk/client-cognito-identity-provider');
+const FHIRConverter = require('../utils/DoctorsHandler');
+const { validateFHIR } = require('../Fhirvalidator/FhirValidator');
 // import { equal } from 'assert';
 const AWS = require('aws-sdk');
 const SES = new AWS.SES();
