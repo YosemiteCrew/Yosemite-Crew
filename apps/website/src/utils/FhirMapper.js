@@ -344,10 +344,15 @@ class FHIRParser {
       totalDoctors: 0,
       totalSpecializations: 0,
       availableDoctors: 0,
+      totalAppointments: 0,
+      successful: 0,
+      canceled: 0,
+      checkedIn: 0,
+      appointmentsCreatedToday: 0,
     };
   
     this.fhirData.entry.forEach((entry) => {
-      const { id, totalDoctors, totalSpecializations, availableDoctors,totalDepartments,appointmentCounts } = entry.resource;
+      const { id, totalDoctors, totalSpecializations, availableDoctors,totalDepartments,appointmentCounts, totalAppointments,successful,canceled,appointmentsCreatedToday,checkedIn} = entry.resource;
   
       if (id === "totalDoctors") {
         normalData.totalDoctors = totalDoctors;
@@ -359,6 +364,16 @@ class FHIRParser {
         normalData.totalDepartments = totalDepartments
       }else if (id === "appointmentCounts") {
         normalData.appointmentCounts = appointmentCounts;
+      }else if (id === "totalAppointments") {
+        normalData.totalAppointments = totalAppointments;
+      }else if (id === "successful") {
+        normalData.successful = successful;
+      }else if (id === "canceled") {
+        normalData.canceled = canceled;
+      }else if (id === "checkedIn") {
+        normalData.checkedIn = checkedIn;
+      }else if (id === "appointmentsCreatedToday") {
+        normalData.appointmentsCreatedToday = appointmentsCreatedToday;
       }
     });
   
@@ -382,10 +397,103 @@ ConvertToNormalDashboardGraph() {
   });
 }
   
-}  
+} 
+
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Appointments list >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+class NormalAppointmentConverter {
+  static convertAppointments(data) {
+    return {
+      totalAppointments: data.totalAppointments || 0,
+      appointments: data.appointments.map((app) => ({
+        _id: app.id || "",
+        tokenNumber: NormalAppointmentConverter.extractTokenNumber(app.extension),
+        appointmentSource: NormalAppointmentConverter.extractAppointmentSource(app.extension),
+        petName: NormalAppointmentConverter.extractPetName(app.description),
+        ownerName: app.participant?.[0]?.actor?.display || "",
+        slotsId: NormalAppointmentConverter.extractSlotId(app.slot),
+        petType: NormalAppointmentConverter.extractPetType(app.description),
+        breed: NormalAppointmentConverter.extractPetBreed(app.description),
+        purposeOfVisit: app.serviceType?.[0]?.text || "Unknown",
+        appointmentDate: NormalAppointmentConverter.extractAppointmentDate(app.start),
+        appointmentTime: NormalAppointmentConverter.extractAppointmentTime(app.start),
+        appointmentStatus: app.status ,
+        department: app.specialty?.[0]?.text || "General",
+        veterinarian: app.participant?.[1]?.actor?.display || "",
+      })),
+    };
+  }
+
+  /**
+   * Extracts tokenNumber from FHIR extension safely.
+   */
+  static extractTokenNumber(extensions = []) {
+    if (!Array.isArray(extensions)) return "";
+    const tokenExt = extensions.find((ext) => ext.url.includes("tokenNumber"));
+    return tokenExt?.valueString || "";
+  }
+
+  static extractAppointmentSource(extensions = []){
+    if (!Array.isArray(extensions))return "";
+    const sourceExt = extensions.find((ext) => ext.url.includes("appointmentSource"));
+    return sourceExt?.valueString || "";
+  }
+
+  /**
+   * Extracts pet name from FHIR description.
+   */
+  static extractPetName(description = "") {
+    return description.includes("Appointment for ")
+      ? description.split(" (")[0].replace("Appointment for ", "")
+      : "";
+  }
+
+  /**
+   * Extracts pet type from FHIR description.
+   */
+  static extractPetType(description = "") {
+    return description.includes("(") ? description.split("(")[1].split(",")[0] : "";
+  }
+
+  /**
+   * Extracts pet breed from FHIR description.
+   */
+  static extractPetBreed(description = "") {
+    return description.includes(",") ? description.split(", ")[1].replace(")", "") : "";
+  }
+
+  /**
+   * Extracts slot ID from FHIR slot reference.
+   */
+  static extractSlotId(slot = []) {
+    return slot?.[0]?.reference?.replace("Slot/", "") || "";
+  }
+
+  /**
+   * Extracts appointment date and formats it as DD-MMM-YYYY.
+   */
+  static extractAppointmentDate(dateTime) {
+    if (!dateTime) return "";
+    const date = new Date(dateTime);
+    return isNaN(date.getTime())
+      ? ""
+      : date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  }
+
+  /**
+   * Extracts appointment time and formats it as HH:MM AM/PM.
+   */
+  static extractAppointmentTime(dateTime) {
+    if (!dateTime) return "";
+    const date = new Date(dateTime);
+    return isNaN(date.getTime())
+      ? ""
+      : date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+  }
+}
 export {
   FHIRMapper,
   FHIRToSlotConverter,
   FHIRSlotService,
   FHIRParser,
+  NormalAppointmentConverter
 };

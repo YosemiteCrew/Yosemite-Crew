@@ -108,7 +108,7 @@ const Add_Vet = () => {
         onLogout(navigate);
       }
     }
-  },[navigate,onLogout,userId]);
+  },[userId,navigate,onLogout]);
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
 
@@ -156,7 +156,7 @@ const Add_Vet = () => {
   
 
   useEffect(() => {
-    getSpecilization();
+   if(userId) getSpecilization();
   }, [userId,getSpecilization]);
 
   const handleprofessionalBackground = (e) => {

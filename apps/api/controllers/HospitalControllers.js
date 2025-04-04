@@ -1,16 +1,21 @@
-const { webAppointments } = require('../models/WebAppointment');
-const Department = require('../models/AddDepartment');
-const AddDoctors = require('../models/addDoctor');
-const { ProfileData } = require('../models/WebUser');
+const { webAppointments } = require("../models/WebAppointment");
+const Department = require("../models/AddDepartment");
+const AddDoctors = require("../models/addDoctor");
+const { ProfileData } = require("../models/WebUser");
 // const YoshPet = require('../models/YoshPet');
 // const YoshUser = require('../models/YoshUser');
 
 const S3_BASE_URL = `https://${process.env.AWS_S3_BUCKET_NAME}.s3.amazonaws.com/`;
-const AWS = require('aws-sdk');
-const ProfileVisibility = require('../models/profileVisibility');
-const Message = require('../models/ChatModel');
-const { default: FHIRConverter } = require('../utils/DoctorsHandler');
-const { default: GraphDataToFHIR } = require('../utils/HospitalFhirHandler');
+const AWS = require("aws-sdk");
+const ProfileVisibility = require("../models/profileVisibility");
+const Message = require("../models/ChatModel");
+const FHIRConverter = require("../utils/DoctorsHandler");
+const GraphDataToFHIR = require("../utils/HospitalFhirHandler");
+const { AppointmentFHIRConverter } = require("../utils/WebAppointmentHandler");
+
+const {validateFHIR} = require("../Fhirvalidator/FhirValidator");
+const { json } = require("body-parser");
+
 
 const s3 = new AWS.S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -23,7 +28,7 @@ const HospitalController = {
     try {
       const { offset = 0, limit = 5, userId } = req.query;
       console.log(req.query);
-      const today = new Date().toISOString().split('T')[0]; // Today's date in "YYYY-MM-DD" format
+      const today = new Date().toISOString().split("T")[0]; // Today's date in "YYYY-MM-DD" format
 
       const parsedOffset = parseInt(offset, 10);
       const parsedLimit = parseInt(limit, 10);
@@ -38,73 +43,73 @@ const HospitalController = {
         },
         {
           $addFields: {
-            departmentObjId: { $toObjectId: '$department' },
+            departmentObjId: { $toObjectId: "$department" },
           },
         },
         {
           $lookup: {
-            from: 'adddoctors',
-            localField: 'veterinarian',
-            foreignField: 'userId',
-            as: 'doctorInfo',
+            from: "adddoctors",
+            localField: "veterinarian",
+            foreignField: "userId",
+            as: "doctorInfo",
           },
         },
         {
           $lookup: {
-            from: 'departments',
-            localField: 'departmentObjId',
-            foreignField: '_id',
-            as: 'departmentInfo',
+            from: "departments",
+            localField: "departmentObjId",
+            foreignField: "_id",
+            as: "departmentInfo",
           },
         },
         {
           $unwind: {
-            path: '$doctorInfo',
+            path: "$doctorInfo",
             preserveNullAndEmptyArrays: true,
           },
         },
         {
           $unwind: {
-            path: '$departmentInfo',
+            path: "$departmentInfo",
             preserveNullAndEmptyArrays: true,
           },
         },
         {
           $facet: {
-            metadata: [{ $count: 'total' }],
+            metadata: [{ $count: "total" }],
             data: [{ $skip: parsedOffset }, { $limit: parsedLimit }],
           },
         },
         {
           $project: {
-            total: { $arrayElemAt: ['$metadata.total', 0] },
+            total: { $arrayElemAt: ["$metadata.total", 0] },
             Appointments: {
               $map: {
-                input: '$data',
-                as: 'appointment',
+                input: "$data",
+                as: "appointment",
                 in: {
-                  _id: '$$appointment._id',
-                  tokenNumber: '$$appointment.tokenNumber',
-                  petName: '$$appointment.petName',
-                  ownerName: '$$appointment.ownerName',
-                  slotsId: '$$appointment.slotsId',
-                  petType: '$$appointment.petType',
-                  breed: '$$appointment.breed',
-                  purposeOfVisit: '$$appointment.purposeOfVisit',
+                  _id: "$$appointment._id",
+                  tokenNumber: "$$appointment.tokenNumber",
+                  petName: "$$appointment.petName",
+                  ownerName: "$$appointment.ownerName",
+                  slotsId: "$$appointment.slotsId",
+                  petType: "$$appointment.petType",
+                  breed: "$$appointment.breed",
+                  purposeOfVisit: "$$appointment.purposeOfVisit",
                   appointmentDate: {
                     $dateToString: {
-                      format: '%d %b %Y',
-                      date: { $toDate: '$$appointment.appointmentDate' },
+                      format: "%d %b %Y",
+                      date: { $toDate: "$$appointment.appointmentDate" },
                     },
                   },
-                  appointmentTime: '$$appointment.appointmentTime',
-                  appointmentStatus: '$$appointment.appointmentStatus',
-                  department: '$$appointment.departmentInfo.departmentName',
+                  appointmentTime: "$$appointment.appointmentTime",
+                  appointmentStatus: "$$appointment.appointmentStatus",
+                  department: "$$appointment.departmentInfo.departmentName",
                   veterinarian: {
                     $concat: [
-                      '$$appointment.doctorInfo.personalInfo.firstName',
-                      ' ',
-                      '$$appointment.doctorInfo.personalInfo.lastName',
+                      "$$appointment.doctorInfo.personalInfo.firstName",
+                      " ",
+                      "$$appointment.doctorInfo.personalInfo.lastName",
                     ],
                   },
                 },
@@ -117,18 +122,18 @@ const HospitalController = {
       if (!response.length || !response[0].Appointments.length) {
         return res
           .status(404)
-          .json({ message: 'No slots found for the doctor.' });
+          .json({ message: "No slots found for the doctor." });
       }
 
       return res.status(200).json({
-        message: 'Data fetched successfully',
+        message: "Data fetched successfully",
         totalAppointments: response[0].total || 0,
         Appointments: response[0].Appointments,
       });
     } catch (error) {
-      console.error('Error in getAppointmentsForDoctorDashboard:', error);
+      console.error("Error in getAppointmentsForDoctorDashboard:", error);
       return res.status(500).json({
-        message: 'An error occurred while fetching slots.',
+        message: "An error occurred while fetching slots.",
         error: error.message,
       });
     }
@@ -137,20 +142,20 @@ const HospitalController = {
     try {
       const { LastDays, userId } = req.query;
       const days = parseInt(LastDays, 10) || 7; // Default to 7 days if not provided
-      console.log('req.query', req.query);
+      console.log("req.query", req.query);
 
       const endDate = new Date();
       const startDate = new Date();
       startDate.setDate(endDate.getDate() - (days - 1));
 
-      console.log('startDate', startDate, 'endDate', endDate);
+      console.log("startDate", startDate, "endDate", endDate);
 
       // const today = new Date().toISOString().split('T')[0]; // Today's date in "YYYY-MM-DD" format
 
       const appointments = await webAppointments.aggregate([
         {
           $addFields: {
-            appointmentDateObj: { $toDate: '$appointmentDate' }, // Convert string to Date
+            appointmentDateObj: { $toDate: "$appointmentDate" }, // Convert string to Date
           },
         },
         {
@@ -163,18 +168,18 @@ const HospitalController = {
           $group: {
             _id: null,
             newAppointments: {
-              $sum: { $cond: [{ $eq: ['$isCanceled', 0] }, 1, 0] },
+              $sum: { $cond: [{ $eq: ["$isCanceled", 0] }, 1, 0] },
             },
             upcomingAppointments: {
               $sum: {
-                $cond: [{ $gt: ['$appointmentDateObj', new Date()] }, 1, 0],
+                $cond: [{ $gt: ["$appointmentDateObj", new Date()] }, 1, 0],
               },
             },
             canceledAppointments: {
-              $sum: { $cond: [{ $eq: ['$isCanceled', 2] }, 1, 0] },
+              $sum: { $cond: [{ $eq: ["$isCanceled", 2] }, 1, 0] },
             },
             completedAppointments: {
-              $sum: { $cond: [{ $eq: ['$isCanceled', 3] }, 1, 0] },
+              $sum: { $cond: [{ $eq: ["$isCanceled", 3] }, 1, 0] },
             },
           },
         },
@@ -188,13 +193,13 @@ const HospitalController = {
       };
 
       return res.status(200).json({
-        message: 'Appointment counts fetched successfully',
+        message: "Appointment counts fetched successfully",
         ...result,
       });
     } catch (error) {
-      console.error('Error in getAppUpcCompCanTotalCountOnDayBasis:', error);
+      console.error("Error in getAppUpcCompCanTotalCountOnDayBasis:", error);
       return res.status(500).json({
-        message: 'An error occurred while fetching data.',
+        message: "An error occurred while fetching data.",
         error: error.message,
       });
     }
@@ -209,11 +214,11 @@ const HospitalController = {
       startDate.setDate(endDate.getDate() - (days - 1));
 
       console.log(
-        'Fetching data from:',
+        "Fetching data from:",
         startDate,
-        'to',
+        "to",
         endDate,
-        'userId',
+        "userId",
         userId
       );
 
@@ -232,7 +237,7 @@ const HospitalController = {
           $match: matchConditions, // Dynamically generated match conditions
         },
         {
-          $count: 'totalCount',
+          $count: "totalCount",
         },
       ];
 
@@ -244,7 +249,7 @@ const HospitalController = {
         ]);
 
       console.log(
-        'departmentsCount, doctorsCount, appointmentsCount',
+        "departmentsCount, doctorsCount, appointmentsCount",
         departmentsCount,
         doctorsCount,
         // petsCount,
@@ -260,13 +265,13 @@ const HospitalController = {
       };
 
       return res.status(200).json({
-        message: 'Data counts fetched successfully',
+        message: "Data counts fetched successfully",
         data: result,
       });
     } catch (error) {
-      console.error('Error in departmentsOverView:', error);
+      console.error("Error in departmentsOverView:", error);
       return res.status(500).json({
-        message: 'An error occurred while fetching data.',
+        message: "An error occurred while fetching data.",
         error: error.message,
       });
     }
@@ -276,13 +281,13 @@ const HospitalController = {
       const { LastDays, userId } = req.query;
       const days = parseInt(LastDays, 10) || 7;
 
-      console.log('LastDays', LastDays);
+      console.log("LastDays", LastDays);
 
       const endDate = new Date();
       const startDate = new Date();
       startDate.setDate(endDate.getDate() - (days - 1));
 
-      console.log('Fetching data from:', startDate, 'to', endDate);
+      console.log("Fetching data from:", startDate, "to", endDate);
 
       const departmentWiseAppointments = await webAppointments.aggregate([
         {
@@ -293,34 +298,34 @@ const HospitalController = {
         },
         {
           $addFields: {
-            departmentObjId: { $toObjectId: '$department' },
+            departmentObjId: { $toObjectId: "$department" },
           },
         },
         {
           $group: {
-            _id: '$departmentObjId',
+            _id: "$departmentObjId",
             count: { $sum: 1 },
           },
         },
         {
           $lookup: {
-            from: 'departments',
-            localField: '_id',
-            foreignField: '_id',
-            as: 'departmentInfo',
+            from: "departments",
+            localField: "_id",
+            foreignField: "_id",
+            as: "departmentInfo",
           },
         },
         {
           $unwind: {
-            path: '$departmentInfo',
+            path: "$departmentInfo",
             preserveNullAndEmptyArrays: true,
           },
         },
         {
           $project: {
-            departmentId: '$_id',
+            departmentId: "$_id",
             departmentName: {
-              $ifNull: ['$departmentInfo.departmentName', 'Unknown'],
+              $ifNull: ["$departmentInfo.departmentName", "Unknown"],
             },
             count: 1,
           },
@@ -328,13 +333,13 @@ const HospitalController = {
       ]);
 
       return res.status(200).json({
-        message: 'Department-wise appointment data fetched successfully',
+        message: "Department-wise appointment data fetched successfully",
         data: departmentWiseAppointments,
       });
     } catch (error) {
-      console.error('Error in DepartmentBasisAppointmentGraph:', error);
+      console.error("Error in DepartmentBasisAppointmentGraph:", error);
       return res.status(500).json({
-        message: 'An error occurred while fetching data.',
+        message: "An error occurred while fetching data.",
         error: error.message,
       });
     }
@@ -349,20 +354,20 @@ const HospitalController = {
       const weeklyAppointments = await webAppointments.aggregate([
         {
           $match: {
-            appointmentDate: { $gte: sevenDaysAgo.toISOString().split('T')[0] },
+            appointmentDate: { $gte: sevenDaysAgo.toISOString().split("T")[0] },
             hospitalId: userId,
           },
         },
         {
           $group: {
-            _id: '$day',
+            _id: "$day",
             count: { $sum: 1 },
           },
         },
         {
           $project: {
             _id: 0,
-            day: '$_id',
+            day: "$_id",
             count: 1,
           },
         },
@@ -390,44 +395,53 @@ const HospitalController = {
 
       console.table(responseData);
       return res.status(200).json({
-        message: 'Weekly appointment data fetched successfully',
+        message: "Weekly appointment data fetched successfully",
         data: responseData,
       });
     } catch (error) {
-      console.error('Error in getDataForWeeklyAppointmentChart:', error);
+      console.error("Error in getDataForWeeklyAppointmentChart:", error);
       return res.status(500).json({
-        message: 'An error occurred while fetching data.',
+        message: "An error occurred while fetching data.",
         error: error.message,
       });
     }
   },
 
-   AppointmentGraphOnMonthBase:async (req, res) => {
+  AppointmentGraphOnMonthBase: async (req, res) => {
     const monthNames = [
-      "January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December"
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
     ];
-  
+
     try {
       const { days, userId } = req.query;
       const monthsToFetch = parseInt(days, 10) || 6; // Default to last 6 months if not provided
-  
+
       if (!userId) {
         return res.status(400).json({ message: "UserId is required" });
       }
-  
+
       console.log("UserId:", userId);
-  
+
       const endMonth = new Date();
       const startMonth = new Date();
       startMonth.setMonth(endMonth.getMonth() - (monthsToFetch - 1));
       startMonth.setDate(1);
-  
+
       // Define date range (first day of startMonth to first day of next month of endMonth)
       const gt = new Date(startMonth.getFullYear(), startMonth.getMonth(), 1);
       const lt = new Date(endMonth.getFullYear(), endMonth.getMonth() + 1, 1);
 
-  
       const aggregatedAppointments = await webAppointments.aggregate([
         {
           $match: {
@@ -442,8 +456,16 @@ const HospitalController = {
           $group: {
             _id: { month: { $month: { $toDate: "$appointmentDate" } } },
             totalAppointments: { $sum: 1 },
-            successful: { $sum: { $cond: [{ $eq: ["$appointmentStatus", "fulfilled"] }, 1, 0] } },
-            canceled: { $sum: { $cond: [{ $eq: ["$appointmentStatus", "cancelled"] }, 1, 0] } },
+            successful: {
+              $sum: {
+                $cond: [{ $eq: ["$appointmentStatus", "fulfilled"] }, 1, 0],
+              },
+            },
+            canceled: {
+              $sum: {
+                $cond: [{ $eq: ["$appointmentStatus", "cancelled"] }, 1, 0],
+              },
+            },
           },
         },
         {
@@ -456,123 +478,299 @@ const HospitalController = {
           },
         },
       ]);
-  
+
       console.log("Aggregated Data:", aggregatedAppointments);
-  
+
       const results = [];
       let currentDate = new Date(startMonth);
-  
+
       while (currentDate <= endMonth) {
         const month = currentDate.getMonth() + 1; // Get month number (1-12)
         const monthName = monthNames[month - 1];
-  
-        const existingData = aggregatedAppointments.find(item => item.month === month);
-  
+
+        const existingData = aggregatedAppointments.find(
+          (item) => item.month === month
+        );
+
         results.push(
           existingData
             ? { ...existingData, monthName }
-            : { month, monthName, totalAppointments: 0, successful: 0, canceled: 0 }
+            : {
+                month,
+                monthName,
+                totalAppointments: 0,
+                successful: 0,
+                canceled: 0,
+              }
         );
-  
+
         currentDate.setMonth(currentDate.getMonth() + 1);
       }
 
       results.sort((a, b) => a.month - b.month);
 
       const data = new GraphDataToFHIR(results).convertToFHIR();
-  console.log("hihihihih", JSON.stringify(data));
+      console.log("hihihihih", JSON.stringify(data));
       console.log("Final Sorted Graph Data:", results);
-  
+
       return res.status(200).json({
         message: "Appointment data for the last X months fetched successfully",
-        data: JSON.stringify(data)
+        data: JSON.stringify(data),
       });
     } catch (error) {
       console.error("Error in AppointmentGraphOnMonthBase:", error);
       return res.status(500).json({
-       resourceType: "OperationOutcome",
-       issue: [
-        {
-          severity: 'error',
-          code: 'processing',
-          details: {
-            text: error.message,
-          },
-        }
-       ]
-      });
-    }
-  },  
-  WaitingRoomOverView: async (req, res) => {
-    try {
-      const { userId } = req.query;
-      if (!userId) {
-        return res.status(400).json({ message: 'userId is required' });
-      }
-
-      const currentDate = new Date().toISOString().split('T')[0];
-      const currentDateStart = new Date();
-      currentDateStart.setHours(0, 0, 0, 0);
-      const currentDateEnd = new Date();
-      currentDateEnd.setHours(23, 59, 59, 999);
-
-      const appointmentStats = await webAppointments.aggregate([
-        {
-          $match: { hospitalId: userId, appointmentDate: currentDate },
-        },
-        {
-          $group: {
-            _id: null,
-            totalAppointments: {
-              $sum: { $cond: [{ $not: { $eq: ['$isCanceled', 2] } }, 1, 0] },
-            },
-            successful: {
-              $sum: { $cond: [{ $eq: ['$isCanceled', 5] }, 1, 0] },
-            },
-            canceled: {
-              $sum: { $cond: [{ $in: ['$isCanceled', [2, 3]] }, 1, 0] },
-            },
-            checkedIn: {
-              $sum: { $cond: [{ $eq: ['$isCanceled', 4] }, 1, 0] },
+        resourceType: "OperationOutcome",
+        issue: [
+          {
+            severity: "error",
+            code: "processing",
+            details: {
+              text: error.message,
             },
           },
-        },
-      ]);
-
-      const availableDoctorsCount = await AddDoctors.countDocuments({
-        bussinessId: userId,
-        isAvailable: '1',
+        ],
       });
-
-      const appointmentsCreatedTodayCount =
-        await webAppointments.countDocuments({
-          hospitalId: userId,
-          createdAt: { $gte: currentDateStart, $lte: currentDateEnd },
-        });
-
-      const result = {
-        totalAppointments: appointmentStats[0]?.totalAppointments || 0,
-        successful: appointmentStats[0]?.successful || 0,
-        canceled: appointmentStats[0]?.canceled || 0,
-        checkedIn: appointmentStats[0]?.checkedIn || 0,
-        availableDoctors: availableDoctorsCount,
-        appointmentsCreatedToday: appointmentsCreatedTodayCount,
-      };
-
-      res.status(200).json(result);
-    } catch (error) {
-      console.error('Error in WaitingRoomOverView:', error);
-      res.status(500).json({ message: 'Internal server error' });
     }
   },
+  WaitingRoomOverView: async (req, res) => {
+    const { type } = req.query;
+    switch (type) {
+      case "waitingroomOverview":
+        if (req.method === "GET") {
+          try {
+            const { Organization } = req.query;
+            const userId = Organization.split('/')[1];
+            if (!userId) {
+              return res.status(400).json({ message: "userId is required" });
+            }
+
+            const currentDate = new Date().toISOString().split("T")[0];
+            const currentDateStart = new Date();
+            currentDateStart.setHours(0, 0, 0, 0);
+            const currentDateEnd = new Date();
+            currentDateEnd.setHours(23, 59, 59, 999);
+
+            const appointmentStats = await webAppointments.aggregate([
+              {
+                $match: { hospitalId: userId, appointmentDate: currentDate },
+              },
+              {
+                $group: {
+                  _id: null,
+                  totalAppointments: {
+                    $sum: { $cond: [{ $not: { $eq: ["$isCanceled", 2] } }, 1, 0] },
+                  },
+                  successful: {
+                    $sum: { $cond: [{ $eq: ["$isCanceled", 5] }, 1, 0] },
+                  },
+                  canceled: {
+                    $sum: { $cond: [{ $in: ["$isCanceled", [2, 3]] }, 1, 0] },
+                  },
+                  checkedIn: {
+                    $sum: { $cond: [{ $eq: ["$isCanceled", 4] }, 1, 0] },
+                  },
+                },
+              },
+            ]);
+
+            const availableDoctorsCount = await AddDoctors.countDocuments({
+              bussinessId: userId,
+              isAvailable: "1",
+            });
+
+            const appointmentsCreatedTodayCount =
+              await webAppointments.countDocuments({
+                hospitalId: userId,
+                createdAt: { $gte: currentDateStart, $lte: currentDateEnd },
+              });
+
+            const result = {
+              totalAppointments: appointmentStats[0]?.totalAppointments || 0,
+              successful: appointmentStats[0]?.successful || 0,
+              canceled: appointmentStats[0]?.canceled || 0,
+              checkedIn: appointmentStats[0]?.checkedIn || 0,
+              availableDoctors: availableDoctorsCount,
+              appointmentsCreatedToday: appointmentsCreatedTodayCount,
+            };
+
+            const data = new FHIRConverter(result).overviewConvertToFHIR();
+            console.log("hello", JSON.stringify(data));
+
+            return res.status(200).json(JSON.stringify(data)); // Removed JSON.stringify to ensure valid JSON format
+          } catch (error) {
+            console.error("Error in WaitingRoomOverView:", error);
+            return res.status(500).json({ message: "Internal server error" });
+          }
+        }
+        break;
+
+      case "dashboardOverview":
+        if (req.method === "GET") {
+          try {
+            const { subject, reportType } = req.query;
+
+            if (!subject || !reportType) {
+              return res
+                .status(400)
+                .json({ message: "Missing required query parameters" });
+            }
+
+            const match = subject.match(/^Organization\/(.+)$/);
+            if (!match) {
+              return res.status(400).json({
+                resourceType: "OperationOutcome",
+                reportType: reportType,
+                issue: [
+                  {
+                    severity: "error",
+                    code: "invalid-subject",
+                    details: {
+                      text: "Invalid subject format. Expected Organization/12345",
+                    },
+                  },
+                ],
+              });
+            }
+
+            const userId = match[1];
+            const { LastDays = 7 } = req.query;
+            const days = parseInt(LastDays, 10) || 7;
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setDate(endDate.getDate() - (days - 1));
+
+            const formatDate = (date) => date.toISOString().split("T")[0];
+
+            const formattedStartDate = formatDate(startDate);
+            const formattedEndDate = formatDate(endDate);
+            console.log("Hospital ID:", userId, formattedStartDate, formattedEndDate);
+
+            const appointmentCounts = await webAppointments.countDocuments({
+              hospitalId: userId,
+              isCanceled: 5,
+              appointmentDate: { $gte: formattedStartDate, $lte: formattedEndDate },
+            });
+
+            const totalDoctors = await AddDoctors.countDocuments({
+              bussinessId: userId,
+            });
+            const totalDepartments = await Department.countDocuments({
+              bussinessId: userId,
+            });
+
+            const data = new FHIRConverter({
+              totalDoctors,
+              totalDepartments,
+              appointmentCounts,
+            }).overviewConvertToFHIR();
+
+            return res.status(200).json(JSON.stringify(data));
+          } catch (error) {
+            console.error("Error getting hospital dashboard data:", error);
+            return res.status(500).json({
+              resourceType: "OperationOutcome",
+              issue: [
+                {
+                  severity: "error",
+                  code: "exception",
+                  details: {
+                    text: error.message,
+                  },
+                },
+              ],
+            });
+          }
+        }
+        break;
+
+      case "HospitalSideDoctorOverview":
+        if (req.method === "GET") {
+          try {
+            const { subject, reportType } = req.query;
+
+            if (!subject || !reportType) {
+              return res.status(400).json({ message: "Missing required query parameters" });
+            }
+
+            const match = subject.match(/^Organization\/(.+)$/);
+            if (!match) {
+              return res.status(400).json({
+                resourceType: "OperationOutcome",
+                reportType: reportType,
+                issue: [
+                  {
+                    severity: "error",
+                    code: "invalid-subject",
+                    details: {
+                      text: "Invalid subject format. Expected Organization/12345",
+                    },
+                  },
+                ],
+              });
+            }
+
+            const organizationId = match[1];
+            console.log("userId", organizationId);
+
+            const aggregation = await AddDoctors.aggregate([
+              {
+                $match: { bussinessId: organizationId },
+              },
+              {
+                $group: {
+                  _id: "$professionalBackground.specialization",
+                },
+              },
+              {
+                $count: "totalSpecializations",
+              },
+            ]);
+
+            const totalDoctors = await AddDoctors.countDocuments({
+              bussinessId: organizationId,
+            });
+
+            const availableDoctors = await AddDoctors.countDocuments({
+              bussinessId: organizationId,
+              isAvailable: "1",
+            });
+
+            const overview = {
+              totalDoctors,
+              totalSpecializations: aggregation[0]?.totalSpecializations || 0,
+              availableDoctors,
+            };
+            console.log("Overview:", overview);
+
+            const data = new FHIRConverter(overview).overviewConvertToFHIR();
+            return res.status(200).json(JSON.stringify(data));
+          } catch (error) {
+            console.error("Error fetching overview data:", error);
+            return res.status(500).json({
+              resourceType: "OperationOutcome",
+              issue: [
+                {
+                  severity: "error",
+                  code: "exception",
+                  details: {
+                    text: error.message,
+                  },
+                },
+              ],
+            });
+          }
+        }
+        break;
+    }
+  },
+
   WaittingRoomOverViewPatientInQueue: async (req, res) => {
     try {
       const { userId, offset = 0, limit = 10 } = req.query;
-      console.log(req.query);
-
       const parsedOffset = parseInt(offset);
       const parsedLimit = parseInt(limit);
-      const currentDate = new Date().toISOString().split('T')[0];
+      const currentDate = new Date().toISOString().split("T")[0];
 
       const response = await webAppointments.aggregate([
         {
@@ -583,34 +781,34 @@ const HospitalController = {
         },
         {
           $addFields: {
-            departmentObjId: { $toObjectId: '$department' },
+            departmentObjId: { $toObjectId: "$department" },
           },
         },
         {
           $lookup: {
-            from: 'adddoctors',
-            localField: 'veterinarian',
-            foreignField: 'userId',
-            as: 'doctorInfo',
+            from: "adddoctors",
+            localField: "veterinarian",
+            foreignField: "userId",
+            as: "doctorInfo",
           },
         },
         {
           $lookup: {
-            from: 'departments',
-            localField: 'departmentObjId',
-            foreignField: '_id',
-            as: 'departmentInfo',
+            from: "departments",
+            localField: "departmentObjId",
+            foreignField: "_id",
+            as: "departmentInfo",
           },
         },
         {
           $unwind: {
-            path: '$doctorInfo',
+            path: "$doctorInfo",
             preserveNullAndEmptyArrays: true,
           },
         },
         {
           $unwind: {
-            path: '$departmentInfo',
+            path: "$departmentInfo",
             preserveNullAndEmptyArrays: true,
           },
         },
@@ -637,18 +835,18 @@ const HospitalController = {
             purposeOfVisit: 1,
             appointmentDate: {
               $dateToString: {
-                format: '%d %b %Y',
-                date: { $toDate: '$appointmentDate' },
+                format: "%d %b %Y",
+                date: { $toDate: "$appointmentDate" },
               },
             },
             appointmentTime: 1,
             appointmentStatus: 1,
-            department: '$departmentInfo.departmentName',
+            department: "$departmentInfo.departmentName",
             veterinarian: {
               $concat: [
-                '$doctorInfo.personalInfo.firstName',
-                ' ',
-                '$doctorInfo.personalInfo.lastName',
+                "$doctorInfo.personalInfo.firstName",
+                " ",
+                "$doctorInfo.personalInfo.lastName",
               ],
             },
           },
@@ -663,19 +861,19 @@ const HospitalController = {
       if (!response.length) {
         return res
           .status(404)
-          .json({ message: 'No slots found for the doctor.' });
+          .json({ message: "No slots found for the doctor." });
       }
-
-      console.log(response, totalAppointments);
-      return res.status(200).json({
-        message: 'Data fetched successfully',
-        totalAppointments,
-        Appointments: response,
-      });
+      console.log({total: totalAppointments, totalAppointments:response});
+const data = AppointmentFHIRConverter.convertAppointments(
+  {total: totalAppointments, Appointments:response}
+)
+    
+      console.log("hellooooooooooooooooooooooooooooooooo",JSON.stringify(data));
+      return res.status(200).json(JSON.stringify(data));
     } catch (error) {
-      console.error('Error in getAppointmentsForDoctorDashboard:', error);
+      console.error("Error in getAppointmentsForDoctorDashboard:", error);
       return res.status(500).json({
-        message: 'An error occurred while fetching slots.',
+        message: "An error occurred while fetching slots.",
         error: error.message,
       });
     }
@@ -689,12 +887,12 @@ const HospitalController = {
         { userId },
         {
           _id: 0,
-          'address.addressLine1': 1,
-          'address.city': 1,
-          'address.street': 1,
-          'address.state': 1,
-          'address.zipCode': 1,
-          'address.email': 1,
+          "address.addressLine1": 1,
+          "address.city": 1,
+          "address.street": 1,
+          "address.state": 1,
+          "address.zipCode": 1,
+          "address.email": 1,
           phoneNumber: 1,
           businessName: 1,
           logo: 1,
@@ -704,7 +902,7 @@ const HospitalController = {
       );
 
       if (profileData?.logo) {
-        profileData.logo = s3.getSignedUrl('getObject', {
+        profileData.logo = s3.getSignedUrl("getObject", {
           Bucket: process.env.AWS_S3_BUCKET_NAME,
           Key: profileData.logo,
         });
@@ -716,13 +914,13 @@ const HospitalController = {
         },
         {
           $lookup: {
-            from: 'adddoctors',
-            let: { deptId: { $toString: '$_id' } },
+            from: "adddoctors",
+            let: { deptId: { $toString: "$_id" } },
             pipeline: [
               {
                 $match: {
                   $expr: {
-                    $eq: ['$professionalBackground.specialization', '$$deptId'],
+                    $eq: ["$professionalBackground.specialization", "$$deptId"],
                   },
                 },
               },
@@ -731,21 +929,21 @@ const HospitalController = {
                   _id: 0,
                   fullName: {
                     $concat: [
-                      { $ifNull: ['$personalInfo.firstName', ''] },
-                      ' ',
-                      { $ifNull: ['$personalInfo.lastName', ''] },
+                      { $ifNull: ["$personalInfo.firstName", ""] },
+                      " ",
+                      { $ifNull: ["$personalInfo.lastName", ""] },
                     ],
                   },
                 },
               },
             ],
-            as: 'doctors',
+            as: "doctors",
           },
         },
         {
           $addFields: {
-            doctorCount: { $size: '$doctors' },
-            doctorNames: '$doctors.fullName',
+            doctorCount: { $size: "$doctors" },
+            doctorNames: "$doctors.fullName",
           },
         },
         {
@@ -761,15 +959,15 @@ const HospitalController = {
         },
       ]);
 
-      console.log('Response:', departmentData, 'Profile Data:', profileData);
+      console.log("Response:", departmentData, "Profile Data:", profileData);
 
       res.status(200).json({
         profile: profileData,
         departments: departmentData,
       });
     } catch (error) {
-      console.error('Error getting department data:', error);
-      res.status(500).json({ message: 'Internal server error' });
+      console.error("Error getting department data:", error);
+      res.status(500).json({ message: "Internal server error" });
     }
   },
   saveVisibility: async (req, res) => {
@@ -777,7 +975,7 @@ const HospitalController = {
       const { facilitys, selectedServices, selectedDepartments, images } =
         req.body;
       const { userId } = req.query;
-      console.log('req.body;', req.body);
+      console.log("req.body;", req.body);
       // Delete the old data for the given hospitalId (or another identifier)
       await ProfileVisibility.deleteOne({ hospitalId: userId });
 
@@ -794,7 +992,7 @@ const HospitalController = {
       await profileVisibility.save();
       res.status(201).json(profileVisibility);
     } catch (error) {
-      console.error('Error saving visibility:', error);
+      console.error("Error saving visibility:", error);
       res.status(400).json({ message: error.message });
     }
   },
@@ -810,7 +1008,7 @@ const HospitalController = {
         res.status(200).json(visibilityData);
       }
     } catch (error) {
-      console.error('Error getting visibility:', error);
+      console.error("Error getting visibility:", error);
     }
   },
 
@@ -824,13 +1022,13 @@ const HospitalController = {
       console.log(pageNumber, limitNumber, skip, userId);
 
       const daysMap = {
-        1: 'Sunday',
-        2: 'Monday',
-        3: 'Tuesday',
-        4: 'Wednesday',
-        5: 'Thursday',
-        6: 'Friday',
-        7: 'Saturday',
+        1: "Sunday",
+        2: "Monday",
+        3: "Tuesday",
+        4: "Wednesday",
+        5: "Thursday",
+        6: "Friday",
+        7: "Saturday",
       };
 
       // Get total count of confirmed appointments
@@ -848,43 +1046,43 @@ const HospitalController = {
         }, // Only confirmed appointments
         {
           $addFields: {
-            departmentObjId: { $toObjectId: '$department' },
+            departmentObjId: { $toObjectId: "$department" },
             parsedAppointmentDate: {
-              $dateFromString: { dateString: '$appointmentDate' },
+              $dateFromString: { dateString: "$appointmentDate" },
             },
           },
         },
         {
           $lookup: {
-            from: 'adddoctors',
-            localField: 'veterinarian',
-            foreignField: 'userId',
-            as: 'doctorInfo',
+            from: "adddoctors",
+            localField: "veterinarian",
+            foreignField: "userId",
+            as: "doctorInfo",
           },
         },
         {
           $lookup: {
-            from: 'departments',
-            localField: 'departmentObjId',
-            foreignField: '_id',
-            as: 'departmentInfo',
+            from: "departments",
+            localField: "departmentObjId",
+            foreignField: "_id",
+            as: "departmentInfo",
           },
         },
-        { $unwind: { path: '$doctorInfo', preserveNullAndEmptyArrays: true } },
+        { $unwind: { path: "$doctorInfo", preserveNullAndEmptyArrays: true } },
         {
           $unwind: {
-            path: '$departmentInfo',
+            path: "$departmentInfo",
             preserveNullAndEmptyArrays: true,
           },
         },
         {
           $addFields: {
-            dayOfWeek: { $dayOfWeek: '$parsedAppointmentDate' },
+            dayOfWeek: { $dayOfWeek: "$parsedAppointmentDate" },
             formattedDate: {
               $dateToString: {
-                format: '%d %b',
-                date: '$parsedAppointmentDate',
-                timezone: 'UTC',
+                format: "%d %b",
+                date: "$parsedAppointmentDate",
+                timezone: "UTC",
               },
             },
           },
@@ -894,17 +1092,17 @@ const HospitalController = {
             _id: 1,
             userId: 1,
             hospitalId: 1,
-            appointmentDate: '$formattedDate',
-            appointmentDay: '$dayOfWeek',
+            appointmentDate: "$formattedDate",
+            appointmentDay: "$dayOfWeek",
             appointmentTime: 1,
             ownerName: 1,
             petName: 1,
-            department: '$departmentInfo.departmentName',
+            department: "$departmentInfo.departmentName",
             veterinarian: {
               $concat: [
-                '$doctorInfo.personalInfo.firstName',
-                ' ',
-                '$doctorInfo.personalInfo.lastName',
+                "$doctorInfo.personalInfo.firstName",
+                " ",
+                "$doctorInfo.personalInfo.lastName",
               ],
             },
           },
@@ -926,7 +1124,7 @@ const HospitalController = {
       const totalPages = Math.ceil(totalCount / limitNumber);
 
       res.status(200).json({
-        status: 'Confirmed',
+        status: "Confirmed",
         page: pageNumber,
         limit: limitNumber,
         totalPages,
@@ -935,8 +1133,8 @@ const HospitalController = {
         appointments: formattedAppointments,
       });
     } catch (error) {
-      console.error('Error getting confirmed appointments:', error);
-      res.status(500).json({ message: 'Internal server error' });
+      console.error("Error getting confirmed appointments:", error);
+      res.status(500).json({ message: "Internal server error" });
     }
   },
   getCompletedAppointments: async (req, res) => {
@@ -947,13 +1145,13 @@ const HospitalController = {
       const skip = (pageNumber - 1) * limitNumber;
 
       const daysMap = {
-        1: 'Sunday',
-        2: 'Monday',
-        3: 'Tuesday',
-        4: 'Wednesday',
-        5: 'Thursday',
-        6: 'Friday',
-        7: 'Saturday',
+        1: "Sunday",
+        2: "Monday",
+        3: "Tuesday",
+        4: "Wednesday",
+        5: "Thursday",
+        6: "Friday",
+        7: "Saturday",
       };
       const totalCount = await webAppointments.countDocuments({
         $or: [{ veterinarian: userId }, { hospitalId: userId }],
@@ -968,43 +1166,43 @@ const HospitalController = {
         }, // Only confirmed appointments
         {
           $addFields: {
-            departmentObjId: { $toObjectId: '$department' },
+            departmentObjId: { $toObjectId: "$department" },
             parsedAppointmentDate: {
-              $dateFromString: { dateString: '$appointmentDate' },
+              $dateFromString: { dateString: "$appointmentDate" },
             },
           },
         },
         {
           $lookup: {
-            from: 'adddoctors',
-            localField: 'veterinarian',
-            foreignField: 'userId',
-            as: 'doctorInfo',
+            from: "adddoctors",
+            localField: "veterinarian",
+            foreignField: "userId",
+            as: "doctorInfo",
           },
         },
         {
           $lookup: {
-            from: 'departments',
-            localField: 'departmentObjId',
-            foreignField: '_id',
-            as: 'departmentInfo',
+            from: "departments",
+            localField: "departmentObjId",
+            foreignField: "_id",
+            as: "departmentInfo",
           },
         },
-        { $unwind: { path: '$doctorInfo', preserveNullAndEmptyArrays: true } },
+        { $unwind: { path: "$doctorInfo", preserveNullAndEmptyArrays: true } },
         {
           $unwind: {
-            path: '$departmentInfo',
+            path: "$departmentInfo",
             preserveNullAndEmptyArrays: true,
           },
         },
         {
           $addFields: {
-            dayOfWeek: { $dayOfWeek: '$parsedAppointmentDate' },
+            dayOfWeek: { $dayOfWeek: "$parsedAppointmentDate" },
             formattedDate: {
               $dateToString: {
-                format: '%d %b',
-                date: '$parsedAppointmentDate',
-                timezone: 'UTC',
+                format: "%d %b",
+                date: "$parsedAppointmentDate",
+                timezone: "UTC",
               },
             },
           },
@@ -1014,17 +1212,17 @@ const HospitalController = {
             _id: 1,
             userId: 1,
             hospitalId: 1,
-            appointmentDate: '$formattedDate',
-            appointmentDay: '$dayOfWeek',
+            appointmentDate: "$formattedDate",
+            appointmentDay: "$dayOfWeek",
             appointmentTime: 1,
             ownerName: 1,
             petName: 1,
-            department: '$departmentInfo.departmentName',
+            department: "$departmentInfo.departmentName",
             veterinarian: {
               $concat: [
-                '$doctorInfo.personalInfo.firstName',
-                ' ',
-                '$doctorInfo.personalInfo.lastName',
+                "$doctorInfo.personalInfo.firstName",
+                " ",
+                "$doctorInfo.personalInfo.lastName",
               ],
             },
           },
@@ -1045,7 +1243,7 @@ const HospitalController = {
       const totalPages = Math.ceil(totalCount / limitNumber);
 
       res.status(200).json({
-        status: 'Confirmed',
+        status: "Confirmed",
         page: pageNumber,
         limit: limitNumber,
         totalPages,
@@ -1054,8 +1252,8 @@ const HospitalController = {
         appointments: formattedAppointments,
       });
     } catch (error) {
-      console.error('Error getting completed appointments:', error);
-      res.status(500).json({ message: 'Internal server error' });
+      console.error("Error getting completed appointments:", error);
+      res.status(500).json({ message: "Internal server error" });
     }
   },
   getCanceledAppointments: async (req, res) => {
@@ -1066,13 +1264,13 @@ const HospitalController = {
       const skip = (pageNumber - 1) * limitNumber;
 
       const daysMap = {
-        1: 'Sunday',
-        2: 'Monday',
-        3: 'Tuesday',
-        4: 'Wednesday',
-        5: 'Thursday',
-        6: 'Friday',
-        7: 'Saturday',
+        1: "Sunday",
+        2: "Monday",
+        3: "Tuesday",
+        4: "Wednesday",
+        5: "Thursday",
+        6: "Friday",
+        7: "Saturday",
       };
       const totalCount = await webAppointments.countDocuments({
         $or: [{ veterinarian: userId }, { hospitalId: userId }],
@@ -1087,43 +1285,43 @@ const HospitalController = {
         }, // Only confirmed appointments
         {
           $addFields: {
-            departmentObjId: { $toObjectId: '$department' },
+            departmentObjId: { $toObjectId: "$department" },
             parsedAppointmentDate: {
-              $dateFromString: { dateString: '$appointmentDate' },
+              $dateFromString: { dateString: "$appointmentDate" },
             },
           },
         },
         {
           $lookup: {
-            from: 'adddoctors',
-            localField: 'veterinarian',
-            foreignField: 'userId',
-            as: 'doctorInfo',
+            from: "adddoctors",
+            localField: "veterinarian",
+            foreignField: "userId",
+            as: "doctorInfo",
           },
         },
         {
           $lookup: {
-            from: 'departments',
-            localField: 'departmentObjId',
-            foreignField: '_id',
-            as: 'departmentInfo',
+            from: "departments",
+            localField: "departmentObjId",
+            foreignField: "_id",
+            as: "departmentInfo",
           },
         },
-        { $unwind: { path: '$doctorInfo', preserveNullAndEmptyArrays: true } },
+        { $unwind: { path: "$doctorInfo", preserveNullAndEmptyArrays: true } },
         {
           $unwind: {
-            path: '$departmentInfo',
+            path: "$departmentInfo",
             preserveNullAndEmptyArrays: true,
           },
         },
         {
           $addFields: {
-            dayOfWeek: { $dayOfWeek: '$parsedAppointmentDate' },
+            dayOfWeek: { $dayOfWeek: "$parsedAppointmentDate" },
             formattedDate: {
               $dateToString: {
-                format: '%d %b',
-                date: '$parsedAppointmentDate',
-                timezone: 'UTC',
+                format: "%d %b",
+                date: "$parsedAppointmentDate",
+                timezone: "UTC",
               },
             },
           },
@@ -1133,17 +1331,17 @@ const HospitalController = {
             _id: 1,
             userId: 1,
             hospitalId: 1,
-            appointmentDate: '$formattedDate',
-            appointmentDay: '$dayOfWeek',
+            appointmentDate: "$formattedDate",
+            appointmentDay: "$dayOfWeek",
             appointmentTime: 1,
             ownerName: 1,
             petName: 1,
-            department: '$departmentInfo.departmentName',
+            department: "$departmentInfo.departmentName",
             veterinarian: {
               $concat: [
-                '$doctorInfo.personalInfo.firstName',
-                ' ',
-                '$doctorInfo.personalInfo.lastName',
+                "$doctorInfo.personalInfo.firstName",
+                " ",
+                "$doctorInfo.personalInfo.lastName",
               ],
             },
           },
@@ -1164,7 +1362,7 @@ const HospitalController = {
       const totalPages = Math.ceil(totalCount / limitNumber);
 
       res.status(200).json({
-        status: 'Confirmed',
+        status: "Confirmed",
         page: pageNumber,
         limit: limitNumber,
         totalPages,
@@ -1173,8 +1371,8 @@ const HospitalController = {
         appointments: formattedAppointments,
       });
     } catch (error) {
-      console.error('Error getting completed appointments:', error);
-      res.status(500).json({ message: 'Internal server error' });
+      console.error("Error getting completed appointments:", error);
+      res.status(500).json({ message: "Internal server error" });
     }
   },
   getUpcomingAppointments: async (req, res) => {
@@ -1185,13 +1383,13 @@ const HospitalController = {
       const skip = (pageNumber - 1) * limitNumber;
 
       const daysMap = {
-        1: 'Sunday',
-        2: 'Monday',
-        3: 'Tuesday',
-        4: 'Wednesday',
-        5: 'Thursday',
-        6: 'Friday',
-        7: 'Saturday',
+        1: "Sunday",
+        2: "Monday",
+        3: "Tuesday",
+        4: "Wednesday",
+        5: "Thursday",
+        6: "Friday",
+        7: "Saturday",
       };
       const totalCount = await webAppointments.countDocuments({
         $or: [{ veterinarian: userId }, { hospitalId: userId }],
@@ -1206,43 +1404,43 @@ const HospitalController = {
         }, // Only confirmed appointments
         {
           $addFields: {
-            departmentObjId: { $toObjectId: '$department' },
+            departmentObjId: { $toObjectId: "$department" },
             parsedAppointmentDate: {
-              $dateFromString: { dateString: '$appointmentDate' },
+              $dateFromString: { dateString: "$appointmentDate" },
             },
           },
         },
         {
           $lookup: {
-            from: 'adddoctors',
-            localField: 'veterinarian',
-            foreignField: 'userId',
-            as: 'doctorInfo',
+            from: "adddoctors",
+            localField: "veterinarian",
+            foreignField: "userId",
+            as: "doctorInfo",
           },
         },
         {
           $lookup: {
-            from: 'departments',
-            localField: 'departmentObjId',
-            foreignField: '_id',
-            as: 'departmentInfo',
+            from: "departments",
+            localField: "departmentObjId",
+            foreignField: "_id",
+            as: "departmentInfo",
           },
         },
-        { $unwind: { path: '$doctorInfo', preserveNullAndEmptyArrays: true } },
+        { $unwind: { path: "$doctorInfo", preserveNullAndEmptyArrays: true } },
         {
           $unwind: {
-            path: '$departmentInfo',
+            path: "$departmentInfo",
             preserveNullAndEmptyArrays: true,
           },
         },
         {
           $addFields: {
-            dayOfWeek: { $dayOfWeek: '$parsedAppointmentDate' },
+            dayOfWeek: { $dayOfWeek: "$parsedAppointmentDate" },
             formattedDate: {
               $dateToString: {
-                format: '%d %b',
-                date: '$parsedAppointmentDate',
-                timezone: 'UTC',
+                format: "%d %b",
+                date: "$parsedAppointmentDate",
+                timezone: "UTC",
               },
             },
           },
@@ -1252,17 +1450,17 @@ const HospitalController = {
             _id: 1,
             userId: 1,
             hospitalId: 1,
-            appointmentDate: '$formattedDate',
-            appointmentDay: '$dayOfWeek',
+            appointmentDate: "$formattedDate",
+            appointmentDay: "$dayOfWeek",
             appointmentTime: 1,
             ownerName: 1,
             petName: 1,
-            department: '$departmentInfo.departmentName',
+            department: "$departmentInfo.departmentName",
             veterinarian: {
               $concat: [
-                '$doctorInfo.personalInfo.firstName',
-                ' ',
-                '$doctorInfo.personalInfo.lastName',
+                "$doctorInfo.personalInfo.firstName",
+                " ",
+                "$doctorInfo.personalInfo.lastName",
               ],
             },
           },
@@ -1283,7 +1481,7 @@ const HospitalController = {
       const totalPages = Math.ceil(totalCount / limitNumber);
 
       res.status(200).json({
-        status: 'Confirmed',
+        status: "Confirmed",
         page: pageNumber,
         limit: limitNumber,
         totalPages,
@@ -1292,8 +1490,8 @@ const HospitalController = {
         appointments: formattedAppointments,
       });
     } catch (error) {
-      console.error('Error getting completed appointments:', error);
-      res.status(500).json({ message: 'Internal server error' });
+      console.error("Error getting completed appointments:", error);
+      res.status(500).json({ message: "Internal server error" });
     }
   },
 
@@ -1308,7 +1506,7 @@ const HospitalController = {
       const startDate = new Date();
       startDate.setDate(endDate.getDate() - (days - 1));
 
-      console.log('Hospital ID:', userId, search);
+      console.log("Hospital ID:", userId, search);
 
       // Base pipeline (without pagination)
       const basePipeline = [
@@ -1321,30 +1519,30 @@ const HospitalController = {
         },
         {
           $group: {
-            _id: '$veterinarian',
-            department: { $first: '$department' },
+            _id: "$veterinarian",
+            department: { $first: "$department" },
             totalAppointments: { $sum: 1 },
           },
         },
-        { $addFields: { departmentId: { $toObjectId: '$department' } } },
+        { $addFields: { departmentId: { $toObjectId: "$department" } } },
         {
           $lookup: {
-            from: 'adddoctors',
-            localField: '_id',
-            foreignField: 'userId',
-            as: 'doctorInfo',
+            from: "adddoctors",
+            localField: "_id",
+            foreignField: "userId",
+            as: "doctorInfo",
           },
         },
-        { $unwind: '$doctorInfo' },
+        { $unwind: "$doctorInfo" },
         {
           $lookup: {
-            from: 'departments',
-            localField: 'departmentId',
-            foreignField: '_id',
-            as: 'departmentInfo',
+            from: "departments",
+            localField: "departmentId",
+            foreignField: "_id",
+            as: "departmentInfo",
           },
         },
-        { $unwind: '$departmentInfo' },
+        { $unwind: "$departmentInfo" },
       ];
 
       // Search filter
@@ -1353,15 +1551,15 @@ const HospitalController = {
           $match: {
             $or: [
               {
-                'doctorInfo.personalInfo.firstName': {
+                "doctorInfo.personalInfo.firstName": {
                   $regex: search,
-                  $options: 'i',
+                  $options: "i",
                 },
               },
               {
-                'doctorInfo.personalInfo.lastName': {
+                "doctorInfo.personalInfo.lastName": {
                   $regex: search,
-                  $options: 'i',
+                  $options: "i",
                 },
               },
             ],
@@ -1370,28 +1568,28 @@ const HospitalController = {
       }
 
       // Count total documents
-      const countPipeline = [...basePipeline, { $count: 'totalCount' }];
+      const countPipeline = [...basePipeline, { $count: "totalCount" }];
       const totalDocs = await webAppointments.aggregate(countPipeline);
       const totalCount = totalDocs.length > 0 ? totalDocs[0].totalCount : 0;
 
       // Apply sorting and pagination
       const paginationPipeline = [
-        { $sort: { 'doctorInfo.personalInfo.firstName': 1 } },
+        { $sort: { "doctorInfo.personalInfo.firstName": 1 } },
         { $skip: (pageNumber - 1) * pageSize },
         { $limit: pageSize },
         {
           $project: {
             _id: 0,
-            doctorId: '$_id',
+            doctorId: "$_id",
             doctorName: {
               $concat: [
-                '$doctorInfo.personalInfo.firstName',
-                ' ',
-                '$doctorInfo.personalInfo.lastName',
+                "$doctorInfo.personalInfo.firstName",
+                " ",
+                "$doctorInfo.personalInfo.lastName",
               ],
             },
-            image: { $concat: [S3_BASE_URL, '$doctorInfo.personalInfo.image'] },
-            department: '$departmentInfo.departmentName',
+            image: { $concat: [S3_BASE_URL, "$doctorInfo.personalInfo.image"] },
+            department: "$departmentInfo.departmentName",
             totalAppointments: 1,
           },
         },
@@ -1411,201 +1609,271 @@ const HospitalController = {
         totalCount,
       });
     } catch (error) {
-      console.error('Error getting total appointments:', error);
-      res.status(500).json({ message: 'Internal server error' });
+      console.error("Error getting total appointments:", error);
+      res.status(500).json({ message: "Internal server error" });
     }
   },
-  hospitalDashboard: async (req, res) => {
-    try {
-       const { subject, reportType } = req.query;
-
-  if (!subject || !reportType) {
-    return res.status(400).json({ message: "Missing required query parameters" });
-  }
-  // Extract Organization ID from `subject=Organization/12345`
-  const match = subject.match(/^Organization\/(.+)$/);
-  if (!match) {
-    return res.status(400).json({ 
-      resourceType: 'OperationOutcome',
-      reportType: reportType,
-      issue: [
-          {
-              severity: 'error',
-              code: 'invalid-subject',
-              details: {
-                text: 'Invalid subject format. Expected Organization/12345',
-              },
-          }]
-     });
-  }
-  
-  const userId = match[1];
-
-
-      const {  LastDays = 7 } = req.query;
-      const days = parseInt(LastDays, 10) || 7;
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(endDate.getDate() - (days - 1));
-
-      // Convert to "YYYY-MM-DD" format
-      const formatDate = (date) => date.toISOString().split('T')[0];
-
-      const formattedStartDate = formatDate(startDate);
-      const formattedEndDate = formatDate(endDate);
-      console.log('Hospital ID:', userId, formattedStartDate, formattedEndDate);
-
-      const appointmentCounts = await webAppointments.countDocuments({
-        hospitalId: userId,
-        isCanceled: 5,
-        appointmentDate: { $gte: formattedStartDate, $lte: formattedEndDate }, // Compare strings
-      });
-
-      const totalDoctors = await AddDoctors.countDocuments({
-        bussinessId: userId,
-      });
-      const totalDepartments = await Department.countDocuments({
-        bussinessId: userId,
-      });
-      const data = new FHIRConverter({
-        totalDoctors,
-        totalDepartments,
-        appointmentCounts,
-      }).overviewConvertToFHIR();
-      res.status(200).json(JSON.stringify(data));
-      
-    } catch (error) {
-      console.error('Error getting hospital dashboard data:', error);
-      res
-        .status(500)
-        .json({
-          resourceType: 'OperationOutcome',
-          issue:[
-            {
-              severity: 'error',
-              code: 'exception',
-              details: {
-                text: error.message,
-              },
-            }
-          ]
-        });
-    }
-  },
+  // hospitalDashboard: async (req, res) => {
+   
+  // },
   getAppointmentsForHospitalDashboard: async (req, res) => {
-    try {
-      const { hospitalId, offset = 0, limit = 5 } = req.query;
-      console.log(req.query);
-
-      const parsedOffset = parseInt(offset, 10);
-      const parsedLimit = parseInt(limit, 10);
-
-      const response = await webAppointments.aggregate([
-        {
-          $match: {
-            hospitalId: hospitalId, // Filter by hospital ID
-            isCanceled: { $eq: 0 }, // Exclude canceled appointments
-          },
-        },
-        {
-          $addFields: {
-            departmentObjId: { $toObjectId: '$department' },
-          },
-        },
-        {
-          $lookup: {
-            from: 'adddoctors',
-            localField: 'veterinarian',
-            foreignField: 'userId',
-            as: 'doctorInfo',
-          },
-        },
-        {
-          $lookup: {
-            from: 'departments',
-            localField: 'departmentObjId',
-            foreignField: '_id',
-            as: 'departmentInfo',
-          },
-        },
-        {
-          $unwind: {
-            path: '$doctorInfo',
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-        {
-          $unwind: {
-            path: '$departmentInfo',
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-        {
-          $facet: {
-            metadata: [{ $count: 'total' }],
-            data: [{ $skip: parsedOffset }, { $limit: parsedLimit }],
-          },
-        },
-        {
-          $project: {
-            total: { $arrayElemAt: ['$metadata.total', 0] },
-            Appointments: {
-              $map: {
-                input: '$data',
-                as: 'appointment',
-                in: {
-                  _id: '$$appointment._id',
-                  tokenNumber: '$$appointment.tokenNumber',
-                  petName: '$$appointment.petName',
-                  ownerName: '$$appointment.ownerName',
-                  slotsId: '$$appointment.slotsId',
-                  petType: '$$appointment.petType',
-                  breed: '$$appointment.breed',
-                  purposeOfVisit: '$$appointment.purposeOfVisit',
-                  appointmentDate: {
-                    $dateToString: {
-                      format: '%d %b %Y',
-                      date: { $toDate: '$$appointment.appointmentDate' },
+   const {type} = req.query
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HOSPITAL DASHBOARD APPOINTMENT LIST >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  //  console.log("type:", type);
+   switch (type) {
+    case "AppointmentLists": 
+      if(req.method === "GET"){
+        try {
+          const { organization, offset = 0, limit = 5 } = req.query;
+          console.log(req.query);
+    
+          const hospitalId = organization.split("/")[1];
+    
+    
+          // console.log("hospitalId",hospitalId)
+    
+          const parsedOffset = parseInt(offset, 10);
+          const parsedLimit = parseInt(limit, 10);
+    
+          const response = await webAppointments.aggregate([
+            {
+              $match: {
+                hospitalId: hospitalId, // Filter by hospital ID
+                isCanceled: { $eq: 0 }, // Exclude canceled appointments
+              },
+            },
+            {
+              $addFields: {
+                departmentObjId: { $toObjectId: "$department" },
+              },
+            },
+            {
+              $lookup: {
+                from: "adddoctors",
+                localField: "veterinarian",
+                foreignField: "userId",
+                as: "doctorInfo",
+              },
+            },
+            {
+              $lookup: {
+                from: "departments",
+                localField: "departmentObjId",
+                foreignField: "_id",
+                as: "departmentInfo",
+              },
+            },
+            {
+              $unwind: {
+                path: "$doctorInfo",
+                preserveNullAndEmptyArrays: true,
+              },
+            },
+            {
+              $unwind: {
+                path: "$departmentInfo",
+                preserveNullAndEmptyArrays: true,
+              },
+            },
+            {
+              $facet: {
+                metadata: [{ $count: "total" }],
+                data: [{ $skip: parsedOffset }, { $limit: parsedLimit }],
+              },
+            },
+            {
+              $project: {
+                total: { $arrayElemAt: ["$metadata.total", 0] },
+                Appointments: {
+                  $map: {
+                    input: "$data",
+                    as: "appointment",
+                    in: {
+                      _id: "$$appointment._id",
+                      tokenNumber: "$$appointment.tokenNumber",
+                      petName: "$$appointment.petName",
+                      ownerName: "$$appointment.ownerName",
+                      slotsId: "$$appointment.slotsId",
+                      petType: "$$appointment.petType",
+                      breed: "$$appointment.breed",
+                      purposeOfVisit: "$$appointment.purposeOfVisit",
+                      appointmentDate: {
+                        $dateToString: {
+                          format: "%d %b %Y",
+                          date: { $toDate: "$$appointment.appointmentDate" },
+                        },
+                      },
+                      appointmentTime: "$$appointment.appointmentTime",
+                      appointmentStatus: "$$appointment.appointmentStatus",
+                      department: "$$appointment.departmentInfo.departmentName",
+                      veterinarian: {
+                        $concat: [
+                          "$$appointment.doctorInfo.personalInfo.firstName",
+                          " ",
+                          "$$appointment.doctorInfo.personalInfo.lastName",
+                        ],
+                      },
                     },
-                  },
-                  appointmentTime: '$$appointment.appointmentTime',
-                  appointmentStatus: '$$appointment.appointmentStatus',
-                  department: '$$appointment.departmentInfo.departmentName',
-                  veterinarian: {
-                    $concat: [
-                      '$$appointment.doctorInfo.personalInfo.firstName',
-                      ' ',
-                      '$$appointment.doctorInfo.personalInfo.lastName',
-                    ],
                   },
                 },
               },
             },
-          },
-        },
-      ]);
-
-      if (!response.length || !response[0].Appointments.length) {
-        return res
-          .status(404)
-          .json({ message: 'No slots found for the hospital.' });
+          ]);
+    
+          if (!response.length || !response[0].Appointments.length) {
+            return res
+              .status(404)
+              .json({ message: "No slots found for the hospital." });
+          }
+          console.log(
+            "totalAppointments",
+            response[0],
+           
+          );
+    
+          const data = AppointmentFHIRConverter.convertAppointments(
+            response[0]
+          );
+    
+          console.log("data", JSON.stringify(data, null, 2));
+    
+          console.log("validator", validateFHIR(data));
+    
+          return res.status(200).json(data);
+        } catch (error) {
+          console.error("Error in getAppointmentsForHospitalDashboard:", error);
+          return res.status(500).json({
+            message: "An error occurred while fetching slots.",
+            error: error.message,
+          });
+        }
       }
+    
+    break;
+    case "PatientsInQueue":
+      if(req.method === "GET"){
+        try {
+          const { organization, offset = 0, limit = 10 } = req.query;
+          const parsedOffset = parseInt(offset);
+          const parsedLimit = parseInt(limit);
+          const currentDate = new Date().toISOString().split("T")[0];
+    const userId = organization.split("/")[1]
+          const response = await webAppointments.aggregate([
+            {
+              $match: {
+                hospitalId: userId,
+                appointmentDate: currentDate,
+              },
+            },
+            {
+              $addFields: {
+                departmentObjId: { $toObjectId: "$department" },
+              },
+            },
+            {
+              $lookup: {
+                from: "adddoctors",
+                localField: "veterinarian",
+                foreignField: "userId",
+                as: "doctorInfo",
+              },
+            },
+            {
+              $lookup: {
+                from: "departments",
+                localField: "departmentObjId",
+                foreignField: "_id",
+                as: "departmentInfo",
+              },
+            },
+            {
+              $unwind: {
+                path: "$doctorInfo",
+                preserveNullAndEmptyArrays: true,
+              },
+            },
+            {
+              $unwind: {
+                path: "$departmentInfo",
+                preserveNullAndEmptyArrays: true,
+              },
+            },
+            {
+              $sort: { appointmentDate: 1 }, // Sort by appointment date (optional)
+            },
+            {
+              $skip: parsedOffset,
+            },
+            {
+              $limit: parsedLimit,
+            },
+            {
+              $project: {
+                _id: 1,
+                petName: 1,
+                tokenNumber: 1,
+                ownerName: 1,
+                slotsId: 1,
+                petType: 1,
+                breed: 1,
+                appointmentSource: 1,
+                isCanceled: 1,
+                purposeOfVisit: 1,
+                appointmentDate: {
+                  $dateToString: {
+                    format: "%d %b %Y",
+                    date: { $toDate: "$appointmentDate" },
+                  },
+                },
+                appointmentTime: 1,
+                appointmentStatus: 1,
+                department: "$departmentInfo.departmentName",
+                veterinarian: {
+                  $concat: [
+                    "$doctorInfo.personalInfo.firstName",
+                    " ",
+                    "$doctorInfo.personalInfo.lastName",
+                  ],
+                },
+              },
+            },
+          ]);
+    
+          const totalAppointments = await webAppointments.countDocuments({
+            hospitalId: userId,
+            appointmentDate: currentDate,
+          });
+    
+          if (!response.length) {
+            return res
+              .status(404)
+              .json({ message: "No slots found for the doctor." });
+          }
+          console.log({total: totalAppointments, totalAppointments:response});
+    const data = AppointmentFHIRConverter.convertAppointments(
+      {total: totalAppointments, Appointments:response}
+    )
+        
+          console.log("hellooooooooooooooooooooooooooooooooo",JSON.stringify(data));
+          return res.status(200).json(JSON.stringify(data));
+        } catch (error) {
+          console.error("Error in getAppointmentsForDoctorDashboard:", error);
+          return res.status(500).json({
+            message: "An error occurred while fetching slots.",
+            error: error.message,
+          });
+        }
+      }
+   }
+   
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NEXT CASES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-      return res.status(200).json({
-        message: 'Data fetched successfully',
-        totalAppointments: response[0].total || 0,
-        Appointments: response[0].Appointments,
-      });
-    } catch (error) {
-      console.error('Error in getAppointmentsForHospitalDashboard:', error);
-      return res.status(500).json({
-        message: 'An error occurred while fetching slots.',
-        error: error.message,
-      });
-    }
+
+
+
   },
 
-  // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Message>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Message>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
   getMessages: async (req, res) => {
     try {
       const { senderId, receiverId, page = 1, limit = 10 } = req.query;
@@ -1636,9 +1904,9 @@ const HospitalController = {
             time: 1,
             fileUrl: {
               $cond: {
-                if: { $ne: ['$fileUrl', ''] },
-                then: { $concat: [S3_BASE_URL, '$fileUrl'] },
-                else: '',
+                if: { $ne: ["$fileUrl", ""] },
+                then: { $concat: [S3_BASE_URL, "$fileUrl"] },
+                else: "",
               },
             },
           },
@@ -1656,8 +1924,8 @@ const HospitalController = {
 
       res.status(200).json({ messages, hasMore });
     } catch (error) {
-      console.error('Error in getMessages:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      console.error("Error in getMessages:", error);
+      res.status(500).json({ error: "Internal server error" });
     }
   },
 };

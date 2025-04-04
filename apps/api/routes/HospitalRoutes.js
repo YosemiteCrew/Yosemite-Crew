@@ -21,7 +21,7 @@ router.get(
   '/AppointmentGraphOnMonthBase',verifyTokenAndRefresh,
   HospitalController.AppointmentGraphOnMonthBase
 );
-router.get('/WaitingRoomOverView',verifyTokenAndRefresh, HospitalController.WaitingRoomOverView);
+
 router.get(
   '/WaittingRoomOverViewPatientInQueue',verifyTokenAndRefresh,
   HospitalController.WaittingRoomOverViewPatientInQueue
@@ -37,8 +37,11 @@ router.get('/getCompletedAppointments',verifyTokenAndRefresh, HospitalController
 router.get('/getCanceledAppointments',verifyTokenAndRefresh, HospitalController.getCanceledAppointments);
 router.get('/getUpcomingAppointments',verifyTokenAndRefresh, HospitalController.getUpcomingAppointments);
 router.get('/getDoctorsTotalAppointments',verifyTokenAndRefresh,HospitalController.getDoctorsTotalAppointments)
-router.get('/MeasureReport/hospitalDashboard',verifyTokenAndRefresh, HospitalController.hospitalDashboard);
-router.get("/getAppointmentsForHospitalDashboard",verifyTokenAndRefresh,HospitalController.getAppointmentsForHospitalDashboard)
+// router.get('/MeasureReport/hospitalDashboard',verifyTokenAndRefresh, HospitalController.hospitalDashboard);
+
+router.all("/Appointment",verifyTokenAndRefresh,HospitalController.getAppointmentsForHospitalDashboard)
+router.all('/MeasureReport',verifyTokenAndRefresh, HospitalController.WaitingRoomOverView);
+
 router.get('/getMessages',verifyTokenAndRefresh,HospitalController.getMessages)
 
 module.exports = router;
