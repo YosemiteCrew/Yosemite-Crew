@@ -11,145 +11,215 @@ const adddoctors  = require('../models/addDoctor');
 const departments = require('../models/AddDepartment');
 const yoshpets = require('../models/YoshPet');
 const { ProfileData }= require('../models/WebUser');
-const { v4: uuidv4 } = require('uuid');
-
-
+const { v4: uuidv4 } = require('uuid'); // for FHIR resource id
 
 async function handleBookAppointment(req, res) {
-    
-    const token = req.headers.authorization.split(' ')[1]; // Extract token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET); // Verify token
-    const userId = decoded.username; // Get user ID from token
-    const appointDate = req.body.appointmentDate;
-    const purposeOfVisit = req.body.purposeOfVisit;
-    const dateObj = new Date(appointDate);
+  try {
+    const token = req.headers.authorization.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded.username;
+
+    const {
+      appointmentDate,
+      purposeOfVisit,
+      hospitalId,
+      department,
+      doctorId,
+      petId,
+      slotsId,
+      timeslot,
+      concernOfVisit,
+    } = req.body;
+
+    const dateObj = new Date(appointmentDate);
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const dayofweek = days[dateObj.getDay()];
-    const appointmentTime = req.body.timeslot;
-    const appointmentTime24 = convertTo24Hour(appointmentTime);
+    const appointmentTime24 = convertTo24Hour(timeslot);
+
     let imageUrls = '';
-    const { hospitalId,department,doctorId,petId, slotsId,concernOfVisit } = req.body;
-      if (req.files) {
-        const files = Array.isArray(req.files.files) ? req.files.files : [req.files.files];
-         imageUrls = await handleMultipleFileUpload(files);
-      }
-      const id = petId;
-     const petDetails =  await pet.findById(id);
-     const petOwner =  await YoshUser.find({cognitoId: userId});
-     
-    const addappointment = await webAppointments.create({
+    if (req.files) {
+      const files = Array.isArray(req.files.files) ? req.files.files : [req.files.files];
+      imageUrls = await handleMultipleFileUpload(files);
+    }
+
+    const petDetails = await pet.findById(petId);
+    const petOwner = await YoshUser.findOne({ cognitoId: userId });
+
+    const newAppointment = await webAppointments.create({
       userId,
       hospitalId,
       department,
       veterinarian: doctorId,
       petId,
-      ownerName: petOwner[0].firstName + ' ' + petOwner[0].lastName,
+      ownerName: `${petOwner.firstName} ${petOwner.lastName}`,
       petName: petDetails.petName,
       petAge: petDetails.petAge,
       petType: petDetails.petType,
       gender: petDetails.petGender,
       breed: petDetails.petBreed,
       day: dayofweek,
-      appointmentDate: appointDate,
+      appointmentDate,
       slotsId,
-      appointmentTime,
+      appointmentTime: timeslot,
       appointmentTime24,
       purposeOfVisit,
       concernOfVisit,
       appointmentSource: "App",
       document: imageUrls,
     });
-  
-    if (addappointment) {
-      res.status(200).json({
-        status: 1,
-        message: "Appointment Booked successfully",
-      });
-    }
+
+    // 📦 Return FHIR-compliant appointment
+    const fhirAppointment = {
+      resourceType: "Appointment",
+      id: uuidv4(),
+      status: "booked",
+      description: purposeOfVisit,
+      start: new Date(`${appointmentDate}T${appointmentTime24}`).toISOString(),
+      created: new Date().toISOString(),
+      reasonCode: [
+        {
+          text: concernOfVisit,
+        },
+      ],
+      participant: [
+        {
+          actor: {
+            reference: `Patient/${petId}`,
+            display: petDetails.petName,
+          },
+          status: "accepted",
+        },
+        {
+          actor: {
+            reference: `Practitioner/${doctorId}`,
+            display: "Veterinarian",
+          },
+          status: "accepted",
+        },
+      ],
+      supportingInformation: imageUrls
+        ? [
+            {
+              reference: imageUrls,
+              display: "Attached Documents",
+            },
+          ]
+        : [],
+    };
+
+    res.status(200).json(fhirAppointment);
+    console.log(fhirAppointment)
+
+  } catch (error) {
+    console.error("Appointment booking error:", error);
+    res.status(500).json({
+      status: 0,
+      message: "Internal server error",
+      error: error.message,
+    });
   }
-
-  async function handleGetAppointment(req, res) {
-    try {
-        const token = req.headers.authorization.split(' ')[1];
-        const cognitoUserId = jwt.verify(token, process.env.JWT_SECRET).username;
-        const today = new Date().toISOString().split("T")[0];
-
-        const allAppointments = await webAppointments.find({ userId: cognitoUserId }).lean();
-        const [confirmedAppointments, upcomingAppointments, pastAppointments] = [[], [], []];
-
-        const veterinarianIds = new Set(), petIds = new Set(), hospitalIds = new Set();
-
-        allAppointments.forEach(app => {
-            (app.appointmentStatus === 1 ? confirmedAppointments 
-                : app.appointmentDate >= today ? upcomingAppointments 
-                : pastAppointments).push(app);
-
-                // app.veterinarian && veterinarianIds.add(app.veterinarian);
-                // app.petId && petIds.add(app.petId);
-                // app.hospitalId && hospitalIds.add(app.hospitalId);
-            
-                if (app.veterinarian) veterinarianIds.add(app.veterinarian);
-                if (app.petId) petIds.add(app.petId);
-                if (app.hospitalId) hospitalIds.add(app.hospitalId);
-        });
-
-        const [veterinarians, pets, hospitals] = await Promise.all([
-            veterinarianIds.size ? adddoctors.find({ userId: { $in: [...veterinarianIds] } })
-                .select("userId personalInfo professionalBackground").lean() : [],
-            petIds.size ? yoshpets.find({ _id: { $in: [...petIds] } }).select("_id petImage").lean() : [],
-            hospitalIds.size ? ProfileData.find({ userId: { $in: [...hospitalIds] } })
-                .select("userId businessName address.latitude address.longitude").lean() : []
-        ]);
-
-        const specializationMap = Object.fromEntries(
-            await departments.find({ _id: { $in: veterinarians.map(vet => vet.professionalBackground.specialization) } })
-                .select("_id departmentName").lean().then(specs => specs.map(spec => [spec._id.toString(), spec.departmentName]))
-        );
-
-        const veterinarianMap = Object.fromEntries(veterinarians.map(vet => [
-            vet.userId, {
-                firstName: vet.personalInfo.firstName,
-                lastName: vet.personalInfo.lastName,
-                image: vet.personalInfo.image,
-                qualification: vet.professionalBackground.qualification,
-                specialization: specializationMap[vet.professionalBackground.specialization] || "Unknown"
-            }
-        ]));
-
-        const petMap = Object.fromEntries(pets.map(pet => [pet._id.toString(), pet.petImage]));
-        const hospitalMap = Object.fromEntries(hospitals.map(hospital => [
-            hospital.userId, {
-                businessName: hospital.businessName,
-                latitude: hospital.address?.latitude || null,
-                longitude: hospital.address?.longitude || null
-            }
-        ]));
-
-        const enrichAppointments = appointments => appointments.map(app => ({
-            ...app, veterinarian: veterinarianMap[app.veterinarian] || null,
-            petImage: petMap[app.petId] || null, hospitalData: hospitalMap[app.hospitalId] || null
-        }));
-
-        res.json({
-            allAppointments: enrichAppointments(allAppointments),
-            confirmedAppointments: enrichAppointments(confirmedAppointments),
-            upcomingAppointments: enrichAppointments(upcomingAppointments),
-            pastAppointments: enrichAppointments(pastAppointments)
-        });
-
-    } catch (error) {
-        console.error("Error fetching appointments:", error);
-        res.status(500).json({ message: "An error occurred while retrieving appointments" });
-    }
 }
 
 
+async function handleGetAppointment(req, res) {
+  try {
+      const token = req.headers.authorization.split(' ')[1];
+      const cognitoUserId = jwt.verify(token, process.env.JWT_SECRET).username;
+      const today = new Date().toISOString().split("T")[0];
+
+      const allAppointments = await webAppointments.find({ userId: cognitoUserId }).lean();
+      const [confirmedAppointments, upcomingAppointments, pastAppointments] = [[], [], []];
+
+      const veterinarianIds = new Set(), petIds = new Set(), hospitalIds = new Set();
+
+      allAppointments.forEach(app => {
+          (app.appointmentStatus === 1 ? confirmedAppointments
+              : app.appointmentDate >= today ? upcomingAppointments
+                  : pastAppointments).push(app);
+
+          if (app.veterinarian) veterinarianIds.add(app.veterinarian);
+          if (app.petId) petIds.add(app.petId);
+          if (app.hospitalId) hospitalIds.add(app.hospitalId);
+      });
+
+      const [veterinarians, pets, hospitals] = await Promise.all([
+          veterinarianIds.size ? adddoctors.find({ userId: { $in: [...veterinarianIds] } })
+              .select("userId personalInfo professionalBackground").lean() : [],
+          petIds.size ? yoshpets.find({ _id: { $in: [...petIds] } }).select("_id petImage").lean() : [],
+          hospitalIds.size ? ProfileData.find({ userId: { $in: [...hospitalIds] } })
+              .select("userId businessName address.latitude address.longitude").lean() : []
+      ]);
+
+      const specializationMap = Object.fromEntries(
+          await departments.find({ _id: { $in: veterinarians.map(vet => vet.professionalBackground.specialization) } })
+              .select("_id departmentName").lean().then(specs => specs.map(spec => [spec._id.toString(), spec.departmentName]))
+      );
+
+      const veterinarianMap = Object.fromEntries(veterinarians.map(vet => [
+          vet.userId, {
+              name: `${vet.personalInfo.firstName} ${vet.personalInfo.lastName}`,
+              image: vet.personalInfo.image,
+              qualification: vet.professionalBackground.qualification,
+              specialization: specializationMap[vet.professionalBackground.specialization] || "Unknown"
+          }
+      ]));
+
+      const petMap = Object.fromEntries(pets.map(pet => [pet._id.toString(), pet.petImage]));
+      const hospitalMap = Object.fromEntries(hospitals.map(hospital => [
+          hospital.userId, {
+              name: hospital.businessName,
+              latitude: hospital.address?.latitude || null,
+              longitude: hospital.address?.longitude || null
+          }
+      ]));
+
+      const toFHIRAppointment = (app) => ({
+          resourceType: "Appointment",
+          id: app._id.toString(),
+          status: app.appointmentStatus === 1 ? "booked" : "pending",
+          participant: [
+              {
+                  actor: {
+                      reference: `Practitioner/${app.veterinarian || "unknown"}`,
+                      display: veterinarianMap[app.veterinarian]?.name || "Unknown Veterinarian"
+                  }
+              },
+              {
+                  actor: {
+                      reference: `Patient/${app.petId || "unknown"}`,
+                      display: `Pet Image: ${petMap[app.petId] || "No Image"}`
+                  }
+              },
+              {
+                  actor: {
+                      reference: `Location/${app.hospitalId || "unknown"}`,
+                      display: hospitalMap[app.hospitalId]?.name || "Unknown Hospital"
+                  }
+              }
+          ],
+          start: new Date(app.appointmentDate).toISOString(),
+          reasonCode: [{ text: "Veterinary Consultation" }]
+      });
+
+      res.json({
+          allAppointments: allAppointments.map(toFHIRAppointment),
+          confirmedAppointments: confirmedAppointments.map(toFHIRAppointment),
+          upcomingAppointments: upcomingAppointments.map(toFHIRAppointment),
+          pastAppointments: pastAppointments.map(toFHIRAppointment)
+      });
+
+  } catch (error) {
+      console.error("Error fetching appointments:", error);
+      res.status(500).json({ message: "An error occurred while retrieving appointments" });
+  }
+}
 
 async function handleCancelAppointment(req,res) {
     try {
         const updatedAppointmentData = req.body;
         const id = updatedAppointmentData.appointmentId;
-        updatedAppointmentData.appointmentStatus = 2;
+        updatedAppointmentData.appointmentStatus = 'cancelled';
+        updatedAppointmentData.isCanceled = 1;
         const cancelappointmentData = await appointment.findByIdAndUpdate(id,updatedAppointmentData, { new: true });
         if (!cancelappointmentData) {
             return res.status(404).json({ message: "This appointment not found" });
@@ -241,50 +311,103 @@ async function handleGetTimeSlots(req, res) {
   }
 }
 
+async function handleRescheduleAppointment(req, res) {
+  const { appointmentId, appointmentDate, timeslot } = req.body;
 
-
-async function handleRescheduleAppointment(req, res){
-  const AppointmentData = req.body;
-  const id = AppointmentData.appointmentId;
-  const appointmentDated = AppointmentData.appointmentDate;
-  const appointmentRecord = await webAppointments.findById(id);
-  if(!appointmentRecord){
-    return res.status(200).json({ status: 0, message: "appointment not found" });
+  const appointmentRecord = await webAppointments.findById(appointmentId);
+  if (!appointmentRecord) {
+    return res.status(404).json({
+      resourceType: "OperationOutcome",
+      issue: [{ severity: "error", code: "not-found", diagnostics: "Appointment not found" }]
+    });
   }
+
   const veterinarian = appointmentRecord.veterinarian;
-  const dateObj = new Date(appointmentDated);
+  const patientId = appointmentRecord.patientId;
+  const serviceType = appointmentRecord.serviceType; // Assuming a field for service type
+  const dateObj = new Date(appointmentDate);
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const appointmentday = days[dateObj.getDay()];
-  const doctorslot = await DoctorsTimeSlotes.find({doctorId:veterinarian, day:appointmentday });
-  const timeslotArray = doctorslot[0].timeSlots;
-  const targetTime =  AppointmentData.timeslot
+  const appointmentDay = days[dateObj.getDay()];
 
-  const matchingSlot = timeslotArray.find(slot => slot.time === targetTime);
-  
-  if (matchingSlot) {
-    const appointmentDate = appointmentDated;
-    const appointmentTime = targetTime;
-    const appointmentTime24 =  convertTo24Hour(targetTime); 
-    const slotsId = matchingSlot.id;
-    const day = appointmentday;
-    const reschedule = await webAppointments.findByIdAndUpdate(
-      id,
-      {
-        $set: { appointmentDate, appointmentTime, appointmentTime24, slotsId, day }
-      },
-      { new: true, runValidators: true }
-    );
-    
-    if(!reschedule){
-      return res.status(200).json({ status: 0, message:"error while Rescheduling Appointment" });
-    }else{
-      const appointmentupdatedRecord = await webAppointments.findById(id);
-      return res.status(200).json({ status: 1, data:appointmentupdatedRecord}); 
-    }
-  } else {
-    return res.status(200).json({ status: 0, message:"This time slot is not available" });
+  // Fetch available slots based on FHIR Slot resource
+  const doctorSlots = await DoctorsTimeSlotes.findOne({
+    doctorId: veterinarian,
+    day: appointmentDay
+  });
+
+  if (!doctorSlots || !doctorSlots.timeSlots) {
+    return res.status(400).json({
+      resourceType: "OperationOutcome",
+      issue: [{ severity: "error", code: "invalid", diagnostics: "No available slots" }]
+    });
   }
+
+  const matchingSlot = doctorSlots.timeSlots.find(slot => slot.time === timeslot);
+
+  if (!matchingSlot) {
+    return res.status(400).json({
+      resourceType: "OperationOutcome",
+      issue: [{ severity: "error", code: "invalid", diagnostics: "Requested time slot is unavailable" }]
+    });
+  }
+
+  const appointmentTime24 = convertTo24Hour(timeslot);
+  const slotsId = matchingSlot.id;
+
+  const reschedule = await webAppointments.findByIdAndUpdate(
+    appointmentId,
+    {
+      $set: {
+        appointmentDate,
+        appointmentTime: timeslot,
+        appointmentTime24,
+        slotsId,
+        day: appointmentDay,
+        status: "booked" // Updating FHIR Appointment status
+      }
+    },
+    { new: true, runValidators: true }
+  );
+
+  if (!reschedule) {
+    return res.status(500).json({
+      resourceType: "OperationOutcome",
+      issue: [{ severity: "error", code: "processing", diagnostics: "Error while rescheduling appointment" }]
+    });
+  }
+
+  // Construct FHIR-compliant response with full appointment details
+  const fhirResponse = {
+    resourceType: "Appointment",
+    id: reschedule._id,
+    status: "booked",
+    serviceType: [{ text: serviceType }], // Example: "General Checkup"
+    start: new Date(appointmentDate + "T" + appointmentTime24 + "Z").toISOString(),
+    participant: [
+      {
+        actor: { reference: `Practitioner/${veterinarian}` },
+        status: "accepted"
+      },
+      {
+        actor: { reference: `Patient/${patientId}` },
+        status: "accepted"
+      }
+    ],
+    slot: [{ reference: `Slot/${slotsId}` }],
+    appointmentDetails: {
+      appointmentDate,
+      appointmentTime: timeslot,
+      appointmentTime24,
+      day: appointmentDay,
+      doctorId: veterinarian,
+      patientId,
+      slotId: slotsId
+    }
+  };
+
+  return res.status(200).json(fhirResponse);
 }
+
 
 async function handleTimeSlotsByMonth(req, res) {
   const { doctorId, slotMonth, slotYear } = req.body;
