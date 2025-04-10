@@ -105,7 +105,7 @@ jobs:
       shell: bash
       run: |
         cd ./apps/mobileApp/android
-        ./gradlew assembleDebug
+        ./gradlew assembleDebug -Dorg.gradle.jvmargs="-Xmx4g"
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
