@@ -71,6 +71,17 @@ jobs:
     # - name: Setup runtime (example)
     #   uses: actions/setup-example@v1
 
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        run_install: false
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: 'pnpm'
+    - name: Install dependencies
+      run: pnpm install --frozen-lockfile
+
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v3
@@ -93,8 +104,8 @@ jobs:
     - if: matrix.build-mode == 'manual'
       shell: bash
       run: |
-        apps/mobileApp/android/gradlew assembleDebug
-        exit 1
+        cd ./apps/mobileApp/android
+        ./gradlew assembleDebug -Dorg.gradle.jvmargs="-Xmx4g"
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
