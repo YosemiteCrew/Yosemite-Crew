@@ -4,6 +4,10 @@ on:
     push:
         branches: dev
 
+permissions:
+  contents: read
+  actions: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
