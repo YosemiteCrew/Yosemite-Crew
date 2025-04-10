@@ -1,7 +1,6 @@
-
-import React, { useCallback, useEffect, useState } from 'react';
-import './Dashboard.css';
-import PropTypes from 'prop-types';
+import React, { useCallback, useEffect, useState } from "react";
+import "./Dashboard.css";
+import PropTypes from "prop-types";
 // import grph1 from '../../../../public/Images/graph1.png';
 // import grph2 from '../../../../public/Images/graph2.png';
 // import grph3 from '../../../../public/Images/graph3.png';
@@ -11,7 +10,7 @@ import PropTypes from 'prop-types';
 // import box2 from '../../../../public/Images/box2.png';
 // import box3 from '../../../../public/Images/box3.png';
 // import box4 from '../../../../public/Images/box4.png';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from "react-router-dom";
 // import Topic from "../../../public/Images/topic.png";
 import ActionsTable from '../../Components/ActionsTable/ActionsTable';
 import StatusTable from '../../Components/StatusTable/StatusTable';
@@ -19,17 +18,17 @@ import axios from 'axios';
 import StackedBarChart from '../Graph/page';
 import { useAuth } from '../../context/useAuth';
 import Swal from 'sweetalert2';
-import { FHIRParser } from '../../utils/FhirMapper';
+import {  FHIRParser, NormalAppointmentConverter } from '../../utils/FhirMapper';
 
 const Dashboard = () => {
-  const { userId,onLogout } = useAuth();
-  const navigate = useNavigate()
+  const { userId, onLogout } = useAuth();
+  const navigate = useNavigate();
   // Dropdown options
   const optionsList = [
-    'Last 6 Months',
-    'Last 7 Months',
-    'Last 8 Months',
-    'Last 9 Months',
+    "Last 6 Months",
+    "Last 7 Months",
+    "Last 8 Months",
+    "Last 9 Months",
   ];
   const [overView, setOverview] = useState({});
   const [totalAppointments, setTotalAppointments] = useState(0);
@@ -48,14 +47,15 @@ const Dashboard = () => {
             params: {
               days: days,
             },
-            headers: {Authorization: `Bearer ${token}`},
+            headers: { Authorization: `Bearer ${token}` },
           }
         );
         // console.log(response.data);
         if (response) {
-         
-          const data = new FHIRParser(JSON.parse(response.data.data)).ConvertToNormalDashboardGraph();
-          console.log("hellooooooooooooooooooooo",data);
+          const data = new FHIRParser(
+            JSON.parse(response.data.data)
+          ).ConvertToNormalDashboardGraph();
+          console.log("hellooooooooooooooooooooo", data);
           setCancelCompletedGraph(
             data.map((v) => ({
               month: v.monthName,
@@ -71,22 +71,27 @@ const Dashboard = () => {
         }
       }
     },
-    [navigate,onLogout]
+    [navigate, onLogout]
   );
 
   const getOverView = useCallback(async () => {
     try {
-      const token = sessionStorage.getItem('token')
+      const token = sessionStorage.getItem("token");
       const response = await axios.get(
-        `${import.meta.env.VITE_BASE_URL}fhir/v1/MeasureReport/hospitalDashboard`,
-        { params: {
-          subject: `Organization/${userId}`, 
-          reportType: 'HospitalDashboardoverView',
-      } , headers: { Authorization: `Bearer ${token}` } }
+        `${import.meta.env.VITE_BASE_URL}fhir/v1/MeasureReport?type=dashboardOverview`,
+        {
+          params: {
+            subject: `Organization/${userId}`,
+            reportType: "HospitalDashboardoverView",
+          },
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
       if (response) {
         // console.log('overview',JSON.parse(response.data) );
-        const data = new FHIRParser(JSON.parse(response.data)).overviewConvertToNormal();
+        const data = new FHIRParser(
+          JSON.parse(response.data)
+        ).overviewConvertToNormal();
         // console.log("dddddddddddddddddd",data);
 
         setOverview(data);
@@ -96,32 +101,38 @@ const Dashboard = () => {
       if (error.response && error.response.status === 401) {
         // console.log('Session expired. Redirecting to signin...');
         onLogout(navigate);
-      }
-      else if (error.response && error.response.status === 500) {
-        new Swal.fire({
+      } else if (error.response && error.response.status === 500) {
+        Swal.fire({
           type: "error",
-          text: 'Network error',
-          icon: 'error',
-          confirmButtonText: 'OK',
-        })
+          text: "Network error",
+          icon: "error",
+          confirmButtonText: "OK",
+        });
       }
     }
-  }, [userId, onLogout,navigate]);
+  }, [userId, onLogout, navigate]);
 
   const getAllAppointments = useCallback(
     async (offset) => {
-      // console.log('offset', offset);
+     
       try {
-        const token = sessionStorage.getItem('token')
+        const token = sessionStorage.getItem("token");
         const response = await axios.get(
-          `${import.meta.env.VITE_BASE_URL}api/hospitals/getAppointmentsForHospitalDashboard?hospitalId=${userId}&offset=${offset}
+          `${import.meta.env.VITE_BASE_URL}fhir/v1/Appointment?organization=Hospital/${userId}&offset=${offset}&type=${"AppointmentLists"}
 
-        `,{headers: { Authorization: `Bearer ${token}`} }
+        `,
+          { headers: { Authorization: `Bearer ${token}` } }
         );
         if (response) {
-          // console.log('totalAppointments', response.data.totalAppointments);
-          setTotalAppointments(response.data.totalAppointments);
-          setAllAppointments(response.data.Appointments);
+          console.log("totalAppointments", response.data);
+          const normalAppointments = NormalAppointmentConverter.convertAppointments({
+            totalAppointments:response.data.total,
+            appointments: response.data.entry.map((entry) => entry.resource),
+          });
+
+          console.log("data", normalAppointments);
+          setTotalAppointments(normalAppointments.totalAppointments);
+          setAllAppointments(normalAppointments.appointments);
         }
       } catch (error) {
         if (error.response && error.response.status === 401) {
@@ -130,7 +141,7 @@ const Dashboard = () => {
         }
       }
     },
-    [userId, onLogout,navigate]
+    [userId, onLogout, navigate]
   );
 
   const AppointmentActions = async (id, status, offset) => {
@@ -139,15 +150,18 @@ const Dashboard = () => {
       const token = sessionStorage.getItem("token");
       const response = await axios.put(
         `${import.meta.env.VITE_BASE_URL}api/doctors/AppointmentAcceptedAndCancel/${id}`,
-        { status },{headers:{
-          Authorization: `Bearer ${token}`,
-        }}
+        { status },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
       if (response.status === 200) {
         Swal.fire({
-          title: 'Appointment Status Changed',
-          text: 'Appointment Status Changed Successfully',
-          icon: 'success',
+          title: "Appointment Status Changed",
+          text: "Appointment Status Changed Successfully",
+          icon: "success",
         });
       }
       getAllAppointments(offset);
@@ -158,16 +172,16 @@ const Dashboard = () => {
         onLogout(navigate);
       }
       Swal.fire({
-        title: 'Error',
-        text: 'Failed to Change Appointment Status',
-        icon: 'error',
+        title: "Error",
+        text: "Failed to Change Appointment Status",
+        icon: "error",
       });
     }
   };
 
   useEffect(() => {
     if (userId) {
-      AppointmentGraphOnMonthBase('Last 6 Months', userId);
+      AppointmentGraphOnMonthBase("Last 6 Months", userId);
       getOverView(userId);
       getAllAppointments(0);
     }
@@ -189,7 +203,7 @@ const Dashboard = () => {
             />
             <div className="dashvisible">
               <Link to="/clinicvisible">
-                {' '}
+                {" "}
                 <i className="ri-eye-fill"></i> Manage Clinic Visibility
               </Link>
             </div>
@@ -250,13 +264,19 @@ const Dashboard = () => {
                 <ListSelect options={optionsList} />
               </div>
               <div className="graphimg">
-                <img src={`${import.meta.env.VITE_BASE_IMAGE_URL}/graph2.png`} alt="graph2" />
+                <img
+                  src={`${import.meta.env.VITE_BASE_IMAGE_URL}/graph2.png`}
+                  alt="graph2"
+                />
               </div>
             </div>
           </div>
 
           <div>
-            <DivHeading TableHead="New Appointments"  tablespan={`(${totalAppointments ? totalAppointments : 0})`}/>
+            <DivHeading
+              TableHead="New Appointments"
+              tablespan={`(${totalAppointments ? totalAppointments : 0})`}
+            />
             <ActionsTable
               actimg1={`${import.meta.env.VITE_BASE_IMAGE_URL}/acpt.png`}
               actimg2={`${import.meta.env.VITE_BASE_IMAGE_URL}/decline.png`}
@@ -287,7 +307,10 @@ const Dashboard = () => {
                   <ListSelect options={optionsList} />
                 </div>
                 <div className="graphimg">
-                  <img src={`${import.meta.env.VITE_BASE_IMAGE_URL}/graph3.png`} alt="graph3" />
+                  <img
+                    src={`${import.meta.env.VITE_BASE_IMAGE_URL}/graph3.png`}
+                    alt="graph3"
+                  />
                 </div>
               </div>
               <div className="col-md-6">
@@ -296,7 +319,10 @@ const Dashboard = () => {
                   <ListSelect options={optionsList} />
                 </div>
                 <div className="graphimg">
-                  <img src={`${import.meta.env.VITE_BASE_IMAGE_URL}/graph1.png`} alt="graph3" />
+                  <img
+                    src={`${import.meta.env.VITE_BASE_IMAGE_URL}/graph1.png`}
+                    alt="graph3"
+                  />
                 </div>
               </div>
             </div>
@@ -397,7 +423,7 @@ export function TopHeading({ spantext, heding, notif }) {
       </div>
       <div className="RytNotify">
         <a href="/#">
-          <i className="ri-notification-3-fill"></i> {notif}{' '}
+          <i className="ri-notification-3-fill"></i> {notif}{" "}
         </a>
       </div>
     </div>

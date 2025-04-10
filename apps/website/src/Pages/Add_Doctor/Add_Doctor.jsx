@@ -14,7 +14,7 @@ import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import { propTypes } from 'react-bootstrap/esm/Image';
 import { useAuth } from '../../context/useAuth';
-import { FHIRParser } from '../../utils/FhirMapper';
+import  {FHIRParser}  from '../../utils/FhirMapper';
 import Swal from 'sweetalert2';
 
 const useDebounce = (value, delay) => {
@@ -148,6 +148,8 @@ const Add_Doctor = () => {
   }, [userId, navigate, onLogout, debouncedSearch]);
 
   const getOverview = useCallback(async () => {
+
+    const token = sessionStorage.getItem("token");
     try {
       const response = await axios.get(
         `${import.meta.env.VITE_BASE_URL}fhir/v1/MeasureReport`,
@@ -155,7 +157,9 @@ const Add_Doctor = () => {
           params: {
             subject: `Organization/${userId}`,
             reportType: 'summary',
+            type: "HospitalSideDoctorOverview",
           },
+          headers:{Authorization:`Bearer ${token}`}
         }
       );
       if (response) {

@@ -17,7 +17,7 @@ import { BoxDiv, DivHeading } from '../Dashboard/page';
 
 // import box5 from '../../../../public/Images/box5.png';
 // import box6 from '../../../../public/Images/box6.png';
-import {FHIRMapper,FHIRToSlotConverter} from "../../utils/FhirMapper";
+import {FHIRMapper,FHIRParser,FHIRToSlotConverter, NormalAppointmentConverter} from "../../utils/FhirMapper";
 import { Forminput } from '../SignUp/SignUp';
 import { Col, Row } from 'react-bootstrap';
 import DynamicSelect from '../../Components/DynamicSelect/DynamicSelect';
@@ -287,7 +287,7 @@ function CheckInModal(props) {
     if (!validateFields()) return;
     const fhirMapper = new FHIRMapper(AllData);
     const fhirData = fhirMapper.toFHIR();
-    console.log("FHIR Data:", fhirData);
+    console.log("FHIR Data:", fhirData); 
     try {
       const token = sessionStorage.getItem("token");
       const response = await axios.post(
@@ -735,7 +735,6 @@ function CheckInModal(props) {
     </div>
   );
 }
-
 const CheckIn = () => {
   const { userId, onLogout } = useAuth();
   const navigate = useNavigate()
@@ -753,15 +752,23 @@ const CheckIn = () => {
     try {
       const token = sessionStorage.getItem("token");
       const response = await axios.get(
-        `${import.meta.env.VITE_BASE_URL}api/hospitals/WaitingRoomOverView?userId=${userId}`,{headers:{Authorization:`Bearer ${token}`}}
+        `${import.meta.env.VITE_BASE_URL}fhir/v1/MeasureReport?Organization=Hospital/${userId}&type=waitingroomOverview`,{headers:{Authorization:`Bearer ${token}`}}
       );
       if (response.status === 200) {
-        setWaitingRoomOverView(response.data);
+        const data = new FHIRParser(  JSON.parse(response.data)).overviewConvertToNormal()
+        setWaitingRoomOverView(data)
       }
     } catch (error) {
       if (error.response && error.response.status === 401) {
         console.log('Session expired. Redirecting to signin...');
         onLogout(navigate);
+      }else if(error.response && error.response.status ===500){
+        Swal.error({
+          message: "Error",
+          icon: "error",
+          title: "Internal Server Error",
+          confirmButtonText: "Retry",
+        })
       }
     }
   },[userId,onLogout,navigate]);
@@ -769,12 +776,18 @@ const CheckIn = () => {
     try {
       const token = sessionStorage.getItem("token");
       const response = await axios.get(
-        `${import.meta.env.VITE_BASE_URL}api/hospitals/WaittingRoomOverViewPatientInQueue?userId=${userId}`,{headers:{Authorization:`Bearer ${token}`}}
+        `${import.meta.env.VITE_BASE_URL}fhir/v1/Appointment?organization=Hospital/${userId}&type=${"PatientsInQueue"}`,{headers:{Authorization:`Bearer ${token}`}}
       );
       if (response.status === 200) {
-        setWaitingRoomOverViewPatientInQueue(response.data.Appointments);
-      }
-    } catch (error) {
+       
+
+        const normalAppointments = NormalAppointmentConverter.convertAppointments({
+          totalAppointments:JSON.parse(response.data).total,
+          appointments: JSON.parse(response.data).entry.map((entry) => entry.resource),
+        })
+         console.log("normalAppointments", normalAppointments);
+         setWaitingRoomOverViewPatientInQueue(normalAppointments);
+}    } catch (error) {
       if (error.response && error.response.status === 401) {
         console.log('Session expired. Redirecting to signin...');
         onLogout(navigate);
@@ -890,7 +903,7 @@ const CheckIn = () => {
               </div>
             </div>
             <div className="BottomCheckIn">
-              <DivHeading TableHead="Patients in Queue" tablespan="(48)" />
+              <DivHeading TableHead="Patients in Queue" tablespan={WaitingRoomOverViewPatientInQueue.totalAppointments} />
               <PatientsTable
                 // onClick={WaittingRoomOverViewPatientInQueue}
                 appointments={WaitingRoomOverViewPatientInQueue}

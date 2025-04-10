@@ -5,10 +5,13 @@ import { BiSolidEditAlt } from 'react-icons/bi';
 import './PatientsTable.css';
 
 const PatientsTable = ({ appointments = [] }) => {
+console.log("hihhihihihihhihihihihihjhihih", appointments);
+
+
   const getStatus = (data) => {
-    if (data === 2 || data === 3)
+    if (data === "cancelled" || data === 3)
       return { status: 'Cancelled', statusColor: 'danger' };
-    if (data === 4) return { status: 'Checked-In', statusColor: 'success' };
+    if (data === "fulfilled") return { status: 'Checked-In', statusColor: 'success' };
     return { status: 'Unknown', statusColor: 'secondary' }; // Default case
   };
 
@@ -29,10 +32,10 @@ const PatientsTable = ({ appointments = [] }) => {
           </tr>
         </thead>
         <tbody>
-          {appointments?.map((appointment, i) => {
-            const appointmentStatus = getStatus(appointment.isCanceled);
+          {appointments.appointments?.map((appointment, i) => {
+            const appointmentStatus = getStatus(appointment.appointmentStatus);
             return (
-              <tr key={appointment._id}>
+              <tr key={appointment._id?._id}>
                 <td>
                   <strong>{i + 1}</strong>
                 </td>

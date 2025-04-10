@@ -344,10 +344,17 @@ class FHIRParser {
       totalDoctors: 0,
       totalSpecializations: 0,
       availableDoctors: 0,
+      totalAppointments: 0,
+      successful: 0,
+      canceled: 0,
+      checkedIn: 0,
+      appointmentsCreatedToday: 0,
+      upcomingAppointments: 0,
+      newAppointments:0
     };
   
     this.fhirData.entry.forEach((entry) => {
-      const { id, totalDoctors, totalSpecializations, availableDoctors,totalDepartments,appointmentCounts } = entry.resource;
+      const { id, totalDoctors, totalSpecializations, availableDoctors,totalDepartments,appointmentCounts, totalAppointments,successful,canceled,appointmentsCreatedToday,checkedIn,newAppointments,upcomingAppointments,newPetsCount} = entry.resource;
   
       if (id === "totalDoctors") {
         normalData.totalDoctors = totalDoctors;
@@ -359,6 +366,22 @@ class FHIRParser {
         normalData.totalDepartments = totalDepartments
       }else if (id === "appointmentCounts") {
         normalData.appointmentCounts = appointmentCounts;
+      }else if (id === "totalAppointments") {
+        normalData.totalAppointments = totalAppointments;
+      }else if (id === "successful") {
+        normalData.successful = successful;
+      }else if (id === "canceled") {
+        normalData.canceled = canceled;
+      }else if (id === "checkedIn") {
+        normalData.checkedIn = checkedIn;
+      }else if (id === "appointmentsCreatedToday") {
+        normalData.appointmentsCreatedToday = appointmentsCreatedToday;
+      }else if (id === "newAppointments"){
+        normalData.newAppointments = newAppointments;
+      } else if (id ==="upcomingAppointments"){
+        normalData.upcomingAppointments = upcomingAppointments;
+      }else if(id === "newPetsCount"){
+        normalData.newPetsCount = newPetsCount;
       }
     });
   
@@ -382,10 +405,215 @@ ConvertToNormalDashboardGraph() {
   });
 }
   
-}  
+} 
+
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Appointments list >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+class NormalAppointmentConverter {
+  static convertAppointments(data) {
+    return {
+      totalAppointments: data.totalAppointments || 0,
+      appointments: data.appointments.map((app) => ({
+        _id: app.id || "",
+        tokenNumber: NormalAppointmentConverter.extractTokenNumber(app.extension),
+        appointmentSource: NormalAppointmentConverter.extractAppointmentSource(app.extension),
+        petName: NormalAppointmentConverter.extractPetName(app.description),
+        ownerName: app.participant?.[0]?.actor?.display || "",
+        slotsId: NormalAppointmentConverter.extractSlotId(app.slot),
+        petType: NormalAppointmentConverter.extractPetType(app.description),
+        breed: NormalAppointmentConverter.extractPetBreed(app.description),
+        purposeOfVisit: app.serviceType?.[0]?.text || "Unknown",
+        appointmentDate: NormalAppointmentConverter.extractAppointmentDate(app.start),
+        appointmentTime: NormalAppointmentConverter.extractAppointmentTime(app.start),
+        appointmentStatus: app.status ,
+        department: app.specialty?.[0]?.text || "General",
+        veterinarian: app.participant?.[1]?.actor?.display || "",
+      })),
+    };
+  }
+
+  /**
+   * Extracts tokenNumber from FHIR extension safely.
+   */
+  static extractTokenNumber(extensions = []) {
+    if (!Array.isArray(extensions)) return "";
+    const tokenExt = extensions.find((ext) => ext.url.includes("tokenNumber"));
+    return tokenExt?.valueString || "";
+  }
+
+  static extractAppointmentSource(extensions = []){
+    if (!Array.isArray(extensions))return "";
+    const sourceExt = extensions.find((ext) => ext.url.includes("appointmentSource"));
+    return sourceExt?.valueString || "";
+  }
+
+  /**
+   * Extracts pet name from FHIR description.
+   */
+  static extractPetName(description = "") {
+    return description.includes("Appointment for ")
+      ? description.split(" (")[0].replace("Appointment for ", "")
+      : "";
+  }
+
+  /**
+   * Extracts pet type from FHIR description.
+   */
+  static extractPetType(description = "") {
+    return description.includes("(") ? description.split("(")[1].split(",")[0] : "";
+  }
+
+  /**
+   * Extracts pet breed from FHIR description.
+   */
+  static extractPetBreed(description = "") {
+    return description.includes(",") ? description.split(", ")[1].replace(")", "") : "";
+  }
+
+  /**
+   * Extracts slot ID from FHIR slot reference.
+   */
+  static extractSlotId(slot = []) {
+    return slot?.[0]?.reference?.replace("Slot/", "") || "";
+  }
+
+  /**
+   * Extracts appointment date and formats it as DD-MMM-YYYY.
+   */
+  static extractAppointmentDate(dateTime) {
+    if (!dateTime) return "";
+    const date = new Date(dateTime);
+    return isNaN(date.getTime())
+      ? ""
+      : date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  }
+
+  /**
+   * Extracts appointment time and formats it as HH:MM AM/PM.
+   */
+  static extractAppointmentTime(dateTime) {
+    if (!dateTime) return "";
+    const date = new Date(dateTime);
+    return isNaN(date.getTime())
+      ? ""
+      : date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+  }
+}
+
+
+
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< DOCTORS APPOINTMENT IN APPOINTMENT MANAGEMENT>>>>>>>>>>>>>>>>>>>>>>>>>
+
+
+class FHIRToNormalConverter {
+  constructor(fhirBundle) {
+    this.bundle = fhirBundle;
+  }
+
+  convert() {
+    const practitionersMap = {};
+    const appointmentsMap = {};
+
+    // Group data
+    this.bundle.entry.forEach(entry => {
+      const resource = entry.resource;
+      if (resource.resourceType === 'Practitioner') {
+        practitionersMap[resource.id] = {
+          doctorId: resource.id,
+          doctorName: resource.name?.[0]?.text || '',
+          image: resource.photo?.[0]?.url || '',
+          department: '', // we'll get this from appointments
+          totalAppointments: 0
+        };
+      } else if (resource.resourceType === 'Appointment') {
+        const participant = resource.participant?.[0];
+        const doctorRef = participant?.actor?.reference?.replace('Practitioner/', '');
+        const department = resource.specialty?.[0]?.text || '';
+
+        if (doctorRef) {
+          appointmentsMap[doctorRef] = (appointmentsMap[doctorRef] || 0) + 1;
+          // Save department as well
+          if (practitionersMap[doctorRef]) {
+            practitionersMap[doctorRef].department = department;
+          }
+        }
+      }
+    });
+
+    // Merge appointments count
+    Object.keys(appointmentsMap).forEach(doctorId => {
+      if (practitionersMap[doctorId]) {
+        practitionersMap[doctorId].totalAppointments = appointmentsMap[doctorId];
+      }
+    });
+
+    const totalAppointments = Object.values(practitionersMap);
+    const totalCount = totalAppointments.length;
+
+    return {
+      totalAppointments,
+      page: 1,
+      totalPages: 1,
+      totalCount
+    };
+  }
+
+
+
+
+  toNormal() {
+    const appointments = (this.bundle.entry || []).map((entry) => {
+      const resource = entry.resource;
+      const start = resource.start
+
+     
+      
+      const appointmentDate = start
+
+    
+      const extension = (resource.extension || []).find(
+        (ext) => ext.url === "http://example.org/fhir/StructureDefinition/appointment-time"
+      );
+      const appointmentTime = extension?.valueString || "N/A";
+
+      return {
+        _id: resource.id,
+        ownerName: resource.participant?.[0]?.actor?.display || "N/A",
+        petName: resource.description?.split(" ")[0] || "Pet",
+        veterinarian: resource.participant?.[1]?.actor?.display || "N/A",
+        department: resource.reasonCode?.[0]?.text || "",
+        appointmentDate,
+        appointmentTime,
+        appointmentStatus: resource.status,
+      };
+    });
+
+    const totalCount = this.bundle.total || appointments.length;
+    const page = this.bundle.page || 1;
+    const limit = this.bundle.limit || appointments.length;
+    const totalPages = this.bundle.totalPages || Math.ceil(totalCount / limit);
+    const hasMore = this.bundle.hasMore ?? page < totalPages;
+
+    return {
+      status: "confirmed",
+      page,
+      limit,
+      totalPages,
+      totalCount,
+      hasMore,
+      appointments,
+    };
+  }
+}
+
+
+
+
+
 export {
   FHIRMapper,
   FHIRToSlotConverter,
   FHIRSlotService,
   FHIRParser,
+  NormalAppointmentConverter,
+  FHIRToNormalConverter
 };

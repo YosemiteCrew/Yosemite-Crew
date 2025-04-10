@@ -30,7 +30,7 @@ export const getProfiledata = async (userId) => {
       _id: "67dcf983474db7072e2444a1", // Static _id (replace with dynamic if needed)
       userId: organization.id || "",
       __v: 0,
-      activeModes: organization.active ? "true" : "false",
+      activeModes: organization.active ,
       businessName: organization.name || "",
       phoneNumber: organization.telecom?.[0]?.value || "",
       address: {

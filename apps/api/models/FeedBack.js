@@ -17,6 +17,7 @@ const feedbackSchema = new mongoose.Schema({
         type: Number,
         default:0 
     },
+    feedbackFHIR: Object,
 },
 {
     timestamps: true,

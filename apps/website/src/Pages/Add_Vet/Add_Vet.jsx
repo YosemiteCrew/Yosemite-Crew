@@ -108,7 +108,7 @@ const Add_Vet = () => {
         onLogout(navigate);
       }
     }
-  },[navigate,onLogout,userId]);
+  },[userId,navigate,onLogout]);
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
 
@@ -156,7 +156,7 @@ const Add_Vet = () => {
   
 
   useEffect(() => {
-    getSpecilization();
+   if(userId) getSpecilization();
   }, [userId,getSpecilization]);
 
   const handleprofessionalBackground = (e) => {
@@ -721,22 +721,22 @@ const Add_Vet = () => {
                             <div className="InputCountry">
 
                             <IntlTelInput
-  preferredCountries={["in", "us"]}
-  defaultCountry="in"
-  separateDialCode={true}
-  containerClassName="intl-tel-input"
-  inputClassName="form-control"
-  value={PersonalInfoForm.phone} // Keep phone value unchanged
-  onPhoneNumberBlur={(isValid, value, countryData) => {
-    console.log("Selected Country Code:", `+${countryData.dialCode}`);
+                              preferredCountries={["in", "us"]}
+                              defaultCountry="in"
+                              separateDialCode={true}
+                              containerClassName="intl-tel-input"
+                              inputClassName="form-control"
+                              value={PersonalInfoForm.phone} // Keep phone value unchanged
+                              onPhoneNumberBlur={(isValid, value, countryData) => {
+                                console.log("Selected Country Code:", `+${countryData.dialCode}`);
 
-    // Update only the country code
-    setPersonalInfoForm((pre) => ({
-      ...pre,
-      countrycode: `+${countryData.dialCode}`, // Update country code only
-    }));
-  }}
-/>
+                                // Update only the country code
+                                setPersonalInfoForm((pre) => ({
+                                  ...pre,
+                                  countrycode: `+${countryData.dialCode}`, // Update country code only
+                                }));
+                              }}
+                            />
 
 
 
@@ -931,6 +931,7 @@ const Add_Vet = () => {
                             </div>
                           </Col>
                         </Row>
+
                         <Row>
                           <Col md={12}>
                           <Form.Group controlId="formFile" className="CvUplodeDiv">
@@ -1016,6 +1017,8 @@ const Add_Vet = () => {
                             </div>
                           )} */}
                       </div>
+
+
                       <div className="ProfBtn">
                         <Button className='Hov' onClick={() => setKey("basic")}>
                         <IoIosArrowDropleft />  Back 

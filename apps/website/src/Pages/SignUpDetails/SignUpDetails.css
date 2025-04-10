@@ -1,6 +1,75 @@
 .SignDetailsSec{
     padding: 80px 0px 100px 0px;
 }
+
+
+
+.SignDetlsTabDiv .VetPills {
+    display: grid;
+    grid-template-columns: repeat(4,1fr);
+    width: 100%;
+    max-width: 702px;
+    margin: 30px auto;
+    grid-gap: 50px;
+
+}
+.SignDetlsTabDiv .VetPills .nav-item a{
+    display: grid;
+    grid-template-columns: auto auto;
+    align-items: center;
+    grid-gap: 8px;
+    color: #747473;
+    font-family: var(--grotesk-font);
+    font-weight: 500;
+    font-size: 16px;
+    line-height: 100%;
+    padding: 0px;
+}
+.SignDetlsTabDiv .VetPills .nav-item a span{
+    display: flex;
+    align-items: center;
+    background: #A09F9F !important;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    color: #FEF8F4;
+    font-family: var(--grotesk-font);
+    font-weight: 500;
+    font-size: 16px;
+    line-height: 100%;
+    background: transparent;
+}
+.SignDetlsTabDiv .VetPills .nav-item a.active{
+    color: #302F2E;
+    background: transparent;
+}
+.SignDetlsTabDiv .VetPills .nav-item a.active span{
+    background: var(--chilli-red) !important;
+}
+
+.LeftProfileDiv .BasicForm , .LeftProfileDiv .AddressForm , .LeftProfileDiv .ServicesForm{
+    display: flex;
+    flex-direction: column;
+    gap: 50px;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 .Sign_Details_Data{
     display: grid;
     grid-template-columns: 68% 30%;

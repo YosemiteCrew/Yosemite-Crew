@@ -12,7 +12,8 @@ import { useAuth } from '../../context/useAuth';
 function SignIn() {
   const navigate = useNavigate();
   const { initializeUser } = useAuth();
-  console.log("llllllllllllll",import.meta.env.VITE_BASE_IMAGE_URL);
+  
+
 
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showVerifyCode, setShowVerifyCode] = useState(false);

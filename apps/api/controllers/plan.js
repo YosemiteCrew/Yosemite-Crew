@@ -47,16 +47,16 @@ async function handleAddPainJournal(req,res){
 
 async function handleGetExercisePlan(req,res){
 
-    const userid = req.body.userId;
-    const result = await exercisePlan.find({ userId : userid });
+    const userid = req.params.userId;
+    const result = await exercisePlan.find({ userId : {$eq: userid } } );
     if (result.length === 0) return res.status(404).json({ message: "No exercise plans found for this user" });
     res.json(result);
 }
 
 async function handleGetPainJournal(req,res){
 
-    const userid = req.body.userId;
-    const result = await YoshPainJournals.find({ userId : userid });
+    const userid = req.params.userId;
+    const result = await YoshPainJournals.find({ userId : {$eq: userid } } );
     if (result.length === 0) return res.status(404).json({ message: "No pain journals found for this user" });
     res.json(result);
 }

@@ -13,7 +13,7 @@ router.get(
   AddDoctorsControllers.getDoctorsBySpecilizationId
 );
 router.get('/getForAppDoctorsBySpecilizationId',verifyTokenAndRefresh, AddDoctorsControllers.getForAppDoctorsBySpecilizationId);
-router.get('/MeasureReport', AddDoctorsControllers.getOverview);
+// router.get('/MeasureReport', AddDoctorsControllers.getOverview);
 router.get(
   '/Practitioner',
   verifyTokenAndRefresh,

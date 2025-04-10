@@ -1,9 +1,9 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import PropTypes from 'prop-types';
-import { BoxDiv, DivHeading, ListSelect, TopHeading } from '../Dashboard/page';
-import './Appointment.css';
-import UplodeImage from '../../Components/UplodeImage/UplodeImage';
-import AssesmentResponse from '../../Components/AssesmentResponse/AssesmentResponse';
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import PropTypes from "prop-types";
+import { BoxDiv, DivHeading, ListSelect, TopHeading } from "../Dashboard/page";
+import "./Appointment.css";
+import UplodeImage from "../../Components/UplodeImage/UplodeImage";
+import AssesmentResponse from "../../Components/AssesmentResponse/AssesmentResponse";
 // import whtmsg from '../../../../public/Images/whtmsg.png';
 // import pet1 from '../../../../public/Images/pet1.png';
 // import whtcheck from '../../../../public/Images/whtcheck.png';
@@ -17,75 +17,88 @@ import AssesmentResponse from '../../Components/AssesmentResponse/AssesmentRespo
 // import btn2 from '../../../../public/Images/btn2.png';
 // import btn3 from '../../../../public/Images/btn3.png';
 // import btn4 from '../../../../public/Images/btn4.png';
-import ChatApp from '../../Components/ChatApp/ChatApp';
-import ActionsTable from '../../Components/ActionsTable/ActionsTable';
+import ChatApp from "../../Components/ChatApp/ChatApp";
+import ActionsTable from "../../Components/ActionsTable/ActionsTable";
 // import Accpt from '../../../../public/Images/acpt.png';
 // import Decln from '../../../../public/Images/decline.png';
-import DocterWiseAppoint from '../../Components/DocterWiseAppoint/DocterWiseAppoint';
-import axios from 'axios';
-import Swal from 'sweetalert2';
-import { useAuth } from '../../context/useAuth';
-import { Link, useNavigate } from 'react-router-dom';
+import DocterWiseAppoint from "../../Components/DocterWiseAppoint/DocterWiseAppoint";
+import axios from "axios";
+import Swal from "sweetalert2";
+import { useAuth } from "../../context/useAuth";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  FHIRParser,
+  FHIRToNormalConverter,
+  NormalAppointmentConverter,
+} from "../../utils/FhirMapper";
 // import { Button } from 'react-bootstrap';
 
 const Appointment = () => {
-  const { userId ,userType,onLogout} = useAuth();
-  const navigate = useNavigate()
+  const { userId, userType, onLogout } = useAuth();
+  const navigate = useNavigate();
   // dropdown
   const optionsList1 = [
-    'Last 7 Days',
-    'Last 10 Days',
-    'Last 20 Days',
-    'Last 21 Days',
+    "Last 7 Days",
+    "Last 10 Days",
+    "Last 20 Days",
+    "Last 21 Days",
   ];
   const [allAppointments, setAllAppointments] = useState([]);
   const [total, setTotal] = useState();
-  const getAllAppointments = useCallback(async (offset, userId) => {
-    // console.log('ssssssss');
-    try {
-      const token = sessionStorage.getItem('token');
-      const response = await axios.get(
-        `${import.meta.env.VITE_BASE_URL}api/hospitals/getAllAppointments?offset=${offset}&userId=${userId}`,{headers:{Authorization:`Bearer ${token}`}}
-      );
-      if (response) {
-        console.log('hospitalssss', response.data);
-        setAllAppointments(response.data.Appointments);
-        setTotal(response.data.totalAppointments);
+  const getAllAppointments = useCallback(
+    async (offset, userId) => {
+      // console.log('ssssssss');
+      try {
+        const token = sessionStorage.getItem("token");
+        const response = await axios.get(
+          `${import.meta.env.VITE_BASE_URL}fhir/v1/Appointment?organization=Hospital/${userId}&offset=${offset}&type=${"AppointmentLists"}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (response) {
+          const normalAppointments =
+            NormalAppointmentConverter.convertAppointments({
+              totalAppointments: response.data.total,
+              appointments: response.data.entry.map((entry) => entry.resource),
+            });
+          setAllAppointments(normalAppointments.appointments);
+          setTotal(normalAppointments.totalAppointments);
+        }
+      } catch (error) {
+        if (error.response && error.response.status === 401) {
+          console.log("Session expired. Redirecting to signin...");
+          onLogout(navigate);
+        }
       }
-    } catch (error) {
-      if (error.response && error.response.status === 401) {
-        console.log('Session expired. Redirecting to signin...');
-        onLogout(navigate);
-      }
-     
-    }
-  },[navigate,onLogout]);
+    },
+    [navigate, onLogout]
+  );
   const AppointmentActions = async (id, status, offset) => {
-    console.log('iddd', id, status, offset);
+    console.log("iddd", id, status, offset);
     try {
       const token = sessionStorage.getItem("token");
       const response = await axios.put(
         `${import.meta.env.VITE_BASE_URL}api/doctors/AppointmentAcceptedAndCancel/${id}`,
-        { status },{headers:{Authorization: `Bearer ${token}`}},
+        { status },
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       if (response.status === 200) {
         Swal.fire({
-          title: 'Appointment Status Changed',
-          text: 'Appointment Status Changed Successfully',
-          icon: 'success',
+          title: "Appointment Status Changed",
+          text: "Appointment Status Changed Successfully",
+          icon: "success",
         });
       }
       getAllAppointments(offset, userId);
       // getlast7daysAppointMentsCount();
     } catch (error) {
       if (error.response && error.response.status === 401) {
-        console.log('Session expired. Redirecting to signin...');
+        console.log("Session expired. Redirecting to signin...");
         onLogout(navigate);
       }
       Swal.fire({
-        title: 'Error',
-        text: 'Failed to Change Appointment Status',
-        icon: 'error',
+        title: "Error",
+        text: "Failed to Change Appointment Status",
+        icon: "error",
       });
     }
   };
@@ -93,45 +106,54 @@ const Appointment = () => {
     {}
   );
 
-  const getAppUpcCompCanTotalCounts = useCallback(async (selectedOption) => {
-    const days = parseInt(selectedOption.match(/\d+/)[0], 10);
-    // console.log(`Selected Days: ${days}`);
-    try {
-      const token = sessionStorage.getItem("token");
-      const response = await axios.get(
-        `${import.meta.env.VITE_BASE_URL}api/hospitals/getAppUpcCompCanTotalCountOnDayBasis?userId=${userId}`,
-        {
-          params: {
-            LastDays: days,
-          },
-          headers: {Authorization: `Bearer ${token}`},
+  const getAppUpcCompCanTotalCounts = useCallback(
+    async (selectedOption) => {
+      const days = parseInt(selectedOption.match(/\d+/)[0], 10);
+      // console.log(`Selected Days: ${days}`);
+      try {
+        const token = sessionStorage.getItem("token");
+        const response = await axios.get(
+          `${import.meta.env.VITE_BASE_URL}fhir/v1/MeasureReport?userId=${userId}&type=AppointmentManagement`,
+          {
+            params: {
+              LastDays: days,
+            },
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        if (response) {
+          const data = new FHIRParser(
+            JSON.parse(response.data)
+          ).overviewConvertToNormal();
+
+          setAppointmentStatusAndCounts(data);
         }
-      );
-      if (response) {
-        setAppointmentStatusAndCounts(response.data);
+      } catch (error) {
+        if (error.response && error.response.status === 401) {
+          console.log("Session expired. Redirecting to signin...");
+          onLogout(navigate);
+        }
+        Swal.fire({
+          title: "Error",
+          text: `${error}`,
+          icon: "error",
+        });
       }
-    } catch (error) {
-      if (error.response && error.response.status === 401) {
-        console.log('Session expired. Redirecting to signin...');
-        onLogout(navigate);
-      }
-      Swal.fire({
-        title: 'Error',
-        text: `${error}`,
-        icon: 'error',
-      });
-    }
-  },[userId,navigate,onLogout]);
+    },
+    [userId, navigate, onLogout]
+  );
 
   useEffect(() => {
-    getAllAppointments(0, userId);
-    getAppUpcCompCanTotalCounts('Last 7 Days');
-  }, [userId,getAppUpcCompCanTotalCounts,getAllAppointments]);
+    if (userId) getAllAppointments(0, userId);
+    getAppUpcCompCanTotalCounts("Last 7 Days");
+  }, [userId, getAppUpcCompCanTotalCounts, getAllAppointments]);
+
   const [confirmedAppointments, setConfirmedAppointments] = useState([]);
   const [confirmedPage, setConfirmedPage] = useState(1);
   const [confirmedLoading, setConfirmedLoading] = useState(false);
   const [confirmedHasMore, setConfirmedHasMore] = useState(true);
-  const [totalConfirmedAppointments, setTotalConfirmedAppointments] = useState(0);
+  const [totalConfirmedAppointments, setTotalConfirmedAppointments] =
+    useState(0);
   const confirmedObserverRef = useRef(null);
 
   const [upcomingAppointments, setUpcomingAppointments] = useState([]);
@@ -152,39 +174,55 @@ const Appointment = () => {
   const [completedPage, setCompletedPage] = useState(1);
   const [completedLoading, setCompletedLoading] = useState(false);
   const [completedHasMore, setCompletedHasMore] = useState(true);
-  const [totalCompletedAppointments, setTotalCompletedAppointments] = useState(0);
+  const [totalCompletedAppointments, setTotalCompletedAppointments] =
+    useState(0);
   const completedObserverRef = useRef(null);
   const limit = 8;
 
-  const fetchAppointments = useCallback(async (type, page, setData, setLoading, setHasMore, setTotal) => {
-    if (setLoading) setLoading(true);
+  const fetchAppointments = useCallback(
+    async (type, page, setData, setLoading, setHasMore, setTotal) => {
+      if (setLoading) setLoading(true);
 
-    try {
-      const token = sessionStorage.getItem("token");
-      const response = await axios.get(
-        `${import.meta.env.VITE_BASE_URL}api/hospitals/get${type}Appointments`,
-        { params: { userId, page, limit },headers:{Authorization:`Bearer ${token}`} }
-      );
+      try {
+        const token = sessionStorage.getItem("token");
+        const response = await axios.get(
+          `${import.meta.env.VITE_BASE_URL}fhir/v1/Appointment?type=${type}`,
+          {
+            params: { userId, page, limit },
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
 
-      if (response.status === 200) {
-        setData((prev) => [...prev, ...response.data.appointments]);
-        setTotal(response.data.totalCount);
-        setHasMore(response.data.appointments.length === limit);
+        if (response.status === 200) {
+          // console.log(response.data);
+          const data = new FHIRToNormalConverter(response.data).toNormal();
+          // console.log("responsedatataaa", data);
+          setData((prev) => {
+            const newAppointments = data.appointments.filter(
+              (appt) => !prev.some((p) => p._id === appt._id)
+            );
+            return [...prev, ...newAppointments];
+          });
+          
+          setTotal(data.totalCount);
+          setHasMore(data.appointments.length === limit);
+        }
+      } catch (error) {
+        if (error.response && error.response.status === 401) {
+          console.log("Session expired. Redirecting to signin...");
+          onLogout(navigate);
+        }
+        Swal.fire({
+          title: "Error",
+          text: `Failed to fetch ${type.toLowerCase()} appointments`,
+          icon: "error",
+        });
+      } finally {
+        if (setLoading) setLoading(false);
       }
-    } catch (error) {
-      if (error.response && error.response.status === 401) {
-        console.log('Session expired. Redirecting to signin...');
-        onLogout(navigate);
-      }
-      Swal.fire({
-        title: "Error",
-        text: `Failed to fetch ${type.toLowerCase()} appointments`,
-        icon: "error",
-      });
-    } finally {
-      if (setLoading) setLoading(false);
-    }
-  }, [userId,navigate,onLogout]); // Removed unnecessary dependencies
+    },
+    [userId, navigate, onLogout]
+  ); // Removed unnecessary dependencies
 
   useEffect(() => {
     if (userId) {
@@ -215,7 +253,7 @@ const Appointment = () => {
   useEffect(() => {
     if (userId) {
       fetchAppointments(
-        "Canceled",
+        "Cancelled",
         canceledPage,
         setCanceledAppointments,
         setCanceledLoading,
@@ -238,42 +276,64 @@ const Appointment = () => {
     }
   }, [userId, completedPage, fetchAppointments]);
 
-  const createObserver = useCallback((setPage, hasMore, observerRef) => (node) => {
-    if (!node || !hasMore) return;
-    if (observerRef.current) observerRef.current.disconnect();
+  const createObserver = useCallback(
+    (setPage, hasMore, observerRef) => (node) => {
+      if (!node || !hasMore) return;
+      if (observerRef.current) observerRef.current.disconnect();
 
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          setPage((prev) => prev + 1);
-        }
-      },
-      { threshold: 1.0 }
-    );
+      observerRef.current = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting) {
+            setPage((prev) => prev + 1);
+          }
+        },
+        { threshold: 1.0 }
+      );
 
-    observerRef.current.observe(node);
-  }, []);
+      observerRef.current.observe(node);
+    },
+    []
+  );
 
   const lastConfirmedAppointmentRef = useCallback(
-    (node) => createObserver(setConfirmedPage, confirmedHasMore, confirmedObserverRef)(node),
-    [setConfirmedPage, confirmedHasMore,createObserver]
+    (node) =>
+      createObserver(
+        setConfirmedPage,
+        confirmedHasMore,
+        confirmedObserverRef
+      )(node),
+    [setConfirmedPage, confirmedHasMore, createObserver]
   );
-  
+
   const lastUpcomingAppointmentRef = useCallback(
-    (node) => createObserver(setUpcomingPage, upcomingHasMore, upcomingObserverRef)(node),
-    [setUpcomingPage, upcomingHasMore,createObserver]
+    (node) =>
+      createObserver(
+        setUpcomingPage,
+        upcomingHasMore,
+        upcomingObserverRef
+      )(node),
+    [setUpcomingPage, upcomingHasMore, createObserver]
   );
-  
+
   const lastCanceledAppointmentRef = useCallback(
-    (node) => createObserver(setCanceledPage, canceledHasMore, canceledObserverRef)(node),
-    [setCanceledPage, canceledHasMore,createObserver]
+    (node) =>
+      createObserver(
+        setCanceledPage,
+        canceledHasMore,
+        canceledObserverRef
+      )(node),
+    [setCanceledPage, canceledHasMore, createObserver]
   );
-  
+
   const lastCompletedAppointmentRef = useCallback(
-    (node) => createObserver(setCompletedPage, completedHasMore, completedObserverRef)(node),
-    [setCompletedPage, completedHasMore,createObserver]
+    (node) =>
+      createObserver(
+        setCompletedPage,
+        completedHasMore,
+        completedObserverRef
+      )(node),
+    [setCompletedPage, completedHasMore, createObserver]
   );
-  
 
   return (
     <section className="AppintmentSection">
@@ -312,14 +372,14 @@ const Appointment = () => {
                 ovradcls=" cambrageblue"
                 ovrtxt="Completed"
                 boxcoltext="greentext"
-                overnumb={AppointmentStatusAndCounts.completedAppointments}
+                overnumb={AppointmentStatusAndCounts.successful}
               />
               <BoxDiv
                 boximg={`${import.meta.env.VITE_BASE_IMAGE_URL}/box6.png`}
                 ovradcls="chillibg"
                 ovrtxt="Cancelled"
                 boxcoltext="ciltext"
-                overnumb={AppointmentStatusAndCounts.canceledAppointments}
+                overnumb={AppointmentStatusAndCounts.canceled}
               />
             </div>
           </div>
@@ -355,7 +415,7 @@ const Appointment = () => {
                           ? lastConfirmedAppointmentRef
                           : null
                       }
-                      key={appointment._id}
+                      key={index}
                     >
                       <AppointCard
                         crdimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`}
@@ -388,7 +448,7 @@ const Appointment = () => {
                           ? lastUpcomingAppointmentRef
                           : null
                       }
-                      key={appointment._id}
+                      key={index}
                     >
                       <AppointCard
                         crdimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`}
@@ -421,14 +481,15 @@ const Appointment = () => {
                         ? lastCompletedAppointmentRef
                         : null
                     }
-                    key={appointment._id}
+                    key={index}
                   >
                     <AppointCard
                       crdimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`}
                       cdowner={appointment.ownerName}
                       crdtpe={appointment.petName}
                       btnimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/btn3.png`}
-                      btntext={`${appointment.appointmentDate} - ${appointment.appointmentTime}`}
+                      btntext="Completed"
+                      // {`${appointment.appointmentDate} - ${appointment.appointmentTime}`}
                       crddoctor={appointment.veterinarian}
                       drjob={appointment.department}
                       CardbtnClass="btngreen"
@@ -453,14 +514,15 @@ const Appointment = () => {
                         ? lastCanceledAppointmentRef
                         : null
                     }
-                    key={appointment._id}
+                    key={index}
                   >
                     <AppointCard
                       crdimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`}
                       cdowner={appointment.ownerName}
                       crdtpe={appointment.petName}
                       btnimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/btn4.png`}
-                      btntext={`${appointment.appointmentDate} - ${appointment.appointmentTime}`}
+                      btntext="Cancelled"
+                      // {`${appointment.appointmentDate} - ${appointment.appointmentTime}`}
                       crddoctor={appointment.veterinarian}
                       drjob={appointment.department}
                       CardbtnClass="btnchilly"
@@ -475,7 +537,7 @@ const Appointment = () => {
           </div>
 
           <div className="dd">
-           {userType==='Hospital'? <DocterWiseAppoint />: null}
+            {userType === "Hospital" ? <DocterWiseAppoint /> : null}
           </div>
         </div>
       </div>
@@ -521,7 +583,10 @@ export function DashModal() {
             <div className="LeftContent">
               <div className="TopContent">
                 <div className="lfttop">
-                  <img src={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`} alt="" />
+                  <img
+                    src={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`}
+                    alt=""
+                  />
                   <div className="owndt">
                     <h5>Appointment for Kizie</h5>
                     <p>
@@ -539,7 +604,10 @@ export function DashModal() {
               <div className="MidContent">
                 <h4>Appointment Details</h4>
                 <div className="lfttop">
-                  <img src={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`} alt="" />
+                  <img
+                    src={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`}
+                    alt=""
+                  />
                   <div className="owndt">
                     <h6>Dr. Emily Johnson</h6>
                     <p>Cardiology</p>
@@ -548,18 +616,30 @@ export function DashModal() {
 
                 <div className="cardbtn btnfown">
                   <button type="button">
-                    <img src={`${import.meta.env.VITE_BASE_IMAGE_URL}/btn1.png`} alt="" /> Tuesday, 10 Sep - 11:00 AM
+                    <img
+                      src={`${import.meta.env.VITE_BASE_IMAGE_URL}/btn1.png`}
+                      alt=""
+                    />{" "}
+                    Tuesday, 10 Sep - 11:00 AM
                   </button>
                 </div>
 
                 <div className="modlbtn">
                   <button type="button" className="confirm">
-                    {' '}
-                    <img src={`${import.meta.env.VITE_BASE_IMAGE_URL}/box5.png`} alt="" /> Confirm{' '}
+                    {" "}
+                    <img
+                      src={`${import.meta.env.VITE_BASE_IMAGE_URL}/box5.png`}
+                      alt=""
+                    />{" "}
+                    Confirm{" "}
                   </button>
                   <button type="button" className="cancel">
-                    {' '}
-                    <img src={`${import.meta.env.VITE_BASE_IMAGE_URL}/box6.png`} alt="" /> Cancel{' '}
+                    {" "}
+                    <img
+                      src={`${import.meta.env.VITE_BASE_IMAGE_URL}/box6.png`}
+                      alt=""
+                    />{" "}
+                    Cancel{" "}
                   </button>
                 </div>
               </div>
@@ -567,8 +647,14 @@ export function DashModal() {
               <div className="ModlMedclRept">
                 <TextSpan Textname="Medical Reports " Textnspan="(2)" />
                 <div className="MedReport">
-                  <img src={`${import.meta.env.VITE_BASE_IMAGE_URL}/report1.png`} alt="" />
-                  <img src={`${import.meta.env.VITE_BASE_IMAGE_URL}/report2.png`} alt="" />
+                  <img
+                    src={`${import.meta.env.VITE_BASE_IMAGE_URL}/report1.png`}
+                    alt=""
+                  />
+                  <img
+                    src={`${import.meta.env.VITE_BASE_IMAGE_URL}/report2.png`}
+                    alt=""
+                  />
                 </div>
               </div>
 
@@ -660,7 +746,6 @@ export function DashModal() {
                               type="radio"
                               name="recommend"
                               className="radio-button"
-                             
                               data-text="7"
                             />
                           </li>
@@ -669,7 +754,6 @@ export function DashModal() {
                               type="radio"
                               name="recommend"
                               className="radio-button"
-                             
                               data-text="8"
                             />
                           </li>
@@ -720,13 +804,20 @@ export function DashModal() {
                 <UplodeImage />
               </div>
 
-              <MainBtn bimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/whtcheck.png`} btext="Mark as Complete" optclas="opt" />
+              <MainBtn
+                bimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/whtcheck.png`}
+                btext="Mark as Complete"
+                optclas="opt"
+              />
             </div>
 
             <div className="RytContent">
               <div className="RytContDetails">
                 <div className="ownerImg">
-                  <img src={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`} alt="" />
+                  <img
+                    src={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`}
+                    alt=""
+                  />
                   <div className="owndetl">
                     <h4>Kizie</h4>
                     <p>Beagle</p>
@@ -752,7 +843,11 @@ export function DashModal() {
                   </div>
                 </div>
 
-                <MainBtn bimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/whtmsg.png`} btext="Message Owner" optclas="" />
+                <MainBtn
+                  bimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/whtmsg.png`}
+                  btext="Message Owner"
+                  optclas=""
+                />
               </div>
 
               <ChatApp />
@@ -798,7 +893,7 @@ export function MainBtn({
         type={btntyp}
         disabled={disabled}
         {...(mdtarget
-          ? { 'data-bs-toggle': 'modal', 'data-bs-target': mdtarget }
+          ? { "data-bs-toggle": "modal", "data-bs-target": mdtarget }
           : {})}
         onClick={onClick}
       >
@@ -819,7 +914,7 @@ MainBtn.propTypes = {
 };
 
 MainBtn.defaultProps = {
-  optclas: '',
+  optclas: "",
   disabled: false,
 };
 // AppointCard start

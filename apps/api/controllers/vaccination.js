@@ -31,12 +31,16 @@ async function handleAddVaccination(req,res){
 async function handleEditVaccination(req,res) {
     try {
     const updatedData = req.body;
-    const id = updatedData.id;
+    const id = req.params.id;
     const document =  req.file;
     if(document) {
         updatedData.vaccineImage = document.filename;
     }
-    const editVaccination = await vaccination.findByIdAndUpdate(id,updatedData, { new: true });
+    const editVaccination = await vaccination.findOneAndUpdate(
+        { _id: { $eq: id } }, 
+        updatedData,
+        { new: true }
+      );
     if (!editVaccination) {
         return res.status(404).json({ message: "Vaccination record not found" });
       }
@@ -49,10 +53,10 @@ async function handleEditVaccination(req,res) {
 }
 async function handleGetVaccination(req,res){
 
-    const userid = req.body.userId;
-    const result = await vaccination.find({ userId : userid });
+    const userid = req.params.userId;
+    const result = await vaccination.find({ userId : {$eq: userid } } );
     if (result.length === 0) return res.status(404).json({ message: "No appointment found for this user" });
-    res.json(result);
+    res.json({ data: result });
 }
 
 module.exports = {

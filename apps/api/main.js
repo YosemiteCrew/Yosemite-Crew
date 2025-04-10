@@ -83,6 +83,7 @@ app.use('/fhir/extensions', fhirRoutes);
 app.use('/fhir/v1', doctorRoutes);
 app.use('/fhir/v1', apointmentRoutes);
 app.use('/fhir/v1', hospitalRoutes);
+app.use('/fhir/v1',authRoutes)
 
 // Global error handler
 app.use((err, req, res, next) => {
