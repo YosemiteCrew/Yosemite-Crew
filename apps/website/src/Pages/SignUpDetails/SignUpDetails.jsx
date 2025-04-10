@@ -21,12 +21,15 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/useAuth';
 import { FaFileWord } from 'react-icons/fa';
 import { RxCrossCircled } from 'react-icons/rx';
-import { IoIosAddCircle } from 'react-icons/io';
-import { Button } from 'react-bootstrap';
+import { IoIosAddCircle, IoIosArrowDropleft, IoIosArrowDropright } from 'react-icons/io';
+import { Button, Col, Form, Nav, Row ,Tab } from 'react-bootstrap';
+
 const libraries = ['places'];
 
 const SignUpDetails = () => {
+
   const autoCompleteRef = useRef(null);
+
 
   const location = useLocation();
   const cognitoId = location.state?.cognitoId;
@@ -467,12 +470,453 @@ const SignUpDetails = () => {
     }
   };
 
+  const [key, setKey] = useState("basic");
+
+
+
+
+
   return (
     <section className="SignDetailsSec">
       <div className="container">
         <div className="mb-3">
           <HeadText Spntext="Set up" blktext="your profile " />
         </div>
+
+
+        <div className="SignDetlsTabDiv">
+
+          <Tab.Container activeKey={key} onSelect={(k) => setKey(k)}>
+
+            <div className="Add_Profile_Data">
+              <div>
+                <Nav variant="pills" className=" VetPills">
+                  <Nav.Item>
+                    <Nav.Link eventKey="basic"><span>1</span> Basic  Information</Nav.Link>
+                  </Nav.Item>
+                  <Nav.Item>
+                    <Nav.Link eventKey="address"><span>2</span> Add Address</Nav.Link>
+                  </Nav.Item>
+                  <Nav.Item>
+                    <Nav.Link eventKey="services"><span>3</span> Add Services</Nav.Link>
+                  </Nav.Item>
+                </Nav>
+              </div>
+              <div ></div>
+            </div>
+
+            <div className="Add_Profile_Data">
+
+
+              <div className="LeftProfileDiv">
+
+              <Tab.Content>
+
+                {/* Basic Information */}
+                <Tab.Pane eventKey="basic">
+
+                  <Form className='BasicForm'>
+
+                    <div className="ss">
+                      <div className="add-logo-container">
+                        <input
+                          type="file"
+                          id="logo-upload"
+                          accept="image/*"
+                          onChange={handleImageChange}
+                          style={{ display: 'none' }}
+                        />
+                        <label htmlFor="logo-upload" className="upload-label">
+                          {preImage || image ? (
+                            <img
+                              src={preImage || image} // This will use preImage if available, otherwise image
+                              alt="Preview"
+                              className="preview-image"
+                            />
+                          ) : (
+                            <div className="upload-placeholder">
+                              <img src={`${import.meta.env.VITE_BASE_IMAGE_URL}/camera.png`} alt="camera" className="icon" />
+                            </div>
+                          )}
+                        </label>
+                        <h5>Add Logo</h5>
+                      </div>
+                    </div>
+
+
+                    <Row>
+                      <Col md={12} >
+                        <Forminput
+                          inlabel="Business Name"
+                          intype="text"
+                          inname="businessName"
+                          value={formData.businessName}
+                          onChange={handleInputChange}
+                        />
+                      </Col>
+                      <Col md={6} className="mt-3">
+                        <Forminput
+                          inlabel="Registration Number"
+                          intype="number"
+                          inname="registrationNumber"
+                          value={formData.registrationNumber}
+                          onChange={handleInputChange}
+                        />
+                      </Col>
+                      <Col md={6} className="mt-3">
+                        <Forminput
+                          inlabel="Year of Establishment"
+                          intype="number"
+                          inname="yearOfEstablishment"
+                          value={formData.yearOfEstablishment}
+                          onChange={handleInputChange}
+                        />
+                      </Col>
+                      <Col md={3} className="mt-3">
+                        <Forminput
+                          inlabel="Phone Number"
+                          intype="number"
+                          inname="phoneNumber"
+                          value={formData.phoneNumber}
+                          onChange={handleInputChange}
+                        />
+                      </Col>
+                      <Col md={9} className="mt-3">
+                        <Forminput
+                          inlabel="Phone Number"
+                          intype="number"
+                          inname="phoneNumber"
+                          value={formData.phoneNumber}
+                          onChange={handleInputChange}
+                        />
+                      </Col>
+                      <Col md={12} className="mt-3">
+                        <Forminput
+                          inlabel="Website"
+                          intype="text"
+                          inname="website"
+                          value={formData.website}
+                          onChange={handleInputChange}
+                        />
+                      </Col>
+                      
+                    </Row>
+
+                    <div className="TabsBtn">
+                      <Button onClick={() => setKey("address")}>
+                        Next <IoIosArrowDropright />
+                      </Button>
+                    </div>
+
+                  </Form>
+                  
+                </Tab.Pane>
+
+                {/* address Information */}
+                <Tab.Pane eventKey="address">
+
+                  <Form className='AddressForm'>
+
+                    <div className="ProfBackDiv">
+                      <h6>Address</h6>
+
+                      <Row mt={3}> 
+                        <Col md={12}>
+                          <Autocomplete
+                            fields={[
+                              'geometry',
+                              'place_id',
+                              'formatted_address',
+                              'address_components',
+                            ]}
+                            onLoad={(ref) => (autoCompleteRef.current = ref)}
+                            onPlaceChanged={handlePlaceSelect}>
+                            
+                            <Forminput
+                              inlabel="Address Line 1"
+                              intype="text"
+                              inname="addressLine1"
+                              value={formData.addressLine1}
+                              onChange={(e) => {
+                                handleInputChange(e); // Allow manual input
+                              }}
+                              className="form-control"
+                              
+                            />
+                          </Autocomplete>
+                        </Col>
+                      </Row>
+                      <Row mt={3}>
+                        <Col md={6}>
+                          <Forminput
+                            inlabel="Street"
+                            intype="text"
+                            inname="street"
+                            value={formData.street}
+                            onChange={handleInputChange}
+                          />
+                        </Col>
+                        <Col md={6}>
+
+                          <Forminput
+                            inlabel="City"
+                            intype="text"
+                            inname="city"
+                            value={formData.city}
+                            onChange={handleInputChange}
+                          />
+                        
+                        </Col>
+                      </Row>
+                      <Row mt={3}>
+                        <Col md={6}>
+                          <Forminput
+                            inlabel="State"
+                            intype="text"
+                            inname="state"
+                            value={formData.state}
+                            onChange={handleInputChange}
+                          />
+                        </Col>
+                        <Col md={6}>
+                          <Forminput
+                            inlabel="ZIP Code"
+                            intype="number"
+                            inname="zipCode"
+                            value={formData.zipCode}
+                            onChange={handleInputChange}
+                          />
+                        </Col>
+                      </Row>
+
+                    </div>
+
+
+                    <div className="ProfBtn">
+                      <Button className='Hov' onClick={() => setKey("basic")}>
+                      <IoIosArrowDropleft />  Back 
+                      </Button>
+                      <Button  onClick={() => setKey("services")}>
+                        Next <IoIosArrowDropright />
+                      </Button>
+                    </div>
+
+
+
+
+
+                  </Form>
+
+                </Tab.Pane>
+
+                {/* services Information */}
+                <Tab.Pane eventKey="services">
+
+                  <Form className='ServicesForm'>
+
+                    <div className="sddsd">
+                      <h6>Does your business have specialized departments?</h6>
+                      <div className="ConstModeUl">
+                        <ul>
+                          <li
+                            className={activeModes === 'yes' ? 'active' : ''}
+                            onClick={() => handleModeClick('yes')}
+                          >
+                            Yes
+                          </li>
+                          <li
+                            className={activeModes === 'no' ? 'active' : ''}
+                            onClick={() => handleModeClick('no')}
+                          >
+                            No
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+
+                    <div className="services_dropdown">
+                      <div
+                        className={`ServHeadr ${isDropdownOpen ? 'open' : ''}`}
+                        onClick={toggleDropdown}
+                      >
+                        <span>Add Services</span>
+                        <span className="arrow">{isDropdownOpen ? '▲' : '▼'}</span>
+                      </div>
+                      {isDropdownOpen && (
+                        <div className="ServDropcontent">
+                          <div className="serchbtn">
+                            <i className="ri-search-line"></i>
+                            <input
+                              type="text"
+                              className="search-input"
+                              placeholder="Search"
+                              value={searchTerm}
+                              onChange={handleSearch}
+                            />
+                          </div>
+                          <ul className="services-list">
+                            {filteredServices.map((service) => (
+                              <li
+                                key={service.code}
+                                className={`service-item ${
+                                  selectedServices.includes(service.code)
+                                    ? 'selected'
+                                    : ''
+                                }`}
+                              >
+                                <label>
+                                  <input
+                                    type="checkbox"
+                                    className="form-check-input"
+                                    checked={selectedServices.some((s) => s.code === service.code)}
+                                    onChange={() =>
+                                      handleSelectService(service)
+                                    }
+                                  />
+                                  <p>{service.display}</p>
+                                </label>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+
+                    <UplodeImage
+                      selectedFile={selectedFile}
+                      onFileChange={handleFileChange}
+                    />
+
+                    <div className="DoctProfpdf">
+                      <h5>Uploaded Documents</h5>
+                      <div className="PdfUpldpf">
+                        <div className="uploaded_files">
+                          {uploadedfiles.map((file, index) => {
+                            // Handle files properly (old API files have type as string, new ones are File objects)
+                            let fileType =
+                              file.type ||
+                              (file.name.includes('.')
+                                ? `.${file.name.split('.').pop()}`
+                                : '');
+
+                            return (
+                              <div key={index} className="file-item">
+                                {/* Ensure fileType exists before calling startsWith */}
+                                {fileType.startsWith('image/') ? (
+                                  <AiFillFileImage />
+                                ) : fileType === 'application/pdf' ? (
+                                  <BsFileDiffFill />
+                                ) : (
+                                  <FaFileWord /> // Icon for DOC/DOCX files
+                                )}
+
+                                <div className="pdfnme">
+                                  <span>
+                                    {file.name.length > 15
+                                      ? `${file.name.substring(0, 12)}...`
+                                      : file.name}
+                                  </span>
+                                  <span className="file-date">
+                                    {file.date || new Date().toLocaleDateString()}
+                                  </span>
+                                </div>
+
+                                <Button onClick={() => removeFile(file)}>
+                                  <RxCrossCircled />
+                                </Button>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        <div className="pdfUpldeButton">
+                          <label htmlFor="file-upload" className="upload-btn">
+                            <IoIosAddCircle /> Upload
+                          </label>
+                          <input
+                            type="file"
+                            id="file-upload"
+                            accept=".pdf,.doc,.docx,image/*" // Allow PDF, DOC, DOCX, and images
+                            multiple
+                            onChange={handleFileChange}
+                            style={{ display: 'none' }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {selectedFile && (
+                      <div>
+                        {typeof selectedFile === 'object' &&
+                        selectedFile instanceof Blob ? (
+                          <>
+                            <h3>Selected File:</h3>
+                            <p>File Name: {selectedFile.name}</p>
+                            <p>File Type: {selectedFile.type}</p>
+                            <p>File Size: {selectedFile.size} bytes</p>
+                          </>
+                        ) : (
+                          <p></p>
+                        )}
+                      </div>
+                    )}
+
+                    <div className='ProfBtn'>
+                      <Button variant="secondary" onClick={() => setKey("availability")}>
+                      <IoIosArrowDropleft /> Back
+                      </Button>
+                      {/* <Button  onClick={() => { HandleSubmit(); }}> <FaCircleCheck />  Add Vet</Button> */}
+                      
+                      
+                    </div>
+
+
+
+
+
+                  </Form>
+
+                </Tab.Pane>
+
+
+
+
+              </Tab.Content>
+
+
+
+              </div>
+
+              <div className="RytProfileDiv">
+                <ProfileProg blname="Profile" spname="Progress" />
+              </div>
+
+            </div>
+
+
+
+
+
+
+
+
+
+
+
+          </Tab.Container>
+
+
+
+
+
+
+        </div>
+
+
+
+
+
+
         <div className="Sign_Details_Data">
           <div className="LeftProfile">
             <div className="ProfileDiv">
@@ -878,6 +1322,17 @@ const SignUpDetails = () => {
             <ProfileProg blname="Profile" spname="Progress" />
           </div>
         </div>
+
+
+
+
+
+
+
+
+
+
+
       </div>
     </section>
   );
