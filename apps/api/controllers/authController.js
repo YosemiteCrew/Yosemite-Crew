@@ -1,4 +1,5 @@
 const AWS = require("aws-sdk");
+const validator = require('validator');
 const crypto = require("crypto");
 const user = require("../models/YoshUser");
 const path = require("path");
@@ -126,6 +127,9 @@ const authController = {
     const { email, confirmationCode } = req.body;
   
     try {
+      if (typeof email !== 'string' || !validator.isEmail(email)) {
+        return res.status(400).json({ status: 0, message: "Invalid email format" });
+      }
       // Step 1: Find the user in the database
       const result = await user.findOne({ email });
       if (!result) {
@@ -185,7 +189,11 @@ const authController = {
   sendOtp: async (req, res) => {
     const { email } = req.body;
     try {
-      const result = await user.findOne({ email });
+      if (typeof email !== 'string' || !validator.isEmail(email)) {
+        return res.status(400).json({ status: 0, message: "Invalid email format" });
+      }
+      const safeEmail = email.trim().toLowerCase();
+      const result = await user.findOne({ email: safeEmail });
       if (!result) {
         return res.status(200).json({status:0, message: "User not found" });
       }
@@ -211,7 +219,7 @@ const authController = {
      // console.log("Email sent:", emailSent); // Log email send response
       res.status(200).json({status: 1, message: "Otp sent successfully" });
     } catch (error) {
-      console.error("Login error:", error);
+      //console.error("Login error:", error);
       res
         .status(500)
         .json({ status: 0,message: "Error during login", error: error.message });
@@ -220,23 +228,34 @@ const authController = {
   // Delete user from cognito and database
   deleteUser: async (req, res) => {
     const { email } = req.body;
+  
+    // Validate input
+    if (typeof email !== 'string' || !validator.isEmail(email)) {
+      return res.status(400).json({ status: 0, message: "Invalid email format" });
+    }
+  
     try {
       const result = await user.findOne({ email });
+  
       if (!result) {
-        return res.status(404).json({status:0, message: "User not found" });
+        return res.status(404).json({ status: 0, message: "User not found" });
       }
-
+  
       const params = {
         UserPoolId: process.env.COGNITO_USER_POOL_ID,
         Username: email,
       };
+  
       await cognito.adminDeleteUser(params).promise();
-      await user.deleteOne({ email: email });
-      return res.status(200).json({status:1, message: "User deleted sucessfully" });
+      await user.deleteOne({ email });
+  
+      return res.status(200).json({ status: 1, message: "User deleted successfully" });
     } catch (error) {
-      res
-        .status(500)
-        .json({status:0, message: "Error while deleting user", error: error.message });
+      res.status(500).json({
+        status: 0,
+        message: "Error while deleting user",
+        error: error.message,
+      });
     }
   },
   // Login API
@@ -244,7 +263,7 @@ const authController = {
     const { email, otp } = req.body;
     try {
       const result = await user.findOne({ email });
-       console.log(result);
+      // console.log(result);
       if (!result) {
         return res.status(200).json({ status: 0, message: "User not found" });
       }
@@ -287,7 +306,7 @@ const authController = {
         userdata: userData,
       });
     } catch (error) {
-      console.error("Login error:", error);
+      //console.error("Login error:", error);
       res.status(500).json({
         status: 0,
         message: "Error during login",

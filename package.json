@@ -12,5 +12,8 @@
     "turbo": "^2.5.0"
   },
   "packageManager": "pnpm@8.15.6",
-  "name": "with-vite"
+  "name": "with-vite",
+  "dependencies": {
+    "sanitize-filename": "^1.6.3"
+  }
 }

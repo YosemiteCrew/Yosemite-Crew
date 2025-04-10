@@ -93,7 +93,7 @@ const appointmentSchema = mongoose.Schema(
     },
     appointmentStatus: {
       type: String,
-      default: "booked",
+      default: "pending",
     },
     isCanceled: {
       type: Number,
