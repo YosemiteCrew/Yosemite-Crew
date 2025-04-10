@@ -94,6 +94,9 @@ overviewConvertToFHIR() {
       { key: "canceled", resourceType: "Appointment" },
       { key: "checkedIn", resourceType: "Appointment" },
       { key: "availableDoctors", resourceType: "Appointment" },
+      { key: "upcomingAppointments", resourceType: "Appointment" },
+      { key: "newAppointments", resourceType: "Appointment"},
+      { key: "newPetsCount", resourceType:"Patient"}
   ];
   
   overviewData.forEach(({ key, resourceType }) => {
@@ -124,6 +127,9 @@ overviewConvertToFHIR() {
                   case "checkedIn":
                     case "availableDoctors":
                       case "appointmentsCreatedToday":
+                        case "newAppointments":
+                          case "upcomingAppointments":
+                            case "newPetsCount":
               resource[key] = value;
               break;
           default:

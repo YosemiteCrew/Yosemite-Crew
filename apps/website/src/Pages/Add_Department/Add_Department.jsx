@@ -10,6 +10,9 @@ import axios from 'axios';
 import { useAuth } from '../../context/useAuth';
 import { useNavigate } from 'react-router-dom';
 import countrycode from './countriescities.json';
+import { FHIRParser } from '../../utils/FhirMapper';
+import { DepartmentFHIRConverter } from '../../utils/DepartmentFHIRMapper';
+import Swal from 'sweetalert2';
 
 const useDebounce = (value, delay) => {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -58,7 +61,7 @@ const Add_Department = () => {
         navigate('/signin');
       }
       const response = await axios.get(
-        `${import.meta.env.VITE_BASE_URL}api/doctors/searchDoctorsByName?name=${debouncedSearch}&bussinessId=${userId}`,
+        `${import.meta.env.VITE_BASE_URL}fhir/v1/Practitioner?name=${debouncedSearch}&bussinessId=${userId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`, // Attach the token to the request headers
@@ -67,10 +70,19 @@ const Add_Department = () => {
       );
 
       if (response && response.data) {
+        let parsedData =
+        typeof response.data === 'string'
+          ? JSON.parse(response.data)
+          : response.data;
+
+      const parser = new FHIRParser(parsedData);
+      // console.log('parser', parser);
+
+      const normalData = parser.convertToNormal();
         setservicesList(
-          Object.values(response.data)
+          Object.values(normalData)
             .flat() // Flatten the array of arrays
-            .map((v, i) => ({
+            .map((v, ) => ({
               id: v.userId,
               name: v.doctorName,
               pic: v.image,
@@ -92,13 +104,7 @@ const Add_Department = () => {
     console.log('ssss', event.target.value);
   };
 
-  // const servicesList = [
-  //   { id: 1, name: 'Dr. Sarah Mitchell', pic: 'Images/doct1.png' },
-  //   { id: 2, name: 'Dr. James Carter', pic: 'Images/doct2.png' },
-  //   { id: 3, name: 'Dr. Laura Bennett', pic: 'Images/doct3.png' },
-  //   { id: 4, name: 'Dr. Michael Green', pic: 'Images/doct4.png' },
-  //   { id: 5, name: 'Dr. Emily Turner', pic: 'Images/doct1.png' },
-  // ];
+ 
 
   const [selectedServices, setSelectedServices] = useState([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -239,15 +245,28 @@ const Add_Department = () => {
       consultationModes: activeModes,
       departmentHeadId: selectedServices[0],
     };
-    console.log('departmentData', departmentData);
+   const data = new DepartmentFHIRConverter(departmentData).toFHIR()
+
+
 
     try {
       const token = sessionStorage.getItem("token");
       const response = await axios.post(
-        `${import.meta.env.VITE_BASE_URL}api/auth/addDepartment`,
-        departmentData ,{headers:{Authorization:`Bearer ${token}`}}
+        `${import.meta.env.VITE_BASE_URL}fhir/v1/HealthcareService`,
+        data ,{headers:{Authorization:`Bearer ${token}`}}
       );
       console.log('Department added:', response.data);
+      if (response.status === 201) {
+        Swal.fire({
+          icon: "success",
+          title: "Success!",
+          text: "Department Added.",
+          confirmButtonColor: '#3085d6',
+          confirmButtonText: 'OK'
+        
+        })
+        navigate("/department");
+      }
     } catch (error) {
       if (error.response && error.response.status === 401) {
         console.log('Session expired. Redirecting to signin...');

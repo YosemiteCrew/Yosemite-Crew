@@ -1,7 +1,4 @@
-// eslint-disable-next-line no-unused-vars
-import React, { useEffect } from 'react';
-import 'sweetalert2/dist/sweetalert2.min.css';
-
+import React, { useEffect, useMemo } from 'react';
 import {
   BrowserRouter as Router,
   Routes,
@@ -118,7 +115,7 @@ const Layout = () => {
   ];
   const showFooter = footerRoutes.includes(location.pathname);
 
-  const protectedRoutes = [
+  const protectedRoutes = useMemo(() => [
     '/dashboard',
     '/appointment',
     '/doctordashboard',
@@ -132,7 +129,6 @@ const Layout = () => {
     '/pricing',
     '/clinicvisible',
     '/Addprescription',
-    '/prescription',
     '/department',
     '/articlepage',
     '/AssessmentManagement',
@@ -143,7 +139,8 @@ const Layout = () => {
     '/lblogpage',
     '/viewprocedurepackage/:id',
     '/chatscreen'
-  ];
+  ], []);
+  
 
   useEffect(() => {
   const currentPath = location.pathname;
@@ -160,7 +157,7 @@ const Layout = () => {
   if (!tokens && isProtected) {
     navigate('/signin');
   }
-}, [tokens, location.pathname]);
+}, [tokens, location.pathname,navigate,protectedRoutes]);
 
   useEffect(() => {
     // console.log("Current Path:", location.pathname);
@@ -188,7 +185,7 @@ const Layout = () => {
     } else {
       navigate(currentPath);
     }
-  }, [tokens, location.pathname]);
+  }, [tokens, location.pathname, navigate,protectedRoutes]);
   // console.log("<Doctor_Dashboard />", userType);
   return (
     <>

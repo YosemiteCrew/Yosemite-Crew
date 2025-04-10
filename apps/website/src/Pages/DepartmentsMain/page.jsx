@@ -14,9 +14,14 @@ import axios from 'axios';
 import Swal from 'sweetalert2';
 import { useAuth } from '../../context/useAuth';
 import { useNavigate } from 'react-router-dom';
+import { FHIRParser } from '../../utils/FhirMapper';
+import { DepartmentFHIRConverter } from '../../utils/DepartmentFHIRMapper';
 
 const DepartmentsMain = () => {
   const [DepartmentsOverView, SetDepartmentsOverView] = useState({});
+
+
+  // console.log("DepartmentsOverView",DepartmentsOverView);
   const { userId ,onLogout} = useAuth();
   const navigate = useNavigate()
   const optionsList1 = [
@@ -32,7 +37,7 @@ const DepartmentsMain = () => {
     try {
       const token = sessionStorage.getItem("token");
       const response = await axios.get(
-        `${import.meta.env.VITE_BASE_URL}api/hospitals/departmentsOverView?userId=${userId}`,
+        `${import.meta.env.VITE_BASE_URL}fhir/v1/MeasureReport?userId=${userId}&type=DepartmentOverview`,
         {
           params: {
             LastDays: days,
@@ -44,7 +49,11 @@ const DepartmentsMain = () => {
       );
 
       if (response) {
-        SetDepartmentsOverView(response.data.data);
+
+        // console.log("response.data",response.data);
+        const data = new FHIRParser(response.data.data).overviewConvertToNormal()
+        // console.log("FHIRParser",data);
+        SetDepartmentsOverView(data);
       }
     } catch (error) {
       if (error.response && error.response.status === 401) {
@@ -68,7 +77,7 @@ const DepartmentsMain = () => {
     try {
       const token = sessionStorage.getItem("token");
       const response = await axios.get(
-        `${import.meta.env.VITE_BASE_URL}api/hospitals/DepartmentBasisAppointmentGraph?userId=${userId}`,
+        `${import.meta.env.VITE_BASE_URL}fhir/v1/List?userId=${userId}&reportType=AppointmentGraphs`,
         {
           params: {
             LastDays: days,
@@ -77,8 +86,11 @@ const DepartmentsMain = () => {
         }
       );
       if (response) {
-        // Transform API response to match expected format
-        const formattedData = response.data.data.map((item) => ({
+
+        const data = DepartmentFHIRConverter.fromFHIR(response.data);
+        // console.log("DepartmentFHIRConverter",data)
+        
+        const formattedData = data.map((item) => ({
           name: item.departmentName,
           appointments: item.count,
         }));
@@ -103,10 +115,13 @@ const DepartmentsMain = () => {
     try {
       const token = sessionStorage.getItem('token')
       const response = await axios.get(
-        `${import.meta.env.VITE_BASE_URL}api/hospitals/getDataForWeeklyAppointmentChart?userId=${userId}`,{headers:{Authorization:`Bearer ${token}`}}
+        `${import.meta.env.VITE_BASE_URL}fhir/v1/List?userId=${userId}&reportType=WeeklyAppointmentGraph`,{headers:{Authorization:`Bearer ${token}`}}
       );
       if (response) {
-        const formattedData = response.data.data.map((item) => ({
+        const data = new DepartmentFHIRConverter().convertFromFHIR(response.data)
+
+
+        const formattedData = data.map((item) => ({
           name: item.day,
           appointments: item.count,
         }));
@@ -154,14 +169,14 @@ const DepartmentsMain = () => {
                 ovradcls="purple"
                 ovrtxt="Departments"
                 boxcoltext="purpletext"
-                overnumb={DepartmentsOverView.departments}
+                overnumb={DepartmentsOverView.totalDepartments?DepartmentsOverView.totalDepartments:0}
               />
               <BoxDiv
                 boximg={`${import.meta.env.VITE_BASE_IMAGE_URL}/box4.png`}
                 ovradcls=" fawndark"
                 ovrtxt="Total Doctors "
                 boxcoltext="frowntext"
-                overnumb={DepartmentsOverView.doctors}
+                overnumb={DepartmentsOverView.totalDoctors?DepartmentsOverView.totalDoctors:0}
               />
               <BoxDiv
                 boximg={`${import.meta.env.VITE_BASE_IMAGE_URL}/box3.png`}
@@ -169,7 +184,7 @@ const DepartmentsMain = () => {
                 ovrtxt="New Animal"
                 boxcoltext="greentext"
                 overnumb={
-                  DepartmentsOverView.pets ? DepartmentsOverView.pets : 0
+                  DepartmentsOverView.newPetsCount ? DepartmentsOverView.newPetsCount : 0
                 }
               />
               <BoxDiv
@@ -177,7 +192,7 @@ const DepartmentsMain = () => {
                 ovradcls="chillibg"
                 ovrtxt="Appointments Today"
                 boxcoltext="ciltext"
-                overnumb={DepartmentsOverView.appointments}
+                overnumb={DepartmentsOverView.totalAppointments?DepartmentsOverView.totalAppointments:0}
               />
             </div>
           </div>

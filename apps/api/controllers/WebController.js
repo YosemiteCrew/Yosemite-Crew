@@ -500,7 +500,7 @@ const organization = fhirData.organization;
         (ext) => ext.url === "longitude"
       )?.valueDecimal;
   
-      const activeModes = organization.active ? "true" : "false";
+      const activeModes = organization.active 
   
       // Upload logo if provided
       const logo = req.files?.logo
@@ -734,7 +734,7 @@ const organization = fhirData.organization;
            country: "US",
          },
        ],
-       active: profile.activeModes === "true",
+       active: profile.activeModes,
        ...(logoUrl && {
          extension: [
            {

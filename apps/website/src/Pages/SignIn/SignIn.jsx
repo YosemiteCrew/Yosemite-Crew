@@ -12,9 +12,7 @@ import { useAuth } from '../../context/useAuth';
 function SignIn() {
   const navigate = useNavigate();
   const { initializeUser } = useAuth();
-  console.log("llllllllllllll",import.meta.env.VITE_BASE_IMAGE_URL);
-
-  console.log("All Vite Env Variables:", import.meta.env);
+  
 
 
   const [showForgotPassword, setShowForgotPassword] = useState(false);

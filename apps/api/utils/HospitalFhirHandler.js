@@ -51,5 +51,73 @@ class GraphDataToFHIR {
     };
   }
 }
+class AppointmentsFHIRConverter {
+  constructor({ status = "confirmed", page = 1, limit = 10, totalPages, totalCount = 0, hasMore, appointments = [] }) {
+    this.status = status;
+    this.page = page;
+    this.limit = limit;
+    this.totalCount = totalCount || appointments.length;
+    this.totalPages = totalPages || Math.ceil(this.totalCount / this.limit);
+    this.hasMore = hasMore ?? this.page < this.totalPages;
+    this.appointments = appointments;
+  }
 
-module.exports= GraphDataToFHIR;
+  toFHIRBundle() {
+    const entries = this.appointments.map((appt) => {
+      const dateOnly = appt.appointmentDate
+      const appointmentTime = appt.appointmentTime || "00:00";
+
+      return {
+        fullUrl: `Appointment/${appt._id}`,
+        resource: {
+          resourceType: "Appointment",
+          id: appt._id,
+          status: this.status.toLowerCase(),
+          start: dateOnly, // Only use date here
+          description: `${appt.petName} with ${appt.veterinarian}`,
+          participant: [
+            {
+              actor: { display: appt.ownerName },
+              status: "accepted",
+            },
+            {
+              actor: { display: appt.veterinarian || "N/A" },
+              status: "accepted",
+            },
+          ],
+          reasonCode: [
+            {
+              text: appt.department,
+            },
+          ],
+          extension: [
+            {
+              url: "http://example.org/fhir/StructureDefinition/appointment-time",
+              valueString: appointmentTime, // e.g. "11:00 AM"
+            },
+          ],
+        },
+      };
+    });
+
+    const links = [
+      { relation: "self", url: `?page=${this.page}&limit=${this.limit}` },
+      ...(this.hasMore ? [{ relation: "next", url: `?page=${this.page + 1}&limit=${this.limit}` }] : []),
+    ];
+
+    return {
+      resourceType: "Bundle",
+      type: "searchset",
+      total: this.totalCount,
+      link: links,
+      entry: entries,
+      page: this.page,
+      limit: this.limit,
+      totalPages: this.totalPages,
+      hasMore: this.hasMore,
+    };
+  }
+}
+
+
+module.exports= {GraphDataToFHIR,AppointmentsFHIRConverter};

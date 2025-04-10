@@ -29,7 +29,7 @@ router.delete(
 
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Add Department >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-router.post('/addDepartment', verifyTokenAndRefresh,AddDepartmentController.addDepartment);
+router.post('/HealthcareService', verifyTokenAndRefresh,AddDepartmentController.addDepartment);
 router.get('/getAddDepartment', verifyTokenAndRefresh,AddDepartmentController.getAddDepartment);
 
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Google Map>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>

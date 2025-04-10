@@ -1,6 +1,7 @@
 class FHIRToNormalConverter {
   constructor(fhirData) {
     this.fhirData = fhirData;
+    
   }
 
   // Convert FHIR to normal data format
@@ -170,6 +171,10 @@ class FHIRToNormalConverter {
 class AppointmentFHIRConverter {
   constructor(appointment) {
     this.appointment = appointment;
+    this.totalAppointments = appointment.totalAppointments || [];
+    this.page = appointment.page || 1;
+    this.totalPages = appointment.totalPages || 1;
+    this.totalCount = appointment.totalCount || 0;
   }
 
   toFHIR() {
@@ -296,6 +301,70 @@ class AppointmentFHIRConverter {
         resource: new AppointmentFHIRConverter(app).toFHIR(),
       })),
     };
+  }
+
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< doctors Total appointment and revenue >>>>>>>>>>>>>>>>>>>>>>>>>>
+
+  toFHIRBundle() {
+    const bundle = {
+      resourceType: "Bundle",
+      type: "collection",
+      total: this.totalCount,
+      entry: []
+    };
+
+    this.totalAppointments.forEach((docData, index) => {
+      const practitionerId = `Practitioner/${docData.doctorId}`;
+
+      // Create Practitioner resource
+      const practitioner = {
+        resourceType: "Practitioner",
+        id: docData.doctorId,
+        name: [
+          {
+            text: docData.doctorName
+          }
+        ],
+        photo: [
+          {
+            url: docData.image
+          }
+        ]
+      };
+
+      bundle.entry.push({
+        resource: practitioner
+      });
+
+      // Create Appointment "summaries" as mock appointments
+      for (let i = 0; i < docData.totalAppointments; i++) {
+        const appointment = {
+          resourceType: "Appointment",
+          id: `${docData.doctorId}-appointment-${i + 1}`,
+          status: "booked",
+          participant: [
+            {
+              actor: {
+                reference: practitionerId,
+                display: docData.doctorName
+              },
+              status: "accepted"
+            }
+          ],
+          specialty: [
+            {
+              text: docData.department
+            }
+          ]
+        };
+
+        bundle.entry.push({
+          resource: appointment
+        });
+      }
+    });
+
+    return bundle;
   }
 }
 
