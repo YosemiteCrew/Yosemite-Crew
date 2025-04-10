@@ -54,6 +54,9 @@ importers:
       express-fileupload:
         specifier: 1.5.1
         version: 1.5.1
+      express-rate-limit:
+        specifier: ^7.5.0
+        version: 7.5.0(express@4.21.2)
       fhir:
         specifier: 4.12.0
         version: 4.12.0
@@ -6570,6 +6573,15 @@ packages:
     engines: {node: '>=12.0.0'}
     dependencies:
       busboy: 1.6.0
+    dev: false
+
+  /express-rate-limit@7.5.0(express@4.21.2):
+    resolution: {integrity: sha512-eB5zbQh5h+VenMPM3fh+nw1YExi5nMr6HUCR62ELSP11huvxm/Uir1H1QEyTkk5QX6A58pX6NmaTMceKZ0Eodg==}
+    engines: {node: '>= 16'}
+    peerDependencies:
+      express: ^4.11 || 5 || ^5.0.0-beta.1
+    dependencies:
+      express: 4.21.2
     dev: false
 
   /express@4.21.2:
