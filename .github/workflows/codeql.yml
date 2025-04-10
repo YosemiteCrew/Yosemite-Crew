@@ -46,7 +46,7 @@ jobs:
         - language: actions
           build-mode: none
         - language: java-kotlin
-          build-mode: none
+          build-mode: manual
         - language: javascript-typescript
           build-mode: none
         - language: ruby
@@ -93,11 +93,7 @@ jobs:
     - if: matrix.build-mode == 'manual'
       shell: bash
       run: |
-        echo 'If you are using a "manual" build mode for one or more of the' \
-          'languages you are analyzing, replace this with the commands to build' \
-          'your code, for example:'
-        echo '  make bootstrap'
-        echo '  make release'
+        apps/mobileApp/android/gradlew assembleDebug
         exit 1
 
     - name: Perform CodeQL Analysis
