@@ -1,5 +1,6 @@
 const Department = require('../models/AddDepartment');
 const AWS = require('aws-sdk');
+const { DepartmentFromFHIRConverter } = require('../utils/DepartmentFhirHandler');
 
 const s3 = new AWS.S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -8,29 +9,42 @@ const s3 = new AWS.S3({
 });
 const AddDepartmentController = {
   addDepartment: async (req, res) => {
-    console.log(JSON.stringify(req.body.operatingHours, null, 2));
+    console.log(JSON.stringify(req.body, null, 2));
+    const data = new DepartmentFromFHIRConverter(req.body).toCustomFormat()
+    console.log("hihihhihhihihihhiihihhihiihhihh",data)
 
     try {
       const newDepartment = new Department({
-        departmentName: req.body.departmentName,
-        bussinessId: req.body.bussinessId,
-        description: req.body.description,
-        email: req.body.email,
-        phone: req.body.phone,
-        countrycode: req.body.countrycode,
-        services: req.body.services,
-        departmentHeadId: req.body.departmentHeadId,
-        // operatingHours: req.body.operatingHours,
-        consultationModes: req.body.consultationModes,
-        conditionsTreated: req.body.conditionsTreated,
+        departmentName: data.departmentName,
+        bussinessId: data.bussinessId,
+        description: data.description,
+        email: data.email,
+        phone: data.phone,
+        countrycode: data.countrycode,
+        services: data.services,
+        departmentHeadId: data.departmentHeadId,
+        // operatingHours: data.operatingHours,
+        consultationModes: data.consultationModes,
+        conditionsTreated: data.conditionsTreated,
       });
 
-      await newDepartment.save();
+     const response =  await newDepartment.save();
 
-      res.status(201).json(newDepartment);
+      if(response){
+        res.status(201).json(newDepartment);
+      }
     } catch (error) {
       console.error('Error creating department:', error);
-      res.status(400).json({ message: error.message });
+      res.status(400).json({
+        resourceType: "OperationOutcome",
+        issue: [
+          {
+            severity: "error",
+            code: "invalid",
+            diagnostics: error.message,
+          },
+        ],
+      });
     }
   },
   getAddDepartment: async (req, res) => {

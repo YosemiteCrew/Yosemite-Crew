@@ -9,6 +9,7 @@ import { MdAttachMoney } from 'react-icons/md';
 import axios from 'axios';
 import { useAuth } from '../../context/useAuth';
 import { useNavigate } from 'react-router-dom';
+import { FHIRToNormalConverter } from '../../utils/FhirMapper';
 const useDebounce = (value, delay) => {
   const [debouncedValue, setDebouncedValue] = useState(value);
 
@@ -23,7 +24,7 @@ const useDebounce = (value, delay) => {
   return debouncedValue;
 };
 
-const DocterWiseAppoint = ({ DoctWiseTable = [] }) => {
+const DocterWiseAppoint = () => {
   const { userId,onLogout } = useAuth();
   const navigate = useNavigate()
   const [search, setSearch] = useState('');
@@ -38,15 +39,14 @@ const DocterWiseAppoint = ({ DoctWiseTable = [] }) => {
     try {
       const token = sessionStorage.getItem("token");
       const response = await axios.get(
-        `${import.meta.env.VITE_BASE_URL}api/hospitals/getDoctorsTotalAppointments`,
+        `${import.meta.env.VITE_BASE_URL}fhir/v1/Appointment/summaryByDoctor`,
         { params: { userId: userId, search: debouncedSearch, LastDays: days } ,headers:{Authorization:`Bearer ${token}`}}
       );
       if (response) {
-        console.log('responseeeeee', response.data);
-        // setTotalAppointments(response.data.totalCount)
-        setCurrentPage(response.data.page);
-        setTotalPage(response.data.totalPages);
-        setAppointmentsData(response.data.totalAppointments);
+       const data = new FHIRToNormalConverter(JSON.parse(response.data)).convert()
+        setCurrentPage(data.page);
+        setTotalPage(data.totalPages);
+        setAppointmentsData(data.totalAppointments);
       }
     } catch (error) {
       if (error.response && error.response.status === 401) {

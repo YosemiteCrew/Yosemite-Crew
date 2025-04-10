@@ -4,7 +4,7 @@ const {
   AppointmentsToken,
   webAppointments,
 } = require('../models/WebAppointment');
-const WebAppointmentHandler = require('../utils/WebAppointmentHandler');
+const {FHIRToNormalConverter} = require('../utils/WebAppointmentHandler');
 const FHIRSlotConverter = require('../utils/FhirSlotConverter');
 
 const webAppointmentController = {
@@ -14,7 +14,7 @@ const webAppointmentController = {
       console.log('Raw FHIR Data:', JSON.stringify(req.body, null, 2));
 
       // Instantiate the FHIRToNormalConverter
-      const fhirConverter = new WebAppointmentHandler(req.body);
+      const fhirConverter = new FHIRToNormalConverter(req.body);
 
       // Convert FHIR to normal data
       const normalData = fhirConverter.convertToNormal();

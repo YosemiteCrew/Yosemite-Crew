@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import PropTypes from 'prop-types';
-import { Link } from 'react-router-dom';
+import React, { useState } from "react";
+import PropTypes from "prop-types";
+import { Link } from "react-router-dom";
+import { useAuth } from "../../context/useAuth";
 // import pet1 from '../../../../public/Images/pet1.png';
 // import pet2 from '../../../../public/Images/pet2.png';
 // import pet3 from '../../../../public/Images/pet3.png';
@@ -12,6 +13,7 @@ const ActionsTable = ({
   onClick,
   onClicked,
 }) => {
+  const { userId } = useAuth();
   const itemsPerPage = 5; // Should match the backend limit
   const [offset, setOffset] = useState(0); // Tracks the current offset
 
@@ -19,13 +21,13 @@ const ActionsTable = ({
 
   const handleNext = () => {
     setOffset((prevOffset) => prevOffset + itemsPerPage);
-    onClick(offset + itemsPerPage); // Fetch next set of data
+    onClick(offset + itemsPerPage, userId); // Fetch next set of data
   };
 
   const handlePrev = () => {
     if (offset > 0) {
       setOffset((prevOffset) => prevOffset - itemsPerPage);
-      onClick(offset - itemsPerPage); // Fetch previous set of data
+      onClick(offset - itemsPerPage, userId); // Fetch previous set of data
     }
   };
 
@@ -35,6 +37,13 @@ const ActionsTable = ({
   const handleCancel = (id, status, offset) => {
     onClicked(id, status, offset);
   };
+
+  let data = [];
+  if (location.pathname === "/dashboard") {
+    data = appointments.slice(0, 3);
+  } else {
+    data = appointments;
+  }
 
   return (
     <div className="MainTableDiv">
@@ -53,11 +62,14 @@ const ActionsTable = ({
           </tr>
         </thead>
         <tbody>
-          {appointments.map((appointment, index) => (
+          {data.map((appointment, index) => (
             <tr key={index}>
               <td>
                 <div className="dogimg">
-                  <img src={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`} alt={appointment.petName} />
+                  <img
+                    src={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`}
+                    alt={appointment.petName}
+                  />
                 </div>
               </td>
               <td>
@@ -105,24 +117,27 @@ const ActionsTable = ({
       </table>
 
       {/* Pagination Controls */}
-      <div className="PaginationDiv">
-        <button onClick={handlePrev} disabled={offset === 0}>
-          <i className="ri-arrow-left-line"></i>
-        </button>
-        <h6 className="PagiName">
-          Responses
-          <span>
-            {offset + 1} -{' '}
-            {Math.min(offset + itemsPerPage, appointments.length)}
-          </span>
-        </h6>
-        <button
-          onClick={handleNext}
-          disabled={appointments.length < itemsPerPage}
-        >
-          <i className="ri-arrow-right-line"></i>
-        </button>
-      </div>
+      {location.pathname !== "/dashboard" && (
+  <div className="PaginationDiv">
+    <button onClick={handlePrev} disabled={offset === 0}>
+      <i className="ri-arrow-left-line"></i>
+    </button>
+    <h6 className="PagiName">
+      Responses
+      <span>
+        {offset + 1} -{" "}
+        {Math.min(offset + itemsPerPage, appointments.length)}
+      </span>
+    </h6>
+    <button
+      onClick={handleNext}
+      disabled={appointments.length < itemsPerPage}
+    >
+      <i className="ri-arrow-right-line"></i>
+    </button>
+  </div>
+)}
+
     </div>
   );
 };

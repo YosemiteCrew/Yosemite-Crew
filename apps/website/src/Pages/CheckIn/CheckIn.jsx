@@ -287,7 +287,7 @@ function CheckInModal(props) {
     if (!validateFields()) return;
     const fhirMapper = new FHIRMapper(AllData);
     const fhirData = fhirMapper.toFHIR();
-    console.log("FHIR Data:", fhirData);
+    console.log("FHIR Data:", fhirData); 
     try {
       const token = sessionStorage.getItem("token");
       const response = await axios.post(
@@ -762,6 +762,13 @@ const CheckIn = () => {
       if (error.response && error.response.status === 401) {
         console.log('Session expired. Redirecting to signin...');
         onLogout(navigate);
+      }else if(error.response && error.response.status ===500){
+        Swal.error({
+          message: "Error",
+          icon: "error",
+          title: "Internal Server Error",
+          confirmButtonText: "Retry",
+        })
       }
     }
   },[userId,onLogout,navigate]);
