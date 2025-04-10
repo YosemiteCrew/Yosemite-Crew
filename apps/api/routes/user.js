@@ -2,30 +2,17 @@ const express = require("express");
 const {
   handlehome,
 } = require("../controllers/user");
-const {
-  handleAddPet,
-  handleGetPet,
-  handleDeletePet,
-  handleEditPet,
-} = require("../controllers/pet");
+const PetController = require('../controllers/PetController');
+const AppointmentController = require('../controllers/AppointmentController');
+const SlotController = require('../controllers/SlotController');
+const FeedbackController = require('../controllers/FeedbackController');
 const {
   handleVetClinic,
   handleBreeder,
   handlePetGroomer,
   handlePetBoarding,
 } = require("../controllers/details");
-const {
-  handleBookAppointment,
-  handleGetAppointment,
-  handleCancelAppointment,
-  handleGetTimeSlots,
-  handleRescheduleAppointment,
-  handleTimeSlotsByMonth,
-  handlesaveFeedBack,
-  handlegetFeedBack,
-  handleEditFeedBack,
-  handleDeleteFeedBack,
-} = require("../controllers/appointment");
+
 const { handleContactUs } = require("../controllers/contact");
 const {
   handleAddVaccination,
@@ -59,10 +46,7 @@ const {
 const router = express.Router();
 const multer = require("multer");
 const fs = require('fs');
-const uploadDir = './Uploads/Images';
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir);
-}
+
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -78,49 +62,42 @@ const upload = multer({
 });
 const { verifyTokenAndRefresh } = require('../middlewares/authMiddleware');
 
-router.put("/Patient/addPet", verifyTokenAndRefresh,handleAddPet);
-router.post("/Patient/editPet", verifyTokenAndRefresh, handleEditPet);
-router.post("/Patient/getPets", verifyTokenAndRefresh,handleGetPet);
-router.post("/Patient/deletepet", verifyTokenAndRefresh, handleDeletePet);
+router.post("/Patient/addPet", verifyTokenAndRefresh,PetController.handleAddPet);
+router.put("/Patient/editPet/:Petid", verifyTokenAndRefresh, PetController.handleEditPet);
+router.get("/Patient/getPets/:limit/:offset", verifyTokenAndRefresh,PetController.handleGetPet);
+router.delete("/Patient/deletepet/:Petid", verifyTokenAndRefresh, PetController.handleDeletePet);
+router.post("/bookAppointment",verifyTokenAndRefresh, AppointmentController.handleBookAppointment);
+router.get("/getappointments", verifyTokenAndRefresh, AppointmentController.handleGetAppointment);
+router.put("/cancelappointment/:appointmentID", verifyTokenAndRefresh, AppointmentController.handleCancelAppointment);
+router.put("/rescheduleAppointment/:appointmentID",verifyTokenAndRefresh, AppointmentController.handleRescheduleAppointment);
+router.post("/getTimeSlots", verifyTokenAndRefresh, SlotController.handlegetTimeSlots);
+router.post("/getTimeSlotsByMonth",verifyTokenAndRefresh,SlotController.handleTimeSlotsByMonth);
+router.post("/saveFeedBack",verifyTokenAndRefresh,FeedbackController.handlesaveFeedBack);
+router.get("/getFeedBack",verifyTokenAndRefresh,FeedbackController.handleGetFeedback);
+router.put("/editFeedBack/:feedbackId",verifyTokenAndRefresh,FeedbackController.handleEditFeedBack);
+router.delete("/deleteFeedBack/:feedbackId",verifyTokenAndRefresh,FeedbackController.handleDeleteFeedBack);
+
+
 router.post("/addVetDetails", verifyTokenAndRefresh, handleVetClinic);
 router.post("/addBreederDetails", verifyTokenAndRefresh,  handleBreeder);
 router.post("/addPetGroomer",verifyTokenAndRefresh, handlePetGroomer);
 router.post("/addPetBoarding",verifyTokenAndRefresh, handlePetBoarding);
-router.post("/bookAppointment",handleBookAppointment);
-router.post("/getappointments", verifyTokenAndRefresh, handleGetAppointment);
-router.post("/getTimeSlots", verifyTokenAndRefresh, handleGetTimeSlots);
-router.post("/rescheduleAppointment",verifyTokenAndRefresh, handleRescheduleAppointment);
-router.post("/cancelappointment", verifyTokenAndRefresh, handleCancelAppointment);
-router.post("/getTimeSlotsByMonth",handleTimeSlotsByMonth);
+
+
 router.post("/sendquery", verifyTokenAndRefresh,handleContactUs);
 router.post("/getLists",handleGetLists);
 router.post("/getDoctorsLists",handlegetDoctorsLists);
-router.post("/saveFeedBack",handlesaveFeedBack);
-router.post("/getFeedBack",handlegetFeedBack);
-router.post("/editFeedBack",handleEditFeedBack);
-router.post("/deleteFeedBack",handleDeleteFeedBack);
+
 router.post("/getDoctorsTeam",handlegetDoctorsTeam);
-router.post(
-  "/addVaccinationRecord",verifyTokenAndRefresh,
-  upload.single("vaccineImage"),
-  handleAddVaccination
-);
-router.post(
-  "/editVaccinationRecord", verifyTokenAndRefresh,
-  upload.single("vaccineImage"),
-  handleEditVaccination
-);
-router.post("/getVaccinationRecord", verifyTokenAndRefresh,handleGetVaccination);
+router.post("/addVaccinationRecord",verifyTokenAndRefresh,handleAddVaccination);
+router.put("/editVaccinationRecord/:id", verifyTokenAndRefresh,handleEditVaccination);
+router.get("/getVaccinationRecord/:userId", verifyTokenAndRefresh,handleGetVaccination);
 router.post("/saveExercisePlan",verifyTokenAndRefresh, handleExercisePlan);
-router.post("/getexercise-list",verifyTokenAndRefresh, handleGetExercisePlan);
+router.get("/getexercise-list/:userId",verifyTokenAndRefresh, handleGetExercisePlan);
 router.post("/savepainjournal",verifyTokenAndRefresh, handleAddPainJournal);
-router.post("/getpainjournal",verifyTokenAndRefresh, handleGetPainJournal);
-router.post(
-  "/saveMedicalRecord", verifyTokenAndRefresh,
-  upload.array("medicalDocs"),
-  handlesaveMedicalRecord
-);
-router.post("/getMedicalRecordList",verifyTokenAndRefresh, handleMedicalRecordList);
+router.get("/getpainjournal/:userId",verifyTokenAndRefresh, handleGetPainJournal);
+router.post("/saveMedicalRecord", verifyTokenAndRefresh,handlesaveMedicalRecord);
+router.get("/getMedicalRecordList/:userId",verifyTokenAndRefresh, handleMedicalRecordList);
 router.post(
   "/saveDiabetesRecords",verifyTokenAndRefresh,
   upload.array("PetImage"),
@@ -128,7 +105,7 @@ router.post(
 );
 router.post("/getDiabetesLogs", verifyTokenAndRefresh,handleDiabetesLogs);
 router.post("/saveSharedDuties",verifyTokenAndRefresh, handleSaveSharedDuties);
-router.post("/getSharedDuties",verifyTokenAndRefresh, handleGetSharedDuties);
-router.post("/editSharedDuties",verifyTokenAndRefresh, handleEditSharedDuties);
+router.get("/getSharedDuties/:userId",verifyTokenAndRefresh, handleGetSharedDuties);
+router.put("/editSharedDuties/:taskId",verifyTokenAndRefresh, handleEditSharedDuties);
 router.get("/", handlehome);
 module.exports = router;

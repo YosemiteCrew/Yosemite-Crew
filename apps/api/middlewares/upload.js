@@ -1,6 +1,8 @@
 // middlewares/upload.js
 const AWS = require('aws-sdk');
 const path = require('path');
+const sanitizeFilename = require('sanitize-filename');
+const { v4: uuidv4 } = require('uuid');
 
 // Configure AWS S3
 const s3 = new AWS.S3({
@@ -34,17 +36,23 @@ async function handleFileUpload(file) {
             throw new Error('No file uploaded.');
         }
 
-        const currentDate = Date.now();
-        const originalFileName = file.name;
-        const fileExtension = path.extname(originalFileName);
-        const fileName = `${currentDate}-${originalFileName}`;
+        const allowedMimeTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+        if (!allowedMimeTypes.includes(file.mimetype)) {
+            throw new Error('Unsupported file type.');
+        }
 
-        const fileContent = file.data; // file.data is a Buffer (assuming you’re using express-fileupload or similar)
-        const mimeType = file.mimetype || 'image/jpeg';
+        const safeFileName = sanitizeFilename(file.name) || 'file';
+        const fileExtension = path.extname(safeFileName);
+        const fileName = `${uuidv4()}${fileExtension}`;
+
+        const fileContent = file.data; // file.data should be a Buffer
+        const mimeType = file.mimetype;
 
         const s3Url = await uploadToS3(fileName, fileContent, mimeType);
 
         return fileName;
+        
+    
     } catch (err) {
         console.error('Error uploading file to S3:', err);
         throw err;

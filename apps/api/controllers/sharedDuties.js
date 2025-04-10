@@ -24,27 +24,33 @@ async function handleSaveSharedDuties(req,res) {
     
 }
 
-async function handleEditSharedDuties(req,res) {
+async function handleEditSharedDuties(req, res) {
+  try {
+    const updatedSharedData = req.body;
+    const id = req.params.taskId;
+    console.log(id);
 
-    try {
-        const updatedSharedData = req.body;
-        const id = updatedSharedData.taskId;
-      
-        const editSharedPetData = await petDuties.findByIdAndUpdate(id,updatedSharedData, { new: true });
-        if (!editSharedPetData) {
-            return res.status(404).json({ message: "Shared duty task not found" });
-          }
-          res.json(editSharedPetData);
-        } catch (error) {
-          res.status(500).json({ message: "Error updating shared duty record", error });
-        }
-    
+    const editSharedPetData = await petDuties.findOneAndUpdate(
+      { _id: { $eq: id } },
+      updatedSharedData,
+      { new: true }
+    );
+
+    if (!editSharedPetData) {
+      return res.status(404).json({ message: "Shared duty task not found" });
+    }
+
+    res.json(editSharedPetData);
+  } catch (error) {
+    res.status(500).json({ message: "Error updating shared duty record", error });
+  }
 }
+
 
 async function handleGetSharedDuties(req,res){
 
-    const userid = req.body.userId;
-    const result = await petDuties.find({ userId : userid });
+    const userid = req.params.userId;
+    const result = await petDuties.find({ userId : {$eq: userid } } );
     if (result.length === 0) return res.status(404).json({ message: "No Shared pet duty record found for this user" });
     res.json(result);
 }

@@ -10,6 +10,10 @@ async function handleGetLists(req, res) {
         const { BusinessType, offset = 0, limit = 10 } = req.body;
         const parsedOffset = parseInt(offset);
         const parsedLimit = parseInt(limit);
+        const allowedTypes = ['Hospital', 'Clinic', 'Breeding Facility','Pet Sitter','Groomer Shop'];
+        if (BusinessType && !allowedTypes.includes(BusinessType)) {
+            return res.status(400).json({ error: 'Invalid BusinessType' });
+        }
 
         const formatKey = (str) => str.replace(/\s+/g, '').replace(/^./, (c) => c.toLowerCase());
 
