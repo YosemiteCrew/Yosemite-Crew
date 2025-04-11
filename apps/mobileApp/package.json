@@ -29,7 +29,7 @@
     "react-native": "0.78.1",
     "react-native-confirmation-code-field": "^7.4.0",
     "react-native-country-codes-picker": "^2.3.5",
-    "react-native-date-picker": "^5.0.11",
+    "react-native-date-picker": "^5.0.12",
     "react-native-fast-image": "^8.6.3",
     "react-native-flash-message": "^0.4.2",
     "react-native-gesture-handler": "^2.24.0",
