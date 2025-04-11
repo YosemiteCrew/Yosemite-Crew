@@ -149,8 +149,8 @@ importers:
         specifier: ^2.3.5
         version: 2.3.5(react-native@0.78.1)(react@19.0.0)
       react-native-date-picker:
-        specifier: ^5.0.11
-        version: 5.0.11(react-native@0.78.1)(react@19.0.0)
+        specifier: ^5.0.12
+        version: 5.0.12(react-native@0.78.1)(react@19.0.0)
       react-native-fast-image:
         specifier: ^8.6.3
         version: 8.6.3(react-native@0.78.1)(react@19.0.0)
@@ -9502,8 +9502,8 @@ packages:
       react-native: 0.78.1(@babel/core@7.26.10)(@babel/preset-env@7.26.9)(@react-native-community/cli@15.0.1)(@types/react@19.0.12)(react@19.0.0)
     dev: false
 
-  /react-native-date-picker@5.0.11(react-native@0.78.1)(react@19.0.0):
-    resolution: {integrity: sha512-D7NSGVEhpgAEipo/PSy5oDJsLWRWaJQ5FS9ujr1HI1pVUIGJ0B6LaHoz2zR2X0LQ/IWWTA7mijUdeq5xbSXrEQ==}
+  /react-native-date-picker@5.0.12(react-native@0.78.1)(react@19.0.0):
+    resolution: {integrity: sha512-R/mUnCKhcuxbhKPFwYdBQCxQt9HHLqpM4ruRUqlcBjiUZ3N2wdnwOMyc888Ps8qp8e7v29PrDHtUlG8LPuFn9w==}
     peerDependencies:
       react: '>= 17.0.1'
       react-native: '>= 0.64.3'
