@@ -8,7 +8,7 @@
 
 <div align="center"> 
   
-  [![Website](https://img.shields.io/badge/Yosemite%20Crew-D04122)](https://yosemitecrew.com/) [![Documentation](https://img.shields.io/badge/Docs-247AED)](https://yosemitecrew.com/) [![Contributing](https://img.shields.io/badge/Contribute-FF9800)](https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md) [![Github License](https://img.shields.io/badge/License-4CAF50)](License) [![Discord](https://img.shields.io/badge/Discord-lightblue?logo=discord)](https://discord.gg/R7eMnhwX)
+  [![Website](https://img.shields.io/badge/Yosemite%20Crew-D04122)](https://yosemitecrew.com/) [![Documentation](https://img.shields.io/badge/Docs-247AED)](https://yosemitecrew.com/) [![Contributing](https://img.shields.io/badge/Contribute-FF9800)](https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md) [![Github License](https://img.shields.io/badge/License-4CAF50)](License.txt) [![Discord](https://img.shields.io/badge/Discord-lightblue?logo=discord)](https://discord.gg/R7eMnhwX)
   
 </div>
 
