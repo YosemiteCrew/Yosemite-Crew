@@ -1,3 +1,4 @@
+const { default: mongoose } = require('mongoose');
 const { Inventory, ProcedurePackage } = require('../models/Inventory');
 
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Add Inventory >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -153,6 +154,10 @@ const InventoryControllers = {
       const { userId } = req.query;
       const { packageName, category, description, packageItems } = req.body;
       console.log('Received Procedure Package:', req.body);
+      if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        return res.status(400).json({ message: 'Invalid doctorId format' });
+      }
+      
 
       const procedurePackage = new ProcedurePackage({
         bussinessId: userId,
@@ -172,6 +177,16 @@ const InventoryControllers = {
     try {
       const { userId } = req.query;
       const { itemId } = req.query;
+
+      console.log("usert", itemId);
+
+
+      if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        return res.status(400).json({ message: 'Invalid doctorId format' });
+      }
+      if (!mongoose.Types.ObjectId.isValid(itemId)) {
+        return res.status(400).json({ message: "Invalid MongoDB ID" });
+      }
       const inventory = await Inventory.findOne({
         _id: itemId,
         bussinessId: userId,
@@ -244,6 +259,15 @@ const InventoryControllers = {
   GetProcedurePackageByid: async (req, res) => {
     try {
       const { userId, id } = req.query;
+
+      if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        return res.status(400).json({ message: 'Invalid doctorId format' });
+      }
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ message: "Invalid MongoDB ID" });
+      }
+
+
       const procedurePackage = await ProcedurePackage.findOne({
         _id: id,
         bussinessId: userId,
@@ -262,6 +286,15 @@ const InventoryControllers = {
     try {
       const { userId, id } = req.query;
       const { packageName, category, description, packageItems } = req.body;
+
+      if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        return res.status(400).json({ message: 'Invalid doctorId format' });
+      }
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ message: "Invalid MongoDB ID" });
+      }
+
+
 
       const procedurePackage = await ProcedurePackage.findOneAndUpdate(
         { _id: id, bussinessId: userId },
@@ -297,6 +330,17 @@ const InventoryControllers = {
   deleteProcedureitems: async (req, res) => {
     try {
       const { userId, id } = req.query;
+
+
+      if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        return res.status(400).json({ message: 'Invalid doctorId format' });
+      }
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ message: "Invalid MongoDB ID" });
+      }
+
+
+
       const procedurePackage = await ProcedurePackage.findOneAndUpdate(
         {
           'packageItems._id': id,
@@ -318,6 +362,13 @@ const InventoryControllers = {
   deleteProcedurePackage: async (req, res) => {
     try {
       const { userId, id } = req.query;
+      if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        return res.status(400).json({ message: 'Invalid doctorId format' });
+      }
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ message: "Invalid MongoDB ID" });
+      }
+
       const procedurePackage = await ProcedurePackage.findOneAndDelete({
         _id: id,
         bussinessId: userId,

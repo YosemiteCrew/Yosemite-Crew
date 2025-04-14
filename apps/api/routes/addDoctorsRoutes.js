@@ -31,13 +31,13 @@ router.get(
   '/getAppointmentForDoctorDashboard',verifyTokenAndRefresh,
   AddDoctorsControllers.getAppointmentsForDoctorDashboard
 );
-router.get(
-  '/getLast7DaysAppointmentsTotalCount',verifyTokenAndRefresh,
-  AddDoctorsControllers.getLast7DaysAppointmentsTotalCount
-);
+// router.get(
+//   '/getLast7DaysAppointmentsTotalCount',verifyTokenAndRefresh,
+//   AddDoctorsControllers.getLast7DaysAppointmentsTotalCount
+// );
 router.put(
-  '/AppointmentAcceptedAndCancel/:id',verifyTokenAndRefresh,
-  AddDoctorsControllers.AppointmentAcceptedAndCancel
+  '/Appointment/:id',verifyTokenAndRefresh,
+  AddDoctorsControllers.AppointmentAcceptedAndCancelFHIR
 );
 router.put('/updateAvailability', verifyTokenAndRefresh,AddDoctorsControllers.updateAvailability);
 router.get(

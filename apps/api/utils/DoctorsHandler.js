@@ -141,6 +141,22 @@ overviewConvertToFHIR() {
   
   return bundle;
 }
+
+
+
+
+  // Convert backend FHIR format to frontend normal object
+  static toNormal(fhirResource) {
+    const updatedByExtension = fhirResource.extension?.find(
+      (ext) => ext.url === "http://example.com/fhir/StructureDefinition/updated-by"
+    );
+
+    return {
+      id: fhirResource.id,
+      status: fhirResource.status,
+      updatedBy: updatedByExtension?.valueString || null,
+    };
+  }
 }
 
 

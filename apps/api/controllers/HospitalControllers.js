@@ -419,8 +419,7 @@ const HospitalController = {
       results.sort((a, b) => a.month - b.month);
 
       const data = new GraphDataToFHIR(results).convertToFHIR();
-      console.log("hihihihih", JSON.stringify(data));
-      console.log("Final Sorted Graph Data:", results);
+    
 
       return res.status(200).json({
         message: "Appointment data for the last X months fetched successfully",
@@ -559,7 +558,7 @@ const HospitalController = {
 
             const appointmentCounts = await webAppointments.countDocuments({
               hospitalId: userId,
-              isCanceled: 5,
+              appointmentStatus: "fulfilled",
               appointmentDate: {
                 $gte: formattedStartDate,
                 $lte: formattedEndDate,
@@ -868,141 +867,184 @@ const HospitalController = {
           }
         }
         break;
+      case "DoctorDashOverview":
+        if(req.method === "GET") {
+          try {
+            const { doctorId } = req.query;
       
-    }
-  },
-
-  WaittingRoomOverViewPatientInQueue: async (req, res) => {
-    try {
-      const { userId, offset = 0, limit = 10 } = req.query;
-      const parsedOffset = parseInt(offset);
-      const parsedLimit = parseInt(limit);
-      const currentDate = new Date().toISOString().split("T")[0];
-
-      const response = await webAppointments.aggregate([
-        {
-          $match: {
-            hospitalId: userId,
-            appointmentDate: currentDate,
-          },
-        },
-        {
-          $addFields: {
-            departmentObjId: { $toObjectId: "$department" },
-          },
-        },
-        {
-          $lookup: {
-            from: "adddoctors",
-            localField: "veterinarian",
-            foreignField: "userId",
-            as: "doctorInfo",
-          },
-        },
-        {
-          $lookup: {
-            from: "departments",
-            localField: "departmentObjId",
-            foreignField: "_id",
-            as: "departmentInfo",
-          },
-        },
-        {
-          $unwind: {
-            path: "$doctorInfo",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-        {
-          $unwind: {
-            path: "$departmentInfo",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-        {
-          $sort: { appointmentDate: 1 }, // Sort by appointment date (optional)
-        },
-        {
-          $skip: parsedOffset,
-        },
-        {
-          $limit: parsedLimit,
-        },
-        {
-          $project: {
-            _id: 1,
-            petName: 1,
-            tokenNumber: 1,
-            ownerName: 1,
-            slotsId: 1,
-            petType: 1,
-            breed: 1,
-            appointmentSource: 1,
-            isCanceled: 1,
-            purposeOfVisit: 1,
-            appointmentDate: {
-              $dateToString: {
-                format: "%d %b %Y",
-                date: { $toDate: "$appointmentDate" },
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setDate(endDate.getDate() - 6);
+      
+      
+            if (typeof doctorId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(doctorId)) {
+              return res.status(400).json({ message: 'Invalid doctorId format' });
+            }
+            
+            
+      
+            const totalAppointments = await webAppointments.countDocuments({
+              veterinarian: doctorId,
+              createdAt: {
+                $gte: startDate,
+                $lte: endDate,
               },
-            },
-            appointmentTime: 1,
-            appointmentStatus: 1,
-            department: "$departmentInfo.departmentName",
-            veterinarian: {
-              $concat: [
-                "$doctorInfo.personalInfo.firstName",
-                " ",
-                "$doctorInfo.personalInfo.lastName",
+            });
+            const data = new FHIRConverter({totalAppointments}).overviewConvertToFHIR()
+      
+      
+            return res.status(200).json(data);
+          } catch (error) {
+            console.error('Error in getLast7DaysAppointmentsTotalCount:', error);
+            return res.status(500).json({
+              resourceType: "OperationOutcome",
+              issue: [
+                {
+                  severity: "error",
+                  code: "exception",
+                  details: {
+                    text: "Network error occurred while processing the request.",
+                  },
+                  diagnostics: error.message,
+                },
               ],
-            },
-          },
-        },
-      ]);
-
-      const totalAppointments = await webAppointments.countDocuments({
-        hospitalId: userId,
-        appointmentDate: currentDate,
-      });
-
-      if (!response.length) {
-        return res.status(404).json({
-          resourceType: "OperationOutcome",
-          issue: [
-            {
-              severity: "information",
-              code: "not-found",
-              details: {
-                text: "No appointments found for the specified date.",
-              },
-            },
-          ],
-        });
-      }
-      console.log({ total: totalAppointments, totalAppointments: response });
-      const data = AppointmentFHIRConverter.convertAppointments({
-        total: totalAppointments,
-        Appointments: response,
-      });
-
-      return res.status(200).json(JSON.stringify(data, null, 2));
-    } catch (error) {
-      console.error("Error in getAppointmentsForDoctorDashboard:", error);
-      return res.status(500).json({
-        resourceType: "OperationOutcome",
-        error: error,
-        issue: [
-          {
-            severity: "error",
-            code: "exception",
-            details: {
-              text: error.message,
-            },
-          },
-        ],
-      });
+            });
+          }
+        }
     }
   },
+
+  // WaittingRoomOverViewPatientInQueue: async (req, res) => {
+  //   try {
+  //     const { userId, offset = 0, limit = 10 } = req.query;
+  //     const parsedOffset = parseInt(offset);
+  //     const parsedLimit = parseInt(limit);
+  //     const currentDate = new Date().toISOString().split("T")[0];
+
+  //     const response = await webAppointments.aggregate([
+  //       {
+  //         $match: {
+  //           hospitalId: userId,
+  //           appointmentDate: currentDate,
+  //         },
+  //       },
+  //       {
+  //         $addFields: {
+  //           departmentObjId: { $toObjectId: "$department" },
+  //         },
+  //       },
+  //       {
+  //         $lookup: {
+  //           from: "adddoctors",
+  //           localField: "veterinarian",
+  //           foreignField: "userId",
+  //           as: "doctorInfo",
+  //         },
+  //       },
+  //       {
+  //         $lookup: {
+  //           from: "departments",
+  //           localField: "departmentObjId",
+  //           foreignField: "_id",
+  //           as: "departmentInfo",
+  //         },
+  //       },
+  //       {
+  //         $unwind: {
+  //           path: "$doctorInfo",
+  //           preserveNullAndEmptyArrays: true,
+  //         },
+  //       },
+  //       {
+  //         $unwind: {
+  //           path: "$departmentInfo",
+  //           preserveNullAndEmptyArrays: true,
+  //         },
+  //       },
+  //       {
+  //         $sort: { appointmentDate: 1 }, // Sort by appointment date (optional)
+  //       },
+  //       {
+  //         $skip: parsedOffset,
+  //       },
+  //       {
+  //         $limit: parsedLimit,
+  //       },
+  //       {
+  //         $project: {
+  //           _id: 1,
+  //           petName: 1,
+  //           tokenNumber: 1,
+  //           ownerName: 1,
+  //           slotsId: 1,
+  //           petType: 1,
+  //           breed: 1,
+  //           appointmentSource: 1,
+  //           isCanceled: 1,
+  //           purposeOfVisit: 1,
+  //           appointmentDate: {
+  //             $dateToString: {
+  //               format: "%d %b %Y",
+  //               date: { $toDate: "$appointmentDate" },
+  //             },
+  //           },
+  //           appointmentTime: 1,
+  //           appointmentStatus: 1,
+  //           department: "$departmentInfo.departmentName",
+  //           veterinarian: {
+  //             $concat: [
+  //               "$doctorInfo.personalInfo.firstName",
+  //               " ",
+  //               "$doctorInfo.personalInfo.lastName",
+  //             ],
+  //           },
+  //         },
+  //       },
+  //     ]);
+
+  //     const totalAppointments = await webAppointments.countDocuments({
+  //       hospitalId: userId,
+  //       appointmentDate: currentDate,
+  //     });
+
+  //     if (!response.length) {
+  //       return res.status(404).json({
+  //         resourceType: "OperationOutcome",
+  //         issue: [
+  //           {
+  //             severity: "information",
+  //             code: "not-found",
+  //             details: {
+  //               text: "No appointments found for the specified date.",
+  //             },
+  //           },
+  //         ],
+  //       });
+  //     }
+  //     console.log({ total: totalAppointments, totalAppointments: response });
+  //     const data = AppointmentFHIRConverter.convertAppointments({
+  //       total: totalAppointments,
+  //       Appointments: response,
+  //     });
+
+  //     return res.status(200).json(JSON.stringify(data, null, 2));
+  //   } catch (error) {
+  //     console.error("Error in getAppointmentsForDoctorDashboard:", error);
+  //     return res.status(500).json({
+  //       resourceType: "OperationOutcome",
+  //       error: error,
+  //       issue: [
+  //         {
+  //           severity: "error",
+  //           code: "exception",
+  //           details: {
+  //             text: error.message,
+  //           },
+  //         },
+  //       ],
+  //     });
+  //   }
+  // },
   getDepartmentDataForHospitalProfile: async (req, res) => {
     try {
       const { userId } = req.query;
@@ -1100,8 +1142,13 @@ const HospitalController = {
       const { facilitys, selectedServices, selectedDepartments, images } =
         req.body;
       const { userId } = req.query;
-      console.log("req.body;", req.body);
-      // Delete the old data for the given hospitalId (or another identifier)
+  
+     
+      if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        return res.status(400).json({ message: 'Invalid doctorId format' });
+      }
+      
+
       await ProfileVisibility.deleteOne({ hospitalId: userId });
 
       // Create and save the new profile visibility data
@@ -1125,6 +1172,12 @@ const HospitalController = {
   getVisibility: async (req, res) => {
     try {
       const { userId } = req.query;
+
+      if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        return res.status(400).json({ message: 'Invalid doctorId format' });
+      }
+      
+
       const visibilityData = await ProfileVisibility.findOne({
         hospitalId: userId,
       });
@@ -1137,10 +1190,10 @@ const HospitalController = {
     }
   },
 
-  getConfirmedAppointments: async (req, res) => {},
-  getCompletedAppointments: async (req, res) => {},
-  getCanceledAppointments: async (req, res) => {},
-  getUpcomingAppointments: async (req, res) => {},
+  // getConfirmedAppointments: async (req, res) => {},
+  // getCompletedAppointments: async (req, res) => {},
+  // getCanceledAppointments: async (req, res) => {},
+  // getUpcomingAppointments: async (req, res) => {},
 
   getDoctorsTotalAppointments: async (req, res) => {
     try {
@@ -1420,6 +1473,15 @@ const HospitalController = {
             const parsedLimit = parseInt(limit);
             const currentDate = new Date().toISOString().split("T")[0];
             const userId = organization.split("/")[1];
+
+            if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+              return res.status(400).json({ message: 'Invalid doctorId format' });
+            }
+              // Validate date (YYYY-MM-DD)
+    if (typeof currentDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(currentDate)) {
+      return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD' });
+    }
+
             const response = await webAppointments.aggregate([
               {
                 $match: {
