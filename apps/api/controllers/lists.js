@@ -14,7 +14,7 @@ async function handleGetLists(req, res) {
         if (BusinessType && !allowedTypes.includes(BusinessType)) {
             return res.status(400).json({ error: 'Invalid BusinessType' });
         }
-
+        const sanitizedBusinessType = allowedTypes.find(type => type === BusinessType);
         const formatKey = (str) => str.replace(/\s+/g, '').replace(/^./, (c) => c.toLowerCase());
 
         const fetchDepartmentsAndRating = async (hospitals) => {
@@ -43,12 +43,12 @@ async function handleGetLists(req, res) {
             }));
         };
 
-        if (BusinessType) {
-            const formattedKey = formatKey(BusinessType);
+        if (sanitizedBusinessType) {
+            const formattedKey = formatKey(sanitizedBusinessType);
             const [totalCount, getLists] = await Promise.all([
-                WebUser.countDocuments({ businessType: BusinessType }),
+                WebUser.countDocuments({ businessType: sanitizedBusinessType }),
                 WebUser.aggregate([
-                    { $match: { businessType: BusinessType } },
+                    { $match: { businessType: sanitizedBusinessType } },
                     { $lookup: { from: 'profiledatas', localField: 'cognitoId', foreignField: 'userId', as: "profileData" } },
                     { $unwind: { path: "$profileData", preserveNullAndEmptyArrays: true } },
                     { $skip: parsedOffset },
@@ -56,7 +56,7 @@ async function handleGetLists(req, res) {
                 ])
             ]);
 
-            if (BusinessType === 'Hospital') await fetchDepartmentsAndRating(getLists);
+            if (sanitizedBusinessType === 'Hospital') await fetchDepartmentsAndRating(getLists);
 
             return res.status(200).json({ [formattedKey]: getLists, count: totalCount });
         }

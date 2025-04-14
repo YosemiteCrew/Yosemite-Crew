@@ -1,4 +1,5 @@
 const vaccination = require('../models/vaccination');
+const mongoose = require('mongoose');
 
 async function handleAddVaccination(req,res){
     var fileName = "";
@@ -36,8 +37,11 @@ async function handleEditVaccination(req,res) {
     if(document) {
         updatedData.vaccineImage = document.filename;
     }
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      throw new Error('Invalid ID format');
+    }
     const editVaccination = await vaccination.findOneAndUpdate(
-        { _id: { $eq: id } }, 
+       { _id: id }, 
         updatedData,
         { new: true }
       );

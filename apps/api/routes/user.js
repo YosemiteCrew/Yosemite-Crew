@@ -6,12 +6,7 @@ const PetController = require('../controllers/PetController');
 const AppointmentController = require('../controllers/AppointmentController');
 const SlotController = require('../controllers/SlotController');
 const FeedbackController = require('../controllers/FeedbackController');
-const {
-  handleVetClinic,
-  handleBreeder,
-  handlePetGroomer,
-  handlePetBoarding,
-} = require("../controllers/details");
+const DetailsController = require('../controllers/DetailsController');
 
 const { handleContactUs } = require("../controllers/contact");
 const {
@@ -78,10 +73,10 @@ router.put("/editFeedBack/:feedbackId",verifyTokenAndRefresh,FeedbackController.
 router.delete("/deleteFeedBack/:feedbackId",verifyTokenAndRefresh,FeedbackController.handleDeleteFeedBack);
 
 
-router.post("/addVetDetails", verifyTokenAndRefresh, handleVetClinic);
-router.post("/addBreederDetails", verifyTokenAndRefresh,  handleBreeder);
-router.post("/addPetGroomer",verifyTokenAndRefresh, handlePetGroomer);
-router.post("/addPetBoarding",verifyTokenAndRefresh, handlePetBoarding);
+router.post("/Organization/addVetClinic", verifyTokenAndRefresh, DetailsController.handleVetClinic);
+router.post("/Organization/addBreederDetails", verifyTokenAndRefresh,  DetailsController.handleBreeder);
+router.post("/Organization/addPetGroomer",verifyTokenAndRefresh, DetailsController.handlePetGroomer);
+router.post("/Organization/addPetBoarding",verifyTokenAndRefresh, DetailsController.handlePetBoarding);
 
 
 router.post("/sendquery", verifyTokenAndRefresh,handleContactUs);

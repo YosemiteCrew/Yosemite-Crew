@@ -2,9 +2,15 @@ const moment = require('moment');
 const DoctorsTimeSlotes  = require('../models/DoctorsSlotes');
 const { webAppointments } = require("../models/WebAppointment");
 const { createFHIRSlot } = require('../utils/fhirUtils');
+const mongoose = require('mongoose');
 
 class SlotService {
   static async getAvailableTimeSlots({ appointmentDate, doctorId }) {
+
+    if (!mongoose.Types.ObjectId.isValid(doctorId)) {
+      throw new Error("Invalid doctor ID");
+    }
+
     const dateObj = new Date(appointmentDate);
     if (isNaN(dateObj.getTime())) {
       return {
@@ -18,11 +24,14 @@ class SlotService {
 
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const day = days[dateObj.getDay()];
+    
+    if (!validDays.includes(day)) {
+      throw new Error("Invalid day");
+    }
     const isToday = new Date().toDateString() === dateObj.toDateString();
     const currentTime = new Date();
 
     const slotsData = await DoctorsTimeSlotes.find({ doctorId, day });
-    console.log(doctorId, day)
     if (!slotsData.length) {
       return { resourceType: "Bundle", type: "collection", entry: [] };
     }
