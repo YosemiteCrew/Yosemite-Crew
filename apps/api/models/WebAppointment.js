@@ -96,8 +96,11 @@ const appointmentSchema = mongoose.Schema(
       default: "pending",
     },
     isCanceled: {
-      type: Number,
+      type: String,
       default: 0,
+    },
+    cancelledBy:{
+      type: String,
     },
     document: {
       type: [String],

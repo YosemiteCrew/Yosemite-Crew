@@ -12,6 +12,7 @@ const {
   ConfirmForgotPasswordCommand,
   CognitoIdentityProviderClient,
 } = require('@aws-sdk/client-cognito-identity-provider');
+const HospitalProfileFHIRBuilder = require('../utils/HospitalProfileHandler');
 const cognitoo = new CognitoIdentityProviderClient({
   region: process.env.AWS_REGION,
 });
@@ -426,13 +427,22 @@ const WebController = {
   updatePassword: async (req, res) => {
     try {
       const { email, password } = req.body;
-      const getdata = await WebUser.findOne({ email });
+
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ message: "Invalid email address" });
+      }
+      
+      // Optional: sanitize (remove leading/trailing spaces)
+      const emails = email.trim().toLowerCase();
+
+
+      const getdata = await WebUser.findOne({ emails });
       if (!getdata) {
         return res.status(404).json({ message: 'User not found' });
       } else {
         const hashedPassword = await bcrypt.hash(password, 10);
         await WebUser.updateOne(
-          { email },
+          { emails },
           { $set: { password: hashedPassword } }
         );
         res.status(200).json({ message: 'Password updated successfully' });
@@ -581,6 +591,10 @@ const organization = fhirData.organization;
   getProfile: async (req, res) => {
     try {
       const userId = req.params.id;
+      if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        return res.status(400).json({ message: 'Invalid doctorId format' });
+      }
+      
       const profile = await ProfileData.findOne({ userId });
 
       if (profile) {
@@ -619,6 +633,10 @@ const organization = fhirData.organization;
     const { userId, docId } = req.params;
     console.log('User ID:', userId);
     console.log('Document ID:', docId);
+    if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+      return res.status(400).json({ message: 'Invalid doctorId format' });
+    }
+    
 
     try {
       const user = await ProfileData.findOne({ userId }).lean();
@@ -694,104 +712,32 @@ const organization = fhirData.organization;
   },
  
 
- getHospitalProfileFHIR: async (req, res) => {
-   try {
-     const { userId } = req.params;
- 
-     // Fetch profile from MongoDB using userId
-     const profile = await ProfileData.findOne({ userId });
- 
-     if (!profile) {
-       return res.status(404).json({
-         resourceType: "OperationOutcome",
-         issue: [{ severity: "error", code: "not-found", details: { text: "Hospital profile not found" } }],
-       });
-     }
- 
-     // Generate S3 URL Helper
-     const getS3Url = (fileKey) =>
-       fileKey ? `https://${process.env.AWS_S3_BUCKET_NAME}.s3.amazonaws.com/${fileKey}` : null;
- 
-     const logoUrl = getS3Url(profile.logo);
- 
-     // Build Organization Resource
-     const organizationFHIR = {
-       resourceType: "Organization",
-       id: profile.userId.toLowerCase(), // ✅ Use profile.userId
-       text: {
-         status: "generated",
-         div: `<div xmlns="http://www.w3.org/1999/xhtml"><p>${profile.businessName} - ${profile.address.city}</p></div>`,
-       },
-       name: profile.businessName,
-       telecom: [{ system: "phone", value: profile.phoneNumber }],
-       address: [
-         {
-           use: "work",
-           line: [profile.address.addressLine1],
-           city: profile.address.city,
-           state: profile.address.state,
-           postalCode: profile.address.zipCode,
-           country: "US",
-         },
-       ],
-       active: profile.activeModes,
-       ...(logoUrl && {
-         extension: [
-           {
-             url: "https://myorganization.com/fhir/StructureDefinition/logo", // ✅ Valid extension URL
-             valueUrl: logoUrl,
-           },
-         ],
-       }),
-     };
- 
-     // Build DocumentReference Resources
-     const documentFHIR = profile.prescription_upload.map((file, index) => ({
-       resourceType: "DocumentReference",
-       id: uuidv4().toLowerCase(), // ✅ Valid UUIDs for documents
-       text: {
-         status: "generated",
-         div: `<div xmlns="http://www.w3.org/1999/xhtml"><p>Document ${index + 1}: ${file.name}</p></div>`,
-       },
-       status: "current",
-       type: { coding: [{ system: "http://loinc.org", code: "34133-9", display: "Summary of episode note" }] },
-       content: [
-         {
-           attachment: {
-             contentType: file.type,
-             url: getS3Url(file.name),
-           },
-         },
-       ],
-     }));
- 
-     // Build FHIR Bundle with valid fullUrls
-     const fhirBundle = {
-       resourceType: "Bundle",
-       type: "collection",
-       entry: [
-         {
-           fullUrl: `urn:uuid:${profile.userId.toLowerCase()}`, // ✅ Valid fullUrl for organization
-           resource: organizationFHIR,
-         },
-         ...documentFHIR.map((doc) => ({
-           fullUrl: `urn:uuid:${doc.id}`, // ✅ Valid fullUrl for documents
-           resource: doc,
-         })),
-       ],
-     };
- 
-     // ✅ Return Valid FHIR Bundle
-     res.status(200).json(fhirBundle);
-     console.log("FHIR Validation Result:", validateFHIR(fhirBundle)); // Optional for validation
-   } catch (error) {
-     console.error("Error fetching hospital profile:", error);
-     res.status(500).json({
-       resourceType: "OperationOutcome",
-       issue: [{ severity: "error", code: "exception", details: { text: "Internal server error while fetching profile." } }],
-     });
-   }
- },
+  getHospitalProfileFHIR: async (req, res) => {
+    try {
+      const { userId } = req.params;
+  
+      if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        return res.status(400).json({ message: 'Invalid doctorId format' });
+      }
+  
+      const profile = await ProfileData.findOne({ userId });
+      if (!profile) {
+        return res.status(404).json({
+          resourceType: "OperationOutcome",
+          issue: [{ severity: "error", code: "not-found", details: { text: "Hospital profile not found" } }],
+        });
+      }
+      const fhirBuilder = new HospitalProfileFHIRBuilder(profile, process.env.AWS_S3_BUCKET_NAME);
+      const fhirBundle = fhirBuilder.buildFHIRBundle();
+      res.status(200).json(fhirBundle);
+    } catch (error) {
+      console.error("Error fetching hospital profile:", error);
+      res.status(500).json({
+        resourceType: "OperationOutcome",
+        issue: [{ severity: "error", code: "exception", details: { text: "Internal server error while fetching profile." } }],
+      });
+    }
+  },
  
   getLocationdata: async (req, res) => {
    

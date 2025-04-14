@@ -100,12 +100,12 @@ const ActionsTable = ({
               <td>
                 <div className="actionDiv">
                   <Link
-                    onClick={() => handleAccept(appointment._id, 1, offset)}
+                    onClick={() => handleAccept(appointment._id, "booked", offset)}
                   >
                     <img src={actimg1} alt="Accept" />
                   </Link>
                   <Link
-                    onClick={() => handleCancel(appointment._id, 2, offset)}
+                    onClick={() => handleCancel(appointment._id,"cancelled", offset)}
                   >
                     <img src={actimg2} alt="Decline" />
                   </Link>

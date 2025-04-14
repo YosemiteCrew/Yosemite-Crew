@@ -50,7 +50,12 @@ const AddDepartmentController = {
   getAddDepartment: async (req, res) => {
     try {
       const { userId } = req.query;
-      console.log('userId', userId);
+
+      if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        return res.status(400).json({ message: 'Invalid doctorId format' });
+      }
+      
+
       const departments = await Department.find({ bussinessId: userId }).select(
         '_id departmentName'
       );

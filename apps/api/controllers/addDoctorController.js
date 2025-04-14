@@ -28,7 +28,7 @@ const confirmUser = async (userPoolId, username) => {
         Username: username,
       })
     );
-    console.log('User successfully confirmed.');
+    // console.log('User successfully confirmed.');
   } catch (error) {
     console.error('Error confirming user:', error);
     throw error;
@@ -48,31 +48,27 @@ function getSecretHash(email) {
     .update(email + clientId)
     .digest('base64');
 }
-function convertTo24HourFormat(time) {
-  const [hour, minute, period] = time
-    .replace(/(\s+)/g, '') // Remove any spaces
-    .match(/(\d+):(\d+)(AM|PM)/i)
-    .slice(1);
+function convertTo12HourFormat(dateObj) {
+  let hours = dateObj.getHours();
+  const minutes = dateObj.getMinutes().toString().padStart(2, '0');
+  const period = hours >= 12 ? 'PM' : 'AM';
 
-  let hours24 = parseInt(hour, 10);
-  if (period.toUpperCase() === 'PM' && hours24 !== 12) hours24 += 12;
-  if (period.toUpperCase() === 'AM' && hours24 === 12) hours24 = 0;
-
-  return `${hours24.toString().padStart(2, '0')}:${minute}`;
+  hours = hours % 12 || 12; // Convert 0 to 12 for AM
+  return `${hours}:${minutes} ${period}`;
 }
 const AddDoctorsController = {
   addDoctor: async (req, res) => {
     try {
-      console.log('file', req.files);
+      // console.log('file', req.files);
       const formData = req.body.fhirBundle
         ? JSON.parse(req.body.fhirBundle)
         : {};
 
-      console.log('formData:', JSON.stringify(formData, null, 2));
+      // console.log('formData:', JSON.stringify(formData, null, 2));
 
       // 🛑 Check if 'entry' exists and is an array before using forEach
       if (!formData.entry || !Array.isArray(formData.entry)) {
-        console.error("Invalid FHIR Bundle format. No 'entry' array found.");
+        // console.error("Invalid FHIR Bundle format. No 'entry' array found.");
         return res.status(400).json({
           error: "Invalid FHIR Bundle format. No 'entry' array found.",
         });
@@ -250,7 +246,7 @@ const AddDoctorsController = {
         }
       });
 
-      console.log('Parsed Data:', JSON.stringify(parsedData, null, 2));
+      // console.log('Parsed Data:', JSON.stringify(parsedData, null, 2));
 
       const {
         personalInfo,
@@ -286,7 +282,7 @@ const AddDoctorsController = {
         userExists = true;
       } catch (error) {
         if (error.name !== 'UserNotFoundException') {
-          console.error('Error checking user:', error);
+          // console.error('Error checking user:', error);
           return res
             .status(500)
             .json({ message: 'Error checking user existence.' });
@@ -313,9 +309,9 @@ const AddDoctorsController = {
       let data;
       try {
         data = await cognito.send(new SignUpCommand(signUpParams));
-        console.log('User successfully registered in Cognito:', data);
+        // console.log('User successfully registered in Cognito:', data);
       } catch (err) {
-        console.error('Cognito Signup Error:', err);
+        // console.error('Cognito Signup Error:', err);
         return res
           .status(500)
           .json({ message: 'Error registering user. Please try again later.' });
@@ -329,7 +325,7 @@ const AddDoctorsController = {
             UserAttributes: [{ Name: 'email_verified', Value: 'true' }],
           })
         );
-        console.log('Email verified successfully.');
+        // console.log('Email verified successfully.');
       } catch (error) {
         console.error('Error verifying email:', error);
       }
@@ -366,7 +362,7 @@ const AddDoctorsController = {
 
       try {
         const emailSent = await SES.sendEmail(emailParams).promise();
-        console.log('Password sent:', emailSent);
+        // console.log('Password sent:', emailSent);
       } catch (error) {
         console.error('Error sending email:', error);
       }
@@ -383,7 +379,7 @@ const AddDoctorsController = {
 
           s3.upload(params, (err, data) => {
             if (err) {
-              console.error('Error uploading to S3:', err);
+              // console.error('Error uploading to S3:', err);
               reject(err);
             } else {
               resolve(data.Key);
@@ -498,7 +494,7 @@ const AddDoctorsController = {
   }
   
   const organizationId = match[1];
-    console.log('userId', organizationId);
+    // console.log('userId', organizationId);
 
     try {
      
@@ -532,7 +528,7 @@ const AddDoctorsController = {
         totalSpecializations: aggregation[0]?.totalSpecializations || 0,
         availableDoctors,
       };
-      console.log('Overview:', overview);
+      // console.log('Overview:', overview);
 
       const data = new FHIRConverter(overview)
       const response = data.overviewConvertToFHIR()
@@ -594,7 +590,7 @@ const AddDoctorsController = {
 
       return res.status(200).json(doctors);
     } catch (error) {
-      console.error('Error fetching doctors by specialization ID:', error);
+      // console.error('Error fetching doctors by specialization ID:', error);
 
       return res.status(500).json({ message: 'Internal server error', error });
     }
@@ -602,7 +598,16 @@ const AddDoctorsController = {
   searchDoctorsByName: async (req, res) => {
     try {
       const { name, bussinessId } = req.query;
-      console.log('name', name, bussinessId);
+      // console.log('name', name, bussinessId);
+
+      if (typeof bussinessId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(bussinessId)) {
+        return res.status(400).json({ message: 'Invalid doctorId format' });
+      }
+      
+
+      if (name && typeof name !== 'string') {
+        return res.status(400).json({ message: 'Invalid name format' });
+      }
 
       if (!bussinessId) {
         return res.status(400).json({ message: 'Business ID is required' });
@@ -671,7 +676,7 @@ const AddDoctorsController = {
       const data = new FHIRConverter(groupedBySpecialization);
 
       const fhirData = data.convertToFHIR();
-      console.log("validate",validateFHIR(fhirData));
+      // console.log("validate",validateFHIR(fhirData));
 
       res.status(200).json(fhirData);
     } catch (error) {
@@ -703,7 +708,7 @@ const AddDoctorsController = {
         return res.status(400).json({ message: 'User ID is required' });
       }
 
-      console.log('Fetching doctor data for User ID:', id);
+      // console.log('Fetching doctor data for User ID:', id);
 
       const doctor = await AddDoctors.findOne({ userId: id }).lean();
 
@@ -731,7 +736,20 @@ const AddDoctorsController = {
             };
           });
 
-          console.log('updatedDocuments', updatedDocuments);
+         const data= JSON.stringify({
+            ...doctor._doc,
+            timeDuration: doctor.timeDuration,
+            availability: doctor.availability,
+            residentialAddress: doctor.residentialAddress,
+            personalInfo: { ...doctor.personalInfo, image: imageUrl },
+            professionalBackground: {
+              ...doctor.professionalBackground,
+              specialization: department?.departmentName,
+            },
+            documents: updatedDocuments,
+          },null,2);
+
+          console.log("data",JSON.parse(data));
           return res.status(200).json({
             ...doctor._doc,
             timeDuration: doctor.timeDuration,
@@ -746,7 +764,7 @@ const AddDoctorsController = {
           });
         }
       } else {
-        console.log('No doctor found for User ID:', id);
+        // console.log('No doctor found for User ID:', id);
         return res.status(404).json({ message: 'Doctor not found' });
       }
     } catch (error) {
@@ -783,7 +801,7 @@ const AddDoctorsController = {
       }
 
       const s3Key = documentToDelete.name;
-      console.log('S3 Key to delete:', s3Key);
+      // console.log('S3 Key to delete:', s3Key);
 
       const deleteParams = {
         Bucket: process.env.AWS_S3_BUCKET_NAME,
@@ -792,7 +810,7 @@ const AddDoctorsController = {
 
       try {
         const headObject = await s3.headObject(deleteParams).promise();
-        console.log('S3 File Found:', headObject);
+        // console.log('S3 File Found:', headObject);
       } catch (headErr) {
         console.error('S3 File Not Found:', headErr);
         return res.status(404).json({ message: 'File not found in S3' });
@@ -800,7 +818,7 @@ const AddDoctorsController = {
 
       try {
         const deleteResponse = await s3.deleteObject(deleteParams).promise();
-        console.log('S3 Delete Response:', deleteResponse);
+        // console.log('S3 Delete Response:', deleteResponse);
       } catch (deleteErr) {
         console.error('S3 Deletion Error:', deleteErr);
         return res
@@ -820,7 +838,7 @@ const AddDoctorsController = {
           .json({ message: 'Document not found in the database' });
       }
 
-      console.log('Document deleted successfully from both database and S3');
+      // console.log('Document deleted successfully from both database and S3');
       res.status(200).json({
         message: 'Document deleted successfully from both database and S3',
         updatedUser,
@@ -835,11 +853,16 @@ const AddDoctorsController = {
   },
   updateDoctorProfile: async (req, res) => {
     const userId = req.params.id;
+
+    if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+      return res.status(400).json({ message: 'Invalid doctorId format' });
+    }
+
     const formData = req.body.formData ? JSON.parse(req.body.formData) : {};
     const { personalInfo, residentialAddress, professionalBackground } =
       formData;
 
-    console.log('Received Data:', formData, req.files, userId);
+    // console.log('Received Data:', formData, req.files, userId);
 
     // Helper function to upload files to S3
     const uploadToS3 = (file, folderName) => {
@@ -870,7 +893,7 @@ const AddDoctorsController = {
       };
       try {
         await s3.deleteObject(params).promise();
-        console.log(`Deleted S3 object: ${key}`);
+        // console.log(`Deleted S3 object: ${key}`);
       } catch (err) {
         console.error('Error deleting S3 object:', err);
       }
@@ -897,7 +920,7 @@ const AddDoctorsController = {
           });
         }
       }
-      console.log('uploadedImageKey', uploadedImageKey, uploadedDocuments);
+     
 
       const specialization = await Department.findOne({
         departmentName: professionalBackground.specialization,
@@ -945,12 +968,12 @@ const AddDoctorsController = {
         if (uploadedImageKey && oldImageKey) {
           await deleteFromS3(oldImageKey);
         }
-        console.log('Doctor profile updated successfully');
+        // console.log('Doctor profile updated successfully');
         return res.status(200).json({
           message: 'Doctor profile updated successfully',
         });
       } else {
-        console.log('falieddd');
+        // console.log('falieddd');
         return res.status(400).json({
           message: 'Failed to update doctor profile',
         });
@@ -967,71 +990,90 @@ const AddDoctorsController = {
   AddDoctorsSlote: async (req, res) => {
     try {
       const { day, slots } = req.body;
-
-      console.log(
-        'slots',
-        slots.entry.map((slots) => slots.resource)
-      );
       const doctorId = req.params.id;
-      console.log(day, slots, doctorId);
-      const formattedSlots = slots.map((slot) => ({
-        ...slot,
-        time24: convertTo24HourFormat(slot.time),
-      }));
 
+      if (typeof doctorId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(doctorId)) {
+        return res.status(400).json({ message: 'Invalid doctorId format' });
+      }
+      
+
+
+
+      const validDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      if (typeof day !== 'string' || !validDays.includes(day)) {
+        return res.status(400).json({ message: 'Invalid day value' });
+      }
+      
+
+
+
+
+
+
+
+  // console.log("day doctors",day, doctorId)
+      const formattedSlots = slots.entry.map((entry) => {
+        const resource = entry.resource || entry;
+        const dateObj = new Date(resource.start);
+  
+        const hours24 = dateObj.getHours().toString().padStart(2, '0');
+        const minutes = dateObj.getMinutes().toString().padStart(2, '0');
+        const time24 = `${hours24}:${minutes}`;
+        const time = convertTo12HourFormat(dateObj); // AM/PM format
+  
+        return {
+          ...resource,
+          time,
+          time24,
+          selected: resource.status === 'true',
+        };
+      });
+  
       let existingRecord = await DoctorsTimeSlotes.findOne({ doctorId, day });
-
+  
       if (existingRecord) {
-        // Extract times from incoming slots and existing slots
         const incomingTimes = formattedSlots.map((slot) => slot.time);
         const existingTimes = existingRecord.timeSlots.map((slot) => slot.time);
-
-        // Identify slots to remove (existing but not in incoming data)
+  
         const slotsToRemove = existingTimes.filter(
           (time) => !incomingTimes.includes(time)
         );
-
-        // Update or add incoming slots
+  
         const updatedSlots = existingRecord.timeSlots.map((existingSlot) => {
           const incomingSlot = formattedSlots.find(
             (slot) => slot.time === existingSlot.time
           );
           if (incomingSlot) {
-            // Update the `selected` and `time24` fields if they have changed
             existingSlot.selected = incomingSlot.selected;
             existingSlot.time24 = incomingSlot.time24;
           }
           return existingSlot;
         });
-
-        // Add new slots (those in incoming data but not in existing data)
+  
         const newSlots = formattedSlots.filter(
           (slot) => !existingTimes.includes(slot.time)
         );
         updatedSlots.push(...newSlots);
-
-        // Remove slots that no longer exist in incoming data
+  
         const finalSlots = updatedSlots.filter(
           (slot) => !slotsToRemove.includes(slot.time)
         );
-
-        // Update the database with the final list of slots
+  
         existingRecord.timeSlots = finalSlots;
         await existingRecord.save();
-
+  
         return res.status(200).json({
           message: 'Slots updated successfully.',
           data: existingRecord,
         });
       } else {
-        // If no record exists, create a new one
         const newRecord = new DoctorsTimeSlotes({
           doctorId,
           day,
           timeSlots: formattedSlots,
         });
         await newRecord.save();
-
+  
         return res.status(201).json({
           message: 'New slots created successfully.',
           data: newRecord,
@@ -1044,18 +1086,34 @@ const AddDoctorsController = {
         error: error.message,
       });
     }
-  },
+  },  
   getDoctorsSlotes: async (req, res) => {
     try {
       const { doctorId, day, date } = req.query;
 
-      console.log('Fetching slots for:', { doctorId, day, date });
+
+
+      if (typeof doctorId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(doctorId)) {
+        return res.status(400).json({ message: 'Invalid doctorId format' });
+      }
+      
+      // Validate day (valid weekday name)
+      const validDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      if (typeof day !== 'string' || !validDays.includes(day)) {
+        return res.status(400).json({ message: 'Invalid day value' });
+      }
+      
+      // Validate date (YYYY-MM-DD)
+      if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD' });
+      }
+
 
       const bookedSlots = await webAppointments.find({
         veterinarian: doctorId,
         appointmentDate: date,
       });
-      console.log('bookedSlots', bookedSlots);
+      // console.log('bookedSlots', bookedSlots);
 
       const response = await DoctorsTimeSlotes.findOne({ doctorId, day });
       console.log('response', response);
@@ -1090,7 +1148,7 @@ const AddDoctorsController = {
   getAppointmentsForDoctorDashboard: async (req, res) => {
     try {
       const { doctorId, offset = 0, limit = 5 } = req.query;
-      console.log(req.query);
+      // console.log(req.query);
 
       const parsedOffset = parseInt(offset, 10);
       const parsedLimit = parseInt(limit, 10);
@@ -1199,79 +1257,59 @@ const AddDoctorsController = {
       });
     }
   },
-  getLast7DaysAppointmentsTotalCount: async (req, res) => {
+  // getLast7DaysAppointmentsTotalCount: async (req, res) => {
+    
+  // },
+  AppointmentAcceptedAndCancelFHIR: async (req, res) => {
     try {
-      const { doctorId } = req.query;
-
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(endDate.getDate() - 6);
-
-      const totalAppointments = await webAppointments.countDocuments({
-        veterinarian: doctorId,
-        createdAt: {
-          $gte: startDate,
-          $lte: endDate,
-        },
-      });
-
-      return res.status(200).json({
-        message:
-          'Total appointment count for the last 7 days fetched successfully',
-        totalAppointments,
-      });
-    } catch (error) {
-      console.error('Error in getLast7DaysAppointmentsTotalCount:', error);
-      return res.status(500).json({
-        message: 'An error occurred while fetching data.',
-        error: error.message,
-      });
-    }
-  },
-  AppointmentAcceptedAndCancel: async (req, res) => {
-    try {
-      const { status } = req.body;
       const { id } = req.params;
-      console.log('Appointment ID:', id, 'Status:', status);
-
+      const {userId} = req.query;
+      const { status } = req.body;
+  
       const appointment = await webAppointments.findByIdAndUpdate(
-        { _id: id },
+        id,
         {
           $set: {
-            isCanceled: status,
+            appointmentStatus: status === "cancelled" ? "cancelled" : "booked", // or "accepted" if preferred
+            cancelledBy:userId
           },
         },
         { new: true }
       );
-      console.log('Updated Appointment:', appointment);
+  
       if (appointment) {
         return res.status(200).json({
-          message: 'Appointment status updated successfully.',
+          message: "Appointment status updated successfully.",
           appointment,
         });
       } else {
-        return res.status(404).json({
-          message: 'Appointment not found.',
-        });
+        return res.status(404).json({ message: "Appointment not found." });
       }
     } catch (error) {
-      console.error('Error in AppointmentAcceptedAndCancel:', error);
+      console.error("Error in AppointmentAcceptedAndCancelFHIR:", error);
       return res.status(500).json({
-        message: 'An error occurred while updating appointment status.',
+        message: "An error occurred while updating appointment status.",
         error: error.message,
       });
     }
-  },
+  },  
   updateAvailability: async (req, res) => {
     try {
       const { userId, status } = req.query;
+
+
+      // console.log("userid", userId, "status",status)
+      if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        return res.status(400).json({ message: 'Invalid doctorId format' });
+      }
+      
 
       const result = await AddDoctors.updateOne(
         { userId: userId },
         { $set: { isAvailable: status } }
       );
 
-      console.log('Update Result:', result);
+      // console.log('Update Result:', result);
 
       if (result.matchedCount === 0) {
         return res.status(404).json({ message: 'User not found.' });
@@ -1292,6 +1330,13 @@ const AddDoctorsController = {
   getAvailabilityStatus: async (req, res) => {
     try {
       const { userId } = req.query;
+
+      if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        return res.status(400).json({ message: 'Invalid doctorId format' });
+      }
+      
+
+      
       const result = await AddDoctors.findOne({ userId: userId });
       console.log('Availability Status:', result);
       if (!result) {
