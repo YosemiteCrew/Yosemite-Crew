@@ -81,6 +81,10 @@ jobs:
         cache: 'pnpm'
     - name: Install dependencies
       run: pnpm install --frozen-lockfile
+    - name: Install latest CocoaPods
+      shell: bash
+      run: |
+        sudo gem install cocoapods
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
