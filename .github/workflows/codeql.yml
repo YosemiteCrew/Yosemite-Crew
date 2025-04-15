@@ -106,7 +106,7 @@ jobs:
       run: |
         cd ./apps/mobileApp/android
         ./gradlew assembleDebug -Dorg.gradle.jvmargs="-Xmx4g"
-    - if: matrix.build-mode == 'manual' && matrix.language == "swift"
+    - if: matrix.build-mode == 'manual' && matrix.language == 'swift'
       shell: bash
       run: |
         cd ./apps/mobileApp/ios
