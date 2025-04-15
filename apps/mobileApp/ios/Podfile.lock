@@ -1706,7 +1706,7 @@ PODS:
     - React-Core
     - React-RCTImage
     - TOCropViewController (~> 2.7.4)
-  - RNPermissions (5.3.0):
+  - RNPermissions (5.2.6):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -2154,7 +2154,7 @@ SPEC CHECKSUMS:
   RNFastImage: 462a183c4b0b6b26fdfd639e1ed6ba37536c3b87
   RNGestureHandler: 8b1080a6db0be82dbca18550d6212b885bfab6b2
   RNImageCropPicker: b0afedeefd8655254a15c34103718455fde6ce59
-  RNPermissions: 5258015f99575791c561e4ceb8fecc26382879c4
+  RNPermissions: 5068df247914029be5070bbd87bcc210600eba74
   RNScreens: 790123c4a28783d80a342ce42e8c7381bed62db1
   RNSVG: 8126581b369adf6a0004b6a6cab1a55e3002d5b0
   SDWebImage: a7f831e1a65eb5e285e3fb046a23fcfbf08e696d
@@ -2163,6 +2163,6 @@ SPEC CHECKSUMS:
   TOCropViewController: 80b8985ad794298fb69d3341de183f33d1853654
   Yoga: b94ff2d7559cb66837c97a3f394ddb817faad4d6
 
-PODFILE CHECKSUM: a1404f2c7908633302ce086466293c07a586f514
+PODFILE CHECKSUM: 56996efbec46010b8025adeb31c78180a9e64b21
 
 COCOAPODS: 1.16.2

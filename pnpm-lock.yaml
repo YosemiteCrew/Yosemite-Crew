@@ -154,6 +154,9 @@ importers:
       react-native-date-picker:
         specifier: ^5.0.12
         version: 5.0.12(react-native@0.78.1)(react@19.0.0)
+      react-native-event-listeners:
+        specifier: ^1.0.7
+        version: 1.0.7
       react-native-fast-image:
         specifier: ^8.6.3
         version: 8.6.3(react-native@0.78.1)(react@19.0.0)
@@ -188,8 +191,11 @@ importers:
         specifier: ^5.13.1
         version: 5.13.1(react-native-safe-area-context@5.3.0)(react-native-vector-icons@10.2.0)(react-native@0.78.1)(react@19.0.0)
       react-native-permissions:
-        specifier: ^5.3.0
-        version: 5.3.0(react-native@0.78.1)(react@19.0.0)
+        specifier: ^5.2.6
+        version: 5.2.6(react-native@0.78.1)(react@19.0.0)
+      react-native-push-notification:
+        specifier: ^8.1.1
+        version: 8.1.1(@react-native-community/push-notification-ios@1.11.0)(react-native@0.78.1)
       react-native-raw-bottom-sheet:
         specifier: ^3.0.0
         version: 3.0.0
@@ -3043,6 +3049,17 @@ packages:
       - supports-color
       - typescript
       - utf-8-validate
+
+  /@react-native-community/push-notification-ios@1.11.0(react-native@0.78.1)(react@19.0.0):
+    resolution: {integrity: sha512-nfkUs8P2FeydOCR4r7BNmtGxAxI22YuGP6RmqWt6c8EEMUpqvIhNKWkRSFF3pHjkgJk2tpRb9wQhbezsqTyBvA==}
+    peerDependencies:
+      react: '>=16.6.3'
+      react-native: '>=0.58.4'
+    dependencies:
+      invariant: 2.2.4
+      react: 19.0.0
+      react-native: 0.78.1(@babel/core@7.26.10)(@babel/preset-env@7.26.9)(@react-native-community/cli@15.0.1)(@types/react@19.0.12)(react@19.0.0)
+    dev: false
 
   /@react-native-documents/picker@10.1.1(react-native@0.78.1)(react@19.0.0):
     resolution: {integrity: sha512-RijOCQmesOPe4ahtwOag6k6GLhLHf34sMQtAJ4KjLk7ab0kG5Chvcsvd5zixWC4d0tuBnVAtMUOzvn0bp+UtAg==}
@@ -9527,6 +9544,12 @@ packages:
       react-native: 0.78.1(@babel/core@7.26.10)(@babel/preset-env@7.26.9)(@react-native-community/cli@15.0.1)(@types/react@19.0.12)(react@19.0.0)
     dev: false
 
+  /react-native-event-listeners@1.0.7:
+    resolution: {integrity: sha512-yne2ldnqGtABnuN6VSPgs5afaHZZYIAGMoyBUJFn5O2t5t78eCbX9vNa3hvOIIwulKMkZVfqyRtYcSOrNMmMhg==}
+    dependencies:
+      type-detect: 4.0.8
+    dev: false
+
   /react-native-fast-image@8.6.3(react-native@0.78.1)(react@19.0.0):
     resolution: {integrity: sha512-Sdw4ESidXCXOmQ9EcYguNY2swyoWmx53kym2zRsvi+VeFCHEdkO+WG1DK+6W81juot40bbfLNhkc63QnWtesNg==}
     peerDependencies:
@@ -9678,8 +9701,8 @@ packages:
       use-latest-callback: 0.1.11(react@19.0.0)
     dev: false
 
-  /react-native-permissions@5.3.0(react-native@0.78.1)(react@19.0.0):
-    resolution: {integrity: sha512-krDaImQ7J8tm7P+GqKmTIkojNqdO0E6v2x7TOlX/7rRc/zlpoqRXsN7210ecChcUmEOJEH6wzPcemYq+7AfZiw==}
+  /react-native-permissions@5.2.6(react-native@0.78.1)(react@19.0.0):
+    resolution: {integrity: sha512-C/tbf5UQZCAXiveDcRcyyluEt8JYnPZ9Zee2L/vJ0xmdpRAIUYWCUPNyfDEPkD8DfQhR9IqxeYxSOL+r68Cqtw==}
     peerDependencies:
       react: '>=18.1.0'
       react-native: '>=0.70.0'
@@ -9689,6 +9712,16 @@ packages:
         optional: true
     dependencies:
       react: 19.0.0
+      react-native: 0.78.1(@babel/core@7.26.10)(@babel/preset-env@7.26.9)(@react-native-community/cli@15.0.1)(@types/react@19.0.12)(react@19.0.0)
+    dev: false
+
+  /react-native-push-notification@8.1.1(@react-native-community/push-notification-ios@1.11.0)(react-native@0.78.1):
+    resolution: {integrity: sha512-XpBtG/w+a6WXTxu6l1dNYyTiHnbgnvjoc3KxPTxYkaIABRmvuJZkFxqruyGvfCw7ELAlZEAJO+dthdTabCe1XA==}
+    peerDependencies:
+      '@react-native-community/push-notification-ios': ^1.10.1
+      react-native: '>=0.33'
+    dependencies:
+      '@react-native-community/push-notification-ios': 1.11.0(react-native@0.78.1)(react@19.0.0)
       react-native: 0.78.1(@babel/core@7.26.10)(@babel/preset-env@7.26.9)(@react-native-community/cli@15.0.1)(@types/react@19.0.12)(react@19.0.0)
     dev: false
 
