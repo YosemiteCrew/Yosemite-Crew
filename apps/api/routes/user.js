@@ -92,7 +92,7 @@ router.get("/getexercise-list/:userId",verifyTokenAndRefresh, handleGetExerciseP
 router.post("/savepainjournal",verifyTokenAndRefresh, handleAddPainJournal);
 router.get("/getpainjournal/:userId",verifyTokenAndRefresh, handleGetPainJournal);
 router.post("/saveMedicalRecord", verifyTokenAndRefresh,handlesaveMedicalRecord);
-router.get("/getMedicalRecordList/:userId",verifyTokenAndRefresh, handleMedicalRecordList);
+router.get("/getMedicalRecordList",verifyTokenAndRefresh, handleMedicalRecordList);
 router.post(
   "/saveDiabetesRecords",verifyTokenAndRefresh,
   upload.array("PetImage"),
