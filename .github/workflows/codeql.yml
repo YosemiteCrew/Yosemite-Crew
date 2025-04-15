@@ -52,7 +52,7 @@ jobs:
         - language: ruby
           build-mode: none
         - language: swift
-          build-mode: autobuild
+          build-mode: manual
         # CodeQL supports the following values keywords for 'language': 'actions', 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'swift'
         # Use `c-cpp` to analyze code written in C, C++ or both
         # Use 'java-kotlin' to analyze code written in Java, Kotlin or both
@@ -101,12 +101,17 @@ jobs:
     # to build your code.
     # ℹ️ Command-line programs to run using the OS shell.
     # 📚 See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun
-    - if: matrix.build-mode == 'manual'
+    - if: matrix.build-mode == 'manual' && matrix.language == 'java-kotlin'
       shell: bash
       run: |
         cd ./apps/mobileApp/android
         ./gradlew assembleDebug -Dorg.gradle.jvmargs="-Xmx4g"
-
+    - if: matrix.build-mode == 'manual' && matrix.language == "swift"
+      shell: bash
+      run: |
+        cd ./apps/mobileApp/ios
+        xcodebuild -workspace mobileApp.xcworkspace -scheme mobileApp -configuration Debug -sdk iphonesimulator build
+        
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
       with:
