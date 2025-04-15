@@ -14,7 +14,6 @@
   "packageManager": "pnpm@8.15.6",
   "name": "with-vite",
   "dependencies": {
-    "sanitize-filename": "^1.6.3",
-    "zod": "^3.24.2"
+    "sanitize-filename": "^1.6.3"
   }
 }
