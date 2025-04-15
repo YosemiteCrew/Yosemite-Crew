@@ -85,6 +85,7 @@ jobs:
       shell: bash
       run: |
         sudo gem install cocoapods
+        pod --version
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
