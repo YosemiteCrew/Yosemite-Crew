@@ -11,6 +11,13 @@ dist-ssr
 server/dist
 public/dist
 
+# Google-Services File
+#
+google-services.json
+GoogleService-Info.plist
+
+# Constants
+#
 apps/mobileApp/android/app/google-services.json
 apps/mobileApp/src/constants/index.js
 
