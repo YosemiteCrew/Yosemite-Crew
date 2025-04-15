@@ -110,7 +110,8 @@ jobs:
       shell: bash
       run: |
         cd ./apps/mobileApp/ios
-        xcodebuild -workspace mobileApp.xcworkspace -scheme mobileApp -configuration Debug -sdk iphonesimulator build
+        pod install
+        xcodebuild -workspace mobileApp.xcworkspace -scheme mobileApp -configuration Debug -sdk iphonesimulator clean build
         
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
