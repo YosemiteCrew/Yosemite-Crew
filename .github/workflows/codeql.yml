@@ -106,10 +106,11 @@ jobs:
       run: |
         cd ./apps/mobileApp/android
         ./gradlew assembleDebug -Dorg.gradle.jvmargs="-Xmx4g"
-    - if: matrix.build-mode == 'manual' && matrix.language == "swift"
+    - if: matrix.build-mode == 'manual' && matrix.language == 'swift'
       shell: bash
       run: |
         cd ./apps/mobileApp/ios
+        pod install
         xcodebuild -workspace mobileApp.xcworkspace -scheme mobileApp -configuration Debug -sdk iphonesimulator build
         
     - name: Perform CodeQL Analysis
