@@ -31,7 +31,7 @@ const UplodeImage = ({ onFileChange, selectedFiles }) => {
               const isImage = fileType.startsWith('image/');
               return (
                 <div key={index} className="file-item">
-                  {isImage ? (
+                  {isImage && file instanceof File ? (
                     <img
                       src={URL.createObjectURL(file)}
                       alt={`Preview ${index}`}
