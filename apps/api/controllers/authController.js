@@ -262,6 +262,9 @@ const authController = {
   login: async (req, res) => {
     const { email, otp } = req.body;
     try {
+      if (typeof email !== 'string' || !validator.isEmail(email)) {
+        return res.status(400).json({ status: 0, message: "Invalid email format" });
+      }
       const result = await user.findOne({ email });
       // console.log(result);
       if (!result) {
@@ -318,6 +321,10 @@ const authController = {
   resendConfirmationCode: async (req, res) => {
     const { email } = req.body;
 
+    if (typeof email !== 'string' || !validator.isEmail(email)) {
+      return res.status(400).json({ status: 0, message: "Invalid email format" });
+    }
+    
     const secretHash = getSecretHash(email); // Calculate the SECRET_HASH
 
     const params = {
