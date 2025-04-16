@@ -3,13 +3,29 @@ const MonthlySlotService = require("../services/MonthlySlotService");
 const  FHIRSlotValidator  = require('../validators/FHIRSlotValidator');
 const  MonthlySlotValidator  = require('../validators/MonthlySlotValidator');
 const FHIRValidator = require("../validators/FHIRValidator");
+const mongoose = require('mongoose');
 
 class SlotController {
   static async handlegetTimeSlots(req, res) {
     try {
-      const appointmentDate = req.params.appointmentDate;
-      const doctorId = req.params.doctorId;
-
+      const rawData = req.body.data;
+      let fhirData;
+      try {
+        fhirData = typeof rawData === "string" ? JSON.parse(rawData) : rawData;
+      } catch (e) {
+        return res.status(400).json({
+          issue: [{
+            severity: "error",
+            code: "invalid",
+            details: { text: "Invalid JSON format in 'data' field" }
+          }]
+        });
+      }
+    const appointmentDate = fhirData?.start?.split("T")[0];
+    const doctorParticipant = fhirData?.participant?.find(p =>
+      p.actor?.reference?.startsWith("Practitioner/")
+    );
+    const doctorId = doctorParticipant?.actor?.reference?.split("/")[1];
       if (!appointmentDate || !doctorId) {
         return res.status(400).json({
           issue: [{
@@ -19,6 +35,9 @@ class SlotController {
           }]
         });
       }
+    if (!mongoose.Types.ObjectId.isValid(doctorId)) {
+      throw new Error("Invalid doctor ID");
+    }
 
       const result = await SlotService.getAvailableTimeSlots({ appointmentDate, doctorId });
       const validationErrors = FHIRSlotValidator.validateBundle(result);
@@ -45,9 +64,25 @@ class SlotController {
   }
 
   static async handleTimeSlotsByMonth(req, res) {
-    const { slotMonth, slotYear, doctorId } = req.params;
-
-    const issues = MonthlySlotValidator.validateRequest({ doctorId, slotMonth, slotYear });
+   
+    const rawData = req.body.data;
+      let fhirData;
+      try {
+        fhirData = typeof rawData === "string" ? JSON.parse(rawData) : rawData;
+      } catch (e) {
+        return res.status(400).json({
+          issue: [{
+            severity: "error",
+            code: "invalid",
+            details: { text: "Invalid JSON format in 'data' field" }
+          }]
+        });
+      }
+      const doctorId = fhirData.participant?.[0]?.actor?.reference?.split("/")[1];
+      
+      const slotMonth = fhirData.extension?.find(e => e.url.includes('slot-month'))?.valueInteger;
+      const slotYear = fhirData.extension?.find(e => e.url.includes('slot-year'))?.valueInteger;
+      const issues = MonthlySlotValidator.validateRequest({ doctorId, slotMonth, slotYear });
 
     if (issues.length > 0) {
       return res.status(400).json({ issue: issues });
