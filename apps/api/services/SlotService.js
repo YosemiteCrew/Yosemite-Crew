@@ -22,8 +22,8 @@ class SlotService {
       };
     }
 
-    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const day = days[dateObj.getDay()];
+    const validDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const day = validDays[dateObj.getDay()];
     
     if (!validDays.includes(day)) {
       throw new Error("Invalid day");

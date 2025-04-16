@@ -114,8 +114,6 @@ static async handleEditPet(req, res) {
     const updatedPetData = await FHIRMapperService.convertFHIRToPet(parsedData);
 
     // Handle file uploads (optional)
-    let imageUrls = '';
-
     if (req.files && req.files.files) {
       const files = Array.isArray(req.files.files)
         ? req.files.files
@@ -124,10 +122,10 @@ static async handleEditPet(req, res) {
       const imageFiles = files.filter(file => file.mimetype && file.mimetype.startsWith("image/"));
     
       if (imageFiles.length > 0) {
-        imageUrls = await PetService.uploadFiles(imageFiles);
+        const imageUrls = await PetService.uploadFiles(imageFiles);
+        updatedPetData.petImage = imageUrls;
       }
     }
-    updatedPetData.petImage = imageUrls;
 
     // Securely update the pet record
     const editPetData = await PetService.updatePetById(id, updatedPetData);
@@ -137,7 +135,7 @@ static async handleEditPet(req, res) {
 
     const fhirFormattedResponse = await FHIRMapper.convertPetToFHIR(editPetData, process.env.BASE_URL);
 
-    res.json({ status: 0, data: fhirFormattedResponse });
+    res.json({ status: 1, data: fhirFormattedResponse });
   } catch (error) {
     console.error("Update error:", error);
     res.status(500).json({
@@ -146,6 +144,7 @@ static async handleEditPet(req, res) {
     });
   }
 }
+
 
 
 // Remove a pet record from the database
