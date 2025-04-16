@@ -84,6 +84,7 @@ jobs:
     - name: Install latest ruby & CocoaPods
       shell: bash
       run: |
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
         brew install ruby
         sudo gem install cocoapods
 
