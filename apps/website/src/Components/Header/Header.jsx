@@ -100,7 +100,7 @@ const Header = () => {
   useEffect(() => {
     const token = localStorage.getItem('userToken');
     setIsLoggedIn(!!token); // If there's a token, the user is logged in
-    console.log('Is Logged In:', !!token); // Log the result
+ // Log the result
   }, []);
 
 

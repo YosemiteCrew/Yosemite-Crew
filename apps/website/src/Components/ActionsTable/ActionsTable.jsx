@@ -17,7 +17,7 @@ const ActionsTable = ({
   const itemsPerPage = 5; // Should match the backend limit
   const [offset, setOffset] = useState(0); // Tracks the current offset
 
-  // console.log('actiontable', appointments);
+
 
   const handleNext = () => {
     setOffset((prevOffset) => prevOffset + itemsPerPage);

@@ -52,14 +52,14 @@ import ClientStatementDetail from './Pages/ClientStatementDetail/ClientStatement
 import { useAuth } from './context/useAuth';
 import ViewProcedurePackage from './Pages/AddProcedurePackage/ViewProcedurePackage';
 
-console.log(import.meta.env.VITE_BASE_IMAGE_URL)
+
 
 const Layout = () => {
   const navigate = useNavigate();
   const { tokens, userType } = useAuth();
 
   const location = useLocation();
-  // console.log("yyy", tokens);
+
 
   const mainHeaderRoutes = [
     // "/signupdetails",
@@ -160,7 +160,7 @@ const Layout = () => {
 }, [tokens, location.pathname,navigate,protectedRoutes]);
 
   useEffect(() => {
-    // console.log("Current Path:", location.pathname);
+
 
     const shouldNotRedirect =
       tokens &&
@@ -186,7 +186,7 @@ const Layout = () => {
       navigate(currentPath);
     }
   }, [tokens, location.pathname, navigate,protectedRoutes]);
-  // console.log("<Doctor_Dashboard />", userType);
+
   return (
     <>
       <MainHeader isMainHeader={isMainHeader} />

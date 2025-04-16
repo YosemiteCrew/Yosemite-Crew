@@ -33,7 +33,7 @@ const DocterWiseAppoint = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPage, setTotalPage] = useState(1);
   const [appointmentsData, setAppointmentsData] = useState([]);
-  console.log('appointmentsData', appointmentsData);
+
   const debouncedSearch = useDebounce(search, 500);
   const getAppointmentsData = useCallback(async () => {
     try {
@@ -62,12 +62,11 @@ const DocterWiseAppoint = () => {
   }, [userId, getAppointmentsData]);
 
   const handleSearch = async (val) => {
-    console.log('search', val.target.value);
+   
     setSearch(val.target.value);
   };
 const handleSelect = (val) => {
   const day = parseInt(val.match(/\d+/)[0], 10);
-  // console.log('days', day)
   setDays(day)
 }
   // Dropdown options

@@ -57,7 +57,7 @@ function CheckInModal(props) {
     Time: '',
     timeSlots: [],
   });
-  console.log("hhhhhhhhhhhhhhhhhhhh",AllData.Time,AllData.timeSlots);
+
   useEffect(() => {
     setAllData((prev) => ({
       ...prev,
@@ -67,8 +67,7 @@ function CheckInModal(props) {
   }, [userId, profileData]); // Include profileData to ensure re-run when it changes
 
   const [AvailableSlots, setAvailableSlots] = useState([]);
-  console.log('AvailableSlots', AvailableSlots);
-  console.log('AllData.hospitalId', AllData.HospitalName);
+
   useEffect(() => {
     setAllData((prev) => ({
       ...prev,
@@ -87,7 +86,6 @@ function CheckInModal(props) {
       return;
     }
 
-    console.log(`Updating ${category} with value:`, value);
 
     setAllData((prev) => ({
       ...prev,
@@ -131,10 +129,10 @@ function CheckInModal(props) {
   );
 
   const [department, setDepartment] = useState([]);
-  console.log("department",department)
+
 
   const getSpecializationDepartment = useCallback(async () => {
-    // console.log('userId', userId);
+
     try {
       const token = sessionStorage.getItem("token");
       const response = await axios.get(
@@ -162,16 +160,13 @@ function CheckInModal(props) {
     // getWaittingRoomOverView();
   }, [userId,getSpecializationDepartment]);
   const [veterinarian, setVeterinarian] = useState(null);
-  console.log('veterinarian', veterinarian);
   const handleDepartmentSelect = async (value) => {
-    console.log('Department Selected:', value);
     setAllData((prev) => ({
       ...prev,
       department: value,
     }));
     const token = sessionStorage.getItem('token');
     try {
-      console.log('id', value);
       const response = await axios.get(
         `${import.meta.env.VITE_BASE_URL}api/doctors/getForAppDoctorsBySpecilizationId`,{params: {value: value,userId: userId}, headers: {
           Authorization: `Bearer ${token}`, // Attach the token to the request headers
@@ -180,7 +175,6 @@ function CheckInModal(props) {
 
       if (response && response.data) {
         const data = response.data;
-        console.log('data', data);
 
         setVeterinarian(
           data.map((v) => ({
@@ -227,19 +221,15 @@ function CheckInModal(props) {
           headers: {Authorization: `Bearer ${token}`},
         }
       );
-      console.log('data', data);
       if (data?.timeSlots) {
-        console.log("//////////", data?.timeSlots);
         const convertedSlots = data.timeSlots.entry
           .filter((slot) => slot.resource.resourceType === "Slot") // Filter only Slot resources
           .map((slot) => {
             const slotConverter = new FHIRToSlotConverter(slot.resource);
             return slotConverter.convert();
           });
-      console.log("convertedSlots", convertedSlots);
         setAvailableSlots(convertedSlots);      
       } else {
-        console.log('hello');
         setAvailableSlots([]);
       }
     } catch (error) {
@@ -283,11 +273,9 @@ function CheckInModal(props) {
     return Object.keys(errors).length === 0;
   };
   const handleSave = async () => {
-    // console.log('AllData', AllData);
     if (!validateFields()) return;
     const fhirMapper = new FHIRMapper(AllData);
     const fhirData = fhirMapper.toFHIR();
-    console.log("FHIR Data:", fhirData); 
     try {
       const token = sessionStorage.getItem("token");
       const response = await axios.post(
@@ -744,10 +732,7 @@ const CheckIn = () => {
     WaitingRoomOverViewPatientInQueue,
     setWaitingRoomOverViewPatientInQueue,
   ] = useState([]);
-  console.log(
-    'WaitingRoomOverViewPatientInQueue',
-    WaitingRoomOverViewPatientInQueue
-  );
+ 
   const getWaittingRoomOverView = useCallback(async () => {
     try {
       const token = sessionStorage.getItem("token");
@@ -785,7 +770,7 @@ const CheckIn = () => {
           totalAppointments:JSON.parse(response.data).total,
           appointments: JSON.parse(response.data).entry.map((entry) => entry.resource),
         })
-         console.log("normalAppointments", normalAppointments);
+       
          setWaitingRoomOverViewPatientInQueue(normalAppointments);
 }    } catch (error) {
       if (error.response && error.response.status === 401) {

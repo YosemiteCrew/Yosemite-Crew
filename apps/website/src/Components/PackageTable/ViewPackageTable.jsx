@@ -15,7 +15,7 @@ const ViewPackageTable = ({ updatePackageItems, packageItems,fetchPackageDataa }
   const [rows, setRows] = useState(packageItems || []);
   const [editRowId, setEditRowId] = useState(null);
   const [editedRow, setEditedRow] = useState(null);
-console.log('rows', rows);
+
   // Debounced update function
   const debouncedUpdate = useCallback(
     debounce((updatedRows) => updatePackageItems(updatedRows), 300),

@@ -22,7 +22,7 @@ function ViewProcedurePackage(fetchPackageData) {
     description: '',
     packageItems: [],
   });
-  console.log('procedureData', procedureData);
+
   useEffect(() => {
     const fetchPackageData = async () => {
       try {

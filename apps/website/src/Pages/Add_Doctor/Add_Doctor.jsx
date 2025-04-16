@@ -37,7 +37,7 @@ const Add_Doctor = () => {
   const [doctorsData, setDoctorsData] = useState({});
   const [overview, setOverview] = useState([]);
   const [search, setSearch] = useState('');
-  // console.log('doctorsData', doctorsData);
+
 
   const debouncedSearch = useDebounce(search, 500);
   const getaDoctors = useCallback(async () => {
@@ -55,7 +55,7 @@ const Add_Doctor = () => {
       );
 
       if (response.status === 200) {
-        // console.log('response', response.data);
+      
 
         let parsedData =
           typeof response.data === 'string'
@@ -63,10 +63,10 @@ const Add_Doctor = () => {
             : response.data;
 
         const parser = new FHIRParser(parsedData);
-        // console.log('parser', parser);
+  
 
         const normalData = parser.convertToNormal();
-        // console.log('Converted Normal Data:', normalData);
+    
 
         setDoctorsData(normalData);
       } else {
@@ -164,10 +164,10 @@ const Add_Doctor = () => {
       );
       if (response) {
         const data = new FHIRParser(JSON.parse(response.data));
-        // console.log('overviewData', data);
+
         const normalData = data.overviewConvertToNormal();
         setOverview(normalData);
-        // console.log('overview', normalData);
+
       }
     } catch (error) {
       if (error.response) {
