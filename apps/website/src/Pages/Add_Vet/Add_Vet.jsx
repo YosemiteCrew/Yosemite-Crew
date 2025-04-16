@@ -34,7 +34,7 @@ const Add_Vet = () => {
   const navigate = useNavigate();
   const [OperatingHour, setOperatingHours] = useState([]);
   const [uploadedfiles, setUploadedFiles] = useState([]);
-  console.log("operating",OperatingHour);
+
  
   const [PersonalInfoForm, setPersonalInfoForm] = useState({
     firstName: '',
@@ -45,7 +45,7 @@ const Add_Vet = () => {
     phone: '',
     dateOfBirth: '',
   });
-  console.log('PersonalInfoForm.dateOfBirth', PersonalInfoForm.countrycode,PersonalInfoForm.phone);
+  
 
   const [ResidentialAddressForm, setResidentialAddressForm] = useState({
     addressLine1: '',
@@ -64,7 +64,7 @@ const Add_Vet = () => {
     document: [],
     cvFile: '',
   });
-  console.log("professionalBackground.cvFile",professionalBackground.cvFile);
+
 
   // const [selectedFile, setSelectedFile] = useState(null);
   const [consultFee, setConsultFee] = useState('');
@@ -135,7 +135,7 @@ const Add_Vet = () => {
       type: file.type,
       date: new Date().toLocaleDateString('en-GB'),
     }));
-    console.log('filesWithDate', filesWithDate);
+
     setUploadedFiles((prev) => [...prev, ...filesWithDate]);
 
     setProfessionalBackground((prev) => ({
@@ -245,7 +245,7 @@ const Add_Vet = () => {
     setConsultFee(e.target.value);
   };
 
-  const [error, setError] = useState(''); // For validation errors
+// For validation errors
 
   // Create login handler
   const handleCreateLogin = (e) => {
@@ -530,7 +530,7 @@ const Add_Vet = () => {
   
     formData.append("fhirBundle", JSON.stringify(bundleResource));
 
-    console.log("bundleResource",JSON.stringify(bundleResource));
+
   
     // -------------------------------------------
     // 🚀 4. Submit FormData to Backend
@@ -645,7 +645,7 @@ const Add_Vet = () => {
                             <label htmlFor="logo-upload" className="upload-label">
                               {image ? (
                                 <img
-                                  src={URL.createObjectURL(image)}
+                                  src={URL.createObjectURL(image).startsWith("blob:")?URL.createObjectURL(image):""}
                                   alt="Preview"
                                   className="preview-image"
                                 />
@@ -728,7 +728,7 @@ const Add_Vet = () => {
                               inputClassName="form-control"
                               value={PersonalInfoForm.phone} // Keep phone value unchanged
                               onPhoneNumberBlur={(isValid, value, countryData) => {
-                                console.log("Selected Country Code:", `+${countryData.dialCode}`);
+                               
 
                                 // Update only the country code
                                 setPersonalInfoForm((pre) => ({
@@ -1196,7 +1196,7 @@ const Add_Vet = () => {
                         />
 
                         {/* Display error message */}
-                        {error && <p className="error-message">{error}</p>}
+                        
                       </div>
                       <div className="AuthrizDiv">
                         <h6>Authorization Settings</h6>

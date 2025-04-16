@@ -39,18 +39,18 @@ const Add_Department = () => {
       country.label.toLowerCase().includes(searchTerms.toLowerCase())
   );
   const [servicesList, setservicesList] = useState([]);
-  // console.log('servicesList', servicesList);
+
 
   const { userId,onLogout } = useAuth();
   const navigate = useNavigate();
 
   const [searchTerm, setSearchTerm] = useState('');
-  // console.log('searchTerm', searchTerm);
+ 
 
   const debouncedSearch = useDebounce(searchTerm, 500);
-  // console.log('debouncedSearch', debouncedSearch);
+ 
   const getaDoctors = useCallback(async () => {
-    // console.log('debouncedSearch', debouncedSearch);
+   
     try {
       // Get the token from sessionStorage
       const token = sessionStorage.getItem('token');
@@ -76,7 +76,7 @@ const Add_Department = () => {
           : response.data;
 
       const parser = new FHIRParser(parsedData);
-      // console.log('parser', parser);
+
 
       const normalData = parser.convertToNormal();
         setservicesList(
@@ -101,7 +101,7 @@ const Add_Department = () => {
   }, [debouncedSearch, userId,getaDoctors]);
   const handleSearch = (event) => {
     setSearchTerm(event.target.value);
-    console.log('ssss', event.target.value);
+
   };
 
  
@@ -114,7 +114,7 @@ const Add_Department = () => {
   const [description, setDescription] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  // console.log('selectedServices', selectedServices);
+ 
 
   const toggleDropdown = () => {
     setIsDropdownOpen(!isDropdownOpen);
@@ -130,9 +130,6 @@ const Add_Department = () => {
     service.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Department Head
-
-  // Add Services & Conditions Section
 
   const [services, setServices] = useState([
     { id: 1, label: 'Cardiac Health Screenings', checked: true },
@@ -226,7 +223,7 @@ const Add_Department = () => {
   // const handleSaveOperatingHours = (updatedHours) => {
   //   // Process the received operating hours (for example, send it to an API or just log it)
   //   setOperatingHours(updatedHours);
-  //   console.log("Received operating hours:", updatedHours);
+
   // };
 
   const handleSubmit = async () => {
@@ -255,7 +252,7 @@ const Add_Department = () => {
         `${import.meta.env.VITE_BASE_URL}fhir/v1/HealthcareService`,
         data ,{headers:{Authorization:`Bearer ${token}`}}
       );
-      console.log('Department added:', response.data);
+
       if (response.status === 201) {
         Swal.fire({
           icon: "success",

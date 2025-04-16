@@ -1,5 +1,6 @@
 import axios from 'axios';
 import {  HospitalProfileNormalizer } from '../utils/FhirMapper';
+import { FhirProfileConverter } from '../utils/FhirProfileConverter';
 
 
 
@@ -33,8 +34,9 @@ export const getdoctorprofile = async (userId) => {
     const response = await axios.get(
       `${import.meta.env.VITE_BASE_URL}api/doctors/getDoctors/${userId}`
     );
-    // console.log(response.data);
-    return response.data;
+   const respo = FhirProfileConverter.fromFHIR(response.data.fhirDoctor,response.data.fhirDocuments,response.data.fhirSchedule);
+   console.log("rrrrrrrrrrr",respo);
+    return respo;
   } catch (error) {
     console.error('Error fetching doctor profile data:', error);
     throw error;

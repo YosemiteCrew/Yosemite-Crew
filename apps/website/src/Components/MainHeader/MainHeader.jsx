@@ -278,16 +278,16 @@ const MainHeader = ({ isMainHeader }) => {
                       aria-expanded="false"
                     >
                       <img src={profileDataa?.logoUrl} alt="Profile" />
-                      <p>
-                        {profileDataa?.businessName.length > 21 ? (
+                      {/* <div> */}
+                        {/* {profileDataa?.businessName.length > 21 ? (
                           <>
                             <div>{profileDataa?.businessName.slice(0, 21)}</div>
                             <div>{profileDataa?.businessName.slice(21)}</div>
                           </>
-                        ) : (
-                          <div>{profileDataa?.businessName}</div>
-                        )}
-                      </p>
+                        ) : ( */}
+                          <p>{profileDataa?.businessName}</p>
+                        {/* )} */}
+                      {/* </div> */}
                       <span className="d-none d-md-block dropdown-toggle"></span>
                     </Link>
                     <ul className="dropdown-menu dropdown-menu-end dropdown-menu-arrow profileUl">

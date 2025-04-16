@@ -157,8 +157,168 @@ overviewConvertToFHIR() {
       updatedBy: updatedByExtension?.valueString || null,
     };
   }
-}
 
+  static fromFhir(fhirData) {
+    const practitioner = fhirData.entry.find(e => e.resource.resourceType === 'Practitioner')?.resource || {};
+    const role = fhirData.entry.find(e => e.resource.resourceType === 'PractitionerRole')?.resource || {};
+    const address = fhirData.entry.find(e => e.resource.resourceType === 'Address')?.resource || {};
+    const documents = fhirData.entry
+      .filter(e => e.resource.resourceType === 'DocumentReference')
+      .map(doc => ({
+        name: doc.resource.content?.[0]?.attachment?.title || '',
+        url: doc.resource.content?.[0]?.attachment?.url || '',
+      }));
+
+    return {
+      personalInfo: {
+        firstName: practitioner.name?.[0]?.given?.[0] || '',
+        lastName: practitioner.name?.[0]?.family || '',
+        email: practitioner.telecom?.find(t => t.system === 'email')?.value || '',
+        phone: practitioner.telecom?.find(t => t.system === 'phone')?.value || '',
+        gender: practitioner.gender || '',
+        dateOfBirth: practitioner.birthDate || '',
+        image: practitioner.photo?.[0]?.url || '',
+      },
+      residentialAddress: {
+        addressLine1: address.line?.[0] || '',
+        city: address.city || '',
+        stateProvince: address.state || '',
+        zipCode: address.postalCode || '',
+        country: address.country || '',
+      },
+      professionalBackground: {
+        qualification: practitioner.qualification?.[0]?.code?.text || '',
+        medicalLicenseNumber: practitioner.qualification?.[0]?.issuer?.display || '',
+        specialization: role.specialty?.[0]?.text || '',
+        languagesSpoken: role.extension?.find(e => e.url.includes('language'))?.valueString || '',
+        biography: role.extension?.find(e => e.url.includes('biography'))?.valueString || '',
+        yearsOfExperience: role.extension?.find(e => e.url.includes('experience'))?.valueString || '',
+        document: documents,
+      },
+    };
+  }
+
+  static toFHIR(data) {
+    const practitionerId = `Practitioner/${data._id}`;
+
+    return {
+      resourceType: "Practitioner",
+      id: data._id,
+      identifier: [
+        {
+          use: "official",
+          system: "https://your-system.com/medical-license",
+          value: data.professionalBackground?.medicalLicenseNumber,
+        },
+      ],
+      name: [
+        {
+          use: "official",
+          family: data.personalInfo?.lastName,
+          given: [data.personalInfo?.firstName],
+        },
+      ],
+      gender: data.personalInfo?.gender,
+      birthDate: data.personalInfo?.dateOfBirth,
+      telecom: [
+        {
+          system: "phone",
+          value: data.personalInfo?.phone,
+        },
+        {
+          system: "email",
+          value: data.personalInfo?.email,
+        },
+      ],
+      address: [
+        {
+          line: [data.residentialAddress?.addressLine1],
+          city: data.residentialAddress?.city,
+          state: data.residentialAddress?.stateProvince,
+          postalCode: data.residentialAddress?.zipCode,
+          country: data.residentialAddress?.country,
+        },
+      ],
+      qualification: [
+        {
+          code: {
+            text: data.professionalBackground?.qualification,
+          },
+          issuer: {
+            display: "Medical Council",
+          },
+        },
+      ],
+      extension: [
+        {
+          url: "https://your-system.com/extensions/biography",
+          valueString: data.professionalBackground?.biography,
+        },
+        {
+          url: "https://your-system.com/extensions/yearsOfExperience",
+          valueInteger: data.professionalBackground?.yearsOfExperience,
+        },
+        {
+          url: "https://your-system.com/extensions/specialization",
+          valueString: data.professionalBackground?.specialization,
+        },
+        {
+          url: 'http://hl7.org/fhir/StructureDefinition/slot-duration',
+          valueDuration: {
+            value: data.timeDuration || "",  // default to 30 minutes
+            unit: 'minutes',
+            system: 'http://unitsofmeasure.org',
+            code: 'min'
+          }
+        }
+      ],
+      photo: [
+        {
+          url: data.personalInfo?.image,
+        },
+      ],
+    };
+  }
+
+  static documentsToFHIR(documents = []) {
+    return documents.map((doc) => ({
+      resourceType: "DocumentReference",
+      status: "current",
+      type: {
+        text: doc.type,
+      },
+      content: [
+        {
+          attachment: {
+            contentType: doc.type,
+            url: doc.name,
+            title: `Document ${doc._id}`,
+            creation: doc.date,
+          },
+        },
+      ],
+    }));
+  }
+
+  static availabilityToFHIR(availability = []) {
+    return availability.map((entry) => ({
+      resourceType: "Schedule",
+      actor: [{ reference: "Practitioner/example" }],
+      planningHorizon: {
+        start: "2025-01-01T08:00:00Z",
+        end: "2025-12-31T17:00:00Z",
+      },
+      comment: `${entry.day}`,
+      extension: entry.times.map((slot) => ({
+        url: "https://your-system.com/extensions/availability",
+        extension: [
+          { url: "fromHour", valueString: `${slot.from.hour}:${slot.from.minute} ${slot.from.period}` },
+          { url: "toHour", valueString: `${slot.to.hour}:${slot.to.minute} ${slot.to.period}` },
+        ],
+      })),
+    }));
+  }
+}
 
 
 

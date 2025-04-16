@@ -48,7 +48,7 @@ const Appointment = () => {
   const [total, setTotal] = useState();
   const getAllAppointments = useCallback(
     async (offset, userId) => {
-      // console.log('ssssssss');
+
       try {
         const token = sessionStorage.getItem("token");
         const response = await axios.get(
@@ -117,7 +117,7 @@ const Appointment = () => {
   const getAppUpcCompCanTotalCounts = useCallback(
     async (selectedOption) => {
       const days = parseInt(selectedOption.match(/\d+/)[0], 10);
-      // console.log(`Selected Days: ${days}`);
+
       try {
         const token = sessionStorage.getItem("token");
         const response = await axios.get(
@@ -202,9 +202,9 @@ const Appointment = () => {
         );
 
         if (response.status === 200) {
-          // console.log(response.data);
+
           const data = new FHIRToNormalConverter(response.data).toNormal();
-          // console.log("responsedatataaa", data);
+
           setData((prev) => {
             const newAppointments = data.appointments.filter(
               (appt) => !prev.some((p) => p._id === appt._id)

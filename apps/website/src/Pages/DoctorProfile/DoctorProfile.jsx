@@ -1,60 +1,60 @@
-
-import React, { useEffect, useState } from 'react';
-import './DoctorProfile.css';
-import PropTypes from 'prop-types';
-import { Button, Col, Container, Form, Row } from 'react-bootstrap';
+import React, { useEffect, useState } from "react";
+import "./DoctorProfile.css";
+import PropTypes from "prop-types";
+import { Button, Col, Container, Form, Row } from "react-bootstrap";
 // import whtcheck from '../../../../public/Images/whtcheck.png';
-import { Link, useNavigate } from 'react-router-dom';
-import { FiEdit3 } from 'react-icons/fi';
+import { Link, useNavigate } from "react-router-dom";
+import { FiEdit3 } from "react-icons/fi";
 // import doctprofile from '../../../../public/Images/doctprofile.png';
-import { IoIosAddCircle } from 'react-icons/io';
-import { BsFileDiffFill } from 'react-icons/bs';
-import { AiFillFileImage } from 'react-icons/ai';
-import { RxCrossCircled } from 'react-icons/rx';
-import Modal from 'react-bootstrap/Modal';
+import { IoIosAddCircle } from "react-icons/io";
+import { BsFileDiffFill } from "react-icons/bs";
+import { AiFillFileImage } from "react-icons/ai";
+import { RxCrossCircled } from "react-icons/rx";
+import Modal from "react-bootstrap/Modal";
 // import camera from '../../../../public/Images/camera.png';
-import { Forminput } from '../SignUp/SignUp';
-import DynamicDatePicker from '../../Components/DynamicDatePicker/DynamicDatePicker';
-import axios from 'axios';
-import { FaFileWord } from 'react-icons/fa';
-import { MainBtn } from '../Appointment/page';
-import Swal from 'sweetalert2';
-import { useAuth } from '../../context/useAuth';
+import { Forminput } from "../SignUp/SignUp";
+import DynamicDatePicker from "../../Components/DynamicDatePicker/DynamicDatePicker";
+import axios from "axios";
+import { FaFileWord } from "react-icons/fa";
+import { MainBtn } from "../Appointment/page";
+import Swal from "sweetalert2";
+import { useAuth } from "../../context/useAuth";
+import { FhirProfileConverter } from "../../utils/FhirProfileConverter";
 
 function DoctorProfile() {
-  const { doctorProfile, userId, initializeUser,onLogout } = useAuth();
+  const { doctorProfile, userId, initializeUser, onLogout } = useAuth();
   const navigate = useNavigate();
 
   const [modalShow, setModalShow] = useState(false);
   const [modalShow1, setModal1Show] = useState(false);
   const [modalShow2, setModal2Show] = useState(false);
   const [uploadedfiles, setUploadedFiles] = useState([]);
-  const [MainUrl, setMainUrl] = useState('')
-  console.log("MainUrl",MainUrl);
+  const [MainUrl, setMainUrl] = useState("");
+  console.log("MainUrl", MainUrl);
   const [personalInfo, setPersonalInfo] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    image: '',
-    gender: '',
-    dateOfBirth: '',
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    image: "",
+    gender: "",
+    dateOfBirth: "",
   });
   // console.log('personalInfo', uploadedfiles);
   const [residentialAddress, setResidentialAddress] = useState({
-    addressLine1: '',
-    city: '',
-    stateProvince: '',
-    country: '',
-    zipCode: '',
+    addressLine1: "",
+    city: "",
+    stateProvince: "",
+    country: "",
+    zipCode: "",
   });
   const [professionalBackground, setProfessionalBackground] = useState({
-    qualification: '',
-    specialization: '',
-    medicalLicenseNumber: '',
-    yearsOfExperience: '',
-    languagesSpoken: '',
-    biography: '',
+    qualification: "",
+    specialization: "",
+    medicalLicenseNumber: "",
+    yearsOfExperience: "",
+    languagesSpoken: "",
+    biography: "",
     document: [],
   });
   // console.log(
@@ -64,46 +64,45 @@ function DoctorProfile() {
   useEffect(() => {
     if (doctorProfile) {
       setPersonalInfo({
-        firstName: doctorProfile?.personalInfo?.firstName || '',
-        lastName: doctorProfile?.personalInfo?.lastName || '',
-        email: doctorProfile?.personalInfo?.email || '',
-        phone: doctorProfile?.personalInfo?.phone || '',
-        image: doctorProfile?.personalInfo?.image || '',
-        gender: doctorProfile?.personalInfo?.gender || '',
-        dateOfBirth: doctorProfile?.personalInfo?.dateOfBirth || '',
+        firstName: doctorProfile?.personalInfo?.firstName || "",
+        lastName: doctorProfile?.personalInfo?.lastName || "",
+        email: doctorProfile?.personalInfo?.email || "",
+        phone: doctorProfile?.personalInfo?.phone || "",
+        image: doctorProfile?.personalInfo?.image || "",
+        gender: doctorProfile?.personalInfo?.gender || "",
+        dateOfBirth: doctorProfile?.personalInfo?.dateOfBirth || "",
       });
 
       // Update residentialAddress
       setResidentialAddress({
-        addressLine1: doctorProfile?.residentialAddress?.addressLine1 || '',
-        city: doctorProfile?.residentialAddress?.city || '',
-        stateProvince: doctorProfile?.residentialAddress?.stateProvince || '',
-        country: doctorProfile?.residentialAddress?.country || '',
-        zipCode: doctorProfile?.residentialAddress?.zipCode || '',
+        addressLine1: doctorProfile?.residentialAddress?.addressLine1 || "",
+        city: doctorProfile?.residentialAddress?.city || "",
+        stateProvince: doctorProfile?.residentialAddress?.stateProvince || "",
+        country: doctorProfile?.residentialAddress?.country || "",
+        zipCode: doctorProfile?.residentialAddress?.zipCode || "",
       });
 
       // Update professionalBackground
       setProfessionalBackground({
         qualification:
-          doctorProfile?.professionalBackground?.qualification || '',
+          doctorProfile?.professionalBackground?.qualification || "",
         specialization:
-          doctorProfile?.professionalBackground?.specialization || '',
+          doctorProfile?.professionalBackground?.specialization || "",
         medicalLicenseNumber:
-          doctorProfile?.professionalBackground?.medicalLicenseNumber || '',
+          doctorProfile?.professionalBackground?.medicalLicenseNumber || "",
         yearsOfExperience:
-          doctorProfile?.professionalBackground?.yearsOfExperience || '',
+          doctorProfile?.professionalBackground?.yearsOfExperience || "",
         languagesSpoken:
-          doctorProfile?.professionalBackground?.languagesSpoken || '',
-        biography: doctorProfile?.professionalBackground?.biography || '',
+          doctorProfile?.professionalBackground?.languagesSpoken || "",
+        biography: doctorProfile?.professionalBackground?.biography || "",
         document: doctorProfile?.professionalBackground?.document || [],
       });
     }
 
     if (doctorProfile?.documents?.length > 0) {
-      const url = doctorProfile?.documents[0].name.slice(0, 75)
+      const url = doctorProfile?.documents[0].name.slice(0, 75);
       console.log("url", url);
       const updatedDocuments = doctorProfile.documents.map((doc) => ({
-        
         _id: doc._id,
         name: doc.name.slice(75),
         type: doc.type,
@@ -119,27 +118,27 @@ function DoctorProfile() {
     const files = Array.from(e.target.files);
 
     const allowedTypes = [
-      'application/pdf', // PDF
-      'application/msword', // DOC
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // DOCX
-      'image/jpeg', // JPG
-      'image/png', // PNG
-      'image/gif', // GIF
-      'image/webp', // WebP
-      'image/bmp', // BMP
+      "application/pdf", // PDF
+      "application/msword", // DOC
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // DOCX
+      "image/jpeg", // JPG
+      "image/png", // PNG
+      "image/gif", // GIF
+      "image/webp", // WebP
+      "image/bmp", // BMP
     ];
 
     const validFiles = files.filter((file) => allowedTypes.includes(file.type));
 
     if (validFiles.length === 0) {
-      alert('Only PDF, DOC, DOCX, and image files are allowed!');
+      alert("Only PDF, DOC, DOCX, and image files are allowed!");
       return;
     }
 
     const filesWithDate = validFiles.map((file) => ({
       name: file.name,
       type: file.type,
-      date: new Date().toLocaleDateString('en-GB'),
+      date: new Date().toLocaleDateString("en-GB"),
     }));
 
     setUploadedFiles((prev) => [...prev, ...filesWithDate]);
@@ -153,16 +152,16 @@ function DoctorProfile() {
   const removeFile = (index) => {
     setUploadedFiles((prevFiles) => {
       const fileToRemove = prevFiles[index];
-      console.log('fileToRemove', fileToRemove);
+      console.log("fileToRemove", fileToRemove);
 
       if (fileToRemove._id) {
         Swal.fire({
-          title: 'Are you sure?',
-          text: 'This file is stored on the backend. Deleting it will remove it permanently.',
-          icon: 'warning',
+          title: "Are you sure?",
+          text: "This file is stored on the backend. Deleting it will remove it permanently.",
+          icon: "warning",
           showCancelButton: true,
-          confirmButtonText: 'Yes, delete it!',
-          cancelButtonText: 'Cancel',
+          confirmButtonText: "Yes, delete it!",
+          cancelButtonText: "Cancel",
         }).then((result) => {
           if (result.isConfirmed) {
             axios
@@ -181,10 +180,10 @@ function DoctorProfile() {
                   ),
                 }));
 
-                Swal.fire('Deleted!', 'The file has been deleted.', 'success');
+                Swal.fire("Deleted!", "The file has been deleted.", "success");
               })
               .catch(() => {
-                Swal.fire('Error!', 'Failed to delete the file.', 'error');
+                Swal.fire("Error!", "Failed to delete the file.", "error");
               });
           }
         });
@@ -207,30 +206,40 @@ function DoctorProfile() {
   // console.log("professionalBackground", professionalBackground);
 
   const updateProfileWithFiles = async () => {
+    const fhirData = FhirProfileConverter.toFhir({
+      personalInfo,
+      residentialAddress,
+      professionalBackground,
+    });
+    console.log("dataaaa", fhirData);
+
     const formData = new FormData();
     if (personalInfo.image) {
-      formData.append('image', personalInfo.image);
+      formData.append("image", personalInfo.image);
     }
     // Documents (files)
     professionalBackground.document.forEach((file) => {
-      formData.append('document', file);
+      formData.append("document", file);
     });
     formData.append(
-      'formData',
-      JSON.stringify({
-        personalInfo: personalInfo,
-        residentialAddress: residentialAddress,
-        professionalBackground: professionalBackground,
-      })
+      "formData",
+      JSON.stringify(
+        // {
+        // personalInfo: personalInfo,
+        // residentialAddress: residentialAddress,
+        // professionalBackground: professionalBackground,
+        // }
+        fhirData
+      )
     );
-    const token = sessionStorage.getItem('token');
+    const token = sessionStorage.getItem("token");
     try {
       const response = await axios.put(
         `${import.meta.env.VITE_BASE_URL}api/doctors/updateProfile/${userId}`,
         formData,
         {
           headers: {
-            'Content-Type': 'multipart/form-data',
+            "Content-Type": "multipart/form-data",
             // Add any necessary authorization headers, like a JWT token, if needed
             Authorization: `Bearer ${token}`,
           },
@@ -240,24 +249,24 @@ function DoctorProfile() {
       if (response.status === 200) {
         // Success Alert
         Swal.fire({
-          icon: 'success',
-          title: 'Success',
-          text: 'Profile updated successfully!',
+          icon: "success",
+          title: "Success",
+          text: "Profile updated successfully!",
         });
         // Optionally navigate to another page, or reset the form
         initializeUser();
-        navigate('/dashboard');
+        navigate("/dashboard");
       }
     } catch (error) {
-      console.error('Error updating profile:', error);
+      console.error("Error updating profile:", error);
       if (error.response && error.response.status === 401) {
-        console.log('Session expired. Redirecting to signin...');
+        console.log("Session expired. Redirecting to signin...");
         onLogout(navigate);
       }
       Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'Failed to update the profile. Please try again later.',
+        icon: "error",
+        title: "Error",
+        text: "Failed to update the profile. Please try again later.",
       });
     }
   };
@@ -410,9 +419,9 @@ function DoctorProfile() {
                       {uploadedfiles?.map((file, index) => (
                         <div key={index} className="file-item">
                           {/* Display icons based on file type */}
-                          {file.type.startsWith('image/') ? (
+                          {file.type.startsWith("image/") ? (
                             <AiFillFileImage />
-                          ) : file.type === 'application/pdf' ? (
+                          ) : file.type === "application/pdf" ? (
                             <BsFileDiffFill />
                           ) : (
                             <FaFileWord /> // Icon for DOC/DOCX files
@@ -442,12 +451,11 @@ function DoctorProfile() {
                         accept=".pdf,.doc,.docx,image/*" // Allow PDF, DOC, DOCX, and images
                         multiple
                         onChange={handleFileChange}
-                        style={{ display: 'none' }}
+                        style={{ display: "none" }}
                       />
                     </div>
                   </div>
                 </div>
-
               </div>
             </div>
 
@@ -471,20 +479,26 @@ function PersonalInfo({ show, onHide, personalInfo, setPersonalInfo }) {
   const [image, setImage] = useState(null);
   // console.log("selectedType", selectedType);
 
+  const isSafeImageSrc = (src) =>
+    typeof src === "string" &&
+    (src.startsWith("blob:") || src.startsWith("https://"));
+
+  const safeSrc = isSafeImageSrc(image);
+
   const handleImageChange = (e) => {
     const { name, files } = e.target;
-    console.log('e.target.files[0]', files[0]);
-    console.log('e.target.name', name);
+    console.log("e.target.files[0]", files[0]);
+    console.log("e.target.name", name);
 
     if (files && files.length > 0) {
-      setImage(files[0]);
+      setImage(URL.createObjectURL(files[0]));
       setPersonalInfo((prev) => ({
         ...prev,
         [name]: files[0],
       }));
     }
   };
-  const businessTypes = ['Male', 'Female', 'Others'];
+  const businessTypes = ["Male", "Female", "Others"];
   const handleSelectType = (type) => {
     // setPersonalInfo(type); // Update the selected type
     setPersonalInfo((prev) => ({
@@ -520,23 +534,23 @@ function PersonalInfo({ show, onHide, personalInfo, setPersonalInfo }) {
                 accept="image/*"
                 name="image"
                 onChange={handleImageChange}
-                style={{ display: 'none' }}
+                style={{ display: "none" }}
               />
               <label
                 htmlFor="logo-upload"
                 className="upload-label"
-                style={{ flexDirection: 'row', gap: '10px' }}
+                style={{ flexDirection: "row", gap: "10px" }}
               >
-                {image ? (
-                  <img
-                    src={URL.createObjectURL(image)}
-                    alt="Preview"
-                    className="preview-image"
-                  />
+                {safeSrc ? (
+                  <img src={image} alt="Preview" className="preview-image" />
                 ) : (
                   <div className="upload-placeholder">
                     <img
-                      src={personalInfo.image ? personalInfo.image : `${import.meta.env.VITE_BASE_IMAGE_URL}/camera.png`}
+                      src={
+                        personalInfo.image
+                          ? personalInfo.image
+                          : `${import.meta.env.VITE_BASE_IMAGE_URL}/camera.png`
+                      }
                       alt="camera"
                       className="icon"
                     />
@@ -575,7 +589,7 @@ function PersonalInfo({ show, onHide, personalInfo, setPersonalInfo }) {
                         <li
                           key={type}
                           className={`business-button ${
-                            personalInfo.gender === type ? 'selected' : ''
+                            personalInfo.gender === type ? "selected" : ""
                           }`}
                           onClick={() => handleSelectType(type)}
                         >
