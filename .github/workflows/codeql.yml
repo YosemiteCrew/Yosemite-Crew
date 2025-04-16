@@ -81,11 +81,11 @@ jobs:
         cache: 'pnpm'
     - name: Install dependencies
       run: pnpm install --frozen-lockfile
-    - name: Install latest CocoaPods
+    - name: Install latest ruby & CocoaPods
       shell: bash
       run: |
+        brew install ruby
         sudo gem install cocoapods
-        pod --version
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
