@@ -81,15 +81,6 @@ jobs:
         cache: 'pnpm'
     - name: Install dependencies
       run: pnpm install --frozen-lockfile
-    - name: Install latest ruby & CocoaPods
-      shell: bash
-      run: |
-        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-        echo >> /home/runner/.bashrc
-        echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> /home/runner/.bashrc
-        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-        brew install ruby
-        sudo gem install cocoapods
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
@@ -118,6 +109,16 @@ jobs:
     - if: matrix.build-mode == 'manual' && matrix.language == 'swift'
       shell: bash
       run: |
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+        echo >> ~/.zshrc
+        echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zshrc
+        eval "$(/opt/homebrew/bin/brew shellenv)"
+
+        brew install ruby
+        sudo gem install cocoapods
+        
+        ruby -v
+
         cd ./apps/mobileApp/ios
         pod install
         xcodebuild -workspace mobileApp.xcworkspace -scheme mobileApp -configuration Debug -sdk iphonesimulator clean build
