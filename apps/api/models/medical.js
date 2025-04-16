@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const medicalRecordSchema = new mongoose.Schema({
 
     userId: {
-        type: Number, 
+        type: String, 
         required: true,
     },
     documentType: {
@@ -20,12 +20,9 @@ const medicalRecordSchema = new mongoose.Schema({
     },
     medicalDocs: [
         {
-            filename: String,
-            path: String,
-            uploadDate: {
-                type: Date,
-                default: Date.now
-            },
+            url: { type: String },
+            originalname: { type: String },
+            mimetype: { type: String }
         }
     ],
 

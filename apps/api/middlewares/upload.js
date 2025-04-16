@@ -50,7 +50,12 @@ async function handleFileUpload(file) {
 
         const s3Url = await uploadToS3(fileName, fileContent, mimeType);
 
-        return fileName;
+        //return fileName;
+        return {
+            url: fileName,
+            originalname: file.name,
+            mimetype: file.mimetype
+          };
         
     
     } catch (err) {
