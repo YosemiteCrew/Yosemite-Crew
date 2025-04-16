@@ -48,7 +48,7 @@ class FHIRMapper {
         { url: `${baseUrl}/fhir/extensions/pet-from`, valueString: pet.petFrom, title: 'petFrom' },
         {
           url: `${baseUrl}/fhir/StructureDefinition/pet-images`,
-          valueString: Array.isArray(pet.petImage) ? pet.petImage.join(', ') : pet.petImage,
+          valueString: pet.petImage[0],
           title: 'petImage'
         }
       ],

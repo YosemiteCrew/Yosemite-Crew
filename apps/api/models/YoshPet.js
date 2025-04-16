@@ -58,9 +58,13 @@ const patSchema = new mongoose.Schema({
     petFrom:{
         type: String,
     },
-    petImage:{
-        type: [String],
-    },
+    petImage:[
+        {
+            url: { type: String },
+            originalname: { type: String },
+            mimetype: { type: String }
+        }
+    ],
 
 }, { timestamps: true});
 
