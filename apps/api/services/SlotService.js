@@ -2,14 +2,10 @@ const moment = require('moment');
 const DoctorsTimeSlotes  = require('../models/DoctorsSlotes');
 const { webAppointments } = require("../models/WebAppointment");
 const { createFHIRSlot } = require('../utils/fhirUtils');
-const mongoose = require('mongoose');
+
 
 class SlotService {
   static async getAvailableTimeSlots({ appointmentDate, doctorId }) {
-
-    if (!mongoose.Types.ObjectId.isValid(doctorId)) {
-      throw new Error("Invalid doctor ID");
-    }
 
     const dateObj = new Date(appointmentDate);
     if (isNaN(dateObj.getTime())) {

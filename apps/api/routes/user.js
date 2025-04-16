@@ -65,8 +65,8 @@ router.post("/bookAppointment",verifyTokenAndRefresh, AppointmentController.hand
 router.get("/getappointments", verifyTokenAndRefresh, AppointmentController.handleGetAppointment);
 router.put("/cancelappointment/:appointmentID", verifyTokenAndRefresh, AppointmentController.handleCancelAppointment);
 router.put("/rescheduleAppointment/:appointmentID",verifyTokenAndRefresh, AppointmentController.handleRescheduleAppointment);
-router.get("/getTimeSlots/:appointmentDate/:doctorId", verifyTokenAndRefresh, SlotController.handlegetTimeSlots);
-router.get("/getTimeSlotsByMonth/:slotMonth/:slotYear/:doctorId",verifyTokenAndRefresh,SlotController.handleTimeSlotsByMonth);
+router.post("/getTimeSlots", verifyTokenAndRefresh, SlotController.handlegetTimeSlots);
+router.post("/getTimeSlotsByMonth",verifyTokenAndRefresh,SlotController.handleTimeSlotsByMonth);
 router.post("/saveFeedBack",verifyTokenAndRefresh,FeedbackController.handlesaveFeedBack);
 router.get("/getFeedBack",verifyTokenAndRefresh,FeedbackController.handleGetFeedback);
 router.put("/editFeedBack/:feedbackId",verifyTokenAndRefresh,FeedbackController.handleEditFeedBack);
