@@ -85,6 +85,7 @@ jobs:
         shell: bash
         run: |
           sudo gem install cocoapods -v 1.14.3
+          export PATH="$(ruby -e 'puts Gem.bindir'):$PATH"
           pod --version
 
       # Initializes the CodeQL tools for scanning.
