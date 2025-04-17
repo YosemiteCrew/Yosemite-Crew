@@ -8,24 +8,9 @@ const mongoose = require('mongoose');
 class SlotController {
   static async handlegetTimeSlots(req, res) {
     try {
-      const rawData = req.body.data;
-      let fhirData;
-      try {
-        fhirData = typeof rawData === "string" ? JSON.parse(rawData) : rawData;
-      } catch (e) {
-        return res.status(400).json({
-          issue: [{
-            severity: "error",
-            code: "invalid",
-            details: { text: "Invalid JSON format in 'data' field" }
-          }]
-        });
-      }
-    const appointmentDate = fhirData?.start?.split("T")[0];
-    const doctorParticipant = fhirData?.participant?.find(p =>
-      p.actor?.reference?.startsWith("Practitioner/")
-    );
-    const doctorId = doctorParticipant?.actor?.reference?.split("/")[1];
+     
+    const { appointmentDate, doctorId } = req.params;
+ 
       if (!appointmentDate || !doctorId) {
         return res.status(400).json({
           issue: [{
@@ -65,23 +50,8 @@ class SlotController {
 
   static async handleTimeSlotsByMonth(req, res) {
    
-    const rawData = req.body.data;
-      let fhirData;
-      try {
-        fhirData = typeof rawData === "string" ? JSON.parse(rawData) : rawData;
-      } catch (e) {
-        return res.status(400).json({
-          issue: [{
-            severity: "error",
-            code: "invalid",
-            details: { text: "Invalid JSON format in 'data' field" }
-          }]
-        });
-      }
-      const doctorId = fhirData.participant?.[0]?.actor?.reference?.split("/")[1];
-      
-      const slotMonth = fhirData.extension?.find(e => e.url.includes('slot-month'))?.valueInteger;
-      const slotYear = fhirData.extension?.find(e => e.url.includes('slot-year'))?.valueInteger;
+    const { slotMonth , slotYear , doctorId } = req.params;
+
       const issues = MonthlySlotValidator.validateRequest({ doctorId, slotMonth, slotYear });
 
     if (issues.length > 0) {

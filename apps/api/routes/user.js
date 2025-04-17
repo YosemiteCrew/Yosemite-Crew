@@ -65,8 +65,8 @@ router.post("/bookAppointment",verifyTokenAndRefresh, AppointmentController.hand
 router.get("/getappointments", verifyTokenAndRefresh, AppointmentController.handleGetAppointment);
 router.put("/cancelappointment/:appointmentID", verifyTokenAndRefresh, AppointmentController.handleCancelAppointment);
 router.put("/rescheduleAppointment/:appointmentID",verifyTokenAndRefresh, AppointmentController.handleRescheduleAppointment);
-router.post("/getTimeSlots", verifyTokenAndRefresh, SlotController.handlegetTimeSlots);
-router.post("/getTimeSlotsByMonth",verifyTokenAndRefresh,SlotController.handleTimeSlotsByMonth);
+router.get("/Slot/getTimeSlots/:appointmentDate/:doctorId", verifyTokenAndRefresh, SlotController.handlegetTimeSlots);
+router.get("/Slot/getTimeSlotsByMonth/:slotMonth/:slotYear/:doctorId",verifyTokenAndRefresh,SlotController.handleTimeSlotsByMonth);
 router.post("/saveFeedBack",verifyTokenAndRefresh,FeedbackController.handlesaveFeedBack);
 router.get("/getFeedBack",verifyTokenAndRefresh,FeedbackController.handleGetFeedback);
 router.put("/editFeedBack/:feedbackId",verifyTokenAndRefresh,FeedbackController.handleEditFeedBack);
@@ -81,7 +81,7 @@ router.post("/Organization/addPetBoarding",verifyTokenAndRefresh, DetailsControl
 
 router.post("/sendquery", verifyTokenAndRefresh,handleContactUs);
 router.post("/getLists",handleGetLists);
-router.post("/getDoctorsLists",handlegetDoctorsLists);
+router.get("/Practitioners/getDoctorsLists/:businessId/:departmentId",handlegetDoctorsLists);
 
 router.post("/getDoctorsTeam",handlegetDoctorsTeam);
 router.post("/addVaccinationRecord",verifyTokenAndRefresh,handleAddVaccination);
