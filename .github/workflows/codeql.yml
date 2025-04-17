@@ -117,7 +117,7 @@ jobs:
         run: |
           cd ./apps/mobileApp/ios
           pod install
-          xcodebuild -workspace YosemiteCrewMobile.xcworkspace -scheme mobileApp -configuration Debug -sdk iphonesimulator clean build
+          xcodebuild -workspace YosemiteCrewMobile.xcworkspace -scheme YosemiteCrewMobile -configuration Debug -sdk iphonesimulator clean build
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
