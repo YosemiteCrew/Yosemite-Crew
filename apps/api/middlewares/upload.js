@@ -15,7 +15,7 @@ const s3 = new AWS.S3({
 async function uploadToS3(fileName, fileContent, mimeType) {
     const params = {
         Bucket: process.env.AWS_S3_BUCKET_NAME,
-        Key: fileName,
+        Key: `${fileName}`,
         Body: fileContent,
         ContentType: mimeType,
         ContentDisposition: 'inline',
@@ -30,7 +30,7 @@ async function uploadToS3(fileName, fileContent, mimeType) {
 }
 
 // Handle single file upload to S3
-async function handleFileUpload(file) {
+async function handleFileUpload(file,folderName) {
     try {
         if (!file) {
             throw new Error('No file uploaded.');
@@ -43,14 +43,19 @@ async function handleFileUpload(file) {
 
         const safeFileName = sanitizeFilename(file.name) || 'file';
         const fileExtension = path.extname(safeFileName);
-        const fileName = `${uuidv4()}${fileExtension}`;
+        const fileName = `${folderName}/${uuidv4()}${fileExtension}`;
 
         const fileContent = file.data; // file.data should be a Buffer
         const mimeType = file.mimetype;
 
         const s3Url = await uploadToS3(fileName, fileContent, mimeType);
 
-        return fileName;
+        //return fileName;
+        return {
+            url: fileName,
+            originalname: file.name,
+            mimetype: file.mimetype
+          };
         
     
     } catch (err) {
@@ -60,8 +65,8 @@ async function handleFileUpload(file) {
 }
 
 // Handle multiple files upload to S3
-async function handleMultipleFileUpload(files) {
-    const uploadPromises = files.map(file => handleFileUpload(file));
+async function handleMultipleFileUpload(files,folderName="Images") {
+    const uploadPromises = files.map(file => handleFileUpload(file,folderName));
     return Promise.all(uploadPromises);
 }
 

@@ -142,8 +142,22 @@ const webAppointmentController = {
   getDoctorsSlotes: async (req, res) => {
     try {
       const { doctorId, day, date } = req.query;
-
-      console.log('Fetching slots for:', { doctorId, day, date });
+     
+    console.log("hihhijiihihihii", doctorId, day, date);
+    if (typeof doctorId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(doctorId)) {
+      return res.status(400).json({ message: 'Invalid doctorId format' });
+    }
+    
+    // Validate day (valid weekday name)
+    const validDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    if (typeof day !== 'string' || !validDays.includes(day)) {
+      return res.status(400).json({ message: 'Invalid day value' });
+    }
+    
+    // Validate date (YYYY-MM-DD)
+    if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD' });
+    }
 
       const bookedSlots = await webAppointments.find({
         veterinarian: doctorId,

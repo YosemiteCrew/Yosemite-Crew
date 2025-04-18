@@ -3,8 +3,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import './Doctor_Dashboard.css';
-import {FHIRSlotService} from "../../utils/FhirMapper";
-import { BoxDiv, DivHeading } from '../Dashboard/page';
+import {CanceledAndAcceptFHIRConverter, FHIRParser, FHIRSlotService, NormalAppointmentConverter} from "../../utils/FhirMapper";
+import { BoxDiv, DivHeading, SeeAll } from '../Dashboard/page';
 // import box1 from '../../../../public/Images/box1.png';
 // import box7 from '../../../../public/Images/box7.png';
 // import box8 from '../../../../public/Images/box8.png';
@@ -298,7 +298,7 @@ const Doctor_Dashboard = () => {
     try {
       const token = sessionStorage.getItem("token");
       const response = await axios.get(
-        `${import.meta.env.VITE_BASE_URL}api/doctors/getAppointmentForDoctorDashboard?doctorId=${userId}&offset=${offset}
+        `${import.meta.env.VITE_BASE_URL}fhir/v1/Appointment?organization=Practitioner/${userId}&offset=${offset}&type=${"AppointmentLists"}
 
         `,{
           headers: {
@@ -307,8 +307,13 @@ const Doctor_Dashboard = () => {
         }
       );
       if (response) {
-        setTotal(response.data.totalAppointments);
-        setAllAppointments(response.data.Appointments);
+        const normalAppointments =
+            NormalAppointmentConverter.convertAppointments({
+              totalAppointments: response.data.total,
+              appointments: response.data.entry.map((entry) => entry.resource),
+            });
+          setAllAppointments(normalAppointments.appointments);
+          setTotal(normalAppointments.totalAppointments);
       }
     } catch (error) {
       if (error.response && error.response.status === 401) {
@@ -323,12 +328,15 @@ const Doctor_Dashboard = () => {
     try {
       const token = sessionStorage.getItem('token')
       const response = await axios.get(
-        `${import.meta.env.VITE_BASE_URL}api/doctors/getLast7DaysAppointmentsTotalCount?doctorId=${userId}`,{headers:{
+        `${import.meta.env.VITE_BASE_URL}fhir/v1/MeasureReport?type=DoctorDashOverview&doctorId=${userId}`,{headers:{
           Authorization: `Bearer ${token}`,
         }}
       );
       if (response) {
-        setLast_7DaysCounts(response.data.totalAppointments);
+
+        const data = new FHIRParser(response.data).overviewConvertToNormal()
+
+        setLast_7DaysCounts(data.totalAppointments);
       }
     } catch (error) {
       if (error.response && error.response.status === 401) {
@@ -339,13 +347,20 @@ const Doctor_Dashboard = () => {
   },[onLogout,navigate,userId]);
 
   const AppointmentActions = async (id, status, offset) => {
-    console.log('iddd', id, status, offset);
     try {
-      const token = sessionStorage.getItem("token")
+      const token = sessionStorage.getItem("token");
+  
+      // Prepare FHIR-compliant payload
+      const fhirAppointment = CanceledAndAcceptFHIRConverter.toFHIR({ id, status });
+  
       const response = await axios.put(
-        `${import.meta.env.VITE_BASE_URL}api/doctors/AppointmentAcceptedAndCancel/${id}`,
-        { status }, {headers:{ Authorization: `Bearer ${token}`}}
+        `${import.meta.env.VITE_BASE_URL}fhir/v1/Appointment/${id}?userId=${userId}`,
+        fhirAppointment,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
+  
       if (response.status === 200) {
         Swal.fire({
           title: 'Appointment Status Changed',
@@ -353,13 +368,14 @@ const Doctor_Dashboard = () => {
           icon: 'success',
         });
       }
+  
       getAllAppointments(offset);
       getlast7daysAppointMentsCount();
     } catch (error) {
       if (error.response && error.response.status === 401) {
-        console.log('Session expired. Redirecting to signin...');
         onLogout(navigate);
       }
+  
       Swal.fire({
         title: 'Error',
         text: 'Failed to Change Appointment Status',
@@ -367,6 +383,7 @@ const Doctor_Dashboard = () => {
       });
     }
   };
+  
   useEffect(() => {
     getAllAppointments(0);
     getlast7daysAppointMentsCount();
@@ -534,6 +551,7 @@ const Doctor_Dashboard = () => {
               actimg2={`${import.meta.env.VITE_BASE_IMAGE_URL}/decline.png`}
               onClicked={AppointmentActions}
             />
+             {/* <SeeAll seehrf="/appointment" seetext="See All" /> */}
           </div>
           <div>
             <DivHeading TableHead="Upcoming Assessments" tablespan="(3)" />

@@ -340,19 +340,9 @@ class FHIRParser {
   }
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<overviewConvertToNormal>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
   overviewConvertToNormal() {
-    const normalData = {
-      totalDoctors: 0,
-      totalSpecializations: 0,
-      availableDoctors: 0,
-      totalAppointments: 0,
-      successful: 0,
-      canceled: 0,
-      checkedIn: 0,
-      appointmentsCreatedToday: 0,
-      upcomingAppointments: 0,
-      newAppointments:0
-    };
-  
+
+    const normalData = {};
+
     this.fhirData.entry.forEach((entry) => {
       const { id, totalDoctors, totalSpecializations, availableDoctors,totalDepartments,appointmentCounts, totalAppointments,successful,canceled,appointmentsCreatedToday,checkedIn,newAppointments,upcomingAppointments,newPetsCount} = entry.resource;
   
@@ -605,6 +595,88 @@ class FHIRToNormalConverter {
   }
 }
 
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Appointment Accept And Cancelled >>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+
+class CanceledAndAcceptFHIRConverter {
+  // Convert frontend input to FHIR format for backend
+  static toFHIR({ id, status }) {
+    return {
+      resourceType: "Appointment",
+      id,
+      status, // string: "cancelled", "booked", etc.
+    };
+  }
+}
+
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<hospital profile >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+class HospitalProfileNormalizer {
+  constructor(fhirBundle) {
+    this.bundle = fhirBundle;
+  }
+
+  normalize() {
+    const organizationEntry = this.bundle.entry.find(
+      (entry) => entry.resource.resourceType === "Organization"
+    );
+
+    const organization = organizationEntry?.resource || {};
+
+    const documentEntries = this.bundle.entry.filter(
+      (entry) => entry.resource.resourceType === "DocumentReference"
+    );
+
+    const healthcareServices = this.bundle.entry.filter(
+      (entry) => entry.resource.resourceType === "HealthcareService"
+    );
+
+    const extensions = organization.extension || [];
+
+    const getExtensionValue = (url) =>
+      extensions.find((ext) => ext.url === url);
+
+    const geolocation = getExtensionValue(
+      "https://hl7.org/fhir/StructureDefinition/geolocation"
+    );
+
+    const latitude = geolocation?.extension?.find((ext) => ext.url === "latitude")?.valueDecimal || "0";
+    const longitude = geolocation?.extension?.find((ext) => ext.url === "longitude")?.valueDecimal || "0";
+
+    return {
+      _id: "", // You can add it from DB later if needed
+      userId: organization.id || "",
+      __v: 0,
+      activeModes: organization.active ? "yes" : "no",
+      businessName: organization.name || "",
+      phoneNumber: organization.telecom?.[0]?.value || "",
+      address: {
+        addressLine1: organization.address?.[0]?.line?.[0] || "",
+        street: organization.address?.[0]?.line?.[1] || "",
+        city: organization.address?.[0]?.city || "",
+        state: organization.address?.[0]?.state || "",
+        zipCode: organization.address?.[0]?.postalCode || "",
+        latitude: latitude.toString(),
+        longitude: longitude.toString(),
+      },
+      logo: getExtensionValue("https://myorganization.com/fhir/StructureDefinition/logo")?.valueUrl?.split("/").slice(-2).join("/") || "",
+      logoUrl: getExtensionValue("https://myorganization.com/fhir/StructureDefinition/logo")?.valueUrl || "",
+      registrationNumber: getExtensionValue("https://myorganization.com/fhir/StructureDefinition/registration-number")?.valueString || "",
+      yearOfEstablishment: getExtensionValue("https://myorganization.com/fhir/StructureDefinition/year-of-establishment")?.valueString || "",
+      website: getExtensionValue("https://myorganization.com/fhir/StructureDefinition/website")?.valueUrl || "",
+      
+      prescription_upload: documentEntries.map((doc, index) => ({
+        name: doc.resource.content?.[0]?.attachment?.url?.split(".com/")[1] || "",
+        type: doc.resource.content?.[0]?.attachment?.contentType || "",
+        date: doc.resource.date || new Date().toISOString(),
+        _id: `presc-${index + 1}`,
+      })),
+
+      selectedServices: healthcareServices.map(
+        (svc) => svc.resource.name || svc.resource.specialty?.[0]?.text || ""
+      ),
+    };
+  }
+}
 
 
 
@@ -615,5 +687,7 @@ export {
   FHIRSlotService,
   FHIRParser,
   NormalAppointmentConverter,
-  FHIRToNormalConverter
+  FHIRToNormalConverter,
+  CanceledAndAcceptFHIRConverter,
+  HospitalProfileNormalizer
 };

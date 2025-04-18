@@ -5,7 +5,7 @@ const {  handleMultipleFileUpload } = require('../middlewares/upload'); // assum
 class PetService {
   static async uploadFiles(files) {
     const fileArray = Array.isArray(files) ? files : [files];
-    return await handleMultipleFileUpload(fileArray);
+    return await handleMultipleFileUpload(fileArray,'Images');
   }
 
   static async createPet(data) {

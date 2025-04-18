@@ -38,7 +38,7 @@ async function handleDiabetesRecords(req,res) {
 async function handleDiabetesLogs(req,res){
 
   const userid = req.body.userId;
-  const result = await diabetesRecords.find({ userId : userid });
+  const result = await diabetesRecords.find({ userId : {$eq: userid } } );;
   if (result.length === 0) return res.status(404).json({ message: "No Diabetes logs found" });
   res.json(result);
 }

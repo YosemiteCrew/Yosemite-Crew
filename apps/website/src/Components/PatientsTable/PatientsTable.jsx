@@ -5,7 +5,6 @@ import { BiSolidEditAlt } from 'react-icons/bi';
 import './PatientsTable.css';
 
 const PatientsTable = ({ appointments = [] }) => {
-console.log("hihhihihihihhihihihihihjhihih", appointments);
 
 
   const getStatus = (data) => {

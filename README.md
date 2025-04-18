@@ -8,7 +8,7 @@
 
 <div align="center"> 
   
-  [![Website](https://img.shields.io/badge/Yosemite%20Crew-D04122)](https://yosemitecrew.com/) [![Documentation](https://img.shields.io/badge/Docs-247AED)](https://yosemitecrew.com/) [![Contributing](https://img.shields.io/badge/Contribute-FF9800)](https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md) [![Github License](https://img.shields.io/badge/License-4CAF50)](License) [![Discord](https://img.shields.io/badge/Discord-lightblue?logo=discord)](https://discord.gg/R7eMnhwX)
+  [![Website](https://img.shields.io/badge/Yosemite%20Crew-D04122)](https://yosemitecrew.com/) [![Documentation](https://img.shields.io/badge/Docs-247AED)](https://yosemitecrew.com/) [![Contributing](https://img.shields.io/badge/Contribute-FF9800)](https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md) [![Github License](https://img.shields.io/badge/License-4CAF50)](https://github.com/YosemiteCrew/Yosemite-Crew/tree/main?tab=License-1-ov-file) [![Discord](https://img.shields.io/badge/Discord-lightblue?logo=discord)](https://discord.gg/R7eMnhwX)
   
 </div>
 
@@ -95,7 +95,7 @@ For Developers
 # 🚀 Our Tech Stack
 
 - [TypeScript](https://www.typescriptlang.org/) for type safety
-- [Nx](https://nx.dev/) for a powerful monorepo structure and efficient build system
+- [Turborepo](https://turbo.build) and [PNPM Workspaces](https://pnpm.io/workspaces) for a powerful monorepo structure and efficient build system
 - [Express](https://expressjs.com/) as a backend framework, with [MongoDB](https://www.mongodb.com/) for data storage, [Redis](https://redis.io/) for lightning-fast caching
 - [React](https://reactjs.org/) for the frontend, with [Redux](https://redux.js.org/) for state management
 - [React Native](https://reactnative.dev/) for mobile app development
@@ -106,6 +106,7 @@ For Developers
 # 💬 Join Our Growing Community
 
 - Star our repo and show your support!
+- [Tik-tok](https://www.tiktok.com) and [Instagram](https://www.instagram.com) for memes
 - Follow us on [Twitter](https://github.com/YosemiteCrew/Yosemite-Crew) or [LinkedIn](https://www.linkedin.com/company/yosemitecrew/) to get all the latest news
 - Join our [Discord](https://discord.com/invite/yosemite-crew) to chat with fellow contributors and users
 - [Contribute](https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md) — we love contributions! Whether it’s code, docs, or ideas, your help is always welcome!

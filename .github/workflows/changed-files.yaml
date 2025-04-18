@@ -1,5 +1,8 @@
 name: Changed files reusable workflow
 
+permissions:
+  contents: read
+
 on:
   workflow_call:
     inputs:

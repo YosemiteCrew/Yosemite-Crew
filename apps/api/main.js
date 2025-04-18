@@ -4,6 +4,7 @@ const Message = require('./models/ChatModel');
 const path = require('path');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
+const { rateLimit } = require("express-rate-limit")
 const { connectToDocumentDB } = require('./config/connect');
 const yoshmite = require('./routes/user');
 const fhirRoutes = require('./routes/fhirRoutes');
@@ -58,7 +59,16 @@ const corsOptions = {
   credentials: true,
 };
 
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Max 100 requests per IP
+  message: 'Too many requests, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Middleware
+app.use(limiter)
 app.use(cookieParser());
 app.use(cors(corsOptions));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));

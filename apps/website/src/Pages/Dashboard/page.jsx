@@ -18,7 +18,7 @@ import axios from 'axios';
 import StackedBarChart from '../Graph/page';
 import { useAuth } from '../../context/useAuth';
 import Swal from 'sweetalert2';
-import {  FHIRParser, NormalAppointmentConverter } from '../../utils/FhirMapper';
+import {  CanceledAndAcceptFHIRConverter, FHIRParser, NormalAppointmentConverter } from '../../utils/FhirMapper';
 
 const Dashboard = () => {
   const { userId, onLogout } = useAuth();
@@ -145,39 +145,43 @@ const Dashboard = () => {
   );
 
   const AppointmentActions = async (id, status, offset) => {
-    // console.log('iddd', id, status, offset);
     try {
       const token = sessionStorage.getItem("token");
+  
+      // Prepare FHIR-compliant payload
+      const fhirAppointment = CanceledAndAcceptFHIRConverter.toFHIR({ id, status });
+  
       const response = await axios.put(
-        `${import.meta.env.VITE_BASE_URL}api/doctors/AppointmentAcceptedAndCancel/${id}`,
-        { status },
+        `${import.meta.env.VITE_BASE_URL}fhir/v1/Appointment/${id}?userId=${userId}`,
+        fhirAppointment,
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
+  
       if (response.status === 200) {
         Swal.fire({
-          title: "Appointment Status Changed",
-          text: "Appointment Status Changed Successfully",
-          icon: "success",
+          title: 'Appointment Status Changed',
+          text: 'Appointment Status Changed Successfully',
+          icon: 'success',
         });
       }
+  
       getAllAppointments(offset);
       // getlast7daysAppointMentsCount();
     } catch (error) {
       if (error.response && error.response.status === 401) {
-        // console.log('Session expired. Redirecting to signin...');
         onLogout(navigate);
       }
+  
       Swal.fire({
-        title: "Error",
-        text: "Failed to Change Appointment Status",
-        icon: "error",
+        title: 'Error',
+        text: 'Failed to Change Appointment Status',
+        icon: 'error',
       });
     }
   };
+  
 
   useEffect(() => {
     if (userId) {

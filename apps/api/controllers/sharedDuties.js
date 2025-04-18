@@ -1,4 +1,5 @@
 const petDuties = require('../models/petDuties');
+const mongoose = require('mongoose');
 
 
 async function handleSaveSharedDuties(req,res) {
@@ -28,10 +29,11 @@ async function handleEditSharedDuties(req, res) {
   try {
     const updatedSharedData = req.body;
     const id = req.params.taskId;
-    console.log(id);
-
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+          throw new Error('Invalid ID format');
+    }
     const editSharedPetData = await petDuties.findOneAndUpdate(
-      { _id: { $eq: id } },
+      { _id: id },
       updatedSharedData,
       { new: true }
     );

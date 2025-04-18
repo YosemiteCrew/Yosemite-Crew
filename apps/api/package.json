@@ -18,6 +18,7 @@
     "dotenv": "16.4.7",
     "express": "4.21.2",
     "express-fileupload": "1.5.1",
+    "express-rate-limit": "^7.5.0",
     "fhir": "4.12.0",
     "jsonwebtoken": "9.0.2",
     "moment": "2.30.1",
@@ -26,7 +27,8 @@
     "sanitize-filename": "^1.6.3",
     "socket.io": "4.8.1",
     "uuid": "9.0.1",
-    "validator": "^13.15.0"
+    "validator": "^13.15.0",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "nodemon": "^3.1.9"

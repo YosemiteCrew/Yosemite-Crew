@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const petBoardingSchema = new mongoose.Schema({
 
     userId: {
-        type: Number,
+        type: String,
         required: true,
     },
     boardingName: {

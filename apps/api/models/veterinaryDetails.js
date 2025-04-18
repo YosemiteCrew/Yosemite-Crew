@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const vetSchema = new mongoose.Schema({
 
     userId: {
-        type: Number,
+        type: String,
         required: true,
     },
     clinicName: {

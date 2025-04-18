@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const breederSchema = new mongoose.Schema({
 
     userId: {
-        type: Number,
+        type: String,
         required: true,
     },
     breederName: {

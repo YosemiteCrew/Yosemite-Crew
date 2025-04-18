@@ -13,7 +13,7 @@ const ProcedureTable = ({
   procedureCurrentPage,
   handleDeleteItem
 }) => {
-  console.log('procedureData', procedureData);
+
   // Fallback data if appointments prop is not provided
   const handleNext = () => {
     if (procedureCurrentPage < procedureTotalPages) {

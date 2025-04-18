@@ -19,10 +19,10 @@ router.get(
   HospitalController.AppointmentGraphOnMonthBase
 );
 
-router.get(
-  '/WaittingRoomOverViewPatientInQueue',verifyTokenAndRefresh,
-  HospitalController.WaittingRoomOverViewPatientInQueue
-);
+// router.get(
+//   '/WaittingRoomOverViewPatientInQueue',verifyTokenAndRefresh,
+//   HospitalController.WaittingRoomOverViewPatientInQueue
+// );
 router.get(
   '/getDepartmentDataForHospitalProfile',verifyTokenAndRefresh,
   HospitalController.getDepartmentDataForHospitalProfile

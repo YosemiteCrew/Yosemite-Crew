@@ -22,7 +22,7 @@ function AddProcedurePackage() {
     packageItems: [],
   });
 
-  // console.log('procedureData', procedureData);
+
 
   const options = [
     { value: '1', label: 'Appendectomy' },
