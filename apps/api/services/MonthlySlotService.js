@@ -6,9 +6,7 @@ const mongoose = require('mongoose');
 
 class MonthlySlotService {
   static async generateMonthlySlotSummary({ doctorId, slotMonth, slotYear }) {
-    if (!mongoose.Types.ObjectId.isValid(doctorId)) {
-          throw new Error("Invalid doctor ID");
-    }
+    
     const startDate = moment({ year: slotYear, month: slotMonth - 1, day: 1 });
     const endDate = startDate.clone().endOf("month");
 

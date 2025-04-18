@@ -78,6 +78,13 @@ class DoctorService {
     const departmentName = doc.departmentInfo?.departmentName || "Unknown";
     const consultationFee = doc.consultFee || 0;
     const experience = doc.professionalBackground?.yearsOfExperience || 0;
+    const docImage = doc.personalInfo?.image || "";
+    const qualifications = Array.isArray(doc.professionalBackground?.qualification)
+      ? doc.professionalBackground.qualification
+      : doc.professionalBackground?.qualification
+        ? [doc.professionalBackground.qualification]
+        : [];
+  
     return {
       resourceType: "Practitioner",
       id: doc._id.toString(),
@@ -93,6 +100,11 @@ class DoctorService {
           }
         }
       ],
+      qualification: qualifications.map((q) => ({
+        code: {
+          text: q
+        }
+      })),
       extension: [
         {
           url: `${baseUrl}/fhir/StructureDefinition/average-rating`,
@@ -108,10 +120,16 @@ class DoctorService {
           url: `${baseUrl}/fhir/StructureDefinition/experience-years`,
           valueInteger: experience,
           title: "experienceYears",
+        },
+        {
+          url: `${baseUrl}/fhir/StructureDefinition/doctor-image`,
+          valueString: docImage,
+          title: "doctorImage",
         }
       ]
     };
   }
+  
 
   static async getDoctorsWithAppointments(businessId) {
     const today = new Date().toISOString().split("T")[0];
