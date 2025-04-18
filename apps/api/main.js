@@ -8,6 +8,7 @@ const { rateLimit } = require("express-rate-limit")
 const { connectToDocumentDB } = require('./config/connect');
 const yoshmite = require('./routes/user');
 const fhirRoutes = require('./routes/fhirRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 const doctorRoutes = require('./routes/addDoctorsRoutes');
 const authRoutes = require('./routes/authRoutes');
 const fhir = require('./routes/authRoutes');
@@ -83,6 +84,7 @@ app.use('/Uploads/Images', express.static(UPLOADS_DIR));
 
 // Routes
 app.use('/fhir', yoshmite);
+app.use('/fhir', adminRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/doctors', doctorRoutes);
 app.use('/api/appointments', apointmentRoutes);
