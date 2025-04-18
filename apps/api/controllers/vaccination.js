@@ -31,20 +31,35 @@ async function handleAddVaccination(req,res){
 
 async function handleEditVaccination(req,res) {
     try {
-    const updatedData = req.body;
+    const rawData = req.body;
     const id = req.params.id;
-    const document =  req.file;
-    if(document) {
+    const document = req.file;
+    const allowedFields = [
+        "manufacturerName",
+        "vaccineName",
+        "batchNumber",
+        "expiryDate",
+        "vaccinationDate",
+        "hospitalName",
+        "nextdueDate"
+    ];
+    const updatedData = {};
+    for (const key of allowedFields) {
+        if (rawData[key]) {
+            updatedData[key] = rawData[key];
+        }
+    }
+    if (document) {
         updatedData.vaccineImage = document.filename;
     }
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      throw new Error('Invalid ID format');
+        throw new Error('Invalid ID format');
     }
     const editVaccination = await vaccination.findOneAndUpdate(
-       { _id: id }, 
-        updatedData,
+        { _id: id },
+        { $set: updatedData },
         { new: true }
-      );
+    );
     if (!editVaccination) {
         return res.status(404).json({ message: "Vaccination record not found" });
       }
