@@ -51,6 +51,10 @@ class SlotController {
   static async handleTimeSlotsByMonth(req, res) {
    
     const { slotMonth , slotYear , doctorId } = req.params;
+    
+    if (typeof doctorId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(doctorId)) {
+      return res.status(400).json({ message: 'Invalid doctorId format' });
+    }
 
       const issues = MonthlySlotValidator.validateRequest({ doctorId, slotMonth, slotYear });
 
