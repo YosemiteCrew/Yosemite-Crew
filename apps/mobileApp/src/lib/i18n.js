@@ -1,5 +1,5 @@
 import i18n from 'i18next';
-import { initReactI18next } from 'react-i18next';
+import {initReactI18next} from 'react-i18next';
 const resources = {
   en: {
     translation: {
@@ -33,6 +33,7 @@ const resources = {
       and_string: ' and ',
       privacy_policy_string: 'Privacy Policy',
       create_account_button: 'Create Account',
+      update_profile_string: 'Update Profile',
       already_member_string: 'Already a member?',
       sign_in_string: 'Sign In',
       send_otp_string: 'Send OTP',
@@ -78,13 +79,12 @@ const resources = {
       foster_string: 'Foster/ Shelter',
       pet_shop_string: 'Pet Shop',
       friends_string: 'Friends or Family',
-      others_string: 'Others',
       more_string: 'More about',
       age_when_neutered_string: 'Age when neutered',
       microchip_string: 'Microchip Number',
-      insurance_string: 'Insurance Company',
+      insurance_company_string: 'Insurance Company',
       insurance_policy_string: 'Insurance Policy Number',
-      passport_string: 'Passport Number',
+      passport_number_string: 'Passport Number',
       pet_comes_string: 'My Pet comes from:',
       add_pet_string: 'Add Pet',
       your_pets_string: 'Your Pets',
@@ -443,7 +443,6 @@ const resources = {
       topic_string: 'topic',
       verify_account_string: 'Verify Account',
       confirm_button_string: 'Confirm',
-      insurance_company_string: 'Insurance Company',
       is_this_string: 'Is this ',
       choose_an_option_string:
         'Choose an option, and we’ll help you take the next steps for your pet.',
@@ -524,7 +523,7 @@ const initializeI18n = async () => {
   });
 };
 
-initializeI18n().catch((error) => {
+initializeI18n().catch(error => {
   console.error('Error initializing i18n:', error);
 });
 

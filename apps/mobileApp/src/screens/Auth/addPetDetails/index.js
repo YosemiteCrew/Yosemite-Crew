@@ -26,12 +26,24 @@ import {openSettings, PERMISSIONS, request} from 'react-native-permissions';
 import OptionMenuSheet from '../../../components/OptionMenuSheet';
 
 const AddPetDetails = ({navigation, route}) => {
-  const {choosePetData} = route?.params;
+  const {choosePetData, petDetails} = route?.params;
+  // console.log('petDetails', petDetails);
+
+  const formatDate = dateString => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-GB');
+  };
+
+  const dateFormat = dateStr => {
+    if (!dateStr) return '';
+    const [year, month, day] = dateStr.split('-');
+    return `${day}/${month}/${year}`;
+  };
 
   const insets = useSafeAreaInsets();
   const statusBarHeight = insets.top;
   const {t} = useTranslation();
-  const [selectedId, setSelectedId] = useState(null);
+  const [selectedId, setSelectedId] = useState(petDetails?.gender);
   const refRBSheet = useRef();
   const [date, setDate] = useState('');
   const [apiCallImage, setApiCallImage] = useState();
@@ -41,47 +53,60 @@ const AddPetDetails = ({navigation, route}) => {
     setSelectedId(id);
   };
 
-  const [select, setSelected] = useState(null);
+  const capitalizeFirstLetter = str => {
+    if (!str) return '';
+    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+  };
+
+  const userPetDetails = petDetails?.extension?.reduce((acc, item) => {
+    acc[item.title] = item.valueString;
+    return acc;
+  }, {});
+
+  console.log(
+    'userPetDetails?.petCurrentWeight',
+    userPetDetails?.petCurrentWeight,
+  );
+
+  const [select, setSelected] = useState(userPetDetails?.isNeutered);
   const handlePresshit = id => {
     setSelected(id);
   };
 
-  const formatDate = dateString => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-GB');
-  };
-
   const [formValue, setFormValue] = useState({
-    name: '',
-    dob: date && formatDate(date),
-    gender: '',
-    weight: '',
-    color: '',
-    blood_group: '',
+    name: petDetails?.name[0]?.text || '',
+    dob: dateFormat(petDetails?.birthDate) || (date && formatDate(date)),
+    gender: capitalizeFirstLetter(petDetails?.gender),
+    weight: userPetDetails?.petCurrentWeight,
+    color: userPetDetails?.petColor,
+    blood_group: userPetDetails?.petBloodGroup,
     zip: '',
     neutered: '',
-    weight: '',
   });
-  console.log(formValue?.dob);
+  // console.log(formValue?.dob);
 
   const gender = [
     {
       id: 1,
       gender: t('male_string'),
+      value: 'male',
     },
     {
       id: 2,
       gender: t('female_string'),
+      value: 'female',
     },
   ];
   const neutered = [
     {
       id: 1,
       neutered: t('neutered_string'),
+      value: 'Yes',
     },
     {
       id: 2,
       neutered: t('not_neutered_string'),
+      value: 'No',
     },
   ];
 
@@ -276,24 +301,24 @@ const AddPetDetails = ({navigation, route}) => {
                 key={index}
                 style={styles.genderItem}
                 colors={
-                  selectedId === item.id
+                  selectedId === item.value
                     ? ['rgba(253, 189, 116, 0.21)', 'rgba(253, 189, 116, 0.07)']
                     : [colors.themeColor, colors.themeColor]
                 }>
                 <TouchableOpacity
                   onPress={() => {
                     setFormValue({...formValue, gender: item.gender});
-                    handlePress(item.id);
+                    handlePress(item.value);
                   }}
                   style={[
                     styles.genderButton,
                     {
                       borderWidth:
-                        selectedId === item.id
+                        selectedId === item.value
                           ? scaledValue(1)
                           : scaledValue(0.5),
                       borderColor:
-                        selectedId === item.id ? colors.appRed : '#312943',
+                        selectedId === item.value ? colors.appRed : '#312943',
                     },
                   ]}>
                   <GText
@@ -365,22 +390,24 @@ const AddPetDetails = ({navigation, route}) => {
                 key={index}
                 style={styles.neuteredItem}
                 colors={
-                  select === item.id
+                  select === item.value
                     ? ['rgba(253, 189, 116, 0.21)', 'rgba(253, 189, 116, 0.07)']
                     : [colors.themeColor, colors.themeColor]
                 }>
                 <TouchableOpacity
                   onPress={() => {
                     setFormValue({...formValue, neutered: item.neutered});
-                    handlePresshit(item.id);
+                    handlePresshit(item.value);
                   }}
                   style={[
                     styles.neuteredButton,
                     {
                       borderWidth:
-                        select === item.id ? scaledValue(1) : scaledValue(0.5),
+                        select === item.value
+                          ? scaledValue(1)
+                          : scaledValue(0.5),
                       borderColor:
-                        select === item.id ? colors.appRed : '#312943',
+                        select === item.value ? colors.appRed : '#312943',
                     },
                   ]}>
                   <GText
@@ -388,9 +415,10 @@ const AddPetDetails = ({navigation, route}) => {
                     style={[
                       styles.neuteredText,
                       {
-                        color: select === item.id ? colors.appRed : '#312943',
+                        color:
+                          select === item.value ? colors.appRed : '#312943',
                         fontFamily:
-                          select === item.id
+                          select === item.value
                             ? fonts.SATOSHI_BOLD
                             : fonts.SATOSHI_REGULAR,
                       },
@@ -406,7 +434,10 @@ const AddPetDetails = ({navigation, route}) => {
                 choosePetDetail: {
                   ...formValue,
                   ...choosePetData,
+                  petImage: image,
+                  apiCallImage: apiCallImage,
                 },
+                petDetails: petDetails,
               });
             }}
             title={t('confirm_button_string')}
@@ -421,6 +452,8 @@ const AddPetDetails = ({navigation, route}) => {
           mode="date"
           onConfirm={date => {
             setOpen(false);
+            console.log('1234567890', date);
+
             setDate(date);
             setFormValue({...formValue, dob: formatDate(date)});
           }}
@@ -429,7 +462,7 @@ const AddPetDetails = ({navigation, route}) => {
       </ScrollView>
       <OptionMenuSheet
         refRBSheet={refRBSheet}
-        title={'Select Blood Group'}
+        title={formValue?.blood_group || 'Select Blood Group'}
         options={groupList}
         onChoose={val => {
           setFormValue({...formValue, blood_group: val?.title});

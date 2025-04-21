@@ -188,8 +188,6 @@ const CreateAccount = ({navigation}) => {
           <GButton
             onPress={() => {
               sign_up_hit();
-              // navigation?.navigate('CreatePetProfile');
-              // navigation?.navigate('CreatePetProfile');
             }}
             title={t('create_account_button')}
             style={styles.createAccountButton}

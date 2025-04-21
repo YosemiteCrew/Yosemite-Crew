@@ -73,7 +73,14 @@ const Account = ({navigation}) => {
   return (
     <View style={styles.dashboardMainView}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        <TouchableOpacity activeOpacity={0.5} style={styles.tileView}>
+        <TouchableOpacity
+          onPress={() => {
+            navigation?.navigate('StackScreens', {
+              screen: 'EditProfile',
+            });
+          }}
+          activeOpacity={0.5}
+          style={styles.tileView}>
           <View style={styles.userView}>
             <Image source={Images.User} style={styles.userImg} />
             <View style={styles.nameView}>

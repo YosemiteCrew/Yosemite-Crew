@@ -141,8 +141,9 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingTop: scaledValue(12),
-    // position: 'absolute',
-    // bottom: -10,
+    position: 'absolute',
+    bottom: scaledValue(50),
+    width: '100%',
   },
   flatListUnderView: {
     // flexDirection: 'column',

@@ -150,98 +150,6 @@ const BookAppointmentHome = ({navigation}) => {
     </TouchableOpacity>
   );
 
-  // const hospitalList = [
-  //   {
-  //     id: 1,
-  //     img: Images.Hospital1,
-  //     name: 'San Francisco Animal Medical Center',
-  //     time: 'Open 24 Hours',
-  //     description:
-  //       '24/7 Emergency Care, Surgery and Operating Rooms, Veterinary ICU, Diagnostic Imaging, Laboratory, Dental Care Services,',
-  //     distance: '2.5mi',
-  //     rating: '4.1',
-  //   },
-  //   {
-  //     id: 2,
-  //     img: Images.Hospital2,
-  //     name: 'OakVet Animal Specialty Hospital',
-  //     time: 'Open 24 Hours',
-  //     description:
-  //       'Vaccination and Preventive Care, Pain Management, Physical Rehabilitation and Therapy, Isolation Wards for Contagious Pets, Oncology Treatment,',
-  //     distance: '2.8mi',
-  //     rating: '4.5',
-  //   },
-  // ];
-
-  const breederList = [
-    {
-      id: 1,
-      img: Images.Breeder1,
-      name: 'Bay Area Corgis',
-      time: 'Open 24 Hours',
-      description:
-        'Health Screening, Puppy Socialization, Birthing Assistance, Registration and Documentation, Temperature-Controlled Housing, Post-Adoption Support',
-      distance: '2.5mi',
-      rating: '4.1',
-    },
-    {
-      id: 2,
-      img: Images.Breeder2,
-      name: 'Bay Area Puppies',
-      time: '9AM - 5PM (Mon-Sat)',
-      description:
-        'Genetic Testing, Vaccination and Deworming, Early Training Programs, Puppy Care Packages, Breed-Specific Care, Grooming Services',
-      distance: '2.8mi',
-      rating: '4.5',
-    },
-  ];
-
-  const groomerList = [
-    {
-      id: 1,
-      img: Images.Groomer1,
-      name: 'Tender Loving Care Pet Grooming',
-      time: '8AM - 7PM (Mon - Fri)',
-      description:
-        'Bathing, Hair Trimming, Ear Cleaning, Skin Conditioning, Paw Pad Care, Specialty Shampoos, Eye Cleaning',
-      distance: '2.5mi',
-      rating: '4.1',
-    },
-    {
-      id: 2,
-      img: Images.Groomer2,
-      name: 'Posh Paws Pet Salon',
-      time: '9AM - 5PM (Mon-Sat)',
-      description:
-        'Nail Clipping, Teeth Brushing, Flea and Tick Treatment, Coat Styling, De-shedding, Anal Gland Expression',
-      distance: '2.8mi',
-      rating: '4.5',
-    },
-  ];
-
-  const petCenterList = [
-    {
-      id: 1,
-      img: Images.PetCenter1,
-      name: 'Pet Club Cupertino',
-      time: '8AM - 7PM (Mon - Fri)',
-      description:
-        'Pet Food and Treats, Grooming Supplies, Leashes and Collars, Boarding Services, Veterinary Care, Obedience Training, Playgroups',
-      distance: '2.5mi',
-      rating: '4.1',
-    },
-    {
-      id: 2,
-      img: Images.PetCenter2,
-      name: 'Red Hill Pet Center',
-      time: '11AM - 6PM (Mon-Sat)',
-      description:
-        'Toys and Accessories, Pet Clothing, Bedding and Crates, Grooming Salon, Daycare, Training Equipment',
-      distance: '2.8mi',
-      rating: '4.5',
-    },
-  ];
-
   return (
     <View style={styles.dashboardMainView}>
       <ScrollView
@@ -263,6 +171,7 @@ const BookAppointmentHome = ({navigation}) => {
         <CategoryList
           navigation={navigation}
           data={hospitalData?.hospitalList}
+          type={'hospital'}
           total_count={hospitalData?.hospitalCount}
           categoryTitle={t('hospitals_string')}
           nearYouText={t('near_you_string')}
