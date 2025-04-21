@@ -53,6 +53,7 @@ export {default as YearlySpendScreen} from '../screens/Home/DashboardTab/dashboa
 export {default as FAQ} from '../screens/Home/AccountTab/faq';
 export {default as FAQDetail} from '../screens/Home/AccountTab/faq/faqDetail';
 export {default as ContactUs} from '../screens/Home/AccountTab/contactUs';
+export {default as EditProfile} from '../screens/Home/AccountTab/editProfile';
 
 // AuthStack screens
 export {default as SignupOptions} from '../screens/Auth/signupOptions';

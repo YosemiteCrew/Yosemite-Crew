@@ -14,6 +14,7 @@ import {Images} from '../../../../../utils';
 import {styles} from './styles';
 import {useTranslation} from 'react-i18next';
 import GImage from '../../../../../components/GImage';
+import {scaledValue} from '../../../../../utils/design.utils';
 
 const CategoryList = ({
   data,
@@ -22,6 +23,7 @@ const CategoryList = ({
   nearYouText,
   onPress,
   navigation,
+  type,
 }) => {
   const {t} = useTranslation();
 
@@ -54,6 +56,7 @@ const CategoryList = ({
                       screen: 'BookAppointmentDetail',
                       params: {
                         businessDetails: item,
+                        type: type,
                       },
                     });
                   }}
@@ -80,6 +83,7 @@ const CategoryList = ({
                     text={item?.profileData?.selectedServices?.join(', ')}
                     style={styles.descriptionText}
                   />
+
                   <View style={styles.textView}>
                     <View style={styles.innerView}>
                       <Image

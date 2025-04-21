@@ -6,12 +6,13 @@ import {
   TouchableOpacity,
   Text,
   View,
+  Dimensions,
 } from 'react-native';
 import GText from '../../../../components/GText/GText';
 import {Images} from '../../../../utils';
 import {styles} from './styles';
 import {useTranslation} from 'react-i18next';
-import {scaledValue} from '../../../../utils/design.utils';
+import {scaledHeightValue, scaledValue} from '../../../../utils/design.utils';
 import {colors} from '../../../../../assets/colors';
 import AppointmentCard from '../../../../components/AppointmentCard';
 import Swiper from 'react-native-swiper';
@@ -22,6 +23,7 @@ import {
   useAppSelector,
 } from '../../../../redux/store/storeUtils';
 import {get_pet_list} from '../../../../redux/slices/petSlice';
+import GImage from '../../../../components/GImage';
 
 const Dashboard = ({navigation}) => {
   const {t} = useTranslation();
@@ -46,10 +48,10 @@ const Dashboard = ({navigation}) => {
   const [visible, setVisible] = useState(false);
 
   const handlePetSelection = pet => {
-    if (selectPet?._id === pet._id) {
+    if (selectPet?.id === pet?.resource?.id) {
       setSelectPet(null);
     } else {
-      setSelectPet(pet);
+      setSelectPet(pet?.resource);
     }
   };
 
@@ -210,15 +212,28 @@ const Dashboard = ({navigation}) => {
     },
   ];
 
-  const renderPetItem = ({item}) => (
-    <TouchableOpacity
-      onPress={() => handlePetSelection(item)}
-      style={{opacity: selectPet?._id === item._id ? 0.4 : 1}}>
-      <Image source={Images.Kizi} style={styles.petImage} />
-      <GText SatoshiBold text={item.petName} style={styles.petNameText} />
-    </TouchableOpacity>
-  );
-
+  const renderPetItem = ({item}) => {
+    const petDetails = item?.resource?.extension?.reduce((acc, item) => {
+      acc[item.title] = item.valueString;
+      return acc;
+    }, {});
+    return (
+      <TouchableOpacity
+        onPress={() => handlePetSelection(item)}
+        style={{opacity: selectPet?.id === item?.resource?.id ? 0.4 : 1}}>
+        <GImage
+          image={petDetails?.petImage}
+          style={styles.petImage}
+          noImageSource={Images.Kizi}
+        />
+        <GText
+          SatoshiBold
+          text={item?.resource?.name[0]?.text}
+          style={styles.petNameText}
+        />
+      </TouchableOpacity>
+    );
+  };
   const renderQuickActionItem = ({item}) => (
     <TouchableOpacity
       onPress={() => navigation.navigate('StackScreens', {screen: item.screen})}
@@ -273,19 +288,158 @@ const Dashboard = ({navigation}) => {
       <ScrollView
         showsVerticalScrollIndicator={false}
         style={styles.scrollView}>
-        <GText GrMedium text="Your Companions" style={styles.petsText} />
-
-        <View style={styles.petListContainer}>
-          <View>
-            <FlatList
-              data={petList}
-              horizontal
-              contentContainerStyle={styles.petList}
-              renderItem={renderPetItem}
+        {petList?.entry?.length < 1 && (
+          <>
+            <GText
+              GrMedium
+              text={'Welcome to your companions’s'}
+              style={{
+                textAlign: 'center',
+                fontSize: scaledValue(20),
+                letterSpacing: scaledValue(20 * -0.01),
+                color: colors.darkPurple,
+                lineHeight: scaledHeightValue(20 * 1.2),
+                marginTop: scaledValue(35),
+              }}
             />
-          </View>
+            <GText
+              GrMedium
+              text={'new favorite place!'}
+              style={{
+                textAlign: 'center',
+                fontSize: scaledValue(20),
+                letterSpacing: scaledValue(20 * -0.01),
+                color: colors.appRed,
+                lineHeight: scaledHeightValue(20 * 1.2),
+              }}
+            />
+            <Image
+              source={Images.DashboardWelcome}
+              style={{
+                width: Dimensions.get('window').width,
+                height: scaledValue(250),
+                marginTop: scaledValue(4),
+              }}
+            />
+          </>
+        )}
+
+        <GText GrMedium text="Your Companions" style={styles.petsText} />
+        {petList?.entry?.length > 0 ? (
+          <>
+            <View style={styles.petListContainer}>
+              <View>
+                <FlatList
+                  showsHorizontalScrollIndicator={false}
+                  data={petList?.entry}
+                  horizontal
+                  contentContainerStyle={styles.petList}
+                  renderItem={renderPetItem}
+                />
+              </View>
+            </View>
+          </>
+        ) : (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={{
+              width: scaledValue(159),
+              height: scaledValue(157),
+              backgroundColor: colors.appRed,
+              borderRadius: scaledValue(20),
+              marginHorizontal: scaledValue(19),
+              marginTop: scaledValue(12),
+            }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+              <Image
+                source={Images.solarCircle}
+                style={{
+                  width: scaledValue(32),
+                  height: scaledValue(32),
+                  left: scaledValue(15),
+                  top: scaledValue(20),
+                }}
+              />
+              <Image
+                source={Images.PawImage}
+                style={{
+                  width: scaledValue(113.18),
+                  height: scaledValue(113.18),
+                  left: scaledValue(20),
+                }}
+              />
+            </View>
+            <GText
+              GrMedium
+              text={'Add your First Companion'}
+              style={{
+                alignSelf: 'center',
+                color: colors.pearlWhite,
+                fontSize: scaledValue(18),
+                lineHeight: scaledHeightValue(18 * 1.2),
+                letterSpacing: scaledValue(18 * -0.01),
+                bottom: scaledValue(15),
+              }}
+            />
+          </TouchableOpacity>
+        )}
+
+        <GText
+          GrMedium
+          text={'Upcoming Appointments'}
+          style={{
+            fontSize: scaledValue(20),
+            letterSpacing: scaledValue(20 * -0.01),
+            lineHeight: scaledHeightValue(20 * 1.2),
+            marginHorizontal: scaledValue(20),
+            marginTop: scaledValue(40),
+          }}
+        />
+        <View
+          style={{
+            width: Dimensions.get('window').width - 40,
+            backgroundColor: colors.offWhite,
+            alignSelf: 'center',
+            paddingVertical: scaledValue(20),
+            justifyContent: 'center',
+            alignItems: 'center',
+            borderRadius: scaledValue(20),
+            marginTop: scaledValue(12),
+            marginBottom: scaledValue(48),
+            shadowColor: '##47382726',
+            shadowOffset: {width: 10, height: 10},
+            shadowOpacity: 0.15,
+            shadowRadius: 20,
+            elevation: 20,
+          }}>
+          <GText
+            GrMedium
+            text={'No upcoming appointments yet.'}
+            style={{
+              fontSize: scaledValue(18),
+              lineHeight: scaledHeightValue(18 * 1.2),
+              letterSpacing: scaledValue(18 * -0.01),
+              textAlign: 'center',
+            }}
+          />
+          <GText
+            SatoshiRegular
+            text={'Add a companion to start\nmanaging their health.'}
+            style={{
+              fontSize: scaledValue(14),
+              lineHeight: scaledHeightValue(14 * 1.4),
+              marginTop: scaledValue(4),
+              textAlign: 'center',
+            }}
+          />
         </View>
-        <View style={styles.yearlySummaryMainView}>
+
+        {/* <View style={styles.yearlySummaryMainView}>
           <View style={styles.statusCardView2}>
             <View style={styles.statusCardImageView}>
               <Image
@@ -293,7 +447,7 @@ const Dashboard = ({navigation}) => {
                 style={styles.solarWalledImage}
               />
             </View>
-            <View style={{marginLeft: scaledValue(12)}}>
+            <View style={{ marginLeft: scaledValue(12) }}>
               <GText
                 SatoshiBold
                 text={'Yearly Spend Summary'}
@@ -312,7 +466,8 @@ const Dashboard = ({navigation}) => {
                 screen: 'YearlySpendScreen',
               });
             }}
-            style={styles.imageView}>
+            style={styles.imageView}
+          >
             <Image
               style={{
                 height: scaledValue(20),
@@ -332,7 +487,7 @@ const Dashboard = ({navigation}) => {
                 style={styles.syringeBoldImage}
               />
             </View>
-            <View style={{marginLeft: scaledValue(12), flex: 1}}>
+            <View style={{ marginLeft: scaledValue(12), flex: 1 }}>
               <GText
                 GrMedium
                 text={'Vaccination'}
@@ -357,17 +512,17 @@ const Dashboard = ({navigation}) => {
               />
             </View>
           </View>
-        </View>
-        <View style={styles.headerView}>
+        </View> */}
+        {/* <View style={styles.headerView}>
           <GText
             GrMedium
             text={`${t('upcoming_appointment_string')} `}
             style={styles.teamText}
           />
           <GText GrMedium text={'(2)'} style={styles.countText} />
-        </View>
+        </View> */}
 
-        <Swiper
+        {/* <Swiper
           height={430}
           ref={swiperRef}
           loop={false}
@@ -375,7 +530,7 @@ const Dashboard = ({navigation}) => {
           containerStyle={{
             height: scaledValue(234),
           }}
-          onIndexChanged={index => setScrollIndex(index)}
+          onIndexChanged={(index) => setScrollIndex(index)}
           activeDotColor={colors.appRed}
           dotColor={colors.appRed}
           activeDotStyle={styles.activeDotStyle}
@@ -383,7 +538,8 @@ const Dashboard = ({navigation}) => {
           paginationStyle={{
             bottom: 0,
             marginBottom: 0,
-          }}>
+          }}
+        >
           {[1, 2].map((page, index) => (
             <View key={index}>
               <AppointmentCard
@@ -395,11 +551,11 @@ const Dashboard = ({navigation}) => {
                 appointmentTime="Thursday, 5 Sept - 11:00 AM"
                 navigation={navigation}
                 swiperCardStyle={styles.swiperCardStyle}
-                doctorNameTextStyle={{color: colors.jetBlack}}
-                departmentTextStyle={{color: colors.jetBlack}}
-                buttonStyle={{backgroundColor: colors.lightCream}}
-                buttonTextStyle={{color: colors.jetBlack}}
-                buttonIconStyle={{tintColor: colors.jetBlack, opacity: 1}}
+                doctorNameTextStyle={{ color: colors.jetBlack }}
+                departmentTextStyle={{ color: colors.jetBlack }}
+                buttonStyle={{ backgroundColor: colors.lightCream }}
+                buttonTextStyle={{ color: colors.jetBlack }}
+                buttonIconStyle={{ tintColor: colors.jetBlack, opacity: 1 }}
               />
             </View>
           ))}
@@ -408,17 +564,28 @@ const Dashboard = ({navigation}) => {
           SatoshiBold
           text={t('wellness_summary_string')}
           style={styles.wellnessSummaryText}
-        />
-        <FlatList
+        /> */}
+        {/* <FlatList
           data={wellnessSummaryList}
           numColumns={2}
           columnWrapperStyle={styles.wellnessSummaryWrapper}
           contentContainerStyle={styles.wellnessSummaryList}
           renderItem={renderWellnessSummaryItem}
-        />
+        /> */}
 
         <FlatList
-          data={quickActions}
+          data={
+            petList?.entry?.length > 0
+              ? quickActions
+              : [
+                  {
+                    id: 8,
+                    title: t('blog_string'),
+                    img: Images.bookMinimalistic,
+                    screen: 'BlogListing',
+                  },
+                ]
+          }
           numColumns={3}
           columnWrapperStyle={styles.quickActionsWrapper}
           contentContainerStyle={styles.quickActionsList}

@@ -47,6 +47,7 @@ export const styles = StyleSheet.create({
     width: scaledValue(100),
     height: scaledValue(100),
     top: -5,
+    borderRadius: scaledValue(50),
   },
   cameraView: {
     width: scaledValue(32),

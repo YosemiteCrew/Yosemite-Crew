@@ -43,8 +43,9 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
   },
   petImg: {
-    width: scaledValue(100),
-    height: scaledValue(100),
+    width: scaledValue(95),
+    height: scaledValue(95),
+    borderRadius: scaledValue(50),
   },
   infoView: {marginLeft: scaledValue(8), gap: scaledValue(4)},
   petName: {
@@ -67,6 +68,7 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
     color: colors.darkPurple,
+    textTransform: 'capitalize',
   },
   pointer: {
     width: scaledValue(4),

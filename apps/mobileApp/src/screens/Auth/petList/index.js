@@ -5,7 +5,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import React, {useRef} from 'react';
+import React, {useRef, useState} from 'react';
 import {useTranslation} from 'react-i18next';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {styles} from './styles';
@@ -16,8 +16,10 @@ import GButton from '../../../components/GButton';
 import OptionMenuSheet from '../../../components/OptionMenuSheet';
 import {useAppSelector} from '../../../redux/store/storeUtils';
 
-import {addPet} from '../../../redux/slices/petSlice';
+import {delete_pet_api, updatePetList} from '../../../redux/slices/petSlice';
 import {useDispatch, useSelector} from 'react-redux';
+import GImage from '../../../components/GImage';
+import LinearGradient from 'react-native-linear-gradient';
 
 const PetProfileList = ({navigation}) => {
   const refRBSheet = useRef();
@@ -25,32 +27,9 @@ const PetProfileList = ({navigation}) => {
   const statusBarHeight = insets.top;
   const {t} = useTranslation();
   const dispatch = useDispatch();
+  const [selectPet, setSelectPet] = useState({});
   const petList = useAppSelector(state => state.pets?.petLists);
-  console.log('petList0123', petList);
-
   const authState = useAppSelector(state => state.auth);
-  // const petList = [
-  //   {
-  //     id: 1,
-  //     img: Images.Kizi,
-  //     name: 'Kizie',
-  //     breed: 'Beagle',
-  //     gender: 'Female',
-  //     age: '3Y',
-  //     weight: '28 lbs',
-  //     profile_percentage: '21',
-  //   },
-  //   {
-  //     id: 2,
-  //     img: Images.CatImg,
-  //     name: 'Oscar',
-  //     breed: 'Egyptian Mau',
-  //     gender: 'Male',
-  //     age: '2Y',
-  //     weight: '12 lbs',
-  //     profile_percentage: '96',
-  //   },
-  // ];
 
   const petListOptionMenu = [
     {
@@ -58,7 +37,14 @@ const PetProfileList = ({navigation}) => {
       title: 'Edit Profile',
       subTitle: '',
       textColor: '#007AFF',
-      action: () => {},
+      action: () => {
+        navigation?.navigate('StackScreens', {
+          screen: 'AddPetDetails',
+          params: {
+            petDetails: selectPet,
+          },
+        });
+      },
     },
 
     {
@@ -66,7 +52,9 @@ const PetProfileList = ({navigation}) => {
       title: 'Delete',
       subTitle: '',
       textColor: '#F42626',
-      action: () => {},
+      action: () => {
+        delete_pet();
+      },
     },
   ];
 
@@ -83,6 +71,28 @@ const PetProfileList = ({navigation}) => {
         <View style={[styles.remainingBar, {width: remainingWidth}]} />
       </View>
     );
+  };
+
+  const delete_pet = () => {
+    const input = {
+      petId: selectPet?.id,
+    };
+
+    dispatch(delete_pet_api(input)).then(res => {
+      if (delete_pet_api.fulfilled.match(res)) {
+        const filteredEntries = petList.entry.filter(
+          item => item.resource.id !== selectPet?.id,
+        );
+        const updatedBundle = {
+          ...petList,
+          total: filteredEntries.length,
+          entry: filteredEntries,
+        };
+
+        dispatch(updatePetList(updatedBundle));
+        setSelectPet({});
+      }
+    });
   };
 
   return (
@@ -112,40 +122,70 @@ const PetProfileList = ({navigation}) => {
       </View>
       <View style={{marginTop: scaledValue(12)}}>
         <FlatList
-          data={petList}
+          data={petList?.entry}
           contentContainerStyle={{
             paddingBottom: Dimensions.get('window').height / 3,
           }}
           renderItem={({item, index}) => {
+            const petDetails = item?.resource?.extension?.reduce(
+              (acc, item) => {
+                acc[item.title] = item.valueString;
+                return acc;
+              },
+              {},
+            );
+
             return (
               <View style={styles.petProfileMainContainer}>
                 <View style={styles.petProfileContainer}>
-                  <View style={{}}>
-                    <Image source={Images.CatImg} style={styles.petImg} />
-                  </View>
+                  <LinearGradient
+                    colors={['#D04122', '#FDBD74']}
+                    start={{x: 0, y: 1}}
+                    end={{x: 1, y: 1}}
+                    style={{borderRadius: scaledValue(50)}}>
+                    <GImage
+                      image={petDetails?.petImage}
+                      style={styles.petImg}
+                      noImageSource={Images.Kizi}
+                    />
+                  </LinearGradient>
+                  {/* <View
+                    style={{
+                      borderColor: '#D0422287',
+                      borderRadius: scaledValue(50),
+                      borderWidth: 2,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  ></View> */}
+
                   <View style={styles.infoView}>
-                    <GText GrMedium text={item?.petName} style={styles.petName} />
+                    <GText
+                      GrMedium
+                      text={item?.resource?.name[0]?.text}
+                      style={styles.petName}
+                    />
                     <GText
                       SatoshiMedium
-                      text={item?.petBreed}
+                      text={item?.resource?.animal?.breed?.coding[0]?.display}
                       style={styles.breed}
                     />
                     <View style={styles.otherInfoView}>
                       <GText
                         SatoshiMedium
-                        text={item?.gender}
+                        text={item?.resource?.gender}
                         style={styles.gender}
                       />
                       <View style={styles.pointer} />
                       <GText
                         SatoshiMedium
-                        text={item?.ageWhenNeutered}
+                        text={petDetails?.ageWhenNeutered}
                         style={styles.gender}
                       />
                       <View style={styles.pointer} />
                       <GText
                         SatoshiMedium
-                        text={item?.petCurrentWeight}
+                        text={petDetails?.petCurrentWeight}
                         style={styles.gender}
                       />
                     </View>
@@ -166,7 +206,10 @@ const PetProfileList = ({navigation}) => {
                 </View>
                 <TouchableOpacity
                   hitSlop={styles.hitSlop}
-                  onPress={() => refRBSheet.current.open()}>
+                  onPress={() => {
+                    setSelectPet(item?.resource);
+                    refRBSheet.current.open();
+                  }}>
                   <Image source={Images.ThreeDots} style={styles.threeDot} />
                 </TouchableOpacity>
               </View>

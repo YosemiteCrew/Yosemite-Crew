@@ -11,7 +11,7 @@ const initialState = {
 };
 
 export const get_pet_list = createAsyncThunk(
-  'getPets',
+  'Patient/getPets',
   async (credentials, {rejectWithValue, dispatch}) => {
     try {
       dispatch(setLoading(true));
@@ -21,13 +21,16 @@ export const get_pet_list = createAsyncThunk(
         headers: {
           //   'Content-Type': 'multipart/form-data',
         },
-        route: `getPets`,
-        body: credentials,
-        method: 'POST',
+        route: `Patient/getPets/${credentials?.limit}/${credentials?.offset}`,
+        body: {},
+        method: 'GET',
         // multiPart: true,
       });
       dispatch(setLoading(false));
-      console.log('getpets_response=>>', JSON.stringify(response?.data));
+      console.log(
+        'Patient/getPets_response=>>',
+        JSON.stringify(response?.data),
+      );
       if (response?.status === 200) {
         // navigationContainerRef?.navigate()
       }
@@ -35,7 +38,7 @@ export const get_pet_list = createAsyncThunk(
         return rejectWithValue(response?.data);
       }
 
-      return response?.data?.data;
+      return response?.data;
     } catch (error) {
       console.log(error);
       return rejectWithValue(error);
@@ -43,16 +46,20 @@ export const get_pet_list = createAsyncThunk(
   },
 );
 export const add_pet = createAsyncThunk(
-  'addPet',
+  'Patient/addPet',
   async (credentials, {rejectWithValue, dispatch}) => {
     try {
       dispatch(setLoading(true));
+      console.log('AddPetCredentialss', JSON.stringify(credentials));
 
       const response = await API({
-        headers: {},
-        route: `addPet`,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        route: `Patient/addPet`,
         body: credentials,
         method: 'POST',
+        multiPart: true,
       });
 
       dispatch(setLoading(false));
@@ -63,6 +70,68 @@ export const add_pet = createAsyncThunk(
       if (response?.status === 200) {
         navigationContainerRef?.navigate('MyPets');
         return response?.data?.data;
+      } else {
+        return rejectWithValue(response?.data);
+      }
+    } catch (error) {
+      console.log('API Error:', error);
+      return rejectWithValue(error);
+    }
+  },
+);
+
+export const delete_pet_api = createAsyncThunk(
+  'Patient/deletePet',
+  async (credentials, {rejectWithValue, dispatch}) => {
+    try {
+      dispatch(setLoading(true));
+
+      const response = await API({
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        route: `Patient/deletepet/${credentials?.petId}`,
+        body: {},
+        method: 'DELETE',
+        multiPart: true,
+      });
+
+      dispatch(setLoading(false));
+      console.log('deletePetLog', response?.data);
+
+      if (response?.data?.issue[0]?.status === 1) {
+        showToast(1, response?.data?.issue[0]?.diagnostics);
+      } else {
+        return rejectWithValue(response?.data);
+      }
+    } catch (error) {
+      console.log('API Error:', error);
+      return rejectWithValue(error);
+    }
+  },
+);
+
+export const edit_pet_api = createAsyncThunk(
+  'Patient/editPet',
+  async (credentials, {rejectWithValue, dispatch}) => {
+    try {
+      dispatch(setLoading(true));
+
+      const response = await API({
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        route: `Patient/editPet/${credentials?.petId}`,
+        body: credentials?.api_credentials,
+        method: 'PUT',
+        multiPart: true,
+      });
+
+      dispatch(setLoading(false));
+      console.log('deletePetLog', response?.data);
+
+      if (response?.data?.issue[0]?.status === 1) {
+        showToast(1, response?.data?.issue[0]?.diagnostics);
       } else {
         return rejectWithValue(response?.data);
       }
@@ -86,7 +155,7 @@ export const contact_us = createAsyncThunk(
         route: 'sendquery',
         body: credentials,
         method: 'POST',
-        // multiPart: true,
+        multiPart: true,
       });
 
       dispatch(setLoading(false));
@@ -121,6 +190,11 @@ const petsSlice = createSlice({
     addPet: (state, action) => {
       state.pets.push(action.payload);
     },
+    updatePetList: (state, action) => {
+      console.log('actionPayload', action.payload);
+
+      state.petLists = action.payload;
+    },
   },
   extraReducers: builder => {
     builder.addCase(add_pet.pending, state => {
@@ -133,7 +207,12 @@ const petsSlice = createSlice({
     builder.addCase(add_pet.fulfilled, (state, action) => {
       state.loading = false;
       console.log('petListPayLoad', action.payload);
-      state.petLists = [action.payload, ...state.petLists];
+      const updatedBundle = {
+        ...state.petLists,
+        total: state.petLists.total + 1,
+        entry: [...state.petLists.entry, {resource: action.payload}],
+      };
+      state.petLists = updatedBundle;
     });
     builder.addCase(get_pet_list.pending, state => {
       state.loading = true;
@@ -144,11 +223,11 @@ const petsSlice = createSlice({
     });
     builder.addCase(get_pet_list.fulfilled, (state, action) => {
       state.loading = false;
-      console.log('getPetListPayLoad', action.payload);
+      console.log('getPetListPayLoads', action.payload);
       state.petLists = action.payload;
     });
   },
 });
 
-export const {addPet} = petsSlice.actions;
+export const {addPet, updatePetList} = petsSlice.actions;
 export default petsSlice.reducer;

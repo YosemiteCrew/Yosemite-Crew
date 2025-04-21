@@ -1,5 +1,5 @@
 import React from 'react';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import getScreenOptions from '../helpers/screenOptions';
 import {
   Notifications,
@@ -55,13 +55,14 @@ import {
   BlogDetail,
   ContactVet,
   YearlySpendScreen,
+  EditProfile,
 } from './screens';
 
 const screens = [
-  { name: 'Notifications', component: Notifications, title: 'Notifications' },
-  { name: 'FAQ', component: FAQ, title: 'FAQs' },
-  { name: 'FAQDetail', component: FAQDetail, title: 'FAQs' },
-  { name: 'ContactUs', component: ContactUs, headerShown: false },
+  {name: 'Notifications', component: Notifications, title: 'Notifications'},
+  {name: 'FAQ', component: FAQ, title: 'FAQs'},
+  {name: 'FAQDetail', component: FAQDetail, title: 'FAQs'},
+  {name: 'ContactUs', component: ContactUs, headerShown: false},
   {
     name: 'ParasiticideManagementHome',
     component: ParasiticideManagementHome,
@@ -127,7 +128,7 @@ const screens = [
     component: ExercisePlans,
     title: 'Exercise Plans',
   },
-  { name: 'CreateNewPlan', component: CreateNewPlan, title: 'Create New Plan' },
+  {name: 'CreateNewPlan', component: CreateNewPlan, title: 'Create New Plan'},
   {
     name: 'IndividualExercises',
     component: IndividualExercises,
@@ -143,13 +144,13 @@ const screens = [
     component: PostOpExercises,
     title: 'Post op Exercises',
   },
-  { name: 'TreadMill', component: TreadMill, title: 'Treadmill' },
+  {name: 'TreadMill', component: TreadMill, title: 'Treadmill'},
   {
     name: 'NewExercisePlanStep2',
     component: NewExercisePlanStep2,
     title: 'Standard Exercise Plan',
   },
-  { name: 'PainJournal', component: PainJournal, title: 'Pain Journal' },
+  {name: 'PainJournal', component: PainJournal, title: 'Pain Journal'},
   {
     name: 'NewPainAssessment',
     component: NewPainAssessment,
@@ -165,7 +166,7 @@ const screens = [
     component: PainAssessment,
     title: 'Pain Assessment',
   },
-  { name: 'PainScore', component: PainScore, title: 'Pain Score' },
+  {name: 'PainScore', component: PainScore, title: 'Pain Score'},
   {
     name: 'PainAssessmentScore',
     component: PainAssessmentScore,
@@ -176,7 +177,7 @@ const screens = [
     component: KnowledgeLibrary,
     title: 'Knowledge Library',
   },
-  { name: 'ArticleDetail', component: ArticleDetail, headerShown: false },
+  {name: 'ArticleDetail', component: ArticleDetail, headerShown: false},
   {
     name: 'BookAppointmentDetail',
     component: BookAppointmentDetail,
@@ -197,7 +198,7 @@ const screens = [
     component: SeePrescription,
     title: 'Prescription',
   },
-  { name: 'ChatScreen', component: ChatScreen, title: 'Dr. David Brown' },
+  {name: 'ChatScreen', component: ChatScreen, title: 'Dr. David Brown'},
   {
     name: 'BookAppointmentGroomer',
     component: BookAppointmentGroomer,
@@ -213,17 +214,17 @@ const screens = [
     component: DocumentListScreen,
     title: 'Invoices',
   },
-  { name: 'RecordPreview', component: RecordPreview, title: 'Invoices' },
-  { name: 'AddNewTask', component: AddNewTask, title: 'Add New Task' },
+  {name: 'RecordPreview', component: RecordPreview, title: 'Invoices'},
+  {name: 'AddNewTask', component: AddNewTask, title: 'Add New Task'},
   {
     name: 'DiabetesManagement',
     component: DiabetesManagement,
     title: 'Diabetes Management',
   },
-  { name: 'AddNewRecord', component: AddNewRecord, title: 'Add New Record' },
-  { name: 'AddNewRecord1', component: AddNewRecord1, title: 'Add New Record' },
-  { name: 'ViewRecord', component: ViewRecord, title: '', headerShown: false },
-  { name: 'ChooseVet', component: ChooseVet, title: 'Choose A Vet' },
+  {name: 'AddNewRecord', component: AddNewRecord, title: 'Add New Record'},
+  {name: 'AddNewRecord1', component: AddNewRecord1, title: 'Add New Record'},
+  {name: 'ViewRecord', component: ViewRecord, title: '', headerShown: false},
+  {name: 'ChooseVet', component: ChooseVet, title: 'Choose A Vet'},
   {
     name: 'ChooseYourPet',
     component: ChooseYourPet,
@@ -242,13 +243,18 @@ const screens = [
     title: 'More Pet Details',
     headerShown: false,
   },
-  { name: 'BlogListing', component: BlogListing, title: 'Paws & Insights' },
-  { name: 'BlogDetail', component: BlogDetail, title: '', headerShown: false },
-  { name: 'ContactVet', component: ContactVet, headerShown: false },
+  {name: 'BlogListing', component: BlogListing, title: 'Paws & Insights'},
+  {name: 'BlogDetail', component: BlogDetail, title: '', headerShown: false},
+  {name: 'ContactVet', component: ContactVet, headerShown: false},
   {
     name: 'YearlySpendScreen',
     component: YearlySpendScreen,
     title: 'Yearly Spend',
+  },
+  {
+    name: 'EditProfile',
+    component: EditProfile,
+    title: 'Edit Profile',
   },
 ];
 
@@ -257,12 +263,12 @@ const StackScreens = () => {
 
   return (
     <Stack.Navigator>
-      {screens.map(({ name, component, title, headerShown }) => (
+      {screens.map(({name, component, title, headerShown}) => (
         <Stack.Screen
           key={name}
           name={name}
           component={component}
-          options={(props) =>
+          options={props =>
             getScreenOptions({
               ...props,
               title: title || '',

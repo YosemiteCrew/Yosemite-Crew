@@ -20,55 +20,96 @@ import LinearGradient from 'react-native-linear-gradient';
 import {fonts} from '../../../utils/fonts';
 import GButton from '../../../components/GButton';
 import GTextButton from '../../../components/GTextButton/GTextButton';
-import {navigationContainerRef} from '../../../../App';
-import {CommonActions} from '@react-navigation/native';
 import {useAppSelector} from '../../../redux/store/storeUtils';
 import {useDispatch} from 'react-redux';
-import {add_pet} from '../../../redux/slices/petSlice';
+import {
+  add_pet,
+  edit_pet_api,
+  updatePetList,
+} from '../../../redux/slices/petSlice';
+import {buildPetFHIRResource} from '../../../helpers/buildPetFHIRResource';
 
 const MorePetDetails = ({navigation, route}) => {
-  const {choosePetDetail} = route?.params;
+  const {choosePetDetail, petDetails} = route?.params;
+  console.log('petDetailspetDetails', petDetails);
+  const userPetDetails = petDetails?.extension?.reduce((acc, item) => {
+    acc[item.title] = item.valueString;
+    return acc;
+  }, {});
 
   const insets = useSafeAreaInsets();
   const statusBarHeight = insets.top;
   const authState = useAppSelector(state => state.auth);
+  const petList = useAppSelector(state => state.pets?.petLists);
   const {t} = useTranslation();
   const [selectedId, setSelectedId] = useState(null);
   const [selectPlace, setSelectPlace] = useState(null);
   const handlePress = id => {
     setSelectedId(id);
   };
+
   const dispatch = useDispatch();
   const [formValue, setFormValue] = useState({
-    age: '',
-    microchip_number: '',
+    age: userPetDetails?.ageWhenNeutered || '',
+    microchip_number: userPetDetails?.microChipNumber || '',
     insured: '',
     company: '',
-    policy_number: '',
-    passport_number: '',
-    pert_comes_from: '',
+    policy_number: userPetDetails?.policyNumber || '',
+    passport_number: userPetDetails?.passportNumber || '',
+    pert_comes_from: userPetDetails?.petFrom || '',
   });
   const add_pet_hit = () => {
     let petData = {
-      userId: '678de8072c714fcc7e1e3bf0',
-      petType: 'Dog',
-      petBreed: 'Beagle',
-      petName: 'Wishky',
-      petDateOfBirth: '2023/01/15',
-      petCurrentWeight: '10Kg',
-      petColor: 'blue',
-      petBloodGroup: 'o',
-      isNeutered: 'Yes',
-      ageWhenNeutered: '1',
-      microChipNumber: '2455',
-      isInsured: 'yes',
-      insuranceCompany: 'abzza',
-      policyNumber: '2565',
-      passportNumber: '5655',
-      petFrom: 'breeder',
+      id: authState?.user?._id,
+      name: choosePetDetail?.name,
+      gender: choosePetDetail?.gender,
+      birthDate: choosePetDetail?.dob,
+      speciesDisplay: choosePetDetail?.petType,
+      breed: choosePetDetail?.petBreed,
+      genderStatusDisplay: choosePetDetail?.neutered,
+      weight: choosePetDetail?.weight,
+      color: choosePetDetail?.color,
+      bloodGroup: choosePetDetail?.blood_group,
+      ageWhenNeutered: formValue?.age,
+      microchipNumber: formValue?.microchip_number,
+      insuranceCompany: formValue?.insured,
+      policyNumber: formValue?.policy_number,
+      passportNumber: formValue?.passport_number,
+      origin: formValue?.pert_comes_from,
+      isInsured: formValue?.insured,
+      // files: choosePetDetail?.petImage,
     };
 
-    dispatch(add_pet(petData));
+    const fhirPayload = buildPetFHIRResource(petData);
+
+    const input = {
+      petId: petDetails?.id,
+      api_credentials: fhirPayload,
+    };
+
+    if (petDetails?.id) {
+      dispatch(edit_pet_api(input)).then(res => {
+        //  if (edit_pet_api.fulfilled.match(res)) {
+        //    const updatedBundle = {
+        //      ...petList,
+        //      total: petList.total + 1,
+        //      entry: [res?.payload, ...petList.entry],
+        //    };
+        //    dispatch(updatePetList(updatedBundle));
+        //  }
+      });
+    } else {
+      dispatch(add_pet(fhirPayload)).then(res => {
+        if (add_pet.fulfilled.match(res)) {
+          const updatedBundle = {
+            ...petList,
+            total: petList.total + 1,
+            entry: [res?.payload, ...petList.entry],
+          };
+          dispatch(updatePetList(updatedBundle));
+        }
+      });
+    }
   };
 
   const insured = [
@@ -153,7 +194,14 @@ const MorePetDetails = ({navigation, route}) => {
         </View>
         <View style={styles.petProfileContainer}>
           <View style={{}}>
-            <Image source={Images.Kizi} style={styles.petImg} />
+            <Image
+              source={
+                choosePetDetail?.petImage
+                  ? {uri: choosePetDetail?.petImage}
+                  : Images.Kizi
+              }
+              style={styles.petImg}
+            />
             <TouchableOpacity style={styles.cameraView}>
               <Image source={Images.ProfileCamera} style={styles.cameraImg} />
             </TouchableOpacity>
@@ -270,7 +318,7 @@ const MorePetDetails = ({navigation, route}) => {
           />
           <Input
             value={formValue.passport_number}
-            label={t('passport_string')}
+            label={t('passport_number_string')}
             onChangeText={value =>
               setFormValue({...formValue, passport_number: value})
             }

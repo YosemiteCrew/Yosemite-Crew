@@ -19,6 +19,7 @@
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = YosemiteCrewMobile/Info.plist; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = YosemiteCrewMobile/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		2837BEC12DAE2C090021DD88 /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = YosemiteCrewMobile/Images.xcassets; sourceTree = "<group>"; };
+		28B4E1692DB271AC0070EA17 /* YosemiteCrewMobile-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "YosemiteCrewMobile-Bridging-Header.h"; sourceTree = "<group>"; };
 		3B4392A12AC88292D35C810B /* Pods-YosemiteCrewMobile.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-YosemiteCrewMobile.debug.xcconfig"; path = "Target Support Files/Pods-YosemiteCrewMobile/Pods-YosemiteCrewMobile.debug.xcconfig"; sourceTree = "<group>"; };
 		5709B34CF0A7D63546082F79 /* Pods-YosemiteCrewMobile.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-YosemiteCrewMobile.release.xcconfig"; path = "Target Support Files/Pods-YosemiteCrewMobile/Pods-YosemiteCrewMobile.release.xcconfig"; sourceTree = "<group>"; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = YosemiteCrewMobile/AppDelegate.swift; sourceTree = "<group>"; };
@@ -44,6 +45,7 @@
 		13B07FAE1A68108700A75B9A /* YosemiteCrewMobile */ = {
 			isa = PBXGroup;
 			children = (
+				28B4E1692DB271AC0070EA17 /* YosemiteCrewMobile-Bridging-Header.h */,
 				2837BEC12DAE2C090021DD88 /* Images.xcassets */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
@@ -280,6 +282,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.yosemite.crew;
 				PRODUCT_NAME = YosemiteCrewMobile;
+				"SWIFT_OBJC_BRIDGING_HEADER[arch=*]" = "YosemiteCrewMobile/YosemiteCrewMobile-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
@@ -308,6 +311,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.yosemite.crew;
 				PRODUCT_NAME = YosemiteCrewMobile;
+				"SWIFT_OBJC_BRIDGING_HEADER[arch=*]" = "YosemiteCrewMobile/YosemiteCrewMobile-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
 			};

@@ -42,7 +42,7 @@ export const get_time_slots_by_Month = createAsyncThunk(
 
       const response = await API({
         headers: {
-          'Content-Type': 'multipart/form-data',
+          // 'Content-Type': 'multipart/form-data',
         },
         route: `getTimeSlotsByMonth`,
         body: credentials,
