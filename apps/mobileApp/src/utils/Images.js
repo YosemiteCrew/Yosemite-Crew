@@ -199,3 +199,6 @@ export const dollarImage = require('../../assets/images/dollarImage.png');
 export const tickImage = require('../../assets/images/tickImage.png');
 export const petWalkImage = require('../../assets/images/petWalkImage.png');
 export const Emergency = require('../../assets/images/emergency.png');
+export const DashboardWelcome = require('../../assets/images/dashboardWelcome.png');
+export const PawImage = require('../../assets/images/foundation_paw.png');
+export const solarCircle = require('../../assets/images/solar_add-circle-bold.png');

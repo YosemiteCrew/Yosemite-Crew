@@ -28,6 +28,7 @@ const GImage = ({
   fullImageStyle,
   content,
   borderRadius,
+  noImageSource,
 }) => {
   const [profileIcon, setProfileIcon] = useState('');
 
@@ -76,7 +77,11 @@ const GImage = ({
         </ImageBackground>
       ) : (
         <FastImage
-          source={imageSource}
+          source={
+            imageSource?.uri
+              ? {uri: imageSource?.uri?.split('?')[0]}
+              : noImageSource
+          }
           defaultSource={defaultImage}
           resizeMode={resizeMode || FastImage.resizeMode.cover}
           style={[styles.imageStyle, style]}

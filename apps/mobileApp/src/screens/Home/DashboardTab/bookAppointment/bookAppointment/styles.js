@@ -69,6 +69,7 @@ export const styles = StyleSheet.create({
   imgStyle: {
     width: scaledValue(60),
     height: scaledValue(60),
+    borderRadius: scaledValue(30),
   },
   petItem: {
     alignItems: 'center',
@@ -76,7 +77,7 @@ export const styles = StyleSheet.create({
   petListContainer: {
     flexDirection: 'row',
     marginTop: scaledValue(16),
-    gap: scaledValue(12),
+    rowGap: scaledValue(12),
     paddingHorizontal: scaledValue(19),
   },
   professionalButton: {
@@ -122,7 +123,10 @@ export const styles = StyleSheet.create({
   slotTime: (pickSlotTime, item) => ({
     fontSize: scaledValue(13),
     lineHeight: scaledHeightValue(15.6),
-    color: pickSlotTime === item?.slot?.time ? colors.white : colors.jetBlack,
+    color:
+      pickSlotTime === item?.resource?.slotTime
+        ? colors.white
+        : colors.jetBlack,
     textAlign: 'center',
     opacity: item?.booked ? 0.4 : 1,
   }),
@@ -189,11 +193,11 @@ export const styles = StyleSheet.create({
     marginLeft: scaledValue(20),
   },
   slotCard: (pickSlot, item) => ({
-    backgroundColor: pickSlot === item?.date ? colors.appRed : '#FFF6EB',
+    backgroundColor: pickSlot === item?.code?.date ? colors.appRed : '#FFF6EB',
     width: scaledValue(64),
     borderRadius: scaledValue(8),
     alignItems: 'center',
-    opacity: item?.availableSlotsCount === 0 && 0.5,
+    opacity: item?.valueInteger === 0 && 0.5,
     shadowColor: '#47382726',
     shadowOffset: {width: 1, height: 5},
     shadowOpacity: 0.3,
@@ -210,7 +214,7 @@ export const styles = StyleSheet.create({
   },
   slotTimeCard: (pickSlotTime, i) => ({
     backgroundColor:
-      pickSlotTime === i?.slot?.time ? colors.appRed : 'transparent',
+      pickSlotTime === i?.resource?.slotTime ? colors.appRed : 'transparent',
     borderRadius: scaledValue(8),
     height: scaledValue(40),
     justifyContent: 'center',
@@ -219,13 +223,13 @@ export const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 8,
-    borderWidth: i?.booked
+    borderWidth: i?.isBooked
       ? scaledValue(0.5)
-      : pickSlotTime != i?.slot?.time
+      : pickSlotTime != i?.resource?.slotTime
       ? scaledValue(0.75)
       : 0,
     paddingHorizontal: scaledValue(11),
-    opacity: i?.booked && 0.4,
+    opacity: i?.isBooked && 0.4,
     borderColor: colors.jetBlack,
   }),
   timeContentContainer: {

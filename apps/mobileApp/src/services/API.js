@@ -16,7 +16,9 @@ export default async function API(props) {
 
   let method = props.method || 'GET';
   let body = props.body || {};
-  if (method == 'GET') {
+  if (method !== 'POST' && method !== 'PUT') {
+    console.log('cominghereURLMETHODs');
+
     let param = [];
     Object.entries(body).forEach(([key, value]) =>
       param.push(`${key}=${value}`),
@@ -28,18 +30,18 @@ export default async function API(props) {
 
   let multiPartData = props?.multiPart;
   const formData = new FormData();
-
   if (multiPartData) {
-    Object.keys(body).forEach(key => {
-      if (Array.isArray(body[key])) {
-        // Append each array element with the same key
-        body[key].forEach(item => {
-          formData.append(key, item);
-        });
-      } else {
-        formData.append(key, body[key]);
-      }
-    });
+    formData.append('data', JSON.stringify(body));
+    // Object.keys(body).forEach(key => {
+    //   if (Array.isArray(body[key])) {
+    //     // Append each array element with the same key
+    //     body[key].forEach(item => {
+    //       formData.append(key, item);
+    //     });
+    //   } else {
+    //     formData.append(key, body[key]);
+    //   }
+    // });
   }
 
   const authState = store.getState().auth;

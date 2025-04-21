@@ -39,6 +39,7 @@ import OptionMenuSheet from '../../../../../components/OptionMenuSheet';
 import {pick, types} from '@react-native-documents/picker';
 import MonthPicker from 'react-native-month-year-picker';
 import {showToast} from '../../../../../components/Toast';
+import GImage from '../../../../../components/GImage';
 
 const BookAppointment = ({navigation, route}) => {
   const {doctorDetail} = route?.params;
@@ -56,13 +57,11 @@ const BookAppointment = ({navigation, route}) => {
   const [reason, setReason] = useState('');
   const dispatch = useAppDispatch();
   const petList = useAppSelector(state => state.pets?.petLists);
-  console.log('petListpetList', petList);
 
   const [timeSlotsList, setTimeSlotsList] = useState([]);
   const [monthlySlotsLists, setMonthlySlotsLists] = useState([]);
 
   const [show, setShow] = useState(false);
-  console.log('pickSlotpickSlot', pickSlot);
 
   const showPicker = useCallback(value => setShow(value), []);
 
@@ -113,9 +112,11 @@ const BookAppointment = ({navigation, route}) => {
   };
 
   const handlePetSelection = pet => {
-    setSelectedPetId(
-      selectedPetId?.cognitoUserId === pet.cognitoUserId ? null : pet,
-    );
+    if (selectedPetId?.id === pet?.resource?.id) {
+      setSelectedPetId(null);
+    } else {
+      setSelectedPetId(pet?.resource);
+    }
   };
 
   const getTimeSlots = date => {
@@ -125,7 +126,9 @@ const BookAppointment = ({navigation, route}) => {
     };
     dispatch(get_time_slots_by_date(api_credentials)).then(res => {
       if (get_time_slots_by_date.fulfilled.match(res)) {
-        setTimeSlotsList(res.payload?.data);
+        console.log('getTimeSlots0123', JSON.stringify(res.payload));
+
+        setTimeSlotsList(res.payload?.entry);
       }
     });
   };
@@ -139,9 +142,10 @@ const BookAppointment = ({navigation, route}) => {
     };
     dispatch(get_time_slots_by_Month(api_credentials)).then(res => {
       if (get_time_slots_by_Month.fulfilled.match(res)) {
-        const filterMonthlySlotsLists = res?.payload?.filter(
-          item => item.date >= currentDate,
-        );
+        const filterMonthlySlotsLists =
+          res?.payload?.entry[1]?.resource?.component?.filter(
+            item => item?.code?.date >= currentDate,
+          );
 
         setMonthlySlotsLists(filterMonthlySlotsLists);
         const firstAvailableSlot = filterMonthlySlotsLists?.find(
@@ -264,18 +268,43 @@ const BookAppointment = ({navigation, route}) => {
         </View>
 
         <View style={styles.petListContainer}>
-          {petList.map((item, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[
-                styles.petItem,
-                {opacity: selectedPetId?._id === item._id ? 0.5 : 1},
-              ]}
-              onPress={() => handlePetSelection(item)}>
-              <Image source={Images.Kizi} style={styles.imgStyle} />
-              <GText SatoshiBold text={item.petName} style={styles.petTitle} />
-            </TouchableOpacity>
-          ))}
+          <ScrollView
+            contentContainerStyle={{gap: scaledValue(12)}}
+            horizontal
+            showsHorizontalScrollIndicator={false}>
+            {petList?.entry?.map((item, index) => {
+              const petDetails = item?.resource?.extension?.reduce(
+                (acc, item) => {
+                  acc[item.title] = item.valueString;
+                  return acc;
+                },
+                {},
+              );
+              return (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.petItem,
+                    {
+                      opacity:
+                        selectedPetId?.id === item?.resource?.id ? 0.5 : 1,
+                    },
+                  ]}
+                  onPress={() => handlePetSelection(item)}>
+                  <GImage
+                    image={petDetails?.petImage}
+                    style={styles.imgStyle}
+                    noImageSource={Images.Kizi}
+                  />
+                  <GText
+                    SatoshiBold
+                    text={item.petName}
+                    style={styles.petTitle}
+                  />
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
         </View>
 
         <View style={styles.headerContainer}>
@@ -312,29 +341,32 @@ const BookAppointment = ({navigation, route}) => {
             contentContainerStyle={{gap: scaledValue(8)}}
             showsHorizontalScrollIndicator={false}
             renderItem={({item}) => {
-              const {shortDayName, dateNumber} = getShortDayAndDate(item?.date);
+              const {shortDayName, dateNumber} = getShortDayAndDate(
+                item?.code?.date,
+              );
+
               return (
                 <TouchableOpacity
-                  disabled={item?.availableSlotsCount === 0}
+                  disabled={item?.valueInteger === 0}
                   onPress={() => {
-                    setPickSlot(item?.date);
+                    setPickSlot(item?.code?.date);
                     setPickSlotTime();
                   }}
                   style={styles.slotCard(pickSlot, item)}>
                   <GText
                     SatoshiBold
                     text={shortDayName}
-                    style={styles.dayText(pickSlot, item?.date)}
+                    style={styles.dayText(pickSlot, item?.code?.date)}
                   />
                   <GText
                     GrMedium
                     text={dateNumber}
-                    style={styles.dateText(pickSlot, item?.date)}
+                    style={styles.dateText(pickSlot, item?.code?.date)}
                   />
                   <GText
                     SatoshiBold
-                    text={item?.availableSlotsCount || 'N/A'}
-                    style={styles.slotText(pickSlot, item?.date)}
+                    text={item?.valueInteger || 'N/A'}
+                    style={styles.slotText(pickSlot, item?.code?.date)}
                   />
                 </TouchableOpacity>
               );
@@ -347,12 +379,12 @@ const BookAppointment = ({navigation, route}) => {
               <TouchableOpacity
                 key={index}
                 disabled={item?.booked}
-                onPress={() => setPickSlotTime(item?.slot)}
-                style={styles.slotTimeCard(pickSlotTime?.time, item)}>
+                onPress={() => setPickSlotTime(item?.resource)}
+                style={styles.slotTimeCard(pickSlotTime?.slotTime, item)}>
                 <GText
                   SatoshiBold
-                  text={item?.slot?.time}
-                  style={styles.slotTime(pickSlotTime?.time, item)}
+                  text={item?.resource?.slotTime}
+                  style={styles.slotTime(pickSlotTime?.slotTime, item)}
                 />
               </TouchableOpacity>
             ))}
