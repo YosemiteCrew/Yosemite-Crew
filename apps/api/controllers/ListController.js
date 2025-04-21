@@ -13,10 +13,10 @@ class ListController {
     
         try {
           const doctors = await DoctorService.getDoctorsByBusinessAndDepartment(businessId, departmentId);
-          res.status(200).json(doctors);
+          return res.status(200).json({status: 1, data: doctors});
         } catch (error) {
           console.error(error);
-          res.status(500).json({ error: error.message || "Failed to fetch doctors." });
+          res.status(200).json({  status: 0, error: error.message || "Failed to fetch doctors." });
         }
       }
   
@@ -36,7 +36,7 @@ class ListController {
           });
         } catch (error) {
           console.error("Doctor fetch error:", error);
-          res.status(500).json({ status: 0, error: "Error fetching doctors and appointments." });
+          res.status(200).json({ status: 0, error: "Error fetching doctors and appointments." });
         }
       }
 
@@ -47,7 +47,7 @@ class ListController {
         const parsedLimit = parseInt(limit);
         const allowedTypes = ['Hospital', 'Clinic', 'Breeding Facility','Pet Sitter','Groomer Shop'];
         if (BusinessType && !allowedTypes.includes(BusinessType)) {
-            return res.status(400).json({ error: 'Invalid BusinessType' });
+            return res.status(200).json({ status: 0, error: 'Invalid BusinessType' });
         }
         const sanitizedBusinessType = allowedTypes.find(type => type === BusinessType);
         const formatKey = (str) => str.replace(/\s+/g, '').replace(/^./, (c) => c.toLowerCase());
@@ -93,7 +93,7 @@ class ListController {
 
             if (sanitizedBusinessType === 'Hospital') await fetchDepartmentsAndRating(getLists);
 
-            return res.status(200).json({ [formattedKey]: getLists, count: totalCount });
+            return res.status(200).json({ status: 1, [formattedKey]: getLists, count: totalCount });
         }
 
         const allTypes = await WebUser.distinct('businessType');
@@ -117,10 +117,10 @@ class ListController {
             allData[formattedKey] = { data: list, count: totalCount };
         }));
 
-        res.status(200).json(allData);
+        res.status(200).json({ status: 1, data: allData });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(200).json({ status: 0,error: 'Internal server error' });
     }
 }  
 

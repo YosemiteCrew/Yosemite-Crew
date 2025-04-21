@@ -5,7 +5,7 @@ const baseUrl = process.env.BASE_URL;
 class DoctorService {
   static async getDoctorsByBusinessAndDepartment(businessId, departmentId) {
     if (!mongoose.Types.ObjectId.isValid(departmentId)) {
-      throw new Error("Invalid department ID");
+      return res.status(200).json({  status: 0, message: 'Invalid department ID' });
     }
     const specializationId = departmentId; 
     const doctors = await AddDoctors.aggregate([
@@ -87,7 +87,7 @@ class DoctorService {
   
     return {
       resourceType: "Practitioner",
-      id: doc._id.toString(),
+      id: doc.userId,
       name: [
         {
           text: fullName
