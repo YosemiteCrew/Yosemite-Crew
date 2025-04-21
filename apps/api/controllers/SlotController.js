@@ -3,7 +3,6 @@ const MonthlySlotService = require("../services/MonthlySlotService");
 const  FHIRSlotValidator  = require('../validators/FHIRSlotValidator');
 const  MonthlySlotValidator  = require('../validators/MonthlySlotValidator');
 const FHIRValidator = require("../validators/FHIRValidator");
-const mongoose = require('mongoose');
 
 class SlotController {
   static async handlegetTimeSlots(req, res) {
@@ -12,34 +11,37 @@ class SlotController {
     const { appointmentDate, doctorId } = req.params;
  
       if (!appointmentDate || !doctorId) {
-        return res.status(400).json({
+        return res.status(200).json({
           issue: [{
+            status: 0,
             severity: "error",
             code: "invalid",
             details: { text: "Appointment date and doctor ID are required" }
           }]
         });
       }
-    if (!mongoose.Types.ObjectId.isValid(doctorId)) {
-      throw new Error("Invalid doctor ID");
-    }
-
+ 
+    if (typeof doctorId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(doctorId)) {
+          return res.status(200).json({  status: 0, message: 'Invalid doctor ID' });
+     }
       const result = await SlotService.getAvailableTimeSlots({ appointmentDate, doctorId });
       const validationErrors = FHIRSlotValidator.validateBundle(result);
     if (validationErrors.length > 0) {
-      return res.status(400).json({
+      return res.status(200).json({
         issue: validationErrors.map(msg => ({
+          status: 0,
           severity: "error",
           code: "invalid",
           details: { text: msg }
         }))
       });
     }
-      return res.status(200).json(result);
+      return res.status(200).json({status: 1, data: result});
     } catch (error) {
       console.error("SlotController Error:", error);
-      return res.status(500).json({
+      return res.status(200).json({
         issue: [{
+          status: 0,
           severity: "error",
           code: "exception",
           details: { text: "Error while fetching time slots", diagnostics: error.message }
@@ -51,11 +53,15 @@ class SlotController {
   static async handleTimeSlotsByMonth(req, res) {
    
     const { slotMonth , slotYear , doctorId } = req.params;
+    
+    if (typeof doctorId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(doctorId)) {
+      return res.status(200).json({ status: 0,  message: 'Invalid doctor ID' });
+    }
 
       const issues = MonthlySlotValidator.validateRequest({ doctorId, slotMonth, slotYear });
 
     if (issues.length > 0) {
-      return res.status(400).json({ issue: issues });
+      return res.status(200).json({ status: 0, issue: issues });
     }
     
     try {
@@ -64,10 +70,9 @@ class SlotController {
       const fhirIssues = FHIRValidator.validateFHIRBundle(result);
 
       if (fhirIssues.length > 0) {
-        return res.status(400).json({ issue: fhirIssues });
+        return res.status(200).json({ status: 0, issue: fhirIssues });
       }
-
-      return res.json(result);
+      return res.status(200).json({status: 1, data: result});
     } catch (error) {
       console.error("MonthlySlotController Error:", error);
       return res.status(500).json({ error: "Internal Server Error" });

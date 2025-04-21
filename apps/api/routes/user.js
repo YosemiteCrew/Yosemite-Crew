@@ -7,6 +7,7 @@ const AppointmentController = require('../controllers/AppointmentController');
 const SlotController = require('../controllers/SlotController');
 const FeedbackController = require('../controllers/FeedbackController');
 const DetailsController = require('../controllers/DetailsController');
+const ListController = require('../controllers/ListController');
 
 const { handleContactUs } = require("../controllers/contact");
 const {
@@ -33,11 +34,7 @@ const {
   handleEditSharedDuties,
   handleGetSharedDuties,
 } = require("../controllers/sharedDuties");
-const {
-  handleGetLists,
-  handlegetDoctorsLists,
-  handlegetDoctorsTeam
-} = require("../controllers/lists");
+
 const router = express.Router();
 const multer = require("multer");
 const fs = require('fs');
@@ -80,10 +77,10 @@ router.post("/Organization/addPetBoarding",verifyTokenAndRefresh, DetailsControl
 
 
 router.post("/sendquery", verifyTokenAndRefresh,handleContactUs);
-router.post("/getLists",handleGetLists);
-router.get("/Practitioners/getDoctorsLists/:businessId/:departmentId",handlegetDoctorsLists);
+router.get("/Practitioner/getLists/:BusinessType/:limit/:offset",ListController.handleGetLists);
+router.get("/Practitioner/getDoctorsLists/:businessId/:departmentId",verifyTokenAndRefresh,ListController.handlegetDoctorsList);
 
-router.post("/getDoctorsTeam",handlegetDoctorsTeam);
+router.get("/Practitioner/getDoctorsTeam/:businessId",verifyTokenAndRefresh,ListController.handleGetDoctorsTeam);
 router.post("/addVaccinationRecord",verifyTokenAndRefresh,handleAddVaccination);
 router.put("/editVaccinationRecord/:id", verifyTokenAndRefresh,handleEditVaccination);
 router.get("/getVaccinationRecord/:userId", verifyTokenAndRefresh,handleGetVaccination);
