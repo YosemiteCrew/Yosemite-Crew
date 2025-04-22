@@ -428,21 +428,24 @@ const WebController = {
     try {
       const { email, password } = req.body;
 
-      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
         return res.status(400).json({ message: "Invalid email address" });
       }
       
-      // Optional: sanitize (remove leading/trailing spaces)
-      const emails = email.trim().toLowerCase();
+      if (!password) {
+        return res.status(400).json({ message: "Invalid password" });
+      }
 
-
-      const getdata = await WebUser.findOne({ emails });
+      const cleanEmail = email.trim().toLowerCase();
+      
+      const getdata = await WebUser.findOne({ email: cleanEmail });
+      
       if (!getdata) {
         return res.status(404).json({ message: 'User not found' });
       } else {
         const hashedPassword = await bcrypt.hash(password, 10);
         await WebUser.updateOne(
-          { emails },
+          { email:cleanEmail },
           { $set: { password: hashedPassword } }
         );
         res.status(200).json({ message: 'Password updated successfully' });

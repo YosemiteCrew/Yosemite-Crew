@@ -15,6 +15,7 @@ const fileUpload = require('express-fileupload');
 const apointmentRoutes = require('./routes/appointmentRoutes');
 const hospitalRoutes = require('./routes/HospitalRoutes');
 const InventoryRoutes = require('./routes/InventoryRoutes');
+const adminInventory = require("./routes/AdminControllerRoutes");
 const cors = require('cors');
 const http = require('http'); // Import http module for Socket.IO
 const { Server } = require('socket.io'); // Import Socket.IO
@@ -61,7 +62,7 @@ const corsOptions = {
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Max 100 requests per IP
+  max: 1000, // Max 100 requests per IP
   message: 'Too many requests, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
@@ -94,7 +95,8 @@ app.use('/fhir/v1', doctorRoutes);
 app.use('/fhir/v1', apointmentRoutes);
 app.use('/fhir/v1', hospitalRoutes);
 app.use('/fhir/v1',authRoutes)
-
+app.use("/fhir/admin", adminInventory)
+app.use("/fhir/v1", InventoryRoutes)
 // Global error handler
 app.use((err, req, res, next) => {
   console.error('Error:', err.message);

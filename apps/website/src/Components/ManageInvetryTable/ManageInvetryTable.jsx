@@ -6,7 +6,7 @@ import { Button } from 'react-bootstrap';
 const ManageInvetryTable = ({
   inventoryData = [],
   actimg1,
-  actimg2,
+  // actimg2,
   currentPage,
   setCurrentPage,
   totalPages,
@@ -18,7 +18,7 @@ const ManageInvetryTable = ({
       setCurrentPage(currentPage + 1);
     }
   };
-
+console.log("inventoryDatasssss",inventoryData);
   const handlePrev = () => {
     if (currentPage > 1) {
       setCurrentPage(currentPage - 1);

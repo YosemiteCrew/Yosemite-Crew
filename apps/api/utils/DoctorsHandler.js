@@ -96,11 +96,18 @@ overviewConvertToFHIR() {
       { key: "availableDoctors", resourceType: "Appointment" },
       { key: "upcomingAppointments", resourceType: "Appointment" },
       { key: "newAppointments", resourceType: "Appointment"},
-      { key: "newPetsCount", resourceType:"Patient"}
+      { key: "newPetsCount", resourceType:"Patient"},
+      { key: "totalQuantity", resourceType:"Observation"},
+      { key:"totalValue", resourceType: "Observation"},
+      { key: "lowStockCount", resourceType:"Observation"},
+      { key: "outOfStockCount", resourceType: "Observation"}
   ];
   
+  
   overviewData.forEach(({ key, resourceType }) => {
-      let value = this.overview[key];
+    let value = this.overview[key];
+    console.log("overviewDatassssssssssssssssssssssssssssssssss",value);
+    
       if (value === undefined || value === null ) return; // Exclude missing values
       
       let id = key;
@@ -130,6 +137,10 @@ overviewConvertToFHIR() {
                         case "newAppointments":
                           case "upcomingAppointments":
                             case "newPetsCount":
+                              case "totalQuantity":
+                                case "totalValue":
+                                  case "lowStockCount":
+                                    case "outOfStockCount":
               resource[key] = value;
               break;
           default:
@@ -142,6 +153,57 @@ overviewConvertToFHIR() {
   return bundle;
 }
 
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<inventory overview >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+InventoryOverviewConvertToFHIR() {
+  const bundle = {
+    resourceType: "Bundle",
+    type: "collection",
+    entry: []
+  };
+
+  const overviewData = [
+    { key: "totalQuantity", resourceType:"Observation" },
+    { key: "totalValue", resourceType: "Observation" },
+    { key: "lowStockCount", resourceType:"Observation" },
+    { key: "outOfStockCount", resourceType: "Observation" }
+  ];
+
+  overviewData.forEach(({ key }) => {
+    const value = this.overview[key];
+    console.log("overviewDatassssssssssssssssssssssssssssssssss", value);
+    if (value === undefined || value === null) return;
+
+    const formattedKey = key.replace(/([A-Z])/g, " $1").trim();
+
+    const resource = {
+      resourceType: "Observation",
+      id: key,
+      status: "final",
+      code: {
+        coding: [
+          {
+            system: "http://example.org/fhir/inventory-metrics",
+            code: key,
+            display: formattedKey
+          }
+        ],
+        text: formattedKey
+      },
+      valueQuantity: {
+        value: value,
+        unit: "count"
+      },
+      text: {
+        status: "generated",
+        div: `<div>${formattedKey}: ${value}</div>`
+      }
+    };
+
+    bundle.entry.push({ resource });
+  });
+
+  return bundle; // 🔥 this line is the missing piece
+}
 
 
 
