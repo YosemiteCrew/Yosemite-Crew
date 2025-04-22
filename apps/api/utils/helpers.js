@@ -1,5 +1,5 @@
+const {  handleMultipleFileUpload } = require('../middlewares/upload');
 class helpers {
-
 static async calculateAge(date) {
     const dob = new Date(date);
     const diff = Date.now() - dob.getTime();
@@ -31,6 +31,11 @@ static async convertTo24Hour(timeStr) {
     if (modifier === "AM" && hours === "12") hours = "00";
     return `${hours}:${minutes}`;
   }
+
+  static async uploadFiles(files) {
+    const fileArray = Array.isArray(files) ? files : [files];
+    return await handleMultipleFileUpload(fileArray,'Images');
+  }  
   
 }
 module.exports = helpers;

@@ -102,9 +102,11 @@ const appointmentSchema = mongoose.Schema(
     cancelledBy:{
       type: String,
     },
-    document: {
-      type: [String],
-    },
+    document: [{
+      url: String,
+      originalname: String,
+      mimetype: String
+    }]
   },
   { timestamps: true }
 );
