@@ -1,7 +1,8 @@
 
-import React from "react";
+import React, { useCallback, useEffect, useState } from 'react';
 import "./AssessmentManagement.css";
 import { BoxDiv, DivHeading, ListSelect, TopHeading } from "../Dashboard/page";
+import { getData } from '../../services/apiService';
 // import Topic from "../../../../public/Images/topic.png";
 import PropTypes from "prop-types";
 // import box2 from "../../../../public/Images/box2.png"
@@ -9,7 +10,7 @@ import PropTypes from "prop-types";
 // import box5 from "../../../../public/Images/box5.png"
 // import Accpt from "../../../../public/Images/acpt.png";
 // import Decln from "../../../../public/Images/decline.png";
-import ActionsTable from "../../Components/ActionsTable/ActionsTable";
+import AssessmentsTable from "../../Components/ActionsTable/AssessmentsTable";
 import { AppointCard, CardHead, DashModal } from "../Appointment/page";
 // import btn1 from "../../../../public/Images/btn1.png"
 // import btn2 from "../../../../public/Images/btn2.png"
@@ -21,8 +22,24 @@ import { AppointCard, CardHead, DashModal } from "../Appointment/page";
 
 
 const AssessmentManagement = () => {
-    // dropdown 
+    // dropdown
   const optionsList1 = ['Last 7 Days', 'Last 10 Days', 'Last 20 Days', 'Last 21 Days'];
+
+  const [list, setList] = useState({});
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const data = await getData('fhir/v1/get-assessments');
+        setList(data);
+        console.log(list);
+      } catch (err) {
+        console.error('Failed to fetch users:', err);
+      }
+    };
+
+    fetchUsers();
+  }, []);
 
   return (
  
@@ -54,7 +71,7 @@ const AssessmentManagement = () => {
 
             <div>
                 <DivHeading TableHead="New Assessments" tablespan="(3)" />
-                <ActionsTable actimg1={`${import.meta.env.VITE_BASE_IMAGE_URL}/acpt.png`} actimg2={`${import.meta.env.VITE_BASE_IMAGE_URL}/decline.png`} />
+                <AssessmentsTable actimg1={`${import.meta.env.VITE_BASE_IMAGE_URL}/acpt.png`} actimg2={`${import.meta.env.VITE_BASE_IMAGE_URL}/decline.png`} />
             </div>
 
             <div className="AllAssesmentDiv">
@@ -97,13 +114,7 @@ const AssessmentManagement = () => {
                 </div>
 
 
-
             </div>
-
-            
-
-
-
 
             {/* Modal Component */}
             <AsstCateModal />

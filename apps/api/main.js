@@ -11,6 +11,7 @@ const fhirRoutes = require('./routes/fhirRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const doctorRoutes = require('./routes/addDoctorsRoutes');
 const authRoutes = require('./routes/authRoutes');
+const apiRoutes = require('./routes/apiRoutes');
 const fhir = require('./routes/authRoutes');
 const fileUpload = require('express-fileupload');
 const apointmentRoutes = require('./routes/appointmentRoutes');
@@ -96,6 +97,7 @@ app.use('/fhir/v1', doctorRoutes);
 app.use('/fhir/v1', apointmentRoutes);
 app.use('/fhir/v1', hospitalRoutes);
 app.use('/fhir/v1',authRoutes)
+app.use('/fhir/v1', apiRoutes);
 
 // Global error handler
 app.use((err, req, res, next) => {
