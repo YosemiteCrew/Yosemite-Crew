@@ -10,6 +10,34 @@ const AdminController = {
   AddInventoryCotegory: async (req, res) => {
     try {
       const { cotegory, bussinessId } = req.body;
+      if (typeof bussinessId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(bussinessId)) {
+        return res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "invalid",
+              details: { text: "Invalid bussinessId format" },
+            },
+          ],
+        });
+      }
+  
+      if (typeof cotegory !== "string" || cotegory.length < 2 || cotegory.length > 100) {
+        return res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "invalid",
+              details: { text: "Invalid cotegory name" },
+            },
+          ],
+        });
+      }
+  
+      cotegory = cotegory.trim().replace(/[^\w\s\-]/gi, '');
+
       const getItem = await InventoryCategory.findOne({
         cotegory,
         bussinessId,
@@ -38,6 +66,34 @@ const AdminController = {
   AddInventoryManufacturer: async (req, res) => {
     try {
       const { manufacturer, bussinessId } = req.body;
+
+      if (typeof bussinessId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(bussinessId)) {
+        return res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "invalid",
+              details: { text: "Invalid bussinessId format" },
+            },
+          ],
+        });
+      }
+  
+      if (typeof manufacturer !== "string" || manufacturer.length < 2 || manufacturer.length > 100) {
+        return res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "invalid",
+              details: { text: "Invalid manufacturer name" },
+            },
+          ],
+        });
+      }
+  
+      manufacturer = manufacturer.trim().replace(/[^\w\s\-]/gi, '');
 
       const getItem = await InventoryManufacturer.findOne({
         manufacturer,
@@ -69,6 +125,35 @@ const AdminController = {
   AddInventoryItemCotegory: async (req, res) => {
     try {
       const { itemCotegory, bussinessId } = req.body;
+      if (typeof bussinessId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(bussinessId)) {
+        return res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "invalid",
+              details: { text: "Invalid bussinessId format" },
+            },
+          ],
+        });
+      }
+  
+      if (typeof itemCotegory !== "string" || itemCotegory.length < 2 || itemCotegory.length > 100) {
+        return res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "invalid",
+              details: { text: "Invalid itemCotegory name" },
+            },
+          ],
+        });
+      }
+  
+      itemCotegory = itemCotegory.trim().replace(/[^\w\s\-]/gi, '');
+
+
       const getItem = await InventoryItemCategory.findOne({
         bussinessId,
         itemCotegory,

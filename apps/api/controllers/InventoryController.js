@@ -310,7 +310,7 @@ const InventoryControllers = {
             {
               severity: "error",
               code: "invalid",
-              details: { text: "Invalid userId (UUID) format" },
+              details: { text: "Invalid userId format" },
             },
           ],
         });
