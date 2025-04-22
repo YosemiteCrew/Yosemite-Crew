@@ -1049,23 +1049,28 @@ const HospitalController = {
     try {
       const { userId } = req.query;
 
-      // Fetch profile data
+      if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        return res.status(400).json({ message: 'Invalid doctorId format' });
+      }
       const profileData = await ProfileData.findOne(
         { userId },
         {
           _id: 0,
-          "address.addressLine1": 1,
-          "address.city": 1,
-          "address.street": 1,
-          "address.state": 1,
-          "address.zipCode": 1,
-          "address.email": 1,
+          address: {
+            addressLine1: 1,
+            city: 1,
+            street: 1,
+            state: 1,
+            zipCode: 1,
+            email: 1,
+          },
           phoneNumber: 1,
           businessName: 1,
           logo: 1,
           website: 1,
           selectedServices: 1,
         }
+        
       );
 
       if (profileData?.logo) {
@@ -1336,8 +1341,8 @@ const HospitalController = {
       case "AppointmentLists":
         if (req.method === "GET") {
           try {
-            const { organization, offset = 0, limit = 5 } = req.query;
-            console.log(req.query);
+            const { organization, offset = 0, limit  } = req.query;
+            console.log("req.query",  typeof limit);
 
             const hospitalId = organization.split("/")[1];
 

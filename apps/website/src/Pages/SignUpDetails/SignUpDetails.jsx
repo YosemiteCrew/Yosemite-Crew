@@ -85,11 +85,11 @@ const SignUpDetails = () => {
   const handleImageChange = (event) => {
     const file = event?.target?.files?.[0];
     if (!file) return;
-  
+
     // Only allow image file types
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
     if (!allowedTypes.includes(file.type)) {
-      alert('Only JPEG, PNG, and WEBP images are allowed.');
+      alert("Only JPEG, PNG, and WEBP images are allowed.");
       return;
     }
 
@@ -97,7 +97,6 @@ const SignUpDetails = () => {
     setPreImage(imageUrl);
     setImage(file);
   };
-  
 
   const servicesList = [
     { code: "E001", display: "24/7 Emergency Care" },
@@ -480,16 +479,27 @@ const SignUpDetails = () => {
 
   const [key, setKey] = useState("basic");
 
-  const isSafeImageSrc = (src) =>
-    typeof src === "string" &&
-    (src.startsWith("blob:") || src.startsWith("https://"));
+  const isSafeImageSrc = (src) => {
+    if (typeof src !== "string") return false;
+    try {
+      const url = new URL(src);
+      // Allow only specific protocols and trusted hostnames
+      return (
+        (url.protocol === "https:" || url.protocol === "blob:") &&
+        // Optional: whitelist hostnames if needed
+        // ["yourdomain.com", "trustedcdn.com"].includes(url.hostname)
+        true
+      );
+    } catch {
+      return false;
+    }
+  };
 
   const safeSrc = isSafeImageSrc(preImage)
     ? preImage
     : isSafeImageSrc(image)
       ? image
       : "";
-
   return (
     <section className="SignDetailsSec">
       <div className="container">
@@ -540,7 +550,7 @@ const SignUpDetails = () => {
                           <label htmlFor="logo-upload" className="upload-label">
                             {safeSrc ? (
                               <img
-                                src={safeSrc} // This will use preImage if available and safe, otherwise image if safe
+                                src={safeSrc}
                                 alt="Preview"
                                 className="preview-image"
                               />

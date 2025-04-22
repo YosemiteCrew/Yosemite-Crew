@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import './UplodeImage.css';
-// import Upload from '../../../../public/Images/uplode.png';
 
 const UplodeImage = ({ onFileChange, selectedFiles }) => {
   const [files, setFiles] = useState([]);
+  const [filePreviews, setFilePreviews] = useState([]);
 
   const handleFileChange = (e) => {
     const uploadedFiles = Array.from(e.target.files);
 
     if (uploadedFiles.length > 0) {
-      const updatedFiles = [...files, ...uploadedFiles]; // Append new files
+      const updatedFiles = [...files, ...uploadedFiles];
       setFiles(updatedFiles);
       onFileChange(updatedFiles);
     }
@@ -20,6 +20,16 @@ const UplodeImage = ({ onFileChange, selectedFiles }) => {
       setFiles(selectedFiles);
     }
   }, [selectedFiles]);
+
+  useEffect(() => {
+    const urls = files.map((file) => URL.createObjectURL(file));
+    setFilePreviews(urls);
+
+    return () => {
+      // Clean up blob URLs
+      urls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [files]);
 
   return (
     <div>
@@ -33,7 +43,7 @@ const UplodeImage = ({ onFileChange, selectedFiles }) => {
                 <div key={index} className="file-item">
                   {isImage ? (
                     <img
-                      src={URL.createObjectURL(file)}
+                      src={filePreviews[index]}
                       alt={`Preview ${index}`}
                       className="preview-image"
                     />
@@ -47,7 +57,10 @@ const UplodeImage = ({ onFileChange, selectedFiles }) => {
         ) : (
           <>
             <div className="upload-icon">
-              <img src={`${import.meta.env.VITE_BASE_IMAGE_URL}/uplode.png`} alt="Upload Icon" />
+              <img
+                src={`${import.meta.env.VITE_BASE_IMAGE_URL}/uplode.png`}
+                alt="Upload Icon"
+              />
             </div>
             <p className="upload-text">Upload files</p>
             <p className="file-info">

@@ -113,12 +113,12 @@ const Dashboard = () => {
   }, [userId, onLogout, navigate]);
 
   const getAllAppointments = useCallback(
-    async (offset) => {
+    async (offset,itemsPerPage) => {
      
       try {
         const token = sessionStorage.getItem("token");
         const response = await axios.get(
-          `${import.meta.env.VITE_BASE_URL}fhir/v1/Appointment?organization=Hospital/${userId}&offset=${offset}&type=${"AppointmentLists"}
+          `${import.meta.env.VITE_BASE_URL}fhir/v1/Appointment?organization=Hospital/${userId}&offset=${offset}&limit=${itemsPerPage}&type=${"AppointmentLists"}
 
         `,
           { headers: { Authorization: `Bearer ${token}` } }
@@ -167,7 +167,7 @@ const Dashboard = () => {
         });
       }
   
-      getAllAppointments(offset);
+      getAllAppointments(offset,6);
       // getlast7daysAppointMentsCount();
     } catch (error) {
       if (error.response && error.response.status === 401) {
@@ -187,7 +187,7 @@ const Dashboard = () => {
     if (userId) {
       AppointmentGraphOnMonthBase("Last 6 Months", userId);
       getOverView(userId);
-      getAllAppointments(0);
+      getAllAppointments(0,6);
     }
   }, [userId, AppointmentGraphOnMonthBase, getOverView, getAllAppointments]);
   const handleChangeAppointmentGraph = (value) => {
@@ -282,6 +282,7 @@ const Dashboard = () => {
               tablespan={`(${totalAppointments ? totalAppointments : 0})`}
             />
             <ActionsTable
+             total={totalAppointments}
               actimg1={`${import.meta.env.VITE_BASE_IMAGE_URL}/acpt.png`}
               actimg2={`${import.meta.env.VITE_BASE_IMAGE_URL}/decline.png`}
               onClick={getAllAppointments}

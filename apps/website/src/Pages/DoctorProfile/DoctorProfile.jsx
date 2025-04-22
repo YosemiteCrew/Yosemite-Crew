@@ -479,11 +479,21 @@ function PersonalInfo({ show, onHide, personalInfo, setPersonalInfo }) {
   const [image, setImage] = useState(null);
   // console.log("selectedType", selectedType);
 
-  const isSafeImageSrc = (src) =>
-    typeof src === "string" &&
-    (src.startsWith("blob:") || src.startsWith("https://"));
-
-  const safeSrc = isSafeImageSrc(image);
+  const isSafeImageSrc = (src) => {
+    if (typeof src !== "string") return false;
+    try {
+      const url = new URL(src);
+      return url.protocol === "blob:" || url.protocol === "https:";
+    } catch {
+      return false;
+    }
+  };
+  
+  const safeSrc = isSafeImageSrc(image) ? image : "";
+  const fallbackImage = isSafeImageSrc(personalInfo.image)
+    ? personalInfo.image
+    : `${import.meta.env.VITE_BASE_IMAGE_URL}/camera.png`;
+  
 
   const handleImageChange = (e) => {
     const { name, files } = e.target;
@@ -541,21 +551,18 @@ function PersonalInfo({ show, onHide, personalInfo, setPersonalInfo }) {
                 className="upload-label"
                 style={{ flexDirection: "row", gap: "10px" }}
               >
-                {safeSrc ? (
-                  <img src={image} alt="Preview" className="preview-image" />
-                ) : (
-                  <div className="upload-placeholder">
-                    <img
-                      src={
-                        personalInfo.image
-                          ? personalInfo.image
-                          : `${import.meta.env.VITE_BASE_IMAGE_URL}/camera.png`
-                      }
-                      alt="camera"
-                      className="icon"
-                    />
-                  </div>
-                )}
+               {safeSrc ? (
+  <img src={safeSrc} alt="Preview" className="preview-image" />
+) : (
+  <div className="upload-placeholder">
+    <img
+      src={fallbackImage}
+      alt="camera"
+      className="icon"
+    />
+  </div>
+)}
+
                 <h5>Change Profile Picture</h5>
               </label>
             </div>

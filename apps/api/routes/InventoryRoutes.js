@@ -4,10 +4,10 @@ const { verifyTokenAndRefresh } = require('../middlewares/authMiddleware');
 const router = express.Router();
 
 router.post('/addInventory',verifyTokenAndRefresh, InventoryControllers.AddInventory);
-router.get('/getInventory',verifyTokenAndRefresh, InventoryControllers.getInventory);
+router.get('/InventoryItem',verifyTokenAndRefresh, InventoryControllers.getInventory);
 router.post('/AddProcedurePackage',verifyTokenAndRefresh, InventoryControllers.AddProcedurePackage);
 router.get(
-  '/getToViewItemsDetaild',verifyTokenAndRefresh,
+  '/InventoryReport',verifyTokenAndRefresh,
   InventoryControllers.getToViewItemsDetaild
 );
 router.get('/getProceurePackage',verifyTokenAndRefresh, InventoryControllers.getProceurePackage);
@@ -19,5 +19,5 @@ router.delete(
 );
 router.delete('/deleteProcedurePackage',verifyTokenAndRefresh, InventoryControllers.deleteProcedurePackage);
 router.get('/getApproachngExpiryGraphs',verifyTokenAndRefresh,InventoryControllers.getApproachngExpiryGraphs)
-router.get('/inventoryOverView',verifyTokenAndRefresh,InventoryControllers.inventoryOverView)
+router.get('/InventoryReports',verifyTokenAndRefresh,InventoryControllers.inventoryOverView)
 module.exports = router;
