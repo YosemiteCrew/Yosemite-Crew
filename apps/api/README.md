@@ -1,4 +1,4 @@
-# YosemiteCrew Server
+# YosemiteCrew API
 
 ## Prerequisites
 
