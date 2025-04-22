@@ -1,49 +1,52 @@
 const { v4: uuidv4 } = require("uuid");
 class fhirAppointmentFormatter{
-static async formatAppointmentToFHIR({
-  appointmentDate,
-  appointmentTime24,
-  purposeOfVisit,
-  concernOfVisit,
-  petId,
-  doctorId,
-  petName,
-  document,
-}) {
-  return {
-    resourceType: "Appointment",
-    id: uuidv4(),
-    status: "booked",
-    description: purposeOfVisit,
-    start: new Date(`${appointmentDate}T${appointmentTime24}`).toISOString(),
-    created: new Date().toISOString(),
-    reasonCode: [{ text: concernOfVisit }],
-    participant: [
-      {
-        actor: {
-          reference: `Patient/${petId}`,
-          display: petName,
-        },
-        status: "accepted",
-      },
-      {
-        actor: {
-          reference: `Practitioner/${doctorId}`,
-          display: "Veterinarian",
-        },
-        status: "accepted",
-      },
-    ],
-    supportingInformation: document
-      ? [
-          {
-            reference: document,
-            display: "Attached Documents",
+
+  static async formatAppointmentToFHIR({
+    appointmentDate,
+    appointmentTime24,
+    purposeOfVisit,
+    concernOfVisit,
+    petId,
+    doctorId,
+    petName,
+    document,
+  }) {
+    console.log(document);
+  
+    return {
+      resourceType: "Appointment",
+      id: uuidv4(),
+      status: "booked",
+      description: purposeOfVisit,
+      start: new Date(`${appointmentDate}T${appointmentTime24}`).toISOString(),
+      created: new Date().toISOString(),
+      reasonCode: [{ text: concernOfVisit }],
+      participant: [
+        {
+          actor: {
+            reference: `Patient/${petId}`,
+            display: petName,
           },
-        ]
-      : [],
-  };
-}
+          status: "accepted",
+        },
+        {
+          actor: {
+            reference: `Practitioner/${doctorId}`,
+            display: "Veterinarian",
+          },
+          status: "accepted",
+        },
+      ],
+      supportingInformation: Array.isArray(document)
+        ? document.map((doc, index) => ({
+            reference: doc.url,
+            display: doc.originalname || `Document ${index + 1}`,
+          }))
+        : [],
+    };
+  }
+  
+
 
 static toFHIR(appointment,baseUrl) {
   return {
