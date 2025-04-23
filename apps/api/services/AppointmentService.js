@@ -9,7 +9,7 @@ const { ProfileData }= require('../models/WebUser');
 const departments =  require('../models/AddDepartment');
 const DoctorsTimeSlotes  = require('../models/DoctorsSlotes');
 const helpers = require('../utils/helpers');
-const mongoose = require('mongoose');
+const { mongoose } = require('mongoose');
 
 class appointmentService {
 static async bookAppointment(data) {
@@ -39,7 +39,19 @@ static async fetchAppointments(req) {
     const cognitoUserId = getCognitoUserId(req);
     const today = new Date().toISOString().split("T")[0];
 
-    const allAppointments = await webAppointments.find({ userId: cognitoUserId }).lean();
+    // Extract limit and offset from query (or use defaults)
+    const limit = parseInt(req.params.limit) || 10;
+    const offset = parseInt(req.params.offset) || 0;
+
+    // Fetch total count (optional, but good for frontend pagination)
+    const totalCount = await webAppointments.countDocuments({ userId: cognitoUserId });
+
+    // Apply pagination
+    const allAppointments = await webAppointments
+      .find({ userId: cognitoUserId })
+      .skip(offset)
+      .limit(limit)
+      .lean();
 
     const confirmed = [], upcoming = [], past = [];
     const vetIds = new Set(), petIds = new Set(), hospitalIds = new Set();
@@ -62,15 +74,14 @@ static async fetchAppointments(req) {
 
     const toObjectIdSafe = (id) => {
       try {
-        return new mongoose.Types.ObjectId(id);
+        return new mongoose.Types.ObjectId(id); 
       } catch {
         return null;
       }
     };
 
     const objectPetIds = [...petIds].map(toObjectIdSafe).filter(Boolean);
-    const objectSpecializationIds = [];
-    
+
     const [vets, pets, hospitals] = await Promise.all([
       vetIds.size
         ? adddoctors.find({ userId: { $in: [...vetIds] } })
@@ -79,7 +90,7 @@ static async fetchAppointments(req) {
         : [],
       objectPetIds.length
         ? yoshpets.find({ _id: { $in: objectPetIds } })
-            .select("_id petName")
+            .select("_id petName petImage")
             .lean()
         : [],
       hospitalIds.size
@@ -88,6 +99,7 @@ static async fetchAppointments(req) {
             .lean()
         : []
     ]);
+
     const specializationIds = vets
       .map(v => v.professionalBackground?.specialization)
       .filter(Boolean)
@@ -113,22 +125,27 @@ static async fetchAppointments(req) {
       ])
     );
 
-    const petMap = Object.fromEntries(pets.map(p => [p._id.toString(), p.petName || null]));
+    const petMap = Object.fromEntries(
+      pets.map(p => [p._id.toString(), {
+        petName: p.petName || null,
+        petImage: p.petImage || null,
+      }])
+    );
 
     const hospitalMap = Object.fromEntries(
-      hospitals.map(h => [
-        h.userId,
-        {
-          name: h.businessName || null,
-          latitude: h.address?.latitude || null,
-          longitude: h.address?.longitude || null
-        }
-      ])
+      hospitals.map(h => [h.userId, {
+        name: h.businessName || null,
+        latitude: h.address?.latitude || null,
+        longitude: h.address?.longitude || null
+      }])
     );
 
     const toFHIR = (app) => FHIRService.convertAppointmentToFHIR(app, vetMap, petMap, hospitalMap);
 
     return {
+      total: totalCount,
+      limit,
+      offset,
       allAppointments: allAppointments.map(toFHIR),
       confirmedAppointments: confirmed.map(toFHIR),
       upcomingAppointments: upcoming.map(toFHIR),

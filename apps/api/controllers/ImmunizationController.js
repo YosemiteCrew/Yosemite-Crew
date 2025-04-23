@@ -40,14 +40,21 @@ class ImmunizationController {
   static async handleGetVaccination(req, res) {
     try {
       const userId = getCognitoUserId(req);
-      const results = await VaccinationService.getVaccinationsByUserId(userId);
+      const limit = parseInt(req.params.limit) || 10;
+      const offset = parseInt(req.params.offset) || 0;
+      const petId = req.params.petId;
+  
+      const results = await VaccinationService.getVaccinationsByUserId(userId, limit, offset, petId);
+  
       if (results.length === 0) {
         return res.status(200).json({ status: 0, message: "No vaccination record found for this user" });
       }
+  
       const fhirBundle = FHIRMapper.toFHIRBundle(results);
-       return  res.status(200).json({status: 1, data: fhirBundle});
+      return res.status(200).json({ status: 1, data: fhirBundle });
     } catch (err) {
-      return res.status(200).json({ status: 0, message: "Internal Server Error" });
+      console.error(err);
+      return res.status(500).json({ status: 0, message: "Internal Server Error" });
     }
   }
 
@@ -92,7 +99,43 @@ class ImmunizationController {
       res.status(200).json({ status: 0, message: "Error updating vaccination record", error: error.message });
     }
   }
+
+  static async handleDeleteVaccinationRecord(req, res) {
+    try {
+      const id = req.params.recordId;
+      const result = await VaccinationService.deleteVaccinationRecord(id);
   
+      if (result.deletedCount === 0) {
+        return res.status(200).json({ status: 0, message: "Vaccination record not found" });
+      }
+  
+      return res.status(200).json({ status: 1, message: "Vaccination record deleted successfully" });
+    } catch (error) {
+      console.error("Error while deleting vaccination record:", error.message);
+      const status = error.message === "Invalid Vaccination ID" ? 400 : 500;
+      return res.status(status).json({ status: 0, message: error.message });
+    }
+  }
+  
+   
+  static async recentVaccinationRecord(req, res) {
+    try {
+      const userId = getCognitoUserId(req);
+      const limit = parseInt(req.params.limit) || 10;
+      const offset = parseInt(req.params.offset) || 0;
+      const results = await VaccinationService.getRecentVaccinationsReocrds(userId, limit, offset);
+  
+      if (results.length === 0) {
+        return res.status(200).json({ status: 0, message: "No vaccination record found for this user" });
+      }
+  
+      const fhirBundle = FHIRMapper.toFHIRBundle(results);
+      return res.status(200).json({ status: 1, data: fhirBundle });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ status: 0, message: "Internal Server Error" });
+    }
+  } 
 
 }
 module.exports = ImmunizationController;

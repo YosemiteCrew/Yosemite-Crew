@@ -56,7 +56,7 @@ router.put("/Patient/editPet/:Petid", verifyTokenAndRefresh, PetController.handl
 router.get("/Patient/getPets/:limit/:offset", verifyTokenAndRefresh,PetController.handleGetPet);
 router.delete("/Patient/deletepet/:Petid", verifyTokenAndRefresh, PetController.handleDeletePet);
 router.post("/bookAppointment",verifyTokenAndRefresh, AppointmentController.handleBookAppointment);
-router.get("/getappointments", verifyTokenAndRefresh, AppointmentController.handleGetAppointment);
+router.get("/getappointments/:limit/:offset", verifyTokenAndRefresh, AppointmentController.handleGetAppointment);
 router.put("/cancelappointment/:appointmentID", verifyTokenAndRefresh, AppointmentController.handleCancelAppointment);
 router.put("/rescheduleAppointment/:appointmentID",verifyTokenAndRefresh, AppointmentController.handleRescheduleAppointment);
 router.get("/Slot/getTimeSlots/:appointmentDate/:doctorId", verifyTokenAndRefresh, SlotController.handlegetTimeSlots);
@@ -76,12 +76,14 @@ router.post("/Organization/addPetBoarding",verifyTokenAndRefresh, DetailsControl
 router.post("/sendquery", verifyTokenAndRefresh,handleContactUs);
 router.get("/Practitioner/getLists/:BusinessType/:limit/:offset",ListController.handleGetLists);
 router.get("/Practitioner/getDoctorsLists/:businessId/:departmentId",verifyTokenAndRefresh,ListController.handlegetDoctorsList);
-
 router.get("/Practitioner/getDoctorsTeam/:businessId",verifyTokenAndRefresh,ListController.handleGetDoctorsTeam);
 
 router.post("/Immunization/addVaccinationRecord",verifyTokenAndRefresh,ImmunizationController.handlecreateImmunization);
 router.put("/Immunization/editVaccinationRecord/:recordId", verifyTokenAndRefresh,ImmunizationController.handleEditVaccination);
-router.get("/Immunization/getVaccinationRecord", verifyTokenAndRefresh,ImmunizationController.handleGetVaccination);
+router.get("/Immunization/getVaccinationRecord/:petId/:limit/:offset", verifyTokenAndRefresh,ImmunizationController.handleGetVaccination);
+router.delete("/Immunization/deleteVaccinationRecord/:recordId",verifyTokenAndRefresh,ImmunizationController.handleDeleteVaccinationRecord);
+router.get("/Immunization/recentVaccinationRecords/:limit/:offset", verifyTokenAndRefresh,ImmunizationController.recentVaccinationRecord);
+
 router.post("/saveExercisePlan",verifyTokenAndRefresh, handleExercisePlan);
 router.get("/getexercise-list/:userId",verifyTokenAndRefresh, handleGetExercisePlan);
 router.post("/savepainjournal",verifyTokenAndRefresh, handleAddPainJournal);

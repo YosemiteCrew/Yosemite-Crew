@@ -7,9 +7,8 @@ const FHIRValidator = require("../validators/FHIRValidator");
 class SlotController {
   static async handlegetTimeSlots(req, res) {
     try {
-     
-    const { appointmentDate, doctorId } = req.params;
- 
+      const { appointmentDate, doctorId } = req.params;
+  
       if (!appointmentDate || !doctorId) {
         return res.status(200).json({
           issue: [{
@@ -20,25 +19,37 @@ class SlotController {
           }]
         });
       }
- 
-    if (typeof doctorId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(doctorId)) {
-          return res.status(200).json({  status: 0, message: 'Invalid doctor ID' });
-     }
-      const result = await SlotService.getAvailableTimeSlots({ appointmentDate, doctorId });
+  
+      if (typeof doctorId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(doctorId)) {
+        return res.status(200).json({ status: 0, message: 'Invalid doctor ID' });
+      }
+  
+      let result = await SlotService.getAvailableTimeSlots({ appointmentDate, doctorId });
+  
+      const today = new Date().toISOString().split('T')[0];
+      if (appointmentDate === today) {
+        const now = new Date();
+        result.entry = result.entry?.filter(slot => {
+          const startTime = new Date(slot.resource.start);
+          return startTime > now;
+        });
+      }
+  
       const validationErrors = FHIRSlotValidator.validateBundle(result);
-    if (validationErrors.length > 0) {
-      return res.status(200).json({
-        issue: validationErrors.map(msg => ({
-          status: 0,
-          severity: "error",
-          code: "invalid",
-          details: { text: msg }
-        }))
-      });
-    }
-      return res.status(200).json({status: 1, data: result});
+      if (validationErrors.length > 0) {
+        return res.status(200).json({
+          issue: validationErrors.map(msg => ({
+            status: 0,
+            severity: "error",
+            code: "invalid",
+            details: { text: msg }
+          }))
+        });
+      }
+  
+      return res.status(200).json({ status: 1, data: result });
+  
     } catch (error) {
-      console.error("SlotController Error:", error);
       return res.status(200).json({
         issue: [{
           status: 0,
@@ -49,6 +60,7 @@ class SlotController {
       });
     }
   }
+  
 
   static async handleTimeSlotsByMonth(req, res) {
    
