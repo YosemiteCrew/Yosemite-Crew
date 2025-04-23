@@ -62,6 +62,13 @@
     color: var(--chilli-red);
     margin: 0;
 }
+.Chatmessages .message img {
+    width: 100%;
+    min-height: 110px;
+    max-height: 110px;
+    object-fit: cover;
+    object-position: center;
+}
 .Chatmessages .message p {
     font-size: 15px;
     font-weight: 400;
@@ -174,11 +181,11 @@
 .mostly_scrollbar::-webkit-scrollbar {
     width: 5px;
     height: 8px;
-    background-color: var(--chilli-red); 
+    background-color: #D041221A; 
 }
 /* Add a thumb (scrolling handle) */
 .mostly_scrollbar::-webkit-scrollbar-thumb {
-    background: var(--black-text); 
+    background: var(--chilli-red); 
     border-radius: 10px; 
 }
 .EndBtn p{

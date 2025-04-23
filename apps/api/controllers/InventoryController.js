@@ -1,55 +1,65 @@
-const { default: mongoose } = require('mongoose');
-const { Inventory, ProcedurePackage } = require('../models/Inventory');
-
+const { default: mongoose } = require("mongoose");
+const { Inventory, ProcedurePackage } = require("../models/Inventory");
+const FHIRConverter = require("../utils/DoctorsHandler");
+const { validateFHIR } = require("../Fhirvalidator/FhirValidator");
+const {
+  ProductCategoryFHIRConverter,
+  InventoryBundleFHIRConverter,
+  InventoryFHIRConverter,
+  ApproachingExpiryReportConverter,
+} = require("../utils/InventoryFhirHandler");
+const {
+  InventoryCategory,
+  InventoryItemCategory,
+  InventoryManufacturer,
+} = require("../models/AddInventoryCotegory");
+const { Fhir } = require("fhir");
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Add Inventory >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
+const { ObjectId } = require("mongoose").Types;
 const InventoryControllers = {
   AddInventory: async (req, res) => {
     try {
-      const { userId } = req.query;
-      const {
-        category,
-        barcode,
-        itemName,
-        genericName,
-        manufacturer,
-        itemCategory,
-        batchNumber,
-        sku,
-        strength,
-        quantity,
-        manufacturerPrice,
-        markup,
-        price,
-        stockReorderLevel,
-        expiryDate,
-      } = req.body;
+      const { expiryDate } = req.body;
+
+      console.log(
+        "ijijijijijijijijijijijijij",
+        JSON.stringify(req.body, null, 2)
+      );
+      const respon = new ProductCategoryFHIRConverter(
+        req.body
+      ).convertToNormalToAddInventoryData();
+      console.log("resssssss", respon);
+
+      const getbarcode = await Inventory.findOne({ barcode: respon.barcode });
+      if (getbarcode) {
+        return res
+          .status(400)
+          .send({ message: `${respon.barcode} barcode already exist` });
+      }
+
+      const getbatchNumber = await Inventory.findOne({
+        batchNumber: respon.batchNumber,
+      });
+      if (getbatchNumber) {
+        return res
+          .status(400)
+          .json({ message: `${respon.batchNumber} batchNumber already exist` });
+      }
+      const getsku = await Inventory.findOne({ sku: respon.sku });
+      if (getsku) {
+        return res
+          .status(400)
+          .json({ message: `${respon.sku} sku already exist` });
+      }
 
       const formattedExpiryDate = expiryDate
-        ? new Date(expiryDate).toISOString().split('T')[0]
+        ? new Date(expiryDate).toISOString().split("T")[0]
         : null;
-      const inventory = new Inventory({
-        bussinessId: userId,
-        category,
-        barcode,
-        itemName,
-        genericName,
-        manufacturer,
-        itemCategory,
-        batchNumber,
-        sku,
-        strength,
-        quantity,
-        manufacturerPrice,
-        markup,
-        price,
-        stockReorderLevel,
-        expiryDate: formattedExpiryDate,
-      });
+      const inventory = new Inventory(respon);
       await inventory.save();
-      res.status(200).json({ message: 'Inventory Added Successfully' });
+      res.status(200).json({ message: "Inventory Added Successfully" });
     } catch (error) {
-      res.status(400).json({ message: error.message });
+      res.status(500).json({ message: "Server Error" });
     }
   },
   getInventory: async (req, res) => {
@@ -59,75 +69,159 @@ const InventoryControllers = {
         skip = 0,
         limit = 5,
         expiryDate,
-        category,
+        searchCategory,
         userId, // Add userId from query params
       } = req.query;
-  
-      const sortBy = 'expiryDate';
-      const order = 'asc';
-      console.log('Received Query Params:', req.query);
-  
+
+      if (!userId) {
+        return res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "invalid",
+              details: {
+                text: "Missing required parameter: userId",
+              },
+            },
+          ],
+        });
+      }
+
+      const sortBy = "expiryDate";
+      const order = "asc";
+      console.log("Received Query Params:", req.query);
+
       let matchStage = {};
       let searchConditions = [];
-  
+
       // Add userId to matchStage (mapped to bussinessID in the database)
       if (userId) {
         matchStage.bussinessId = userId; // Ensure this matches your database field name
       }
-  
+
       if (searchItem) {
         const searchNumber = Number(searchItem);
-        console.log('searchNumber:', searchNumber);
-  
+        console.log("searchNumber:", searchNumber);
+
         if (!isNaN(searchNumber)) {
           searchConditions.push(
             { stockReorderLevel: searchNumber },
             { quantity: searchNumber }
           );
         }
-  
+
         searchConditions.push(
-          { itemName: { $regex: searchItem, $options: 'i' } },
-          { genericName: { $regex: searchItem, $options: 'i' } },
-          { sku: { $regex: searchItem, $options: 'i' } },
-          { barcode: { $regex: searchItem, $options: 'i' } }
+          { itemName: { $regex: searchItem, $options: "i" } },
+          { genericName: { $regex: searchItem, $options: "i" } },
+          { sku: { $regex: searchItem, $options: "i" } },
+          { barcode: { $regex: searchItem, $options: "i" } }
         );
-  
+
         matchStage.$or = searchConditions;
       }
-  
-      if (category) {
-        matchStage.category = { $regex: category, $options: 'i' };
+
+      if (searchCategory) {
+        matchStage.category = { $regex: searchCategory, $options: "i" };
       }
-  
+
       if (expiryDate) {
-        matchStage.expiryDate = { $lte: expiryDate };
+        matchStage.expiryDate = { $gte: expiryDate };
       }
-  
-      const sortOrder = order === 'desc' ? -1 : 1;
-  
+
+      const sortOrder = order === "desc" ? -1 : 1;
+
       const inventory = await Inventory.aggregate([
         { $match: matchStage },
         { $sort: { [sortBy]: sortOrder } },
         {
           $facet: {
-            metadata: [{ $count: 'totalItems' }],
+            metadata: [{ $count: "totalItems" }],
             data: [
               { $skip: parseInt(skip) || 0 },
               { $limit: parseInt(limit) || 10 },
+              {
+                $addFields: {
+                  categoryObjId: { $toObjectId: "$category" },
+                  itemCategoryObjId: { $toObjectId: "$itemCategory" },
+                  manufacturerObjId: { $toObjectId: "$manufacturer" },
+                },
+              },
+              {
+                $lookup: {
+                  from: "inventorycategories",
+                  localField: "categoryObjId",
+                  foreignField: "_id",
+                  as: "categoryy",
+                },
+              },
+              {
+                $unwind: {
+                  path: "$categoryy",
+                  preserveNullAndEmptyArrays: true,
+                },
+              },
+
+              {
+                $lookup: {
+                  from: "inventoryitemcategories", // assuming same for itemCategory
+                  localField: "itemCategoryObjId",
+                  foreignField: "_id",
+                  as: "itemCategoryData",
+                },
+              },
+              {
+                $unwind: {
+                  path: "$itemCategoryData",
+                  preserveNullAndEmptyArrays: true,
+                },
+              },
+
+              {
+                $lookup: {
+                  from: "inventorymanufacturers", // make sure this is the correct collection
+                  localField: "manufacturerObjId",
+                  foreignField: "_id",
+                  as: "manufacturerData",
+                },
+              },
+              {
+                $unwind: {
+                  path: "$manufacturerData",
+                  preserveNullAndEmptyArrays: true,
+                },
+              },
+
+              {
+                $addFields: {
+                  category: "$categoryy.cotegory",
+                  itemCategory: "$itemCategoryData.itemCotegory",
+                  manufacturer: "$manufacturerData.manufacturer",
+                },
+              },
+              {
+                $project: {
+                  categoryObjId: 0,
+                  itemCategoryObjId: 0,
+                  manufacturerObjId: 0,
+                  categoryy: 0,
+                  itemCategoryData: 0,
+                  manufacturerData: 0,
+                },
+              },
             ],
           },
         },
         {
           $addFields: {
             totalItems: {
-              $ifNull: [{ $arrayElemAt: ['$metadata.totalItems', 0] }, 0],
+              $ifNull: [{ $arrayElemAt: ["$metadata.totalItems", 0] }, 0],
             },
             totalPages: {
               $ceil: {
                 $divide: [
                   {
-                    $ifNull: [{ $arrayElemAt: ['$metadata.totalItems', 0] }, 0],
+                    $ifNull: [{ $arrayElemAt: ["$metadata.totalItems", 0] }, 0],
                   },
                   parseInt(limit) || 10,
                 ],
@@ -136,16 +230,21 @@ const InventoryControllers = {
           },
         },
       ]);
-  
-      res.status(200).json({
+
+      const fhirdata = InventoryBundleFHIRConverter.toFHIR({
         totalItems: inventory[0]?.totalItems || 0,
         totalPages: inventory[0]?.totalPages || 0,
         inventory: inventory[0]?.data || [],
         currentPage: Math.floor(parseInt(skip) / parseInt(limit)) + 1,
       });
+
+      console.log("inventorymaindata", validateFHIR(fhirdata));
+      res.status(200).json(fhirdata);
+
+      console.log("inventoryy", JSON.stringify(fhirdata, null, 2));
     } catch (error) {
-      console.error('Error fetching inventory:', error);
-      res.status(500).json({ message: 'Server error', error });
+      console.error("Error fetching inventory:", error);
+      res.status(500).json({ message: "Server error", error });
     }
   },
 
@@ -153,11 +252,10 @@ const InventoryControllers = {
     try {
       const { userId } = req.query;
       const { packageName, category, description, packageItems } = req.body;
-      console.log('Received Procedure Package:', req.body);
-      if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
-        return res.status(400).json({ message: 'Invalid doctorId format' });
+      console.log("Received Procedure Package:", req.body);
+      if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        return res.status(400).json({ message: "Invalid doctorId format" });
       }
-      
 
       const procedurePackage = new ProcedurePackage({
         bussinessId: userId,
@@ -167,7 +265,7 @@ const InventoryControllers = {
         packageItems,
       });
       await procedurePackage.save();
-      res.status(200).json({ message: 'Procedure Package Added Successfully' });
+      res.status(200).json({ message: "Procedure Package Added Successfully" });
     } catch (error) {
       res.status(400).json({ message: error.message });
     }
@@ -175,30 +273,160 @@ const InventoryControllers = {
 
   getToViewItemsDetaild: async (req, res) => {
     try {
-      const { userId } = req.query;
-      const { itemId } = req.query;
-
-      console.log("usert", itemId);
-
-
-      if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
-        return res.status(400).json({ message: 'Invalid doctorId format' });
+      const { userId, itemId } = req.query;
+      if (!userId) {
+        return res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "invalid",
+              details: {
+                text: "Missing required parameter: userId",
+              },
+            },
+          ],
+        });
+      } else if (!itemId) {
+        return res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "invalid",
+              details: {
+                text: "Missing required parameter: itemId",
+              },
+            },
+          ],
+        });
       }
+
+      // Check userId format (UUID v4)
+      if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        return res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "invalid",
+              details: { text: "Invalid userId format" },
+            },
+          ],
+        });
+      }
+
+      // Check itemId (MongoDB ObjectId)
       if (!mongoose.Types.ObjectId.isValid(itemId)) {
-        return res.status(400).json({ message: "Invalid MongoDB ID" });
+        return res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "invalid",
+              details: { text: "Invalid MongoDB itemId" },
+            },
+          ],
+        });
       }
-      const inventory = await Inventory.findOne({
-        _id: itemId,
-        bussinessId: userId,
-      })
-        .lean()
-        .exec();
-      if (!inventory) {
-        res.status(404).json({ message: 'Item not found' });
+
+      const inventory = await Inventory.aggregate([
+        { $match: { _id: new ObjectId(itemId), bussinessId: userId } },
+        {
+          $addFields: {
+            categoryObjId: { $toObjectId: "$category" },
+            itemCategoryObjId: { $toObjectId: "$itemCategory" },
+            manufacturerObjId: { $toObjectId: "$manufacturer" },
+          },
+        },
+        {
+          $lookup: {
+            from: "inventorycategories",
+            localField: "categoryObjId",
+            foreignField: "_id",
+            as: "categoryy",
+          },
+        },
+        { $unwind: { path: "$categoryy", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "inventoryitemcategories",
+            localField: "itemCategoryObjId",
+            foreignField: "_id",
+            as: "itemCategoryData",
+          },
+        },
+        {
+          $unwind: {
+            path: "$itemCategoryData",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $lookup: {
+            from: "inventorymanufacturers",
+            localField: "manufacturerObjId",
+            foreignField: "_id",
+            as: "manufacturerData",
+          },
+        },
+        {
+          $unwind: {
+            path: "$manufacturerData",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $addFields: {
+            category: "$categoryy.cotegory",
+            itemCategory: "$itemCategoryData.itemCotegory",
+            manufacturer: "$manufacturerData.manufacturer",
+          },
+        },
+        {
+          $project: {
+            categoryObjId: 0,
+            itemCategoryObjId: 0,
+            manufacturerObjId: 0,
+            categoryy: 0,
+            itemCategoryData: 0,
+            manufacturerData: 0,
+          },
+        },
+      ]);
+
+      if (!inventory || inventory.length === 0) {
+        return res.status(404).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "not-found",
+              details: {
+                text: "Inventory item not found",
+              },
+            },
+          ],
+        });
       }
-      res.status(200).json({ inventory });
+
+      const newdata = InventoryFHIRConverter.toFHIR(inventory[0]);
+
+      return res.status(200).json(newdata);
     } catch (error) {
-      res.status(400).json({ message: error.message });
+      return res.status(500).json({
+        resourceType: "OperationOutcome",
+        issue: [
+          {
+            severity: "error",
+            code: "exception",
+            details: {
+              text: "Internal server error",
+            },
+            diagnostics: error.message,
+          },
+        ],
+      });
     }
   },
   getProceurePackage: async (req, res) => {
@@ -211,20 +439,21 @@ const InventoryControllers = {
         { $sort: { createdAt: -1 } },
         {
           $facet: {
-            metadata: [{ $count: 'totalItems' }],
+            metadata: [{ $count: "totalItems" }],
             data: [
               { $skip: parseInt(skip) || 0 },
               { $limit: parseInt(limit) || 5 },
               {
                 $addFields: {
                   totalSubtotal: {
-                    $sum: '$packageItems.subtotal',
+                    $sum: "$packageItems.subtotal",
                   },
+
                   formattedUpdatedAt: {
                     $dateToString: {
-                      format: '%d %b %Y',
-                      date: '$updatedAt',
-                      timezone: 'UTC',
+                      format: "%d %b %Y",
+                      date: "$updatedAt",
+                      timezone: "UTC",
                     },
                   },
                 },
@@ -235,13 +464,13 @@ const InventoryControllers = {
         {
           $addFields: {
             totalItems: {
-              $ifNull: [{ $arrayElemAt: ['$metadata.totalItems', 0] }, 0],
+              $ifNull: [{ $arrayElemAt: ["$metadata.totalItems", 0] }, 0],
             },
             totalPages: {
               $ceil: {
                 $divide: [
                   {
-                    $ifNull: [{ $arrayElemAt: ['$metadata.totalItems', 0] }, 0],
+                    $ifNull: [{ $arrayElemAt: ["$metadata.totalItems", 0] }, 0],
                   },
                   parseInt(limit) || 5,
                 ],
@@ -260,13 +489,12 @@ const InventoryControllers = {
     try {
       const { userId, id } = req.query;
 
-      if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
-        return res.status(400).json({ message: 'Invalid doctorId format' });
+      if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        return res.status(400).json({ message: "Invalid doctorId format" });
       }
       if (!mongoose.Types.ObjectId.isValid(id)) {
         return res.status(400).json({ message: "Invalid MongoDB ID" });
       }
-
 
       const procedurePackage = await ProcedurePackage.findOne({
         _id: id,
@@ -275,7 +503,7 @@ const InventoryControllers = {
         .lean()
         .exec();
       if (!procedurePackage) {
-        res.status(404).json({ message: 'Procedure Package not found' });
+        res.status(404).json({ message: "Procedure Package not found" });
       }
       res.status(200).json({ procedurePackage });
     } catch (error) {
@@ -287,14 +515,12 @@ const InventoryControllers = {
       const { userId, id } = req.query;
       const { packageName, category, description, packageItems } = req.body;
 
-      if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
-        return res.status(400).json({ message: 'Invalid doctorId format' });
+      if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        return res.status(400).json({ message: "Invalid bussinessId format" });
       }
       if (!mongoose.Types.ObjectId.isValid(id)) {
         return res.status(400).json({ message: "Invalid MongoDB ID" });
       }
-
-
 
       const procedurePackage = await ProcedurePackage.findOneAndUpdate(
         { _id: id, bussinessId: userId },
@@ -318,7 +544,7 @@ const InventoryControllers = {
         .exec();
 
       if (!procedurePackage) {
-        return res.status(404).json({ message: 'Procedure Package not found' });
+        return res.status(404).json({ message: "Procedure Package not found" });
       }
 
       res.status(200).json({ procedurePackage });
@@ -331,30 +557,27 @@ const InventoryControllers = {
     try {
       const { userId, id } = req.query;
 
-
-      if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
-        return res.status(400).json({ message: 'Invalid doctorId format' });
+      if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        return res.status(400).json({ message: "Invalid doctorId format" });
       }
       if (!mongoose.Types.ObjectId.isValid(id)) {
         return res.status(400).json({ message: "Invalid MongoDB ID" });
       }
 
-
-
       const procedurePackage = await ProcedurePackage.findOneAndUpdate(
         {
-          'packageItems._id': id,
+          "packageItems._id": id,
           bussinessId: userId,
         },
         { $pull: { packageItems: { _id: id } } },
         { new: true }
       ).lean();
       if (!procedurePackage) {
-        return res.status(404).json({ message: 'Procedure Package not found' });
+        return res.status(404).json({ message: "Procedure Package not found" });
       }
       res
         .status(200)
-        .json({ message: 'Procedure Package deleted successfully' });
+        .json({ message: "Procedure Package deleted successfully" });
     } catch (error) {
       res.status(400).json({ message: error.message });
     }
@@ -362,8 +585,8 @@ const InventoryControllers = {
   deleteProcedurePackage: async (req, res) => {
     try {
       const { userId, id } = req.query;
-      if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
-        return res.status(400).json({ message: 'Invalid doctorId format' });
+      if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        return res.status(400).json({ message: "Invalid doctorId format" });
       }
       if (!mongoose.Types.ObjectId.isValid(id)) {
         return res.status(400).json({ message: "Invalid MongoDB ID" });
@@ -376,11 +599,11 @@ const InventoryControllers = {
         .lean()
         .exec();
       if (!procedurePackage) {
-        return res.status(404).json({ message: 'Procedure Package not found' });
+        return res.status(404).json({ message: "Procedure Package not found" });
       }
       res
         .status(200)
-        .json({ message: 'Procedure Package deleted successfully' });
+        .json({ message: "Procedure Package deleted successfully" });
     } catch (error) {
       res.status(400).json({ message: error.message });
     }
@@ -390,13 +613,27 @@ const InventoryControllers = {
     try {
       const { userId } = req.query;
       const today = new Date();
-      console.log('getApproachngExpiryGraphs:', userId);
+
+      if (!userId) {
+        return res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "invalid",
+              details: {
+                text: "Missing required parameter: userId",
+              },
+            },
+          ],
+        });
+      }
 
       const response = await Inventory.aggregate([
         { $match: { bussinessId: userId } },
         {
           $addFields: {
-            expiryDateConverted: { $toDate: '$expiryDate' },
+            expiryDateConverted: { $toDate: "$expiryDate" },
           },
         },
         {
@@ -404,8 +641,8 @@ const InventoryControllers = {
             daysUntilExpiry: {
               $dateDiff: {
                 startDate: today,
-                endDate: '$expiryDateConverted',
-                unit: 'day',
+                endDate: "$expiryDateConverted",
+                unit: "day",
               },
             },
           },
@@ -420,33 +657,33 @@ const InventoryControllers = {
             _id: {
               $switch: {
                 branches: [
-                  { case: { $lte: ['$daysUntilExpiry', 7] }, then: '7 days' },
+                  { case: { $lte: ["$daysUntilExpiry", 7] }, then: "7 days" },
                   {
                     case: {
                       $and: [
-                        { $gt: ['$daysUntilExpiry', 7] },
-                        { $lte: ['$daysUntilExpiry', 15] },
+                        { $gt: ["$daysUntilExpiry", 7] },
+                        { $lte: ["$daysUntilExpiry", 15] },
                       ],
                     },
-                    then: '15 days',
+                    then: "15 days",
                   },
                   {
                     case: {
                       $and: [
-                        { $gt: ['$daysUntilExpiry', 15] },
-                        { $lte: ['$daysUntilExpiry', 30] },
+                        { $gt: ["$daysUntilExpiry", 15] },
+                        { $lte: ["$daysUntilExpiry", 30] },
                       ],
                     },
-                    then: '30 days',
+                    then: "30 days",
                   },
                   {
                     case: {
                       $and: [
-                        { $gt: ['$daysUntilExpiry', 30] },
-                        { $lte: ['$daysUntilExpiry', 60] },
+                        { $gt: ["$daysUntilExpiry", 30] },
+                        { $lte: ["$daysUntilExpiry", 60] },
                       ],
                     },
-                    then: '60 days',
+                    then: "60 days",
                   },
                 ],
                 default: null,
@@ -458,23 +695,43 @@ const InventoryControllers = {
         {
           $project: {
             _id: 0,
-            category: '$_id',
+            category: "$_id",
             totalCount: 1,
           },
         },
         { $sort: { category: 1 } },
       ]);
 
-      res.status(200).json({ data: response });
+      const fhirdata = ApproachingExpiryReportConverter.toFHIR(response, {
+        userId: userId,
+      });
+
+      console.log(
+        "getApproachngExpiryGraphs",
+        JSON.stringify(fhirdata, null, 2)
+      );
+      res.status(200).json(fhirdata);
     } catch (error) {
-      res.status(400).json({ message: error.message });
+      res.status(500).json({ 
+        resourceType: "OperationOutcome",
+        issue:[
+          {
+            severity: "error",
+            code: "exception",
+            details: {
+              text: "Internal server error",
+            },
+            diagnostics: error.message,
+          }
+        ]
+       });
     }
   },
 
   inventoryOverView: async (req, res) => {
     try {
       const { userId } = req.query;
-      console.log("userId",userId);
+      console.log("userId", userId);
       const inventory = await Inventory.aggregate([
         {
           $match: { bussinessId: userId },
@@ -482,27 +739,47 @@ const InventoryControllers = {
         {
           $group: {
             _id: null,
-            totalQuantity: { $sum: '$quantity' },
-            totalValue: { $sum: '$price' },
-            lowStockCount: { 
-              $sum: { 
-                $cond: { if: { $and: [{ $lte: ['$quantity', 10] }, { $gt: ['$quantity', 0] }] }, then: 1, else: 0 } 
-              } 
+            totalQuantity: { $sum: "$quantity" },
+            totalValue: { $sum: "$price" },
+            lowStockCount: {
+              $sum: {
+                $cond: {
+                  if: {
+                    $and: [
+                      { $lte: ["$quantity", 10] },
+                      { $gt: ["$quantity", 0] },
+                    ],
+                  },
+                  then: 1,
+                  else: 0,
+                },
+              },
             },
-            outOfStockCount: { 
-              $sum: { 
-                $cond: { if: { $eq: ['$quantity', 0] }, then: 1, else: 0 } 
-              } 
+            outOfStockCount: {
+              $sum: {
+                $cond: { if: { $eq: ["$quantity", 0] }, then: 1, else: 0 },
+              },
             },
           },
         },
       ]);
-    
-      res.status(200).json({ inventory });
+
+      console.log("inventory", inventory);
+
+      const response = new FHIRConverter(
+        inventory[0]
+      ).InventoryOverviewConvertToFHIR();
+
+      console.log("overviewwwwwwwww", JSON.stringify(response, null, 2));
+
+      console.log(
+        "vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv",
+        validateFHIR(JSON.stringify(response, null, 2))
+      );
+      res.status(200).json(response);
     } catch (error) {
       res.status(400).json({ message: error.message });
     }
-    
   },
 };
 

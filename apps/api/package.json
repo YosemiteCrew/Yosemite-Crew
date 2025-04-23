@@ -5,7 +5,8 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "dev": "nodemon main.js"
+    "dev": "nodemon main.js",
+    "start": "node main.js"
   },
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "3.772.0",

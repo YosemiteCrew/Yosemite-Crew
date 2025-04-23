@@ -2,9 +2,6 @@ import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../context/useAuth";
-// import pet1 from '../../../../public/Images/pet1.png';
-// import pet2 from '../../../../public/Images/pet2.png';
-// import pet3 from '../../../../public/Images/pet3.png';
 
 const ActionsTable = ({
   appointments = [],
@@ -12,28 +9,35 @@ const ActionsTable = ({
   actimg2,
   onClick,
   onClicked,
+  total
 }) => {
   const { userId } = useAuth();
-  const itemsPerPage = 5; // Should match the backend limit
-  const [offset, setOffset] = useState(0); // Tracks the current offset
-
-
+  const itemsPerPage = 6;
+  const [offset, setOffset] = useState(0);
+  const [visibleCount, setVisibleCount] = useState(itemsPerPage);
 
   const handleNext = () => {
-    setOffset((prevOffset) => prevOffset + itemsPerPage);
-    onClick(offset + itemsPerPage, userId); // Fetch next set of data
+    const newOffset = offset + itemsPerPage;
+    if (newOffset < total) {
+      setOffset(newOffset);
+      setVisibleCount((prev) => Math.min(prev + itemsPerPage, total));
+      onClick(newOffset, itemsPerPage, userId);
+    }
   };
 
   const handlePrev = () => {
-    if (offset > 0) {
-      setOffset((prevOffset) => prevOffset - itemsPerPage);
-      onClick(offset - itemsPerPage, userId); // Fetch previous set of data
+    const newOffset = offset - itemsPerPage;
+    if (newOffset >= 0) {
+      setOffset(newOffset);
+      setVisibleCount((prev) => Math.max(prev - itemsPerPage, itemsPerPage));
+      onClick(newOffset, itemsPerPage, userId);
     }
   };
 
   const handleAccept = (id, status, offset) => {
     onClicked(id, status, offset);
   };
+
   const handleCancel = (id, status, offset) => {
     onClicked(id, status, offset);
   };
@@ -83,7 +87,6 @@ const ActionsTable = ({
               <td>{appointment.tokenNumber}</td>
               <td>{appointment.purposeOfVisit}</td>
               <td>{appointment.petType}</td>
-
               <td>{appointment.breed}</td>
               <td>
                 <div className="tblDiv">
@@ -105,7 +108,7 @@ const ActionsTable = ({
                     <img src={actimg1} alt="Accept" />
                   </Link>
                   <Link
-                    onClick={() => handleCancel(appointment._id,"cancelled", offset)}
+                    onClick={() => handleCancel(appointment._id, "cancelled", offset)}
                   >
                     <img src={actimg2} alt="Decline" />
                   </Link>
@@ -118,26 +121,21 @@ const ActionsTable = ({
 
       {/* Pagination Controls */}
       {location.pathname !== "/dashboard" && (
-  <div className="PaginationDiv">
-    <button onClick={handlePrev} disabled={offset === 0}>
-      <i className="ri-arrow-left-line"></i>
-    </button>
-    <h6 className="PagiName">
-      Responses
-      <span>
-        {offset + 1} -{" "}
-        {Math.min(offset + itemsPerPage, appointments.length)}
-      </span>
-    </h6>
-    <button
-      onClick={handleNext}
-      disabled={appointments.length < itemsPerPage}
-    >
-      <i className="ri-arrow-right-line"></i>
-    </button>
-  </div>
-)}
-
+        <div className="PaginationDiv">
+          <button onClick={handlePrev} disabled={offset === 0}>
+            <i className="ri-arrow-left-line"></i>
+          </button>
+          <h6 className="PagiName">
+            Responses <span>{visibleCount} of {total}</span>
+          </h6>
+          <button
+            onClick={handleNext}
+            disabled={offset + itemsPerPage >= total}
+          >
+            <i className="ri-arrow-right-line"></i>
+          </button>
+        </div>
+      )}
     </div>
   );
 };
@@ -162,6 +160,8 @@ ActionsTable.propTypes = {
   actimg1: PropTypes.string.isRequired,
   actimg2: PropTypes.string.isRequired,
   onClick: PropTypes.func.isRequired,
+  onClicked: PropTypes.func.isRequired,
+  total: PropTypes.number.isRequired,
 };
 
 export default ActionsTable;

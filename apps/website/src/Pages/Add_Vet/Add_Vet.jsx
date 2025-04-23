@@ -588,7 +588,21 @@ const Add_Vet = () => {
 
   const [key, setKey] = useState("basic");
 
+  const [previewUrl, setPreviewUrl] = useState("");
 
+  useEffect(() => {
+    if (image) {
+      const url = URL.createObjectURL(image);
+      setPreviewUrl(url);
+  
+      return () => {
+        URL.revokeObjectURL(url); // clean up when component unmounts or image changes
+      };
+    } else {
+      setPreviewUrl("");
+    }
+  }, [image]);
+  
 
 
   return (
@@ -643,17 +657,22 @@ const Add_Vet = () => {
                               style={{ display: 'none' }}
                             />
                             <label htmlFor="logo-upload" className="upload-label">
-                              {image ? (
-                                <img
-                                  src={URL.createObjectURL(image).startsWith("blob:")?URL.createObjectURL(image):""}
-                                  alt="Preview"
-                                  className="preview-image"
-                                />
-                              ) : (
-                                <div className="upload-placeholder">
-                                  <img src={`${import.meta.env.VITE_BASE_IMAGE_URL}/camera.png`} alt="camera" className="icon" />
-                                </div>
-                              )}
+                            {image && previewUrl ? (
+  <img
+    src={previewUrl}
+    alt="Preview"
+    className="preview-image"
+  />
+) : (
+  <div className="upload-placeholder">
+    <img
+      src={`${import.meta.env.VITE_BASE_IMAGE_URL}/camera.png`}
+      alt="camera"
+      className="icon"
+    />
+  </div>
+)}
+
                             </label>
                             <h5>Add Profile Picture</h5>
                           </div>

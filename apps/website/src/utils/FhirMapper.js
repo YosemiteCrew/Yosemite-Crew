@@ -377,6 +377,35 @@ class FHIRParser {
   
     return normalData;
   }
+  
+
+  // <<<<<<<<<<<<<<<<<<<<< inventory overviewConvertToNormal>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+
+  inventoryOverviewConvertToNormal() {
+    console.log("11211212112",this.fhirData)
+    const normalData = {};
+  
+    this.fhirData.entry.forEach((entry) => {
+      const { id, valueQuantity } = entry.resource;
+  
+      if (id === "totalQuantity") {
+        normalData.totalQuantity = valueQuantity.value;
+      } else if (id === "totalValue") {
+        normalData.totalValue = valueQuantity.value;
+      } else if (id === "lowStockCount") {
+        normalData.lowStockCount = valueQuantity.value;
+      } else if (id === "outOfStockCount") {
+        normalData.outOfStockCount = valueQuantity.value;
+      }
+    });
+  
+    return normalData;
+  }
+  
+
+
+
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<convertToNormalOverview>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 ConvertToNormalDashboardGraph() {

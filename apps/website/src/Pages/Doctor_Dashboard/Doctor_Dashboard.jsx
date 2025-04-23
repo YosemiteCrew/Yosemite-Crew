@@ -1,10 +1,15 @@
 /* eslint-disable react-refresh/only-export-components */
 
-import React, { useCallback, useEffect, useState } from 'react';
-import PropTypes from 'prop-types';
-import './Doctor_Dashboard.css';
-import {CanceledAndAcceptFHIRConverter, FHIRParser, FHIRSlotService, NormalAppointmentConverter} from "../../utils/FhirMapper";
-import { BoxDiv, DivHeading, SeeAll } from '../Dashboard/page';
+import React, { useCallback, useEffect, useState } from "react";
+import PropTypes from "prop-types";
+import "./Doctor_Dashboard.css";
+import {
+  CanceledAndAcceptFHIRConverter,
+  FHIRParser,
+  FHIRSlotService,
+  NormalAppointmentConverter,
+} from "../../utils/FhirMapper";
+import { BoxDiv, DivHeading, SeeAll } from "../Dashboard/page";
 // import box1 from '../../../../public/Images/box1.png';
 // import box7 from '../../../../public/Images/box7.png';
 // import box8 from '../../../../public/Images/box8.png';
@@ -13,36 +18,38 @@ import { BoxDiv, DivHeading, SeeAll } from '../Dashboard/page';
 // import review1 from '../../../../public/Images/review1.png';
 // import review2 from '../../../../public/Images/review2.png';
 // import review3 from '../../../../public/Images/review3.png';
-import ActionsTable from '../../Components/ActionsTable/ActionsTable';
+import ActionsTable from "../../Components/ActionsTable/ActionsTable";
 // import Accpt from '../../../../public/Images/acpt.png';
 // import Decln from '../../../../public/Images/decline.png';
-import StatusTable from '../../Components/StatusTable/StatusTable';
-import { Link, useNavigate } from 'react-router-dom';
-import { Button, Modal } from 'react-bootstrap';
-import Calendar from 'react-calendar';
-import 'react-calendar/dist/Calendar.css';
-import { FaCheckCircle } from 'react-icons/fa';
-import { BsPatchCheck } from 'react-icons/bs';
+import StatusTable from "../../Components/StatusTable/StatusTable";
+import { Link, useNavigate } from "react-router-dom";
+import { Button, Modal } from "react-bootstrap";
+import Calendar from "react-calendar";
+import "react-calendar/dist/Calendar.css";
+import { FaCheckCircle } from "react-icons/fa";
+import { BsPatchCheck } from "react-icons/bs";
 
-import axios from 'axios';
-import Swal from 'sweetalert2';
-import { useAuth } from '../../context/useAuth';
+import axios from "axios";
+import Swal from "sweetalert2";
+import { useAuth } from "../../context/useAuth";
 
 const Doctor_Dashboard = () => {
-  const { doctorProfile, userId ,onLogout} = useAuth();
-  const navigate = useNavigate()
+  const { doctorProfile, userId, onLogout } = useAuth();
+  const navigate = useNavigate();
   const [showMore, setShowMore] = useState(false);
   const [duration, setduration] = useState(null);
   const [date, setDate] = useState(new Date());
   const [Day, setDay] = useState(null);
   const [timeSlots, setTimeSlots] = useState([]);
   const [profile, setprofile] = useState([]);
-  const [status, setStatus] = useState('');
-  // const [availabilityTimes, setAvailbilityTimes] = useState(null);
-  console.log('timeSlots ', timeSlots);
+  const [status, setStatus] = useState("");
+ 
+
+
+  console.log("timeSlots ", timeSlots);
   useEffect(() => {
     if (doctorProfile) {
-      // console.log('doctorProfile.timeDuration', doctorProfile.timeDuration);
+     
       setduration(doctorProfile.timeDuration);
       setprofile(doctorProfile.personalInfo);
     }
@@ -56,58 +63,58 @@ const Doctor_Dashboard = () => {
     setShowMore(false);
   };
 
-  // Toggle Button
-  // const [isAvailable, setIsAvailable] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const getStatus = useCallback(async () => {
     try {
       const token = sessionStorage.getItem("token");
       const response = await axios.get(
-        `${import.meta.env.VITE_BASE_URL}api/doctors/getAvailabilityStatus?userId=${userId}`,{
+        `${import.meta.env.VITE_BASE_URL}api/doctors/getAvailabilityStatus?userId=${userId}`,
+        {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      console.log('response.data', response.data.isAvailable);
+      console.log("response.data", response.data.isAvailable);
       setStatus(response.data.isAvailable.toString());
     } catch (error) {
       if (error.response && error.response.status === 401) {
-        console.log('Session expired. Redirecting to signin...');
+        console.log("Session expired. Redirecting to signin...");
         onLogout(navigate);
       }
-      console.log('error', error);
+      console.log("error", error);
     }
-  },[navigate,onLogout,userId]);
+  }, [navigate, onLogout, userId]);
+
 
   const handleToggle = async () => {
-    const newStatus = status === '1' ? '0' : '1';
+    const newStatus = status === "1" ? "0" : "1";
     try {
       const token = sessionStorage.getItem("token");
       const response = await axios.put(
         `${import.meta.env.VITE_BASE_URL}api/doctors/updateAvailability?userId=${userId}&status=${newStatus}`,
         {}, // Empty body, since you're using query parameters
-    {
-      headers: { Authorization: `Bearer ${token}` },
-    }
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
-      
+
       if (response) {
         getStatus();
         Swal.fire({
-          title: 'Success',
-          text: 'Availability updated successfully',
-          icon: 'success',
+          title: "Success",
+          text: "Availability updated successfully",
+          icon: "success",
         });
       }
     } catch (error) {
       if (error.response && error.response.status === 401) {
-        console.log('Session expired. Redirecting to signin...');
+        console.log("Session expired. Redirecting to signin...");
         onLogout(navigate);
       }
-      console.log('error', error);
+      console.log("error", error);
       Swal.fire({
-        title: 'Error',
-        text: 'Failed to update availability',
-        icon: 'error',
+        title: "Error",
+        text: "Failed to update availability",
+        icon: "error",
       });
     }
   };
@@ -116,10 +123,11 @@ const Doctor_Dashboard = () => {
   };
   const closeModal = () => setShowModal(false);
 
+
   const handleDateChange = (selectedDate) => {
     setDate(selectedDate);
-    const day = new Date(selectedDate).toLocaleDateString('en-US', {
-      weekday: 'long',
+    const day = new Date(selectedDate).toLocaleDateString("en-US", {
+      weekday: "long",
     });
     setDay(day);
 
@@ -131,10 +139,11 @@ const Doctor_Dashboard = () => {
           from: `${v.from.hour}:${v.from.minute} ${v.from.period}`,
           to: `${v.to.hour}:${v.to.minute} ${v.to.period}`,
         }));
-      console.log('dayclicked', day);
+      console.log("dayclicked", day);
       genrateSlotes(filteredAvailability, duration, userId, day, selectedDate);
     }
   };
+
 
   const genrateSlotes = async (
     filteredAvailability,
@@ -145,7 +154,7 @@ const Doctor_Dashboard = () => {
   ) => {
     const slots = [];
     console.log(
-      ' filteredAvailability, duration,userId,day,selectedDate',
+      " filteredAvailability, duration,userId,day,selectedDate",
       filteredAvailability,
       duration,
       userId,
@@ -175,49 +184,50 @@ const Doctor_Dashboard = () => {
       }
     });
     try {
-     const token = sessionStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
       const { data } = await axios.get(
         `${import.meta.env.VITE_BASE_URL}api/doctors/getDoctorsSlotes`,
         {
           params: {
             doctorId: userId,
             day,
-            
+
             date: `${new Date(selectedDate).getFullYear()}-${(
               new Date(selectedDate).getMonth() + 1
             )
               .toString()
-              .padStart(2, '0')}-${new Date(selectedDate)
+              .padStart(2, "0")}-${new Date(selectedDate)
               .getDate()
               .toString()
-              .padStart(2, '0')}`,
+              .padStart(2, "0")}`,
           },
-          headers:{
+          headers: {
             Authorization: `Bearer ${token}`,
           },
         }
       );
-      console.log('hello');
+      console.log("hello");
       setTimeSlots(data.timeSlots);
     } catch (error) {
       console.error(
-        'Error fetching doctor slots:',
+        "Error fetching doctor slots:",
         error.response?.data || error
       );
 
       if (error.response?.status === 404) {
-        console.log('Generated Slots:', slots);
+        console.log("Generated Slots:", slots);
         setTimeSlots(slots);
       }
     }
   };
 
-  const parseTime = (timeString) => {
-    const [time, modifier] = timeString.split(' ');
-    let [hours, minutes] = time.split(':').map(Number);
 
-    if (modifier === 'PM' && hours !== 12) hours += 12;
-    if (modifier === 'AM' && hours === 12) hours = 0;
+  const parseTime = (timeString) => {
+    const [time, modifier] = timeString.split(" ");
+    let [hours, minutes] = time.split(":").map(Number);
+
+    if (modifier === "PM" && hours !== 12) hours += 12;
+    if (modifier === "AM" && hours === 12) hours = 0;
 
     const date = new Date();
     date.setHours(hours, minutes, 0, 0);
@@ -230,8 +240,8 @@ const Doctor_Dashboard = () => {
     const isPM = hours >= 12;
 
     const formattedHours = isPM ? hours % 12 || 12 : hours || 12;
-    const formattedMinutes = minutes.toString().padStart(2, '0');
-    const period = isPM ? 'PM' : 'AM';
+    const formattedMinutes = minutes.toString().padStart(2, "0");
+    const period = isPM ? "PM" : "AM";
 
     return `${formattedHours}:${formattedMinutes} ${period}`;
   };
@@ -253,39 +263,41 @@ const Doctor_Dashboard = () => {
   };
 
   const handleSlotes = async () => {
+    const fhirSlotService = new FHIRSlotService(timeSlots);
+
     
-  const fhirSlotService = new FHIRSlotService(timeSlots);
+    const slotsBundle = fhirSlotService.createBundle(userId);
 
-  // Create FHIR bundle
-  const slotsBundle = fhirSlotService.createBundle(userId);
-
-  console.log("Generated FHIR Slots Bundle:", slotsBundle);
+    console.log("Generated FHIR Slots Bundle:", slotsBundle);
     try {
-      console.log('hello');
+      console.log("hello");
       const token = sessionStorage.getItem("token");
       const response = await axios.post(
         `${import.meta.env.VITE_BASE_URL}api/doctors/addDoctorsSlots/${userId}`,
-        { slots: slotsBundle, day: Day },{headers:{
-          Authorization: `$Bearer ${token}`,
-        }}
+        { slots: slotsBundle, day: Day },
+        {
+          headers: {
+            Authorization: `$Bearer ${token}`,
+          },
+        }
       );
       if (response) {
         Swal.fire({
-          icon: 'success',
-          title: 'Success',
-          text: 'Slot Added Successfully',
+          icon: "success",
+          title: "Success",
+          text: "Slot Added Successfully",
         });
         closeModal();
       }
     } catch (error) {
       if (error.response && error.response.status === 401) {
-        console.log('Session expired. Redirecting to signin...');
+        console.log("Session expired. Redirecting to signin...");
         onLogout(navigate);
       }
       Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'Failed to Add the Slot . Please try again later.',
+        icon: "error",
+        title: "Error",
+        text: "Failed to Add the Slot . Please try again later.",
       });
     }
   };
@@ -293,66 +305,74 @@ const Doctor_Dashboard = () => {
   const [allAppointments, setAllAppointments] = useState([]);
   const [total, setTotal] = useState();
   // console.log('allappointments', allAppointments);
-  const getAllAppointments = useCallback(async (offset) => {
-    console.log('offset', offset);
-    try {
-      const token = sessionStorage.getItem("token");
-      const response = await axios.get(
-        `${import.meta.env.VITE_BASE_URL}fhir/v1/Appointment?organization=Practitioner/${userId}&offset=${offset}&type=${"AppointmentLists"}
+  const getAllAppointments = useCallback(
+    async (offset, itemsPerPage) => {
+      console.log("offset", offset, typeof itemsPerPage);
+      try {
+        const token = sessionStorage.getItem("token");
+        const response = await axios.get(
+          `${import.meta.env.VITE_BASE_URL}fhir/v1/Appointment?organization=Practitioner/${userId}&offset=${offset}&limit=${itemsPerPage}&type=${"AppointmentLists"}
 
-        `,{
-          headers: {
-            Authorization: `Bearer ${token}`, // Attach the token to the request headers
-          },
-        }
-      );
-      if (response) {
-        const normalAppointments =
+        `,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`, // Attach the token to the request headers
+            },
+          }
+        );
+        if (response) {
+          const normalAppointments =
             NormalAppointmentConverter.convertAppointments({
               totalAppointments: response.data.total,
               appointments: response.data.entry.map((entry) => entry.resource),
             });
           setAllAppointments(normalAppointments.appointments);
           setTotal(normalAppointments.totalAppointments);
+        }
+      } catch (error) {
+        if (error.response && error.response.status === 401) {
+          console.log("Session expired. Redirecting to signin...");
+          onLogout(navigate);
+        }
       }
-    } catch (error) {
-      if (error.response && error.response.status === 401) {
-        console.log('Session expired. Redirecting to signin...');
-        onLogout(navigate);
-      }
-      
-    }
-  },[navigate,userId,onLogout]);
+    },
+    [navigate, userId, onLogout]
+  );
   const [Last_7DaysCounts, setLast_7DaysCounts] = useState(null);
   const getlast7daysAppointMentsCount = useCallback(async () => {
     try {
-      const token = sessionStorage.getItem('token')
+      const token = sessionStorage.getItem("token");
       const response = await axios.get(
-        `${import.meta.env.VITE_BASE_URL}fhir/v1/MeasureReport?type=DoctorDashOverview&doctorId=${userId}`,{headers:{
-          Authorization: `Bearer ${token}`,
-        }}
+        `${import.meta.env.VITE_BASE_URL}fhir/v1/MeasureReport?type=DoctorDashOverview&doctorId=${userId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
       if (response) {
-
-        const data = new FHIRParser(response.data).overviewConvertToNormal()
+        const data = new FHIRParser(response.data).overviewConvertToNormal();
 
         setLast_7DaysCounts(data.totalAppointments);
       }
     } catch (error) {
       if (error.response && error.response.status === 401) {
-        console.log('Session expired. Redirecting to signin...');
+        console.log("Session expired. Redirecting to signin...");
         onLogout(navigate);
       }
     }
-  },[onLogout,navigate,userId]);
+  }, [onLogout, navigate, userId]);
 
   const AppointmentActions = async (id, status, offset) => {
     try {
       const token = sessionStorage.getItem("token");
-  
+
       // Prepare FHIR-compliant payload
-      const fhirAppointment = CanceledAndAcceptFHIRConverter.toFHIR({ id, status });
-  
+      const fhirAppointment = CanceledAndAcceptFHIRConverter.toFHIR({
+        id,
+        status,
+      });
+
       const response = await axios.put(
         `${import.meta.env.VITE_BASE_URL}fhir/v1/Appointment/${id}?userId=${userId}`,
         fhirAppointment,
@@ -360,35 +380,35 @@ const Doctor_Dashboard = () => {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-  
+
       if (response.status === 200) {
         Swal.fire({
-          title: 'Appointment Status Changed',
-          text: 'Appointment Status Changed Successfully',
-          icon: 'success',
+          title: "Appointment Status Changed",
+          text: "Appointment Status Changed Successfully",
+          icon: "success",
         });
       }
-  
-      getAllAppointments(offset);
+
+      getAllAppointments(offset, 6);
       getlast7daysAppointMentsCount();
     } catch (error) {
       if (error.response && error.response.status === 401) {
         onLogout(navigate);
       }
-  
+
       Swal.fire({
-        title: 'Error',
-        text: 'Failed to Change Appointment Status',
-        icon: 'error',
+        title: "Error",
+        text: "Failed to Change Appointment Status",
+        icon: "error",
       });
     }
   };
-  
+
   useEffect(() => {
-    getAllAppointments(0);
+    getAllAppointments(0, 6);
     getlast7daysAppointMentsCount();
     getStatus();
-  }, [userId,getlast7daysAppointMentsCount,getStatus,getAllAppointments]);
+  }, [userId, getlast7daysAppointMentsCount, getStatus, getAllAppointments]);
   return (
     <section className="DoctorDashBoardSec">
       <div className="container">
@@ -410,7 +430,7 @@ const Doctor_Dashboard = () => {
                 <div className="togalrt">
                   <div
                     className={`toggle-switch ${
-                      status === '1' ? 'active' : ''
+                      status === "1" ? "active" : ""
                     }`}
                     onClick={handleToggle}
                   >
@@ -418,9 +438,9 @@ const Doctor_Dashboard = () => {
                   </div>
                   <p
                     className="avlbl"
-                    style={{ color: status === '1' ? '#8AC1B1' : 'gray' }}
+                    style={{ color: status === "1" ? "#8AC1B1" : "gray" }}
                   >
-                    {status === '1' ? 'Available' : ''}
+                    {status === "1" ? "Available" : ""}
                   </p>
                 </div>
                 <p onClick={opneModel} className="mngevigible">
@@ -440,14 +460,14 @@ const Doctor_Dashboard = () => {
                     <h6>Availability Status</h6>
                     <div
                       className={`toggle-switch ${
-                        status === '1' ? 'active' : ''
+                        status === "1" ? "active" : ""
                       }`}
                       onClick={handleToggle}
                     >
                       <div className="toggle-circle"></div>
                     </div>
-                    <p style={{ color: status === '1' ? '#8AC1B1' : 'gray' }}>
-                      {status === '1' ? 'Available' : ''}
+                    <p style={{ color: status === "1" ? "#8AC1B1" : "gray" }}>
+                      {status === "1" ? "Available" : ""}
                     </p>
                   </div>
                 </Modal.Header>
@@ -471,17 +491,17 @@ const Doctor_Dashboard = () => {
                       </div>
                       <div className="RytSlot">
                         <Button onClick={selectAllSlots}>
-                          {' '}
-                          <FaCheckCircle />{' '}
+                          {" "}
+                          <FaCheckCircle />{" "}
                           {timeSlots.every((slot) => slot.selected)
-                            ? 'Deselect All'
-                            : 'Select All'}{' '}
+                            ? "Deselect All"
+                            : "Select All"}{" "}
                         </Button>
                       </div>
                     </div>
 
                     {timeSlots.length === 0 ? (
-                      'No Slotes Available'
+                      "No Slotes Available"
                     ) : (
                       <div className="time-slot-selector">
                         <div className="time-slots">
@@ -489,7 +509,7 @@ const Doctor_Dashboard = () => {
                             <button
                               key={index}
                               className={`time-slot ${
-                                slot.selected ? 'selected' : ''
+                                slot.selected ? "selected" : ""
                               }`}
                               onClick={() => toggleSlot(index)}
                             >
@@ -505,8 +525,8 @@ const Doctor_Dashboard = () => {
                   <div className="ModlslotBtn">
                     <Button onClick={closeModal}> Cancel </Button>
                     <Button className="active" onClick={handleSlotes}>
-                      {' '}
-                      <BsPatchCheck /> Save Changes{' '}
+                      {" "}
+                      <BsPatchCheck /> Save Changes{" "}
                     </Button>
                   </div>
                 </Modal.Footer>
@@ -551,7 +571,7 @@ const Doctor_Dashboard = () => {
               actimg2={`${import.meta.env.VITE_BASE_IMAGE_URL}/decline.png`}
               onClicked={AppointmentActions}
             />
-             {/* <SeeAll seehrf="/appointment" seetext="See All" /> */}
+            {/* <SeeAll seehrf="/appointment" seetext="See All" /> */}
           </div>
           <div>
             <DivHeading TableHead="Upcoming Assessments" tablespan="(3)" />
@@ -667,7 +687,11 @@ function ReviewCard({
         <div className="rbtext">
           <h6>{Revname}</h6>
           <p>
-            <img src={`${import.meta.env.VITE_BASE_IMAGE_URL}/reviw.png`} alt="reviw" /> {Revpetname}
+            <img
+              src={`${import.meta.env.VITE_BASE_IMAGE_URL}/reviw.png`}
+              alt="reviw"
+            />{" "}
+            {Revpetname}
           </p>
         </div>
       </div>
@@ -680,7 +704,7 @@ function ReviewCard({
 
       <div className="reviwEnd">
         <p>
-          {Revpara1} {Revpara2 && <p>{Revpara2}</p>}{' '}
+          {Revpara1} {Revpara2 && <p>{Revpara2}</p>}{" "}
         </p>
       </div>
 

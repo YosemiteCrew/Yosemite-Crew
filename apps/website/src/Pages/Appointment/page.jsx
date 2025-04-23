@@ -37,6 +37,8 @@ import {
 const Appointment = () => {
   const { userId, userType, onLogout } = useAuth();
   const navigate = useNavigate();
+
+ 
   // dropdown
   const optionsList1 = [
     "Last 7 Days",
@@ -47,12 +49,12 @@ const Appointment = () => {
   const [allAppointments, setAllAppointments] = useState([]);
   const [total, setTotal] = useState();
   const getAllAppointments = useCallback(
-    async (offset, userId) => {
+    async (offset,itemsPerPage, userId) => {
 
       try {
         const token = sessionStorage.getItem("token");
         const response = await axios.get(
-          `${import.meta.env.VITE_BASE_URL}fhir/v1/Appointment?organization=Hospital/${userId}&offset=${offset}&type=${"AppointmentLists"}`,
+          `${import.meta.env.VITE_BASE_URL}fhir/v1/Appointment?organization=Hospital/${userId}&offset=${offset}&limit=${itemsPerPage}&type=${"AppointmentLists"}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (response) {
@@ -61,6 +63,8 @@ const Appointment = () => {
               totalAppointments: response.data.total,
               appointments: response.data.entry.map((entry) => entry.resource),
             });
+
+            console.log("normalAppointments",normalAppointments)
           setAllAppointments(normalAppointments.appointments);
           setTotal(normalAppointments.totalAppointments);
         }
@@ -73,7 +77,7 @@ const Appointment = () => {
     },
     [navigate, onLogout]
   );
-  const AppointmentActions = async (id, status, offset) => {
+  const AppointmentActions = async (id, status, offset,) => {
     try {
       const token = sessionStorage.getItem("token");
   
@@ -96,7 +100,7 @@ const Appointment = () => {
         });
       }
   
-      getAllAppointments(offset);
+      getAllAppointments(offset,6);
       // getlast7daysAppointMentsCount();
     } catch (error) {
       if (error.response && error.response.status === 401) {
@@ -152,7 +156,7 @@ const Appointment = () => {
   );
 
   useEffect(() => {
-    if (userId) getAllAppointments(0, userId);
+    if (userId) getAllAppointments(0,6, userId);
     getAppUpcCompCanTotalCounts("Last 7 Days");
   }, [userId, getAppUpcCompCanTotalCounts, getAllAppointments]);
 
@@ -398,6 +402,7 @@ const Appointment = () => {
               tablespan={`(${total ? total : 0})`}
             />
             <ActionsTable
+              total={total}
               onClick={getAllAppointments}
               appointments={allAppointments}
               onClicked={AppointmentActions}
