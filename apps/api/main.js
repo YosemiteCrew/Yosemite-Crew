@@ -17,6 +17,7 @@ const apointmentRoutes = require('./routes/appointmentRoutes');
 const hospitalRoutes = require('./routes/HospitalRoutes');
 const InventoryRoutes = require('./routes/InventoryRoutes');
 const adminInventory = require("./routes/AdminControllerRoutes");
+const apiRoutes = require('./routes/apiRoutes');
 const cors = require('cors');
 const http = require('http'); // Import http module for Socket.IO
 const { Server } = require('socket.io'); // Import Socket.IO
@@ -99,6 +100,7 @@ app.use('/fhir/v1', hospitalRoutes);
 app.use('/fhir/v1',authRoutes)
 app.use("/fhir/admin", adminInventory)
 app.use("/fhir/v1", InventoryRoutes)
+app.use("/fhir/v1", apiRoutes);
 // Global error handler
 app.use((err, req, res, next) => {
   console.error('Error:', err.message);
