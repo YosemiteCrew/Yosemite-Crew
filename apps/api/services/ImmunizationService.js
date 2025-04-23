@@ -28,8 +28,24 @@ class VaccinationService {
     const saved = await Vaccination.create(transformed);
     return saved;
   }
-  static async getVaccinationsByUserId(userId) {
-    const records = await Vaccination.find({ userId: { $eq: userId } });
+  static async getVaccinationsByUserId(userId, limit = 10, offset = 0, petId = null) {
+    // Sanitize limit and offset
+    limit = parseInt(limit);
+    offset = parseInt(offset);
+    if (isNaN(limit) || limit < 0) limit = 10;
+    if (isNaN(offset) || offset < 0) offset = 0;
+  
+    const query = { userId }; // Assuming userId is a safe string (e.g., from JWT or trusted source)
+  
+    // Validate and convert petId if provided
+    if (petId && mongoose.Types.ObjectId.isValid(petId)) {
+      query.petId = new mongoose.Types.ObjectId(petId);
+    }
+  
+    const records = await Vaccination.find(query)
+      .skip(offset)
+      .limit(limit);
+  
     return records;
   }
 
@@ -66,9 +82,44 @@ class VaccinationService {
       );
     }
   }
+
+  static async deleteVaccinationRecord(id) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      throw new Error("Invalid Vaccination ID");
+    }
+    const objectId = new mongoose.Types.ObjectId(id); 
+    return await Vaccination.deleteOne({ _id: objectId });
+  }
+
+  static async getRecentVaccinationsReocrds(userId, limit = 10, offset = 0) {
+    if (typeof userId !== 'string' || userId.trim() === '') {
+      throw new Error("Invalid userId");
+    }
+    const sanitizedUserId = userId.trim();
+    limit = parseInt(limit, 10);
+    offset = parseInt(offset, 10);
+    if (isNaN(limit) || limit < 0 || limit > 100) limit = 10;
+    if (isNaN(offset) || offset < 0) offset = 0;
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+  
+    const query = {
+      userId: sanitizedUserId,
+      vaccinationDate: { $lt: today },
+    };
+  
+    const records = await Vaccination.find(query)
+      .sort({ vaccinationDate: -1 })
+      .skip(offset)
+      .limit(limit);
+  
+    return records;
+  }
+  
+
+  
   
   static convertToFHIR(data) {
-    console.log(data.vaccineImage);
   
     const fhirData = {
       resourceType: "Immunization",
