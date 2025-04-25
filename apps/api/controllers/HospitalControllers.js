@@ -1354,7 +1354,7 @@ const HospitalController = {
             const response = await webAppointments.aggregate([
               {
                 $match: {
-                  appointmentStatus: { $ne: "cancelled" },
+                  appointmentStatus: { $eq: "pending" },
                   $or: [
                     { hospitalId: hospitalId },
                     { veterinarian: hospitalId },
@@ -2044,7 +2044,7 @@ const HospitalController = {
             }).toFHIRBundle();
             res.status(200).json(data);
           } catch (error) {
-            console.error("Error getting completed appointments:", error);
+            console.error("Error getting Cancelled appointments:", error);
             res.status(500).json({
               resourceType: "OperationOutcome",
               issue: [

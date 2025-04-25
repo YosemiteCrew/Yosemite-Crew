@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import './AddProcedurePackage.css';
 import { Col, Container, Form, Row } from 'react-bootstrap';
 import { Forminput } from '../SignUp/SignUp';
@@ -10,6 +10,7 @@ import axios from 'axios';
 import { useAuth } from '../../context/useAuth';
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
+import {  InventoryFHIRParser, MedicalPackageFHIR } from '../../utils/InventoryFHIRMapper';
 
 function AddProcedurePackage() {
   const { userId,onLogout } = useAuth();
@@ -22,21 +23,38 @@ function AddProcedurePackage() {
     packageItems: [],
   });
 
+  const [options, setOptions] = useState([])
 
 
-  const options = [
-    { value: '1', label: 'Appendectomy' },
-    { value: '2', label: 'Gallbladder Removal' },
-    { value: '3', label: 'Knee Replacement' },
-    { value: '4', label: 'Hip Replacement' },
-    { value: '5', label: 'Spinal Fusion' },
-    { value: '6', label: 'Angioplasty and Stent Placement' },
-    { value: '7', label: 'Pacemaker Implantation' },
-    { value: '8', label: 'Lobectomy' },
-    { value: '9', label: 'Retinal Detachment Repair' },
-    { value: '10', label: 'Breast Augmentation or Reduction' },
-    { value: '11', label: 'Tubal Ligation' },
-  ];
+const procedurePackageCatories = useCallback(async()=> {
+  try {
+    const response = await axios.get(`${import.meta.env.VITE_BASE_URL}fhir/admin/procedureCategory?bussinessId=${userId}`);
+    if(response.status === 200) {
+
+      const res = new InventoryFHIRParser(response.data.data).convertToNormaldata();
+
+      setOptions(res)
+    }
+  } catch (error) {
+    console.log(error);
+  if(error.response.status === 400 || error.response.status === 500) {
+    Swal.fire({
+      type:"error",
+      text: `${error.response.data.issue[0].details.text}`,
+      icon: "error",
+
+    })
+  }
+  }
+},[userId])
+
+useEffect(()=>{
+  if(userId){
+    procedurePackageCatories()
+  }
+},[procedurePackageCatories,userId])
+
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -44,17 +62,20 @@ function AddProcedurePackage() {
       alert('Please fill in all required fields.');
       return;
     }
+const data = new MedicalPackageFHIR(procedureData).toFHIR()
 
+console.log("procedureData",data)
     try {
       const token = sessionStorage.getItem("token");
       const response = await axios.post(
-        `${import.meta.env.VITE_BASE_URL}api/inventory/AddProcedurePackage?userId=${userId}`,
-        procedureData,{headers:{Authorization:`Bearer ${token}`}}
+        `${import.meta.env.VITE_BASE_URL}api/inventory/AddProcedurePackage?bussinessId=${userId}`,
+        data,{headers:{Authorization:`Bearer ${token}`}}
       );
-      if(response){
+      if(response.status === 200) {
+        console.log(response.data);
         Swal.fire({
-          title: 'Procedure Package Added Successfully',
-          text: 'Procedure Package Added Successfully',
+          title: 'Success',
+          text: `${response.data.issue[0].details.text}`,
           icon:'success',
         })
       }
@@ -62,10 +83,10 @@ function AddProcedurePackage() {
       if (error.response && error.response.status === 401) {
         console.log('Session expired. Redirecting to signin...');
         onLogout(navigate);
-      }
+      }else if(error.response.status === 400 || error.response.status === 500)
       Swal.fire({
         title: 'Error',
-        text: 'Failed to add Procedure Package.',
+        text: `${error.response.data.issue[0].details.text}`,
         icon: 'error',
       })
     }

@@ -21,19 +21,19 @@ const [options2,setoptios2] = useState([])
 const [options3,setoptios3] = useState([])
 
 console.log("options1",options1)
-const getInventoryCotegory = useCallback(async(cotegory)=>{
+const getInventoryCotegory = useCallback(async(category)=>{
 
   try {
-    const response = await axios.get(`${import.meta.env.VITE_BASE_URL}fhir/admin/GetAddInventoryCotegory?bussinessId=${userId}&type=${cotegory}`);
+    const response = await axios.get(`${import.meta.env.VITE_BASE_URL}fhir/admin/GetAddInventoryCategory?bussinessId=${userId}&type=${category}`);
     if(response.status === 200){
        console.log("response",response.data);
        const res = new InventoryFHIRParser(response.data).convertToNormaldata();
-       if(cotegory==="category"){
+       if(category==="category"){
         setoptios1(res);
-       }else if(cotegory==="manufacturerCotegory"){
+       }else if(category==="manufacturerCategory"){
         setoptios2(res);
         console.log("resssssss",res);
-       }else if(cotegory==="itemCotegory"){
+       }else if(category==="itemCategory"){
         setoptios3(res);
        }
     }
@@ -45,8 +45,8 @@ const getInventoryCotegory = useCallback(async(cotegory)=>{
 useEffect(()=>{
   if(userId){
     getInventoryCotegory("category")
-    getInventoryCotegory("itemCotegory")
-    getInventoryCotegory("manufacturerCotegory")
+    getInventoryCotegory("itemCategory")
+    getInventoryCotegory("manufacturerCategory")
 
 
   }

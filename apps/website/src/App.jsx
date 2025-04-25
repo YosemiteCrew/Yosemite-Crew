@@ -1,16 +1,15 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect,  } from 'react';
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   useLocation,
-  // Navigate,
   useNavigate,
 } from 'react-router-dom';
+
 import Dashboard from './Pages/Dashboard/page';
 import Appointment from './Pages/Appointment/page';
 import Doctor_Dashboard from './Pages/Doctor_Dashboard/Doctor_Dashboard';
-// import Header from './Components/Header/Header';
 import Add_Doctor from './Pages/Add_Doctor/Add_Doctor';
 import Footer from './Components/Footer/Footer';
 import SignUp from './Pages/SignUp/SignUp';
@@ -32,9 +31,9 @@ import DeveloperLandingPage from './Pages/DeveloperLandingPage/DeveloperLandingP
 import MainLandingPage from './Pages/MainLandingPage/MainLandingPage';
 import ChatDashboard from './Pages/ChatDashboard/ChatDashboard';
 
-// Import css files
 import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
+
 import CheckIn from './Pages/CheckIn/CheckIn';
 import DevlpSignup from './Pages/DevlpSignup/DevlpSignup';
 import Inventory from './Pages/Inventory/Inventory';
@@ -49,20 +48,16 @@ import ChatScreen from './Pages/ChatScreen/ChatScreen';
 import DoctorProfile from './Pages/DoctorProfile/DoctorProfile';
 import ClientStatement from './Pages/ClientStatement/ClientStatement';
 import ClientStatementDetail from './Pages/ClientStatementDetail/ClientStatementDetail';
-import { useAuth } from './context/useAuth';
 import ViewProcedurePackage from './Pages/AddProcedurePackage/ViewProcedurePackage';
 
-
+import { useAuth } from './context/useAuth';
 
 const Layout = () => {
   const navigate = useNavigate();
-  const { tokens, userType } = useAuth();
-
   const location = useLocation();
-
+  const { tokens, userType, loading } = useAuth();
 
   const mainHeaderRoutes = [
-    // "/signupdetails",
     '/doctorprofile',
     '/dashboard',
     '/appointment',
@@ -77,32 +72,26 @@ const Layout = () => {
     '/revenuemangement',
     '/pricing',
     '/clinicvisible',
-    '/Addprescription',
-    '/prescription',
     '/department',
-    // "/downlodeapp",
     '/articlepage',
     '/AssessmentManagement',
     '/add_department',
-    // "/DeveloperLandingPage",
     '/Chatting',
     '/checkin',
     '/inventorydetails/:id',
-    '/AddProcedurePackage',
     '/lblogpage',
     '/viewprocedurepackage/:id',
     '/chatscreen'
   ];
+
   const isMainHeader = tokens && mainHeaderRoutes.some(route => {
     if (route.includes(':')) {
-      // Convert '/inventorydetails/:id' to a regex pattern '/inventorydetails/([^/]+)'
       const regex = new RegExp(`^${route.replace(/:\w+/g, '([^/]+)')}$`);
       return regex.test(location.pathname);
     }
     return route === location.pathname;
   });
 
-  // List of routes where the footer should be displayed
   const footerRoutes = [
     '/',
     '/pricing',
@@ -115,91 +104,94 @@ const Layout = () => {
   ];
   const showFooter = footerRoutes.includes(location.pathname);
 
-  const protectedRoutes = useMemo(() => [
-    '/dashboard',
-    '/appointment',
-    '/doctordashboard',
-    '/inventory',
-    '/addoctor',
-    '/addvet',
-    '/prescription',
-    '/AddInventory',
-    '/AddProcedurePackage',
-    '/revenuemangement',
-    '/pricing',
-    '/clinicvisible',
-    '/Addprescription',
-    '/department',
-    '/articlepage',
-    '/AssessmentManagement',
-    '/add_department',
-    '/Chatting',
-    '/checkin',
-    '/inventorydetails/:id',
-    '/lblogpage',
-    '/viewprocedurepackage/:id',
-    '/chatscreen'
-  ], []);
-  
+  // const protectedRoutes = useMemo(() => [
+  //   '/dashboard',
+  //   '/appointment',
+  //   '/doctordashboard',
+  //   '/inventory',
+  //   '/addoctor',
+  //   '/addvet',
+  //   '/prescription',
+  //   '/AddInventory',
+  //   '/AddProcedurePackage',
+  //   '/revenuemangement',
+  //   '/pricing',
+  //   '/clinicvisible',
+  //   '/Addprescription',
+  //   '/department',
+  //   '/articlepage',
+  //   '/AssessmentManagement',
+  //   '/add_department',
+  //   '/Chatting',
+  //   '/checkin',
+  //   '/inventorydetails/:id',
+  //   '/lblogpage',
+  //   '/viewprocedurepackage/:id',
+  //   '/chatscreen'
+  // ], []);
 
   useEffect(() => {
-  const currentPath = location.pathname;
-
-  const isProtected = protectedRoutes.some(route => {
-    if (route.includes(':')) {
-      // Convert '/inventorydetails/:id' to a regex pattern '/inventorydetails/([^/]+)'
-      const regex = new RegExp(`^${route.replace(/:\w+/g, '([^/]+)')}$`);
-      return regex.test(currentPath);
+    if (!loading) {
+      sessionStorage.setItem('lastPath', location.pathname);
     }
-    return route === currentPath;
-  });
+  }, [location.pathname, loading]);
 
-  if (!tokens && isProtected) {
-    navigate('/signin');
-  }
-}, [tokens, location.pathname,navigate,protectedRoutes]);
+  // useEffect(() => {
+  //   if (loading) return;
+
+  //   const currentPath = location.pathname;
+  //   const isProtected = protectedRoutes.some(route => {
+  //     if (route.includes(':')) {
+  //       const regex = new RegExp(`^${route.replace(/:\w+/g, '([^/]+)')}$`);
+  //       return regex.test(currentPath);
+  //     }
+  //     return route === currentPath;
+  //   });
+
+  //   if (!tokens && isProtected) {
+  //     navigate('/signin');
+  //   }
+  // }, [tokens, loading, location.pathname, navigate, protectedRoutes]);
 
   useEffect(() => {
+    if (loading || !tokens) return;
 
+    const redirectPaths = [
+      '/signin',
+      '/signup',
+      '/homepage',
+      '/downlodeapp',
+      '/contact',
+      '/blogpage',
+      '/devSignup',
+      '/devSignin',
+      '/DeveloperLandingPage',
+    ];
 
-    const shouldNotRedirect =
-      tokens &&
-      [
-        '/signin',
-        '/signup',
-        '/homepage',
-        // "/signupdetails",
-        '/downlodeapp',
-        '/contact',
-        '/blogpage',
-        '/devSignup',
-        '/devSignin',
-        '/DeveloperLandingPage',
-        '/downlodeapp',
-
-        '/DeveloperLandingPage',
-      ].includes(location.pathname);
-    const currentPath = location.pathname;
-    if (shouldNotRedirect) {
-      navigate('/dashboard');
-    } else {
-      navigate(currentPath);
+    if (redirectPaths.includes(location.pathname)) {
+      const lastPath = sessionStorage.getItem('lastPath');
+      navigate(lastPath && lastPath !== location.pathname ? lastPath : '/dashboard');
     }
-  }, [tokens, location.pathname, navigate,protectedRoutes]);
+  }, [tokens, loading, location.pathname, navigate]);
+
+  if (loading) return <div>Loading...</div>;
 
   return (
     <>
       <MainHeader isMainHeader={isMainHeader} />
       <Routes>
+        <Route path="/" element={<MainLandingPage />} />
         <Route path="/homepage" element={<Homepage />} />
         <Route
           path="/dashboard"
           element={userType === 'Doctor' ? <Doctor_Dashboard /> : <Dashboard />}
         />
         <Route path="/appointment" element={<Appointment />} />
-        {/* <Route path="/doctordashboard" element={<Doctor_Dashboard />} /> */}
-        {userType === 'Hospital'||userType === 'Groomer Shop' ? (
-          <Route path="/addoctor" element={<Add_Doctor />} />
+        {userType === 'Hospital' || userType === 'Groomer Shop' ? (
+          <>
+            <Route path="/addoctor" element={<Add_Doctor />} />
+            <Route path="/inventory" element={<Inventory />} />
+          </>
         ) : null}
         <Route path="/signup" element={<SignUp />} />
         <Route path="/signin" element={<SignIn />} />
@@ -215,35 +207,22 @@ const Layout = () => {
         <Route path="/articlepage" element={<ArticlePage />} />
         <Route path="/blogpage" element={<Blogpage />} />
         <Route path="/lblogpage" element={<Blogpage />} />
-        <Route
-          path="/AssessmentManagement"
-          element={<AssessmentManagement />}
-        />
-        <Route path='/viewprocedurepackage/:id' element={<ViewProcedurePackage />} />
+        <Route path="/AssessmentManagement" element={<AssessmentManagement />} />
         <Route path="/add_department" element={<Add_Department />} />
-        <Route
-          path="/DeveloperLandingPage"
-          element={<DeveloperLandingPage />}
-        />
-        <Route path="/" element={<MainLandingPage />} />
+        <Route path="/DeveloperLandingPage" element={<DeveloperLandingPage />} />
         <Route path="/Chatting" element={<ChatDashboard />} />
         <Route path="/checkin" element={<CheckIn />} />
         <Route path="/devSignup" element={<DevlpSignup />} />
         <Route path="/devSignin" element={<DevlpSignin />} />
-        {userType === 'Hospital'||userType === 'Groomer Shop' ? (
-          <Route path="/inventory" element={<Inventory />} />
-        ) : null}
         <Route path="/inventorydetails/:id" element={<InventoryDetail />} />
         <Route path="/AddInventory" element={<AddInventory />} />
         <Route path="/AddProcedurePackage" element={<AddProcedurePackage />} />
+        <Route path="/viewprocedurepackage/:id" element={<ViewProcedurePackage />} />
         <Route path="/revenuemangement" element={<RevenueManagement />} />
         <Route path="/chatscreen" element={<ChatScreen />} />
         <Route path="/doctorprofile" element={<DoctorProfile />} />
         <Route path="/chatstatement" element={<ClientStatement />} />
-        <Route
-          path="/chatstatementdetails"
-          element={<ClientStatementDetail />}
-        />
+        <Route path="/chatstatementdetails" element={<ClientStatementDetail />} />
       </Routes>
       {showFooter && <Footer />}
     </>

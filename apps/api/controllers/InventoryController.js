@@ -7,6 +7,11 @@ const {
   InventoryBundleFHIRConverter,
   InventoryFHIRConverter,
   ApproachingExpiryReportConverter,
+  convertProcedurePackagesToFHIRBundle,
+  NormalProcedurePackage,
+  NormalProcedurePackageToUpdate,
+  ProcedurePackageFHIR,
+  MedicalPackage,
 } = require("../utils/InventoryFhirHandler");
 const {
   InventoryCategory,
@@ -14,6 +19,7 @@ const {
   InventoryManufacturer,
 } = require("../models/AddInventoryCotegory");
 const { Fhir } = require("fhir");
+const { text } = require("body-parser");
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Add Inventory >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 const { ObjectId } = require("mongoose").Types;
 const InventoryControllers = {
@@ -21,15 +27,12 @@ const InventoryControllers = {
     try {
       const { expiryDate } = req.body;
 
-      console.log(
-        "ijijijijijijijijijijijijij",
-        JSON.stringify(req.body, null, 2)
-      );
+
+
       const respon = new ProductCategoryFHIRConverter(
         req.body
       ).convertToNormalToAddInventoryData();
-      console.log("resssssss", respon);
-
+     
       const getbarcode = await Inventory.findOne({ barcode: respon.barcode });
       if (getbarcode) {
         return res
@@ -90,7 +93,7 @@ const InventoryControllers = {
 
       const sortBy = "expiryDate";
       const order = "asc";
-      console.log("Received Query Params:", req.query);
+      // console.log("Received Query Params:", req.query);
 
       let matchStage = {};
       let searchConditions = [];
@@ -102,7 +105,7 @@ const InventoryControllers = {
 
       if (searchItem) {
         const searchNumber = Number(searchItem);
-        console.log("searchNumber:", searchNumber);
+        // console.log("searchNumber:", searchNumber);
 
         if (!isNaN(searchNumber)) {
           searchConditions.push(
@@ -194,8 +197,8 @@ const InventoryControllers = {
 
               {
                 $addFields: {
-                  category: "$categoryy.cotegory",
-                  itemCategory: "$itemCategoryData.itemCotegory",
+                  category: "$categoryy.category",
+                  itemCategory: "$itemCategoryData.itemCategory",
                   manufacturer: "$manufacturerData.manufacturer",
                 },
               },
@@ -238,10 +241,10 @@ const InventoryControllers = {
         currentPage: Math.floor(parseInt(skip) / parseInt(limit)) + 1,
       });
 
-      console.log("inventorymaindata", validateFHIR(fhirdata));
+      // console.log("inventorymaindata", validateFHIR(fhirdata));
       res.status(200).json(fhirdata);
 
-      console.log("inventoryy", JSON.stringify(fhirdata, null, 2));
+      // console.log("inventoryy", JSON.stringify(fhirdata, null, 2));
     } catch (error) {
       console.error("Error fetching inventory:", error);
       res.status(500).json({ message: "Server error", error });
@@ -250,24 +253,64 @@ const InventoryControllers = {
 
   AddProcedurePackage: async (req, res) => {
     try {
-      const { userId } = req.query;
-      const { packageName, category, description, packageItems } = req.body;
-      console.log("Received Procedure Package:", req.body);
-      if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
-        return res.status(400).json({ message: "Invalid doctorId format" });
-      }
+      const { bussinessId } = req.query;
 
+      if (
+        typeof bussinessId !== "string" ||
+        !/^[a-fA-F0-9-]{36}$/.test(bussinessId)
+      ) {
+        return res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "invalid",
+              details: {
+                text: "Invalid hospitalId format",
+              },
+            },
+          ],
+        });
+      }
+      const data = new MedicalPackage(req.body).toNormalFormat();
+  //  console.log("iiiii",req.body);
+  //     console.log("hhihhhiihhiihihih",validateFHIR(req.body));
+    
+      const { packageName, category, description, packageItems } = data;
+      // console.log("444444444444444444444444",packageName, category, description, packageItems)
       const procedurePackage = new ProcedurePackage({
-        bussinessId: userId,
+        bussinessId: bussinessId,
         packageName,
         category,
         description,
         packageItems,
       });
       await procedurePackage.save();
-      res.status(200).json({ message: "Procedure Package Added Successfully" });
+      res.status(200).json({
+        resourceType: "OperationOutcome",
+        issue: [
+          {
+            severity: "information",
+            code: "informational",
+            details: {
+              text: "Procedure package added successfully",
+            },
+          },
+        ],
+      });
     } catch (error) {
-      res.status(400).json({ message: error.message });
+      res.status(500).json({
+        resourceType: "OperationOutcome",
+        issue: [
+          {
+            severity: "error",
+            code: "invalid",
+            details: {
+              text: `${error.message}`,
+            },
+          },
+        ],
+      });
     }
   },
 
@@ -378,8 +421,8 @@ const InventoryControllers = {
         },
         {
           $addFields: {
-            category: "$categoryy.cotegory",
-            itemCategory: "$itemCategoryData.itemCotegory",
+            category: "$categoryy.category",
+            itemCategory: "$itemCategoryData.itemCategory",
             manufacturer: "$manufacturerData.manufacturer",
           },
         },
@@ -432,7 +475,6 @@ const InventoryControllers = {
   getProceurePackage: async (req, res) => {
     try {
       const { userId, skip, limit } = req.query;
-      console.log("getProceurePackage", userId, skip, limit);
 
       const procedurePackage = await ProcedurePackage.aggregate([
         { $match: { bussinessId: userId } },
@@ -445,10 +487,8 @@ const InventoryControllers = {
               { $limit: parseInt(limit) || 5 },
               {
                 $addFields: {
-                  totalSubtotal: {
-                    $sum: "$packageItems.subtotal",
-                  },
-
+                  categoryObjId: { $toObjectId: "$category" },
+                  totalSubtotal: { $sum: "$packageItems.subtotal" },
                   formattedUpdatedAt: {
                     $dateToString: {
                       format: "%d %b %Y",
@@ -456,6 +496,27 @@ const InventoryControllers = {
                       timezone: "UTC",
                     },
                   },
+                },
+              },
+              {
+                $lookup: {
+                  from: "procedurecategories",
+                  localField: "categoryObjId",
+                  foreignField: "_id",
+                  as: "categoryInfo",
+                },
+              },
+              {
+                $addFields: {
+                  category: {
+                    $arrayElemAt: ["$categoryInfo.category", 0],
+                  },
+                },
+              },
+              {
+                $project: {
+                  categoryInfo: 0,
+                  categoryObjId: 0,
                 },
               },
             ],
@@ -479,8 +540,9 @@ const InventoryControllers = {
           },
         },
       ]);
-
-      res.status(200).json({ procedurePackage });
+      const data = convertProcedurePackagesToFHIRBundle(procedurePackage[0]);
+  
+      res.status(200).json({ data });
     } catch (error) {
       res.status(400).json({ message: error.message });
     }
@@ -512,18 +574,44 @@ const InventoryControllers = {
   },
   updateProcedurePackage: async (req, res) => {
     try {
-      const { userId, id } = req.query;
-      const { packageName, category, description, packageItems } = req.body;
+      const { hospitalId, id } = req.query;
 
-      if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
-        return res.status(400).json({ message: "Invalid bussinessId format" });
+      if (typeof hospitalId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(hospitalId)) {
+        return res.status(400).json({ 
+          resourceType: "OperationOutcome",
+          issue:[
+            {
+              severity: "invalid",
+              code: "error",
+              details: {
+                text:"invalid hospitalId format"
+              }
+            }
+          ]
+        });
       }
       if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(400).json({ message: "Invalid MongoDB ID" });
+        return res.status(400).json({ 
+          resourceType: "OperationOutcome",
+          issue:[
+            {
+              severity: "invalid",
+              code: "error",
+              details: {
+                text:'Invalid MongoDB ID'
+              }
+            }
+          ]
+         });
       }
+     
+
+      const response = new ProcedurePackageFHIR(req.body);
+      const { packageName, category, description, packageItems } =
+        response.fhirData.data;
 
       const procedurePackage = await ProcedurePackage.findOneAndUpdate(
-        { _id: id, bussinessId: userId },
+        { _id: id, bussinessId: hospitalId },
         {
           packageName,
           category,
@@ -544,12 +632,45 @@ const InventoryControllers = {
         .exec();
 
       if (!procedurePackage) {
-        return res.status(404).json({ message: "Procedure Package not found" });
+        return res.status(404).json({ 
+          resourceType: "OperationOutcome",
+          issue:[
+            {
+              severity: "information",
+              code: "informational",
+              details: {
+                text: "procedure pacakage not found",
+              }
+            }
+          ]
+         });
       }
 
-      res.status(200).json({ procedurePackage });
+      res.status(200).json({ 
+        resourceType: "OperationOutcome",
+      issue:[
+        {
+          severity: "Information",
+          code: "informational",
+          details: {
+            text: "Package Update Successfully",
+          }
+        }
+      ]
+      });
     } catch (error) {
-      res.status(400).json({ message: error.message });
+      res.status(500).json({ 
+        resourceType:"OperationOutcome",
+        issue:[
+          {
+            severity: "Invalid",
+            code:"error",
+            details: {
+              text:`${error.message}`
+            }
+          }
+        ]
+       });
     }
   },
   // Delete Procedure Package
@@ -584,31 +705,82 @@ const InventoryControllers = {
   },
   deleteProcedurePackage: async (req, res) => {
     try {
-      const { userId, id } = req.query;
-      if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
-        return res.status(400).json({ message: "Invalid doctorId format" });
-      }
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(400).json({ message: "Invalid MongoDB ID" });
-      }
+      const { userId } = req.query;
+      const { id } = req.params;
 
+      console.log("");
+  
+      if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        return res.status(400).json({ 
+          resourceType: "OperationOutecome",
+          issue:[
+            {
+              severity: "invalid",
+              code: "error",
+              details: {
+                text: "invalid hospitalId format",
+              }
+            }
+          ]
+        });
+      }
+  
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ 
+          resourceType:"OperationOutcome",
+          issue:[
+            {
+              severity: "invalid",
+              code:"error",
+              details: {
+                text: "invalid mongoDbId format",
+              }
+            }
+          ]
+        });
+      }
+  
       const procedurePackage = await ProcedurePackage.findOneAndDelete({
         _id: id,
         bussinessId: userId,
-      })
-        .lean()
-        .exec();
+      }).lean();
+  
       if (!procedurePackage) {
-        return res.status(404).json({ message: "Procedure Package not found" });
+        return res.status(404).json({ 
+          resourceType:'OperationOutcome',
+          issue:[
+            {
+              severity:"information",
+              code:"informational",
+              details: {
+                text:"procedurePackage not available"
+              }
+            }
+          ],
+         });
       }
-      res
-        .status(200)
-        .json({ message: "Procedure Package deleted successfully" });
+  
+      return res.status(200).json({
+        resourceType: "OperationOutcome",
+        issue: [{
+          severity: "information",
+          code: "deleted",
+          details:{
+            text:"Procedure Package deleted successfully",
+          }
+        }]
+      });
     } catch (error) {
-      res.status(400).json({ message: error.message });
+      return res.status(500).json({
+        resourceType: "OperationOutcome",
+        issue: [{
+          severity: "error",
+          code: "exception",
+          details: {text:error.message}
+        }]
+      });
     }
-  },
-
+  },  
   getApproachngExpiryGraphs: async (req, res) => {
     try {
       const { userId } = req.query;
@@ -706,15 +878,11 @@ const InventoryControllers = {
         userId: userId,
       });
 
-      console.log(
-        "getApproachngExpiryGraphs",
-        JSON.stringify(fhirdata, null, 2)
-      );
       res.status(200).json(fhirdata);
     } catch (error) {
-      res.status(500).json({ 
+      res.status(500).json({
         resourceType: "OperationOutcome",
-        issue:[
+        issue: [
           {
             severity: "error",
             code: "exception",
@@ -722,16 +890,15 @@ const InventoryControllers = {
               text: "Internal server error",
             },
             diagnostics: error.message,
-          }
-        ]
-       });
+          },
+        ],
+      });
     }
   },
 
   inventoryOverView: async (req, res) => {
     try {
       const { userId } = req.query;
-      console.log("userId", userId);
       const inventory = await Inventory.aggregate([
         {
           $match: { bussinessId: userId },
@@ -764,18 +931,10 @@ const InventoryControllers = {
         },
       ]);
 
-      console.log("inventory", inventory);
-
       const response = new FHIRConverter(
         inventory[0]
       ).InventoryOverviewConvertToFHIR();
-
-      console.log("overviewwwwwwwww", JSON.stringify(response, null, 2));
-
-      console.log(
-        "vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv",
-        validateFHIR(JSON.stringify(response, null, 2))
-      );
+     
       res.status(200).json(response);
     } catch (error) {
       res.status(400).json({ message: error.message });

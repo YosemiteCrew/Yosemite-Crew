@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import PropTypes from "prop-types";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/useAuth";
 
 const ActionsTable = ({
@@ -12,15 +12,24 @@ const ActionsTable = ({
   total
 }) => {
   const { userId } = useAuth();
+  const { pathname } = useLocation();
+
   const itemsPerPage = 6;
   const [offset, setOffset] = useState(0);
-  const [visibleCount, setVisibleCount] = useState(itemsPerPage);
+
+  const isDashboard = pathname === "/dashboard";
+  const paginatedAppointments = isDashboard
+    ? appointments.slice(0, 3)
+    : appointments;
+
+  const visibleCount = isDashboard
+    ? Math.min(3, appointments.length)
+    : Math.min(offset + itemsPerPage, total);
 
   const handleNext = () => {
     const newOffset = offset + itemsPerPage;
     if (newOffset < total) {
       setOffset(newOffset);
-      setVisibleCount((prev) => Math.min(prev + itemsPerPage, total));
       onClick(newOffset, itemsPerPage, userId);
     }
   };
@@ -29,25 +38,13 @@ const ActionsTable = ({
     const newOffset = offset - itemsPerPage;
     if (newOffset >= 0) {
       setOffset(newOffset);
-      setVisibleCount((prev) => Math.max(prev - itemsPerPage, itemsPerPage));
       onClick(newOffset, itemsPerPage, userId);
     }
   };
 
-  const handleAccept = (id, status, offset) => {
+  const handleAction = (id, status) => {
     onClicked(id, status, offset);
   };
-
-  const handleCancel = (id, status, offset) => {
-    onClicked(id, status, offset);
-  };
-
-  let data = [];
-  if (location.pathname === "/dashboard") {
-    data = appointments.slice(0, 3);
-  } else {
-    data = appointments;
-  }
 
   return (
     <div className="MainTableDiv">
@@ -66,8 +63,8 @@ const ActionsTable = ({
           </tr>
         </thead>
         <tbody>
-          {data.map((appointment, index) => (
-            <tr key={index}>
+          {paginatedAppointments.map((appointment) => (
+            <tr key={appointment._id}>
               <td>
                 <div className="dogimg">
                   <img
@@ -79,9 +76,7 @@ const ActionsTable = ({
               <td>
                 <div className="tblDiv">
                   <h4>{appointment.petName}</h4>
-                  <p>
-                    <i className="ri-user-fill"></i> {appointment.ownerName}
-                  </p>
+                  <p><i className="ri-user-fill"></i> {appointment.ownerName}</p>
                 </div>
               </td>
               <td>{appointment.tokenNumber}</td>
@@ -102,14 +97,10 @@ const ActionsTable = ({
               </td>
               <td>
                 <div className="actionDiv">
-                  <Link
-                    onClick={() => handleAccept(appointment._id, "booked", offset)}
-                  >
+                  <Link onClick={() => handleAction(appointment._id, "booked")}>
                     <img src={actimg1} alt="Accept" />
                   </Link>
-                  <Link
-                    onClick={() => handleCancel(appointment._id, "cancelled", offset)}
-                  >
+                  <Link onClick={() => handleAction(appointment._id, "cancelled")}>
                     <img src={actimg2} alt="Decline" />
                   </Link>
                 </div>
@@ -119,8 +110,7 @@ const ActionsTable = ({
         </tbody>
       </table>
 
-      {/* Pagination Controls */}
-      {location.pathname !== "/dashboard" && (
+      {!isDashboard && (
         <div className="PaginationDiv">
           <button onClick={handlePrev} disabled={offset === 0}>
             <i className="ri-arrow-left-line"></i>
@@ -128,10 +118,7 @@ const ActionsTable = ({
           <h6 className="PagiName">
             Responses <span>{visibleCount} of {total}</span>
           </h6>
-          <button
-            onClick={handleNext}
-            disabled={offset + itemsPerPage >= total}
-          >
+          <button onClick={handleNext} disabled={offset + itemsPerPage >= total}>
             <i className="ri-arrow-right-line"></i>
           </button>
         </div>
@@ -143,18 +130,17 @@ const ActionsTable = ({
 ActionsTable.propTypes = {
   appointments: PropTypes.arrayOf(
     PropTypes.shape({
-      id: PropTypes.string.isRequired,
+      _id: PropTypes.string.isRequired,
       petName: PropTypes.string.isRequired,
       ownerName: PropTypes.string.isRequired,
-      petType: PropTypes.string.isRequired,
-      breed: PropTypes.string.isRequired,
-      appointmentDate: PropTypes.string.isRequired,
-      appointmentTime: PropTypes.string.isRequired,
-      doctorName: PropTypes.string.isRequired,
-      specialization: PropTypes.string.isRequired,
-      petImage: PropTypes.string.isRequired,
-      acceptAction: PropTypes.string.isRequired,
-      declineAction: PropTypes.string.isRequired,
+      tokenNumber: PropTypes.string,
+      purposeOfVisit: PropTypes.string,
+      petType: PropTypes.string,
+      breed: PropTypes.string,
+      appointmentDate: PropTypes.string,
+      appointmentTime: PropTypes.string,
+      veterinarian: PropTypes.string,
+      department: PropTypes.string,
     })
   ).isRequired,
   actimg1: PropTypes.string.isRequired,

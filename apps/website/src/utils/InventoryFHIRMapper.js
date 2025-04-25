@@ -161,8 +161,158 @@ class ApproachingExpiryReportConverter {
   }
 }
 
+function convertFHIRBundleToNormalFormat(fhirBundle) {
+  return {
+    metadata: {
+      page: parseInt(fhirBundle.meta?.tag?.find(t => t.system.includes("currentPage"))?.code || "1"),
+      limit: parseInt(fhirBundle.meta?.tag?.find(t => t.system.includes("itemsPerPage"))?.code || "10")
+    },
+    totalItems: fhirBundle.total,
+    totalPages: parseInt(fhirBundle.meta?.tag?.find(t => t.system.includes("totalPages"))?.code || "1"),
+    data: fhirBundle.entry.map(({ resource }) => {
+      const packageData = {
+        _id: resource.id,
+        packageName: resource.title,
+        category: resource.category?.[0]?.coding?.[0]?.code || "",
+        description: resource.description,
+        bussinessId: resource.subject?.identifier?.value,
+        createdAt: resource.created,
+        updatedAt: resource.meta?.lastUpdated,
+        formattedUpdatedAt: resource.extension?.find(ext => ext.url.includes("formattedUpdatedAt"))?.valueString,
+        totalSubtotal: resource.extension?.find(ext => ext.url.includes("totalSubtotal"))?.valueMoney?.value,
+        packageItems: (resource.contained || []).map((item) => ({
+          _id: item.id,
+          name: item.suppliedItem?.itemCodeableConcept?.text,
+          itemType: item.suppliedItem?.quantity?.unit,
+          quantity: item.suppliedItem?.quantity?.value,
+          unitPrice: item.extension?.find(ext => ext.url.includes("unitPrice"))?.valueMoney?.value,
+          subtotal: item.extension?.find(ext => ext.url.includes("subtotal"))?.valueMoney?.value,
+          notes: item.extension?.find(ext => ext.url.includes("notes"))?.valueString
+        }))
+      };
+      return packageData;
+    })
+  };
+}
+
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<fhir ProcedurePackage>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+class MedicalPackageFHIR {
+  constructor(packageData) {
+    // Ensure that resourceType is correctly set
+    this.resourceType = "ProcedureRequest";  // This should be a valid FHIR resource type
+    this.id = packageData.packageName;       // Unique identifier for the resource
+    this.category = {
+      coding: [
+        {
+          system: "http://example.com/category-system", // Use a valid coding system URL here
+          code: packageData.category,
+        },
+      ],
+    };
+    this.description = packageData.description;
+    this.item = packageData.packageItems.map((item) => new PackageItemFHIR(item));
+  }
+
+  toFHIR() {
+    return {
+      resourceType: this.resourceType, // This is the key property!
+      id: this.id,
+      category: this.category,
+      description: this.description,
+      item: this.item.map((item) => item.toFHIR()),
+    };
+  }
+}
+
+class PackageItemFHIR {
+  constructor(itemData) {
+    this.medicationCodeableConcept = {
+      coding: [
+        {
+          system: "http://example.com/medication-system", // Use a valid medication system URL here
+          code: itemData.name,
+        },
+      ],
+    };
+    this.itemType = itemData.itemType;
+    this.quantity = {
+      value: itemData.quantity,  // Ensure quantity is numeric and has a unit
+      unit: "count", // Specify the unit (could be count, mg, etc.)
+    };
+    this.unitPrice = itemData.unitPrice;
+    this.subtotal = itemData.subtotal;
+    this.notes = itemData.notes;
+  }
+
+  toFHIR() {
+    return {
+      medicationCodeableConcept: this.medicationCodeableConcept,
+      itemType: this.itemType,
+      quantity: this.quantity,
+      unitPrice: this.unitPrice,
+      subtotal: this.subtotal,
+      notes: this.notes,
+    };
+  }
+}
+//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< FHIR ProcedurePackageItem For Update>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+class ProcedurePackageFHIR {
+  constructor(data) {
+    this.data = data;
+  }
+
+  toFHIR() {
+    const { id, packageName, description, packageItems } = this.data;
+
+    return {
+      resourceType: "ChargeItemDefinition",
+      id,
+      status: "active",
+      title: packageName,
+      description,
+      code: {
+        coding: [
+          {
+            system: "http://example.org/procedure-packages",
+            code: id,
+            display: packageName
+          }
+        ]
+      },
+      propertyGroup: [
+        {
+          applicability: [
+            {
+              description: "Applicable to veterinary surgical procedures"
+            }
+          ],
+          priceComponent: packageItems.map(item => ({
+            type: "base",
+            code: { text: `${item.name} - ${item.itemType}` },
+            factor: item.quantity,
+            amount: {
+              value: item.unitPrice,
+              currency: "INR"
+            },
+            extension: [
+              {
+                url: "http://example.org/fhir/StructureDefinition/package-item-notes",
+                valueString: item.notes
+              }
+            ]
+          }))
+        }
+      ]
+    };
+  }
+}
+
+
 export {
   InventoryFHIRParser,
   InventoryBundleFHIRConverter,
   ApproachingExpiryReportConverter,
+  convertFHIRBundleToNormalFormat,
+  MedicalPackageFHIR,
+  ProcedurePackageFHIR
 };
