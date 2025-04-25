@@ -42,7 +42,7 @@ const Dashboard = () => {
       try {
         const token = sessionStorage.getItem("token");
         const response = await axios.get(
-          `${import.meta.env.VITE_BASE_URL}api/hospitals/AppointmentGraphOnMonthBase?userId=${userId}`,
+          `${import.meta.env.VITE_BASE_URL}fhir/v1/AppointmentGraphOnMonthBase?userId=${userId}`,
           {
             params: {
               days: days,

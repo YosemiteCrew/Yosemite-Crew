@@ -12,12 +12,12 @@ router.get(
 );
 router.get('/getProceurePackage',verifyTokenAndRefresh, InventoryControllers.getProceurePackage);
 router.get('/GetProcedurePackageByid',verifyTokenAndRefresh, InventoryControllers.GetProcedurePackageByid);
-router.put('/updateProcedurePackage',verifyTokenAndRefresh, InventoryControllers.updateProcedurePackage);
+router.put('/procedures',verifyTokenAndRefresh, InventoryControllers.updateProcedurePackage);
 router.delete(
   '/deleteProcedureitems',verifyTokenAndRefresh,
   InventoryControllers.deleteProcedureitems
 );
-router.delete('/deleteProcedurePackage',verifyTokenAndRefresh, InventoryControllers.deleteProcedurePackage);
+router.delete('/ProcedurePackage/:id',verifyTokenAndRefresh, InventoryControllers.deleteProcedurePackage);
 router.get('/getApproachngExpiryGraphs',verifyTokenAndRefresh,InventoryControllers.getApproachngExpiryGraphs)
 router.get('/InventoryReports',verifyTokenAndRefresh,InventoryControllers.inventoryOverView)
 module.exports = router;

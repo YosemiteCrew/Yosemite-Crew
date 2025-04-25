@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
 const Schema = new mongoose.Schema({
-    cotegory:{
+    category:{
         type: String,
         require: true,
     },
@@ -28,7 +28,7 @@ const manufacturerSchema = new mongoose.Schema({
 const InventoryManufacturer = mongoose.model("InventoryManufacturer", manufacturerSchema)
 
 const ItemCategorySchema = new mongoose.Schema({
-    itemCotegory:{
+    itemCategory:{
         type: String,
         required: true,
     },
@@ -40,4 +40,17 @@ const ItemCategorySchema = new mongoose.Schema({
 
 const InventoryItemCategory = mongoose.model("InventoryItemCategory", ItemCategorySchema)
 
-module.exports = {InventoryCategory,InventoryManufacturer,InventoryItemCategory}
+const ProcedureCategorySchema = new mongoose.Schema({
+    category:{
+        type: String,
+        required:true
+    },
+    bussinessId: {
+        type:String,
+        required:true,
+    }
+})
+
+const ProcedureCategory = mongoose.model("ProcedureCategory",ProcedureCategorySchema)
+
+module.exports = {InventoryCategory,InventoryManufacturer,InventoryItemCategory, ProcedureCategory}

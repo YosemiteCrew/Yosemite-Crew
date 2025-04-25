@@ -1,25 +1,31 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import './AddProcedurePackage.css';
-import { Col, Container, Form, Row } from 'react-bootstrap';
-import { Forminput } from '../SignUp/SignUp';
-import DynamicSelect from '../../Components/DynamicSelect/DynamicSelect';
-import { MainBtn } from '../Appointment/page';
+import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import "./AddProcedurePackage.css";
+import { Col, Container, Form, Row } from "react-bootstrap";
+import { Forminput } from "../SignUp/SignUp";
+import DynamicSelect from "../../Components/DynamicSelect/DynamicSelect";
+import { MainBtn } from "../Appointment/page";
 // import whtcheck from '../../../../public/Images/whtcheck.png';
-import axios from 'axios';
-import { useAuth } from '../../context/useAuth';
-import ViewPackageTable from '../../Components/PackageTable/ViewPackageTable';
-import Swal from 'sweetalert2';
+import axios from "axios";
+import { useAuth } from "../../context/useAuth";
+import ViewPackageTable from "../../Components/PackageTable/ViewPackageTable";
+import Swal from "sweetalert2";
+import {
+  InventoryFHIRParser,
+  ProcedurePackageFHIR,
+} from "../../utils/InventoryFHIRMapper";
+import { putData } from "../../services/apiService";
 
 function ViewProcedurePackage(fetchPackageData) {
   const navigate = useNavigate();
-  const { userId ,onLogout} = useAuth();
+  const { userId, onLogout } = useAuth();
   const { id } = useParams();
+  const [options, setOptions] = useState([]);
   const [procedureData, setProcedureData] = useState({
-    id: '',
-    packageName: '',
-    category: '',
-    description: '',
+    id: "",
+    packageName: "",
+    category: "",
+    description: "",
     packageItems: [],
   });
 
@@ -27,13 +33,14 @@ function ViewProcedurePackage(fetchPackageData) {
     const fetchPackageData = async () => {
       try {
         const token = sessionStorage.getItem("token");
-        const response = await axios.get(                   
-          `${import.meta.env.VITE_BASE_URL}api/inventory/GetProcedurePackageByid?id=${id}&userId=${userId}`,{headers:{Authorization:`Bearer ${token}`}}
+        const response = await axios.get(
+          `${import.meta.env.VITE_BASE_URL}api/inventory/GetProcedurePackageByid?id=${id}&userId=${userId}`,
+          { headers: { Authorization: `Bearer ${token}` } }
         );
 
         const data = response.data.procedurePackage;
         setProcedureData({
-          id:data._id,
+          id: data._id,
           packageName: data.packageName,
           category: data.category,
           description: data.description,
@@ -44,52 +51,79 @@ function ViewProcedurePackage(fetchPackageData) {
         });
       } catch (error) {
         if (error.response && error.response.status === 401) {
-          console.log('Session expired. Redirecting to signin...');
+          console.log("Session expired. Redirecting to signin...");
           onLogout(navigate);
         }
       }
     };
 
-    if (id) {
+    if (id&& userId) {
       fetchPackageData();
     }
-  }, [id, userId,navigate,onLogout]);
+  }, [id, userId, navigate, onLogout]);
 
-  // Function to handle deleting package items
-  // const handleDeleteItem = (key) => {
-  //   setProcedureData((prevData) => ({
-  //     ...prevData,
-  //     packageItems: prevData.packageItems.filter((item) => item.key !== key),
-  //   }));
-  // };
+  const procedurePackageCatories = useCallback(async () => {
+    try {
+      const response = await axios.get(
+        `${import.meta.env.VITE_BASE_URL}fhir/admin/procedureCategory?bussinessId=${userId}`
+      );
+      if (response.status === 200) {
+        const res = new InventoryFHIRParser(
+          response.data.data
+        ).convertToNormaldata();
+
+        setOptions(res);
+      }
+    } catch (error) {
+      console.log(error);
+      if (error.response.status === 400 || error.response.status === 500) {
+        Swal.fire({
+          type: "error",
+          text: `${error.response.data.issue[0].details.text}`,
+          icon: "error",
+        });
+      }
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    if (userId) {
+      procedurePackageCatories();
+    }
+  }, [procedurePackageCatories, userId]);
 
   const handleUpdate = async (e) => {
     e.preventDefault();
     try {
-      const token = sessionStorage.getItem("token");
-      const response = await axios.put(
-        `${import.meta.env.VITE_BASE_URL}api/inventory/updateProcedurePackage?id=${id}&userId=${userId}`,
-        procedureData,{headers:{Authorization:`Bearer ${token}`}}
-      );
-     if(response){ 
-       navigate('/inventory');
-      Swal.fire({
-        title: 'Procedure Package Updated Successfully',
-        text: 'Procedure Package Updated Successfully',
-        icon:'success',
-       })
+      // const token = sessionStorage.getItem("token");
 
-     }
+      const data = new ProcedurePackageFHIR(procedureData);
+
+      const response = await putData(
+        `fhir/v1/procedures?id=${id}&hospitalId=${userId}`,
+        data,
+        // { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (response.status ===200) {
+       
+        Swal.fire({
+          title: "Success",
+          text: `${response.data.issue[0].details.text}`,
+          icon: "success",
+        });
+      }
+      navigate("/inventory");
     } catch (error) {
       if (error.response && error.response.status === 401) {
-        console.log('Session expired. Redirecting to signin...');
+        console.log("Session expired. Redirecting to signin...");
         onLogout(navigate);
+      }else if(error.response.status === 400 || error.response.status === 404 || error.response.status === 500){
+        Swal.fire({
+          title: "Failed",
+          text: `${error.response.data.issue[0].details.text}`,
+          icon: "error",
+        });
       }
-     Swal.fire({
-      title: 'Error Updating Procedure Package',
-      text: 'Error Updating Procedure Package',
-      icon:'error',
-     })
     }
   };
 
@@ -113,17 +147,16 @@ function ViewProcedurePackage(fetchPackageData) {
                     inname="packageName"
                     value={procedureData.packageName}
                     onChange={(e) =>
-                      setProcedureData({ ...procedureData, packageName: e.target.value })
+                      setProcedureData({
+                        ...procedureData,
+                        packageName: e.target.value,
+                      })
                     }
                   />
                 </Col>
                 <Col md={6}>
                   <DynamicSelect
-                    options={[
-                      { value: '1', label: 'Appendectomy' },
-                      { value: '2', label: 'Gallbladder Removal' },
-                      { value: '3', label: 'Knee Replacement' },
-                    ]}
+                    options={options}
                     value={procedureData.category}
                     onChange={(value) =>
                       setProcedureData({ ...procedureData, category: value })
@@ -141,27 +174,35 @@ function ViewProcedurePackage(fetchPackageData) {
                       id="floatingTextarea2"
                       value={procedureData.description}
                       onChange={(e) =>
-                        setProcedureData({ ...procedureData, description: e.target.value })
+                        setProcedureData({
+                          ...procedureData,
+                          description: e.target.value,
+                        })
                       }
                     ></textarea>
-                    <label htmlFor="floatingTextarea2">Short description of the procedure.</label>
+                    <label htmlFor="floatingTextarea2">
+                      Short description of the procedure.
+                    </label>
                   </div>
                 </Col>
               </Row>
-              
+
               <ViewPackageTable
-               packageItems={procedureData.packageItems}
-               fetchPackageData={fetchPackageData}
-               updatePackageItems={(items) =>
-                setProcedureData((prevData) => ({
-                  ...prevData, 
-                  packageItems: items, 
-                }))
-              }
-              
-                /> 
+                packageItems={procedureData.packageItems}
+                fetchPackageData={fetchPackageData}
+                updatePackageItems={(items) =>
+                  setProcedureData((prevData) => ({
+                    ...prevData,
+                    packageItems: items,
+                  }))
+                }
+              />
               <div className="ee">
-                <MainBtn bimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/whtcheck.png`} btext="Update Package" optclas="" />
+                <MainBtn
+                  bimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/whtcheck.png`}
+                  btext="Update Package"
+                  optclas=""
+                />
               </div>
             </Form>
           </div>

@@ -904,6 +904,7 @@ input[type='number'] {
   letter-spacing: -0.02em;
   border-radius: 12px;
   border: none;
+  width: 100%;
 }
 .cardbtn button img {
   height: 16px;

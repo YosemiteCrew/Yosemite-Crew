@@ -22,20 +22,13 @@ import Swal from "sweetalert2";
 import ApproachingExpiryChart from "../../Components/BarGraph/ApproachingExpiryChart";
 import {
   ApproachingExpiryReportConverter,
+  convertFHIRBundleToNormalFormat,
   InventoryBundleFHIRConverter,
   InventoryFHIRParser,
 } from "../../utils/InventoryFHIRMapper";
 import { FHIRParser } from "../../utils/FhirMapper";
+import { getData } from "../../services/apiService";
 
-const INVENTORY_TABS = [
-  "Pharmaceuticals",
-  "Medical Supplies",
-  "Pet Care Products",
-  "Diagnostics",
-  "Equipments",
-  "Diagnostic Supplies",
-  "Office Supplies",
-];
 
 function Inventory() {
   const { userId, onLogout } = useAuth();
@@ -45,8 +38,6 @@ function Inventory() {
   const [inventoryData, setInventoryData] = useState([]);
   const [procedureData, setProcedureData] = useState([]);
 
-  // console.log("inventoryData",inventoryData);
-
   const [searchItem, setSearchItem] = useState("");
   // const [stock, setStock] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -55,7 +46,6 @@ function Inventory() {
   const [procedureTotalPages, setProcedureTotalPages] = useState(1);
   const [procedureCurrentPage, setProcedureCurrentPage] = useState(1);
   const [ApproachingExpiry, setApproachingExpiry] = useState([]);
-  // console.log('ApproachingExpiry', ApproachingExpiry);
   const [category, setCategory] = useState([]);
 
   console.log("category", category?.[0]?.value);
@@ -66,11 +56,11 @@ function Inventory() {
   useEffect(() => {
     const getInventory = async () => {
       try {
-        const token = sessionStorage.getItem("token");
-        const response = await axios.get(
-          `${import.meta.env.VITE_BASE_URL}fhir/v1/InventoryItem`,
+      
+        const response = await getData(
+          `fhir/v1/InventoryItem`,
+        
           {
-            params: {
               userId,
               searchItem,
               expiryDate: date,
@@ -79,11 +69,11 @@ function Inventory() {
               skip: (currentPage - 1) * itemsPerPage,
               limit: itemsPerPage,
             },
-            headers: { Authorization: `Bearer ${token}` },
-          }
+           
+          
         );
         console.log(response.data);
-        const fhirdata = InventoryBundleFHIRConverter.fromFHIR(response.data);
+        const fhirdata = InventoryBundleFHIRConverter.fromFHIR(response);
         console.log("fhirdata", fhirdata);
         setInventoryData(fhirdata.inventory);
         setTotalPages(response.totalPages); // Ensure API returns totalCount
@@ -115,7 +105,7 @@ function Inventory() {
   const getInventoryCotegory = useCallback(async () => {
     try {
       const response = await axios.get(
-        `${import.meta.env.VITE_BASE_URL}fhir/admin/GetAddInventoryCotegory?bussinessId=${userId}&type=category`
+        `${import.meta.env.VITE_BASE_URL}fhir/admin/GetAddInventoryCategory?bussinessId=${userId}&type=category`
       );
       if (response.status === 200) {
         const res = new InventoryFHIRParser(
@@ -155,8 +145,10 @@ function Inventory() {
         }
       );
       if (response.status === 200) {
-        setProcedureData(response.data.procedurePackage[0]);
-        setProcedureTotalPages(response.data.procedurePackage[0].totalPages);
+        const data = convertFHIRBundleToNormalFormat(response.data.data);
+        
+        setProcedureData(data.data);
+        setProcedureTotalPages(data.totalPages);
       } else {
         Swal.fire({
           type: "failed",
@@ -189,44 +181,43 @@ function Inventory() {
         try {
           const token = sessionStorage.getItem("token");
           const response = await axios.delete(
-            `${import.meta.env.VITE_BASE_URL}api/inventory/deleteProcedurePackage`,
+            `${import.meta.env.VITE_BASE_URL}fhir/v1/ProcedurePackage/${id}`, // FHIR RESTful DELETE
             {
-              params: {
-                userId,
-                id,
+              headers: {
+                Authorization: `Bearer ${token}`,
+                // "Content-Type": "application/fhir+json"
               },
-              headers: { Authorization: `Bearer ${token}` },
+              params: {
+                userId, // optional if your backend requires tracking user
+              }
             }
           );
-
+  
           if (response.status === 200) {
             Swal.fire({
               title: "Deleted!",
-              text: "Item has been deleted successfully.",
+              text: `${response.data.issue[0].details.text}`,
               icon: "success",
             });
             getProcedureData(); // Refresh data after deletion
-          } else {
-            Swal.fire({
-              title: "Error",
-              text: "Failed to delete the item.",
-              icon: "error",
-            });
-          }
+          } 
         } catch (error) {
           if (error.response && error.response.status === 401) {
             console.log("Session expired. Redirecting to signin...");
             onLogout(navigate);
+          }else if(error.response.status ===400 || error.response.status === 404 || error.response.status === 500){
+            Swal.fire({
+              title: "Error",
+              text: `${error.response.data.issue[0].details.text}`,
+              icon: "error",
+            });
           }
-          Swal.fire({
-            title: "Error",
-            text: "Something went wrong. Please try again!",
-            icon: "error",
-          });
+          
         }
       }
     });
   };
+  
   const GetApproachingExpiryGraph = useCallback(async () => {
     try {
       const token = sessionStorage.getItem("token");
@@ -447,7 +438,7 @@ function Inventory() {
               <ProcedureTable
                 actimg1={`${import.meta.env.VITE_BASE_IMAGE_URL}/view.png`}
                 actimg2={`${import.meta.env.VITE_BASE_IMAGE_URL}/delete.png`}
-                procedureData={procedureData.data}
+                procedureData={procedureData}
                 procedureTotalPages={procedureTotalPages}
                 setProcedureCurrentPage={setProcedureCurrentPage}
                 procedureCurrentPage={procedureCurrentPage}

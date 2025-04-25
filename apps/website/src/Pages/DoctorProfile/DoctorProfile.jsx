@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import "./DoctorProfile.css";
 import PropTypes from "prop-types";
 import { Button, Col, Container, Form, Row } from "react-bootstrap";
+import DOMPurify from "dompurify";
+
 // import whtcheck from '../../../../public/Images/whtcheck.png';
 import { Link, useNavigate } from "react-router-dom";
 import { FiEdit3 } from "react-icons/fi";
@@ -488,12 +490,14 @@ function PersonalInfo({ show, onHide, personalInfo, setPersonalInfo }) {
       return false;
     }
   };
-  
-  const safeSrc = isSafeImageSrc(image) ? image : "";
+
+  // Validate and sanitize the main image source
+  const safeSrc = isSafeImageSrc(image) ? DOMPurify.sanitize(image) : "";
+
+  // Validate and sanitize the fallback image source
   const fallbackImage = isSafeImageSrc(personalInfo.image)
-    ? personalInfo.image
+    ? DOMPurify.sanitize(personalInfo.image)
     : `${import.meta.env.VITE_BASE_IMAGE_URL}/camera.png`;
-  
 
   const handleImageChange = (e) => {
     const { name, files } = e.target;
@@ -551,18 +555,13 @@ function PersonalInfo({ show, onHide, personalInfo, setPersonalInfo }) {
                 className="upload-label"
                 style={{ flexDirection: "row", gap: "10px" }}
               >
-               {safeSrc ? (
-  <img src={safeSrc} alt="Preview" className="preview-image" />
-) : (
-  <div className="upload-placeholder">
-    <img
-      src={fallbackImage}
-      alt="camera"
-      className="icon"
-    />
-  </div>
-)}
-
+                {safeSrc ? (
+                  <img src={safeSrc} alt="Preview" className="preview-image" />
+                ) : (
+                  <div className="upload-placeholder">
+                    <img src={fallbackImage} alt="camera" className="icon" />
+                  </div>
+                )}
                 <h5>Change Profile Picture</h5>
               </label>
             </div>

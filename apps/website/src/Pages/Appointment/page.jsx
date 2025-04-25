@@ -38,7 +38,6 @@ const Appointment = () => {
   const { userId, userType, onLogout } = useAuth();
   const navigate = useNavigate();
 
- 
   // dropdown
   const optionsList1 = [
     "Last 7 Days",
@@ -49,8 +48,7 @@ const Appointment = () => {
   const [allAppointments, setAllAppointments] = useState([]);
   const [total, setTotal] = useState();
   const getAllAppointments = useCallback(
-    async (offset,itemsPerPage, userId) => {
-
+    async (offset, itemsPerPage, userId) => {
       try {
         const token = sessionStorage.getItem("token");
         const response = await axios.get(
@@ -64,7 +62,7 @@ const Appointment = () => {
               appointments: response.data.entry.map((entry) => entry.resource),
             });
 
-            console.log("normalAppointments",normalAppointments)
+          console.log("normalAppointments", normalAppointments);
           setAllAppointments(normalAppointments.appointments);
           setTotal(normalAppointments.totalAppointments);
         }
@@ -77,13 +75,16 @@ const Appointment = () => {
     },
     [navigate, onLogout]
   );
-  const AppointmentActions = async (id, status, offset,) => {
+  const AppointmentActions = async (id, status, offset) => {
     try {
       const token = sessionStorage.getItem("token");
-  
+
       // Prepare FHIR-compliant payload
-      const fhirAppointment = CanceledAndAcceptFHIRConverter.toFHIR({ id, status });
-  
+      const fhirAppointment = CanceledAndAcceptFHIRConverter.toFHIR({
+        id,
+        status,
+      });
+
       const response = await axios.put(
         `${import.meta.env.VITE_BASE_URL}fhir/v1/Appointment/${id}?userId=${userId}`,
         fhirAppointment,
@@ -91,26 +92,26 @@ const Appointment = () => {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-  
+
       if (response.status === 200) {
         Swal.fire({
-          title: 'Appointment Status Changed',
-          text: 'Appointment Status Changed Successfully',
-          icon: 'success',
+          title: "Appointment Status Changed",
+          text: "Appointment Status Changed Successfully",
+          icon: "success",
         });
       }
-  
-      getAllAppointments(offset,6);
+
+      getAllAppointments(offset, 6);
       // getlast7daysAppointMentsCount();
     } catch (error) {
       if (error.response && error.response.status === 401) {
         onLogout(navigate);
       }
-  
+
       Swal.fire({
-        title: 'Error',
-        text: 'Failed to Change Appointment Status',
-        icon: 'error',
+        title: "Error",
+        text: "Failed to Change Appointment Status",
+        icon: "error",
       });
     }
   };
@@ -156,7 +157,7 @@ const Appointment = () => {
   );
 
   useEffect(() => {
-    if (userId) getAllAppointments(0,6, userId);
+    if (userId) getAllAppointments(0, 6, userId);
     getAppUpcCompCanTotalCounts("Last 7 Days");
   }, [userId, getAppUpcCompCanTotalCounts, getAllAppointments]);
 
@@ -206,7 +207,6 @@ const Appointment = () => {
         );
 
         if (response.status === 200) {
-
           const data = new FHIRToNormalConverter(response.data).toNormal();
 
           setData((prev) => {
@@ -215,7 +215,7 @@ const Appointment = () => {
             );
             return [...prev, ...newAppointments];
           });
-          
+
           setTotal(data.totalCount);
           setHasMore(data.appointments.length === limit);
         }
@@ -412,7 +412,7 @@ const Appointment = () => {
           </div>
 
           <div className="DashCardData">
-            <div className="DashCardData">
+           
               {/* Confirmed Appointments Section */}
               <div className="DashCardDiv">
                 <CardHead
@@ -478,7 +478,7 @@ const Appointment = () => {
                   {upcomingLoading && <p>Loading more appointments...</p>}
                 </div>
               </div>
-            </div>
+         
 
             <div className="DashCardDiv">
               <CardHead

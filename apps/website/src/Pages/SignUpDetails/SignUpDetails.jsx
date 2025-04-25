@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios"; // Make sure axios is installed
 import "./SignUpDetails.css";
 import { Forminput, HeadText } from "../SignUp/SignUp";
+import DOMPurify from "dompurify";
 
 import UplodeImage from "../../Components/UplodeImage/UplodeImage";
 import { MainBtn } from "../Appointment/page";
@@ -496,9 +497,9 @@ const SignUpDetails = () => {
   };
 
   const safeSrc = isSafeImageSrc(preImage)
-    ? preImage
+    ? DOMPurify.sanitize(preImage)
     : isSafeImageSrc(image)
-      ? image
+      ? DOMPurify.sanitize(image)
       : "";
   return (
     <section className="SignDetailsSec">

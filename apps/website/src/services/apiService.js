@@ -1,20 +1,28 @@
 import axios from 'axios';
 
-
-const BASE_URL = import.meta.env.VITE_BASE_URL; // Replace with your API URL
-const token = sessionStorage.getItem('token');
+const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 const api = axios.create({
   baseURL: BASE_URL,
   headers: {
-    'Content-Type': 'application/json',
-     Authorization: `Bearer ${token}`
-  },
+    'Content-Type': 'application/json'
+  }
 });
 
-export const getData = async (endpoint) => {
+api.interceptors.request.use(
+  (config) => {
+    const token = sessionStorage.getItem('token'); 
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+export const getData = async (endpoint, params = {}) => {
   try {
-    const response = await api.get(endpoint);
+    const response = await api.get(endpoint, { params });
     return response.data;
   } catch (error) {
     console.error('API getData error:', error);
@@ -28,6 +36,16 @@ export const postData = async (endpoint, data) => {
     return response.data;
   } catch (error) {
     console.error('API postData error:', error);
+    throw error;
+  }
+};
+
+export const putData = async (endpoint, data) => {
+  try {
+    const response = await api.put(endpoint, data);
+    return response.data;
+  } catch (error) {
+    console.error('API putData error:', error);
     throw error;
   }
 };
