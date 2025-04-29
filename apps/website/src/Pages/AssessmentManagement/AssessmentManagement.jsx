@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import "./AssessmentManagement.css";
 import { BoxDiv, DivHeading, ListSelect, TopHeading } from "../Dashboard/page";
-import { getData } from '../../services/apiService';
+import { getData, putData} from '../../services/apiService';
 // import Topic from "../../../../public/Images/topic.png";
 import PropTypes from "prop-types";
 // import box2 from "../../../../public/Images/box2.png"
@@ -11,35 +11,129 @@ import PropTypes from "prop-types";
 // import Accpt from "../../../../public/Images/acpt.png";
 // import Decln from "../../../../public/Images/decline.png";
 import AssessmentsTable from "../../Components/ActionsTable/AssessmentsTable";
-import { AppointCard, CardHead, DashModal } from "../Appointment/page";
+import { DashModal } from "../Appointment/page";
 // import btn1 from "../../../../public/Images/btn1.png"
 // import btn2 from "../../../../public/Images/btn2.png"
 // import btn3 from "../../../../public/Images/btn3.png"
 // import btn4 from "../../../../public/Images/btn4.png"
 // import pet1 from "../../../../public/Images/pet1.png"
 
+import  {FhirDataConverter}  from '../../utils/FhirDataConverter';
+import Swal from "sweetalert2";
+
 
 
 
 const AssessmentManagement = () => {
     // dropdown
+
+  const fhir_converter = new FhirDataConverter();
   const optionsList1 = ['Last 7 Days', 'Last 10 Days', 'Last 20 Days', 'Last 21 Days'];
+  const assessmentTypeList = ['All', 'Grimace Scale', 'Parasiticide Risk', 'Pain Assessment'];
 
-  const [list, setList] = useState({});
+  const [assessments, setAssessments] = useState([]);
+  const [newAssessment, setNewAssessment] = useState(0);
+  const [completed, setCompleted] = useState([]);
+  const [completedCount, setCompletedCount] = useState(0);
+  const [cancelled, setCancelled] = useState([]);
+  const [cancelledCount, setCancelledCount] = useState(0);
+  const [confirmed, setConfirmed] = useState([]);
+  const [confirmedCount, setConfirmedCount] = useState(0);
+  const [page, setPage] = useState(0);
+  const [assessmentStatus, setAssessmentStatus] = useState("New");
+  const [days, setDays] = useState(7);
+  const [assessmentType, setAssessmentType] = useState('All');
 
-  useEffect(() => {
-    const fetchUsers = async () => {
+  
+    const fetchNewAssessments = async (offset, limit, status) => {
       try {
-        const data = await getData('fhir/v1/get-assessments');
-        setList(data);
-        console.log(list);
+        await getData(`fhir/v1/assessments?offset=${offset}&limit=${limit}&type=list&status=${status}&days=${days}&assessment_type=${assessmentType}`)
+        .then(data => {
+          if (data) {
+            const nomaldata = fhir_converter.assessmentsData(data);
+            
+            if(status =="New"){
+              setAssessments(nomaldata);
+              setNewAssessment(data.total);
+            }
+            if(status =="Confirmed"){
+              setConfirmed(nomaldata);
+              setConfirmedCount(data.total);
+            }
+            if(status =="Completed"){
+              setCompleted(nomaldata);
+              setCompletedCount(data.total);
+            }
+            if(status =="Cancelled"){
+               setCancelled(nomaldata);
+               setCancelledCount(data.total);
+            }
+          
+
+
+          
+          }
+        });
       } catch (err) {
-        console.error('Failed to fetch users:', err);
+          Swal.fire({
+                title: "Error",
+                text: err,
+                icon: "error",
+              });
       }
     };
 
-    fetchUsers();
-  }, []);
+
+
+
+    const updateAssessments = async (id, status, offset) => {
+      try {
+        
+        const fhir_data = fhir_converter.acceptAndcancel(id, status);
+        await putData(`fhir/v1/assessments?type=updateStatus`, fhir_data).then(data => {
+
+          if(data){
+            setAssessmentStatus(status);
+          }
+        });
+        
+      } catch (err) {
+          Swal.fire({
+            title: "Error",
+            text: err,
+            icon: "error",
+          });
+      }
+    };
+
+
+    const changepage = async (page) => {
+      setPage(page)
+    };
+
+
+    const filterByDays = async (selectedOption) => {
+
+        const days = parseInt(selectedOption.match(/\d+/)[0], 10); 
+        setDays(days);
+    };
+
+
+    const filterByAssessmentType = async (selectedOption) =>{ 
+      setAssessmentType(selectedOption);
+
+    }
+
+
+  useEffect(() => {
+    fetchNewAssessments(page, 6, 'Confirmed');
+    fetchNewAssessments(page, 6, 'Completed');
+    fetchNewAssessments(page, 6, 'Cancelled');
+  }, [assessmentStatus, assessmentType]);
+
+  useEffect(() => {
+    fetchNewAssessments(page, 6, "New");
+  }, [page, assessmentStatus, days]);
 
   return (
  
@@ -60,52 +154,122 @@ const AssessmentManagement = () => {
             <div className="overviewDiv">
                 <div className="OverviewTop">
                     <h5>Overview</h5>
-                    <ListSelect options={optionsList1} />
+                    <ListSelect options={optionsList1} onChange={filterByDays} />
                 </div>
                 <div className="overviewitem">
-                    <BoxDiv boximg={`${import.meta.env.VITE_BASE_IMAGE_URL}/box4.png`} ovradcls=" fawndark" ovrtxt="New Appointments"  boxcoltext="frowntext" overnumb="12"   />
-                    <BoxDiv boximg={`${import.meta.env.VITE_BASE_IMAGE_URL}/box5.png`} ovradcls=" cambrageblue" ovrtxt="Completed" boxcoltext="greentext" overnumb="08"  />
-                    <BoxDiv boximg={`${import.meta.env.VITE_BASE_IMAGE_URL}/box2.png`} ovradcls=" purple" ovrtxt="Pending" boxcoltext="purpletext" overnumb="02"  />
+                    <BoxDiv boximg={`${import.meta.env.VITE_BASE_IMAGE_URL}/box4.png`} ovradcls=" fawndark" ovrtxt="New Assessments"  boxcoltext="frowntext" overnumb={newAssessment}   />
+                    <BoxDiv boximg={`${import.meta.env.VITE_BASE_IMAGE_URL}/box5.png`} ovradcls=" cambrageblue" ovrtxt="Completed" boxcoltext="greentext" overnumb={ completedCount }  />
+                    <BoxDiv boximg={`${import.meta.env.VITE_BASE_IMAGE_URL}/box2.png`} ovradcls=" purple" ovrtxt="Pending" boxcoltext="purpletext" overnumb={ confirmedCount}  />
                 </div>
             </div>
 
             <div>
-                <DivHeading TableHead="New Assessments" tablespan="(3)" />
-                <AssessmentsTable actimg1={`${import.meta.env.VITE_BASE_IMAGE_URL}/acpt.png`} actimg2={`${import.meta.env.VITE_BASE_IMAGE_URL}/decline.png`} />
+                <DivHeading TableHead="New Assessments" tablespan={`(${newAssessment ? newAssessment : 0})`}/>
+                <AssessmentsTable
+                 actimg1={`${import.meta.env.VITE_BASE_IMAGE_URL}/acpt.png`} 
+                 actimg2={`${import.meta.env.VITE_BASE_IMAGE_URL}/decline.png`}
+                 assessments = {assessments }  
+                 total={newAssessment} 
+                 onClick={changepage}
+                 onClicked={updateAssessments}/>
             </div>
 
             <div className="AllAssesmentDiv">
 
                 <div className="s">
+                <div className="OverviewTop">
                     <DivHeading TableHead="All Assessments " tablespan="(8)" />
+                    <ListSelect options={assessmentTypeList} onChange={filterByAssessmentType} />
+                    </div>
 
                 </div>
 
                 <div className="DashCardData">
 
                     <div className="DashCardDiv">
-                        <CardHead Cdtxt="Confirmed" Cdnumb="03" CdNClas="fawn"/>
+                        <CardHead Cdtxt="Confirmed" Cdnumb={confirmedCount ? confirmedCount : 0} CdNClas="fawn"/>
                         <div className="DashCardItem fawnbg">
-                            <AppointCard crdimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`} cdowner="Kizie" crdtpe="Sky B" btnimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/btn1.png`} btntext="Tuesday, 10 Sep - 11:00 AM" crddoctor="Dr. Emily Johnson" drjob="Cardiology" CardbtnClass="btnfown"/>
-                            <AppointCard crdimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`} cdowner="Max" crdtpe="David Martin" btnimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/btn1.png`} btntext="Tuesday, 10 Sep - 11:00 AM" crddoctor="Dr. Olivia Harris" drjob="Neurology" CardbtnClass="btnfown"/>
-                            <AppointCard crdimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`} cdowner="Molly" crdtpe="Lucas Miller" btnimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/btn1.png`} btntext="Tuesday, 10 Sep - 11:00 AM" crddoctor="Dr. Grace Walker" drjob="Dentistry" CardbtnClass="btnfown"/>
-                        </div>
+                          
+                                            {confirmed.map((assessment, index) => (
+                                              <div
+                                                ref={
+                                                  index === assessment.length - 1
+                                                    ? lastConfirmedAppointmentRef
+                                                    : null
+                                                }
+                                                key={index}
+                                              >
+                                                <AssessmentCard
+                                                  crdimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`}
+                                                  cdowner={assessment.ownerName}
+                                                  crdtpe={assessment.petName}
+                                                  btnimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/btn1.png`}
+                                                  btntext={assessment.assessment_type}
+                                                  crddoctor={assessment.doctorName}
+                                                  drjob={assessment.department}
+                                                  CardbtnClass="btnfown"
+                                                />
+                                              </div>
+                                            ))}
+                                    </div>
                     </div>
 
                     <div className="DashCardDiv">
-                        <CardHead Cdtxt="Completed" Cdnumb="02" CdNClas="ltgren"/>
+                        <CardHead Cdtxt="Completed" Cdnumb={completedCount} CdNClas="ltgren"/>
                         <div className="DashCardItem greenbg">
-                            <AppointCard crdimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`} cdowner="Bella" crdtpe="Sarah Johnson" btnimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/btn3.png`} btntext="Tuesday, 10 Sep - 11:00 AM" crddoctor="Dr. Michael Lee" drjob="Orthopedics" CardbtnClass="btngreen"/>
-                            <AppointCard crdimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`} cdowner="Max" crdtpe="David Martin" btnimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/btn3.png`} btntext="Tuesday, 10 Sep - 11:00 AM" crddoctor="Dr. Olivia Harris" drjob="Neurology" CardbtnClass="btngreen"/>
-                            <AppointCard crdimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`} cdowner="Max" crdtpe="David Martin" btnimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/btn3.png`} btntext="Tuesday, 10 Sep - 11:00 AM" crddoctor="Dr. Olivia Harris" drjob="Neurology" CardbtnClass="btngreen"/>
+                                       {completed.map((assessment, index) => (
+                                              <div
+                                                ref={
+                                                  index === assessment.length - 1
+                                                    ? lastConfirmedAppointmentRef
+                                                    : null
+                                                }
+                                                key={index}
+                                              >
+                                                <AssessmentCard
+                                                  crdimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`}
+                                                  cdowner={assessment.ownerName}
+                                                  crdtpe={assessment.petName}
+                                                  btnimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/btn3.png`}
+                                                  btntext={assessment.assessment_type}
+                                                  crddoctor={assessment.doctorName}
+                                                  drjob={assessment.department}
+                                                  CardbtnClass="btngreen"
+                                                />
+                                              </div>
+                                            ))}
+                            {/* <AssessmentCard crdimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`} cdowner="Bella" crdtpe="Sarah Johnson" btnimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/btn3.png`} btntext="Tuesday, 10 Sep - 11:00 AM" crddoctor="Dr. Michael Lee" drjob="Orthopedics" CardbtnClass="btngreen"/>
+                            <AssessmentCard crdimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`} cdowner="Max" crdtpe="David Martin" btnimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/btn3.png`} btntext="Tuesday, 10 Sep - 11:00 AM" crddoctor="Dr. Olivia Harris" drjob="Neurology" CardbtnClass="btngreen"/>
+                            <AssessmentCard crdimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`} cdowner="Max" crdtpe="David Martin" btnimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/btn3.png`} btntext="Tuesday, 10 Sep - 11:00 AM" crddoctor="Dr. Olivia Harris" drjob="Neurology" CardbtnClass="btngreen"/> */}
                         </div>
                     </div>
 
                     <div className="DashCardDiv">
-                        <CardHead Cdtxt="Cancelled" Cdnumb="02" CdNClas="chill"/>
+                        <CardHead Cdtxt="Cancelled" Cdnumb={cancelledCount} CdNClas="chill"/>
                         <div className="DashCardItem chillybg">
-                            <AppointCard crdimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`} cdowner="Bella" crdtpe="Sarah Johnson" btnimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/btn4.png`} btntext="Tuesday, 10 Sep - 11:00 AM" crddoctor="Dr. Michael Lee" drjob="Orthopedics" CardbtnClass="btnchilly"/>
-                            <AppointCard crdimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`} cdowner="Max" crdtpe="David Martin" btnimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/btn4.png`} btntext="Tuesday, 10 Sep - 11:00 AM" crddoctor="Dr. Olivia Harris" drjob="Neurology" CardbtnClass="btnchilly"/>
+                            {cancelled.map((assessment, index) => (
+                                              <div
+                                                ref={
+                                                  index === assessment.length - 1
+                                                    ? lastConfirmedAppointmentRef
+                                                    : null
+                                                }
+                                                key={index}
+                                              >
+                                                <AssessmentCard
+                                                  crdimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`}
+                                                  cdowner={assessment.ownerName}
+                                                  crdtpe={assessment.petName}
+                                                  btnimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/btn4.png`}
+                                                  btntext={assessment.assessment_type}
+                                                  crddoctor={assessment.doctorName}
+                                                  drjob={assessment.department}
+                                                  CardbtnClass="btnchilly"
+                                                />
+                                              </div>
+                                            ))}
+                            {/* <AssessmentCard crdimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`} cdowner="Bella" crdtpe="Sarah Johnson" btnimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/btn4.png`} btntext="Tuesday, 10 Sep - 11:00 AM" crddoctor="Dr. Michael Lee" drjob="Orthopedics" CardbtnClass="btnchilly"/>
+                            <AssessmentCard crdimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`} cdowner="Max" crdtpe="David Martin" btnimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/btn4.png`} btntext="Tuesday, 10 Sep - 11:00 AM" crddoctor="Dr. Olivia Harris" drjob="Neurology" CardbtnClass="btnchilly"/> */}
                         </div>
                     </div>
 
@@ -234,3 +398,73 @@ AsstCateModal.propTypes = {
     })
   ),
 };
+
+
+
+// AssessmentCard start
+AssessmentCard.propTypes = {
+  crdimg: PropTypes.string,
+  cdowner: PropTypes.string,
+  crdtpe: PropTypes.string,
+  btntext: PropTypes.string,
+  btnimg: PropTypes.string,
+  crddoctor: PropTypes.string,
+  crddodrjobctor: PropTypes.string,
+  drjob: PropTypes.string,
+  CardbtnClass: PropTypes.string,
+};
+
+export function AssessmentCard({
+  crdimg,
+  cdowner,
+  crdtpe,
+  btntext,
+  btnimg,
+  crddoctor,
+  drjob,
+  CardbtnClass,
+}) {
+  return (
+    <div className="Confcard">
+      <div className="cardTopInner">
+        <img src={crdimg} alt="cardimg" />
+        <div className="Sideinner">
+          <h6>{crdtpe }</h6>
+          <p>
+            <i className="ri-user-fill"></i> {cdowner}
+          </p>
+        </div>
+      </div>
+      <div className="midinner">
+        <h4>{crddoctor}</h4>
+        <p>{drjob}</p>
+      </div>
+      <div className={`cardbtn ${CardbtnClass}`}>
+        <button
+          type="button"
+          data-bs-toggle="modal"
+          data-bs-target="#DashModal"
+        >
+          <img src={btnimg} alt="" /> {btntext}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// CardHead Text
+CardHead.propTypes = {
+  Cdtxt: PropTypes.string,
+  Cdnumb: PropTypes.string,
+  CdNClas: PropTypes.string,
+};
+
+export function CardHead({ Cdtxt, Cdnumb, CdNClas }) {
+  return (
+    <div className="DashcardText">
+      <h6>{Cdtxt}</h6>
+      <h6 className={CdNClas}>{Cdnumb}</h6>
+    </div>
+  );
+}
+

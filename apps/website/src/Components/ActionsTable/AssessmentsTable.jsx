@@ -9,22 +9,30 @@ const AssessmentsTable = ({
   actimg2,
   onClick,
   onClicked,
+  total
 }) => {
   const { userId } = useAuth();
-  const itemsPerPage = 5; // Should match the backend limit
+  const itemsPerPage = 6; // Should match the backend limit
   const [offset, setOffset] = useState(0); // Tracks the current offset
+  const [visibleCount, setVisibleCount] = useState(itemsPerPage);
 
 
 
   const handleNext = () => {
-    setOffset((prevOffset) => prevOffset + itemsPerPage);
-    onClick(offset + itemsPerPage, userId); // Fetch next set of data
+    const newOffset = offset + itemsPerPage;
+    if (newOffset < total) {
+      setOffset(newOffset);
+      setVisibleCount((prev) => Math.min(prev + itemsPerPage, total));
+      onClick(newOffset);
+    }
   };
 
   const handlePrev = () => {
-    if (offset > 0) {
-      setOffset((prevOffset) => prevOffset - itemsPerPage);
-      onClick(offset - itemsPerPage, userId); // Fetch previous set of data
+    const newOffset = offset - itemsPerPage;
+    if (newOffset >= 0) {
+      setOffset(newOffset);
+      setVisibleCount((prev) => Math.max(prev - itemsPerPage, itemsPerPage));
+      onClick(newOffset);
     }
   };
 
@@ -61,44 +69,41 @@ const AssessmentsTable = ({
                 <div className="dogimg">
                   <img
                     src={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`}
-                    alt={assessment.petName}
+                    alt={ assessment?.petName}
                   />
                 </div>
               </td>
               <td>
                 <div className="tblDiv">
-                  <h4>{assessment.petName}</h4>
-                  <p>
-                    <i className="ri-user-fill"></i> {assessment.ownerName}
-                  </p>
+                  <h4>{assessment?.petName} </h4>
+                  <p><i className="ri-user-fill"></i> {assessment?.ownerName}</p>
+                 
                 </div>
               </td>
-              <td>{assessment.tokenNumber}</td>
-              <td>{assessment.purposeOfVisit}</td>
-              <td>{assessment.petType}</td>
+              <td>{assessment?.assessmentId}</td>
+              <td>{assessment?.petType}</td>
+              <td>{assessment?.petBreed}</td>
+             
+              
+              <td>{assessment.assessment_type}</td>
 
-              <td>{assessment.breed}</td>
+              
+         
               <td>
                 <div className="tblDiv">
-                  <h4>{assessment.appointmentDate}</h4>
-                  <p>{assessment.appointmentTime}</p>
-                </div>
-              </td>
-              <td>
-                <div className="tblDiv">
-                  <h4>{assessment.veterinarian}</h4>
+                  <h4>{assessment?.doctorName} </h4>
                   <p>{assessment.department}</p>
                 </div>
               </td>
               <td>
                 <div className="actionDiv">
                   <Link
-                    onClick={() => handleAccept(assessment._id, "booked", offset)}
+                    onClick={() => handleAccept(assessment.id, "Confirmed", offset)}
                   >
                     <img src={actimg1} alt="Accept" />
                   </Link>
                   <Link
-                    onClick={() => handleCancel(assessment._id,"cancelled", offset)}
+                    onClick={() => handleCancel(assessment.id,"Cancelled", offset)}
                   >
                     <img src={actimg2} alt="Decline" />
                   </Link>
@@ -116,15 +121,11 @@ const AssessmentsTable = ({
       <i className="ri-arrow-left-line"></i>
     </button>
     <h6 className="PagiName">
-      Responses
-      <span>
-        {offset + 1} -{" "}
-        {Math.min(offset + itemsPerPage, assessments.length)}
-      </span>
-    </h6>
+            Responses <span>{visibleCount} of {total}</span>
+          </h6>
     <button
       onClick={handleNext}
-      disabled={assessments.length < itemsPerPage}
+      disabled={offset + itemsPerPage >= total}
     >
       <i className="ri-arrow-right-line"></i>
     </button>
