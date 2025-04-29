@@ -4,8 +4,8 @@ const router = express.Router();
 
 const { verifyTokenAndRefresh } = require('../middlewares/authMiddleware');
 
-router.get('/get-assessments', assessmentsController.getAssessments);
-
+router.get('/assessments', verifyTokenAndRefresh, assessmentsController.getAssessments);
+router.put('/assessments', verifyTokenAndRefresh, assessmentsController.getAssessments);
 
 
 
