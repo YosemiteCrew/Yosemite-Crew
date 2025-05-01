@@ -9,7 +9,7 @@ const AddDoctors = require("../models/addDoctor");
 class ListController {
 
     async handlegetDoctorsList(req, res) {
-        const { businessId, departmentId } = req.params;
+        const { businessId, departmentId } = req.query;
     
         try {
           const doctors = await DoctorService.getDoctorsByBusinessAndDepartment(businessId, departmentId);
@@ -42,7 +42,7 @@ class ListController {
 
     async  handleGetLists(req, res) {
     try {
-        const { BusinessType, offset = 0, limit = 10 } = req.body;
+        const { BusinessType, offset = 0, limit = 10 } = req.query;
         const parsedOffset = parseInt(offset);
         const parsedLimit = parseInt(limit);
         const allowedTypes = ['Hospital', 'Clinic', 'Breeding Facility','Pet Sitter','Groomer Shop'];

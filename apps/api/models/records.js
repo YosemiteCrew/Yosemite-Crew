@@ -2,12 +2,15 @@ const mongoose = require('mongoose');
 const recordSchema = new mongoose.Schema({
 
     userId: {
-        type: Number, 
+        type: String,
         required: true,
     },
     petId: {
-        type: Number,  
+        type: String, 
         required: true,
+    },
+    doctorId: {
+        type: String,
     },
     recordDate: {
         type: Date,
@@ -44,17 +47,12 @@ const recordSchema = new mongoose.Schema({
     },
     bodyCondition:[
         {
-            filename: String,
-            path: String,
-            uploadDate: {
-                type: Date,
-                default: Date.now
-            },
+            url: { type: String },
+            originalname: { type: String },
+            mimetype: { type: String }
         }
     ],
-    vetId: {
-        type: Number,
-    },
+   
 
 }, { timestamps: true});
 

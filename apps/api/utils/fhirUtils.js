@@ -1,3 +1,5 @@
+const moment = require('moment');
+
 function createFHIRSlot(slot, doctorId, bookedAppointments) {
     const isBooked = bookedAppointments.some(app => app.slotsId?.toString() === slot._id?.toString());
     
@@ -8,7 +10,8 @@ function createFHIRSlot(slot, doctorId, bookedAppointments) {
         reference: `Schedule/${doctorId}`
       },
       isBooked: isBooked ? "true" : "false",
-      slotTime: slot.time
+      slotTime: slot.time,
+      start: moment(`${slot.date} ${slot.time}`, "YYYY-MM-DD hh:mm A").toISOString(),
     };
   }
   

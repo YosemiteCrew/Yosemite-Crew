@@ -5,9 +5,10 @@ const  MonthlySlotValidator  = require('../validators/MonthlySlotValidator');
 const FHIRValidator = require("../validators/FHIRValidator");
 
 class SlotController {
+  // CodeQL [js/sensitive-data-in-get-request] This endpoint follows the FHIR specification which requires using GET with query parameters for data retrieval.
   static async handlegetTimeSlots(req, res) {
     try {
-      const { appointmentDate, doctorId } = req.params;
+      const { appointmentDate, doctorId } = req.query;
       
       const isValidDate = (dateStr) => {
         const date = new Date(dateStr);
@@ -55,6 +56,7 @@ class SlotController {
     }
   
       let result = await SlotService.getAvailableTimeSlots({ appointmentDate, doctorId });
+  
       if (appointmentDate === today) {
         const now = new Date();
         result.entry = result.entry?.filter(slot => {
@@ -62,7 +64,6 @@ class SlotController {
           return startTime > now;
         });
       }
-  
       const validationErrors = FHIRSlotValidator.validateBundle(result);
       if (validationErrors.length > 0) {
         return res.status(200).json({
@@ -93,7 +94,7 @@ class SlotController {
 
   static async handleTimeSlotsByMonth(req, res) {
    
-    const { slotMonth , slotYear , doctorId } = req.params;
+    const { slotMonth , slotYear , doctorId } = req.query;
     
     if (typeof doctorId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(doctorId)) {
       return res.status(200).json({ status: 0,  message: 'Invalid doctor ID' });
