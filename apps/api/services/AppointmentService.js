@@ -1,4 +1,8 @@
-const { webAppointments } = require("../models/WebAppointment");
+
+const {
+  AppointmentsToken,
+  webAppointments,
+} = require('../models/WebAppointment');
 const pet = require('../models/YoshPet');
 const YoshUser = require('../models/YoshUser');
 const { getCognitoUserId } = require('../utils/jwtUtils');
@@ -25,6 +29,22 @@ static async checkAppointment(doctorId,appointmentDate,timeslot) {
   });
   return isSlotTaken;
 }
+static async getHospitalName(hospitalId) {
+  const hospital = await ProfileData.findOne(
+    { userId: hospitalId },
+    { businessName: 1, _id: 0 } 
+  );
+  return hospital;
+}
+
+static async updateToken(hospitalId, appointmentDate) {
+ let Appointmenttoken = await AppointmentsToken.findOneAndUpdate(
+            { hospitalId, appointmentDate },
+            { $inc: { tokenCounts: 1 } },
+            { new: true, upsert: true }
+          );
+         return Appointmenttoken;     
+}
 
 static async getPetAndOwner(petId, userId) {
   const petDetails = await pet.findById(petId);
@@ -32,49 +52,87 @@ static async getPetAndOwner(petId, userId) {
   return { petDetails, petOwner };
 }
 
-
-
 static async fetchAppointments(req) {
   try {
     const cognitoUserId = getCognitoUserId(req);
-    const today = new Date().toISOString().split("T")[0];
 
-    // Extract limit and offset from query (or use defaults)
-    const limit = parseInt(req.params.limit) || 10;
-    const offset = parseInt(req.params.offset) || 0;
+    const now = new Date(); // full current date-time
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const filter = req.query.type || "all";
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = parseInt(req.query.offset) || 0;
+    
 
-    // Fetch total count (optional, but good for frontend pagination)
     const totalCount = await webAppointments.countDocuments({ userId: cognitoUserId });
-
-    // Apply pagination
-    const allAppointments = await webAppointments
+     
+    const rawAppointments = await webAppointments
       .find({ userId: cognitoUserId })
       .skip(offset)
       .limit(limit)
       .lean();
 
-    const confirmed = [], upcoming = [], past = [];
+    const upcoming = [], past = [], pending = [], canceled = [];
     const vetIds = new Set(), petIds = new Set(), hospitalIds = new Set();
 
-    allAppointments.forEach(app => {
-      const appointmentDate = new Date(app.appointmentDate).toISOString().split("T")[0];
-
-      if (app.appointmentStatus === 'confirmed') {
-        confirmed.push(app);
-      } else if (appointmentDate >= today) {
-        upcoming.push(app);
-      } else {
-        past.push(app);
+    rawAppointments.forEach(app => {
+      const datePart = new Date(app.appointmentDate);
+      datePart.setHours(0, 0, 0, 0); // normalize date for comparison
+      const timePart = app.appointmentTime24 || '00:00'; // format: HH:mm
+      const [hours, minutes] = timePart.split(':').map(Number);
+    
+      const fullAppointmentDateTime = new Date(app.appointmentDate);
+      fullAppointmentDateTime.setHours(hours, minutes, 0, 0);
+    
+      // Categorize appointments
+      if (app.appointmentStatus === 'pending') {
+        if (datePart >= today || (datePart.getTime() === today.getTime() && fullAppointmentDateTime >= now)) {
+          pending.push(app); // Only add to pending if it's not in the past
+        }
+      } else if (app.appointmentStatus === 'cancelled') {
+        canceled.push(app); // Add to canceled
       }
-
+    
+      if (datePart < today) {
+        past.push(app); // Strictly before today
+      } else if (datePart.getTime() === today.getTime()) {
+        if (fullAppointmentDateTime < now) {
+          past.push(app); // Today but already passed time
+        } else if (app.appointmentStatus === 'booked') {
+          upcoming.push(app); // Today and future time
+        }
+      } else if (datePart > today && app.appointmentStatus === 'booked') {
+        upcoming.push(app); // Future date
+      }
+    
+      // Collect referenced IDs
       if (app.veterinarian) vetIds.add(app.veterinarian);
       if (app.petId) petIds.add(app.petId);
       if (app.hospitalId) hospitalIds.add(app.hospitalId);
     });
+    
 
+    // Determine filtered appointments
+    let filteredAppointments;
+    switch (filter) {
+      case 'upcoming':
+        filteredAppointments = upcoming;
+        break;
+      case 'pending':
+        filteredAppointments = pending;
+        break;
+      case 'past':
+        filteredAppointments = past;
+        break;
+      case 'cancel':
+        filteredAppointments = canceled;
+        break;
+      default:
+        filteredAppointments = rawAppointments;
+    }
     const toObjectIdSafe = (id) => {
       try {
-        return new mongoose.Types.ObjectId(id); 
+        return new mongoose.Types.ObjectId(id);
       } catch {
         return null;
       }
@@ -142,14 +200,12 @@ static async fetchAppointments(req) {
 
     const toFHIR = (app) => FHIRService.convertAppointmentToFHIR(app, vetMap, petMap, hospitalMap);
 
+    // Return only filtered appointments
     return {
       total: totalCount,
       limit,
       offset,
-      allAppointments: allAppointments.map(toFHIR),
-      confirmedAppointments: confirmed.map(toFHIR),
-      upcomingAppointments: upcoming.map(toFHIR),
-      pastAppointments: past.map(toFHIR)
+      appointments: filteredAppointments.map(toFHIR)
     };
 
   } catch (error) {
@@ -157,6 +213,8 @@ static async fetchAppointments(req) {
     throw new Error("Failed to fetch appointments.");
   }
 }
+
+
 
 
   static async cancelAppointment(data) {

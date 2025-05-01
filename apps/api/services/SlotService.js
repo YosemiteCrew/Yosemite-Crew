@@ -54,8 +54,11 @@ class SlotService {
         }
         return true;
       })
-      .map(slot => createFHIRSlot(slot, doctorId, bookedAppointments));
-
+      .map(slot => {
+        const slotObj = createFHIRSlot(slot, doctorId, bookedAppointments);
+        slotObj.start = moment(`${appointmentDate} ${slot.time}`, "YYYY-MM-DD hh:mm A").toISOString(); // ensure it's present
+        return slotObj;
+      });
     return {
       resourceType: "Bundle",
       type: "collection",

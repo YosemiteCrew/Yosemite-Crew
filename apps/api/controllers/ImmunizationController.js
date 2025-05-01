@@ -2,6 +2,7 @@ const VaccinationService = require('../services/ImmunizationService');
 const helpers = require('../utils/helpers');
 const { getCognitoUserId } = require('../utils/jwtUtils');
 const  FHIRMapper  = require('../utils/ImmunizationMapper');
+const { mongoose } = require('mongoose');
 
 class ImmunizationController {
   static async handlecreateImmunization(req, res) {
@@ -18,7 +19,7 @@ class ImmunizationController {
       // Upload files if present
       const vaccineFileUrl = fileArray.length > 0
         ? await helpers.uploadFiles(fileArray)
-        : null;
+        : [];
   
       const cognitoUserId = getCognitoUserId(req);
   
@@ -40,9 +41,9 @@ class ImmunizationController {
   static async handleGetVaccination(req, res) {
     try {
       const userId = getCognitoUserId(req);
-      const limit = parseInt(req.params.limit) || 10;
-      const offset = parseInt(req.params.offset) || 0;
-      const petId = req.params.petId;
+      const limit = parseInt(req.query.limit) || 10;
+      const offset = parseInt(req.query.offset) || 0;
+      const petId = req.query.petId;
   
       const results = await VaccinationService.getVaccinationsByUserId(userId, limit, offset, petId);
   
@@ -61,7 +62,7 @@ class ImmunizationController {
   static async handleEditVaccination(req, res) {
     try {
       const fhirData = req.body.data;
-      const id = req.params.recordId;
+      const id = req.query.recordId;
   
       let parsedData;
       try {
@@ -102,11 +103,17 @@ class ImmunizationController {
 
   static async handleDeleteVaccinationRecord(req, res) {
     try {
-      const id = req.params.recordId;
+      const id = req.query.recordId;
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+          return res.status(200).json({ status: 0, message: "Invalid Vaccination ID" });
+      }
       const result = await VaccinationService.deleteVaccinationRecord(id);
+      if (!result) {
+        return res.status(200).json({ status: 0, message: "Vaccination record not found" });
+      }
   
       if (result.deletedCount === 0) {
-        return res.status(200).json({ status: 0, message: "Vaccination record not found" });
+        return res.status(200).json({ status: 0, message: "could not be deleted" });
       }
   
       return res.status(200).json({ status: 1, message: "Vaccination record deleted successfully" });
@@ -121,8 +128,8 @@ class ImmunizationController {
   static async recentVaccinationRecord(req, res) {
     try {
       const userId = getCognitoUserId(req);
-      const limit = parseInt(req.params.limit) || 10;
-      const offset = parseInt(req.params.offset) || 0;
+      const limit = parseInt(req.query.limit) || 10;
+      const offset = parseInt(req.query.offset) || 0;
       const results = await VaccinationService.getRecentVaccinationsReocrds(userId, limit, offset);
   
       if (results.length === 0) {

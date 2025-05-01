@@ -9,6 +9,7 @@ const FeedbackController = require('../controllers/FeedbackController');
 const DetailsController = require('../controllers/DetailsController');
 const ListController = require('../controllers/ListController');
 const ImmunizationController = require("../controllers/ImmunizationController");
+const DiabetesController = require("../controllers/DiabetesController");
 
 const { handleContactUs } = require("../controllers/contact");
 
@@ -22,10 +23,7 @@ const {
   handlesaveMedicalRecord,
   handleMedicalRecordList,
 } = require("../controllers/medicalRecords");
-const {
-  handleDiabetesRecords,
-  handleDiabetesLogs,
-} = require("../controllers/diabetesRecords");
+
 const {
   handleSaveSharedDuties,
   handleEditSharedDuties,
@@ -52,19 +50,19 @@ const upload = multer({
 const { verifyTokenAndRefresh } = require('../middlewares/authMiddleware');
 
 router.post("/Patient/addPet", verifyTokenAndRefresh,PetController.handleAddPet);
-router.put("/Patient/editPet/:Petid", verifyTokenAndRefresh, PetController.handleEditPet);
-router.get("/Patient/getPets/:limit/:offset", verifyTokenAndRefresh,PetController.handleGetPet);
-router.delete("/Patient/deletepet/:Petid", verifyTokenAndRefresh, PetController.handleDeletePet);
+router.put("/Patient/editPet", verifyTokenAndRefresh, PetController.handleEditPet);
+router.get("/Patient/getPets", verifyTokenAndRefresh,PetController.handleGetPet);
+router.delete("/Patient/deletepet", verifyTokenAndRefresh, PetController.handleDeletePet);
 router.post("/bookAppointment",verifyTokenAndRefresh, AppointmentController.handleBookAppointment);
-router.get("/getappointments/:limit/:offset", verifyTokenAndRefresh, AppointmentController.handleGetAppointment);
-router.put("/cancelappointment/:appointmentID", verifyTokenAndRefresh, AppointmentController.handleCancelAppointment);
-router.put("/rescheduleAppointment/:appointmentID",verifyTokenAndRefresh, AppointmentController.handleRescheduleAppointment);
-router.get("/Slot/getTimeSlots/:appointmentDate/:doctorId", verifyTokenAndRefresh, SlotController.handlegetTimeSlots);
-router.get("/Slot/getTimeSlotsByMonth/:slotMonth/:slotYear/:doctorId",verifyTokenAndRefresh,SlotController.handleTimeSlotsByMonth);
-router.post("/saveFeedBack",verifyTokenAndRefresh,FeedbackController.handlesaveFeedBack);
-router.get("/getFeedBack",verifyTokenAndRefresh,FeedbackController.handleGetFeedback);
-router.put("/editFeedBack/:feedbackId",verifyTokenAndRefresh,FeedbackController.handleEditFeedBack);
-router.delete("/deleteFeedBack/:feedbackId",verifyTokenAndRefresh,FeedbackController.handleDeleteFeedBack);
+router.get("/getAppointments", verifyTokenAndRefresh, AppointmentController.handleGetAppointment);
+router.put("/cancelAppointment", verifyTokenAndRefresh, AppointmentController.handleCancelAppointment);
+router.put("/rescheduleAppointment",verifyTokenAndRefresh, AppointmentController.handleRescheduleAppointment);
+router.get("/Slot/getTimeSlots", verifyTokenAndRefresh, SlotController.handlegetTimeSlots);
+router.get("/Slot/getTimeSlotsByMonth",verifyTokenAndRefresh,SlotController.handleTimeSlotsByMonth);
+router.post("/Observation/saveFeedBack",verifyTokenAndRefresh,FeedbackController.handleSaveFeedBack);
+router.get("/Observation/getFeedBack",verifyTokenAndRefresh,FeedbackController.handleGetFeedback);
+router.put("/Observation/editFeedBack",verifyTokenAndRefresh,FeedbackController.handleEditFeedback);
+router.delete("/Observation/deleteFeedBack",verifyTokenAndRefresh,FeedbackController.handleDeleteFeedback);
 
 
 router.post("/Organization/addVetClinic", verifyTokenAndRefresh, DetailsController.handleVetClinic);
@@ -74,15 +72,15 @@ router.post("/Organization/addPetBoarding",verifyTokenAndRefresh, DetailsControl
 
 
 router.post("/sendquery", verifyTokenAndRefresh,handleContactUs);
-router.get("/Practitioner/getLists/:BusinessType/:limit/:offset",ListController.handleGetLists);
-router.get("/Practitioner/getDoctorsLists/:businessId/:departmentId",verifyTokenAndRefresh,ListController.handlegetDoctorsList);
+router.get("/Practitioner/getLists",ListController.handleGetLists);
+router.get("/Practitioner/getDoctorsLists",verifyTokenAndRefresh,ListController.handlegetDoctorsList);
 router.get("/Practitioner/getDoctorsTeam/:businessId",verifyTokenAndRefresh,ListController.handleGetDoctorsTeam);
 
 router.post("/Immunization/addVaccinationRecord",verifyTokenAndRefresh,ImmunizationController.handlecreateImmunization);
-router.put("/Immunization/editVaccinationRecord/:recordId", verifyTokenAndRefresh,ImmunizationController.handleEditVaccination);
-router.get("/Immunization/getVaccinationRecord/:petId/:limit/:offset", verifyTokenAndRefresh,ImmunizationController.handleGetVaccination);
-router.delete("/Immunization/deleteVaccinationRecord/:recordId",verifyTokenAndRefresh,ImmunizationController.handleDeleteVaccinationRecord);
-router.get("/Immunization/recentVaccinationRecords/:limit/:offset", verifyTokenAndRefresh,ImmunizationController.recentVaccinationRecord);
+router.put("/Immunization/editVaccinationRecord", verifyTokenAndRefresh,ImmunizationController.handleEditVaccination);
+router.get("/Immunization/getVaccinationRecord", verifyTokenAndRefresh,ImmunizationController.handleGetVaccination);
+router.delete("/Immunization/deleteVaccinationRecord",verifyTokenAndRefresh,ImmunizationController.handleDeleteVaccinationRecord);
+router.get("/Immunization/recentVaccinationRecords", verifyTokenAndRefresh,ImmunizationController.recentVaccinationRecord);
 
 router.post("/saveExercisePlan",verifyTokenAndRefresh, handleExercisePlan);
 router.get("/getexercise-list/:userId",verifyTokenAndRefresh, handleGetExercisePlan);
@@ -90,12 +88,9 @@ router.post("/savepainjournal",verifyTokenAndRefresh, handleAddPainJournal);
 router.get("/getpainjournal/:userId",verifyTokenAndRefresh, handleGetPainJournal);
 router.post("/saveMedicalRecord", verifyTokenAndRefresh,handlesaveMedicalRecord);
 router.get("/getMedicalRecordList",verifyTokenAndRefresh, handleMedicalRecordList);
-router.post(
-  "/saveDiabetesRecords",verifyTokenAndRefresh,
-  upload.array("PetImage"),
-  handleDiabetesRecords
-);
-router.post("/getDiabetesLogs", verifyTokenAndRefresh,handleDiabetesLogs);
+router.post( "/Observation/saveDiabetesRecords",verifyTokenAndRefresh,DiabetesController.handleDiabetesRecords);
+router.get("/Observation/getDiabetesLogs", verifyTokenAndRefresh,DiabetesController.handleGetDiabetesLogs);
+router.delete("/Observation/deleteDiabetesLog", verifyTokenAndRefresh,DiabetesController.handleDeleteDiabetesLog);
 router.post("/saveSharedDuties",verifyTokenAndRefresh, handleSaveSharedDuties);
 router.get("/getSharedDuties/:userId",verifyTokenAndRefresh, handleGetSharedDuties);
 router.put("/editSharedDuties/:taskId",verifyTokenAndRefresh, handleEditSharedDuties);

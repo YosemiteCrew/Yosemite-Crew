@@ -1,6 +1,7 @@
 const Vaccination = require('../models/vaccination');
 const FhirImmunizationValidator = require('../validators/FhirImmunizationValidator');
 const { mongoose } = require('mongoose');
+const helpers = require('../utils/helpers');
 
 class VaccinationService {
   static async saveFhirImmunization(data, fileName = "",cognitoUserId) {
@@ -84,10 +85,23 @@ class VaccinationService {
   }
 
   static async deleteVaccinationRecord(id) {
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      throw new Error("Invalid Vaccination ID");
-    }
+   
     const objectId = new mongoose.Types.ObjectId(id); 
+     const data = await Vaccination.find({ _id: objectId });  
+      if (data.length === 0) {
+        return null; // Return null if not found
+      }
+    
+      if (Array.isArray(data[0].vaccineImage) && data[0].vaccineImage.length > 0) {
+        const vaccineImage = data[0].vaccineImage;
+
+        for (const image of vaccineImage) {
+          if (image.url) {
+            await helpers.deleteFiles(image.url);
+          }
+        }
+      }
+
     return await Vaccination.deleteOne({ _id: objectId });
   }
 

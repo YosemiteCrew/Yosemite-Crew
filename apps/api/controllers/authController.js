@@ -10,6 +10,7 @@ const secretKey = crypto.createHash('sha256')
   .digest();
 const iv = crypto.randomBytes(16); // Initialization vector
 const SES = new AWS.SES();
+const helpers = require('../utils/helpers');
 
 // Initialize AWS Cognito Identity Provider
 const cognito = new AWS.CognitoIdentityServiceProvider();
@@ -61,31 +62,20 @@ const authController = {
       ],
     };
     try {
-      if (req.files && req.files.profileImage) {
-        const profileImage = req.files.profileImage;
+      let imageUrls = '';
 
-        // Validate file type
-        const allowedExtensions = /jpg|jpeg|png|gif/;
-        const extension = path.extname(profileImage.name).toLowerCase();
-        if (!allowedExtensions.test(extension)) {
-          return res
-            .status(400)
-            .json({ message: "Only image files are allowed." });
+      if (req.files && req.files.files) {
+        const files = Array.isArray(req.files.files)
+          ? req.files.files
+          : [req.files.files]; // wrap single file into array
+
+        const imageFiles = files.filter(file => file.mimetype && file.mimetype.startsWith("image/"));
+
+        if (imageFiles.length > 0) {
+          imageUrls = await helpers.uploadFiles(imageFiles);
         }
-
-        // Generate a unique file name
-        const uniqueName = `${Date.now()}-${Math.round(
-          Math.random() * 1e9
-        )}${extension}`;
-
-        // Use the global upload path
-        const uploadPath = path.join(req.app.locals.uploadPath, uniqueName);
-
-        // Move the file to the upload directory
-        await profileImage.mv(uploadPath);
-        fileName = uniqueName;
       }
-
+      
      // console.log(password);
       const encrypt_Password = await encryptPassword(password);
       const result = await user.findOne({ email });
@@ -108,7 +98,7 @@ const authController = {
         isProfessional,
         professionType:parsedDataprofessionType,
         pimsCode,
-        profileImage: fileName,
+        profileImage: imageUrls,
       });
       res.status(200).json({
         status: 1,
