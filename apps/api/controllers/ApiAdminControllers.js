@@ -491,7 +491,38 @@ const AdminController = {
           ],
         });
       }
-      const getData = await Breeds.findOne({name, HospitalId});
+      if (
+        typeof HospitalId !== "string" ||
+        !/^[a-fA-F0-9-]{36}$/.test(HospitalId)
+      ) {
+        return res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "invalid",
+              details: {
+                text: "Invalid HospitalId format.",
+              },
+            },
+          ],
+        });
+      }
+
+      if (typeof name !== "string" || name.trim().length === 0 || name.length > 50) {
+        return res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [{
+            severity: "error",
+            code: "invalid",
+            details: { text: "Invalid or missing breed name." }
+          }]
+        });
+      }
+      
+      // Optional: sanitize input (e.g., remove special characters if needed)
+      const sanitizedName = name.trim();
+      const getData = await Breeds.findOne({name:sanitizedName, HospitalId:HospitalId});
       if (getData) {
         return res.status(200).json({
           resourceType:"OperationOutcome",
@@ -576,7 +607,38 @@ Breed: async(req,res)=>{
         ]
       })
     }
-    const response = await Breeds.find({HospitalId:HospitalId, category:category})
+    if (
+      typeof HospitalId !== "string" ||
+      !/^[a-fA-F0-9-]{36}$/.test(HospitalId)
+    ) {
+      return res.status(400).json({
+        resourceType: "OperationOutcome",
+        issue: [
+          {
+            severity: "error",
+            code: "invalid",
+            details: {
+              text: "Invalid HospitalId format.",
+            },
+          },
+        ],
+      });
+    }
+
+    if (typeof category !== "string" || category.trim().length === 0 || category.length > 50) {
+      return res.status(400).json({
+        resourceType: "OperationOutcome",
+        issue: [{
+          severity: "error",
+          code: "invalid",
+          details: { text: "Invalid or missing category name." }
+        }]
+      });
+    }
+    
+    // Optional: sanitize input (e.g., remove special characters if needed)
+    const sanitizedName = category.trim();
+    const response = await Breeds.find({HospitalId:HospitalId, category:sanitizedName})
     console.log(response)
     if (response.length>0) {
       res.status(200).json({
