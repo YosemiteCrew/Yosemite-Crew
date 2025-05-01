@@ -86,7 +86,9 @@ class FeedbackController {
     try {
       const feedbackFHIR = JSON.parse(req.body?.data)  // FHIR format data (feedback + rating)
       const feedbackId = req.query.feedbackId;  // Assuming feedbackId comes from query params
-
+      if (!mongoose.Types.ObjectId.isValid(feedbackId)) {
+           return res.status(200).json({ status: 0, message: "Invalid Feedback ID" });
+       }
       const feedbackExists = await FeedbackService.getFeedbackById(feedbackId);
       if (!feedbackExists) {
         return res.status(200).json({ status: 0, message: "Feedback data not found" });
