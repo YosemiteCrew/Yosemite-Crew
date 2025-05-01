@@ -1,10 +1,7 @@
 import React, { useState } from "react";
 import PropTypes from "prop-types";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/useAuth";
-// import pet1 from '../../../../public/Images/pet1.png';
-// import pet2 from '../../../../public/Images/pet2.png';
-// import pet3 from '../../../../public/Images/pet3.png';
 
 const ActionsTable = ({
   appointments = [],
@@ -12,38 +9,42 @@ const ActionsTable = ({
   actimg2,
   onClick,
   onClicked,
+  total
 }) => {
   const { userId } = useAuth();
-  const itemsPerPage = 5; // Should match the backend limit
-  const [offset, setOffset] = useState(0); // Tracks the current offset
+  const { pathname } = useLocation();
 
+  const itemsPerPage = 6;
+  const [offset, setOffset] = useState(0);
 
+  const isDashboard = pathname === "/dashboard";
+  const paginatedAppointments = isDashboard
+    ? appointments.slice(0, 3)
+    : appointments;
+
+  const visibleCount = isDashboard
+    ? Math.min(3, appointments.length)
+    : Math.min(offset + itemsPerPage, total);
 
   const handleNext = () => {
-    setOffset((prevOffset) => prevOffset + itemsPerPage);
-    onClick(offset + itemsPerPage, userId); // Fetch next set of data
-  };
-
-  const handlePrev = () => {
-    if (offset > 0) {
-      setOffset((prevOffset) => prevOffset - itemsPerPage);
-      onClick(offset - itemsPerPage, userId); // Fetch previous set of data
+    const newOffset = offset + itemsPerPage;
+    if (newOffset < total) {
+      setOffset(newOffset);
+      onClick(newOffset, itemsPerPage, userId);
     }
   };
 
-  const handleAccept = (id, status, offset) => {
-    onClicked(id, status, offset);
-  };
-  const handleCancel = (id, status, offset) => {
-    onClicked(id, status, offset);
+  const handlePrev = () => {
+    const newOffset = offset - itemsPerPage;
+    if (newOffset >= 0) {
+      setOffset(newOffset);
+      onClick(newOffset, itemsPerPage, userId);
+    }
   };
 
-  let data = [];
-  if (location.pathname === "/dashboard") {
-    data = appointments.slice(0, 3);
-  } else {
-    data = appointments;
-  }
+  const handleAction = (id, status) => {
+    onClicked(id, status, offset);
+  };
 
   return (
     <div className="MainTableDiv">
@@ -62,8 +63,8 @@ const ActionsTable = ({
           </tr>
         </thead>
         <tbody>
-          {data.map((appointment, index) => (
-            <tr key={index}>
+          {paginatedAppointments.map((appointment) => (
+            <tr key={appointment._id}>
               <td>
                 <div className="dogimg">
                   <img
@@ -75,15 +76,12 @@ const ActionsTable = ({
               <td>
                 <div className="tblDiv">
                   <h4>{appointment.petName}</h4>
-                  <p>
-                    <i className="ri-user-fill"></i> {appointment.ownerName}
-                  </p>
+                  <p><i className="ri-user-fill"></i> {appointment.ownerName}</p>
                 </div>
               </td>
               <td>{appointment.tokenNumber}</td>
               <td>{appointment.purposeOfVisit}</td>
               <td>{appointment.petType}</td>
-
               <td>{appointment.breed}</td>
               <td>
                 <div className="tblDiv">
@@ -99,14 +97,10 @@ const ActionsTable = ({
               </td>
               <td>
                 <div className="actionDiv">
-                  <Link
-                    onClick={() => handleAccept(appointment._id, "booked", offset)}
-                  >
+                  <Link onClick={() => handleAction(appointment._id, "booked")}>
                     <img src={actimg1} alt="Accept" />
                   </Link>
-                  <Link
-                    onClick={() => handleCancel(appointment._id,"cancelled", offset)}
-                  >
+                  <Link onClick={() => handleAction(appointment._id, "cancelled")}>
                     <img src={actimg2} alt="Decline" />
                   </Link>
                 </div>
@@ -116,28 +110,19 @@ const ActionsTable = ({
         </tbody>
       </table>
 
-      {/* Pagination Controls */}
-      {location.pathname !== "/dashboard" && (
-  <div className="PaginationDiv">
-    <button onClick={handlePrev} disabled={offset === 0}>
-      <i className="ri-arrow-left-line"></i>
-    </button>
-    <h6 className="PagiName">
-      Responses
-      <span>
-        {offset + 1} -{" "}
-        {Math.min(offset + itemsPerPage, appointments.length)}
-      </span>
-    </h6>
-    <button
-      onClick={handleNext}
-      disabled={appointments.length < itemsPerPage}
-    >
-      <i className="ri-arrow-right-line"></i>
-    </button>
-  </div>
-)}
-
+      {!isDashboard && (
+        <div className="PaginationDiv">
+          <button onClick={handlePrev} disabled={offset === 0}>
+            <i className="ri-arrow-left-line"></i>
+          </button>
+          <h6 className="PagiName">
+            Responses <span>{visibleCount} of {total}</span>
+          </h6>
+          <button onClick={handleNext} disabled={offset + itemsPerPage >= total}>
+            <i className="ri-arrow-right-line"></i>
+          </button>
+        </div>
+      )}
     </div>
   );
 };
@@ -145,23 +130,24 @@ const ActionsTable = ({
 ActionsTable.propTypes = {
   appointments: PropTypes.arrayOf(
     PropTypes.shape({
-      id: PropTypes.string.isRequired,
+      _id: PropTypes.string.isRequired,
       petName: PropTypes.string.isRequired,
       ownerName: PropTypes.string.isRequired,
-      petType: PropTypes.string.isRequired,
-      breed: PropTypes.string.isRequired,
-      appointmentDate: PropTypes.string.isRequired,
-      appointmentTime: PropTypes.string.isRequired,
-      doctorName: PropTypes.string.isRequired,
-      specialization: PropTypes.string.isRequired,
-      petImage: PropTypes.string.isRequired,
-      acceptAction: PropTypes.string.isRequired,
-      declineAction: PropTypes.string.isRequired,
+      tokenNumber: PropTypes.string,
+      purposeOfVisit: PropTypes.string,
+      petType: PropTypes.string,
+      breed: PropTypes.string,
+      appointmentDate: PropTypes.string,
+      appointmentTime: PropTypes.string,
+      veterinarian: PropTypes.string,
+      department: PropTypes.string,
     })
   ).isRequired,
   actimg1: PropTypes.string.isRequired,
   actimg2: PropTypes.string.isRequired,
   onClick: PropTypes.func.isRequired,
+  onClicked: PropTypes.func.isRequired,
+  total: PropTypes.number.isRequired,
 };
 
 export default ActionsTable;

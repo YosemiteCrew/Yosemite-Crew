@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import "./DoctorProfile.css";
 import PropTypes from "prop-types";
 import { Button, Col, Container, Form, Row } from "react-bootstrap";
+import DOMPurify from "dompurify";
+
 // import whtcheck from '../../../../public/Images/whtcheck.png';
 import { Link, useNavigate } from "react-router-dom";
 import { FiEdit3 } from "react-icons/fi";
@@ -479,11 +481,23 @@ function PersonalInfo({ show, onHide, personalInfo, setPersonalInfo }) {
   const [image, setImage] = useState(null);
   // console.log("selectedType", selectedType);
 
-  const isSafeImageSrc = (src) =>
-    typeof src === "string" &&
-    (src.startsWith("blob:") || src.startsWith("https://"));
+  const isSafeImageSrc = (src) => {
+    if (typeof src !== "string") return false;
+    try {
+      const url = new URL(src);
+      return url.protocol === "blob:" || url.protocol === "https:";
+    } catch {
+      return false;
+    }
+  };
 
-  const safeSrc = isSafeImageSrc(image);
+  // Validate and sanitize the main image source
+  const safeSrc = isSafeImageSrc(image) ? DOMPurify.sanitize(image) : "";
+
+  // Validate and sanitize the fallback image source
+  const fallbackImage = isSafeImageSrc(personalInfo.image)
+    ? DOMPurify.sanitize(personalInfo.image)
+    : `${import.meta.env.VITE_BASE_IMAGE_URL}/camera.png`;
 
   const handleImageChange = (e) => {
     const { name, files } = e.target;
@@ -542,18 +556,10 @@ function PersonalInfo({ show, onHide, personalInfo, setPersonalInfo }) {
                 style={{ flexDirection: "row", gap: "10px" }}
               >
                 {safeSrc ? (
-                  <img src={image} alt="Preview" className="preview-image" />
+                  <img src={safeSrc} alt="Preview" className="preview-image" />
                 ) : (
                   <div className="upload-placeholder">
-                    <img
-                      src={
-                        personalInfo.image
-                          ? personalInfo.image
-                          : `${import.meta.env.VITE_BASE_IMAGE_URL}/camera.png`
-                      }
-                      alt="camera"
-                      className="icon"
-                    />
+                    <img src={fallbackImage} alt="camera" className="icon" />
                   </div>
                 )}
                 <h5>Change Profile Picture</h5>

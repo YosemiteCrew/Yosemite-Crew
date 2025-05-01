@@ -32,11 +32,13 @@ import {
   FHIRToNormalConverter,
   NormalAppointmentConverter,
 } from "../../utils/FhirMapper";
+import { getData } from "../../services/apiService";
 // import { Button } from 'react-bootstrap';
 
 const Appointment = () => {
   const { userId, userType, onLogout } = useAuth();
   const navigate = useNavigate();
+
   // dropdown
   const optionsList1 = [
     "Last 7 Days",
@@ -46,23 +48,31 @@ const Appointment = () => {
   ];
   const [allAppointments, setAllAppointments] = useState([]);
   const [total, setTotal] = useState();
-  const getAllAppointments = useCallback(
-    async (offset, userId) => {
 
+  const getAllAppointments = useCallback(
+    async (offset, itemsPerPage, userId) => {
       try {
-        const token = sessionStorage.getItem("token");
-        const response = await axios.get(
-          `${import.meta.env.VITE_BASE_URL}fhir/v1/Appointment?organization=Hospital/${userId}&offset=${offset}&type=${"AppointmentLists"}`,
-          { headers: { Authorization: `Bearer ${token}` } }
+        const response = await getData(
+          `fhir/v1/Appointment?organization=Hospital/${userId}&offset=${offset}&limit=${itemsPerPage}&type=${"AppointmentLists"}`
         );
-        if (response) {
+        if (response.status === 200 && response.data.status === 1) {
           const normalAppointments =
             NormalAppointmentConverter.convertAppointments({
-              totalAppointments: response.data.total,
-              appointments: response.data.entry.map((entry) => entry.resource),
+              totalAppointments: response.data.data.total,
+              appointments: response.data.data.entry.map(
+                (entry) => entry.resource
+              ),
             });
+
+          console.log("normalAppointments", normalAppointments);
           setAllAppointments(normalAppointments.appointments);
           setTotal(normalAppointments.totalAppointments);
+        } else if (response.status === 200 && response.data.status === 0) {
+          new Swal({
+            title: "Not Found",
+            text: response.data?.message || "Requested data not found.",
+            icon: "error",
+          });
         }
       } catch (error) {
         if (error.response && error.response.status === 401) {
@@ -76,10 +86,13 @@ const Appointment = () => {
   const AppointmentActions = async (id, status, offset) => {
     try {
       const token = sessionStorage.getItem("token");
-  
+
       // Prepare FHIR-compliant payload
-      const fhirAppointment = CanceledAndAcceptFHIRConverter.toFHIR({ id, status });
-  
+      const fhirAppointment = CanceledAndAcceptFHIRConverter.toFHIR({
+        id,
+        status,
+      });
+
       const response = await axios.put(
         `${import.meta.env.VITE_BASE_URL}fhir/v1/Appointment/${id}?userId=${userId}`,
         fhirAppointment,
@@ -87,26 +100,26 @@ const Appointment = () => {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-  
+
       if (response.status === 200) {
         Swal.fire({
-          title: 'Appointment Status Changed',
-          text: 'Appointment Status Changed Successfully',
-          icon: 'success',
+          title: "Appointment Status Changed",
+          text: "Appointment Status Changed Successfully",
+          icon: "success",
         });
       }
-  
-      getAllAppointments(offset);
+
+      getAllAppointments(offset, 6);
       // getlast7daysAppointMentsCount();
     } catch (error) {
       if (error.response && error.response.status === 401) {
         onLogout(navigate);
       }
-  
+
       Swal.fire({
-        title: 'Error',
-        text: 'Failed to Change Appointment Status',
-        icon: 'error',
+        title: "Error",
+        text: "Failed to Change Appointment Status",
+        icon: "error",
       });
     }
   };
@@ -119,40 +132,39 @@ const Appointment = () => {
       const days = parseInt(selectedOption.match(/\d+/)[0], 10);
 
       try {
-        const token = sessionStorage.getItem("token");
-        const response = await axios.get(
-          `${import.meta.env.VITE_BASE_URL}fhir/v1/MeasureReport?userId=${userId}&type=AppointmentManagement`,
-          {
-            params: {
-              LastDays: days,
-            },
-            headers: { Authorization: `Bearer ${token}` },
-          }
+        const response = await getData(
+          `fhir/v1/MeasureReport?userId=${userId}&LastDays=${days}&type=AppointmentManagement`
         );
-        if (response) {
+        if (response.status === 200) {
           const data = new FHIRParser(
-            JSON.parse(response.data)
+            response.data.data
           ).overviewConvertToNormal();
 
           setAppointmentStatusAndCounts(data);
         }
       } catch (error) {
         if (error.response && error.response.status === 401) {
-          console.log("Session expired. Redirecting to signin...");
           onLogout(navigate);
+        } else if (
+          error.response &&
+          [400, 500].includes(error.response.status)
+        ) {
+          const errorMessage =
+            error.response?.data?.issue?.[0]?.details?.text ||
+            "An unexpected error occurred.";
+          Swal.fire({
+            title: "Error",
+            text: errorMessage,
+            icon: "error",
+          });
         }
-        Swal.fire({
-          title: "Error",
-          text: `${error}`,
-          icon: "error",
-        });
       }
     },
     [userId, navigate, onLogout]
   );
 
   useEffect(() => {
-    if (userId) getAllAppointments(0, userId);
+    if (userId) getAllAppointments(0, 6, userId);
     getAppUpcCompCanTotalCounts("Last 7 Days");
   }, [userId, getAppUpcCompCanTotalCounts, getAllAppointments]);
 
@@ -202,22 +214,19 @@ const Appointment = () => {
         );
 
         if (response.status === 200) {
-
           const data = new FHIRToNormalConverter(response.data).toNormal();
-
           setData((prev) => {
             const newAppointments = data.appointments.filter(
               (appt) => !prev.some((p) => p._id === appt._id)
             );
             return [...prev, ...newAppointments];
           });
-          
+
           setTotal(data.totalCount);
           setHasMore(data.appointments.length === limit);
         }
       } catch (error) {
         if (error.response && error.response.status === 401) {
-          console.log("Session expired. Redirecting to signin...");
           onLogout(navigate);
         }
         Swal.fire({
@@ -398,6 +407,7 @@ const Appointment = () => {
               tablespan={`(${total ? total : 0})`}
             />
             <ActionsTable
+              total={total}
               onClick={getAllAppointments}
               appointments={allAppointments}
               onClicked={AppointmentActions}
@@ -407,71 +417,69 @@ const Appointment = () => {
           </div>
 
           <div className="DashCardData">
-            <div className="DashCardData">
-              {/* Confirmed Appointments Section */}
-              <div className="DashCardDiv">
-                <CardHead
-                  Cdtxt="Confirmed"
-                  Cdnumb={totalConfirmedAppointments}
-                  CdNClas="fawn"
-                />
-                <div className="DashCardItem fawnbg">
-                  {confirmedAppointments.map((appointment, index) => (
-                    <div
-                      ref={
-                        index === confirmedAppointments.length - 1
-                          ? lastConfirmedAppointmentRef
-                          : null
-                      }
-                      key={index}
-                    >
-                      <AppointCard
-                        crdimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`}
-                        cdowner={appointment.ownerName}
-                        crdtpe={appointment.petName}
-                        btnimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/btn1.png`}
-                        btntext={`${appointment.appointmentDate} - ${appointment.appointmentTime}`}
-                        crddoctor={appointment.veterinarian}
-                        drjob={appointment.department}
-                        CardbtnClass="btnfown"
-                      />
-                    </div>
-                  ))}
-                  {confirmedLoading && <p>Loading more appointments...</p>}
-                </div>
+            {/* Confirmed Appointments Section */}
+            <div className="DashCardDiv">
+              <CardHead
+                Cdtxt="Confirmed"
+                Cdnumb={totalConfirmedAppointments}
+                CdNClas="fawn"
+              />
+              <div className="DashCardItem fawnbg">
+                {confirmedAppointments.map((appointment, index) => (
+                  <div
+                    ref={
+                      index === confirmedAppointments.length - 1
+                        ? lastConfirmedAppointmentRef
+                        : null
+                    }
+                    key={index}
+                  >
+                    <AppointCard
+                      crdimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`}
+                      cdowner={appointment.ownerName}
+                      crdtpe={appointment.petName}
+                      btnimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/btn1.png`}
+                      btntext={`${appointment.appointmentDate} - ${appointment.appointmentTime}`}
+                      crddoctor={appointment.veterinarian}
+                      drjob={appointment.department}
+                      CardbtnClass="btnfown"
+                    />
+                  </div>
+                ))}
+                {confirmedLoading && <p>Loading more appointments...</p>}
               </div>
+            </div>
 
-              {/* Upcoming Appointments Section */}
-              <div className="DashCardDiv">
-                <CardHead
-                  Cdtxt="Upcoming"
-                  Cdnumb={totalUpcomingAppointments}
-                  CdNClas="fawn"
-                />
-                <div className="DashCardItem fawnbg">
-                  {upcomingAppointments.map((appointment, index) => (
-                    <div
-                      ref={
-                        index === upcomingAppointments.length - 1
-                          ? lastUpcomingAppointmentRef
-                          : null
-                      }
-                      key={index}
-                    >
-                      <AppointCard
-                        crdimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`}
-                        cdowner={appointment.ownerName}
-                        crdtpe={appointment.petName}
-                        btnimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/btn2.png`}
-                        btntext={`${appointment.appointmentDate} - ${appointment.appointmentTime}`}
-                        crddoctor={appointment.veterinarian}
-                        drjob={appointment.department}
-                        CardbtnClass="btnPurple"
-                      />
-                    </div>
-                  ))}
-                  {upcomingLoading && <p>Loading more appointments...</p>}
-                </div>
+            {/* Upcoming Appointments Section */}
+            <div className="DashCardDiv">
+              <CardHead
+                Cdtxt="Upcoming"
+                Cdnumb={totalUpcomingAppointments}
+                CdNClas="fawn"
+              />
+              <div className="DashCardItem fawnbg">
+                {upcomingAppointments.map((appointment, index) => (
+                  <div
+                    ref={
+                      index === upcomingAppointments.length - 1
+                        ? lastUpcomingAppointmentRef
+                        : null
+                    }
+                    key={index}
+                  >
+                    <AppointCard
+                      crdimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`}
+                      cdowner={appointment.ownerName}
+                      crdtpe={appointment.petName}
+                      btnimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/btn2.png`}
+                      btntext={`${appointment.appointmentDate} - ${appointment.appointmentTime}`}
+                      crddoctor={appointment.veterinarian}
+                      drjob={appointment.department}
+                      CardbtnClass="btnPurple"
+                    />
+                  </div>
+                ))}
+                {upcomingLoading && <p>Loading more appointments...</p>}
               </div>
             </div>
 

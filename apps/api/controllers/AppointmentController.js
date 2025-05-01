@@ -11,11 +11,18 @@ const FHIRConverter = require('../utils/FHIRConverter');
 const { Types } = require('mongoose'); // for ObjectId validation
 
 class AppointmentController {
+
   static async handleBookAppointment(req, res) {
     try {
       const userId = getCognitoUserId(req);
-      const fhirdata =req.body?.data;
-      let {
+  
+      // Parse FHIR data if provided
+      let appointmentDetails = {};
+      if (req.body?.data) {
+        appointmentDetails = await FHIRTransformer.parseAppointment(JSON.parse(req.body.data));
+      }
+  
+      const {
         appointmentDate,
         purposeOfVisit,
         hospitalId,
@@ -25,32 +32,24 @@ class AppointmentController {
         slotsId,
         timeslot,
         concernOfVisit,
-      } = '';
-      if (fhirdata) {
-        const converted = await FHIRTransformer.parseAppointment(JSON.parse(fhirdata)); 
-        appointmentDate = converted.appointmentDate;
-        timeslot = converted.timeslot;
-        purposeOfVisit = converted.purposeOfVisit;
-        concernOfVisit = converted.concernOfVisit;
-        petId = converted.petId;
-        doctorId = converted.doctorId;
-        hospitalId = converted.hospitalId;
-        department = converted.department;
-        slotsId = converted.slotsId;
-      }
-      const appointmentDateObj = new Date(appointmentDate);
-      const dayofweek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][appointmentDateObj.getDay()];
-
-      const checkAppointment = await AppointmentService.checkAppointment(doctorId,appointmentDate,timeslot);
-      if (checkAppointment) {
-        return res.status(400).json({
+      } = appointmentDetails;
+  
+      // Compute day of the week
+      const dayOfWeek = new Date(appointmentDate).toLocaleDateString('en-US', { weekday: 'long' });
+  
+      // Check slot availability
+      const isBooked = await AppointmentService.checkAppointment(doctorId, appointmentDate, timeslot);
+      if (isBooked) {
+        return res.status(200).json({
           status: 0,
           message: "This time slot is already booked for the selected doctor.",
         });
       }
-      const [appointmentTime24, imageUrls, { petDetails, petOwner }] = await Promise.all([
+  
+      // Parallelize conversions, file uploads, and data fetching
+      const [appointmentTime24, documentFiles, { petDetails, petOwner }] = await Promise.all([
         helpers.convertTo24Hour(timeslot),
-        req.files ? PetService.uploadFiles(req.files.files) : Promise.resolve(''),
+        req.files?.files ? PetService.uploadFiles(req.files.files) : [],
         AppointmentService.getPetAndOwner(petId, userId),
       ]);
   
@@ -66,7 +65,7 @@ class AppointmentController {
         petType: petDetails.petType,
         gender: petDetails.petGender,
         breed: petDetails.petBreed,
-        day: dayofweek,
+        day: dayOfWeek,
         appointmentDate,
         slotsId,
         appointmentTime: timeslot,
@@ -74,37 +73,37 @@ class AppointmentController {
         purposeOfVisit,
         concernOfVisit,
         appointmentSource: "App",
-        document: imageUrls,
+        document: documentFiles,
       };
   
-      await AppointmentService.bookAppointment(appointmentData);
+      const fhirAppointment = await AppointmentService.bookAppointment(appointmentData);
   
-      const fhirAppointment = formatFHIR.formatAppointmentToFHIR({
-        appointmentDate,
-        appointmentTime24,
-        purposeOfVisit,
-        concernOfVisit,
-        petId,
-        doctorId,
-        petName: petDetails.petName,
-        document: imageUrls,
+      if (fhirAppointment) {
+        return res.status(200).json({ status: 1, message: "Appointment Booked successfully" });
+      }
+  
+      return res.status(200).json({
+        status: 0,
+        message: "Appointment could not be booked",
       });
   
-      res.status(200).json(fhirAppointment);
     } catch (error) {
-      console.error("Appointment booking error:", error);
-      res.status(500).json({
+      res.status(200).json({
         status: 0,
         message: "Internal server error",
         error: error.message,
       });
     }
   }
-
+  
+ 
   static async handleGetAppointment(req, res) {
     try {
       const result = await AppointmentService.fetchAppointments(req);
-      res.status(200).json(result);
+      if(result){
+        return res.status(200).json({ status: 1, data: result});
+      }
+      res.status(200).json({ status: 0, message: 'No Appointment found for this user'});
     } catch (error) {
       console.error("Error fetching appointments:", error);
       res.status(500).json({ message: "An error occurred while retrieving appointments" });
@@ -116,20 +115,19 @@ class AppointmentController {
       const appointmentId = req.params.appointmentID;
      // Validate MongoDB ObjectId
       if (!Types.ObjectId.isValid(appointmentId)) {
-        return res.status(400).json({ message: "Invalid Appointment ID format" });
+        return res.status(200).json({ status: 0, message: "Invalid Appointment ID format" });
       }
       const result = await AppointmentService.cancelAppointment(appointmentId);
   
       if (!result) {
-        return res.status(404).json({ message: "This appointment not found" });
+        return res.status(200).json({ status: 0, message: "This appointment not found" });
       }
   
       const fhirData = formatFHIR.toFHIR(result,process.env.BASE_URL);
   
-      res.status(200).json({ data: fhirData });
+      res.status(200).json({ status: 1, message: "Appointment cancelled successfully", data: fhirData });
     } catch (error) {
-      console.error("Cancel Appointment Error:", error);
-      res.status(500).json({ message: "Error while cancelling appointment", error });
+      res.status(200).json({ status: 0, message: "Error while cancelling appointment", error });
     }
   }
 
@@ -145,9 +143,10 @@ class AppointmentController {
       const normalData = FHIRConverter.fromFHIRAppointment(JSON.parse(fhirdata));
       const result = await AppointmentService.rescheduleAppointment(normalData,appointmentId);
   
-      res.status(200).json(result);
+      res.status(200).json({ status: 1, message: "Appointment rescheduled successfully", data:result});
     } catch (error) {
-      res.status(error.statusCode || 500).json({
+      res.status(error.statusCode || 200).json({
+        status: 0,
         resourceType: "OperationOutcome",
         issue: [{
           severity: "error",

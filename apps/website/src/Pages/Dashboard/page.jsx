@@ -12,13 +12,18 @@ import PropTypes from "prop-types";
 // import box4 from '../../../../public/Images/box4.png';
 import { Link, useNavigate } from "react-router-dom";
 // import Topic from "../../../public/Images/topic.png";
-import ActionsTable from '../../Components/ActionsTable/ActionsTable';
-import StatusTable from '../../Components/StatusTable/StatusTable';
-import axios from 'axios';
-import StackedBarChart from '../Graph/page';
-import { useAuth } from '../../context/useAuth';
-import Swal from 'sweetalert2';
-import {  CanceledAndAcceptFHIRConverter, FHIRParser, NormalAppointmentConverter } from '../../utils/FhirMapper';
+import ActionsTable from "../../Components/ActionsTable/ActionsTable";
+import StatusTable from "../../Components/StatusTable/StatusTable";
+import axios from "axios";
+import StackedBarChart from "../Graph/page";
+import { useAuth } from "../../context/useAuth";
+import Swal from "sweetalert2";
+import {
+  CanceledAndAcceptFHIRConverter,
+  FHIRParser,
+  NormalAppointmentConverter,
+} from "../../utils/FhirMapper";
+import { getData } from "../../services/apiService";
 
 const Dashboard = () => {
   const { userId, onLogout } = useAuth();
@@ -38,11 +43,11 @@ const Dashboard = () => {
   const AppointmentGraphOnMonthBase = useCallback(
     async (selectedOption, userId) => {
       const days = parseInt(selectedOption.match(/\d+/)[0], 10);
-      // console.log(`Selected Days: ${days}`);
+
       try {
         const token = sessionStorage.getItem("token");
         const response = await axios.get(
-          `${import.meta.env.VITE_BASE_URL}api/hospitals/AppointmentGraphOnMonthBase?userId=${userId}`,
+          `${import.meta.env.VITE_BASE_URL}fhir/v1/AppointmentGraphOnMonthBase?userId=${userId}`,
           {
             params: {
               days: days,
@@ -50,12 +55,11 @@ const Dashboard = () => {
             headers: { Authorization: `Bearer ${token}` },
           }
         );
-        // console.log(response.data);
+
         if (response) {
           const data = new FHIRParser(
             JSON.parse(response.data.data)
           ).ConvertToNormalDashboardGraph();
-          console.log("hellooooooooooooooooooooo", data);
           setCancelCompletedGraph(
             data.map((v) => ({
               month: v.monthName,
@@ -88,18 +92,14 @@ const Dashboard = () => {
         }
       );
       if (response) {
-        // console.log('overview',JSON.parse(response.data) );
         const data = new FHIRParser(
           JSON.parse(response.data)
         ).overviewConvertToNormal();
-        // console.log("dddddddddddddddddd",data);
 
         setOverview(data);
-        // console.log('overview', response.data);
       }
     } catch (error) {
       if (error.response && error.response.status === 401) {
-        // console.log('Session expired. Redirecting to signin...');
         onLogout(navigate);
       } else if (error.response && error.response.status === 500) {
         Swal.fire({
@@ -113,26 +113,29 @@ const Dashboard = () => {
   }, [userId, onLogout, navigate]);
 
   const getAllAppointments = useCallback(
-    async (offset) => {
-     
+    async (offset, itemsPerPage) => {
       try {
-        const token = sessionStorage.getItem("token");
-        const response = await axios.get(
-          `${import.meta.env.VITE_BASE_URL}fhir/v1/Appointment?organization=Hospital/${userId}&offset=${offset}&type=${"AppointmentLists"}
-
-        `,
-          { headers: { Authorization: `Bearer ${token}` } }
+        
+        const response = await getData(
+          `fhir/v1/Appointment?organization=Hospital/${userId}&offset=${offset}&limit=${itemsPerPage}&type=${"AppointmentLists"}`,
+          
         );
-        if (response) {
-          console.log("totalAppointments", response.data);
-          const normalAppointments = NormalAppointmentConverter.convertAppointments({
-            totalAppointments:response.data.total,
-            appointments: response.data.entry.map((entry) => entry.resource),
-          });
-
-          console.log("data", normalAppointments);
+        if (response.status === 200 && response.data.status === 1) {
+          const normalAppointments =
+            NormalAppointmentConverter.convertAppointments({
+              totalAppointments: response.data.data.total,
+              appointments: response.data.data.entry.map(
+                (entry) => entry.resource
+              ),
+            });
           setTotalAppointments(normalAppointments.totalAppointments);
           setAllAppointments(normalAppointments.appointments);
+        } else if (response.status === 200 && response.data.status === 0) {
+          new Swal({
+            title: "Not Found",
+            text: response.data?.message || "Requested data not found.",
+            icon: "error",
+          });
         }
       } catch (error) {
         if (error.response && error.response.status === 401) {
@@ -147,10 +150,13 @@ const Dashboard = () => {
   const AppointmentActions = async (id, status, offset) => {
     try {
       const token = sessionStorage.getItem("token");
-  
+
       // Prepare FHIR-compliant payload
-      const fhirAppointment = CanceledAndAcceptFHIRConverter.toFHIR({ id, status });
-  
+      const fhirAppointment = CanceledAndAcceptFHIRConverter.toFHIR({
+        id,
+        status,
+      });
+
       const response = await axios.put(
         `${import.meta.env.VITE_BASE_URL}fhir/v1/Appointment/${id}?userId=${userId}`,
         fhirAppointment,
@@ -158,36 +164,35 @@ const Dashboard = () => {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-  
+
       if (response.status === 200) {
         Swal.fire({
-          title: 'Appointment Status Changed',
-          text: 'Appointment Status Changed Successfully',
-          icon: 'success',
+          title: "Appointment Status Changed",
+          text: "Appointment Status Changed Successfully",
+          icon: "success",
         });
       }
-  
-      getAllAppointments(offset);
+
+      getAllAppointments(offset, 6);
       // getlast7daysAppointMentsCount();
     } catch (error) {
       if (error.response && error.response.status === 401) {
         onLogout(navigate);
       }
-  
+
       Swal.fire({
-        title: 'Error',
-        text: 'Failed to Change Appointment Status',
-        icon: 'error',
+        title: "Error",
+        text: "Failed to Change Appointment Status",
+        icon: "error",
       });
     }
   };
-  
 
   useEffect(() => {
     if (userId) {
       AppointmentGraphOnMonthBase("Last 6 Months", userId);
       getOverView(userId);
-      getAllAppointments(0);
+      getAllAppointments(0, 6);
     }
   }, [userId, AppointmentGraphOnMonthBase, getOverView, getAllAppointments]);
   const handleChangeAppointmentGraph = (value) => {
@@ -282,6 +287,7 @@ const Dashboard = () => {
               tablespan={`(${totalAppointments ? totalAppointments : 0})`}
             />
             <ActionsTable
+              total={totalAppointments}
               actimg1={`${import.meta.env.VITE_BASE_IMAGE_URL}/acpt.png`}
               actimg2={`${import.meta.env.VITE_BASE_IMAGE_URL}/decline.png`}
               onClick={getAllAppointments}

@@ -1,7 +1,8 @@
 class FHIRConverter {
   constructor(groupedData) {
     this.groupedData = groupedData;
-    this.overview=groupedData
+    this.overview=groupedData;
+    this.ratingData=groupedData;
   }
 
   convertToFHIR() {
@@ -86,21 +87,29 @@ overviewConvertToFHIR() {
   const overviewData = [
       { key: "totalDoctors", resourceType: "Practitioner" },
       { key: "totalSpecializations", resourceType: "PractitionerRole" },
-      { key: "availableDoctors", resourceType: "PractitionerRole" },
+      { key: "availableDoctors", resourceType: "Practitioner" },
       { key: "totalDepartments", resourceType: "PractitionerRole" },
       { key: "appointmentCounts", resourceType: "PractitionerRole" },
       { key: "totalAppointments", resourceType: "Appointment" },
       { key: "successful", resourceType: "Appointment" },
       { key: "canceled", resourceType: "Appointment" },
       { key: "checkedIn", resourceType: "Appointment" },
-      { key: "availableDoctors", resourceType: "Appointment" },
+      { key: "appointmentsCreatedToday", resourceType: "Appointment"},
       { key: "upcomingAppointments", resourceType: "Appointment" },
       { key: "newAppointments", resourceType: "Appointment"},
-      { key: "newPetsCount", resourceType:"Patient"}
+      { key: "newPetsCount", resourceType:"Patient"},
+      { key: "totalQuantity", resourceType:"Observation"},
+      { key:"totalValue", resourceType: "Observation"},
+      { key: "lowStockCount", resourceType:"Observation"},
+      { key: "outOfStockCount", resourceType: "Observation"},
+      { key: "totalRating", resourceType:"Observation"}
   ];
   
+  
   overviewData.forEach(({ key, resourceType }) => {
-      let value = this.overview[key];
+    let value = this.overview[key];
+    console.log("overviewDatassssssssssssssssssssssssssssssssss",value);
+    
       if (value === undefined || value === null ) return; // Exclude missing values
       
       let id = key;
@@ -130,6 +139,11 @@ overviewConvertToFHIR() {
                         case "newAppointments":
                           case "upcomingAppointments":
                             case "newPetsCount":
+                              case "totalQuantity":
+                                case "totalValue":
+                                  case "lowStockCount":
+                                    case "outOfStockCount":
+                                      case "totalRating":
               resource[key] = value;
               break;
           default:
@@ -142,6 +156,57 @@ overviewConvertToFHIR() {
   return bundle;
 }
 
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<inventory overview >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+InventoryOverviewConvertToFHIR() {
+  const bundle = {
+    resourceType: "Bundle",
+    type: "collection",
+    entry: []
+  };
+
+  const overviewData = [
+    { key: "totalQuantity", resourceType:"Observation" },
+    { key: "totalValue", resourceType: "Observation" },
+    { key: "lowStockCount", resourceType:"Observation" },
+    { key: "outOfStockCount", resourceType: "Observation" }
+  ];
+
+  overviewData.forEach(({ key }) => {
+    const value = this.overview[key];
+    console.log("overviewDatassssssssssssssssssssssssssssssssss", value);
+    if (value === undefined || value === null) return;
+
+    const formattedKey = key.replace(/([A-Z])/g, " $1").trim();
+
+    const resource = {
+      resourceType: "Observation",
+      id: key,
+      status: "final",
+      code: {
+        coding: [
+          {
+            system: "http://example.org/fhir/inventory-metrics",
+            code: key,
+            display: formattedKey
+          }
+        ],
+        text: formattedKey
+      },
+      valueQuantity: {
+        value: value,
+        unit: "count"
+      },
+      text: {
+        status: "generated",
+        div: `<div>${formattedKey}: ${value}</div>`
+      }
+    };
+
+    bundle.entry.push({ resource });
+  });
+
+  return bundle; // 🔥 this line is the missing piece
+}
 
 
 
@@ -318,6 +383,53 @@ overviewConvertToFHIR() {
       })),
     }));
   }
+
+// <<<<<<<<<<<<<<<<<<<<<<<<<<Rating Fhir Handling >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+
+ratingConvertToFHIR() {
+  return {
+    resourceType: "Bundle",
+    type: "collection",
+    entry: this.ratingData.map((item) => ({
+      resource: {
+        resourceType: "Communication",
+        id: item._id,
+        status: "completed",
+        subject: {
+          display: item.name,
+        },
+        payload: [
+          { contentString: item.feedback },
+          { contentString: `Pet Name: ${item.petName}` },
+          { contentString: `Rating: ${item.rating}` },
+          { contentString: `Date: ${item.date}` },
+          { contentString: `Status: ${item.isOld ? 'Old' : 'New'}` },
+        ],
+        sent: this.convertDate(item.date),
+        extension: [
+          {
+            url: "http://example.com/StructureDefinition/image-url",
+            valueUrl: item.image
+          }
+        ],
+        note: [
+          {
+            text: `Rated ${item.rating} stars by ${item.name} for pet ${item.petName}.`
+          }
+        ]
+      }
+    }))
+  };
+}
+convertDate(dateString) {
+  const [day, monthName, year] = dateString.split(' ');
+  const month = new Date(`${monthName} 1, ${year}`).getMonth(); // getMonth() is 0-indexed
+  const dateObj = new Date(Date.UTC(year, month, day));
+  return dateObj.toISOString(); // returns "2025-04-03T00:00:00.000Z"
+}
+
+
 }
 
 

@@ -3,11 +3,11 @@ const mongoose = require('mongoose');
 const vaccinationSchema = new mongoose.Schema({
 
     userId: {
-        type: Number, 
+        type: String, 
         required: true,
     },
     petId: {
-        type: Number,  
+        type: String,  
         required: true,
     },
     manufacturerName: {
@@ -31,9 +31,13 @@ const vaccinationSchema = new mongoose.Schema({
     nextdueDate: {
         type: Date,
     },
-    vaccineImage: {
-        type: String,
-    },
+    vaccineImage: [
+        {
+            url: { type: String },
+            originalname: { type: String },
+            mimetype: { type: String }
+        }
+    ],
 
 
 }, { timestamps: true});

@@ -15,11 +15,12 @@ const { AppointmentFHIRConverter } = require("../utils/WebAppointmentHandler");
 const { AppointmentsFHIRConverter } = require("../utils/HospitalFhirHandler");
 
 const { validateFHIR } = require("../Fhirvalidator/FhirValidator");
-const { json } = require("body-parser");
+const { json, text } = require("body-parser");
 const {
   DepartmentFromFHIRConverter,
 } = require("../utils/DepartmentFhirHandler");
 const { response } = require("express");
+const FeedBack = require("../models/FeedBack");
 
 const s3 = new AWS.S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -232,7 +233,7 @@ const HospitalController = {
             });
           }
         }
-        case "WeeklyAppointmentGraph":
+      case "WeeklyAppointmentGraph":
         if (req.method === "GET") {
           try {
             const { userId } = req.query;
@@ -314,7 +315,7 @@ const HospitalController = {
         break;
     }
   },
-  getDataForWeeklyAppointmentChart: async (req, res) => {},
+  // getDataForWeeklyAppointmentChart: async (req, res) => {},
 
   AppointmentGraphOnMonthBase: async (req, res) => {
     const monthNames = [
@@ -419,7 +420,6 @@ const HospitalController = {
       results.sort((a, b) => a.month - b.month);
 
       const data = new GraphDataToFHIR(results).convertToFHIR();
-    
 
       return res.status(200).json({
         message: "Appointment data for the last X months fetched successfully",
@@ -503,9 +503,9 @@ const HospitalController = {
               availableDoctors: availableDoctorsCount,
               appointmentsCreatedToday: appointmentsCreatedTodayCount,
             };
-
+            console.log("result", result);
             const data = new FHIRConverter(result).overviewConvertToFHIR();
-            console.log("hello", JSON.stringify(data));
+            console.log("hello", JSON.stringify(data, null, 2));
 
             return res.status(200).json(JSON.stringify(data)); // Removed JSON.stringify to ensure valid JSON format
           } catch (error) {
@@ -554,7 +554,6 @@ const HospitalController = {
 
             const formattedStartDate = formatDate(startDate);
             const formattedEndDate = formatDate(endDate);
-          
 
             const appointmentCounts = await webAppointments.countDocuments({
               hospitalId: userId,
@@ -651,6 +650,8 @@ const HospitalController = {
               isAvailable: "1",
             });
 
+            // const averageRaing = await AddDoctors.feedback({})
+
             const overview = {
               totalDoctors,
               totalSpecializations: aggregation[0]?.totalSpecializations || 0,
@@ -684,14 +685,35 @@ const HospitalController = {
         if (req.method === "GET") {
           try {
             const { LastDays, userId } = req.query;
+
+            if (!LastDays) {
+              return res.status(400).json({
+                resourceType: "OperationOutcome",
+                issue: [
+                  {
+                    severity: "error",
+                    code: "exception",
+                    details: { text: "Missing required parameter: LastDays" },
+                  },
+                ],
+              });
+            } else if (!userId) {
+              return res.status(400).json({
+                resourceType: "OperationOutcome",
+                issue: [
+                  {
+                    severity: "error",
+                    code: "exception",
+                    details: { text: "missing required parameter: userId" },
+                  },
+                ],
+              });
+            }
             const days = parseInt(LastDays, 10) || 7; // Default to 7 days if not provided
-            console.log("req.query", req.query);
 
             const endDate = new Date();
             const startDate = new Date();
             startDate.setDate(endDate.getDate() - (days - 1));
-
-            console.log("startDate", startDate, "endDate", endDate);
 
             // const today = new Date().toISOString().split('T')[0]; // Today's date in "YYYY-MM-DD" format
 
@@ -739,18 +761,20 @@ const HospitalController = {
               successful: 0,
             };
             const data = new FHIRConverter(result).overviewConvertToFHIR();
-            console.log("hello", JSON.stringify(data));
-            console.log("results", result);
-
-            return res.status(200).json(JSON.stringify(data));
+            return res.status(200).json({ data });
           } catch (error) {
-            console.error(
-              "Error in getAppUpcCompCanTotalCountOnDayBasis:",
-              error
-            );
             return res.status(500).json({
-              message: "An error occurred while fetching data.",
-              error: error.message,
+              resourceType: "OperationOutcome",
+              issue: [
+                {
+                  severity: "fatal",
+                  code: "exception",
+                  details: {
+                    text: "An error occurred while fetching data.",
+                  },
+                  diagnostics: error.message,
+                },
+              ],
             });
           }
         }
@@ -868,21 +892,23 @@ const HospitalController = {
         }
         break;
       case "DoctorDashOverview":
-        if(req.method === "GET") {
+        if (req.method === "GET") {
           try {
             const { doctorId } = req.query;
-      
+
             const endDate = new Date();
             const startDate = new Date();
             startDate.setDate(endDate.getDate() - 6);
-      
-      
-            if (typeof doctorId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(doctorId)) {
-              return res.status(400).json({ message: 'Invalid doctorId format' });
+
+            if (
+              typeof doctorId !== "string" ||
+              !/^[a-fA-F0-9-]{36}$/.test(doctorId)
+            ) {
+              return res
+                .status(400)
+                .json({ message: "Invalid doctorId format" });
             }
-            
-            
-      
+
             const totalAppointments = await webAppointments.countDocuments({
               veterinarian: doctorId,
               createdAt: {
@@ -890,12 +916,19 @@ const HospitalController = {
                 $lte: endDate,
               },
             });
-            const data = new FHIRConverter({totalAppointments}).overviewConvertToFHIR()
-      
-      
+
+            const totalRating = await FeedBack.countDocuments({
+              doctorId: doctorId,
+            });
+
+            // const totalAssessment = await
+
+            const data = new FHIRConverter({
+              totalAppointments,
+              totalRating,
+            }).overviewConvertToFHIR();
             return res.status(200).json(data);
           } catch (error) {
-            console.error('Error in getLast7DaysAppointmentsTotalCount:', error);
             return res.status(500).json({
               resourceType: "OperationOutcome",
               issue: [
@@ -1049,17 +1082,21 @@ const HospitalController = {
     try {
       const { userId } = req.query;
 
-      // Fetch profile data
+      if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        return res.status(400).json({ message: "Invalid doctorId format" });
+      }
       const profileData = await ProfileData.findOne(
         { userId },
         {
           _id: 0,
-          "address.addressLine1": 1,
-          "address.city": 1,
-          "address.street": 1,
-          "address.state": 1,
-          "address.zipCode": 1,
-          "address.email": 1,
+          address: {
+            addressLine1: 1,
+            city: 1,
+            street: 1,
+            state: 1,
+            zipCode: 1,
+            email: 1,
+          },
           phoneNumber: 1,
           businessName: 1,
           logo: 1,
@@ -1142,12 +1179,10 @@ const HospitalController = {
       const { facilitys, selectedServices, selectedDepartments, images } =
         req.body;
       const { userId } = req.query;
-  
-     
-      if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
-        return res.status(400).json({ message: 'Invalid doctorId format' });
+
+      if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        return res.status(400).json({ message: "Invalid doctorId format" });
       }
-      
 
       await ProfileVisibility.deleteOne({ hospitalId: userId });
 
@@ -1173,10 +1208,9 @@ const HospitalController = {
     try {
       const { userId } = req.query;
 
-      if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
-        return res.status(400).json({ message: 'Invalid doctorId format' });
+      if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        return res.status(400).json({ message: "Invalid doctorId format" });
       }
-      
 
       const visibilityData = await ProfileVisibility.findOne({
         hospitalId: userId,
@@ -1205,8 +1239,6 @@ const HospitalController = {
       const endDate = new Date();
       const startDate = new Date();
       startDate.setDate(endDate.getDate() - (days - 1));
-
-  
 
       // Base pipeline (without pagination)
       const basePipeline = [
@@ -1336,8 +1368,8 @@ const HospitalController = {
       case "AppointmentLists":
         if (req.method === "GET") {
           try {
-            const { organization, offset = 0, limit = 5 } = req.query;
-            console.log(req.query);
+            const { organization, offset = 0, limit } = req.query;
+            console.log("req.query", typeof limit);
 
             const hospitalId = organization.split("/")[1];
 
@@ -1349,7 +1381,7 @@ const HospitalController = {
             const response = await webAppointments.aggregate([
               {
                 $match: {
-                  appointmentStatus: { $ne: "cancelled" },
+                  appointmentStatus: { $eq: "pending" },
                   $or: [
                     { hospitalId: hospitalId },
                     { veterinarian: hospitalId },
@@ -1437,21 +1469,21 @@ const HospitalController = {
             ]);
 
             if (!response.length || !response[0].Appointments.length) {
-              return res
-                .status(404)
-                .json({ message: "No slots found for the hospital." });
+              return res.status(200).json({
+                status: 0,
+                message: "No appointments available.",
+              });
             }
-            console.log("totalAppointments", response[0]);
 
             const data = AppointmentFHIRConverter.convertAppointments(
               response[0]
             );
 
-            console.log("data", JSON.stringify(data, null, 2));
+            // console.log("data", JSON.stringify(data, null, 2));
 
-            console.log("validator", validateFHIR(data));
+            // console.log("validator", validateFHIR(data));
 
-            return res.status(200).json(data);
+            return res.status(200).json({ status: 1, data });
           } catch (error) {
             console.error(
               "Error in getAppointmentsForHospitalDashboard:",
@@ -1474,13 +1506,41 @@ const HospitalController = {
             const currentDate = new Date().toISOString().split("T")[0];
             const userId = organization.split("/")[1];
 
-            if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
-              return res.status(400).json({ message: 'Invalid doctorId format' });
+            if (
+              typeof userId !== "string" ||
+              !/^[a-fA-F0-9-]{36}$/.test(userId)
+            ) {
+              return res.status(400).json({
+                resourceType: "OperationOutcome",
+                issue: [
+                  {
+                    severity: "invalid",
+                    code: "error",
+                    details: {
+                      text: "invalid id format",
+                    },
+                  },
+                ],
+              });
             }
-              // Validate date (YYYY-MM-DD)
-    if (typeof currentDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(currentDate)) {
-      return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD' });
-    }
+            // Validate date (YYYY-MM-DD)
+            if (
+              typeof currentDate !== "string" ||
+              !/^\d{4}-\d{2}-\d{2}$/.test(currentDate)
+            ) {
+              return res.status(400).json({
+                resourceType: "OperationOutcome",
+                issue: [
+                  {
+                    severity: "invalid",
+                    code: "error",
+                    details: {
+                      text: "Invalid date format. Expected YYYY-MM-DD",
+                    },
+                  },
+                ],
+              });
+            }
 
             const response = await webAppointments.aggregate([
               {
@@ -1569,22 +1629,27 @@ const HospitalController = {
             });
 
             if (!response.length) {
-              return res
-                .status(404)
-                .json({ message: "No slots found for the doctor." });
+              return res.status(404).json({
+                resourceType: "OperationOutcome",
+                issue: [
+                  {
+                    severity: "Information",
+                    code: "informational",
+                    details: {
+                      text: "No patient in Queue",
+                    },
+                  },
+                ],
+              });
             }
-            console.log({
-              total: totalAppointments,
-              totalAppointments: response,
-            });
+
             const data = AppointmentFHIRConverter.convertAppointments({
               total: totalAppointments,
               Appointments: response,
             });
-        
+
             return res.status(200).json(JSON.stringify(data, null, 2));
           } catch (error) {
-            console.error("Error in getAppointmentsForDoctorDashboard:", error);
             return res.status(500).json({
               resourceType: "OperationOutcome",
               issue: [
@@ -1610,8 +1675,6 @@ const HospitalController = {
             const pageNumber = parseInt(page);
             const limitNumber = parseInt(limit);
             const skip = (pageNumber - 1) * limitNumber;
-
-  
 
             const daysMap = {
               1: "Sunday",
@@ -2039,7 +2102,7 @@ const HospitalController = {
             }).toFHIRBundle();
             res.status(200).json(data);
           } catch (error) {
-            console.error("Error getting completed appointments:", error);
+            console.error("Error getting Cancelled appointments:", error);
             res.status(500).json({
               resourceType: "OperationOutcome",
               issue: [
@@ -2252,6 +2315,159 @@ const HospitalController = {
     } catch (error) {
       console.error("Error in getMessages:", error);
       res.status(500).json({ error: "Internal server error" });
+    }
+  },
+  handleGetRating: async (req, res) => {
+    try {
+      const { doctorId } = req.query.params;
+      console.log("doctorId", req.query.params);
+
+      if (!doctorId) {
+        return res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "invalid",
+              details: {
+                text: "Missing required parameter: doctorId",
+              },
+            },
+          ],
+        });
+      }
+
+      // Current date and date 1 week ago
+      const currentDate = new Date();
+      const oneWeekAgo = new Date(
+        currentDate.setDate(currentDate.getDate() - 7)
+      );
+
+      const response = await FeedBack.aggregate([
+        {
+          $match: {
+            doctorId: doctorId,
+          },
+        },
+        {
+          $lookup: {
+            from: "yoshusers",
+            localField: "userId",
+            foreignField: "cognitoId",
+            as: "usersInfo",
+          },
+        },
+        {
+          $addFields: {
+            petsId: { $toObjectId: "$petId" },
+          },
+        },
+        {
+          $lookup: {
+            from: "yoshpets",
+            localField: "petsId",
+            foreignField: "_id",
+            as: "petInfo",
+          },
+        },
+        {
+          $unwind: {
+            path: "$usersInfo",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $unwind: {
+            path: "$petInfo",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $addFields: {
+            formattedDate: {
+              $dateToString: {
+                format: "%d %B %Y",
+                date: "$usersInfo.createdAt",
+                timezone: "UTC",
+              },
+            },
+            isOld: {
+              $lte: ["$createdAt", oneWeekAgo], // Compare if the feedback date is older than 1 week
+            },
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            feedback: 1,
+            rating: 1,
+            name: {
+              $concat: ["$usersInfo.firstName", " ", "$usersInfo.lastName"],
+            },
+            image: {
+              $concat: [
+                `https://${process.env.AWS_S3_BUCKET_NAME}.s3.amazonaws.com/`,
+                {
+                  $ifNull: [
+                    { $arrayElemAt: ["$usersInfo.profileImage.url", 0] },
+                    "",
+                  ],
+                },
+              ],
+            },
+            petName: "$petInfo.petName",
+            date: "$formattedDate",
+            isOld: 1,
+          },
+        },
+      ]);
+
+      if (response.length > 0) {
+        const data = new FHIRConverter(response).ratingConvertToFHIR();
+
+        console.log("validator", validateFHIR(data));
+
+        // Check if data is old or new and add corresponding parameter
+        // const result = response.map((item) => {
+        //   if (item.isOld) {
+        //     item.status = "Old";
+        //   } else {
+        //     item.status = "New";
+        //   }
+        //   return item;
+        // });
+
+        res.status(200).json({
+          rating: data,
+        });
+      } else {
+        res.status(200).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "information",
+              code: "informational",
+              details: {
+                text: "No ratings found.",
+              },
+            },
+          ],
+        });
+      }
+    } catch (error) {
+      res.status(500).json({
+        resourceType: "OperationOutcome",
+        issue: [
+          {
+            severity: "error",
+            code: "exception",
+            details: {
+              text: "Network error occurred while processing the request.",
+            },
+            diagnostics: error.message,
+          },
+        ],
+      });
     }
   },
 };

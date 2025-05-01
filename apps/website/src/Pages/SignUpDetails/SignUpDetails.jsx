@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios"; // Make sure axios is installed
 import "./SignUpDetails.css";
 import { Forminput, HeadText } from "../SignUp/SignUp";
+import DOMPurify from "dompurify";
 
 import UplodeImage from "../../Components/UplodeImage/UplodeImage";
 import { MainBtn } from "../Appointment/page";
@@ -85,11 +86,11 @@ const SignUpDetails = () => {
   const handleImageChange = (event) => {
     const file = event?.target?.files?.[0];
     if (!file) return;
-  
+
     // Only allow image file types
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
     if (!allowedTypes.includes(file.type)) {
-      alert('Only JPEG, PNG, and WEBP images are allowed.');
+      alert("Only JPEG, PNG, and WEBP images are allowed.");
       return;
     }
 
@@ -97,7 +98,6 @@ const SignUpDetails = () => {
     setPreImage(imageUrl);
     setImage(file);
   };
-  
 
   const servicesList = [
     { code: "E001", display: "24/7 Emergency Care" },
@@ -480,16 +480,27 @@ const SignUpDetails = () => {
 
   const [key, setKey] = useState("basic");
 
-  const isSafeImageSrc = (src) =>
-    typeof src === "string" &&
-    (src.startsWith("blob:") || src.startsWith("https://"));
+  const isSafeImageSrc = (src) => {
+    if (typeof src !== "string") return false;
+    try {
+      const url = new URL(src);
+      // Allow only specific protocols and trusted hostnames
+      return (
+        (url.protocol === "https:" || url.protocol === "blob:") &&
+        // Optional: whitelist hostnames if needed
+        // ["yourdomain.com", "trustedcdn.com"].includes(url.hostname)
+        true
+      );
+    } catch {
+      return false;
+    }
+  };
 
   const safeSrc = isSafeImageSrc(preImage)
-    ? preImage
+    ? DOMPurify.sanitize(preImage)
     : isSafeImageSrc(image)
-      ? image
+      ? DOMPurify.sanitize(image)
       : "";
-
   return (
     <section className="SignDetailsSec">
       <div className="container">
@@ -540,7 +551,7 @@ const SignUpDetails = () => {
                           <label htmlFor="logo-upload" className="upload-label">
                             {safeSrc ? (
                               <img
-                                src={safeSrc} // This will use preImage if available and safe, otherwise image if safe
+                                src={safeSrc}
                                 alt="Preview"
                                 className="preview-image"
                               />
@@ -907,8 +918,9 @@ export default SignUpDetails;
 ProfileProg.propTypes = {
   blname: PropTypes.string.isRequired,
   spname: PropTypes.string.isRequired,
+  progres: PropTypes.number,
 };
-export function ProfileProg({ blname, spname }) {
+export function ProfileProg({ blname, spname,progres }) {
   return (
     <div className="profProgressDiv">
       <div className="Prof">
@@ -919,10 +931,10 @@ export function ProfileProg({ blname, spname }) {
         </div>
         <div className="ProgDiv">
           <div className="progress-bar">
-            <span className="progress-fill" style={{ width: "48%" }}></span>
+            <span className="progress-fill" style={{ width: `${progres}%` }}></span>
           </div>
           <p className="progress-text">
-            48% <span>Complete</span>
+           {progres}% <span>Complete</span>
           </p>
         </div>
       </div>

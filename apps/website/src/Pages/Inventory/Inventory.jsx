@@ -1,46 +1,44 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import './Inventory.css';
-import { Container, Form, Tab, Tabs } from 'react-bootstrap';
-import { BoxDiv, ListSelect } from '../Dashboard/page';
+import React, { useCallback, useEffect, useState } from "react";
+import "./Inventory.css";
+import { Container, Form, Tab, Tabs } from "react-bootstrap";
+import { BoxDiv, ListSelect } from "../Dashboard/page";
 // import box9 from '../../../../public/Images/box9.png';
 // import box10 from '../../../../public/Images/box10.png';
 // import box11 from '../../../../public/Images/box11.png';
 // import box12 from '../../../../public/Images/box12.png';
 // import WeeklyAppointmentsChart from '../../Components/BarGraph/WeeklyAppointmentsChart';
-import DepartmentAppointmentsChart from '../../Components/BarGraph/DepartmentAppointmentsChart';
-import { AiFillPlusCircle } from 'react-icons/ai';
-import { IoSearch } from 'react-icons/io5';
-import { Link, useNavigate } from 'react-router-dom';
-import ProcedureTable from '../../Components/ProcedureTable/ProcedureTable';
+import DepartmentAppointmentsChart from "../../Components/BarGraph/DepartmentAppointmentsChart";
+import { AiFillPlusCircle } from "react-icons/ai";
+import { IoSearch } from "react-icons/io5";
+import { Link, useNavigate } from "react-router-dom";
+import ProcedureTable from "../../Components/ProcedureTable/ProcedureTable";
 // import Accpt from '../../../../public/Images/view.png';
 // import Decln from '../../../../public/Images/delete.png';
-import ManageInvetryTable from '../../Components/ManageInvetryTable/ManageInvetryTable';
-import axios from 'axios';
-import { useAuth } from '../../context/useAuth';
-import DynamicDatePicker from '../../Components/DynamicDatePicker/DynamicDatePicker';
-import Swal from 'sweetalert2';
-import ApproachingExpiryChart from '../../Components/BarGraph/ApproachingExpiryChart';
+import ManageInvetryTable from "../../Components/ManageInvetryTable/ManageInvetryTable";
+import axios from "axios";
+import { useAuth } from "../../context/useAuth";
+import DynamicDatePicker from "../../Components/DynamicDatePicker/DynamicDatePicker";
+import Swal from "sweetalert2";
+import ApproachingExpiryChart from "../../Components/BarGraph/ApproachingExpiryChart";
+import {
+  ApproachingExpiryReportConverter,
+  convertFHIRBundleToNormalFormat,
+  InventoryBundleFHIRConverter,
+  InventoryFHIRParser,
+} from "../../utils/InventoryFHIRMapper";
+import { FHIRParser } from "../../utils/FhirMapper";
+import { getData } from "../../services/apiService";
 
-const INVENTORY_TABS = [
-  'Pharmaceuticals',
-  'Medical Supplies',
-  'Pet Care Products',
-  'Diagnostics',
-  'Equipments',
-  'Diagnostic Supplies',
-  'Office Supplies',
-];
 
 function Inventory() {
   const { userId, onLogout } = useAuth();
   const navigate = useNavigate();
-  const [date, setDate] = useState('');
+  const [date, setDate] = useState("");
   const [Overview, setOverview] = useState([]);
   const [inventoryData, setInventoryData] = useState([]);
   const [procedureData, setProcedureData] = useState([]);
 
-  const [category, setCategory] = useState(INVENTORY_TABS[0]);
-  const [searchItem, setSearchItem] = useState('');
+  const [searchItem, setSearchItem] = useState("");
   // const [stock, setStock] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
@@ -48,201 +46,247 @@ function Inventory() {
   const [procedureTotalPages, setProcedureTotalPages] = useState(1);
   const [procedureCurrentPage, setProcedureCurrentPage] = useState(1);
   const [ApproachingExpiry, setApproachingExpiry] = useState([]);
-  console.log('ApproachingExpiry', ApproachingExpiry);
+  const [category, setCategory] = useState([]);
+
+  console.log("category", category?.[0]?.value);
+  const [searchCategory, setSearchCategory] = useState();
+
+  console.log("searchCategory", searchCategory);
 
   useEffect(() => {
     const getInventory = async () => {
       try {
-        const token = sessionStorage.getItem('token');
-        const response = await axios.get(
-          `${import.meta.env.VITE_BASE_URL}api/inventory/getInventory`,
+      
+        const response = await getData(
+          `fhir/v1/InventoryItem`,
+        
           {
-            params: {
               userId,
               searchItem,
               expiryDate: date,
 
-              category,
+              searchCategory,
               skip: (currentPage - 1) * itemsPerPage,
               limit: itemsPerPage,
             },
-            headers: { Authorization: `Bearer ${token}` },
-          }
+           
+          
         );
-        setInventoryData(response.data.inventory);
-        setTotalPages(response.data.totalPages); // Ensure API returns totalCount
+  
+        const fhirdata = InventoryBundleFHIRConverter.fromFHIR(response.data);
+
+        setInventoryData(fhirdata.inventory);
+        setTotalPages(response.totalPages); // Ensure API returns totalCount
       } catch (error) {
         if (error.response && error.response.status === 401) {
-          console.log('Session expired. Redirecting to signin...');
+         
           onLogout(navigate);
-        } else if (error.response.status === 500) {
+        } else if ([400, 500].includes(error.response.status)) {
           Swal.fire({
-            type: 'failed',
-            text: 'Network error',
-            icon: 'error',
+            type: "failed",
+            text: `${error.response.data.issue[0].details.text}`,
+            icon: "error",
           });
         }
       }
     };
 
-    if (userId) getInventory();
-  }, [userId, searchItem, date, currentPage, category, onLogout, navigate]);
+    if (userId && category.length > 0) getInventory();
+  }, [
+    userId,
+    searchItem,
+    date,
+    currentPage,
+    searchCategory,
+    onLogout,
+    category,
+    navigate,
+  ]);
+  const getInventoryCotegory = useCallback(async () => {
+    try {
+      const response = await getData(
+        `fhir/admin/GetAddInventoryCategory?bussinessId=${userId}&type=category`
+      );
+      if (response.status === 200) {
+        const res = new InventoryFHIRParser(
+          response.data
+        ).convertToNormaldata();
+        setCategory(res);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    if (userId) {
+      getInventoryCotegory(userId);
+    }
+  }, [getInventoryCotegory, userId]);
 
   const handleDateChange = (selectedDate) => setDate(selectedDate);
   const handleSearch = (e) => setSearchItem(e.target.value);
   // const handleStock = (e) => setSearchItem(e.target.value);
-  const handleCategory = (tab) => setCategory(tab);
+  const handleCategory = (tab) => setSearchCategory(tab);
   // const handleNextPage = () => setCurrentPage((prev) => prev + 1);
   // const handlePrevPage = () => setCurrentPage((prev) => Math.max(prev - 1, 1));
   const getProcedureData = useCallback(async () => {
     try {
-      const token = sessionStorage.getItem("token");
-      const response = await axios.get(
-        `${import.meta.env.VITE_BASE_URL}api/inventory/getProceurePackage`,
+    
+      const response = await getData(
+        `api/inventory/getProceurePackage`,
         {
           params: {
             userId,
             skip: (procedureCurrentPage - 1) * itemsPerPage,
             limit: itemsPerPage,
           },
-          headers:{Authorization:`Bearer ${token}`}
+          
         }
       );
       if (response.status === 200) {
-        setProcedureData(response.data.procedurePackage[0]);
-        setProcedureTotalPages(response.data.procedurePackage[0].totalPages);
+        const data = convertFHIRBundleToNormalFormat(response.data.data);
+        
+        setProcedureData(data.data);
+        setProcedureTotalPages(data.totalPages);
       } else {
         Swal.fire({
           type: "failed",
           text: "Failed to get procedure data ",
           icon: "error",
-        })
+        });
       }
     } catch (error) {
       if (error.response && error.response.status === 401) {
-        console.log('Session expired. Redirecting to signin...');
+        console.log("Session expired. Redirecting to signin...");
         onLogout(navigate);
       }
     }
-  }, [userId, procedureCurrentPage,onLogout,navigate]);
+  }, [userId, procedureCurrentPage, onLogout, navigate]);
   useEffect(() => {
     if (userId) getProcedureData();
   }, [userId, procedureCurrentPage, getProcedureData]);
 
   const handleDeleteItem = async (id) => {
-
     Swal.fire({
-      title: 'Are you sure you want to delete this item?',
+      title: "Are you sure you want to delete this item?",
       text: "You won't be able to revert this!",
-      icon: 'warning',
+      icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'Yes, delete it!',
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Yes, delete it!",
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
           const token = sessionStorage.getItem("token");
           const response = await axios.delete(
-            `${import.meta.env.VITE_BASE_URL}api/inventory/deleteProcedurePackage`,
+            `${import.meta.env.VITE_BASE_URL}fhir/v1/ProcedurePackage/${id}`, // FHIR RESTful DELETE
             {
-              params: {
-                userId,
-                id,
+              headers: {
+                Authorization: `Bearer ${token}`,
+                // "Content-Type": "application/fhir+json"
               },
-              headers: {Authorization: `Bearer ${token}`},
+              params: {
+                userId, // optional if your backend requires tracking user
+              }
             }
           );
-         
+  
           if (response.status === 200) {
             Swal.fire({
-              title: 'Deleted!',
-              text: 'Item has been deleted successfully.',
-              icon: 'success',
+              title: "Deleted!",
+              text: `${response.data.issue[0].details.text}`,
+              icon: "success",
             });
             getProcedureData(); // Refresh data after deletion
-          } else {
-            Swal.fire({
-              title: 'Error',
-              text: 'Failed to delete the item.',
-              icon: 'error',
-            });
-          }
+          } 
         } catch (error) {
           if (error.response && error.response.status === 401) {
-            console.log('Session expired. Redirecting to signin...');
+            console.log("Session expired. Redirecting to signin...");
             onLogout(navigate);
+          }else if(error.response.status ===400 || error.response.status === 404 || error.response.status === 500){
+            Swal.fire({
+              title: "Error",
+              text: `${error.response.data.issue[0].details.text}`,
+              icon: "error",
+            });
           }
-          Swal.fire({
-            title: 'Error',
-            text: 'Something went wrong. Please try again!',
-            icon: 'error',
-          });
+          
         }
       }
     });
   };
+  
   const GetApproachingExpiryGraph = useCallback(async () => {
     try {
-      const token = sessionStorage.getItem('token')
+      const token = sessionStorage.getItem("token");
       const response = await axios.get(
-        `${import.meta.env.VITE_BASE_URL}api/inventory/getApproachngExpiryGraphs`,
+        `${import.meta.env.VITE_BASE_URL}fhir/v1/getApproachngExpiryGraphs`,
         {
           params: {
             userId,
           },
-          headers:{Authorization: `Bearer ${token}`},
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
       if (response.status === 200) {
-        // console.log(response.data);
+        const normaldata = ApproachingExpiryReportConverter.fromFHIR(
+          response.data
+        );
+        console.log("ApproachingExpiryReportConverter", normaldata);
+
         setApproachingExpiry(
-          response.data.data?.map((item) => ({
+          normaldata?.map((item) => ({
             category: item.category,
             totalCount: item.totalCount,
             color:
-              item.category === '7 days'
-                ? '#A72A19'
-                : item.category === '15 days'
-                ? '#C23723'
-                : item.category === '30 days'
-                ? '#E05D50'
-                : '#E88E81',
+              item.category === "7 days"
+                ? "#A72A19"
+                : item.category === "15 days"
+                  ? "#C23723"
+                  : item.category === "30 days"
+                    ? "#E05D50"
+                    : "#E88E81",
           }))
         );
       } else {
-        console.log('error');
+        console.log("error");
       }
     } catch (error) {
       if (error.response && error.response.status === 401) {
-        console.log('Session expired. Redirecting to signin...');
+        console.log("Session expired. Redirecting to signin...");
         onLogout(navigate);
       }
     }
-  }, [userId,onLogout,navigate]);
+  }, [userId, onLogout, navigate]);
   const getInventoryOverViewDetails = useCallback(async () => {
     try {
-      const token = sessionStorage.getItem('token')
+      const token = sessionStorage.getItem("token");
       const response = await axios.get(
-        `${import.meta.env.VITE_BASE_URL}api/inventory/inventoryOverView`,
+        `${import.meta.env.VITE_BASE_URL}fhir/v1/InventoryReports`,
         {
           params: {
             userId,
           },
-          headers: {Authorization: `Bearer ${token}`},
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
+      console.log("response.data", response.data);
       if (response.status === 200) {
-        console.log(response.data.inventory[0]);
-        setOverview(response.data.inventory[0]);
+        const data = new FHIRParser(
+          response.data
+        ).inventoryOverviewConvertToNormal();
+        console.log("pppppppppp", data);
+        setOverview(data);
       }
     } catch (error) {
       if (error.response && error.response.status === 401) {
-        console.log('Session expired. Redirecting to signin...');
+        console.log("Session expired. Redirecting to signin...");
         onLogout(navigate);
       }
     }
-  }, [userId,onLogout,navigate]);
+  }, [userId, onLogout, navigate]);
 
   useEffect(() => {
     if (userId) {
@@ -312,10 +356,10 @@ function Inventory() {
               <h6>Category Breakdown</h6>
               <ListSelect
                 options={[
-                  'Last 3 Months',
-                  'Last 6 Months',
-                  'Last 9 Months',
-                  'Last 12 Months',
+                  "Last 3 Months",
+                  "Last 6 Months",
+                  "Last 9 Months",
+                  "Last 12 Months",
                 ]}
               />
               <DepartmentAppointmentsChart />
@@ -334,13 +378,13 @@ function Inventory() {
 
             <div className="ManageInvtTabs">
               <Tabs
-                defaultActiveKey={INVENTORY_TABS[0]}
+                defaultActiveKey={category?.[0]?.value}
                 onSelect={handleCategory}
                 id="inventory-tabs"
                 className="mb-3"
               >
-                {INVENTORY_TABS?.map((tab) => (
-                  <Tab eventKey={tab} title={tab} key={tab}>
+                {category?.map((tab) => (
+                  <Tab eventKey={tab.value} title={tab.label} key={tab.value}>
                     <div className="InvttabsInner">
                       <div className="topInner">
                         <div className="lftinnr">
@@ -352,19 +396,22 @@ function Inventory() {
                             />
                             <IoSearch />
                           </div>
+
                           {/* <Form.Select onChange={handleStock}>
-                            <option>Stock</option>
-                            <option>20</option>
-                            <option>30</option>
-                            <option>40</option>
-                          </Form.Select> */}
+            <option>Stock</option>
+            <option>20</option>
+            <option>30</option>
+            <option>40</option>
+          </Form.Select> */}
+
                           <DynamicDatePicker
                             onDateChange={handleDateChange}
                             placeholder="Expiry Date"
-                            maxDate={Date.now()}
+                            minDate={Date.now()}
                           />
                         </div>
                       </div>
+
                       <ManageInvetryTable
                         actimg1={`${import.meta.env.VITE_BASE_IMAGE_URL}/view.png`}
                         actimg2={`${import.meta.env.VITE_BASE_IMAGE_URL}/delete.png`}
@@ -391,7 +438,7 @@ function Inventory() {
               <ProcedureTable
                 actimg1={`${import.meta.env.VITE_BASE_IMAGE_URL}/view.png`}
                 actimg2={`${import.meta.env.VITE_BASE_IMAGE_URL}/delete.png`}
-                procedureData={procedureData.data}
+                procedureData={procedureData}
                 procedureTotalPages={procedureTotalPages}
                 setProcedureCurrentPage={setProcedureCurrentPage}
                 procedureCurrentPage={procedureCurrentPage}

@@ -52,7 +52,7 @@ class GraphDataToFHIR {
   }
 }
 class AppointmentsFHIRConverter {
-  constructor({ status = "confirmed", page = 1, limit = 10, totalPages, totalCount = 0, hasMore, appointments = [] }) {
+  constructor({ status , page = 1, limit = 10, totalPages, totalCount = 0, hasMore, appointments = [] }) {
     this.status = status;
     this.page = page;
     this.limit = limit;

@@ -203,6 +203,9 @@ const MainHeader = ({ isMainHeader }) => {
               <li>
                 <Link to="/AssessmentManagement">Assessments</Link>
               </li>
+              <li>
+                <Link to="/prescription">Prescription</Link>
+              </li>
               {userType === 'Hospital'||userType === 'Groomer Shop' ? (
                 <li>
                   <Link to="/inventory">Inventory</Link>

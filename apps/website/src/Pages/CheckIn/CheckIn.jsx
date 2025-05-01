@@ -1,14 +1,14 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import './CheckIn.css';
-import Modal from 'react-bootstrap/Modal';
-import Swal from 'sweetalert2';
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import "./CheckIn.css";
+import Modal from "react-bootstrap/Modal";
+import Swal from "sweetalert2";
 
 import {
   CiBookmarkCheck,
   CiCircleChevLeft,
   CiCircleChevRight,
-} from 'react-icons/ci';
-import { BoxDiv, DivHeading } from '../Dashboard/page';
+} from "react-icons/ci";
+import { BoxDiv, DivHeading } from "../Dashboard/page";
 // import box1 from '../../../../public/Images/box1.png';
 
 // import box2 from '../../../../public/Images/box2.png';
@@ -17,44 +17,50 @@ import { BoxDiv, DivHeading } from '../Dashboard/page';
 
 // import box5 from '../../../../public/Images/box5.png';
 // import box6 from '../../../../public/Images/box6.png';
-import {FHIRMapper,FHIRParser,FHIRToSlotConverter, NormalAppointmentConverter} from "../../utils/FhirMapper";
-import { Forminput } from '../SignUp/SignUp';
-import { Col, Row } from 'react-bootstrap';
-import DynamicSelect from '../../Components/DynamicSelect/DynamicSelect';
-import DynamicDatePicker from '../../Components/DynamicDatePicker/DynamicDatePicker';
-import { MainBtn } from '../Appointment/page';
-import PatientsTable from '../../Components/PatientsTable/PatientsTable';
-import axios from 'axios';
-import { useAuth } from '../../context/useAuth';
-import { Link, useNavigate } from 'react-router-dom';
+import {
+  FHIRMapper,
+  FHIRParser,
+  FHIRToSlotConverter,
+  NormalAppointmentConverter,
+} from "../../utils/FhirMapper";
+import { Forminput } from "../SignUp/SignUp";
+import { Col, Row } from "react-bootstrap";
+import DynamicSelect from "../../Components/DynamicSelect/DynamicSelect";
+import DynamicDatePicker from "../../Components/DynamicDatePicker/DynamicDatePicker";
+import { MainBtn } from "../Appointment/page";
+import PatientsTable from "../../Components/PatientsTable/PatientsTable";
+import axios from "axios";
+import { useAuth } from "../../context/useAuth";
+import { Link, useNavigate } from "react-router-dom";
+import { getData } from "../../services/apiService";
 
 function CheckInModal(props) {
-  const { userId, profileData ,onLogout} = useAuth();
-  const navigate= useNavigate()
+  const { userId, profileData, onLogout } = useAuth();
+  const navigate = useNavigate();
 
   const [AllData, setAllData] = useState({
-    hospitalId: '',
-    HospitalName: '',
-    ownerName: '',
-    phone: '',
-    addressline1: '',
-    street: '',
-    city: '',
-    state: '',
-    zipCode: '',
-    petName: '',
-    petAge: '',
-    breed: '',
-    purposeOfVisit: '',
-    department: '',
-    appointmentType: '',
-    veterinarian: '',
-    appointmentDate: '',
-    day: '',
-    petType: '',
-    gender: '',
-    appointmentSource: 'In-Hospital',
-    Time: '',
+    hospitalId: "",
+    HospitalName: "",
+    ownerName: "",
+    phone: "",
+    addressline1: "",
+    street: "",
+    city: "",
+    state: "",
+    zipCode: "",
+    petName: "",
+    petAge: "",
+    breed: "",
+    purposeOfVisit: "",
+    department: "",
+    appointmentType: "",
+    veterinarian: "",
+    appointmentDate: "",
+    day: "",
+    petType: "",
+    gender: "",
+    appointmentSource: "In-Hospital",
+    Time: "",
     timeSlots: [],
   });
 
@@ -82,10 +88,9 @@ function CheckInModal(props) {
   };
   const handleClicked = (category, value) => {
     if (!category || value === undefined) {
-      console.error('Invalid category or value passed to handleClick');
+      console.error("Invalid category or value passed to handleClick");
       return;
     }
-
 
     setAllData((prev) => ({
       ...prev,
@@ -103,40 +108,37 @@ function CheckInModal(props) {
   // Select options
   const options = useMemo(
     () => [
-      { value: '1', label: 'Vaccination' },
-      { value: '2', label: 'Surgery' },
-      { value: '3', label: 'Grooming' },
+      { value: "1", label: "Vaccination" },
+      { value: "2", label: "Surgery" },
+      { value: "3", label: "Grooming" },
     ],
     []
   );
 
   const options2 = useMemo(
     () => [
-      { value: '1', label: 'OPD' },
-      { value: '2', label: 'Follow-up' },
-      { value: '3', label: 'Walk-in' },
+      { value: "1", label: "OPD" },
+      { value: "2", label: "Follow-up" },
+      { value: "3", label: "Walk-in" },
     ],
     []
   );
 
   const options3 = useMemo(
     () => [
-      { value: '1', label: 'German Shepherd' },
-      { value: '2', label: 'Poodle' },
-      { value: '3', label: 'Labrador' },
+      { value: "1", label: "German Shepherd" },
+      { value: "2", label: "Poodle" },
+      { value: "3", label: "Labrador" },
     ],
     []
   );
 
   const [department, setDepartment] = useState([]);
 
-
   const getSpecializationDepartment = useCallback(async () => {
-
     try {
-      const token = sessionStorage.getItem("token");
-      const response = await axios.get(
-        `${import.meta.env.VITE_BASE_URL}api/auth/getAddDepartment?userId=${userId}`,{headers:{Authorization: `Bearer ${token}`}}
+      const response = await getData(
+        `api/auth/getAddDepartment?userId=${userId}`
       );
       if (response && response.data) {
         const data = response.data;
@@ -149,28 +151,29 @@ function CheckInModal(props) {
       }
     } catch (error) {
       if (error.response && error.response.status === 401) {
-        console.log('Session expired. Redirecting to signin...');
+        
         onLogout(navigate);
       }
     }
-  },[userId,navigate,onLogout]);
+  }, [userId, navigate, onLogout]);
 
   useEffect(() => {
+   if(userId){
     getSpecializationDepartment();
+   }
     // getWaittingRoomOverView();
-  }, [userId,getSpecializationDepartment]);
+  }, [userId, getSpecializationDepartment]);
   const [veterinarian, setVeterinarian] = useState(null);
   const handleDepartmentSelect = async (value) => {
     setAllData((prev) => ({
       ...prev,
       department: value,
     }));
-    const token = sessionStorage.getItem('token');
+
     try {
-      const response = await axios.get(
-        `${import.meta.env.VITE_BASE_URL}api/doctors/getForAppDoctorsBySpecilizationId`,{params: {value: value,userId: userId}, headers: {
-          Authorization: `Bearer ${token}`, // Attach the token to the request headers
-        },}
+      const response = await getData(
+        `api/doctors/getForAppDoctorsBySpecilizationId`,
+        { params: { value: value, userId: userId } }
       );
 
       if (response && response.data) {
@@ -185,7 +188,7 @@ function CheckInModal(props) {
       }
     } catch (error) {
       if (error.response && error.response.status === 401) {
-        console.log('Session expired. Redirecting to signin...');
+        console.log("Session expired. Redirecting to signin...");
         onLogout(navigate);
       }
     }
@@ -201,26 +204,21 @@ function CheckInModal(props) {
       ...prev,
       appointmentDate: date,
     }));
-    const day = new Date(date).toLocaleDateString('en-US', {
-      weekday: 'long',
+    const day = new Date(date).toLocaleDateString("en-US", {
+      weekday: "long",
     });
     setAllData((pre) => ({
       ...pre,
       day: day,
     }));
     try {
-      const token = sessionStorage.getItem("token");  
-      const { data } = await axios.get(
-        `${import.meta.env.VITE_BASE_URL}fhir/v1/schedule`,
-        {
-          params: {
-            doctorId: AllData.veterinarian,
-            day,
-            date,
-          },
-          headers: {Authorization: `Bearer ${token}`},
-        }
-      );
+      const { data } = await getData(`fhir/v1/schedule`, {
+        params: {
+          doctorId: AllData.veterinarian,
+          day,
+          date,
+        },
+      });
       if (data?.timeSlots) {
         const convertedSlots = data.timeSlots.entry
           .filter((slot) => slot.resource.resourceType === "Slot") // Filter only Slot resources
@@ -228,46 +226,50 @@ function CheckInModal(props) {
             const slotConverter = new FHIRToSlotConverter(slot.resource);
             return slotConverter.convert();
           });
-        setAvailableSlots(convertedSlots);      
+        setAvailableSlots(convertedSlots);
       } else {
         setAvailableSlots([]);
       }
     } catch (error) {
       if (error.response && error.response.status === 401) {
-        console.log('Session expired. Redirecting to signin...');
+        console.log("Session expired. Redirecting to signin...");
         onLogout(navigate);
+      } else if (error.response && [400, 500].includes(error.response.status)) {
+        setAvailableSlots([]);
+        Swal.fire({
+          type: "failed",
+          text: `${error.response.data.issue[0].details.text}`,
+        });
       }
-      console.error('Error fetching doctor slots:', error);
-      setAvailableSlots([]);
     }
   };
   const [validationErrors, setValidationErrors] = useState({});
 
   const validateFields = () => {
     const errors = {};
-    if (!AllData.ownerName) errors.ownerName = 'Owner name is required.';
-    if (!AllData.phone) errors.phone = 'Phone number is required.';
-    if (!AllData.addressline1) errors.addressline1 = 'Address is required.';
-    if (!AllData.city) errors.city = 'City is required.';
-    if (!AllData.street) errors.street = 'Street is required.';
-    if (!AllData.state) errors.state = 'State is required.';
-    if (!AllData.zipCode) errors.zipCode = 'ZIP Code is required.';
-    if (!AllData.petName) errors.petName = 'Pet name is required.';
-    if (!AllData.petAge) errors.petAge = 'Pet age is required.';
-    if (!AllData.breed) errors.breed = 'Breed is required.';
+    if (!AllData.ownerName) errors.ownerName = "Owner name is required.";
+    if (!AllData.phone) errors.phone = "Phone number is required.";
+    if (!AllData.addressline1) errors.addressline1 = "Address is required.";
+    if (!AllData.city) errors.city = "City is required.";
+    if (!AllData.street) errors.street = "Street is required.";
+    if (!AllData.state) errors.state = "State is required.";
+    if (!AllData.zipCode) errors.zipCode = "ZIP Code is required.";
+    if (!AllData.petName) errors.petName = "Pet name is required.";
+    if (!AllData.petAge) errors.petAge = "Pet age is required.";
+    if (!AllData.breed) errors.breed = "Breed is required.";
     if (!AllData.purposeOfVisit)
-      errors.purposeOfVisit = 'Purpose of visit is required.';
+      errors.purposeOfVisit = "Purpose of visit is required.";
     if (!AllData.appointmentType)
-      errors.appointmentType = 'Appointment type is required';
+      errors.appointmentType = "Appointment type is required";
     // if (!AllData.appointmentSource)
     //   errors.appointmentSource = 'Appointment source is required';
-    if (!AllData.department) errors.department = 'Department is required.';
+    if (!AllData.department) errors.department = "Department is required.";
     if (!AllData.veterinarian)
-      errors.veterinarian = 'Veterinarian is required.';
+      errors.veterinarian = "Veterinarian is required.";
     if (!AllData.appointmentDate)
-      errors.appointmentDate = 'Appointment date is required.';
-    if (!AllData.petType) errors.petType = 'PetType is required';
-    if (!AllData.gender) errors.gender = 'Gender i required';
+      errors.appointmentDate = "Appointment date is required.";
+    if (!AllData.petType) errors.petType = "PetType is required";
+    if (!AllData.gender) errors.gender = "Gender i required";
 
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
@@ -280,7 +282,8 @@ function CheckInModal(props) {
       const token = sessionStorage.getItem("token");
       const response = await axios.post(
         `${import.meta.env.VITE_BASE_URL}fhir/v1/Appointment`,
-        fhirData,{headers:{Authorization:`Bearer ${token}`}}
+        fhirData,
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
       if (response.status === 200) {
@@ -290,7 +293,7 @@ function CheckInModal(props) {
           title: "Appointment Created Successfully!",
           text: "Your appointment has been booked.",
         });
-    
+
         // ✅ Reset form data
         setAllData({
           ownerName: "",
@@ -309,15 +312,13 @@ function CheckInModal(props) {
           veterinarian: "",
           appointmentDate: "",
         });
-    
-    
+
         props.onHide();
       }
     } catch (error) {
       if (error.response) {
         const errorData = error.response.data;
-    
-    
+
         if (
           errorData.resourceType === "OperationOutcome" &&
           errorData.issue &&
@@ -325,35 +326,33 @@ function CheckInModal(props) {
         ) {
           const errorMessage =
             errorData.issue[0]?.details?.text || "An error occurred.";
-          
+
           Swal.fire({
             icon: "error",
             title: "Error!",
             text: errorMessage,
           });
         } else {
-      
           Swal.fire({
             icon: "error",
             title: "Something went wrong!",
             text: "There was an issue creating the appointment. Please try again.",
           });
         }
-    
-       
+
         if (error.response.status === 401) {
           console.log("Session expired. Redirecting to signin...");
-          onLogout(navigate); 
+          onLogout(navigate);
         }
       } else {
-      
         Swal.fire({
           icon: "error",
           title: "Network Error!",
           text: "Unable to connect to the server. Please check your internet connection and try again.",
         });
       }
-    }}
+    }
+  };
 
   return (
     <div className="CheckInModalSec">
@@ -505,11 +504,11 @@ function CheckInModal(props) {
               <div className="PetTypeDiv">
                 <p>Pet Type</p>
                 <ul className="SelectUl">
-                  {['Cat', 'Dog', 'Horse'].map((pet) => (
+                  {["Cat", "Dog", "Horse"].map((pet) => (
                     <li
                       key={pet}
-                      className={AllData.petType === pet ? 'active' : ''}
-                      onClick={() => handleClick('petType', pet)}
+                      className={AllData.petType === pet ? "active" : ""}
+                      onClick={() => handleClick("petType", pet)}
                     >
                       {pet}
                     </li>
@@ -523,11 +522,11 @@ function CheckInModal(props) {
               <div className="PetTypeDiv">
                 <p>Gender</p>
                 <ul className="SelectUl">
-                  {['Male', 'Female'].map((gender) => (
+                  {["Male", "Female"].map((gender) => (
                     <li
                       key={gender}
-                      className={AllData.gender === gender ? 'active' : ''}
-                      onClick={() => handleClick('gender', gender)}
+                      className={AllData.gender === gender ? "active" : ""}
+                      onClick={() => handleClick("gender", gender)}
                     >
                       {gender}
                     </li>
@@ -659,53 +658,34 @@ function CheckInModal(props) {
             <div className="PetTypeDiv">
               <p>Appointment Time</p>
               <ul className="SelectUl">
-                {
-                  // [
-                  //   "10:30 AM",
-                  //   "10:45 AM",
-                  //   "11:00 AM",
-                  //   "11:15 AM",
-                  //   "11:30 AM",
-                  //   "11:45 AM",
-                  //   "12:00 PM",
-                  //   "12:15 PM",
-                  //   "12:30 PM",
-                  //   "2:30 PM",
-                  //   "3:15 PM",
-                  //   "3:45 PM",
-                  //   "4:30 PM",
-                  //   "5:15 PM",
-                  // ]
-
-                  AvailableSlots && AvailableSlots.length > 0 ? (
-                    AvailableSlots.map((timeSlot) => (
-                      <li
-                        key={timeSlot._id} // Ensure _id is unique
-                        className={`${
-                          AllData.timeSlots.some(
-                            (v) => v.time === timeSlot.time
-                          ) || timeSlot.isBooked
-                            ? 'active'
-                            : ''
-                        }`}
-                        onClick={
-                          !timeSlot.isBooked
-                            ? () => handleClicked('timeSlots', timeSlot)
-                            : null
-                        } // Disable click if isBooked is true
-                        style={{
-                          pointerEvents: timeSlot.isBooked ? 'none' : 'auto', // Disable pointer events if isBooked is true
-                          opacity: timeSlot.isBooked ? 0.6 : 1, // Optional: Dim the slot if it is booked
-                        }}
-                      >
-                        {timeSlot.time || 'No Time Available'}{' '}
-                        {/* Fallback in case `time` is undefined */}
-                      </li>
-                    ))
-                  ) : (
-                    <div>No Slots Available For Today</div>
-                  )
-                }
+                {AvailableSlots && AvailableSlots.length > 0 ? (
+                  AvailableSlots.map((timeSlot) => (
+                    <li
+                      key={timeSlot._id} // Ensure _id is unique
+                      className={`${
+                        AllData.timeSlots.some(
+                          (v) => v.time === timeSlot.time
+                        ) || timeSlot.isBooked
+                          ? "active"
+                          : ""
+                      }`}
+                      onClick={
+                        !timeSlot.isBooked
+                          ? () => handleClicked("timeSlots", timeSlot)
+                          : null
+                      } // Disable click if isBooked is true
+                      style={{
+                        pointerEvents: timeSlot.isBooked ? "none" : "auto", // Disable pointer events if isBooked is true
+                        opacity: timeSlot.isBooked ? 0.6 : 1, // Optional: Dim the slot if it is booked
+                      }}
+                    >
+                      {timeSlot.time || "No Time Available"}{" "}
+                      {/* Fallback in case `time` is undefined */}
+                    </li>
+                  ))
+                ) : (
+                  <div>No Slots Available For Today</div>
+                )}
               </ul>
             </div>
           </div>
@@ -725,64 +705,75 @@ function CheckInModal(props) {
 }
 const CheckIn = () => {
   const { userId, onLogout } = useAuth();
-  const navigate = useNavigate()
+  const navigate = useNavigate();
   const [modalShow, setModalShow] = React.useState(false);
   const [waittingRoomOverView, setWaitingRoomOverView] = useState({});
   const [
     WaitingRoomOverViewPatientInQueue,
     setWaitingRoomOverViewPatientInQueue,
   ] = useState([]);
- 
+
   const getWaittingRoomOverView = useCallback(async () => {
     try {
-      const token = sessionStorage.getItem("token");
-      const response = await axios.get(
-        `${import.meta.env.VITE_BASE_URL}fhir/v1/MeasureReport?Organization=Hospital/${userId}&type=waitingroomOverview`,{headers:{Authorization:`Bearer ${token}`}}
+      const response = await getData(
+        `fhir/v1/MeasureReport?Organization=Hospital/${userId}&type=waitingroomOverview`
       );
       if (response.status === 200) {
-        const data = new FHIRParser(  JSON.parse(response.data)).overviewConvertToNormal()
-        setWaitingRoomOverView(data)
+        console.log(JSON.parse(response.data));
+        const data = new FHIRParser(
+          JSON.parse(response.data)
+        ).overviewConvertToNormal();
+        setWaitingRoomOverView(data);
+
+        console.log("nnnnnnnnnnnnnn", data);
       }
     } catch (error) {
       if (error.response && error.response.status === 401) {
-        console.log('Session expired. Redirecting to signin...');
         onLogout(navigate);
-      }else if(error.response && error.response.status ===500){
+      } else if (error.response && error.response.status === 500) {
         Swal.error({
           message: "Error",
           icon: "error",
           title: "Internal Server Error",
           confirmButtonText: "Retry",
-        })
+        });
       }
     }
-  },[userId,onLogout,navigate]);
+  }, [userId, onLogout, navigate]);
   const WaittingRoomOverViewPatientInQueue = useCallback(async () => {
     try {
-      const token = sessionStorage.getItem("token");
-      const response = await axios.get(
-        `${import.meta.env.VITE_BASE_URL}fhir/v1/Appointment?organization=Hospital/${userId}&type=${"PatientsInQueue"}`,{headers:{Authorization:`Bearer ${token}`}}
+      const response = await getData(
+        `fhir/v1/Appointment?organization=Hospital/${userId}&type=${"PatientsInQueue"}`
       );
       if (response.status === 200) {
-       
+        const normalAppointments =
+          NormalAppointmentConverter.convertAppointments({
+            totalAppointments: JSON.parse(response.data).total,
+            appointments: JSON.parse(response.data).entry.map(
+              (entry) => entry.resource
+            ),
+          });
 
-        const normalAppointments = NormalAppointmentConverter.convertAppointments({
-          totalAppointments:JSON.parse(response.data).total,
-          appointments: JSON.parse(response.data).entry.map((entry) => entry.resource),
-        })
-       
-         setWaitingRoomOverViewPatientInQueue(normalAppointments);
-}    } catch (error) {
+        setWaitingRoomOverViewPatientInQueue(normalAppointments);
+      }
+    } catch (error) {
       if (error.response && error.response.status === 401) {
-        console.log('Session expired. Redirecting to signin...');
         onLogout(navigate);
+      }else if(error.response && [500,400].includes(error.response.status)){
+        Swal.fire({
+          title: "Oops...",
+          text: `${error.response.data.issue[0].details.text}`,
+          icon: "error",
+        })
       }
     }
-  },[userId, navigate,onLogout]);
+  }, [userId, navigate, onLogout]);
   useEffect(() => {
-    getWaittingRoomOverView();
+    if(userId){
+      getWaittingRoomOverView();
     WaittingRoomOverViewPatientInQueue();
-  }, [userId,WaittingRoomOverViewPatientInQueue,getWaittingRoomOverView]);
+    }
+  }, [userId, WaittingRoomOverViewPatientInQueue, getWaittingRoomOverView]);
   return (
     <>
       <section className="CheckInSec">
@@ -792,7 +783,7 @@ const CheckIn = () => {
               <div className="CheckInHead">
                 <div className="CheckInName">
                   <h2>
-                    {' '}
+                    {" "}
                     <span>Waiting Room</span> Overview
                   </h2>
                 </div>
@@ -888,7 +879,10 @@ const CheckIn = () => {
               </div>
             </div>
             <div className="BottomCheckIn">
-              <DivHeading TableHead="Patients in Queue" tablespan={WaitingRoomOverViewPatientInQueue.totalAppointments} />
+              <DivHeading
+                TableHead="Patients in Queue"
+                tablespan={WaitingRoomOverViewPatientInQueue.totalAppointments}
+              />
               <PatientsTable
                 // onClick={WaittingRoomOverViewPatientInQueue}
                 appointments={WaitingRoomOverViewPatientInQueue}

@@ -173,7 +173,6 @@ const ChatApp = () => {
                   <img
                     src={msg.fileUrl}
                     alt="Sent content"
-                    style={{ maxWidth: '200px' }}
                   />
                 </>
               )}

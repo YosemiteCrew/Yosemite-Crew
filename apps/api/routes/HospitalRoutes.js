@@ -10,10 +10,10 @@ const router = express.Router();
 //   '/DepartmentBasisAppointmentGraph',verifyTokenAndRefresh,
 //   HospitalController.DepartmentBasisAppointmentGraph
 // );
-router.get(
-  '/getDataForWeeklyAppointmentChart',verifyTokenAndRefresh,
-  HospitalController.getDataForWeeklyAppointmentChart
-);
+// router.get(
+//   '/getDataForWeeklyAppointmentChart',verifyTokenAndRefresh,
+//   HospitalController.getDataForWeeklyAppointmentChart
+// );
 router.get(
   '/AppointmentGraphOnMonthBase',verifyTokenAndRefresh,
   HospitalController.AppointmentGraphOnMonthBase
@@ -40,6 +40,7 @@ router.get('/Appointment/summaryByDoctor',verifyTokenAndRefresh, HospitalControl
 router.all("/Appointment",verifyTokenAndRefresh,HospitalController.getAppointmentsForHospitalDashboard)
 router.all('/MeasureReport',verifyTokenAndRefresh, HospitalController.WaitingRoomOverView);
 router.all('/List',verifyTokenAndRefresh,HospitalController.AppointmentGraphs)
+router.get("/Rating", HospitalController.handleGetRating)
 
 router.get('/getMessages',verifyTokenAndRefresh,HospitalController.getMessages)
 
