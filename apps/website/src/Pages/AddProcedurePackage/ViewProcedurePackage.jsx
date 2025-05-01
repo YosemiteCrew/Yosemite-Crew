@@ -14,7 +14,7 @@ import {
   InventoryFHIRParser,
   ProcedurePackageFHIR,
 } from "../../utils/InventoryFHIRMapper";
-import { putData } from "../../services/apiService";
+import { getData, putData } from "../../services/apiService";
 
 function ViewProcedurePackage(fetchPackageData) {
   const navigate = useNavigate();
@@ -64,8 +64,8 @@ function ViewProcedurePackage(fetchPackageData) {
 
   const procedurePackageCatories = useCallback(async () => {
     try {
-      const response = await axios.get(
-        `${import.meta.env.VITE_BASE_URL}fhir/admin/procedureCategory?bussinessId=${userId}`
+      const response = await getData(
+        `fhir/admin/procedureCategory?bussinessId=${userId}`
       );
       if (response.status === 200) {
         const res = new InventoryFHIRParser(

@@ -7,6 +7,7 @@ import {
   CanceledAndAcceptFHIRConverter,
   FHIRParser,
   FHIRSlotService,
+  FHIRToRating,
   NormalAppointmentConverter,
 } from "../../utils/FhirMapper";
 import { BoxDiv, DivHeading, SeeAll } from "../Dashboard/page";
@@ -32,6 +33,7 @@ import { BsPatchCheck } from "react-icons/bs";
 import axios from "axios";
 import Swal from "sweetalert2";
 import { useAuth } from "../../context/useAuth";
+import { getData } from "../../services/apiService";
 
 const Doctor_Dashboard = () => {
   const { doctorProfile, userId, onLogout } = useAuth();
@@ -43,13 +45,11 @@ const Doctor_Dashboard = () => {
   const [timeSlots, setTimeSlots] = useState([]);
   const [profile, setprofile] = useState([]);
   const [status, setStatus] = useState("");
- 
-
+  const [feedbacks, setFeedbacks] = useState([]);
 
   console.log("timeSlots ", timeSlots);
   useEffect(() => {
     if (doctorProfile) {
-     
       setduration(doctorProfile.timeDuration);
       setprofile(doctorProfile.personalInfo);
     }
@@ -83,7 +83,6 @@ const Doctor_Dashboard = () => {
       console.log("error", error);
     }
   }, [navigate, onLogout, userId]);
-
 
   const handleToggle = async () => {
     const newStatus = status === "1" ? "0" : "1";
@@ -123,7 +122,6 @@ const Doctor_Dashboard = () => {
   };
   const closeModal = () => setShowModal(false);
 
-
   const handleDateChange = (selectedDate) => {
     setDate(selectedDate);
     const day = new Date(selectedDate).toLocaleDateString("en-US", {
@@ -143,7 +141,6 @@ const Doctor_Dashboard = () => {
       genrateSlotes(filteredAvailability, duration, userId, day, selectedDate);
     }
   };
-
 
   const genrateSlotes = async (
     filteredAvailability,
@@ -221,7 +218,6 @@ const Doctor_Dashboard = () => {
     }
   };
 
-
   const parseTime = (timeString) => {
     const [time, modifier] = timeString.split(" ");
     let [hours, minutes] = time.split(":").map(Number);
@@ -265,7 +261,6 @@ const Doctor_Dashboard = () => {
   const handleSlotes = async () => {
     const fhirSlotService = new FHIRSlotService(timeSlots);
 
-    
     const slotsBundle = fhirSlotService.createBundle(userId);
 
     console.log("Generated FHIR Slots Bundle:", slotsBundle);
@@ -309,25 +304,25 @@ const Doctor_Dashboard = () => {
     async (offset, itemsPerPage) => {
       console.log("offset", offset, typeof itemsPerPage);
       try {
-        const token = sessionStorage.getItem("token");
-        const response = await axios.get(
-          `${import.meta.env.VITE_BASE_URL}fhir/v1/Appointment?organization=Practitioner/${userId}&offset=${offset}&limit=${itemsPerPage}&type=${"AppointmentLists"}
-
-        `,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`, // Attach the token to the request headers
-            },
-          }
+        const response = await getData(
+          `fhir/v1/Appointment?organization=Practitioner/${userId}&offset=${offset}&limit=${itemsPerPage}&type=${"AppointmentLists"}`
         );
-        if (response) {
+        if (response.status === 200 && response.data.status === 1) {
           const normalAppointments =
             NormalAppointmentConverter.convertAppointments({
-              totalAppointments: response.data.total,
-              appointments: response.data.entry.map((entry) => entry.resource),
+              totalAppointments: response.data.data.total,
+              appointments: response.data.data.entry.map(
+                (entry) => entry.resource
+              ),
             });
           setAllAppointments(normalAppointments.appointments);
           setTotal(normalAppointments.totalAppointments);
+        } else if (response.status === 200 && response.data.status === 0) {
+          new Swal({
+            title: "Not Found",
+            text: response.data?.message || "Requested data not found.",
+            icon: "error",
+          });
         }
       } catch (error) {
         if (error.response && error.response.status === 401) {
@@ -338,7 +333,11 @@ const Doctor_Dashboard = () => {
     },
     [navigate, userId, onLogout]
   );
-  const [Last_7DaysCounts, setLast_7DaysCounts] = useState(null);
+  const [Last_7DaysCounts, setLast_7DaysCounts] = useState({});
+
+
+
+  console.log("last7days",Last_7DaysCounts);
   const getlast7daysAppointMentsCount = useCallback(async () => {
     try {
       const token = sessionStorage.getItem("token");
@@ -353,7 +352,7 @@ const Doctor_Dashboard = () => {
       if (response) {
         const data = new FHIRParser(response.data).overviewConvertToNormal();
 
-        setLast_7DaysCounts(data.totalAppointments);
+        setLast_7DaysCounts(data);
       }
     } catch (error) {
       if (error.response && error.response.status === 401) {
@@ -404,11 +403,39 @@ const Doctor_Dashboard = () => {
     }
   };
 
+  const userFeedBacks = useCallback(async () => {
+    try {
+      const response = await getData("fhir/v1/Rating", {
+        params: { doctorId: userId },
+      });
+      if (response.status === 200) {
+        console.log("kkkk", response.data.rating);
+        const val = new FHIRToRating(
+          response.data.rating
+        ).ratingConvertToNormal();
+        console.log("response", val);
+        setFeedbacks(val);
+      }
+    } catch (error) {
+      console.log("", error);
+    }
+  }, [userId]);
+
   useEffect(() => {
     getAllAppointments(0, 6);
     getlast7daysAppointMentsCount();
     getStatus();
-  }, [userId, getlast7daysAppointMentsCount, getStatus, getAllAppointments]);
+    if (userId) {
+      userFeedBacks(userId);
+    }
+  }, [
+    userId,
+    getlast7daysAppointMentsCount,
+    userFeedBacks,
+    getStatus,
+    getAllAppointments,
+  ]);
+
   return (
     <section className="DoctorDashBoardSec">
       <div className="container">
@@ -540,7 +567,7 @@ const Doctor_Dashboard = () => {
                 ovrtxt="Appointments"
                 spanText="(Last 7 days)"
                 boxcoltext="ciltext"
-                overnumb={Last_7DaysCounts}
+                overnumb={Last_7DaysCounts.totalAppointments}
               />
               <BoxDiv
                 boximg={`${import.meta.env.VITE_BASE_IMAGE_URL}/box7.png`}
@@ -555,7 +582,7 @@ const Doctor_Dashboard = () => {
                 ovradcls=" cambrageblue"
                 ovrtxt="Reviews"
                 boxcoltext="greentext"
-                overnumb="24"
+                overnumb={Last_7DaysCounts.totalRating}
               />
             </div>
           </div>
@@ -581,33 +608,18 @@ const Doctor_Dashboard = () => {
             <DashHeadtext htxt="Reviews " hspan="(24)" />
             <div className="ReviewPading">
               <div className="ReviewsData">
-                <ReviewCard
-                  isNew="New"
-                  Revimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/review1.png`}
-                  Revname="Sky B"
-                  Revpetname="Kizie"
-                  Revdate="25 August 2024"
-                  rating="5.0"
-                  Revpara1="We are very happy with the services so far. Dr. Brown has been extremely thorough and generous with his time and explaining everything to us. When one is dealing with serious health issues it makes a huge difference to understand what's going on and know that the health providers are doing their best. Thanks!"
-                />
-                <ReviewCard
-                  isNew="New"
-                  Revimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/review2.png`}
-                  Revname="Pika"
-                  Revpetname="Oscar"
-                  Revdate="30 August 2024"
-                  rating="4.7"
-                  Revpara1="Dr. Brown, the Gastroenterology Specialist was very thorough with Oscar. Zoey was pre diabetic so Doc changed her meds from Prednisolone to Budesonide. In 5 days, Oscar’s glucose numbers were lower and in normal range. We are staying with Dr. Brown as Oscar’s vet as I don’t feel any anxiety dealing with Oscar’s illness now."
-                />
-                <ReviewCard
-                  Revimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/review3.png`}
-                  Revname="Henry C"
-                  Revpetname="Kizie"
-                  Revdate="15 August 2024"
-                  rating="4.9"
-                  Revpara1="SFAMC and Dr. Brown in particular are the very best veterinary professionals I have ever encountered. The clinic is open 24 hours a day in case of an emergency, and is clean and well staffed."
-                  Revpara2="Dr Brown is a compassionate veterinarian with both my horse and myself, listens and responds to my questions, and her mere pre.."
-                />
+                {feedbacks?.slice(0, 3).map((feedback) => (
+                  <ReviewCard
+                    key={feedback._id}
+                    Revimg={feedback.image}
+                    Revname={feedback.name}
+                    Revpetname={feedback.PetName}
+                    Revdate={feedback.date}
+                    rating={feedback.rating}
+                    Revpara1={feedback.feedback}
+                    isNew={feedback.status === "New" ? feedback.status : ""}
+                  />
+                ))}
               </div>
               {!showMore && (
                 <div className="show-more">

@@ -23,7 +23,7 @@ api.interceptors.request.use(
 export const getData = async (endpoint, params = {}) => {
   try {
     const response = await api.get(endpoint, { params });
-    return response.data;
+    return response;
   } catch (error) {
     console.error('API getData error:', error);
     throw error;

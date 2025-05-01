@@ -12,6 +12,7 @@ import Swal from 'sweetalert2';
 import { useAuth } from '../../context/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { InventoryFHIRParser } from '../../utils/InventoryFHIRMapper';
+import { getData } from '../../services/apiService';
 
 const AddInventory = () => {
   const { userId,onLogout } = useAuth();
@@ -20,19 +21,17 @@ const [options1,setoptios1] = useState([])
 const [options2,setoptios2] = useState([])
 const [options3,setoptios3] = useState([])
 
-console.log("options1",options1)
 const getInventoryCotegory = useCallback(async(category)=>{
 
   try {
-    const response = await axios.get(`${import.meta.env.VITE_BASE_URL}fhir/admin/GetAddInventoryCategory?bussinessId=${userId}&type=${category}`);
+    const response = await getData(`fhir/admin/GetAddInventoryCategory?bussinessId=${userId}&type=${category}`);
     if(response.status === 200){
-       console.log("response",response.data);
+    
        const res = new InventoryFHIRParser(response.data).convertToNormaldata();
        if(category==="category"){
         setoptios1(res);
        }else if(category==="manufacturerCategory"){
         setoptios2(res);
-        console.log("resssssss",res);
        }else if(category==="itemCategory"){
         setoptios3(res);
        }
@@ -53,38 +52,6 @@ useEffect(()=>{
 },[userId,getInventoryCotegory])
 
 
-
-
-
-
-
-  // const options1 = [
-  //   { value: '1', label: 'Pharmaceuticals' },
-  //   { value: '2', label: 'Medical Supplies' },
-  //   { value: '3', label: 'Pet Care Products' },
-  //   { value: '4', label: 'Diagnostics' },
-  //   { value: '5', label: 'Equipments' },
-  //   { value: '6', label: 'Diagnostic Supplies' },
-  //   { value: '7', label: 'Office Supplies' },
-  // ];
-  // const options2 = [
-  //   { value: '1', label: 'Pfizer' },
-  //   { value: '2', label: 'Johnson & Johnson' },
-  //   { value: '3', label: 'Merck & Co' },
-  //   { value: '4', label: 'Novartis' },
-  //   { value: '5', label: 'GlaxoSmithKline (GSK)' },
-  //   { value: '6', label: 'Sanofi' },
-  //   { value: '7', label: 'AstraZeneca' },
-  // ];
-  // const options3 = [
-  //   { value: '1', label: 'Tablet' },
-  //   { value: '2', label: 'Capsule' },
-  //   { value: '3', label: 'Syrup' },
-  //   { value: '4', label: 'Suspension' },
-  //   { value: '5', label: 'Ointment' },
-  //   { value: '6', label: 'Inhaler' },
-  //   { value: '7', label: 'Rectal Suppository' },
-  // ];
   const [inventoryData, setInventoryData] = useState({
     bussinessId:userId,
     category: '',

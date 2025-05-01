@@ -34,7 +34,7 @@ const PatientsTable = ({ appointments = [] }) => {
           {appointments.appointments?.map((appointment, i) => {
             const appointmentStatus = getStatus(appointment.appointmentStatus);
             return (
-              <tr key={appointment._id?._id}>
+              <tr key={i}>
                 <td>
                   <strong>{i + 1}</strong>
                 </td>

@@ -1,3 +1,4 @@
+const { ResourceGroups } = require("aws-sdk");
 const { validateFHIR } = require("../Fhirvalidator/FhirValidator");
 const {
   InventoryCategory,
@@ -5,13 +6,19 @@ const {
   InventoryItemCategory,
   ProcedureCategory,
 } = require("../models/AddInventoryCotegory");
-const { ProductCategoryFHIRConverter } = require("../utils/InventoryFhirHandler");
+const Breeds = require("../models/AppointmentOption");
+const {
+  ProductCategoryFHIRConverter,
+} = require("../utils/InventoryFhirHandler");
 
 const AdminController = {
   AddInventoryCategory: async (req, res) => {
     try {
       const { category, bussinessId } = req.body;
-      if (typeof bussinessId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(bussinessId)) {
+      if (
+        typeof bussinessId !== "string" ||
+        !/^[a-fA-F0-9-]{36}$/.test(bussinessId)
+      ) {
         return res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
@@ -23,8 +30,12 @@ const AdminController = {
           ],
         });
       }
-  
-      if (typeof category !== "string" || category.length < 2 || category.length > 100) {
+
+      if (
+        typeof category !== "string" ||
+        category.length < 2 ||
+        category.length > 100
+      ) {
         return res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
@@ -36,8 +47,7 @@ const AdminController = {
           ],
         });
       }
-  
-      category = category.trim().replace(/[^\w\s\-]/gi, '');
+      category = category.trim().replace(/[^\w\s\-]/gi, "");
 
       const getItem = await InventoryCategory.findOne({
         category,
@@ -52,9 +62,7 @@ const AdminController = {
         });
 
         if (response) {
-          res
-            .status(200)
-            .json({ message: `${category} added successfully` });
+          res.status(200).json({ message: `${category} added successfully` });
         } else {
           res.status(400).json({ message: "Failed to add Inventory Category" });
         }
@@ -68,7 +76,10 @@ const AdminController = {
     try {
       const { manufacturer, bussinessId } = req.body;
 
-      if (typeof bussinessId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(bussinessId)) {
+      if (
+        typeof bussinessId !== "string" ||
+        !/^[a-fA-F0-9-]{36}$/.test(bussinessId)
+      ) {
         return res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
@@ -80,8 +91,12 @@ const AdminController = {
           ],
         });
       }
-  
-      if (typeof manufacturer !== "string" || manufacturer.length < 2 || manufacturer.length > 100) {
+
+      if (
+        typeof manufacturer !== "string" ||
+        manufacturer.length < 2 ||
+        manufacturer.length > 100
+      ) {
         return res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
@@ -93,8 +108,8 @@ const AdminController = {
           ],
         });
       }
-  
-      manufacturer = manufacturer.trim().replace(/[^\w\s\-]/gi, '');
+
+      manufacturer = manufacturer.trim().replace(/[^\w\s\-]/gi, "");
 
       const getItem = await InventoryManufacturer.findOne({
         manufacturer,
@@ -110,7 +125,9 @@ const AdminController = {
           bussinessId,
         });
         if (response) {
-          res.status(200).json({ message: `${manufacturer} added Succesfully` });
+          res
+            .status(200)
+            .json({ message: `${manufacturer} added Succesfully` });
         } else {
           res
             .status(400)
@@ -126,7 +143,10 @@ const AdminController = {
   AddInventoryItemCategory: async (req, res) => {
     try {
       const { itemCategory, bussinessId } = req.body;
-      if (typeof bussinessId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(bussinessId)) {
+      if (
+        typeof bussinessId !== "string" ||
+        !/^[a-fA-F0-9-]{36}$/.test(bussinessId)
+      ) {
         return res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
@@ -138,8 +158,12 @@ const AdminController = {
           ],
         });
       }
-  
-      if (typeof itemCategory !== "string" || itemCategory.length < 2 || itemCategory.length > 100) {
+
+      if (
+        typeof itemCategory !== "string" ||
+        itemCategory.length < 2 ||
+        itemCategory.length > 100
+      ) {
         return res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
@@ -151,9 +175,8 @@ const AdminController = {
           ],
         });
       }
-  
-      itemCategory = itemCategory.trim().replace(/[^\w\s\-]/gi, '');
 
+      itemCategory = itemCategory.trim().replace(/[^\w\s\-]/gi, "");
 
       const getItem = await InventoryItemCategory.findOne({
         bussinessId,
@@ -169,7 +192,9 @@ const AdminController = {
           bussinessId,
         });
         if (response) {
-          res.status(200).json({ message: `${itemCategory} added succesfully` });
+          res
+            .status(200)
+            .json({ message: `${itemCategory} added succesfully` });
         } else {
           res
             .status(400)
@@ -182,243 +207,423 @@ const AdminController = {
     }
   },
 
-// <<<<<<<<<<<<<<<<<<<<<<<<< get Api's Of Cotegory >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  // <<<<<<<<<<<<<<<<<<<<<<<<< get Api's Of Cotegory >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-  
-GetAddInventoryCategory: async(req, res) => {
-  const {type} = req.query
-  if (!type) {
-    return res.status(400).json({ message:"Missing type query params"})
-  }
-switch (type) {
-  case "category":
-    if(req.method === "GET"){
-      try {
-        const {bussinessId} = req.query;
-        if (!bussinessId) {
-          return res.status(400).json({message:"Missing BussinessId"});
-        }
-        if (typeof bussinessId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(bussinessId)) {
-          return res.status(400).json({ message: 'Invalid bussinessId format' });
-        }
-        const getItem = await InventoryCategory.find({bussinessId});
-        if (getItem) {
-          console.log(getItem);
-          const Response = new ProductCategoryFHIRConverter(getItem).toFHIRBundle()
-          console.log(validateFHIR(Response));
-          return res.status(200).json(Response);
-        }else{
-          return res.status(400).json({message: "Failed to get Cotegory"});
-        }
-      } catch (error) {
-        res.status(500).json(error);
-      }
+  GetAddInventoryCategory: async (req, res) => {
+    const { type } = req.query;
+    if (!type) {
+      return res.status(400).json({ message: "Missing type query params" });
     }
-    break;
-    case "itemCategory":
-      if(req.method === "GET"){
-        try {
-          const {bussinessId}= req.query;
-          if (!bussinessId) {
-            return res.status(400).json({message:"Missing BussinessId"});
-          }
-          if (typeof bussinessId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(bussinessId)) {
-            return res.status(400).json({ message: 'Invalid bussinessId format' });
-          }
-          const getItem = await InventoryItemCategory.find({bussinessId});
-          if(getItem) {
-           
-
-            const Response = new ProductCategoryFHIRConverter(getItem).toFHIRBundle()
-          console.log(validateFHIR(Response));
-          return res.status(200).json(Response);
-           
-
-            
-            
-          }else{
-            return res.status(400).json({message:"failled to get items category"})
-          }
-        } catch (error) {
-              return res.status(500).json({message:"server error"})          
-        }
-      }
-      break;
-      case "manufacturerCategory":
-        if(req.method === "GET"){
+    switch (type) {
+      case "category":
+        if (req.method === "GET") {
           try {
-            const {bussinessId}= req.query;
+            const { bussinessId } = req.query;
             if (!bussinessId) {
-              return res.status(400).json({message:"Missing BussinessId"});
+              return res.status(400).json({ message: "Missing BussinessId" });
             }
-            if (typeof bussinessId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(bussinessId)) {
-              return res.status(400).json({ message: 'Invalid bussinessId format' });
+            if (
+              typeof bussinessId !== "string" ||
+              !/^[a-fA-F0-9-]{36}$/.test(bussinessId)
+            ) {
+              return res
+                .status(400)
+                .json({ message: "Invalid bussinessId format" });
             }
-            const getItem = await InventoryManufacturer.find({bussinessId});
-            if(getItem) {
-              console.log("---=-=-=-=-=-=-=-=-==-==",getItem);
-  
-              const Response = new ProductCategoryFHIRConverter(getItem).toFHIRBundle()
-            console.log(validateFHIR(Response));
-            return res.status(200).json(Response);
-             
-  
-              
-              
-            }else{
-              return res.status(400).json({message:"failled to get manufacturer category"})
+            const getItem = await InventoryCategory.find({ bussinessId });
+            if (getItem) {
+              console.log(getItem);
+              const Response = new ProductCategoryFHIRConverter(
+                getItem
+              ).toFHIRBundle();
+              console.log(validateFHIR(Response));
+              return res.status(200).json(Response);
+            } else {
+              return res
+                .status(400)
+                .json({ message: "Failed to get Cotegory" });
             }
           } catch (error) {
-                return res.status(500).json({message:"server error"})          
+            res.status(500).json(error);
           }
         }
-    default:
-      return res.status(400).json({message:"Invalid type query params"});
-    }
-  
-},
+        break;
+      case "itemCategory":
+        if (req.method === "GET") {
+          try {
+            const { bussinessId } = req.query;
+            if (!bussinessId) {
+              return res.status(400).json({ message: "Missing BussinessId" });
+            }
+            if (
+              typeof bussinessId !== "string" ||
+              !/^[a-fA-F0-9-]{36}$/.test(bussinessId)
+            ) {
+              return res
+                .status(400)
+                .json({ message: "Invalid bussinessId format" });
+            }
+            const getItem = await InventoryItemCategory.find({ bussinessId });
+            if (getItem) {
+              const Response = new ProductCategoryFHIRConverter(
+                getItem
+              ).toFHIRBundle();
+              console.log(validateFHIR(Response));
+              return res.status(200).json(Response);
+            } else {
+              return res
+                .status(400)
+                .json({ message: "failled to get items category" });
+            }
+          } catch (error) {
+            return res.status(500).json({ message: "server error" });
+          }
+        }
+        break;
+      case "manufacturerCategory":
+        if (req.method === "GET") {
+          try {
+            const { bussinessId } = req.query;
+            if (!bussinessId) {
+              return res.status(400).json({ message: "Missing BussinessId" });
+            }
+            if (
+              typeof bussinessId !== "string" ||
+              !/^[a-fA-F0-9-]{36}$/.test(bussinessId)
+            ) {
+              return res
+                .status(400)
+                .json({ message: "Invalid bussinessId format" });
+            }
+            const getItem = await InventoryManufacturer.find({ bussinessId });
+            if (getItem) {
+              console.log("---=-=-=-=-=-=-=-=-==-==", getItem);
 
-CreateProcedurepackageCategory: async (req, res) => {
+              const Response = new ProductCategoryFHIRConverter(
+                getItem
+              ).toFHIRBundle();
+              console.log(validateFHIR(Response));
+              return res.status(200).json(Response);
+            } else {
+              return res
+                .status(400)
+                .json({ message: "failled to get manufacturer category" });
+            }
+          } catch (error) {
+            return res.status(500).json({ message: "server error" });
+          }
+        }
+      default:
+        return res.status(400).json({ message: "Invalid type query params" });
+    }
+  },
+
+  CreateProcedurepackageCategory: async (req, res) => {
+    try {
+      let { category, bussinessId } = req.body;
+
+      // Validate bussinessId (UUID v4 format)
+      if (
+        typeof bussinessId !== "string" ||
+        !/^[a-fA-F0-9-]{36}$/.test(bussinessId)
+      ) {
+        return res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "invalid",
+              details: { text: "Invalid hospitalId format" },
+            },
+          ],
+        });
+      }
+
+      // Validate category
+      if (
+        typeof category !== "string" ||
+        category.length < 2 ||
+        category.length > 100
+      ) {
+        return res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "invalid",
+              details: { text: "Invalid category name" },
+            },
+          ],
+        });
+      }
+
+      // Clean category name
+      category = category.trim().replace(/[^\w\s\-]/gi, "");
+
+      // Check for duplicates
+      const getItem = await ProcedureCategory.findOne({
+        bussinessId,
+        category,
+      });
+
+      if (getItem) {
+        return res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "duplicate",
+              details: { text: `${category} already exists` },
+            },
+          ],
+        });
+      }
+
+      // Create category
+      const response = await ProcedureCategory.create({
+        bussinessId,
+        category,
+      });
+
+      return res.status(201).json({
+        resourceType: "OperationOutcome",
+        issue: [
+          {
+            severity: "information",
+            code: "informational",
+            details: { text: `Category '${category}' added successfully.` },
+          },
+        ],
+      });
+    } catch (error) {
+      console.error("CreateProcedurepackageCategory error:", error);
+      return res.status(500).json({
+        resourceType: "OperationOutcome",
+        issue: [
+          {
+            severity: "fatal",
+            code: "exception",
+            details: { text: "Internal Server Error" },
+          },
+        ],
+      });
+    }
+  },
+  ProcedurePacakageCategorys: async (req, res) => {
+    try {
+      const { bussinessId } = req.query;
+
+      // Check if bussinessId is missing
+      if (!bussinessId) {
+        return res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "required",
+              details: {
+                text: "Missing required query parameter: bussinessId",
+              },
+            },
+          ],
+        });
+      }
+
+      // Check if bussinessId format is valid UUID
+      if (
+        typeof bussinessId !== "string" ||
+        !/^[a-fA-F0-9-]{36}$/.test(bussinessId)
+      ) {
+        return res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "invalid",
+              details: {
+                text: "Invalid bussinessId format. Must be a UUID.",
+              },
+            },
+          ],
+        });
+      }
+
+      const getItems = await ProcedureCategory.find({ bussinessId });
+      if (getItems) {
+        const data = new ProductCategoryFHIRConverter(getItems).toFHIRBundle();
+        console.log(data);
+        return res.status(200).json({ data });
+      }
+    } catch (error) {
+      console.error("Server Error:", error);
+      return res.status(500).json({
+        resourceType: "OperationOutcome",
+        issue: [
+          {
+            severity: "error",
+            code: "exception",
+            details: {
+              text: "An internal server error occurred.",
+            },
+          },
+        ],
+      });
+    }
+  },
+
+  // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Appointments Api's>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+  Breeds: async (req, res) => {
+    try {
+      const { category, name, HospitalId } = req.body;
+
+      if (!HospitalId) {
+        return res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "information",
+              code: "informational",
+              details: {
+                text: "Missing required parameter: HospitalId",
+              },
+            },
+          ],
+        });
+      }
+      const getData = await Breeds.findOne({name, HospitalId});
+      if (getData) {
+        return res.status(200).json({
+          resourceType:"OperationOutcome",
+          issue: [
+            {
+              severity: "information",
+              code:"informational",
+              details: {
+                text:`${getData.name} already exist` ,
+              }
+            }
+          ]
+        })
+      }
+      const response = await Breeds.create({
+        category,
+        name,
+        HospitalId,
+      });
+
+      if (response) {
+        res.status(200).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "information",
+              code: "informational",
+              details: {
+                text: `${name} Saved Successfully`,
+              },
+            },
+          ],
+        });
+      }
+    } catch (error) {
+      res.status(500).json({
+        resourceType: "OperationOutcome",
+        issue: [
+          {
+            severity: "fatal",
+            code: "exception",
+            details: {
+              text: `${error.message} network error`,
+            },
+          },
+        ],
+      });
+    }
+  },
+
+Breed: async(req,res)=>{
   try {
-    let { category, bussinessId } = req.body;
-
-    // Validate bussinessId (UUID v4 format)
-    if (typeof bussinessId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(bussinessId)) {
+    const {HospitalId, category} = req.query;
+    if (
+      typeof HospitalId !== "string" ||
+      !/^[a-fA-F0-9-]{36}$/.test(HospitalId)
+    ) {
       return res.status(400).json({
         resourceType: "OperationOutcome",
         issue: [
           {
             severity: "error",
             code: "invalid",
-            details: { text: "Invalid hospitalId format" },
+            details: {
+              text: "Invalid HospitalId format.",
+            },
           },
         ],
       });
     }
-
-    // Validate category
-    if (typeof category !== "string" || category.length < 2 || category.length > 100) {
+    if (!HospitalId || !category) {
       return res.status(400).json({
-        resourceType: "OperationOutcome",
+        resourceType:"OperationOutcome",
         issue: [
           {
-            severity: "error",
-            code: "invalid",
-            details: { text: "Invalid category name" },
-          },
-        ],
-      });
+            severity: "information",
+            code:"informational",
+            details: {
+              text:"Missing required parameter: HospitalId or category",
+            }
+          }
+        ]
+      })
     }
-
-    // Clean category name
-    category = category.trim().replace(/[^\w\s\-]/gi, "");
-
-    // Check for duplicates
-    const getItem = await ProcedureCategory.findOne({ bussinessId, category });
-
-    if (getItem) {
-      return res.status(400).json({
-        resourceType: "OperationOutcome",
-        issue: [
+    const response = await Breeds.find({HospitalId:HospitalId, category:category})
+    console.log(response)
+    if (response.length>0) {
+      res.status(200).json({
+        message:"fetched breeds successfully",
+        data:response,
+      })
+    }else {
+      res.status(200).json({
+        resourceType:"OperationOutcome",
+        issue:[
           {
-            severity: "error",
-            code: "duplicate",
-            details: { text: `${category} already exists` },
-          },
+            severity: "information",
+            code:'informational',
+            details:{
+              text:"No Breeds Found",
+            }
+          }
         ],
-      });
+        data:[],
+      })
     }
-
-    // Create category
-    const response = await ProcedureCategory.create({ bussinessId, category });
-
-    return res.status(201).json({
-      resourceType: "OperationOutcome",
-      issue: [
-        {
-          severity: "information",
-          code: "informational",
-          details: { text: `Category '${category}' added successfully.` },
-        },
-      ],
-    });
-
   } catch (error) {
-    console.error("CreateProcedurepackageCategory error:", error);
-    return res.status(500).json({
-      resourceType: "OperationOutcome",
-      issue: [
+    res.status(500).json({
+      resourceType:"OperationOutcome",
+      issue:[
         {
           severity: "fatal",
-          code: "exception",
-          details: { text: "Internal Server Error" },
-        },
-      ],
-    });
+          code:"exception",
+          details: {
+            text:`${error.message} network error`
+          }
+        }
+      ]
+    })
   }
 },
-ProcedurePacakageCategorys: async (req, res) => {
-  try {
-    const { bussinessId } = req.query;
-
-    // Check if bussinessId is missing
-    if (!bussinessId) {
-      return res.status(400).json({
-        resourceType: "OperationOutcome",
-        issue: [
-          {
-            severity: "error",
-            code: "required",
-            details: {
-              text: "Missing required query parameter: bussinessId",
-            },
-          },
-        ],
-      });
-    }
-
-    // Check if bussinessId format is valid UUID
-    if (typeof bussinessId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(bussinessId)) {
-      return res.status(400).json({
-        resourceType: "OperationOutcome",
-        issue: [
-          {
-            severity: "error",
-            code: "invalid",
-            details: {
-              text: "Invalid bussinessId format. Must be a UUID.",
-            },
-          },
-        ],
-      });
-    }
-
-    const getItems = await ProcedureCategory.find({bussinessId});
-    if (getItems) {
 
 
-      const data = new ProductCategoryFHIRConverter(getItems).toFHIRBundle();
-      console.log(data);
-      return res.status(200).json({data});
-    }
 
-  } catch (error) {
-    console.error("Server Error:", error);
-    return res.status(500).json({
-      resourceType: "OperationOutcome",
-      issue: [
-        {
-          severity: "error",
-          code: "exception",
-          details: {
-            text: "An internal server error occurred.",
-          },
-        },
-      ],
-    });
-  }
-}
+// PurposeOfVisit: async (req, res)=>{
+//   try {
+//     const {name, HospitalId} = req.body
+//   } catch (error) {
+    
+//   }
+// }
 
-}
+};
 
 module.exports = { AdminController };

@@ -344,7 +344,7 @@ class FHIRParser {
     const normalData = {};
 
     this.fhirData.entry.forEach((entry) => {
-      const { id, totalDoctors, totalSpecializations, availableDoctors,totalDepartments,appointmentCounts, totalAppointments,successful,canceled,appointmentsCreatedToday,checkedIn,newAppointments,upcomingAppointments,newPetsCount} = entry.resource;
+      const { id, totalDoctors, totalSpecializations, availableDoctors,totalDepartments,appointmentCounts, totalAppointments,successful,canceled,appointmentsCreatedToday,checkedIn,newAppointments,upcomingAppointments,newPetsCount,totalRating} = entry.resource;
   
       if (id === "totalDoctors") {
         normalData.totalDoctors = totalDoctors;
@@ -372,6 +372,8 @@ class FHIRParser {
         normalData.upcomingAppointments = upcomingAppointments;
       }else if(id === "newPetsCount"){
         normalData.newPetsCount = newPetsCount;
+      }else if(id === "totalRating"){
+        normalData.totalRating = totalRating;
       }
     });
   
@@ -707,6 +709,42 @@ class HospitalProfileNormalizer {
   }
 }
 
+class FHIRToRating {
+  constructor(fhirBundle) {
+    this.fhirBundle = fhirBundle;
+  }
+
+  ratingConvertToNormal() {
+    if (!this.fhirBundle || !Array.isArray(this.fhirBundle.entry)) {
+      return [];
+    }
+
+    return this.fhirBundle.entry.map((entry) => {
+      const resource = entry.resource;
+      const feedback = resource.payload?.find(p => p.contentString && !p.contentString.startsWith("Pet Name:") && !p.contentString.startsWith("Rating:") && !p.contentString.startsWith("Date:"))?.contentString || "";
+      const petNameField = resource.payload?.find(p => p.contentString && p.contentString.startsWith("Pet Name:"));
+      const ratingField = resource.payload?.find(p => p.contentString && p.contentString.startsWith("Rating:"));
+      const dateField = resource.payload?.find(p => p.contentString && p.contentString.startsWith("Date:"));
+      const images = resource.extension?.find(p => p.valueUrl)?.valueUrl || "";
+      const status = resource.payload?.find(p => p.contentString && p.contentString.startsWith("Status:")).contentString.split(": ")[1]
+
+      const petName = petNameField ? petNameField.contentString.replace("Pet Name: ", "") : "";
+      const rating = ratingField ? parseInt(ratingField.contentString.replace("Rating: ", ""), 10) : 0;
+      const date = dateField ? dateField.contentString.replace("Date: ", "") : "";
+
+      return {
+        _id: resource.id,
+        feedback: feedback,
+        rating: rating,
+        name: resource.subject?.display || "",
+        petName: petName,
+        date: date,
+        image: images,
+        status,
+      };
+    });
+  }
+}
 
 
 
@@ -718,5 +756,6 @@ export {
   NormalAppointmentConverter,
   FHIRToNormalConverter,
   CanceledAndAcceptFHIRConverter,
-  HospitalProfileNormalizer
+  HospitalProfileNormalizer,
+  FHIRToRating
 };
