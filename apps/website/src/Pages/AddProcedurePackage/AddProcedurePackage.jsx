@@ -11,6 +11,7 @@ import { useAuth } from '../../context/useAuth';
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
 import {  InventoryFHIRParser, MedicalPackageFHIR } from '../../utils/InventoryFHIRMapper';
+import { getData } from '../../services/apiService';
 
 function AddProcedurePackage() {
   const { userId,onLogout } = useAuth();
@@ -28,7 +29,7 @@ function AddProcedurePackage() {
 
 const procedurePackageCatories = useCallback(async()=> {
   try {
-    const response = await axios.get(`${import.meta.env.VITE_BASE_URL}fhir/admin/procedureCategory?bussinessId=${userId}`);
+    const response = await getData(`fhir/admin/procedureCategory?bussinessId=${userId}`);
     if(response.status === 200) {
 
       const res = new InventoryFHIRParser(response.data.data).convertToNormaldata();
@@ -64,7 +65,7 @@ useEffect(()=>{
     }
 const data = new MedicalPackageFHIR(procedureData).toFHIR()
 
-console.log("procedureData",data)
+// console.log("procedureData",data)
     try {
       const token = sessionStorage.getItem("token");
       const response = await axios.post(

@@ -7,8 +7,10 @@ const router = express.Router();
 router.post("/addCategory", AdminController.AddInventoryCategory);
 router.post("/addManufacturer", AdminController.AddInventoryManufacturer);
 router.post("/addItemCategory", AdminController.AddInventoryItemCategory);
-router.get("/GetAddInventoryCategory",AdminController.GetAddInventoryCategory)
+router.get("/GetAddInventoryCategory",verifyTokenAndRefresh,AdminController.GetAddInventoryCategory)
 router.post("/addProcedurePackage",AdminController.CreateProcedurepackageCategory)
-router.get("/procedureCategory",AdminController.ProcedurePacakageCategorys)
+router.get("/procedureCategory",verifyTokenAndRefresh,AdminController.ProcedurePacakageCategorys)
+router.post("/breeds",AdminController.Breeds)
+router.get("/breeds",AdminController.Breed)
 module.exports = router;
 

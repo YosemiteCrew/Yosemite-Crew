@@ -554,7 +554,7 @@ const AddDoctorsController = {
   },
   getForAppDoctorsBySpecilizationId: async (req, res) => {
     try {
-      const { userId, value } = req.query;
+      const { userId, value } = req.query.params;
 
       const doctors = await AddDoctors.find({
         "professionalBackground.specialization": { $exists: true, $eq: value },

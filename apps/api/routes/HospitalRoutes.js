@@ -40,6 +40,7 @@ router.get('/Appointment/summaryByDoctor',verifyTokenAndRefresh, HospitalControl
 router.all("/Appointment",verifyTokenAndRefresh,HospitalController.getAppointmentsForHospitalDashboard)
 router.all('/MeasureReport',verifyTokenAndRefresh, HospitalController.WaitingRoomOverView);
 router.all('/List',verifyTokenAndRefresh,HospitalController.AppointmentGraphs)
+router.get("/Rating", HospitalController.handleGetRating)
 
 router.get('/getMessages',verifyTokenAndRefresh,HospitalController.getMessages)
 

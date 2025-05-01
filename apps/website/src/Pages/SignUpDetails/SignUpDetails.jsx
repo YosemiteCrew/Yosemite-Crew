@@ -918,8 +918,9 @@ export default SignUpDetails;
 ProfileProg.propTypes = {
   blname: PropTypes.string.isRequired,
   spname: PropTypes.string.isRequired,
+  progres: PropTypes.number,
 };
-export function ProfileProg({ blname, spname }) {
+export function ProfileProg({ blname, spname,progres }) {
   return (
     <div className="profProgressDiv">
       <div className="Prof">
@@ -930,10 +931,10 @@ export function ProfileProg({ blname, spname }) {
         </div>
         <div className="ProgDiv">
           <div className="progress-bar">
-            <span className="progress-fill" style={{ width: "48%" }}></span>
+            <span className="progress-fill" style={{ width: `${progres}%` }}></span>
           </div>
           <p className="progress-text">
-            48% <span>Complete</span>
+           {progres}% <span>Complete</span>
           </p>
         </div>
       </div>

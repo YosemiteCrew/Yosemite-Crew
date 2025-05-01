@@ -15,8 +15,8 @@ const fhir = require('./routes/authRoutes');
 const fileUpload = require('express-fileupload');
 const apointmentRoutes = require('./routes/appointmentRoutes');
 const hospitalRoutes = require('./routes/HospitalRoutes');
-const InventoryRoutes = require('./routes/InventoryRoutes');
-const adminInventory = require("./routes/AdminControllerRoutes");
+const AdminApiRoutes = require('./routes/InventoryRoutes');
+const adminInventory = require("./routes/AdminApiRoutes");
 const apiRoutes = require('./routes/apiRoutes');
 const cors = require('cors');
 const http = require('http'); // Import http module for Socket.IO
@@ -91,7 +91,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/doctors', doctorRoutes);
 app.use('/api/appointments', apointmentRoutes);
 app.use('/api/hospitals', hospitalRoutes);
-app.use('/api/inventory', InventoryRoutes);
+app.use('/api/inventory', AdminApiRoutes);
 app.use("/fhir",fhir)
 app.use('/fhir/extensions', fhirRoutes);
 app.use('/fhir/v1', doctorRoutes);
@@ -99,7 +99,7 @@ app.use('/fhir/v1', apointmentRoutes);
 app.use('/fhir/v1', hospitalRoutes);
 app.use('/fhir/v1',authRoutes)
 app.use("/fhir/admin", adminInventory)
-app.use("/fhir/v1", InventoryRoutes)
+app.use("/fhir/v1", AdminApiRoutes)
 app.use("/fhir/v1", apiRoutes);
 // Global error handler
 app.use((err, req, res, next) => {

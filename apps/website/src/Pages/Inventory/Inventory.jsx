@@ -72,19 +72,19 @@ function Inventory() {
            
           
         );
-        console.log(response.data);
-        const fhirdata = InventoryBundleFHIRConverter.fromFHIR(response);
-        console.log("fhirdata", fhirdata);
+  
+        const fhirdata = InventoryBundleFHIRConverter.fromFHIR(response.data);
+
         setInventoryData(fhirdata.inventory);
         setTotalPages(response.totalPages); // Ensure API returns totalCount
       } catch (error) {
         if (error.response && error.response.status === 401) {
-          console.log("Session expired. Redirecting to signin...");
+         
           onLogout(navigate);
-        } else if (error.response.status === 500) {
+        } else if ([400, 500].includes(error.response.status)) {
           Swal.fire({
             type: "failed",
-            text: "Network error",
+            text: `${error.response.data.issue[0].details.text}`,
             icon: "error",
           });
         }
@@ -104,8 +104,8 @@ function Inventory() {
   ]);
   const getInventoryCotegory = useCallback(async () => {
     try {
-      const response = await axios.get(
-        `${import.meta.env.VITE_BASE_URL}fhir/admin/GetAddInventoryCategory?bussinessId=${userId}&type=category`
+      const response = await getData(
+        `fhir/admin/GetAddInventoryCategory?bussinessId=${userId}&type=category`
       );
       if (response.status === 200) {
         const res = new InventoryFHIRParser(
@@ -132,16 +132,16 @@ function Inventory() {
   // const handlePrevPage = () => setCurrentPage((prev) => Math.max(prev - 1, 1));
   const getProcedureData = useCallback(async () => {
     try {
-      const token = sessionStorage.getItem("token");
-      const response = await axios.get(
-        `${import.meta.env.VITE_BASE_URL}api/inventory/getProceurePackage`,
+    
+      const response = await getData(
+        `api/inventory/getProceurePackage`,
         {
           params: {
             userId,
             skip: (procedureCurrentPage - 1) * itemsPerPage,
             limit: itemsPerPage,
           },
-          headers: { Authorization: `Bearer ${token}` },
+          
         }
       );
       if (response.status === 200) {

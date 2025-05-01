@@ -27,8 +27,6 @@ const InventoryControllers = {
     try {
       const { expiryDate } = req.body;
 
-
-
       const respon = new ProductCategoryFHIRConverter(
         req.body
       ).convertToNormalToAddInventoryData();
@@ -474,7 +472,7 @@ const InventoryControllers = {
   },
   getProceurePackage: async (req, res) => {
     try {
-      const { userId, skip, limit } = req.query;
+      const { userId, skip, limit } = req.query.params;
 
       const procedurePackage = await ProcedurePackage.aggregate([
         { $match: { bussinessId: userId } },

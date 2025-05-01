@@ -3,7 +3,7 @@ const jwt = require("jsonwebtoken");
 const verifyTokenAndRefresh = (req, res, next) => {
   const token = req.headers["authorization"]?.split(" ")[1]; // Get token from the 'Authorization' header
 
-  console.log("Token:", token); // Log the token for debugging
+  // console.log("Token:", token); // Log the token for debugging
 
   if (!token) {
     console.log("No token provided");
@@ -17,7 +17,7 @@ const verifyTokenAndRefresh = (req, res, next) => {
         .status(401)
         .json({ message: "Unauthorized", error: err.message });
     } else { /* empty */ }
-    console.log("verify");
+
     req.user = decoded; // Attach the decoded user information to the request
     next(); // Proceed to the next middleware or route handler
   });

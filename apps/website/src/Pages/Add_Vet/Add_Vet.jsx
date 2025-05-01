@@ -27,7 +27,6 @@ import {
   IoIosArrowDropright,
 } from "react-icons/io";
 import { useAuth } from "../../context/useAuth";
-// import countrycode from '../Add_Department/countriescities.json';
 import IntlTelInput from "react-intl-tel-input";
 import "react-intl-tel-input/dist/main.css";
 import { FaCircleCheck } from "react-icons/fa6";
@@ -36,6 +35,7 @@ import { MdCloudUpload } from "react-icons/md";
 const Add_Vet = () => {
   const { userId, onLogout } = useAuth();
   const navigate = useNavigate();
+  const [progress, setProgress] = useState(48);
   const [OperatingHour, setOperatingHours] = useState([]);
   const [uploadedfiles, setUploadedFiles] = useState([]);
 
@@ -82,6 +82,79 @@ const Add_Vet = () => {
   });
   const [options, setOptions] = useState([]);
   const [timeDuration, setTimeDuration] = useState(null);
+  const [image, setImage] = useState(null);
+  const [isToggled, setIsToggled] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeModes, setActiveModes] = useState(["In-person"]);
+  const [key, setKey] = useState("basic");
+
+  const [previewUrl, setPreviewUrl] = useState("");
+  console.log("PersonalInfoForm.lastName.length", PersonalInfoForm.lastName.length);
+  useEffect(() => {
+    let count = 0;
+    const onlyLetters = str => str.replace(/[^a-zA-Z]/g, "");
+  
+    // Personal Info
+    if (onlyLetters(PersonalInfoForm.firstName).length > 1) count++;
+    if (onlyLetters(PersonalInfoForm.lastName).length > 1) count++;
+    if (PersonalInfoForm.gender) count++;
+    if (PersonalInfoForm.email.includes("@")) count++;
+    if (PersonalInfoForm.countrycode && PersonalInfoForm.phone.length >= 10) count++;
+    if (PersonalInfoForm.dateOfBirth) count++;
+  
+    // Residential Address
+    if (ResidentialAddressForm.addressLine1) count++;
+    if (ResidentialAddressForm.city) count++;
+    if (ResidentialAddressForm.stateProvince) count++;
+    if (ResidentialAddressForm.country) count++;
+    if (ResidentialAddressForm.zipCode) count++;
+  
+    // Professional Background
+    if (professionalBackground.specialization) count++;
+    if (professionalBackground.qualification) count++;
+    if (professionalBackground.medicalLicenseNumber) count++;
+    if (professionalBackground.yearsOfExperience) count++;
+    if (professionalBackground.languagesSpoken) count++;
+    if (professionalBackground.biography) count++;
+  
+    // Consult Fee
+    if (consultFee) count++;
+  
+    // Create Login
+    if (CreateLogin.username) count++;
+    if (CreateLogin.password) count++;
+    if (CreateLogin.confirmPassword) count++;
+  
+    // Auth Settings
+    if (authSettings.takeAssessments) count++;
+    if (authSettings.appointments) count++;
+    if (authSettings.viewMedicalRecords) count++;
+    if (authSettings.prescribeMedications) count++;
+  
+    // New: Extra Settings
+    if (options.length > 0) count++;
+    if (timeDuration !== null) count++;
+    if (image !== null) count++;
+    if (isToggled) count++;
+    if (activeModes.length > 0) count++;
+  
+    // Total fields = 31
+    const totalFields = 31;
+    setProgress((count / totalFields) * 100);
+  }, [
+    PersonalInfoForm,
+    ResidentialAddressForm,
+    professionalBackground,
+    consultFee,
+    CreateLogin,
+    authSettings,
+    options,
+    timeDuration,
+    image,
+    isToggled,
+    activeModes,
+  ]);
+  
 
   const handleDateChange = (date) => {
     setPersonalInfoForm((pre) => ({
@@ -196,16 +269,12 @@ const Add_Vet = () => {
     }));
   };
 
-  const [image, setImage] = useState(null);
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       setImage(file);
     }
   };
-
-  const [isToggled, setIsToggled] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleToggle = (checked) => {
     setIsToggled(checked);
@@ -223,7 +292,7 @@ const Add_Vet = () => {
   };
 
   // Consultation mode handling
-  const [activeModes, setActiveModes] = useState(["In-person"]);
+
   const handleModeClick = (mode) => {
     if (mode === "Both") {
       setActiveModes(["In-person", "Online"]);
@@ -241,7 +310,6 @@ const Add_Vet = () => {
     setConsultFee(e.target.value);
   };
 
-  // For validation errors
 
   // Create login handler
   const handleCreateLogin = (e) => {
@@ -564,10 +632,6 @@ const Add_Vet = () => {
     { value: "60", label: "1 hour" },
     { value: "120", label: "2 hours" },
   ];
-
-  const [key, setKey] = useState("basic");
-
-  const [previewUrl, setPreviewUrl] = useState("");
 
   useEffect(() => {
     if (image && image instanceof File) {
@@ -1340,7 +1404,11 @@ const Add_Vet = () => {
               </div>
 
               <div className="RytProfileDiv">
-                <ProfileProg blname="Profile" spname="Progress" />
+                <ProfileProg
+                  blname="Profile"
+                  spname="Progress"
+                  progres={progress}
+                />
               </div>
             </div>
           </Tab.Container>
