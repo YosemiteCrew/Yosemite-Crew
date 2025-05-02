@@ -11,12 +11,15 @@ const  assessmentsController = {
         try {
 
 
-          const { offset = 0, limit, type, days, assessment_type} = req.query;
+          const { offset = 0, limit, type, days, assessment_type, organization} = req.query;
           const assessment_status = req.query.status;
 
            const filterDays = parseInt(days, 10) || 7;
 
-          console.log("LastDays", filterDays);
+          const hospitalId = organization.split("/")[1];
+          if (!hospitalId) {
+                  return res.status(400).json({ message: "Hospital id is required" });
+          }
 
           const endDate = new Date();
           const startDate = new Date();
@@ -46,7 +49,12 @@ const  assessmentsController = {
 
               let matchStage = {
                 createdAt: { $gte: startDate, $lte: endDate },
-                assessmentStatus: assessment_status
+                assessmentStatus: assessment_status,
+                $or: [
+                  { hospitalId: hospitalId },
+                  { doctorId: hospitalId },
+
+                ],
               };
 
               if (assessment_type !== "All" && assessment_status !='New') {
@@ -174,7 +182,7 @@ const  assessmentsController = {
                 // convert data to fhir 
                 //console.log(data)
                 const result = await assessmentService.convertToFhir(data);
-                 res.status(201).json(result);
+                 res.status(200).json(result);
                }
                else{
                 res.status(400).json({

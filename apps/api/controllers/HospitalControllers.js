@@ -2257,6 +2257,120 @@ const HospitalController = {
             });
           }
         }
+
+        break;
+        case "calenderaAppointment":
+          if (req.method === "GET") {
+            try {
+              const { organization } = req.query;
+              const userId = organization.split("/")[1];
+              if (!userId) {
+                return res.status(400).json({ message: "userId is required" });
+              }
+  
+              const daysMap = {
+                1: "Sunday",
+                2: "Monday",
+                3: "Tuesday",
+                4: "Wednesday",
+                5: "Thursday",
+                6: "Friday",
+                7: "Saturday",
+              };
+              const totalCount = await webAppointments.countDocuments({
+                $or: [{ veterinarian: userId }, { hospitalId: userId }]
+              });
+              const allAppointments = await webAppointments.aggregate([
+                {
+                  $match: {
+                    $or: [{ veterinarian: userId }, { hospitalId: userId }],
+                    appointmentStatus : { $ne: 'pending' }
+                  },
+                }, // Only confirmed appointments
+                {
+                  $addFields: {
+                    departmentObjId: { $toObjectId: "$department" },
+                    parsedAppointmentDate: {
+                      $dateFromString: { dateString: "$appointmentDate" },
+                    },
+                  },
+                },
+                {
+                  $lookup: {
+                    from: "adddoctors",
+                    localField: "veterinarian",
+                    foreignField: "userId",
+                    as: "doctorInfo",
+                  },
+                },
+                {
+                  $lookup: {
+                    from: "departments",
+                    localField: "departmentObjId",
+                    foreignField: "_id",
+                    as: "departmentInfo",
+                  },
+                },
+                {
+                  $unwind: {
+                    path: "$doctorInfo",
+                    preserveNullAndEmptyArrays: true,
+                  },
+                },
+                {
+                  $unwind: {
+                    path: "$departmentInfo",
+                    preserveNullAndEmptyArrays: true,
+                  },
+                },
+                {
+                  $addFields: {
+                    dayOfWeek: { $dayOfWeek: "$parsedAppointmentDate" },
+                  },
+                },
+                {
+                  $project: {
+                    _id: 1,
+                    userId: 1,
+                    hospitalId: 1,
+                    appointmentDate: "$parsedAppointmentDate",
+                    appointmentTime: 1,
+                    appointmentStatus:1,
+                    ownerName: 1,
+                    petName: 1,
+                    department: "$departmentInfo.departmentName",
+                    veterinarian: {
+                      $concat: [
+                        "$doctorInfo.personalInfo.firstName",
+                        " ",
+                        "$doctorInfo.personalInfo.lastName",
+                      ],
+                    },
+                  },
+                }
+              ]);
+              const data = new AppointmentsFHIRConverter({
+                appointments: allAppointments,
+              }).toCalenderFHIRBundle();
+  
+              res.status(200).json(data);
+            } catch (error) {
+              console.error("Error getting completed appointments:", error);
+              res.status(500).json({
+                resourceType: "OperationOutcome",
+                issue: [
+                  {
+                    severity: "error",
+                    code: "exception",
+                    details: {
+                      text: "Network error occurred while processing the request.",
+                    },
+                    diagnostics: error.message, // Or provide a custom message
+                  },
+                ],
+              });
+            }
+          }
     }
 
     // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NEXT CASES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
