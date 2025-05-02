@@ -72,7 +72,7 @@ router.post("/Organization/addPetBoarding",verifyTokenAndRefresh, DetailsControl
 
 
 router.post("/sendquery", verifyTokenAndRefresh,handleContactUs);
-router.get("/Practitioner/getLists",ListController.handleGetLists);
+router.get("/Organization/getLists",verifyTokenAndRefresh, ListController.handleGetLists);
 router.get("/Practitioner/getDoctorsLists",verifyTokenAndRefresh,ListController.handlegetDoctorsList);
 router.get("/Practitioner/getDoctorsTeam/:businessId",verifyTokenAndRefresh,ListController.handleGetDoctorsTeam);
 

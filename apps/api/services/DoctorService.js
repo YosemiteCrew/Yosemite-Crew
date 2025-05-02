@@ -3,23 +3,24 @@ const AddDoctors = require("../models/addDoctor");
 const baseUrl = process.env.BASE_URL;
 
 class DoctorService {
-  static async getDoctorsByBusinessAndDepartment(businessId, departmentId) {
+  static async getDoctorsByBusinessAndDepartment(departmentId, limit, offset) {
     if (!mongoose.Types.ObjectId.isValid(departmentId)) {
-      return res.status(200).json({  status: 0, message: 'Invalid department ID' });
+      return { status: 0, message: 'Invalid department ID' };
     }
-    const specializationId = departmentId; 
+  
+    const specializationId = departmentId;
+  
     const doctors = await AddDoctors.aggregate([
       {
         $match: {
-          bussinessId: businessId,
-          "professionalBackground.specialization": specializationId  // Match directly as string
+          "professionalBackground.specialization": specializationId
         }
       },
-    {
-     $addFields: {
-        departmentObjId: { $toObjectId: specializationId },
-         },
-       },
+      {
+        $addFields: {
+          departmentObjId: { $toObjectId: specializationId }
+        }
+      },
       {
         $lookup: {
           from: "departments",
@@ -57,12 +58,13 @@ class DoctorService {
         $project: {
           ratings: 0
         }
-      }
+      },
+      { $skip: offset || 0 },
+      { $limit: limit || 10 }
     ]);
-
-    // Convert to FHIR format
+  
     const fhirDoctors = doctors.map(doc => this.toFhirPractitioner(doc));
-
+  
     return {
       resourceType: "Bundle",
       type: "searchset",
