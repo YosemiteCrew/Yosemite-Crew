@@ -42,15 +42,6 @@ class BusinessFhirFormatter {
         ]
       }));
     }
-  
-    static createFhirBundle(resources) {
-      return {
-        resourceType: "Bundle",
-        type: "searchset",
-        total: resources.length,
-        entry: resources.map(resource => ({ resource }))
-      };
-    }
   }
   
   module.exports = BusinessFhirFormatter;

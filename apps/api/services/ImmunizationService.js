@@ -22,7 +22,8 @@ class VaccinationService {
       vaccinationDate: data.occurrenceDateTime,
       hospitalName: data.performer?.[0]?.actor?.display || '',
       nextdueDate: data.note?.[0]?.text.replace('Next due date: ', '') || null,
-      vaccineImage: fileName
+      vaccineImage: fileName,
+      reminder: data.extension?.[0]?.valueBoolean ?? false
     };
 
     // Save to MongoDB
@@ -62,7 +63,8 @@ class VaccinationService {
       expiryDate: fhirData.expirationDate,
       vaccinationDate: fhirData.occurrenceDateTime,
       hospitalName: fhirData.location?.display,
-      nextdueDate: fhirData.note?.[0]?.text?.replace("Next due date: ", "")
+      nextdueDate: fhirData.note?.[0]?.text?.replace("Next due date: ", ""),
+      reminder: data.extension?.[0]?.valueBoolean ?? false
     };
   
     if (fileName) {
@@ -161,6 +163,12 @@ class VaccinationService {
       note: [
         {
           text: `Next due date: ${data.nextdueDate}`
+        }
+      ],
+      extension: [
+        {
+          url: "http://example.org/fhir/StructureDefinition/immunization-reminder",
+          valueBoolean: data.reminder,
         }
       ]
     };

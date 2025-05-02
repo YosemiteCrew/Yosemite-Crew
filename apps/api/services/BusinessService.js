@@ -35,7 +35,7 @@ async function fetchDepartmentsAndRating(hospitals) {
 class BusinessService {
     
     static async getBusinessList(BusinessType, offset = 0, limit = 10) {
-
+      const allowedTypes = ['Hospital', 'Clinic', 'Breeding Facility', 'Pet Sitter', 'Groomer Shop', 'all'];
         const allData = {};
       
         const fetchUsers = async (type) => {

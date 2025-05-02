@@ -21,7 +21,6 @@ const authController = {
   signup: async (req, res) => {
     var fileName = "";
     const password = generatePassword(12);
-    //console.log("reqbody",req.body);
     const {
       email,
       firstName,
@@ -33,7 +32,10 @@ const authController = {
       professionType,
       pimsCode,
     } = req.body;
-   
+
+    if (typeof email !== 'string' || !validator.isEmail(email)) {
+      return res.status(200).json({ status: 0, message: "Invalid email format" });
+    }
     if (Array.isArray(professionType)) {
       isProfessional = professionType.length === 0 ? "no" : "yes";
     } else {
@@ -356,32 +358,22 @@ function generatePassword(length) {
     );
   }
 
-  const specials = "!@#$%^&*()_+{}[]|:;<>,.?/";
-  const uppercases = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  const lowercases = "abcdefghijklmnopqrstuvwxyz";
-  const digits = "0123456789";
-  const allChars = uppercases + lowercases + digits + specials;
+  const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+[]{}|;:,.<>?";
+  const charsetLength = charset.length;
+  const password = [];
 
-  // Ensure one of each required character type
-  const passwordArray = [
-    uppercases[Math.floor(Math.random() * uppercases.length)], // At least one uppercase
-    specials[Math.floor(Math.random() * specials.length)], // At least one special character
-    digits[Math.floor(Math.random() * digits.length)], // At least one number
-    lowercases[Math.floor(Math.random() * lowercases.length)], // At least one lowercase
-  ];
+  while (password.length < length) {
+    const byte = new Uint8Array(1);
+    crypto.getRandomValues(byte);
+    const value = byte[0];
 
-  // Fill the rest of the password
-  for (let i = passwordArray.length; i < length; i++) {
-    passwordArray.push(allChars[Math.floor(Math.random() * allChars.length)]);
+    // To avoid bias, only use values < 256 that map evenly to charset
+    if (value < Math.floor(256 / charsetLength) * charsetLength) {
+      password.push(charset[value % charsetLength]);
+    }
   }
 
-  // Shuffle the array
-  for (let i = passwordArray.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [passwordArray[i], passwordArray[j]] = [passwordArray[j], passwordArray[i]];
-  }
-
-  return passwordArray.join("");
+  return password.join('');
 }
 
 function encryptPassword(password) {
