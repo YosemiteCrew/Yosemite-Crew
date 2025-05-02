@@ -20,16 +20,33 @@ import { DashModal } from "../Appointment/page";
 
 import  {FhirDataConverter}  from '../../utils/FhirDataConverter';
 import Swal from "sweetalert2";
+import { useAuth } from "../../context/useAuth";
+import { Link, useNavigate } from "react-router-dom";
+import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
+import format from 'date-fns/format';
+import parse from 'date-fns/parse';
+import startOfWeek from 'date-fns/startOfWeek';
+import getDay from 'date-fns/getDay';
+import enUS from 'date-fns/locale/en-US';
 
 
 
 
 const AssessmentManagement = () => {
     // dropdown
+  const { userId, userType, onLogout } = useAuth();
+  const navigate = useNavigate();
+
 
   const fhir_converter = new FhirDataConverter();
   const optionsList1 = ['Last 7 Days', 'Last 10 Days', 'Last 20 Days', 'Last 21 Days'];
   const assessmentTypeList = ['All', 'Grimace Scale', 'Parasiticide Risk', 'Pain Assessment'];
+
+  const locales = {
+    'en-US': enUS,
+  };
+
 
   const [assessments, setAssessments] = useState([]);
   const [newAssessment, setNewAssessment] = useState(0);
@@ -45,11 +62,12 @@ const AssessmentManagement = () => {
   const [assessmentType, setAssessmentType] = useState('All');
 
   
-    const fetchNewAssessments = async (offset, limit, status) => {
+    const fetchNewAssessments = async (offset, limit, status, userId) => {
       try {
-        await getData(`fhir/v1/assessments?offset=${offset}&limit=${limit}&type=list&status=${status}&days=${days}&assessment_type=${assessmentType}`)
-        .then(data => {
-          if (data) {
+        await getData(`fhir/v1/assessments?organization=Hospital/${userId}&offset=${offset}&limit=${limit}&type=list&status=${status}&days=${days}&assessment_type=${assessmentType}`)
+        .then(res => {
+          if (res.status === 200 && res.data.status === 1) {
+            let data = res.data;
             const nomaldata = fhir_converter.assessmentsData(data);
             
             if(status =="New"){
@@ -68,10 +86,6 @@ const AssessmentManagement = () => {
                setCancelled(nomaldata);
                setCancelledCount(data.total);
             }
-          
-
-
-          
           }
         });
       } catch (err) {
@@ -126,14 +140,17 @@ const AssessmentManagement = () => {
 
 
   useEffect(() => {
-    fetchNewAssessments(page, 6, 'Confirmed');
-    fetchNewAssessments(page, 6, 'Completed');
-    fetchNewAssessments(page, 6, 'Cancelled');
-  }, [assessmentStatus, assessmentType]);
+    if(userId){
+      fetchNewAssessments(page, 6, 'Confirmed', userId);
+      fetchNewAssessments(page, 6, 'Completed', userId);
+      fetchNewAssessments(page, 6, 'Cancelled', userId);
+    }
+  }, [assessmentStatus, assessmentType, days, userId]);
 
   useEffect(() => {
-    fetchNewAssessments(page, 6, "New");
-  }, [page, assessmentStatus, days]);
+    if (userId) { fetchNewAssessments(0, 6, 'New', userId); }
+    else{  onLogout(navigate); }
+  }, [page, assessmentStatus, days, userId]);
 
   return (
  
@@ -142,10 +159,11 @@ const AssessmentManagement = () => {
           <div className="MainDash">
             {/* Top Section */}
             <div className="AssMantTop">
-              <TopHeading spantext="" heding="Assessment Management" notif="8 New Appointments" />
+              <TopHeading spantext="" heding="Assessment Management" notif={`${newAssessment} New Appointments`} />
               <button type="button" data-bs-toggle="modal" data-bs-target="#DashModall">
                 <img src={`${import.meta.env.VITE_BASE_IMAGE_URL}/topic.png`} alt="Topic" /> Assessment Catalogue
               </button>
+        
             </div>
 
             
@@ -164,7 +182,7 @@ const AssessmentManagement = () => {
             </div>
 
             <div>
-                <DivHeading TableHead="New Assessments" tablespan={`(${newAssessment ? newAssessment : 0})`}/>
+                <DivHeading TableHead="New Assessments" tablespan={newAssessment}/>
                 <AssessmentsTable
                  actimg1={`${import.meta.env.VITE_BASE_IMAGE_URL}/acpt.png`} 
                  actimg2={`${import.meta.env.VITE_BASE_IMAGE_URL}/decline.png`}
@@ -178,7 +196,7 @@ const AssessmentManagement = () => {
 
                 <div className="s">
                 <div className="OverviewTop">
-                    <DivHeading TableHead="All Assessments " tablespan="(8)" />
+                    <DivHeading TableHead="All Assessments " tablespan={ confirmedCount +  completedCount + cancelledCount} />
                     <ListSelect options={assessmentTypeList} onChange={filterByAssessmentType} />
                     </div>
 
@@ -187,7 +205,7 @@ const AssessmentManagement = () => {
                 <div className="DashCardData">
 
                     <div className="DashCardDiv">
-                        <CardHead Cdtxt="Confirmed" Cdnumb={confirmedCount ? confirmedCount : 0} CdNClas="fawn"/>
+                        <CardHead Cdtxt="Confirmed" Cdnumb={confirmedCount} CdNClas="fawn"/>
                         <div className="DashCardItem fawnbg">
                           
                                             {confirmed.map((assessment, index) => (
@@ -282,6 +300,8 @@ const AssessmentManagement = () => {
 
             {/* Modal Component */}
             <AsstCateModal />
+
+           
 
           </div>
         </div>
@@ -467,4 +487,6 @@ export function CardHead({ Cdtxt, Cdnumb, CdNClas }) {
     </div>
   );
 }
+
+
 
