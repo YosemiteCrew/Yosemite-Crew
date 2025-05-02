@@ -59,7 +59,7 @@ class BusinessService {
               { $skip: offset },
               { $limit: limit },
             ]),
-            WebUser.countDocuments({ businessType: type }),
+            WebUser.countDocuments({ businessType: { $eq:  type } }),
           ]);
       
           if (type === 'Hospital') {
