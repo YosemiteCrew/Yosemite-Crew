@@ -6,17 +6,16 @@ const mongoose = require('mongoose');
 
 class MonthlySlotService {
   static async generateMonthlySlotSummary({ doctorId, slotMonth, slotYear }) {
-    
     const startDate = moment({ year: slotYear, month: slotMonth - 1, day: 1 });
     const endDate = startDate.clone().endOf("month");
-
+  
     const calendar = [];
-    for (let date = startDate.clone(); date.isBefore(endDate); date.add(1, "day")) {
+    for (let date = startDate.clone(); date.isSameOrBefore(endDate); date.add(1, "day")) {
       calendar.push(date.clone());
     }
-
+  
     const weeklySchedule = await DoctorsTimeSlotes.find({ doctorId }).lean();
-
+  
     const bookedAppointments = await webAppointments.find({
       veterinarian: doctorId,
       appointmentDate: {
@@ -24,29 +23,49 @@ class MonthlySlotService {
         $lte: endDate.toDate(),
       },
     }).lean();
-
+  
     const bookedSlotIds = new Set(bookedAppointments.map(app => app.slotsId?.toString()));
-
+  
     const availableSlotsPerDay = calendar.map(date => {
       const dayOfWeek = date.format("dddd");
       const daySchedule = weeklySchedule.find(schedule => schedule.day === dayOfWeek);
-
+  
       let availableSlotsCount = 0;
+  
       if (daySchedule && Array.isArray(daySchedule.timeSlots)) {
-        availableSlotsCount = daySchedule.timeSlots.filter(
-          slot => !bookedSlotIds.has(slot._id?.toString())
-        ).length;
+        const now = moment();
+        const isToday = date.isSame(now, 'day');
+        availableSlotsCount = daySchedule.timeSlots.filter(slot => {
+          const slotIdStr = slot._id?.toString();
+          if (bookedSlotIds.has(slotIdStr)) return false;
+          
+          if (isToday) {
+            // Assuming slot.startTime is in "HH:mm" format
+            const [hours, minutes] = slot.time24.split(":").map(Number);
+            const slotDateTime = date.clone().hour(hours).minute(minutes);
+  
+            return slotDateTime.isAfter(now);
+          }
+  
+          return true; // Allow all future slots on other days
+        }).length;
       }
-
+  
       return {
         date: date.format("YYYY-MM-DD"),
         day: dayOfWeek,
         availableSlotsCount,
       };
     });
-
-    return MonthlySlotService._formatFHIRResponse({ doctorId, startDate, endDate, availableSlotsPerDay });
+  
+    return MonthlySlotService._formatFHIRResponse({
+      doctorId,
+      startDate,
+      endDate,
+      availableSlotsPerDay
+    });
   }
+  
 
   static _formatFHIRResponse({ doctorId, startDate, endDate, availableSlotsPerDay }) {
     return {
