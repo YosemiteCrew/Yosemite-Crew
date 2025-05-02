@@ -46,11 +46,12 @@ class ListController {
      async handleGetLists(req, res) {
         try {
           const { BusinessType, offset = 0, limit = 10 } = req.query;
-          const data = await BusinessService.getBusinessList(BusinessType, parseInt(offset), parseInt(limit));
 
-          if(data == null){
-            res.status(200).json({ status: 0, message: "Invalid Business Type" });
+          const allowedTypes = ['Hospital', 'Clinic', 'Breeding Facility', 'Pet Sitter', 'Groomer Shop', 'all'];
+          if (BusinessType && !allowedTypes.includes(BusinessType)) {
+            return res.status(200).json({ status: 0, message: "Invalid Business Type" });
           }
+          const data = await BusinessService.getBusinessList(BusinessType, parseInt(offset), parseInt(limit));
 
         //  console.log(data)
           

@@ -3,8 +3,6 @@ const Department = require('../models/AddDepartment');
 const AddDoctors = require('../models/addDoctor');
 const feedbacks = require('../models/FeedBack');
 
-const allowedTypes = ['all', 'Hospital', 'Clinic', 'Breeding Facility', 'Pet Sitter', 'Groomer Shop'];
-
 const formatKey = (str) =>
   str.replace(/\s+/g, '').replace(/^./, (c) => c.toLowerCase());
 
@@ -35,56 +33,54 @@ async function fetchDepartmentsAndRating(hospitals) {
 }
 
 class BusinessService {
-  static async getBusinessList(BusinessType, offset = 0, limit = 10) {
-    if (BusinessType && !allowedTypes.includes(BusinessType)) {
-      return null;
-    }
+    
+    static async getBusinessList(BusinessType, offset = 0, limit = 10) {
 
-    const allData = {};
-
-    const fetchUsers = async (type) => {
-      const [users, totalCount] = await Promise.all([
-        WebUser.aggregate([
-          { $match: { businessType: type } },
-          {
-            $lookup: {
-              from: 'profiledatas',
-              localField: 'cognitoId',
-              foreignField: 'userId',
-              as: 'profileData',
-            },
-          },
-          {
-            $unwind: {
-              path: '$profileData',
-              preserveNullAndEmptyArrays: true,
-            },
-          },
-          { $skip: offset },
-          { $limit: limit },
-        ]),
-        WebUser.countDocuments({ businessType: type }),
-      ]);
-
-      if (type === 'Hospital') {
-        await fetchDepartmentsAndRating(users);
+        const allData = {};
+      
+        const fetchUsers = async (type) => {
+          const [users, totalCount] = await Promise.all([
+            WebUser.aggregate([
+              { $match: { businessType: type } },
+              {
+                $lookup: {
+                  from: 'profiledatas',
+                  localField: 'cognitoId',
+                  foreignField: 'userId',
+                  as: 'profileData',
+                },
+              },
+              {
+                $unwind: {
+                  path: '$profileData',
+                  preserveNullAndEmptyArrays: true,
+                },
+              },
+              { $skip: offset },
+              { $limit: limit },
+            ]),
+            WebUser.countDocuments({ businessType: type }),
+          ]);
+      
+          if (type === 'Hospital') {
+            await fetchDepartmentsAndRating(users);
+          }
+      
+          return { data: users, count: totalCount };
+        };
+      
+        if (BusinessType === 'all') {
+          for (const type of allowedTypes.filter((t) => t !== 'all')) {
+            const key = formatKey(type);
+            allData[key] = await fetchUsers(type);
+          }
+        } else {
+          const key = formatKey(BusinessType);
+          allData[key] = await fetchUsers(BusinessType);
+        }
+      
+        return allData;
       }
-
-      return { data: users, count: totalCount };
-    };
-
-    if (BusinessType === 'all') {
-      for (const type of allowedTypes.filter((t) => t !== 'all')) {
-        const key = formatKey(type);
-        allData[key] = await fetchUsers(type);
-      }
-    } else {
-      const key = formatKey(BusinessType);
-      allData[key] = await fetchUsers(BusinessType);
-    }
-
-    return allData;
-  }
 }
 
 module.exports = BusinessService;
