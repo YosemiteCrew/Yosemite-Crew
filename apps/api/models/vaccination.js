@@ -31,6 +31,10 @@ const vaccinationSchema = new mongoose.Schema({
     nextdueDate: {
         type: Date,
     },
+    reminder: {
+        type: Boolean,
+        default: false,
+    },
     vaccineImage: [
         {
             url: { type: String },

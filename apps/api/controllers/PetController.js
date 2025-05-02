@@ -156,6 +156,12 @@ static async handleDeletePet(req, res) {
     }
     const result = await PetService.deletePetById(petId);
 
+    if (!result) {
+      return res.status(200).json(
+        await helpers.operationOutcome(0, "error", "not-found", `No pet (Patient) found with ID ${petId}`)
+      );
+    }
+
     if (result.deletedCount === 0) {
       return res.status(200).json(
         await helpers.operationOutcome(0, "error", "not-found", `No pet (Patient) found with ID ${petId}`)

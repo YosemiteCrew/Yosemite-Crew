@@ -43,46 +43,52 @@ class ListController {
         }
       }
 
-     async handleGetLists(req, res) {
+      async handleGetLists(req, res) {
         try {
           const { BusinessType, offset = 0, limit = 10 } = req.query;
-
+      
           const allowedTypes = ['Hospital', 'Clinic', 'Breeding Facility', 'Pet Sitter', 'Groomer Shop', 'all'];
           if (BusinessType && !allowedTypes.includes(BusinessType)) {
             return res.status(200).json({ status: 0, message: "Invalid Business Type" });
           }
-          const data = await BusinessService.getBusinessList(BusinessType, parseInt(offset), parseInt(limit));
-
-        //  console.log(data)
+      
+          const Businessdata = await BusinessService.getBusinessList(BusinessType, parseInt(offset), parseInt(limit));
           
-          // Flatten all orgs and departments into FHIR resources
           const fhirGroupedBundles = {};
-
-          for (const key in data) {
-            const group = data[key].data;
-            const resources = [];
-          
+      
+          for (const key in Businessdata) {
+            const group = Businessdata[key].data;
+            const nestedResources = [];
+      
             for (const org of group) {
-              resources.push(FhirFormatter.toFhirOrganization(org));
-              if (org.departments) {
-                resources.push(...FhirFormatter.toFhirHealthcareServices(org));
-              }
+              const fhirOrg = FhirFormatter.toFhirOrganization(org);
+              const fhirDepts = FhirFormatter.toFhirHealthcareServices(org);
+      
+              // Nest departments inside organization under custom field
+              fhirOrg.healthcareServices = fhirDepts;
+      
+              nestedResources.push(fhirOrg);
             }
-          
-            fhirGroupedBundles[key] = FhirFormatter.createFhirBundle(resources);
+      
+            // Wrap as Bundle
+            fhirGroupedBundles[key] = {
+              resourceType: "Bundle",
+              type: "collection",
+              total: nestedResources.length,
+              entry: nestedResources.map(resource => ({ resource }))
+            };
           }
-          
+      
           res.status(200).json({
             status: 1,
             data: fhirGroupedBundles
           });
-    
+      
         } catch (err) {
           console.error(err);
-          res.status(500).json({ status: 0, error: err });
+          res.status(500).json({ status: 0, error: err.message });
         }
       }
-    
 
 }  
  module.exports = new ListController();

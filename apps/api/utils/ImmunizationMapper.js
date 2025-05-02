@@ -57,6 +57,12 @@ class FHIRMapper {
             text: `Expiry date: ${new Date(vaccinationDoc.expiryDate).toISOString()}`
           }
         ],
+        extension: [
+          {
+            url: "http://example.org/fhir/StructureDefinition/immunization-reminder",
+            valueBoolean: vaccinationDoc.reminder,
+          }
+        ],
         contained: containedDocs,
         supportingInformation: imageRefs
       };

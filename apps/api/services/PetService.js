@@ -1,5 +1,6 @@
 const pet = require('../models/YoshPet');
 const helpers = require('../utils/helpers');
+const { mongoose } = require('mongoose');
 const {  handleMultipleFileUpload } = require('../middlewares/upload'); // assuming you have this
 
 class PetService {
@@ -42,7 +43,22 @@ static async updatePetById(petId, data) {
   }
   
 static async deletePetById(petId) {
-    return await pet.deleteOne({ _id: petId });
+     const objectId = new mongoose.Types.ObjectId(petId); 
+     const data = await pet.find({ _id: objectId }); 
+     if (data.length === 0) {
+      return null; // Return null if not found
+    }
+    if (Array.isArray(data[0].petImage) && data[0].petImage.length > 0) {
+      const petImage = data[0].petImage;
+
+      for (const image of petImage) {
+        if (image.url) {
+          await helpers.deleteFiles(image.url);
+        }
+      }
+    }
+
+    return await pet.deleteOne({ _id: { $eq: petId } });
   }
 
 }
