@@ -1,5 +1,3 @@
-
-
 .SignUpSec{
     background:
     linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)),
@@ -24,12 +22,12 @@
     font-family: var( --grotesk-font);
     font-size: 48px;
     font-weight: 500;
-    line-height: 57.6px;
+    line-height: 120%;
     letter-spacing: -0.02em;
-    color: #FFFFFF;
+    color: var(--whitecolor);
 }
 .SignUpText h1 span{
-    color: #FDBD74;
+    color: var(--fawncolor);
 }
 .SignUpText p{
     font-family: var(--satoshi-font);
@@ -37,14 +35,38 @@
     font-weight: 400;
     line-height: 21.6px;
     letter-spacing: -0.02em;
-    color: #FFFFFFCC;
+    color: var(--whitetcolor80);
 }
-
+.SignUpFormDiv {
+    background-color: var(--mainBg);
+    box-shadow: 0px 10px 20px 0px #47382729;
+    border-radius: 28px;
+    padding: 50px;
+    width: 100%;
+    max-width: 630px;
+    margin-left: auto; 
+    margin-right: 0;
+}
+.SignUpFormDiv form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+.SignUpFormDiv form .TopSignUp{
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+.SignUpFormDiv form .TopSignUp .SignFormItems{
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
 .Headingtext h2{
     font-family: var( --grotesk-font);
     font-size: 40px;
     font-weight: 500;
-    line-height: 48px;
+    line-height: 120%;
     letter-spacing: -0.02em;
     color: var(--black-text);
 }
@@ -73,8 +95,6 @@
     position: relative;
     z-index: 1;
 }
-
-
 .signup__label {
     position: absolute;
     top: 50%;
@@ -87,8 +107,7 @@
     line-height: 21.6px;
     letter-spacing: -0.02em;
     opacity: 60%;
-    font-family: var(--satoshi-font);
-    
+    font-family: var(--satoshi-font); 
 }
 .signup__input:focus + .signup__label,
 .signup__input:valid + .signup__label {
@@ -109,20 +128,18 @@
 .pasdiv{
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 8px;
 }
 .pasdiv p{
     font-family: var(--satoshi-font);
     font-size: 13px;
     font-weight: 700;
-    line-height: 15.6px;
+    line-height: 120%;
     letter-spacing: -0.03em;
     opacity: 50%;
     color: #000000;
     margin: 0;
-    padding: 0px 20px;
-    position: relative;
-    top: -10px;
+    padding: 0px 16px;
 }
 .passfield a{
     position: absolute;
@@ -136,47 +153,78 @@
 .passfield a:hover img{
     transform: scale(1.1);
 }
+.business-type-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
 .business-type-container p{
     font-family: var(--satoshi-font);
     font-size: 15px;
     font-weight: 700;
-    line-height: 18px;
+    line-height: 120%;
     letter-spacing: -0.02em;
-    color: #37223C;
+    color: var(--bluecolor);
+    margin: 0;
 }
 .business-type-container .button-group ul {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     flex-wrap: wrap;
     padding: 0;
     margin: 0;
 }
 .business-type-container .button-group .business-button {
-    padding: 10px 20px;
-    border: 0.5px solid #312943;
+    padding: 0px 20px;
+    border: 0.5px solid var(--bluecolor);
     border-radius: 28px; 
     background-color: transparent; 
     cursor: pointer;
     transition: all 0.3s ease;
-    font-size: 14px;
     display: flex;
     justify-content: center;
     align-items: center;
     font-family: var(--satoshi-font);
-    color: #37223C;
+    color: var(--bluecolor);
     font-size: 16px;
     font-weight: 400;
-    line-height: 19.2px;
+    line-height: 120%;
     letter-spacing: -0.02em;
+    min-height: 48px;
+
 }
 .business-type-container .button-group .business-button:hover {
     border-color: var(--chilli-red) ;
+    color: var(--chilli-red);
 }
 .business-type-container .button-group .business-button.selected {
     color: var(--chilli-red);
     border-color: var(--chilli-red);
-    background: linear-gradient(139.66deg, rgba(253, 189, 116, 0.21) 18.09%, rgba(253, 189, 116, 0.07) 86.04%);
+    background: var(--fawanGradient);
     font-weight: 700;
+}
+.Sign_check {
+    display: flex;
+    align-items: center;
+    min-height: 60px;
+    padding: 0px 16px;
+}
+.Sign_check .form-check{
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+.Sign_check .form-check label p{
+    font-family: var(--satoshi-font);
+    color: var(--bluecolor);
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 120%;
+    letter-spacing: -0.02em;
+    margin: 0;
+}
+.Sign_check .form-check label p span{
+    color: var(--chilli-red);
 }
 
 

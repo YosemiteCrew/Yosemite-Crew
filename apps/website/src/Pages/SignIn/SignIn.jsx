@@ -244,12 +244,9 @@ function SignIn() {
 
   return (
     <section className="SignInSec">
-      <div className="leftSignIn"
-      style={{
-        "--background-image":`url(${import.meta.env.VITE_BASE_IMAGE_URL}/SignInpic.png)`
-      }}
-      ></div>
+      <div className="leftSignIn" style={{"--background-image":`url(${import.meta.env.VITE_BASE_IMAGE_URL}/SignInpic.png)`}} ></div>
       <div className="RightSignIn">
+
         {/* SignIn Page */}
         {!showForgotPassword && !showVerifyCode && !showNewPassword && (
           <div className="SignIninner">
@@ -369,14 +366,15 @@ function SignIn() {
               <Form>
                 <FormPassw
                   paswlabel="Password"
+                  intype="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
                 <FormPassw
                   paswlabel="Confirm Password"
+                  intype="password"
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                />
+                  onChange={(e) => setConfirmPassword(e.target.value)}/>
 
                 <MainBtn
                   bimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/whtcheck.png`}

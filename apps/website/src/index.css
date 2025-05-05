@@ -22,10 +22,15 @@
 :root {
   --grotesk-font: 'ClashGrotesk-Variable';
   --satoshi-font: 'Satoshi-Variable';
-  --mainBg: #fef8f4;
+  --mainBg: #FEF8F4;
   --homebg: #fff2e3;
-  --chilli-red: #d04122;
-  --black-text: #302f2e;
+  --fawncolor:#FDBD74;
+  --whitecolor: #FFFFFF;
+  --whitetcolor80: #FFFFFFCC;
+  --fawanGradient:linear-gradient(139.66deg, rgba(253, 189, 116, 0.21) 18.09%, rgba(253, 189, 116, 0.07) 86.04%);
+  --chilli-red: #D04122;
+  --black-text: #302F2E;
+  --bluecolor:#37223C;
   --purple: #8e88d2;
   --lightgreen: #8ac1b1;
   --frowndark: #d09b5e;
@@ -79,7 +84,7 @@ ul li {
 }
 .form-control:focus {
   background-color: transparent !important;
-  border-color: #37223cb2 !important;
+  border-color:  var(--chilli-red) !important;
   box-shadow: none !important;
 }
 /* Chrome, Safari, Edge, Opera */
@@ -261,67 +266,30 @@ input[type='number'] {
 
 /* topHeading ended */
 
-/* Signup form  */
 
-.SignFormDiv {
-  background-color: var(--mainBg);
-  box-shadow: 0px 10px 20px 0px #47382729;
-  border-radius: 28px;
-  padding: 50px;
-  width: 100%;
-  max-width: 630px;
-  float: inline-end;
-  margin: 0 auto;
-}
-.SignFormDiv form {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
+/* SignUpPage  */
+
 .FormInner {
   display: flex;
   flex-direction: column;
   gap: 15px;
 }
-.Sign_check {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 0px;
-}
-.Sign_check .check-input {
-  width: 20px;
-  height: 20px;
-  border: 1px solid #37223c;
-  border-radius: 5px;
-  background: transparent;
-}
-.Sign_check label {
-  font-family: var(--satoshi-font);
-  color: #37223c;
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 21.6px;
-  letter-spacing: -0.02em;
-}
-.Sign_check label span {
-  color: var(--chilli-red);
-}
 .sinbtn {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 .sinbtn h6 {
   display: flex;
-  gap: 10px;
+  gap: 4px;
   justify-content: center;
   margin: 0;
-  font-size: 16px;
+  font-size: 19px;
   font-weight: 500;
-  line-height: 22.8px;
+  line-height: 120%;
   letter-spacing: -0.02em;
   font-family: var(--grotesk-font);
+  color: #64748B;
 }
 .sinbtn a {
   color: var(--chilli-red);
@@ -329,7 +297,7 @@ input[type='number'] {
 .sinbtn a:hover {
   transform: scale(1.1);
 }
-/* Signup form  */
+/* SignUpPage  */
 
 /* OverviewBox started  */
 

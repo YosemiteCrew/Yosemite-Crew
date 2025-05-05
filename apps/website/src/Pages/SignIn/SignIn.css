@@ -29,7 +29,7 @@
 .SignIninner h2{
     font-size: 40px;
     font-weight: 500;
-    line-height: 48px;
+    line-height: 120%;
     letter-spacing: -0.02em;
     font-family: var(--grotesk-font);
     color: var(--black-text);

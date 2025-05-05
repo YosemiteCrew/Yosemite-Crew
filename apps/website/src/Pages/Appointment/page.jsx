@@ -43,7 +43,7 @@ import startOfWeek from 'date-fns/startOfWeek';
 import getDay from 'date-fns/getDay';
 import enUS from 'date-fns/locale/en-US';
 
-
+import { Image } from "react-bootstrap";
 // import { Button } from 'react-bootstrap';
 
 const Appointment = () => {
@@ -406,7 +406,7 @@ const Appointment = () => {
             notif="3 New Appointments"
           />
           <button type="button" data-bs-toggle="modal" data-bs-target="#DashModall" onClick={() => setCalendarView(1)}>
-                          <img src={`${import.meta.env.VITE_BASE_IMAGE_URL}/topic.png`} alt="Topic" />Calendar View
+                          <Image src={`${import.meta.env.VITE_BASE_IMAGE_URL}/topic.png`} alt="Topic" />Calendar View
                         </button>     
             </div>
           <div className="overviewDiv">
@@ -648,7 +648,7 @@ export function DashModal() {
             <div className="LeftContent">
               <div className="TopContent">
                 <div className="lfttop">
-                  <img
+                  <Image
                     src={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`}
                     alt=""
                   />
@@ -669,7 +669,7 @@ export function DashModal() {
               <div className="MidContent">
                 <h4>Appointment Details</h4>
                 <div className="lfttop">
-                  <img
+                  <Image
                     src={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`}
                     alt=""
                   />
@@ -681,7 +681,7 @@ export function DashModal() {
 
                 <div className="cardbtn btnfown">
                   <button type="button">
-                    <img
+                    <Image
                       src={`${import.meta.env.VITE_BASE_IMAGE_URL}/btn1.png`}
                       alt=""
                     />{" "}
@@ -692,7 +692,7 @@ export function DashModal() {
                 <div className="modlbtn">
                   <button type="button" className="confirm">
                     {" "}
-                    <img
+                    <Image
                       src={`${import.meta.env.VITE_BASE_IMAGE_URL}/box5.png`}
                       alt=""
                     />{" "}
@@ -700,7 +700,7 @@ export function DashModal() {
                   </button>
                   <button type="button" className="cancel">
                     {" "}
-                    <img
+                    <Image
                       src={`${import.meta.env.VITE_BASE_IMAGE_URL}/box6.png`}
                       alt=""
                     />{" "}
@@ -712,11 +712,11 @@ export function DashModal() {
               <div className="ModlMedclRept">
                 <TextSpan Textname="Medical Reports " Textnspan="(2)" />
                 <div className="MedReport">
-                  <img
+                  <Image
                     src={`${import.meta.env.VITE_BASE_IMAGE_URL}/report1.png`}
                     alt=""
                   />
-                  <img
+                  <Image
                     src={`${import.meta.env.VITE_BASE_IMAGE_URL}/report2.png`}
                     alt=""
                   />
@@ -879,7 +879,7 @@ export function DashModal() {
             <div className="RytContent">
               <div className="RytContDetails">
                 <div className="ownerImg">
-                  <img
+                  <Image
                     src={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`}
                     alt=""
                   />
@@ -962,7 +962,7 @@ export function MainBtn({
           : {})}
         onClick={onClick}
       >
-        {bimg && <img src={bimg} alt="button icon" />} {btext}
+        {bimg && <Image src={bimg} alt="button icon" />} {btext}
       </button>
     </div>
   );
@@ -1008,7 +1008,7 @@ export function AppointCard({
   return (
     <div className="Confcard">
       <div className="cardTopInner">
-        <img src={crdimg} alt="cardimg" />
+        <Image src={crdimg} alt="cardimg" />
         <div className="Sideinner">
           <h6>{cdowner}</h6>
           <p>
@@ -1026,7 +1026,7 @@ export function AppointCard({
           data-bs-toggle="modal"
           data-bs-target="#DashModal"
         >
-          <img src={btnimg} alt="" /> {btntext}
+          <Image src={btnimg} alt="" /> {btntext}
         </button>
       </div>
     </div>
