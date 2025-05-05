@@ -1,8 +1,17 @@
-const petDuties = require('../models/petDuties');
+const { petDuties, petCoOwner} = require('../models/petDuties');
 const mongoose = require('mongoose');
 
+class SharedDutiesController{
 
-async function handleSaveSharedDuties(req,res) {
+
+ static async savePetCoOwner(req,res){
+
+
+
+  
+ } 
+
+static async handleSaveSharedDuties(req,res) {
     const sharedData = req.body;
     const addSharedRecord = await petDuties.create({
         petId: sharedData.petId,
@@ -25,7 +34,7 @@ async function handleSaveSharedDuties(req,res) {
     
 }
 
-async function handleEditSharedDuties(req, res) {
+static async handleEditSharedDuties(req, res) {
   try {
     const updatedSharedData = req.body;
     const id = req.params.taskId;
@@ -49,16 +58,12 @@ async function handleEditSharedDuties(req, res) {
 }
 
 
-async function handleGetSharedDuties(req,res){
+static async handleGetSharedDuties(req,res){
 
     const userid = req.params.userId;
     const result = await petDuties.find({ userId : {$eq: userid } } );
     if (result.length === 0) return res.status(404).json({ message: "No Shared pet duty record found for this user" });
     res.json(result);
 }
-
-module.exports = {
-    handleSaveSharedDuties,
-    handleEditSharedDuties,
-    handleGetSharedDuties,
-  }
+}
+module.exports = SharedDutiesController

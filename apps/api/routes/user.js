@@ -10,6 +10,7 @@ const DetailsController = require('../controllers/DetailsController');
 const ListController = require('../controllers/ListController');
 const ImmunizationController = require("../controllers/ImmunizationController");
 const DiabetesController = require("../controllers/DiabetesController");
+const SharedDutiesController = require("../controllers/SharedDutiesController");
 
 const { handleContactUs } = require("../controllers/contact");
 
@@ -24,11 +25,7 @@ const {
   handleMedicalRecordList,
 } = require("../controllers/medicalRecords");
 
-const {
-  handleSaveSharedDuties,
-  handleEditSharedDuties,
-  handleGetSharedDuties,
-} = require("../controllers/sharedDuties");
+
 
 const router = express.Router();
 const multer = require("multer");
@@ -86,13 +83,13 @@ router.post("/saveExercisePlan",verifyTokenAndRefresh, handleExercisePlan);
 router.get("/getexercise-list/:userId",verifyTokenAndRefresh, handleGetExercisePlan);
 router.post("/savepainjournal",verifyTokenAndRefresh, handleAddPainJournal);
 router.get("/getpainjournal/:userId",verifyTokenAndRefresh, handleGetPainJournal);
-router.post("/saveMedicalRecord", verifyTokenAndRefresh,handlesaveMedicalRecord);
-router.get("/getMedicalRecordList",verifyTokenAndRefresh, handleMedicalRecordList);
+router.post("/DocumentReference/saveMedicalRecord", verifyTokenAndRefresh,handlesaveMedicalRecord);
+router.get("/DocumentReference/getMedicalRecordList",verifyTokenAndRefresh, handleMedicalRecordList);
 router.post( "/Observation/saveDiabetesRecords",verifyTokenAndRefresh,DiabetesController.handleDiabetesRecords);
 router.get("/Observation/getDiabetesLogs", verifyTokenAndRefresh,DiabetesController.handleGetDiabetesLogs);
 router.delete("/Observation/deleteDiabetesLog", verifyTokenAndRefresh,DiabetesController.handleDeleteDiabetesLog);
-router.post("/saveSharedDuties",verifyTokenAndRefresh, handleSaveSharedDuties);
-router.get("/getSharedDuties/:userId",verifyTokenAndRefresh, handleGetSharedDuties);
-router.put("/editSharedDuties/:taskId",verifyTokenAndRefresh, handleEditSharedDuties);
+router.post("/saveSharedDuties",verifyTokenAndRefresh, SharedDutiesController.handleSaveSharedDuties);
+router.get("/getSharedDuties/:userId",verifyTokenAndRefresh, SharedDutiesController.handleGetSharedDuties);
+router.put("/editSharedDuties/:taskId",verifyTokenAndRefresh, SharedDutiesController.handleEditSharedDuties);
 router.get("/", handlehome);
 module.exports = router;
