@@ -1,32 +1,48 @@
 class BusinessFhirFormatter {
-    static toFhirOrganization(org) {
-      return {
-        resourceType: "Organization",
-        id: org.cognitoId,
-        name: org.profileData?.name || org.businessName || "Unknown",
-        type: [{
-          coding: [{
-            system: "http://terminology.hl7.org/CodeSystem/organization-type",
-            code: "prov",
-            display: org.businessType
-          }]
-        }],
-        address: [{
-          text: org.profileData?.address || ""
-        }],
-        extension: [
-          {
-            url: "http://example.org/fhir/StructureDefinition/rating",
-            valueDecimal: org.rating || 0
-          }
-        ]
-      };
-    }
+  static toFhirOrganization(org) {
+    const selectedServicesExtension = (org.profileData?.selectedServices || []).map(service => ({
+      url: "http://example.org/fhir/StructureDefinition/selectedService",
+      valueString: service
+    }));
+  
+    const extensions = [
+      {
+        url: "http://example.org/fhir/StructureDefinition/rating",
+        valueDecimal: org.rating || 0
+      },
+      ...(org.profileData?.logo ? [{
+        url: "http://example.org/fhir/StructureDefinition/logo",
+        valueUrl: org.profileData.logo
+      }] : []),
+      ...(org.profileData?.website ? [{
+        url: "http://example.org/fhir/StructureDefinition/website",
+        valueUrl: org.profileData.website
+      }] : []),
+      ...selectedServicesExtension
+    ];
+  
+    return {
+      resourceType: "Organization",
+      id: org.cognitoId,
+      name: org.profileData?.name || org.profileData?.businessName || org.businessName || "Unknown",
+      type: [{
+        coding: [{
+          system: "http://terminology.hl7.org/CodeSystem/organization-type",
+          code: "prov",
+          display: org.businessType
+        }]
+      }],
+      address: [{
+        text: org.profileData?.address?.addressLine1 || ""
+      }],
+      extension: extensions
+    };
+  }
   
     static toFhirHealthcareServices(org) {
       return (org.departments || []).map(dept => ({
         resourceType: "HealthcareService",
-        id: `${org.cognitoId}-${dept.departmentId}`,
+        id: `${dept.departmentId}`,
         providedBy: {
           reference: `Organization/${org.cognitoId}`
         },

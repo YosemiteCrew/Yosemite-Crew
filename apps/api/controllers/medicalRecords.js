@@ -91,7 +91,7 @@ async function handlesaveMedicalRecord(req,res) {
 
         const fhirResponse = FHIRMedicalRecordService.convertMedicalRecordToFHIR(addMedicalRecords);
 
-        return res.status(201).json(fhirResponse);
+        return res.status(200).json({ status: 1, data: fhirResponse});
 
         // return res.status(201).json({
         // message: "Medical record saved successfully",
