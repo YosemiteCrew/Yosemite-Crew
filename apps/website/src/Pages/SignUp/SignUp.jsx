@@ -7,7 +7,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import Modal from 'react-bootstrap/Modal';
 import Button from 'react-bootstrap/Button';
-import { Form } from 'react-bootstrap';
+import { Container, Form } from 'react-bootstrap';
 import axios from 'axios';
 // import { useAuth } from '../../context/useAuth';
 
@@ -213,86 +213,57 @@ const SignUp = () => {
   };
 
   return (
-    <section className="SignUpSec" style={{
-      "--dynamic-bg-image": `url(${import.meta.env.VITE_BASE_IMAGE_URL}/Signupbg.jpg)`,
-    }}>
-      <div className="container">
+    <section className="SignUpSec" style={{"--dynamic-bg-image": `url(${import.meta.env.VITE_BASE_IMAGE_URL}/Signupbg.jpg)`,}}>
+      <Container>
+
         <div className="SignupData">
+
           <div className="SignUpText">
-            <h1>
-              <span>Join the Future</span> of <br /> Veterinary Practice <br />{' '}
-              Management
-            </h1>
-            <p>
-              Streamline your operations, improve patient care, and grow your
-              practice with our comprehensive PIMS.
-            </p>
+            <h1> <span>Join the Future</span> of <br /> Veterinary Practice <br />{' '} Management </h1>
+            <p> Streamline your operations, improve patient care, and grow your practice with our comprehensive PIMS. </p>
           </div>
 
-          <div className="SignFormDiv">
-            <form onSubmit={handleSubmit}>
-              <HeadText Spntext="Sign up" blktext="now" />
+          <div className="SignUpFormDiv">
+            <Form onSubmit={handleSubmit}>
+              <div className="TopSignUp">
 
-              <div className="">
-                <Forminput
-                  inlabel="Email Address"
-                  intype="text"
-                  inname="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-                <div className="pasdiv">
-                  <FormPassw
-                    paswlabel="Password"
-                    intype="password"
-                    inname="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                  <p>
-                    Password must be at least 8 characters long, including an
-                    uppercase letter, a number, and a special character.
-                  </p>
+                <HeadText Spntext="Sign up" blktext="now" />
+
+                <div className="SignFormItems">
+                  <Forminput inlabel="Email Address" intype="text" inname="email" value={email}
+                  onChange={(e) => setEmail(e.target.value)} />
+
+                  <div className="pasdiv">
+                    <FormPassw paswlabel="Password" intype="password" inname="password" value={password}
+                    onChange={(e) => setPassword(e.target.value)}/>
+                    <p>Password must be at least 8 characters long, including an uppercase letter, a number, and a special character. </p>
+                  </div>
+
+                  <FormPassw paswlabel="Confirm Password" intype="password" inname="confirmPassword" value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}/>
                 </div>
-                <FormPassw
-                  paswlabel="Confirm Password"
-                  intype="password"
-                  inname="confirmPassword"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                />
 
                 <div className="business-type-container">
                   <p>Select Your Business Type</p>
                   <div className="button-group">
                     <ul>
                       {businessTypes.map((type) => (
-                        <li
-                          key={type}
-                          className={`business-button ${
-                            selectedType === type ? 'selected' : ''
-                          }`}
-                          onClick={() => handleSelectType(type)}
-                        >
+                        <li key={type} className={`business-button ${ selectedType === type ? 'selected' : ''  }`} onClick={() => handleSelectType(type)} >
                           {type}
                         </li>
                       ))}
                     </ul>
                   </div>
                 </div>
+
               </div>
 
               <div className="Sign_check">
-                <input
-                  type="checkbox"
-                  className="check-input"
-                  id="exampleCheck1"
-                  required
-                />
-                <label className="form-check-label" htmlFor="exampleCheck1">
-                  I agree to Yosemite Crew’s <span>Terms and Conditions</span>{' '}
-                  and <span>Privacy Policy</span>
-                </label>
+                <Form.Check type="checkbox"  label={
+                  <>
+                    <p>I agree to Yosemite Crew’s <span>Terms and Conditions</span>{' '}
+                      and <span>Privacy Policy</span></p>
+                  </> } />
               </div>
 
               <div className="sinbtn">
@@ -302,9 +273,7 @@ const SignUp = () => {
                   btext="Sign Up"
                   // onClick={handleSubmit}
                 />
-                <h6>
-                  Already have an account? <Link to="/signin">Login</Link>
-                </h6>
+                <h6> Already have an account? <Link to="/signin">Login</Link></h6>
               </div>
 
               <SignOtp
@@ -312,10 +281,12 @@ const SignUp = () => {
                 onHide={() => setModalShow(false)}
                 email={email}
               />
-            </form>
+            </Form>
           </div>
+
         </div>
-      </div>
+
+      </Container>
     </section>
   );
 };
@@ -355,6 +326,7 @@ export function Forminput({
         {inlabel}
       </label>
     </div>
+    
   );
 }
 
@@ -394,6 +366,8 @@ export function FormPassw({ paswlabel, intype, inname, value, onChange }) {
   );
 }
 
+
+
 // headtext
 HeadText.propTypes = {
   Spntext: PropTypes.string.isRequired,
@@ -402,9 +376,7 @@ HeadText.propTypes = {
 export function HeadText({ Spntext, blktext }) {
   return (
     <div className="Headingtext">
-      <h2>
-        <span>{Spntext}</span> {blktext}
-      </h2>
+      <h2> <span>{Spntext}</span> {blktext} </h2>
     </div>
   );
 }
