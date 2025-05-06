@@ -906,7 +906,7 @@ input[type='number'] {
   grid-gap: 22px;
 }
 .LeftProfileDiv {
-  border: 1px solid #5d412f33;
+  border: 1px solid #5D412F26;
   padding: 40px;
   border-radius: 18px;
 }
@@ -1372,6 +1372,7 @@ input[type='checkbox']:checked::after {
   display: flex;
   align-items: center;
   gap: 20px;
+  margin: 0;
 }
 .ConstModeUl ul li {
   border: 0.5px solid #312943;
