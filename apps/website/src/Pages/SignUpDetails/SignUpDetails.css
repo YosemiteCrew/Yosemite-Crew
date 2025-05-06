@@ -1,21 +1,29 @@
 .SignDetailsSec{
-    padding: 80px 0px 100px 0px;
+    padding: 40px 0px 20px 0px;
 }
-
-
+.SignProfHead h3{
+    font-family: var(--grotesk-font);
+    font-size: 33px;
+    font-weight: 500;
+    line-height: 120%;
+    letter-spacing: -0.02em;
+    color: var(--black-text);
+}
+.SignProfHead h3 span {
+    color: var(--chilli-red);
+}
 
 .SignDetlsTabDiv .VetPills {
     display: grid;
     grid-template-columns: repeat(4,1fr);
     width: 100%;
-    max-width: 702px;
+    max-width: 847px;
     margin: 30px auto;
-    grid-gap: 50px;
-
+    grid-gap: 25px;
 }
 .SignDetlsTabDiv .VetPills .nav-item a{
     display: grid;
-    grid-template-columns: auto auto;
+    grid-template-columns: 35px auto;
     align-items: center;
     grid-gap: 8px;
     color: #747473;
@@ -39,6 +47,7 @@
     font-size: 16px;
     line-height: 100%;
     background: transparent;
+    margin: 0 auto;
 }
 .SignDetlsTabDiv .VetPills .nav-item a.active{
     color: #302F2E;
@@ -48,10 +57,10 @@
     background: var(--chilli-red) !important;
 }
 
-.LeftProfileDiv .BasicForm , .LeftProfileDiv .AddressForm , .LeftProfileDiv .ServicesForm{
+.LeftProfileDiv .BasicForm , .LeftProfileDiv .AddressForm , .LeftProfileDiv .ServicesForm , .LeftProfileDiv .Profile-content{
     display: flex;
     flex-direction: column;
-    gap: 50px;
+    gap: 32px;
 }
 
 
@@ -59,18 +68,7 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-.Sign_Details_Data{
+/* .Sign_Details_Data{
     display: grid;
     grid-template-columns: 68% 30%;
     grid-gap: 22px;
@@ -84,48 +82,9 @@
     display: flex;
     flex-direction: column;
     gap: 32px;
-}
-.add-logo-container {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-}
-.upload-label {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    cursor: pointer;
-}
-.upload-placeholder {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(139.66deg, rgba(253, 189, 116, 0.15) 18.09%, rgba(253, 189, 116, 0.05) 86.04%);
-    transition: border-color 0.3s ease;
-    border: 1px solid var(--chilli-red);
-}
-.preview-image {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    object-fit: cover; 
-    border: 1px solid var(--chilli-red);
-}
-.icon {
-    width: 24px;
-    height: 24px; 
-}
-.add-logo-container h5{
-    font-family: var(--grotesk-font);
-    font-size: 23px;
-    font-weight: 500;
-    line-height: 27.6px;
-    letter-spacing: -0.02em;
-    margin: 0;
-}
+} */
+
+
 .DetailInput h6{
     font-family: var(--satoshi-font);
     font-size: 15px;
@@ -137,7 +96,14 @@
     margin: 0;
 }
 
-.service-options-container {
+.addrscol .signup__field input::placeholder{
+    opacity: 0;
+}
+
+
+
+
+/* .service-options-container {
     padding: 20px 0px;
     display: flex;
     flex-direction: column;
@@ -174,7 +140,7 @@
 }
 .service-group input[type="radio"]:checked + .radio-label {
     color: var(--chilli-red); 
-}
+} */
 
 /* profProgressDiv */
 
@@ -260,6 +226,25 @@
 }
   
 /* Service div */
+
+
+.DepartDiv {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.DepartDiv p {
+    color: var(--black-text);
+    font-weight: 700 ;
+    font-size: 18px;
+    line-height: 120%;
+    margin: 0;
+}
+.ServicesTabInner{
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
 .services_dropdown {
     width: 100%;
     display: flex;
@@ -345,6 +330,7 @@
 .ServDropcontent .service-item.selected label p {
     font-weight: 700;
 }
+
 /* .ServDropcontent .service-item input[type="checkbox"] {
     -webkit-appearance: none; 
     -moz-appearance: none;    
