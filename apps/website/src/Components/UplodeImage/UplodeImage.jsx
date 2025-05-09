@@ -1,24 +1,29 @@
-import React, { useState, useEffect } from 'react';
-import DOMPurify from 'dompurify'; // Import DOMPurify
-import './UplodeImage.css';
+import React, { useState, useEffect } from "react";
+import DOMPurify from "dompurify"; // Import DOMPurify
+import "./UplodeImage.css";
 
 const UplodeImage = ({ onFileChange, selectedFiles }) => {
   const [files, setFiles] = useState([]);
   const [filePreviews, setFilePreviews] = useState([]);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
 
   const handleFileChange = (e) => {
     const uploadedFiles = Array.from(e.target.files);
     const validFiles = [];
-    let errorMessage = '';
+    let errorMessage = "";
 
     uploadedFiles.forEach((file) => {
       if (file.size > MAX_FILE_SIZE) {
-        errorMessage = 'File size exceeds 20 MB limit.';
-      } else if (!file.type.match('image.*') && !file.type.match('application/pdf') && !file.type.match('application/msword')) {
-        errorMessage = 'Invalid file type. Only DOC, PDF, PNG, JPEG formats are allowed.';
+        errorMessage = "File size exceeds 20 MB limit.";
+      } else if (
+        !file.type.match("image.*") &&
+        !file.type.match("application/pdf") &&
+        !file.type.match("application/msword")
+      ) {
+        errorMessage =
+          "Invalid file type. Only DOC, PDF, PNG, JPEG formats are allowed.";
       } else {
         validFiles.push(file);
       }
@@ -28,7 +33,7 @@ const UplodeImage = ({ onFileChange, selectedFiles }) => {
       const updatedFiles = [...files, ...validFiles];
       setFiles(updatedFiles);
       onFileChange(updatedFiles);
-      setError(''); // Clear any previous error
+      setError(""); // Clear any previous error
     } else {
       setError(errorMessage);
     }
@@ -42,7 +47,7 @@ const UplodeImage = ({ onFileChange, selectedFiles }) => {
 
   useEffect(() => {
     const urls = files.map((file) => {
-      if (file && file instanceof File) {
+      if (file && file instanceof File) {``
         return URL.createObjectURL(file);
       }
       return null; // Handle invalid files gracefully
@@ -60,22 +65,31 @@ const UplodeImage = ({ onFileChange, selectedFiles }) => {
   }, [files]);
 
   // Sanitize the error message if it exists
-  const sanitizedError = error ? DOMPurify.sanitize(error) : '';
+  const sanitizedError = error ? DOMPurify.sanitize(error) : "";
 
   return (
     <div>
       <div className="upload-box">
-        {sanitizedError && <p className="error-message" dangerouslySetInnerHTML={{ __html: sanitizedError }} />}
+        {sanitizedError && (
+          <p
+            className="error-message"
+            dangerouslySetInnerHTML={{ __html: sanitizedError }}
+          />
+        )}
         {files.length > 0 ? (
           <div className="file-preview">
             {files.map((file, index) => {
               const fileType = file.type;
-              const isImage = fileType.startsWith('image/');
+              const isImage = fileType.startsWith("image/");
               return (
                 <div key={index} className="file-item">
                   {isImage ? (
                     <img
-                      src={filePreviews[index]}
+                      src={
+                        filePreviews[index]?.startsWith("blob:")
+                          ? filePreviews[index]
+                          : ""
+                      }
                       alt={`Preview ${index}`}
                       className="preview-image"
                     />

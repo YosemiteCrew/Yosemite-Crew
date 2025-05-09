@@ -597,13 +597,22 @@ const WebController = {
       if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
         return res.status(400).json({ message: "Invalid doctorId format" });
       }
-
+console.log("hihihihihihhihi");
       const profile = await ProfileData.findOne({ userId });
-
+console.log("profile",profile);
       if (profile) {
         const getS3Url = (fileKey) => {
           if (fileKey) {
-            return `https://${process.env.AWS_S3_BUCKET_NAME}.s3.amazonaws.com/${fileKey}`;
+            const params = {
+              Bucket: process.env.AWS_S3_BUCKET_NAME,
+              Key: fileKey,
+              //Expires: 3600 // URL expiration time in seconds (e.g., 1 hour)
+              Expires: 10 * 365 * 24 * 60 * 60 // 10 years in seconds
+            };
+         const url =  s3.getSignedUrlPromise('getObject', params);
+    
+            return url;
+            //  `https://${process.env.AWS_S3_BUCKET_NAME}.s3.amazonaws.com/${fileKey}`;
           }
           return null;
         };
@@ -736,7 +745,6 @@ const WebController = {
       }
       const fhirBuilder = new HospitalProfileFHIRBuilder(
         profile,
-        process.env.AWS_S3_BUCKET_NAME
       );
       const fhirBundle = fhirBuilder.buildFHIRBundle();
       res.status(200).json(fhirBundle);

@@ -131,11 +131,12 @@ const Dashboard = () => {
           setTotalAppointments(normalAppointments.totalAppointments);
           setAllAppointments(normalAppointments.appointments);
         } else if (response.status === 200 && response.data.status === 0) {
-          new Swal({
-            title: "Not Found",
-            text: response.data?.message || "Requested data not found.",
-            icon: "error",
-          });
+          // new Swal({
+          //   title: "Not Found",
+          //   text: response.data?.message || "Requested data not found.",
+          //   icon: "error",
+          // });
+          console.log("error");
         }
       } catch (error) {
         if (error.response && error.response.status === 401) {
@@ -173,7 +174,9 @@ const Dashboard = () => {
         });
       }
 
+     if(userId){
       getAllAppointments(offset, 6);
+     }
       // getlast7daysAppointMentsCount();
     } catch (error) {
       if (error.response && error.response.status === 401) {

@@ -6,10 +6,15 @@ const {
   InventoryItemCategory,
   ProcedureCategory,
 } = require("../models/AddInventoryCotegory");
-const Breeds = require("../models/AppointmentOption");
+const {
+  Breeds,
+  PurposeOfVisits,
+  AppointmentType,
+} = require("../models/AppointmentOption");
 const {
   ProductCategoryFHIRConverter,
 } = require("../utils/InventoryFhirHandler");
+const { PurposeOfVisitFHIRConverter } = require("../utils/AdminFhirHandler");
 
 const AdminController = {
   AddInventoryCategory: async (req, res) => {
@@ -68,7 +73,6 @@ const AdminController = {
         }
       }
     } catch (error) {
-      console.error("AddInventoryCotegory Error:", error);
       res.status(500).json({ message: "Server error" });
     }
   },
@@ -135,7 +139,6 @@ const AdminController = {
         }
       }
     } catch (error) {
-      console.log("AddInventoryManufacturer Error", error);
       res.status(500).json({ message: "Server Error" });
     }
   },
@@ -202,7 +205,6 @@ const AdminController = {
         }
       }
     } catch (error) {
-      console.log("AddInventoryItemCotegory Error", error);
       res.status(500).json({ message: "Server Error" });
     }
   },
@@ -232,11 +234,9 @@ const AdminController = {
             }
             const getItem = await InventoryCategory.find({ bussinessId });
             if (getItem) {
-              console.log(getItem);
               const Response = new ProductCategoryFHIRConverter(
                 getItem
               ).toFHIRBundle();
-              console.log(validateFHIR(Response));
               return res.status(200).json(Response);
             } else {
               return res
@@ -268,7 +268,6 @@ const AdminController = {
               const Response = new ProductCategoryFHIRConverter(
                 getItem
               ).toFHIRBundle();
-              console.log(validateFHIR(Response));
               return res.status(200).json(Response);
             } else {
               return res
@@ -297,12 +296,9 @@ const AdminController = {
             }
             const getItem = await InventoryManufacturer.find({ bussinessId });
             if (getItem) {
-              console.log("---=-=-=-=-=-=-=-=-==-==", getItem);
-
               const Response = new ProductCategoryFHIRConverter(
                 getItem
               ).toFHIRBundle();
-              console.log(validateFHIR(Response));
               return res.status(200).json(Response);
             } else {
               return res
@@ -396,7 +392,6 @@ const AdminController = {
         ],
       });
     } catch (error) {
-      console.error("CreateProcedurepackageCategory error:", error);
       return res.status(500).json({
         resourceType: "OperationOutcome",
         issue: [
@@ -451,11 +446,9 @@ const AdminController = {
       const getItems = await ProcedureCategory.find({ bussinessId });
       if (getItems) {
         const data = new ProductCategoryFHIRConverter(getItems).toFHIRBundle();
-        console.log(data);
         return res.status(200).json({ data });
       }
     } catch (error) {
-      console.error("Server Error:", error);
       return res.status(500).json({
         resourceType: "OperationOutcome",
         issue: [
@@ -475,8 +468,324 @@ const AdminController = {
 
   Breeds: async (req, res) => {
     try {
-      const { category, name, HospitalId } = req.body;
+      const { category, name } = req.body;
 
+      if (
+        typeof name !== "string" ||
+        name.trim().length === 0 ||
+        name.length > 50
+      ) {
+        return res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "invalid",
+              details: { text: "Invalid or missing breed name." },
+            },
+          ],
+        });
+      }
+
+      const capitalizeWords = (str) =>
+        str
+          .trim()
+          .split(" ")
+          .filter(Boolean)
+          .map(
+            (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+          )
+          .join(" ");
+
+      const sanitizedName = capitalizeWords(name);
+      const modifyCategory = capitalizeWords(category);
+
+      const getData = await Breeds.findOne({ name: sanitizedName });
+      if (getData) {
+        return res.status(200).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "information",
+              code: "informational",
+              details: {
+                text: `${getData.name} already exists`,
+              },
+            },
+          ],
+        });
+      }
+
+      const response = await Breeds.create({
+        category: modifyCategory,
+        name: sanitizedName,
+      });
+
+      if (response) {
+        res.status(200).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "information",
+              code: "informational",
+              details: {
+                text: `${sanitizedName} Saved Successfully`,
+              },
+            },
+          ],
+        });
+      }
+    } catch (error) {
+      res.status(500).json({
+        resourceType: "OperationOutcome",
+        issue: [
+          {
+            severity: "fatal",
+            code: "exception",
+            details: {
+              text: `${error.message} network error`,
+            },
+          },
+        ],
+      });
+    }
+  },
+
+  Breed: async (req, res) => {
+    try {
+      const { category } = req.query;
+
+      if (
+        typeof category !== "string" ||
+        category.trim().length === 0 ||
+        category.length > 50
+      ) {
+        return res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "invalid",
+              details: { text: "Invalid or missing category name." },
+            },
+          ],
+        });
+      }
+
+      // Optional: sanitize input (e.g., remove special characters if needed)
+      const sanitizedName = category.trim();
+      const response = await Breeds.find({
+        category: sanitizedName,
+      });
+
+      if (response.length > 0) {
+        const data = new PurposeOfVisitFHIRConverter(response).toValueSet();
+        res.status(200).json({
+          message: "fetched breeds successfully",
+          data,
+        });
+      } else {
+        res.status(200).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "information",
+              code: "informational",
+              details: {
+                text: "No Breeds Found",
+              },
+            },
+          ],
+          data: [],
+        });
+      }
+    } catch (error) {
+      res.status(500).json({
+        resourceType: "OperationOutcome",
+        issue: [
+          {
+            severity: "fatal",
+            code: "exception",
+            details: {
+              text: `${error.message} network error`,
+            },
+          },
+        ],
+      });
+    }
+  },
+  // <<<<<<<<<<<<<<<<<<<<<<create Api>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  PurposeOfVisit: async (req, res) => {
+    try {
+      const { name, HospitalId } = req.body;
+      if (
+        typeof HospitalId !== "string" ||
+        !/^[a-fA-F0-9-]{36}$/.test(HospitalId)
+      ) {
+        return res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "invalid",
+              details: {
+                text: "Invalid HospitalId format.",
+              },
+            },
+          ],
+        });
+      }
+
+      if (
+        typeof name !== "string" ||
+        name.trim().length === 0 ||
+        name.length > 50
+      ) {
+        return res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "invalid",
+              details: { text: "Invalid or missing category name." },
+            },
+          ],
+        });
+      }
+      const sanitizedName = name.trim();
+      const getData = await PurposeOfVisits.findOne({
+        name: sanitizedName,
+        HospitalId: HospitalId,
+      });
+
+      if (getData) {
+        return res.status(200).json({
+          resourceType: "operationOutcome",
+          issue: [
+            {
+              severity: "information",
+              code: "informational",
+              details: {
+                text: `${getData.name} already exist`,
+              },
+            },
+          ],
+        });
+      }
+      const response = await PurposeOfVisits.create({
+        name: sanitizedName,
+        HospitalId: HospitalId,
+      });
+      if (response) {
+        res.status(200).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "information",
+              code: "informational",
+              details: {
+                text: `${sanitizedName} saved successfully`,
+              },
+            },
+          ],
+        });
+      }
+    } catch (error) {
+      res.status(500).json({
+        resourceType: "OperationOutcome",
+        issue: [
+          {
+            severity: "fatal",
+            code: "exception",
+            details: {
+              text: "An unexpected network error occurred.",
+            },
+            diagnostics: error.message || "Unknown error",
+          },
+        ],
+      });
+    }
+  },
+
+  // <<<<<<<<<<<<<<<<<<<<Get Api>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+  PurposeOfVisitList: async (req, res) => {
+    try {
+      const { HospitalId } = req.query;
+      if (!HospitalId) {
+        return res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "information",
+              code: "informational",
+              details: {
+                text: "Missing required parameter HospitalId",
+              },
+            },
+          ],
+        });
+      }
+  
+      if (
+        typeof HospitalId !== "string" ||
+        !/^[a-fA-F0-9-]{36}$/.test(HospitalId)
+      ) {
+        return res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "invalid",
+              details: {
+                text: "Invalid HospitalId format",
+              },
+            },
+          ],
+        });
+      }
+  
+      const response = await PurposeOfVisits.find({ HospitalId:HospitalId });
+      if (!response) {
+       return res.status(200).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "information",
+              code: "informational",
+              details: {
+                text: "No Data Available",
+              },
+            },
+          ],
+        });
+      } else {
+        const data = new PurposeOfVisitFHIRConverter(
+          response,
+          HospitalId
+        ).toValueSet();
+        res.status(200).json({ data });
+      }
+    } catch (error) {
+      res.status(500).json({
+        resourceType: "OperationOutcome",
+        issue: [
+          {
+            severity: "fatal",
+            code: "exception",
+            details: {
+              text: `${error.message} network error`,
+            },
+          },
+        ],
+      });
+    }
+  },
+  // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<AppointmentType Api's For Book Appointment>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+  AppointmentType: async (req, res) => {
+    try {
+      const { HospitalId, name, category } = req.body;
       if (!HospitalId) {
         return res.status(400).json({
           resourceType: "OperationOutcome",
@@ -508,54 +817,94 @@ const AdminController = {
           ],
         });
       }
-
-      if (typeof name !== "string" || name.trim().length === 0 || name.length > 50) {
+      if (
+        typeof category !== "string" ||
+        category.trim().length === 0 ||
+        category.length > 50
+      ) {
         return res.status(400).json({
           resourceType: "OperationOutcome",
-          issue: [{
-            severity: "error",
-            code: "invalid",
-            details: { text: "Invalid or missing breed name." }
-          }]
-        });
-      }
-      
-      // Optional: sanitize input (e.g., remove special characters if needed)
-      const sanitizedName = name.trim();
-      const getData = await Breeds.findOne({name:sanitizedName, HospitalId:HospitalId});
-      if (getData) {
-        return res.status(200).json({
-          resourceType:"OperationOutcome",
           issue: [
             {
-              severity: "information",
-              code:"informational",
+              severity: "error",
+              code: "invalid",
               details: {
-                text:`${getData.name} already exist` ,
-              }
-            }
-          ]
-        })
+                text: "Invalid or missing category.",
+              },
+            },
+          ],
+        });
       }
-      const response = await Breeds.create({
-        category,
-        name,
-        HospitalId,
-      });
 
-      if (response) {
-        res.status(200).json({
+      if (
+        typeof name !== "string" ||
+        name.trim().length === 0 ||
+        name.length > 50
+      ) {
+        return res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "invalid",
+              details: {
+                text: "invalid or missing name.",
+              },
+            },
+          ],
+        });
+      }
+      const capitalizeWords = (str) =>
+        str
+          .trim()
+          .split(" ")
+          .filter(Boolean)
+          .map(
+            (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+          )
+          .join(" ");
+
+      const sanitizedName = capitalizeWords(name);
+      const modifyCategory = capitalizeWords(category);
+      const getData = await AppointmentType.findOne({
+        HospitalId: HospitalId,
+        name: sanitizedName,
+        category: modifyCategory,
+      });
+      if (getData) {
+        return res.status(200).json({
           resourceType: "OperationOutcome",
           issue: [
             {
               severity: "information",
               code: "informational",
               details: {
-                text: `${name} Saved Successfully`,
+                text: `${getData.name} already exist`,
               },
             },
           ],
         });
+      } else {
+        const response = await AppointmentType.create({
+          HospitalId: HospitalId,
+          name: sanitizedName,
+          category: modifyCategory,
+        });
+
+        if (response) {
+          return res.status(200).json({
+            resourceType: "OperationOutcome",
+            issue: [
+              {
+                severity: "information",
+                code: "informational",
+                details: {
+                  text: `${sanitizedName} saved successfully`,
+                },
+              },
+            ],
+          });
+        }
       }
     } catch (error) {
       res.status(500).json({
@@ -573,119 +922,87 @@ const AdminController = {
     }
   },
 
-Breed: async(req,res)=>{
-  try {
-    const {HospitalId, category} = req.query;
-    if (
-      typeof HospitalId !== "string" ||
-      !/^[a-fA-F0-9-]{36}$/.test(HospitalId)
-    ) {
-      return res.status(400).json({
+  Appointments: async (req, res) => {
+    try {
+      const { HospitalId, category } = req.query;
+      if (!HospitalId) {
+        return res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "information",
+              code: "informational",
+              details: {
+                text: "Missing required parameter: HospitalId",
+              },
+            },
+          ],
+        });
+      }
+      if (
+        typeof HospitalId !== "string" ||
+        !/^[a-fA-F0-9-]{36}$/.test(HospitalId)
+      ) {
+        return res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "invalid",
+              details: {
+                text: "Invalid HospitalId format.",
+              },
+            },
+          ],
+        });
+      }
+      if (
+        typeof category !== "string" ||
+        category.trim().length === 0 ||
+        category.length > 50
+      ) {
+        return res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "invalid",
+              details: { text: "Invalid or missing category name." },
+            },
+          ],
+        });
+      }
+
+      // Optional: sanitize input (e.g., remove special characters if needed)
+      const sanitizedName = category.trim();
+      const response = await AppointmentType.find({
+        HospitalId: HospitalId,
+        category: sanitizedName,
+      });
+      if (response) {
+        var data = new PurposeOfVisitFHIRConverter(
+          response,
+          HospitalId
+        ).toValueSet();
+        return res.status(200).json({
+          data,
+        });
+      }
+    } catch (error) {
+      res.status(500).json({
         resourceType: "OperationOutcome",
         issue: [
           {
-            severity: "error",
-            code: "invalid",
+            severity: "fatal",
+            code: "exception",
             details: {
-              text: "Invalid HospitalId format.",
+              text: `${error.message} network error`,
             },
           },
         ],
       });
     }
-    if (!HospitalId || !category) {
-      return res.status(400).json({
-        resourceType:"OperationOutcome",
-        issue: [
-          {
-            severity: "information",
-            code:"informational",
-            details: {
-              text:"Missing required parameter: HospitalId or category",
-            }
-          }
-        ]
-      })
-    }
-    if (
-      typeof HospitalId !== "string" ||
-      !/^[a-fA-F0-9-]{36}$/.test(HospitalId)
-    ) {
-      return res.status(400).json({
-        resourceType: "OperationOutcome",
-        issue: [
-          {
-            severity: "error",
-            code: "invalid",
-            details: {
-              text: "Invalid HospitalId format.",
-            },
-          },
-        ],
-      });
-    }
-
-    if (typeof category !== "string" || category.trim().length === 0 || category.length > 50) {
-      return res.status(400).json({
-        resourceType: "OperationOutcome",
-        issue: [{
-          severity: "error",
-          code: "invalid",
-          details: { text: "Invalid or missing category name." }
-        }]
-      });
-    }
-    
-    // Optional: sanitize input (e.g., remove special characters if needed)
-    const sanitizedName = category.trim();
-    const response = await Breeds.find({HospitalId:HospitalId, category:sanitizedName})
-    console.log(response)
-    if (response.length>0) {
-      res.status(200).json({
-        message:"fetched breeds successfully",
-        data:response,
-      })
-    }else {
-      res.status(200).json({
-        resourceType:"OperationOutcome",
-        issue:[
-          {
-            severity: "information",
-            code:'informational',
-            details:{
-              text:"No Breeds Found",
-            }
-          }
-        ],
-        data:[],
-      })
-    }
-  } catch (error) {
-    res.status(500).json({
-      resourceType:"OperationOutcome",
-      issue:[
-        {
-          severity: "fatal",
-          code:"exception",
-          details: {
-            text:`${error.message} network error`
-          }
-        }
-      ]
-    })
-  }
-},
-
-
-
-// PurposeOfVisit: async (req, res)=>{
-//   try {
-//     const {name, HospitalId} = req.body
-//   } catch (error) {
-    
-//   }
-// }
-
+  },
 };
 
 module.exports = { AdminController };

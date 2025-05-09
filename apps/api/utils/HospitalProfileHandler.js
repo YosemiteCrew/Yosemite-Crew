@@ -1,14 +1,26 @@
 const { v4: uuidv4 } = require("uuid");
+const AWS = require("aws-sdk");
+const s3 = new AWS.S3({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION,
+});
 
 class HospitalProfileFHIRBuilder {
-  constructor(profile, s3BucketName) {
+  constructor(profile) {
     this.profile = profile;
-    this.s3BucketName = s3BucketName;
+    // this.s3BucketName = s3BucketName;
   }
 
   getS3Url(fileKey) {
-    return fileKey ? `https://${this.s3BucketName}.s3.amazonaws.com/${fileKey}` : null;
+    const params = {
+      Bucket: process.env.AWS_S3_BUCKET_NAME,
+      Key: fileKey,
+      Expires: 604800 //Expire In 7 Days
+    };
+    return fileKey ? s3.getSignedUrl('getObject', params) : null;
   }
+  
 
   buildOrganizationResource() {
     const { profile } = this;

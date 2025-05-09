@@ -1,9 +1,6 @@
 const mongoose = require("mongoose");
 
 const BreedsSchema = mongoose.Schema({
-    HospitalId:{
-        type: String,
-    },
     name:{
         type: String,
         require:true
@@ -16,4 +13,36 @@ const BreedsSchema = mongoose.Schema({
 })
 
 const Breeds = mongoose.model("Breeds", BreedsSchema)
-module.exports = Breeds
+
+
+const PurposeOfVisitsSchema = mongoose.Schema({
+    HospitalId:{
+        type: String,
+        required: true,
+    },
+    name:{
+        type: String,
+        required:true,
+    }
+})
+
+const PurposeOfVisits = mongoose.model("PurposeOfVisits", PurposeOfVisitsSchema)
+
+const AppointmentTypeSchema = mongoose.Schema({
+    HospitalId:{
+        type:String,
+        required: true,
+    },
+    name:{
+        type:String,
+        required:true
+    },
+    category:{
+        type:String,
+        enum:["Dog", "Horse", "Cat",],
+        required:true
+    },
+})
+
+const AppointmentType = mongoose.model("AppointmentTypes",AppointmentTypeSchema)
+module.exports = {Breeds,PurposeOfVisits,AppointmentType}

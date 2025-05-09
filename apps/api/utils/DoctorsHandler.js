@@ -8,7 +8,7 @@ class FHIRConverter {
   convertToFHIR() {
     const resources = [];
     Object.keys(this.groupedData).forEach((specialization) => {
-      this.groupedData[specialization].forEach((doctor) => {
+      this.groupedData[specialization]?.forEach((doctor) => {
         const practitioner = this.createPractitioner(doctor);
         const practitionerRole = this.createPractitionerRole(doctor, specialization);
         resources.push(practitioner, practitionerRole);
@@ -108,7 +108,6 @@ overviewConvertToFHIR() {
   
   overviewData.forEach(({ key, resourceType }) => {
     let value = this.overview[key];
-    console.log("overviewDatassssssssssssssssssssssssssssssssss",value);
     
       if (value === undefined || value === null ) return; // Exclude missing values
       
@@ -126,24 +125,24 @@ overviewConvertToFHIR() {
       
       switch (key) {
           case "totalDoctors":
-          case "totalSpecializations":
-          case "availableDoctors":
-          case "totalDepartments":
-          case "appointmentCounts":
-            case "totalAppointments":
-              case "successful":
-                case "canceled":
-                  case "checkedIn":
-                    case "availableDoctors":
-                      case "appointmentsCreatedToday":
-                        case "newAppointments":
-                          case "upcomingAppointments":
-                            case "newPetsCount":
-                              case "totalQuantity":
-                                case "totalValue":
-                                  case "lowStockCount":
-                                    case "outOfStockCount":
-                                      case "totalRating":
+            case "totalSpecializations":
+              case "availableDoctors":
+                case "totalDepartments":
+                  case "appointmentCounts":
+                    case "totalAppointments":
+                      case "successful":
+                        case "canceled":
+                          case "checkedIn":
+                            case "availableDoctors":
+                              case "appointmentsCreatedToday":
+                                case "newAppointments":
+                                  case "upcomingAppointments":
+                                    case "newPetsCount":
+                                      case "totalQuantity":
+                                        case "totalValue":
+                                          case "lowStockCount":
+                                            case "outOfStockCount":
+                                              case "totalRating":
               resource[key] = value;
               break;
           default:
@@ -173,7 +172,6 @@ InventoryOverviewConvertToFHIR() {
 
   overviewData.forEach(({ key }) => {
     const value = this.overview[key];
-    console.log("overviewDatassssssssssssssssssssssssssssssssss", value);
     if (value === undefined || value === null) return;
 
     const formattedKey = key.replace(/([A-Z])/g, " $1").trim();

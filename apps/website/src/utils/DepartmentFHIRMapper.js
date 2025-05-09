@@ -77,11 +77,7 @@ class DepartmentFHIRConverter {
     }
 
     convertFromFHIR(data) {
-    
-
-      console.log("cccccccccccccccc",data);
-
-
+      
       return data.map(obs => {
         const dayExtension = obs.extension?.find(
           ext => ext.url === "http://example.org/fhir/StructureDefinition/day-name"
