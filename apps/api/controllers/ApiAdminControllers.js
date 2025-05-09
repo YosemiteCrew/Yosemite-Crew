@@ -713,7 +713,7 @@ const AdminController = {
     try {
       const { HospitalId } = req.query;
       if (!HospitalId) {
-        res.status(400).json({
+        return res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
             {
@@ -726,12 +726,12 @@ const AdminController = {
           ],
         });
       }
-
+  
       if (
         typeof HospitalId !== "string" ||
         !/^[a-fA-F0-9-]{36}$/.test(HospitalId)
       ) {
-        res.status(400).json({
+        return res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
             {
@@ -744,9 +744,10 @@ const AdminController = {
           ],
         });
       }
+  
       const response = await PurposeOfVisits.find({ HospitalId:HospitalId });
       if (!response) {
-        res.status(200).json({
+       return res.status(200).json({
           resourceType: "OperationOutcome",
           issue: [
             {
