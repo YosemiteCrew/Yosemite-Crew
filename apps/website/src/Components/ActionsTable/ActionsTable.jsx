@@ -80,7 +80,7 @@ const ActionsTable = ({
                 </div>
               </td>
               <td>{appointment.tokenNumber}</td>
-              <td>{appointment.purposeOfVisit}</td>
+              <td>{appointment.appointmentType}</td>
               <td>{appointment.petType}</td>
               <td>{appointment.breed}</td>
               <td>

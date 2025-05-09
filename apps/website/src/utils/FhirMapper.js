@@ -443,6 +443,7 @@ class NormalAppointmentConverter {
         petType: NormalAppointmentConverter.extractPetType(app.description),
         breed: NormalAppointmentConverter.extractPetBreed(app.description),
         purposeOfVisit: app.serviceType?.[0]?.text || "Unknown",
+        appointmentType:app.reasonCode?.[0]?.text || "Unknown",
         appointmentDate: NormalAppointmentConverter.extractAppointmentDate(app.start),
         appointmentTime: NormalAppointmentConverter.extractAppointmentTime(app.start),
         appointmentStatus: app.status ,

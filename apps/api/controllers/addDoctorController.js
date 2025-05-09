@@ -598,6 +598,7 @@ const AddDoctorsController = {
     }
   },
   searchDoctorsByName: async (req, res) => {
+    
     try {
       const { name, bussinessId } = req.query;
       // console.log('name', name, bussinessId);
@@ -638,7 +639,7 @@ const AddDoctorsController = {
             .filter(Boolean) // Removes undefined/null values
         ),
       ];
-
+      
       // Fetch department details
       const departments = await Department.find({
         _id: { $in: specializationIds },
@@ -649,6 +650,14 @@ const AddDoctorsController = {
         return acc;
       }, {});
 
+   function getS3Url(fileKey){
+        const params = {
+          Bucket: process.env.AWS_S3_BUCKET_NAME,
+          Key: fileKey,
+          Expires: 604800 //Expire In 7 Days
+        };
+        return fileKey ? s3.getSignedUrl('getObject', params) : null;
+      }
       const doctorDataWithSpecializations = doctors.map((doctor) => {
         const specializationId = doctor.professionalBackground?.specialization;
         return {
@@ -659,7 +668,7 @@ const AddDoctorsController = {
           specialization:
             specializationMap[specializationId] || "No specialization found",
           image: doctor.personalInfo.image
-            ? `https://${process.env.AWS_S3_BUCKET_NAME}.s3.amazonaws.com/${doctor.personalInfo.image}`
+            ? getS3Url(doctor.personalInfo.image)
             : "",
         };
       });
@@ -677,10 +686,10 @@ const AddDoctorsController = {
         {}
       );
 
+
       const data = new FHIRConverter(groupedBySpecialization);
 
       const fhirData = data.convertToFHIR();
-      // console.log("validate",validateFHIR(fhirData));
 
       res.status(200).json(fhirData);
     } catch (error) {
