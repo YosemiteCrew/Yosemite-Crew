@@ -744,7 +744,7 @@ const AdminController = {
           ],
         });
       }
-      const response = await PurposeOfVisits.find({ HospitalId });
+      const response = await PurposeOfVisits.find({ HospitalId:HospitalId });
       if (!response) {
         res.status(200).json({
           resourceType: "OperationOutcome",
