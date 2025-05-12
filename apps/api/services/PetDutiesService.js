@@ -170,61 +170,75 @@ class PetDutiesService {
     if (!mongoose.Types.ObjectId.isValid(taskId)) {
       throw new Error("Invalid task ID format.");
     }
-
-    const petId = fhirData.subject?.reference?.split("/")[1];
-    if (!petId) throw new Error("Invalid or missing pet reference in FHIR data.");
-
+  
+    const petRef = fhirData.subject?.reference;
+    const petId = typeof petRef === "string" ? petRef.split("/")[1] : null;
+    if (!petId || !mongoose.Types.ObjectId.isValid(petId)) {
+      throw new Error("Invalid or missing pet reference in FHIR data.");
+    }
+  
     const ownerId = fhirData.extension?.find(
-      (ext) => ext.url === "http://example.org/fhir/StructureDefinition/ownerId"
+      ext => ext.url === "http://example.org/fhir/StructureDefinition/ownerId"
     )?.valueString;
-
-    const syncWithCalendar = fhirData.extension?.find(
-      (ext) => ext.url === "http://example.org/fhir/StructureDefinition/syncWithCalendar"
-    )?.valueBoolean || false;
-
+  
+    const syncWithCalendar = !!fhirData.extension?.find(
+      ext => ext.url === "http://example.org/fhir/StructureDefinition/syncWithCalendar"
+    )?.valueBoolean;
+  
     const taskDateTime = new Date(fhirData.effectiveDateTime);
     if (isNaN(taskDateTime)) throw new Error("Invalid effectiveDateTime");
-
+  
     const taskDate = taskDateTime.toISOString().split("T")[0];
     const taskTime = taskDateTime.toISOString().split("T")[1]?.slice(0, 5);
-
+  
     const repeatTask = fhirData.component?.find(c =>
       c.code?.coding?.some(code => code.code === "repeat")
     )?.valueString || "none";
-
+  
     const taskReminder = fhirData.component?.find(c =>
       c.code?.coding?.some(code => code.code === "reminder")
     )?.valueString || "none";
-
-    const taskDetails = (fhirData.component || []).filter(comp => {
-      const code = comp.code?.coding?.[0]?.code;
-      return code !== "repeat" && code !== "reminder";
-    }).map(comp => ({
-      name: comp.code?.text || comp.code?.coding?.[0]?.display || "Unnamed Component",
-      value: comp.valueString ?? comp.valueQuantity?.value ?? null,
-      unit: comp.valueQuantity?.unit || null,
-      code: comp.code?.coding?.[0]?.code || null
-    }));
-
+  
+    const taskDetails = (fhirData.component || [])
+      .filter(comp => {
+        const code = comp.code?.coding?.[0]?.code;
+        return code !== "repeat" && code !== "reminder";
+      })
+      .map(comp => ({
+        name: comp.code?.text || comp.code?.coding?.[0]?.display || "Unnamed Component",
+        value: comp.valueString ?? comp.valueQuantity?.value ?? null,
+        unit: comp.valueQuantity?.unit || null,
+        code: comp.code?.coding?.[0]?.code || null
+      }))
+      .filter(detail => detail.value !== null); // remove null-only entries
+  
+    // Construct safe update object
+    const updateData = {
+      petId: mongoose.Types.ObjectId.isValid(petId) ? petId : undefined,
+      ownerId: ownerId || undefined,
+      taskName: fhirData.code?.text?.trim() || "Pet Observation",
+      taskDate,
+      taskTime,
+      repeatTask,
+      taskReminder,
+      taskDetails,
+      syncWithCalendar
+    };
+  
+    // Clean undefined fields before update
+    Object.keys(updateData).forEach(
+      key => updateData[key] === undefined && delete updateData[key]
+    );
+  
     const updated = await sharedRecord.findOneAndUpdate(
       { _id: taskId },
-      {
-        petId,
-        ownerId,
-        taskName: fhirData.code?.text || "Pet Observation",
-        taskDate,
-        taskTime,
-        repeatTask,
-        taskReminder,
-        taskDetails,
-        syncWithCalendar,
-      },
+      updateData,
       { new: true }
     );
-
+  
     if (!updated) return null;
-
-    // Convert updated record to FHIR
+  
+    // Convert updated record to FHIR Observation
     return {
       resourceType: "Observation",
       status: "final",
@@ -308,6 +322,9 @@ class PetDutiesService {
       ]
     };
   }
+  
+ 
+
     static async deletePetDuties(taskId) {
         const PetDutyToDelete = await PetDutiesService.getPetDutiesById(taskId);
         if (!PetDutyToDelete) {
