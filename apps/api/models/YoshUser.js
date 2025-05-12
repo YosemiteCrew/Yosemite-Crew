@@ -40,6 +40,10 @@ const userSchema = new mongoose.Schema({
     isProfessional: {
         type: String,
     },
+    isConfirmed: {
+        type: Boolean,
+        default: false,
+    },
     professionType: {
         type: Array,
     },

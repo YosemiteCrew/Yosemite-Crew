@@ -153,7 +153,7 @@ const authController = {
           SECRET_HASH: secretHash,
         },
       };
-  
+      
       const authData = await cognito.initiateAuth(authParams).promise();
       const accessToken = authData.AuthenticationResult.AccessToken;
       const decodedToken = jwt.decode(accessToken);
@@ -162,7 +162,10 @@ const authController = {
       const userData = result.toObject();
       userData.token = accessTokenRes;
       delete userData.password;
-  
+      await user.updateOne(
+        { _id: result._id },
+        { $set: { isConfirmed: true } }
+      );
       // Step 6: Respond with success
       res.status(200).json({
         status: 1,
@@ -189,6 +192,17 @@ const authController = {
       if (!result) {
         return res.status(200).json({status:0, message: "User not found" });
       }
+      const paramsexists = {
+        UserPoolId: process.env.COGNITO_USER_POOL_ID,
+        Username: email,
+      };
+
+      const userData = await cognito.adminGetUser(paramsexists).promise();
+      if(!userData){
+        return res.status(200).json({status:0, message: "User not found on cognito" });
+      }
+
+     
       const otp = Math.floor(100000 + Math.random() * 900000); // 6-digit OTP
       const otpExpiry = Date.now() + 5 * 60 * 1000; // OTP expires in 5 minutes
       await user.updateOne(
@@ -214,7 +228,7 @@ const authController = {
       //console.error("Login error:", error);
       res
         .status(500)
-        .json({ status: 0,message: "Error during login", error: error.message });
+        .json({ status: 0,message: "Error during Sending OTP", error: error.message });
     }
   },
   // Delete user from cognito and database
