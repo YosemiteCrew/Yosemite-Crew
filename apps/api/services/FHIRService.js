@@ -3,23 +3,20 @@ class FHIRService {
     const vet = vetMap[app.veterinarian] || {};
     const pet = petMap[app.petId] || {};
     const hospital = hospitalMap[app.hospitalId] || {};
-    let startDateTime = null;
-        if (app.appointmentDate) {
-          const time = app.appointmentTime24 || '00:00';
-          const dateTimeString = `${app.appointmentDate}T${time}:00`;
-          const date = new Date(dateTimeString);
-          if (!isNaN(date)) {
-            startDateTime = date.toISOString();
-          } else {
-            console.warn("Invalid date string:", dateTimeString);
-          }
-        }
+
+  
     return {
       resourceType: "Appointment",
       id: app._id.toString(),
       status: app.appointmentStatus,
-      start: startDateTime,
+      start: app.appointmentDate,
       reasonCode: [{ text: "Veterinary Consultation" }],
+      extension: [
+        {
+          url: "http://example.org/fhir/StructureDefinition/appointment-time-slot",
+          valueString: app.appointmentTime
+        }
+      ],
       participant: [
         {
           actor: {
@@ -80,6 +77,7 @@ class FHIRService {
       ]
     };
   }
+  
   
   }
   
