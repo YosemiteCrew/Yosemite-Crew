@@ -2,7 +2,7 @@
 const BusinessService = require('../services/BusinessService');
 const FhirFormatter = require('../utils/BusinessFhirFormatter');
 const DoctorService = require("../services/DoctorService");
-
+const validator = require('validator');
 const mongoose = require('mongoose');
 
 class ListController {
@@ -25,7 +25,7 @@ class ListController {
   
      async handleGetDoctorsTeam(req, res) {
         try {
-          const { businessId } = req.params;
+          const { businessId } = req.query;
     
           const fhirDoctors = await DoctorService.getDoctorsWithAppointments(businessId);
     
@@ -45,15 +45,31 @@ class ListController {
 
       async handleGetLists(req, res) {
         try {
-          const { BusinessType, offset = 0, limit = 10 } = req.query;
+          let { Type, offset = 0, limit = 10 } = req.query;
+      
+          // Sanitize and validate query parameters
+          Type = typeof Type === 'string' ? validator.escape(Type.trim()) : '';
+          offset = validator.isInt(offset.toString(), { min: 0 }) ? parseInt(offset) : 0;
+          limit = validator.isInt(limit.toString(), { min: 1, max: 100 }) ? parseInt(limit) : 10;
+      
+          let BusinessType = '';
+          if (Type === 'breedingFacility') {
+            BusinessType = 'Breeding Facility';
+          } else if (Type === 'petSitter') {
+            BusinessType = 'Pet Sitter';
+          } else if (Type === 'groomerShop') {
+            BusinessType = 'Groomer Shop';
+          } else {
+            BusinessType = Type;
+          }
       
           const allowedTypes = ['Hospital', 'Clinic', 'Breeding Facility', 'Pet Sitter', 'Groomer Shop', 'all'];
           if (BusinessType && !allowedTypes.includes(BusinessType)) {
             return res.status(200).json({ status: 0, message: "Invalid Business Type" });
           }
       
-          const Businessdata = await BusinessService.getBusinessList(BusinessType, parseInt(offset), parseInt(limit));
-          
+          const Businessdata = await BusinessService.getBusinessList(BusinessType, offset, limit);
+      
           const fhirGroupedBundles = {};
       
           for (const key in Businessdata) {
@@ -64,13 +80,10 @@ class ListController {
               const fhirOrg = FhirFormatter.toFhirOrganization(org);
               const fhirDepts = FhirFormatter.toFhirHealthcareServices(org);
       
-              // Nest departments inside organization under custom field
               fhirOrg.healthcareServices = fhirDepts;
-      
               nestedResources.push(fhirOrg);
             }
       
-            // Wrap as Bundle
             fhirGroupedBundles[key] = {
               resourceType: "Bundle",
               type: "collection",
@@ -89,6 +102,7 @@ class ListController {
           res.status(500).json({ status: 0, error: err.message });
         }
       }
+      
 
 }  
  module.exports = new ListController();

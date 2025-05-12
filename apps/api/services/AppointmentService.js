@@ -63,7 +63,6 @@ static async fetchAppointments(req) {
     const limit = parseInt(req.query.limit) || 10;
     const offset = parseInt(req.query.offset) || 0;
     
-
     const totalCount = await webAppointments.countDocuments({ userId: cognitoUserId });
      
     const rawAppointments = await webAppointments
@@ -77,59 +76,38 @@ static async fetchAppointments(req) {
 
     rawAppointments.forEach(app => {
       const datePart = new Date(app.appointmentDate);
-      datePart.setHours(0, 0, 0, 0); // normalize date for comparison
-      const timePart = app.appointmentTime24 || '00:00'; // format: HH:mm
+      datePart.setHours(0, 0, 0, 0);
+      const timePart = app.appointmentTime24 || '00:00';
       const [hours, minutes] = timePart.split(':').map(Number);
     
       const fullAppointmentDateTime = new Date(app.appointmentDate);
       fullAppointmentDateTime.setHours(hours, minutes, 0, 0);
     
-      // Categorize appointments
       if (app.appointmentStatus === 'pending') {
         if (datePart >= today || (datePart.getTime() === today.getTime() && fullAppointmentDateTime >= now)) {
-          pending.push(app); // Only add to pending if it's not in the past
+          pending.push(app);
         }
       } else if (app.appointmentStatus === 'cancelled') {
-        canceled.push(app); // Add to canceled
+        canceled.push(app);
       }
     
       if (datePart < today) {
-        past.push(app); // Strictly before today
+        past.push(app);
       } else if (datePart.getTime() === today.getTime()) {
         if (fullAppointmentDateTime < now) {
-          past.push(app); // Today but already passed time
+          past.push(app);
         } else if (app.appointmentStatus === 'booked') {
-          upcoming.push(app); // Today and future time
+          upcoming.push(app);
         }
       } else if (datePart > today && app.appointmentStatus === 'booked') {
-        upcoming.push(app); // Future date
+        upcoming.push(app);
       }
     
-      // Collect referenced IDs
       if (app.veterinarian) vetIds.add(app.veterinarian);
       if (app.petId) petIds.add(app.petId);
       if (app.hospitalId) hospitalIds.add(app.hospitalId);
     });
     
-
-    // Determine filtered appointments
-    let filteredAppointments;
-    switch (filter) {
-      case 'upcoming':
-        filteredAppointments = upcoming;
-        break;
-      case 'pending':
-        filteredAppointments = pending;
-        break;
-      case 'past':
-        filteredAppointments = past;
-        break;
-      case 'cancel':
-        filteredAppointments = canceled;
-        break;
-      default:
-        filteredAppointments = rawAppointments;
-    }
     const toObjectIdSafe = (id) => {
       try {
         return new mongoose.Types.ObjectId(id);
@@ -200,7 +178,36 @@ static async fetchAppointments(req) {
 
     const toFHIR = (app) => FHIRService.convertAppointmentToFHIR(app, vetMap, petMap, hospitalMap);
 
-    // Return only filtered appointments
+    if (filter === 'all') {
+      return {
+        total: totalCount,
+        limit,
+        offset,
+        upcoming: upcoming.map(toFHIR),
+        pending: pending.map(toFHIR),
+        past: past.map(toFHIR),
+        cancel: canceled.map(toFHIR)
+      };
+    }
+
+    let filteredAppointments;
+    switch (filter) {
+      case 'upcoming':
+        filteredAppointments = upcoming;
+        break;
+      case 'pending':
+        filteredAppointments = pending;
+        break;
+      case 'past':
+        filteredAppointments = past;
+        break;
+      case 'cancel':
+        filteredAppointments = canceled;
+        break;
+      default:
+        filteredAppointments = rawAppointments;
+    }
+
     return {
       total: totalCount,
       limit,

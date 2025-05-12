@@ -2,15 +2,15 @@ const mongoose = require('mongoose');
 const sharedSchema = new mongoose.Schema({
 
     petId: {
-        type: Number,  
+        type: String,  
         required: true,
     },
     userId: {
-        type: Number, 
+        type: String, 
         required: true,
     },
     ownerId: {
-        type: Number, 
+        type: String, 
         required: true,
     },
     taskName: {
@@ -28,6 +28,10 @@ const sharedSchema = new mongoose.Schema({
     taskReminder: {
         type: String,
     },
+    syncWithCalendar: {
+        type: Boolean,
+        default: false
+     },
 }, { timestamps: true});
 
 const sharedRecord = mongoose.model('YoshSharedPetDuties',sharedSchema);
@@ -41,6 +45,9 @@ const petCoOwnerSchema = new mongoose.Schema({
         type: String,
     },
     relationToPetOwner:{
+        type: String,
+    },
+    createdBy: {
         type: String,
     },
     profileImage:[
