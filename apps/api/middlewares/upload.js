@@ -70,7 +70,23 @@ async function handleMultipleFileUpload(files,folderName="Images") {
     return Promise.all(uploadPromises);
 }
 
+async function deleteFromS3(s3Key) {
+
+    const deleteParams = {
+        Bucket: process.env.AWS_S3_BUCKET_NAME,
+        Key: s3Key,
+      };
+      try {
+        const headObject = await s3.headObject(deleteParams).promise();
+        // console.log('S3 File Found:', headObject);
+      } catch (headErr) {
+        console.error("S3 File Not Found:", headErr);
+        return res.status(404).json({ message: "File not found in S3" });
+      }
+}
+
 module.exports = {
     handleFileUpload,
-    handleMultipleFileUpload
+    handleMultipleFileUpload,
+    deleteFromS3
 };

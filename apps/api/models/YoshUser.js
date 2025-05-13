@@ -40,15 +40,23 @@ const userSchema = new mongoose.Schema({
     isProfessional: {
         type: String,
     },
+    isConfirmed: {
+        type: Boolean,
+        default: false,
+    },
     professionType: {
         type: Array,
     },
     pimsCode: {
         type: String,
     },
-    profileImage:{
-        type: String,
-    }
+    profileImage:[
+        {
+            url: { type: String },
+            originalname: { type: String },
+            mimetype: { type: String }
+        }
+    ],
 
 }, { timestamps: true});
 

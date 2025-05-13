@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../context/useAuth";
@@ -14,9 +14,14 @@ const AssessmentsTable = ({
   const { userId } = useAuth();
   const itemsPerPage = 6; // Should match the backend limit
   const [offset, setOffset] = useState(0); // Tracks the current offset
-  const [visibleCount, setVisibleCount] = useState(itemsPerPage);
+
+  const [visibleCount, setVisibleCount] = useState(0);
 
 
+
+  useEffect(() => {
+    setVisibleCount(Math.min(offset + itemsPerPage, total));
+  }, [offset, total]);
 
   const handleNext = () => {
     const newOffset = offset + itemsPerPage;

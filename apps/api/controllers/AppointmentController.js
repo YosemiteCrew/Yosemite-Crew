@@ -52,10 +52,22 @@ class AppointmentController {
         req.files?.files ? PetService.uploadFiles(req.files.files) : [],
         AppointmentService.getPetAndOwner(petId, userId),
       ]);
+
+      const hospitalName =  await AppointmentService.getHospitalName(hospitalId);
+      const initials = hospitalName.businessName
+      ? hospitalName.businessName.split(' ')
+          .map((word) => word[0])
+          .join('')
+      : 'XX';
+
+      let Appointmenttoken = await AppointmentService.updateToken(hospitalId, appointmentDate);
+
+      const tokenNumber = `${initials}00${Appointmenttoken.tokenCounts}-${appointmentDate}`;
   
       const appointmentData = {
         userId,
         hospitalId,
+        tokenNumber,
         department,
         veterinarian: doctorId,
         petId,
@@ -75,7 +87,9 @@ class AppointmentController {
         appointmentSource: "App",
         document: documentFiles,
       };
-  
+
+     
+      
       const fhirAppointment = await AppointmentService.bookAppointment(appointmentData);
   
       if (fhirAppointment) {
@@ -112,7 +126,7 @@ class AppointmentController {
 
   static async handleCancelAppointment(req, res) {
     try {
-      const appointmentId = req.params.appointmentID;
+      const appointmentId = req.query.appointmentID;
      // Validate MongoDB ObjectId
       if (!Types.ObjectId.isValid(appointmentId)) {
         return res.status(200).json({ status: 0, message: "Invalid Appointment ID format" });
@@ -135,7 +149,7 @@ class AppointmentController {
    
     try {
       const fhirdata =req.body?.data;
-      const appointmentId = req.params.appointmentID;
+      const appointmentId = req.query.appointmentID;
         // Validate MongoDB ObjectId
       if (!Types.ObjectId.isValid(appointmentId)) {
           return res.status(400).json({ message: "Invalid Appointment ID format" });

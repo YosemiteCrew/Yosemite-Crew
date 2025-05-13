@@ -27,7 +27,7 @@ import {
   IoIosArrowDropleft,
   IoIosArrowDropright,
 } from "react-icons/io";
-import { Button, Col, Form, Nav, Row, Tab } from "react-bootstrap";
+import { Button, Col, Container, Form, Nav, Row, Tab } from "react-bootstrap";
 
 const libraries = ["places"];
 
@@ -99,13 +99,17 @@ const SignUpDetails = () => {
     setImage(file);
   };
 
+
+
+
   const servicesList = [
-    { code: "E001", display: "24/7 Emergency Care" },
-    { code: "S001", display: "Surgery and Operating Rooms" },
-    { code: "V001", display: "Veterinary ICU" },
-    { code: "D001", display: "Dental Care Services" },
-    { code: "B001", display: "Behavioral Therapy" },
+    { code: "E001", display: "Internal Medicine" },
+    { code: "S001", display: "24/7 Emergency Care" },
+    { code: "V001", display: "Surgery and Operating Rooms" },
+    { code: "D001", display: "Parasitology" },
+    { code: "B001", display: "Dental Clinic" },
   ];
+  
   const [selectedServices, setSelectedServices] = useState([]);
   console.log("selectedServices", selectedServices);
 
@@ -496,6 +500,13 @@ const SignUpDetails = () => {
     }
   };
 
+  // Hosting Preference
+  const [selectedOption, setSelectedOption] = useState(null);
+  const handleSelect = (option) => {
+    setSelectedOption(option);
+  };
+  // Hosting Preference
+
   const safeSrc = isSafeImageSrc(preImage)
     ? DOMPurify.sanitize(preImage)
     : isSafeImageSrc(image)
@@ -503,9 +514,9 @@ const SignUpDetails = () => {
       : "";
   return (
     <section className="SignDetailsSec">
-      <div className="container">
-        <div className="mb-3">
-          <HeadText Spntext="Set up" blktext="your profile " />
+      <Container>
+        <div className="mb-3 SignProfHead">
+          <h3><span>Set up</span> your profile</h3>
         </div>
 
         <div className="SignDetlsTabDiv">
@@ -528,6 +539,11 @@ const SignUpDetails = () => {
                       <span>3</span> Add Services
                     </Nav.Link>
                   </Nav.Item>
+                  <Nav.Item>
+                    <Nav.Link eventKey="hosting">
+                      <span>3</span> Hosting Preference
+                    </Nav.Link>
+                  </Nav.Item>
                 </Nav>
               </div>
               <div></div>
@@ -539,36 +555,35 @@ const SignUpDetails = () => {
                   {/* Basic Information */}
                   <Tab.Pane eventKey="basic">
                     <Form className="BasicForm">
-                      <div className="ss">
-                        <div className="add-logo-container">
-                          <input
-                            type="file"
-                            id="logo-upload"
-                            accept="image/*"
-                            onChange={handleImageChange}
-                            style={{ display: "none" }}
-                          />
-                          <label htmlFor="logo-upload" className="upload-label">
-                            {safeSrc ? (
+                     
+                      <div className="add-logo-container">
+                        <input
+                          type="file"
+                          id="logo-upload"
+                          accept="image/*"
+                          onChange={handleImageChange}
+                          style={{ display: "none" }}
+                        />
+                        <label htmlFor="logo-upload" className="upload-label">
+                          {safeSrc ? (
+                            <img
+                              src={safeSrc}
+                              alt="Preview"
+                              className="preview-image"
+                            />
+                          ) : (
+                            <div className="upload-placeholder">
                               <img
-                                src={safeSrc}
-                                alt="Preview"
-                                className="preview-image"
+                                src={`${import.meta.env.VITE_BASE_IMAGE_URL}/camera.png`}
+                                alt="camera"
+                                className="icon"
                               />
-                            ) : (
-                              <div className="upload-placeholder">
-                                <img
-                                  src={`${import.meta.env.VITE_BASE_IMAGE_URL}/camera.png`}
-                                  alt="camera"
-                                  className="icon"
-                                />
-                              </div>
-                            )}
-                          </label>
-                          <h5>Add Logo</h5>
-                        </div>
+                            </div>
+                          )}
+                        </label>
+                        <h5>Add Logo</h5>
                       </div>
-
+                  
                       <Row>
                         <Col md={12}>
                           <Forminput
@@ -637,40 +652,39 @@ const SignUpDetails = () => {
                   {/* address Information */}
                   <Tab.Pane eventKey="address">
                     <Form className="AddressForm">
+                    
                       <LoadScript
-                        googleMapsApiKey={
-                          import.meta.env.VITE_BASE_GOOGLE_MAPS_API_KEY
-                        }
-                        libraries={libraries}
-                      >
-                        <div>
+                        googleMapsApiKey={ import.meta.env.VITE_BASE_GOOGLE_MAPS_API_KEY}  libraries={libraries} >
+                        <div className="DetailInput">
+
                           <h6>Address</h6>
 
-                          {/* Google Places Autocomplete using Forminput */}
-                          <Autocomplete
-                            fields={[
-                              "geometry",
-                              "place_id",
-                              "formatted_address",
-                              "address_components",
-                            ]}
-                            onLoad={(ref) => (autoCompleteRef.current = ref)}
-                            onPlaceChanged={handlePlaceSelect}
-                          >
-                            <Forminput
-                              inlabel="Address Line 1"
-                              intype="text"
-                              inname="addressLine1"
-                              value={formData.addressLine1}
-                              onChange={(e) => {
-                                handleInputChange(e); // Allow manual input
-                              }}
-                              className="form-control"
-                            />
-                          </Autocomplete>
+                          <Row>
 
-                          <div className="row">
-                            <div className="col-md-6">
+                            <Col md={12} className="mt-3 addrscol">
+                              {/* Google Places Autocomplete using Forminput */}
+                              <Autocomplete  fields={[
+                                  "geometry",
+                                  "place_id",
+                                  "formatted_address",
+                                  "address_components",
+                                ]}
+                                onLoad={(ref) => (autoCompleteRef.current = ref)}
+                                onPlaceChanged={handlePlaceSelect} >
+                                <Forminput
+                                  inlabel="Address Line 1"
+                                  intype="text"
+                                  inname="addressLine1"
+                                  value={formData.addressLine1}
+                                  onChange={(e) => {
+                                    handleInputChange(e); // Allow manual input
+                                  }}
+                                  className="form-control"
+                                />
+                              </Autocomplete>
+                            </Col>
+
+                            <Col md={6} className="mt-3 ">
                               <Forminput
                                 inlabel="Street"
                                 intype="text"
@@ -678,8 +692,8 @@ const SignUpDetails = () => {
                                 value={formData.street}
                                 onChange={handleInputChange}
                               />
-                            </div>
-                            <div className="col-md-6">
+                            </Col>
+                            <Col md={6} className="mt-3 ">
                               <Forminput
                                 inlabel="City"
                                 intype="text"
@@ -687,11 +701,9 @@ const SignUpDetails = () => {
                                 value={formData.city}
                                 onChange={handleInputChange}
                               />
-                            </div>
-                          </div>
+                            </Col>
 
-                          <div className="row">
-                            <div className="col-md-6">
+                            <Col md={6} className="mt-3 ">
                               <Forminput
                                 inlabel="State"
                                 intype="text"
@@ -699,8 +711,8 @@ const SignUpDetails = () => {
                                 value={formData.state}
                                 onChange={handleInputChange}
                               />
-                            </div>
-                            <div className="col-md-6">
+                            </Col>
+                            <Col md={6} className="mt-3 ">
                               <Forminput
                                 inlabel="ZIP Code"
                                 intype="number"
@@ -708,11 +720,16 @@ const SignUpDetails = () => {
                                 value={formData.zipCode}
                                 onChange={handleInputChange}
                               />
-                            </div>
-                          </div>
+                            </Col>
+
+
+
+
+                          </Row>
+
                         </div>
                       </LoadScript>
-
+                      
                       <div className="ProfBtn">
                         <Button className="Hov" onClick={() => setKey("basic")}>
                           <IoIosArrowDropleft /> Back
@@ -727,178 +744,285 @@ const SignUpDetails = () => {
                   {/* services Information */}
                   <Tab.Pane eventKey="services">
                     <Form className="ServicesForm">
-                      <div className="sddsd">
-                        <h6>
-                          Does your business have specialized departments?
-                        </h6>
-                        <div className="ConstModeUl">
-                          <ul>
-                            <li
-                              className={activeModes === "yes" ? "active" : ""}
-                              onClick={() => handleModeClick("yes")}
-                            >
-                              Yes
-                            </li>
-                            <li
-                              className={activeModes === "no" ? "active" : ""}
-                              onClick={() => handleModeClick("no")}
-                            >
-                              No
-                            </li>
-                          </ul>
-                        </div>
-                      </div>
 
-                      <div className="services_dropdown">
-                        <div
-                          className={`ServHeadr ${isDropdownOpen ? "open" : ""}`}
-                          onClick={toggleDropdown}
-                        >
-                          <span>Add Services</span>
-                          <span className="arrow">
-                            {isDropdownOpen ? "▲" : "▼"}
-                          </span>
-                        </div>
-                        {isDropdownOpen && (
-                          <div className="ServDropcontent">
-                            <div className="serchbtn">
-                              <i className="ri-search-line"></i>
-                              <input
-                                type="text"
-                                className="search-input"
-                                placeholder="Search"
-                                value={searchTerm}
-                                onChange={handleSearch}
-                              />
+
+                      <div className="ServicesTabInner">
+
+                        <div className="services_dropdown">
+                          <div
+                            className={`ServHeadr ${isDropdownOpen ? "open" : ""}`}
+                            onClick={toggleDropdown}
+                          >
+                            <span>Add Services</span>
+                            <span className="arrow">
+                              {isDropdownOpen ? "▲" : "▼"}
+                            </span>
+                          </div>
+                          {isDropdownOpen && (
+                            <div className="ServDropcontent">
+                              <div className="serchbtn">
+                                <i className="ri-search-line"></i>
+                                <input
+                                  type="text"
+                                  className="search-input"
+                                  placeholder="Search"
+                                  value={searchTerm}
+                                  onChange={handleSearch}
+                                />
+                              </div>
+                              <ul className="services-list">
+                                {filteredServices.map((service) => (
+                                  <li
+                                    key={service.code}
+                                    className={`service-item ${
+                                      selectedServices.includes(service.code)
+                                        ? "selected"
+                                        : ""
+                                    }`}
+                                  >
+                                    <label>
+                                      <input
+                                        type="checkbox"
+                                        className="form-check-input"
+                                        checked={selectedServices.some(
+                                          (s) => s.code === service.code
+                                        )}
+                                        onChange={() =>
+                                          handleSelectService(service)
+                                        }
+                                      />
+                                      <p>{service.display}</p>
+                                    </label>
+                                  </li>
+                                ))}
+                              </ul>
                             </div>
-                            <ul className="services-list">
-                              {filteredServices.map((service) => (
-                                <li
-                                  key={service.code}
-                                  className={`service-item ${
-                                    selectedServices.includes(service.code)
-                                      ? "selected"
-                                      : ""
-                                  }`}
-                                >
-                                  <label>
-                                    <input
-                                      type="checkbox"
-                                      className="form-check-input"
-                                      checked={selectedServices.some(
-                                        (s) => s.code === service.code
-                                      )}
-                                      onChange={() =>
-                                        handleSelectService(service)
-                                      }
-                                    />
-                                    <p>{service.display}</p>
-                                  </label>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
-
-                      <UplodeImage
-                        selectedFile={selectedFile}
-                        onFileChange={handleFileChange}
-                      />
-
-                      <div className="DoctProfpdf">
-                        <h5>Uploaded Documents</h5>
-                        <div className="PdfUpldpf">
-                          <div className="uploaded_files">
-                            {uploadedfiles.map((file, index) => {
-                              // Handle files properly (old API files have type as string, new ones are File objects)
-                              let fileType =
-                                file.type ||
-                                (file.name.includes(".")
-                                  ? `.${file.name.split(".").pop()}`
-                                  : "");
-
-                              return (
-                                <div key={index} className="file-item">
-                                  {/* Ensure fileType exists before calling startsWith */}
-                                  {fileType.startsWith("image/") ? (
-                                    <AiFillFileImage />
-                                  ) : fileType === "application/pdf" ? (
-                                    <BsFileDiffFill />
-                                  ) : (
-                                    <FaFileWord /> // Icon for DOC/DOCX files
-                                  )}
-
-                                  <div className="pdfnme">
-                                    <span>
-                                      {file.name.length > 15
-                                        ? `${file.name.substring(0, 12)}...`
-                                        : file.name}
-                                    </span>
-                                    <span className="file-date">
-                                      {file.date ||
-                                        new Date().toLocaleDateString()}
-                                    </span>
-                                  </div>
-
-                                  <Button onClick={() => removeFile(file)}>
-                                    <RxCrossCircled />
-                                  </Button>
-                                </div>
-                              );
-                            })}
-                          </div>
-
-                          <div className="pdfUpldeButton">
-                            <label htmlFor="file-upload" className="upload-btn">
-                              <IoIosAddCircle /> Upload
-                            </label>
-                            <input
-                              type="file"
-                              id="file-upload"
-                              accept=".pdf,.doc,.docx,image/*" // Allow PDF, DOC, DOCX, and images
-                              multiple
-                              onChange={handleFileChange}
-                              style={{ display: "none" }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {selectedFile && (
-                        <div>
-                          {typeof selectedFile === "object" &&
-                          selectedFile instanceof Blob ? (
-                            <>
-                              <h3>Selected File:</h3>
-                              <p>File Name: {selectedFile.name}</p>
-                              <p>File Type: {selectedFile.type}</p>
-                              <p>File Size: {selectedFile.size} bytes</p>
-                            </>
-                          ) : (
-                            <p></p>
                           )}
                         </div>
-                      )}
 
+                        <div className="DepartDiv">
+                          <p> Does your business have specialized departments?</p>
+                          <div className="ConstModeUl">
+                            <ul>
+                              <li
+                                className={activeModes === "yes" ? "active" : ""}
+                                onClick={() => handleModeClick("yes")}
+                              >
+                                Yes
+                              </li>
+                              <li
+                                className={activeModes === "no" ? "active" : ""}
+                                onClick={() => handleModeClick("no")}
+                              >
+                                No
+                              </li>
+                            </ul>
+                          </div>
+                        </div>
+
+                        <div className="services_dropdown">
+                          <div
+                            className={`ServHeadr ${isDropdownOpen ? "open" : ""}`}
+                            onClick={toggleDropdown}
+                          >
+                            <span>Add Specialities</span>
+                            <span className="arrow">
+                              {isDropdownOpen ? "▲" : "▼"}
+                            </span>
+                          </div>
+                          {isDropdownOpen && (
+                            <div className="ServDropcontent">
+                              <div className="serchbtn">
+                                <i className="ri-search-line"></i>
+                                <input
+                                  type="text"
+                                  className="search-input"
+                                  placeholder="Search"
+                                  value={searchTerm}
+                                  onChange={handleSearch}
+                                />
+                              </div>
+                              <ul className="services-list">
+                                {filteredServices.map((service) => (
+                                  <li
+                                    key={service.code}
+                                    className={`service-item ${
+                                      selectedServices.includes(service.code)
+                                        ? "selected"
+                                        : ""
+                                    }`}
+                                  >
+                                    <label>
+                                      <input
+                                        type="checkbox"
+                                        className="form-check-input"
+                                        checked={selectedServices.some(
+                                          (s) => s.code === service.code
+                                        )}
+                                        onChange={() =>
+                                          handleSelectService(service)
+                                        }
+                                      />
+                                      <p>{service.display}</p>
+                                    </label>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+
+                        <UplodeImage
+                          selectedFile={selectedFile}
+                          onFileChange={handleFileChange}
+                        />
+
+                        <div className="DoctProfpdf">
+                          <h5>Uploaded Documents</h5>
+                          <div className="PdfUpldpf">
+                            <div className="uploaded_files">
+                              {uploadedfiles.map((file, index) => {
+                                // Handle files properly (old API files have type as string, new ones are File objects)
+                                let fileType =
+                                  file.type ||
+                                  (file.name.includes(".")
+                                    ? `.${file.name.split(".").pop()}`
+                                    : "");
+
+                                return (
+                                  <div key={index} className="file-item">
+                                    {/* Ensure fileType exists before calling startsWith */}
+                                    {fileType.startsWith("image/") ? (
+                                      <AiFillFileImage />
+                                    ) : fileType === "application/pdf" ? (
+                                      <BsFileDiffFill />
+                                    ) : (
+                                      <FaFileWord /> // Icon for DOC/DOCX files
+                                    )}
+
+                                    <div className="pdfnme">
+                                      <span>
+                                        {file.name.length > 15
+                                          ? `${file.name.substring(0, 12)}...`
+                                          : file.name}
+                                      </span>
+                                      <span className="file-date">
+                                        {file.date ||
+                                          new Date().toLocaleDateString()}
+                                      </span>
+                                    </div>
+
+                                    <Button onClick={() => removeFile(file)}>
+                                      <RxCrossCircled />
+                                    </Button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            <div className="pdfUpldeButton">
+                              <label htmlFor="file-upload" className="upload-btn">
+                                <IoIosAddCircle /> Upload
+                              </label>
+                              <input
+                                type="file"
+                                id="file-upload"
+                                accept=".pdf,.doc,.docx,image/*" // Allow PDF, DOC, DOCX, and images
+                                multiple
+                                onChange={handleFileChange}
+                                style={{ display: "none" }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {selectedFile && (
+                          <div>
+                            {typeof selectedFile === "object" &&
+                            selectedFile instanceof Blob ? (
+                              <>
+                                <h3>Selected File:</h3>
+                                <p>File Name: {selectedFile.name}</p>
+                                <p>File Type: {selectedFile.type}</p>
+                                <p>File Size: {selectedFile.size} bytes</p>
+                              </>
+                            ) : (
+                              <p></p>
+                            )}
+                          </div>
+                        )}
+
+                      </div>
                       <div className="ProfBtn">
-                        <Button
-                          variant="secondary"
-                          onClick={() => setKey("address")}
-                        >
+                        <Button className="Hov" onClick={() => setKey("address")}>
                           <IoIosArrowDropleft /> Back
                         </Button>
-                        <MainBtn
-                          bimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/whtcheck.png`}
-                          // btext="submit"
-                          optclas=""
-                          // mdtarget="#ProfModal"
-                          btntyp="submit"
-                          onClick={handleSubmit}
-                        />
+                        <Button onClick={() => setKey("hosting")}>
+                          Next <IoIosArrowDropright />
+                        </Button>
                       </div>
+ 
                     </Form>
                   </Tab.Pane>
+
+
+                  {/* hosting Perference */}
+                  <Tab.Pane eventKey="hosting">
+
+                    <div className="Profile-content">
+                      <div className="modltoptext">
+                        <h3>Select your hosting preference</h3>
+                        {/* <p>Choose your hosting preference to get started.</p> */}
+                      </div>
+
+                      <div className="hosting-options">
+                        <div
+                          className={`option-card ${
+                            selectedOption === "cloud" ? "active" : ""
+                          }`}
+                          onClick={() => handleSelect("cloud")}
+                        >
+                          <img
+                            src={`${import.meta.env.VITE_BASE_IMAGE_URL}/host1.png`}
+                            alt="Cloud Hosting"
+                          />
+                          <h5>Cloud Hosting</h5>
+                          <p>
+                            Enjoy secure, hassle-free hosting on our cloud with
+                            automatic updates, backups, and 24/7 support.
+                          </p>
+                        </div>
+
+                        <div
+                          className={`option-card ${
+                            selectedOption === "self" ? "active" : ""
+                          }`}
+                          onClick={() => handleSelect("self")}
+                        >
+                          <img
+                            src={`${import.meta.env.VITE_BASE_IMAGE_URL}/host2.png`}
+                            alt="Self Hosting"
+                          />
+                          <h5>Self-Hosting</h5>
+                          <p>
+                            Host on your own infrastructure for complete control and
+                            customization. We&apos;ll provide setup support.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="ProfBtn">
+                        <Button className="Hov" onClick={() => setKey("services")}>
+                          <IoIosArrowDropleft /> Back
+                        </Button>
+                        <Button onClick={handleSubmit}> Continue </Button>
+                        
+                      </div>
+
+                    </div>
+
+                  </Tab.Pane>
+
                 </Tab.Content>
               </div>
 
@@ -908,7 +1032,7 @@ const SignUpDetails = () => {
             </div>
           </Tab.Container>
         </div>
-      </div>
+      </Container>
     </section>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import "./CheckIn.css";
 import Modal from "react-bootstrap/Modal";
 import Swal from "sweetalert2";
@@ -33,6 +33,7 @@ import axios from "axios";
 import { useAuth } from "../../context/useAuth";
 import { Link, useNavigate } from "react-router-dom";
 import { getData } from "../../services/apiService";
+import { FhirToNormal } from "../../utils/BookApointment";
 
 function CheckInModal(props) {
   const { userId, profileData, onLogout } = useAuth();
@@ -64,6 +65,13 @@ function CheckInModal(props) {
     timeSlots: [],
   });
 
+  const [AvailableSlots, setAvailableSlots] = useState([]);
+  const [department, setDepartment] = useState([]);
+  const [validationErrors, setValidationErrors] = useState({});
+  const [veterinarian, setVeterinarian] = useState(null);
+  const [options, setOptions] = useState([]);
+  const [options2, setOptions2] = useState([]);
+  const [options3, setOptions3] = useState([]);
   useEffect(() => {
     setAllData((prev) => ({
       ...prev,
@@ -71,8 +79,6 @@ function CheckInModal(props) {
       HospitalName: profileData?.businessName,
     }));
   }, [userId, profileData]); // Include profileData to ensure re-run when it changes
-
-  const [AvailableSlots, setAvailableSlots] = useState([]);
 
   useEffect(() => {
     setAllData((prev) => ({
@@ -85,6 +91,16 @@ function CheckInModal(props) {
       ...prev,
       [category]: value,
     }));
+  };
+  const handlePet = (category, value) => {
+    setAllData((prev) => ({
+      ...prev,
+      [category]: value,
+    }));
+    if (userId) {
+      petBreeds(value);
+      AppointmentType(value)
+    }
   };
   const handleClicked = (category, value) => {
     if (!category || value === undefined) {
@@ -105,35 +121,54 @@ function CheckInModal(props) {
       [name]: value,
     }));
   };
-  // Select options
-  const options = useMemo(
-    () => [
-      { value: "1", label: "Vaccination" },
-      { value: "2", label: "Surgery" },
-      { value: "3", label: "Grooming" },
-    ],
-    []
+
+  const AppointmentType = useCallback(async(pet)=> {
+    try {
+      const response = await getData(`fhir/admin/AppointmentType?HospitalId=${userId}&category=${pet}`)
+      if (response) {
+        const data = response.data.data;
+    setOptions(FhirToNormal.fromFHIRValueSet(data).map((val)=>({value: val._id, label: val.name})));
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  },[userId])
+  const petBreeds = useCallback(
+    async (pet) => {
+      try {
+        const response = await getData(
+          `fhir/admin/breeds?HospitalId=${userId}&category=${pet}`
+        );
+        if (response.data) {
+          const data = FhirToNormal.fromFHIRValueSet(response.data.data);
+          setOptions3(data.map((val) => ({ value: val._id, label: val.name })));
+        }
+      } catch (error) {
+        console.log(error);
+      }
+    },
+    [userId]
   );
 
-  const options2 = useMemo(
-    () => [
-      { value: "1", label: "OPD" },
-      { value: "2", label: "Follow-up" },
-      { value: "3", label: "Walk-in" },
-    ],
-    []
-  );
+  const getPurposeOfVisit = useCallback(async () => {
 
-  const options3 = useMemo(
-    () => [
-      { value: "1", label: "German Shepherd" },
-      { value: "2", label: "Poodle" },
-      { value: "3", label: "Labrador" },
-    ],
-    []
-  );
+    try {
+      const response = await getData(`fhir/admin/visits?HospitalId=${userId}`);
+      if (response.status === 200) {
+        const data = FhirToNormal.fromFHIRValueSet(response.data.data);
+        setOptions2(data.map((h) => ({ value: h._id, label: h.name })));
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  }, [userId]);
 
-  const [department, setDepartment] = useState([]);
+  useEffect(() => {
+    if (userId) {
+      getPurposeOfVisit();
+    
+    }
+  }, [getPurposeOfVisit,userId]);
 
   const getSpecializationDepartment = useCallback(async () => {
     try {
@@ -151,19 +186,18 @@ function CheckInModal(props) {
       }
     } catch (error) {
       if (error.response && error.response.status === 401) {
-        
         onLogout(navigate);
       }
     }
   }, [userId, navigate, onLogout]);
 
   useEffect(() => {
-   if(userId){
-    getSpecializationDepartment();
-   }
+    if (userId) {
+      getSpecializationDepartment();
+    }
     // getWaittingRoomOverView();
   }, [userId, getSpecializationDepartment]);
-  const [veterinarian, setVeterinarian] = useState(null);
+
   const handleDepartmentSelect = async (value) => {
     setAllData((prev) => ({
       ...prev,
@@ -219,7 +253,7 @@ function CheckInModal(props) {
           date,
         },
       });
-      if (data?.timeSlots) {
+      if (data?.timeSlots.entry) {
         const convertedSlots = data.timeSlots.entry
           .filter((slot) => slot.resource.resourceType === "Slot") // Filter only Slot resources
           .map((slot) => {
@@ -243,7 +277,6 @@ function CheckInModal(props) {
       }
     }
   };
-  const [validationErrors, setValidationErrors] = useState({});
 
   const validateFields = () => {
     const errors = {};
@@ -508,7 +541,7 @@ function CheckInModal(props) {
                     <li
                       key={pet}
                       className={AllData.petType === pet ? "active" : ""}
-                      onClick={() => handleClick("petType", pet)}
+                      onClick={() => handlePet("petType", pet)}
                     >
                       {pet}
                     </li>
@@ -724,8 +757,6 @@ const CheckIn = () => {
           JSON.parse(response.data)
         ).overviewConvertToNormal();
         setWaitingRoomOverView(data);
-
-        console.log("nnnnnnnnnnnnnn", data);
       }
     } catch (error) {
       if (error.response && error.response.status === 401) {
@@ -759,19 +790,19 @@ const CheckIn = () => {
     } catch (error) {
       if (error.response && error.response.status === 401) {
         onLogout(navigate);
-      }else if(error.response && [500,400].includes(error.response.status)){
+      } else if (error.response && [500, 400].includes(error.response.status)) {
         Swal.fire({
           title: "Oops...",
           text: `${error.response.data.issue[0].details.text}`,
           icon: "error",
-        })
+        });
       }
     }
   }, [userId, navigate, onLogout]);
   useEffect(() => {
-    if(userId){
+    if (userId) {
       getWaittingRoomOverView();
-    WaittingRoomOverViewPatientInQueue();
+      WaittingRoomOverViewPatientInQueue();
     }
   }, [userId, WaittingRoomOverViewPatientInQueue, getWaittingRoomOverView]);
   return (

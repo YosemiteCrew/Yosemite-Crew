@@ -190,7 +190,7 @@ class AppointmentFHIRConverter {
       serviceType: [{ text: this.appointment.purposeOfVisit || "Unknown" }],
       start: appointmentDateTime,
       participant: this.getParticipants(),
-      reasonCode: [{ text: this.appointment.purposeOfVisit || "Unknown" }],
+      reasonCode: [{ text: this.appointment.appointmentType || "Unknown" }],
       description: this.getDescription(),
       slot: [{ reference: `Slot/${this.appointment.slotsId}` }],
       specialty: [{ text: this.appointment.department || "General" }],

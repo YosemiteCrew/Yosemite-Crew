@@ -33,11 +33,26 @@ import {
   NormalAppointmentConverter,
 } from "../../utils/FhirMapper";
 import { getData } from "../../services/apiService";
+
+
+import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
+import format from 'date-fns/format';
+import parse from 'date-fns/parse';
+import startOfWeek from 'date-fns/startOfWeek';
+import getDay from 'date-fns/getDay';
+import enUS from 'date-fns/locale/en-US';
+
+import { Image } from "react-bootstrap";
 // import { Button } from 'react-bootstrap';
 
 const Appointment = () => {
   const { userId, userType, onLogout } = useAuth();
   const navigate = useNavigate();
+
+  const locales = {
+      'en-US': enUS,
+    };
 
   // dropdown
   const optionsList1 = [
@@ -63,16 +78,15 @@ const Appointment = () => {
                 (entry) => entry.resource
               ),
             });
-
-          console.log("normalAppointments", normalAppointments);
           setAllAppointments(normalAppointments.appointments);
           setTotal(normalAppointments.totalAppointments);
         } else if (response.status === 200 && response.data.status === 0) {
-          new Swal({
-            title: "Not Found",
-            text: response.data?.message || "Requested data not found.",
-            icon: "error",
-          });
+          // new Swal({
+          //   title: "Not Found",
+          //   text: response.data?.message || "Requested data not found.",
+          //   icon: "error",
+          // });
+          console.log("error");
         }
       } catch (error) {
         if (error.response && error.response.status === 401) {
@@ -169,6 +183,8 @@ const Appointment = () => {
   }, [userId, getAppUpcCompCanTotalCounts, getAllAppointments]);
 
   const [confirmedAppointments, setConfirmedAppointments] = useState([]);
+  const [calenderAppointments, setCalenderAppointments] = useState([]);
+  const [calendarView, setCalendarView] = useState(1);
   const [confirmedPage, setConfirmedPage] = useState(1);
   const [confirmedLoading, setConfirmedLoading] = useState(false);
   const [confirmedHasMore, setConfirmedHasMore] = useState(true);
@@ -241,6 +257,26 @@ const Appointment = () => {
     [userId, navigate, onLogout]
   ); // Removed unnecessary dependencies
 
+
+
+   const fetchCalenderAppointments = async (userId) => {
+        try {
+          await getData(`fhir/v1/Appointment?organization=Hospital/${userId}&type=${"calenderaAppointment"}`)
+          .then(res => {
+            if (res.status === 200) {
+              const normaldata = new FHIRToNormalConverter(res.data).toNormal();
+              setCalenderAppointments(normaldata.appointments);
+            }
+          });
+        } catch (err) {
+            Swal.fire({
+                  title: "Error",
+                  text: err,
+                  icon: "error",
+                });
+        }
+      };
+
   useEffect(() => {
     if (userId) {
       fetchAppointments(
@@ -292,6 +328,13 @@ const Appointment = () => {
       );
     }
   }, [userId, completedPage, fetchAppointments]);
+
+
+  useEffect(() => {
+    if (userId) {
+      fetchCalenderAppointments(userId);
+    }
+  }, [userId, calendarView]);
 
   const createObserver = useCallback(
     (setPage, hasMore, observerRef) => (node) => {
@@ -356,11 +399,15 @@ const Appointment = () => {
     <section className="AppintmentSection">
       <div className="container">
         <div className="MainDash">
+        <div className="AssMantTop">
           <TopHeading
             heding="Appointment Management"
             notif="3 New Appointments"
           />
-
+          <button type="button" data-bs-toggle="modal" data-bs-target="#DashModall" onClick={() => setCalendarView(1)}>
+                          <Image src={`${import.meta.env.VITE_BASE_IMAGE_URL}/topic.png`} alt="Topic" />Calendar View
+                        </button>     
+            </div>
           <div className="overviewDiv">
             <div className="OverviewTop">
               <h5>Overview</h5>
@@ -549,7 +596,8 @@ const Appointment = () => {
               </div>
             </div>
 
-            <DashModal />
+            <DashModal />  
+            <CalenderModal calenderAppointments = {calenderAppointments} locales={locales}/> 
           </div>
 
           <div className="dd">
@@ -599,7 +647,7 @@ export function DashModal() {
             <div className="LeftContent">
               <div className="TopContent">
                 <div className="lfttop">
-                  <img
+                  <Image
                     src={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`}
                     alt=""
                   />
@@ -620,7 +668,7 @@ export function DashModal() {
               <div className="MidContent">
                 <h4>Appointment Details</h4>
                 <div className="lfttop">
-                  <img
+                  <Image
                     src={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`}
                     alt=""
                   />
@@ -632,7 +680,7 @@ export function DashModal() {
 
                 <div className="cardbtn btnfown">
                   <button type="button">
-                    <img
+                    <Image
                       src={`${import.meta.env.VITE_BASE_IMAGE_URL}/btn1.png`}
                       alt=""
                     />{" "}
@@ -643,7 +691,7 @@ export function DashModal() {
                 <div className="modlbtn">
                   <button type="button" className="confirm">
                     {" "}
-                    <img
+                    <Image
                       src={`${import.meta.env.VITE_BASE_IMAGE_URL}/box5.png`}
                       alt=""
                     />{" "}
@@ -651,7 +699,7 @@ export function DashModal() {
                   </button>
                   <button type="button" className="cancel">
                     {" "}
-                    <img
+                    <Image
                       src={`${import.meta.env.VITE_BASE_IMAGE_URL}/box6.png`}
                       alt=""
                     />{" "}
@@ -663,11 +711,11 @@ export function DashModal() {
               <div className="ModlMedclRept">
                 <TextSpan Textname="Medical Reports " Textnspan="(2)" />
                 <div className="MedReport">
-                  <img
+                  <Image
                     src={`${import.meta.env.VITE_BASE_IMAGE_URL}/report1.png`}
                     alt=""
                   />
-                  <img
+                  <Image
                     src={`${import.meta.env.VITE_BASE_IMAGE_URL}/report2.png`}
                     alt=""
                   />
@@ -830,7 +878,7 @@ export function DashModal() {
             <div className="RytContent">
               <div className="RytContDetails">
                 <div className="ownerImg">
-                  <img
+                  <Image
                     src={`${import.meta.env.VITE_BASE_IMAGE_URL}/pet1.png`}
                     alt=""
                   />
@@ -913,7 +961,7 @@ export function MainBtn({
           : {})}
         onClick={onClick}
       >
-        {bimg && <img src={bimg} alt="button icon" />} {btext}
+        {bimg && <Image src={bimg} alt="button icon" />} {btext}
       </button>
     </div>
   );
@@ -959,7 +1007,7 @@ export function AppointCard({
   return (
     <div className="Confcard">
       <div className="cardTopInner">
-        <img src={crdimg} alt="cardimg" />
+        <Image src={crdimg} alt="cardimg" />
         <div className="Sideinner">
           <h6>{cdowner}</h6>
           <p>
@@ -977,7 +1025,7 @@ export function AppointCard({
           data-bs-toggle="modal"
           data-bs-target="#DashModal"
         >
-          <img src={btnimg} alt="" /> {btntext}
+          <Image src={btnimg} alt="" /> {btntext}
         </button>
       </div>
     </div>
@@ -999,3 +1047,118 @@ export function CardHead({ Cdtxt, Cdnumb, CdNClas }) {
     </div>
   );
 }
+
+
+
+
+CalenderModal.propTypes ={ 
+  calenderAppointments : PropTypes.string,
+    locales : PropTypes.string
+}
+
+
+
+// Modal Component
+export function CalenderModal({
+  calenderAppointments,
+  locales
+  
+}) {
+
+
+  const localizer = dateFnsLocalizer({
+    format,
+    parse,
+    startOfWeek,
+    getDay,
+    locales
+  });
+
+  const appointments = [];
+
+ 
+  if (Array.isArray(calenderAppointments)) {
+    calenderAppointments.forEach((appointment) => {
+
+     
+      const colors = {'booked' : '#d09b5e', 'cancelled' : '#d04122', 'fulfilled' : '#8ac1b1' , 'pending' : '#8e88d2'} 
+      const now = new Date();
+      let date = new Date(appointment.appointmentDate); // e.g., "2025-05-02"
+      let dateString = date.toISOString().split('T')[0]; // "2025-05-02"
+      let timeString = appointment.appointmentTime; // e.g., "11:00 AM"
+
+      let startDateTime = new Date(`${dateString} ${timeString}`);
+      let endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000);
+
+
+      let color = colors[appointment.appointmentStatus];
+
+      if (date > now && appointment.appointmentStatus ==='booked') {
+         color = '#8e88d2';
+      } 
+     
+      let apData = {
+        title: `${appointment.ownerName} - ${appointment.petName} \nDr.  ${appointment.veterinarian}`,
+        start: startDateTime,
+        end: endDateTime,
+        color: color
+      };
+
+      appointments.push(apData);
+    });
+  }
+
+
+  return (
+    <div className="AstManageCardModal">
+      <div
+        className="modal fade"
+        id="DashModall"
+        tabIndex="-1"
+        aria-labelledby="DashModalLabel"
+        aria-hidden="true"
+      >
+        <div className="modal-dialog modal-dialog-centered">
+          <div className="modal-content">
+            <div className="AssessmentCatalogueDiv">
+
+              <h3></h3>
+
+    
+              <div className="AsstmntTableDiv">
+              <div style={{ height: '80vh', padding: '20px' }}>
+              <Calendar
+                localizer={localizer}
+                events={appointments}
+                startAccessor="start"
+                endAccessor="end"
+                titleAccessor="title"
+                defaultView="month"
+                views={['month', 'week', 'day']}
+                style={{ height: '100%' }}
+                eventPropGetter={(event) => ({
+                  style: {
+                    backgroundColor: event.color || '#3174ad',
+                    color: 'white',
+                    borderRadius: '5px',
+                    border: 'none',
+                    padding: '4px',
+                    whiteSpace: 'normal' 
+                  }
+                })}
+              />
+            </div>
+              </div>
+
+
+              <div className="AstCatalgBtn">
+              
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+

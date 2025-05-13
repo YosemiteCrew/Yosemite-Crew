@@ -1,4 +1,4 @@
-const {  handleMultipleFileUpload } = require('../middlewares/upload');
+const {  handleMultipleFileUpload,deleteFromS3 } = require('../middlewares/upload');
 class helpers {
 static async calculateAge(date) {
     const dob = new Date(date);
@@ -36,6 +36,11 @@ static async convertTo24Hour(timeStr) {
     const fileArray = Array.isArray(files) ? files : [files];
     return await handleMultipleFileUpload(fileArray,'Images');
   }  
+
+  static async deleteFiles(fileurl) {
+    return await deleteFromS3(fileurl);
+  }  
+
   
 }
 module.exports = helpers;

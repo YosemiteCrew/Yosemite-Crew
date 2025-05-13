@@ -133,7 +133,8 @@ class AssessmentService {
         resourceType: "Bundle",
         type: "collection",
         entry : result,
-        total : total
+        total : total,
+        status:1
       };
  
   }

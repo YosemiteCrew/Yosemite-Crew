@@ -1,18 +1,21 @@
-const {  WebUser } = require('../models/WebUser');
 
-const Department = require('../models/AddDepartment');
-const feedbacks = require("../models/FeedBack");
-const { webAppointments } = require("../models/WebAppointment");
+const BusinessService = require('../services/BusinessService');
+const FhirFormatter = require('../utils/BusinessFhirFormatter');
 const DoctorService = require("../services/DoctorService");
-const AddDoctors = require("../models/addDoctor");
+const validator = require('validator');
+const mongoose = require('mongoose');
 
 class ListController {
 
     async handlegetDoctorsList(req, res) {
-        const { businessId, departmentId } = req.params;
-    
+        const { departmentId, limit, offset } = req.query;
+        if (!mongoose.Types.ObjectId.isValid(departmentId)) {
+            return res.status(200).json({ status: 0, message: "Invalid department ID" });
+        }
+        const parsedLimit = limit ? parseInt(limit) : 10;
+        const parsedOffset = offset ? parseInt(offset) : 0;
         try {
-          const doctors = await DoctorService.getDoctorsByBusinessAndDepartment(businessId, departmentId);
+          const doctors = await DoctorService.getDoctorsByBusinessAndDepartment(departmentId,parsedLimit,parsedOffset);
           return res.status(200).json({status: 1, data: doctors});
         } catch (error) {
           console.error(error);
@@ -22,7 +25,7 @@ class ListController {
   
      async handleGetDoctorsTeam(req, res) {
         try {
-          const { businessId } = req.params;
+          const { businessId } = req.query;
     
           const fhirDoctors = await DoctorService.getDoctorsWithAppointments(businessId);
     
@@ -40,89 +43,66 @@ class ListController {
         }
       }
 
-    async  handleGetLists(req, res) {
-    try {
-        const { BusinessType, offset = 0, limit = 10 } = req.body;
-        const parsedOffset = parseInt(offset);
-        const parsedLimit = parseInt(limit);
-        const allowedTypes = ['Hospital', 'Clinic', 'Breeding Facility','Pet Sitter','Groomer Shop'];
-        if (BusinessType && !allowedTypes.includes(BusinessType)) {
-            return res.status(200).json({ status: 0, error: 'Invalid BusinessType' });
+      async handleGetLists(req, res) {
+        try {
+          let { Type, offset = 0, limit = 10 } = req.query;
+      
+          // Sanitize and validate query parameters
+          Type = typeof Type === 'string' ? validator.escape(Type.trim()) : '';
+          offset = validator.isInt(offset.toString(), { min: 0 }) ? parseInt(offset) : 0;
+          limit = validator.isInt(limit.toString(), { min: 1, max: 100 }) ? parseInt(limit) : 10;
+      
+          let BusinessType = '';
+          if (Type === 'breedingFacility') {
+            BusinessType = 'Breeding Facility';
+          } else if (Type === 'petSitter') {
+            BusinessType = 'Pet Sitter';
+          } else if (Type === 'groomerShop') {
+            BusinessType = 'Groomer Shop';
+          } else {
+            BusinessType = Type;
+          }
+      
+          const allowedTypes = ['Hospital', 'Clinic', 'Breeding Facility', 'Pet Sitter', 'Groomer Shop', 'all'];
+          if (BusinessType && !allowedTypes.includes(BusinessType)) {
+            return res.status(200).json({ status: 0, message: "Invalid Business Type" });
+          }
+      
+          const Businessdata = await BusinessService.getBusinessList(BusinessType, offset, limit);
+      
+          const fhirGroupedBundles = {};
+      
+          for (const key in Businessdata) {
+            const group = Businessdata[key].data;
+            const nestedResources = [];
+      
+            for (const org of group) {
+              const fhirOrg = FhirFormatter.toFhirOrganization(org);
+              const fhirDepts = FhirFormatter.toFhirHealthcareServices(org);
+      
+              fhirOrg.healthcareServices = fhirDepts;
+              nestedResources.push(fhirOrg);
+            }
+      
+            fhirGroupedBundles[key] = {
+              resourceType: "Bundle",
+              type: "collection",
+              total: nestedResources.length,
+              entry: nestedResources.map(resource => ({ resource }))
+            };
+          }
+      
+          res.status(200).json({
+            status: 1,
+            data: fhirGroupedBundles
+          });
+      
+        } catch (err) {
+          console.error(err);
+          res.status(500).json({ status: 0, error: err.message });
         }
-        const sanitizedBusinessType = allowedTypes.find(type => type === BusinessType);
-        const formatKey = (str) => str.replace(/\s+/g, '').replace(/^./, (c) => c.toLowerCase());
-
-        const fetchDepartmentsAndRating = async (hospitals) => {
-            return Promise.all(hospitals.map(async (hospital) => {
-                const [departments, feedbacksList] = await Promise.all([
-                    Department.find({ bussinessId: hospital.cognitoId }),
-                    feedbacks.find({ toId: hospital.cognitoId })
-                ]);
-
-                hospital.rating = feedbacksList.length
-                    ? feedbacksList.reduce((sum, fb) => sum + fb.rating, 0) / feedbacksList.length
-                    : 0;
-
-                hospital.departments = await Promise.all(
-                    departments.map(async (dept) => ({
-                        departmentId: dept._id,
-                        departmentName: dept.departmentName,
-                        doctorCount: await AddDoctors.countDocuments({
-                            bussinessId: hospital.cognitoId,
-                            "professionalBackground.specialization": dept._id.toString()
-                        })
-                    }))
-                );
-
-                return hospital;
-            }));
-        };
-
-        if (sanitizedBusinessType) {
-            const formattedKey = formatKey(sanitizedBusinessType);
-            const [totalCount, getLists] = await Promise.all([
-                WebUser.countDocuments({ businessType: sanitizedBusinessType }),
-                WebUser.aggregate([
-                    { $match: { businessType: sanitizedBusinessType } },
-                    { $lookup: { from: 'profiledatas', localField: 'cognitoId', foreignField: 'userId', as: "profileData" } },
-                    { $unwind: { path: "$profileData", preserveNullAndEmptyArrays: true } },
-                    { $skip: parsedOffset },
-                    { $limit: parsedLimit }
-                ])
-            ]);
-
-            if (sanitizedBusinessType === 'Hospital') await fetchDepartmentsAndRating(getLists);
-
-            return res.status(200).json({ status: 1, [formattedKey]: getLists, count: totalCount });
-        }
-
-        const allTypes = await WebUser.distinct('businessType');
-        const allData = {};
-
-        await Promise.all(allTypes.filter(type => type !== 'Doctor').map(async (type) => {
-            const formattedKey = formatKey(type);
-            const [totalCount, list] = await Promise.all([
-                WebUser.countDocuments({ businessType: type }),
-                WebUser.aggregate([
-                    { $match: { businessType: type } },
-                    { $lookup: { from: 'profiledatas', localField: 'cognitoId', foreignField: 'userId', as: "profileData" } },
-                    { $unwind: { path: "$profileData", preserveNullAndEmptyArrays: true } },
-                    { $skip: parsedOffset },
-                    { $limit: parsedLimit }
-                ])
-            ]);
-
-            if (type === 'Hospital') await fetchDepartmentsAndRating(list);
-
-            allData[formattedKey] = { data: list, count: totalCount };
-        }));
-
-        res.status(200).json({ status: 1, data: allData });
-    } catch (error) {
-        console.error(error);
-        res.status(200).json({ status: 0,error: 'Internal server error' });
-    }
-}  
+      }
+      
 
 }  
  module.exports = new ListController();

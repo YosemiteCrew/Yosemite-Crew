@@ -9,9 +9,8 @@ const s3 = new AWS.S3({
 });
 const AddDepartmentController = {
   addDepartment: async (req, res) => {
-    console.log(JSON.stringify(req.body, null, 2));
+
     const data = new DepartmentFromFHIRConverter(req.body).toCustomFormat()
-    console.log("hihihhihhihihihhiihihhihiihhihh",data)
 
     try {
       const newDepartment = new Department({
@@ -65,7 +64,7 @@ const AddDepartmentController = {
         res.status(200).json(departments);
       }
     } catch (error) {
-      console.error('Error getting departments:', error);
+     
       res.status(500).json({ message: error.message });
     }
   },

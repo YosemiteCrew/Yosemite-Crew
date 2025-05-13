@@ -3,23 +3,24 @@ const AddDoctors = require("../models/addDoctor");
 const baseUrl = process.env.BASE_URL;
 
 class DoctorService {
-  static async getDoctorsByBusinessAndDepartment(businessId, departmentId) {
+  static async getDoctorsByBusinessAndDepartment(departmentId, limit, offset) {
     if (!mongoose.Types.ObjectId.isValid(departmentId)) {
-      return res.status(200).json({  status: 0, message: 'Invalid department ID' });
+      return { status: 0, message: 'Invalid department ID' };
     }
-    const specializationId = departmentId; 
+  
+    const specializationId = departmentId;
+  
     const doctors = await AddDoctors.aggregate([
       {
         $match: {
-          bussinessId: businessId,
-          "professionalBackground.specialization": specializationId  // Match directly as string
+          "professionalBackground.specialization": specializationId
         }
       },
-    {
-     $addFields: {
-        departmentObjId: { $toObjectId: specializationId },
-         },
-       },
+      {
+        $addFields: {
+          departmentObjId: { $toObjectId: specializationId }
+        }
+      },
       {
         $lookup: {
           from: "departments",
@@ -57,12 +58,13 @@ class DoctorService {
         $project: {
           ratings: 0
         }
-      }
+      },
+      { $skip: offset || 0 },
+      { $limit: limit || 10 }
     ]);
-
-    // Convert to FHIR format
+  
     const fhirDoctors = doctors.map(doc => this.toFhirPractitioner(doc));
-
+  
     return {
       resourceType: "Bundle",
       type: "searchset",
@@ -140,19 +142,24 @@ class DoctorService {
       {
         $lookup: {
           from: "webappointments",
-          let: { doctorId: "$userId", todayDate: today, nowTime: currentTime },
+          let: { veterinarian: "$userId", todayDate: today, nowTime: currentTime },
           pipeline: [
             {
               $match: {
                 $expr: {
-                  $or: [
+                  $and: [
+                    { $eq: ["$veterinarian", "$$veterinarian"] },
                     {
-                      $and: [
-                        { $eq: ["$appointmentDate", "$$todayDate"] },
-                        { $gt: ["$appointmentTime24", "$$nowTime"] }
+                      $or: [
+                        {
+                          $and: [
+                            { $eq: ["$appointmentDate", "$$todayDate"] },
+                            { $gt: ["$appointmentTime24", "$$nowTime"] }
+                          ]
+                        },
+                        { $gt: ["$appointmentDate", "$$todayDate"] }
                       ]
-                    },
-                    { $gt: ["$appointmentDate", "$$todayDate"] }
+                    }
                   ]
                 }
               }
@@ -172,17 +179,25 @@ class DoctorService {
         }
       },
       {
+        $addFields: {
+          hasUpcomingAppointment: {
+            $gt: [{ $size: "$futureAppointments" }, 0]
+          }
+        }
+      },
+      {
         $project: {
           _id: 1,
           userId: 1,
           "personalInfo.firstName": 1,
           "personalInfo.lastName": 1,
           "personalInfo.image": 1,
-          futureAppointments: 1
+          futureAppointments: 1,
+          hasUpcomingAppointment: 1
         }
       }
     ]);
-
+    
     return doctors.map((doc) => this.mapToFHIR(doc));
   }
 
@@ -199,13 +214,14 @@ class DoctorService {
       ],
       photo: doc.personalInfo?.image ? [{ url: doc.personalInfo.image }] : []
     };
-
-    const appointments = doc.futureAppointments.map((appt, index) => ({
+ 
+    const appointments = doc.futureAppointments.map((appt) => ({
       resourceType: "Appointment",
       id: appt._id.toString(),
       status: "booked",
       description: appt.purposeOfVisit || "Consultation",
       start: `${appt.appointmentDate}T${appt.appointmentTime24}:00`,
+      hasUpcomingAppointment: true, // ✅ This is the added flag
       participant: [
         {
           actor: {
@@ -222,7 +238,7 @@ class DoctorService {
         }
       ]
     }));
-
+  
     return {
       practitioner,
       appointments

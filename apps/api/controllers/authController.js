@@ -10,6 +10,7 @@ const secretKey = crypto.createHash('sha256')
   .digest();
 const iv = crypto.randomBytes(16); // Initialization vector
 const SES = new AWS.SES();
+const helpers = require('../utils/helpers');
 
 // Initialize AWS Cognito Identity Provider
 const cognito = new AWS.CognitoIdentityServiceProvider();
@@ -20,7 +21,6 @@ const authController = {
   signup: async (req, res) => {
     var fileName = "";
     const password = generatePassword(12);
-    //console.log("reqbody",req.body);
     const {
       email,
       firstName,
@@ -32,7 +32,10 @@ const authController = {
       professionType,
       pimsCode,
     } = req.body;
-   
+
+    if (typeof email !== 'string' || !validator.isEmail(email)) {
+      return res.status(200).json({ status: 0, message: "Invalid email format" });
+    }
     if (Array.isArray(professionType)) {
       isProfessional = professionType.length === 0 ? "no" : "yes";
     } else {
@@ -61,31 +64,20 @@ const authController = {
       ],
     };
     try {
-      if (req.files && req.files.profileImage) {
-        const profileImage = req.files.profileImage;
+      let imageUrls = '';
 
-        // Validate file type
-        const allowedExtensions = /jpg|jpeg|png|gif/;
-        const extension = path.extname(profileImage.name).toLowerCase();
-        if (!allowedExtensions.test(extension)) {
-          return res
-            .status(400)
-            .json({ message: "Only image files are allowed." });
+      if (req.files && req.files.files) {
+        const files = Array.isArray(req.files.files)
+          ? req.files.files
+          : [req.files.files]; // wrap single file into array
+
+        const imageFiles = files.filter(file => file.mimetype && file.mimetype.startsWith("image/"));
+
+        if (imageFiles.length > 0) {
+          imageUrls = await helpers.uploadFiles(imageFiles);
         }
-
-        // Generate a unique file name
-        const uniqueName = `${Date.now()}-${Math.round(
-          Math.random() * 1e9
-        )}${extension}`;
-
-        // Use the global upload path
-        const uploadPath = path.join(req.app.locals.uploadPath, uniqueName);
-
-        // Move the file to the upload directory
-        await profileImage.mv(uploadPath);
-        fileName = uniqueName;
       }
-
+      
      // console.log(password);
       const encrypt_Password = await encryptPassword(password);
       const result = await user.findOne({ email });
@@ -108,7 +100,7 @@ const authController = {
         isProfessional,
         professionType:parsedDataprofessionType,
         pimsCode,
-        profileImage: fileName,
+        profileImage: imageUrls,
       });
       res.status(200).json({
         status: 1,
@@ -161,7 +153,7 @@ const authController = {
           SECRET_HASH: secretHash,
         },
       };
-  
+      
       const authData = await cognito.initiateAuth(authParams).promise();
       const accessToken = authData.AuthenticationResult.AccessToken;
       const decodedToken = jwt.decode(accessToken);
@@ -170,7 +162,10 @@ const authController = {
       const userData = result.toObject();
       userData.token = accessTokenRes;
       delete userData.password;
-  
+      await user.updateOne(
+        { _id: result._id },
+        { $set: { isConfirmed: true } }
+      );
       // Step 6: Respond with success
       res.status(200).json({
         status: 1,
@@ -197,6 +192,17 @@ const authController = {
       if (!result) {
         return res.status(200).json({status:0, message: "User not found" });
       }
+      const paramsexists = {
+        UserPoolId: process.env.COGNITO_USER_POOL_ID,
+        Username: email,
+      };
+
+      const userData = await cognito.adminGetUser(paramsexists).promise();
+      if(!userData){
+        return res.status(200).json({status:0, message: "User not found on cognito" });
+      }
+
+     
       const otp = Math.floor(100000 + Math.random() * 900000); // 6-digit OTP
       const otpExpiry = Date.now() + 5 * 60 * 1000; // OTP expires in 5 minutes
       await user.updateOne(
@@ -222,7 +228,7 @@ const authController = {
       //console.error("Login error:", error);
       res
         .status(500)
-        .json({ status: 0,message: "Error during login", error: error.message });
+        .json({ status: 0,message: "Error during Sending OTP", error: error.message });
     }
   },
   // Delete user from cognito and database
@@ -366,32 +372,22 @@ function generatePassword(length) {
     );
   }
 
-  const specials = "!@#$%^&*()_+{}[]|:;<>,.?/";
-  const uppercases = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  const lowercases = "abcdefghijklmnopqrstuvwxyz";
-  const digits = "0123456789";
-  const allChars = uppercases + lowercases + digits + specials;
+  const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+[]{}|;:,.<>?";
+  const charsetLength = charset.length;
+  const password = [];
 
-  // Ensure one of each required character type
-  const passwordArray = [
-    uppercases[Math.floor(Math.random() * uppercases.length)], // At least one uppercase
-    specials[Math.floor(Math.random() * specials.length)], // At least one special character
-    digits[Math.floor(Math.random() * digits.length)], // At least one number
-    lowercases[Math.floor(Math.random() * lowercases.length)], // At least one lowercase
-  ];
+  while (password.length < length) {
+    const byte = new Uint8Array(1);
+    crypto.getRandomValues(byte);
+    const value = byte[0];
 
-  // Fill the rest of the password
-  for (let i = passwordArray.length; i < length; i++) {
-    passwordArray.push(allChars[Math.floor(Math.random() * allChars.length)]);
+    // To avoid bias, only use values < 256 that map evenly to charset
+    if (value < Math.floor(256 / charsetLength) * charsetLength) {
+      password.push(charset[value % charsetLength]);
+    }
   }
 
-  // Shuffle the array
-  for (let i = passwordArray.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [passwordArray[i], passwordArray[j]] = [passwordArray[j], passwordArray[i]];
-  }
-
-  return passwordArray.join("");
+  return password.join('');
 }
 
 function encryptPassword(password) {

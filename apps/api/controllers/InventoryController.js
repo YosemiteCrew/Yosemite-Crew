@@ -18,6 +18,7 @@ const {
   InventoryItemCategory,
   InventoryManufacturer,
 } = require("../models/AddInventoryCotegory");
+const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 const { Fhir } = require("fhir");
 const { text } = require("body-parser");
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Add Inventory >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -608,26 +609,28 @@ const InventoryControllers = {
       const { packageName, category, description, packageItems } =
         response.fhirData.data;
 
-      const procedurePackage = await ProcedurePackage.findOneAndUpdate(
-        { _id: id, bussinessId: hospitalId },
-        {
-          packageName,
-          category,
-          description,
-          packageItems: packageItems.map((item) => ({
-            _id: item._id,
-            name: item.name,
-            itemType: item.itemType,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            subtotal: item.subtotal,
-            notes: item.notes,
-          })),
-        },
-        { new: true }
-      )
-        .lean()
-        .exec();
+        const sanitizedItems = (Array.isArray(packageItems) ? packageItems : []).map((item) => ({
+          _id: isValidObjectId(item._id) ? item._id : new mongoose.Types.ObjectId(),
+          name: typeof item.name === "string" ? item.name : "",
+          itemType: typeof item.itemType === "string" ? item.itemType : "",
+          quantity: typeof item.quantity === "number" ? item.quantity : 0,
+          unitPrice: typeof item.unitPrice === "number" ? item.unitPrice : 0,
+          subtotal: typeof item.subtotal === "number" ? item.subtotal : 0,
+          notes: typeof item.notes === "string" ? item.notes : "",
+        }));
+    
+        // Update the procedure package
+        const procedurePackage = await ProcedurePackage.findOneAndUpdate(
+          { _id: id, bussinessId: hospitalId },
+          {
+            packageName :typeof packageName === "string" ?packageName:"",
+            category: typeof category === "string" ? category:"",
+            description: typeof description === "string" ? description:"",
+            packageItems: sanitizedItems,
+          },
+          { new: true }
+        ).lean().exec();
+    
 
       if (!procedurePackage) {
         return res.status(404).json({ 

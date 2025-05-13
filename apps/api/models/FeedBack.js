@@ -1,10 +1,13 @@
 const mongoose = require('mongoose');
 
 const feedbackSchema = new mongoose.Schema({
-    fromId: { 
+    userId: { 
         type: String, 
     }, 
-    toId: { 
+    doctorId: { 
+        type: String, 
+    }, 
+    petId: { 
         type: String, 
     }, 
     meetingId: { 
@@ -16,8 +19,7 @@ const feedbackSchema = new mongoose.Schema({
     rating: {
         type: Number,
         default:0 
-    },
-    feedbackFHIR: Object,
+    }
 },
 {
     timestamps: true,

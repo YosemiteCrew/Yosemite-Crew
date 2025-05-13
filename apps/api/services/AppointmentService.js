@@ -1,4 +1,8 @@
-const { webAppointments } = require("../models/WebAppointment");
+
+const {
+  AppointmentsToken,
+  webAppointments,
+} = require('../models/WebAppointment');
 const pet = require('../models/YoshPet');
 const YoshUser = require('../models/YoshUser');
 const { getCognitoUserId } = require('../utils/jwtUtils');
@@ -25,6 +29,22 @@ static async checkAppointment(doctorId,appointmentDate,timeslot) {
   });
   return isSlotTaken;
 }
+static async getHospitalName(hospitalId) {
+  const hospital = await ProfileData.findOne(
+    { userId: hospitalId },
+    { businessName: 1, _id: 0 } 
+  );
+  return hospital;
+}
+
+static async updateToken(hospitalId, appointmentDate) {
+ let Appointmenttoken = await AppointmentsToken.findOneAndUpdate(
+            { hospitalId, appointmentDate },
+            { $inc: { tokenCounts: 1 } },
+            { new: true, upsert: true }
+          );
+         return Appointmenttoken;     
+}
 
 static async getPetAndOwner(petId, userId) {
   const petDetails = await pet.findById(petId);
@@ -32,49 +52,68 @@ static async getPetAndOwner(petId, userId) {
   return { petDetails, petOwner };
 }
 
-
-
 static async fetchAppointments(req) {
   try {
     const cognitoUserId = getCognitoUserId(req);
-    const today = new Date().toISOString().split("T")[0];
+    const now = new Date();
+    const today = new Date(now);
+    today.setHours(0, 0, 0, 0);
 
-    // Extract limit and offset from query (or use defaults)
-    const limit = parseInt(req.params.limit) || 10;
-    const offset = parseInt(req.params.offset) || 0;
+    const filter = req.query.type || "all";
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = parseInt(req.query.offset) || 0;
 
-    // Fetch total count (optional, but good for frontend pagination)
-    const totalCount = await webAppointments.countDocuments({ userId: cognitoUserId });
+    const [totalCount, rawAppointments] = await Promise.all([
+      webAppointments.countDocuments({ userId: cognitoUserId }),
+      webAppointments.find({ userId: cognitoUserId }).skip(offset).limit(limit).lean()
+    ]);
 
-    // Apply pagination
-    const allAppointments = await webAppointments
-      .find({ userId: cognitoUserId })
-      .skip(offset)
-      .limit(limit)
-      .lean();
+    const categories = {
+      upcoming: [],
+      pending: [],
+      past: [],
+      cancel: []
+    };
 
-    const confirmed = [], upcoming = [], past = [];
-    const vetIds = new Set(), petIds = new Set(), hospitalIds = new Set();
+    const vetIds = new Set();
+    const petIds = new Set();
+    const hospitalIds = new Set();
 
-    allAppointments.forEach(app => {
-      const appointmentDate = new Date(app.appointmentDate).toISOString().split("T")[0];
+    for (const app of rawAppointments) {
+      const datePart = new Date(app.appointmentDate);
+      datePart.setHours(0, 0, 0, 0);
 
-      if (app.appointmentStatus === 'confirmed') {
-        confirmed.push(app);
-      } else if (appointmentDate >= today) {
-        upcoming.push(app);
-      } else {
-        past.push(app);
+      const [hr = 0, min = 0] = (app.appointmentTime24 || '00:00').split(':').map(Number);
+      const fullDateTime = new Date(app.appointmentDate);
+      fullDateTime.setHours(hr, min, 0, 0);
+
+      const { appointmentStatus } = app;
+
+      if (appointmentStatus === 'cancelled') {
+        categories.cancel.push(app);
+      } else if (appointmentStatus === 'pending') {
+        if (datePart >= today && fullDateTime >= now) {
+          categories.pending.push(app);
+        }
+      } else if (appointmentStatus === 'booked') {
+        if (datePart > today) {
+          categories.upcoming.push(app);
+        } else if (datePart.getTime() === today.getTime()) {
+          if (fullDateTime >= now) categories.upcoming.push(app);
+          else categories.past.push(app);
+        } else {
+          categories.past.push(app);
+        }
       }
 
       if (app.veterinarian) vetIds.add(app.veterinarian);
       if (app.petId) petIds.add(app.petId);
       if (app.hospitalId) hospitalIds.add(app.hospitalId);
-    });
+    }
 
-    const toObjectIdSafe = (id) => {
+    const toObjectIdSafe = id => {
       try {
-        return new mongoose.Types.ObjectId(id); 
+        return new mongoose.Types.ObjectId(id);
       } catch {
         return null;
       }
@@ -105,13 +144,15 @@ static async fetchAppointments(req) {
       .filter(Boolean)
       .map(id => id.toString());
 
-    const specializationMap = Object.fromEntries(
-      await departments
-        .find({ _id: { $in: specializationIds.map(toObjectIdSafe).filter(Boolean) } })
-        .select("_id departmentName")
-        .lean()
-        .then(specs => specs.map(spec => [spec._id.toString(), spec.departmentName]))
-    );
+    const specializationMap = specializationIds.length
+      ? Object.fromEntries(
+          (await departments
+            .find({ _id: { $in: specializationIds.map(toObjectIdSafe).filter(Boolean) } })
+            .select("_id departmentName")
+            .lean()
+          ).map(spec => [spec._id.toString(), spec.departmentName])
+        )
+      : {};
 
     const vetMap = Object.fromEntries(
       vets.map(v => [
@@ -126,37 +167,60 @@ static async fetchAppointments(req) {
     );
 
     const petMap = Object.fromEntries(
-      pets.map(p => [p._id.toString(), {
-        petName: p.petName || null,
-        petImage: p.petImage || null,
-      }])
+      pets.map(p => [p._id.toString(), { petName: p.petName, petImage: p.petImage }])
     );
 
     const hospitalMap = Object.fromEntries(
       hospitals.map(h => [h.userId, {
-        name: h.businessName || null,
-        latitude: h.address?.latitude || null,
-        longitude: h.address?.longitude || null
+        name: h.businessName,
+        latitude: h.address?.latitude,
+        longitude: h.address?.longitude
       }])
     );
 
-    const toFHIR = (app) => FHIRService.convertAppointmentToFHIR(app, vetMap, petMap, hospitalMap);
+    const toFHIR = app => FHIRService.convertAppointmentToFHIR(app, vetMap, petMap, hospitalMap);
+
+    if (filter === 'all') {
+      return {
+        total: totalCount,
+        limit,
+        offset,
+        upcoming: {
+          count: categories.upcoming.length,
+          data: categories.upcoming.map(toFHIR)
+        },
+        pending: {
+          count: categories.pending.length,
+          data: categories.pending.map(toFHIR)
+        },
+        past: {
+          count: categories.past.length,
+          data: categories.past.map(toFHIR)
+        },
+        cancel: {
+          count: categories.cancel.length,
+          data: categories.cancel.map(toFHIR)
+        }
+      };
+    }
 
     return {
       total: totalCount,
       limit,
       offset,
-      allAppointments: allAppointments.map(toFHIR),
-      confirmedAppointments: confirmed.map(toFHIR),
-      upcomingAppointments: upcoming.map(toFHIR),
-      pastAppointments: past.map(toFHIR)
+      appointments: {
+        count: categories[filter]?.length || 0,
+        data: (categories[filter] || []).map(toFHIR)
+      }
     };
 
   } catch (error) {
-    console.error("Error in fetchAppointments:", error);
     throw new Error("Failed to fetch appointments.");
   }
 }
+
+
+
 
 
   static async cancelAppointment(data) {

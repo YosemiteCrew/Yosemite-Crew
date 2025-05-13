@@ -3,11 +3,20 @@ class FHIRService {
     const vet = vetMap[app.veterinarian] || {};
     const pet = petMap[app.petId] || {};
     const hospital = hospitalMap[app.hospitalId] || {};
+
   
     return {
       resourceType: "Appointment",
       id: app._id.toString(),
-      status: app.appointmentStatus === 1 ? "booked" : "pending",
+      status: app.appointmentStatus,
+      start: app.appointmentDate,
+      reasonCode: [{ text: "Veterinary Consultation" }],
+      extension: [
+        {
+          url: "http://example.org/fhir/StructureDefinition/appointment-time-slot",
+          valueString: app.appointmentTime
+        }
+      ],
       participant: [
         {
           actor: {
@@ -27,7 +36,9 @@ class FHIRService {
                 valueString: vet.specialization || ""
               }
             ]
-          }
+          },
+          required: "required",
+          status: "accepted"
         },
         {
           actor: {
@@ -36,10 +47,14 @@ class FHIRService {
             extension: [
               {
                 url: "http://example.org/fhir/StructureDefinition/pet-images",
-                valueArray: (pet.petImage || []).map(img => ({ valueString: img })),
+                valueArray: Array.isArray(pet.petImage)
+                  ? pet.petImage.map(img => ({ valueString: img }))
+                  : [{ valueString: pet.petImage || "" }]
               }
             ]
-          }
+          },
+          required: "required",
+          status: "accepted"
         },
         {
           actor: {
@@ -55,11 +70,11 @@ class FHIRService {
                 valueDecimal: parseFloat(hospital.longitude) || 0
               }
             ]
-          }
+          },
+          required: "required",
+          status: "accepted"
         }
-      ],
-      start: new Date(app.appointmentDate).toISOString(),
-      reasonCode: [{ text: "Veterinary Consultation" }]
+      ]
     };
   }
   

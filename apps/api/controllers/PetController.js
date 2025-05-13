@@ -54,7 +54,7 @@ class PetController {
     try {
       const baseUrl = process.env.BASE_URL;
       const cognitoUserId = getCognitoUserId(req);
-      const { limit = 10, offset = 0 } = req.params;
+      const { limit = 10, offset = 0 } = req.query;
 
       const pets = await PetService.getPetsByUser(cognitoUserId, limit, offset);
       if (!pets.length) {
@@ -96,7 +96,7 @@ class PetController {
 static async handleEditPet(req, res) {
   try {
     const fhirData = req.body.data;
-    const id = req.params.Petid;
+    const id = req.query.Petid;
 
     // Validate MongoDB ObjectId
     if (!Types.ObjectId.isValid(id)) {
@@ -149,12 +149,18 @@ static async handleEditPet(req, res) {
 
 // Remove a pet record from the database
 static async handleDeletePet(req, res) {
-  const petId = req.params.Petid;
+  const petId = req.query.Petid;
   try {
     if (!Types.ObjectId.isValid(petId)) {
       await helpers.operationOutcome(0, "error", "not-found", `Invalid Pet ID format`)
     }
     const result = await PetService.deletePetById(petId);
+
+    if (!result) {
+      return res.status(200).json(
+        await helpers.operationOutcome(0, "error", "not-found", `No pet (Patient) found with ID ${petId}`)
+      );
+    }
 
     if (result.deletedCount === 0) {
       return res.status(200).json(

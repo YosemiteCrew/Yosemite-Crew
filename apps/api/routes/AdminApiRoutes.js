@@ -12,5 +12,9 @@ router.post("/addProcedurePackage",AdminController.CreateProcedurepackageCategor
 router.get("/procedureCategory",verifyTokenAndRefresh,AdminController.ProcedurePacakageCategorys)
 router.post("/breeds",AdminController.Breeds)
 router.get("/breeds",AdminController.Breed)
+router.post("/visits",AdminController.PurposeOfVisit)
+router.get("/visits",AdminController.PurposeOfVisitList)
+router.post("/AppointmentType",AdminController.AppointmentType)
+router.get("/AppointmentType",AdminController.Appointments)
 module.exports = router;
 

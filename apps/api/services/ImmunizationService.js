@@ -1,6 +1,7 @@
 const Vaccination = require('../models/vaccination');
 const FhirImmunizationValidator = require('../validators/FhirImmunizationValidator');
 const { mongoose } = require('mongoose');
+const helpers = require('../utils/helpers');
 
 class VaccinationService {
   static async saveFhirImmunization(data, fileName = "",cognitoUserId) {
@@ -21,7 +22,8 @@ class VaccinationService {
       vaccinationDate: data.occurrenceDateTime,
       hospitalName: data.performer?.[0]?.actor?.display || '',
       nextdueDate: data.note?.[0]?.text.replace('Next due date: ', '') || null,
-      vaccineImage: fileName
+      vaccineImage: fileName,
+      reminder: data.extension?.[0]?.valueBoolean ?? false
     };
 
     // Save to MongoDB
@@ -61,7 +63,8 @@ class VaccinationService {
       expiryDate: fhirData.expirationDate,
       vaccinationDate: fhirData.occurrenceDateTime,
       hospitalName: fhirData.location?.display,
-      nextdueDate: fhirData.note?.[0]?.text?.replace("Next due date: ", "")
+      nextdueDate: fhirData.note?.[0]?.text?.replace("Next due date: ", ""),
+      reminder: data.extension?.[0]?.valueBoolean ?? false
     };
   
     if (fileName) {
@@ -84,10 +87,23 @@ class VaccinationService {
   }
 
   static async deleteVaccinationRecord(id) {
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      throw new Error("Invalid Vaccination ID");
-    }
+   
     const objectId = new mongoose.Types.ObjectId(id); 
+     const data = await Vaccination.find({ _id: objectId });  
+      if (data.length === 0) {
+        return null; // Return null if not found
+      }
+    
+      if (Array.isArray(data[0].vaccineImage) && data[0].vaccineImage.length > 0) {
+        const vaccineImage = data[0].vaccineImage;
+
+        for (const image of vaccineImage) {
+          if (image.url) {
+            await helpers.deleteFiles(image.url);
+          }
+        }
+      }
+
     return await Vaccination.deleteOne({ _id: objectId });
   }
 
@@ -147,6 +163,12 @@ class VaccinationService {
       note: [
         {
           text: `Next due date: ${data.nextdueDate}`
+        }
+      ],
+      extension: [
+        {
+          url: "http://example.org/fhir/StructureDefinition/immunization-reminder",
+          valueBoolean: data.reminder,
         }
       ]
     };

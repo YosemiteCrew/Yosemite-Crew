@@ -1,150 +1,143 @@
-
-import React, { useCallback, useEffect, useState } from 'react';
-import './DepartmentsMain.css';
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import "./DepartmentsMain.css";
 // import { TextSpan } from '../Appointment/page'
-import { BoxDiv, ListSelect } from '../Dashboard/page';
+import { BoxDiv, ListSelect } from "../Dashboard/page";
 // import box1 from '../../../../public/Images/box1.png';
 // import box2 from '../../../../public/Images/box2.png';
 // import box3 from '../../../../public/Images/box3.png';
 // import box4 from '../../../../public/Images/box4.png';
-import { AddSerchHead } from '../Add_Doctor/Add_Doctor';
-import DepartmentAppointmentsChart from '../../Components/BarGraph/DepartmentAppointmentsChart';
-import WeeklyAppointmentsChart from '../../Components/BarGraph/WeeklyAppointmentsChart';
-import axios from 'axios';
-import Swal from 'sweetalert2';
-import { useAuth } from '../../context/useAuth';
-import { useNavigate } from 'react-router-dom';
-import { FHIRParser } from '../../utils/FhirMapper';
-import { DepartmentFHIRConverter } from '../../utils/DepartmentFHIRMapper';
+import { AddSerchHead } from "../Add_Doctor/Add_Doctor";
+import DepartmentAppointmentsChart from "../../Components/BarGraph/DepartmentAppointmentsChart";
+import WeeklyAppointmentsChart from "../../Components/BarGraph/WeeklyAppointmentsChart";
+import axios from "axios";
+import Swal from "sweetalert2";
+import { useAuth } from "../../context/useAuth";
+import { useNavigate } from "react-router-dom";
+import { FHIRParser } from "../../utils/FhirMapper";
+import { DepartmentFHIRConverter } from "../../utils/DepartmentFHIRMapper";
 
 const DepartmentsMain = () => {
   const [DepartmentsOverView, SetDepartmentsOverView] = useState({});
+  const [graphData, setGraphData] = useState([]);
+  const [WeeklyAppointmentGraph, setWeeklyAppointmentGraph] = useState([]);
 
+  const { userId, onLogout } = useAuth();
+  const navigate = useNavigate();
 
-  // console.log("DepartmentsOverView",DepartmentsOverView);
-  const { userId ,onLogout} = useAuth();
-  const navigate = useNavigate()
+  const didFetch = useRef(false); // prevents multiple API calls
+
   const optionsList1 = [
-    'Last 7 Days',
-    'Last 10 Days',
-    'Last 20 Days',
-    'Last 21 Days',
+    "Last 7 Days",
+    "Last 10 Days",
+    "Last 20 Days",
+    "Last 21 Days",
   ];
 
-  const GetDepartmentsOverView = useCallback(async (selectedOption) => {
-    const days = parseInt(selectedOption.match(/\d+/)[0], 10);
-    console.log(`Selected Days: ${days}`);
-    try {
-      const token = sessionStorage.getItem("token");
-      const response = await axios.get(
-        `${import.meta.env.VITE_BASE_URL}fhir/v1/MeasureReport?userId=${userId}&type=DepartmentOverview`,
-        {
-          params: {
-            LastDays: days,
-          },
-          headers: {
-            Authorization: `Bearer ${token}`
+  const GetDepartmentsOverView = useCallback(
+    async (selectedOption) => {
+      const days = parseInt(selectedOption.match(/\d+/)[0], 10);
+      try {
+        const token = sessionStorage.getItem("token");
+        const response = await axios.get(
+          `${import.meta.env.VITE_BASE_URL}fhir/v1/MeasureReport?userId=${userId}&type=DepartmentOverview`,
+          {
+            params: { LastDays: days },
+            headers: { Authorization: `Bearer ${token}` },
           }
-        }
-      );
+        );
 
-      if (response) {
-
-        // console.log("response.data",response.data);
-        const data = new FHIRParser(response.data.data).overviewConvertToNormal()
-        // console.log("FHIRParser",data);
+        const data = new FHIRParser(
+          response.data.data
+        ).overviewConvertToNormal();
         SetDepartmentsOverView(data);
-      }
-    } catch (error) {
-      if (error.response && error.response.status === 401) {
-        console.log('Session expired. Redirecting to signin...');
-        onLogout(navigate);
-      }
-      Swal.fire({
-        title: 'Error',
-        text: 'Failed to get departments overview',
-        icon: 'error',
-        confirmButtonText: 'OK',
-      });
-    }
-  },[onLogout,userId,navigate]);
-  const [graphData, setGraphData] = useState([]);
-  console.log('graph', graphData);
-  const DepartmentBasisAppointmentGraph = useCallback(async (selectedOption) => {
-    const days = parseInt(selectedOption.match(/\d+/)[0], 10);
-    console.log(`Selected Days: ${days}`);
-
-    try {
-      const token = sessionStorage.getItem("token");
-      const response = await axios.get(
-        `${import.meta.env.VITE_BASE_URL}fhir/v1/List?userId=${userId}&reportType=AppointmentGraphs`,
-        {
-          params: {
-            LastDays: days,
-          },
-          headers: {Authorization: `Bearer ${token}`},
+      } catch (error) {
+        if (error.response?.status === 401) {
+          onLogout(navigate);
         }
-      );
-      if (response) {
+        Swal.fire({
+          title: "Error",
+          text: "Failed to get departments overview",
+          icon: "error",
+        });
+      }
+    },
+    [onLogout, userId, navigate]
+  );
+
+  const DepartmentBasisAppointmentGraph = useCallback(
+    async (selectedOption) => {
+      const days = parseInt(selectedOption.match(/\d+/)[0], 10);
+      try {
+        const token = sessionStorage.getItem("token");
+        const response = await axios.get(
+          `${import.meta.env.VITE_BASE_URL}fhir/v1/List?userId=${userId}&reportType=AppointmentGraphs`,
+          {
+            params: { LastDays: days },
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
 
         const data = DepartmentFHIRConverter.fromFHIR(response.data);
-        // console.log("DepartmentFHIRConverter",data)
-        
         const formattedData = data.map((item) => ({
           name: item.departmentName,
           appointments: item.count,
         }));
         setGraphData(formattedData);
+      } catch (error) {
+        if (error.response?.status === 401) {
+          onLogout(navigate);
+        }
+        Swal.fire({
+          title: "Error",
+          text: "Failed to get department basis appointment graph",
+          icon: "error",
+        });
       }
-    } catch (error) {
-      if (error.response && error.response.status === 401) {
-        console.log('Session expired. Redirecting to signin...');
-        onLogout(navigate);
-      }
-      Swal.fire({
-        title: 'Error',
-        text: 'Failed to get department basis appointment graph',
-        icon: 'error',
-        confirmButtonText: 'OK',
-      });
-    }
-  },[onLogout,userId,navigate]);
-  const [WeeklyAppointmentGraph, setweeklyAppoinmentGraph] = useState({});
-  console.log('WeeklyAppointmentGraph', WeeklyAppointmentGraph);
+    },
+    [onLogout, userId, navigate]
+  );
+
   const getDataForWeeklyAppointmentChart = useCallback(async () => {
     try {
-      const token = sessionStorage.getItem('token')
+      const token = sessionStorage.getItem("token");
       const response = await axios.get(
-        `${import.meta.env.VITE_BASE_URL}fhir/v1/List?userId=${userId}&reportType=WeeklyAppointmentGraph`,{headers:{Authorization:`Bearer ${token}`}}
+        `${import.meta.env.VITE_BASE_URL}fhir/v1/List?userId=${userId}&reportType=WeeklyAppointmentGraph`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
-      if (response) {
-        const data = new DepartmentFHIRConverter().convertFromFHIR(response.data)
 
-
-        const formattedData = data.map((item) => ({
-          name: item.day,
-          appointments: item.count,
-        }));
-        setweeklyAppoinmentGraph(formattedData);
-      }
+      const data = new DepartmentFHIRConverter().convertFromFHIR(response.data);
+      const formattedData = data.map((item) => ({
+        name: item.day,
+        appointments: item.count,
+      }));
+      setWeeklyAppointmentGraph(formattedData);
     } catch (error) {
-      if (error.response && error.response.status === 401) {
-        console.log('Session expired. Redirecting to signin...');
+      if (error.response?.status === 401) {
         onLogout(navigate);
       }
       Swal.fire({
-        title: 'Error',
-        text: 'Failed to get weekly appointment chart data',
-        icon: 'error',
-        confirmButtonText: 'OK',
+        title: "Error",
+        text: "Failed to get weekly appointment chart data",
+        icon: "error",
       });
     }
-  },[onLogout,navigate,userId]);
+  }, [onLogout, navigate, userId]);
+
   useEffect(() => {
-    getDataForWeeklyAppointmentChart();
-    DepartmentBasisAppointmentGraph('Last 7 Days');
-    GetDepartmentsOverView('Last 7 Days');
-  }, [userId,DepartmentBasisAppointmentGraph,GetDepartmentsOverView,getDataForWeeklyAppointmentChart]);
+    if (userId && !didFetch.current) {
+      didFetch.current = true;
+      getDataForWeeklyAppointmentChart();
+      DepartmentBasisAppointmentGraph("Last 7 Days");
+      GetDepartmentsOverView("Last 7 Days");
+    }
+  }, [
+    userId,
+    getDataForWeeklyAppointmentChart,
+    DepartmentBasisAppointmentGraph,
+    GetDepartmentsOverView,
+  ]);
   return (
     <section className="Department_MainSec">
       <div className="container">
@@ -169,14 +162,22 @@ const DepartmentsMain = () => {
                 ovradcls="purple"
                 ovrtxt="Departments"
                 boxcoltext="purpletext"
-                overnumb={DepartmentsOverView.totalDepartments?DepartmentsOverView.totalDepartments:0}
+                overnumb={
+                  DepartmentsOverView.totalDepartments
+                    ? DepartmentsOverView.totalDepartments
+                    : 0
+                }
               />
               <BoxDiv
                 boximg={`${import.meta.env.VITE_BASE_IMAGE_URL}/box4.png`}
                 ovradcls=" fawndark"
                 ovrtxt="Total Doctors "
                 boxcoltext="frowntext"
-                overnumb={DepartmentsOverView.totalDoctors?DepartmentsOverView.totalDoctors:0}
+                overnumb={
+                  DepartmentsOverView.totalDoctors
+                    ? DepartmentsOverView.totalDoctors
+                    : 0
+                }
               />
               <BoxDiv
                 boximg={`${import.meta.env.VITE_BASE_IMAGE_URL}/box3.png`}
@@ -184,7 +185,9 @@ const DepartmentsMain = () => {
                 ovrtxt="New Animal"
                 boxcoltext="greentext"
                 overnumb={
-                  DepartmentsOverView.newPetsCount ? DepartmentsOverView.newPetsCount : 0
+                  DepartmentsOverView.newPetsCount
+                    ? DepartmentsOverView.newPetsCount
+                    : 0
                 }
               />
               <BoxDiv
@@ -192,7 +195,11 @@ const DepartmentsMain = () => {
                 ovradcls="chillibg"
                 ovrtxt="Appointments Today"
                 boxcoltext="ciltext"
-                overnumb={DepartmentsOverView.totalAppointments?DepartmentsOverView.totalAppointments:0}
+                overnumb={
+                  DepartmentsOverView.totalAppointments
+                    ? DepartmentsOverView.totalAppointments
+                    : 0
+                }
               />
             </div>
           </div>
