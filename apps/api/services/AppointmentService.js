@@ -204,11 +204,13 @@ static async fetchAppointments(req) {
       };
     }
 
+
+
     return {
       total: totalCount,
       limit,
       offset,
-      appointments: {
+      [filter]: {
         count: categories[filter]?.length || 0,
         data: (categories[filter] || []).map(toFHIR)
       }

@@ -103,6 +103,44 @@ class ListController {
         }
       }
       
+      async handleSeachOrganization(req, res) {
+        try {
+          let { search, offset = 0, limit = 10 } = req.query;
+      
+          // Sanitize and validate query parameters
+          search = typeof search === 'string' ? validator.escape(search.trim()) : '';
+          offset = validator.isInt(offset.toString(), { min: 0 }) ? parseInt(offset) : 0;
+          limit = validator.isInt(limit.toString(), { min: 1, max: 100 }) ? parseInt(limit) : 10;
+      
+          const businessData = await BusinessService.getBusinessSearchList(search, offset, limit);
+      
+          const nestedResources = [];
+      
+          for (const org of businessData.data) {
+            const fhirOrg = FhirFormatter.toFhirOrganization(org);
+            const fhirDepts = FhirFormatter.toFhirHealthcareServices(org);
+            fhirOrg.healthcareServices = fhirDepts;
+            nestedResources.push(fhirOrg);
+          }
+      
+          const bundle = {
+            resourceType: "Bundle",
+            type: "collection",
+            total: businessData.count,
+            entry: nestedResources.map(resource => ({ resource }))
+          };
+      
+          res.status(200).json({
+            status: 1,
+            data: bundle
+          });
+      
+        } catch (err) {
+          console.error(err);
+          res.status(500).json({ status: 0, error: err.message });
+        }
+      }
+       
 
 }  
  module.exports = new ListController();
