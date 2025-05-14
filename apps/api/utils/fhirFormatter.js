@@ -52,6 +52,7 @@ class FHIRFormatter {
     static feedbackNotFoundOutcome() {
       return {
         resourceType: "OperationOutcome",
+        data:[],
         issue: [{
           status: 0,
           severity: "information",
@@ -64,6 +65,7 @@ class FHIRFormatter {
     static errorOutcome(message = "An error occurred while retrieving feedback") {
       return {
         resourceType: "OperationOutcome",
+        data:[],
         issue: [{
           status: 0,
           severity: "error",
