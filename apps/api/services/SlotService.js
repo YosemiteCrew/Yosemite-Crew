@@ -43,7 +43,17 @@ class SlotService {
     };
   }
 
-  const bookedAppointments = await webAppointments.find({ veterinarian: doctorId, appointmentDate });
+  if (typeof doctorId !== 'string' || doctorId.trim() === '') {
+   return res.status(200).json({ status: 0, message: 'Invalid doctor ID' });
+  }
+  
+  const normalizedDate = moment.tz(appointmentDate, "YYYY-MM-DD", "Asia/Kolkata").format("YYYY-MM-DD");
+
+  if (!moment(appointmentDate, "YYYY-MM-DD", true).isValid()) {
+  return res.status(200).json({ status: 0, message: 'Invalid appointment date' });
+}
+
+  const bookedAppointments = await webAppointments.find({ veterinarian: doctorId,  appointmentDate: normalizedDate });
 
   const availableSlots = timeSlots
     .filter(slot => {
