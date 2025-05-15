@@ -1,42 +1,52 @@
 class FHIRFormatter {
   static toObservationResource(feedback) {
-    return {
-      resourceType: "Observation",
-      id: feedback._id.toString(),
-      status: "final",
-      code: {
-        coding: [
-          {
-            system: "http://loinc.org",
-            code: "71007-4", // Standard code for patient satisfaction
-            display: "Patient satisfaction"
-          }
-        ],
-        text: "Feedback Rating"
-      },
-      subject: {
-        reference: `Patient/${feedback.petId}`
-      },
-      performer: [
+  return {
+    resourceType: "Observation",
+    id: feedback._id.toString(),
+    status: "final",
+    code: {
+      coding: [
         {
-          reference: `Practitioner/${feedback.doctorId}`
+          system: "http://loinc.org",
+          code: "71007-4",
+          display: "Patient satisfaction"
         }
       ],
-      effectiveDateTime: feedback.createdAt ? new Date(feedback.createdAt).toISOString() : new Date().toISOString(),
-      valueInteger: feedback.rating || 0,
-      note: feedback.feedback ? [
-        {
-          text: feedback.feedback
-        }
-      ] : [],
-      extension: [
-        {
-          url: "http://example.org/fhir/StructureDefinition/meeting-id",
-          valueString: feedback.meetingId
-        }
-      ]
-    };
-  }
+      text: "Feedback Rating"
+    },
+    subject: {
+      reference: `Patient/${feedback.petId}`
+    },
+    performer: [
+      {
+        reference: `Practitioner/${feedback.doctorId}`,
+        display: `${feedback.doctorDetails?.personalInfo?.firstName || ''} ${feedback.doctorDetails?.personalInfo?.lastName || ''}`.trim()
+      }
+    ],
+    effectiveDateTime: feedback.createdAt ? new Date(feedback.createdAt).toISOString() : new Date().toISOString(),
+    valueInteger: (feedback.rating !== undefined && feedback.rating !== null) ? feedback.rating : undefined,
+    note: feedback.feedback ? [{ text: feedback.feedback }] : [],
+    extension: [
+      {
+        url: "http://example.org/fhir/StructureDefinition/meeting-id",
+        valueString: feedback.meetingId
+      },
+      {
+        url: "http://example.org/fhir/StructureDefinition/doctor-qualification",
+        valueString: feedback.doctorDetails?.professionalBackground?.qualification || ""
+      },
+      {
+        url: "http://example.org/fhir/StructureDefinition/doctor-department",
+        valueString: feedback.department || ""
+      },
+      {
+        url: "http://example.org/fhir/StructureDefinition/doctor-image",
+        valueUrl: feedback.doctorDetails?.personalInfo?.image || ""
+      }
+    ]
+  };
+}
+
 
   static toObservationBundle(feedbackList) {
     const resources = feedbackList.map(this.toObservationResource);

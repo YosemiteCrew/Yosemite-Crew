@@ -29,15 +29,77 @@ class FeedbackService {
     return savedFeedback ? savedFeedback : null;
   }
   
-  static async getDoctorFeedback(doctorId, meetingId = null, limit = 10, offset = 0) {
-    const filter = { doctorId };
-    if (meetingId) {
-      filter.meetingId = meetingId;
-      return await feedbacks.find(filter).lean(); // No pagination
-    } else {
-      return await feedbacks.find(filter).skip(offset).limit(limit).lean(); // With pagination
+ static async getDoctorFeedback(doctorId, meetingId = null, limit = 10, offset = 0) {
+  const matchStage = { doctorId };
+  if (meetingId) matchStage.meetingId = meetingId;
+
+  const pipeline = [
+    { $match: matchStage },
+    {
+      $lookup: {
+        from: 'adddoctors',
+        localField: 'doctorId',
+        foreignField: 'userId',
+        as: 'doctorDetails'
+      }
+    },
+    { $unwind: '$doctorDetails' },
+
+    // Convert to ObjectId if needed
+    {
+      $addFields: {
+        specializationId: {
+          $toObjectId: '$doctorDetails.professionalBackground.specialization'
+        }
+      }
+    },
+
+    {
+      $lookup: {
+        from: 'departments',
+        localField: 'specializationId',
+        foreignField: '_id',
+        as: 'departmentDetails'
+      }
+    },
+    { $unwind: { path: '$departmentDetails', preserveNullAndEmptyArrays: true } },
+
+    { $sort: { createdAt: -1 } },
+
+    {
+      $project: {
+        _id: 1,
+        doctorId: 1,
+        meetingId: 1,
+        petId: 1,
+        rating: 1,
+        feedback: 1,
+        createdAt: 1,
+        doctorDetails: {
+          personalInfo: {
+            firstName: 1,
+            lastName: 1,
+            image: 1
+          },
+          professionalBackground: {
+            qualification: 1
+          }
+        },
+        department: '$departmentDetails.departmentName' // Ensure this matches actual field
+      }
     }
+  ];
+
+  if (!meetingId) {
+    pipeline.push({ $skip: offset }, { $limit: limit });
   }
+
+  const results = await feedbacks.aggregate(pipeline);
+  return results;
+}
+
+
+
 
     static async getFeedbackById(feedbackId) {
       try {
