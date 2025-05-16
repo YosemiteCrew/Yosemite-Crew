@@ -14,6 +14,7 @@ const departments =  require('../models/AddDepartment');
 const DoctorsTimeSlotes  = require('../models/DoctorsSlotes');
 const helpers = require('../utils/helpers');
 const { mongoose } = require('mongoose');
+const moment = require('moment-timezone');
 
 class appointmentService {
 static async bookAppointment(data) {
@@ -52,12 +53,15 @@ static async getPetAndOwner(petId, userId) {
   return { petDetails, petOwner };
 }
 
+
+
 static async fetchAppointments(req) {
   try {
     const cognitoUserId = getCognitoUserId(req);
-    const now = new Date();
-    const today = new Date(now);
-    today.setHours(0, 0, 0, 0);
+    const timezone = 'Asia/Kolkata'; // or 'UTC' if you prefer server independence
+
+    const now = moment.tz(timezone);
+    const today = now.clone().startOf('day');
 
     const filter = req.query.type || "all";
     const limit = parseInt(req.query.limit) || 10;
@@ -80,27 +84,37 @@ static async fetchAppointments(req) {
     const hospitalIds = new Set();
 
     for (const app of rawAppointments) {
-      const datePart = new Date(app.appointmentDate);
-      datePart.setHours(0, 0, 0, 0);
+      const appointmentDate = moment.tz(app.appointmentDate, timezone).startOf('day');
 
-      const [hr = 0, min = 0] = (app.appointmentTime24 || '00:00').split(':').map(Number);
-      const fullDateTime = new Date(app.appointmentDate);
-      fullDateTime.setHours(hr, min, 0, 0);
+      let fullDateTime;
+      const timeString = app.appointmentTime24 || '12:00 AM'; // assume midnight if missing
+
+      // Handle 12-hour or 24-hour formats
+      if (timeString.toLowerCase().includes('am') || timeString.toLowerCase().includes('pm')) {
+        fullDateTime = moment.tz(`${app.appointmentDate} ${timeString}`, 'YYYY-MM-DD h:mm A', timezone);
+      } else {
+        fullDateTime = moment.tz(app.appointmentDate, timezone);
+        const [hr = 0, min = 0] = timeString.split(':').map(Number);
+        fullDateTime.hour(hr).minute(min).second(0).millisecond(0);
+      }
 
       const { appointmentStatus } = app;
 
       if (appointmentStatus === 'cancelled') {
         categories.cancel.push(app);
       } else if (appointmentStatus === 'pending') {
-        if (datePart >= today && fullDateTime >= now) {
+        if (appointmentDate.isSameOrAfter(today) && fullDateTime.isSameOrAfter(now)) {
           categories.pending.push(app);
         }
       } else if (appointmentStatus === 'booked') {
-        if (datePart > today) {
+        if (appointmentDate.isAfter(today)) {
           categories.upcoming.push(app);
-        } else if (datePart.getTime() === today.getTime()) {
-          if (fullDateTime >= now) categories.upcoming.push(app);
-          else categories.past.push(app);
+        } else if (appointmentDate.isSame(today)) {
+          if (fullDateTime.isSameOrAfter(now)) {
+            categories.upcoming.push(app);
+          } else {
+            categories.past.push(app);
+          }
         } else {
           categories.past.push(app);
         }
@@ -208,19 +222,17 @@ static async fetchAppointments(req) {
       total: totalCount,
       limit,
       offset,
-      appointments: {
+      [filter]: {
         count: categories[filter]?.length || 0,
         data: (categories[filter] || []).map(toFHIR)
       }
     };
 
   } catch (error) {
+    console.error('Error in fetchAppointments:', error);
     throw new Error("Failed to fetch appointments.");
   }
 }
-
-
-
 
 
   static async cancelAppointment(data) {
