@@ -4,6 +4,7 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
+    "type-check": "turbo run type-check",
     "format": "prettier --write \"**/*.{ts,tsx,md}\""
   },
   "devDependencies": {
@@ -15,5 +16,10 @@
   "name": "with-vite",
   "dependencies": {
     "sanitize-filename": "^1.6.3"
+  },
+  "pnpm": {
+    "patchedDependencies": {
+      "react-native-country-codes-picker@2.3.5": "patches/react-native-country-codes-picker@2.3.5.patch"
+    }
   }
 }

@@ -1,12 +1,12 @@
 {
   "name": "api",
   "version": "0.0.0",
-  "main": "server.js",
   "private": true,
-  "type": "commonjs",
   "scripts": {
-    "dev": "nodemon main.js",
-    "start": "node main.js"
+    "dev": "tsx watch main.ts",
+    "build": "node scripts/build.js",
+    "start": "node dist/index.js",
+    "type-check": "tsc"
   },
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "3.772.0",
@@ -35,6 +35,12 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "nodemon": "^3.1.9"
+    "@types/cors": "^2.8.18",
+    "@types/express": "^5.0.2",
+    "@yosemite-crew/types": "workspace:^",
+    "esbuild": "^0.25.4",
+    "nodemon": "^3.1.9",
+    "tsx": "^4.19.4",
+    "typescript": "5.0.4"
   }
 }

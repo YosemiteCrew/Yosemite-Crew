@@ -1,3 +1,10 @@
 {
-  "extends": "@react-native/typescript-config/tsconfig.json"
+  "extends": "@react-native/typescript-config/tsconfig.json",
+  "compilerOptions": {
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": ["react", "react-native", "jest"],         
+  },
+  "exclude": ["node_modules"],
+  "include": ["App.tsx", "src/**/*"],
 }
