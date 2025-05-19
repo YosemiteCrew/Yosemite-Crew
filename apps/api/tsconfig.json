@@ -1,0 +1,10 @@
+{
+  "extends": "@yosemite-crew/types/tsconfig.json",
+  "compilerOptions": {
+    "module": "CommonJS",              
+    "moduleResolution": "Node",
+    "outDir": "dist",
+    "noEmit": true
+  },
+  "include": ["main.ts", "config/**/*", "controllers/**/*", "extensions/**/*", "Fhirvalidator/**/*", "mappers/**/*", "models/**/*", "routes/**/*", "services/**/*", "utils/**/*", "validators/**/*", "views/**/*", "middleware/**/*"],
+}

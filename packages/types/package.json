@@ -1,0 +1,11 @@
+{
+  "name": "@yosemite-crew/types",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "type-check": "tsc"
+  },
+  "devDependencies": {
+    "typescript": "5.0.4"
+  }
+}

@@ -19,7 +19,7 @@ const { PurposeOfVisitFHIRConverter } = require("../utils/AdminFhirHandler");
 const AdminController = {
   AddInventoryCategory: async (req, res) => {
     try {
-      const { category, bussinessId } = req.body;
+      let { category, bussinessId } = req.body;
       if (
         typeof bussinessId !== "string" ||
         !/^[a-fA-F0-9-]{36}$/.test(bussinessId)
@@ -78,7 +78,7 @@ const AdminController = {
   },
   AddInventoryManufacturer: async (req, res) => {
     try {
-      const { manufacturer, bussinessId } = req.body;
+      let { manufacturer, bussinessId } = req.body;
 
       if (
         typeof bussinessId !== "string" ||
@@ -145,7 +145,7 @@ const AdminController = {
 
   AddInventoryItemCategory: async (req, res) => {
     try {
-      const { itemCategory, bussinessId } = req.body;
+      let { itemCategory, bussinessId } = req.body;
       if (
         typeof bussinessId !== "string" ||
         !/^[a-fA-F0-9-]{36}$/.test(bussinessId)
