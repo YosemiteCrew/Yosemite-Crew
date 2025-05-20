@@ -1,4 +1,4 @@
-const moment = require('moment');
+const moment = require('moment-timezone');
 
 function createFHIRSlot(slot, doctorId, bookedAppointments) {
     const isBooked = bookedAppointments.some(app => app.slotsId?.toString() === slot._id?.toString());
@@ -11,8 +11,8 @@ function createFHIRSlot(slot, doctorId, bookedAppointments) {
       },
       isBooked: isBooked ? "true" : "false",
       slotTime: slot.time,
-      start: moment(`${slot.date} ${slot.time}`, "YYYY-MM-DD hh:mm A").toISOString(),
+      start: moment.tz(`${slot.date} ${slot.time}`, "YYYY-MM-DD hh:mm A", "Asia/Kolkata").toISOString(),
     };
-  }
-  
-  module.exports = { createFHIRSlot };
+}
+
+module.exports = { createFHIRSlot };
