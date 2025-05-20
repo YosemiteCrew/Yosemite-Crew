@@ -3,12 +3,11 @@ const {
   AppointmentsToken,
   webAppointments,
 } = require('../models/WebAppointment');
-const pet = require('../models/YoshPet');
-const YoshUser = require('../models/YoshUser');
+const appUsers = require('../models/AppUsers');
 const { getCognitoUserId } = require('../utils/jwtUtils');
 const FHIRService = require("./FHIRService");
-const adddoctors = require('../models/AddDoctor');
-const yoshpets = require('../models/YoshPet');
+const adddoctors = require('../models/addDoctor');
+const yosepets = require('../models/Pets');
 const { ProfileData }= require('../models/WebUser');
 const departments =  require('../models/AddDepartment');
 const DoctorsTimeSlotes  = require('../models/DoctorsSlotes');
@@ -48,8 +47,8 @@ static async updateToken(hospitalId, appointmentDate) {
 }
 
 static async getPetAndOwner(petId, userId) {
-  const petDetails = await pet.findById(petId);
-  const petOwner = await YoshUser.findOne({ cognitoId: userId });
+  const petDetails = await yosepets.findById(petId);
+  const petOwner = await appUsers.findOne({ cognitoId: userId });
   return { petDetails, petOwner };
 }
 
@@ -142,7 +141,7 @@ static async fetchAppointments(req) {
             .lean()
         : [],
       objectPetIds.length
-        ? yoshpets.find({ _id: { $in: objectPetIds } })
+        ? yosepets.find({ _id: { $in: objectPetIds } })
             .select("_id petName petImage")
             .lean()
         : [],
