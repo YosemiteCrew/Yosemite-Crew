@@ -1,4 +1,4 @@
-const { petCoOwner } = require('../models/petDuties');
+const { petCoOwner } = require('../models/PetDuties');
 const helpers = require('../utils/helpers');
 const { mongoose } = require('mongoose'); // for ObjectId validation
 
