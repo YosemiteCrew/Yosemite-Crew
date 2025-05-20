@@ -1,4 +1,4 @@
-const { petDuties } = require('../models/petDuties');
+const { petDuties } = require('../models/PetDuties');
 const { getCognitoUserId } = require('../utils/jwtUtils');
 const RelatedPersonService = require('../services/RelatedPersonService');
 const helpers = require('../utils/helpers');
