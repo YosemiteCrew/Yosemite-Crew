@@ -1,5 +1,5 @@
 
-const groomerModel = require('../models/petGroomer');
+const groomerModel = require('../models/PetGroomer');
 
 class GroomerService {
   constructor() {

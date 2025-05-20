@@ -32,5 +32,5 @@ const breederSchema = new mongoose.Schema({
     }
 
 }, { timestamps: true});
-const YoshBreeder = mongoose.model('YoshBreeder',breederSchema);
-module.exports = YoshBreeder;
+const BreederDetails = mongoose.model('BreederDetails',breederSchema);
+module.exports = BreederDetails;

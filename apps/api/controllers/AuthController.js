@@ -1,7 +1,7 @@
 const AWS = require("aws-sdk");
 const validator = require('validator');
 const crypto = require("crypto");
-const user = require("../models/YoshUser");
+const user = require("../models/AppUsers");
 const path = require("path");
 const jwt = require("jsonwebtoken");
 const algorithm = "aes-256-cbc"; // Algorithm

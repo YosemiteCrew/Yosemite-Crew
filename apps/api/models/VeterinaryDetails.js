@@ -35,5 +35,5 @@ const vetSchema = new mongoose.Schema({
     }
 
 }, { timestamps: true});
-const YoshVet = mongoose.model('YoshVetClinic',vetSchema);
-module.exports = YoshVet;
+const VetClinic = mongoose.model('VetClinic',vetSchema);
+module.exports = VetClinic;

@@ -27,5 +27,5 @@ const exercisePlanSchema = new mongoose.Schema({
     },
 
 }, { timestamps: true});
-const YoshExercisePlans = mongoose.model('YoshExercisePlans',exercisePlanSchema);
-module.exports = YoshExercisePlans;
+const ExercisePlans = mongoose.model('ExercisePlans',exercisePlanSchema);
+module.exports = ExercisePlans;
