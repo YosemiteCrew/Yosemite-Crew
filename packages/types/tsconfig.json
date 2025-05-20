@@ -1,9 +1,10 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
-    "composite": false,
+    "composite": true,
     "declaration": true,
     "declarationMap": true,
+    "emitDeclarationOnly": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "allowImportingTsExtensions": true,
@@ -16,8 +17,9 @@
     "preserveWatchOutput": true,
     "skipLibCheck": true,
     "strict": true,
-    "noEmit": true,
-    "strictNullChecks": true
+    "noEmit": false,
+    "strictNullChecks": true,
+    "outDir": "dist"
   },
   "exclude": ["node_modules"],
   "include": ["./src/**/*"]
