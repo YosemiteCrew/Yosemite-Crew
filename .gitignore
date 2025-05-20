@@ -25,6 +25,8 @@ apps/mobileApp/src/constants/index.js
 #
 .DS_Store
 
+tsconfig.tsbuildinfo
+
 # Xcode
 #
 build/

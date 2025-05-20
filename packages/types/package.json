@@ -1,7 +1,6 @@
 {
   "name": "@yosemite-crew/types",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "types": "./dist/src/index.d.ts",
   "scripts": {
     "type-check": "tsc"
   },

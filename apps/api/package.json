@@ -6,7 +6,8 @@
     "dev": "tsx watch main.ts",
     "build": "node scripts/build.js",
     "start": "node dist/index.js",
-    "type-check": "tsc"
+    "type-check": "tsc",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "3.772.0",
@@ -35,12 +36,15 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@eslint/js": "^9.21.0",
     "@types/cors": "^2.8.18",
     "@types/express": "^5.0.2",
     "@yosemite-crew/types": "workspace:^",
     "esbuild": "^0.25.4",
+    "eslint": "^9.27.0",
     "nodemon": "^3.1.9",
     "tsx": "^4.19.4",
-    "typescript": "5.0.4"
+    "typescript": "5.0.4",
+    "typescript-eslint": "^8.32.1"
   }
 }
