@@ -24,7 +24,7 @@ const petGroomerSchema = new mongoose.Schema({
     telephone: {
         type: String,
     },
-    emailAddess: {
+    emailAddress: {
         type: String,
     },
     website: {
@@ -32,5 +32,5 @@ const petGroomerSchema = new mongoose.Schema({
     }
 
 }, { timestamps: true});
-const YoshPetGroomer = mongoose.model('YoshPetGroomer',petGroomerSchema);
-module.exports = YoshPetGroomer;
+const PetGroomer = mongoose.model('PetGroomer',petGroomerSchema);
+module.exports = PetGroomer;

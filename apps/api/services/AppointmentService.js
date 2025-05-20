@@ -6,7 +6,7 @@ const {
 const appUsers = require('../models/AppUsers');
 const { getCognitoUserId } = require('../utils/jwtUtils');
 const FHIRService = require("./FHIRService");
-const adddoctors = require('../models/addDoctor');
+const adddoctors = require('../models/AddDoctor');
 const yosepets = require('../models/Pets');
 const { ProfileData }= require('../models/WebUser');
 const departments =  require('../models/AddDepartment');

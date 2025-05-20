@@ -12,18 +12,18 @@ const ImmunizationController = require("../controllers/ImmunizationController");
 const DiabetesController = require("../controllers/DiabetesController");
 const SharedDutiesController = require("../controllers/SharedDutiesController");
 
-const { handleContactUs } = require("../controllers/contact");
+const { handleContactUs } = require("../controllers/ContactController");
 
 const {
   handleExercisePlan,
   handleAddPainJournal,
   handleGetExercisePlan,
   handleGetPainJournal,
-} = require("../controllers/plan");
+} = require("../controllers/PlanController");
 const {
   handlesaveMedicalRecord,
   handleMedicalRecordList,
-} = require("../controllers/medicalRecords");
+} = require("../controllers/MedicalRecordsController");
 
 
 

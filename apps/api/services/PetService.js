@@ -1,4 +1,4 @@
-const pet = require('../models/YoshPet');
+const pet = require('../models/Pets');
 const helpers = require('../utils/helpers');
 const { mongoose } = require('mongoose');
 const {  handleMultipleFileUpload } = require('../middlewares/upload'); // assuming you have this

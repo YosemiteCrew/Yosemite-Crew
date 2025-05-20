@@ -1,4 +1,4 @@
-const diabetesRecords = require('../models/records');
+const diabetesRecords = require('../models/Records');
 const { mongoose } = require('mongoose');
 const helpers = require('../utils/helpers');
 
