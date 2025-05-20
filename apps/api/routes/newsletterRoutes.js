@@ -1,9 +1,13 @@
 const express = require('express');
 const { UpdateEndpointCommand, UpdateEndpointsBatchCommand } = require('@aws-sdk/client-pinpoint')
-const { v4: uuid4 } = require('uuid')
 const multer = require('multer')
 const { parse } = require('csv-parse/sync');
 const { pinClient } = require('../config/pinpointClient');
+const Subscriber = require('../models/Subscriber');
+const { verifyTokenAndRefresh } = require('../middlewares/authMiddleware');
+const validator = require('validator');
+const mongoose = require('mongoose');
+const { ObjectId } = require('mongoose').Types;
 
 const router = express.Router();
 
@@ -17,18 +21,84 @@ const upload = multer({
 });
 
 function isValidEmail(email) {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
+  return validator.isEmail(email);
 }
 
+router.get('/check-email', async (req, res) => {
+  const { email } = req.query;
+  if (!email || !isValidEmail(email)) return res.status(400).json({ error: 'Enter a valid Email' });
+  try {
+    const subscriber = await Subscriber.findOne({ email });
+    if (subscriber && subscriber.subscribed) {
+      return res.status(200).json({ message: 'Email subscribed' });
+    }
+    res.status(200).json({ message: 'Email not subscribed' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/check-email', verifyTokenAndRefresh, async (req, res) => {
+  const { email } = req.body;
+  if (!email || !isValidEmail(email)) return res.status(400).json({ error: 'Enter a valid Email' });
+  try {
+    const subscriber = await Subscriber.findOne({ email });
+    if (subscriber) {
+      return res.status(200).json({ subscriber });
+    }
+    res.status(200).json({ message: 'Email not subscribed' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.post('/subscribe', async (req, res) => {
-  const { email, name, countryCode, userType } = req.body;
-  if (!email || !isValidEmail(email)) return res.status(400).json({ error: 'Email is required' });
-  // Check if country & UserType are valid
+  const { email, name, countryCode, userType, userId } = req.body;
+  const allowedUserTypes = ['Pet Owner', 'Business', 'Developer'];
+  if (!name) return res.status(400).json({ error: 'Enter a valid Name' });
+  if (!email || !isValidEmail(email)) return res.status(400).json({ error: 'Enter a valid Email' });
+  if (!userType || !allowedUserTypes.includes(userType)) return res.status(400).json({ error: 'Enter a valid userType' });
+  if (!countryCode || !validator.isISO31661Alpha2(countryCode)) return res.status(400).json({ error: 'Enter a valid CountryCode' });
 
   try {
-    // Check if the email is already subscribed in MongoDb
-    const newId = uuid4();
+    const subscriber = await Subscriber.findOne({ email });
+    if (subscriber) {
+      if (subscriber.subscribed) {
+        return res.status(400).json({ error: 'Email already subscribed' });
+      } else {
+        await Subscriber.updateOne({ email }, { subscribed: true });
+        const params = {
+          ApplicationId: process.env.PINPOINT_APPLICATION_ID,
+          EndpointId: subscriber._id.toString(),
+          EndpointRequest: {
+            OptOut: 'ALL',
+            User: {
+              UserAttributes: {
+                Subscribed: ['false'],
+              },
+            }
+          }
+        };
+        const command = new UpdateEndpointCommand(params);
+        const response = await pinClient.send(command);
+        if (response.$metadata.httpStatusCode !== 200) {
+          return res.status(500).json({ error: 'Failed to unsubscribe' });
+        }
+        res.status(200).json({ message: 'Subscription successful!' });
+      }
+    }
+    const subscriberData = {
+      email,
+      subscribed: true,
+      countryCode,
+      userType,
+      name
+    }
+    if (userId && mongoose.Types.ObjectId.isValid(userId)) {
+      subscriberData.user = userId;
+    }
+    const newSubscriber = await Subscriber.create(subscriberData);
+    const newId = newSubscriber._id.toString()
     const params = {
       ApplicationId: process.env.PINPOINT_APPLICATION_ID,
       EndpointId: newId,
@@ -47,17 +117,13 @@ router.post('/subscribe', async (req, res) => {
             Email: [email],
             CountryCode: [countryCode || ''],
             UserType: [userType || ''],
-            Subscribed: ['true'],
-            UUID: [newId],
-            CreatedAt: [new Date().toISOString()],
-            UpdatedAt: [new Date().toISOString()],
+            Subscribed: ['true']
           },
         }
       }
     };
     const command = new UpdateEndpointCommand(params);
     const response = await pinClient.send(command);
-    console.log('Pinpoint response:', response);
     if (response.$metadata.httpStatusCode !== 200) {
       return res.status(500).json({ error: 'Failed to subscribe' });
     }
@@ -72,7 +138,10 @@ router.post('/unsubscribe', async (req, res) => {
   const { uuid } = req.body;
   if (!uuid) return res.status(400).json({ error: 'UUID is required' });
   try {
-    // Check if the email exists in MongoDb
+    const subscriber = await Subscriber.findOne({ _id: uuid });
+    if (!subscriber) return res.status(400).json({ error: 'Email not found' });
+    if (!subscriber.subscribed) return res.status(400).json({ error: 'Email already unsubscribed' });
+    await Subscriber.updateOne({ email: subscriber.email }, { subscribed: false });
     const params = {
       ApplicationId: process.env.PINPOINT_APPLICATION_ID,
       EndpointId: uuid,
@@ -100,7 +169,7 @@ router.post('/unsubscribe', async (req, res) => {
 
 router.post('/upload-batch', upload.single('file'), async (req, res) => {
   try {
-    if (!req.file) return res.status(400).send('CSV file is required');
+    if (!req.file) return res.status(400).json({ error: 'CSV file is required' });
     const content = req.file.buffer.toString('utf-8');
     const records = parse(content, {
       columns: true,
@@ -108,25 +177,59 @@ router.post('/upload-batch', upload.single('file'), async (req, res) => {
       skip_records_with_empty_values: true
     });
     if (!Array.isArray(records) || records.length === 0) {
-      return res.status(400).send('Invalid or empty CSV');
+      return res.status(400).json({ error: 'Invalid or empty CSV' });
     }
 
     const requiredCols = ['Address', 'CountryCode', 'UserType', 'Name'];
     const missingCols = requiredCols.filter(c => !(c in records[0]));
     if (missingCols.length > 0) {
-      return res.status(400).send(`Missing required columns: ${missingCols.join(', ')}`);
+      return res.status(400).json({ error: `Missing required columns: ${missingCols.join(', ')}` });
     }
     const invalidEmails = records.filter(r => !isValidEmail(r.Address));
     if (invalidEmails.length > 0) {
-      return res.status(400).send(`Invalid email addresses: ${invalidEmails.map(r => r.Address).join(', ')}`);
+      return res.status(400).json({ error: `Invalid email addresses: ${invalidEmails.map(r => r.Address).join(', ')}` });
     }
-    // Check countryCode and userTypes
+    const invalidCountryCodes = records.filter(
+      r => !validator.isISO31661Alpha2(r.CountryCode || '')
+    );
+    if (invalidCountryCodes.length > 0) {
+      return res.status(400).json({ error: `Invalid country codes: ${invalidCountryCodes.map(r => r.CountryCode).join(', ')}` });
+    }
+    const allowedUserTypes = ['Pet Owner', 'Business', 'Developer'];
+    const invalidUserTypes = records.filter(
+      r => !allowedUserTypes.includes(r.UserType)
+    );
+    if (invalidUserTypes.length > 0) {
+      return res.status(400).json({ error: `Invalid user types: ${invalidUserTypes.map(r => r.UserType).join(', ')}` });
+    }
+
+    records = records.map(r => ({
+      ...r,
+      _id: new ObjectId(),
+    }));
+
+    const operations = records.map((r) => ({
+      updateOne: {
+        filter: { email: r.Address },
+        update: {
+          $set: {
+            _id: r._id,
+            subscribed: true,
+            countryCode: r.CountryCode,
+            userType: r.UserType,
+            name: r.Name,
+          },
+        },
+        upsert: true
+      },
+    }));
+    await Subscriber.bulkWrite(operations);
 
     const params = {
       ApplicationId: process.env.PINPOINT_APPLICATION_ID,
       EndpointBatchRequest: {
         Item: records.map(r => {
-          const newId = uuid4(4)
+          const newId = r._id.toString()
           return {
             Id: newId,
             ChannelType: 'EMAIL',
@@ -144,9 +247,6 @@ router.post('/upload-batch', upload.single('file'), async (req, res) => {
                 CountryCode: [r.CountryCode || ''],
                 UserType: [r.UserType || ''],
                 Subscribed: ['true'],
-                UUID: [newId],
-                CreatedAt: [new Date().toISOString()],
-                UpdatedAt: [new Date().toISOString()],
               },
             }
           }
@@ -155,14 +255,13 @@ router.post('/upload-batch', upload.single('file'), async (req, res) => {
     };
     const command = new UpdateEndpointsBatchCommand(params);
     const response = await pinClient.send(command);
-    console.log('Pinpoint response:', response);
     if (response.$metadata.httpStatusCode !== 200) {
       return res.status(500).json({ error: 'Failed to upload' });
     }
-    es.status(200).json({ message: 'Endpoints creation successful!' });
+    res.status(200).json({ message: 'Endpoints creation successful!' });
   } catch (err) {
     console.error(err);
-    res.status(500).send('Server error processing CSV');
+    res.status(500).json({ error: 'Server error processing CSV' });
   }
 })
 
