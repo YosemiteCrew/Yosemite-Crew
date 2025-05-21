@@ -11,7 +11,7 @@ function createFHIRSlot(slot, doctorId, bookedAppointments) {
       },
       isBooked: isBooked ? "true" : "false",
       slotTime: slot.time,
-      start: moment.tz(`${slot.date} ${slot.time}`, "YYYY-MM-DD hh:mm A", "Asia/Kolkata").toISOString(),
+      start: moment.tz(`${slot.date} ${slot.time}`, "YYYY-MM-DD h:mm A", "YYYY-MM-DD hh:mm A", "Asia/Kolkata").toISOString(),
     };
 }
 
