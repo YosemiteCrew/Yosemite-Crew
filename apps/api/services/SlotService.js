@@ -59,13 +59,13 @@ class SlotService {
     .filter(slot => {
       if (!slot.time) return false;
       if (isToday) {
-        const slotDateTime = moment.tz(`${appointmentDate} ${slot.time}`, "YYYY-MM-DD h:mm A", "YYYY-MM-DD hh:mm A", "Asia/Kolkata");
+        const slotDateTime = moment.tz(`${appointmentDate} ${slot.time}`, ["YYYY-MM-DD h:mm A", "YYYY-MM-DD hh:mm A"], "Asia/Kolkata");
         return slotDateTime.isAfter(currentTime);
       }
       return true;
     })
     .map(slot => {
-      const slotDateTime = moment.tz(`${appointmentDate} ${slot.time}`, "YYYY-MM-DD h:mm A", "YYYY-MM-DD hh:mm A", "Asia/Kolkata");
+      const slotDateTime = moment.tz(`${appointmentDate} ${slot.time}`, ["YYYY-MM-DD h:mm A", "YYYY-MM-DD hh:mm A"], "Asia/Kolkata");
       const slotObj = createFHIRSlot(slot, doctorId, bookedAppointments);
       slotObj.start = slotDateTime.toISOString(); // ensure it's in ISO format
       return slotObj;
