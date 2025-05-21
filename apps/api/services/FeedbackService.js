@@ -1,22 +1,31 @@
 
-const jwt = require('jsonwebtoken');
-const { v4: uuidv4 } = require('uuid');
 const feedbacks = require("../models/FeedBack");
-const FHIRBuilder = require('../utils/FHIRBuilder');
+const mongoose = require('mongoose');
 
 class FeedbackService {
-  static async saveFeedback({ userId, feedbackFHIR }) {
+static async saveFeedback({ userId, feedbackFHIR }) {
+  try {
     const performerReference = feedbackFHIR?.performer?.[0]?.reference || null;
     const subjectReference = feedbackFHIR?.subject?.reference || null;
     const appointmentReference = feedbackFHIR?.basedOn?.[0]?.reference || null;
-  
+
     const doctorId = performerReference ? performerReference.split("/")[1] : null;
     const petId = subjectReference ? subjectReference.split("/")[1] : null;
-    const meetingId = appointmentReference ? appointmentReference.split("/")[1] : null;
-  
+    const meetingIdRaw = appointmentReference ? appointmentReference.split("/")[1] : null;
+
+    if (!mongoose.Types.ObjectId.isValid(meetingIdRaw)) {
+      throw new Error("Invalid meeting ID");
+    }
+    const meetingId = meetingIdRaw;
+
+    const existingFeedback = await feedbacks.findOne({ meetingId }).lean();
+    if (existingFeedback) {
+      throw new Error("Feedback for this meeting already exists");
+    }
+
     const feedbackText = feedbackFHIR?.valueString || "";
     const ratingValue = feedbackFHIR?.component?.[0]?.valueQuantity?.value || null;
-  
+
     const savedFeedback = await feedbacks.create({
       userId,
       doctorId,
@@ -25,9 +34,15 @@ class FeedbackService {
       feedback: feedbackText,
       rating: ratingValue,
     });
-  
-    return savedFeedback ? savedFeedback : null;
+
+    const doctorFeedback = await FeedbackService.getDoctorFeedback(doctorId, meetingId);
+
+      return savedFeedback ? doctorFeedback : null;
+  } catch (err) {
+    throw err; // Let the controller handle the message/response
   }
+}
+
   
  static async getDoctorFeedback(doctorId, meetingId = null, limit = 10, offset = 0) {
   const matchStage = { doctorId };
