@@ -17,21 +17,19 @@ class FeedbackController {
         userId,
         feedbackFHIR,
       });
-  
-      if (savedFHIR) {
+     if (savedFHIR) {
+        const fhirResponse = FHIRFormatter.toObservationBundle(savedFHIR);
         return res.status(200).json({
           status: 1,
           message: "Feedback saved successfully",
+          data: fhirResponse
         });
       }
   
-      res.status(200).json({ status: 0, message: "Feedback not saved" });
-  
     } catch (error) {
-      console.error("Error in handleSaveFeedback:", error);
       res.status(200).json({
         status: 0,
-        message: "Internal server error while saving feedback",
+        message: error.message || "Internal server error while saving feedback",
       });
     }
   }
