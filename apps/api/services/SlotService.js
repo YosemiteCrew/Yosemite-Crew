@@ -6,24 +6,24 @@ const { createFHIRSlot } = require('../utils/fhirUtils');
 
 class SlotService {
  static async getAvailableTimeSlots({ appointmentDate, doctorId }) {
-  const dateObj = moment.tz(appointmentDate, "YYYY-MM-DD", "Asia/Kolkata").toDate();
-  if (isNaN(dateObj.getTime())) {
-    return {
-      issue: [{
-        severity: "error",
-        code: "invalid",
-        details: { text: "Invalid appointment date" }
-      }]
-    };
-  }
+  const dateObj = moment.tz(appointmentDate, "YYYY-MM-DD", "Asia/Kolkata");
 
-  const validDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const day = validDays[dateObj.getDay()];
-
-  if (!validDays.includes(day)) {
-    throw new Error("Invalid day");
-  }
-
+    if (!dateObj.isValid()) {
+      return {
+        issue: [{
+          severity: "error",
+          code: "invalid",
+          details: { text: "Invalid appointment date" }
+        }]
+      };
+    }
+    const validDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dayIndex = dateObj.day();
+    const day = validDays[dayIndex];
+   
+    if (dayIndex < 0 || dayIndex > 6) {
+      throw new Error("Invalid day extracted from appointment date");
+    }
   const isToday = moment().tz("Asia/Kolkata").format('YYYY-MM-DD') === moment(dateObj).tz("Asia/Kolkata").format('YYYY-MM-DD');
   const currentTime = moment().tz("Asia/Kolkata");
 
