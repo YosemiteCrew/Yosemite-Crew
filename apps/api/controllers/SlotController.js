@@ -9,6 +9,10 @@ class SlotController {
   static async handlegetTimeSlots(req, res) {
     try {
       const { appointmentDate, doctorId } = req.query;
+
+      if (typeof doctorId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(doctorId)) {
+        return res.status(200).json({ status: 0, message: 'Invalid doctor ID' });
+      }
       
       const isValidDate = (dateStr) => {
         const date = new Date(dateStr);
@@ -38,9 +42,7 @@ class SlotController {
         });
       }
   
-      if (typeof doctorId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(doctorId)) {
-        return res.status(200).json({ status: 0, message: 'Invalid doctor ID' });
-      }
+      
 
       
     const today = new Date().toISOString().split('T')[0];
