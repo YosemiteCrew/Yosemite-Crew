@@ -1,5 +1,5 @@
 
-const VetClinic = require('../models/veterinaryDetails');
+const VetClinic = require('../models/VeterinaryDetails');
 
 class VetClinicService {
     async createClinic(fhirData, CognitoUser) {

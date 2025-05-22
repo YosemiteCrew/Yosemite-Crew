@@ -1,4 +1,4 @@
-const { sharedRecord } = require('../models/petDuties'); // adjust the path as needed
+const { sharedRecord } = require('../models/PetDuties'); // adjust the path as needed
 const { mongoose } = require('mongoose'); // for ObjectId validation
 
 class PetDutiesService {

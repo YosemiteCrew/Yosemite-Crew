@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const AddDoctors = require("../models/addDoctor");
+const AddDoctors = require("../models/AddDoctor");
 const baseUrl = process.env.BASE_URL;
 
 class DoctorService {

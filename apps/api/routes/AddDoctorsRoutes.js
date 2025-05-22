@@ -1,5 +1,5 @@
 const express = require('express');
-const AddDoctorsControllers = require('../controllers/addDoctorController');
+const AddDoctorsControllers = require('../controllers/AddDoctorController');
 const router = express.Router();
 const {
   verifyTokenAndRefresh,

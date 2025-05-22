@@ -68,5 +68,5 @@ const patSchema = new mongoose.Schema({
 
 }, { timestamps: true});
 
-const YoshPet = mongoose.model('YoshPet',patSchema);
-module.exports = YoshPet;
+const pets = mongoose.model('pets',patSchema);
+module.exports = pets;

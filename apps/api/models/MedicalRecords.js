@@ -28,5 +28,5 @@ const medicalRecordSchema = new mongoose.Schema({
 
 }, { timestamps: true});
 
-const medicalRecord = mongoose.model('YoshMedicalRecords',medicalRecordSchema);
+const medicalRecord = mongoose.model('MedicalRecords',medicalRecordSchema);
 module.exports = medicalRecord;

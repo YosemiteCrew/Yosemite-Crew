@@ -34,7 +34,7 @@ const sharedSchema = new mongoose.Schema({
      },
 }, { timestamps: true});
 
-const sharedRecord = mongoose.model('YoshSharedPetDuties',sharedSchema);
+const sharedRecord = mongoose.model('SharedPetDuties',sharedSchema);
 
 const petCoOwnerSchema = new mongoose.Schema({
 
@@ -59,5 +59,5 @@ const petCoOwnerSchema = new mongoose.Schema({
     ],
    
 }, { timestamps: true});
-const petCoOwner = mongoose.model('yosepetCoOwner',petCoOwnerSchema);
+const petCoOwner = mongoose.model('petCoOwner',petCoOwnerSchema);
 module.exports = { sharedRecord, petCoOwner };

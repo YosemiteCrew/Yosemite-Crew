@@ -1,5 +1,5 @@
-const exercisePlan = require('../models/plan');
-const { YoshPainJournals } = require('../models/painJournal');
+const exercisePlan = require('../models/Plan');
+const { PainJournals } = require('../models/painJournal');
 
 
 async function handleExercisePlan(req,res) {
@@ -26,7 +26,7 @@ async function handleExercisePlan(req,res) {
 
 async function handleAddPainJournal(req,res){
     const journalData = req.body;
-    const painJournal = await YoshPainJournals.create({
+    const painJournal = await PainJournals.create({
         userId: journalData.userId,
         petId: journalData.petId,
         typeOfAssessment: journalData.typeOfAssessment,
@@ -56,7 +56,7 @@ async function handleGetExercisePlan(req,res){
 async function handleGetPainJournal(req,res){
 
     const userid = req.params.userId;
-    const result = await YoshPainJournals.find({ userId : {$eq: userid } } );
+    const result = await PainJournals.find({ userId : {$eq: userid } } );
     if (result.length === 0) return res.status(404).json({ message: "No pain journals found for this user" });
     res.json(result);
 }
