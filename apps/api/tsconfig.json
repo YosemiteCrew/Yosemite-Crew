@@ -1,10 +1,18 @@
 {
-  "extends": "@yosemite-crew/types/tsconfig.json",
   "compilerOptions": {
-    "module": "CommonJS",              
-    "moduleResolution": "Node",
+    "module": "CommonJS",         
     "outDir": "dist",
-    "noEmit": true
+    "strict": true,                              // All strict type-checking options
+    "esModuleInterop": true,                     // For importing CommonJS modules like Express
+    "forceConsistentCasingInFileNames": true,    // Catch inconsistent imports
+    "moduleResolution": "node",                  // Resolve modules like Node.js
+    "skipLibCheck": true,                        // Skip type checks on `node_modules`
+    "resolveJsonModule": true,                   // Allow importing JSON files
+    "types": ["node", "express"],                // Include type definitions
+    "noImplicitAny": true,                       // Prevent untyped variables
+    "noUnusedLocals": true,                      // Warn on unused variables
+    "noUnusedParameters": true, 
   },
   "include": ["main.ts", "config/**/*", "controllers/**/*", "extensions/**/*", "Fhirvalidator/**/*", "mappers/**/*", "models/**/*", "routes/**/*", "services/**/*", "utils/**/*", "validators/**/*", "views/**/*", "middleware/**/*"],
+  "exclude": ["node_modules", "dist"]
 }
