@@ -1,7 +1,5 @@
 const express = require("express");
-const {
-  handlehome,
-} = require("../controllers/user");
+
 const PetController = require('../controllers/PetController');
 const AppointmentController = require('../controllers/AppointmentController');
 const SlotController = require('../controllers/SlotController');
@@ -12,18 +10,18 @@ const ImmunizationController = require("../controllers/ImmunizationController");
 const DiabetesController = require("../controllers/DiabetesController");
 const SharedDutiesController = require("../controllers/SharedDutiesController");
 
-const { handleContactUs } = require("../controllers/contact");
+const { handleContactUs } = require("../controllers/ContactController");
 
 const {
   handleExercisePlan,
   handleAddPainJournal,
   handleGetExercisePlan,
   handleGetPainJournal,
-} = require("../controllers/plan");
+} = require("../controllers/PlanController");
 const {
   handlesaveMedicalRecord,
   handleMedicalRecordList,
-} = require("../controllers/medicalRecords");
+} = require("../controllers/MedicalRecordsController");
 
 
 
@@ -95,5 +93,4 @@ router.post("/Observation/saveSharedDuties",verifyTokenAndRefresh, SharedDutiesC
 router.get("/Observation/getSharedDuties",verifyTokenAndRefresh, SharedDutiesController.handleGetSharedDuties);
 router.put("/Observation/editSharedDuties",verifyTokenAndRefresh, SharedDutiesController.handleEditSharedDuties);
 router.delete("/Observation/deleteSharedDuties",verifyTokenAndRefresh,SharedDutiesController.handledeleteSharedDuties);
-router.get("/", handlehome);
 module.exports = router;

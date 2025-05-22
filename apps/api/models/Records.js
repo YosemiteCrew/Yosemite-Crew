@@ -56,5 +56,5 @@ const recordSchema = new mongoose.Schema({
 
 }, { timestamps: true});
 
-const diabetesRecord = mongoose.model('YoshDiabetesRecords',recordSchema);
+const diabetesRecord = mongoose.model('DiabetesRecords',recordSchema);
 module.exports = diabetesRecord;

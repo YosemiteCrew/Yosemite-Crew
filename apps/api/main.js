@@ -6,19 +6,19 @@ const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const { rateLimit } = require("express-rate-limit")
 const { connectToDocumentDB } = require('./config/connect');
-const yoshmite = require('./routes/user');
+const yoshmite = require('./routes/AppRoutes');
 const fhirRoutes = require('./routes/fhirRoutes');
 const adminRoutes = require('./routes/adminRoutes');
-const doctorRoutes = require('./routes/addDoctorsRoutes');
-const authRoutes = require('./routes/authRoutes');
-const fhir = require('./routes/authRoutes');
+const doctorRoutes = require('./routes/AddDoctorsRoutes');
+const authRoutes = require('./routes/AuthRoutes');
+const fhir = require('./routes/AuthRoutes');
 const fileUpload = require('express-fileupload');
-const apointmentRoutes = require('./routes/appointmentRoutes');
+const apointmentRoutes = require('./routes/AppointmentRoutes');
 const hospitalRoutes = require('./routes/HospitalRoutes');
 const AdminApiRoutes = require('./routes/InventoryRoutes');
 const adminInventory = require("./routes/AdminApiRoutes");
 const apiRoutes = require('./routes/apiRoutes');
-const newsletterRoutes = require('./routes/newsletterRoutes');
+const NewsletterRoutes = require('./routes/NewsletterRoutes');
 const cors = require('cors');
 const http = require('http'); // Import http module for Socket.IO
 const { Server } = require('socket.io'); // Import Socket.IO
@@ -102,7 +102,7 @@ app.use('/fhir/v1',authRoutes)
 app.use("/fhir/admin", adminInventory)
 app.use("/fhir/v1", AdminApiRoutes)
 app.use("/fhir/v1", apiRoutes);
-app.use("/newsletter", newsletterRoutes);
+app.use("/newsletter", NewsletterRoutes);
 // Global error handler
 app.use((err, req, res, next) => {
   console.error('Error:', err.message);

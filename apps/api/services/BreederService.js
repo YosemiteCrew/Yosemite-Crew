@@ -1,5 +1,5 @@
 
-const breederModel = require('../models/breederDetails'); 
+const breederModel = require('../models/BreederDetails'); 
 
 class BreederService {
   constructor() {

@@ -1,4 +1,4 @@
-const Vaccination = require('../models/vaccination');
+const Vaccination = require('../models/Vaccination');
 const FhirImmunizationValidator = require('../validators/FhirImmunizationValidator');
 const { mongoose } = require('mongoose');
 const helpers = require('../utils/helpers');

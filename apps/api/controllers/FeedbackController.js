@@ -17,21 +17,19 @@ class FeedbackController {
         userId,
         feedbackFHIR,
       });
-  
-      if (savedFHIR) {
+     if (savedFHIR) {
+        const fhirResponse = FHIRFormatter.toObservationBundle(savedFHIR);
         return res.status(200).json({
           status: 1,
           message: "Feedback saved successfully",
+          data: fhirResponse
         });
       }
   
-      res.status(200).json({ status: 0, message: "Feedback not saved" });
-  
     } catch (error) {
-      console.error("Error in handleSaveFeedback:", error);
       res.status(200).json({
         status: 0,
-        message: "Internal server error while saving feedback",
+        message: error.message || "Internal server error while saving feedback",
       });
     }
   }
@@ -101,16 +99,16 @@ class FeedbackController {
       }
 
       // Prepare the data to update
+       let doctorFeedback = [];
       const updatedFeedback = await FeedbackService.updateFeedback(feedbackId, { feedback, rating });
-      const fhirResponse = FeedbackService.constructFHIRResponse(updatedFeedback);
-      if (fhirResponse) {
-        return res.status(200).json({
-          status: 1,
-          message: "Feedback updated successfully",
-          feedback: fhirResponse,
-        });
+       
+        doctorFeedback = await FeedbackService.getDoctorFeedback(updatedFeedback.doctorId, updatedFeedback.meetingId);
+      
+     if (doctorFeedback.length) {
+        const fhirResponse = FHIRFormatter.toObservationBundle(doctorFeedback);
+        return res.status(200).json({ status: 1, data: fhirResponse });
       } else {
-        return res.status(200).json({ status: 0, message: "Error while updating feedback" });
+        return res.status(200).json(FHIRFormatter.feedbackNotFoundOutcome());
       }
     } catch (error) {
       console.error("Error while updating feedback:", error);
