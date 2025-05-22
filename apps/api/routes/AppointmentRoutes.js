@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const webAppointmentController = require('../controllers/webAppointment');
+const webAppointmentController = require('../controllers/WebAppointment');
 const { verifyTokenAndRefresh } = require('../middlewares/authMiddleware');
-const { uploadimage } = require('../controllers/addDepartmentController');
+const { uploadimage } = require('../controllers/AddDepartmentController');
 
 router.post('/Appointment', verifyTokenAndRefresh,webAppointmentController.createWebAppointment);
 router.get('/schedule', verifyTokenAndRefresh,webAppointmentController.getDoctorsSlotes);

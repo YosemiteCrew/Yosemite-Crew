@@ -1,4 +1,4 @@
-const medicalRecords = require('../models/medical');
+const medicalRecords = require('../models/MedicalRecords');
 const PetService = require('../services/PetService');
 const FHIRMedicalRecordService = require('../services/FHIRMedicalRecordService');
 

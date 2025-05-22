@@ -1,15 +1,18 @@
 const mongoose = require('mongoose');
 
-const petGroomerSchema = new mongoose.Schema({
+const vetSchema = new mongoose.Schema({
 
     userId: {
         type: String,
         required: true,
     },
-    groomerName: {
+    clinicName: {
         type: String,
     },
-    groomerAddress: {
+    vetName: {
+        type: String,
+    },
+    clinicAddress: {
         type: String,
     },
     city: {
@@ -32,5 +35,5 @@ const petGroomerSchema = new mongoose.Schema({
     }
 
 }, { timestamps: true});
-const YoshPetGroomer = mongoose.model('YoshPetGroomer',petGroomerSchema);
-module.exports = YoshPetGroomer;
+const VetClinic = mongoose.model('VetClinic',vetSchema);
+module.exports = VetClinic;
