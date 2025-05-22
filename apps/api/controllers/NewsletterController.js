@@ -132,7 +132,7 @@ const subscribe = async (req, res) => {
 };
 
 const unsubscribe = async (req, res) => {
-  const { uuid } = req.body;
+  const { uuid } = req.query;
   if (!uuid) return res.status(400).json({ error: "UUID is required" });
   try {
     const subscriber = await Subscriber.findOne({ _id: { $eq: uuid } });
