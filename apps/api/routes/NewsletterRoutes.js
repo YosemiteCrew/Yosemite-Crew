@@ -17,7 +17,7 @@ const upload = multer({
 router.get('/check-email', NewsletterController.checkEmail);
 router.post('/check-email', verifyTokenAndRefresh, NewsletterController.checkEmailAuth);
 router.post('/subscribe', NewsletterController.subscribe);
-router.post('/unsubscribe', NewsletterController.unsubscribe)
+router.get('/unsubscribe', NewsletterController.unsubscribe)
 router.post('/upload-batch', upload.single('file'), NewsletterController.batchUpload);
 
 module.exports = router;
