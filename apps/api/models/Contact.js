@@ -26,5 +26,5 @@ const contactUsSchema = new mongoose.Schema({
     },
 
 }, { timestamps: true});
-const YoshContacts = mongoose.model('YoshContacts',contactUsSchema);
-module.exports = YoshContacts;
+const Contacts = mongoose.model('Contacts',contactUsSchema);
+module.exports = Contacts;

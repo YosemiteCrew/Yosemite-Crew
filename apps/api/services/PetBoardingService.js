@@ -1,5 +1,5 @@
 
-const petBoardingModel = require('../models/petBoardindDetails');
+const petBoardingModel = require('../models/PetBoardindDetails');
 
 class PetBoardingService {
   constructor() {

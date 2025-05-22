@@ -1,4 +1,4 @@
-const contactUs = require('../models/contact');
+const contactUs = require('../models/Contact');
 const jwt = require('jsonwebtoken');
 const AWS = require("aws-sdk");
 const SES = new AWS.SES();

@@ -1,18 +1,15 @@
 const mongoose = require('mongoose');
 
-const vetSchema = new mongoose.Schema({
+const breederSchema = new mongoose.Schema({
 
     userId: {
         type: String,
         required: true,
     },
-    clinicName: {
+    breederName: {
         type: String,
     },
-    vetName: {
-        type: String,
-    },
-    clinicAddress: {
+    breederAddress: {
         type: String,
     },
     city: {
@@ -35,5 +32,5 @@ const vetSchema = new mongoose.Schema({
     }
 
 }, { timestamps: true});
-const YoshVet = mongoose.model('YoshVetClinic',vetSchema);
-module.exports = YoshVet;
+const BreederDetails = mongoose.model('BreederDetails',breederSchema);
+module.exports = BreederDetails;

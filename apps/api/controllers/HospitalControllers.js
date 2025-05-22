@@ -1,6 +1,6 @@
 const { webAppointments } = require("../models/WebAppointment");
 const Department = require("../models/AddDepartment");
-const AddDoctors = require("../models/addDoctor");
+const AddDoctors = require("../models/AddDoctor");
 const { ProfileData } = require("../models/WebUser");
 // const YoshPet = require('../models/YoshPet');
 // const YoshUser = require('../models/YoshUser');

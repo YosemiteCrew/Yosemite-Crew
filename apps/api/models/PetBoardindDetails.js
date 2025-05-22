@@ -32,5 +32,5 @@ const petBoardingSchema = new mongoose.Schema({
     }
 
 }, { timestamps: true});
-const YoshPetBaording = mongoose.model('YoshPetBaording',petBoardingSchema);
-module.exports = YoshPetBaording;
+const PetBoardingDetails = mongoose.model('PetBoardingDetails',petBoardingSchema);
+module.exports = PetBoardingDetails;

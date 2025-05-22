@@ -1,5 +1,5 @@
 const Department = require("../models/AddDepartment");
-const AddDoctors = require("../models/addDoctor");
+const AddDoctors = require("../models/AddDoctor");
 const crypto = require("crypto");
 
 const {

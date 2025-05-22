@@ -45,5 +45,5 @@ const vaccinationSchema = new mongoose.Schema({
 
 
 }, { timestamps: true});
-const YoshVaccine = mongoose.model('YoshVaccination',vaccinationSchema);
-module.exports = YoshVaccine;
+const VaccinationDetails = mongoose.model('VaccinationDetails',vaccinationSchema);
+module.exports = VaccinationDetails;
