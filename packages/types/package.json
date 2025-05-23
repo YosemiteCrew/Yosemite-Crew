@@ -1,10 +1,11 @@
 {
   "name": "@yosemite-crew/types",
-  "types": "./dist/src/index.d.ts",
+  "types": "./src/index.ts",
   "scripts": {
     "type-check": "tsc"
   },
   "devDependencies": {
+    "@types/node": "^22.15.21",
     "typescript": "5.0.4"
   }
 }
