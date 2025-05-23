@@ -1,4 +1,1 @@
-export type Workspace = {
-  name: string
-  version: boolean
-}
+export type { S3File, UploadFileToS3 } from './aws'

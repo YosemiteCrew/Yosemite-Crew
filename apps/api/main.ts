@@ -31,11 +31,16 @@ const s3 = new AWS.S3({
   region: process.env.AWS_REGION,
 });
 
-const uploadFileToS3 = async (file) => {
+import type { S3 } from 'aws-sdk';
+import type { NextFunction, Request, Response } from 'express';
+import type { Socket } from "socket.io"
+import type { UploadFileToS3 } from '@yosemite-crew/types'
+
+const uploadFileToS3: UploadFileToS3 = async (file) => {
   const fileName = `${Date.now()}-${file.originalname}`; // Unique file name
 
-  const params = {
-    Bucket: process.env.AWS_S3_BUCKET_NAME,
+  const params: S3.PutObjectRequest = {
+    Bucket: process.env.AWS_S3_BUCKET_NAME as string,
     Key: fileName,
     Body: file.buffer,
     ContentType: file.mimetype,
@@ -53,7 +58,7 @@ const uploadFileToS3 = async (file) => {
 // Connect to the database
 connectToDocumentDB()
   .then(() => console.log('DB connected'))
-  .catch((err) => {
+  .catch((err: Error) => {
     console.error('Database connection failed:', err.message);
     process.exit(1);
   });
@@ -104,7 +109,7 @@ app.use("/fhir/v1", AdminApiRoutes)
 app.use("/fhir/v1", apiRoutes);
 app.use("/newsletter", NewsletterRoutes);
 // Global error handler
-app.use((err, req, res, next) => {
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error('Error:', err.message);
   res.status(500).json({
     message: 'Internal Server Error',
@@ -143,7 +148,7 @@ const io = new Server(server, {
 const onlineUsers = new Map();
 
 // Socket.IO connection handler
-io.on('connection', (socket) => {
+io.on('connection', (socket: Socket) => {
   console.log('A user connected:', socket.id);
 
   // Add user to online users list
@@ -211,7 +216,7 @@ io.on('connection', (socket) => {
 
     onlineUsers.forEach((userData, username) => {
       if (userData.socketIds.includes(socket.id)) {
-        userData.socketIds = userData.socketIds.filter(id => id !== socket.id);
+        userData.socketIds = userData.socketIds.filter((id: string) => id !== socket.id);
         if (userData.socketIds.length === 0) {
           disconnectedUser = username;
           onlineUsers.delete(username);
