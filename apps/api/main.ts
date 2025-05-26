@@ -1,45 +1,46 @@
-require('dotenv').config();
-const express = require('express');
-const Message = require('./models/ChatModel');
-const path = require('path');
-const bodyParser = require('body-parser');
-const cookieParser = require('cookie-parser');
-const { rateLimit } = require("express-rate-limit")
-const { connectToDocumentDB } = require('./config/connect');
-const yoshmite = require('./routes/AppRoutes');
-const fhirRoutes = require('./routes/fhirRoutes');
-const adminRoutes = require('./routes/adminRoutes');
-const doctorRoutes = require('./routes/AddDoctorsRoutes');
-const authRoutes = require('./routes/AuthRoutes');
-const fhir = require('./routes/AuthRoutes');
-const fileUpload = require('express-fileupload');
-const apointmentRoutes = require('./routes/AppointmentRoutes');
-const hospitalRoutes = require('./routes/HospitalRoutes');
-const AdminApiRoutes = require('./routes/InventoryRoutes');
-const adminInventory = require("./routes/AdminApiRoutes");
-const apiRoutes = require('./routes/apiRoutes');
-const NewsletterRoutes = require('./routes/NewsletterRoutes');
-const cors = require('cors');
-const http = require('http'); // Import http module for Socket.IO
-const { Server } = require('socket.io'); // Import Socket.IO
-const AWS = require('aws-sdk');
+import dotenv from 'dotenv';
+dotenv.config();
+
+import express from 'express';
+import { Server } from 'socket.io';
+import { Socket } from 'socket.io';
+import http from 'http';
+import AWS from 'aws-sdk';
+import path from 'path';
+import bodyParser from 'body-parser';
+import cookieParser from 'cookie-parser';
+import { rateLimit } from 'express-rate-limit';
+import { connectToDocumentDB } from './config/connect';
+import Message from './models/ChatModel';
+import yoshmite from './routes/AppRoutes';
+import fhirRoutes from './routes/fhirRoutes';
+import adminRoutes from './routes/adminRoutes';
+import doctorRoutes from './routes/AddDoctorsRoutes';
+import authRoutes from './routes/AuthRoutes';
+import fileUpload from 'express-fileupload';
+import apointmentRoutes from './routes/AppointmentRoutes';
+import hospitalRoutes from './routes/HospitalRoutes';
+import AdminApiRoutes from './routes/InventoryRoutes';
+import adminInventory from './routes/AdminApiRoutes';
+import apiRoutes from './routes/apiRoutes';
+import NewsletterRoutes from './routes/NewsletterRoutes';
+import cors from 'cors';
+
 const app = express();
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 3000;
+
 const s3 = new AWS.S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
   region: process.env.AWS_REGION,
 });
 
-import type { S3 } from 'aws-sdk';
-import type { NextFunction, Request, Response } from 'express';
-import type { Socket } from "socket.io"
-import type { UploadFileToS3 } from '@yosemite-crew/types'
+type UploadFileToS3 = (file: Express.Multer.File) => Promise<string>;
 
 const uploadFileToS3: UploadFileToS3 = async (file) => {
   const fileName = `${Date.now()}-${file.originalname}`; // Unique file name
 
-  const params: S3.PutObjectRequest = {
+  const params: AWS.S3.PutObjectRequest = {
     Bucket: process.env.AWS_S3_BUCKET_NAME as string,
     Key: fileName,
     Body: file.buffer,
@@ -77,7 +78,7 @@ const limiter = rateLimit({
 });
 
 // Middleware
-app.use(limiter)
+app.use(limiter);
 app.use(cookieParser());
 app.use(cors(corsOptions));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
@@ -98,18 +99,18 @@ app.use('/api/doctors', doctorRoutes);
 app.use('/api/appointments', apointmentRoutes);
 app.use('/api/hospitals', hospitalRoutes);
 app.use('/api/inventory', AdminApiRoutes);
-app.use("/fhir",fhir)
 app.use('/fhir/extensions', fhirRoutes);
 app.use('/fhir/v1', doctorRoutes);
 app.use('/fhir/v1', apointmentRoutes);
 app.use('/fhir/v1', hospitalRoutes);
-app.use('/fhir/v1',authRoutes)
-app.use("/fhir/admin", adminInventory)
-app.use("/fhir/v1", AdminApiRoutes)
-app.use("/fhir/v1", apiRoutes);
-app.use("/newsletter", NewsletterRoutes);
+app.use('/fhir/v1', authRoutes);
+app.use('/fhir/admin', adminInventory);
+app.use('/fhir/v1', AdminApiRoutes);
+app.use('/fhir/v1', apiRoutes);
+app.use('/newsletter', NewsletterRoutes);
+
 // Global error handler
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Error:', err.message);
   res.status(500).json({
     message: 'Internal Server Error',
@@ -117,7 +118,6 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   });
 });
 
-// Graceful shutdown on termination signals
 process.on('SIGINT', () => {
   console.log('Server shutting down...');
   process.exit();
@@ -128,42 +128,36 @@ process.on('SIGTERM', () => {
   process.exit();
 });
 
-// Catch unhandled promise rejections
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason) => {
   console.error('Unhandled Rejection:', reason);
 });
 
-// Create HTTP server for Socket.IO
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_PORT, // Allow frontend to connect
-    methods: ['GET', 'POST'], // Allowed methods
+    origin: process.env.FRONTEND_PORT,
+    methods: ['GET', 'POST'],
     credentials: true,
   },
-  maxHttpBufferSize: 10e6
+  maxHttpBufferSize: 10e6,
 });
 
-// Track online users
-const onlineUsers = new Map();
+const onlineUsers = new Map<string, { username: string; socketIds: string[] }>();
 
-// Socket.IO connection handler
 io.on('connection', (socket: Socket) => {
   console.log('A user connected:', socket.id);
 
-  // Add user to online users list
-  socket.on('userOnline', (username) => {
+  socket.on('userOnline', (username: string) => {
     if (!onlineUsers.has(username)) {
       onlineUsers.set(username, { username, socketIds: [] });
     }
-    onlineUsers.get(username).socketIds.push(socket.id);
+    onlineUsers.get(username)!.socketIds.push(socket.id);
 
     console.log("Online Users:", onlineUsers);
     io.emit('updateOnlineUsers', Array.from(onlineUsers.keys()));
   });
 
-  // Handle private messages
-  socket.on('sendPrivateMessage', async (data, callback) => {
+  socket.on('sendPrivateMessage', async (data: any, callback: (response: { success: boolean; error?: string }) => void) => {
     const { sender, receiver, content, type, file } = data;
 
     try {
@@ -171,29 +165,30 @@ io.on('connection', (socket: Socket) => {
 
       if (file) {
         fileName = await uploadFileToS3(file);
-
       }
-      const times = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+
+      const times = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
       const newMessage = new Message({
         sender,
         receiver,
         time: times,
         content: file ? '' : content,
-        fileUrl: fileName,  // Now correctly stores the full S3 URL
-        type
+        fileUrl: fileName,
+        type,
       });
-      const data = await newMessage.save();
-      console.log('newMessageee', data)
+
+      const savedMessage = await newMessage.save();
+      console.log('newMessageee', savedMessage);
 
       const finalMessage = {
         sender,
         receiver,
         time: times,
         content: file ? '' : content,
-        fileUrl: `https://${process.env.AWS_S3_BUCKET_NAME}.s3.amazonaws.com/${fileName}`,
+        fileUrl: fileName ? `https://${process.env.AWS_S3_BUCKET_NAME}.s3.amazonaws.com/${fileName}` : '',
         type,
       };
-
 
       const senderSockets = onlineUsers.get(sender)?.socketIds || [];
       const receiverSockets = onlineUsers.get(receiver)?.socketIds || [];
@@ -210,27 +205,24 @@ io.on('connection', (socket: Socket) => {
     }
   });
 
-  // Handle disconnection
-  socket.on('disconnect', () => {
-    let disconnectedUser = null;
+ socket.on('disconnect', () => {
+  let disconnectedUser: string | null = null;
 
-    onlineUsers.forEach((userData, username) => {
-      if (userData.socketIds.includes(socket.id)) {
-        userData.socketIds = userData.socketIds.filter((id: string) => id !== socket.id);
-        if (userData.socketIds.length === 0) {
-          disconnectedUser = username;
-          onlineUsers.delete(username);
-        }
+  onlineUsers.forEach((userData, username) => {
+    if (userData.socketIds.includes(socket.id)) {
+      userData.socketIds = userData.socketIds.filter((id: string) => id !== socket.id);
+      if (userData.socketIds.length === 0) {
+        disconnectedUser = username;
+        onlineUsers.delete(username);
       }
-    });
-
-    console.log('User disconnected:', socket.id);
-    io.emit('updateOnlineUsers', Array.from(onlineUsers.keys()));
+    }
   });
+
+  console.log('User disconnected:', socket.id);
+  io.emit('updateOnlineUsers', Array.from(onlineUsers.keys()));
 });
-
-
+})
 // Start the server with Socket.IO
-server.listen(PORT, '0.0.0.0', () =>
+server.listen(PORT,  () =>
   console.log(`Server started on PORT: ${PORT}`)
 );
