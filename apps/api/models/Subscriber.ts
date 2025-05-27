@@ -1,6 +1,7 @@
-import mongoose from 'mongoose';
+import mongoose, { Schema, Model } from "mongoose";
+import type { ISubscriber } from "@yosemite-crew/types";
 
-const SubscriberSchema = new mongoose.Schema(
+const SubscriberSchema: Schema<ISubscriber> = new mongoose.Schema(
   {
     email: {
       type: String,
@@ -33,5 +34,9 @@ const SubscriberSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const Subscriber = mongoose.model("Subscriber", SubscriberSchema);
-module.exports = Subscriber;
+const Subscriber: Model<ISubscriber> = mongoose.model<ISubscriber>(
+  "Subscriber",
+  SubscriberSchema
+);
+
+export default Subscriber;
