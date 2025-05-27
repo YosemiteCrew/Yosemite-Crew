@@ -47,9 +47,9 @@ export const styles = StyleSheet.create({
     height: scaledValue(20),
   },
   petImg: {
-    width: scaledValue(60),
-    height: scaledValue(60),
-    // marginTop: scaledValue(28),
+    width: scaledValue(78),
+    height: scaledValue(78),
+    borderRadius: scaledValue(40),
   },
   inputContainer: {
     marginTop: scaledValue(28),

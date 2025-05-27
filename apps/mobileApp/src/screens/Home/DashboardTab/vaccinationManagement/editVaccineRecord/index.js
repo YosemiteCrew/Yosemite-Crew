@@ -18,27 +18,48 @@ import DatePicker from 'react-native-date-picker';
 import ToggleButton from '../../../../../components/ToogleButton';
 import GButton from '../../../../../components/GButton';
 import HeaderButton from '../../../../../components/HeaderButton';
+import {formatDateDMY} from '../../../../../utils/constants';
+import GImage from '../../../../../components/GImage';
+import {useAppDispatch} from '../../../../../redux/store/storeUtils';
+import {delete_vaccine_record_api} from '../../../../../redux/slices/vaccineSlice';
 
-const EditVaccineRecord = ({navigation}) => {
+const EditVaccineRecord = ({navigation, route}) => {
   const {t} = useTranslation();
+  const {itemRecordDetails, setData} = route?.params;
+  const dispatch = useAppDispatch();
   const [toggleState, setToggleState] = useState(true);
   const [date1, setDate1] = useState(null);
   const [date2, setDate2] = useState(null);
   const [date3, setDate3] = useState(null);
   const [open, setOpen] = useState(false);
   const [currentField, setCurrentField] = useState(null);
+  const [images, setImages] = useState(itemRecordDetails?.attachments);
   const [formValue, setFormValue] = useState({
-    manufacturer: 'Nobivac',
-    name: 'Nobivac Intra-Trac® Oral BB',
-    batchName: 'NITOB264862',
-    expiryDate: '04/08/2026',
-    vaccinationDate: '10/08/2024',
-    clinicName: 'Vets for Pets Clinic',
-    dueOn: '10/08/2025',
+    manufacturer: itemRecordDetails?.manufacturer || '',
+    name: itemRecordDetails?.vaccine || '',
+    batchName: itemRecordDetails?.lotNumber || '',
+    expiryDate: formatDateDMY(itemRecordDetails?.expiryDate),
+    vaccinationDate: formatDateDMY(itemRecordDetails?.date),
+    clinicName: itemRecordDetails?.location,
+    dueOn: formatDateDMY(itemRecordDetails?.nextDue),
   });
   useEffect(() => {
     configureHeader();
   }, []);
+
+  const delete_record = () => {
+    const input = {
+      vaccinationRecordId: itemRecordDetails?.id,
+    };
+    dispatch(delete_vaccine_record_api(input)).then(res => {
+      if (delete_vaccine_record_api.fulfilled.match(res)) {
+        setData(prev =>
+          prev.filter(i => i?.resource.id !== itemRecordDetails?.id),
+        );
+        navigation?.goBack();
+      }
+    });
+  };
 
   const configureHeader = () => {
     navigation.setOptions({
@@ -55,11 +76,7 @@ const EditVaccineRecord = ({navigation}) => {
         <HeaderButton
           icon={Images.Trash}
           tintColor={colors.appRed}
-          onPress={() => {
-            navigation?.navigate('StackScreens', {
-              screen: 'Notifications',
-            });
-          }}
+          onPress={delete_record}
         />
       ),
     });
@@ -110,7 +127,7 @@ const EditVaccineRecord = ({navigation}) => {
           <Image source={Images.CatImg} style={styles.catImage} />
           <GText
             GrMedium
-            text={`Calicivirus Vaccination`}
+            text={`${itemRecordDetails?.manufacturer} Vaccination`}
             style={styles.vaccinationText}
           />
         </View>
@@ -207,14 +224,20 @@ const EditVaccineRecord = ({navigation}) => {
         <View style={styles.imgContainer}>
           <View>
             <FlatList
-              data={[1, 2]}
+              data={images}
               horizontal
               contentContainerStyle={styles.imgContentStyle}
               renderItem={({item, index}) => {
                 return (
                   <View>
-                    <Image source={Images.InjImg} style={styles.imageStyle} />
-                    <TouchableOpacity style={styles.crossImgView}>
+                    <GImage image={item?.url} style={styles.imageStyle} />
+                    <TouchableOpacity
+                      onPress={() => {
+                        setImages(prev =>
+                          prev.filter((_, idx) => idx !== index),
+                        );
+                      }}
+                      style={styles.crossImgView}>
                       <Image
                         source={Images.CrossIcon}
                         style={styles.crossStyle}
@@ -226,7 +249,11 @@ const EditVaccineRecord = ({navigation}) => {
             />
           </View>
           <TouchableOpacity style={styles.addImgButton}>
-            <Image source={Images.PlusIcon} style={styles.PlusIconImage} />
+            <Image
+              tintColor={colors.appRed}
+              source={Images.PlusIcon}
+              style={styles.PlusIconImage}
+            />
           </TouchableOpacity>
         </View>
         <GButton

@@ -29,6 +29,7 @@ export const styles = StyleSheet.create({
   petImage: {
     width: scaledValue(80),
     height: scaledValue(80),
+    borderRadius: scaledValue(40),
   },
   petNameText: {
     fontSize: scaledValue(16),

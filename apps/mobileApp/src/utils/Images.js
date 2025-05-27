@@ -202,3 +202,6 @@ export const Emergency = require('../../assets/images/emergency.png');
 export const DashboardWelcome = require('../../assets/images/dashboardWelcome.png');
 export const PawImage = require('../../assets/images/foundation_paw.png');
 export const solarCircle = require('../../assets/images/solar_add-circle-bold.png');
+export const trashFull = require('../../assets/images/trashFull.png');
+export const chat_round = require('../../assets/images/chat_round.png');
+export const solar_camera = require('../../assets/images/solar_camera.png');

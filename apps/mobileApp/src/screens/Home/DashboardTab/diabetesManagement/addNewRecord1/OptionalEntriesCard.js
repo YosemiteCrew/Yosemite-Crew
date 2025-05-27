@@ -1,4 +1,4 @@
-import {StyleSheet, View} from 'react-native';
+import {StyleSheet, TextInput, View} from 'react-native';
 import React from 'react';
 import {scaledValue} from '../../../../../utils/design.utils';
 import GText from '../../../../../components/GText/GText';
@@ -10,26 +10,36 @@ const OptionalEntriesCard = ({
   showEntriesDetails,
   level,
   measure,
+  rightText,
   onChangeText,
 }) => {
   return (
     <View style={styles.entriesCardContainer}>
       <GText SatoshiBold text={entriesName} style={styles.entriesName} />
       {!showEntriesDetails && (
-        <Input
-          // value={formValue?.water_intake}
-          rightText={
-            <GText SatoshiBold text="mg/dL" style={styles.rightIconText} />
-          }
-          themeBackground="transparent"
-          contentStyle={styles.contentStyle}
-          iconStyle={styles.iconStyle}
-          onChangeText={onChangeText}
-          style={styles.input}
-          outlineStyle={{borderRadius: scaledValue(8)}}
-          keyboardType={'email-address'}
-          rightTextStyle={{marginRight: -10, marginLeft: -10}}
-        />
+        <>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              width: scaledValue(92),
+              justifyContent: 'space-between',
+              borderWidth: scaledValue(1),
+              borderRadius: scaledValue(8),
+              borderColor: '#31294399',
+            }}>
+            <TextInput
+              keyboardType="numeric"
+              onChangeText={onChangeText}
+              style={{
+                height: scaledValue(36),
+                paddingHorizontal: scaledValue(5),
+                flex: 1,
+              }}
+            />
+            <GText SatoshiBold text={rightText} style={styles.labelText} />
+          </View>
+        </>
       )}
       {showEntriesDetails && (
         <View style={styles.viewPetMgDetail}>
@@ -49,7 +59,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     fontSize: scaledValue(16),
     padding: 0,
-    height: scaledValue(32),
+    height: scaledValue(36),
   },
   iconStyle: {
     width: scaledValue(20),
@@ -60,7 +70,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: scaledValue(8),
-    paddingVertical: scaledValue(20.5),
+    paddingVertical: scaledValue(12),
   },
   entriesName: {
     fontSize: scaledValue(16),
@@ -86,4 +96,10 @@ const styles = StyleSheet.create({
     marginRight: scaledValue(4),
   },
   viewPetMgDetail: {flexDirection: 'row', alignItems: 'center'},
+  labelText: {
+    color: colors.jetBlack,
+    fontSize: scaledValue(12),
+    opacity: 0.5,
+    marginRight: scaledValue(8),
+  },
 });

@@ -10,6 +10,9 @@ import {styles} from './styles';
 import {useTranslation} from 'react-i18next';
 import {colors} from '../../../../assets/colors';
 import HeaderButton from '../../../components/HeaderButton';
+import horseBreedList from '../../../../assets/horseBreedList.json';
+import catBreedList from '../../../../assets/catBreedList.json';
+import dogBreedList from '../../../../assets/dogBreedList.json';
 
 const ChooseYourPet = ({navigation}) => {
   const insets = useSafeAreaInsets();
@@ -114,7 +117,13 @@ const ChooseYourPet = ({navigation}) => {
       />
       <ChoosePetBreed
         refRBSheet={refRBSheet}
-        options={breadList}
+        options={
+          selectedPetId?.value === 'Cat'
+            ? catBreedList
+            : selectedPetId?.value === 'Dog'
+            ? dogBreedList
+            : horseBreedList
+        }
         value={selectPetBreed}
         pet={selectedPetId}
         continuePress={() => {
@@ -135,24 +144,5 @@ const ChooseYourPet = ({navigation}) => {
     </View>
   );
 };
-
-const breadList = [
-  {id: 1, name: 'Affenpinscher'},
-  {id: 2, name: 'Afghan Hound'},
-  {id: 3, name: 'Alaskan Malamute'},
-  {id: 4, name: 'American Bulldog'},
-  {id: 5, name: 'American Cocker Spaniel'},
-  {id: 6, name: 'Beagle'},
-  {id: 7, name: 'Bearded Collie'},
-  {id: 8, name: 'Bichon Frise'},
-  {id: 11, name: 'Affwenpinscher'},
-  {id: 21, name: 'Afghadn Hound'},
-  {id: 31, name: 'Alaskadn Malamute'},
-  {id: 41, name: 'Americand Bulldog'},
-  {id: 51, name: 'Americdan Cocker Spaniel'},
-  {id: 61, name: 'Beagdle'},
-  {id: 71, name: 'Beardedd Collie'},
-  {id: 81, name: 'Bichon Frdise'},
-];
 
 export default ChooseYourPet;

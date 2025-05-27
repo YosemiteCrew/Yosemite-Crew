@@ -17,43 +17,34 @@ export default async function API(props) {
   let method = props.method || 'GET';
   let body = props.body || {};
   if (method !== 'POST' && method !== 'PUT') {
-    console.log('cominghereURLMETHODs');
-
     let param = [];
     Object.entries(body).forEach(([key, value]) =>
-      param.push(`${key}=${value}`),
+      param.push(`${key}=${value}&`),
     );
     if (param.length > 0) {
-      url = `${url}?${param.join('&')}`;
+      url = `${url}?${param.join('')}`;
     }
   }
 
   let multiPartData = props?.multiPart;
   const formData = new FormData();
   if (multiPartData) {
-    formData.append('data', JSON.stringify(body));
-    // Object.keys(body).forEach(key => {
-    //   if (Array.isArray(body[key])) {
-    //     // Append each array element with the same key
-    //     body[key].forEach(item => {
-    //       formData.append(key, item);
-    //     });
-    //   } else {
-    //     formData.append(key, body[key]);
-    //   }
-    // });
+    formData.append('data', JSON.stringify(body?.data));
+    if (Array.isArray(body?.files)) {
+      for (let i = 0; i < body?.files.length; i++) {
+        console.log('Post Image into append', body?.files[i]);
+        formData.append('files', body?.files[i]);
+      }
+    }
   }
 
   const authState = store.getState().auth;
 
   let accessToken = authState?.user?.token;
 
-  //   let headers = {};
   //SET HEADERS
   let headers = {
-    // 'Content-Type': 'multipart/form-data',
     Authorization: `Bearer ${accessToken}`,
-    // locale: locale || systemLocale || 'en',
   };
   if (props.headers) {
     headers = {...headers, ...props.headers};
