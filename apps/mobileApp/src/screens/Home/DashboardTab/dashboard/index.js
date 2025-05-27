@@ -30,6 +30,7 @@ const Dashboard = ({navigation}) => {
   const swiperRef = useRef();
   const [selectPet, setSelectPet] = useState({});
   const userData = useAppSelector(state => state.auth.user);
+  console.log('userData', userData);
 
   const dispatch = useAppDispatch();
   const getPetList = useAppSelector(state => state.pets?.petLists);
@@ -222,7 +223,7 @@ const Dashboard = ({navigation}) => {
         onPress={() => handlePetSelection(item)}
         style={{opacity: selectPet?.id === item?.resource?.id ? 0.4 : 1}}>
         <GImage
-          image={petDetails?.petImage}
+          image={petDetails?.petImage?.url}
           style={styles.petImage}
           noImageSource={Images.Kizi}
         />

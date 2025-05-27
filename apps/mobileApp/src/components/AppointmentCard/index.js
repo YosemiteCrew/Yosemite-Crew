@@ -7,6 +7,8 @@ import GButton from '../GButton';
 import {scaledValue} from '../../utils/design.utils';
 import {Images} from '../../utils';
 import {useTranslation} from 'react-i18next';
+import GImage from '../GImage';
+import LinearGradient from 'react-native-linear-gradient';
 
 const AppointmentCard = ({
   imageSource,
@@ -30,8 +32,11 @@ const AppointmentCard = ({
   buttonStyle,
   buttonTextStyle,
   buttonIconStyle,
+  pending,
+  petImage,
 }) => {
   const {t} = useTranslation();
+
   return (
     <View
       style={[
@@ -42,7 +47,7 @@ const AppointmentCard = ({
         swiperCardStyle,
       ]}>
       <View style={styles.cardInnerView}>
-        <Image source={imageSource} style={styles.doctorImgStyle} />
+        <GImage image={imageSource} style={styles.doctorImgStyle} />
         <View style={styles.infoView}>
           <GText
             GrMedium
@@ -65,6 +70,7 @@ const AppointmentCard = ({
               {
                 color: confirmed || monthly ? colors.darkPurple : '#FFFEFE',
                 marginTop: confirmed || monthly ? scaledValue(4) : 0,
+                textTransform: 'capitalize',
               },
               departmentTextStyle,
             ]}
@@ -83,12 +89,13 @@ const AppointmentCard = ({
           />
           <GText
             SatoshiBold
-            componentProps={{numberOfLines: 1}}
+            componentProps={{numberOfLines: 2, ellipsizeMode: 'tail'}}
             text={hospitalName}
             style={[
               styles.departmentText,
               {
                 color: confirmed || monthly ? colors.darkPurple : '#FFFEFE',
+                maxWidth: '90%',
               },
             ]}
           />
@@ -170,6 +177,26 @@ const AppointmentCard = ({
         </View>
       )}
 
+      {pending && (
+        <GButton
+          onPress={() => {
+            if (monthly) {
+              navigation?.navigate('StackScreens', {
+                screen: 'BookAppointment',
+              });
+            }
+          }}
+          icon={Images.CircleClose}
+          iconStyle={styles.iconStyle}
+          title={`  ${appointmentTitle}`}
+          textStyle={[styles.buttonText, pending && {color: colors.appRed}]}
+          style={[
+            styles.buttonStyle,
+            {backgroundColor: 'transparent', marginBottom: scaledValue(1)},
+          ]}
+        />
+      )}
+
       {showCancel && (
         <GButton
           onPress={() => {
@@ -183,9 +210,36 @@ const AppointmentCard = ({
           iconStyle={styles.iconStyle}
           title={appointmentTitle}
           textStyle={[styles.buttonText, monthly && {color: colors.appRed}]}
-          style={[styles.buttonStyle, {backgroundColor: 'transparent'}]}
+          style={[
+            styles.buttonStyle,
+            {backgroundColor: 'transparent', marginBottom: scaledValue(0)},
+          ]}
         />
       )}
+      <LinearGradient
+        colors={['#D04122', '#FDBD74']}
+        start={{x: 0, y: 1}}
+        end={{x: 1, y: 1}}
+        style={{
+          borderRadius: scaledValue(16),
+          position: 'absolute',
+          top: scaledValue(-16),
+          alignSelf: 'flex-end',
+          right: scaledValue(16),
+          width: scaledValue(32),
+          height: scaledValue(32),
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+        <GImage
+          image={petImage}
+          style={{
+            width: scaledValue(30),
+            height: scaledValue(30),
+            borderRadius: scaledValue(16),
+          }}
+        />
+      </LinearGradient>
     </View>
   );
 };

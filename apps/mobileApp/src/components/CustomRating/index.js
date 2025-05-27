@@ -1,12 +1,23 @@
-import React, {useState} from 'react';
-import {View, Text, TouchableOpacity, StyleSheet, Image} from 'react-native';
-import {Images} from '../../utils';
-import {scaledValue} from '../../utils/design.utils';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { Images } from '../../utils';
+import { scaledValue } from '../../utils/design.utils';
 
-const CustomRating = ({maxRating = 5, size = 30, onRatingChange}) => {
-  const [rating, setRating] = useState(0);
+const CustomRating = ({
+  maxRating = 5,
+  size = 30,
+  onRatingChange,
+  filledStar,
+  unfilledStar,
+  starContainerStyle,
+  imageStyle,
+  value,
+  disabled,
+  containerStyle,
+}) => {
+  const [rating, setRating] = useState(Number(value) || 0);
 
-  const handleRatingPress = value => {
+  const handleRatingPress = (value) => {
     setRating(value);
     if (onRatingChange) {
       onRatingChange(value);
@@ -14,23 +25,21 @@ const CustomRating = ({maxRating = 5, size = 30, onRatingChange}) => {
   };
 
   return (
-    <View style={styles.container}>
-      {Array.from({length: maxRating}, (_, index) => (
+    <View style={[styles.container, containerStyle]}>
+      {Array.from({ length: maxRating }, (_, index) => (
         <TouchableOpacity
+          disabled={disabled}
           key={index}
           onPress={() => handleRatingPress(index + 1)}
-          style={styles.starContainer}>
-          {rating >= index + 1 ? (
-            <Image
-              source={Images.Star}
-              style={{width: scaledValue(32), height: scaledValue(32)}}
-            />
-          ) : (
-            <Image
-              source={Images.StarUnFill}
-              style={{width: scaledValue(32), height: scaledValue(32)}}
-            />
-          )}
+          style={[styles.starContainer, starContainerStyle]}
+        >
+          <Image
+            source={rating >= index + 1 ? filledStar : unfilledStar}
+            style={[
+              { width: scaledValue(size), height: scaledValue(size) },
+              imageStyle,
+            ]}
+          />
         </TouchableOpacity>
       ))}
     </View>
@@ -43,12 +52,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  starContainer: {
-    padding: 5,
-  },
-  star: {
-    fontWeight: 'bold',
-  },
+  starContainer: {},
 });
 
 export default CustomRating;

@@ -24,11 +24,14 @@ import ImagePicker from 'react-native-image-crop-picker';
 import {styles} from './styles';
 import {openSettings, PERMISSIONS, request} from 'react-native-permissions';
 import OptionMenuSheet from '../../../components/OptionMenuSheet';
+import {add_pet} from '../../../redux/slices/petSlice';
+import {useAppDispatch, useAppSelector} from '../../../redux/store/storeUtils';
+import {buildPetFHIRResource} from '../../../helpers/buildPetFHIRResource';
 
 const AddPetDetails = ({navigation, route}) => {
   const {choosePetData, petDetails} = route?.params;
   // console.log('petDetails', petDetails);
-
+  const authState = useAppSelector(state => state.auth);
   const formatDate = dateString => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-GB');
@@ -49,6 +52,7 @@ const AddPetDetails = ({navigation, route}) => {
   const [apiCallImage, setApiCallImage] = useState();
   const [image, setImage] = useState();
   const [open, setOpen] = useState(false);
+  const dispatch = useAppDispatch();
   const handlePress = id => {
     setSelectedId(id);
   };
@@ -84,6 +88,7 @@ const AddPetDetails = ({navigation, route}) => {
     neutered: '',
   });
   // console.log(formValue?.dob);
+  console.log(select);
 
   const gender = [
     {
@@ -218,6 +223,51 @@ const AddPetDetails = ({navigation, route}) => {
         );
       }
     }
+  };
+
+  const add_pet_hit = () => {
+    // console.log('choosePetDetail?.dob', choosePetDetail?.dob);
+    const inputDate = formValue?.dob;
+    const [day, month, year] = inputDate.split('/');
+    const formattedDate = `${year}/${month}/${day}`;
+
+    let petData = {
+      id: authState?.user?._id,
+      name: formValue?.name,
+      gender: formValue?.gender,
+      birthDate: formattedDate,
+      speciesDisplay: choosePetData?.petType,
+      breed: choosePetData?.petBreed,
+      genderStatusDisplay: formValue?.neutered,
+      weight: formValue?.weight,
+      color: formValue?.color,
+      bloodGroup: formValue?.blood_group,
+      ageWhenNeutered: '',
+      microchipNumber: '',
+      insuranceCompany: '',
+      policyNumber: '',
+      passportNumber: '',
+      origin: '',
+      isInsured: '',
+    };
+
+    const fhirPayload = buildPetFHIRResource(petData);
+
+    const api_credentials = {
+      data: fhirPayload,
+      files: [apiCallImage],
+    };
+
+    dispatch(add_pet(api_credentials)).then(res => {
+      if (add_pet.fulfilled.match(res)) {
+        const updatedBundle = {
+          ...petList,
+          total: petList.total + 1,
+          entry: [res?.payload, ...petList.entry],
+        };
+        // dispatch(updatePetList(updatedBundle));
+      }
+    });
   };
 
   return (
@@ -430,17 +480,25 @@ const AddPetDetails = ({navigation, route}) => {
           </View>
           <GButton
             onPress={() => {
-              navigation?.navigate('MorePetDetails', {
-                choosePetDetail: {
-                  ...formValue,
-                  ...choosePetData,
-                  petImage: image,
-                  apiCallImage: apiCallImage,
-                },
-                petDetails: petDetails,
-              });
+              if (select === 'Yes') {
+                navigation?.navigate('MorePetDetails', {
+                  choosePetDetail: {
+                    ...formValue,
+                    ...choosePetData,
+                    petImage: image,
+                    apiCallImage: apiCallImage,
+                  },
+                  petDetails: petDetails,
+                });
+              } else {
+                add_pet_hit();
+              }
             }}
-            title={t('confirm_button_string')}
+            title={
+              select === 'Yes'
+                ? t('confirm_button_string')
+                : t('add_pet_string')
+            }
             style={styles.createButton}
             textStyle={styles.createButtonText}
           />
