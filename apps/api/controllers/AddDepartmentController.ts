@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { DepartmentFromFHIRConverter } from '../utils/DepartmentFhirHandler';
-import { DepartmentCustomFormat } from '../../../packages/types/src/Departments/DepartmentTypes';
+import { DepartmentCustomFormat } from '@yosemite-crew/types';
 import Department from '../models/AddDepartment';
 // import AWS from 'aws-sdk';
 // import { UploadedFile } from 'express-fileupload';

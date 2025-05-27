@@ -13,6 +13,6 @@
     "noUnusedLocals": true,                      // Warn on unused variables
     "noUnusedParameters": true, 
   },
-  "include": ["main.ts", "config/**/*", "controllers/**/*", "extensions/**/*", "Fhirvalidator/**/*", "mappers/**/*", "models/**/*", "routes/**/*", "services/**/*", "utils/**/*", "validators/**/*", "views/**/*", "middleware/**/*"],
+  "include": ["main.ts", "config/**/*", "controllers/**/*", "extensions/**/*", "Fhirvalidator/**/*", "mappers/**/*", "models/**/*", "routes/**/*", "services/**/*", "utils/**/*", "validators/**/*", "views/**/*", "middlewares/**/*"],
   "exclude": ["node_modules", "dist"]
 }
