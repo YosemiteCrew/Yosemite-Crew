@@ -12,9 +12,37 @@ import {colors} from '../../../../../../assets/colors';
 import {styles} from './styles';
 import GText from '../../../../../components/GText/GText';
 import HeaderButton from '../../../../../components/HeaderButton';
+import {useAppSelector} from '../../../../../redux/store/storeUtils';
+import GImage from '../../../../../components/GImage';
+import useDataFactory from '../../../../../components/UseDataFactory/useDataFactory';
+import {formatCompleteDateDMY} from '../../../../../utils/constants';
+import {transformImmunizations} from '../../../../../helpers/transformImmunizations';
 
 const VaccineManagementHome = ({navigation}) => {
   const {t} = useTranslation();
+  const petList = useAppSelector(state => state.pets?.petLists);
+
+  const {
+    loading,
+    data,
+    setData,
+    extraData,
+    refreshData,
+    loadMore,
+    Placeholder,
+    Loader,
+  } = useDataFactory(
+    'getRecentVaccinationRecord',
+    true,
+    {
+      limit: 10,
+    },
+    'GET',
+  );
+
+  const recentVaccinationList = transformImmunizations(data, {
+    useFhirId: true,
+  });
 
   useEffect(() => {
     navigation.setOptions({
@@ -37,11 +65,6 @@ const VaccineManagementHome = ({navigation}) => {
     });
   }, [navigation]);
 
-  const petList = [
-    {id: 1, name: 'Kizie', img: Images.Kizi, status: 'Up-to-date'},
-    {id: 2, name: 'Oscar', img: Images.CatImg, status: 'Upcoming'},
-  ];
-
   const quickAction = [
     {
       id: 1,
@@ -61,69 +84,84 @@ const VaccineManagementHome = ({navigation}) => {
     },
   ];
 
-  const recentVaccinationList = [
-    {
-      id: 1,
-      title: 'Bordetella Bronchiseptica',
-      date: '2 August, 2024',
-      img: Images.Kizi,
-    },
-    {id: 2, title: 'Calicivirus', date: '10 July, 2024', img: Images.CatImg},
-    {
-      id: 3,
-      title: 'Parainfluenza virus',
-      date: '15 June, 2024',
-      img: Images.Kizi,
-    },
-    {id: 4, title: 'Chlamydia', date: '28 May, 2024', img: Images.CatImg},
-  ];
+  const RenderPetItem = ({item}) => {
+    const petDetails = item?.resource?.extension?.reduce((acc, item) => {
+      acc[item.title] = item.valueString;
+      return acc;
+    }, {});
 
-  const RenderPetItem = ({item}) => (
-    <View style={styles.petItem}>
-      <Image source={item.img} style={styles.petImage} />
-      <GText SatoshiBold text={item?.name} style={styles.petNameText} />
-      {item?.status === 'Up-to-date' ? (
-        <View style={styles.healthyStatus}>
-          <Image
-            tintColor={colors.white}
-            source={Images.CircleCheck}
-            style={styles.statusIcon}
-          />
-          <GText SatoshiBold text={item?.status} style={styles.statusText} />
-        </View>
-      ) : (
-        <View style={styles.riskStatus}>
-          <Image source={Images.Risk} style={styles.statusIcon} />
-          <GText SatoshiBold text={item?.status} style={styles.statusText} />
-        </View>
-      )}
-    </View>
-  );
+    return (
+      <View style={styles.petItem}>
+        <GImage
+          image={petDetails?.petImage?.url}
+          style={styles.petImage}
+          noImageSource={Images.Kizi}
+        />
 
-  const RenderRecentVaccinationItem = ({item}) => (
-    <>
-      <TouchableOpacity
-        onPress={() =>
-          navigation.navigate('StackScreens', {screen: 'EditVaccineRecord'})
-        }
-        style={styles.optionView}>
-        <View style={styles.imgTitleView}>
-          <Image source={item?.img} style={styles.imgStyle} />
-          <View>
-            <GText GrMedium text={item?.title} style={styles.titleStyle} />
-            <GText SatoshiBold text={item?.date} style={styles.dateStyle} />
+        <GText
+          SatoshiBold
+          text={item?.resource?.name[0]?.text}
+          style={styles.petNameText}
+        />
+        {item?.status === 'Up-to-date' ? (
+          <View style={styles.healthyStatus}>
+            <Image
+              tintColor={colors.white}
+              source={Images.CircleCheck}
+              style={styles.statusIcon}
+            />
+            <GText SatoshiBold text={item?.status} style={styles.statusText} />
           </View>
-        </View>
-        <Image source={Images.RightArrow} style={styles.arrowImg} />
-      </TouchableOpacity>
-      {item.id !==
-      recentVaccinationList[recentVaccinationList.length - 1].id ? (
-        <View style={styles.divider} />
-      ) : (
-        <View style={styles.dividerSpacing} />
-      )}
-    </>
-  );
+        ) : (
+          <View style={styles.riskStatus}>
+            <Image source={Images.Risk} style={styles.statusIcon} />
+            <GText SatoshiBold text={item?.status} style={styles.statusText} />
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  const RenderRecentVaccinationItem = ({item}) => {
+    return (
+      <>
+        <TouchableOpacity
+          onPress={() =>
+            navigation.navigate('StackScreens', {
+              screen: 'EditVaccineRecord',
+              params: {
+                itemRecordDetails: item,
+                setData,
+              },
+            })
+          }
+          style={styles.optionView}>
+          <View style={styles.imgTitleView}>
+            <Image source={item?.img} style={styles.imgStyle} />
+            <View>
+              <GText
+                GrMedium
+                text={item?.manufacturer}
+                style={styles.titleStyle}
+              />
+              <GText
+                SatoshiBold
+                text={formatCompleteDateDMY(item?.date)}
+                style={styles.dateStyle}
+              />
+            </View>
+          </View>
+          <Image source={Images.RightArrow} style={styles.arrowImg} />
+        </TouchableOpacity>
+        {item.id !==
+        recentVaccinationList[recentVaccinationList?.length - 1].id ? (
+          <View style={styles.divider} />
+        ) : (
+          <View style={styles.dividerSpacing} />
+        )}
+      </>
+    );
+  };
 
   const quickActions = item => (
     <TouchableOpacity
@@ -161,11 +199,12 @@ const VaccineManagementHome = ({navigation}) => {
         />
         <View style={styles.petListContainer}>
           <FlatList
-            data={petList}
+            data={petList?.entry}
             horizontal
             contentContainerStyle={styles.petList}
             renderItem={({item}) => <RenderPetItem item={item} />}
-            keyExtractor={item => item.id.toString()}
+            showsHorizontalScrollIndicator={false}
+            // keyExtractor={(item) => item.id.toString()}
           />
         </View>
         <GText
@@ -185,7 +224,7 @@ const VaccineManagementHome = ({navigation}) => {
           <FlatList
             data={recentVaccinationList}
             renderItem={({item}) => <RenderRecentVaccinationItem item={item} />}
-            keyExtractor={item => item.id.toString()}
+            keyExtractor={item => item?.id.toString()}
           />
         </View>
       </ScrollView>

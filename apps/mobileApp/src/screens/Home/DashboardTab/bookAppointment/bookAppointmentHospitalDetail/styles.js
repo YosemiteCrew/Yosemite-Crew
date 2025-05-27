@@ -1,4 +1,4 @@
-import {StyleSheet} from 'react-native';
+import {Dimensions, StyleSheet} from 'react-native';
 import {
   scaledHeightValue,
   scaledValue,
@@ -63,24 +63,23 @@ export const styles = StyleSheet.create({
     width: '90%',
   },
   buttonTextStyle: {
-    fontSize: scaledValue(14),
-    lineHeight: scaledValue(16),
-    color: colors.appRed,
+    fontSize: scaledValue(16),
+    color: colors.brown,
     marginLeft: scaledValue(2),
     letterSpacing: scaledValue(14 * -0.01),
     fontFamily: fonts.CLASH_GRO_MEDIUM,
   },
   buttonStyle: {
-    borderWidth: scaledValue(1),
-    borderColor: colors.appRed,
     marginTop: scaledValue(20),
     borderRadius: scaledValue(28),
     height: scaledValue(44),
+    backgroundColor: colors.fawn,
   },
   iconStyle: {
     width: scaledValue(14),
     height: scaledValue(14),
     marginRight: scaledValue(2),
+    tintColor: colors.brown,
   },
   departmentText: {
     fontSize: scaledValue(18),
@@ -138,5 +137,33 @@ export const styles = StyleSheet.create({
     marginTop: scaledValue(16),
     gap: scaledValue(12),
     marginBottom: scaledValue(100),
+  },
+  buttonText1: {
+    fontSize: scaledValue(18),
+    lineHeight: scaledHeightValue(18),
+    letterSpacing: scaledValue(18 * -0.01),
+    color: colors.brown,
+    fontFamily: fonts?.CLASH_GRO_MEDIUM,
+  },
+  buttonStyle1: {
+    backgroundColor: '#FDBD74',
+    marginTop: scaledValue(40),
+    marginBottom: scaledValue(62),
+    height: scaledValue(52),
+    borderRadius: scaledValue(28),
+    position: 'absolute',
+    bottom: 0,
+    width: Dimensions.get('window').width - 40,
+    alignSelf: 'center',
+  },
+  inputStyle: {
+    height: scaledValue(114),
+    marginTop: scaledValue(12),
+    borderRadius: scaledValue(16),
+    borderColor: colors.darkPurple2,
+    width: Dimensions.get('screen').width - 40,
+    textAlignVertical: 'top',
+    borderWidth: scaledValue(0.5),
+    padding: scaledValue(15),
   },
 });

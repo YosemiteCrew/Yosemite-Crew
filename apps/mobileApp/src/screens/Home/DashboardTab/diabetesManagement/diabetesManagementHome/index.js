@@ -18,14 +18,36 @@ import PetRecordCard from '../../../../../components/PetRecordCard';
 import {Divider} from 'react-native-paper';
 import GButton from '../../../../../components/GButton';
 import OptionMenuSheet from '../../../../../components/OptionMenuSheet';
+import {get_diabetes_list} from '../../../../../redux/slices/diabetesSlice';
+import {useAppDispatch} from '../../../../../redux/store/storeUtils';
+import useDataFactory from '../../../../../components/UseDataFactory/useDataFactory';
 
 const DiabetesManagement = ({navigation}) => {
   const {t} = useTranslation();
   const refRBSheet = useRef();
+  const dispatch = useAppDispatch();
   const [selectedPetRecord, setSelectedPetRecord] = useState('Blood Glucose');
   useEffect(() => {
     configureHeader();
   }, []);
+
+  const {
+    loading,
+    data,
+    setData,
+    extraData,
+    refreshData,
+    loadMore,
+    Placeholder,
+    Loader,
+  } = useDataFactory(
+    'get_diabetes_list',
+    true,
+    {
+      limit: 0,
+    },
+    'GET',
+  );
 
   const configureHeader = () => {
     navigation.setOptions({

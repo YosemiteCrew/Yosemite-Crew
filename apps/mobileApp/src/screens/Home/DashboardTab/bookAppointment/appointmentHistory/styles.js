@@ -52,24 +52,28 @@ export const styles = StyleSheet.create({
   doctorImgStyle: {
     width: scaledValue(88),
     height: scaledValue(88),
+    borderRadius: scaledValue(12),
   },
   swiperCard: {
     width: scaledValue(335),
     backgroundColor: colors.appRed,
     alignSelf: 'center',
     borderRadius: scaledValue(20),
-    marginTop: scaledValue(12),
+    // paddingTop: scaledValue(12),
     shadowColor: '#47382726',
     shadowOffset: {width: 1, height: 5},
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 8,
+    paddingVertical: scaledValue(16),
+    marginTop: scaledValue(16),
   },
   cardInnerView: {
     flexDirection: 'row',
-    marginTop: scaledValue(16),
+    // marginTop: scaledValue(16),
     paddingLeft: scaledValue(12),
     paddingBottom: scaledValue(16),
+    // paddingVertical: scaledValue(16),
   },
   doctorNameText: {
     fontSize: scaledValue(18),
@@ -84,7 +88,6 @@ export const styles = StyleSheet.create({
     color: colors.white,
     marginTop: scaledValue(2),
     opacity: 0.7,
-    width: '85%',
   },
   infoView: {
     marginLeft: scaledValue(8),

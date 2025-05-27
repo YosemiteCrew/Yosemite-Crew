@@ -13,9 +13,12 @@ import {styles} from './styles';
 import GText from '../../../../../components/GText/GText';
 import {useTranslation} from 'react-i18next';
 import GButton from '../../../../../components/GButton';
+import {useAppDispatch} from '../../../../../redux/store/storeUtils';
+import {get_medical_record_list} from '../../../../../redux/slices/medicalRecordSlice';
 
 const MedicalRecordHome = ({navigation}) => {
   const {t} = useTranslation();
+  const dispatch = useAppDispatch();
 
   useEffect(() => {
     configureHeader();
@@ -51,7 +54,11 @@ const MedicalRecordHome = ({navigation}) => {
       subtitle: '8 files',
       img: Images.Certificates,
     },
-    {title: t('vet_visits_string'), subtitle: '15 files', img: Images.VetVisit},
+    {
+      title: t('vet_visits_string'),
+      subtitle: '15 files',
+      img: Images.VetVisit,
+    },
     {title: t('invoices_string'), subtitle: '24 files', img: Images.Invoice},
     {title: t('lab_tests_string'), subtitle: '4 files', img: Images.LabTest},
     {title: t('pedigree_string'), subtitle: '1 file', img: Images.Pedigree},
@@ -60,9 +67,20 @@ const MedicalRecordHome = ({navigation}) => {
       subtitle: '7 files',
       img: Images.PrescriptionImg,
     },
-    {title: t('insurance_string'), subtitle: '2 files', img: Images.Insurance},
+    {
+      title: t('insurance_string'),
+      subtitle: '2 files',
+      img: Images.Insurance,
+    },
     {title: t('others_string'), subtitle: '4 files', img: Images.Others},
   ];
+  useEffect(() => {
+    getRecordsList();
+  }, []);
+
+  const getRecordsList = () => {
+    dispatch(get_medical_record_list());
+  };
 
   return (
     <View style={styles.dashboardMainView}>

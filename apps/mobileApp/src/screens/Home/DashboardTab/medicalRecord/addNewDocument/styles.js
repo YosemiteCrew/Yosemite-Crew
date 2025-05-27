@@ -183,4 +183,9 @@ export const styles = StyleSheet.create({
     letterSpacing: scaledValue(16 * -0.03),
     color: '#312943',
   },
+  catImage: {
+    width: scaledValue(40),
+    height: scaledValue(40),
+    borderRadius: scaledValue(20),
+  },
 });
