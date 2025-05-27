@@ -9,6 +9,7 @@ const ListController = require('../controllers/ListController');
 const ImmunizationController = require("../controllers/ImmunizationController");
 const DiabetesController = require("../controllers/DiabetesController");
 const SharedDutiesController = require("../controllers/SharedDutiesController");
+const MedicalRecordsController = require("../controllers/MedicalRecordsController");
 
 const { handleContactUs } = require("../controllers/ContactController");
 
@@ -18,12 +19,6 @@ const {
   handleGetExercisePlan,
   handleGetPainJournal,
 } = require("../controllers/PlanController");
-const {
-  handlesaveMedicalRecord,
-  handleMedicalRecordList,
-} = require("../controllers/MedicalRecordsController");
-
-
 
 const router = express.Router();
 const multer = require("multer");
@@ -82,8 +77,10 @@ router.post("/saveExercisePlan",verifyTokenAndRefresh, handleExercisePlan);
 router.get("/getexercise-list/:userId",verifyTokenAndRefresh, handleGetExercisePlan);
 router.post("/savepainjournal",verifyTokenAndRefresh, handleAddPainJournal);
 router.get("/getpainjournal/:userId",verifyTokenAndRefresh, handleGetPainJournal);
-router.post("/DocumentReference/saveMedicalRecord", verifyTokenAndRefresh,handlesaveMedicalRecord);
-router.get("/DocumentReference/getMedicalRecordList",verifyTokenAndRefresh, handleMedicalRecordList);
+router.post("/DocumentReference/saveMedicalRecord", verifyTokenAndRefresh,MedicalRecordsController.handlesaveMedicalRecord);
+router.get("/DocumentReference/getMedicalRecordList",verifyTokenAndRefresh, MedicalRecordsController.handleMedicalRecordList);
+router.delete("/DocumentReference/deleteMedicalRecord",verifyTokenAndRefresh,MedicalRecordsController.handleDeleteMedicalRecord);
+router.put("/DocumentReference/editMedicalRecord",verifyTokenAndRefresh,MedicalRecordsController.handleEditMedicalRecord);
 router.post( "/Observation/saveDiabetesRecords",verifyTokenAndRefresh,DiabetesController.handleDiabetesRecords);
 router.get("/Observation/getDiabetesLogs", verifyTokenAndRefresh,DiabetesController.handleGetDiabetesLogs);
 router.delete("/Observation/deleteDiabetesLog", verifyTokenAndRefresh,DiabetesController.handleDeleteDiabetesLog);

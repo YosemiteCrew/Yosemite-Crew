@@ -16,7 +16,6 @@ class FHIRParser {
       
         return {
           petId: observation.subject?.reference?.split("/")[1] || null,
-          doctorId: observation.encounter?.reference?.split("/")[1] || null,
           recordDate: observation.effectiveDateTime?.split("T")[0] || null,
           recordTime: observation.effectiveDateTime?.split("T")[1]?.replace("+05:30", "") || null,
       
@@ -61,9 +60,6 @@ class FHIRParser {
           },
           subject: {
             reference: `Patient/${record.petId}`
-          },
-          encounter: {
-            reference: `Encounter/${record.doctorId}`
           },
           effectiveDateTime: `${record.recordDate}T${record.recordTime}+05:30`,
           component: [
