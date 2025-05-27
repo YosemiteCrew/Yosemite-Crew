@@ -34,7 +34,7 @@ const BookAppointmentDepartmentDetail = ({navigation, route}) => {
       headerTitle: () => (
         <GText
           GrMedium
-          text={departmentDetail?.departmentName}
+          text={departmentDetail?.name}
           style={{
             fontSize: scaledValue(18),
             letterSpacing: scaledValue(18 * -0.01),
@@ -66,40 +66,61 @@ const BookAppointmentDepartmentDetail = ({navigation, route}) => {
     Loader,
   } = useDataFactory(
     'getDoctorsLists',
-    true,
+    false,
     {
-      businessId: businessDetails?.cognitoId,
-      departmentId: departmentDetail?.departmentId,
+      departmentId: departmentDetail?.id,
     },
-    'POST',
+    'GET',
   );
 
   return (
     <View style={styles.dashboardMainView}>
       <GText
         SatoshiBold
-        text={businessDetails?.profileData?.businessName}
+        text={businessDetails?.name}
         style={styles.headerTitle}
       />
       <View style={styles.headerView}>
         <GText GrMedium text={`${t('team_string')} `} style={styles.teamText} />
-        <GText GrMedium text={`(${data?.length})`} style={styles.countText} />
+        <GText
+          GrMedium
+          text={`(${data?.data?.total || 0})`}
+          style={styles.countText}
+        />
       </View>
       <View style={{}}>
         <FlatList
-          data={data}
+          data={data?.data?.entry}
           style={{marginBottom: scaledValue(100)}}
           contentContainerStyle={{
             gap: scaledValue(24),
           }}
           renderItem={({item, index}) => {
+            const docDetails = item?.resource?.extension?.reduce(
+              (acc, item) => {
+                const value =
+                  item.valueString ?? item.valueDecimal ?? item.valueInteger;
+
+                if (value !== undefined) {
+                  acc[item.title] = value;
+                }
+
+                return acc;
+              },
+              {},
+            );
+
+            const qualification =
+              item?.resource.qualification?.[0]?.code?.text || 'N/A';
+            const department =
+              item?.resource.department?.[0]?.code?.text || 'N/A';
             return (
               <View style={styles.cardView}>
                 <View style={styles.card}>
                   <View style={styles.cardInnerView}>
                     <View style={styles.doctorImgView}>
                       <GImage
-                        image={item?.personalInfo?.image}
+                        image={docDetails?.doctorImage}
                         style={styles.doctorImg}
                       />
 
@@ -107,7 +128,7 @@ const BookAppointmentDepartmentDetail = ({navigation, route}) => {
                         <Image source={Images.Star} style={styles.starImg} />
                         <GText
                           SatoshiBold
-                          text={`4.9`}
+                          text={docDetails?.averageRating}
                           style={[
                             styles.experienceTextStyle,
                             {
@@ -120,21 +141,20 @@ const BookAppointmentDepartmentDetail = ({navigation, route}) => {
                     <View style={{marginLeft: scaledValue(8)}}>
                       <GText
                         GrMedium
-                        text={`Dr. ${
-                          item?.personalInfo?.firstName +
-                          ' ' +
-                          item?.personalInfo?.lastName
-                        }`}
+                        text={`Dr. ${item?.resource?.name[0]?.text}`}
                         style={styles.doctorName}
                       />
-                      {/* <GText
-                        SatoshiBold
-                        text={'Cardiology'}
-                        style={styles.departmentText}
-                      /> */}
                       <GText
                         SatoshiBold
-                        text={item?.professionalBackground?.qualification}
+                        text={department}
+                        style={[
+                          styles.departmentText,
+                          {textTransform: 'capitalize'},
+                        ]}
+                      />
+                      <GText
+                        SatoshiBold
+                        text={qualification}
                         style={styles.departmentText}
                       />
                       <View style={styles.experienceView}>
@@ -145,7 +165,7 @@ const BookAppointmentDepartmentDetail = ({navigation, route}) => {
                         />
                         <GText
                           SatoshiBold
-                          text={`${item?.professionalBackground?.yearsOfExperience} Years`}
+                          text={`${docDetails?.experienceYears} Years`}
                           style={styles.experienceTextStyle}
                         />
                       </View>
@@ -157,7 +177,7 @@ const BookAppointmentDepartmentDetail = ({navigation, route}) => {
                         />
                         <GText
                           SatoshiBold
-                          text={`$${item?.consultFee}`}
+                          text={`$${docDetails?.consultationFee}`}
                           style={styles.experienceTextStyle}
                         />
                       </View>
@@ -169,6 +189,8 @@ const BookAppointmentDepartmentDetail = ({navigation, route}) => {
                         screen: 'BookAppointment',
                         params: {
                           doctorDetail: item,
+                          departmentDetail: departmentDetail,
+                          businessDetails: businessDetails,
                         },
                       });
                     }}

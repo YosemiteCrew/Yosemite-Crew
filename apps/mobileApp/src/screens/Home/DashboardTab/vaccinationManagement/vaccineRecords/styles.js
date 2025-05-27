@@ -75,11 +75,9 @@ export const styles = StyleSheet.create({
     width: scaledValue(198),
     height: scaledValue(48),
     borderRadius: scaledValue(28),
-    alignItems: 'center',
-    justifyContent: 'center',
     alignSelf: 'center',
-    marginTop: scaledValue(40),
-    marginBottom: scaledValue(40),
+    position: 'absolute',
+    bottom: 0,
   },
   buttonText: {
     fontSize: scaledValue(18),
@@ -102,7 +100,7 @@ export const styles = StyleSheet.create({
   },
   diseaseText: {
     fontSize: scaledValue(16),
-    lineHeight: scaledHeightValue(16),
+    lineHeight: scaledHeightValue(20),
     color: colors.darkPurple,
   },
   statusImage: {
@@ -144,6 +142,7 @@ export const styles = StyleSheet.create({
   itemImage: {
     width: scaledValue(64),
     height: scaledValue(58),
+    borderRadius: scaledValue(8),
   },
   innerContainer: {
     flexDirection: 'row',
@@ -178,6 +177,7 @@ export const styles = StyleSheet.create({
   catImage: {
     width: scaledValue(40),
     height: scaledValue(40),
+    borderRadius: scaledValue(20),
   },
   arrowImage: {
     width: scaledValue(16),

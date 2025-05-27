@@ -30,6 +30,8 @@ export const styles = StyleSheet.create({
     color: colors.darkPurple,
     backgroundColor: 'transparent',
     width: '100%',
+    borderWidth: scaledValue(0.5),
+    padding: scaledValue(15),
   },
   buttonText: {
     fontSize: scaledValue(18),
@@ -137,5 +139,13 @@ export const styles = StyleSheet.create({
     lineHeight: scaledValue(19.2),
     color: '#37223C',
     marginTop: scaledValue(24),
+  },
+  penImg: {
+    width: scaledValue(48),
+    height: scaledValue(48),
+  },
+  starImage: {
+    height: scaledValue(32),
+    width: scaledValue(32),
   },
 });

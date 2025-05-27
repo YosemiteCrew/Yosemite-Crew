@@ -1,5 +1,5 @@
 import i18n from 'i18next';
-import {initReactI18next} from 'react-i18next';
+import { initReactI18next } from 'react-i18next';
 const resources = {
   en: {
     translation: {
@@ -79,12 +79,13 @@ const resources = {
       foster_string: 'Foster/ Shelter',
       pet_shop_string: 'Pet Shop',
       friends_string: 'Friends or Family',
+      others_string: 'Others',
       more_string: 'More about',
       age_when_neutered_string: 'Age when neutered',
       microchip_string: 'Microchip Number',
-      insurance_company_string: 'Insurance Company',
+      insurance_string: 'Insurance Company',
       insurance_policy_string: 'Insurance Policy Number',
-      passport_number_string: 'Passport Number',
+      passport_string: 'Passport Number',
       pet_comes_string: 'My Pet comes from:',
       add_pet_string: 'Add Pet',
       your_pets_string: 'Your Pets',
@@ -327,6 +328,7 @@ const resources = {
       breeders_string: 'Breeders',
       groomers_string: 'Groomers',
       pet_centers_string: 'Pet Centers',
+      pet_sitter_string: 'Pet Sitters',
       near_you_string: 'Near You',
       get_directions_string: 'Get Directions',
       departments_string: 'Departments',
@@ -371,6 +373,7 @@ const resources = {
       prescription_for_string: 'Prescription for',
       see_chat_history_string: 'See Chat History',
       share_feedback_string: 'Share feedback',
+      your_feedback_string: 'Your feedback',
       your_review_string: 'Your review',
       submit_feedback_string: 'Submit Feedback',
       search_through_records_string: 'Search through record',
@@ -443,6 +446,7 @@ const resources = {
       topic_string: 'topic',
       verify_account_string: 'Verify Account',
       confirm_button_string: 'Confirm',
+      insurance_company_string: 'Insurance Company',
       is_this_string: 'Is this ',
       choose_an_option_string:
         'Choose an option, and we’ll help you take the next steps for your pet.',
@@ -475,6 +479,8 @@ const resources = {
       for_appointment_string: 'for Appointment',
       reason_string: 'Reason',
       your_companion_string: 'your companion',
+      write_review_string: 'Write a Review',
+      submit_review_string: 'Submit Review',
     },
   },
   es: {
@@ -523,7 +529,7 @@ const initializeI18n = async () => {
   });
 };
 
-initializeI18n().catch(error => {
+initializeI18n().catch((error) => {
   console.error('Error initializing i18n:', error);
 });
 
