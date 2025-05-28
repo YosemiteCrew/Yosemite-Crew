@@ -2,14 +2,8 @@
   "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
     "composite": true,
-    "declaration": true,
-    "declarationMap": true,
-    "emitDeclarationOnly": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "allowImportingTsExtensions": true,
-    "inlineSources": false,
-    "isolatedModules": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "noUnusedLocals": false,
@@ -17,7 +11,6 @@
     "preserveWatchOutput": true,
     "skipLibCheck": true,
     "strict": true,
-    "noEmit": false,
     "strictNullChecks": true,
     "outDir": "dist"
   },
