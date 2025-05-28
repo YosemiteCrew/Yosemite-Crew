@@ -14,25 +14,39 @@ import {
   useAppSelector,
 } from '../../../../../redux/store/storeUtils';
 import {get_appointment_list} from '../../../../../redux/slices/appointmentSlice';
+import {transformAllAppointments} from '../../../../../helpers/transformAppointments';
+import moment from 'moment';
 
 const AppointmentHistory = ({navigation}) => {
   const loggedUserData = useAppSelector(state => state.auth.user);
   const {t} = useTranslation();
   const [scrollIndex, setScrollIndex] = useState(0);
   const dispatch = useAppDispatch();
-  const [upComingAppointments, setUpComingAppointments] = useState([]);
+  const [pendingAppointments, setPendingAppointments] = useState([]);
+  const [upComingAppointmentsList, setUpComingAppointmentsList] = useState([]);
+  const [pastAppointments, setPastAppointments] = useState([]);
+  const [cancelAppointments, setCancelAppointments] = useState([]);
+  const [appointmentType, setAppointmentType] = useState('all');
 
   useEffect(() => {
     dispatch(
       get_appointment_list({
-        userId: loggedUserData?.cognitoUserId,
+        type: appointmentType,
+        limit: 10,
+        offset: 0,
       }),
     ).then(res => {
       if (get_appointment_list.fulfilled.match(res)) {
-        setUpComingAppointments(res?.payload?.upcomingAppointments);
+        console.log('resdssss', JSON.stringify(res.payload));
+
+        const transformed = transformAllAppointments(res?.payload);
+        setUpComingAppointmentsList(transformed?.upcoming);
+        setPendingAppointments(transformed?.pending);
+        setPastAppointments(transformed?.past);
+        setCancelAppointments(transformed?.cancel);
       }
     });
-  }, []);
+  }, [appointmentType]);
 
   const swiperRef = useRef();
   const [selectedOption, setSelectedOption] = useState(t('all_string'));
@@ -41,10 +55,11 @@ const AppointmentHistory = ({navigation}) => {
   }, []);
 
   const options = [
-    {id: 1, title: t('all_string')},
-    {id: 2, title: t('upcoming_string')},
-    {id: 3, title: t('confirm_string')},
-    {id: 4, title: t('past_string')},
+    {id: 1, title: t('all_string'), value: 'all'},
+    {id: 2, title: t('upcoming_string'), value: 'upcoming'},
+    {id: 3, title: t('pending_string'), value: 'pending'},
+    {id: 4, title: t('past_string'), value: 'past'},
+    {id: 5, title: t('cancel_string'), value: 'cancel'},
   ];
 
   const configureHeader = () => {
@@ -63,7 +78,10 @@ const AppointmentHistory = ({navigation}) => {
   const renderOption = item => (
     <TouchableOpacity
       key={item.id}
-      onPress={() => setSelectedOption(item.title)}
+      onPress={() => {
+        setSelectedOption(item.title);
+        setAppointmentType(item?.value);
+      }}
       style={[
         styles.optionButton,
         {
@@ -96,50 +114,75 @@ const AppointmentHistory = ({navigation}) => {
             {options.map(renderOption)}
           </View>
         </ScrollView>
-        <View style={styles.headerView}>
-          <GText
-            GrMedium
-            text={`${t('upcoming_string')} `}
-            style={styles.teamText}
-          />
-          <GText
-            GrMedium
-            text={`(${upComingAppointments?.length})`}
-            style={styles.countText}
-          />
-        </View>
-
-        <Swiper
-          height={430}
-          ref={swiperRef}
-          loop={false}
-          bounces={false}
-          onIndexChanged={index => setScrollIndex(index)}
-          activeDotColor={colors.appRed}
-          dotColor={colors.appRed}
-          activeDotStyle={styles.activeDotStyle}
-          dotStyle={styles.dotStyle}
-          paginationStyle={styles.paginationStyle}>
-          {upComingAppointments?.map((page, index) => (
-            <View key={index}>
-              <AppointmentCard
-                key={index}
-                imageSource={Images.DoctorImg}
-                doctorName="Dr. John Doe"
-                department="Orthopedics"
-                qualifications="MD, MBBS"
-                hospitalName="New York Medical Center"
-                appointmentTime="Tuesday, 15 Sept - 02:00 PM"
-                navigation={navigation}
-                showCancel
-                buttonText={t('get_directions_string')}
-                showButton
-                appointmentTitle={t('cancel_appointment_string')}
+        {upComingAppointmentsList?.length > 0 && (
+          <>
+            <View style={styles.headerView}>
+              <GText
+                GrMedium
+                text={`${t('upcoming_string')} `}
+                style={styles.teamText}
+              />
+              <GText
+                GrMedium
+                text={`(${upComingAppointmentsList?.length})`}
+                style={styles.countText}
               />
             </View>
-          ))}
-        </Swiper>
-        <View style={[styles.headerView, {marginTop: scaledValue(0)}]}>
+
+            <View style={{marginTop: scaledValue(12)}}>
+              <Swiper
+                height={
+                  upComingAppointmentsList?.length > 1
+                    ? scaledValue(359)
+                    : scaledValue(330)
+                }
+                ref={swiperRef}
+                loop={false}
+                bounces={false}
+                onIndexChanged={index => setScrollIndex(index)}
+                activeDotColor={colors.appRed}
+                dotColor={colors.appRed}
+                activeDotStyle={styles.activeDotStyle}
+                dotStyle={styles.dotStyle}
+                paginationStyle={styles.paginationStyle}>
+                {upComingAppointmentsList?.map((item, index) => {
+                  const combinedDate = `${item?.date} ${item?.time}`;
+                  const formatted = moment(
+                    combinedDate,
+                    'YYYY-MM-DD h:mm A',
+                  ).format('dddd, DD MMM - hh:mm A');
+                  return (
+                    <View key={index}>
+                      <AppointmentCard
+                        petImage={item?.pet?.image}
+                        key={index}
+                        imageSource={item?.vet?.image}
+                        doctorName={item?.vet?.name}
+                        department={item?.vet?.specialization}
+                        qualifications={item?.vet?.qualification}
+                        hospitalName={item?.location}
+                        appointmentTime={formatted}
+                        navigation={navigation}
+                        showCancel
+                        buttonText={t('get_directions_string')}
+                        showButton
+                        appointmentTitle={t('cancel_appointment_string')}
+                      />
+                    </View>
+                  );
+                })}
+              </Swiper>
+            </View>
+          </>
+        )}
+
+        <View
+          style={[
+            styles.headerView,
+            {
+              // marginTop: scaledValue(0)
+            },
+          ]}>
           <GText
             GrMedium
             text={`${t('confirm_string')} `}
@@ -148,54 +191,81 @@ const AppointmentHistory = ({navigation}) => {
           <GText GrMedium text={'(1)'} style={styles.countText} />
         </View>
         <FlatList
-          data={[1]} // Add real data here for confirmed appointments
-          contentContainerStyle={{gap: scaledValue(20)}}
-          renderItem={({item, index}) => (
-            <AppointmentCard
-              key={index}
-              imageSource={Images.DoctorImg}
-              doctorName="Dr. John Doe"
-              department="Orthopedics"
-              qualifications="MD, MBBS"
-              hospitalName="New York Medical Center"
-              appointmentTime="Tuesday, 15 Sept - 02:00 PM"
-              navigation={navigation}
-              confirmed
-              buttonImg={Images.CrossFill}
-              buttonText={t('cancel_string')}
-              showButton
-            />
-          )}
+          data={pendingAppointments} // Add real data here for confirmed appointments
+          contentContainerStyle={{
+            gap: scaledValue(20),
+            marginTop: scaledValue(12),
+          }}
+          renderItem={({item, index}) => {
+            const combinedDate = `${item?.date} ${item?.time}`;
+            const formatted = moment(combinedDate, 'YYYY-MM-DD h:mm A').format(
+              'dddd, DD MMM - hh:mm A',
+            );
+
+            return (
+              <AppointmentCard
+                key={index}
+                petImage={item?.pet?.image}
+                imageSource={item?.vet?.image}
+                doctorName={item?.vet?.name}
+                department={item?.vet?.specialization}
+                qualifications={item?.vet?.qualification}
+                hospitalName={item?.location}
+                appointmentTime={formatted}
+                appointmentTitle={t('cancel_appointment_string')}
+                navigation={navigation}
+                confirmed
+                buttonImg={Images.CrossFill}
+                buttonText={t('cancel_string')}
+                // showCancel
+                pending
+                // showButton
+              />
+            );
+          }}
         />
 
         <View style={[styles.headerView, {marginTop: scaledValue(37)}]}>
           <GText GrMedium text={'August 2024 '} style={styles.teamText} />
           <GText GrMedium text={'(2)'} style={styles.countText} />
         </View>
-        <View style={{paddingBottom: scaledValue(151)}}>
+        <View
+          style={{
+            paddingBottom: scaledValue(151),
+            // marginTop: scaledValue(12),
+          }}>
           <FlatList
-            data={[1, 2]} // Add real data here for past appointments
+            data={pastAppointments} // Add real data here for past appointments
             contentContainerStyle={{gap: scaledValue(20)}}
-            renderItem={({item, index}) => (
-              <AppointmentCard
-                key={index}
-                imageSource={Images.DoctorImg}
-                doctorName="Dr. Emily Johnson"
-                department="Cardiology"
-                qualifications="DVM, DACVIM"
-                hospitalName="San Francisco Animal Medical Center"
-                appointmentTime="See Prescription"
-                navigation={navigation}
-                appointmentTitle={t('book_another_appointment_string')}
-                monthly
-                showCancel
-                onPress={() => {
-                  navigation?.navigate('StackScreens', {
-                    screen: 'SeePrescription',
-                  });
-                }}
-              />
-            )}
+            renderItem={({item, index}) => {
+              const formatted = moment(item?.date).format('dddd, DD MMMM YYYY');
+              console.log('item0123', item);
+
+              return (
+                <AppointmentCard
+                  key={index}
+                  petImage={item?.pet?.image}
+                  imageSource={item?.vet?.image}
+                  doctorName={item?.vet?.name}
+                  department={item?.vet?.specialization}
+                  qualifications={formatted}
+                  hospitalName={item?.time}
+                  appointmentTime="See Prescription"
+                  navigation={navigation}
+                  appointmentTitle={t('book_another_appointment_string')}
+                  monthly
+                  showCancel
+                  onPress={() => {
+                    navigation?.navigate('StackScreens', {
+                      screen: 'SeePrescription',
+                      params: {
+                        appointmentDetail: item,
+                      },
+                    });
+                  }}
+                />
+              );
+            }}
           />
         </View>
       </ScrollView>

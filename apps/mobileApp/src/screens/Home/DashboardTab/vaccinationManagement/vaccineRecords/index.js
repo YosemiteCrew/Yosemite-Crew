@@ -5,7 +5,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {Images} from '../../../../../utils';
 import {useTranslation} from 'react-i18next';
 import {colors} from '../../../../../../assets/colors';
@@ -15,10 +15,24 @@ import {scaledValue} from '../../../../../utils/design.utils';
 import ToggleButton from '../../../../../components/ToogleButton';
 import GButton from '../../../../../components/GButton';
 import HeaderButton from '../../../../../components/HeaderButton';
+import useDataFactory from '../../../../../components/UseDataFactory/useDataFactory';
+import {formatDate} from '../../../../../utils/constants';
+import GImage from '../../../../../components/GImage';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {useAppSelector} from '../../../../../redux/store/storeUtils';
+import OptionMenuSheet from '../../../../../components/OptionMenuSheet';
+import {transformPets} from '../../../../../helpers/transformPets';
+import {transformImmunizations} from '../../../../../helpers/transformImmunizations';
 
 const VaccineRecords = ({navigation}) => {
   const {t} = useTranslation();
+  const insets = useSafeAreaInsets();
+  const refRBSheet = useRef();
   const [toggleState, setToggleState] = useState(false);
+  const petList = useAppSelector(state => state.pets?.petLists);
+  const PetData = transformPets(petList?.entry, {useFhirId: true});
+  const [selectedPet, setSelectedPet] = useState(PetData[0]);
+
   useEffect(() => {
     configureHeader();
   }, []);
@@ -48,52 +62,30 @@ const VaccineRecords = ({navigation}) => {
     });
   };
 
-  const recordList = [
+  const {
+    loading,
+    data,
+    setData,
+    extraData,
+    refreshData,
+    loadMore,
+    Placeholder,
+    Loader,
+  } = useDataFactory(
+    'getVaccinationRecord',
+    true,
     {
-      id: 1,
-      disease: 'Chlamydia',
-      status: 'Risk',
-      date: '15 Aug 2024',
-      clinic: 'Upcoming',
-      img: Images.Pending,
+      petId: petList?.entry[0]?.resource?.id,
+      limit: 10,
     },
-    {
-      id: 2,
-      disease: 'Panleukopenia',
-      status: 'not-Risk',
-      date: '8 Aug 2024',
-      clinic: 'Small Animal Vet Hospital',
-      name: 'Nobivac Intra-Trac® Oral BB',
-      img: Images.Sanofi,
-    },
-    {
-      id: 3,
-      disease: 'Calicivirus',
-      status: 'not-Risk',
-      date: '15 July 2024',
-      clinic: 'Vets for Pets Clinic',
-      name: 'Nobivac Intra-Trac® Oral BB',
-      img: Images.Msd,
-    },
-    {
-      id: 4,
-      disease: 'Herpesvirus',
-      status: 'not-Risk',
-      date: '25 May 2024',
-      clinic: 'Small Animal Vet Hospital',
-      name: 'Nobivac Intra-Trac® Oral BB',
-      img: Images.Zoe,
-    },
-    {
-      id: 5,
-      disease: 'Leukemia',
-      status: 'not-Risk',
-      date: '8 mar 2024',
-      clinic: 'Small Animal Vet Hospital',
-      name: 'Nobivac Intra-Trac® Oral BB',
-      img: Images.Boe,
-    },
-  ];
+    'GET',
+  );
+
+  const vaccinationList = transformImmunizations(data, {
+    useFhirId: true,
+  });
+
+  console.log('vaccinationList', vaccinationList);
 
   return (
     <View style={styles.dashboardMainView}>
@@ -101,7 +93,11 @@ const VaccineRecords = ({navigation}) => {
         <View style={styles.innerContainer}>
           <View>
             <View style={styles.row}>
-              <GText GrMedium text={'Oscar’s'} style={styles.oscarText} />
+              <GText
+                GrMedium
+                text={`${selectedPet?.title}’s`}
+                style={styles.oscarText}
+              />
               <GText
                 GrMedium
                 text={` ${t('vaccinations_small_string')}`}
@@ -114,8 +110,13 @@ const VaccineRecords = ({navigation}) => {
               style={styles.recordsText}
             />
           </View>
-          <TouchableOpacity activeOpacity={0.5} style={styles.button}>
-            <Image source={Images.CatImg} style={styles.catImage} />
+          <TouchableOpacity
+            onPress={() => {
+              refRBSheet?.current?.open();
+            }}
+            activeOpacity={0.7}
+            style={styles.button}>
+            <GImage image={selectedPet?.petImage} style={styles.catImage} />
             <Image source={Images.ArrowDown} style={styles.arrowImage} />
           </TouchableOpacity>
         </View>
@@ -160,72 +161,114 @@ const VaccineRecords = ({navigation}) => {
         />
         <View style={styles.container}>
           <FlatList
-            data={recordList}
-            renderItem={({item, index}) => (
-              <View>
-                <TouchableOpacity style={styles.itemContainer}>
-                  <View>
-                    <View style={styles.textRow}>
-                      <GText
-                        GrMedium
-                        text={item?.disease}
-                        style={styles.diseaseText}
-                      />
-                      <Image
-                        tintColor={
-                          item?.status === 'Risk' ? colors.appRed : '#8AC1B1'
-                        }
-                        source={
-                          item?.status === 'Risk'
-                            ? Images.Risk
-                            : Images.CircleCheck
-                        }
-                        style={styles.statusImage}
-                      />
+            contentContainerStyle={{marginBottom: scaledValue(151)}}
+            data={vaccinationList}
+            renderItem={({item, index}) => {
+              return (
+                <View>
+                  <TouchableOpacity
+                    onPress={() => {
+                      navigation.navigate('StackScreens', {
+                        screen: 'EditVaccineRecord',
+                        params: {
+                          itemRecordDetails: item,
+                          setData,
+                        },
+                      });
+                    }}
+                    style={styles.itemContainer}>
+                    <View>
+                      <View style={styles.textRow}>
+                        <GText
+                          GrMedium
+                          text={item?.manufacturer}
+                          style={styles.diseaseText}
+                        />
+                        <Image
+                          tintColor={
+                            item?.status !== 'completed'
+                              ? colors.appRed
+                              : '#8AC1B1'
+                          }
+                          source={
+                            item?.status !== 'completed'
+                              ? Images.Risk
+                              : Images.CircleCheck
+                          }
+                          style={styles.statusImage}
+                        />
+                      </View>
+                      {item?.vaccine && (
+                        <GText
+                          SatoshiBold
+                          text={item?.vaccine}
+                          style={styles.nameText}
+                        />
+                      )}
+                      <View style={styles.infoRow}>
+                        <GText
+                          SatoshiBold
+                          text={formatDate(item?.date)}
+                          style={styles.dateText}
+                        />
+                        <View style={styles.dot} />
+                        <GText
+                          SatoshiBold
+                          text={item?.location}
+                          style={styles.clinicText}
+                        />
+                      </View>
                     </View>
-                    {item?.name && (
-                      <GText
-                        SatoshiBold
-                        text={item?.name}
-                        style={styles.nameText}
-                      />
-                    )}
-                    <View style={styles.infoRow}>
-                      <GText
-                        SatoshiBold
-                        text={item?.date}
-                        style={styles.dateText}
-                      />
-                      <View style={styles.dot} />
-                      <GText
-                        SatoshiBold
-                        text={item?.clinic}
-                        style={styles.clinicText}
-                      />
-                    </View>
-                  </View>
-                  <Image source={item?.img} style={styles.itemImage} />
-                </TouchableOpacity>
-                {item.id !== recordList[recordList.length - 1].id && (
-                  <View style={styles.divider} />
-                )}
-              </View>
-            )}
+                    <GImage
+                      image={item?.attachments[0]?.url}
+                      style={styles.itemImage}
+                    />
+                  </TouchableOpacity>
+                  {item.id !==
+                    vaccinationList[vaccinationList.length - 1]?.id && (
+                    <View style={styles.divider} />
+                  )}
+                </View>
+              );
+            }}
           />
         </View>
-        <GButton
-          onPress={() => {
-            navigation?.navigate('StackScreens', {
-              screen: 'AddVaccineRecord',
-            });
-          }}
-          title={t('add_new_record_string')}
-          icon={Images?.PlusIcon}
-          iconStyle={styles.iconStyle}
-          style={styles.buttonStyle}
-          textStyle={styles.buttonText}
-        />
       </ScrollView>
+      <GButton
+        onPress={() => {
+          navigation?.navigate('StackScreens', {
+            screen: 'AddVaccineRecord',
+          });
+        }}
+        title={t('add_new_record_string')}
+        icon={Images?.PlusIcon}
+        iconStyle={styles.iconStyle}
+        style={[
+          styles.buttonStyle,
+          {
+            bottom:
+              insets.bottom === 0
+                ? insets.bottom + scaledValue(15)
+                : insets.bottom,
+          },
+        ]}
+        textStyle={styles.buttonText}
+      />
+      <OptionMenuSheet
+        refRBSheet={refRBSheet}
+        // title={formValue?.blood_group || 'Select Blood Group'}
+        options={PetData}
+        onChoose={val => {
+          setSelectedPet(val);
+          refreshData({
+            petId: val?.id,
+            limit: 10,
+            offset: 0,
+          });
+          refRBSheet.current.close();
+        }}
+        onPressCancel={() => refRBSheet.current.close()}
+      />
     </View>
   );
 };

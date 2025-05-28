@@ -1,9 +1,11 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {
+  Dimensions,
   FlatList,
   Image,
   Platform,
   ScrollView,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -25,6 +27,7 @@ import {
 import {
   currentDate,
   formatMonthYear,
+  formatToLocalISO,
   getCurrentMonthAndYear,
   getMonthAndDay,
   getMonthYear,
@@ -40,16 +43,24 @@ import {pick, types} from '@react-native-documents/picker';
 import MonthPicker from 'react-native-month-year-picker';
 import {showToast} from '../../../../../components/Toast';
 import GImage from '../../../../../components/GImage';
+import {createPetAppointmentFHIRResource} from '../../../../../helpers/createPetAppointmentFHIRResource';
 
 const BookAppointment = ({navigation, route}) => {
-  const {doctorDetail} = route?.params;
+  const {doctorDetail, departmentDetail, businessDetails} = route?.params;
   const {t} = useTranslation();
   const refRBSheet = useRef();
+  console.log('doctorDetaildoctorDetail', JSON.stringify(doctorDetail));
 
   const [selectedPetId, setSelectedPetId] = useState(null);
   const [pickSlotTime, setPickSlotTime] = useState(null);
   const [pickSlot, setPickSlot] = useState(null);
-  console.log('pickSlotpickSlotaaa', pickSlotTime);
+  console.log('pickSlotpickSlotaaas', pickSlotTime);
+  const [apiCallImage, setApiCallImage] = useState([]);
+  const qualification =
+    doctorDetail?.resource.qualification?.[0]?.code?.text || 'N/A';
+  const department =
+    doctorDetail?.resource.department?.[0]?.code?.text || 'N/A';
+  console.log('businessDetailsbusinessDetails', businessDetails);
 
   const [message, setMessage] = useState('');
   const [date, setDate] = useState(new Date());
@@ -122,13 +133,13 @@ const BookAppointment = ({navigation, route}) => {
   const getTimeSlots = date => {
     const api_credentials = {
       appointmentDate: date,
-      doctorId: doctorDetail?.userId,
+      doctorId: doctorDetail?.resource?.id,
     };
     dispatch(get_time_slots_by_date(api_credentials)).then(res => {
       if (get_time_slots_by_date.fulfilled.match(res)) {
         console.log('getTimeSlots0123', JSON.stringify(res.payload));
 
-        setTimeSlotsList(res.payload?.entry);
+        setTimeSlotsList(res.payload?.data?.entry);
       }
     });
   };
@@ -136,14 +147,14 @@ const BookAppointment = ({navigation, route}) => {
   const getTimeSlotsByMonth = date => {
     const {month, year} = getCurrentMonthAndYear(date || new Date());
     const api_credentials = {
-      doctorId: doctorDetail?.userId,
       slotMonth: month,
       slotYear: year,
+      doctorId: doctorDetail?.resource?.id,
     };
     dispatch(get_time_slots_by_Month(api_credentials)).then(res => {
       if (get_time_slots_by_Month.fulfilled.match(res)) {
         const filterMonthlySlotsLists =
-          res?.payload?.entry[1]?.resource?.component?.filter(
+          res?.payload?.data?.entry[1]?.resource?.component?.filter(
             item => item?.code?.date >= currentDate,
           );
 
@@ -161,26 +172,30 @@ const BookAppointment = ({navigation, route}) => {
 
   const uploadDocument = async () => {
     try {
-      // const result = await pick({
-      //   type: [pick.types.pdf],
-      //   copyTo: 'documentDirectory',
-      //   mode: 'import',
-      //   allowMultiSelection: false,
-      // });
       const result = await pick({
-        // copyTo: ,
         type: [types.doc, types.images, types.pdf],
+        allowMultiSelection: true,
       });
       console.log(result);
-
+      result?.map(d => onSuccessDoc(d));
       const fileUri = Platform.select({
-        android: result[0].uri.replace('%20', '').replace(' ', ''),
+        android: result[0].uri,
         ios: result[0].uri.replace('file:///private/', ''),
       });
+      console.log('fileUri0', result[0]?.uri);
+
+      console.log('fileUri', fileUri);
+
       if (!fileUri) {
         console.log('File URI is undefined or null');
         return;
       }
+
+      // setApiCallImage({
+      //   name: result[0]?.name,
+      //   uri: fileUri,
+      //   type: result[0]?.type,
+      // });
       if (fileUri.indexOf('.png') !== -1 || fileUri.indexOf('.jpg') !== -1) {
         // setImagePath(fileUri);
         // refBTSheet?.current?.close();
@@ -195,60 +210,93 @@ const BookAppointment = ({navigation, route}) => {
     }
   };
 
+  const onSuccessDoc = files => {
+    // setProjectDoc();
+    console.log('abcdef', files);
+
+    let name = files?.name;
+    let type = files?.type;
+    let localUri = files?.uri;
+    setApiCallImage(prevState => [...prevState, {name, uri: localUri, type}]);
+    // setApiCallImage({ name, uri: localUri, type });
+  };
   const book_appointment_hit = () => {
     const api_credentials = {
-      hospitalId: doctorDetail?.bussinessId,
-      department: doctorDetail?.professionalBackground?.specialization,
-      doctorId: doctorDetail?.userId,
-      petId: selectedPetId?._id,
-      appointmentDate: pickSlot,
-      slotsId: pickSlotTime?._id,
-      purposeOfVisit: reason,
-      concernOfVisit: message,
-      timeslot: pickSlotTime?.time,
+      petId: selectedPetId?.id,
+      doctorId: doctorDetail?.resource?.id,
+      businessId: businessDetails?.id,
+      startDateTime: formatToLocalISO(pickSlot, pickSlotTime?.slotTime),
+      description: message,
+      reasonText: reason,
+      departmentId: departmentDetail?.id,
+      departmentName: department,
+      slotId: pickSlotTime?.id,
+
+      // timeslot: pickSlotTime?.slotTime,
       // files: '',
     };
 
-    console.log('api_credentials123', api_credentials);
-
-    if (!selectedPetId?.cognitoUserId) {
+    if (!selectedPetId?.id) {
       showToast(0, 'Please select your companion.');
-    } else if (!pickSlotTime?.time) {
+    } else if (!pickSlotTime?.slotTime) {
       showToast(0, 'Please select one slot.');
     } else if (!reason) {
       showToast(0, 'Please select reason for appointment.');
     } else if (!message) {
       showToast(0, 'Please describe your concern.');
     } else {
-      dispatch(book_appointment_api(api_credentials));
+      console.log('api_credentialsapi_credentials', api_credentials);
+
+      const fhirPayload = createPetAppointmentFHIRResource(api_credentials);
+      console.log('api_credentialss', JSON.stringify(fhirPayload));
+
+      const input = {
+        data: fhirPayload,
+        files: apiCallImage,
+      };
+
+      dispatch(book_appointment_api(input));
     }
 
     // dispatch(book_appointment_api(api_credentials));
   };
 
+  const docDetails = doctorDetail?.resource?.extension?.reduce((acc, item) => {
+    const value = item.valueString ?? item.valueDecimal ?? item.valueInteger;
+
+    if (value !== undefined) {
+      acc[item.title] = value;
+    }
+
+    return acc;
+  }, {});
+
   return (
     <View style={styles.dashboardMainView}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.card}>
-          <Image source={Images.DoctorImg} style={styles.doctorImgStyle} />
+          <GImage
+            image={docDetails?.doctorImage}
+            style={styles.doctorImgStyle}
+          />
+
           <View style={styles.textView}>
             <GText
               GrMedium
-              text={`Dr. ${
-                doctorDetail?.personalInfo?.firstName +
-                ' ' +
-                doctorDetail?.personalInfo?.lastName
-              }`}
+              text={`Dr. ${doctorDetail?.resource?.name[0]?.text}`}
               style={styles.doctorNameText}
             />
-            {/* <GText
-              SatoshiBold
-              text={'Gastroenterology'}
-              style={[styles.departmentText, {marginTop: scaledValue(4)}]}
-            /> */}
             <GText
               SatoshiBold
-              text={doctorDetail?.professionalBackground?.qualification}
+              text={department}
+              style={[
+                styles.departmentText,
+                {marginTop: scaledValue(4), textTransform: 'capitalize'},
+              ]}
+            />
+            <GText
+              SatoshiBold
+              text={qualification}
               style={styles.departmentText}
             />
           </View>
@@ -280,6 +328,7 @@ const BookAppointment = ({navigation, route}) => {
                 },
                 {},
               );
+
               return (
                 <TouchableOpacity
                   key={index}
@@ -292,13 +341,13 @@ const BookAppointment = ({navigation, route}) => {
                   ]}
                   onPress={() => handlePetSelection(item)}>
                   <GImage
-                    image={petDetails?.petImage}
+                    image={petDetails?.petImage?.url}
                     style={styles.imgStyle}
                     noImageSource={Images.Kizi}
                   />
                   <GText
                     SatoshiBold
-                    text={item.petName}
+                    text={item?.resource?.name[0]?.text}
                     style={styles.petTitle}
                   />
                 </TouchableOpacity>
@@ -321,10 +370,7 @@ const BookAppointment = ({navigation, route}) => {
         </View>
 
         <TouchableOpacity
-          onPress={() =>
-            // setOpen(true)
-            showPicker(true)
-          }
+          onPress={() => showPicker(true)}
           style={styles.professionalButton}>
           <GText
             SatoshiMedium
@@ -375,19 +421,27 @@ const BookAppointment = ({navigation, route}) => {
         </View>
         {timeSlotsList?.length > 0 && (
           <View style={styles.slotTimeUpperView}>
-            {timeSlotsList?.map((item, index) => (
-              <TouchableOpacity
-                key={index}
-                disabled={item?.booked}
-                onPress={() => setPickSlotTime(item?.resource)}
-                style={styles.slotTimeCard(pickSlotTime?.slotTime, item)}>
-                <GText
-                  SatoshiBold
-                  text={item?.resource?.slotTime}
-                  style={styles.slotTime(pickSlotTime?.slotTime, item)}
-                />
-              </TouchableOpacity>
-            ))}
+            {timeSlotsList?.map((item, index) => {
+              console.log(
+                'item?.isBooked',
+                item?.resource?.isBooked,
+                item?.resource?.slotTime,
+              );
+
+              return (
+                <TouchableOpacity
+                  key={index}
+                  disabled={item?.resource?.isBooked === 'true' && true}
+                  onPress={() => setPickSlotTime(item?.resource)}
+                  style={styles.slotTimeCard(pickSlotTime?.slotTime, item)}>
+                  <GText
+                    SatoshiBold
+                    text={item?.resource?.slotTime}
+                    style={styles.slotTime(pickSlotTime?.slotTime, item)}
+                  />
+                </TouchableOpacity>
+              );
+            })}
           </View>
         )}
 
@@ -435,13 +489,21 @@ const BookAppointment = ({navigation, route}) => {
         </View>
 
         <View style={{alignSelf: 'center', paddingHorizontal: scaledValue(20)}}>
-          <Input
+          <TextInput
+            value={message}
+            onChangeText={setMessage}
+            multiline={true}
+            style={styles.inputStyle}
+            placeholder={t('your_message_string')}
+            placeholderTextColor={colors.darkPurple2}
+          />
+          {/* <Input
             value={message}
             multiline={true}
             label={t('your_message_string')}
             onChangeText={setMessage}
             style={styles.inputStyle}
-          />
+          /> */}
         </View>
 
         <View style={styles.headerContainer}>
@@ -457,9 +519,65 @@ const BookAppointment = ({navigation, route}) => {
           />
         </View>
 
-        <TouchableOpacity
+        {apiCallImage?.length > 0 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              marginTop: scaledValue(20),
+              gap: scaledValue(16),
+              paddingHorizontal: scaledValue(20),
+            }}>
+            {apiCallImage?.map((i, d) => (
+              <View>
+                <Image
+                  source={{uri: i?.uri}}
+                  borderRadius={scaledValue(4)}
+                  style={styles.imageStyle}
+                />
+                <TouchableOpacity
+                  onPress={() => {
+                    setApiCallImage(prev => prev.filter((_, idx) => idx !== d));
+                  }}
+                  style={styles.crossImgView}>
+                  <Image source={Images.CrossIcon} style={styles.crossStyle} />
+                </TouchableOpacity>
+              </View>
+            ))}
+            <TouchableOpacity
+              onPress={uploadDocument}
+              style={styles.addImgButton}>
+              <Image
+                source={Images.PlusIcon}
+                tintColor={colors.appRed}
+                style={styles.PlusIconImage}
+              />
+            </TouchableOpacity>
+          </ScrollView>
+        ) : (
+          <TouchableOpacity
+            onPress={uploadDocument}
+            style={styles.uploadContainer}>
+            <Image source={Images.Upload} style={styles.uploadImage} />
+            <GText
+              GrMedium
+              text={t('upload_images_text_string')}
+              style={styles.uploadText}
+            />
+            <GText
+              SatoshiRegular
+              text={t('document_text_string')}
+              style={styles.documentText}
+            />
+          </TouchableOpacity>
+        )}
+
+        {/* <TouchableOpacity
           onPress={uploadDocument}
-          style={styles.uploadContainer}>
+          style={styles.uploadContainer}
+        >
           <Image source={Images.Upload} style={styles.uploadImage} />
           <GText
             GrMedium
@@ -471,7 +589,7 @@ const BookAppointment = ({navigation, route}) => {
             text={t('document_text_string')}
             style={styles.documentText}
           />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         <GButton
           onPress={book_appointment_hit}

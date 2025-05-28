@@ -44,31 +44,12 @@ const BookAppointmentDetail = ({navigation, route}) => {
     });
   };
 
-  const serviceList = [
-    t('emergency_case_string'),
-    t('surgery_and_operating_string'),
-    t('veterinary_icu_string'),
-    t('diagnostic_imaging_string'),
-    t('in_house_laboratory_string'),
-    t('dental_care_string'),
-    t('vaccination_and_preventive_string'),
-    t('physical_rehabilitation_string'),
-    t('isolation_ward_string'),
-    t('oncology_treatment_string'),
-    t('cardiology_treatment_string'),
-    t('pharmacy_pets_string'),
-    t('behavioral_therapy_string'),
-    t('nutritional_counseling_string'),
-  ];
   return (
     <View style={styles.dashboardMainView}>
       <ScrollView>
         <View style={{paddingHorizontal: scaledValue(20)}}>
           {/* <Image source={Images.Hospital1} style={styles.clinicImg} /> */}
-          <GImage
-            image={businessDetails?.profileData?.logo}
-            style={styles.clinicImg}
-          />
+          <GImage image={businessDetails?.logo} style={styles.clinicImg} />
           <GText
             GrMedium
             text={businessDetails?.profileData?.businessName}
@@ -86,16 +67,19 @@ const BookAppointmentDetail = ({navigation, route}) => {
                 {marginLeft: scaledValue(12), marginBottom: scaledValue(4)},
               ]}>
               <Image source={Images.Star} style={styles.locationImg} />
-              <GText GrMedium text={'4.1'} style={styles.distanceText} />
+              <GText
+                GrMedium
+                text={businessDetails?.rating}
+                style={styles.distanceText}
+              />
             </View>
           </View>
           <View style={[styles.addressView]}>
             <Image source={Images.Address} style={styles.locationImg} />
             <GText
               SatoshiBold
-              text={Object.values(businessDetails?.profileData?.address).join(
-                ', ',
-              )}
+              text={businessDetails?.address}
+              // text={Object.values(businessDetails?.address[0]?.text).join(', ')}
               style={styles.addressText}
             />
           </View>
@@ -103,7 +87,7 @@ const BookAppointmentDetail = ({navigation, route}) => {
             <Image source={Images.Global} style={styles.locationImg} />
             <GText
               GrMedium
-              text={getDomainName(businessDetails?.profileData?.website)}
+              text={getDomainName(businessDetails?.website)}
               style={styles.addressText}
             />
           </View>
@@ -111,7 +95,7 @@ const BookAppointmentDetail = ({navigation, route}) => {
             <Image source={Images.HomeAdd} style={styles.locationImg} />
             <GText
               GrMedium
-              text={`${businessDetails?.departments?.length} Departments`}
+              text={`${businessDetails?.healthcareServices?.length} Departments`}
               style={styles.addressText}
             />
           </View>
@@ -122,7 +106,35 @@ const BookAppointmentDetail = ({navigation, route}) => {
             style={styles.buttonStyle}
             textStyle={styles.buttonTextStyle}
           />
-          {businessDetails?.departments?.length > 0 && (
+          <TouchableOpacity
+            onPress={() => {
+              navigation?.navigate('BusinessReview', {
+                businessDetails,
+              });
+            }}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              marginTop: scaledValue(14),
+              justifyContent: 'center',
+              gap: scaledValue(6),
+              paddingVertical: scaledValue(8),
+            }}>
+            <Image
+              source={Images.chat_round}
+              style={{width: scaledValue(16), height: scaledValue(16)}}
+            />
+            <GText
+              GrMedium
+              text={t('write_review_string')}
+              style={{
+                fontSize: scaledValue(16),
+                letterSpacing: scaledValue(16 * -0.01),
+                color: colors.appRed,
+              }}
+            />
+          </TouchableOpacity>
+          {businessDetails?.healthcareServices?.length > 0 && (
             <>
               <GText
                 GrMedium
@@ -130,7 +142,7 @@ const BookAppointmentDetail = ({navigation, route}) => {
                 style={styles.departmentText}
               />
               <View style={styles.questionsContainer}>
-                {businessDetails?.departments?.map((item, index) => (
+                {businessDetails?.healthcareServices?.map((item, index) => (
                   <>
                     <TouchableOpacity
                       onPress={() => {
@@ -146,7 +158,7 @@ const BookAppointmentDetail = ({navigation, route}) => {
                       style={styles.questionButton}>
                       <GText
                         SatoshiBold
-                        text={item?.departmentName}
+                        text={item?.name}
                         style={styles.departmentTextStyle}
                       />
                       <View style={{flexDirection: 'row'}}>
@@ -168,7 +180,7 @@ const BookAppointmentDetail = ({navigation, route}) => {
             </>
           )}
 
-          {businessDetails?.profileData?.selectedServices?.length > 0 && (
+          {businessDetails?.selectedServices?.length > 0 && (
             <>
               <GText
                 GrMedium
@@ -176,22 +188,20 @@ const BookAppointmentDetail = ({navigation, route}) => {
                 style={styles.departmentText}
               />
               <View style={styles.serviceContainer}>
-                {businessDetails?.profileData?.selectedServices?.map(
-                  (item, index) => (
-                    <View style={styles.serviceView}>
-                      <Image
-                        source={Images.CircleCheck}
-                        tintColor={'#8AC1B1'}
-                        style={styles.circleImg}
-                      />
-                      <GText
-                        SatoshiBold
-                        text={item}
-                        style={styles.serviceText}
-                      />
-                    </View>
-                  ),
-                )}
+                {businessDetails?.selectedServices?.map((item, index) => (
+                  <View style={styles.serviceView}>
+                    <Image
+                      source={Images.CircleCheck}
+                      tintColor={'#8AC1B1'}
+                      style={styles.circleImg}
+                    />
+                    <GText
+                      SatoshiBold
+                      text={item?.display}
+                      style={styles.serviceText}
+                    />
+                  </View>
+                ))}
               </View>
             </>
           )}

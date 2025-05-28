@@ -37,8 +37,9 @@ export const styles = StyleSheet.create({
   },
   petItem: {},
   petImage: {
-    width: scaledValue(80),
-    height: scaledValue(80),
+    width: scaledValue(78),
+    height: scaledValue(78),
+    borderRadius: scaledValue(40),
   },
   petNameText: {
     fontSize: scaledValue(16),

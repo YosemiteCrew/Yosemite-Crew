@@ -21,7 +21,7 @@ export const get_pet_list = createAsyncThunk(
         headers: {
           //   'Content-Type': 'multipart/form-data',
         },
-        route: `Patient/getPets/${credentials?.limit}/${credentials?.offset}`,
+        route: `Patient/getPets?limit=${credentials?.limit}?offset=${credentials?.offset}`,
         body: {},
         method: 'GET',
         // multiPart: true,
@@ -191,7 +191,7 @@ const petsSlice = createSlice({
       state.pets.push(action.payload);
     },
     updatePetList: (state, action) => {
-      console.log('actionPayload', action.payload);
+      console.log('actionPayloads', JSON.stringify(action.payload));
 
       state.petLists = action.payload;
     },
@@ -223,7 +223,7 @@ const petsSlice = createSlice({
     });
     builder.addCase(get_pet_list.fulfilled, (state, action) => {
       state.loading = false;
-      console.log('getPetListPayLoads', action.payload);
+      console.log('getPetListPayLoadss', JSON.stringify(action.payload));
       state.petLists = action.payload;
     });
   },
