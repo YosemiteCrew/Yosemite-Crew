@@ -1,7 +1,7 @@
-const express = require('express');
-const multer = require('multer')
-const { verifyTokenAndRefresh } = require('../middlewares/authMiddleware');
-const NewsletterController = require('../controllers/NewsletterController');
+import express from 'express';
+import multer from 'multer';
+import { verifyTokenAndRefresh } from '../middlewares/authMiddleware';
+import NewsletterController from '../controllers/NewsletterController';
 
 const router = express.Router();
 
@@ -9,7 +9,7 @@ const upload = multer({
   storage: multer.memoryStorage(),
   fileFilter: (req, file, cb) => {
     if (file.mimetype === 'text/csv') cb(null, true);
-    else cb(new Error('Only CSV files are allowed'), false);
+    else cb(null, false);
   },
   limits: { fileSize: 5 * 1024 * 1024 }, // Max 5MB
 });

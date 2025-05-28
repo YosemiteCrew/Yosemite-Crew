@@ -1,7 +1,8 @@
-const helpers = require('../utils/helpers');
+import helpers from "../utils/helpers";
+import type { Pet } from "@yosemite-crew/types";
 
 class FHIRMapper {
-  static async convertPetToFHIR(pet,baseUrl) {
+  static async convertPetToFHIR(pet: Pet, baseUrl: string) {
     return {
       resourceType: "Patient",
       id: pet._id.toString(),
@@ -60,4 +61,4 @@ class FHIRMapper {
   
 }
 
-module.exports = FHIRMapper;
+export default FHIRMapper;

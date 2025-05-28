@@ -1,4 +1,4 @@
-const Fhir = require('fhir').Fhir;
+import { Fhir } from 'fhir'
 
 const fhirValidator = new Fhir();
 
@@ -7,7 +7,7 @@ const fhirValidator = new Fhir();
  * @param {Object} resource - FHIR Resource to validate
  * @returns {Object} - Validation result
  */
-const validateFHIR = (resource) => {
+const validateFHIR = (resource: Record<string, any>) => {
   try {
     const result = fhirValidator.validate(resource);
 
@@ -22,7 +22,7 @@ const validateFHIR = (resource) => {
         errors: result.messages,
       };
     }
-  } catch (error) {
+  } catch (error: any) {
     return {
       valid: false,
       errors: [`Validation failed: ${error.message}`],
@@ -30,7 +30,4 @@ const validateFHIR = (resource) => {
   }
 };
 
-
-module.exports = {
-    validateFHIR,
-};
+export { validateFHIR };

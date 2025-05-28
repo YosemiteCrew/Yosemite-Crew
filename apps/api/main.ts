@@ -26,6 +26,8 @@ import apiRoutes from './routes/apiRoutes';
 import NewsletterRoutes from './routes/NewsletterRoutes';
 import cors from 'cors';
 
+import type { S3File } from '@yosemite-crew/types'
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -35,7 +37,7 @@ const s3 = new AWS.S3({
   region: process.env.AWS_REGION,
 });
 
-type UploadFileToS3 = (file: Express.Multer.File) => Promise<string>;
+type UploadFileToS3 = (file: S3File) => Promise<string>;
 
 const uploadFileToS3: UploadFileToS3 = async (file) => {
   const fileName = `${Date.now()}-${file.originalname}`; // Unique file name

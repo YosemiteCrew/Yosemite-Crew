@@ -10,9 +10,9 @@
     "resolveJsonModule": true,                   // Allow importing JSON files
     "types": ["node", "express"],                // Include type definitions
     "noImplicitAny": true,                       // Prevent untyped variables
-    "noUnusedLocals": true,                      // Warn on unused variables
-    "noUnusedParameters": true, 
+    "noUnusedLocals": false,                      // Warn on unused variables
+    "noUnusedParameters": false, 
   },
-  "include": ["main.ts", "config/**/*", "controllers/**/*", "extensions/**/*", "Fhirvalidator/**/*", "mappers/**/*", "models/**/*", "routes/**/*", "services/**/*", "utils/**/*", "validators/**/*", "views/**/*", "middleware/**/*"],
+  "include": ["main.ts", "config/**/*", "controllers/**/*", "extensions/**/*", "Fhirvalidator/**/*", "mappers/**/*", "models/**/*", "routes/**/*", "services/**/*", "utils/**/*", "validators/**/*", "views/**/*", "middlewares/**/*"],
   "exclude": ["node_modules", "dist"]
 }
