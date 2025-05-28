@@ -1,5 +1,5 @@
+import mongoose from "mongoose";
 const diabetesRecords = require('../models/Records');
-const { mongoose } = require('mongoose');
 const helpers = require('../utils/helpers');
 
 class DiabetesService {

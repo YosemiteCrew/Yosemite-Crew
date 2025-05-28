@@ -1,8 +1,14 @@
 // middlewares/upload.js
-const AWS = require('aws-sdk');
-const path = require('path');
-const sanitizeFilename = require('sanitize-filename');
-const { v4: uuidv4 } = require('uuid');
+import AWS from 'aws-sdk';
+import path from 'path';
+import sanitizeFilename from 'sanitize-filename';
+import { v4 as uuidv4 } from 'uuid';
+
+interface UploadedFile {
+  name: string;
+  mimetype: string;
+  data: Buffer;
+}
 
 // Configure AWS S3
 const s3 = new AWS.S3({
@@ -12,9 +18,14 @@ const s3 = new AWS.S3({
 });
 
 // Function to upload to S3
-async function uploadToS3(fileName, fileContent, mimeType) {
-    const params = {
-        Bucket: process.env.AWS_S3_BUCKET_NAME,
+async function uploadToS3(fileName: string, fileContent: Buffer | Uint8Array | Blob | string, mimeType: string) {
+    const bucketName = process.env.AWS_S3_BUCKET_NAME;
+
+    if (!bucketName) {
+        throw new Error('AWS_S3_BUCKET_NAME is not defined in environment variables.');
+    }
+    const params: AWS.S3.PutObjectRequest = {
+        Bucket: bucketName,
         Key: `${fileName}`,
         Body: fileContent,
         ContentType: mimeType,
@@ -24,13 +35,13 @@ async function uploadToS3(fileName, fileContent, mimeType) {
     try {
         const data = await s3.upload(params).promise();
         return data.Location; // URL of uploaded file
-    } catch (err) {
+    } catch (err: any) {
         throw new Error('Error uploading file to S3: ' + err.message);
     }
 }
 
 // Handle single file upload to S3
-async function handleFileUpload(file,folderName) {
+async function handleFileUpload(file: UploadedFile, folderName: string) {
     try {
         if (!file) {
             throw new Error('No file uploaded.');
@@ -65,15 +76,20 @@ async function handleFileUpload(file,folderName) {
 }
 
 // Handle multiple files upload to S3
-async function handleMultipleFileUpload(files,folderName="Images") {
+async function handleMultipleFileUpload(files: UploadedFile[],folderName="Images") {
     const uploadPromises = files.map(file => handleFileUpload(file,folderName));
     return Promise.all(uploadPromises);
 }
 
-async function deleteFromS3(s3Key) {
+async function deleteFromS3(s3Key: string) {
+    const bucketName = process.env.AWS_S3_BUCKET_NAME;
+
+    if (!bucketName) {
+        throw new Error('AWS_S3_BUCKET_NAME is not defined in environment variables.');
+    }
 
     const deleteParams = {
-        Bucket: process.env.AWS_S3_BUCKET_NAME,
+        Bucket: bucketName,
         Key: s3Key,
       };
       try {
@@ -81,12 +97,8 @@ async function deleteFromS3(s3Key) {
         // console.log('S3 File Found:', headObject);
       } catch (headErr) {
         console.error("S3 File Not Found:", headErr);
-        return res.status(404).json({ message: "File not found in S3" });
+        // return res.status(404).json({ message: "File not found in S3" });
       }
 }
 
-module.exports = {
-    handleFileUpload,
-    handleMultipleFileUpload,
-    deleteFromS3
-};
+export { handleFileUpload, handleMultipleFileUpload, deleteFromS3 };

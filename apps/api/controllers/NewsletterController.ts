@@ -1,64 +1,84 @@
-const {
+import {
+  ChannelType,
   UpdateEndpointCommand,
   UpdateEndpointsBatchCommand,
-} = require("@aws-sdk/client-pinpoint");
-const { parse } = require("csv-parse/sync");
-const { pinClient } = require("../config/pinpointClient");
-const Subscriber = require("../models/Subscriber");
-const validator = require("validator");
-const mongoose = require("mongoose");
-const { ObjectId } = require("mongoose").Types;
+} from "@aws-sdk/client-pinpoint";
+import { parse } from "csv-parse/sync";
+import pinClient from "../config/pinpointClient";
+import Subscriber from "../models/Subscriber";
+import validator from "validator";
+import mongoose from "mongoose";
+import { Request, Response } from "express";
 
-function isValidEmail(email) {
+import type { SubscriberData } from "@yosemite-crew/types";
+
+const { ObjectId } = mongoose.Types;
+
+function isValidEmail(email: string) {
   return validator.isEmail(email);
 }
 
-const checkEmail = async (req, res) => {
-  const { email } = req.query;
-  if (!email || !isValidEmail(email))
-    return res.status(400).json({ error: "Enter a valid Email" });
+const checkEmail = async (req: Request, res: Response): Promise<void> => {
+  const email = req.query.email as string;
+  if (!email || !isValidEmail(email)) {
+    res.status(400).json({ error: "Enter a valid Email" });
+    return;
+  }
   try {
     const subscriber = await Subscriber.findOne({ email: { $eq: email } });
     if (subscriber && subscriber.subscribed) {
-      return res.status(200).json({ message: "Email subscribed" });
+      res.status(200).json({ message: "Email subscribed" });
+      return;
     }
     res.status(200).json({ message: "Email not subscribed" });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 };
 
-const checkEmailAuth = async (req, res) => {
+const checkEmailAuth = async (req: Request, res: Response): Promise<void> => {
   const { email } = req.body;
-  if (!email || !isValidEmail(email))
-    return res.status(400).json({ error: "Enter a valid Email" });
+  if (!email || !isValidEmail(email)) {
+    res.status(400).json({ error: "Enter a valid Email" });
+    return;
+  }
   try {
     const subscriber = await Subscriber.findOne({ email: { $eq: email } });
     if (subscriber) {
-      return res.status(200).json({ subscriber });
+      res.status(200).json({ subscriber });
+      return;
     }
     res.status(200).json({ message: "Email not subscribed" });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 };
 
-const subscribe = async (req, res) => {
+const subscribe = async (req: Request, res: Response): Promise<void> => {
   const { email, name, countryCode, userType, userId } = req.body;
   const allowedUserTypes = ["Pet Owner", "Business", "Developer"];
-  if (!name) return res.status(400).json({ error: "Enter a valid Name" });
-  if (!email || !isValidEmail(email))
-    return res.status(400).json({ error: "Enter a valid Email" });
-  if (!userType || !allowedUserTypes.includes(userType))
-    return res.status(400).json({ error: "Enter a valid userType" });
-  if (!countryCode || !validator.isISO31661Alpha2(countryCode))
-    return res.status(400).json({ error: "Enter a valid CountryCode" });
-
+  if (!name) {
+    res.status(400).json({ error: "Enter a valid Name" });
+    return;
+  }
+  if (!email || !isValidEmail(email)) {
+    res.status(400).json({ error: "Enter a valid Email" });
+    return;
+  }
+  if (!userType || !allowedUserTypes.includes(userType)) {
+    res.status(400).json({ error: "Enter a valid userType" });
+    return;
+  }
+  if (!countryCode || !validator.isISO31661Alpha2(countryCode)) {
+    res.status(400).json({ error: "Enter a valid CountryCode" });
+    return;
+  }
   try {
     const subscriber = await Subscriber.findOne({ email: { $eq: email } });
     if (subscriber) {
       if (subscriber.subscribed) {
-        return res.status(400).json({ error: "Email already subscribed" });
+        res.status(400).json({ error: "Email already subscribed" });
+        return;
       } else {
         await Subscriber.updateOne(
           { email: { $eq: email } },
@@ -66,7 +86,7 @@ const subscribe = async (req, res) => {
         );
         const params = {
           ApplicationId: process.env.PINPOINT_APPLICATION_ID,
-          EndpointId: subscriber._id.toString(),
+          EndpointId: (subscriber._id as mongoose.Types.ObjectId).toString(),
           EndpointRequest: {
             OptOut: "ALL",
             User: {
@@ -79,12 +99,13 @@ const subscribe = async (req, res) => {
         const command = new UpdateEndpointCommand(params);
         const response = await pinClient.send(command);
         if (response.$metadata.httpStatusCode !== 200) {
-          return res.status(500).json({ error: "Failed to unsubscribe" });
+          res.status(500).json({ error: "Failed to unsubscribe" });
+          return;
         }
         res.status(200).json({ message: "Subscription successful!" });
       }
     }
-    const subscriberData = {
+    const subscriberData: SubscriberData = {
       email,
       subscribed: true,
       countryCode,
@@ -95,16 +116,16 @@ const subscribe = async (req, res) => {
       subscriberData.user = userId;
     }
     const newSubscriber = await Subscriber.create(subscriberData);
-    const newId = newSubscriber._id.toString();
+    const newId = (newSubscriber._id as mongoose.Types.ObjectId).toString();
     const params = {
       ApplicationId: process.env.PINPOINT_APPLICATION_ID,
       EndpointId: newId,
       EndpointRequest: {
-        ChannelType: "EMAIL",
+        ChannelType: ChannelType.EMAIL,
         Address: email,
         OptOut: "NONE",
         Location: {
-          Country: countryCode | "",
+          Country: countryCode || "",
         },
         EffectiveDate: new Date().toISOString(),
         User: {
@@ -122,23 +143,32 @@ const subscribe = async (req, res) => {
     const command = new UpdateEndpointCommand(params);
     const response = await pinClient.send(command);
     if (response.$metadata.httpStatusCode !== 200) {
-      return res.status(500).json({ error: "Failed to subscribe" });
+      res.status(500).json({ error: "Failed to subscribe" });
+      return;
     }
     // Send a welcome email
     res.status(200).json({ message: "Subscription successful!" });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 };
 
-const unsubscribe = async (req, res) => {
+const unsubscribe = async (req: Request, res: Response): Promise<void> => {
   const { uuid } = req.body;
-  if (!uuid) return res.status(400).json({ error: "UUID is required" });
+  if (!uuid) {
+    res.status(400).json({ error: "UUID is required" });
+    return;
+  }
   try {
     const subscriber = await Subscriber.findOne({ _id: { $eq: uuid } });
-    if (!subscriber) return res.status(400).json({ error: "Email not found" });
-    if (!subscriber.subscribed)
-      return res.status(400).json({ error: "Email already unsubscribed" });
+    if (!subscriber) {
+      res.status(400).json({ error: "Email not found" });
+      return;
+    }
+    if (!subscriber.subscribed) {
+      res.status(400).json({ error: "Email already unsubscribed" });
+      return;
+    }
     await Subscriber.updateOne(
       { email: subscriber.email },
       { subscribed: false }
@@ -159,64 +189,67 @@ const unsubscribe = async (req, res) => {
     const response = await pinClient.send(command);
     console.log("Pinpoint response:", response);
     if (response.$metadata.httpStatusCode !== 200) {
-      return res.status(500).json({ error: "Failed to unsubscribe" });
+      res.status(500).json({ error: "Failed to unsubscribe" });
+      return;
     }
     // Send an unsubscribe email
     res.status(200).json({ message: "Unsubscription successful!" });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 };
 
-const batchUpload = async (req, res) => {
+const batchUpload = async (req: Request, res: Response): Promise<void> => {
   try {
-    if (!req.file)
-      return res.status(400).json({ error: "CSV file is required" });
-    const content = req.file.buffer.toString("utf-8");
-    const records = parse(content, {
+    const file = req.file as Express.Multer.File;
+    if (!file) {
+      res.status(400).json({ error: "CSV file is required" });
+      return;
+    }
+    const content = file.buffer.toString("utf-8");
+    let records = parse(content, {
       columns: true,
       skip_empty_lines: true,
       skip_records_with_empty_values: true,
     });
     if (!Array.isArray(records) || records.length === 0) {
-      return res.status(400).json({ error: "Invalid or empty CSV" });
+      res.status(400).json({ error: "Invalid or empty CSV" });
+      return;
     }
 
     const requiredCols = ["Address", "CountryCode", "UserType", "Name"];
     const missingCols = requiredCols.filter((c) => !(c in records[0]));
     if (missingCols.length > 0) {
-      return res
+      res
         .status(400)
         .json({ error: `Missing required columns: ${missingCols.join(", ")}` });
+      return;
     }
     const invalidEmails = records.filter((r) => !isValidEmail(r.Address));
     if (invalidEmails.length > 0) {
-      return res
-        .status(400)
-        .json({
-          error: `Invalid email addresses: ${invalidEmails.map((r) => r.Address).join(", ")}`,
-        });
+      res.status(400).json({
+        error: `Invalid email addresses: ${invalidEmails.map((r) => r.Address).join(", ")}`,
+      });
+      return;
     }
     const invalidCountryCodes = records.filter(
       (r) => !validator.isISO31661Alpha2(r.CountryCode || "")
     );
     if (invalidCountryCodes.length > 0) {
-      return res
-        .status(400)
-        .json({
-          error: `Invalid country codes: ${invalidCountryCodes.map((r) => r.CountryCode).join(", ")}`,
-        });
+      res.status(400).json({
+        error: `Invalid country codes: ${invalidCountryCodes.map((r) => r.CountryCode).join(", ")}`,
+      });
+      return;
     }
     const allowedUserTypes = ["Pet Owner", "Business", "Developer"];
     const invalidUserTypes = records.filter(
       (r) => !allowedUserTypes.includes(r.UserType)
     );
     if (invalidUserTypes.length > 0) {
-      return res
-        .status(400)
-        .json({
-          error: `Invalid user types: ${invalidUserTypes.map((r) => r.UserType).join(", ")}`,
-        });
+      res.status(400).json({
+        error: `Invalid user types: ${invalidUserTypes.map((r) => r.UserType).join(", ")}`,
+      });
+      return;
     }
 
     records = records.map((r) => ({
@@ -224,7 +257,7 @@ const batchUpload = async (req, res) => {
       _id: new ObjectId(),
     }));
 
-    const operations = records.map((r) => ({
+    const operations = records.map((r: any) => ({
       updateOne: {
         filter: { email: r.Address },
         update: {
@@ -244,7 +277,7 @@ const batchUpload = async (req, res) => {
     const params = {
       ApplicationId: process.env.PINPOINT_APPLICATION_ID,
       EndpointBatchRequest: {
-        Item: records.map((r) => {
+        Item: records.map((r: any) => {
           const newId = r._id.toString();
           return {
             Id: newId,
@@ -252,7 +285,7 @@ const batchUpload = async (req, res) => {
             Address: r.Address,
             OptOut: "NONE",
             Location: {
-              Country: r.CountryCode | "",
+              Country: r.CountryCode || "",
             },
             EffectiveDate: new Date().toISOString(),
             User: {
@@ -272,7 +305,8 @@ const batchUpload = async (req, res) => {
     const command = new UpdateEndpointsBatchCommand(params);
     const response = await pinClient.send(command);
     if (response.$metadata.httpStatusCode !== 200) {
-      return res.status(500).json({ error: "Failed to upload" });
+      res.status(500).json({ error: "Failed to upload" });
+      return;
     }
     res.status(200).json({ message: "Endpoints creation successful!" });
   } catch (err) {
@@ -281,10 +315,12 @@ const batchUpload = async (req, res) => {
   }
 };
 
-module.exports = {
+const NewsletterController = {
   checkEmail,
   checkEmailAuth,
   subscribe,
   unsubscribe,
-  batchUpload
+  batchUpload,
 };
+
+export default NewsletterController;
