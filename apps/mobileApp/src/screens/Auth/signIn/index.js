@@ -158,11 +158,6 @@ const SignIn = ({navigation}) => {
 
           <GButton
             onPress={() => {
-              // dispatch(
-              //   setUserData({
-              //     name: 'Varun',
-              //   }),
-              // );
               if (showButton) {
                 sign_in_hit();
               } else {

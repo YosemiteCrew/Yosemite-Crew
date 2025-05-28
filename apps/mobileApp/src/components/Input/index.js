@@ -68,7 +68,7 @@ const Input = props => {
               style={{
                 color: '#312943',
                 fontSize: scaledValue(16),
-                lineHeight: scaledHeightValue(21.79),
+                // lineHeight: scaledHeightValue(21.79),
                 letterSpacing: scaledValue(16 * 0.01),
               }}
             />
@@ -78,7 +78,7 @@ const Input = props => {
               style={{
                 color: '#312943',
                 fontSize: scaledValue(16),
-                lineHeight: scaledHeightValue(19.2),
+                // lineHeight: scaledHeightValue(19.2),
                 letterSpacing: scaledValue(16 * -0.02),
                 marginLeft: scaledValue(8),
                 marginRight: scaledValue(8),
@@ -121,7 +121,7 @@ const Input = props => {
                   isFocused || props.value
                     ? fonts?.SATOSHI_BOLD
                     : fonts?.SATOSHI_REGULAR,
-                lineHeight: scaledHeightValue(16),
+                // lineHeight: scaledHeightValue(16),
                 letterSpacing: scaledValue(16 * -0.03),
                 color: isFocused || props.value ? '#DF9C51' : '#312943',
               }}
@@ -353,7 +353,7 @@ export default Input;
 const styles = StyleSheet.create({
   inputField: {
     backgroundColor: 'white',
-    height: scaledValue(48),
+    // height: scaledValue(48),
     fontFamily: fonts?.SATOSHI_MEDIUM,
   },
   contentStyle: {
@@ -361,14 +361,14 @@ const styles = StyleSheet.create({
     letterSpacing: scaledValue(16 * -0.03),
     fontFamily: fonts?.SATOSHI_MEDIUM,
     color: colors.darkPurple2,
-    lineHeight: scaledHeightValue(20),
+    // lineHeight: scaledHeightValue(20),
   },
   helperTextStyle: {
     // marginTop: scaledValue(-24),
     // marginBottom: scaledValue(22),
     // fontFamily: fonts.SF_PRO_TEXT_REGULAR,
     fontSize: getFontSize(12),
-    lineHeight: scaledValue(16),
+    // lineHeight: scaledValue(16),
     // backgroundColor: 'green',
   },
 });

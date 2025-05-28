@@ -5,12 +5,14 @@ import {getFontSize, scaledValue} from '../../utils/design.utils';
 import {Divider} from 'react-native-paper';
 import fonts from '../../utils/fonts';
 import {colors} from '../../../assets/colors';
+import GImage from '../GImage';
 
 const OptionMenuSheet = props => {
   const refRBSheet = props.refRBSheet;
   const options = props.options || [];
   const onChoose = props.onChoose || null;
   const titleKey = props.titleKey || 'title';
+  const petImage = props.petImage || 'petImage';
   let optionsLength = options.length;
   const title = props?.title;
 
@@ -60,7 +62,25 @@ const OptionMenuSheet = props => {
             i !== optionsLength - 1 ? (
               <React.Fragment key={i}>
                 <View style={[styles.menuView]}>
-                  <TouchableOpacity onPress={() => onChoose(c)}>
+                  <TouchableOpacity
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      alignSelf: 'center',
+                      gap: scaledValue(10),
+                    }}
+                    onPress={() => onChoose(c)}>
+                    {c[petImage] && (
+                      <GImage
+                        image={c[petImage]}
+                        style={{
+                          width: scaledValue(40),
+                          height: scaledValue(40),
+                          borderRadius: scaledValue(20),
+                        }}
+                      />
+                    )}
+
                     <Text style={styles.menuTitle(c?.textColor)}>
                       {c[titleKey]}
                     </Text>
@@ -78,7 +98,25 @@ const OptionMenuSheet = props => {
                   },
                 ]}
                 key={i}>
-                <TouchableOpacity onPress={() => onChoose(c)}>
+                <TouchableOpacity
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    alignSelf: 'center',
+                    gap: scaledValue(10),
+                  }}
+                  onPress={() => onChoose(c)}>
+                  {c[petImage] && (
+                    <GImage
+                      image={c[petImage]}
+                      style={{
+                        width: scaledValue(40),
+                        height: scaledValue(40),
+                        borderRadius: scaledValue(20),
+                      }}
+                    />
+                  )}
+
                   <Text style={styles.menuTitle(c?.textColor)}>
                     {c[titleKey]}
                   </Text>

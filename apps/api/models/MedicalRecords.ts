@@ -15,6 +15,13 @@ const medicalRecordSchema = new mongoose.Schema({
     issueDate: {
         type: String,
     },
+    hasExpiryDate: {
+        type: Boolean,
+        default: false,
+    },
+    petId: {
+        type: String,
+    },
     expiryDate: {
         type: String,
     },

@@ -10,11 +10,11 @@ import {
 } from 'react-native';
 import GText from '../../../../../components/GText/GText';
 import GButton from '../../../../../components/GButton';
-import {Images} from '../../../../../utils';
-import {styles} from './styles';
-import {useTranslation} from 'react-i18next';
+import { Images } from '../../../../../utils';
+import { styles } from './styles';
+import { useTranslation } from 'react-i18next';
 import GImage from '../../../../../components/GImage';
-import {scaledValue} from '../../../../../utils/design.utils';
+import { scaledValue } from '../../../../../utils/design.utils';
 
 const CategoryList = ({
   data,
@@ -25,7 +25,7 @@ const CategoryList = ({
   navigation,
   type,
 }) => {
-  const {t} = useTranslation();
+  const { t } = useTranslation();
 
   return (
     <View>
@@ -45,9 +45,11 @@ const CategoryList = ({
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.containerStyle}
           horizontal
-          renderItem={({item}) => {
+          renderItem={({ item }) => {
             const lat = item?.profileData?.address?.latitude;
             const lng = item?.profileData?.address?.longitude;
+            console.log('item?.logo', item);
+
             return (
               <>
                 <TouchableOpacity
@@ -61,17 +63,15 @@ const CategoryList = ({
                     });
                   }}
                   activeOpacity={0.9}
-                  style={styles.flatListUnderView}>
-                  <GImage
-                    image={item?.profileData?.logo}
-                    style={styles.imgStyle}
-                  />
+                  style={styles.flatListUnderView}
+                >
+                  <GImage image={item?.logo} style={styles.imgStyle} />
                   <GText
                     componentProps={{
                       numberOfLines: 1,
                     }}
                     GrMedium
-                    text={item?.profileData?.businessName}
+                    text={item?.name}
                     style={styles.nameText}
                   />
                   <GText SatoshiBold text={item.time} style={styles.timeText} />
@@ -80,7 +80,9 @@ const CategoryList = ({
                     componentProps={{
                       numberOfLines: 3,
                     }}
-                    text={item?.profileData?.selectedServices?.join(', ')}
+                    text={item?.selectedServices
+                      ?.map((service) => service.display)
+                      .join(', ')}
                     style={styles.descriptionText}
                   />
 

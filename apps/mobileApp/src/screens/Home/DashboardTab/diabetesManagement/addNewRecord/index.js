@@ -13,10 +13,16 @@ import GButton from '../../../../../components/GButton';
 import PetRecordCard from '../../../../../components/PetRecordCard';
 import {Divider} from 'react-native-paper';
 import moment from 'moment';
+import {useAppSelector} from '../../../../../redux/store/storeUtils';
+import {extractPetData} from '../../../../../helpers/extractPetData';
+import GImage from '../../../../../components/GImage';
+import LinearGradient from 'react-native-linear-gradient';
 
 const AddNewRecord = ({navigation}) => {
   const {t} = useTranslation();
   const insets = useSafeAreaInsets();
+  const petList = useAppSelector(state => state.pets?.petLists);
+  const extractPetList = extractPetData(petList);
   const [selectedPetId, setSelectedPetId] = useState(null);
   const [date, setDate] = useState(null);
   const [open, setOpen] = useState(false);
@@ -47,18 +53,18 @@ const AddNewRecord = ({navigation}) => {
     });
   };
 
-  const petList = [
-    {
-      id: 1,
-      name: 'Kizie',
-      img: Images.Kizi,
-    },
-    {
-      id: 2,
-      name: 'Oscar',
-      img: Images.CatImg,
-    },
-  ];
+  // const petList = [
+  //   {
+  //     id: 1,
+  //     name: 'Kizie',
+  //     img: Images.Kizi,
+  //   },
+  //   {
+  //     id: 2,
+  //     name: 'Oscar',
+  //     img: Images.CatImg,
+  //   },
+  // ];
 
   const handlePetSelection = pet => {
     if (selectedPetId?.id === pet.id) {
@@ -84,7 +90,7 @@ const AddNewRecord = ({navigation}) => {
         </View>
         <View style={styles.petListContainer}>
           <FlatList
-            data={petList}
+            data={extractPetList}
             horizontal
             contentContainerStyle={styles.petList}
             renderItem={({item, index}) => {
@@ -95,7 +101,20 @@ const AddNewRecord = ({navigation}) => {
                     styles.petItem,
                     {opacity: selectedPetId?.id === item.id ? 0.5 : 1},
                   ]}>
-                  <Image source={item.img} style={styles.petImage} />
+                  <LinearGradient
+                    colors={['#D04122', '#FDBD74']}
+                    start={{x: 0, y: 1}}
+                    end={{x: 1, y: 1}}
+                    style={{
+                      borderRadius: scaledValue(40),
+                      width: scaledValue(80),
+                      height: scaledValue(80),
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                    }}>
+                    <GImage image={item?.petImageUrl} style={styles.petImage} />
+                  </LinearGradient>
+
                   <GText
                     SatoshiBold
                     text={item?.name}
@@ -137,6 +156,7 @@ const AddNewRecord = ({navigation}) => {
               params: {
                 data: {
                   dateTime: `${setDateFormat?.toString()} ${setTimeFormat?.toString()}`,
+                  petDetail: selectedPetId,
                 },
               },
             });

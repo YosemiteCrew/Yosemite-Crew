@@ -19,6 +19,10 @@ import ToggleButton from '../../../../../components/ToogleButton';
 import GButton from '../../../../../components/GButton';
 import MenuBottomSheet from '../../../../../components/MenuBottomSheet';
 import DatePicker from 'react-native-date-picker';
+import OptionMenuSheet from '../../../../../components/OptionMenuSheet';
+import {useAppSelector} from '../../../../../redux/store/storeUtils';
+import {transformPets} from '../../../../../helpers/transformPets';
+import GImage from '../../../../../components/GImage';
 
 const AddNewDocument = ({navigation}) => {
   const refRBMenuSheet = useRef();
@@ -27,6 +31,11 @@ const AddNewDocument = ({navigation}) => {
   const [expiryToggleState, setExpiryToggleState] = useState(false);
   const [date, setDate] = useState(new Date());
   const [open, setOpen] = useState(false);
+  const refRBSheet = useRef();
+  const petList = useAppSelector(state => state.pets?.petLists);
+  const PetData = transformPets(petList?.entry, {useFhirId: true});
+  const [selectedPet, setSelectedPet] = useState(PetData[0]);
+
   const [formValue, setFormValue] = useState({
     document_type: '',
     title: '',
@@ -118,10 +127,15 @@ const AddNewDocument = ({navigation}) => {
               style={styles.plansText}
             />
           </View>
-          <View style={styles.headerImageContainer}>
-            <Image source={Images.CatImg} style={styles.catImage} />
+          <TouchableOpacity
+            onPress={() => {
+              refRBSheet?.current?.open();
+            }}
+            activeOpacity={0.7}
+            style={styles.headerImageContainer}>
+            <GImage image={selectedPet?.petImage} style={styles.catImage} />
             <Image source={Images.ArrowDown} style={styles.arrowDownImage} />
-          </View>
+          </TouchableOpacity>
         </View>
         <View style={styles.inputContainer}>
           <Input
@@ -252,6 +266,17 @@ const AddNewDocument = ({navigation}) => {
             refRBMenuSheet.current.close();
           }}
           onPressCancel={() => refRBMenuSheet.current.close()}
+        />
+        <OptionMenuSheet
+          refRBSheet={refRBSheet}
+          // title={formValue?.blood_group || 'Select Blood Group'}
+          options={PetData}
+          onChoose={val => {
+            setSelectedPet(val);
+
+            refRBSheet.current.close();
+          }}
+          onPressCancel={() => refRBSheet.current.close()}
         />
         <DatePicker
           modal

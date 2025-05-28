@@ -154,7 +154,7 @@ const subscribe = async (req: Request, res: Response): Promise<void> => {
 };
 
 const unsubscribe = async (req: Request, res: Response): Promise<void> => {
-  const { uuid } = req.body;
+  const { uuid } = req.query;
   if (!uuid) {
     res.status(400).json({ error: "UUID is required" });
     return;

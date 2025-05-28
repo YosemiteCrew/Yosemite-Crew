@@ -10,9 +10,6 @@ const recordSchema = new mongoose.Schema({
         type: String, 
         required: true,
     },
-    doctorId: {
-        type: String,
-    },
     recordDate: {
         type: Date,
     },
