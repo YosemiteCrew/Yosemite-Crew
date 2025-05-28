@@ -1,8 +1,10 @@
 {
   "name": "@yosemite-crew/types",
-  "types": "./src/index.ts",
+  "types": "./dist/index.d.ts",
   "scripts": {
-    "type-check": "tsc"
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist",
+    "type-check": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/express": "^5.0.2",
