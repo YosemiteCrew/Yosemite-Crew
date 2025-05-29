@@ -1,0 +1,16 @@
+{
+  "name": "@yosemite-crew/fhir",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist",
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.2",
+    "@types/node": "^22.15.21",
+    "express": "4.21.2",
+    "mongoose": "8.12.2",
+    "typescript": "5.0.4"
+  }
+}
