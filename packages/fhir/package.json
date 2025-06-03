@@ -1,6 +1,7 @@
 {
   "name": "@yosemite-crew/fhir",
   "types": "./dist/index.d.ts",
+  "main": "./dist/index.js",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist",
