@@ -6,6 +6,6 @@ const { uploadimage } = require('../controllers/AddDepartmentController');
 
 router.post('/Appointment', verifyTokenAndRefresh,webAppointmentController.createWebAppointment);
 router.get('/schedule', verifyTokenAndRefresh,webAppointmentController.getDoctorsSlotes);
-router.post("/uploadimage",uploadimage)
+// router.post("/uploadimage",uploadimage)
 
 module.exports = router;
