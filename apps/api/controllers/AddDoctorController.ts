@@ -1,31 +1,50 @@
-const Department = require("../models/AddDepartment");
-const AddDoctors = require("../models/AddDoctor");
-const crypto = require("crypto");
+import Department from "../models/AddDepartment";
+import AddDoctors from "../models/AddDoctor";
+import crypto from "crypto";
 
-const {
+import {
   CognitoIdentityProviderClient,
   AdminGetUserCommand,
   AdminConfirmSignUpCommand,
   SignUpCommand,
   AdminUpdateUserAttributesCommand,
-} = require("@aws-sdk/client-cognito-identity-provider");
-const FHIRConverter = require("../utils/DoctorsHandler");
-const { validateFHIR } = require("../Fhirvalidator/FhirValidator");
+} from "@aws-sdk/client-cognito-identity-provider";
+import FHIRConverter from "../utils/DoctorsHandler";
+import { validateFHIR } from "../Fhirvalidator/FhirValidator";
 // import { equal } from 'assert';
-const AWS = require("aws-sdk");
+import AWS, { S3 } from "aws-sdk";
 const SES = new AWS.SES();
-const { WebUser } = require("../models/WebUser");
-const DoctorsTimeSlotes = require("../models/DoctorsSlotes");
-const { webAppointments } = require("../models/WebAppointment");
+import { WebUser } from "../models/WebUser";
+import DoctorsTimeSlotes from "../models/DoctorsSlotes";
+import { webAppointments } from "../models/WebAppointment";
+import { Request, Response } from "express";
+import { parseFhirBundle, File, Files, Document } from "@yosemite-crew/fhir";
+import type {ParsedData} from "@yosemite-crew/fhir";
 const cognito = new CognitoIdentityProviderClient({
   region: process.env.AWS_REGION,
 });
-const confirmUser = async (userPoolId, username) => {
+const s3 = new S3({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION,
+});
+
+function getSecretHash(email: string): string {
+  const clientId = process.env.COGNITO_CLIENT_ID_WEB as string;
+  const clientSecret = process.env.COGNITO_CLIENT_SECRET_WEB as string;
+
+  return crypto
+    .createHmac("SHA256", clientSecret)
+    .update(email + clientId)
+    .digest("base64");
+}
+
+const confirmUser = async (userPoolId: string, QU: string): Promise<void> => {
   try {
     await cognito.send(
       new AdminConfirmSignUpCommand({
         UserPoolId: userPoolId,
-        Username: username,
+        Username: QU,
       })
     );
     // console.log('User successfully confirmed.');
@@ -34,219 +53,28 @@ const confirmUser = async (userPoolId, username) => {
     throw error;
   }
 };
-const s3 = new AWS.S3({
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  region: process.env.AWS_REGION,
-});
-function getSecretHash(email) {
-  const clientId = process.env.COGNITO_CLIENT_ID_WEB;
-  const clientSecret = process.env.COGNITO_CLIENT_SECRET_WEB;
-
-  return crypto
-    .createHmac("SHA256", clientSecret)
-    .update(email + clientId)
-    .digest("base64");
-}
-function convertTo12HourFormat(dateObj) {
-  let hours = dateObj.getHours();
-  const minutes = dateObj.getMinutes().toString().padStart(2, "0");
-  const period = hours >= 12 ? "PM" : "AM";
+function convertTo12HourFormat(dateObj: Date): string {
+  let hours: number = dateObj.getHours();
+  const minutes: string = dateObj.getMinutes().toString().padStart(2, "0");
+  const period: string = hours >= 12 ? "PM" : "AM";
 
   hours = hours % 12 || 12; // Convert 0 to 12 for AM
   return `${hours}:${minutes} ${period}`;
 }
 const AddDoctorsController = {
-  addDoctor: async (req, res) => {
+
+  addDoctor: async (req: Request, res: Response): Promise<void> => {
     try {
-      // console.log('file', req.files);
-      const formData = req.body.fhirBundle
-        ? JSON.parse(req.body.fhirBundle)
-        : {};
+      const formData = req.body.fhirBundle ? JSON.parse(req.body.fhirBundle): {};
 
-      // console.log('formData:', JSON.stringify(formData, null, 2));
-
-      // 🛑 Check if 'entry' exists and is an array before using forEach
       if (!formData.entry || !Array.isArray(formData.entry)) {
-        // console.error("Invalid FHIR Bundle format. No 'entry' array found.");
-        return res.status(400).json({
+        res.status(400).json({
           error: "Invalid FHIR Bundle format. No 'entry' array found.",
         });
+        return;
       }
 
-      const parsedData = {
-        personalInfo: {},
-        residentialAddress: {},
-        professionalBackground: {},
-        availability: [],
-        consultFee: 0,
-        loginCredentials: {},
-        authSettings: {},
-        timeDuration: null,
-        bussinessId: formData.identifier?.value || "", // Assuming `userId` comes from auth middleware
-      };
-
-      // 📚 Loop through FHIR Bundle and map to appropriate fields
-      formData.entry.forEach((entry) => {
-        const resource = entry.resource;
-
-        switch (resource.resourceType) {
-          case "Practitioner":
-            parsedData.personalInfo = {
-              firstName: resource.name[0]?.given?.[0] || "",
-              lastName: resource.name[0]?.family || "",
-              email:
-                resource.telecom?.find((t) => t.system === "email")?.value ||
-                "",
-              phone:
-                resource.telecom?.find((t) => t.system === "phone")?.value ||
-                "",
-              gender: resource.gender || "",
-              dateOfBirth: resource.birthDate || "",
-            };
-            parsedData.professionalBackground = {
-              firstName: resource.name[0]?.given?.[0] || "",
-              lastName: resource.name[0]?.family || "",
-              email:
-                resource.telecom?.find((t) => t.system === "email")?.value ||
-                "",
-              phone:
-                resource.telecom?.find((t) => t.system === "phone")?.value ||
-                "",
-              gender: resource.gender || "",
-              dateOfBirth: resource.birthDate || "",
-              qualification: resource.qualification?.[0]?.code?.text || "",
-              medicalLicenseNumber:
-                resource.qualification?.[0]?.identifier?.[0]?.value || "",
-              languagesSpoken:
-                resource.communication?.[0]?.language?.text || "",
-              biography:
-                resource.extension?.find(
-                  (ext) =>
-                    ext.url ===
-                    "http://example.org/fhir/StructureDefinition/practitioner-biography"
-                )?.valueString || "",
-              yearsOfExperience:
-                resource.extension?.find(
-                  (ext) =>
-                    ext.url ===
-                    "http://example.org/fhir/StructureDefinition/yearsOfExperience"
-                )?.valueInteger || "",
-            };
-            break;
-          case "PractitionerRole":
-            parsedData.availability = resource.availableTime.map((slot) => {
-              // Convert FHIR Day to Schema Day
-              const fhirDayToSchemaDay = {
-                mon: "Monday",
-                tue: "Tuesday",
-                wed: "Wednesday",
-                thu: "Thursday",
-                fri: "Friday",
-                sat: "Saturday",
-                sun: "Sunday",
-              };
-
-              // Split start time & end time
-              const parseTime = (timeString) => {
-                const [hour, minute] = timeString.split(":");
-                const hourInt = parseInt(hour, 10);
-                const period = hourInt >= 12 ? "PM" : "AM";
-                const formattedHour =
-                  hourInt > 12 ? (hourInt - 12).toString() : hourInt.toString();
-                return {
-                  hour: formattedHour.padStart(2, "0"),
-                  minute: minute,
-                  period: period,
-                };
-              };
-
-              // Create the availability object
-              return {
-                day: fhirDayToSchemaDay[slot.daysOfWeek[0]] || "Monday",
-                times: [
-                  {
-                    from: parseTime(slot.availableStartTime),
-                    to: parseTime(slot.availableEndTime),
-                  },
-                ],
-              };
-            });
-
-            parsedData.consultFee =
-              resource.extension?.find(
-                (ext) =>
-                  ext.url ===
-                  "http://example.org/fhir/StructureDefinition/consultFee"
-              )?.valueDecimal || 0;
-
-            var timeDurationExtension = resource.extension?.find(
-              (ext) =>
-                ext.url ===
-                "http://example.org/fhir/StructureDefinition/timeDuration"
-            );
-            parsedData.timeDuration = timeDurationExtension
-              ? {
-                  value: timeDurationExtension?.valueDuration?.value || 0,
-                  unit: timeDurationExtension?.valueDuration?.unit || "minutes",
-                }
-              : null;
-
-            var activeModesExtension = resource.extension?.find(
-              (ext) =>
-                ext.url ===
-                "http://example.org/fhir/StructureDefinition/activeModes"
-            );
-
-            parsedData.activeModes = activeModesExtension?.valueCodeableConcept
-              ? activeModesExtension.valueCodeableConcept.map(
-                  (concept) => concept.coding[0].display
-                )
-              : ["In-person"];
-
-            var specializationCoding = resource.code?.[0]?.coding?.[0];
-            parsedData.professionalBackground.specialization =
-              specializationCoding?.display || "General";
-            parsedData.professionalBackground.specializationId =
-              specializationCoding?.code || "GEN001";
-            break;
-
-          case "Location":
-            parsedData.residentialAddress = {
-              addressLine1: resource.address?.line?.[0] || "NA",
-              city: resource.address?.city || "NA",
-              stateProvince: resource.address?.state || "NA",
-              zipCode: resource.address?.postalCode || "",
-              country: resource.address?.country || "",
-            };
-            break;
-
-          case "Basic":
-            parsedData.loginCredentials = {
-              username: resource.author?.display || "",
-              password:
-                resource.extension?.find(
-                  (ext) =>
-                    ext.url ===
-                    "http://example.org/fhir/StructureDefinition/password"
-                )?.valueString || "",
-            };
-            break;
-
-          case "Consent":
-            parsedData.authSettings = resource.policy.reduce((acc, policy) => {
-              const permissionType = policy.authority.split("/").pop();
-              acc[permissionType] = policy.uri === "granted";
-              return acc;
-            }, {});
-            break;
-
-          default:
-            console.log(`Unknown Resource Type: ${resource.resourceType}`);
-        }
-      });
-
-      // console.log('Parsed Data:', JSON.stringify(parsedData, null, 2));
+      const parsedData = parseFhirBundle(formData);
 
       const {
         personalInfo,
@@ -259,16 +87,15 @@ const AddDoctorsController = {
         timeDuration,
         bussinessId,
         activeModes,
-      } = parsedData;
+      } = parsedData as ParsedData;
 
       if (!loginCredentials?.username || !loginCredentials?.password) {
-        return res
-          .status(400)
-          .json({ message: "Email and password are required." });
+        res.status(400).json({ message: "Email and password are required." });
+        return;
       }
 
-      const userPoolId = process.env.COGNITO_USER_POOL_ID_WEB;
-      const clientId = process.env.COGNITO_CLIENT_ID_WEB;
+      const userPoolId = process.env.COGNITO_USER_POOL_ID_WEB as string;
+      const clientId = process.env.COGNITO_CLIENT_ID_WEB as string;
       const username = loginCredentials.username;
 
       let userExists = false;
@@ -280,22 +107,19 @@ const AddDoctorsController = {
           })
         );
         userExists = true;
-      } catch (error) {
+      } catch (error: any) {
         if (error.name !== "UserNotFoundException") {
-          // console.error('Error checking user:', error);
-          return res
-            .status(500)
-            .json({ message: "Error checking user existence." });
+          res.status(500).json({ message: "Error checking user existence." });
+          return;
         }
       }
 
       if (userExists) {
-        return res
-          .status(409)
-          .json({ message: "User already exists. Please login." });
+        res.status(409).json({ message: "User already exists. Please login." });
+        return;
       }
 
-      const signUpParams = {
+      const signUpParams: any = {
         ClientId: clientId,
         Username: username,
         Password: loginCredentials.password,
@@ -309,12 +133,9 @@ const AddDoctorsController = {
       let data;
       try {
         data = await cognito.send(new SignUpCommand(signUpParams));
-        // console.log('User successfully registered in Cognito:', data);
-      } catch (err) {
-        // console.error('Cognito Signup Error:', err);
-        return res
-          .status(500)
-          .json({ message: "Error registering user. Please try again later." });
+      } catch (err: any) {
+        res.status(500).json({ message: "Error registering user. Please try again later." });
+        return;
       }
 
       try {
@@ -325,12 +146,10 @@ const AddDoctorsController = {
             UserAttributes: [{ Name: "email_verified", Value: "true" }],
           })
         );
-        // console.log('Email verified successfully.');
-      } catch (error) {
+        console.log("Email verified successfully.");
+      } catch (error: any) {
         console.error("Error verifying email:", error);
       }
-
-      console.log("Email verified successfully.");
 
       await confirmUser(userPoolId, username);
 
@@ -341,14 +160,12 @@ const AddDoctorsController = {
       });
 
       if (!login) {
-        return res
-          .status(500)
-          .json({ message: "Failed to create login credentials." });
+        res.status(500).json({ message: "Failed to create login credentials." });
+        return;
       }
 
-      // Send email with password
       const emailParams = {
-        Source: process.env.MAIL_DRIVER,
+        Source: process.env.MAIL_DRIVER as string,
         Destination: { ToAddresses: [username] },
         Message: {
           Subject: { Data: "Your password" },
@@ -362,24 +179,22 @@ const AddDoctorsController = {
 
       try {
         const emailSent = await SES.sendEmail(emailParams).promise();
-        // console.log('Password sent:', emailSent);
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error sending email:", error);
       }
 
-      // Upload files to S3
-      const uploadToS3 = (file, folderName) => {
+      const uploadToS3 = (file: File, folderName: string): Promise<string> => {
         return new Promise((resolve, reject) => {
           const params = {
-            Bucket: process.env.AWS_S3_BUCKET_NAME,
+            Bucket: process.env.AWS_S3_BUCKET_NAME as string,
             Key: `${folderName}/${Date.now()}_${file.name}`,
             Body: file.data,
             ContentType: file.mimetype,
           };
 
-          s3.upload(params, (err, data) => {
+          s3.upload(params, (err: any, data: any) => {
             if (err) {
-              // console.error('Error uploading to S3:', err);
+              console.error('Error uploading to S3:', err);
               reject(err);
             } else {
               resolve(data.Key);
@@ -388,27 +203,27 @@ const AddDoctorsController = {
         });
       };
 
-      let image,
-        cvFile,
-        documents = [];
+      let image: string | undefined,
+        cvFile: { name: string; type: string; date: Date } | undefined
+      const documents: Document[] = [];
 
-      if (req.files && req.files.profilePicture) {
-        image = await uploadToS3(req.files.profilePicture, "profilePicture");
+      if (req.files && (req.files as Files).profilePicture) {
+        image = await uploadToS3((req.files as Files).profilePicture!, "profilePicture");
       }
-      if (req.files && req.files.cvFile) {
-        const files = await uploadToS3(req.files.cvFile, "cv");
+      if (req.files && (req.files as Files).cvFile) {
+        const files = await uploadToS3((req.files as Files).cvFile!, "cv");
         cvFile = {
           name: files,
-          type: req.files.cvFile.mimetype,
+          type: (req.files as Files).cvFile!.mimetype,
           date: new Date(),
         };
       }
-      if (req.files && req.files.document) {
-        const documentFiles = Array.isArray(req.files.document)
-          ? req.files.document
-          : [req.files.document];
+      if (req.files && (req.files as Files).document) {
+        const documentFiles = Array.isArray((req.files as Files).document)
+          ? (req.files as Files).document
+          : [(req.files as Files).document];
 
-        for (let file of documentFiles) {
+        for (let file of documentFiles as File[]) {
           const documentKey = await uploadToS3(file, "documents");
           documents.push({
             name: documentKey,
@@ -418,7 +233,6 @@ const AddDoctorsController = {
         }
       }
 
-      // Save doctor details
       const newDoctor = new AddDoctors({
         userId: data.UserSub,
         personalInfo: { ...personalInfo, image },
@@ -429,10 +243,10 @@ const AddDoctorsController = {
           specializationId: parsedData.professionalBackground.specializationId,
         },
         availability,
-        timeDuration: timeDuration.value,
+        timeDuration: timeDuration?.value,
         consultFee,
         authSettings,
-        documents: documents,
+        documents,
         bussinessId,
         activeModes,
         cvFile,
@@ -453,7 +267,7 @@ const AddDoctorsController = {
         ],
         doctor: savedDoctor,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving doctor:", error);
       res.status(500).json({
         resourceType: "OperationOutcome",
@@ -598,7 +412,7 @@ const AddDoctorsController = {
     }
   },
   searchDoctorsByName: async (req, res) => {
-    
+
     try {
       const { name, bussinessId } = req.query;
       // console.log('name', name, bussinessId);
@@ -639,7 +453,7 @@ const AddDoctorsController = {
             .filter(Boolean) // Removes undefined/null values
         ),
       ];
-      
+
       // Fetch department details
       const departments = await Department.find({
         _id: { $in: specializationIds },
@@ -650,7 +464,7 @@ const AddDoctorsController = {
         return acc;
       }, {});
 
-   function getS3Url(fileKey){
+      function getS3Url(fileKey) {
         const params = {
           Bucket: process.env.AWS_S3_BUCKET_NAME,
           Key: fileKey,
@@ -731,10 +545,7 @@ const AddDoctorsController = {
         });
 
         if (doctor.personalInfo.image) {
-          const imageUrl = s3.getSignedUrl("getObject", {
-            Bucket: process.env.AWS_S3_BUCKET_NAME,
-            Key: doctor.personalInfo.image,
-          });
+          const imageUrl = `${process.env.CLOUD_FRONT_URI}/${doctor.personalInfo.image}`
           const updatedDocuments = doctor.documents?.map((doc) => {
             const signedUrl = s3.getSignedUrl("getObject", {
               Bucket: process.env.AWS_S3_BUCKET_NAME,
@@ -796,16 +607,16 @@ const AddDoctorsController = {
     } catch (error) {
       console.error("Error fetching doctor data:", error);
       return res.status(500).json({
-       resourceType:"OperationOutcome",
-       issue:[
-        {
-          severity: "error",
-          code: "exception",
-          details: {
-            text: error.message,
+        resourceType: "OperationOutcome",
+        issue: [
+          {
+            severity: "error",
+            code: "exception",
+            details: {
+              text: error.message,
+            }
           }
-        }
-       ]
+        ]
       });
     }
   },

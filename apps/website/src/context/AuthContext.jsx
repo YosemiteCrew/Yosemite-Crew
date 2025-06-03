@@ -11,8 +11,8 @@ export const AuthProvider = ({ children }) => {
   const [profileData, setProfileData] = useState(null);
   const [doctorProfile, setDoctorProfile] = useState(null);
  
-console.log("doctorprofile",doctorProfile);
-
+console.log("doctorprofile",profileData);
+// console.log("userType",userType);
   const initializeUser = useCallback(async () => {
     const token = sessionStorage.getItem('token');
 
@@ -43,6 +43,7 @@ console.log("doctorprofile",doctorProfile);
           businessName: data.businessName,
           activeModes: data.activeModes,
         });
+        console.log("data", data);
       } else if (userType === 'Doctor') {
         const data = await getdoctorprofile(userId);
         setProfileData({
