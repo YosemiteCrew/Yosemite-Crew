@@ -1,3 +1,5 @@
+import type {OperationOutcome} from '@yosemite-crew/fhir';
+
 class FHIRFormatter {
   static toObservationResource(feedback) {
   return {
@@ -72,7 +74,7 @@ class FHIRFormatter {
       };
     }
   
-    static errorOutcome(message = "An error occurred while retrieving feedback") {
+    static errorOutcome(message = "An error occurred while retrieving feedback") : OperationOutcome {
       return {
         resourceType: "OperationOutcome",
         data:[],
@@ -86,5 +88,5 @@ class FHIRFormatter {
     }
   }
   
-  module.exports = FHIRFormatter;
+  export default FHIRFormatter;
   

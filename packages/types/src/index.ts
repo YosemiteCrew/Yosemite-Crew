@@ -16,3 +16,10 @@ export type {register} from "./Register/resgisterType";
 export type {IProfileData,IWebUser} from "./HospitalProfile/hospital.profile.model";
 export type {UploadedFile} from "./files/express.files.types";
 
+export type { IContact , ContactData} from "./models/contact";
+export type { IBreeder } from "./models/breeder";
+export type { ITimeSlot, IDoctorSlot } from "./models/doctors-slotes";
+export type { IFeedback } from "./models/feedback";
+export type { IMedicalDoc, IMedicalRecord } from "./models/medical-record";
+export type { IAssessment } from "./models/assessment";
+

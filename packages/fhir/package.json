@@ -13,5 +13,9 @@
     "express": "4.21.2",
     "mongoose": "8.12.2",
     "typescript": "5.0.4"
+  },
+  "dependencies": {
+    "@types/uuid": "^10.0.0",
+    "aws-sdk": "2.1692.0"
   }
 }
