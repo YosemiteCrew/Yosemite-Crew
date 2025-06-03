@@ -1,6 +1,8 @@
-import mongoose from 'mongoose';
+import mongoose, { Schema, Model } from 'mongoose';
+import type { ITimeSlot, IDoctorSlot } from "@yosemite-crew/types";
 
-const TimeSlotSchema = new mongoose.Schema({
+
+const TimeSlotSchema : Schema<ITimeSlot> = new mongoose.Schema({
   time: {
     type: String,
     required: true,
@@ -15,10 +17,11 @@ const TimeSlotSchema = new mongoose.Schema({
   },
 });
 
-const DoctorSlotSchema = new mongoose.Schema({
+const DoctorSlotSchema : Schema<IDoctorSlot>  = new mongoose.Schema({
   doctorId: {
-    type: String,
+    type: Schema.Types.ObjectId,
     required: true,
+    ref:"adddoctors"
   },
   day: {
     type: String,
@@ -27,6 +30,6 @@ const DoctorSlotSchema = new mongoose.Schema({
   timeSlots: [TimeSlotSchema],
 });
 
-const DoctorsTimeSlotes = mongoose.model("DoctorsTimeSlotes", DoctorSlotSchema);
+const DoctorsTimeSlotes : Model<IDoctorSlot> = mongoose.model<IDoctorSlot>("DoctorsTimeSlotes", DoctorSlotSchema);
 
 module.exports = DoctorsTimeSlotes;

@@ -1,25 +1,26 @@
-import mongoose from 'mongoose';
+import mongoose, {Schema, Model} from 'mongoose';
+import type { IAssessment } from "@yosemite-crew/types";
 
-const assessmentsSchema = new mongoose.Schema({
+const assessmentsSchema : Schema<IAssessment>= new mongoose.Schema({
     
     userId: {
-        type: String, 
-        required: true,
+         type: Schema.Types.ObjectId,
+         required: true,
     },
     hospitalId: {
-        type: String,
+        type: Schema.Types.ObjectId,
         required: true,
     },
     assessmentId: {
-        type: String,
+         type: Schema.Types.ObjectId,
         required: true,
     },
     petId: {
-        type: String,
+         type: Schema.Types.ObjectId,
         required : true
     },
     doctorId: {
-        type: String,
+         type: Schema.Types.ObjectId,
     },
     assessmentType: {
         type: String,
@@ -39,5 +40,5 @@ const assessmentsSchema = new mongoose.Schema({
     }
 
 }, { timestamps: true});
-const YoshAssessments = mongoose.model('Yoshassessments',assessmentsSchema);
-module.exports = YoshAssessments;
+const YoshAssessments : Model<IAssessment>= mongoose.model<IAssessment>('Yoshassessments',assessmentsSchema);
+export default YoshAssessments;

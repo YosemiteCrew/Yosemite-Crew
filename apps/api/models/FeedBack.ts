@@ -1,17 +1,26 @@
-import mongoose from 'mongoose';
+import mongoose , { Schema, Model}from 'mongoose';
+import type { IFeedback } from "@yosemite-crew/types";
 
-const feedbackSchema = new mongoose.Schema({
+const feedbackSchema :Schema<IFeedback>= new mongoose.Schema({
     userId: { 
-        type: String, 
+        type: Schema.Types.ObjectId, 
+        required : true,
+        ref:"YoshUser"
     }, 
     doctorId: { 
-        type: String, 
+       type: Schema.Types.ObjectId, 
+        required : true,
+        ref:"adddoctors"
     }, 
     petId: { 
-        type: String, 
+        type: Schema.Types.ObjectId, 
+        required : true,
+        ref:"pets"
     }, 
     meetingId: { 
-        type: String, 
+        type: Schema.Types.ObjectId, 
+        required : true,
+        ref:"webappointments"
     }, 
     feedback: { 
         type: String, 
@@ -24,5 +33,6 @@ const feedbackSchema = new mongoose.Schema({
 {
     timestamps: true,
 });
+const feedback : Model<IFeedback>= mongoose.model<IFeedback>('feedback', feedbackSchema);
 
-module.exports = mongoose.model('feedback', feedbackSchema);
+export default feedback;

@@ -1,10 +1,22 @@
-import mongoose from 'mongoose';
+import mongoose, {Schema, Model} from 'mongoose';
+import type { IMedicalDoc, IMedicalRecord } from "@yosemite-crew/types";
 
-const medicalRecordSchema = new mongoose.Schema({
+
+
+
+const medicalDocSchema : Schema<IMedicalDoc>= new mongoose.Schema({
+  url: { type: String },
+  originalname: { type: String },
+  mimetype: { type: String }
+}, { _id: false });
+
+
+const medicalRecordSchema : Schema<IMedicalRecord>= new mongoose.Schema({
 
     userId: {
-        type: String, 
+        type: Schema.Types.ObjectId, 
         required: true,
+        ref: 'YoshUser'
     },
     documentType: {
         type: String,
@@ -25,15 +37,9 @@ const medicalRecordSchema = new mongoose.Schema({
     expiryDate: {
         type: String,
     },
-    medicalDocs: [
-        {
-            url: { type: String },
-            originalname: { type: String },
-            mimetype: { type: String }
-        }
-    ],
+    medicalDocs: [medicalDocSchema],
 
 }, { timestamps: true});
 
-const medicalRecord = mongoose.model('MedicalRecords',medicalRecordSchema);
+const medicalRecord : Model<IMedicalRecord> = mongoose.model<IMedicalRecord>('MedicalRecords',medicalRecordSchema);
 module.exports = medicalRecord;

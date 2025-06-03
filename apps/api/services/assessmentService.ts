@@ -142,4 +142,4 @@ class AssessmentService {
 
 
 
-module.exports = AssessmentService;
+export default AssessmentService;
