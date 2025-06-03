@@ -1,10 +1,12 @@
-import mongoose from 'mongoose';
+import mongoose, {Schema, Model} from 'mongoose';
+import type { IBreeder } from "@yosemite-crew/types";
 
-const breederSchema = new mongoose.Schema({
+const breederSchema : Schema<IBreeder> = new mongoose.Schema({
 
     userId: {
-        type: String,
+        type: Schema.Types.ObjectId,
         required: true,
+        ref: "YoshUser"
     },
     breederName: {
         type: String,
@@ -32,5 +34,5 @@ const breederSchema = new mongoose.Schema({
     }
 
 }, { timestamps: true});
-const BreederDetails = mongoose.model('BreederDetails',breederSchema);
+const BreederDetails : Model<IBreeder>= mongoose.model<IBreeder>('BreederDetails',breederSchema);
 module.exports = BreederDetails;

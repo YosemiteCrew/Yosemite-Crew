@@ -1,18 +1,35 @@
-const FeedbackService = require('../services/FeedbackService');
+import { Request, Response } from 'express';
+import feedbacks from "../models/FeedBack";
+import type { IFeedback } from "@yosemite-crew/types";
+import FeedbackService from '../services/FeedbackService';
 const { getCognitoUserId } = require('../utils/jwtUtils');
-const FHIRFormatter = require("../utils/fhirFormatter");
-const mongoose = require('mongoose');
 
-class FeedbackController {
-  static async handleSaveFeedBack(req, res) {
+
+import FHIRFormatter  from "../utils/fhirFormatter";
+import mongoose from 'mongoose';
+
+const FeedbackController = {
+
+    handleSaveFeedBack: async (req: Request, res: Response): Promise<Response> => {
+
     try {
-      const userId = getCognitoUserId(req); // Logged-in user ID
+      const userId = getCognitoUserId(req) as string;// Logged-in user ID
       let feedbackFHIR = req.body?.data; // Full FHIR Observation posted
+
   
       if (typeof feedbackFHIR === 'string') {
         feedbackFHIR = JSON.parse(feedbackFHIR);
       }
   
+      //const normalData = FeedBackFhir.addFeedbackToNormal(feedbackFHIR);
+
+       if (!mongoose.Types.ObjectId.isValid(normalData.meetingId)) {
+            throw new Error("Invalid meeting ID");
+          }
+
+
+        const savedFeedback = await feedbacks.create(normalData);
+
       const savedFHIR = await FeedbackService.saveFeedback({
         userId,
         feedbackFHIR,
@@ -26,16 +43,15 @@ class FeedbackController {
         });
       }
   
-    } catch (error) {
-      res.status(200).json({
-        status: 0,
-        message: error.message || "Internal server error while saving feedback",
-      });
+    } 
+    catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error occurred';
+      res.status(500).json({ status: 0, message });
     }
-  }
+  },
   
   
-  static async handleGetFeedback(req, res) {
+    handleGetFeedback : async(req: Request, res : Response) => {
     try {
       const { doctorId, meetingId, limit, offset } = req.query;
   
@@ -76,11 +92,11 @@ class FeedbackController {
     } catch (error) {
       return res.status(200).json(FHIRFormatter.errorOutcome());
     }
-  }
+  },
   
   
 
-  static async handleEditFeedback(req, res) {
+    handleEditFeedback : async(req: Request, res: Response) => {
     try {
       const feedbackFHIR = JSON.parse(req.body?.data)  // FHIR format data (feedback + rating)
       const feedbackId = req.query.feedbackId;  // Assuming feedbackId comes from query params
@@ -117,9 +133,9 @@ class FeedbackController {
         message: "An error occurred while updating feedback",
       });
     }
-  }
+  },
 
-  static async handleDeleteFeedback(req, res) {
+    handleDeleteFeedback : async (req:Request, res : Response) => {
     try {
       const feedbackId = req.query.feedbackId;  // Get feedback ID from URL params
 
@@ -141,7 +157,6 @@ class FeedbackController {
       });
     }
   }
-
 
 }
 

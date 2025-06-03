@@ -1,10 +1,13 @@
-import mongoose from 'mongoose';
+import mongoose, {Schema, Model} from 'mongoose';
+import type { IContact } from "@yosemite-crew/types";
 
-const contactUsSchema = new mongoose.Schema({
+
+const contactUsSchema : Schema<IContact> = new mongoose.Schema({
 
     userId: {
-        type: Number,
+        type: Schema.Types.ObjectId,
         required: true,
+        ref: "YoshUser",
     },
     type: {
         type: String,
@@ -26,5 +29,5 @@ const contactUsSchema = new mongoose.Schema({
     },
 
 }, { timestamps: true});
-const Contacts = mongoose.model('Contacts',contactUsSchema);
+const Contacts : Model<IContact> = mongoose.model<IContact>('Contacts',contactUsSchema);
 module.exports = Contacts;
