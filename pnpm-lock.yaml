@@ -498,16 +498,6 @@ importers:
         version: 6.2.7
 
   packages/fhir:
-    dependencies:
-      '@types/uuid':
-        specifier: ^10.0.0
-        version: 10.0.0
-      aws-sdk:
-        specifier: 2.1692.0
-        version: 2.1692.0
-      uuid:
-        specifier: 9.0.1
-        version: 9.0.1
     devDependencies:
       '@types/express':
         specifier: ^5.0.2
@@ -5529,6 +5519,7 @@ packages:
 
   /@types/uuid@10.0.0:
     resolution: {integrity: sha512-7gqG38EyHgyP1S+7+xomFtL+ZNHcKv6DwNaCZmJmo1vgMugyF3TCnXVg4t1uk89mLNwnLtnY3TpOpCOyp1/xHQ==}
+    dev: true
 
   /@types/validator@13.15.1:
     resolution: {integrity: sha512-9gG6ogYcoI2mCMLdcO0NYI0AYrbxIjv0MDmy/5Ywo6CpWWrqYayc+mmgxRsCgtcGJm9BSbXkMsmxGah1iGHAAQ==}
