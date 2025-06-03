@@ -505,9 +505,6 @@ importers:
       aws-sdk:
         specifier: 2.1692.0
         version: 2.1692.0
-      uuid:
-        specifier: 9.0.1
-        version: 9.0.1
     devDependencies:
       '@types/express':
         specifier: ^5.0.2
