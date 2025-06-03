@@ -1,13 +1,10 @@
 import express from 'express';
-const assessmentsController = require('../controllers/assessmentsController');
+import assessmentsController from '../controllers/assessmentsController';
 const router = express.Router();
 
-const { verifyTokenAndRefresh } = require('../middlewares/authMiddleware');
+import { verifyTokenAndRefresh }  from '../middlewares/authMiddleware';
 
-router.get('/assessments', verifyTokenAndRefresh, assessmentsController.getAssessments);
-router.put('/assessments', verifyTokenAndRefresh, assessmentsController.getAssessments);
+router.get('/assessments',verifyTokenAndRefresh, assessmentsController.getAssessments);
+router.put('/assessments',verifyTokenAndRefresh, assessmentsController.getAssessments);
 
-
-
-
-module.exports = router;
+export default router;

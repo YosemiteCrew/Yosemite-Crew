@@ -1,9 +1,12 @@
 
-const feedbacks = require("../models/FeedBack");
+import feedbacks from "../models/FeedBack";
 import mongoose from 'mongoose';
+import type { IFeedback } from "@yosemite-crew/types";
 
-class FeedbackService {
-static async saveFeedback({ userId, feedbackFHIR  } : { userId: string; feedbackFHIR: any }) {
+
+const FeedbackService = {
+
+  saveFeedback : async({ userId, feedbackFHIR  } : { userId: string; feedbackFHIR: any }) => {
   try {
 
     const performerReference = feedbackFHIR?.performer?.[0]?.reference || null;
@@ -42,48 +45,42 @@ static async saveFeedback({ userId, feedbackFHIR  } : { userId: string; feedback
   } catch (err) {
     throw err; // Let the controller handle the message/response
   }
-}
+},
 
   
- static async getDoctorFeedback(doctorId :string, meetingId = null, limit = 10, offset = 0) {
-  const matchStage : any = { doctorId };
+   getDoctorFeedback : async(doctorId :string, meetingId = null, limit = 10, offset = 0): Promise<IFeedback[]>  => {
+  
+  const matchStage: Record<string, any> = { doctorId };
   if (meetingId) matchStage.meetingId = meetingId;
 
-  
-
-  const pipeline : any[] = [
+  const pipeline: any[] = [
     { $match: matchStage },
     {
       $lookup: {
         from: 'adddoctors',
         localField: 'doctorId',
         foreignField: 'userId',
-        as: 'doctorDetails'
-      }
+        as: 'doctorDetails',
+      },
     },
     { $unwind: '$doctorDetails' },
-
-    // Convert to ObjectId if needed
     {
       $addFields: {
         specializationId: {
-          $toObjectId: '$doctorDetails.professionalBackground.specialization'
-        }
-      }
+          $toObjectId: '$doctorDetails.professionalBackground.specialization',
+        },
+      },
     },
-
     {
       $lookup: {
         from: 'departments',
         localField: 'specializationId',
         foreignField: '_id',
-        as: 'departmentDetails'
-      }
+        as: 'departmentDetails',
+      },
     },
     { $unwind: { path: '$departmentDetails', preserveNullAndEmptyArrays: true } },
-
     { $sort: { createdAt: -1 } },
-
     {
       $project: {
         _id: 1,
@@ -97,43 +94,39 @@ static async saveFeedback({ userId, feedbackFHIR  } : { userId: string; feedback
           personalInfo: {
             firstName: 1,
             lastName: 1,
-            image: 1
+            image: 1,
           },
           professionalBackground: {
-            qualification: 1
-          }
+            qualification: 1,
+          },
         },
-        department: '$departmentDetails.departmentName' // Ensure this matches actual field
-      }
-    }
+        department: '$departmentDetails.departmentName',
+      },
+    },
   ];
 
   if (!meetingId) {
-
-    
-    pipeline.push({ $skip : offset }, { $limit: limit });
+    pipeline.push({ $skip: offset }, { $limit: limit });
   }
 
-
-
-  const results = await feedbacks.aggregate(pipeline);
+  const results: IFeedback[] = await feedbacks.aggregate(pipeline);
   return results;
-}
+},
 
 
 
 
-    static async getFeedbackById(feedbackId :string) {
-      try {
+     getFeedbackById :async(feedbackId :string) => {
+      try { 
         const feedback = await feedbacks.findOne({ _id: feedbackId }).lean();
         return feedback;
       } catch (error :any) {
         throw new Error('Error while fetching feedback: ' + error.message);
       }
-    }
+    },
   
     // Method to update feedback
-    static async updateFeedback(feedbackId :string, feedbackData :any) {
+      updateFeedback :async(feedbackId :string, feedbackData :any) => {
       try {
         const { feedback, rating } = feedbackData;  // Destructure feedback and rating from the data
   
@@ -147,9 +140,9 @@ static async saveFeedback({ userId, feedbackFHIR  } : { userId: string; feedback
       } catch (error :any) {
         throw new Error('Error while updating feedback: ' + error.message);
       }
-    }
+    },
 
-    static constructFHIRResponse(updatedFeedback :any) {
+     constructFHIRResponse : async(updatedFeedback :any) => {
       return {
         resourceType: "Observation",
         status: "final",
@@ -177,9 +170,9 @@ static async saveFeedback({ userId, feedbackFHIR  } : { userId: string; feedback
           },
         ],
       };
-    }
+    }, 
 
-    static async deleteFeedback(feedbackId :string) {
+      deleteFeedback: async(feedbackId :string) =>  {
       const feedbackToDelete = await FeedbackService.getFeedbackById(feedbackId);
       if (!feedbackToDelete) {
         throw new Error("Feedback data not found");
@@ -193,4 +186,4 @@ static async saveFeedback({ userId, feedbackFHIR  } : { userId: string; feedback
 
 }
 
-module.exports = FeedbackService;
+export default FeedbackService;

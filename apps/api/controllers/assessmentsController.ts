@@ -1,24 +1,39 @@
 
-const AssessmentService = require('../services/assessmentService');
-const YoshAssessments  = require('../models/assessments');
 
+import { Request, Response } from 'express';
+import AssessmentService from '../services/assessmentService';
+import YoshAssessments from '../models/assessments';
+import type { IAssessment } from "@yosemite-crew/types";
 
 const assessmentService = new AssessmentService();
 
 const  assessmentsController = {
 
-    getAssessments : async(req, res) => { 
+    getAssessments : async(req: Request, res: Response) : Promise<void> => { 
         try {
 
 
-          const { offset = 0, limit, type, days, assessment_type, organization} = req.query;
-          const assessment_status = req.query.status;
+          const { type, days, assessment_type} = req.query;
+         
 
-           const filterDays = parseInt(days, 10) || 7;
+          const offsetParam = req.query.offset;
+          const limitParam = req.query.limit;
+          const assessment_status = req.query.status as string;
+          const organization = req.query.organization as string;
 
-          const hospitalId = organization.split("/")[1];
+          const parsedOffset = typeof offsetParam === 'string' ? parseInt(offsetParam, 10) : NaN;
+          const parsedLimit = typeof limitParam === 'string' ? parseInt(limitParam, 10) : NaN;
+
+          const daysParam = typeof days === 'string' ? parseInt(days, 10) : NaN;
+          const filterDays: number = !isNaN(daysParam) ? daysParam : 7;
+
+          let hospitalId = '';
+            if (typeof organization === 'string') {
+              const orgParts = organization.split('/');
+              hospitalId = orgParts[1] || '';
+            } 
           if (!hospitalId) {
-                  return res.status(400).json({ message: "Hospital id is required" });
+                  res.status(400).json({ message: "Hospital id is required" });
           }
 
           const endDate = new Date();
@@ -27,14 +42,14 @@ const  assessmentsController = {
 
           switch (type) { 
 
-            case 'list':    // code for get assessment data
+            case 'list': {   // code for get assessment data
 
-            const parsedOffset = parseInt(offset, 10);
-            const parsedLimit = parseInt(limit, 10);
+           // const parsedOffset = parseInt(offset, 10);
+            //const parsedLimit = parseInt(limit, 10);
   
             // Validate the pagination values
             if (isNaN(parsedOffset) || isNaN(parsedLimit)) {
-                return res.status(400).json({
+                 res.status(400).json({
                   resourceType: "assessments",
                   issue: [
                     {
@@ -47,7 +62,7 @@ const  assessmentsController = {
               }
                
 
-              let matchStage = {
+              const matchStage = {
                 createdAt: { $gte: startDate, $lte: endDate },
                 assessmentStatus: assessment_status,
                 $or: [
@@ -55,14 +70,13 @@ const  assessmentsController = {
                   { doctorId: hospitalId },
 
                 ],
+               ...(assessment_type !== 'All' && assessment_status !== 'New' && {
+                  assessmentType: assessment_type,
+                }),
               };
 
-              if (assessment_type !== "All" && assessment_status !='New') {
-                matchStage.assessmentType = assessment_type;
-              }
-
                // get data from db
-               let data = await YoshAssessments.aggregate([
+               const data = await YoshAssessments.aggregate([
                 {
                   $match:matchStage
                 }, 
@@ -196,23 +210,22 @@ const  assessmentsController = {
                   ],
                 });
                }
+             }
           
             break;
 
-              case 'updateStatus': // code for cancelled assessments
+              case 'updateStatus': { // code for cancelled assessments
               
               // get data from db
 
-              const {status, id } = req.body;
+                 const { status, id } = req.body as { status: string; id: string };
               
      
-                let updateData = { "$set": { 'assessmentStatus': status } }
+                const updateData = { "$set": { 'assessmentStatus': status } }
        
-                let updated  =  await YoshAssessments.findByIdAndUpdate(id, updateData)
-                
+              const updated = await YoshAssessments.findByIdAndUpdate(id, updateData, { new: true }) as IAssessment | null;
               
               if(updated){
-                console.log(updated.modified_count);
                 res.status(200).json({
                   resourceType: "assessments",
                   id: id,
@@ -233,26 +246,28 @@ const  assessmentsController = {
                   ],
                 });
                }
+              }
               break;
              case 'cancelled':  
             default:
               console.log('Unknown type');
           }
         
-      } catch(error){
+      } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : String(error);
           res.status(400).json({
-              resourceType: "assessments",
-              issue: [
-                {
-                  severity: "error",
-                  code: "invalid",
-                  diagnostics: error.message,
-                },
-              ],
-            });
-        }   
+            resourceType: "assessments",
+            issue: [
+              {
+                severity: "error",
+                code: "invalid",
+                diagnostics: message,
+              },
+            ],
+          });
+        }
         
     }
 };
 
-module.exports = assessmentsController;
+export default assessmentsController;
