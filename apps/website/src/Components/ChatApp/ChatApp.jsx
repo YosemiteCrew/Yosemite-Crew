@@ -10,9 +10,9 @@ const ChatApp = () => {
   const { userId, onLogout } = useAuth();
   const navigate = useNavigate();
   const receiver =
-    userId === '83e4a8e2-0091-705b-0924-c1556541be19'
-      ? 'a3b40812-7031-706e-043e-9f3787f70356'
-      : '83e4a8e2-0091-705b-0924-c1556541be19';
+    userId === 'c3e4a8d2-80e1-7065-09e1-8c6db4e36757'
+      ? '4334c802-f0d1-70c2-f67e-65998fa0148b'
+      : 'c3e4a8d2-80e1-7065-09e1-8c6db4e36757';
 
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');

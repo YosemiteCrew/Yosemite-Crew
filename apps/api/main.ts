@@ -105,7 +105,7 @@ app.use('/fhir/extensions', fhirRoutes);
 app.use('/fhir/v1', doctorRoutes);
 app.use('/fhir/v1', apointmentRoutes);
 app.use('/fhir/v1', hospitalRoutes);
-app.use('/fhir/v1', authRoutes);
+app.use('/fhir', authRoutes);
 app.use('/fhir/admin', adminInventory);
 app.use('/fhir/v1', AdminApiRoutes);
 app.use('/fhir/v1', apiRoutes);

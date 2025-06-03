@@ -1,32 +1,69 @@
-const { v4: uuidv4 } = require("uuid");
-const AWS = require("aws-sdk");
+import AWS from 'aws-sdk';
+import { v4 as uuidv4 } from 'uuid';
+
 const s3 = new AWS.S3({
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  region: process.env.AWS_REGION,
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+  region: process.env.AWS_REGION!,
 });
 
-class HospitalProfileFHIRBuilder {
-  constructor(profile) {
+// Replacing interfaces with types
+export type Address = {
+  addressLine1?: string;
+  street?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  country?: string;
+  latitude?: string;
+  longitude?: string;
+};
+
+export type PrescriptionFile = {
+  name: string;
+  type: string;
+};
+
+export type HospitalProfile = {
+  id: unknown;
+  userId: string;
+  businessName: string;
+  phoneNumber: string;
+  address: Address;
+  registrationNumber?: string;
+  yearOfEstablishment?: string;
+  website?: string;
+  logo?: string;
+  activeModes?: 'yes' | 'no';
+  selectedServices?: string[];
+  prescription_upload?: PrescriptionFile[];
+};
+
+// FHIR builder class
+export class HospitalProfileFHIRBuilder {
+  private profile: HospitalProfile;
+
+  constructor(profile: HospitalProfile) {
     this.profile = profile;
-    // this.s3BucketName = s3BucketName;
   }
 
-  getS3Url(fileKey) {
+  private getS3Url(fileKey: string | undefined): string | null {
+    if (!fileKey) return null;
+
     const params = {
-      Bucket: process.env.AWS_S3_BUCKET_NAME,
+      Bucket: process.env.AWS_S3_BUCKET_NAME!,
       Key: fileKey,
-      Expires: 604800 //Expire In 7 Days
+      Expires: 604800, // 7 days
     };
-    return fileKey ? s3.getSignedUrl('getObject', params) : null;
+
+    return s3.getSignedUrl('getObject', params);
   }
-  
 
-  buildOrganizationResource() {
+  private buildOrganizationResource(): any {
     const { profile } = this;
-    const logoUrl = this.getS3Url(profile.logo);
+    const logoUrl = profile.logo;
 
-    const extensions = [];
+    const extensions: any[] = [];
 
     if (profile.registrationNumber) {
       extensions.push({
@@ -74,29 +111,34 @@ class HospitalProfileFHIRBuilder {
         div: `<div xmlns="http://www.w3.org/1999/xhtml"><p>${profile.businessName} - ${profile.address.city}</p></div>`,
       },
       name: profile.businessName,
-      telecom: [{ system: "phone", value: profile.phoneNumber }],
+      telecom: [
+        {
+          system: "phone",
+          value: profile.phoneNumber,
+        },
+      ],
       address: [
         {
           use: "work",
-          line: [
-            profile.address.addressLine1,
-            profile.address.street
-          ].filter(Boolean), // avoid null/undefined
-          city: profile.address.city,
-          state: profile.address.state,
-          postalCode: profile.address.zipCode,
-          country: profile.address.country || "US", // if you have country data
+          type: "both",
+          line: [profile.address.addressLine1, profile.address.street].filter(
+            (line): line is string => Boolean(line && line.trim())
+          ),
+          city: profile.address.city || undefined,
+          state: profile.address.state || undefined,
+          postalCode: profile.address.zipCode || undefined,
+          country: profile.address.country || "US",
         },
-      ],      
+      ],
       active: profile.activeModes === 'yes',
       ...(extensions.length > 0 ? { extension: extensions } : {}),
     };
   }
 
-  buildHealthcareServiceResources() {
+  private buildHealthcareServiceResources(): any[] {
     const { profile } = this;
 
-    return (profile.selectedServices || []).map((service, index) => {
+    return (profile.selectedServices || []).map((service) => {
       const id = uuidv4().toLowerCase();
       return {
         resourceType: "HealthcareService",
@@ -106,16 +148,12 @@ class HospitalProfileFHIRBuilder {
         },
         active: true,
         name: service,
-        specialty: [
-          {
-            text: service,
-          },
-        ],
+        specialty: [{ text: service }],
       };
     });
   }
 
-  buildDocumentReferences() {
+  private buildDocumentReferences(): any[] {
     return (this.profile.prescription_upload || []).map((file, index) => {
       const id = uuidv4().toLowerCase();
       return {
@@ -147,7 +185,7 @@ class HospitalProfileFHIRBuilder {
     });
   }
 
-  buildFHIRBundle() {
+  public buildFHIRBundle(): any {
     const orgResource = this.buildOrganizationResource();
     const healthcareServices = this.buildHealthcareServiceResources();
     const documents = this.buildDocumentReferences();
@@ -172,5 +210,3 @@ class HospitalProfileFHIRBuilder {
     };
   }
 }
-
-module.exports = HospitalProfileFHIRBuilder;
