@@ -1,6 +1,6 @@
-import React, {useState, useEffect} from 'react';
-import {ActivityIndicator, Dimensions, View} from 'react-native';
-import {scaledValue} from '../../utils/design.utils';
+import React, { useState, useEffect } from 'react';
+import { ActivityIndicator, Dimensions, View } from 'react-native';
+import { scaledValue } from '../../utils/design.utils';
 import API from '../../services/API';
 // import Coupons from '../components/Shimmers/Coupons';
 
@@ -10,7 +10,7 @@ const useDataFactory = (
   bodyData = {},
   method = 'GET',
   route,
-  url = '',
+  url = ''
 ) => {
   const EmptyPlaceholder = () => (
     <Placeholder subTitle="Oops! No data found in list." />
@@ -36,7 +36,10 @@ const useDataFactory = (
   const [internetFailed, setInternetFailed] = useState(false);
 
   const routes = {
-    getDoctorsLists: 'getDoctorsLists',
+    getDoctorsLists: 'Practitioner/getDoctorsLists',
+    getVaccinationRecord: 'Immunization/getVaccinationRecord',
+    getRecentVaccinationRecord: 'Immunization/recentVaccinationRecords',
+    get_diabetes_list: 'Observation/getDiabetesLogs',
   };
 
   const Loader = () => (
@@ -45,7 +48,8 @@ const useDataFactory = (
         width: Dimensions.get('window').width - scaledValue(40),
         paddingVertical: 10,
         alignItems: 'center',
-      }}>
+      }}
+    >
       {loadNext && !internetFailed && pagination.current_page != 0 && (
         <ActivityIndicator size={'small'} />
       )}
@@ -60,9 +64,11 @@ const useDataFactory = (
       }
       API({
         route: routes[type],
-        body: {...body, ...{offset: pagination.current_page}},
+        body: { ...body, ...{ offset: pagination.current_page } },
         method: method,
-      }).then(response => {
+      }).then((response) => {
+        console.log('responseresponses', response?.data);
+
         if (response.status === 26) {
           setInternetFailed(true);
           setLoading(false);
@@ -80,12 +86,15 @@ const useDataFactory = (
         }
 
         setLoading(false);
-        setData([...data, ...response?.data]);
+        setData([...data, ...response?.data?.data?.entry]);
         setPagination({
           total: response?.total,
           current_page: pagination.current_page + 10,
         });
-        if (Array.isArray(response?.data) && response?.data?.length < 10) {
+        if (
+          Array.isArray(response?.data?.data?.entry) &&
+          response?.data?.data?.entry?.length < 10
+        ) {
           setLoadNext(false);
         }
       });
@@ -94,7 +103,7 @@ const useDataFactory = (
         route: routes[type],
         body: body,
         method: method,
-      }).then(response => {
+      }).then((response) => {
         if (response.status === 26) {
           setInternetFailed(true);
           setLoading(false);
@@ -159,7 +168,7 @@ export default useDataFactory;
 
 const LoadingShimmer = () => {
   return (
-    <View style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
       <ActivityIndicator size={'small'} />
     </View>
   );
@@ -167,7 +176,7 @@ const LoadingShimmer = () => {
 
 const Placeholder = () => {
   return (
-    <View style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
       <ActivityIndicator size={'small'} />
     </View>
   );

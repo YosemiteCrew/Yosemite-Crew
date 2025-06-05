@@ -28,6 +28,7 @@ import {
   updatePetList,
 } from '../../../redux/slices/petSlice';
 import {buildPetFHIRResource} from '../../../helpers/buildPetFHIRResource';
+import {formatDateDMY} from '../../../utils/constants';
 
 const MorePetDetails = ({navigation, route}) => {
   const {choosePetDetail, petDetails} = route?.params;
@@ -59,11 +60,16 @@ const MorePetDetails = ({navigation, route}) => {
     pert_comes_from: userPetDetails?.petFrom || '',
   });
   const add_pet_hit = () => {
+    console.log('choosePetDetail?.dob', choosePetDetail?.dob);
+    const inputDate = choosePetDetail?.dob;
+    const [day, month, year] = inputDate.split('/');
+    const formattedDate = `${year}/${month}/${day}`;
+
     let petData = {
       id: authState?.user?._id,
       name: choosePetDetail?.name,
       gender: choosePetDetail?.gender,
-      birthDate: choosePetDetail?.dob,
+      birthDate: formattedDate,
       speciesDisplay: choosePetDetail?.petType,
       breed: choosePetDetail?.petBreed,
       genderStatusDisplay: choosePetDetail?.neutered,
@@ -86,6 +92,10 @@ const MorePetDetails = ({navigation, route}) => {
       petId: petDetails?.id,
       api_credentials: fhirPayload,
     };
+    const api_credentials = {
+      data: fhirPayload,
+      files: [choosePetDetail?.apiCallImage],
+    };
 
     if (petDetails?.id) {
       dispatch(edit_pet_api(input)).then(res => {
@@ -99,14 +109,14 @@ const MorePetDetails = ({navigation, route}) => {
         //  }
       });
     } else {
-      dispatch(add_pet(fhirPayload)).then(res => {
+      dispatch(add_pet(api_credentials)).then(res => {
         if (add_pet.fulfilled.match(res)) {
           const updatedBundle = {
             ...petList,
             total: petList.total + 1,
             entry: [res?.payload, ...petList.entry],
           };
-          dispatch(updatePetList(updatedBundle));
+          // dispatch(updatePetList(updatedBundle));
         }
       });
     }
@@ -318,7 +328,7 @@ const MorePetDetails = ({navigation, route}) => {
           />
           <Input
             value={formValue.passport_number}
-            label={t('passport_number_string')}
+            label={t('passport_string')}
             onChangeText={value =>
               setFormValue({...formValue, passport_number: value})
             }

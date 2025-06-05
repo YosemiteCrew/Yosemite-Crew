@@ -5,31 +5,31 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import React, {useRef, useState} from 'react';
-import {useTranslation} from 'react-i18next';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {styles} from './styles';
+import React, { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { styles } from './styles';
 import GText from '../../../components/GText/GText';
-import {Images} from '../../../utils';
-import {scaledValue} from '../../../utils/design.utils';
+import { Images } from '../../../utils';
+import { scaledValue } from '../../../utils/design.utils';
 import GButton from '../../../components/GButton';
 import OptionMenuSheet from '../../../components/OptionMenuSheet';
-import {useAppSelector} from '../../../redux/store/storeUtils';
+import { useAppSelector } from '../../../redux/store/storeUtils';
 
-import {delete_pet_api, updatePetList} from '../../../redux/slices/petSlice';
-import {useDispatch, useSelector} from 'react-redux';
+import { delete_pet_api, updatePetList } from '../../../redux/slices/petSlice';
+import { useDispatch, useSelector } from 'react-redux';
 import GImage from '../../../components/GImage';
 import LinearGradient from 'react-native-linear-gradient';
 
-const PetProfileList = ({navigation}) => {
+const PetProfileList = ({ navigation }) => {
   const refRBSheet = useRef();
   const insets = useSafeAreaInsets();
   const statusBarHeight = insets.top;
-  const {t} = useTranslation();
+  const { t } = useTranslation();
   const dispatch = useDispatch();
   const [selectPet, setSelectPet] = useState({});
-  const petList = useAppSelector(state => state.pets?.petLists);
-  const authState = useAppSelector(state => state.auth);
+  const petList = useAppSelector((state) => state.pets?.petLists);
+  const authState = useAppSelector((state) => state.auth);
 
   const petListOptionMenu = [
     {
@@ -58,17 +58,17 @@ const PetProfileList = ({navigation}) => {
     },
   ];
 
-  const CustomProgressBar = ({percentage}) => {
+  const CustomProgressBar = ({ percentage }) => {
     // Calculate the filled and remaining width based on the percentage
-    const filledWidth = (167 * percentage) / 100;
-    const remainingWidth = 167 - filledWidth;
+    const filledWidth = (142 * percentage) / 100;
+    const remainingWidth = 142 - filledWidth;
 
     return (
       <View style={styles.progressBarContainer}>
         {/* Filled part */}
-        <View style={[styles.filledBar, {width: filledWidth}]} />
+        <View style={[styles.filledBar, { width: filledWidth }]} />
         {/* Remaining part */}
-        <View style={[styles.remainingBar, {width: remainingWidth}]} />
+        <View style={[styles.remainingBar, { width: remainingWidth }]} />
       </View>
     );
   };
@@ -78,10 +78,10 @@ const PetProfileList = ({navigation}) => {
       petId: selectPet?.id,
     };
 
-    dispatch(delete_pet_api(input)).then(res => {
+    dispatch(delete_pet_api(input)).then((res) => {
       if (delete_pet_api.fulfilled.match(res)) {
         const filteredEntries = petList.entry.filter(
-          item => item.resource.id !== selectPet?.id,
+          (item) => item.resource.id !== selectPet?.id
         );
         const updatedBundle = {
           ...petList,
@@ -100,13 +100,15 @@ const PetProfileList = ({navigation}) => {
       <View
         style={[
           styles.headerContainer,
-          {marginTop: statusBarHeight + scaledValue(20)},
-        ]}>
+          { marginTop: statusBarHeight + scaledValue(20) },
+        ]}
+      >
         <TouchableOpacity
           onPress={() => {
             navigation?.goBack();
           }}
-          style={styles.backButton}>
+          style={styles.backButton}
+        >
           <Image
             source={Images.Left_Circle_Arrow}
             style={styles.backButtonImage}
@@ -120,19 +122,24 @@ const PetProfileList = ({navigation}) => {
           />
         </View>
       </View>
-      <View style={{marginTop: scaledValue(12)}}>
+      <View style={{ marginTop: scaledValue(12) }}>
         <FlatList
           data={petList?.entry}
           contentContainerStyle={{
             paddingBottom: Dimensions.get('window').height / 3,
           }}
-          renderItem={({item, index}) => {
+          renderItem={({ item, index }) => {
             const petDetails = item?.resource?.extension?.reduce(
               (acc, item) => {
-                acc[item.title] = item.valueString;
+                const value =
+                  item?.valueString ??
+                  item?.valueDecimal ??
+                  item?.valueInteger ??
+                  item?.valueBoolean;
+                acc[item.title] = value;
                 return acc;
               },
-              {},
+              {}
             );
 
             return (
@@ -140,24 +147,16 @@ const PetProfileList = ({navigation}) => {
                 <View style={styles.petProfileContainer}>
                   <LinearGradient
                     colors={['#D04122', '#FDBD74']}
-                    start={{x: 0, y: 1}}
-                    end={{x: 1, y: 1}}
-                    style={{borderRadius: scaledValue(50)}}>
+                    start={{ x: 0, y: 1 }}
+                    end={{ x: 1, y: 1 }}
+                    style={{ borderRadius: scaledValue(50) }}
+                  >
                     <GImage
-                      image={petDetails?.petImage}
+                      image={petDetails?.petImage?.url}
                       style={styles.petImg}
                       noImageSource={Images.Kizi}
                     />
                   </LinearGradient>
-                  {/* <View
-                    style={{
-                      borderColor: '#D0422287',
-                      borderRadius: scaledValue(50),
-                      borderWidth: 2,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  ></View> */}
 
                   <View style={styles.infoView}>
                     <GText
@@ -179,18 +178,28 @@ const PetProfileList = ({navigation}) => {
                       <View style={styles.pointer} />
                       <GText
                         SatoshiMedium
-                        text={petDetails?.ageWhenNeutered}
-                        style={styles.gender}
+                        text={`${petDetails?.petAge} Y`}
+                        style={[
+                          styles.gender,
+                          {
+                            textTransform: 'none',
+                          },
+                        ]}
                       />
                       <View style={styles.pointer} />
                       <GText
                         SatoshiMedium
-                        text={petDetails?.petCurrentWeight}
-                        style={styles.gender}
+                        text={`${petDetails?.petCurrentWeight} lbs`}
+                        style={[
+                          styles.gender,
+                          {
+                            textTransform: 'none',
+                          },
+                        ]}
                       />
                     </View>
                     <CustomProgressBar percentage={10} />
-                    <View style={{flexDirection: 'row'}}>
+                    <View style={{ flexDirection: 'row' }}>
                       <GText
                         GrMedium
                         text={`${10}%`}
@@ -209,7 +218,8 @@ const PetProfileList = ({navigation}) => {
                   onPress={() => {
                     setSelectPet(item?.resource);
                     refRBSheet.current.open();
-                  }}>
+                  }}
+                >
                   <Image source={Images.ThreeDots} style={styles.threeDot} />
                 </TouchableOpacity>
               </View>
@@ -237,7 +247,7 @@ const PetProfileList = ({navigation}) => {
       <OptionMenuSheet
         refRBSheet={refRBSheet}
         options={petListOptionMenu}
-        onChoose={val => {
+        onChoose={(val) => {
           val.action();
           refRBSheet.current.close();
         }}

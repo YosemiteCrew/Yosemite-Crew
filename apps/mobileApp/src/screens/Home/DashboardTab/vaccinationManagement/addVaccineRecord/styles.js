@@ -60,6 +60,7 @@ export const styles = StyleSheet.create({
   catImage: {
     width: scaledValue(40),
     height: scaledValue(40),
+    borderRadius: scaledValue(20),
   },
   arrowImage: {
     width: scaledValue(16),
@@ -155,5 +156,33 @@ export const styles = StyleSheet.create({
   dateIcon: {
     width: scaledValue(20),
     height: scaledValue(20),
+  },
+  PlusIconImage: {
+    width: scaledValue(24),
+    height: scaledValue(24),
+  },
+  addImgButton: {
+    width: scaledValue(100),
+    height: scaledValue(100),
+    borderWidth: scaledValue(1),
+    borderColor: '#37223C4D',
+    borderStyle: 'dashed',
+    borderRadius: scaledValue(4),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageStyle: {
+    width: scaledValue(100),
+    height: scaledValue(100),
+    borderRadius: scaledValue(4),
+  },
+  crossStyle: {
+    width: scaledValue(24),
+    height: scaledValue(24),
+  },
+  crossImgView: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
   },
 });

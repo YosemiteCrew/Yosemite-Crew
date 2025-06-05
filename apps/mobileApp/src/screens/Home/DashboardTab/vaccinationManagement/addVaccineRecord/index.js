@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {useTranslation} from 'react-i18next';
 import {Images} from '../../../../../utils';
 import {colors} from '../../../../../../assets/colors';
@@ -17,15 +17,33 @@ import DatePicker from 'react-native-date-picker';
 import ToggleButton from '../../../../../components/ToogleButton';
 import GButton from '../../../../../components/GButton';
 import HeaderButton from '../../../../../components/HeaderButton';
+import {
+  useAppDispatch,
+  useAppSelector,
+} from '../../../../../redux/store/storeUtils';
+import {transformPets} from '../../../../../helpers/transformPets';
+import OptionMenuSheet from '../../../../../components/OptionMenuSheet';
+import GImage from '../../../../../components/GImage';
+import {buildImmunization} from '../../../../../helpers/buildImmunization';
+import {add_vaccine_records} from '../../../../../redux/slices/vaccineSlice';
+import {pick, types} from '@react-native-documents/picker';
+import {scaledValue} from '../../../../../utils/design.utils';
 
 const AddVaccineRecord = ({navigation}) => {
   const {t} = useTranslation();
+  const refRBSheet = useRef();
+  const petList = useAppSelector(state => state.pets?.petLists);
+  const PetData = transformPets(petList?.entry, {useFhirId: true});
+  const [selectedPet, setSelectedPet] = useState(PetData[0]);
+  const dispatch = useAppDispatch();
   const [toggleState, setToggleState] = useState(false);
   const [date1, setDate1] = useState(null);
   const [date2, setDate2] = useState(null);
   const [date3, setDate3] = useState(null);
   const [open, setOpen] = useState(false);
   const [currentField, setCurrentField] = useState(null);
+  const [apiCallImage, setApiCallImage] = useState([]);
+  const [image, setImage] = useState();
   const [formValue, setFormValue] = useState({
     manufacturer: '',
     name: '',
@@ -83,7 +101,10 @@ const AddVaccineRecord = ({navigation}) => {
         break;
       case 'date2':
         setDate2(selectedDate);
-        setFormValue({...formValue, vaccinationDate: formatDate(selectedDate)});
+        setFormValue({
+          ...formValue,
+          vaccinationDate: formatDate(selectedDate),
+        });
         break;
       case 'date3':
         setDate3(selectedDate);
@@ -92,6 +113,66 @@ const AddVaccineRecord = ({navigation}) => {
       default:
         break;
     }
+  };
+
+  const convertDateFormat = dateString => {
+    const [day, month, year] = dateString.split('/');
+    return `${year}-${month}-${day}`;
+  };
+
+  const uploadDocument = async () => {
+    try {
+      const result = await pick({
+        type: [types.doc, types.images, types.pdf],
+        allowMultiSelection: true,
+      });
+      console.log(result);
+      result?.map(d => onSuccessDoc(d));
+      const fileUri = Platform.select({
+        android: result[0].uri,
+        ios: result[0].uri.replace('file:///private/', ''),
+      });
+
+      if (!fileUri) {
+        console.log('File URI is undefined or null');
+        return;
+      }
+    } catch (err) {
+      console.log('documentError', err);
+    }
+  };
+
+  const onSuccessDoc = files => {
+    // setProjectDoc();
+    console.log('abcdef', files);
+
+    let name = files?.name;
+    let type = files?.type;
+    let localUri = files?.uri;
+    setApiCallImage(prevState => [...prevState, {name, uri: localUri, type}]);
+    // setApiCallImage({ name, uri: localUri, type });
+  };
+
+  const addVaccinationRecord = () => {
+    const input = {
+      manufacturer: formValue?.manufacturer,
+      vaccineName: formValue?.name,
+      batchNumber: formValue?.batchName,
+      expiryDate: convertDateFormat(formValue?.expiryDate),
+      vaccinationDate: convertDateFormat(formValue?.vaccinationDate),
+      businessName: formValue?.clinicName,
+      nextDueOn: convertDateFormat(formValue?.dueOn),
+      patientId: selectedPet?.id,
+    };
+
+    const fhirPayload = buildImmunization(input);
+
+    const api_credentials = {
+      data: fhirPayload,
+      files: apiCallImage,
+    };
+
+    dispatch(add_vaccine_records(api_credentials));
   };
 
   return (
@@ -120,8 +201,13 @@ const AddVaccineRecord = ({navigation}) => {
               style={styles.recordsText}
             />
           </View>
-          <TouchableOpacity activeOpacity={0.5} style={styles.button}>
-            <Image source={Images.CatImg} style={styles.catImage} />
+          <TouchableOpacity
+            onPress={() => {
+              refRBSheet?.current?.open();
+            }}
+            activeOpacity={0.7}
+            style={styles.button}>
+            <GImage image={selectedPet?.petImage} style={styles.catImage} />
             <Image source={Images.ArrowDown} style={styles.arrowImage} />
           </TouchableOpacity>
         </View>
@@ -211,20 +297,58 @@ const AddVaccineRecord = ({navigation}) => {
             setToggleState={setToggleState}
           />
         </View>
-        <TouchableOpacity style={styles.uploadContainer}>
-          <Image source={Images.Upload} style={styles.uploadImage} />
-          <GText
-            GrMedium
-            text={t('upload_images_text_string')}
-            style={styles.uploadText}
-          />
-          <GText
-            SatoshiRegular
-            text={t('document_text_string')}
-            style={styles.documentText}
-          />
-        </TouchableOpacity>
+        {apiCallImage?.length > 0 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              marginTop: scaledValue(20),
+              gap: scaledValue(16),
+            }}>
+            {apiCallImage?.map((i, d) => (
+              <View>
+                <Image source={{uri: i?.uri}} style={styles.imageStyle} />
+                <TouchableOpacity
+                  onPress={() => {
+                    setApiCallImage(prev => prev.filter((_, idx) => idx !== d));
+                  }}
+                  style={styles.crossImgView}>
+                  <Image source={Images.CrossIcon} style={styles.crossStyle} />
+                </TouchableOpacity>
+              </View>
+            ))}
+            <TouchableOpacity
+              onPress={uploadDocument}
+              style={styles.addImgButton}>
+              <Image
+                source={Images.PlusIcon}
+                tintColor={colors.appRed}
+                style={styles.PlusIconImage}
+              />
+            </TouchableOpacity>
+          </ScrollView>
+        ) : (
+          <TouchableOpacity
+            onPress={uploadDocument}
+            style={styles.uploadContainer}>
+            <Image source={Images.Upload} style={styles.uploadImage} />
+            <GText
+              GrMedium
+              text={t('upload_images_text_string')}
+              style={styles.uploadText}
+            />
+            <GText
+              SatoshiRegular
+              text={t('document_text_string')}
+              style={styles.documentText}
+            />
+          </TouchableOpacity>
+        )}
+
         <GButton
+          onPress={addVaccinationRecord}
           title={t('create_new_record_string')}
           textStyle={styles.buttonText}
           style={styles.buttonStyle}
@@ -244,6 +368,17 @@ const AddVaccineRecord = ({navigation}) => {
           onCancel={() => setOpen(false)}
         />
       </ScrollView>
+      <OptionMenuSheet
+        refRBSheet={refRBSheet}
+        // title={formValue?.blood_group || 'Select Blood Group'}
+        options={PetData}
+        onChoose={val => {
+          setSelectedPet(val);
+
+          refRBSheet.current.close();
+        }}
+        onPressCancel={() => refRBSheet.current.close()}
+      />
     </KeyboardAvoidingView>
   );
 };
