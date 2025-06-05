@@ -282,7 +282,7 @@ const SharePetDutiesHome = ({navigation}) => {
                 }}
               />
               <GButton
-                title={t("yes_done_string")}
+                title={t('yes_done_string')}
                 style={{
                   paddingHorizontal: scaledValue(40.25),
                   height: '100%',

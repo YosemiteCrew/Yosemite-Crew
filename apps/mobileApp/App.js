@@ -16,7 +16,6 @@ import AuthStack from './src/navigations/AuthStack';
 import StackScreens from './src/navigations/StackScreens';
 import SplashScreen from 'react-native-splash-screen';
 import FlashMessage from 'react-native-flash-message';
-import {statusBarHeight} from './src/utils/design.utils';
 import Spinner from 'react-native-loading-spinner-overlay';
 import {useAppSelector} from './src/redux/store/storeUtils';
 import AddPetStack from './src/navigations/AddPetStack';
@@ -31,7 +30,6 @@ const App = () => {
   }, []);
   return (
     <Provider store={store}>
-      {/* <MenuProvider> */}
       <PersistGate loading={null} persistor={persistor}>
         <SafeAreaProvider>
           <StatusBar
@@ -41,7 +39,6 @@ const App = () => {
           <AppNavigation />
         </SafeAreaProvider>
       </PersistGate>
-      {/* </MenuProvider> */}
     </Provider>
   );
 };
@@ -52,7 +49,6 @@ const AppNavigation = () => {
   const authState = useAppSelector(state => state.auth);
   const loading = useAppSelector(state => state.loading);
   const RootStack = createNativeStackNavigator();
-  console.log('authState01235', authState?.user);
 
   return (
     <>
@@ -66,7 +62,6 @@ const AppNavigation = () => {
               name="OnBoardingStack"
               component={OnBoardingStack}
               options={{headerShown: false}}
-              // initialParams={{setOnBoarding: setOnBoarding}}
             />
           ) : !authState?.user ? (
             <RootStack.Screen
@@ -98,7 +93,7 @@ const AppNavigation = () => {
         <FlashMessage position={'top'} floating={true} />
         <Spinner
           visible={loading?.loading}
-          indicatorStyle={{color: '#CF52C1'}}
+          // indicatorStyle={{color: '#CF52C1'}}
         />
       </NavigationContainer>
     </>

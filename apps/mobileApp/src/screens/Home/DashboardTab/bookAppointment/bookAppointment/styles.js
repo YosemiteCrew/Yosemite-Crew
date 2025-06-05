@@ -1,4 +1,4 @@
-import {StyleSheet} from 'react-native';
+import {Dimensions, StyleSheet} from 'react-native';
 import {
   scaledHeightValue,
   scaledValue,
@@ -128,16 +128,17 @@ export const styles = StyleSheet.create({
         ? colors.white
         : colors.jetBlack,
     textAlign: 'center',
-    opacity: item?.booked ? 0.4 : 1,
+    opacity: item?.resource?.isBooked === 'true' ? 0.4 : 1,
   }),
   inputStyle: {
     height: scaledValue(114),
     marginTop: scaledValue(12),
-    borderRadius: scaledValue(100),
+    borderRadius: scaledValue(16),
     borderColor: '#312943',
-    backgroundColor: 'transparent',
-    width: '100%',
-    // textAlignVertical: 'top',
+    width: Dimensions.get('screen').width - 40,
+    textAlignVertical: 'top',
+    borderWidth: scaledValue(0.5),
+    padding: scaledValue(15),
   },
   uploadContainer: {
     width: scaledValue(335),
@@ -223,13 +224,14 @@ export const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 8,
-    borderWidth: i?.isBooked
-      ? scaledValue(0.5)
-      : pickSlotTime != i?.resource?.slotTime
-      ? scaledValue(0.75)
-      : 0,
+    borderWidth:
+      i?.resource?.isBooked === 'true'
+        ? scaledValue(0.5)
+        : pickSlotTime != i?.resource?.slotTime
+        ? scaledValue(0.75)
+        : 0,
     paddingHorizontal: scaledValue(11),
-    opacity: i?.isBooked && 0.4,
+    opacity: i?.resource?.isBooked === 'true' && 0.4,
     borderColor: colors.jetBlack,
   }),
   timeContentContainer: {
@@ -245,5 +247,32 @@ export const styles = StyleSheet.create({
     // lineHeight: scaledValue(16),
     // marginTop: scaledValue(20),
     paddingLeft: scaledValue(10),
+  },
+  imageStyle: {
+    width: scaledValue(100),
+    height: scaledValue(100),
+  },
+  crossStyle: {
+    width: scaledValue(24),
+    height: scaledValue(24),
+  },
+  crossImgView: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+  },
+  PlusIconImage: {
+    width: scaledValue(24),
+    height: scaledValue(24),
+  },
+  addImgButton: {
+    width: scaledValue(100),
+    height: scaledValue(100),
+    borderWidth: scaledValue(1),
+    borderColor: '#37223C4D',
+    borderStyle: 'dashed',
+    borderRadius: scaledValue(4),
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

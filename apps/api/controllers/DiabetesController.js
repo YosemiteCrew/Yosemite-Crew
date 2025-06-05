@@ -51,7 +51,7 @@ class DiabetesController {
       const records = await DiabetesService.getDiabetesLogs(cognitoUserId,limit,offset);
   
       if (records.length === 0) {
-        return res.status(404).json({ message: "No Diabetes logs found" });
+        return res.status(200).json({status: 1, entry: [], message: "No Diabetes logs found" });
       }
   
       const fhirObservations = records.map(record =>
