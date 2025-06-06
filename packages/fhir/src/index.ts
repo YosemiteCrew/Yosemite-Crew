@@ -4,5 +4,7 @@ export interface Demo {
 }
 
 export  {HospitalProfileFHIRBuilder} from "./hospital.profile.type";
-export {parseFhirBundle,File,Files,Document,ParsedData} from "./add.doctor.type"
-export type { OperationOutcome } from "./feedback";
+export  {parseFhirBundle,File,Files,Document,ParsedData} from "./add.doctor.type"
+export  { convertToFhir, convertFhirToNormal} from "./feedback";
+export  { convertExerciseToFHIR, convertPlanTypesToFHIR , convertExerciseTypeToFHIR} from "./exercises";
+

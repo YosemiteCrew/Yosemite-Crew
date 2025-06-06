@@ -1,6 +1,6 @@
 import express from 'express';
-const AdminController = require('../controllers/AdminController');
-const { verifyTokenAndRefresh } = require('../middlewares/authMiddleware');
+import AdminController from '../controllers/AdminController';
+import  { verifyTokenAndRefresh }  from '../middlewares/authMiddleware';
 const router = express.Router();
 
 
@@ -8,4 +8,4 @@ router.get('/planTypes', verifyTokenAndRefresh, AdminController.planTypes);
 router.get('/exerciseTypes', verifyTokenAndRefresh, AdminController.exerciseTypes);
 router.get('/getExercise', verifyTokenAndRefresh, AdminController.getExercise);
 
-module.exports = router;
+export default router;
