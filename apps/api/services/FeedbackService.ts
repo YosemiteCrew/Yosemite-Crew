@@ -1,5 +1,5 @@
 
-import feedbacks from "../models/FeedBack";
+import feedbacks from "../models/feedback";
 import mongoose from 'mongoose';
 import type { IFeedback } from "@yosemite-crew/types";
 
@@ -50,7 +50,7 @@ const FeedbackService = {
   
    getDoctorFeedback : async(doctorId :string, meetingId = null, limit = 10, offset = 0): Promise<IFeedback[]>  => {
   
-  const matchStage: Record<string, any> = { doctorId };
+  const matchStage: Record<string> = { doctorId };
   if (meetingId) matchStage.meetingId = meetingId;
 
   const pipeline: any[] = [
@@ -173,15 +173,15 @@ const FeedbackService = {
     }, 
 
       deleteFeedback: async(feedbackId :string) =>  {
-      const feedbackToDelete = await FeedbackService.getFeedbackById(feedbackId);
-      if (!feedbackToDelete) {
-        throw new Error("Feedback data not found");
-      }
-      const result = await feedbacks.deleteOne({ _id: feedbackId });
-      if (result.deletedCount === 0) {
-        throw new Error("Feedback data not found");
-      }
-      return feedbackToDelete;  
+        const feedbackToDelete = await feedbacks.findOne({ _id: feedbackId }).lean();
+        if (!feedbackToDelete) {
+          throw new Error("Feedback data not found");
+        }
+        const result = await feedbacks.deleteOne({ _id: feedbackId });
+        if (result.deletedCount === 0) {
+          throw new Error("Feedback data not found");
+        }
+        return feedbackToDelete;  
     }
 
 }
