@@ -20,7 +20,7 @@ const {
   DepartmentFromFHIRConverter,
 } = require("../utils/DepartmentFhirHandler");
 const { response } = require("express");
-const FeedBack = require("../models/FeedBack");
+const feedback = require("../models/feedback");
 
 const s3 = new AWS.S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
