@@ -4,7 +4,7 @@ import express from "express";
 const PetController = require('../controllers/PetController');
 const AppointmentController = require('../controllers/AppointmentController');
 const SlotController = require('../controllers/SlotController');
-const FeedbackController = require('../controllers/FeedbackController');
+import feedbackController from '../controllers/feedbackController';
 const DetailsController = require('../controllers/DetailsController');
 const ListController = require('../controllers/ListController');
 const ImmunizationController = require("../controllers/ImmunizationController");
@@ -28,7 +28,7 @@ const {
 
 const router = express.Router();
 
-const { verifyTokenAndRefresh } = require('../middlewares/authMiddleware');
+import { verifyTokenAndRefresh } from '../middlewares/authMiddleware';
 
 router.post("/Patient/addPet", verifyTokenAndRefresh,PetController.handleAddPet);
 router.put("/Patient/editPet", verifyTokenAndRefresh, PetController.handleEditPet);
@@ -40,10 +40,10 @@ router.put("/cancelAppointment", verifyTokenAndRefresh, AppointmentController.ha
 router.put("/rescheduleAppointment",verifyTokenAndRefresh, AppointmentController.handleRescheduleAppointment);
 router.get("/Slot/getTimeSlots", verifyTokenAndRefresh, SlotController.handlegetTimeSlots);
 router.get("/Slot/getTimeSlotsByMonth",verifyTokenAndRefresh,SlotController.handleTimeSlotsByMonth);
-router.post("/Observation/saveFeedBack",verifyTokenAndRefresh,FeedbackController.handleSaveFeedBack);
-router.get("/Observation/getFeedBack",FeedbackController.handleGetFeedback);
-router.put("/Observation/editFeedBack",verifyTokenAndRefresh,FeedbackController.handleEditFeedback);
-router.delete("/Observation/deleteFeedBack",verifyTokenAndRefresh,FeedbackController.handleDeleteFeedback);
+router.post("/Observation/saveFeedBack",verifyTokenAndRefresh,feedbackController.handleSaveFeedBack);
+router.get("/Observation/getFeedBack",verifyTokenAndRefresh,feedbackController.handleGetFeedback);
+router.put("/Observation/editFeedBack",verifyTokenAndRefresh,feedbackController.handleEditFeedback);
+router.delete("/Observation/deleteFeedBack",verifyTokenAndRefresh,feedbackController.handleDeleteFeedback);
 
 
 router.post("/Organization/addVetClinic", verifyTokenAndRefresh, DetailsController.handleVetClinic);

@@ -1,11 +1,11 @@
 
 import { Types, Document } from 'mongoose'
 
-export interface IFeedback extends Document {
-  userId?: Types.ObjectId;
-  doctorId?: Types.ObjectId;
-  petId?: Types.ObjectId;
-  meetingId?: Types.ObjectId;
+export type feedback = Document & {
+  userId?: string;
+  doctorId?: string;
+  petId?: string;
+  meetingId?: string;
   feedback?: string;
   rating: number;
-}
+};

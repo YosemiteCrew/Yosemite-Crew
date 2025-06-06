@@ -1,5 +1,5 @@
 import { Router } from 'express';
-// const authController = require('../controllers/AuthController');
+ const authController = require('../controllers/AuthController');
 import WebController from '../controllers/WebController';
 import AddDepartmentController from '../controllers/AddDepartmentController';
 
@@ -7,8 +7,8 @@ import { verifyTokenAndRefresh } from'../middlewares/authMiddleware';
 const router = Router();
 
 // router.post('/signup', authController.signup);
-// router.post('/login', authController.login);
-// router.post('/sendOtp', authController.sendOtp);
+ router.post('/login', authController.login);
+ router.post('/sendOtp', authController.sendOtp);
 // router.post('/deleteUser', authController.deleteUser);
 // router.post('/confirmSignup', authController.confirmSignup);
 // router.post('/resendConfirmationCode', authController.resendConfirmationCode);

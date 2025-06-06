@@ -1,17 +1,14 @@
-import mongoose from 'mongoose';
+import mongoose, { Schema, Model} from 'mongoose';
+import type { exerciseType } from "@yosemite-crew/types";
 
-const YoshExerciseTypeSchema = new mongoose.Schema({
+const YoshExerciseTypeSchema : Schema<exerciseType>= new mongoose.Schema({
 
-    
     exerciseType: {
         type: String,
     },
-    
-    
-    
 
 }, { timestamps: true});
 
-const YoshExerciseType = mongoose.models.YoshExerciseType || mongoose.model('YoshExerciseType', YoshExerciseTypeSchema);
+const YoshExerciseType : Model<exerciseType>= mongoose.model<exerciseType>('YoshExerciseType', YoshExerciseTypeSchema);
 
-module.exports = YoshExerciseType;
+export default YoshExerciseType;

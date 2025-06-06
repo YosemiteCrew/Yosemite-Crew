@@ -1,6 +1,7 @@
-import mongoose from 'mongoose';
+import mongoose, { Schema, Model } from 'mongoose';
+import type { exercises } from "@yosemite-crew/types";
 
-const YoshExercisesSchema = new mongoose.Schema({
+const YoshExercisesSchema: Schema<exercises> = new mongoose.Schema({
 
     
     planId: {
@@ -36,6 +37,6 @@ const YoshExercisesSchema = new mongoose.Schema({
 
 }, { timestamps: true});
 
-const YoshExercises = mongoose.models.YoshExercises || mongoose.model('YoshExercises', YoshExercisesSchema);
+const YoshExercises : Model<exercises>=  mongoose.model<exercises>('YoshExercises', YoshExercisesSchema);
 
-module.exports = YoshExercises;
+export default YoshExercises;

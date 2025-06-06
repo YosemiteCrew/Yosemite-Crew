@@ -1,20 +1,18 @@
-import mongoose from 'mongoose';
+import mongoose , { Schema, Model} from 'mongoose';
+import type { exercisePlanType } from "@yosemite-crew/types";
 
-const YoshExercisePlansSchema = new mongoose.Schema({
 
-    
+const YoshExercisePlansSchema :Schema<exercisePlanType> = new mongoose.Schema({
+
     planType: {
         type: String,
     },
     planName: {
         type: String,
     },
-    
-    
-    
 
 }, { timestamps: true});
 
-const YoshExercisePlans = mongoose.models.YoshExercisePlans || mongoose.model('YoshExercisePlans', YoshExercisePlansSchema);
+const YoshExercisePlans : Model<exercisePlanType> = mongoose.model<exercisePlanType>('YoshExercisePlans', YoshExercisePlansSchema);
 
-module.exports = YoshExercisePlans;
+export default YoshExercisePlans;
