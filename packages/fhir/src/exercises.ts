@@ -1,43 +1,7 @@
-import { Types } from "mongoose";
+import { Types, Document} from "mongoose";
+import type { exercisePlanType,  exerciseType, exercises , queryParams} from "@yosemite-crew/types";
 
-
-type Options = {
-  page?: number;
-  limit?: number;
-  total?: number;
-  type?: string;
-  keyword?: string;
-}
-
-
-type Exercise  = {
-  _id: Types.ObjectId | string;
-  planId?: string;
-  planType?: string;
-  planName?: string;
-  exerciseType?: string;
-  exerciseTitle?: string;
-  exerciseSubTitle?: string;
-  exerciseThumbnail?: string;
-  exerciseVideo?: string;
-  exerciseDescription?: string;
-  toObject?: () => any;
-}
-
-type ExerciseType = {
-  _id: Types.ObjectId | string;
-  exerciseType?: string;
-  toObject?: () => any;
-}
-
-type Plan = {
-  _id: Types.ObjectId | string;
-  planType?: string;
-  planName?: string;
-  toObject?: () => any;
-}
-
-export const convertExerciseToFHIR = (exercises: Exercise[], options: Options = {}) => {
+export const convertExerciseToFHIR = (exercises: exercises[], options: queryParams = {}) => {
     const {
       page = 1,
       limit = 10,
@@ -140,7 +104,7 @@ const generatePaginationLinks = (page: number,limit: number,total: number, type 
     return links;
   }
 
-export const convertPlanTypesToFHIR = (plans: Plan[]) => {
+export const convertPlanTypesToFHIR = (plans: exercisePlanType[]) => {
     const entries = plans.map((planDoc) => {
       const plan =
         typeof planDoc.toObject === "function"
@@ -178,7 +142,7 @@ export const convertPlanTypesToFHIR = (plans: Plan[]) => {
     };
   }
 
-  export const convertExerciseTypeToFHIR = (exerciseTypes: ExerciseType[]) => {
+  export const convertExerciseTypeToFHIR = (exerciseTypes: exerciseType[]) => {
     const entries = exerciseTypes.map((typeDoc) => {
       const type =
         typeof typeDoc.toObject === "function"

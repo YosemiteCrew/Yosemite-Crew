@@ -1,18 +1,19 @@
-
+import { Request, Response } from 'express';
+import { Types }  from 'mongoose';
 const moment = require('moment');
 const PetService = require('../services/PetService');
 const { v4: uuidv4 } = require('uuid'); // for FHIR resource id
-const { getCognitoUserId } = require('../utils/jwtUtils');
+import { getCognitoUserId }  from  '../middlewares/authMiddleware';
 const AppointmentService = require("../services/AppointmentService");
 const formatFHIR = require("../utils/fhirAppointmentFormatter");
 const helpers = require('../utils/helpers');
 const FHIRTransformer = require('../utils/FHIRTransformer');
 const FHIRConverter = require('../utils/FHIRConverter');
-const { Types } = require('mongoose'); // for ObjectId validation
 
-class AppointmentController {
 
-  static async handleBookAppointment(req, res) {
+const appointmentController  = {
+  
+    bookAppointment : async(req : Request, res : Response): Promise<void>=> {
     try {
       const userId = getCognitoUserId(req);
   
@@ -40,7 +41,7 @@ class AppointmentController {
       // Check slot availability
       const isBooked = await AppointmentService.checkAppointment(doctorId, appointmentDate, timeslot);
       if (isBooked) {
-        return res.status(200).json({
+         res.status(200).json({
           status: 0,
           message: "This time slot is already booked for the selected doctor.",
         });
@@ -93,10 +94,10 @@ class AppointmentController {
       const fhirAppointment = await AppointmentService.bookAppointment(appointmentData);
   
       if (fhirAppointment) {
-        return res.status(200).json({ status: 1, message: "Appointment Booked successfully" });
+         res.status(200).json({ status: 1, message: "Appointment Booked successfully" });
       }
   
-      return res.status(200).json({
+       res.status(200).json({
         status: 0,
         message: "Appointment could not be booked",
       });
@@ -108,33 +109,33 @@ class AppointmentController {
         error: error.message,
       });
     }
-  }
+  },
   
  
-  static async handleGetAppointment(req, res) {
+    getAppointment: async (req: Request, res :Response) : Promise<void> =>{
     try {
       const result = await AppointmentService.fetchAppointments(req);
       if(result){
-        return res.status(200).json({ status: 1, data: result});
+         res.status(200).json({ status: 1, data: result});
       }
       res.status(200).json({ status: 0, message: 'No Appointment found for this user'});
     } catch (error) {
       console.error("Error fetching appointments:", error);
       res.status(500).json({ message: "An error occurred while retrieving appointments" });
     }
-  }
+  },
 
-  static async handleCancelAppointment(req, res) {
+   cancelAppointment : async (req: Request, res :Response) : Promise<void>=> {
     try {
       const appointmentId = req.query.appointmentID;
      // Validate MongoDB ObjectId
       if (!Types.ObjectId.isValid(appointmentId)) {
-        return res.status(200).json({ status: 0, message: "Invalid Appointment ID format" });
+         res.status(200).json({ status: 0, message: "Invalid Appointment ID format" });
       }
       const result = await AppointmentService.cancelAppointment(appointmentId);
   
       if (!result) {
-        return res.status(200).json({ status: 0, message: "This appointment not found" });
+         res.status(200).json({ status: 0, message: "This appointment not found" });
       }
   
       const fhirData = formatFHIR.toFHIR(result,process.env.BASE_URL);
@@ -143,33 +144,32 @@ class AppointmentController {
     } catch (error) {
       res.status(200).json({ status: 0, message: "Error while cancelling appointment", error });
     }
+   },
+
+    rescheduleAppointment : async(req: Request, res :Response) : Promise<void>=> {
+      try {
+        const fhirdata =req.body?.data;
+        const appointmentId = req.query.appointmentID;
+          // Validate MongoDB ObjectId
+        if (!Types.ObjectId.isValid(appointmentId)) {
+            res.status(400).json({ message: "Invalid Appointment ID format" });
+        }
+        const normalData = FHIRConverter.fromFHIRAppointment(JSON.parse(fhirdata));
+        const result = await AppointmentService.rescheduleAppointment(normalData,appointmentId);
+    
+        res.status(200).json({ status: 1, message: "Appointment rescheduled successfully", data:result});
+      } catch (error) {
+        res.status(error.statusCode || 200).json({
+          status: 0,
+          resourceType: "OperationOutcome",
+          issue: [{
+            severity: "error",
+            code: error.code || "exception",
+            diagnostics: error.message,
+          }],
+        });
+      } 
   }
-
-  static async handleRescheduleAppointment(req, res) {
-   
-    try {
-      const fhirdata =req.body?.data;
-      const appointmentId = req.query.appointmentID;
-        // Validate MongoDB ObjectId
-      if (!Types.ObjectId.isValid(appointmentId)) {
-          return res.status(400).json({ message: "Invalid Appointment ID format" });
-      }
-      const normalData = FHIRConverter.fromFHIRAppointment(JSON.parse(fhirdata));
-      const result = await AppointmentService.rescheduleAppointment(normalData,appointmentId);
-  
-      res.status(200).json({ status: 1, message: "Appointment rescheduled successfully", data:result});
-    } catch (error) {
-      res.status(error.statusCode || 200).json({
-        status: 0,
-        resourceType: "OperationOutcome",
-        issue: [{
-          severity: "error",
-          code: error.code || "exception",
-          diagnostics: error.message,
-        }],
-      });
-    } 
-}
 }
 
-module.exports = AppointmentController
+export default appointmentController

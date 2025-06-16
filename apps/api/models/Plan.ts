@@ -1,6 +1,7 @@
-import mongoose from 'mongoose';
+import mongoose,  {Schema, Model} from 'mongoose';
+import type { plan } from "@yosemite-crew/types";
 
-const exercisePlanSchema = new mongoose.Schema({
+const exercisePlanSchema : Schema<plan> = new mongoose.Schema({
 
     userId: {
         type: Number, 
@@ -27,5 +28,5 @@ const exercisePlanSchema = new mongoose.Schema({
     },
 
 }, { timestamps: true});
-const ExercisePlans = mongoose.model('ExercisePlans',exercisePlanSchema);
-module.exports = ExercisePlans;
+const ExercisePlans:Model<plan> = mongoose.model<plan>('ExercisePlans',exercisePlanSchema);
+export default ExercisePlans;

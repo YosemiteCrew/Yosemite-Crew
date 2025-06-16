@@ -1,38 +1,17 @@
 import mongoose, { Types } from 'mongoose';
+import type { feedbackData } from "@yosemite-crew/types";
 
-/** -----------------------------
- * Feedback Interface (Normal Format)
- --------------------------------*/
-export type Feedback = {
-  _id: Types.ObjectId;
-  petId: string;
-  doctorId: string;
-  rating?: number;
-  feedback?: string;
-  createdAt?: string;
-  meetingId: string;
-  department?: string;
-  doctorDetails?: {
-    personalInfo?: {
-      firstName?: string;
-      lastName?: string;
-      image?: string;
-    };
-    professionalBackground?: {
-      qualification?: string;
-    };
-  };
-};
+
 
 /** -----------------------------
  * Convert Normal Feedbacks to FHIR Observation Bundle
  --------------------------------*/
-export const convertToFhir = (feedbacks: Feedback[]) => {
+export const convertToFhir = (feedbacks: feedbackData[]) => {
   return {
     resourceType: 'Bundle',
     type: 'searchset',
     total: feedbacks.length,
-    entry: feedbacks.map((resource: Feedback) => ({
+    entry: feedbacks.map((resource: feedbackData) => ({
       resource: {
         resourceType: 'Observation',
         id: resource._id.toString(),
@@ -87,7 +66,7 @@ export const convertToFhir = (feedbacks: Feedback[]) => {
 /** -----------------------------
  * Convert FHIR Observation to Normal Feedback Format
  --------------------------------*/
-export const convertFhirToNormal = (feedbackFHIR: any) => {
+export const convertFhirToNormal = (feedbackFHIR: any) : Partial<feedbackData> => {
   const performerReference = feedbackFHIR?.performer?.[0]?.reference || null;
   const subjectReference = feedbackFHIR?.subject?.reference || null;
   const appointmentReference = feedbackFHIR?.basedOn?.[0]?.reference || null;

@@ -1,7 +1,7 @@
 
 import { Types, Document } from 'mongoose'
 
-export interface IBreeder extends Document {
+export type breeder =  Document &{
   userId: Types.ObjectId;
   breederName?: string;
   breederAddress?: string;
@@ -14,7 +14,7 @@ export interface IBreeder extends Document {
 }
 
 
-export interface BreederData {
+export type breederData = {
   userId: Types.ObjectId;
   breederName?: string;
   breederAddress?: string;

@@ -1,6 +1,7 @@
-import mongoose from 'mongoose';
+import mongoose, {Schema, Model} from 'mongoose';
+import type { diabetesRecords } from "@yosemite-crew/types";
 
-const recordSchema = new mongoose.Schema({
+const recordSchema: Schema<diabetesRecords> = new mongoose.Schema({
 
     userId: {
         type: String,
@@ -54,5 +55,5 @@ const recordSchema = new mongoose.Schema({
 
 }, { timestamps: true});
 
-const diabetesRecord = mongoose.model('DiabetesRecords',recordSchema);
+const diabetesRecord : Model<diabetesRecords> = mongoose.model<diabetesRecords>('DiabetesRecords',recordSchema);
 module.exports = diabetesRecord;
