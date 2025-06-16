@@ -1,7 +1,7 @@
 import { Types, Document } from 'mongoose'
 
 
-export interface ITimeSlot extends Document {
+export type timeSlot = Document & {
   time: string;
   time24: string;
   selected: boolean;
@@ -11,10 +11,10 @@ export interface ITimeSlot extends Document {
  * 2. Interface for the doctor‐slot document.
  *    Extends Document so that fields like _id, save(), etc., are available.
  */
-export interface IDoctorSlot extends Document {
+export type doctorSlot = Document & {
   doctorId: Types.ObjectId;
   day: string;
-  timeSlots: ITimeSlot[];
+  timeSlots: timeSlot[];
   createdAt: Date;
   updatedAt: Date;
 }

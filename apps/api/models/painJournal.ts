@@ -1,6 +1,8 @@
-import mongoose from 'mongoose';
+import mongoose , {Schema, Model } from 'mongoose';
+import type { painJournal } from "@yosemite-crew/types";
 
-const painJournalSchema = new mongoose.Schema({
+
+const painJournalSchema : Schema<painJournal> = new mongoose.Schema({
 
     userId: {
         type: Number, 
@@ -21,5 +23,5 @@ const painJournalSchema = new mongoose.Schema({
 }, { timestamps: true});
 
 
-const YoshPainJournals = mongoose.model('YoshPainJournal',painJournalSchema);
-module.exports = { YoshPainJournals };
+const yoshPainJournals : Model<painJournal>= mongoose.model<painJournal>('YoshPainJournal',painJournalSchema);
+export default yoshPainJournals ;

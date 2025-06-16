@@ -1,7 +1,7 @@
 import mongoose, {Schema, Model} from 'mongoose';
-import type { IAssessment } from "@yosemite-crew/types";
+import type { assessment } from "@yosemite-crew/types";
 
-const assessmentsSchema : Schema<IAssessment>= new mongoose.Schema({
+const assessmentsSchema : Schema<assessment>= new mongoose.Schema({
     
     userId: {
          type: Schema.Types.ObjectId,
@@ -40,5 +40,5 @@ const assessmentsSchema : Schema<IAssessment>= new mongoose.Schema({
     }
 
 }, { timestamps: true});
-const YoshAssessments : Model<IAssessment>= mongoose.model<IAssessment>('Yoshassessments',assessmentsSchema);
+const YoshAssessments : Model<assessment>= mongoose.model<assessment>('Yoshassessments',assessmentsSchema);
 export default YoshAssessments;
