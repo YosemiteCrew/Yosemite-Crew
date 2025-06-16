@@ -35,6 +35,17 @@ export const verifyTokenAndRefresh = (
   });
 };
 
+
+
+
+
+export const getCognitoUserId = (req : Request) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) throw new Error('Missing token');
+  const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
+  return decoded?.username as string;
+}
+
 // ✅ Optional endpoint to issue new tokens using refresh token
 // export const refreshToken = (req: Request, res: Response): void => {
 //   const { refreshToken } = req.body;

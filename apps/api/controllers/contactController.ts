@@ -1,10 +1,10 @@
-const contactUs = require('../models/Contact');
-const jwt = require('jsonwebtoken');
-const AWS = require("aws-sdk");
+import { Request, Response } from 'express';
+import jwt from 'jsonwebtoken';
+import AWS from "aws-sdk";
 const SES = new AWS.SES();
 
 
-async function handleContactUs(req, res) {
+ const contactUs = async (req : Request, res : Response): Promise<void> => {
     try {
         const token = req.headers.authorization.split(' ')[1]; // Extract token
         const decoded = jwt.verify(token, process.env.JWT_SECRET); // Verify token
@@ -69,6 +69,4 @@ async function handleContactUs(req, res) {
 }
 
 
-module.exports = {
-    handleContactUs,
-}
+export default contactUs;

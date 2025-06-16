@@ -2,31 +2,30 @@ import { Request, Response } from 'express';
 import feedbacks from "../models/feedback";
 //import FeedbackService from '../services/FeedbackService';
 import { convertToFhir , convertFhirToNormal} from "@yosemite-crew/fhir";
-import type { feedback } from "@yosemite-crew/types";
-
-const { getCognitoUserId } = require('../utils/jwtUtils');
+import type { feedback , feedbackData} from "@yosemite-crew/types";
+import { getCognitoUserId } from '../middlewares/authMiddleware';
 
 
 //import FHIRFormatter  from "../utils/fhirFormatter";
 import mongoose from 'mongoose';
-import { json } from 'body-parser';
 
 const feedbackController = {
 
-  handleSaveFeedBack : async (req: Request, res: Response): Promise<Response> => {
+  addFeedBack : async (req: Request, res: Response): Promise<void>=> {
   try {
-    const userId = getCognitoUserId(req) as string;
-    let feedbackFHIR = req.body?.data;
+      const userId = getCognitoUserId(req);
+      let feedbackFHIR = req.body?.data;
 
-    if (typeof feedbackFHIR === 'string') {
-      feedbackFHIR = JSON.parse(feedbackFHIR);
-    }
+      if (typeof feedbackFHIR === 'string') {
+        feedbackFHIR = JSON.parse(feedbackFHIR);
+      }
 
-    const normalData = convertFhirToNormal(feedbackFHIR) as Partial<feedback>;;
+      const normalData: Partial<feedbackData> = convertFhirToNormal(feedbackFHIR);
+
+      const meetingId = normalData?.meetingId;
    
-
-    if (!mongoose.Types.ObjectId.isValid(normalData.meetingId)) {
-      return res.status(200).json({
+    if (!meetingId ||(typeof meetingId !== "string" && !(meetingId instanceof mongoose.Types.ObjectId)) || !mongoose.Types.ObjectId.isValid(meetingId)){
+       res.status(200).json({
         resourceType: "OperationOutcome",
         issue: [{
           status: 0,
@@ -37,9 +36,9 @@ const feedbackController = {
       });
     }
 
-    const existingFeedback = await feedbacks.findOne({ meetingId: normalData.meetingId }).lean();
+    const existingFeedback = await feedbacks.findOne({ meetingId: meetingId }).lean();
     if (existingFeedback) {
-      return res.status(409).json({
+       res.status(409).json({
          resourceType: "OperationOutcome",
               data:[],
               issue: [{
@@ -57,14 +56,14 @@ const feedbackController = {
 
     if (savedFeedback) {
       const fhirResponse = convertToFhir([savedFeedback]); //FHIRFormatter.toObservationBundle([savedFeedback]); // wrap in array
-      return res.status(200).json({
+       res.status(200).json({
         status: 1,
         message: 'Feedback saved successfully',
         data: fhirResponse,
       });
     }
-
-    return res.status(500).json({
+   if (!savedFeedback) {
+     res.status(500).json({
               resourceType: "OperationOutcome",
               data:[],
               issue: [{
@@ -74,9 +73,10 @@ const feedbackController = {
                 diagnostics: "Failed to save feedback"
               }]
             });
+     }
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error occurred';
-    return res.status(500).json({
+     res.status(500).json({
         resourceType: "OperationOutcome",
         data:[],
         issue: [{
@@ -91,15 +91,16 @@ const feedbackController = {
 
    
   
-    handleGetFeedback : async(req: Request, res : Response) => {
+    getFeedback : async(req: Request, res : Response) : Promise<void>  => {
     try {
 
         const { limit, offset } = req.query;
-         const parsedLimit  = limit ? parseInt(limit) : 10;
-         const parsedOffset = offset ? parseInt(offset) : 0;
+           // Safely parse limit and offset from query string
+        const parsedLimit = typeof limit === 'string' ? parseInt(limit, 10) : 10;
+        const parsedOffset = typeof offset === 'string' ? parseInt(offset, 10) : 0;
     
         if (isNaN(parsedLimit) || isNaN(parsedOffset)) {
-          return res.status(200).json({ status: 0, message: "Invalid limit or offset" });
+           res.status(200).json({ status: 0, message: "Invalid limit or offset" });
         }
 
             const pipeline: any[] = [
@@ -162,10 +163,10 @@ const feedbackController = {
    
       if (feedbackList.length) {
            const fhirResponse  = convertToFhir(feedbackList);
-           return res.status(200).json({ status: 1, data: fhirResponse });
+            res.status(200).json({ status: 1, data: fhirResponse });
       } else {
       
-        return res.status(200).json({
+         res.status(200).json({
               resourceType: "OperationOutcome",
               data:[],
               issue: [{
@@ -178,7 +179,7 @@ const feedbackController = {
       }
   
     } catch (error : unknown) {
-      return res.status(200).json({
+       res.status(200).json({
         resourceType: "OperationOutcome",
         data:[],
         issue: [{
@@ -193,12 +194,12 @@ const feedbackController = {
   
   
 
-   handleEditFeedback: async (req: Request, res: Response) => {
+  editFeedback: async (req: Request, res: Response) : Promise<void> => {
   try {
     const feedbackId = req.query.feedbackId as string;
 
     if (!feedbackId || !mongoose.Types.ObjectId.isValid(feedbackId)) {
-      return res.status(200).json({
+       res.status(200).json({
         resourceType: "OperationOutcome",
         issue: [{
           status: 0,
@@ -213,7 +214,7 @@ const feedbackController = {
 
     const feedbackExists = await feedbacks.findOne({ _id: new mongoose.Types.ObjectId(feedbackId) }).lean();
     if (!feedbackExists) {
-      return res.status(200).json({
+       res.status(200).json({
         resourceType: "OperationOutcome",
         issue: [{
           status: 0,
@@ -228,7 +229,7 @@ const feedbackController = {
     const rating = feedbackFHIR?.component?.[0]?.valueInteger;
 
     if (rating === undefined || rating === null) {
-      return res.status(200).json({
+       res.status(200).json({
         resourceType: "OperationOutcome",
         issue: [{
           status: 0,
@@ -308,9 +309,9 @@ const feedbackController = {
 
     if (doctorFeedback.length) {
       const fhirResponse = convertToFhir(doctorFeedback);
-      return res.status(200).json({ status: 1, data: fhirResponse });
+       res.status(200).json({ status: 1, data: fhirResponse });
     } else {
-      return res.status(200).json({
+       res.status(200).json({
         resourceType: "OperationOutcome",
         issue: [{
           status: 0,
@@ -323,7 +324,7 @@ const feedbackController = {
 
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "An error occurred while updating feedback";
-    return res.status(200).json({
+     res.status(200).json({
       resourceType: "OperationOutcome",
       issue: [{
         status: 0,
@@ -335,12 +336,12 @@ const feedbackController = {
   }
 },
 
-    handleDeleteFeedback : async (req:Request, res : Response) => {
+    deleteFeedback : async (req:Request, res : Response) : Promise<void>=> {
     try {
 
       const feedbackId = req.query.feedbackId;
       if (typeof feedbackId !== 'string' || !mongoose.Types.ObjectId.isValid(feedbackId)) {
-        return res.status(200).json({
+         res.status(200).json({
               resourceType: "OperationOutcome",
               issue: [{
                 status: 0,
@@ -353,7 +354,7 @@ const feedbackController = {
 
        const feedbackToDelete = await feedbacks.findOne({ _id: feedbackId }).lean();
         if (!feedbackToDelete) {
-          return res.status(200).json({
+           res.status(200).json({
               resourceType: "OperationOutcome",
               issue: [{
                 status: 0,
@@ -365,7 +366,7 @@ const feedbackController = {
         }
         const result = await feedbacks.deleteOne({ _id: feedbackId });
         if (result.deletedCount === 0) {
-          return res.status(200).json({
+           res.status(200).json({
               resourceType: "OperationOutcome",
               issue: [{
                 status: 0,
@@ -376,7 +377,7 @@ const feedbackController = {
             });
         }
       if(feedbackToDelete){
-      return res.status(200).json(
+       res.status(200).json(
           {
               resourceType: "OperationOutcome",
               issue: [{
@@ -392,7 +393,7 @@ const feedbackController = {
           if (error instanceof Error) {
             message = error.message;
           }
-        return res.status(200).json({
+         res.status(200).json({
               resourceType: "OperationOutcome",
               issue: [{
                 status: 0,

@@ -1,7 +1,7 @@
 
 import { Types, Document } from 'mongoose'
 
-export interface IAssessment extends Document {
+export type assessment =  Document & {
   userId: Types.ObjectId;
   hospitalId: Types.ObjectId;
   assessmentId: Types.ObjectId;

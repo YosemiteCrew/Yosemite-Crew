@@ -1,7 +1,7 @@
 import mongoose, {Schema, Model} from 'mongoose';
-import type { IBreeder } from "@yosemite-crew/types";
+import type { breeder } from "@yosemite-crew/types";
 
-const breederSchema : Schema<IBreeder> = new mongoose.Schema({
+const breederSchema : Schema<breeder> = new mongoose.Schema({
 
     userId: {
         type: Schema.Types.ObjectId,
@@ -34,5 +34,5 @@ const breederSchema : Schema<IBreeder> = new mongoose.Schema({
     }
 
 }, { timestamps: true});
-const BreederDetails : Model<IBreeder>= mongoose.model<IBreeder>('BreederDetails',breederSchema);
+const BreederDetails : Model<breeder>= mongoose.model<breeder>('BreederDetails',breederSchema);
 module.exports = BreederDetails;
