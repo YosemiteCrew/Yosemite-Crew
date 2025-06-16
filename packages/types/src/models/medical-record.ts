@@ -1,20 +1,20 @@
 import { Types, Document } from 'mongoose'
 
 
-export interface IMedicalDoc extends Document {
+export type medicalDoc = Document &{
   url?: string;
   originalname?: string;
   mimetype?: string;
 }
 
-/**
- * 2. Interface describing the raw fields of a medical record.
- */
-export interface IMedicalRecord extends Document {
-  userId: Types.ObjectId;
+
+export type medicalRecord = Document &{
+  userId: string;
   documentType?: string;
   title?: string;
   issueDate?: string;
+  hasExpiryDate?: string;
+  petId?: string;
   expiryDate?: string;
-  medicalDocs?: IMedicalDoc[];
+  medicalDocs?: medicalDoc[];
 }

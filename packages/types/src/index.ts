@@ -16,13 +16,17 @@ export type {register} from "./Register/resgisterType";
 export type {IProfileData,IWebUser} from "./HospitalProfile/hospital.profile.model";
 export type {UploadedFile} from "./files/express.files.types";
 
-export type { IContact , ContactData} from "./models/contact";
-export type { IBreeder } from "./models/breeder";
-export type { ITimeSlot, IDoctorSlot } from "./models/doctors-slotes";
-export type { feedback } from "./models/feedback";
-export type { IMedicalDoc, IMedicalRecord } from "./models/medical-record";
-export type { IAssessment } from "./models/assessment";
+export type { contact } from "./models/contact";
+export type { breeder } from "./models/breeder";
+export type { timeSlot, doctorSlot } from "./models/doctors-slotes";
+export type { feedback , feedbackData} from "./models/feedback";
+export type { medicalDoc, medicalRecord } from "./models/medical-record";
+export type { assessment } from "./models/assessment";
 export type { exercisePlanType } from "./models/exercisePlans";
 export type { exerciseType } from "./models/exerciseType";
-export type { exercises } from "./models/exercises";
+export type { exercises , queryParams} from "./models/exercises";
+export type { pets , fhirPetPatient} from "./models/pets";
+export type { diabetesRecords} from "./models/diabetesRecords";
+export type { plan } from "./models/plan";
+export type {painJournal} from "./models/painJounal";
 

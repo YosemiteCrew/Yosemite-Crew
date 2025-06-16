@@ -10,6 +10,7 @@
   "devDependencies": {
     "@types/express": "^5.0.2",
     "@types/node": "^22.15.21",
+    "@yosemite-crew/types": "workspace:^",
     "express": "4.21.2",
     "mongoose": "8.12.2",
     "typescript": "5.0.4"

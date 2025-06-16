@@ -3,7 +3,7 @@
 import { Request, Response } from 'express';
 import AssessmentService from '../services/assessmentService';
 import YoshAssessments from '../models/assessments';
-import type { IAssessment } from "@yosemite-crew/types";
+import type { assessment } from "@yosemite-crew/types";
 
 const assessmentService = new AssessmentService();
 
@@ -223,7 +223,7 @@ const  assessmentsController = {
      
                 const updateData = { "$set": { 'assessmentStatus': status } }
        
-              const updated = await YoshAssessments.findByIdAndUpdate(id, updateData, { new: true }) as IAssessment | null;
+              const updated = await YoshAssessments.findByIdAndUpdate(id, updateData, { new: true }) as assessment | null;
               
               if(updated){
                 res.status(200).json({

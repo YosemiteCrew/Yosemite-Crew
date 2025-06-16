@@ -512,6 +512,9 @@ importers:
       '@types/node':
         specifier: ^22.15.21
         version: 22.15.21
+      '@yosemite-crew/types':
+        specifier: workspace:^
+        version: link:../types
       express:
         specifier: 4.21.2
         version: 4.21.2

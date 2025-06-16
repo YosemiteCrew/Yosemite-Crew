@@ -1,6 +1,8 @@
-import mongoose from 'mongoose';
+import mongoose,  {Schema, Model} from 'mongoose';
 
-const patSchema = new mongoose.Schema({
+import type { pets } from "@yosemite-crew/types";
+
+const patSchema : Schema<pets>  = new mongoose.Schema({
 
     cognitoUserId: {
         type: String,
@@ -68,5 +70,6 @@ const patSchema = new mongoose.Schema({
 
 }, { timestamps: true});
 
-const pets = mongoose.model('pets',patSchema);
-module.exports = pets;
+const pets :Model<pets>= mongoose.model<pets>('pets',patSchema);
+
+export default pets;
