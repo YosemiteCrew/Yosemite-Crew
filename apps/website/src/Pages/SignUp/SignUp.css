@@ -153,6 +153,8 @@
 .passfield a:hover img{
     transform: scale(1.1);
 }
+
+
 .business-type-container {
     display: flex;
     flex-direction: column;
