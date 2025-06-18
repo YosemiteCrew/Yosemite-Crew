@@ -1,48 +1,59 @@
-import mongoose from 'mongoose';
+import  {  Schema, model } from 'mongoose';
+import {IBreed,IPurposeOfVisit,IAppointmentType} from "@yosemite-crew/types";
 
-const BreedsSchema = new mongoose.Schema({
-    name:{
-        type: String,
-        required:true
-    },
-    category:{
-        type: String,
-        required: true,
-        enum: ["Dog", "Cat", "Horse"]
-    }
-})
+export enum AnimalCategory {
+  Dog = 'Dog',
+  Cat = 'Cat',
+  Horse = 'Horse',
+}
+const BreedsSchema = new Schema<IBreed>({
+  name: {
+    type: String,
+    required: true,
+  },
+  category: {
+    type: String,
+    required: true,
+    enum: Object.values(AnimalCategory),
+  },
+});
 
-const Breeds = mongoose.model("Breeds", BreedsSchema)
+export const Breeds = model<IBreed>('Breeds', BreedsSchema);
+
+const PurposeOfVisitsSchema = new Schema<IPurposeOfVisit>({
+  HospitalId: {
+    type: String,
+    required: true,
+  },
+  name: {
+    type: String,
+    required: true,
+  },
+});
+
+export const PurposeOfVisits = model<IPurposeOfVisit>(
+  'PurposeOfVisits',
+  PurposeOfVisitsSchema
+);
 
 
-const PurposeOfVisitsSchema = new mongoose.Schema({
-    HospitalId:{
-        type: String,
-        required: true,
-    },
-    name:{
-        type: String,
-        required:true,
-    }
-})
+const AppointmentTypeSchema = new Schema<IAppointmentType>({
+  HospitalId: {
+    type: String,
+    required: true,
+  },
+  name: {
+    type: String,
+    required: true,
+  },
+  category: {
+    type: String,
+    required: true,
+    enum: Object.values(AnimalCategory),
+  },
+});
 
-const PurposeOfVisits =  mongoose.model("PurposeOfVisits", PurposeOfVisitsSchema)
-
-const AppointmentTypeSchema = new mongoose.Schema({
-    HospitalId:{
-        type:String,
-        required: true,
-    },
-    name:{
-        type:String,
-        required:true
-    },
-    category:{
-        type:String,
-        enum:["Dog", "Horse", "Cat",],
-        required:true
-    },
-})
-
-const AppointmentType = mongoose.model("AppointmentTypes",AppointmentTypeSchema)
-module.exports = {Breeds,PurposeOfVisits,AppointmentType}
+export const AppointmentType = model<IAppointmentType>(
+  'AppointmentTypes',
+  AppointmentTypeSchema
+);

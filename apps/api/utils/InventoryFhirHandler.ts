@@ -1,4 +1,4 @@
-class ProductCategoryFHIRConverter {
+export default class ProductCategoryFHIRConverter {
   constructor(data) {
     this.data = data;
   }
@@ -53,77 +53,9 @@ class ProductCategoryFHIRConverter {
     return text?.toLowerCase().replace(/\s+/g, "-");
   }
 
-  convertToNormalToAddInventoryData() {
-    const inventoryData = {};
-
-    this.data.entry.forEach((item) => {
-      const resource = item.resource;
-
-      // Set itemName from code.text
-      inventoryData.itemName = resource.code?.text || "";
-
-      // Loop through all extensions
-      resource.extension?.forEach((ext) => {
-        const key = ext.url.split("/").pop();
-
-        switch (key) {
-          case "bussinessid":
-            inventoryData.bussinessId = ext.valueString;
-            break;
-          case "category":
-            inventoryData.category = ext.valueString;
-            break;
-          case "barcode":
-            inventoryData.barcode = ext.valueString;
-            break;
-          case "itemname":
-            inventoryData.itemName = ext.valueString;
-            break;
-          case "genericname":
-            inventoryData.genericName = ext.valueString;
-            break;
-          case "manufacturer":
-            inventoryData.manufacturer = ext.valueString;
-            break;
-          case "itemcategory":
-            inventoryData.itemCategory = ext.valueString;
-            break;
-          case "batchnumber":
-            inventoryData.batchNumber = ext.valueString;
-            break;
-          case "sku":
-            inventoryData.sku = ext.valueString;
-            break;
-          case "strength":
-            inventoryData.strength = ext.valueString;
-            break;
-          case "quantity":
-            inventoryData.quantity = ext.valueString;
-            break;
-          case "expirydate":
-            inventoryData.expiryDate = ext.valueString;
-            break;
-          case "manufacturerprice":
-            inventoryData.manufacturerPrice = ext.valueString;
-            break;
-          case "markup":
-            inventoryData.markup = ext.valueString;
-            break;
-          case "price":
-            inventoryData.price = ext.valueString;
-            break;
-          case "stockreorderlevel":
-            inventoryData.stockReorderLevel = ext.valueString;
-            break;
-        }
-      });
-    });
-
-    return inventoryData;
-  }
 }
 
-class InventoryFHIRConverter {
+export class InventoryFHIRConverter {
   static toFHIR(item) {
     return {
       resourceType: "SupplyItem",
@@ -255,7 +187,7 @@ class InventoryFHIRConverter {
     };
   }
 }
-class InventoryBundleFHIRConverter {
+export class InventoryBundleFHIRConverter {
   static toFHIR(inventoryResponse) {
     const { totalItems, totalPages, currentPage, inventory } =
       inventoryResponse;
@@ -314,7 +246,7 @@ class InventoryBundleFHIRConverter {
 
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< ApproachingExpiryReportConverter graph>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-class ApproachingExpiryReportConverter {
+export class ApproachingExpiryReportConverter {
   /**
    * Convert your custom expiry summary to FHIR InventoryReport format
    * @param {Array} reportData - e.g., [{ category: '7 days', totalCount: 4 }]
@@ -375,7 +307,7 @@ class ApproachingExpiryReportConverter {
 //  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<    ProcedurePackage >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 // FHIR ProcedurePackageItem
-class FHIRProcedurePackageItem {
+export class FHIRProcedurePackageItem {
   constructor({ name, itemType, quantity, unitPrice, subtotal, notes, _id }) {
     this.resourceType = "SupplyDelivery";
     this.id = _id;
@@ -407,7 +339,7 @@ class FHIRProcedurePackageItem {
 }
 
 // FHIR ProcedurePackage
-class FHIRProcedurePackage {
+export class FHIRProcedurePackage {
   constructor(packageData) {
     this.resourceType = "CarePlan";
     this.id = packageData._id;
@@ -489,51 +421,7 @@ function convertProcedurePackagesToFHIRBundle(apiResponse) {
     }),
   };
 }
-
-class MedicalPackage {
-  constructor(fhirData) {
-    this.packageName = fhirData.id;
-    this.category = fhirData.category.coding[0].code; // Assuming there's only one code in the category
-    this.description = fhirData.description;
-    this.packageItems = fhirData.item.map((item) => new PackageItem(item));
-  }
-
-  // Convert back to normal format
-  toNormalFormat() {
-    return {
-      packageName: this.packageName,
-      category: this.category,
-      description: this.description,
-      packageItems: this.packageItems.map((item) => item.toNormalFormat()),
-    };
-  }
-}
-
-class PackageItem {
-  constructor(fhirItemData) {
-    this.id = fhirItemData.medicationCodeableConcept.coding[0].code; // Assuming the name in the medication code
-    this.name = fhirItemData.medicationCodeableConcept.coding[0].code; // Same for name
-    this.itemType = fhirItemData.itemType;
-    this.quantity = fhirItemData.quantity.value;
-    this.unitPrice = fhirItemData.unitPrice;
-    this.subtotal = fhirItemData.subtotal;
-    this.notes = fhirItemData.notes;
-  }
-
-  // Convert back to normal format
-  toNormalFormat() {
-    return {
-      id: this.id,
-      name: this.name,
-      itemType: this.itemType,
-      quantity: this.quantity,
-      unitPrice: this.unitPrice,
-      subtotal: this.subtotal,
-      notes: this.notes,
-    };
-  }
-}
-class ProcedurePackageFHIR {
+export class ProcedurePackageFHIR {
   constructor(fhirData) {
     this.fhirData = fhirData;
   }
@@ -564,13 +452,3 @@ class ProcedurePackageFHIR {
     };
   }
 }
-
-module.exports = {
-  ProductCategoryFHIRConverter,
-  InventoryBundleFHIRConverter,
-  InventoryFHIRConverter,
-  ApproachingExpiryReportConverter,
-  convertProcedurePackagesToFHIRBundle,
-  MedicalPackage,
-  ProcedurePackageFHIR,
-};

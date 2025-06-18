@@ -11,7 +11,7 @@ const Schema = new mongoose.Schema({
     }
 })
 
-const InventoryCategory = mongoose.model("InventoryCategory", Schema)
+export const InventoryCategory = mongoose.model("InventoryCategory", Schema)
 
 
 const manufacturerSchema = new mongoose.Schema({
@@ -25,7 +25,7 @@ const manufacturerSchema = new mongoose.Schema({
     }
 })
 
-const InventoryManufacturer = mongoose.model("InventoryManufacturer", manufacturerSchema)
+export const InventoryManufacturer = mongoose.model("InventoryManufacturer", manufacturerSchema)
 
 const ItemCategorySchema = new mongoose.Schema({
     itemCategory:{
@@ -38,7 +38,7 @@ const ItemCategorySchema = new mongoose.Schema({
     }
 })
 
-const InventoryItemCategory = mongoose.model("InventoryItemCategory", ItemCategorySchema)
+export const InventoryItemCategory = mongoose.model("InventoryItemCategory", ItemCategorySchema)
 
 const ProcedureCategorySchema = new mongoose.Schema({
     category:{
@@ -51,6 +51,4 @@ const ProcedureCategorySchema = new mongoose.Schema({
     }
 })
 
-const ProcedureCategory = mongoose.model("ProcedureCategory",ProcedureCategorySchema)
-
-module.exports = {InventoryCategory,InventoryManufacturer,InventoryItemCategory, ProcedureCategory}
+export const ProcedureCategory = mongoose.model("ProcedureCategory",ProcedureCategorySchema)

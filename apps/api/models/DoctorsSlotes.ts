@@ -19,9 +19,9 @@ const TimeSlotSchema : Schema<timeSlot> = new mongoose.Schema({
 
 const DoctorSlotSchema : Schema<doctorSlot>  = new mongoose.Schema({
   doctorId: {
-    type: Schema.Types.ObjectId,
+    type: String,
     required: true,
-    ref:"adddoctors"
+    // ref:"adddoctors"
   },
   day: {
     type: String,

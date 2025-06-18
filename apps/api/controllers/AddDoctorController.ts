@@ -178,7 +178,7 @@ const AddDoctorsController = {
       };
 
       try {
-        const emailSent = await SES.sendEmail(emailParams).promise();
+        await SES.sendEmail(emailParams).promise();
       } catch (error: any) {
         console.error("Error sending email:", error);
       }
@@ -195,6 +195,7 @@ const AddDoctorsController = {
           s3.upload(params, (err: any, data: any) => {
             if (err) {
               console.error('Error uploading to S3:', err);
+              // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
               reject(err);
             } else {
               resolve(data.Key);
@@ -284,88 +285,84 @@ const AddDoctorsController = {
     }
   },
 
-  getOverview: async (req, res) => {
-    const { subject, reportType } = req.query;
+  
+//  getOverview : async (req: Request, res: Response): Promise<Response> => {
+//   const subject = req.query.subject as string;
+//   const reportType = req.query.reportType as string;
 
-    if (!subject || !reportType) {
-      return res
-        .status(400)
-        .json({ message: "Missing required query parameters" });
-    }
-    // Extract Organization ID from `subject=Organization/12345`
-    const match = subject.match(/^Organization\/(.+)$/);
-    if (!match) {
-      return res.status(400).json({
-        resourceType: "OperationOutcome",
-        reportType: reportType,
-        issue: [
-          {
-            severity: "error",
-            code: "invalid-subject",
-            details: {
-              text: "Invalid subject format. Expected Organization/12345",
-            },
-          },
-        ],
-      });
-    }
+//   if (!subject || !reportType) {
+//     return res.status(400).json({ message: 'Missing required query parameters' });
+//   }
 
-    const organizationId = match[1];
-    // console.log('userId', organizationId);
+//   const match = subject.match(/^Organization\/(.+)$/);
+//   if (!match) {
+//     return res.status(400).json({
+//       resourceType: 'OperationOutcome',
+//       reportType,
+//       issue: [
+//         {
+//           severity: 'error',
+//           code: 'invalid-subject',
+//           details: {
+//             text: 'Invalid subject format. Expected Organization/12345',
+//           },
+//         },
+//       ],
+//     });
+//   }
 
-    try {
-      const aggregation = await AddDoctors.aggregate([
-        {
-          $match: { bussinessId: organizationId },
-        },
-        {
-          $group: {
-            _id: "$professionalBackground.specialization",
-          },
-        },
-        {
-          $count: "totalSpecializations", // Directly count distinct specializations
-        },
-      ]);
+//   const organizationId = match[1];
 
-      // Total doctors under this business
-      const totalDoctors = await AddDoctors.countDocuments({
-        bussinessId: organizationId,
-      });
+//   try {
+//     const aggregation = await AddDoctors.aggregate([
+//       {
+//         $match: { bussinessId: organizationId },
+//       },
+//       {
+//         $group: {
+//           _id: '$professionalBackground.specialization',
+//         },
+//       },
+//       {
+//         $count: 'totalSpecializations',
+//       },
+//     ]);
 
-      // Count available doctors
-      const availableDoctors = await AddDoctors.countDocuments({
-        bussinessId: organizationId,
-        isAvailable: "1",
-      });
+//     const totalDoctors = await AddDoctors.countDocuments({
+//       bussinessId: organizationId,
+//     });
 
-      const overview = {
-        totalDoctors,
-        totalSpecializations: aggregation[0]?.totalSpecializations || 0,
-        availableDoctors,
-      };
-      // console.log('Overview:', overview);
+//     const availableDoctors = await AddDoctors.countDocuments({
+//       bussinessId: organizationId,
+//       isAvailable: '1',
+//     });
 
-      const data = new FHIRConverter(overview);
-      const response = data.overviewConvertToFHIR();
-      // console.log('FHIR response:', JSON.stringify(response));
-      return res.status(200).json(JSON.stringify(response));
-    } catch (error) {
-      console.error("Error fetching overview data:", error);
-      return res.status(500).json({
-        resourceType: "OperationOutcome",
-        issue: [
-          {
-            severity: "error",
-            code: "exception",
-            details: {
-              text: error.message,
-            },
-          },
-        ],
-      });
-    }
-  },
+//     const overview = {
+//       totalDoctors,
+//       totalSpecializations: aggregation[0]?.totalSpecializations || 0,
+//       availableDoctors,
+//     };
+
+//     const converter = new FHIRConverter(overview);
+//     const response = converter.overviewConvertToFHIR();
+
+//     return res.status(200).json(response); // No need to stringify, Express handles objects
+//   } catch (error: any) {
+//     console.error('Error fetching overview data:', error);
+//     return res.status(500).json({
+//       resourceType: 'OperationOutcome',
+//       issue: [
+//         {
+//           severity: 'error',
+//           code: 'exception',
+//           details: {
+//             text: error.message,
+//           },
+//         },
+//       ],
+//     });
+//   }
+// },
   getForAppDoctorsBySpecilizationId: async (req, res) => {
     try {
       const { userId, value } = req.query.params;
@@ -465,12 +462,8 @@ const AddDoctorsController = {
       }, {});
 
       function getS3Url(fileKey) {
-        const params = {
-          Bucket: process.env.AWS_S3_BUCKET_NAME,
-          Key: fileKey,
-          Expires: 604800 //Expire In 7 Days
-        };
-        return fileKey ? s3.getSignedUrl('getObject', params) : null;
+        
+        return fileKey ? `${process.env.CLOUD_FRONT_URI}/${fileKey}`: null;
       }
       const doctorDataWithSpecializations = doctors.map((doctor) => {
         const specializationId = doctor.professionalBackground?.specialization;

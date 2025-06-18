@@ -1,52 +1,48 @@
-import mongoose from 'mongoose';
+import { Schema, model } from 'mongoose';
+import type { InventoryType,ProcedurePackageType } from '@yosemite-crew/types';
 
-const inventorySchema = new mongoose.Schema(
+const InventorySchema = new Schema<InventoryType>(
   {
     bussinessId: { type: String, required: true },
-    category: { type: String, required: true }, // Select Category
-    barcode: { type: String, unique: true }, // Bar Code
-    itemName: { type: String, required: true }, // Item Name
-    genericName: { type: String }, // Generic Name
-    manufacturer: { type: String, required: true }, // Manufacturer
-    itemCategory: { type: String, required: true }, // Item Category (Tablet, Syrup, etc.)
-    batchNumber: { type: String, unique: true }, // Batch Number
-    sku: { type: String, unique: true }, // SKU
-    strength: { type: String }, // Strength (e.g., 500mg)
-    quantity: { type: Number, required: true, min: 0 }, // Quantity
-    manufacturerPrice: { type: Number, required: true }, // Manufacturer Price
-    markup: { type: Number, required: true }, // % Markup
-    price: { type: Number, required: true }, // Final Price
-    stockReorderLevel: { type: Number, required: true }, // Stock Reorder Level
-    expiryDate: { type: String, required: true }, // Expiry Date
+    category: { type: String, required: true },
+    barcode: { type: String, unique: true },
+    itemName: { type: String, required: true },
+    genericName: String,
+    manufacturer: { type: String, required: true },
+    itemCategory: { type: String, required: true },
+    batchNumber: { type: String, unique: true },
+    sku: { type: String, unique: true },
+    strength: String,
+    quantity: { type: Number, required: true },
+    manufacturerPrice: { type: Number, required: true },
+    markup: { type: Number, required: true },
+    price: { type: Number, required: true },
+    stockReorderLevel: { type: Number, required: true },
+    expiryDate: { type: String, required: true },
   },
   { timestamps: true }
 );
 
-const Inventory =  mongoose.model('Inventory', inventorySchema);
+export const Inventory = model<InventoryType>('Inventory', InventorySchema);
 
-const ProcedurePackageSchema = new mongoose.Schema(
+const ProcedurePackageSchema = new Schema<ProcedurePackageType>(
   {
     bussinessId: { type: String, required: true },
     packageName: { type: String, required: true },
     category: { type: String, required: true },
-    description: { type: String },
+    description: String,
     packageItems: [
       {
         name: { type: String, required: true },
         itemType: { type: String, required: true },
-        quantity: { type: Number, required: true, min: 1 },
-        unitPrice: { type: Number, required: true, min: 0 },
-        subtotal: { type: Number, required: true, min: 0 },
-        notes: { type: String },
+        quantity: { type: Number, required: true },
+        unitPrice: { type: Number, required: true },
+        subtotal: { type: Number, required: true },
+        notes: String,
       },
     ],
   },
   { timestamps: true }
 );
 
-const ProcedurePackage = mongoose.model(
-  'ProcedurePackage',
-  ProcedurePackageSchema
-);
-
-module.exports = { Inventory, ProcedurePackage };
+export const ProcedurePackage = model<ProcedurePackageType>('ProcedurePackage', ProcedurePackageSchema);
