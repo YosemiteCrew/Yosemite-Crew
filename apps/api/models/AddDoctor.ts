@@ -1,53 +1,42 @@
-import mongoose from 'mongoose';
+import mongoose, { Schema, Model } from 'mongoose';
+import {AddDoctorDoc} from "@yosemite-crew/types";
 
-const vetSchema = new mongoose.Schema(
+const vetSchema: Schema<AddDoctorDoc> = new Schema(
   {
-    userId: {
-      type: String,
-      required: true,
-    },
-    bussinessId: {
-      type: String,
-      required: true,
-    },
+    userId: { type: String, required: true },
+    bussinessId: { type: String, required: true },
     personalInfo: {
-      image: { type: String },
-      firstName: { type: String },
-      lastName: { type: String },
-      gender: {
-        type: String,
-        enum: ['male', 'female', 'other'],
-      },
-      dateOfBirth: { type: String },
-      email: { type: String },
-      countrycode: {
-        type: String,
-      },
+      image: String,
+      firstName: String,
+      lastName: String,
+      gender: String,
+      dateOfBirth: String,
+      email: String,
+      countrycode: String,
       phone: {
         type: String,
-
         match:
           /^\+?[0-9]{1,4}?[-.\\\s]?(\([0-9]{1,3}\)|[0-9]{1,4})?[-.\\\s]?[0-9]{1,4}[-.\\\s]?[0-9]{1,9}$/,
       },
     },
     residentialAddress: {
-      addressLine1: { type: String },
-      city: { type: String },
-      stateProvince: { type: String },
-      country: { type: String },
-      zipCode: { type: String },
+      addressLine1: String,
+      city: String,
+      stateProvince: String,
+      country: String,
+      zipCode: String,
     },
     professionalBackground: {
       specialization: {
         type: String,
         ref: 'Department',
       },
-      qualification: { type: String },
-      medicalLicenseNumber: { type: String },
-      yearsOfExperience: { type: Number },
-      languagesSpoken: { type: String },
-      biography: { type: String, required: false },
-      image: { type: String },
+      qualification: String,
+      medicalLicenseNumber: String,
+      yearsOfExperience: Number,
+      languagesSpoken: String,
+      biography: String,
+      image: String,
     },
     availability: [
       {
@@ -58,28 +47,14 @@ const vetSchema = new mongoose.Schema(
         times: [
           {
             from: {
-              hour: {
-                type: String,
-              },
-              minute: {
-                type: String,
-              },
-              period: {
-                type: String,
-                enum: ['AM', 'PM'],
-              },
+              hour: String,
+              minute: String,
+              period: { type: String, enum: ['AM', 'PM'] },
             },
             to: {
-              hour: {
-                type: String,
-              },
-              minute: {
-                type: String,
-              },
-              period: {
-                type: String,
-                enum: ['AM', 'PM'],
-              },
+              hour: String,
+              minute: String,
+              period: { type: String, enum: ['AM', 'PM'] },
             },
           },
         ],
@@ -93,16 +68,14 @@ const vetSchema = new mongoose.Schema(
           date: { type: Date, default: Date.now },
         },
       ],
-      default: [], // Ensures an empty array if no documents are provided
+      default: [],
     },
     cvFile: {
       name: { type: String, required: true },
       type: { type: String, required: true },
       date: { type: Date, default: Date.now },
     },
-    timeDuration: {
-      type: Number,
-    },
+    timeDuration: Number,
     activeModes: {
       type: [String],
       enum: ['In-person', 'Online', 'Both'],
@@ -111,21 +84,18 @@ const vetSchema = new mongoose.Schema(
       type: String,
       default: '0',
     },
-    consultFee: { type: Number },
-    DoctorPrescriptions: {
-      type: String,
-    },
+    consultFee: Number,
+    DoctorPrescriptions: String,
     authSettings: {
-      takeAssessments: { type: Boolean },
-      // allowVideoCalls: { type: Boolean,  },
-      appointments: { type: Boolean },
-      viewMedicalRecords: { type: Boolean },
-      prescribeMedications: { type: Boolean },
+      takeAssessments: Boolean,
+      appointments: Boolean,
+      viewMedicalRecords: Boolean,
+      prescribeMedications: Boolean,
     },
-    termsAndConditions: { type: Boolean },
+    termsAndConditions: Boolean,
   },
   { timestamps: true }
 );
 
-const AddDoctors = mongoose.model('AddDoctors', vetSchema);
-module.exports = AddDoctors;
+const AddDoctors: Model<AddDoctorDoc> = mongoose.model<AddDoctorDoc>('AddDoctors', vetSchema);
+export default AddDoctors;

@@ -51,7 +51,7 @@ class InventoryFHIRParser {
   }
 
   _slugify(text) {
-    return text.toLowerCase().replace(/\s+/g, "-");
+    return text.replace(/\s+/g, "-");
   }
 
   toFHIRBundle() {
@@ -256,57 +256,71 @@ class PackageItemFHIR {
   }
 }
 //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< FHIR ProcedurePackageItem For Update>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-class ProcedurePackageFHIR {
-  constructor(data) {
-    this.data = data;
-  }
+export function convertProcedurePackageToFHIR(data) {
+  console.log("kkkkkkkkkkkkkk",data);
 
-  toFHIR() {
-    const { id, packageName, description, packageItems } = this.data;
+  const { id, packageName, description, category, packageItems } = data;
 
-    return {
-      resourceType: "ChargeItemDefinition",
-      id,
-      status: "active",
-      title: packageName,
-      description,
-      code: {
-        coding: [
-          {
-            system: "http://example.org/procedure-packages",
-            code: id,
-            display: packageName
-          }
-        ]
-      },
-      propertyGroup: [
+  return {
+    resourceType: "ChargeItemDefinition",
+    id: id,
+    status: "active",
+    title: packageName,
+    description,
+    code: {
+      coding: [
         {
-          applicability: [
+          system: "http://example.org/procedure-packages",
+          code: id,
+          display: packageName,
+        },
+      ],
+    },
+    extension: [
+      {
+        url: "http://example.org/fhir/StructureDefinition/procedure-category-id",
+        valueString: category,
+      },
+    ],
+    propertyGroup: [
+      {
+        applicability: [
+          {
+            description: "Applicable to veterinary surgical procedures",
+          },
+        ],
+        priceComponent: packageItems.map((item) => ({
+          type: "base",
+          code: { text: `${item.name} - ${item.itemType}` },
+          factor: item.quantity,
+          amount: {
+            value: item.unitPrice,
+            currency: "INR",
+          },
+          extension: [
             {
-              description: "Applicable to veterinary surgical procedures"
-            }
-          ],
-          priceComponent: packageItems.map(item => ({
-            type: "base",
-            code: { text: `${item.name} - ${item.itemType}` },
-            factor: item.quantity,
-            amount: {
-              value: item.unitPrice,
-              currency: "INR"
+              url: "http://example.org/fhir/StructureDefinition/package-item-id",
+              valueString: item._id,
             },
-            extension: [
-              {
-                url: "http://example.org/fhir/StructureDefinition/package-item-notes",
-                valueString: item.notes
-              }
-            ]
-          }))
-        }
-      ]
-    };
-  }
-}
+            {
+              url: "http://example.org/fhir/StructureDefinition/package-item-subtotal",
+              valueDecimal: item.subtotal,
+            },
+            ...(item.notes
+              ? [
+                  {
+                    url: "http://example.org/fhir/StructureDefinition/package-item-notes",
+                    valueString: item.notes,
+                  },
+                ]
+              : []),
+          ],
+        })),
+      },
+    ],
+  };
 
+}
 
 export {
   InventoryFHIRParser,
@@ -314,5 +328,5 @@ export {
   ApproachingExpiryReportConverter,
   convertFHIRBundleToNormalFormat,
   MedicalPackageFHIR,
-  ProcedurePackageFHIR
+
 };

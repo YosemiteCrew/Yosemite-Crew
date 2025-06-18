@@ -10,9 +10,7 @@ export const AuthProvider = ({ children }) => {
   const [userType, setUserType] = useState(null);
   const [profileData, setProfileData] = useState(null);
   const [doctorProfile, setDoctorProfile] = useState(null);
- 
-console.log("doctorprofile",profileData);
-// console.log("userType",userType);
+
   const initializeUser = useCallback(async () => {
     const token = sessionStorage.getItem('token');
 
