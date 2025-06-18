@@ -1,0 +1,282 @@
+@font-face {
+  font-family: 'ClashGrotesk-Variable';
+  src: url('/font/ClashGrotesk-Variable.ttf') format('truetype');
+  font-weight: 200 700;
+  font-display: swap;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Satoshi-Variable';
+  src: url('/font/Satoshi-Variable.ttf') format('truetype');
+  src: url('/font/Satoshi-VariableItalic.ttf') format('truetype');
+  font-weight: 300 900;
+  font-display: swap;
+  font-style: normal;
+}
+
+* {
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+  scroll-behavior: smooth;
+}
+:root {
+
+  --black-text: #302F2E;
+  --black-bg: #302F2E;
+  --darkblackbg:#141413;
+  --purple-text: #37223C;
+  --pureblack: #000000;
+  --black-grey: #747473;
+  --black-grey-Text: #747473;
+  --black-grey1: #302F2E;
+  --blue-text: #247AED;
+  --light-blue: #E9F2FD;
+  --white-text: #FFFFFF;
+  --whitebg: #FFFFFF;
+  --greyborder: #A09F9F;
+  --greybg: #A09F9F;
+  --lightgrey:#EAEAEA;
+  --greytext:#BFBFBE;
+  --lightwhiteText:#EAEAEA;
+  
+  --popupbg:#EAEAEA;
+  --lightblue:#EAF3FF;
+  --skytext:#428BEC;
+  
+  --pinkborder:#37223CB2;
+  --profileborder:#5D412F26;
+  --warnggrdt: linear-gradient(0deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.7)), linear-gradient(0deg, #F68523, #F68523);
+  --greenbg:#B0DCCD;
+  --error-color:#EE5F54;
+  --errorbg:#FDEBEA;
+  --notibg:#595958;
+  --avilblebg:#8AC1B133;
+  --avilbleText:#8AC1B1;
+  --offdutybg:#302F2E26;
+  --counslingbg:#D0412226;
+  --counslingtext:#D04122;
+  --orange:#FF9500;
+  --red:#FF3B30;
+  --ddd:linear-gradient(180deg, rgba(191, 191, 190, 0.35) 0%, rgba(191, 191, 190, 0) 100%)
+  
+
+
+
+
+
+
+
+
+/* old */
+  --grotesk-font: 'ClashGrotesk-Variable';
+  --satoshi-font: 'Satoshi-Variable';
+  --mainBg: #FEF8F4;
+  --homebg: #fff2e3;
+  --fawncolor:#FDBD74;
+  --whitecolor: #FFFFFF;
+  --whitetcolor80: #FFFFFFCC;
+  --fawanGradient:linear-gradient(139.66deg, rgba(253, 189, 116, 0.21) 18.09%, rgba(253, 189, 116, 0.07) 86.04%);
+  --chilli-red: #D04122;
+  
+  --bluecolor:#37223C;
+  --purple: #8e88d2;
+  --lightgreen: #8ac1b1;
+  --frowndark: #d09b5e;
+  --green: #60b257;
+  --greenlight: #97c254;
+  --yellow: #e3ca57;
+  --orange: #f1963f;
+  --red: #eb3223;
+  --footbg: #e8e8d9;
+}
+html,
+body {
+  width: 100%;
+  height: 100%;
+}
+body {
+  background-color: var(--whitebg) !important;
+}
+a{
+  text-decoration: none !important;
+}
+p{
+  font-family: var(--satoshi-font);
+}
+.form-control:focus {
+  border-color: var(--black-text) !important ;
+  box-shadow: none !important;
+}
+
+.BlackButton{
+  background: var(--black-text) !important;
+  padding: 16px 32px !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-radius: 28px !important;
+  min-height: 60px;
+  width: 100%;
+  border: 1px solid var(--black-text) !important;
+  color: var(--white-text) !important;
+  font-weight: 500 !important;
+  font-size: 23px !important;
+  line-height: 120% !important;
+}
+.BlackButton:hover{
+  background:transparent !important;
+  color: var(--black-text) !important;
+  border: 1px solid var(--black-text) !important;
+}
+.BlackButton svg{
+ font-size: 24px;
+}
+
+
+input[type=checkbox] {
+  width: 21px;
+  height: 21px;
+  -moz-appearance: none;
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: 5px;
+  border: 1.2px solid var(--black-text) !important;
+  background-color: transparent;
+  cursor: pointer;
+  position: relative
+}
+
+input[type=checkbox]:checked {
+  background-color: var(--black-text);
+}
+.form-check-input:focus {
+    box-shadow: none !important;
+}
+/* Chrome, Safari, Edge, Opera */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox */
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
+/* serchbar style  */
+.Searchbar {
+  width: 100%;
+  max-width: 300px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--pinkborder);
+  padding: 2px 12px;
+  border-radius: 36px;
+  height: 48px;
+}
+.Searchbar input {
+  background-color: transparent;
+  border: none;
+}
+.Searchbar button {
+  background: transparent !important;
+  border: none;
+}
+.Searchbar button svg {
+  color: var(--black-text);
+  font-size: 20px;
+}
+/* serchbar style  */
+
+.Headingtext h3{
+  font-family: var( --grotesk-font);
+  font-size: 33px;
+  font-weight: 500;
+  line-height: 120%;
+  letter-spacing: -0.02em;
+  color: var(--black-text);
+  margin: 0;
+}
+.Headingtext h3 span{
+  color: var(--black-grey);
+}
+
+/* .Profile Tabs Started  */
+
+.Add_Profile_Data {
+  display: grid;
+  grid-template-columns: 68% 30%;
+  grid-gap: 22px;
+}
+.AddVetTabDiv .VetPills {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 839px;
+  margin: 30px 0px;
+  grid-gap: 50px;
+}
+.AddVetTabDiv .VetPills .nav-item{
+  position: relative;
+}
+.AddVetTabDiv .VetPills .nav-item::after{
+  position: absolute;
+  content: " ";
+  background: var(--black-bg);
+  width: 50px;
+  height: 3px;
+  top: 50%;
+  right: -100px;
+}
+.AddVetTabDiv .VetPills .nav-item:last-child:after{
+  display: none;
+}
+.AddVetTabDiv .VetPills .nav-item a{
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  grid-gap: 8px;
+  color: var(--black-grey);
+  font-family: var(--grotesk-font);
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 100%;
+  padding: 0px;
+}
+.AddVetTabDiv .VetPills .nav-item a span{
+  display: flex;
+  align-items: center;
+  background: var(--greyborder) !important;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+.AddVetTabDiv .VetPills .nav-item a span svg{
+  font-size: 20px;
+  color: var(--white-text);
+}
+.AddVetTabDiv .VetPills .nav-item a.active{
+  color: var( --black-text);
+  background: transparent;
+}
+.AddVetTabDiv .VetPills .nav-item a.active span{
+  background: var(--black-bg) !important;
+}
+
+
+.Add_Profile_Data .LeftProfileDiv{
+  border: 1px solid var(--profileborder);
+  padding: 40px;
+  border-radius: 28px;
+  /* box-shadow: 0px 0px 30px 0px #4738271A; */
+}
+/* .Profile Tabs Ended */
+
+
+
