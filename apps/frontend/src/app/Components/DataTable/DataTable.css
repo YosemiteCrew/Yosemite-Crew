@@ -1,0 +1,150 @@
+.table-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.table-footerBtn{
+  display: flex;
+  justify-content: center;
+}
+.table-footerBtn button{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 1.5px solid var(--black-bg);
+  border-radius: 24px;
+  background: transparent;
+  color: var(--black-text);
+  padding: 14px 24px;
+  min-height: 48px;
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 120% !important;
+  font-family: var(--grotesk-font);
+  cursor: pointer;
+  letter-spacing: 1.1px;
+}
+.table-footerBtn button:hover{
+  background: var(--black-bg);
+  color: var(--white-text);
+}
+
+/* ScheduleTable Started  */
+
+.PetImg{
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center;
+  border: 0.67px solid var(--blue-text);
+}
+.userinfo{
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 60%;
+  color: var(--black-text);
+  font-size: 13px;
+  font-weight: 700;
+  font-family: var(--satoshi-font);
+}
+.userinfo span svg{
+  font-size: 13px;
+}
+.ActionEyes{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--lightgrey);
+  border: none !important;
+}
+.ActionEyes svg{
+  font-size: 24px;
+  color: var(--notibg);
+}
+.ActionEyes:hover{
+  background: var(--black-grey1);
+}
+.ActionEyes:hover svg{
+  color: var(--whitebg);
+}
+
+/* ScheduleTable Ended  */
+
+
+
+/* PracticeTeam Table Started  */
+
+.ptt-status {
+  display: inline-block;
+  padding: 8px;
+  border-radius: 8px;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  font-family: var(--satoshi-font);
+  min-width: 80px;
+  text-align: center;
+}
+.ptt-status-available {
+  background: var(--avilblebg) !important;
+  color: var(--avilbleText) !important;
+}
+.ptt-status-off-duty {
+  background: var(--offdutybg) !important;
+  color: var(--black-text) !important;
+}
+.ptt-status-consulting {
+  background: var(--counslingbg) !important;
+  color: var(--counslingtext) !important;
+}
+
+/* PracticeTeam Table Endead  */
+
+
+
+/* Inventry Table Started  */
+
+.inv-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.inv-status-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  opacity: 100% !important;
+}
+.inv-status-dot.in-stock {
+  background: var(--orange);
+}
+.inv-status-dot.low-stock {
+  background: var(--red);
+}
+
+/* Inventry Table Ended  */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

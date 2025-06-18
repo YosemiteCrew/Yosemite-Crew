@@ -103,15 +103,45 @@ importers:
 
   apps/frontend:
     dependencies:
+      aos:
+        specifier: ^2.3.4
+        version: 2.3.4
+      bootstrap:
+        specifier: ^5.3.3
+        version: 5.3.3(@popperjs/core@2.11.8)
+      glightbox:
+        specifier: ^3.3.1
+        version: 3.3.1
       next:
         specifier: 15.3.3
         version: 15.3.3(react-dom@19.1.0)(react@19.1.0)
       react:
         specifier: ^19.0.0
         version: 19.1.0
+      react-bootstrap:
+        specifier: ^2.10.9
+        version: 2.10.9(@types/react@19.0.12)(react-dom@19.1.0)(react@19.1.0)
+      react-chartjs-2:
+        specifier: ^5.3.0
+        version: 5.3.0(chart.js@4.4.8)(react@19.1.0)
       react-dom:
         specifier: ^19.0.0
         version: 19.1.0(react@19.1.0)
+      react-icons:
+        specifier: ^5.5.0
+        version: 5.5.0(react@19.1.0)
+      react-slick:
+        specifier: ^0.30.3
+        version: 0.30.3(react-dom@19.1.0)(react@19.1.0)
+      recharts:
+        specifier: ^2.15.1
+        version: 2.15.1(react-dom@19.1.0)(react@19.1.0)
+      slick-carousel:
+        specifier: ^1.8.1
+        version: 1.8.1(jquery@3.7.1)
+      sweetalert2:
+        specifier: ^11.4.8
+        version: 11.4.8
     devDependencies:
       '@eslint/eslintrc':
         specifier: ^3
@@ -5870,6 +5900,14 @@ packages:
       normalize-path: 3.0.0
       picomatch: 2.3.1
 
+  /aos@2.3.4:
+    resolution: {integrity: sha512-zh/ahtR2yME4I51z8IttIt4lC1Nw0ktsFtmeDzID1m9naJnWXhCoARaCgNOGXb5CLy3zm+wqmRAEgMYB5E2HUw==}
+    dependencies:
+      classlist-polyfill: 1.2.0
+      lodash.debounce: 4.0.8
+      lodash.throttle: 4.1.1
+    dev: false
+
   /appdirsjs@1.2.7:
     resolution: {integrity: sha512-Quji6+8kLBC3NnBeo14nPDq0+2jUs5s3/xEye+udFHumHhRk4M7aAMXp/PBJqkKYGuuyR9M/6Dq7d2AViiGmhw==}
 
@@ -6459,6 +6497,10 @@ packages:
   /cjs-module-lexer@1.4.3:
     resolution: {integrity: sha512-9z8TZaGM1pfswYeXrUpzPrkx8UnWYdhJclsiYMm6x/w5+nN+8Tf/LnAgfLGQCm59qAOxU8WwHEq2vNwF6i4j+Q==}
     dev: true
+
+  /classlist-polyfill@1.2.0:
+    resolution: {integrity: sha512-GzIjNdcEtH4ieA2S8NmrSxv7DfEV5fmixQeyTmqmRmRJPGpRBaSnA2a0VrCjyT8iW8JjEdMbKzDotAJf+ajgaQ==}
+    dev: false
 
   /classnames@2.5.1:
     resolution: {integrity: sha512-saHYOzhIQs6wy2sVxTM6bUDsQO4F50V9RQ22qBpEdCW+I+/Wmke2HOl6lS6dTpdxVhb88/I6+Hs+438c3lfUow==}
