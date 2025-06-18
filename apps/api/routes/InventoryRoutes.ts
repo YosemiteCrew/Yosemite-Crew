@@ -1,6 +1,6 @@
 import express from 'express';
-const InventoryControllers = require('../controllers/InventoryController');
-const { verifyTokenAndRefresh } = require('../middlewares/authMiddleware');
+import InventoryControllers from '../controllers/InventoryController';
+import { verifyTokenAndRefresh } from '../middlewares/authMiddleware';
 const router = express.Router();
 
 router.post('/addInventory',verifyTokenAndRefresh, InventoryControllers.AddInventory);
@@ -20,4 +20,4 @@ router.delete(
 router.delete('/ProcedurePackage/:id',verifyTokenAndRefresh, InventoryControllers.deleteProcedurePackage);
 router.get('/getApproachngExpiryGraphs',verifyTokenAndRefresh,InventoryControllers.getApproachngExpiryGraphs)
 router.get('/InventoryReports',verifyTokenAndRefresh,InventoryControllers.inventoryOverView)
-module.exports = router;
+export default router;

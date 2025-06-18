@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@types/uuid": "^10.0.0",
+    "@yosemite-crew/types": "workspace:^",
     "aws-sdk": "2.1692.0"
   }
 }

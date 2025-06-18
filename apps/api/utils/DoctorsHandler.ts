@@ -155,58 +155,6 @@ overviewConvertToFHIR() {
   return bundle;
 }
 
-// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<inventory overview >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-InventoryOverviewConvertToFHIR() {
-  const bundle = {
-    resourceType: "Bundle",
-    type: "collection",
-    entry: []
-  };
-
-  const overviewData = [
-    { key: "totalQuantity", resourceType:"Observation" },
-    { key: "totalValue", resourceType: "Observation" },
-    { key: "lowStockCount", resourceType:"Observation" },
-    { key: "outOfStockCount", resourceType: "Observation" }
-  ];
-
-  overviewData.forEach(({ key }) => {
-    const value = this.overview[key];
-    if (value === undefined || value === null) return;
-
-    const formattedKey = key.replace(/([A-Z])/g, " $1").trim();
-
-    const resource = {
-      resourceType: "Observation",
-      id: key,
-      status: "final",
-      code: {
-        coding: [
-          {
-            system: "http://example.org/fhir/inventory-metrics",
-            code: key,
-            display: formattedKey
-          }
-        ],
-        text: formattedKey
-      },
-      valueQuantity: {
-        value: value,
-        unit: "count"
-      },
-      text: {
-        status: "generated",
-        div: `<div>${formattedKey}: ${value}</div>`
-      }
-    };
-
-    bundle.entry.push({ resource });
-  });
-
-  return bundle; // 🔥 this line is the missing piece
-}
-
-
 
   // Convert backend FHIR format to frontend normal object
   static toNormal(fhirResource) {
@@ -432,4 +380,4 @@ convertDate(dateString) {
 
 
 
-module.exports= FHIRConverter;
+export default FHIRConverter;
