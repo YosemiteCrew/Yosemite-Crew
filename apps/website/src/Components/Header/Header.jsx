@@ -2,8 +2,7 @@
 import React, {useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom'; 
 import "./Header.css"
-// import Logo from "../../../../public/Images/Logo.png"
-// import pfpic from "../../../../public/Images/pft.png"
+
 
 const Header = () => {
   
