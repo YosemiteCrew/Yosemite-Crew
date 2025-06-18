@@ -1,19 +1,15 @@
-const { ResourceGroups } = require("aws-sdk");
-const { validateFHIR } = require("../Fhirvalidator/FhirValidator");
-const {
+import {
   InventoryCategory,
   InventoryManufacturer,
   InventoryItemCategory,
   ProcedureCategory,
-} = require("../models/AddInventoryCotegory");
-const {
+} from "../models/AddInventoryCotegory";
+import {
   Breeds,
   PurposeOfVisits,
   AppointmentType,
-} = require("../models/AppointmentOption");
-const {
-  ProductCategoryFHIRConverter,
-} = require("../utils/InventoryFhirHandler");
+} from "../models/AppointmentOption";
+import ProductCategoryFHIRConverter from "../utils/InventoryFhirHandler";
 const { PurposeOfVisitFHIRConverter } = require("../utils/AdminFhirHandler");
 
 const AdminController = {
@@ -423,7 +419,7 @@ const AdminController = {
           ],
         });
       }
-
+      console.log("hello", bussinessId);
       // Check if bussinessId format is valid UUID
       if (
         typeof bussinessId !== "string" ||
@@ -444,10 +440,17 @@ const AdminController = {
       }
 
       const getItems = await ProcedureCategory.find({ bussinessId });
+      
+
+
+
       if (getItems) {
         const data = new ProductCategoryFHIRConverter(getItems).toFHIRBundle();
+          console.log("mil gaya data", data);
         return res.status(200).json({ data });
+      
       }
+
     } catch (error) {
       return res.status(500).json({
         resourceType: "OperationOutcome",
@@ -710,6 +713,9 @@ const AdminController = {
   // <<<<<<<<<<<<<<<<<<<<Get Api>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
   PurposeOfVisitList: async (req, res) => {
+
+
+
     try {
       const { HospitalId } = req.query;
       if (!HospitalId) {
@@ -726,7 +732,7 @@ const AdminController = {
           ],
         });
       }
-  
+
       if (
         typeof HospitalId !== "string" ||
         !/^[a-fA-F0-9-]{36}$/.test(HospitalId)
@@ -744,10 +750,11 @@ const AdminController = {
           ],
         });
       }
-  
-      const response = await PurposeOfVisits.find({ HospitalId:HospitalId });
+
+      const response = await PurposeOfVisits.find({ HospitalId: HospitalId });
+
       if (!response) {
-       return res.status(200).json({
+        return res.status(200).json({
           resourceType: "OperationOutcome",
           issue: [
             {
