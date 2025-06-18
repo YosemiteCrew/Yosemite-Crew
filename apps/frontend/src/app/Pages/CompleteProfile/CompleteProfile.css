@@ -1,0 +1,230 @@
+.CompltProfileSec {
+    padding: 80px 0px;
+}
+.Add_Profile_Data .LeftProfileDiv .ComplteBusiness{
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+.Add_Profile_Data .LeftProfileDiv .ComplteBusiness .BusinessInptData{
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+.ComptBtn{
+    display: flex;
+    align-items: center;
+    justify-content: end;
+}
+.ComptBtn.twbtn{
+    justify-content: space-between;
+}
+.ComptBtn button , .ComptBtn button.Hov{
+    background: var(--black-bg);
+    color: var(--white-text) !important;
+    padding: 16px 32px;
+    border-radius: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 160px;
+    border: 1px solid var(--pureblack) !important;
+    font-family: var(--grotesk-font);
+    font-weight: 500;
+    font-size: 23px;
+    line-height: 120%;
+}
+.ComptBtn button.Hov{
+    background: transparent;
+    color: var(--black-text) !important;
+}
+.ComptBtn button:hover{
+    background: transparent;
+    color: var(--black-text) !important;
+}
+.ComptBtn button.Hov:hover{
+    background: var(--black-bg);
+    color: var(--white-text) !important;
+}
+.Add_Profile_Data .LeftProfileDiv .CompltAddress {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+}
+.Add_Profile_Data .LeftProfileDiv .CompltAddress .AdrsDiv{
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.Add_Profile_Data .LeftProfileDiv .CompltAddress .AdrsDiv h5{
+    font-size: 23px;
+    font-weight: 500;
+    line-height: 120%;
+    margin: 0;
+    color: var(--black-text);
+}
+.Add_Profile_Data .LeftProfileDiv .CompltAddress .AdrsDiv .adrinpt{
+   display: flex;
+   flex-direction: column;
+   gap: 24px;
+}
+
+
+.Add_Profile_Data .LeftProfileDiv .ServiceData{
+   display: flex;
+   flex-direction: column;
+   gap: 32px;
+}
+
+
+
+
+/* Services Dropdown Started  */
+
+
+.services_dropdown {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+.ServHeadr{
+    width: 100% !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    height: 100%;
+    padding: 10px 24px;
+    border-radius: 36px;
+    min-height: 55px;
+    border: 1px solid #37223CB2;
+}
+.ServHeadr span{
+    color: var(--black-text);
+    font-size: 18px;
+    font-weight: 400;
+    line-height: 21.6px;
+    letter-spacing: -0.02em;
+    font-family: var(--satoshi-font);
+}
+.ServHeadr.open {
+    border: 1px solid var(--black-text);
+}
+.ServHeadr.open .arrow {
+    color: var(--chilli-red);
+}
+.ServDropcontent {
+    border-radius: 36px;
+    background: #FFFFFF;
+    box-shadow: 0px 0px 16px 0px #0000000F;
+}
+.ServDropcontent .serchbtn{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 50px;
+    border-bottom: 1px solid var(--black-text);
+    padding: 0px 20px;
+}
+.ServDropcontent .serchbtn i{
+    color: var(--chilli-red);
+    font-size: 20px;
+}
+.ServDropcontent .search-input {
+    width: 100%;
+    height: 100%;
+    margin-bottom: 10px;
+    border: none;
+    outline: none;
+    margin: 0;
+}
+.ServDropcontent .services-list {
+    padding: 20px 0px;
+    list-style: none;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.ServDropcontent .service-item label{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0px 20px;
+    height: 42px;
+}
+.ServDropcontent .service-item label p{
+    margin: 0;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 21.6px;
+    letter-spacing: -0.02em;
+}
+
+.ServDropcontent .service-item.selected {
+    background: #FFECE8;
+}
+.ServDropcontent .service-item.selected label p {
+    font-weight: 700;
+}
+
+/* Services  */
+
+/* ConsultationModeDiv */
+.DepartDiv {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.DepartDiv p {
+    color: var(--black-text);
+    font-weight: 700 ;
+    font-size: 18px;
+    line-height: 120%;
+    margin: 0;
+}
+.ConsultationModeDiv {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.ConsultationModeDiv p {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 21.6px;
+  letter-spacing: -0.02em;
+  color: var(--black-text);
+  margin: 0;
+}
+.ConstModeUl ul {
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin: 0;
+}
+.ConstModeUl ul li {
+  border: 0.5px solid #312943;
+  border-radius: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--satoshi-font);
+  height: 48px;
+  width: 111px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 19.2px;
+  letter-spacing: -0.02em;
+  color: #37223c;
+}
+.ConstModeUl ul li.active {
+  border: 1px solid var(--blue-text);
+  background: var( --light-blue);
+  color: var(--blue-text);
+  font-weight: 700;
+}
+
+/* ConsultationModeDiv */

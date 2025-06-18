@@ -1,0 +1,173 @@
+.PracticeTeamSec{
+    padding: 80px 0px;
+}
+.PracticeTeamData{
+    display: grid;
+    grid-template-columns: 68% 30%;
+    grid-gap: 2%;
+}
+
+
+
+
+.PracticeTeamData .InviteContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.PracticeTeamData .InviteContainer .InviteHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.PracticeTeamData .InviteContainer .InviteHeader h4 {
+  font-size: 33px;
+  font-weight: 500;
+  color: var(--black-text);
+  line-height: 120%;
+  font-family: var(--grotesk-font);
+  margin: 0;
+}
+.PracticeTeamData .InviteContainer .InviteHeader h4 span {
+  color: var(--black-grey);
+}
+.PracticeTeamData .InviteContainer .InviteHeader button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 24px;
+  border: 1.5px solid var(--black-bg);
+  border-radius: 28px;
+  background: transparent !important;
+  color: var(--black-text);
+  font-size: 19px;
+  line-height: 120%;
+  font-weight: 500;
+}
+.PracticeTeamData .InviteContainer .InviteHeader button:hover {
+  background: var(--black-bg) !important;
+  color: var(--white-text);
+}
+.PracticeTeamData .InviteContainer .InviteCard {
+    border: 1px solid var(--profileborder);
+    padding: 40px;
+    border-radius: 28px;
+    background: var(--whitebg);
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+}
+.PracticeTeamData .InviteContainer .InviteCard .TopTabs , .InviteCard .TopTabs .tab-content form{
+   display: flex;
+   flex-direction: column;
+   gap: 24px;
+}
+.PracticeTeamData .InviteContainer .InviteCard .TopTabs p{
+    margin: 0;
+    color: var(--purple-text);
+    font-weight: 700;
+    font-size: 15px;
+    line-height: 120%;
+}
+.PracticeTeamData .InviteContainer .InviteCard .TopTabs .InviteTabs{
+    gap: 8px;
+    border: none;
+}
+.PracticeTeamData .InviteContainer .InviteCard .TopTabs .InviteTabs .nav-item button{
+    padding: 0px 20px;
+    min-height: 48px;
+    border-radius: 28px;
+    min-width: 100px;
+    background: transparent !important;
+    border: 1px solid var(--black-bg) !important;
+    color: var(--black-text);
+    transition: 0.3s;
+}
+.PracticeTeamData .InviteContainer .InviteCard .TopTabs .InviteTabs .nav-item button.active{
+    border: 1px solid var(--blue-text) !important;
+    background: var(--light-blue) !important;
+    color: var(--blue-text) !important;
+    transition: 0.3s;
+}
+
+.PracticeTeamData .InviteContainer .InviteCard .InviteFooter {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.PracticeTeamData .InviteContainer .InviteCard .InviteFooter button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 28px;
+    padding: 16px 32px;
+    min-height: 60px;
+    border: 1px solid var(--black-bg) !important;
+    font-size: 23px;
+    font-weight: 500;
+    line-height: 120%;
+    font-family: var(--grotesk-font);
+}
+.PracticeTeamData .InviteContainer .InviteCard .InviteFooter button.SendBtn {
+    background: var(--black-bg) !important;
+    color: var(--white-text);
+}
+.PracticeTeamData .InviteContainer .InviteCard .InviteFooter button.BackBtn {
+    background: transparent !important;
+    color: var(--black-text);
+}
+
+.TopTabs .tab-content .BulkInpt{
+    display: grid;
+    grid-template-columns: 695px auto;
+    grid-gap: 15px;
+}
+.TopTabs .tab-content .BulkInpt button{
+   background: var(--errorbg) !important;
+   border: none !important;
+   border-radius: 50%;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   width: 60px;
+   height: 60px;
+   margin: 0 auto;
+}
+.TopTabs .tab-content .BulkInpt button svg{
+   font-size: 24px;
+   color: var(--error-color);
+}
+
+.TopTabs .tab-content .AddMorebtn {
+   display: flex;
+   align-items: center;
+   justify-content: center;
+}
+.TopTabs .tab-content .AddMorebtn button{
+    padding: 0px 24px;
+    min-height: 48px;
+    border-radius: 28px;
+    background: transparent !important;
+    border: 1px solid var(--black-bg) !important;
+    color: var(--black-text);
+    transition: 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-family: var(--grotesk-font);
+    font-size: 19px;
+    font-weight: 500;
+}
+.TopTabs .tab-content .AddMorebtn button:hover{
+    background: var(--black-bg) !important;
+    color: var(--white-text) !important;
+}
+.TopTabs .tab-content .AddMorebtn button svg{
+    font-size: 22px;
+}
+
+
