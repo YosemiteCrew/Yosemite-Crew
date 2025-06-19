@@ -242,6 +242,7 @@
     background: var(--whitebg);
 }
 
+/* GraphSelectDiv Ended */
 
 .WorkCard{
     display: flex;
@@ -250,9 +251,6 @@
     height: 100%;
     justify-content: end;
 }
-
-/* GraphSelectDiv Ended */
-
 
 /* DummyTable Started */
 .DummyTableData{

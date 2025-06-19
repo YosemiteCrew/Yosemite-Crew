@@ -5,12 +5,10 @@ import ExploringCard from "@/app/Components/ExploringCard/ExploringCard";
 import { Button, Col, Container, Dropdown, Row } from "react-bootstrap";
 import Link from "next/link";
 import { IoMdEye } from "react-icons/io";
-import { FaBellSlash, FaUser } from "react-icons/fa";
+import { FaBellSlash} from "react-icons/fa";
 import { PiWarningOctagonFill } from "react-icons/pi";
 import { AiFillPlusCircle } from "react-icons/ai";
 import StatCard from "@/app/Components/StatCard/StatCard";
-import { BiSolidCameraPlus, BiSolidFilePlus } from "react-icons/bi";
-import { RiWallet3Fill } from "react-icons/ri";
 import DynamicChartCard from "@/app/Components/BarGraph/DynamicChartCard";
 import BlankDonutCard from "@/app/Components/BarGraph/BlankDonutCard";
 
@@ -255,8 +253,8 @@ function AdminDashboardEmpty() {
                 </Col>
                 <Col md={4}>
                   <div className="WorkCard">
-                    <StatCard icon={<FaUser />} title="Week based Appointments" value="0000" />
-                    <StatCard icon={<FaUser />} title="Invoice Amount" value="$7,298" />
+                    <StatCard icon="/Images/stact2.png" title="Week based Appointments" value="0000" />
+                    <StatCard icon="/Images/stact2.png" title="Invoice Amount" value="$7,298" />
                   </div>
                 </Col>
               </Row>
