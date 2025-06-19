@@ -15,10 +15,10 @@ type CardData = {
 }
 
 const cards: CardData[] = [
-  { id: 1, thumbnail: "/images/Explr1.jpg", videoUrl: "https://www.youtube.com/watch?v=Y7f98aduVJ8", title: "How the Platform Works?" },
-  { id: 2, thumbnail: "/images/Explr2.jpg", videoUrl: "https://www.youtube.com/watch?v=ABC123XYZ", title: "Inviting your team" },
-  { id: 3, thumbnail: "/images/Explr3.jpg", videoUrl: "https://www.youtube.com/watch?v=DEF456UVW", title: "Accepting appointments" },
-  { id: 4, thumbnail: "/images/Explr4.jpg", videoUrl: "https://www.youtube.com/watch?v=GHI789RST", title: "How to see revenue reporting?" },
+  { id: 1, thumbnail: "/Images/Explr1.jpg", videoUrl: "#", title: "How the Platform Works?" },
+  { id: 2, thumbnail: "/Images/Explr2.jpg", videoUrl: "#", title: "Inviting your team" },
+  { id: 3, thumbnail: "/Images/Explr3.jpg", videoUrl: "#", title: "Accepting appointments" },
+  { id: 4, thumbnail: "/Images/Explr4.jpg", videoUrl: "#", title: "How to see revenue reporting?" },
 ];
 
 

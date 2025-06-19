@@ -397,16 +397,26 @@ function CompleteProfile() {
 export default CompleteProfile;
 
 
-
 type HeadTextProps = {
   Spntext: string;
   blktext: string;
+  spanFirst?: boolean; // Optional, default is false
 }
 
-export function HeadText({ Spntext, blktext }: HeadTextProps) {
+export function HeadText({ Spntext, blktext, spanFirst = false }: HeadTextProps) {
   return (
     <div className="Headingtext">
-      <h3>{blktext} <span>{Spntext}</span> </h3>
+      <h3>
+        {spanFirst ? (
+          <>
+            <span>{Spntext}</span> {blktext}
+          </>
+        ) : (
+          <>
+            {blktext} <span>{Spntext}</span>
+          </>
+        )}
+      </h3>
     </div>
   );
 }
