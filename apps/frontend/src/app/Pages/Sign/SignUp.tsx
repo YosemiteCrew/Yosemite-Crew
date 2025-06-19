@@ -24,7 +24,7 @@ function SignUp() {
     'Pet Sitter',
     'Groomer Shop',
   ];
- const handleSelectType = (type) => {
+ const handleSelectType = (type: React.SetStateAction<string>) => {
     setSelectedType(type);
   };
 
@@ -97,6 +97,7 @@ function SignUp() {
 
                   <div className="SignFormItems">
                     <FormInput intype="email" inname="email" value={email} inlabel="Add Work Email" onChange={(e) => setEmail(e.target.value)} />
+                    <FormInputPass intype="password" inname="password" value={password} inlabel="Set up Password" onChange={(e) => setPassword(e.target.value)} />
                     <FormInputPass intype="password" inname="password" value={password} inlabel="Set up Password" onChange={(e) => setPassword(e.target.value)} />
                   </div>
 
@@ -226,9 +227,25 @@ type FormInputProps = {
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 export function FormInput({ intype, inname ,inlabel ,value ,onChange }: FormInputProps) {
-  return <div className="SignInput">
-    <Form.Control type={intype} name={inname} id={inname} value={value} placeholder={inlabel} onChange={onChange}  autoComplete="off" required/>
-  </div>;
+  const [isFocused, setIsFocused] = useState(false);
+
+  return (
+    <div className={`SignInput floating-input ${isFocused || value ? "focused" : ""}`}>
+      <input
+        type={intype}
+        name={inname}
+        id={inname}
+        value={value}
+        onChange={onChange}
+        autoComplete="off"
+        required
+        placeholder=" " // <-- Add a single space as placeholder
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+      />
+      <label htmlFor={inname}>{inlabel}</label>
+    </div>
+  );
 }
 // FormInputProps Ended 
 
@@ -242,17 +259,32 @@ type FormInputPassProps = {
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 export function FormInputPass({ intype, inname ,inlabel ,value ,onChange }: FormInputPassProps) {
-
   const [showPassword, setShowPassword] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
 
-  return <div className="SignPassInput">
-    <Form.Control type={showPassword ? "text" : intype} name={inname} id={inname} value={value}  autoComplete="new-password" placeholder={inlabel} onChange={onChange} required/>
-    <Button type="button" onClick={togglePasswordVisibility}>
-      <Image aria-hidden  src="/Images/eyes.png" alt="eyes" width={24} height={24} />
-    </Button>
-  </div>;
+  return (
+    <div className={`SignPassInput floating-input ${isFocused || value ? "focused" : ""}`}>
+      <input
+        type={showPassword ? "text" : intype}
+        name={inname}
+        id={inname}
+        value={value}
+        autoComplete="new-password"
+        onChange={onChange}
+        required
+        placeholder=" " // <-- Add a single space as placeholder
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+      />
+      <label htmlFor={inname}>{inlabel}</label>
+      <Button type="button" onClick={togglePasswordVisibility} tabIndex={-1}>
+        <Image aria-hidden src="/Images/eyes.png" alt="eyes" width={24} height={24} />
+      </Button>
+    </div>
+  );
 }
-// FormInputPassProps Ended 
+// FormInputPassProps Ended
