@@ -53,22 +53,19 @@
   --notibg:#595958;
   --avilblebg:#8AC1B133;
   --avilbleText:#8AC1B1;
+  --lightgreen: #54B492;
   --offdutybg:#302F2E26;
   --counslingbg:#D0412226;
   --counslingtext:#D04122;
   --orange:#FF9500;
   --red:#FF3B30;
   --ddd:linear-gradient(180deg, rgba(191, 191, 190, 0.35) 0%, rgba(191, 191, 190, 0) 100%)
+
+
+
+
+
   
-
-
-
-
-
-
-
-
-/* old */
   --grotesk-font: 'ClashGrotesk-Variable';
   --satoshi-font: 'Satoshi-Variable';
   --mainBg: #FEF8F4;
@@ -81,7 +78,6 @@
   
   --bluecolor:#37223C;
   --purple: #8e88d2;
-  --lightgreen: #8ac1b1;
   --frowndark: #d09b5e;
   --green: #60b257;
   --greenlight: #97c254;
