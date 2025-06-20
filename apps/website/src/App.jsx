@@ -179,7 +179,6 @@ const Layout = () => {
   return (
     <>
       <MainHeader isMainHeader={isMainHeader} />
-      <Clinic_visiblity />
       <Routes>
         <Route path="/" element={<MainLandingPage />} />
         <Route path="/homepage" element={<Homepage />} />

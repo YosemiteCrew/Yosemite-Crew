@@ -37,8 +37,9 @@ const WebController = {
     res: Response
   ): Promise<Response> => {
     try {
+      console.log("hello")
       const { email, password, businessType } = req.body as register;
-
+       console.log(email,password,businessType)
       if (!email || !password) {
         return res
           .status(400)
