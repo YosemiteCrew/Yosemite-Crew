@@ -1,119 +1,107 @@
 .RevenueManagementSec{
-    padding: 100px 0px;
+  padding: 100px 0px;
 }
-
-
 /* GraphSelectDiv Started  */
 .HeadingSelectDiv{
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 .HeadingSelectDiv h5{
-    font-size: 40px;
-    font-weight: 500;
-    line-height: 120%;
-    margin: 0;
-    color: var(--black-text);
-    font-family: var(--grotesk-font);
+  font-size: 40px;
+  font-weight: 500;
+  line-height: 120%;
+  margin: 0;
+  color: var(--black-text);
+  font-family: var(--grotesk-font);
 }
 .HeadingSelectDiv .DaysSelectDiv button{
-    background: transparent !important;
-    border: none !important;
-    padding: 10px 16px !important;
-    border-radius: 28px !important;
-    color: var(--black-text);
-    font-weight: 500;
-    line-height: 120%;
-
+  background: transparent !important;
+  border: none !important;
+  padding: 10px 16px !important;
+  border-radius: 28px !important;
+  color: var(--black-text);
+  font-weight: 500;
+  line-height: 120%;
 }
 .HeadingSelectDiv .DaysSelectDiv .dropdown-menu{
-    box-shadow: 0px 0px 8px 0px #47382714;
-    border: 1px solid var(--lightgrey);
-    background: var(--whitebg);
+  box-shadow: 0px 0px 8px 0px #47382714;
+  border: 1px solid var(--lightgrey);
+  background: var(--whitebg);
 }
 
 /* GraphSelectDiv Ended */
 
+/* Revnue Card Started  */
 
 .revenue-summary-row {
   display: flex;
-  gap: 32px;
-  margin-bottom: 32px;
-  margin-top: 32px;
+  gap: 20px;
 }
-
 .revenue-summary-card {
   flex: 1 1 0;
   background: var(--whitebg);
-  border-radius: 20px;
+  border-radius: 24px;
   box-shadow: 4px 4px 18px -5px #55413414;
-  padding: 32px 28px 24px 28px;
+  border: 1px solid #EAEAEA;
+  padding: 24px 24px 24px 32px;
   display: flex;
   flex-direction: column;
-  min-width: 205px;
+  min-width: 305px;
   min-height: 144px;
   justify-content: center;
+  gap: 11px;
 }
-
-.revenue-summary-label {
-  font-size: 17px;
-  color: #888;
-  font-weight: 500;
-  margin-bottom: 4px;
-  font-family: var(--grotesk-font, sans-serif);
-}
-
-.revenue-summary-value {
-  font-size: 2rem;
+.revenue-summary-card h6 {
+  font-size: 18px;
+  color: var(--black-grey-Text);
+  line-height: 120%;
   font-weight: 700;
-  color: #222;
-  margin-bottom: 6px;
-  font-family: var(--grotesk-font, sans-serif);
+  font-family: var(--satoshi-font);
+  margin: 0;
 }
-
+.revenue-summary-card h3 {
+  font-size: 33px;
+  color: var(--black-text);
+  line-height: 120%;
+  font-weight: 500;
+  font-family: var(--grotesk-font);
+  margin: 0;
+}
 .revenue-summary-sub {
-  font-size: 15px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
-
 .revenue-summary-percent {
   display: inline-flex;
   align-items: center;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 15px;
   gap: 4px;
 }
-
 .percent-up {
-  color: #1ecb8b;
+  color: var(--avilbleText);
 }
-
 .percent-down {
-  color: #ff4d4f;
+  color: var(--counslingtext);
 }
-
 .revenue-summary-percent svg {
-  font-size: 13px;
-  margin-right: 2px;
+  font-size: 16px;
 }
-
 .revenue-summary-vs {
-  color: #888;
-  font-weight: 500;
-  margin-left: 4px;
+  color: var(--black-grey);
+  font-weight: 700;
 }
 
-/* Responsive */
-@media (max-width: 900px) {
-  .revenue-summary-row {
-    flex-direction: column;
-    gap: 18px;
-  }
-  .revenue-summary-card {
-    min-width: 0;
-    padding: 24px 16px;
-  }
-}
+/* Revnue Card Ended */
+
+
+
+
+
+
+
+
+
+

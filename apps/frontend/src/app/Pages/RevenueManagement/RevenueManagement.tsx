@@ -2,12 +2,12 @@
 import React, { useState } from "react";
 import { Container, Dropdown, Row } from "react-bootstrap";
 import "./RevenueManagement.css";
-import { FaArrowUp, FaArrowDown } from "react-icons/fa6";
 import { IoArrowDownCircleSharp, IoArrowUpCircleSharp } from "react-icons/io5";
 
 function RevenueManagement() {
   const [selectedRange, setSelectedRange] = useState("Last 30 Days"); // graphSelected
 
+  // Summary Data 
   const summaryData = [
     {
       label: "Total Income",
@@ -53,8 +53,8 @@ function RevenueManagement() {
         <div className="revenue-summary-row">
           {summaryData.map((item) => (
             <div className="revenue-summary-card" key={item.label}>
-              <div className="revenue-summary-label">{item.label}</div>
-              <div className="revenue-summary-value">{item.value}</div>
+              <h6>{item.label}</h6>
+              <h3>{item.value}</h3>
               <div className="revenue-summary-sub">
                 <span
                   className={
