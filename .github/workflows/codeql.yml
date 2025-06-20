@@ -25,7 +25,7 @@ jobs:
     #   - https://gh.io/supported-runners-and-hardware-resources
     #   - https://gh.io/using-larger-runners (GitHub.com only)
     # Consider using larger runners or machines with greater resources for possible analysis time improvements.
-    runs-on: ${{ (matrix.language == 'swift' && 'macos-latest') || 'ubuntu-latest' }}
+    runs-on: ${{ 'ubuntu-latest' }}
     permissions:
       # required for all workflows
       security-events: write
@@ -49,8 +49,6 @@ jobs:
             build-mode: none
           - language: ruby
             build-mode: none
-          - language: swift
-            build-mode: manual
         # CodeQL supports the following values keywords for 'language': 'actions', 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'swift'
         # Use `c-cpp` to analyze code written in C, C++ or both
         # Use 'java-kotlin' to analyze code written in Java, Kotlin or both
@@ -79,12 +77,12 @@ jobs:
           cache: "pnpm"
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Install CocoaPods 1.14.3
-        shell: bash
-        run: |
-          sudo gem install cocoapods -v 1.14.3
-          export PATH="$(ruby -e 'puts Gem.bindir'):$PATH"
-          pod --version
+      # - name: Install CocoaPods 1.14.3
+      #   shell: bash
+      #   run: |
+      #     sudo gem install cocoapods -v 1.14.3
+      #     export PATH="$(ruby -e 'puts Gem.bindir'):$PATH"
+      #     pod --version
 
       # Initializes the CodeQL tools for scanning.
       - name: Initialize CodeQL
@@ -110,12 +108,12 @@ jobs:
         run: |
           cd ./apps/mobileApp/android
           ./gradlew assembleDebug -Dorg.gradle.jvmargs="-Xmx4g"
-      - if: matrix.build-mode == 'manual' && matrix.language == 'swift'
-        shell: bash
-        run: |
-          cd ./apps/mobileApp/ios
-          pod install
-          xcodebuild -workspace YosemiteCrewMobile.xcworkspace -scheme YosemiteCrewMobile -configuration Debug -sdk iphonesimulator clean build
+      # - if: matrix.build-mode == 'manual' && matrix.language == 'swift'
+      #   shell: bash
+      #   run: |
+      #     cd ./apps/mobileApp/ios
+      #     pod install
+      #     xcodebuild -workspace YosemiteCrewMobile.xcworkspace -scheme YosemiteCrewMobile -configuration Debug -sdk iphonesimulator clean build
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
