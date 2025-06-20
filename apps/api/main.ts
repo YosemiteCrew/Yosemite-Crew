@@ -67,7 +67,7 @@ connectToDocumentDB()
   });
 
 const corsOptions = {
-  origin: process.env.FRONTEND_PORT,
+  origin: "*",
   credentials: true,
 };
 
