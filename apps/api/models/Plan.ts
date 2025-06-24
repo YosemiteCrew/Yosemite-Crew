@@ -4,11 +4,11 @@ import type { plan } from "@yosemite-crew/types";
 const exercisePlanSchema : Schema<plan> = new mongoose.Schema({
 
     userId: {
-        type: Number, 
+        type: String, 
         required: true,
     },
     petId: {
-        type: Number,  
+        type: String,  
         required: true,
     },
     typeOfPlan: {

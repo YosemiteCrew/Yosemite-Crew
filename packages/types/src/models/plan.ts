@@ -1,8 +1,8 @@
 import { Types, Document } from 'mongoose';
 
 export type plan = Document &{
-  userId: number;
-  petId: number;
+  userId: string;
+  petId: string;
   typeOfPlan?: string;
   condition?: string;
   weeksSinceSurgery?: string;
