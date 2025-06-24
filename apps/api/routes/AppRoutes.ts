@@ -10,7 +10,7 @@ const ImmunizationController = require("../controllers/ImmunizationController");
 import diabetesController  from '../controllers/diabetesController';
 const SharedDutiesController = require("../controllers/SharedDutiesController");
 import contactUs  from "../controllers/contactController";
-import planController from '../controllers/planController';
+import planController from '../controllers/plan-controller';
 
 import medicalRecordsController from '../controllers/medicalRecordsController';
 

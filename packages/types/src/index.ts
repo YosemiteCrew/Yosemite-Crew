@@ -27,7 +27,7 @@ export type { exercises , queryParams} from "./models/exercises";
 export type { pets , fhirPetPatient} from "./models/pets";
 export type { diabetesRecords} from "./models/diabetesRecords";
 export type { plan } from "./models/plan";
-export type {painJournal} from "./models/painJounal";
+export type {painJournal} from "./models/pain-Journal";
 export type { feedback ,feedbackData} from "./models/feedback";
 export type { AddDoctorDoc } from "./AddDoctor/add.doctor.types";
 export type { IAppointmentType, IBreed, IPurposeOfVisit } from "./models/appointment.options.types";
@@ -37,4 +37,4 @@ export type { AppointmentStatus, AppointmentStatusFHIRBundle, AppointmentStatusF
 export type { InventoryType, InputData, AggregationResult, InventoryOverviewType, InventoryOverviewFHIRBundle, InventoryOverviewFHIRObservation, ProcedureItemType, ProcedurePackageType, } from "./Inventory/InventoryType";
 export type { ProcedureFHIRBundle, PackageItem, ProcedurePackage,FHIRMedicalPackage, FHIRPackageItem, NormalMedicalPackage, NormalPackageItem  } from "./Procedure/procedureType";
 
-
+export type {FhirCarePlan} from "./ExercisePlan/exercisePlanTypes"
