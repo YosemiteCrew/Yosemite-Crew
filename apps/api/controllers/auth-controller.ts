@@ -137,10 +137,14 @@ const authController = {
           imageUrls = uploaded.map(file => file.url);
         }
       }
-      if (!email || !validator.isEmail(email)) {
-         res.status(200).json({  status: 0, message: 'Invalid email address' });
-      }
-      const existingUser = await userModel.findOne({ email });
+     if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
+           res.status(200).json({ status: 0, message: 'Invalid email address' });
+        }
+        const safeEmail = email.trim().toLowerCase();
+         const existingUser = await userModel.findOne({ email: safeEmail });
+        if (!existingUser) {
+           res.status(404).json({ status: 0, message: 'User not found' });
+        }
       if (existingUser) {
         const userData = existingUser.toObject() as IUser;
         delete userData.password;
@@ -262,14 +266,17 @@ const authController = {
     const { email } = req.body as SignupRequestBody;
 
     try {
-       if (!email || !validator.isEmail(email)) {
-         res.status(200).json({  status: 0, message: 'Invalid email address' });
-      }
+       if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
+           res.status(200).json({ status: 0, message: 'Invalid email address' });
+        }
 
-      const result = await userModel.findOne({ email });
-      if (!result) {
-        return res.status(200).json({ status: 0, message: 'User not found' });
-      }
+        const safeEmail = email.trim().toLowerCase();
+
+        const result = await userModel.findOne({ email: safeEmail });
+
+        if (!result) {
+           res.status(404).json({ status: 0, message: 'User not found' });
+        }
 
       const otp = Math.floor(100000 + Math.random() * 900000);
       const otpExpiry = new Date(Date.now() + 5 * 60 * 1000);
@@ -314,13 +321,12 @@ const authController = {
       if (!process.env.COGNITO_USER_POOL_ID) {
         return res.status(500).json({ status: 0, message: 'Cognito User Pool ID missing' });
       }
-
       await cognito.adminDeleteUser({
         UserPoolId: process.env.COGNITO_USER_POOL_ID,
         Username: email,
       }).promise();
 
-      await userModel.deleteOne({ email });
+      await userModel.deleteOne({ email: safeEmail });
       res.status(200).json({ status: 1, message: 'User deleted successfully' });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
