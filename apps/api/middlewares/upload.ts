@@ -32,12 +32,15 @@ async function uploadToS3(fileName: string, fileContent: Buffer | Uint8Array | B
         ContentDisposition: 'inline',
     };
 
-    try {
+     try {
         const data = await s3.upload(params).promise();
-        return data.Location; // URL of uploaded file
-    } catch (err: any) {
-        throw new Error('Error uploading file to S3: ' + err.message);
-    }
+       return data.Location; // URL of uploaded file
+        } catch (err: unknown) {
+        if (err instanceof Error) {
+            throw new Error('Error uploading file to S3: ' + err.message);
+        }
+        throw new Error('Unknown error uploading file to S3');
+        }
 }
 
 // Handle single file upload to S3
@@ -59,7 +62,7 @@ async function handleFileUpload(file: UploadedFile, folderName: string) {
         const fileContent = file.data; // file.data should be a Buffer
         const mimeType = file.mimetype;
 
-        const s3Url = await uploadToS3(fileName, fileContent, mimeType);
+        await uploadToS3(fileName, fileContent, mimeType);
 
         //return fileName;
         return {
@@ -94,6 +97,7 @@ async function deleteFromS3(s3Key: string) {
       };
       try {
         const headObject = await s3.headObject(deleteParams).promise();
+        return headObject;
         // console.log('S3 File Found:', headObject);
       } catch (headErr) {
         console.error("S3 File Not Found:", headErr);

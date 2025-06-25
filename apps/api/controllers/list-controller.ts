@@ -1,13 +1,13 @@
 
-const BusinessService = require('../services/BusinessService');
+import BusinessService from '../services/BusinessService';
 const FhirFormatter = require('../utils/BusinessFhirFormatter');
 const DoctorService = require("../services/DoctorService");
 const validator = require('validator');
 const mongoose = require('mongoose');
 
-class ListController {
+const ListController =  {
 
-    async handlegetDoctorsList(req, res) {
+      getDoctorsList: async (req, res) => {
         const { departmentId, limit, offset } = req.query;
         if (!mongoose.Types.ObjectId.isValid(departmentId)) {
             return res.status(200).json({ status: 0, message: "Invalid department ID" });
@@ -21,9 +21,9 @@ class ListController {
           console.error(error);
           res.status(200).json({  status: 0, error: error.message || "Failed to fetch doctors." });
         }
-      }
+      },
   
-     async handleGetDoctorsTeam(req, res) {
+      DoctorsTeam: async (req, res) => {
         try {
           const { businessId } = req.query;
     
@@ -41,9 +41,9 @@ class ListController {
           console.error("Doctor fetch error:", error);
           res.status(200).json({ status: 0, error: "Error fetching doctors and appointments." });
         }
-      }
+      },
 
-      async handleGetLists(req, res) {
+      GetLists: async (req, res) => {
         try {
           let { Type, offset = 0, limit = 10 } = req.query;
       
@@ -101,9 +101,9 @@ class ListController {
           console.error(err);
           res.status(500).json({ status: 0, error: err.message });
         }
-      }
+      },
       
-      async handleSeachOrganization(req, res) {
+      SeachOrganization: async (req, res) => {
         try {
           let { search, offset = 0, limit = 10 } = req.query;
       
@@ -143,7 +143,8 @@ class ListController {
        
 
 }  
- module.exports = new ListController();
+
+ export default ListController;
 
 
 

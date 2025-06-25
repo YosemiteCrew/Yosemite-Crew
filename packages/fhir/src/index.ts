@@ -11,4 +11,7 @@ export  { convertExerciseToFHIR, convertPlanTypesToFHIR , convertExerciseTypeToF
 export { convertPetToFHIR , convertFHIRToPet } from "./pets";
 export {convertToNormalToAddInventoryData,toInventoryBundleFHIR,InventoryOverviewConvertToFHIR,toInventoryFHIR} from "./InventoryFhir/inventoryFhir";
 export {convertProcedurePackagesToFHIRBundle,convertFHIRPackageToNormal,convertFhirToNormalToUpdateProcedurePackage} from "./ProcedurePackage/procedurePackage";
+export { parseDiabetesObservation, toFHIRObservation } from "./diabetes/diabetes-fhir";
+export { toFHIRBundleImmunization,VaccinationDoc } from "./immunization/immunization-fhir";
+export { validate } from "./immunization/immunization-fhir-validator";
 
