@@ -281,7 +281,7 @@ const authController = {
       const otp = Math.floor(100000 + Math.random() * 900000);
       const otpExpiry = new Date(Date.now() + 5 * 60 * 1000);
 
-      await userModel.updateOne({ email }, { $set: { otp, otpExpiry } });
+      await userModel.updateOne({ email: safeEmail }, { $set: { otp, otpExpiry } });
 
       if (!process.env.MAIL_DRIVER) {
         return res.status(500).json({ status: 0, message: 'MAIL_DRIVER not configured' });
