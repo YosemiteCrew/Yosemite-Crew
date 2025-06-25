@@ -4,6 +4,7 @@ import MonthlySlotService from '../services/monthly.slot.service';
 import { FHIRSlotValidator } from '../validators/FHIRSlotValidator';
 import { MonthlySlotValidator } from '../validators/MonthlySlotValidator';
 import { FHIRValidator } from '../validators/FHIRValidator';
+import validator from 'validator';
 
 interface SlotQuery {
   appointmentDate?: string;
@@ -22,21 +23,23 @@ const SlotController = {
     try {
       const { appointmentDate, doctorId } = req.query;
 
-      if (!appointmentDate || !doctorId) {
-        return res.status(200).json({
-          issue: [{
-            status: 0,
-            severity: "error",
-            code: "invalid",
-            details: { text: "Appointment date and doctor ID are required" }
-          }]
-        });
-      }
+      
 
-      if (typeof doctorId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(doctorId)) {
-        return res.status(200).json({ status: 0, message: 'Invalid doctor ID' });
-      }
+      if (
+          !appointmentDate ||
+          typeof appointmentDate !== 'string' ||
+          !validator.isISO8601(appointmentDate)
+        ) {
+          return res.status(400).json({ message: 'Invalid appointment date' });
+        }
 
+        if (
+          !doctorId ||
+          typeof doctorId !== 'string' ||
+          !/^[a-f\d]{24}$/i.test(doctorId)
+        ) {
+          return res.status(400).json({ message: 'Invalid doctor ID' });
+        }
       const isValidDate = (dateStr: string): boolean => {
         const date = new Date(dateStr);
         return /^\d{4}-\d{2}-\d{2}$/.test(dateStr) && !isNaN(date.getTime());
