@@ -83,10 +83,7 @@ const authController = {
 
       const password = generatePassword(12);
 
-      if (!validator.isEmail(email)) {
-        res.status(400).json({ status: 0, message: 'Invalid email format' });
-        return;
-      }
+     
 
       const isProfessional =
         Array.isArray(professionType) && professionType.length > 0 ? 'yes' : 'no';
@@ -97,6 +94,10 @@ const authController = {
 
       if (!process.env.COGNITO_CLIENT_ID || !process.env.COGNITO_CLIENT_SECRET) {
         res.status(500).json({ status: 0, message: 'Cognito configuration missing' });
+        return;
+      }
+      if (!validator.isEmail(email)) {
+        res.status(400).json({ status: 0, message: 'Invalid email format' });
         return;
       }
       const secretHash = getSecretHash(email);
@@ -328,7 +329,6 @@ const authController = {
       if (!email || !validator.isEmail(email)) {
          res.status(200).json({ message: 'Invalid email address' });
       }
-
       const result = await userModel.findOne({ email });
       if (!result) {
         return res.status(404).json({ status: 0, message: 'User not found' });
