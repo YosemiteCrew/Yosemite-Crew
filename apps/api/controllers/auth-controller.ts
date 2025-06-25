@@ -137,7 +137,9 @@ const authController = {
           imageUrls = uploaded.map(file => file.url);
         }
       }
-
+      if (!email || !validator.isEmail(email)) {
+         res.status(200).json({ message: 'Invalid email address' });
+      }
       const existingUser = await userModel.findOne({ email });
       if (existingUser) {
         const userData = existingUser.toObject() as IUser;
@@ -178,10 +180,10 @@ const authController = {
     const { email, confirmationCode } = req.body as SignupRequestBody;
 
     try {
-      if (!validator.isEmail(email)) {
-        return res.status(400).json({ status: 0, message: 'Invalid email format' });
-      }
-
+      
+       if (!email || !validator.isEmail(email)) {
+         res.status(200).json({ message: 'Invalid email address' });
+       }
       const result = await userModel.findOne({ email });
       if (!result) {
         return res.status(404).json({ status: 0, message: 'User not found' });
@@ -256,8 +258,8 @@ const authController = {
     const { email } = req.body as SignupRequestBody;
 
     try {
-      if (!validator.isEmail(email)) {
-        return res.status(400).json({ status: 0, message: 'Invalid email format' });
+       if (!email || !validator.isEmail(email)) {
+         res.status(200).json({ message: 'Invalid email address' });
       }
 
       const result = await userModel.findOne({ email });
@@ -294,10 +296,9 @@ const authController = {
     const { email } = req.body as SignupRequestBody;
 
     try {
-      if (!validator.isEmail(email)) {
-        return res.status(400).json({ status: 0, message: 'Invalid email format' });
+      if (!email || !validator.isEmail(email)) {
+         res.status(200).json({ message: 'Invalid email address' });
       }
-
       const result = await userModel.findOne({ email });
       if (!result) {
         return res.status(404).json({ status: 0, message: 'User not found' });
@@ -324,8 +325,8 @@ const authController = {
     const { email, otp } = req.body as SignupRequestBody;
 
     try {
-      if (!validator.isEmail(email)) {
-        return res.status(400).json({ status: 0, message: 'Invalid email format' });
+      if (!email || !validator.isEmail(email)) {
+         res.status(200).json({ message: 'Invalid email address' });
       }
 
       const result = await userModel.findOne({ email });
