@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-const diabetesRecords = require('../models/Records');
+
 const helpers = require('../utils/helpers');
 
 class DiabetesService {
@@ -10,21 +10,18 @@ class DiabetesService {
      * @param {String|null} userId - Authenticated user ID
      * @returns {Promise<Object>} Created record
      */
-    static async createDiabetesRecord(parsedData :any, images = [], userId = null) {
-      const recordPayload = {
-        ...parsedData,
-        userId,
-        ...(images.length > 0 && { bodyCondition: images })
-      };
+    // static async createDiabetesRecord(parsedData :any, images = [], userId = null) {
+    //   const recordPayload = {
+    //     ...parsedData,
+    //     userId,
+    //     ...(images.length > 0 && { bodyCondition: images })
+    //   };
   
-      const record = await diabetesRecords.create(recordPayload);
-      return record;
-    }
+    //   const record = await diabetesRecords.create(recordPayload);
+    //   return record;
+    // }
 
-    static async getDiabetesLogs(userId :string,limit = 10, offset = 0) {
-        return await diabetesRecords.find({ userId : {$eq: userId }}).skip(offset)
-        .limit(limit);
-      }
+  
  
     static async deleteDiabetesLogRecord(id :string) {
         const objectId = new mongoose.Types.ObjectId(id); 

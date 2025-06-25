@@ -25,7 +25,7 @@ export type { exercisePlanType } from "./models/exercisePlans";
 export type { exerciseType } from "./models/exerciseType";
 export type { exercises , queryParams} from "./models/exercises";
 export type { pets , fhirPetPatient} from "./models/pets";
-export type { diabetesRecords} from "./models/diabetesRecords";
+export type { diabetesRecords,DiabetesRecords} from "./models/diabetes-records";
 export type { plan } from "./models/plan";
 export type {painJournal} from "./models/pain-Journal";
 export type { feedback ,feedbackData} from "./models/feedback";
@@ -38,3 +38,9 @@ export type { InventoryType, InputData, AggregationResult, InventoryOverviewType
 export type { ProcedureFHIRBundle, PackageItem, ProcedurePackage,FHIRMedicalPackage, FHIRPackageItem, NormalMedicalPackage, NormalPackageItem  } from "./Procedure/procedureType";
 
 export type {FhirCarePlan} from "./ExercisePlan/exercisePlanTypes"
+export type { IUser, SignupRequestBody } from "./models/IUser";
+export type { FHIRCodingDiabetes,FHIRAttachmentDiabetes,DiabetesRecord,FHIRCodeDiabetes,FHIRComponentDiabetes,FHIRObservationDiabetes,FHIRValueQuantityDiabetes,ParsedDiabetesObservation } from "./diabetes/diabetes-types";
+export type { FHIRDocumentReference,FHIRImmunizationNote,FHIRImmunizationExtension,FHIRImmunization,FHIRBundle,BasicImmunizationResource,TransformedVaccination } from "./immunization/immunization-types";
+export type { VaccinationDetailsType } from "./models/immunization-records";
+export type { TimeSlot,DoctorSlotDocument,AppointmentDocument,GetTimeSlotsInput,FHIRSlot,FHIRSlotBundle,SlotQuery,MonthlySlotQuery } from "./slot/slot-types";
+export type { ContactUsBody,TypedRequestBody } from "./contact/contact-types";

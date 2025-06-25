@@ -1,5 +1,5 @@
-class FHIRParser {
-    static parseDiabetesObservation(observation) {
+const FHIRParser =  {
+    parseDiabetesObservation: (observation) => {
         const components = observation.component || [];
       
         // Match by either code.text or any coding.display
@@ -30,9 +30,9 @@ class FHIRParser {
           urineKetones: getComponentValue("Urine Ketones"),
           weight: getComponentValue("Weight"),
         };
-      }
+      },
 
-      static toFHIRObservation(record) {
+      toFHIRObservation: (record) => {
         const observation = {
           resourceType: "Observation",
           id: `diabetes-log-${record._id}`,
@@ -92,9 +92,9 @@ class FHIRParser {
         }
     
         return observation;
-      }
+      },
     
-      static component(codeText, value) {
+      component: (codeText, value) => {
         if (!value) return null;
         return {
           code: {
@@ -102,9 +102,9 @@ class FHIRParser {
           },
           valueString: value
         };
-      }
+      },
     
-      static componentQuantity(codeText, value, unit) {
+       componentQuantity: (codeText, value, unit) => {
         if (value == null) return null;
         return {
           code: {
@@ -121,4 +121,4 @@ class FHIRParser {
 
   }
   
-  module.exports = FHIRParser;
+ export default FHIRParser;

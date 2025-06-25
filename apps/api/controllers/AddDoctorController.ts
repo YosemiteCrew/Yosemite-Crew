@@ -15,7 +15,7 @@ import { validateFHIR } from "../Fhirvalidator/FhirValidator";
 import AWS, { S3 } from "aws-sdk";
 const SES = new AWS.SES();
 import { WebUser } from "../models/WebUser";
-import DoctorsTimeSlotes from "../models/DoctorsSlotes";
+import DoctorsTimeSlotes from "../models/doctors.slotes.model";
 import { webAppointments } from "../models/WebAppointment";
 import { Request, Response } from "express";
 import { parseFhirBundle, File, Files, Document } from "@yosemite-crew/fhir";
