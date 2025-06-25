@@ -1,4 +1,4 @@
-import {AppointmentStatusFHIRBundle,AppointmentStatusFHIRBundleEntry,AppointmentStatus} from "@yosemite-crew/types"
+ import {AppointmentStatusFHIRBundle,AppointmentStatusFHIRBundleEntry,AppointmentStatus} from "@yosemite-crew/types"
 
 
 

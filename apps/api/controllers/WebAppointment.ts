@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 
 // const { json } = require('body-parser');
-import DoctorsTimeSlotes from "../models/DoctorsSlotes";
+import DoctorsTimeSlotes from "../models/doctors.slotes.model";
 import {
   AppointmentsToken,
   webAppointments,

@@ -1,25 +1,25 @@
 import express from "express";
-
-import petController from '../controllers/petController';
+ 
+import petController from '../controllers/pet-controller';
 import appointmentController from '../controllers/appointmentController';
-import slotController from  '../controllers/slotController';
+import slotController from  '../controllers/slot-controller';
 import feedbackController from '../controllers/feedbackController';
 import detailsController from '../controllers/detailsController';
-const ListController = require('../controllers/ListController');
-const ImmunizationController = require("../controllers/ImmunizationController");
-import diabetesController  from '../controllers/diabetesController';
-const SharedDutiesController = require("../controllers/SharedDutiesController");
-import contactUs  from "../controllers/contactController";
+import ListController from '../controllers/list-controller';
+import immunizationController from "../controllers/immunization-controller";
+import diabetesController  from '../controllers/diabetes-controller';
+import SharedDutiesController from "../controllers/SharedDutiesController";
+import contactController  from "../controllers/contact-controller";
 import planController from '../controllers/plan-controller';
-
+ 
 import medicalRecordsController from '../controllers/medicalRecordsController';
-
-
-
+ 
+ 
+ 
 const router = express.Router();
-
+ 
 import { verifyTokenAndRefresh } from '../middlewares/authMiddleware';
-
+ 
 router.post("/Patient/addPet", verifyTokenAndRefresh,petController.addPet);
 router.put("/Patient/editPet", verifyTokenAndRefresh, petController.editPet);
 router.get("/Patient/getPets", verifyTokenAndRefresh,petController.getPet);
@@ -29,31 +29,32 @@ router.get("/getAppointments", verifyTokenAndRefresh, appointmentController.getA
 router.put("/cancelAppointment", verifyTokenAndRefresh, appointmentController.cancelAppointment);
 router.put("/rescheduleAppointment",verifyTokenAndRefresh, appointmentController.rescheduleAppointment);
 router.get("/Slot/getTimeSlots", verifyTokenAndRefresh, slotController.getTimeSlots);
-router.get("/Slot/getTimeSlotsByMonth",verifyTokenAndRefresh,slotController.timeSlotsByMonth);
+router.get("/Slot/getTimeSlotsByMonth",verifyTokenAndRefresh,slotController.TimeSlotsByMonth);
 router.post("/Observation/saveFeedBack",verifyTokenAndRefresh,feedbackController.addFeedBack);
 router.get("/Observation/getFeedBack",verifyTokenAndRefresh,feedbackController.getFeedback);
 router.put("/Observation/editFeedBack",verifyTokenAndRefresh,feedbackController.editFeedback);
 router.delete("/Observation/deleteFeedBack",verifyTokenAndRefresh,feedbackController.deleteFeedback);
-
-
+ 
+ 
 router.post("/Organization/addVetClinic", verifyTokenAndRefresh, detailsController.vetClinic);
 router.post("/Organization/addBreederDetails", verifyTokenAndRefresh,  detailsController.breeder);
 router.post("/Organization/addPetGroomer",verifyTokenAndRefresh, detailsController.petGroomer);
 router.post("/Organization/addPetBoarding",verifyTokenAndRefresh, detailsController.petBoarding);
+ 
+ 
+router.post("/sendquery", verifyTokenAndRefresh, contactController.contactUs);
+router.get("/Organization/getLists",verifyTokenAndRefresh, ListController.GetLists);
+router.get("/Organization/SeachOrganization",verifyTokenAndRefresh, ListController.SeachOrganization);
+router.get("/Practitioner/getDoctorsLists",verifyTokenAndRefresh,ListController.getDoctorsList);
+router.get("/Practitioner/getDoctorsTeam",verifyTokenAndRefresh,ListController.DoctorsTeam);
 
 
-router.post("/sendquery", verifyTokenAndRefresh, contactUs);
-router.get("/Organization/getLists",verifyTokenAndRefresh, ListController.handleGetLists);
-router.get("/Organization/SeachOrganization",verifyTokenAndRefresh, ListController.handleSeachOrganization);
-router.get("/Practitioner/getDoctorsLists",verifyTokenAndRefresh,ListController.handlegetDoctorsList);
-router.get("/Practitioner/getDoctorsTeam",verifyTokenAndRefresh,ListController.handleGetDoctorsTeam);
-
-router.post("/Immunization/addVaccinationRecord",verifyTokenAndRefresh,ImmunizationController.handlecreateImmunization);
-router.put("/Immunization/editVaccinationRecord", verifyTokenAndRefresh,ImmunizationController.handleEditVaccination);
-router.get("/Immunization/getVaccinationRecord", verifyTokenAndRefresh,ImmunizationController.handleGetVaccination);
-router.delete("/Immunization/deleteVaccinationRecord",verifyTokenAndRefresh,ImmunizationController.handleDeleteVaccinationRecord);
-router.get("/Immunization/recentVaccinationRecords", verifyTokenAndRefresh,ImmunizationController.recentVaccinationRecord);
-
+router.post("/Immunization/addVaccinationRecord", verifyTokenAndRefresh, immunizationController.createImmunization);
+router.put("/Immunization/editVaccinationRecord", verifyTokenAndRefresh,immunizationController.editVaccination);
+router.get("/Immunization/getVaccinationRecord", verifyTokenAndRefresh,immunizationController.getVaccination);
+router.delete("/Immunization/deleteVaccinationRecord",verifyTokenAndRefresh,immunizationController.deleteVaccinationRecord);
+router.get("/Immunization/recentVaccinationRecords", verifyTokenAndRefresh,immunizationController.recentVaccinationRecord);
+ 
 router.post("/saveExercisePlan",verifyTokenAndRefresh, planController.exercisePlan);
 router.get("/getexercise-list/:userId",verifyTokenAndRefresh, planController.getExercisePlan);
 router.post("/savepainjournal",verifyTokenAndRefresh, planController.addPainJournal);

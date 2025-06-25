@@ -15,9 +15,10 @@ const petController = {
     try {
       const cognitoUserId = getCognitoUserId(req);
 
-      const fhirData = req.body.data;
+      const fhirData = (req.body as { data?: unknown }).data;
 
-      const addPetData = convertFHIRToPet(JSON.parse(fhirData));
+      const parsedFhirData: unknown = JSON.parse(fhirData as string);
+      const addPetData = convertFHIRToPet(parsedFhirData) as pets;
 
        let imageUrls: string[] = [];
 
@@ -29,15 +30,20 @@ const petController = {
         const imageFiles = files.filter(file => file.mimetype && file.mimetype.startsWith("image/"));
 
         if (imageFiles.length > 0) {
-          imageUrls = await handleMultipleFileUpload(imageFiles, 'Images');
+          const uploadedImages = await handleMultipleFileUpload(imageFiles, 'Images');
+          imageUrls = uploadedImages.map((img: { url: string }) => img.url);
         }
       }
       const petData = { ...addPetData, cognitoUserId, petImage: imageUrls };
 
-      const dob = new Date(petData.petdateofBirth);
-      const diff = Date.now() - dob.getTime();
-      const ageDt = new Date(diff);
-      petData.petAge = Math.abs(ageDt.getUTCFullYear() - 1970);
+      if (petData.petdateofBirth) {
+        const dob = new Date(petData.petdateofBirth);
+        const diff = Date.now() - dob.getTime();
+        const ageDt = new Date(diff);
+        petData.petAge = Math.abs(ageDt.getUTCFullYear() - 1970).toString();
+      } else {
+        petData.petAge = undefined;
+      }
 
       const newPet = await pet.create(petData);
 
@@ -86,7 +92,7 @@ const petController = {
       }
 
       const fhirPets = await Promise.all(
-        pets.map(async (pet) => ({
+        pets.map((pet) => ({
           resource: convertPetToFHIR(pet, baseUrl)
         }))
       );
@@ -115,7 +121,7 @@ const petController = {
 
   editPet: async (req: Request, res: Response) : Promise<void>  => {
     try {
-      const fhirData = req.body.data;
+      const fhirData = (req.body as { data?: unknown })?.data;
       const id = req.query.Petid as string;
 
       // Validate MongoDB ObjectId
@@ -134,7 +140,7 @@ const petController = {
       // Parse and validate FHIR input
       let parsedData;
       try {
-        parsedData = JSON.parse(fhirData);
+        parsedData = JSON.parse(fhirData as string) as unknown;
       } catch (error) {
          res.status(400).json({
           resourceType: 'OperationOutcome',
@@ -146,7 +152,7 @@ const petController = {
         });
       }
 
-      const updatedPetData = convertFHIRToPet(parsedData);
+      const updatedPetData: pets = convertFHIRToPet(parsedData) as pets;
 
       // Handle file uploads (optional)
       if (req.files && req.files.files) {
@@ -158,7 +164,8 @@ const petController = {
 
         if (imageFiles.length > 0) {
           const imageUrls = await handleMultipleFileUpload(imageFiles, 'Images');
-          updatedPetData.petImage = imageUrls;
+          // Assign only the array of URLs if petImage expects string[]
+          updatedPetData.petImage = imageUrls.map((img: { url: string }) => img.url) as unknown as typeof updatedPetData.petImage;
         }
       }
 
@@ -174,6 +181,19 @@ const petController = {
             message: `No pet (Patient) found}`,
           }]
         });
+      }
+
+      if (!editPetData) {
+        res.status(404).json({
+          resourceType: "OperationOutcome",
+          issue: [{
+            status: 0,
+            severity: "error",
+            code: "not-found",
+            message: `No pet (Patient) found}`,
+          }]
+        });
+        return;
       }
 
       const fhirFormattedResponse = convertPetToFHIR(editPetData, baseUrl);
