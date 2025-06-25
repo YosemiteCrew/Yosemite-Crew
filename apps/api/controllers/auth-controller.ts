@@ -93,12 +93,11 @@ const authController = {
           : professionType;
 
       if (!process.env.COGNITO_CLIENT_ID || !process.env.COGNITO_CLIENT_SECRET) {
-        res.status(500).json({ status: 0, message: 'Cognito configuration missing' });
+        res.status(200).json({ status: 0, message: 'Cognito configuration missing' });
         return;
       }
-      if (!validator.isEmail(email)) {
-        res.status(400).json({ status: 0, message: 'Invalid email format' });
-        return;
+       if (!email || !validator.isEmail(email)) {
+         res.status(200).json({  status: 0, message: 'Invalid email address' });
       }
       const secretHash = getSecretHash(email);
 
@@ -139,13 +138,13 @@ const authController = {
         }
       }
       if (!email || !validator.isEmail(email)) {
-         res.status(200).json({ message: 'Invalid email address' });
+         res.status(200).json({  status: 0, message: 'Invalid email address' });
       }
       const existingUser = await userModel.findOne({ email });
       if (existingUser) {
         const userData = existingUser.toObject() as IUser;
         delete userData.password;
-        res.status(409).json({ status: 0, message: 'Email already exists', data: userData });
+        res.status(200).json({ status: 0, message: 'Email already exists', data: userData });
         return;
       }
 
@@ -173,7 +172,7 @@ const authController = {
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'An unknown error occurred';
-      res.status(500).json({ status: 0, message });
+      res.status(200).json({ status: 0, message });
     }
   },
 
@@ -183,7 +182,7 @@ const authController = {
     try {
       
        if (!email || !validator.isEmail(email)) {
-         res.status(200).json({ message: 'Invalid email address' });
+         res.status(200).json({  status: 0, message: 'Invalid email address' });
        }
       const result = await userModel.findOne({ email });
       if (!result) {
@@ -192,7 +191,7 @@ const authController = {
 
       const passwordData = result.password?.[0];
       if (!passwordData?.encryptedData || !passwordData.iv) {
-        return res.status(400).json({ status: 0, message: 'Invalid password data' });
+        return res.status(200).json({ status: 0, message: 'Invalid password data' });
       }
 
       const decryptedPassword = decryptPassword(passwordData.encryptedData, passwordData.iv);
@@ -251,7 +250,7 @@ const authController = {
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      res.status(500).json({ status: 0, message: 'Error during confirmation', error: message });
+      res.status(200).json({ status: 0, message: 'Error during confirmation', error: message });
     }
   },
 
@@ -260,7 +259,7 @@ const authController = {
 
     try {
        if (!email || !validator.isEmail(email)) {
-         res.status(200).json({ message: 'Invalid email address' });
+         res.status(200).json({  status: 0, message: 'Invalid email address' });
       }
 
       const result = await userModel.findOne({ email });
@@ -289,7 +288,7 @@ const authController = {
       res.status(200).json({ status: 1, message: 'OTP sent successfully' });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error during Sending OTP';
-      res.status(500).json({ status: 0, message, error: message });
+      res.status(200).json({ status: 0, message, error: message });
     }
   },
 
@@ -298,7 +297,7 @@ const authController = {
 
     try {
       if (!email || !validator.isEmail(email)) {
-         res.status(200).json({ message: 'Invalid email address' });
+         res.status(200).json({  status: 0, message: 'Invalid email address' });
       }
       const result = await userModel.findOne({ email });
       if (!result) {
@@ -318,7 +317,7 @@ const authController = {
       res.status(200).json({ status: 1, message: 'User deleted successfully' });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      res.status(500).json({ status: 0, message: 'Error while deleting user', error: message });
+      res.status(200).json({ status: 0, message: 'Error while deleting user', error: message });
     }
   },
 
@@ -327,11 +326,11 @@ const authController = {
 
     try {
       if (!email || !validator.isEmail(email)) {
-         res.status(200).json({ message: 'Invalid email address' });
+         res.status(200).json({ status: 0, message: 'Invalid email address' });
       }
       const result = await userModel.findOne({ email });
       if (!result) {
-        return res.status(404).json({ status: 0, message: 'User not found' });
+        return res.status(200).json({ status: 0, message: 'User not found' });
       }
 
       // Check OTP and expiry
@@ -340,7 +339,7 @@ const authController = {
         result.otp !== parseInt(otp) ||
         (result.otpExpiry && Date.now() > new Date(result.otpExpiry).getTime())
       ) {
-        return res.status(400).json({
+        return res.status(200).json({
           status: 0,
           message:
             result.otpExpiry && Date.now() > new Date(result.otpExpiry).getTime()
@@ -351,13 +350,13 @@ const authController = {
 
       const passwordData = result.password?.[0];
       if (!passwordData?.encryptedData || !passwordData.iv) {
-        return res.status(400).json({ status: 0, message: 'Invalid password data' });
+        return res.status(200).json({ status: 0, message: 'Invalid password data' });
       }
 
       const decryptedPassword = decryptPassword(passwordData.encryptedData, passwordData.iv);
 
       if (!process.env.COGNITO_CLIENT_ID) {
-        return res.status(500).json({ status: 0, message: 'Cognito configuration missing' });
+        return res.status(200).json({ status: 0, message: 'Cognito configuration missing' });
       }
       const secretHash = getSecretHash(email);
 
@@ -398,7 +397,7 @@ const authController = {
       res.status(200).json({ status: 1, message: 'User logged in successfully', userdata: userData });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error during login';
-      res.status(500).json({ status: 0, message: 'Error during login', error: message });
+      res.status(200).json({ status: 0, message: 'Error during login', error: message });
     }
   },
 
@@ -407,7 +406,7 @@ const authController = {
 
     try {
       if (!validator.isEmail(email)) {
-        return res.status(400).json({ status: 0, message: 'Invalid email format' });
+        return res.status(200).json({ status: 0, message: 'Invalid email format' });
       }
 
       if (!process.env.COGNITO_CLIENT_ID) {
@@ -424,7 +423,7 @@ const authController = {
       res.status(200).json({ status: 1, message: 'Confirmation code resent successfully' });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      res.status(500).json({ status: 0, message: 'Error resending confirmation code', error: message });
+      res.status(200).json({ status: 0, message: 'Error resending confirmation code', error: message });
     }
   }
 };
