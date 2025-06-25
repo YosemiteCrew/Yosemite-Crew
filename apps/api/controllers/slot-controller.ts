@@ -1,29 +1,18 @@
 import { Request, Response } from 'express';
-import SlotService from '../services/slot.service';
+import SlotService from '../services/slot-service';
 import MonthlySlotService from '../services/monthly.slot.service';
 import { FHIRSlotValidator } from '../validators/FHIRSlotValidator';
 import { MonthlySlotValidator } from '../validators/MonthlySlotValidator';
 import { FHIRValidator } from '../validators/FHIRValidator';
 import validator from 'validator';
+import { SlotQuery, MonthlySlotQuery } from '@yosemite-crew/types'; // ✅ right
 
-interface SlotQuery {
-  appointmentDate?: string;
-  doctorId?: string;
-}
-
-interface MonthlySlotQuery {
-  slotMonth?: string;
-  slotYear?: string;
-  doctorId?: string;
-}
 
 const SlotController = {
   // FHIR spec requires GET with query params
   getTimeSlots: async (req: Request<unknown, unknown, unknown, SlotQuery>, res: Response): Promise<Response> => {
     try {
-      const { appointmentDate, doctorId } = req.query;
-
-      
+      const { appointmentDate, doctorId } = req.query as { appointmentDate?: string; doctorId?: string };
 
       if (
           !appointmentDate ||
@@ -40,6 +29,7 @@ const SlotController = {
         ) {
           return res.status(400).json({ message: 'Invalid doctor ID' });
         }
+
       const isValidDate = (dateStr: string): boolean => {
         const date = new Date(dateStr);
         return /^\d{4}-\d{2}-\d{2}$/.test(dateStr) && !isNaN(date.getTime());

@@ -42,3 +42,5 @@ export type { IUser, SignupRequestBody } from "./models/IUser";
 export type { FHIRCodingDiabetes,FHIRAttachmentDiabetes,DiabetesRecord,FHIRCodeDiabetes,FHIRComponentDiabetes,FHIRObservationDiabetes,FHIRValueQuantityDiabetes,ParsedDiabetesObservation } from "./diabetes/diabetes-types";
 export type { FHIRDocumentReference,FHIRImmunizationNote,FHIRImmunizationExtension,FHIRImmunization,FHIRBundle,BasicImmunizationResource,TransformedVaccination } from "./immunization/immunization-types";
 export type { VaccinationDetailsType } from "./models/immunization-records";
+export type { TimeSlot,DoctorSlotDocument,AppointmentDocument,GetTimeSlotsInput,FHIRSlot,FHIRSlotBundle,SlotQuery,MonthlySlotQuery } from "./slot/slot-types";
+export type { ContactUsBody,TypedRequestBody } from "./contact/contact-types";

@@ -29,3 +29,14 @@ export interface FHIRSlotBundle {
   type: 'collection';
   entry: Array<{ resource: FHIRSlot }>;
 }
+
+export interface SlotQuery {
+  appointmentDate?: string;
+  doctorId?: string;
+}
+
+export interface MonthlySlotQuery {
+  slotMonth?: string;
+  slotYear?: string;
+  doctorId?: string;
+}

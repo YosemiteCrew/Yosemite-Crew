@@ -9,7 +9,7 @@ import ListController from '../controllers/list-controller';
 import immunizationController from "../controllers/immunization-controller";
 import diabetesController  from '../controllers/diabetes-controller';
 import SharedDutiesController from "../controllers/SharedDutiesController";
-import contactUs  from "../controllers/contactController";
+import contactController  from "../controllers/contact-controller";
 import planController from '../controllers/plan-controller';
  
 import medicalRecordsController from '../controllers/medicalRecordsController';
@@ -42,7 +42,7 @@ router.post("/Organization/addPetGroomer",verifyTokenAndRefresh, detailsControll
 router.post("/Organization/addPetBoarding",verifyTokenAndRefresh, detailsController.petBoarding);
  
  
-router.post("/sendquery", verifyTokenAndRefresh, contactUs);
+router.post("/sendquery", verifyTokenAndRefresh, contactController.contactUs);
 router.get("/Organization/getLists",verifyTokenAndRefresh, ListController.GetLists);
 router.get("/Organization/SeachOrganization",verifyTokenAndRefresh, ListController.SeachOrganization);
 router.get("/Practitioner/getDoctorsLists",verifyTokenAndRefresh,ListController.getDoctorsList);
