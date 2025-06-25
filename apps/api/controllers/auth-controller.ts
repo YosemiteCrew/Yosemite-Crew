@@ -96,9 +96,9 @@ const authController = {
         res.status(200).json({ status: 0, message: 'Cognito configuration missing' });
         return;
       }
-       if (!email || !validator.isEmail(email)) {
-         res.status(200).json({  status: 0, message: 'Invalid email address' });
-      }
+       if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
+           res.status(200).json({ status: 0, message: 'Invalid email address' });
+        }
       const secretHash = getSecretHash(email);
 
       const params: AWS.CognitoIdentityServiceProvider.SignUpRequest = {
@@ -181,13 +181,17 @@ const authController = {
 
     try {
       
-       if (!email || !validator.isEmail(email)) {
-         res.status(200).json({  status: 0, message: 'Invalid email address' });
-       }
-      const result = await userModel.findOne({ email });
-      if (!result) {
-        return res.status(404).json({ status: 0, message: 'User not found' });
-      }
+      if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
+           res.status(200).json({ status: 0, message: 'Invalid email address' });
+        }
+
+        const safeEmail = email.trim().toLowerCase();
+
+        const result = await userModel.findOne({ email: safeEmail });
+
+        if (!result) {
+           return res.status(200).json({ status: 0, message: 'User not found' });
+        }
 
       const passwordData = result.password?.[0];
       if (!passwordData?.encryptedData || !passwordData.iv) {
@@ -197,7 +201,7 @@ const authController = {
       const decryptedPassword = decryptPassword(passwordData.encryptedData, passwordData.iv);
 
       if (!process.env.COGNITO_CLIENT_ID) {
-        return res.status(500).json({ status: 0, message: 'Cognito configuration missing' });
+        return res.status(200).json({ status: 0, message: 'Cognito configuration missing' });
       }
       const secretHash = getSecretHash(email);
 
@@ -264,7 +268,7 @@ const authController = {
 
       const result = await userModel.findOne({ email });
       if (!result) {
-        return res.status(404).json({ status: 0, message: 'User not found' });
+        return res.status(200).json({ status: 0, message: 'User not found' });
       }
 
       const otp = Math.floor(100000 + Math.random() * 900000);
@@ -296,14 +300,17 @@ const authController = {
     const { email } = req.body as SignupRequestBody;
 
     try {
-      if (!email || !validator.isEmail(email)) {
-         res.status(200).json({  status: 0, message: 'Invalid email address' });
-      }
-      const result = await userModel.findOne({ email });
-      if (!result) {
-        return res.status(404).json({ status: 0, message: 'User not found' });
-      }
+     if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
+           res.status(200).json({ status: 0, message: 'Invalid email address' });
+        }
 
+        const safeEmail = email.trim().toLowerCase();
+
+        const result = await userModel.findOne({ email: safeEmail });
+
+        if (!result) {
+           res.status(200).json({ status: 0, message: 'User not found' });
+        }
       if (!process.env.COGNITO_USER_POOL_ID) {
         return res.status(500).json({ status: 0, message: 'Cognito User Pool ID missing' });
       }
@@ -325,13 +332,16 @@ const authController = {
     const { email, otp } = req.body as SignupRequestBody;
 
     try {
-      if (!email || !validator.isEmail(email)) {
-         res.status(200).json({ status: 0, message: 'Invalid email address' });
-      }
-      const result = await userModel.findOne({ email });
-      if (!result) {
-        return res.status(200).json({ status: 0, message: 'User not found' });
-      }
+     if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
+           res.status(200).json({ status: 0, message: 'Invalid email address' });
+        }
+        const safeEmail = email.trim().toLowerCase();
+
+        const result = await userModel.findOne({ email: safeEmail });
+
+        if (!result) {
+          return res.status(200).json({ status: 0, message: 'User not found' });
+        }
 
       // Check OTP and expiry
       if (
@@ -405,9 +415,9 @@ const authController = {
     const { email } = req.body as SignupRequestBody;
 
     try {
-      if (!validator.isEmail(email)) {
-        return res.status(200).json({ status: 0, message: 'Invalid email format' });
-      }
+     if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
+           res.status(200).json({ status: 0, message: 'Invalid email address' });
+        }
 
       if (!process.env.COGNITO_CLIENT_ID) {
         return res.status(500).json({ status: 0, message: 'Cognito configuration missing' });
