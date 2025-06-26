@@ -7,28 +7,25 @@ export interface IProfileData extends Document {
   yearOfEstablishment?: string;
   phoneNumber?: string;
   website?: string;
-  address?: {
+
     addressLine1?: string;
     street?: string;
     city?: string;
     state?: string;
-    zipCode?: string;
+    postalCode?: string;
     latitude?: string;
     longitude?: string;
-  };
-  activeModes?: string;
+
+  departmentFeatureActive?: string;
   selectedServices?: string[];
-  logo?: string;
-  prescription_upload?: {
-    name: string;
-    type: string;
-    date: Date;
-  }[];
+  image?: string;
+  addDepartment:string[];
 }
 export interface IWebUser {
   cognitoId?: string;
-  businessType?: string;
+  role?: string;
   bussinessId?: string;
   otp?: number;
   otpExpiry?: Date;
+  subscribe?:boolean
 }

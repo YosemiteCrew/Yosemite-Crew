@@ -9,10 +9,13 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@yosemite-crew/fhir": "workspace:^",
     "aos": "^2.3.4",
     "axios": "^1.10.0",
     "bootstrap": "^5.3.3",
+    "country-list-json": "^1.1.0",
     "glightbox": "^3.3.1",
+    "jwt-decode": "^4.0.0",
     "next": "15.3.3",
     "react": "^19.0.0",
     "react-bootstrap": "^2.10.9",
