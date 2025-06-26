@@ -9,9 +9,8 @@ export type {
 export type { ISubscriber, SubscriberData } from "./models/Subscriber";
 
 export type { Pet } from "./Pets/pet";
-export type { Address, Data, HealthcareService, Identifier, Organization, Telecom } from "./HospitalProfile/hospital.profile.types";
+export type { BusinessProfile,FhirOrganization,name } from "./HospitalProfile/hospital.profile.types";
 
-export type { FHIRProfileParser } from "./HospitalProfile/hospital.profile.fhir";
 export type { register } from "./Register/resgisterType";
 export type { IProfileData, IWebUser } from "./HospitalProfile/hospital.profile.model";
 export type { UploadedFile } from "./files/express.files.types";

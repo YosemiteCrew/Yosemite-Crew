@@ -1,48 +1,51 @@
-export type Telecom = {
-  system: string;
-  value: string;
-};
-
-export type Identifier = {
-  system: string;
-  value: string;
-};
-
-export type Extension = {
-  url: string;
-  valueDecimal?: number;
-  valueString?: string;
-  extension?: Extension[]; // nested extensions
-};
-
-export type Address = {
-  line?: string[];
+export interface name {
+  userId: string;
+  businessName: string;
+  website: string;
+  registrationNumber: string;
+  city: string;
+  state: string;
+  addressLine1: string;
+  latitude: string;
+  longitude: string;
+  postalCode: string;
+  PhoneNumber: string;
+  country?:string
+}
+export interface BusinessProfile {
+ userId?: string;
+  businessName?: string;
+  website?: string;
+  registrationNumber?: string;
   city?: string;
-  street?: string;
   state?: string;
+  addressLine1?: string;
+  latitude?: string;
+  longitude?: string;
   postalCode?: string;
-  extension?: Extension[];
+  PhoneNumber?: string;
+  name?: name;
+  country: string;
+  departmentFeatureActive: string; // yes/no
+  selectedServices: string[];
+  addDepartment: string[];
+  image?: File | null;
+  previewUrl?: string;
 };
 
-export type Organization = {
+export interface FhirOrganization {
+  resourceType: "Organization";
+  id?: string;
   name: string;
-  identifier: Identifier[];
-  telecom: Telecom[];
-  address?: Address[] | [Address]; // both accepted
   extension?: any[];
-  active?: boolean;
-};
-
-export type HealthcareService = {
-  type?: {
-    coding?: {
-      code?: string;
-      display?: string;
-    }[];
+  address?: {
+    line: string[];
+    city: string;
+    state: string;
+    postalCode: string;
+    country: string;
+    extension?: any[];
   }[];
-};
-
-export type Data = {
-  organization: Organization;
-  healthcareServices: HealthcareService[];
+  telecom?: { system: string; value: string }[];
+  contact?: unknown[];
 };

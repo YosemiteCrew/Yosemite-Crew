@@ -106,7 +106,7 @@ function AdminDashboardEmpty() {
                 heading="Start by Setting Up Your Practice"
                 description="Add your veterinary practice details at your own pace—jump in and explore the dashboard while you're at it."
                 buttonText="Set up Your Practice"
-                href="/dashboard/setup"
+                href="/completeprofile"
               />
              
             </>

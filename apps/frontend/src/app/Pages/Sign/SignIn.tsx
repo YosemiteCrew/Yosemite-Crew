@@ -4,11 +4,14 @@ import React , {useState} from 'react'
 import { Form } from 'react-bootstrap';
 import { FormInput, FormInputPass, MainBtn } from './SignUp';
 import { GoCheckCircleFill } from 'react-icons/go';
+import Swal from 'sweetalert2';
+import { postData } from '@/app/axios-services/services';
+import { useRouter } from 'next/navigation';
 
 
 function SignIn() {
 
-
+   const router = useRouter()
   // const navigate = useNavigate();
   // const { initializeUser } = useAuth();
   
@@ -19,6 +22,7 @@ function SignIn() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState("")
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
 
@@ -47,8 +51,153 @@ function SignIn() {
 
 
 
+const handleSignIn = async (e: React.FormEvent) => {
+  e.preventDefault();
 
+  if (!email || !password) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Error',
+      text: 'Email and Password are required',
+    });
+    return;
+  }
 
+  const signInData = { email, password };
+
+  try {
+    const response = await postData<{ token: string }>(
+      `/api/auth/signin`,
+      signInData
+    );
+
+    if (response.status === 200) {
+      sessionStorage.setItem('token', response.data.token);
+     router.push(`/businessDashboard`);
+      Swal.fire({
+        icon: 'success',
+        title: 'Success',
+        text: 'Sign in successful',
+      });
+    }
+  } catch (error: any) {
+    if (error.response) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: `Sign in failed: ${error.response.data.message}`,
+      });
+    } else {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Sign in failed: Unable to connect to the server.',
+      });
+    }
+  }
+};
+
+const handleOtp = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!email) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Error',
+      text: 'Email is required',
+    });
+    return;
+  }
+
+  try {
+    const response = await postData<{ message: string }>(
+      `/api/auth/forgotPassword`,
+      { email }
+    );
+
+    if (response.status === 200) {
+      Swal.fire({
+        icon: 'success',
+        title: 'Success',
+        text: 'OTP sent successfully',
+      });
+      setShowVerifyCode(true);
+    }
+  } catch (error: any) {
+    if (error.response) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: `OTP failed: ${error.response.data.message}`,
+      });
+    } else {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'OTP failed: Unable to connect to the server.',
+      });
+    }
+  }
+};
+
+const handleVerifyOtp = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  if (otp.some((digit) => digit === '')) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Error',
+      text: 'Please enter the full OTP',
+    });
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Error',
+      text: 'Passwords do not match',
+    });
+    return;
+  }
+
+  const data = {
+    email,
+    otp: otp.join(''),
+    password,
+  };
+
+  try {
+    const response = await postData<{ message: string }>(
+      `/api/auth/verifyotp`,
+      data
+    );
+
+    if (response.status === 200) {
+      Swal.fire({
+        icon: 'success',
+        title: 'Success',
+        text: 'OTP verified successfully',
+      });
+      setShowNewPassword(false);
+      setShowVerifyCode(false);
+      setShowForgotPassword(false)
+    }
+  } catch (error: any) {
+    if (error.response) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: `OTP verification failed: ${error.response.data.message}`,
+      });
+    } else {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'OTP verification failed: Unable to connect to the server.',
+      });
+    }
+  }
+};
 
 
   return (
@@ -80,7 +229,7 @@ function SignIn() {
                     </div>
                   </div>
                     <div className="Signbtn">
-                      <MainBtn btnicon={<GoCheckCircleFill />} btnname="Sign in" iconPosition="left" />
+                      <MainBtn btnicon={<GoCheckCircleFill />} btnname="Sign in" iconPosition="left" onClick={handleSignIn} />
                       <h6> Don’t have an account? <Link href="#">Sign up.</Link></h6>
                     </div>
                 </Form>
@@ -96,10 +245,7 @@ function SignIn() {
                 </div>
                 <Form>
                   <FormInput intype="email" inname="email" value={email} inlabel="Email Address" onChange={(e) => setEmail(e.target.value)} />
-                  <MainBtn btnicon={<GoCheckCircleFill />} btnname="Send Code"  onClick={(e) => {
-                          e.preventDefault();
-                          setShowVerifyCode(true); // Show forgot password section
-                        }} />
+                  <MainBtn btnicon={<GoCheckCircleFill />} btnname="Send Code"  onClick={handleOtp} />
                 </Form>
               </div>
             )}
@@ -137,10 +283,10 @@ function SignIn() {
                     <div className="TopSignInner">
                       <h2>Set <span>new password</span> </h2>
                       <FormInputPass intype="Enter New Password" inname="password" value={password} inlabel="Password" onChange={(e) => setPassword(e.target.value)} />
-                      <FormInputPass intype="Confirm Password" inname="password" value={password} inlabel="Password" onChange={(e) => setPassword(e.target.value)} />
+                      <FormInputPass intype="Confirm Password" inname="confirmPassword" value={confirmPassword} inlabel="Password" onChange={(e) => setConfirmPassword(e.target.value)} />
                     </div>
                     <div className="Signbtn">
-                      <MainBtn btnicon={<GoCheckCircleFill />} btnname="Reset Password" iconPosition="left" />
+                      <MainBtn btnicon={<GoCheckCircleFill />} btnname="Reset Password" iconPosition="left" onClick={handleVerifyOtp} />
                       <h6> Didn’t receive the code? <Link href="#">Request New Code.</Link></h6>
                     </div>
                   </Form>

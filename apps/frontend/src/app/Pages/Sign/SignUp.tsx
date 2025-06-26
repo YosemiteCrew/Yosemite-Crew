@@ -1,55 +1,234 @@
 "use client";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState, useRef } from "react";
 import "./Sign.css";
-import { Button, Col, Container, Form, Row } from "react-bootstrap";
+import { Button, Col, Container, Form, Row, Modal } from "react-bootstrap";
 import Image from "next/image";
 import { GoCheckCircleFill } from "react-icons/go";
 import Link from "next/link";
 import Swal from "sweetalert2";
 import { postData } from "@/app/axios-services/services";
+import { AxiosError } from "axios";
+import { useRouter } from "next/navigation";
 
 function SignUp() {
+  const router = useRouter();
   const [selectedType, setSelectedType] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-
-const handleSignUp = useCallback(async () => {
-  const formData = {
-    email,
-    password,
-    businessType: selectedType,
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [code, setCode] = useState(Array(6).fill(""));
+  const [activeInput, setActiveInput] = useState(0);
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const [agree, setIagree] = useState(false)
+  const [subscribe, setSubscribe] = useState(false)
+  console.log("otpRefs", agree)
+  // Stable ref callback to avoid React warning
+  const setOtpRef = (el: HTMLInputElement | null, idx: number) => {
+    otpRefs.current[idx] = el;
   };
 
-  try {
-    const data = await postData<{ message: string }>(`api/auth/register`, formData);
+  const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>, idx: number) => {
+    const val = e.target.value.replace(/[^0-9]/g, "");
+    if (!val) return;
+    const newCode = [...code];
+    newCode[idx] = val[0];
+    setCode(newCode);
+    if (idx < 5 && val) {
+      otpRefs.current[idx + 1]?.focus();
+      setActiveInput(idx + 1);
+    }
+  };
 
-    Swal.fire({
-      icon: 'success',
-      title: 'Successfully signed up!',
-      text: data.message,
-    });
-    // setModalShow(true);
+  const handleCodeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, idx: number) => {
+    if (e.key === "Backspace") {
+      if (code[idx]) {
+        const newCode = [...code];
+        newCode[idx] = "";
+        setCode(newCode);
+      } else if (idx > 0) {
+        otpRefs.current[idx - 1]?.focus();
+        setActiveInput(idx - 1);
+      }
+    } else if (e.key === "ArrowLeft" && idx > 0) {
+      otpRefs.current[idx - 1]?.focus();
+      setActiveInput(idx - 1);
+    } else if (e.key === "ArrowRight" && idx < 5) {
+      otpRefs.current[idx + 1]?.focus();
+      setActiveInput(idx + 1);
+    }
+  };
 
-  } catch (error: any) {
-    const status = error?.response?.status;
-    const message = error?.response?.data?.message || 'Something went wrong.';
+  type VerifyUserData = {
+    message: string;
+    token: string;
+    cognitoId: string;
+  };
 
-    if (status === 409) {
+  const handleVerify = async (): Promise<void> => {
+    if (code.includes('')) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Error',
+        text: 'Please enter the full OTP',
+      });
+      return;
+    }
+
+    try {
+      const response = await postData<VerifyUserData, { email: string; otp: string }>(
+        `/api/auth/verifyUser`,
+        {
+          email,
+          otp: code.join(''),
+        }
+      );
+
+     
+
+      if (response.status === 200) {
+        Swal.fire({
+          icon: 'success',
+          title: 'Success',
+          text: response.data.message,
+        });
+        setCode(Array(6).fill(""));
+        setShowVerifyModal(false);
+        sessionStorage.setItem('token', response.data.token);
+
+        // Uncomment when ready to redirect
+        router.push(`/emptydashboard`);
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
       Swal.fire({
         icon: 'error',
-        title: 'You are already signed up',
-        text: message,
+        title: 'Error',
+        text: `OTP verification failed: ${error.response?.data?.message || 'Unable to connect to the server.'
+          }`,
       });
-    } else {
+    }
+  };
+
+  const handleResend = async (): Promise<void> => {
+
+    const formData = {
+      email,
+      password,
+      businessType: selectedType,
+    };
+
+    try {
+      const response = await postData<{ message: string }, typeof formData>(
+        `/api/auth/register`,
+        formData
+      );
+
+      if (response.status === 200) {
+        Swal.fire({
+          icon: 'info',
+          title: 'Code Resent',
+          text: 'A new verification code has been sent to your email.',
+        });
+      }
+    } catch (error: unknown) {
+      let message = 'Something went wrong.';
+
+      if (error && typeof error === 'object' && 'isAxiosError' in error) {
+        const axiosError = error as AxiosError<{ message: string }>;
+        message = axiosError.response?.data?.message || message;
+      }
+
       Swal.fire({
         icon: 'error',
         title: 'Error',
         text: message,
       });
     }
-  }
-}, [email, password, selectedType]);
+  };
+  const handleSignUp = useCallback(async () => {
+    if (password !== confirmPassword) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Password Mismatch',
+        text: 'Password and Confirm Password do not match.',
+      });
+      return;
+    }
+
+    if (!selectedType) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Business Type Not Selected',
+        text: 'Please select your business type.',
+      });
+      return;
+    }
+
+    if (!subscribe) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Newsletter Not Checked',
+        text: 'Please check the Newsletter and Promotional emails box.',
+      });
+      return;
+    }
+
+    if (!agree) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Terms Not Agreed',
+        text: 'Please check the "I agree to Terms and Conditions" box.',
+      });
+      return;
+    }
+    const formData = {
+      email,
+      password,
+      role: selectedType,
+      subscribe
+    };
+
+    try {
+      const data = await postData<{ message: string }>(`/api/auth/register`, formData);
+
+    
+     if(data){
+       setShowVerifyModal(true);
+     } // Show modal after signup
+    } catch (error: unknown) {
+      let status: number | undefined;
+      let message: string = 'Something went wrong.';
+
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "response" in error &&
+        typeof (error as { response?: unknown }).response === "object" &&
+        (error as { response?: { status?: number; data?: { message?: string } } }).response !== null
+      ) {
+        const errResp = (error as { response: { status?: number; data?: { message?: string } } }).response;
+        status = errResp.status;
+        message = errResp.data?.message || message;
+      }
+
+      if (status === 409) {
+        Swal.fire({
+          icon: 'error',
+          title: 'You are already signed up',
+          text: message,
+        });
+      } else {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: message,
+        });
+      }
+      // TEMP: Show modal for testing even on error
+      setShowVerifyModal(true);
+    }
+  }, [email, password, selectedType, confirmPassword, subscribe, agree]);
 
 
   const businessTypes = [
@@ -176,10 +355,13 @@ const handleSignUp = useCallback(async () => {
                     <Form.Check
                       type="checkbox"
                       label="I agree to Yosemite Crew’s Terms and Conditions and Privacy Policy"
+                      onChange={(e) => setIagree(e.target.checked)}
                     />
+
                     <Form.Check
                       type="checkbox"
                       label="Sign me up for Newsletter and Promotional emails"
+                      onChange={(e) => setSubscribe(e.target.checked)}
                     />
                   </div>
 
@@ -194,7 +376,7 @@ const handleSignUp = useCallback(async () => {
                     <h6>
                       {" "}
                       Already have an account?{" "}
-                      <Link href="/pages/SignIn">Login</Link>
+                      <Link href="/signin">Login</Link>
                     </h6>
                   </div>
                 </Form>
@@ -270,6 +452,70 @@ const handleSignUp = useCallback(async () => {
           </div>
         </div>
       </section>
+
+      {/* Verification Modal */}
+      <Modal
+        show={showVerifyModal}
+        onHide={() => setShowVerifyModal(false)}
+        centered
+        contentClassName="verify-modal"
+      >
+        <Modal.Body>
+          <div style={{ textAlign: "center", padding: "24px 12px" }}>
+            <h2 style={{ fontWeight: 600, fontSize: 28, marginBottom: 8 }}>Verify <span style={{ color: "#888" }}>code</span></h2>
+            <p style={{ color: "#888", marginBottom: 24 }}>
+              Enter the code we just sent to your email to proceed with resetting your password.
+            </p>
+            <div className="verifyInput" style={{ marginBottom: 24 }}>
+              {code.map((digit, idx) => (
+                <input
+                  key={idx}
+                  ref={el => setOtpRef(el, idx)}
+                  type="text"
+                  maxLength={1}
+                  value={digit}
+                  autoFocus={activeInput === idx}
+                  onChange={e => handleCodeChange(e, idx)}
+                  onKeyDown={e => handleCodeKeyDown(e, idx)}
+                  style={{
+                    width: 56,
+                    height: 64,
+                    fontSize: 32,
+                    border: "1px solid #ccc",
+                    borderRadius: 8,
+                    textAlign: "center",
+                    marginRight: idx < 5 ? 8 : 0,
+                  }}
+                />
+              ))}
+            </div>
+            <Button
+              style={{
+                width: "100%",
+                borderRadius: 24,
+                background: "#222",
+                border: "none",
+                fontSize: 20,
+                padding: "12px 0",
+                marginBottom: 16,
+              }}
+              onClick={handleVerify}
+            >
+              Verify Code
+            </Button>
+            <div>
+              <span style={{ color: "#888" }}>Didn&apos;t receive the code?</span>{" "}
+              <Button
+                variant="link"
+                style={{ color: "#007bff", padding: 0, fontWeight: 500, textDecoration: "underline" }}
+                onClick={handleResend}
+              >
+                Request New Code.
+              </Button>
+            </div>
+          </div>
+        </Modal.Body>
+      </Modal>
     </>
   );
 }

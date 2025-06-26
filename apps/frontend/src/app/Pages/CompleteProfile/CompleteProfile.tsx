@@ -1,6 +1,7 @@
 'use client';
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import "./CompleteProfile.css";
+import { countries } from "country-list-json";
 import { Button, Col, Container, Form, Nav, Row, Tab } from "react-bootstrap";
 import { IoIosArrowDropleft, IoIosArrowDropright, IoMdArrowDropdown, IoMdArrowDropup } from "react-icons/io";
 import { FaCircleCheck, FaSackDollar, FaSuitcaseMedical } from "react-icons/fa6";
@@ -8,90 +9,247 @@ import ProfileProgressbar from "@/app/Components/ProfileProgressbar/ProfileProgr
 import { IoLocationSharp } from "react-icons/io5";
 import { FormInput } from "../Sign/SignUp";
 import DynamicSelect from "@/app/Components/DynamicSelect/DynamicSelect";
+import Image from "next/image";
+import { useAuth } from "@/app/Context/AuthContext";
+import axios from "axios";
+import { postData } from "@/app/axios-services/services";
+import { toFHIRBusinessProfile } from "@yosemite-crew/fhir"
+type Option = {
+  value: string;
+  label: string;
+};
+
+
+const servicesList = [
+  { code: "E001", display: "Internal Medicine" },
+  { code: "S001", display: "24/7 Emergency Care" },
+  { code: "V001", display: "Surgery and Operating Rooms" },
+  { code: "D001", display: "Parasitology" },
+  { code: "B001", display: "Dental Clinic" },
+];
+
+const servicesList1 = [
+  { code: "E001", display: "Internal Medicine" },
+  { code: "S001", display: "Surgery" },
+  { code: "V001", display: "Pain Management" },
+  { code: "D001", display: "Parasitology" },
+  { code: "B001", display: "Behavioural Therapy" },
+];
+
+
 
 function CompleteProfile() {
+  const { userId } = useAuth();
 
-    const [country, setCountry] = useState<string>(''); //Set country
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false); //add services
-    const [searchTerm, setSearchTerm] = useState(""); //Search Tearm
-    const [selectedServices, setSelectedServices] = useState([]); //SelectService
-    console.log("selectedServices", selectedServices);
-    const [activeModes, setActiveModes] = useState("yes"); //Department
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isDropdownOpen1, setIsDropdownOpen1] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm1, setSearchTerm1] = useState("");
+  const [key, setKey] = useState("business");
+  const [image, setImage] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>("");
+  const sanitizedPreview = previewUrl;
+   const [progress, setProgress] = useState(0);
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  const [addDepartment, setAddDepartment] = useState<string[]>([]);
+  const [departmentFeatureActive, setdepartmentFeatureActive] = useState("yes");
+  const [country, setCountry] = useState<string>('');
+  const [name, setName] = useState({
+    userId: "",
+    businessName: "",
+    website: "",
+    registrationNumber: "",
+    city: "",
+    state: "",
+    addressLine1: "",
+    latitude: "",
+    longitude: "",
+    postalCode: "",
+    PhoneNumber: ""
+  });
 
-    const [name, setName] = useState({
-        businessName:"",
-        website:"",
-        registrationNumber:"",
-        compCity:"",
-        compState:"",
-        compAddress:"",
-        postalCode:"",
+  useEffect(() => {
+    if (userId && name.userId !== userId) {
+      setName(prev => ({ ...prev, userId }));
+    }
+  }, [userId, name.userId]);
+const calculateProgress = ({
+  name,
+  country,
+  image,
+  selectedServices,
+  addDepartment,
+}: {
+  name: typeof name;
+  country: string;
+  image: File | null;
+  selectedServices: string[];
+  addDepartment: string[];
+}): number => {
+  let filled = 0;
 
-    });
+  if (name.businessName) filled++;
+  if (name.website) filled++;
+  if (name.registrationNumber) filled++;
+  if (name.city) filled++;
+  if (name.state) filled++;
+  if (name.addressLine1) filled++;
+  if (name.postalCode) filled++;
+  if (name.PhoneNumber) filled++;
+  if (country) filled++;
+  if (image) filled++;
+  if (selectedServices.length > 0) filled++;
+  if (addDepartment.length > 0) filled++;
 
-    const handleBusinessInformation = (e) => {
+  const total = 12;
+  const maxProgress = 75;
+
+  return Math.round((filled / total) * maxProgress);
+};
+
+useEffect(() => {
+  const newProgress = calculateProgress({
+    name,
+    country,
+    image,
+    selectedServices,
+    addDepartment,
+  });
+  setProgress(newProgress);
+}, [name, country, image, selectedServices, addDepartment]);
+
+
+
+  const handleBusinessInformation = useCallback((e: { target: { name: string; value: string; }; }) => {
     const { name, value } = e.target;
-        setName((prevData) => ({
-        ...prevData,
-        [name]: value,
-        }));
-    };
+    setName((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }));
+  }, []);
 
-   type Option = {
-    value: string;
-    label: string;
-  };
+  const Option1: Option[] = useMemo(() =>
+    countries.map((v) => ({
+      value: v.code,
+      label: `${v.flag} ${v.name}`,
+    })), []
+  );
 
   const options: Option[] = [
     { value: 'us', label: '🇺🇸 United States' },
     { value: 'in', label: '🇮🇳 India' },
     { value: 'uk', label: '🇬🇧 United Kingdom' },
   ];
+const handleSelectService = useCallback((service: { code: string; display: string }) => {
+  setSelectedServices((prevSelected) => {
+    const isSelected = prevSelected.includes(service.display);
+    return isSelected
+      ? prevSelected.filter((s) => s !== service.display)
+      : [...prevSelected, service.display];
+  });
+}, []);
 
 
-   
-    const [progress, setProgress] = useState(48); // Progressbar cound 
-    const [key, setKey] = useState("business");
+ const handleSelectService1 = useCallback((service: { code: string; display: string }) => {
+  setAddDepartment((prev) => {
+    const isSelected = prev.includes(service.display);
+    return isSelected
+      ? prev.filter((s) => s !== service.display)
+      : [...prev, service.display];
+  });
+}, []);
 
 
-    const servicesList = [
-      { code: "E001", display: "Internal Medicine" },
-      { code: "S001", display: "24/7 Emergency Care" },
-      { code: "V001", display: "Surgery and Operating Rooms" },
-      { code: "D001", display: "Parasitology" },
-      { code: "B001", display: "Dental Clinic" },
-    ];
 
-    //  Add Services  Started
-      const handleSelectService = (service) => {
-      setSelectedServices((prevSelected) => {
-        const isSelected = prevSelected.some((s) => s.code === service.code);
+  const toggleDropdown = () => {
+    setIsDropdownOpen(!isDropdownOpen);
+  };
 
-      return isSelected
-          ? prevSelected.filter((s) => s.code !== service.code) // Remove if already selected
-          : [...prevSelected, { code: service.code, display: service.display }];
-        });
+  const toggleDropdown1 = () => {
+    setIsDropdownOpen1(!isDropdownOpen1);
+  };
+
+  const handleSearch = (event: { target: { value: React.SetStateAction<string>; }; }) => {
+    setSearchTerm(event.target.value);
+  };
+
+  const handleSearch1 = (event: { target: { value: React.SetStateAction<string>; }; }) => {
+    setSearchTerm1(event.target.value);
+  };
+
+  const filteredServices = useMemo(() =>
+    servicesList.filter((service) =>
+      service.display.toLowerCase().includes(searchTerm.toLowerCase())
+    ), [searchTerm]
+  );
+
+  const filteredServices1 = useMemo(() =>
+    servicesList1.filter((service) =>
+      service.display.toLowerCase().includes(searchTerm1.toLowerCase())
+    ), [searchTerm1]
+  );
+
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImage(file);
+    }
+  };
+
+  useEffect(() => {
+    if (image) {
+      const url = URL.createObjectURL(image);
+      setPreviewUrl(url);
+      return () => {
+        URL.revokeObjectURL(url);
       };
-      const toggleDropdown = () => {
-        setIsDropdownOpen(!isDropdownOpen);
-      }; 
-      const handleSearch = (event) => {
-        setSearchTerm(event.target.value);
-      };
-       const filteredServices = servicesList.filter((service) =>
-        service.display.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      
+    } else {
+      setPreviewUrl("");
+    }
+  }, [image]);
 
-    // Add Services  Ended
+  const handleModeClick = (mode: React.SetStateAction<string>) => {
+    if (departmentFeatureActive.includes("yes") && departmentFeatureActive.includes("no")) {
+      setdepartmentFeatureActive(mode);
+    } else {
+      setdepartmentFeatureActive(mode);
+    }
+  };
 
-    const handleModeClick = (mode) => {
-      if (activeModes.includes("yes") && activeModes.includes("no")) {
-        setActiveModes(mode);
-      } else {
-        setActiveModes(mode);
-      }
-    };
+ const handleSubmit = async () => {
+
+  const fhirPayload = toFHIRBusinessProfile({
+    name,
+    country,
+    departmentFeatureActive,
+    selectedServices,
+    addDepartment,
+  });
+
+  const formData = new FormData();
+
+  if (image) {
+    formData.append("image", image);
+  }
+
+  // Append FHIR payload as a string
+  formData.append("fhirPayload", JSON.stringify(fhirPayload));
+// console.log("jjjj",image?.type,formData)
+  try {
+    const response = await postData(`/fhir/organization`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data", // Optional: depends on your `postData` helper
+      },
+    });
+
+    console.log(response);
+  } catch (error) {
+    console.error("Submit failed:", error);
+  }
+};
+
+// console.log("location", axios.get(`https://maps.googleapis.com/maps/api/geocode/json?address=160062&key=${process.env.NEXT_PUBLIC_BASE_GOOGLE_MAPS_API_KEY}`))
 
   return (
     <>
@@ -99,7 +257,7 @@ function CompleteProfile() {
         <Container>
 
           <div className="mb-3">
-            <HeadText blktext="Set up" Spntext="your profile"/>
+            <HeadText blktext="Set up" Spntext="your profile" />
           </div>
 
           <div className="AddVetTabDiv">
@@ -139,30 +297,76 @@ function CompleteProfile() {
                       <Form className="ComplteBusiness">
 
                         <div className="BusinessInptData">
-                            <Row>
-                                <Col md={6}>
-                                  <DynamicSelect
-                                    options={options}
-                                    value={country}
-                                    onChange={setCountry}
-                                    inname="country"
-                                    placeholder="Select Country"
+                          <Row>
+                            <Col md={12}>
+
+                              <div className="add-logo-container">
+                                <input
+                                  type="file"
+                                  id="logo-upload"
+                                  accept="image/*"
+                                  onChange={handleImageChange}
+                                  style={{ display: "none" }}
+                                />
+                                <label
+                                  htmlFor="logo-upload"
+                                  className="upload-label"
+                                >
+                                  {image && sanitizedPreview ? (
+                                    <Image
+                                      src={sanitizedPreview}
+                                      alt="Preview"
+                                      className="preview-image"
+                                      width={40}
+                                      height={40}
                                     />
-                                </Col>
-                                <Col md={6}>
-                                    <FormInput intype="text" inname="registrationNumber" value={name.registrationNumber} inlabel="Business Registration Number/PIMS ID" onChange={handleBusinessInformation} />
-                                </Col>
-                            </Row>
-                            <Row>
-                                <Col md={12}>
-                                    <FormInput intype="text" inname="businessName" value={name.businessName} inlabel="Business Name" onChange={handleBusinessInformation} />
-                                </Col>
-                            </Row>
-                            <Row>
-                                <Col md={12}>
-                                    <FormInput intype="text" inname="website" value={name.website} inlabel="Website(Optional)" onChange={handleBusinessInformation} />
-                                </Col>
-                            </Row>
+                                  ) : (
+                                    <div className="upload-placeholder">
+                                      <Image
+                                        src="/Images/camera.png"
+                                        alt="camera"
+                                        className="icon"
+                                        width={40}
+                                        height={40}
+                                      />
+                                    </div>
+                                  )}
+                                </label>
+                                <h5>Add Profile Picture</h5>
+                              </div>
+
+                            </Col>
+
+                          </Row>
+                          <Row>
+                            <Col md={6}>
+                              <DynamicSelect
+                                options={Option1}
+                                value={country}
+                                onChange={setCountry}
+                                inname="country"
+                                placeholder="Select Country"
+                              />
+                            </Col>
+                            <Col md={6}>
+                              <FormInput intype="text" inname="registrationNumber" value={name.registrationNumber} inlabel="Business Registration Number/PIMS ID" onChange={handleBusinessInformation} />
+                            </Col>
+                          </Row>
+                          <Row>
+                            <Col md={12}>
+                              <FormInput intype="text" inname="businessName" value={name.businessName} inlabel="Business Name" onChange={handleBusinessInformation} />
+                            </Col>
+                          </Row>
+                          <Row>
+                            <Col md={12}>
+                              <FormInput intype="number" inname="PhoneNumber" value={name.PhoneNumber} inlabel="Phone Number" onChange={handleBusinessInformation} />
+                            </Col>
+                          </Row>
+                          <Row>
+                            <Col md={12}>
+                              <FormInput intype="text" inname="website" value={name.website} inlabel="Website(Optional)" onChange={handleBusinessInformation} />
+                            </Col>
+                          </Row>
                         </div>
 
                         <div className="ComptBtn">
@@ -180,28 +384,28 @@ function CompleteProfile() {
                       <Form className="CompltAddress">
 
                         <div className="AdrsDiv">
-                            <h5>Address</h5>
-                            <div className="adrinpt">
-                                <Row>
-                                    <Col md={6}><FormInput intype="number" inname="postalCode" value={name.postalCode} inlabel="Postal Code" onChange={handleBusinessInformation} /></Col>
-                                    <Col md={6}>
-                                      <DynamicSelect
-                                      options={options}
-                                      value={country}
-                                      onChange={setCountry}
-                                      inname="country"
-                                      placeholder="Area"
-                                      />
-                                    </Col>
-                                </Row>
-                                <Row>
-                                    <Col md={12}><FormInput intype="text" inname="compAddress" value={name.compAddress} inlabel="Address Line 1" onChange={handleBusinessInformation} /></Col>
-                                </Row>
-                                <Row>
-                                    <Col md={6}><FormInput intype="text" inname="compCity" value={name.compCity} inlabel="City" onChange={handleBusinessInformation} /></Col>
-                                    <Col md={6}><FormInput intype="text" inname="compState" value={name.compState} inlabel="State" onChange={handleBusinessInformation} /></Col>
-                                </Row>
-                            </div>
+                          <h5>Address</h5>
+                          <div className="adrinpt">
+                            <Row>
+                              <Col md={6}><FormInput intype="number" inname="postalCode" value={name.postalCode} inlabel="Postal Code" onChange={handleBusinessInformation} /></Col>
+                              <Col md={6}>
+                                <DynamicSelect
+                                  options={options}
+                                  value={country}
+                                  onChange={setCountry}
+                                  inname="country"
+                                  placeholder="Area"
+                                />
+                              </Col>
+                            </Row>
+                            <Row>
+                              <Col md={12}><FormInput intype="text" inname="addressLine1" value={name.addressLine1} inlabel="Address Line 1" onChange={handleBusinessInformation} /></Col>
+                            </Row>
+                            <Row>
+                              <Col md={6}><FormInput intype="text" inname="city" value={name.city} inlabel="City" onChange={handleBusinessInformation} /></Col>
+                              <Col md={6}><FormInput intype="text" inname="state" value={name.state} inlabel="State" onChange={handleBusinessInformation} /></Col>
+                            </Row>
+                          </div>
                         </div>
 
                         <div className="ComptBtn twbtn">
@@ -250,31 +454,24 @@ function CompleteProfile() {
                                 />
                               </div>
                               <ul className="services-list">
-                                {filteredServices.map((service) => (
-                                  <li
-                                    key={service.code}
-                                    className={`service-item ${
-                                      selectedServices.includes(service.code)
-                                        ? "selected"
-                                        : ""
-                                    }`}
-                                  >
-                                    <label>
-                                      <input
-                                        type="checkbox"
-                                        className="form-check-input"
-                                        checked={selectedServices.some(
-                                          (s) => s.code === service.code
-                                        )}
-                                        onChange={() =>
-                                          handleSelectService(service)
-                                        }
-                                      />
-                                      <p>{service.display}</p>
-                                    </label>
-                                  </li>
-                                ))}
-                              </ul>
+  {filteredServices.map((service) => (
+    <li
+      key={service.code}
+      className={`service-item ${selectedServices.includes(service.display) ? "selected" : ""}`}
+    >
+      <label>
+        <input
+          type="checkbox"
+          className="form-check-input"
+          checked={selectedServices.includes(service.display)}
+          onChange={() => handleSelectService(service)}
+        />
+        <p>{service.display}</p>
+      </label>
+    </li>
+  ))}
+</ul>
+
                             </div>
                           )}
                         </div>
@@ -284,13 +481,13 @@ function CompleteProfile() {
                           <div className="ConstModeUl">
                             <ul>
                               <li
-                                className={activeModes === "yes" ? "active" : ""}
+                                className={departmentFeatureActive === "yes" ? "active" : ""}
                                 onClick={() => handleModeClick("yes")}
                               >
                                 Yes
                               </li>
                               <li
-                                className={activeModes === "no" ? "active" : ""}
+                                className={departmentFeatureActive === "no" ? "active" : ""}
                                 onClick={() => handleModeClick("no")}
                               >
                                 No
@@ -301,15 +498,15 @@ function CompleteProfile() {
 
                         <div className="services_dropdown">
                           <div
-                            className={`ServHeadr ${isDropdownOpen ? "open" : ""}`}
-                            onClick={toggleDropdown}
+                            className={`ServHeadr ${isDropdownOpen1 ? "open" : ""}`}
+                            onClick={toggleDropdown1}
                           >
                             <span>Add Department</span>
                             <span className="arrow">
                               {isDropdownOpen ? <IoMdArrowDropup /> : <IoMdArrowDropdown />}
                             </span>
                           </div>
-                          {isDropdownOpen && (
+                          {isDropdownOpen1 && (
                             <div className="ServDropcontent">
                               <div className="serchbtn">
                                 <i className="ri-search-line"></i>
@@ -317,42 +514,35 @@ function CompleteProfile() {
                                   type="text"
                                   className="search-input"
                                   placeholder="Search"
-                                  value={searchTerm}
-                                  onChange={handleSearch}
+                                  value={searchTerm1}
+                                  onChange={handleSearch1}
                                 />
                               </div>
                               <ul className="services-list">
-                                {filteredServices.map((service) => (
-                                  <li
-                                    key={service.code}
-                                    className={`service-item ${
-                                      selectedServices.includes(service.code)
-                                        ? "selected"
-                                        : ""
-                                    }`}
-                                  >
-                                    <label>
-                                      <input
-                                        type="checkbox"
-                                        className="form-check-input"
-                                        checked={selectedServices.some(
-                                          (s) => s.code === service.code
-                                        )}
-                                        onChange={() =>
-                                          handleSelectService(service)
-                                        }
-                                      />
-                                      <p>{service.display}</p>
-                                    </label>
-                                  </li>
-                                ))}
-                              </ul>
+  {filteredServices1.map((service) => (
+    <li
+      key={service.code}
+      className={`service-item ${addDepartment.includes(service.display) ? "selected" : ""}`}
+    >
+      <label>
+        <input
+          type="checkbox"
+          className="form-check-input"
+          checked={addDepartment.includes(service.display)}
+          onChange={() => handleSelectService1(service)}
+        />
+        <p>{service.display}</p>
+      </label>
+    </li>
+  ))}
+</ul>
+
                             </div>
                           )}
                         </div>
 
-                        
-                       
+
+
 
                         <div className="ComptBtn twbtn">
                           <Button
@@ -360,7 +550,7 @@ function CompleteProfile() {
                             onClick={() => setKey("address")}>
                             <IoIosArrowDropleft /> Back
                           </Button>
-                          <Button onClick={() => setKey("login")}>
+                          <Button onClick={handleSubmit}>
                             <FaCircleCheck />
                             Submit
                           </Button>
@@ -374,7 +564,7 @@ function CompleteProfile() {
 
                     </Tab.Pane>
 
-                   
+
                   </Tab.Content>
                 </div>
 

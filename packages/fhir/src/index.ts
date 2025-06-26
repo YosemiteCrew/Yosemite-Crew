@@ -3,7 +3,7 @@ export interface Demo {
   age: number;
 }
 
-export  {HospitalProfileFHIRBuilder} from "./hospital.profile.type";
+export  {toFHIRBusinessProfile,fromFHIRBusinessProfile} from "./hospital-profile-fhir";
 export {parseFhirBundle,File,Files,Document,ParsedData} from "./add.doctor.type"
 export {AppointmentsStatusFHIRConverter} from "./AppointmentStatus/apointmentStatusFhir";
 export  { convertToFhir, convertFhirToNormal} from "./feedback";
