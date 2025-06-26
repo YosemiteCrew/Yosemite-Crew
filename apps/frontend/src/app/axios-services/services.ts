@@ -1,6 +1,12 @@
-import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import axios, {
+  AxiosInstance,
+  AxiosResponse,
+  InternalAxiosRequestConfig,
+  AxiosError,
+  AxiosRequestConfig,
+} from 'axios';
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL; // use NEXT_PUBLIC_ in Next.js for client env vars
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL; // NEXT_PUBLIC_ required for frontend use
 
 const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,
@@ -9,6 +15,7 @@ const api: AxiosInstance = axios.create({
   },
 });
 
+// Request interceptor to add auth token
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = sessionStorage.getItem('token');
@@ -17,38 +24,66 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error: AxiosError) => Promise.reject(error)
 );
 
-// Generic GET function
-export const getData = async <T>(endpoint: string, params: Record<string, unknown> = {}): Promise<AxiosResponse<T>> => {
+// ===============================
+// ✅ GET Request
+// ===============================
+export const getData = async <T>(
+  endpoint: string,
+  params: Record<string, unknown> = {}
+): Promise<AxiosResponse<T>> => {
   try {
-    const response = await api.get<T>(endpoint, { params });
-    return response;
-  } catch (error) {
+    return await api.get<T>(endpoint, { params });
+  } catch (error: unknown) {
     console.error('API getData error:', error);
     throw error;
   }
 };
 
-// Generic POST function
-export const postData = async <T>(endpoint: string, data: unknown): Promise<T> => {
+// ===============================
+// ✅ POST Request
+// ===============================
+export const postData = async <T, D = unknown>(
+  endpoint: string,
+  data: D,
+  config?: AxiosRequestConfig
+): Promise<AxiosResponse<T>> => {
   try {
-    const response = await api.post<T>(endpoint, data);
-    return response.data;
-  } catch (error) {
-    console.error('API postData error:', error);
+    return await api.post<T>(endpoint, data, config);
+  } catch (error: unknown) {
+    console.error("API postData error:", error);
     throw error;
   }
 };
 
-// Generic PUT function
-export const putData = async <T>(endpoint: string, data: unknown): Promise<T> => {
+// ===============================
+// ✅ PUT Request
+// ===============================
+export const putData = async <T, D = unknown>(
+  endpoint: string,
+  data: D
+): Promise<AxiosResponse<T>> => {
   try {
-    const response = await api.put<T>(endpoint, data);
-    return response.data;
-  } catch (error) {
+    return await api.put<T>(endpoint, data);
+  } catch (error: unknown) {
     console.error('API putData error:', error);
+    throw error;
+  }
+};
+
+// ===============================
+// ✅ DELETE Request
+// ===============================
+export const deleteData = async <T>(
+  endpoint: string,
+  params: Record<string, unknown> = {}
+): Promise<AxiosResponse<T>> => {
+  try {
+    return await api.delete<T>(endpoint, { params });
+  } catch (error: unknown) {
+    console.error('API deleteData error:', error);
     throw error;
   }
 };
