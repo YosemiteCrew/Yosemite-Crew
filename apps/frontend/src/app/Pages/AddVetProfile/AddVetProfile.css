@@ -1,0 +1,77 @@
+
+.DoctGendr {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 100%;
+}
+.DoctGendr p{
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 21.6px;
+  letter-spacing: -0.02em;
+  color: #302f2e;
+  margin: 0;
+}
+
+.PersonalInfoData{
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+.PersonalInfoData .PersonlInfoDiv{
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+.PersonalInfoData .PersonlInfoDiv .perInfo{
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+.PersonalInfoData .PersonlInfoDiv .perInfo h6 , .PersonalInfoData .doctadressdiv h6 , .ProfileDetailsData h6{
+    font-family: var(--grotesk-font);
+    font-size: 23px;
+    font-weight: 500;
+    line-height: 120%;
+    color: var(--black-text);
+    margin: 0;
+}
+
+
+.PersonalInfoData .DivideLine{
+    border-bottom: 1px solid var(--popupbg);
+    padding: 8px 0px;
+}
+.PersonalInfoData .doctadressdiv{
+   display: flex;
+   flex-direction: column;
+   gap: 16px;
+}
+
+
+/* ProfileDetailsData Started  */
+
+.ProfileDetailsData{
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.FormTexediv textarea{
+    min-height: 133px;
+    padding: 20px 24px;
+    border: 1px solid var(--black-bg);
+    border-radius: 36px;
+}
+.FormTexediv .textarealabl label{
+   left: 15px;
+   font-weight: 400;
+   font-size: 18px;
+   line-height: 120%;
+   font-family: var(--satoshi-font);
+}
+
+
+
+/* ProfileDetailsData Ended   */

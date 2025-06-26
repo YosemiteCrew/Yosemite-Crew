@@ -227,7 +227,7 @@ input[type=number] {
   width: 50px;
   height: 3px;
   top: 50%;
-  right: -100px;
+  right: -80px;
 }
 .AddVetTabDiv .VetPills .nav-item:last-child:after{
   display: none;
@@ -276,3 +276,80 @@ input[type=number] {
 
 
 
+/* Add image css  */
+.add-logo-container {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.upload-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+}
+.upload-placeholder {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--light-blue);
+  transition: border-color 0.3s ease;
+  border: 1px solid var(--skytext);
+}
+.preview-image {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--black-bg);
+}
+
+.add-logo-container h5 {
+  font-family: var(--grotesk-font);
+  font-size: 23px;
+  font-weight: 500;
+  line-height: 120%;
+  color: var(--black-text);
+  margin: 0;
+}
+/* Add image css  */
+
+
+
+
+/* select Ul  */
+
+.SelectUl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 0;
+  margin: 0;
+}
+.SelectUl li {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 0.5px solid #312943;
+  border-radius: 28px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 16.2px;
+  letter-spacing: -0.02em;
+  color: #37223c;
+  font-family: var(--satoshi-font);
+  min-width: 85px;
+  min-height: 42px;
+  cursor: pointer;
+  padding: 0px 20px;
+}
+.SelectUl li.active {
+  background: var(--light-blue);
+  border: 1px solid var(--blue-text);
+  color: var(--blue-text);
+  font-weight: 700;
+}
+/* select Ul  */
