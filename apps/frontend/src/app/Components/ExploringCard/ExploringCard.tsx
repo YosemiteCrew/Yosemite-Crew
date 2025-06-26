@@ -33,7 +33,7 @@ export default function ExploreSection({Headtitle,Headpara , Headtitlespan}: Exp
     const lightbox = GLightbox({ selector: ".glightbox-video", autoplayVideos: true });
     lightbox.reload();
     return () => lightbox.destroy();
-  }, [cards.length]);
+  }, []);
 
   return (
     <div className="Exploring-Data">

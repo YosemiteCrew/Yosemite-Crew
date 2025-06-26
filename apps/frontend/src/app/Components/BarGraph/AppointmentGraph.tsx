@@ -37,7 +37,8 @@ const AppointmentGraph = () => {
   const [selected, setSelected] = useState('Appointments');
   const [chartData, setChartData] = useState<DataItem[]>(appointmentData);
 
-  const handleSelect = (key: string) => {
+  const handleSelect = (key: string | null) => {
+    if (!key) return;
     setSelected(key);
     if (key === 'Appointments') {
       setChartData(appointmentData);

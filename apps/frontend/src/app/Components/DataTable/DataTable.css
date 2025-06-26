@@ -131,6 +131,60 @@
 
 
 
+.status-col {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.status-badge {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.status-badge.in-progress {
+  background-color: #fff4e5;
+  color: var(--black-text);
+  opacity: 100%;
+}
+
+.status-badge.checked-in {
+  background-color: #e5f8f1;
+  color: var(--black-text);
+  opacity: 100%;
+}
+
+.status-badge.pending {
+  background-color: #fdeaea;
+  color: var(--black-text);
+  opacity: 100%;
+}
+
+.action-dropdown {
+  position: relative;
+}
+
+.custom-toggle {
+  cursor: pointer;
+  display: inline-flex;
+  padding: 6px;
+  border-radius: 6px;
+}
+
+.menu-icon {
+  font-size: 18px;
+  color: #555;
+}
+
+
+
+
 
 
 

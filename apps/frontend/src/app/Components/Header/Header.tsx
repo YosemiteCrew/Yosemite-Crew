@@ -155,12 +155,17 @@ const Header: React.FC<HeaderProps> = ({ isLoggedIn }) => {
                     </div>
                     
                   </span>
-                  <ul className="dropdown profileUl">
-                    <li><Link href="#"><FaUser /> My Profile</Link></li>
-                    <li><Link href="#"><RiAccountBoxFill/> Account Settings</Link></li>
+                  <div className="dropdown profileUl">
+                    <div className='ProfDiv'>
+                      <Link href="#"><FaUser /> My Profile</Link>
+                      <Link href="#"><RiAccountBoxFill/> Account Settings</Link>
+                      <Link href="#"><IoIosHelpCircleOutline/> Need Help?</Link>
+                      <Link href="/signup"><FaSignInAlt/> Sign Out</Link>
+                    </div>
+                    {/* <li><Link href="#"><RiAccountBoxFill/> Account Settings</Link></li>
                     <li><Link href="#"><IoIosHelpCircleOutline/> Need Help?</Link></li>
-                    <li><Link href="/signup"><FaSignInAlt/> Sign Out</Link></li>
-                  </ul>
+                    <li><Link href="/signup"><FaSignInAlt/> Sign Out</Link></li> */}
+                  </div>
                 </li>
               </ul>
             </div>

@@ -1,5 +1,5 @@
 'use client';
-import React , { useCallback, useEffect, useState } from 'react'
+import React  from 'react'
 import "./ClinicVisiblity.css"
 import { Container } from 'react-bootstrap'
 import Image from 'next/image'
