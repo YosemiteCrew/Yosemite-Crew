@@ -179,6 +179,9 @@ importers:
 
   apps/frontend:
     dependencies:
+      '@yosemite-crew/fhir':
+        specifier: workspace:^
+        version: link:../../packages/fhir
       aos:
         specifier: ^2.3.4
         version: 2.3.4
@@ -188,9 +191,15 @@ importers:
       bootstrap:
         specifier: ^5.3.3
         version: 5.3.7(@popperjs/core@2.11.8)
+      country-list-json:
+        specifier: ^1.1.0
+        version: 1.1.0
       glightbox:
         specifier: ^3.3.1
         version: 3.3.1
+      jwt-decode:
+        specifier: ^4.0.0
+        version: 4.0.0
       next:
         specifier: 15.3.3
         version: 15.3.3(react-dom@19.1.0)(react@19.1.0)
@@ -7142,6 +7151,10 @@ packages:
       js-yaml: 4.1.0
       parse-json: 5.2.0
       typescript: 5.0.4
+
+  /country-list-json@1.1.0:
+    resolution: {integrity: sha512-9a6sGBVXq3rXmZlddQQIjk0ZAk/pfBwVMUU1zJczWtIG4VcfUKp8HDSMteK1bBZVznE7+wWVg6kntxtzDBjvPQ==}
+    dev: false
 
   /create-jest@29.7.0:
     resolution: {integrity: sha512-Adz2bdH0Vq3F53KEMJOoftQFutWCukm6J24wbPWRO4k1kMY7gS7ds/uoJkNuV8wDCtWWnuwGcJwpWcih+zEW1Q==}
