@@ -121,21 +121,46 @@
     top: 100%;
     left: 0;
     min-width: 200px !important;
-    padding: 20px 0;
+    padding: 16px 0;
     background: var(--whitebg);
     border: 1px solid var(--lightgrey);
     border-radius: 0px 0px 20px 20px;
     box-shadow: 0px 0px 8px 0px #00000014;
-    transform: translateY(10px);
+    transform: translateY(20px);
     transition: all 0.3s ease;
     z-index: 999;
     list-style-type: none;
+}
+.profileUl .ProfDiv {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.profileUl .ProfDiv a{
+  min-height: 40px;
+  display: grid;
+  align-items: center;
+  grid-template-columns: 22px auto;
+  padding-left: 25px;
+  gap: 12px;
+  color: var(--black-text);
+  font-family: var(--grotesk-font);
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 120%;
+}
+.profileUl .ProfDiv a svg{
+  font-size: 21px;
+}
+.profileUl .ProfDiv a:hover{
+  background: var(--lightblue);
+  color: var( --blue-text);
 }
 
 .NavUL .nav-item:hover > .profileUl {
     opacity: 1;
     visibility: visible;
-    transform: translateY(0);
+    transform: translateY(5px);
 }
 
 .dropdown-menu-arrow {
@@ -195,7 +220,7 @@
 }
 
 .profileUl .dropdown-item:hover {
-  background-color: var(--chilli-red);
+  background-color: var(--blue-text);
 }
 
 .profileUl .dropdown-item:hover span,
@@ -247,7 +272,7 @@
   .navmenu li:hover > a,
   .navmenu .active,
   .navmenu .active:focus {
-    color: var(--chilli-red);
+    color: var(--blue-text);
     transition: 0.3s;
   }
 
@@ -331,7 +356,7 @@
 
   .navmenu li ul.dropdown li a:hover {
     background: #f5f5f5;
-    color: var(--chilli-red);
+    color: var(--blue-text);
   }
 
   .navmenu li ul.dropdown ul.dropdown {
@@ -407,13 +432,13 @@
     justify-content: center;
     border-radius: 50%;
     background-color: color-mix(in srgb, var(--accent-color), white 90%);
-    color: var(--chilli-red);
+    color: var(--blue-text);
   }
 
   .navmenu a:hover,
   .navmenu .active,
   .navmenu .active:focus {
-    color: var(--chilli-red);
+    color: var(--blue-text);
   }
 
   .navmenu .active i,
@@ -425,7 +450,7 @@
     display: none;
     flex-direction: column;
     background-color: #f9f9f9;
-    border-left: 2px solid var(--chilli-red);
+    border-left: 2px solid var(--blue-text);
     margin: 5px 0 5px 10px;
     padding-left: 10px;
   }

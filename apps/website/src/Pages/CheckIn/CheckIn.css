@@ -34,7 +34,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  justify-content: end;
+  justify-content: flex-end;
 }
 .CheckToken button {
   background: var(--chilli-red);

@@ -249,7 +249,7 @@
     flex-direction: column;
     gap: 19px;
     height: 100%;
-    justify-content: end;
+    justify-content: flex-end;
 }
 
 /* DummyTable Started */

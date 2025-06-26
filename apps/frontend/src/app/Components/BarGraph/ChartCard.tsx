@@ -2,6 +2,7 @@ import React from "react";
 import { Card, Button } from "react-bootstrap";
 import { Line } from "react-chartjs-2";
 import "chart.js/auto";
+import type { ChartOptions } from "chart.js";
 
 const data = {
   labels: ["March", "April", "May", "June", "July", "August"],
@@ -18,7 +19,7 @@ const data = {
   ],
 };
 
-const options = {
+const options: ChartOptions<"line"> = {
   plugins: { legend: { display: false } },
   scales: {
     y: {
