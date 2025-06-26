@@ -1,0 +1,49 @@
+
+.DatePicDiv{
+    width: 100%;
+    height: 100%;
+    padding: 0px 24px ;
+    border-radius:36px;
+    min-height: 55px;
+    border: 1px solid #37223CB2;
+    color: var(--black-text);
+    font-size: 18px;
+    font-weight: 400;
+    line-height: 21.6px;
+    letter-spacing: -0.02em;
+    font-family: var(--satoshi-font);
+    background-color: transparent;
+    outline: var(--chilli-red);
+    position: relative;
+    z-index: 1;
+}
+.DatePicDiv svg{
+    position: absolute;
+    color: var(--chilli-red);
+    right: 30px;
+    top: 50%;
+    z-index: -1;
+    transform: translate(0% ,-50%);
+}
+.DatePicDiv .form-control , .DatePicDiv .react-datepicker-wrapper , .DatePicDiv .react-datepicker__input-container{
+    width: 100%;
+    height: 100%;
+    background: transparent !important;
+    box-shadow: none;
+    border: none;
+    z-index: 1;
+    position: relative;
+}
+.DatePicDiv .form-control input{
+    width: 100%;
+    height: 100%;
+    background: transparent !important;
+    box-shadow: none;
+    border: none;
+    cursor: pointer;
+    z-index: 1;
+    outline: none !important;
+    position: relative;
+}
+
+

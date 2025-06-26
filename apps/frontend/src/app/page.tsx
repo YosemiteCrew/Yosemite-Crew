@@ -1,7 +1,7 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Header from "./Components/Header/Header";
-import AdminDashboardEmpty from "./Pages/AdminDashboardEmpty/AdminDashboardEmpty";
+import MainLandingPage from './Pages/MainLandingPage/MainLandingPage';
 
 
 
@@ -19,7 +19,8 @@ export default function Home() {
    <>
 
   <Header isLoggedIn={isLoggedIn}/>
-   <AdminDashboardEmpty/>
+   {/* <AdminDashboardEmpty/> */}
+   <MainLandingPage/>
    
    </>
   );
