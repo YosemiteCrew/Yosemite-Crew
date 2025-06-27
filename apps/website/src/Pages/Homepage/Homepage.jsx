@@ -157,6 +157,8 @@ const Homepage = () => {
                 BpPara="Keep track of stock levels, place orders, and receive notifications when supplies are low."
               />
             </div>
+
+
           </div>
         </section>
 
@@ -272,6 +274,8 @@ const Homepage = () => {
                   </div>
                 </div>
               </div>
+
+              
             </div>
           </div>
         </section>

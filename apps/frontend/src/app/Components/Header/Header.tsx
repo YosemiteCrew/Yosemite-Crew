@@ -26,29 +26,40 @@ const navItems: NavItem[] = [
   {
     label: 'Clinic',
     children: [
-      { label: 'Dropdown 1', href: '/clinic/dropdown1' },
-      { label: 'Dropdown 2', href: '/clinic/dropdown2' },
+      { label: 'Specialities', href: '#' },
+      { label: 'Practice Team', href: '#' },
+      { label: 'Manage Invites', href: '#' },
+      { label: 'Manage Clinic Visibility', href: '#' },
     ]
   },
   {
     label: 'Operations',
     children: [
-      { label: 'Dropdown 1', href: '/operations/dropdown1' },
-      { label: 'Dropdown 2', href: '/operations/dropdown2' },
+      { label: 'Queue Management', href: '#' },
+      { label: 'Appointments', href: '#' },
+      { label: 'Assessments', href: '#' },
+      { label: 'Prescriptions', href: '#' },
+      { label: 'Inventory', href: '#' },
+      { label: 'Procedure Packages', href: '#' },
     ]
   },
   {
     label: 'Finance',
     children: [
-      { label: 'Dropdown 1', href: '/finance/dropdown1' },
-      { label: 'Dropdown 2', href: '/finance/dropdown2' },
+      { label: 'Revenue Reporting', href: 'Revenue Reporting' },
+      { label: 'Billing', href: '#' },
+      { label: 'Client Statements', href: '#' },
+      { label: 'Coupons', href: '#' },
+      { label: 'Payment Methods', href: '#' },
+      { label: 'Procedure Estimates', href: '#' },
     ]
   },
   {
     label: 'Help & Resources',
     children: [
-      { label: 'Dropdown 1', href: '/help/dropdown1' },
-      { label: 'Dropdown 2', href: '/help/dropdown2' },
+      { label: 'Blog', href: '#' },
+      { label: 'Resources', href: '#' },
+      { label: 'Contact Us', href: '#' },
     ]
   }
 ];
