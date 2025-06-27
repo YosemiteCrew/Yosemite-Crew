@@ -252,7 +252,7 @@
   .navmenu a,
   .navmenu a:focus {
     font-family: var(--grotesk-font);
-    color: var(--black-text);
+    color: var(--notibg);
     padding: 18px 15px;
     font-size: 16px;
     font-weight: 500;
@@ -283,9 +283,10 @@
     left: 0;
     min-width: 200px;
     padding: 10px 0;
-    background: #fff;
-    border-radius: 8px;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+    background: var(--whitebg);
+    border: 1px solid var(--lightgrey);
+    border-radius: 0px 0px 20px 20px;
+    box-shadow: 0px 0px 8px 0px #00000014;
     z-index: 999;
   }
 
@@ -332,9 +333,10 @@
     left: 0;
     min-width: 200px;
     padding: 10px 0;
-    background: #fff;
-    border-radius: 8px;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+    background: var(--whitebg);
+    border: 1px solid var(--lightgrey);
+    border-radius: 0px 0px 20px 20px;
+    box-shadow: 0px 0px 8px 0px #00000014;
     transform: translateY(10px);
     transition: all 0.3s ease;
     z-index: 999;
@@ -349,14 +351,20 @@
   .navmenu li ul.dropdown li a {
     padding: 10px 20px;
     font-size: 15px;
-    font-weight: 400;
-    color: var(--black-text);
+    font-weight: 700;
+    line-height: 24px;
+    font-family: var(--satoshi-font);
+    color: var(--notibg);
     white-space: nowrap;
+    justify-content: center;
   }
 
   .navmenu li ul.dropdown li a:hover {
-    background: #f5f5f5;
+    background: var(--lightblue);
     color: var(--blue-text);
+  }
+  .navmenu li ul.dropdown li:last-child a:hover {
+    border-radius: 0px 0px 8px 8px;
   }
 
   .navmenu li ul.dropdown ul.dropdown {

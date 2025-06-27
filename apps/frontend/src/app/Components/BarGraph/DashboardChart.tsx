@@ -8,7 +8,7 @@ import {
 
 type ChartProps = {
   title: string;
-  data: any[];
+  data: { month: string; completed?: number; cancelled?: number; revenue?: number }[];
   type: "bar" | "line";
   showEmpty?: boolean;
 }

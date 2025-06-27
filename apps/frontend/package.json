@@ -13,6 +13,7 @@
     "aos": "^2.3.4",
     "axios": "^1.10.0",
     "bootstrap": "^5.3.3",
+    "chart.js": "^4.4.8",
     "country-list-json": "^1.1.0",
     "framer-motion": "^12.18.1",
     "glightbox": "^3.3.1",

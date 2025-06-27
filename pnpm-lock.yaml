@@ -191,6 +191,9 @@ importers:
       bootstrap:
         specifier: ^5.3.3
         version: 5.3.7(@popperjs/core@2.11.8)
+      chart.js:
+        specifier: ^4.4.8
+        version: 4.5.0
       country-list-json:
         specifier: ^1.1.0
         version: 1.1.0
