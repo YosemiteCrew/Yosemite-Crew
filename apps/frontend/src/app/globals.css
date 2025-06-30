@@ -59,7 +59,10 @@
   --counslingtext:#D04122;
   --orange:#FF9500;
   --red:#FF3B30;
-  --ddd:linear-gradient(180deg, rgba(191, 191, 190, 0.35) 0%, rgba(191, 191, 190, 0) 100%)
+  --ddd:linear-gradient(180deg, rgba(191, 191, 190, 0.35) 0%, rgba(191, 191, 190, 0) 100%);
+  --checkbg:#E6F4EF;
+  --delete:#EA3729;
+  --checkgreen:#008F5D;
 
 
 
@@ -353,3 +356,126 @@ input[type=number] {
   font-weight: 700;
 }
 /* select Ul  */
+
+.TableRowDiv{
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+
+
+/* DoctorClender started  */
+
+.DoctorClender{
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+.DoctorClender .TopClendr{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.DoctorClender .TopClendr .lftclndr h3{
+    color: var(--pureblack);
+    margin: 0;
+    font-family: var(--grotesk-font);
+    font-weight: 500;
+    font-size: 33px;
+    line-height: 120%;
+}
+.DoctorClender .TopClendr .Rytclndr{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.DoctorClender .TopClendr .Rytclndr .clnderSlect button{
+    min-width: 152px;
+    padding: 0px;
+    border: none;
+    background: transparent !important;
+    color: var( --notibg) !important;
+    padding: 10px 16px;
+    border-radius: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 40px;
+}
+
+
+.DoctorClender .TopClendr .Rytclndr .clnderBtn a{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 10px 16px;
+    border-radius: 28px;
+    background: var(--black-bg);
+    font-family: var(--grotesk-font);
+    font-weight: 500;
+    font-size: 16px;
+    color: var(--white-text);
+    border: 1px solid var(--black-bg);
+    transition: all 0.3s ease;
+}
+.DoctorClender .TopClendr .Rytclndr .clnderBtn a:hover{
+    background: var(--whitebg);
+    color: var(--black-text);
+}
+
+/* DoctorClender Ended  */
+
+
+/* Assessment Vet / Appointment Vet Started  */
+.AppointmentVetSection{
+    padding: 100px 0px;
+}
+.AppointmentVetSection .AppointmentVetData{
+    display: flex;
+    flex-direction: column;
+    gap: 80px;
+}
+.TopAppontVet{
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+}
+.TopAppontVet .ApointHead{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.TopAppontVet .ApointHead h2{
+    font-family: var(--grotesk-font);
+    font-size: 40px;
+    font-weight: 500;
+    line-height: 120%;
+    margin: 0;
+    color: var(--black-text);
+}
+.TopAppontVet .ApointHead span{
+    font-family: var(--satoshi-font);
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 120%;
+    margin: 0;
+    color: var(--skytext);
+    background: var(--lightblue);
+    padding: 12px 16px;
+    border-radius: 16px;
+}
+.OverViewDiv{
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.OverViewDiv h6{
+  font-size: 23px;
+  font-weight: 500;
+  line-height: 120%;
+  margin: 0;
+  color: var( --black-text);
+}
+/* Assessment Vet / Appointment Vet Ended  */
