@@ -14,6 +14,9 @@ import { useAuth } from "@/app/Context/AuthContext";
 import axios from "axios";
 import { postData } from "@/app/axios-services/services";
 import { toFHIRBusinessProfile } from "@yosemite-crew/fhir"
+
+
+
 type Option = {
   value: string;
   label: string;
@@ -54,6 +57,7 @@ function CompleteProfile() {
   const [addDepartment, setAddDepartment] = useState<string[]>([]);
   const [departmentFeatureActive, setdepartmentFeatureActive] = useState("yes");
   const [country, setCountry] = useState<string>('');
+  
   const [name, setName] = useState({
     userId: "",
     businessName: "",
