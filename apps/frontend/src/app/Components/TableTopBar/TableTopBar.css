@@ -1,0 +1,73 @@
+.TableTopBar{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.TableTopBar .leftTopTbl .TbleText h3{
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--black-text);
+    font-family: var(--grotesk-font);
+    font-weight: 500;
+    font-size: 33px;
+    line-height: 120%;
+    margin: 0;
+}
+.RightTopTbl{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.RightTopTbl .Tblserchdiv{
+    display: flex;
+    align-items: center;
+    min-width: 320px;
+    padding: 10px 16px;
+    border-radius: 36px;
+    min-height: 40px;
+    position: relative;
+    border: 1px solid var(--greytext);
+}
+.RightTopTbl .Tblserchdiv input{
+    border: none;
+    outline: none;
+    background: transparent;
+    cursor: pointer;
+    flex: 1;
+    color: var( --notibg);
+    font-size: 15px;
+    line-height: 24px;
+    font-weight: 600;
+    font-family: var(--satoshi-font);
+}
+.RightTopTbl .Tblserchdiv input::placeholder{
+    color: var( --notibg);
+    font-weight: 400;
+}
+.RightTopTbl .Tblserchdiv button{
+    border: none;
+    background: transparent !important;
+    padding: 0;
+}
+.RightTopTbl .Tblserchdiv button svg{
+    color: var(--black-bg);
+}
+
+.DoctSlect button , .StatusSlect button{
+    min-width: 152px;
+    padding: 0px;
+    border: 1px solid var(--greytext) !important;
+    background: transparent !important;
+    color: var( --notibg) !important;
+    padding: 10px 16px;
+    border-radius: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 40px;
+
+}
+.StatusSlect button{
+    min-width: 104px !important;
+}

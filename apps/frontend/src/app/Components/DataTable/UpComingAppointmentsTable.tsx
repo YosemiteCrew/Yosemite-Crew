@@ -3,9 +3,13 @@ import React from 'react'
 import "./DataTable.css"
 import GenericTable from '../GenericTable/GenericTable'
 import { Button, Dropdown } from 'react-bootstrap'
-import { BsThreeDotsVertical } from 'react-icons/bs';
+import {  BsThreeDotsVertical } from 'react-icons/bs';
 import Image from 'next/image';
-import { FaUser } from 'react-icons/fa6';
+import { FaCircleCheck, FaUser } from 'react-icons/fa6';
+
+
+
+
 
 // Define the Column type
 type Column<T> = {
@@ -18,7 +22,7 @@ type Column<T> = {
 // Type
 type AppointmentStatus = "In-progress" | "Checked-In" | "Pending";
 
-type AppointmentItem = {
+type TodayAppointmentItem = {
   name: string;
   owner: string;
   image: string;
@@ -33,7 +37,46 @@ type AppointmentItem = {
 };
 
 // Sample Data
-const appointments: AppointmentItem[] = [
+const appointments: TodayAppointmentItem[] = [
+  {
+    name: "Kizie",
+    owner: "Sky B",
+    image: "/Images/pet3.png",
+    appointmentId: "DRO01-03-23-2024",
+    reason: "Annual Health Check-Up",
+    breed: "Beagle/Dog",
+    time: "11:30 AM",
+    date: "01 Sep 2024",
+    doctor: "Dr. Emily Johnson",
+    specialization: "Cardiology",
+    status: "In-progress",
+  },
+  {
+    name: "Oscar",
+    owner: "Pika K",
+    image: "/Images/pet3.png",
+    appointmentId: "DRO02-03-23-2024",
+    reason: "Vaccination Updates",
+    breed: "Egyptian/Cat",
+    time: "12:15 PM",
+    date: "01 Sep 2024",
+    doctor: "Dr. David Brown",
+    specialization: "Gastroenterology",
+    status: "Checked-In",
+  },
+  {
+    name: "King",
+    owner: "Henry C",
+    image: "/Images/pet3.png",
+    appointmentId: "DRO03-03-23-2024",
+    reason: "Deworming Treatment",
+    breed: "Paso Fino/Horse",
+    time: "01:13 PM",
+    date: "01 Sep 2024",
+    doctor: "Dr. Megan Clark",
+    specialization: "Endocrinology",
+    status: "Pending",
+  },
   {
     name: "Kizie",
     owner: "Sky B",
@@ -76,12 +119,12 @@ const appointments: AppointmentItem[] = [
 ];
 
 // Columns for GenericTable
-const columns: Column<AppointmentItem>[] = [
+const columns: Column<TodayAppointmentItem>[] = [
     {
         label: "",
         key: "avatar",
         width: "60px",
-        render: (item: AppointmentItem) => (
+        render: (item: TodayAppointmentItem) => (
           <Image
             src={item.image}
             alt={item.name}
@@ -94,7 +137,7 @@ const columns: Column<AppointmentItem>[] = [
   {
     label: "Name",
     key: "name",
-    render: (item: AppointmentItem) => (
+    render: (item: TodayAppointmentItem) => (
       <div className="user-info">
         
         <div>
@@ -107,22 +150,22 @@ const columns: Column<AppointmentItem>[] = [
   {
   label: "Appointment ID",
   key: "appointmentId",
-  render: (item: AppointmentItem) => <p>{item.appointmentId}</p>,
+  render: (item: TodayAppointmentItem) => <p>{item.appointmentId}</p>,
 },
 {
   label: "Reason for Appointment",
   key: "reason",
-  render: (item: AppointmentItem) => <p>{item.reason}</p>,
+  render: (item: TodayAppointmentItem) => <p>{item.reason}</p>,
 },
 {
   label: "Breed/Pet",
   key: "breed",
-  render: (item: AppointmentItem) => <p>{item.breed}</p>,
+  render: (item: TodayAppointmentItem) => <p>{item.breed}</p>,
 },
   {
     label: "Date",
     key: "date",
-    render: (item: AppointmentItem) => (
+    render: (item: TodayAppointmentItem) => (
       <div>
         <p>{item.time}</p>
         <span>{item.date}</span>
@@ -132,31 +175,46 @@ const columns: Column<AppointmentItem>[] = [
   {
     label: "Doctor",
     key: "doctor",
-    render: (item: AppointmentItem) => (
+    render: (item: TodayAppointmentItem) => (
       <div>
         <p>{item.doctor}</p>
         <span>{item.specialization}</span>
       </div>
     ),
   },
-  {
-    label: "Patient Status",
-    key: "status",
-    render: (item: AppointmentItem) => (
-      <div className="status-col">
-        <span
-          className={`status-badge ${item.status.replace(/\s/g, '-').toLowerCase()}`}
+ {
+  label: "Actions",
+  key: "actions",
+  render: () => (
+    <div className="action-btn-col">
+        <Button className="circle-btn done"
+          title="Done">
+            <FaCircleCheck size={24} />
+          
+        </Button>
+      {/* {item.status === "In-progress" ? (
+        <Button className="circle-btn done"
+          title="Done">
+            <FaCircleCheck size={24} />
+          
+        </Button>
+      ) : (
+        <Button
+          className="circle-btn view"
+          title="View"
+          
+          onClick={() => console.log("View", item)}
         >
-          <span>●</span> {item.status}
-        </span>
-        
-      </div>
-    ),
-  },
+            <FaEye size={24}/>
+        </Button>
+      )} */}
+    </div>
+  ),
+},
   {
   label: "",
-  key: "actions",
-  render: (item: AppointmentItem) => (
+  key: "actionsDropdown",
+  render: (item: TodayAppointmentItem) => (
     <div className="action-dropdown">
       <Dropdown align="end">
         <Dropdown.Toggle as="span" className="custom-toggle">
@@ -175,17 +233,25 @@ const columns: Column<AppointmentItem>[] = [
 
 ];
 
-function EmergencyAppointmentsTable() {
+
+
+function UpComingAppointmentsTable() {
+
+
+    
+
+
+
   return (
-    <>
+    <div>
         <div className="table-wrapper">
-            <GenericTable data={appointments} columns={columns} bordered={false} />
-            <div className="table-footerBtn ">
+            <GenericTable data={appointments} columns={columns} bordered={false} pagination pageSize={3} />
+            {/* <div className="table-footerBtn ">
                 <Button>Sell All</Button>
-            </div>
+            </div> */}
         </div>
-    </>
+    </div>
   )
 }
 
-export default EmergencyAppointmentsTable
+export default UpComingAppointmentsTable
