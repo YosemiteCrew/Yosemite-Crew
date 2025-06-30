@@ -88,7 +88,9 @@ function DoctorDashboard() {
                         <h3>My Calendar <span>(14)</span></h3>
                     </div>
                     <div className="Rytclndr">
-                        <Link href="#"><FaCalendar /> View Calendar</Link>
+                        <div className="clnderBtn">
+                            <Link href="#"><FaCalendar /> View Calendar</Link>
+                        </div>
                     </div>
                 </div>
                 <CalendarCard/>

@@ -184,7 +184,33 @@
 
 
 
+/* Todays Appointemnt started  */
 
+.action-btn-col button.circle-btn{
+  padding: 0;
+  background: transparent ;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.action-btn-col button.circle-btn.done{
+  background: var(--checkbg);
+}
+.action-btn-col button.circle-btn.done svg{
+  color: var(--lightgreen);
+}
+.action-btn-col button.circle-btn.view{
+  background: var(--whitebg);
+  border: 0.83px solid var(--black-bg);
+}
+.action-btn-col button.circle-btn.view svg{
+  color: var(--black-bg);
+}
+/* Todays Appointemnt Ended */
 
 
 

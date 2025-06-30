@@ -1,9 +1,9 @@
 "use client";
-import React from "react";
-import { Table } from "react-bootstrap";
+import React, { useState } from "react";
+import { Button, Table } from "react-bootstrap";
 import "./GenericTable.css"
+import { FiArrowLeft, FiArrowRight } from "react-icons/fi";
 
-// Column interface
 interface Column<T> {
   label: string;
   key: keyof T;
@@ -11,49 +11,75 @@ interface Column<T> {
   width?: string | number;
 }
 
-// GenericTable props
 interface GenericTableProps<T extends object> {
   data: T[];
   columns: Column<T>[];
   bordered?: boolean;
+  pagination?: boolean;
+  pageSize?: number;
 }
 
 function GenericTable<T extends object>({
   data,
   columns,
   bordered = false,
+  pagination = false,
+  pageSize = 10,
 }: GenericTableProps<T>) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const total = data.length;
+  const totalPages = Math.ceil(total / pageSize);
+  const startIdx = (currentPage - 1) * pageSize;
+  const endIdx = startIdx + pageSize;
+  const paginatedData = pagination ? data.slice(startIdx, endIdx) : data;
+
+  const handlePrev = () => setCurrentPage((p) => Math.max(1, p - 1));
+  const handleNext = () => setCurrentPage((p) => Math.min(totalPages, p + 1));
+
   return (
-    <Table hover responsive bordered={bordered} className="TableDiv mb-3">
-      <thead>
-        <tr>
-          {columns.map((col) => (
-            <th
-              key={String(col.key)}
-              style={col.width ? { width: col.width } : {}}
-            >
-              {col.label}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {data.map((row, index) => (
-          <tr key={index}>
+    <>
+      <Table hover responsive bordered={bordered} className="TableDiv mb-3">
+        <thead>
+          <tr>
             {columns.map((col) => (
-              <td
+              <th
                 key={String(col.key)}
                 style={col.width ? { width: col.width } : {}}
               >
-                <div className="td-inner">
-                  {col.render ? col.render(row, index) : (row[col.key] as React.ReactNode)}
-                </div>
-              </td>
+                {col.label}
+              </th>
             ))}
           </tr>
-        ))}
-      </tbody>
-    </Table>
+        </thead>
+        <tbody>
+          {paginatedData.map((row, index) => (
+            <tr key={index}>
+              {columns.map((col) => (
+                <td
+                  key={String(col.key)}
+                  style={col.width ? { width: col.width } : {}}
+                >
+                  <div className="td-inner">
+                    {col.render ? col.render(row, index) : (row[col.key] as React.ReactNode)}
+                  </div>
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+      {pagination && totalPages > 1 && (
+        <div className="custom-pagination" >
+          <Button onClick={handlePrev} disabled={currentPage === 1} style={{ cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}>
+            <FiArrowLeft size={20}/>
+          </Button>
+          <p>Showing <span>{Math.min(endIdx, total)} of {total}</span></p>
+          <Button onClick={handleNext} disabled={currentPage === totalPages} style={{  cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}>
+            <FiArrowRight size={20}/>
+          </Button>
+        </div>
+      )}
+    </>
   );
 }
 
