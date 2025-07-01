@@ -57,7 +57,7 @@ const navItems: NavItem[] = [
   {
     label: 'Help & Resources',
     children: [
-      { label: 'Blog', href: '#' },
+      { label: 'Blog', href: 'blogpage' },
       { label: 'Resources', href: '#' },
       { label: 'Contact Us', href: '#' },
     ]
