@@ -18,12 +18,13 @@ export type { UploadedFile } from "./files/express.files.types";
 export type { contact } from "./models/contact";
 export type { breeder } from "./models/breeder";
 export type { timeSlot, doctorSlot } from "./models/doctors-slotes";
-export type { medicalDoc, medicalRecord } from "./models/medical-record";
+export type { medicalDoc, medicalRecord,AuthenticatedRequest,FHIRMedicalRecord,MedicalRecordRequestBody,InternalMedicalRecord,FHIRMedicalDocumentReference,MedicalDoc,MedicalRecord } from "./models/medical-record";
 export type { assessment } from "./models/assessment";
 export type { exercisePlanType } from "./models/exercisePlans";
 export type { exerciseType } from "./models/exerciseType";
 export type { exercises , queryParams} from "./models/exercises";
 export type { pets , fhirPetPatient} from "./models/pets";
+export type {IPet} from "./models/Pet"
 export type { diabetesRecords,DiabetesRecords} from "./models/diabetes-records";
 export type { plan } from "./models/plan";
 export type {painJournal} from "./models/pain-Journal";

@@ -398,7 +398,7 @@ const authController = {
       const secret = process.env.JWT_SECRET;
       if (!secret) throw new Error('JWT_SECRET is not defined');
 
-      const expiresInEnv = parseInt(process.env.JWT_EXPIRE_TIME ?? '3600', 10); // seconds
+   const expiresInEnv = parseInt(process.env.JWT_EXPIRE_TIME ?? '3600', 10);
 
       const signOptions: SignOptions = {
         expiresIn: expiresInEnv,
