@@ -1,23 +1,25 @@
-const pet = require('../models/Pets');
-const helpers = require('../utils/helpers');
+import pet from '../models/Pets';
+import helpers from '../utils/helpers';
 import mongoose from 'mongoose';
-const {  handleMultipleFileUpload } = require('../middlewares/upload'); // assuming you have this
+import { handleMultipleFileUpload } from '../middlewares/upload';
+import { IPet } from '@yosemite-crew/types';
 
 class PetService {
-  static async uploadFiles(files :any) {
+  static async uploadFiles(files: unknown): Promise<unknown[]> {
     const fileArray = Array.isArray(files) ? files : [files];
-    return await handleMultipleFileUpload(fileArray,'Images');
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    return await handleMultipleFileUpload(fileArray, 'Images');
   }
 
-  static async createPet(data :any) {
-    return await pet.create({
+  static async createPet(data: IPet): Promise<IPet> {
+    const created = await pet.create({
       cognitoUserId: data.cognitoUserId,
       petType: data.petType,
       petBreed: data.petBreed,
       petName: data.petName,
       petdateofBirth: data.petdateofBirth,
       petGender: data.petGender,
-      petAge: await helpers.calculateAge(data.petdateofBirth),
+      petAge: helpers.calculateAge(data.petdateofBirth).toString(),
       petCurrentWeight: data.petCurrentWeight,
       petColor: data.petColor,
       petBloodGroup: data.petBloodGroup,
@@ -29,28 +31,31 @@ class PetService {
       policyNumber: data.policyNumber,
       passportNumber: data.passportNumber,
       petFrom: data.petFrom,
-      petImage: data.petImage
+      petImage: data.petImage,
     });
+    return created.toObject() as IPet;
   }
 
-static async getPetsByUser(cognitoUserId :string, limit :number, offset: number) {
-    return pet.find({ cognitoUserId })
-      .skip(offset)
-      .limit(limit);
+  static async getPetsByUser(cognitoUserId: string, limit: number, offset: number): Promise<IPet[]> {
+    const results = await pet.find({ cognitoUserId }).skip(offset).limit(limit);
+    return results.map((p) => p.toObject() as IPet);
   }
-static async updatePetById(petId :string, data :any) {
-    return await pet.findByIdAndUpdate(petId, data, { new: true });
+
+  static async updatePetById(petId: string, data: Partial<IPet>): Promise<IPet | null> {
+    const updated = await pet.findByIdAndUpdate(petId, data, { new: true });
+    return updated ? (updated.toObject() as IPet) : null;
   }
-  
-static async deletePetById(petId :string) {
-     const objectId = new mongoose.Types.ObjectId(petId); 
-     const data = await pet.find({ _id: objectId }); 
-     if (data.length === 0) {
-      return null; // Return null if not found
+
+  static async deletePetById(petId: string): Promise<unknown> {
+    const objectId = new mongoose.Types.ObjectId(petId);
+    const data = await pet.find({ _id: objectId });
+
+    if (data.length === 0) {
+      return null;
     }
+
     if (Array.isArray(data[0].petImage) && data[0].petImage.length > 0) {
       const petImage = data[0].petImage;
-
       for (const image of petImage) {
         if (image.url) {
           await helpers.deleteFiles(image.url);
@@ -60,7 +65,6 @@ static async deletePetById(petId :string) {
 
     return await pet.deleteOne({ _id: { $eq: petId } });
   }
-
 }
 
-module.exports = PetService;
+export default PetService;
