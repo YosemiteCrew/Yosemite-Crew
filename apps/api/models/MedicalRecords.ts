@@ -39,4 +39,4 @@ const medicalRecordSchema : Schema<medicalRecord>= new mongoose.Schema({
 }, { timestamps: true});
 
 const medicalRecord : Model<medicalRecord> = mongoose.model<medicalRecord>('MedicalRecords',medicalRecordSchema);
-module.exports = medicalRecord;
+export default medicalRecord;
