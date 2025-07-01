@@ -1,0 +1,27 @@
+{
+  "name": "@yosemite-crew/ui",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "eslint . --max-warnings 0",
+    "clean": "rm -rf .turbo node_modules dist"
+  },
+  "exports": {
+    "./button": {
+      "types": "./dist/Button.d.ts",
+      "import": "./dist/Button.mjs",
+      "require": "./dist/Button.js"
+    }
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "eslint": "^9.30.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "react": "^19.1.0"
+  }
+}
