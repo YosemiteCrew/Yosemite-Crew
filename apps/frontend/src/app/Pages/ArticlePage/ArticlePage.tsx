@@ -40,7 +40,7 @@ const ArticlePage = () => {
           <div className="LeftArticle">
 
             <div className="ArticleBg">
-              <Image aria-hidden  src={`${process.env.VITE_BASE_IMAGE_URL}/ArticlePage/puppy.jpg`} alt="puppy" />
+              <Image aria-hidden src={`${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/ArticlePage/puppy.jpg`} alt="puppy" />
               <div className="artinner">
                 <div className="tp">
                   <h6>Puppies</h6>
@@ -86,7 +86,7 @@ const ArticlePage = () => {
                 <h4>Puppy Food</h4>
                 <p>You’ll need to have plenty of high-quality puppy food on hand for your newly adopted pup.</p>
                 <p>To help them power through their days, select a puppy food with a nutritional adequacy statement for growth or all life stages from the Association of American Feed Control Officials (AAFCO). You’ll find this info on the pet food label.</p>
-                <Image aria-hidden  src={`${process.env.VITE_BASE_IMAGE_URL}/ArticlePage/fedding.png`} alt="fedding" />
+                <Image aria-hidden src={`${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/ArticlePage/fedding.png`} alt="fedding" />
                 <p>“It’s always a good idea to ask your vet for nutritional counseling, to make sure your dog’s specific calorie requirements and other nutritional needs are being met,” Dr. Hunter says.</p>
                 <p>If your puppy will be 50 pounds or more by adulthood, they may require large breed puppy food.</p>
                 
@@ -94,7 +94,7 @@ const ArticlePage = () => {
               
               <div className="artinfoinner">
                 <h4>Here are a few recommended large breed puppy food brand:</h4>
-                <Image aria-hidden  src={`${process.env.VITE_BASE_IMAGE_URL}/ArticlePage/artcart.png`} alt="artcart" id='Bedding' />
+                <Image aria-hidden src={`${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/ArticlePage/artcart.png`} alt="artcart" id='Bedding' />
               </div>
               
               <div className="artinfoinner" id='Conclusion'>
@@ -123,7 +123,7 @@ const ArticlePage = () => {
 
             <div className="blgdr">
               <div className="bldrinfo">
-                <Image aria-hidden  src={`${process.env.VITE_BASE_IMAGE_URL}/ArticlePage/drpic.png`} alt="drpic" width={100} height={100} />
+                <Image aria-hidden  src={`${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/ArticlePage/drpic.png`} alt="drpic" width={100} height={100} />
                 <div className="bldrtext">
                   <h6>Dr. Amanda Lee</h6>
                   <p>Cardiology</p>
@@ -198,7 +198,7 @@ export function ExploreType() {
   return <div className="explorDiv">
     <div className="bltype">
       <div className="typtext">
-        <Image aria-hidden  src={`${process.env.VITE_BASE_IMAGE_URL}/Homepage/P1.png`} alt="P1" width={100} height={100} />
+        <Image aria-hidden src="/Images/petfoot.png" alt="petfoot" width={24} height={24} />
         <h6>Animal Type</h6>
       </div>
       <div className="typeinfo">
@@ -209,7 +209,7 @@ export function ExploreType() {
     </div>
     <div className="bltype">
       <div className="typtext">
-        <Image aria-hidden  src={`${process.env.VITE_BASE_IMAGE_URL}/topic.png`} alt="topic" width={100} height={100} />
+        <Image aria-hidden src="/Images/blueLiabry.png" alt="blueLiabry" width={24} height={24} />
         <h6>Topics</h6>
       </div>
       <div className="typeinfo">
