@@ -43,7 +43,6 @@ const servicesList1 = [
 
 function CompleteProfile() {
   const { userId } = useAuth();
-
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isDropdownOpen1, setIsDropdownOpen1] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -52,7 +51,7 @@ function CompleteProfile() {
   const [image, setImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const sanitizedPreview = previewUrl;
-   const [progress, setProgress] = useState(0);
+  const [progress, setProgress] = useState(0);
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [addDepartment, setAddDepartment] = useState<string[]>([]);
   const [departmentFeatureActive, setdepartmentFeatureActive] = useState("yes");
@@ -458,23 +457,23 @@ const handleSelectService = useCallback((service: { code: string; display: strin
                                 />
                               </div>
                               <ul className="services-list">
-  {filteredServices.map((service) => (
-    <li
-      key={service.code}
-      className={`service-item ${selectedServices.includes(service.display) ? "selected" : ""}`}
-    >
-      <label>
-        <input
-          type="checkbox"
-          className="form-check-input"
-          checked={selectedServices.includes(service.display)}
-          onChange={() => handleSelectService(service)}
-        />
-        <p>{service.display}</p>
-      </label>
-    </li>
-  ))}
-</ul>
+                                {filteredServices.map((service) => (
+                                  <li
+                                    key={service.code}
+                                    className={`service-item ${selectedServices.includes(service.display) ? "selected" : ""}`}
+                                  >
+                                    <label>
+                                      <input
+                                        type="checkbox"
+                                        className="form-check-input"
+                                        checked={selectedServices.includes(service.display)}
+                                        onChange={() => handleSelectService(service)}
+                                      />
+                                      <p>{service.display}</p>
+                                    </label>
+                                  </li>
+                                ))}
+                              </ul>
 
                             </div>
                           )}

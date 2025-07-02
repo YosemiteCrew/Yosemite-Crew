@@ -39,6 +39,7 @@
   --lightgrey:#EAEAEA;
   --greytext:#BFBFBE;
   --lightwhiteText:#EAEAEA;
+  --slectedbg:#76767617;
   
   --popupbg:#EAEAEA;
   --lightblue:#EAF3FF;
@@ -275,6 +276,7 @@ input[type=number] {
   border-radius: 28px;
   /* box-shadow: 0px 0px 30px 0px #4738271A; */
 }
+
 /* .Profile Tabs Ended */
 
 
@@ -466,16 +468,12 @@ input[type=number] {
     padding: 12px 16px;
     border-radius: 16px;
 }
-.OverViewDiv{
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.OverViewDiv h6{
-  font-size: 23px;
-  font-weight: 500;
-  line-height: 120%;
-  margin: 0;
-  color: var( --black-text);
-}
+
 /* Assessment Vet / Appointment Vet Ended  */
+
+.GraphGridDiv{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: flex-end;
+  grid-gap: 24px;
+}
