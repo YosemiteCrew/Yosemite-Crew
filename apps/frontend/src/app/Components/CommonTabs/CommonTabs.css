@@ -59,7 +59,21 @@
 .linesTabs .nav-link:not(.active):hover::after {
   transform: scaleX(1);
 }
-
+.LinesTabsSec ul li button span.tab-count-badge{
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--delete);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 24px;
+  font-family: var(--satoshi-font);
+  border-radius: 50%;
+  color: var(--white-text);
+  margin-left: 5px;
+}
 
 /* SelectStatus Started  */
 

@@ -24,7 +24,7 @@ function AppointmentVet() {
                         <h2>Appointment Management</h2>
                         <span>No New Appointments</span>
                     </div>
-                    <div className="OverViewDiv">
+                    <div className="sss">
                         <h6>Overview</h6>
                         <Row>
                             <Col md={3}><StatCard icon="/Images/stact1.png" title="Appointments (Today)" value={158} /></Col>

@@ -7,6 +7,7 @@ interface TabData {
   eventKey: string;
   title: string;
   content: React.ReactNode;
+  count?: number; // optional
 }
 
 interface CommonTabsProps {
@@ -28,7 +29,7 @@ const CommonTabs = ({ tabs, defaultActiveKey, showStatusSelect = false }: Common
     <div className="LinesTabsSec">
       <Tabs defaultActiveKey={defaultActiveKey || tabs[0].eventKey} className="linesTabs ">
         {tabs.map((tab) => (
-          <Tab eventKey={tab.eventKey} title={tab.title} key={tab.eventKey}>
+          <Tab eventKey={tab.eventKey} title={<>{tab.title} {tab.count && (<span className="tab-count-badge">{tab.count}</span>)}</>} key={tab.eventKey}>
             {tab.content}
           </Tab>
         ))}
