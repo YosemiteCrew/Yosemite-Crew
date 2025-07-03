@@ -8,7 +8,7 @@ import detailsController from '../controllers/detailsController';
 import ListController from '../controllers/list-controller';
 import immunizationController from "../controllers/immunization-controller";
 import diabetesController  from '../controllers/diabetes-controller';
-import SharedDutiesController from "../controllers/SharedDutiesController";
+import SharedDutiesController from "../controllers/shared-duties-controller";
 import contactController  from "../controllers/contact-controller";
 import planController from '../controllers/plan-controller';
  
@@ -64,10 +64,10 @@ router.get("/DocumentReference/getMedicalRecordList",verifyTokenAndRefresh, medi
 router.post( "/Observation/saveDiabetesRecords",verifyTokenAndRefresh,diabetesController.diabetesRecords);
 router.get("/Observation/getDiabetesLogs", verifyTokenAndRefresh,diabetesController.getDiabetesLogs);
 router.delete("/Observation/deleteDiabetesLog", verifyTokenAndRefresh,diabetesController.deleteDiabetesLog);
-router.post("/RelatedPerson/savePetCoOwner",verifyTokenAndRefresh, SharedDutiesController.handleSavePetCoOwner);
-router.delete("/RelatedPerson/deletePetCoOwner",verifyTokenAndRefresh, SharedDutiesController.handleDeletePetCoOwner);
-router.post("/Observation/saveSharedDuties",verifyTokenAndRefresh, SharedDutiesController.handleSaveSharedDuties);
-router.get("/Observation/getSharedDuties",verifyTokenAndRefresh, SharedDutiesController.handleGetSharedDuties);
-router.put("/Observation/editSharedDuties",verifyTokenAndRefresh, SharedDutiesController.handleEditSharedDuties);
-router.delete("/Observation/deleteSharedDuties",verifyTokenAndRefresh,SharedDutiesController.handledeleteSharedDuties);
+router.post("/RelatedPerson/savePetCoOwner",verifyTokenAndRefresh, SharedDutiesController.savePetCoOwner);
+router.delete("/RelatedPerson/deletePetCoOwner",verifyTokenAndRefresh, SharedDutiesController.deletePetCoOwner);
+router.post("/Observation/saveSharedDuties",verifyTokenAndRefresh, SharedDutiesController.saveSharedDuties);
+router.get("/Observation/getSharedDuties",verifyTokenAndRefresh, SharedDutiesController.getSharedDuties);
+router.put("/Observation/editSharedDuties",verifyTokenAndRefresh, SharedDutiesController.editSharedDuties);
+router.delete("/Observation/deleteSharedDuties",verifyTokenAndRefresh,SharedDutiesController.deleteSharedDuties);
 export default router;

@@ -6,6 +6,7 @@ import { BasicImmunizationResource, TransformedVaccination } from '@yosemite-cre
 import Vaccination  from '../models/Vaccination';
 import helpers from '../utils/helpers';
 import { getCognitoUserId }  from  '../middlewares/authMiddleware';
+import { UploadedFile } from 'express-fileupload';
 
 const immunizationController =  {
   createImmunization: async(req: Request, res: Response): Promise<void> => {
@@ -23,18 +24,22 @@ const immunizationController =  {
 
       const { valid, error } = validate(fhirData);
       if (!valid) {
-        throw new Error(error);
          res.status(200).json({ status: 0, error: error });
       }
 
-      const fileArray = req.files?.files
-        ? Array.isArray(req.files.files)
-          ? req.files.files
-          : [req.files.files]
-        : [];
+      let fileArray: unknown[] = [];
+      if (req.files) {
+        if (Array.isArray(req.files)) {
+          fileArray = req.files;
+        } else if (typeof req.files === 'object') {
+          // If multer is configured with fields, req.files is an object: { fieldname: File[] }
+          // Try to get all files from all fields
+          fileArray = Object.values(req.files).flat();
+        }
+      }
 
       const vaccineFileUrl = fileArray.length > 0
-        ? await helpers.uploadFiles(fileArray)
+        ? await helpers.uploadFiles(fileArray as unknown as UploadedFile[])
         : [];
 
       const cognitoUserId = getCognitoUserId(req);
@@ -131,18 +136,20 @@ const immunizationController =  {
         return;
       }
 
-      const fileArray = req.files?.files
-        ? Array.isArray(req.files.files)
-          ? req.files.files
-          : [req.files.files]
-        : [];
-
-      let vaccineFileUrl: string[] | null = null;
-
-      if (fileArray.length > 0) {
-        const uploadedFiles = await helpers.uploadFiles(fileArray);
-        vaccineFileUrl = uploadedFiles.map((file: { url: string }) => file.url);
+       let fileArray: unknown[] = [];
+      if (req.files) {
+        if (Array.isArray(req.files)) {
+          fileArray = req.files;
+        } else if (typeof req.files === 'object') {
+          // If multer is configured with fields, req.files is an object: { fieldname: File[] }
+          // Try to get all files from all fields
+          fileArray = Object.values(req.files).flat();
+        }
       }
+
+      const vaccineFileUrl = fileArray.length > 0
+        ? await helpers.uploadFiles(fileArray as unknown as UploadedFile[])
+        : [];
       const typedFhirData = parsedData as Partial<BasicImmunizationResource>;
       const updatedData = {
       vaccineName: typedFhirData.vaccineCode?.text || typedFhirData.vaccineCode?.coding?.[0]?.display,
@@ -159,11 +166,16 @@ const immunizationController =  {
   
     let updatedVaccination;
             if (vaccineFileUrl && vaccineFileUrl.length > 0) {
-          const fileObjects = vaccineFileUrl.map((filePath) => ({
-            url: filePath,
-            mimetype: 'application/pdf', // or derive dynamically if needed
-            originalname: filePath.split('/').pop() || 'file.pdf',
-          }));
+          const fileObjects = vaccineFileUrl.map((filePath: unknown) => {
+            const url = typeof filePath === 'string' ? filePath : '';
+            return {
+              url,
+              mimetype: 'application/pdf', // or derive dynamically if needed
+              originalname: typeof url === 'string' && url.split('/').length > 0
+                ? url.split('/').pop() || 'file.pdf'
+                : 'file.pdf',
+            };
+          });
 
           updatedVaccination = await Vaccination.findOneAndUpdate(
             { _id: id },
