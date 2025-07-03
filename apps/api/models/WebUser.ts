@@ -10,7 +10,8 @@ const WebUserSchema = new Schema<IWebUser>({
   bussinessId: { type: String },
   otp: { type: Number },
   otpExpiry: { type: Date },
-  subscribe:{type:Boolean,required:true}
+  subscribe:{type:Boolean},
+  department:{type:String}
 });
 
 const WebUser = model<IWebUser>('WebUser', WebUserSchema);

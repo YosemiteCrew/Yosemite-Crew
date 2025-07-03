@@ -1,28 +1,38 @@
 "use client";
-import React, { useCallback, useState, useRef } from "react";
+import React, { useCallback, useState, useRef, useEffect } from "react";
 import "./Sign.css";
 import { Button, Col, Container, Form, Row, Modal } from "react-bootstrap";
 import Image from "next/image";
 import { GoCheckCircleFill } from "react-icons/go";
 import Link from "next/link";
 import Swal from "sweetalert2";
-import { postData } from "@/app/axios-services/services";
+import { getData, postData } from "@/app/axios-services/services";
 import { AxiosError } from "axios";
 import { useRouter } from "next/navigation";
 
-function SignUp() {
+type SignUpProps = {
+  inviteCode?: string
+};
+function SignUp({ inviteCode }: SignUpProps) {
   const router = useRouter();
-  const [selectedType, setSelectedType] = useState("");
-  const [email, setEmail] = useState("");
+  //role
+  const [selectedType, setSelectedType] = useState( "");
+  //emails
+  const [email, setEmail] = useState("")
+  //department
+  const [department, setDepartment] = useState("");
+  const [invitedBy, setInvitedBy] = useState('')
+  //password
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showVerifyModal, setShowVerifyModal] = useState(false);
+  //otp
   const [code, setCode] = useState(Array(6).fill(""));
   const [activeInput, setActiveInput] = useState(0);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [agree, setIagree] = useState(false)
   const [subscribe, setSubscribe] = useState(false)
-  console.log("otpRefs", agree)
+  console.log("agree", agree)
   // Stable ref callback to avoid React warning
   const setOtpRef = (el: HTMLInputElement | null, idx: number) => {
     otpRefs.current[idx] = el;
@@ -84,7 +94,7 @@ function SignUp() {
         }
       );
 
-     
+
 
       if (response.status === 200) {
         Swal.fire({
@@ -96,7 +106,6 @@ function SignUp() {
         setShowVerifyModal(false);
         sessionStorage.setItem('token', response.data.token);
 
-        // Uncomment when ready to redirect
         router.push(`/emptydashboard`);
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -146,16 +155,19 @@ function SignUp() {
       });
     }
   };
-  const handleSignUp = useCallback(async () => {
-    if (password !== confirmPassword) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Password Mismatch',
-        text: 'Password and Confirm Password do not match.',
-      });
-      return;
-    }
+const handleSignUp = useCallback(async () => {
+  // Always validate passwords
+  if (password !== confirmPassword) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Password Mismatch',
+      text: 'Password and Confirm Password do not match.',
+    });
+    return;
+  }
 
+  // Only validate these if user is not invited (i.e., role is not provided)
+  if (!inviteCode) {
     if (!selectedType) {
       Swal.fire({
         icon: 'warning',
@@ -182,53 +194,62 @@ function SignUp() {
       });
       return;
     }
-    const formData = {
-      email,
-      password,
-      role: selectedType,
-      subscribe
-    };
+  }
 
-    try {
-      const data = await postData<{ message: string }>(`/api/auth/register`, formData);
+  const formData = {
+    email,
+    password,
+    role: selectedType,
+    subscribe,
+    department,
+    invitedBy,
+  };
 
-    
-     if(data){
-       setShowVerifyModal(true);
-     } // Show modal after signup
-    } catch (error: unknown) {
-      let status: number | undefined;
-      let message: string = 'Something went wrong.';
+  const url = !inviteCode? "/api/auth/register" : "/fhir/v1/invitedregister";
 
-      if (
-        typeof error === "object" &&
-        error !== null &&
-        "response" in error &&
-        typeof (error as { response?: unknown }).response === "object" &&
-        (error as { response?: { status?: number; data?: { message?: string } } }).response !== null
-      ) {
-        const errResp = (error as { response: { status?: number; data?: { message?: string } } }).response;
-        status = errResp.status;
-        message = errResp.data?.message || message;
-      }
+  try {
+    const data = await postData<{ message: string }>(url, formData);
 
-      if (status === 409) {
-        Swal.fire({
-          icon: 'error',
-          title: 'You are already signed up',
-          text: message,
-        });
-      } else {
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: message,
-        });
-      }
-      // TEMP: Show modal for testing even on error
-      setShowVerifyModal(true);
+    if (data?.status === 200) {
+          console.log("Signup successful",data)
+      setShowVerifyModal(true); // Show modal after signup
     }
-  }, [email, password, selectedType, confirmPassword, subscribe, agree]);
+  } catch (error: unknown) {
+;
+    let status: number | undefined;
+    let message: string = 'Something went wrong.';
+
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "response" in error &&
+      typeof (error as { response?: unknown }).response === "object" &&
+      (error as { response?: { status?: number; data?: { message?: string } } }).response !== null
+    ) {
+      const errResp = (error as { response: { status?: number; data?: { message?: string } } }).response;
+      status = errResp.status;
+      message = errResp.data?.message || message;
+    }
+
+    if (status === 409) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Already Registered',
+        text: message,
+      });
+    } else {
+      Swal.fire({
+        icon: 'error',
+        title: 'Signup Error',
+        text: message,
+      });
+    }
+
+    // For testing only: remove this if not needed
+    setShowVerifyModal(false);
+  }
+}, [email, password, selectedType, confirmPassword, subscribe, agree, department, invitedBy,inviteCode]);
+
 
 
   const businessTypes = [
@@ -241,9 +262,38 @@ function SignUp() {
     setSelectedType(type);
   };
 
+useEffect(() => {
+  const response = async () => {
+    if (inviteCode) {
+      try {
+        const data = await getData<{ email: string; role: string; department: string; invitedBy: string }>(
+          `/fhir/v1/inviteInfo?code=${inviteCode}`
+        );
+        if (data?.status === 200) {
+          setEmail(data.data.email);
+          setSelectedType(data.data.role);
+          setDepartment(data.data.department);
+          setInvitedBy(data.data.invitedBy);
+        }
+      } catch (error) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: `${error instanceof Error ? error.message : 'Unable to fetch invite details.'}`,
+        })
+      }
+    }
+  }
+  response();
+},[inviteCode]);
+
+
+
+
+
   return (
     <>
-      <section className="MainSignUpSec">
+      {!inviteCode ? <section className="MainSignUpSec">
         <Container>
           <Row>
             <Col md={6}>
@@ -384,74 +434,76 @@ function SignUp() {
             </Col>
           </Row>
         </Container>
-      </section>
+      </section> :
 
-      <section className="CompleteSignUpSec">
-        <div
-          className="LeftCompleteSign"
-          style={
-            {
-              "--dynamic-bg-image": `url("/Images/doctorbg.png")`,
-            } as React.CSSProperties
-          }
-        ></div>
-        <div className="RightCompleteSign">
-          <div className="ComplteSignInner">
-            <Form>
-              <div className="CompleteText">
-                <h2>
-                  San Francisco Animal Medical Center{" "}
-                  <span>
-                    has invited you to join their team on Yosemite Crew
-                  </span>{" "}
-                </h2>
-              </div>
+        <section className="CompleteSignUpSec">
+          <div
+            className="LeftCompleteSign"
+            style={
+              {
+                "--dynamic-bg-image": `url("/Images/doctorbg.png")`,
+              } as React.CSSProperties
+            }
+          ></div>
+          <div className="RightCompleteSign">
+            <div className="ComplteSignInner">
+              <Form>
+                <div className="CompleteText">
+                  <h2>
+                    San Francisco Animal Medical Center{" "}
+                    <span>
+                      has invited you to join their team on Yosemite Crew
+                    </span>{" "}
+                  </h2>
+                </div>
 
-              <div className="CompletSignInpt">
-                <h6>Complete Your Sign-Up</h6>
+                <div className="CompletSignInpt">
+                  <h6>Complete Your Sign-Up</h6>
 
-                <div className="inputDiv">
-                  <FormInput
-                    intype="email"
-                    inname="email"
-                    value={email}
-                    inlabel="Email Address"
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                  <div className="pasdiv">
+                  <div className="inputDiv">
+                    <FormInput
+                      readonly={true}
+                      intype="email"
+                      inname="email"
+                      value={email}
+                      inlabel="Email Address"
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                    <div className="pasdiv">
+                      <FormInputPass
+                        intype="password"
+                        inname="password"
+                        value={password}
+                        inlabel="Password"
+                        onChange={(e) => setPassword(e.target.value)}
+                      />
+                      <p>
+                        Password must be at least 8 characters long, including an
+                        uppercase letter, a number, and a special character.
+                      </p>
+                    </div>
                     <FormInputPass
                       intype="password"
                       inname="password"
-                      value={password}
-                      inlabel="Password"
-                      onChange={(e) => setPassword(e.target.value)}
+                      value={confirmPassword}
+                      inlabel="Confirm Password"
+                      onChange={(e) => setConfirmPassword(e.target.value)}
                     />
-                    <p>
-                      Password must be at least 8 characters long, including an
-                      uppercase letter, a number, and a special character.
-                    </p>
                   </div>
-                  <FormInputPass
-                    intype="password"
-                    inname="password"
-                    value={confirmPassword}
-                    inlabel="Confirm Password"
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                  />
-                </div>
 
-                <div className="Signbtn">
-                  <MainBtn
-                    btnicon={<GoCheckCircleFill />}
-                    btnname="Complete Sign up"
-                    iconPosition="left"
-                  />
+                  <div className="Signbtn">
+                    <MainBtn
+                      btnicon={<GoCheckCircleFill />}
+                      btnname="Complete Sign up"
+                      iconPosition="left"
+                      onClick={handleSignUp}
+                    />
+                  </div>
                 </div>
-              </div>
-            </Form>
+              </Form>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>}
 
       {/* Verification Modal */}
       <Modal
@@ -551,6 +603,7 @@ type FormInputProps = {
   inname: string;
   value: string;
   inlabel: string;
+  readonly?: boolean;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 };
 export function FormInput({
@@ -559,6 +612,7 @@ export function FormInput({
   inlabel,
   value,
   onChange,
+  readonly
 }: FormInputProps) {
   const [isFocused, setIsFocused] = useState(false);
 
@@ -573,6 +627,7 @@ export function FormInput({
         value={value}
         onChange={onChange}
         autoComplete="off"
+        readOnly={readonly}
         required
         placeholder=" " // <-- Add a single space as placeholder
         onFocus={() => setIsFocused(true)}

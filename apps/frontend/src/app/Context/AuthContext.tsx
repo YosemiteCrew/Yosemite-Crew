@@ -55,21 +55,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [doctorProfile, setDoctorProfile] = useState<DoctorProfileType | null>(null);
 
   // Decode token and initialize state
-  const initializeUser = useCallback(async () => {
-    const token = sessionStorage.getItem("token");
+  const initializeUser = useCallback(() => {
+  const token = sessionStorage.getItem("token");
 
-    if (token) {
-      try {
-        const decodedToken = jwtDecode<DecodedTokenType>(token);
-        setTokens(token);
-        setUserId(decodedToken.userId);
-        setUserType(decodedToken.userType);
-        await refreshProfileData(decodedToken.userId, decodedToken.userType);
-      } catch (error) {
-        console.error("Error decoding token:", error);
-      }
+  if (token) {
+    try {
+      const decodedToken = jwtDecode<DecodedTokenType>(token);
+      setTokens(token);
+      setUserId(decodedToken.userId);
+      setUserType(decodedToken.userType);
+    } catch (error) {
+      console.error("Error decoding token:", error);
     }
-  }, []);
+  }
+}, []);
+
 
   useEffect(() => {
     initializeUser();

@@ -11,20 +11,19 @@ export type { ISubscriber, SubscriberData } from "./models/Subscriber";
 export type { Pet } from "./Pets/pet";
 export type { BusinessProfile,FhirOrganization,name } from "./HospitalProfile/hospital.profile.types";
 
-export type { register } from "./Register/resgisterType";
+export type { register,invitedTeamMembersInterface } from "./Register/resgister-type";
 export type { IProfileData, IWebUser } from "./HospitalProfile/hospital.profile.model";
 export type { UploadedFile } from "./files/express.files.types";
 
 export type { contact } from "./models/contact";
 export type { breeder } from "./models/breeder";
 export type { timeSlot, doctorSlot } from "./models/doctors-slotes";
-export type { medicalDoc, medicalRecord,AuthenticatedRequest,FHIRMedicalRecord,MedicalRecordRequestBody,InternalMedicalRecord,FHIRMedicalDocumentReference,MedicalDoc,MedicalRecord } from "./models/medical-record";
+export type { medicalDoc, medicalRecord } from "./models/medical-record";
 export type { assessment } from "./models/assessment";
 export type { exercisePlanType } from "./models/exercisePlans";
 export type { exerciseType } from "./models/exerciseType";
 export type { exercises , queryParams} from "./models/exercises";
 export type { pets , fhirPetPatient} from "./models/pets";
-export type {IPet} from "./models/Pet"
 export type { diabetesRecords,DiabetesRecords} from "./models/diabetes-records";
 export type { plan } from "./models/plan";
 export type {painJournal} from "./models/pain-Journal";
@@ -44,7 +43,3 @@ export type { FHIRDocumentReference,FHIRImmunizationNote,FHIRImmunizationExtensi
 export type { VaccinationDetailsType } from "./models/immunization-records";
 export type { TimeSlot,DoctorSlotDocument,AppointmentDocument,GetTimeSlotsInput,FHIRSlot,FHIRSlotBundle,SlotQuery,MonthlySlotQuery } from "./slot/slot-types";
 export type { ContactUsBody,TypedRequestBody } from "./contact/contact-types";
-export type { SharedPetDuties } from "./models/pet-shared-duties";
-export type { PetCoOwner } from "./models/pet-co-owner";
-export type { SharedPetDutyInput,TaskDetail,PetDutyFhirObservationOutput,UpdateData,RecordTaskDetail,RecordType } from "./pet-duties/pet-duties-types";
-export type { PetCoOwnerInput,FileUrl } from "./pet-duties/pet-co-owner-types";

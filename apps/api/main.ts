@@ -13,7 +13,7 @@ import { rateLimit } from 'express-rate-limit';
 import { connectToDocumentDB } from './config/connect';
 import Message from './models/ChatModel';
 import yoshmite from './routes/AppRoutes';
-//import { fhirRoutes } from './routes/fhirRoutes';
+import inviteRoutes from './routes/InviteTeamsMembersRoutes'
 import adminRoutes from './routes/adminRoutes';
 import doctorRoutes from './routes/AddDoctorsRoutes';
 import authRoutes from './routes/AuthRoutes';
@@ -112,7 +112,7 @@ app.use('/fhir/v1', AdminApiRoutes);
 app.use('/fhir/v1', apiRoutes);
 app.use('/newsletter', NewsletterRoutes);
 app.use('/fhir/v1', BlogApiRoutes);
-
+app.use('/fhir/v1',inviteRoutes)
 // Global error handler
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Error:', err.message);

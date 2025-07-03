@@ -1,20 +1,19 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Header from "./Components/Header/Header";
 import HomePage from './Pages/HomePage/HomePage';
+import { useAuth } from './Context/AuthContext';
 
 
 
 
 export default function Home() {
-
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  // useEffect(() => {
-  //   // Read from localStorage on mount
-  //   const token = localStorage.getItem("userToken");
-  //   setIsLoggedIn(!!token);
-  // }, []);
+  const {tokens} = useAuth()
+  const [isLoggedIn, setIsLoggedIn] = useState(true);
+ console.log("token",tokens)
+  useEffect(() => {   
+    setIsLoggedIn(!!tokens);
+  }, [tokens]);
 
   return (
    <>

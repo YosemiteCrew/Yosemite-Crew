@@ -1,5 +1,6 @@
-import React, { useRef, useState } from 'react'
-import "./UploadImage.css"
+// UploadImage.tsx
+import React, { useRef, useState, useEffect } from 'react';
+import "./UploadImage.css";
 import { FaCloudUploadAlt, FaFilePdf, FaFileWord, FaFileImage, FaTrashAlt } from "react-icons/fa";
 import Image from 'next/image';
 import { Button } from 'react-bootstrap';
@@ -19,7 +20,11 @@ function getFileIcon(type: string) {
   return <FaFileImage className="file-icon" />;
 }
 
-function UploadImage() {
+type Props = {
+  onChange?: (files: File[]) => void;
+};
+
+function UploadImage({ onChange }: Props) {
   const [files, setFiles] = useState<File[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -40,17 +45,26 @@ function UploadImage() {
     setFiles(prev => prev.filter((_, i) => i !== idx));
   };
 
+  // Pass files to parent when updated
+  useEffect(() => {
+    if (onChange) onChange(files);
+  }, [files,onChange]);
+
   return (
     <>
-      <div className="UploadAreaData"onClick={() => inputRef.current?.click()} onDragOver={e => e.preventDefault()} onDrop={handleDrop} >
+      <div className="UploadAreaData" onClick={() => inputRef.current?.click()} onDragOver={e => e.preventDefault()} onDrop={handleDrop}>
         <div className="upldCont">
-            <FaCloudUploadAlt className="upload-cloud" />
-            <h6>Upload Certifications/ Degrees</h6>
-            <p> Only DOC, PDF, PNG, JPEG formats with<br />max size 20 MB</p>
-            <input ref={inputRef} type="file"multiple
-                accept=".pdf,.doc,.docx,.png,.jpeg,.jpg"
-                style={{ display: "none" }}
-                onChange={e => handleFiles(e.target.files)} />
+          <FaCloudUploadAlt className="upload-cloud" />
+          <h6>Upload Certifications/ Degrees</h6>
+          <p>Only DOC, PDF, PNG, JPEG formats with<br />max size 20 MB</p>
+          <input
+            ref={inputRef}
+            type="file"
+            multiple
+            accept=".pdf,.doc,.docx,.png,.jpeg,.jpg"
+            style={{ display: "none" }}
+            onChange={e => handleFiles(e.target.files)}
+          />
         </div>
       </div>
 
@@ -79,7 +93,7 @@ function UploadImage() {
         ))}
       </div>
     </>
-  )
+  );
 }
 
-export default UploadImage
+export default UploadImage;

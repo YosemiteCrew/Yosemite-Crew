@@ -1,48 +1,46 @@
 import mongoose, { Schema, Model } from 'mongoose';
-import {AddDoctorDoc} from "@yosemite-crew/types";
+import { AddDoctorDoc } from "@yosemite-crew/types";
 
 const vetSchema: Schema<AddDoctorDoc> = new Schema(
   {
     userId: { type: String, required: true },
-    bussinessId: { type: String, required: true },
-    personalInfo: {
-      image: String,
-      firstName: String,
-      lastName: String,
-      gender: String,
-      dateOfBirth: String,
-      email: String,
-      countrycode: String,
-      phone: {
-        type: String,
-        match:
-          /^\+?[0-9]{1,4}?[-.\\\s]?(\([0-9]{1,3}\)|[0-9]{1,4})?[-.\\\s]?[0-9]{1,4}[-.\\\s]?[0-9]{1,9}$/,
-      },
+    // bussinessId: { type: String, required: true },
+
+    registrationNumber: { type: String },
+    firstName: { type: String },
+    lastName: { type: String },
+    email: { type: String },
+    mobileNumber: {
+      type: String,
+      match:
+        /^\+?[0-9]{1,4}?[-.\\\s]?(\([0-9]{1,3}\)|[0-9]{1,4})?[-.\\\s]?[0-9]{1,4}[-.\\\s]?[0-9]{1,9}$/,
     },
-    residentialAddress: {
-      addressLine1: String,
-      city: String,
-      stateProvince: String,
-      country: String,
-      zipCode: String,
+    gender: { type: String },
+    dateOfBirth: { type: String },
+    linkedin: { type: String },
+    medicalLicenseNumber: { type: String },
+    yearsOfExperience: { type: Number },
+    postalCode: { type: String }, // renamed from postalCode
+    addressLine1: { type: String },
+    city: { type: String },
+    stateProvince: { type: String },
+    biography: { type: String },
+    duration: { type: String }, // newly added field
+    area: { type: String }, // from `area`
+    countrycode: { type: String, default: '+91' },
+
+    specialization: {
+      type: String,
+      ref: 'Department',
     },
-    professionalBackground: {
-      specialization: {
-        type: String,
-        ref: 'Department',
-      },
-      qualification: String,
-      medicalLicenseNumber: String,
-      yearsOfExperience: Number,
-      languagesSpoken: String,
-      biography: String,
-      image: String,
-    },
+
+    image: { type: String },
+
     availability: [
       {
         day: {
           type: String,
-          enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+          enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
         },
         times: [
           {
@@ -60,6 +58,7 @@ const vetSchema: Schema<AddDoctorDoc> = new Schema(
         ],
       },
     ],
+
     documents: {
       type: [
         {
@@ -70,29 +69,6 @@ const vetSchema: Schema<AddDoctorDoc> = new Schema(
       ],
       default: [],
     },
-    cvFile: {
-      name: { type: String, required: true },
-      type: { type: String, required: true },
-      date: { type: Date, default: Date.now },
-    },
-    timeDuration: Number,
-    activeModes: {
-      type: [String],
-      enum: ['In-person', 'Online', 'Both'],
-    },
-    isAvailable: {
-      type: String,
-      default: '0',
-    },
-    consultFee: Number,
-    DoctorPrescriptions: String,
-    authSettings: {
-      takeAssessments: Boolean,
-      appointments: Boolean,
-      viewMedicalRecords: Boolean,
-      prescribeMedications: Boolean,
-    },
-    termsAndConditions: Boolean,
   },
   { timestamps: true }
 );
