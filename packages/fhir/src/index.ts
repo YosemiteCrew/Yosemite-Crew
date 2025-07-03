@@ -14,4 +14,6 @@ export {convertProcedurePackagesToFHIRBundle,convertFHIRPackageToNormal,convertF
 export { parseDiabetesObservation, toFHIRObservation } from "./diabetes/diabetes-fhir";
 export { toFHIRBundleImmunization,VaccinationDoc } from "./immunization/immunization-fhir";
 export { validate } from "./immunization/immunization-fhir-validator";
+export { CoOwnerFhirData } from "./shared-duties/pet-co-owner";
+export { FhirObservation,PetDutyFhirObservationOutput,FhirExtension,FhirComponent,FhirCoding } from "./shared-duties/pet-shared-duties";
 
