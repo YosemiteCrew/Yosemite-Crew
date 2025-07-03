@@ -1,12 +1,14 @@
-import BusinessDashboard from '@/app/Pages/BusinessDashboard/BusinessDashboard'
-import React from 'react'
+// app/businessDashboard/page.tsx
+"use client";
 
-function page() {
+import React from "react";
+import ProtectedRoute from "@/app/Components/ProtectedRoute";
+import BusinessDashboard from "@/app/Pages/BusinessDashboard/BusinessDashboard";
+
+export default function BusinessDashboardPage() {
   return (
-    <>
-    <BusinessDashboard/>
-    </>
-  )
+    <ProtectedRoute allowedRoles={["Veterinary Business"]}>
+      <BusinessDashboard />
+    </ProtectedRoute>
+  );
 }
-
-export default page

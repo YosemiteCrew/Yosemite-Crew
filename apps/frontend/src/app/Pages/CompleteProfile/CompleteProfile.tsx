@@ -43,6 +43,7 @@ const servicesList1 = [
 
 function CompleteProfile() {
   const { userId } = useAuth();
+
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isDropdownOpen1, setIsDropdownOpen1] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -51,7 +52,7 @@ function CompleteProfile() {
   const [image, setImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const sanitizedPreview = previewUrl;
-  const [progress, setProgress] = useState(0);
+   const [progress, setProgress] = useState(0);
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [addDepartment, setAddDepartment] = useState<string[]>([]);
   const [departmentFeatureActive, setdepartmentFeatureActive] = useState("yes");
@@ -76,6 +77,20 @@ function CompleteProfile() {
       setName(prev => ({ ...prev, userId }));
     }
   }, [userId, name.userId]);
+type NameType = {
+  userId: string;
+  businessName: string;
+  website: string;
+  registrationNumber: string;
+  city: string;
+  state: string;
+  addressLine1: string;
+  latitude: string;
+  longitude: string;
+  postalCode: string;
+  PhoneNumber: string;
+};
+
 const calculateProgress = ({
   name,
   country,
@@ -83,7 +98,7 @@ const calculateProgress = ({
   selectedServices,
   addDepartment,
 }: {
-  name: typeof name;
+  name: NameType;
   country: string;
   image: File | null;
   selectedServices: string[];
@@ -252,7 +267,56 @@ const handleSelectService = useCallback((service: { code: string; display: strin
   }
 };
 
-// console.log("location", axios.get(`https://maps.googleapis.com/maps/api/geocode/json?address=160062&key=${process.env.NEXT_PUBLIC_BASE_GOOGLE_MAPS_API_KEY}`))
+useEffect(() => {
+  const fetchLocation = async () => {
+    try {
+      const response = await axios.get(
+        `https://maps.googleapis.com/maps/api/geocode/json`,
+        {
+          params: {
+            address: name.postalCode,
+            key: process.env.NEXT_PUBLIC_BASE_GOOGLE_MAPS_API_KEY,
+          },
+        }
+      );
+
+      if (response.data.status === "OK") {
+        const location = response.data.results[0];
+        const { lat, lng } = location.geometry.location;
+        const addressComponents = location.address_components;
+
+        type AddressComponent = {
+          long_name: string;
+          short_name: string;
+          types: string[];
+        };
+
+        const cityObj = addressComponents.find((comp: AddressComponent) =>
+          comp.types.includes("locality")
+        );
+        const stateObj = addressComponents.find((comp: AddressComponent) =>
+          comp.types.includes("administrative_area_level_1")
+        );
+
+        setName((prev) => ({
+          ...prev,
+          city: cityObj?.long_name || "",
+          state: stateObj?.long_name || "",
+          latitude: lat.toString(),
+          longitude: lng.toString(),
+        }));
+      } else {
+        console.error("Location not found:", response.data.status);
+      }
+    } catch (error) {
+      console.error("Error fetching location:", error);
+    }
+  };
+
+  if (name.postalCode.length >= 3) {
+    fetchLocation();
+  }
+}, [name.postalCode]);
 
   return (
     <>
@@ -264,7 +328,7 @@ const handleSelectService = useCallback((service: { code: string; display: strin
           </div>
 
           <div className="AddVetTabDiv">
-            <Tab.Container activeKey={key} onSelect={(k) => setKey(k)}>
+            <Tab.Container activeKey={key} onSelect={(k) => setKey(k ?? "business")}>
               <div className="Add_Profile_Data">
                 <div>
                   <Nav variant="pills" className=" VetPills">
@@ -457,23 +521,23 @@ const handleSelectService = useCallback((service: { code: string; display: strin
                                 />
                               </div>
                               <ul className="services-list">
-                                {filteredServices.map((service) => (
-                                  <li
-                                    key={service.code}
-                                    className={`service-item ${selectedServices.includes(service.display) ? "selected" : ""}`}
-                                  >
-                                    <label>
-                                      <input
-                                        type="checkbox"
-                                        className="form-check-input"
-                                        checked={selectedServices.includes(service.display)}
-                                        onChange={() => handleSelectService(service)}
-                                      />
-                                      <p>{service.display}</p>
-                                    </label>
-                                  </li>
-                                ))}
-                              </ul>
+  {filteredServices.map((service) => (
+    <li
+      key={service.code}
+      className={`service-item ${selectedServices.includes(service.display) ? "selected" : ""}`}
+    >
+      <label>
+        <input
+          type="checkbox"
+          className="form-check-input"
+          checked={selectedServices.includes(service.display)}
+          onChange={() => handleSelectService(service)}
+        />
+        <p>{service.display}</p>
+      </label>
+    </li>
+  ))}
+</ul>
 
                             </div>
                           )}

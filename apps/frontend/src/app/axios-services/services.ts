@@ -47,7 +47,7 @@ export const getData = async <T>(
 // ===============================
 export const postData = async <T, D = unknown>(
   endpoint: string,
-  data: D,
+  data?: D,
   config?: AxiosRequestConfig
 ): Promise<AxiosResponse<T>> => {
   try {

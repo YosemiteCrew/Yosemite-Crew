@@ -1,11 +1,11 @@
-import PracticeTeam from '@/app/Pages/PracticeTeam/PracticeTeam'
+import PracticeTeam from '@/app/Pages/InviteTeamMembers/InviteTeamMembers'
 import React from 'react'
 
 function page() {
   return (
     <>
 
-    <PracticeTeam/>
+      <PracticeTeam />
 
 
 
