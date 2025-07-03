@@ -44,3 +44,7 @@ export type { FHIRDocumentReference,FHIRImmunizationNote,FHIRImmunizationExtensi
 export type { VaccinationDetailsType } from "./models/immunization-records";
 export type { TimeSlot,DoctorSlotDocument,AppointmentDocument,GetTimeSlotsInput,FHIRSlot,FHIRSlotBundle,SlotQuery,MonthlySlotQuery } from "./slot/slot-types";
 export type { ContactUsBody,TypedRequestBody } from "./contact/contact-types";
+export type { SharedPetDuties } from "./models/pet-shared-duties";
+export type { PetCoOwner } from "./models/pet-co-owner";
+export type { SharedPetDutyInput,TaskDetail,PetDutyFhirObservationOutput,UpdateData,RecordTaskDetail,RecordType } from "./pet-duties/pet-duties-types";
+export type { PetCoOwnerInput,FileUrl } from "./pet-duties/pet-co-owner-types";
