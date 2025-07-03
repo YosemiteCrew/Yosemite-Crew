@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import "./AddVetProfile.css";
 import { Button, Col, Container, FloatingLabel, Form, Nav, Row, Tab } from "react-bootstrap";
 import { HeadText } from "../CompleteProfile/CompleteProfile";
@@ -14,30 +14,46 @@ import { PhoneInput } from "@/app/Components/PhoneInput/PhoneInput";
 import DynamicSelect from "@/app/Components/DynamicSelect/DynamicSelect";
 import UploadImage from "@/app/Components/UploadImage/UploadImage";
 import OperatingHours from "@/app/Components/OperatingHours/OperatingHours";
+import { convertFromFhirVetProfile, convertToFhirVetProfile } from "@yosemite-crew/fhir";
+import { postData } from "@/app/axios-services/services";
+import Swal from "sweetalert2";
+import { useAuth } from "@/app/Context/AuthContext";
 
 function AddVetProfile() {
+  const {userId} = useAuth()
+  const [area, setArea] = useState<string>(''); //Set country
+  const [progress] = useState(48); // Progressbar cound
+  const [key, setKey] = useState("profileInfo");
+  // Add state for phone and country code
+  const [countryCode, setCountryCode] = useState("+91");
 
-    const [country, setCountry] = useState<string>(''); //Set country
-    const [progress] = useState(48); // Progressbar cound
-    const [key, setKey] = useState("profileInfo");
-    const [image, setImage] = useState<File | null>(null);
-    const [previewUrl, setPreviewUrl] = useState<string>("");
-    const [ setOperatingHours] = useState([]);
-    const sanitizedPreview = previewUrl;
-
-  // Input Feild Started
+  // add specialization options
+  const [specialization, setSpecialization] = useState<string>("");
+   const [duration, setDuration] = useState<string>(''); // Set duration for consultation
+  const [image, setImage] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>("");
+  const [OperatingHour, setOperatingHours] = useState<string[]>([]);
+  const sanitizedPreview = previewUrl;
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [name, setName] = useState({
     registrationNumber: "",
-    fname: "",
-    lname: "",
+    firstName: "",
+    lastName: "",
     email: "",
+    mobileNumber: "",
     gender: "",
-    dob: "",
+    dateOfBirth: "",
     linkedin: "",
-    medlnum: "",
-    expir: "",
-  });
+    medicalLicenseNumber: "",
+    yearsOfExperience: "",
+    postalCode: "",
+    addressLine1: "",
+    city: "",
+    stateProvince: "",
+    biography: "",
 
+  });
+  console.log("name", name);
   const handleBusinessInformation = (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -60,7 +76,7 @@ function AddVetProfile() {
   const handleDateChange = (date: string | null) => {
     setName((prevData) => ({
       ...prevData,
-      dob: date || "",
+      dateOfBirth: date || "",
     }));
   };
 
@@ -94,27 +110,97 @@ function AddVetProfile() {
     label: string;
   };
 
-  const options: Option[] = [
-    { value: 'us', label: '🇺🇸 United States' },
-    { value: 'in', label: '🇮🇳 India' },
-    { value: 'uk', label: '🇬🇧 United Kingdom' },
+
+
+  //Specialization Options
+  const specializationOptions: Option[] = [
+    { value: 'cardiology', label: '🫀 Cardiology' },
+    { value: 'orthopedics', label: '🦴 Orthopedics' },
+    { value: 'dermatology', label: '🧴 Dermatology' },
+    { value: 'pediatrics', label: '🧒 Pediatrics' },
+    { value: 'neurology', label: '🧠 Neurology' },
+    { value: 'radiology', label: '🖼️ Radiology' },
+    { value: 'dentistry', label: '🦷 Dentistry' },
+    { value: 'psychiatry', label: '🧘 Psychiatry' },
+  ];
+  //Area Options
+  const areaOptions: Option[] = [
+    { value: 'north', label: '⬆️ North Zone' },
+    { value: 'south', label: '⬇️ South Zone' },
+    { value: 'east', label: '➡️ East Zone' },
+    { value: 'west', label: '⬅️ West Zone' },
+    { value: 'central', label: '🧭 Central Zone' },
+    { value: 'urban', label: '🏙️ Urban Area' },
+    { value: 'rural', label: '🌾 Rural Area' },
+    { value: 'coastal', label: '🏖️ Coastal Area' },
   ];
 
-
- 
-
-  // Add state for phone and country code
-  const [countryCode, setCountryCode] = useState("+91");
-  const [phone, setPhone] = useState("");
-
-
-   const handleSaveOperatingHours = (updatedHours: React.SetStateAction<never[]>) => {
+  const handleSaveOperatingHours = (updatedHours: React.SetStateAction<string[]>) => {
     setOperatingHours(updatedHours);
   };
+ 
+   // Handle Duration Change
+  const handleDurationChange = (value: React.SetStateAction<string>) => {
+    setDuration(value)
+  }
+  const handleSubmit = useCallback(async () => {
+  try {
+    console.log("Submitting form with data:", )
+    const response = convertToFhirVetProfile({
+      name,
+      image,
+      countryCode,
+      OperatingHour,
+      specialization,
+      uploadedFiles,
+      duration,
+    });
 
+    const formdata = new FormData();
+formdata.append("data", JSON.stringify(response));
 
+if (image) {
+  formdata.append("image", image);
+}
 
+uploadedFiles.forEach((file) => {
+  formdata.append("document[]", file);
+});
 
+    const data = await postData(`/fhir/v1/Practitioner?userId=${userId}`, formdata,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+
+    if (data.status === 201) {
+      Swal.fire({
+        icon: "success",
+        title: "Success",
+        text: "Doctor added successfully!",
+      });
+    }
+    //  else {
+    // //   const errorData = await data.json();
+    //   Swal.fire({
+    //     icon: "error",
+    //     title: "Submission Failed",
+    //     text:
+    //       errorData.issue?.[0]?.details?.text ||
+    //       "An error occurred while submitting the form. Please try again.",
+    //   });
+    // }
+  } catch (error) {
+    Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: "Failed to submit the form. Please try again later.",
+    });
+    console.error("Submission Error:", error);
+  }
+}, [OperatingHour, countryCode, name, image, specialization, uploadedFiles, duration]);
 
 
   return (
@@ -223,8 +309,8 @@ function AddVetProfile() {
                             <Col md={6}>
                               <FormInput
                                 intype="text"
-                                inname="fname"
-                                value={name.fname}
+                                inname="firstName"
+                                value={name.firstName}
                                 inlabel="First Name"
                                 onChange={handleBusinessInformation}
                               />
@@ -232,8 +318,8 @@ function AddVetProfile() {
                             <Col md={6}>
                               <FormInput
                                 intype="text"
-                                inname="lname"
-                                value={name.lname}
+                                inname="lastName"
+                                value={name.lastName}
                                 inlabel="Last Name"
                                 onChange={handleBusinessInformation}
                               />
@@ -261,7 +347,7 @@ function AddVetProfile() {
                             <Col md={6}>
                               <DynamicDatePicker
                                 placeholder="Date of Birth"
-                                value={name.dob}
+                                value={name.dateOfBirth}
                                 onDateChange={handleDateChange}
                               />
                             </Col>
@@ -282,8 +368,8 @@ function AddVetProfile() {
                               <PhoneInput
                                 countryCode={countryCode}
                                 onCountryCodeChange={setCountryCode}
-                                phone={phone}
-                                onPhoneChange={setPhone}
+                                phone={name.mobileNumber}
+                                onPhoneChange={(value) => setName({ ...name, mobileNumber: value })}
                               />
                             </Col>
                           </Row>
@@ -293,15 +379,49 @@ function AddVetProfile() {
                         <div className="doctadressdiv">
                           <h6>Residential Address</h6>
                           <Row>
-                            <Col md={6}></Col>
-                            <Col md={6}></Col>
+                            <Col md={6}>
+                              <FormInput
+                                intype="number"
+                                inname="postalCode"
+                                value={name.postalCode}
+                                inlabel="Postal Code"
+                                onChange={handleBusinessInformation}
+                              />
+                            </Col>
+                            <Col md={6}>
+                              <DynamicSelect options={areaOptions} value={area} onChange={setArea} inname="area" placeholder="Area" />
+                            </Col>
                           </Row>
                           <Row>
-                            <Col md={12}></Col>
+                            <Col md={12}>
+                              <FormInput
+                                intype="text"
+                                inname="addressLine1"
+                                value={name.addressLine1}
+                                inlabel="AddressLine1"
+                                onChange={handleBusinessInformation}
+                              />
+                            </Col>
                           </Row>
                           <Row>
-                            <Col md={6}></Col>
-                            <Col md={6}></Col>
+                            <Col md={6}>
+                              <FormInput
+                                intype="text"
+                                inname="city"
+                                value={name.city}
+                                inlabel="City"
+                                onChange={handleBusinessInformation}
+                              />
+                            </Col>
+                            <Col md={6}>
+                              <FormInput
+                                intype="text"
+                                inname="stateProvince"
+                                value={name.stateProvince}
+                                inlabel="State/Province"
+                                onChange={handleBusinessInformation}
+                              />
+                            </Col>
                           </Row>
                         </div>
 
@@ -333,8 +453,8 @@ function AddVetProfile() {
                           <Col md={6}>
                             <FormInput
                               intype="number"
-                              inname="medlnum"
-                              value={name.medlnum}
+                              inname="medicalLicenseNumber"
+                              value={name.medicalLicenseNumber}
                               inlabel="Medical License Number"
                               onChange={handleBusinessInformation}
                             />
@@ -342,8 +462,8 @@ function AddVetProfile() {
                           <Col md={6}>
                             <FormInput
                               intype="number"
-                              inname="expir"
-                              value={name.expir}
+                              inname="yearsOfExperience"
+                              value={name.yearsOfExperience}
                               inlabel="Years of Experience"
                               onChange={handleBusinessInformation}
                             />
@@ -351,26 +471,27 @@ function AddVetProfile() {
                         </Row>
                         <Row>
                           <Col md={12}>
-                            <DynamicSelect options={options}  value={country}  onChange={setCountry} inname="Specialisation"placeholder="Specialisation"/>
+                            <DynamicSelect options={specializationOptions} value={specialization} onChange={setSpecialization} inname="Specialisation" placeholder="Specialisation" />
                           </Col>
                         </Row>
                         <Row>
-                        <Col md={12}>
+                          <Col md={12}>
                             <div className="FormTexediv">
-                                <FloatingLabel className="textarealabl" controlId="floatingTextarea2" label="Biography/Short Description">
-                                    <Form.Control
-                                    as="textarea"
-                                    placeholder="Leave a comment here"
-                                    style={{ height: '100px' }}
-                                    />
-                                </FloatingLabel>
+                              <FloatingLabel className="textarealabl" controlId="floatingTextarea2" label="Biography/Short Description">
+                                <Form.Control
+                                  as="textarea"
+                                  placeholder="Leave a comment here"
+                                  style={{ height: '100px' }}
+                                  onChange={(e) => setName({ ...name, biography: e.target.value })}
+                                />
+                              </FloatingLabel>
                             </div>
-                        </Col>
+                          </Col>
                         </Row>
                         <Row>
-                        <Col md={12}>
-                            <UploadImage/>
-                        </Col>
+                          <Col md={12}>
+                            <UploadImage onChange={(files) => setUploadedFiles(files)} />
+                          </Col>
                         </Row>
 
                         <div className="ComptBtn twbtn">
@@ -390,7 +511,11 @@ function AddVetProfile() {
                     {/* service & Consultation */}
                     <Tab.Pane eventKey="AvaillConst">
                       <Form className="ServiceData">
-                        <OperatingHours onSave={handleSaveOperatingHours}/>
+                        <OperatingHours
+                          onSave={handleSaveOperatingHours}
+                          Optrtname="Availability"
+                          onChange={handleDurationChange}
+                        />
                         <div className="ComptBtn twbtn">
                           <Button
                             className="Hov"
@@ -398,7 +523,7 @@ function AddVetProfile() {
                           >
                             <IoIosArrowDropleft /> Back
                           </Button>
-                          <Button onClick={() => setKey("login")}>
+                          <Button onClick={handleSubmit}>
                             <FaCircleCheck />
                             Finish
                           </Button>
@@ -418,7 +543,7 @@ function AddVetProfile() {
               </div>
             </Tab.Container>
           </div>
-          
+
         </Container>
       </section>
     </>

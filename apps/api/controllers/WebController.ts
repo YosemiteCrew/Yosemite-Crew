@@ -483,139 +483,139 @@ const WebController = {
     }
   },
 
- setupProfile: async (req: Request, res: Response): Promise<void> => {
-  try {
-    // S3 Upload Helper
-    const uploadToS3 = (file: UploadedFile, folderName: string): Promise<string> => {
-      return new Promise((resolve, reject) => {
-        const params = {
-          Bucket: process.env.AWS_S3_BUCKET_NAME!,
-          Key: `${folderName}/${Date.now()}_${file.name}`,
-          Body: file.data,
-          ContentType: file.mimetype,
-        };
+  setupProfile: async (req: Request, res: Response): Promise<void> => {
+    try {
+      // S3 Upload Helper
+      const uploadToS3 = (file: UploadedFile, folderName: string): Promise<string> => {
+        return new Promise((resolve, reject) => {
+          const params = {
+            Bucket: process.env.AWS_S3_BUCKET_NAME!,
+            Key: `${folderName}/${Date.now()}_${file.name}`,
+            Body: file.data,
+            ContentType: file.mimetype,
+          };
 
-        s3.upload(params, (err, data) => {
-          if (err) {
-            console.error("Error uploading to S3:", err);
-            reject(err);
-          } else {
-            resolve(data.Key);
-          }
+          s3.upload(params, (err, data) => {
+            if (err) {
+              console.error("Error uploading to S3:", err);
+              reject(err);
+            } else {
+              resolve(data.Key);
+            }
+          });
         });
-      });
-    };
+      };
 
-    // Step 1: Parse FHIR JSON Payload
-    let parsedPayload: unknown;
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
-      parsedPayload = JSON.parse(req.body.fhirPayload);
-    } catch (error) {
-      res.status(400).json({
-        message: "Invalid JSON in fhirPayload",
-        error: (error as Error).message,
-      });
-      return;
-    }
+      // Step 1: Parse FHIR JSON Payload
+      let parsedPayload: unknown;
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
+        parsedPayload = JSON.parse(req.body.fhirPayload);
+      } catch (error) {
+        res.status(400).json({
+          message: "Invalid JSON in fhirPayload",
+          error: (error as Error).message,
+        });
+        return;
+      }
 
-    // Step 2: Convert to Internal Format
-    let businessProfile: BusinessProfile;
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-      businessProfile = fromFHIRBusinessProfile(parsedPayload);
-    } catch (error) {
-      res.status(400).json({
-        message: "Invalid FHIR structure",
-        error: (error as Error).message,
-      });
-      return;
-    }
+      // Step 2: Convert to Internal Format
+      let businessProfile: BusinessProfile;
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+        businessProfile = fromFHIRBusinessProfile(parsedPayload);
+      } catch (error) {
+        res.status(400).json({
+          message: "Invalid FHIR structure",
+          error: (error as Error).message,
+        });
+        return;
+      }
 
-    const {
-      name,
-      country,
-      departmentFeatureActive,
-      selectedServices,
-      addDepartment,
-    } = businessProfile;
+      const {
+        name,
+        country,
+        departmentFeatureActive,
+        selectedServices,
+        addDepartment,
+      } = businessProfile;
 
-    if (!name) {
-      res.status(400).json({ message: "Missing name in businessProfile" });
-      return;
-    }
+      if (!name) {
+        res.status(400).json({ message: "Missing name in businessProfile" });
+        return;
+      }
 
-    const {
-      userId,
-      businessName,
-      website,
-      registrationNumber,
-      city,
-      state,
-      addressLine1,
-      postalCode,
-      latitude,
-      longitude,
-      PhoneNumber,
-      country: nameCountry,
-    } = name;
+      const {
+        userId,
+        businessName,
+        website,
+        registrationNumber,
+        city,
+        state,
+        addressLine1,
+        postalCode,
+        latitude,
+        longitude,
+        PhoneNumber,
+        country: nameCountry,
+      } = name;
 
-    if (!userId) {
-      res.status(400).json({ message: "Missing required userId" });
-      return;
-    } else {
-      // Step 3: Handle Image Upload if Exists
-      const imageFile = req.files?.image as UploadedFile | UploadedFile[] | undefined;
-      const logoKey = imageFile && !Array.isArray(imageFile)
-        ? await uploadToS3(imageFile, "logo")
-        : undefined;
-
-      // Step 4: Save or Update Profile in MongoDB
-      const updatedProfile = await ProfileData.findOneAndUpdate(
-        { userId },
-        {
-          $set: {
-            userId,
-            businessName,
-            website,
-            registrationNumber,
-            city,
-            state,
-            addressLine1,
-            postalCode,
-            latitude,
-            longitude,
-            PhoneNumber,
-            country: nameCountry || country,
-            departmentFeatureActive,
-            selectedServices,
-            addDepartment,
-            image: logoKey,
-          },
-        },
-        { new: true, upsert: true }
-      );
-
-      if (!updatedProfile) {
-        res.status(500).json({ message: "Failed to update profile" });
+      if (!userId) {
+        res.status(400).json({ message: "Missing required userId" });
+        return;
       } else {
-        res.status(200).json({
-          message: "Profile updated successfully",
-          profile: updatedProfile,
+        // Step 3: Handle Image Upload if Exists
+        const imageFile = req.files?.image as UploadedFile | UploadedFile[] | undefined;
+        const logoKey = imageFile && !Array.isArray(imageFile)
+          ? await uploadToS3(imageFile, "logo")
+          : undefined;
+
+        // Step 4: Save or Update Profile in MongoDB
+        const updatedProfile = await ProfileData.findOneAndUpdate(
+          { userId },
+          {
+            $set: {
+              userId,
+              businessName,
+              website,
+              registrationNumber,
+              city,
+              state,
+              addressLine1,
+              postalCode,
+              latitude,
+              longitude,
+              PhoneNumber,
+              country: nameCountry || country,
+              departmentFeatureActive,
+              selectedServices,
+              addDepartment,
+              image: logoKey,
+            },
+          },
+          { new: true, upsert: true }
+        );
+
+        if (!updatedProfile) {
+          res.status(500).json({ message: "Failed to update profile" });
+        } else {
+          res.status(200).json({
+            message: "Profile updated successfully",
+            profile: updatedProfile,
+          });
+        }
+      }
+    } catch (err) {
+      const error = err as Error;
+      console.error("setupProfile error:", error);
+      if (!res.headersSent) {
+        res.status(500).json({
+          message: "Internal Server Error",
+          error: error.message,
         });
       }
     }
-  } catch (err) {
-    const error = err as Error;
-    console.error("setupProfile error:", error);
-    if (!res.headersSent) {
-      res.status(500).json({
-        message: "Internal Server Error",
-        error: error.message,
-      });
-    }
-  }
-},
+  },
   deleteDocumentsToUpdate: async (req: Request, res: Response) => {
     const { userId, docId } = req.params;
     console.log("User ID:", userId);
@@ -794,6 +794,8 @@ const WebController = {
   //       res.status(500).json({ error: error.message });
   //     }
   //   },
+
+  
 };
 function getSecretHash(email: string,) {
   const clientId = process.env.COGNITO_CLIENT_ID_WEB;

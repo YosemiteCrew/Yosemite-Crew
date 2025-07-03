@@ -1,72 +1,58 @@
-import { Document } from 'mongoose';
-type TimeSlot = {
-  hour: string;
-  minute: string;
-  period: 'AM' | 'PM';
+export type AvailabilityTime = {
+  from: {
+    hour: string;
+    minute: string;
+    period: 'AM' | 'PM';
+  };
+  to: {
+    hour: string;
+    minute: string;
+    period: 'AM' | 'PM';
+  };
 };
 
-type Availability = {
+export type Availability = {
   day: 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday';
-  times: {
-    from: TimeSlot;
-    to: TimeSlot;
-  }[];
+  times: AvailabilityTime[];
 };
 
-type DocumentFile = {
+export type DocumentFile = {
   name: string;
   type: string;
   date?: Date;
 };
 
-type CvFile = {
-  name: string;
-  type: string;
-  date?: Date;
-};
-
-export type AddDoctorDoc = Document & {
+export type AddDoctorDoc = {
   userId: string;
   bussinessId: string;
-  personalInfo: {
-    image?: string;
-    firstName?: string;
-    lastName?: string;
-    gender?: string;
-    dateOfBirth?: string;
-    email?: string;
-    countrycode?: string;
-    phone?: string;
-  };
-  residentialAddress: {
-    addressLine1?: string;
-    city?: string;
-    stateProvince?: string;
-    country?: string;
-    zipCode?: string;
-  };
-  professionalBackground: {
-    specialization?: string;
-    qualification?: string;
-    medicalLicenseNumber?: string;
-    yearsOfExperience?: number;
-    languagesSpoken?: string;
-    biography?: string;
-    image?: string;
-  };
+
+  registrationNumber: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  mobileNumber: string;
+  gender: string;
+  dateOfBirth: string;
+  linkedin: string;
+  medicalLicenseNumber: string;
+  yearsOfExperience: number;
+  postalCode: string; // renamed from postalCode
+  addressLine1: string;
+  city: string;
+  stateProvince: string;
+  biography: string;
+
+  area: string;
+  countrycode: string;
+
+  specialization: string;
+
+  image: string;
+
   availability: Availability[];
+
   documents: DocumentFile[];
-  cvFile?: CvFile;
-  timeDuration?: number;
-  activeModes?: ('In-person' | 'Online' | 'Both')[];
-  isAvailable?: string;
-  consultFee?: number;
-  DoctorPrescriptions?: string;
-  authSettings?: {
-    takeAssessments?: boolean;
-    appointments?: boolean;
-    viewMedicalRecords?: boolean;
-    prescribeMedications?: boolean;
-  };
-  termsAndConditions?: boolean;
+duration: string; // newly added field
+  createdAt?: Date;
+  updatedAt?: Date;
 };
