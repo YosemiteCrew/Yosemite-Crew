@@ -23,6 +23,7 @@ import hospitalRoutes from './routes/HospitalRoutes';
 import AdminApiRoutes from './routes/InventoryRoutes';
 import adminInventory from './routes/AdminApiRoutes';
 import apiRoutes from './routes/apiRoutes';
+import BlogApiRoutes from './routes/BlogApiRoutes';
 import NewsletterRoutes from './routes/NewsletterRoutes';
 import cors from 'cors';
 
@@ -110,6 +111,7 @@ app.use('/fhir/admin', adminInventory);
 app.use('/fhir/v1', AdminApiRoutes);
 app.use('/fhir/v1', apiRoutes);
 app.use('/newsletter', NewsletterRoutes);
+app.use('/fhir/v1', BlogApiRoutes);
 
 // Global error handler
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
