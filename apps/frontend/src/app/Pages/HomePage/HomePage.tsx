@@ -74,8 +74,8 @@ function HomePage() {
               </div>
 
               <div className="HeroBtn">
-                <FillBtn icon={<IoIosFlash />} text=" Get Started" />
-                <UnFillBtn
+                <FillBtn icon={<IoIosFlash />} text=" Get Started" href='/signup' />
+                <UnFillBtn href="#"
                   icon={<MdOutlineAccessTimeFilled />}
                   text="Book a Demo"
                 />
@@ -346,7 +346,7 @@ function HomePage() {
                     patient care and streamlining their workflow.
                   </p>
                 </div>
-                <FillBtn icon={<IoIosFlash />} text=" Get Started" />
+                <FillBtn icon={<IoIosFlash />} text=" Get Started" href="#" />
               </div>
             </div>
             <div className="lftbetter">
@@ -365,21 +365,22 @@ export default HomePage;
 
 // ButtonProps
 
-interface ButtonProps {
+type ButtonProps = {
   icon: ReactNode;
   text: string;
+  href:string;
 }
 
-export function FillBtn({ icon, text }: ButtonProps) {
+export function FillBtn({ icon, text , href}: ButtonProps) {
   return (
-    <Link className="Fillbtn" href="#">
+    <Link className="Fillbtn" href={href}>
       {icon} {text}
     </Link>
   );
 }
-export function UnFillBtn({ icon, text }: ButtonProps) {
+export function UnFillBtn({ icon, text,href }: ButtonProps) {
   return (
-    <Link className="UnFillbtn" href="#">
+    <Link className="UnFillbtn" href={href}>
       {icon} {text}
     </Link>
   );

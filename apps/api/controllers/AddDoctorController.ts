@@ -1,58 +1,26 @@
 import Department from "../models/AddDepartment";
 import AddDoctors from "../models/AddDoctor";
-import crypto from "crypto";
 
-import {
-  CognitoIdentityProviderClient,
-  AdminGetUserCommand,
-  AdminConfirmSignUpCommand,
-  SignUpCommand,
-  AdminUpdateUserAttributesCommand,
-} from "@aws-sdk/client-cognito-identity-provider";
+
 import FHIRConverter from "../utils/DoctorsHandler";
 import { validateFHIR } from "../Fhirvalidator/FhirValidator";
 // import { equal } from 'assert';
-import AWS, { S3 } from "aws-sdk";
-const SES = new AWS.SES();
-import { WebUser } from "../models/WebUser";
+import  { S3 } from "aws-sdk";
+
 import DoctorsTimeSlotes from "../models/doctors.slotes.model";
 import { webAppointments } from "../models/WebAppointment";
 import { Request, Response } from "express";
-import { parseFhirBundle, File, Files, Document } from "@yosemite-crew/fhir";
-import type {ParsedData} from "@yosemite-crew/fhir";
-const cognito = new CognitoIdentityProviderClient({
-  region: process.env.AWS_REGION,
-});
+import {   Document, convertFromFhirVetProfile } from "@yosemite-crew/fhir";
+
+
 const s3 = new S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
   region: process.env.AWS_REGION,
 });
 
-function getSecretHash(email: string): string {
-  const clientId = process.env.COGNITO_CLIENT_ID_WEB as string;
-  const clientSecret = process.env.COGNITO_CLIENT_SECRET_WEB as string;
 
-  return crypto
-    .createHmac("SHA256", clientSecret)
-    .update(email + clientId)
-    .digest("base64");
-}
 
-const confirmUser = async (userPoolId: string, QU: string): Promise<void> => {
-  try {
-    await cognito.send(
-      new AdminConfirmSignUpCommand({
-        UserPoolId: userPoolId,
-        Username: QU,
-      })
-    );
-    // console.log('User successfully confirmed.');
-  } catch (error) {
-    console.error("Error confirming user:", error);
-    throw error;
-  }
-};
 function convertTo12HourFormat(dateObj: Date): string {
   let hours: number = dateObj.getHours();
   const minutes: string = dateObj.getMinutes().toString().padStart(2, "0");
@@ -64,226 +32,124 @@ function convertTo12HourFormat(dateObj: Date): string {
 const AddDoctorsController = {
 
   addDoctor: async (req: Request, res: Response): Promise<void> => {
-    try {
-      const formData = req.body.fhirBundle ? JSON.parse(req.body.fhirBundle): {};
-
-      if (!formData.entry || !Array.isArray(formData.entry)) {
-        res.status(400).json({
-          error: "Invalid FHIR Bundle format. No 'entry' array found.",
-        });
-        return;
-      }
-
-      const parsedData = parseFhirBundle(formData);
-
-      const {
-        personalInfo,
-        residentialAddress,
-        professionalBackground,
-        availability,
-        consultFee,
-        loginCredentials,
-        authSettings,
-        timeDuration,
-        bussinessId,
-        activeModes,
-      } = parsedData as ParsedData;
-
-      if (!loginCredentials?.username || !loginCredentials?.password) {
-        res.status(400).json({ message: "Email and password are required." });
-        return;
-      }
-
-      const userPoolId = process.env.COGNITO_USER_POOL_ID_WEB as string;
-      const clientId = process.env.COGNITO_CLIENT_ID_WEB as string;
-      const username = loginCredentials.username;
-
-      let userExists = false;
-      try {
-        await cognito.send(
-          new AdminGetUserCommand({
-            UserPoolId: userPoolId,
-            Username: username,
-          })
-        );
-        userExists = true;
-      } catch (error: any) {
-        if (error.name !== "UserNotFoundException") {
-          res.status(500).json({ message: "Error checking user existence." });
-          return;
-        }
-      }
-
-      if (userExists) {
-        res.status(409).json({ message: "User already exists. Please login." });
-        return;
-      }
-
-      const signUpParams: any = {
-        ClientId: clientId,
-        Username: username,
-        Password: loginCredentials.password,
-        UserAttributes: [{ Name: "email", Value: username }],
-      };
-
-      if (process.env.COGNITO_CLIENT_SECRET_WEB) {
-        signUpParams.SecretHash = getSecretHash(username);
-      }
-
-      let data;
-      try {
-        data = await cognito.send(new SignUpCommand(signUpParams));
-      } catch (err: any) {
-        res.status(500).json({ message: "Error registering user. Please try again later." });
-        return;
-      }
-
-      try {
-        await cognito.send(
-          new AdminUpdateUserAttributesCommand({
-            UserPoolId: userPoolId,
-            Username: username,
-            UserAttributes: [{ Name: "email_verified", Value: "true" }],
-          })
-        );
-        console.log("Email verified successfully.");
-      } catch (error: any) {
-        console.error("Error verifying email:", error);
-      }
-
-      await confirmUser(userPoolId, username);
-
-      const login = await WebUser.create({
-        cognitoId: data.UserSub,
-        businessType: "Doctor",
-        bussinessId,
-      });
-
-      if (!login) {
-        res.status(500).json({ message: "Failed to create login credentials." });
-        return;
-      }
-
-      const emailParams = {
-        Source: process.env.MAIL_DRIVER as string,
-        Destination: { ToAddresses: [username] },
-        Message: {
-          Subject: { Data: "Your password" },
-          Body: {
-            Text: {
-              Data: `Your password is: ${loginCredentials.password}. Keep it safe.`,
-            },
-          },
-        },
-      };
-
-      try {
-        await SES.sendEmail(emailParams).promise();
-      } catch (error: any) {
-        console.error("Error sending email:", error);
-      }
-
-      const uploadToS3 = (file: File, folderName: string): Promise<string> => {
-        return new Promise((resolve, reject) => {
-          const params = {
-            Bucket: process.env.AWS_S3_BUCKET_NAME as string,
-            Key: `${folderName}/${Date.now()}_${file.name}`,
-            Body: file.data,
-            ContentType: file.mimetype,
-          };
-
-          s3.upload(params, (err: any, data: any) => {
-            if (err) {
-              console.error('Error uploading to S3:', err);
-              // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
-              reject(err);
-            } else {
-              resolve(data.Key);
-            }
-          });
-        });
-      };
-
-      let image: string | undefined,
-        cvFile: { name: string; type: string; date: Date } | undefined
-      const documents: Document[] = [];
-
-      if (req.files && (req.files as Files).profilePicture) {
-        image = await uploadToS3((req.files as Files).profilePicture!, "profilePicture");
-      }
-      if (req.files && (req.files as Files).cvFile) {
-        const files = await uploadToS3((req.files as Files).cvFile!, "cv");
-        cvFile = {
-          name: files,
-          type: (req.files as Files).cvFile!.mimetype,
-          date: new Date(),
-        };
-      }
-      if (req.files && (req.files as Files).document) {
-        const documentFiles = Array.isArray((req.files as Files).document)
-          ? (req.files as Files).document
-          : [(req.files as Files).document];
-
-        for (let file of documentFiles as File[]) {
-          const documentKey = await uploadToS3(file, "documents");
-          documents.push({
-            name: documentKey,
-            type: file.mimetype,
-            date: new Date(),
-          });
-        }
-      }
-
-      const newDoctor = new AddDoctors({
-        userId: data.UserSub,
-        personalInfo: { ...personalInfo, image },
-        residentialAddress,
-        professionalBackground: {
-          ...professionalBackground,
-          specialization: parsedData.professionalBackground.specialization,
-          specializationId: parsedData.professionalBackground.specializationId,
-        },
-        availability,
-        timeDuration: timeDuration?.value,
-        consultFee,
-        authSettings,
-        documents,
-        bussinessId,
-        activeModes,
-        cvFile,
-      });
-
-      const savedDoctor = await newDoctor.save();
-
-      res.status(201).json({
-        resourceType: "OperationOutcome",
-        issue: [
-          {
-            severity: "information",
-            code: "informational",
-            details: {
-              text: "Doctor added successfully",
-            },
-          },
-        ],
-        doctor: savedDoctor,
-      });
-    } catch (error: any) {
-      console.error("Error saving doctor:", error);
-      res.status(500).json({
-        resourceType: "OperationOutcome",
-        issue: [
-          {
-            severity: "error",
-            code: "exception",
-            details: {
-              text: error.message,
-            },
-          },
-        ],
-      });
+  try {
+   
+    const userId = req.query.userId as string;
+    let rawData: string = "";
+    if (
+      req.body &&
+      typeof req.body === "object" &&
+      Object.prototype.hasOwnProperty.call(req.body, "data") &&
+      typeof (req.body as { data?: unknown }).data === "string"
+    ) {
+      rawData = (req.body as { data: string }).data;
+    } else {
+      res.status(400).json({ message: "Invalid request body: missing or invalid 'data' property." });
+      return;
     }
-  },
+    const fhirData = JSON.parse(rawData) as unknown;
+    // Ensure fhirData is an object before passing to convertFromFhirVetProfile
+    if (typeof fhirData !== "object" || fhirData === null) {
+      res.status(400).json({ message: "Invalid FHIR data format." });
+      return;
+    }
+    const parsed = convertFromFhirVetProfile(fhirData);
+    const { name, specialization, countryCode, OperatingHour, duration } = parsed;
+
+    // 2. Upload helper
+    interface UploadedFile {
+      name: string;
+      data: Buffer;
+      mimetype: string;
+    }
+
+    const uploadToS3 = (file: UploadedFile, folderName: string): Promise<string> => {
+      return new Promise((resolve, reject) => {
+        const params = {
+          Bucket: process.env.AWS_S3_BUCKET_NAME!,
+          Key: `${folderName}/${Date.now()}_${file.name}`,
+          Body: file.data, // ✅ this is how express-fileupload gives the buffer
+          ContentType: file.mimetype,
+        };
+
+        s3.upload(params, (err: Error | null, data: S3.ManagedUpload.SendData) => {
+          if (err) {
+            console.error("S3 Upload Error:", err);
+            reject(err);
+          } else {
+            resolve(data.Key);
+          }
+        });
+      });
+    };
+
+    // 3. Handle image
+    let imageUrl: string | null = null;
+    let imageFile: UploadedFile | undefined;
+    if (req.files && !Array.isArray(req.files) && typeof req.files === "object" && "image" in req.files) {
+      imageFile = ((req.files as unknown) as { [fieldname: string]: UploadedFile | UploadedFile[] }).image as UploadedFile;
+    }
+    if (imageFile) {
+      imageUrl = await uploadToS3(imageFile, "profilePictures");
+    }
+
+    // 4. Handle documents (can be single or array)
+    const documents: Document[] = [];
+    const files = req.files as { [fieldname: string]: UploadedFile | UploadedFile[] } | undefined;
+    const docFiles = files && (files["document[]"] as UploadedFile | UploadedFile[] | undefined);
+
+    if (Array.isArray(docFiles)) {
+      for (const file of docFiles) {
+        const key = await uploadToS3(file, "documents");
+        documents.push({ name: key, type: file.mimetype, date: new Date() });
+      }
+    } else if (docFiles) {
+      const key = await uploadToS3(docFiles, "documents");
+      documents.push({ name: key, type: docFiles.mimetype, date: new Date() });
+    }
+
+    // 5. Create and save doctor
+   const newDoctor = {
+  ...name,
+  userId,
+  specialization,
+  countryCode,
+  availability: OperatingHour,
+  duration: duration as string, 
+  image: imageUrl,
+  documents,
+};
+
+// Use registrationNumber or email as the unique key
+const filter = { registrationNumber: name.registrationNumber };
+
+// Update if exists, otherwise insert (upsert: true)
+const updatedDoctor = await AddDoctors.findOneAndUpdate(
+  filter,
+  newDoctor,
+  { new: true, upsert: true }
+);
+
+    res.status(201).json({
+      message: "Doctor profile created successfully.",
+      data: updatedDoctor,
+    });
+  } catch (error: any) {
+    console.error("❌ Error creating doctor profile:", error);
+    res.status(500).json({
+      resourceType: "OperationOutcome",
+      issue: [
+        {
+          severity: "error",
+          code: "exception",
+          details: {
+            text: error.message,
+          },
+        },
+      ],
+    });
+  }
+},
 
   
 //  getOverview : async (req: Request, res: Response): Promise<Response> => {

@@ -7,6 +7,7 @@ import { GoCheckCircleFill } from 'react-icons/go';
 import Swal from 'sweetalert2';
 import { postData } from '@/app/axios-services/services';
 import { useRouter } from 'next/navigation';
+import { AxiosError } from 'axios';
 
 
 function SignIn() {
@@ -26,7 +27,7 @@ function SignIn() {
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
 
-  const handleChange = (e, index) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, index: number) => {
     const value = e.target.value;
 
     if (value.length > 1) return;
@@ -42,7 +43,7 @@ function SignIn() {
   };
 
   // Handle OTP input key down (to handle backspace)
-  const handleKeyDown = (e, index) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>, index: number) => {
     if (e.key === 'Backspace' && otp[index] === '') {
       const prevInput = document.getElementById(`otp-input-${index - 1}`);
       if (prevInput) prevInput.focus();
@@ -73,19 +74,21 @@ const handleSignIn = async (e: React.FormEvent) => {
 
     if (response.status === 200) {
       sessionStorage.setItem('token', response.data.token);
-     router.push(`/businessDashboard`);
+      router.push(`/emptydashboard`);
       Swal.fire({
         icon: 'success',
         title: 'Success',
         text: 'Sign in successful',
       });
     }
-  } catch (error: any) {
-    if (error.response) {
+  } catch (error: unknown) {
+    const axiosError = error as AxiosError<{ message: string }>;
+
+    if (axiosError.response?.data?.message) {
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: `Sign in failed: ${error.response.data.message}`,
+        text: `Sign in failed: ${axiosError.response.data.message}`,
       });
     } else {
       Swal.fire({
@@ -108,7 +111,7 @@ const handleOtp = async (e: React.FormEvent) => {
     return;
   }
 
-  try {
+ try {
     const response = await postData<{ message: string }>(
       `/api/auth/forgotPassword`,
       { email }
@@ -122,12 +125,14 @@ const handleOtp = async (e: React.FormEvent) => {
       });
       setShowVerifyCode(true);
     }
-  } catch (error: any) {
-    if (error.response) {
+  } catch (error: unknown) {
+    const axiosError = error as AxiosError<{ message: string }>;
+
+    if (axiosError.response?.data?.message) {
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: `OTP failed: ${error.response.data.message}`,
+        text: `OTP failed: ${axiosError.response.data.message}`,
       });
     } else {
       Swal.fire({
@@ -166,7 +171,7 @@ const handleVerifyOtp = async (e: React.FormEvent) => {
     password,
   };
 
-  try {
+ try {
     const response = await postData<{ message: string }>(
       `/api/auth/verifyotp`,
       data
@@ -180,14 +185,16 @@ const handleVerifyOtp = async (e: React.FormEvent) => {
       });
       setShowNewPassword(false);
       setShowVerifyCode(false);
-      setShowForgotPassword(false)
+      setShowForgotPassword(false);
     }
-  } catch (error: any) {
-    if (error.response) {
+  } catch (error: unknown) {
+    const axiosError = error as AxiosError<{ message: string }>;
+
+    if (axiosError.response && axiosError.response.data?.message) {
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: `OTP verification failed: ${error.response.data.message}`,
+        text: `OTP verification failed: ${axiosError.response.data.message}`,
       });
     } else {
       Swal.fire({
@@ -269,7 +276,7 @@ const handleVerifyOtp = async (e: React.FormEvent) => {
                           id={`otp-input-${index}`}
                           onChange={(e) => handleChange(e, index)}
                           onKeyDown={(e) => handleKeyDown(e, index)} // Handle backspace
-                          maxLength="1"
+                         maxLength={1}
                         />
                       ))}
                     </div>
@@ -381,7 +388,7 @@ const handleVerifyOtp = async (e: React.FormEvent) => {
                         id={`otp-input-${index}`}
                         onChange={(e) => handleChange(e, index)}
                         onKeyDown={(e) => handleKeyDown(e, index)} // Handle backspace
-                        maxLength="1"
+                        maxLength={1}
                       />
                     ))}
                   </div>

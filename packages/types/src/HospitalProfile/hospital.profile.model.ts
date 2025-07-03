@@ -27,5 +27,6 @@ export interface IWebUser {
   bussinessId?: string;
   otp?: number;
   otpExpiry?: Date;
-  subscribe?:boolean
+  subscribe?:boolean;
+  department?:string
 }
