@@ -43,3 +43,5 @@ export type { FHIRDocumentReference,FHIRImmunizationNote,FHIRImmunizationExtensi
 export type { VaccinationDetailsType } from "./models/immunization-records";
 export type { TimeSlot,DoctorSlotDocument,AppointmentDocument,GetTimeSlotsInput,FHIRSlot,FHIRSlotBundle,SlotQuery,MonthlySlotQuery } from "./slot/slot-types";
 export type { ContactUsBody,TypedRequestBody } from "./contact/contact-types";
+export type {ConvertToFhirVetProfileParams,OperatingHourType,VetNameType} from './complete-vet-profile/complete-vet-profile'
+export type {TeamInviteMember,InvitePayload} from "./InviteTeamsMembers/invite-teams-members"
