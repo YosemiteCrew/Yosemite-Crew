@@ -39,118 +39,81 @@ export const verifyTokenAndRefresh = (
 
 
 
-export const getCognitoUserId = (req : Request) => {
+export const getCognitoUserId = (req: Request) => {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) throw new Error('Missing token');
   const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
   return decoded?.username as string;
 }
+const ACCESS_SECRET = process.env.JWT_SECRET!;
+const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET!;
+const ACCESS_EXPIRY = process.env.EXPIRE_IN || "15m";
+const REFRESH_EXPIRY = process.env.EXPIRE_IN_REFRESH || "7d";
 
-// ✅ Optional endpoint to issue new tokens using refresh token
-// export const refreshToken = (req: Request, res: Response): void => {
-//   const { refreshToken } = req.body;
 
-//   if (!refreshToken) {
-//     res.status(401).json({ message: 'No refresh token provided' });
-//     return;
-//   }
 
-//   // Verify the refresh token
-//   jwt.verify(refreshToken, process.env.JWT_SECRET as string, (err, decoded) => {
-//     if (err || typeof decoded === 'string') {
-//       console.log('Refresh Token verification failed:', err?.message);
-//       res.status(403).json({ message: 'Invalid or expired refresh token' });
-//       return;
-//     }
+export const verifyToken =  (req: CustomRequest, res: Response, next: NextFunction) => {
+  const accessToken = req.cookies?.accessToken as string;
+  const refreshToken = req.cookies?.refreshToken as string;
 
-//     // Payload for generating new tokens
-//     const payload = {
-//       email: decoded.email,
-//       userId: decoded.userId,
-//       userType: decoded.businessType,
-//     };
+  if (!accessToken && !refreshToken) {
+    return res.status(401).json({ message: 'No tokens provided' });
+  }
 
-//     // Create a new access token
-//     const newAccessToken = jwt.sign(payload, process.env.JWT_SECRET as string, {
-//       expiresIn: process.env.EXPIRE_IN,
-//     });
+  try {
+    // ✅ Try verifying access token first
+    if (!accessToken || typeof accessToken !== 'string') {
+      return res.status(401).json({ message: 'Invalid access token type' });
+    }
+    const decoded = jwt.verify(accessToken, ACCESS_SECRET) as JwtPayload;
+    req.user = decoded;
+    return next();
+  } catch (err: unknown) {
+    if (err instanceof jwt.TokenExpiredError) {
+      // ⏳ Access token expired — try refresh token
+      try {
+        if (!refreshToken || typeof refreshToken !== 'string') {
+          return res.status(401).json({ message: 'Invalid refresh token type' });
+        }
+        const decodedRefresh = jwt.verify(refreshToken, REFRESH_SECRET) as JwtPayload;
 
-//     // Create a new refresh token
-//     const newRefreshToken = jwt.sign(payload, process.env.JWT_SECRET as string, {
-//       expiresIn: process.env.EXPIRE_IN_REFRESH,
-//     });
+        // 🔄 Issue new tokens
+        const newPayload = {
+          userId: decodedRefresh.userId as string,
+          email: decodedRefresh.email as string,
+          userType: decodedRefresh.userType as string,
+        };
 
-//     // Send tokens back to client
-//     res.json({ token: newAccessToken, refreshToken: newRefreshToken });
-//   });
-// };
+        const newAccessToken = jwt.sign(newPayload, ACCESS_SECRET, {
+          expiresIn: ACCESS_EXPIRY,
+        });
 
-/*
-=====================================================================
-📝 PREVIOUS VERSIONS (COMMENTED FOR REFERENCE AND BACKWARD COMPATIBILITY)
-=====================================================================
+        const newRefreshToken = jwt.sign(newPayload, REFRESH_SECRET, {
+          expiresIn: REFRESH_EXPIRY,
+        });
 
-// Legacy: Basic verifyToken implementation using require and JS syntax
-// const jwt = require("jsonwebtoken");
-// const verifyTokenAndRefresh = (req, res, next) => {
-//   const token = req.headers["authorization"]?.split(" ")[1];
-//   if (!token) {
-//     console.log("No token provided");
-//     return res.status(401).json({ message: "No token provided" });
-//   }
-//   jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-//     if (err) {
-//       console.log("Token verification error:", err.message);
-//       return res.status(401).json({ message: "Unauthorized", error: err.message });
-//     }
-//     req.user = decoded;
-//     next();
-//   });
-// };
+        // 🍪 Set new tokens as cookies
+        res.cookie('accessToken', newAccessToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+          maxAge: 1000 * 60 * 15, // 15 minutes
+        });
 
-// Legacy: Handles token from sessionStorage frontend - older version
-// const verifyTokenAndRefresh = (req, res, next) => {
-//   const accessToken = req.headers.authorization?.split(" ")[1];
-//   if (accessToken) {
-//     jwt.verify(accessToken, process.env.JWT_SECRET, (err, decoded) => {
-//       if (err) {
-//         console.log("Access Token verification failed:", err.message);
-//         return res.status(403).json({
-//           message: "Invalid or expired access token and no refresh token",
-//         });
-//       }
-//       console.log("Access Token verified:", decoded);
-//       req.user = decoded;
-//       return next();
-//     });
-//   } else {
-//     return res.status(401).json({ message: "No tokens provided" });
-//   }
-// };
+        res.cookie('refreshToken', newRefreshToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+          maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+        });
 
-// Legacy: Refresh token logic (non-TS version)
-// const refreshToken = (req, res) => {
-//   const { refreshToken } = req.body;
-//   if (!refreshToken) {
-//     return res.status(401).json({ message: "No refresh token provided" });
-//   }
-//   jwt.verify(refreshToken, process.env.JWT_SECRET, (err, decoded) => {
-//     if (err) {
-//       console.log("Refresh Token verification failed:", err.message);
-//       return res.status(403).json({ message: "Invalid or expired refresh token" });
-//     }
-//     const newAccessToken = jwt.sign(
-//       { email: decoded.email, userId: decoded.userId, userType: decoded.businessType },
-//       process.env.JWT_SECRET,
-//       { expiresIn: process.env.EXPIRE_IN }
-//     );
-//     const refreshToken = jwt.sign(
-//       { email: decoded.email, userId: decoded.userId, userType: decoded.businessType },
-//       process.env.JWT_SECRET,
-//       { expiresIn: process.env.EXPIRE_IN_REFRESH }
-//     );
-//     res.json({ token: newAccessToken, refreshToken: refreshToken });
-//   });
-// };
-*/
-
+        req.user = newPayload;
+        return next();
+      } catch {
+        return res.status(403).json({ message: 'Invalid or expired refresh token' });
+      }
+    } else {
+      return res.status(403).json({ message: 'Invalid access token' });
+    }
+  }
+};

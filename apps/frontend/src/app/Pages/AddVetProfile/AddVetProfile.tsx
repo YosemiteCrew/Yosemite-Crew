@@ -14,13 +14,19 @@ import { PhoneInput } from "@/app/Components/PhoneInput/PhoneInput";
 import DynamicSelect from "@/app/Components/DynamicSelect/DynamicSelect";
 import UploadImage from "@/app/Components/UploadImage/UploadImage";
 import OperatingHours from "@/app/Components/OperatingHours/OperatingHours";
-import { convertFromFhirVetProfile, convertToFhirVetProfile } from "@yosemite-crew/fhir";
+import {  convertToFhirVetProfile } from "@yosemite-crew/fhir";
 import { postData } from "@/app/axios-services/services";
 import Swal from "sweetalert2";
-import { useAuth } from "@/app/Context/AuthContext";
+import { useAuthStore } from "@/app/stores/authStore";
+
 
 function AddVetProfile() {
-  const {userId} = useAuth()
+  // const {userId} = useAuth()
+  const { userId, email, userType } = useAuthStore();
+
+  useEffect(() => {
+    console.log("user", userId, email, userType);
+  }, [userId, email, userType]);
   const [area, setArea] = useState<string>(''); //Set country
   const [progress] = useState(48); // Progressbar cound
   const [key, setKey] = useState("profileInfo");

@@ -26,7 +26,7 @@ router.delete(
   '/:userId/deleteDocumentsToUpdate/:docId',
   WebController.deleteDocumentsToUpdate
 );
-
+router.post('/refreshToken', WebController.refreshToken);
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Add Department >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 router.post('/HealthcareService', verifyTokenAndRefresh,AddDepartmentController.addDepartment);
