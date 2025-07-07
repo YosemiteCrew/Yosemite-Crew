@@ -1,4 +1,3 @@
-
 'use client';
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import "./CompleteProfile.css";
@@ -11,10 +10,11 @@ import { IoLocationSharp } from "react-icons/io5";
 import { FormInput } from "../Sign/SignUp";
 import DynamicSelect from "@/app/Components/DynamicSelect/DynamicSelect";
 import Image from "next/image";
-import { useAuth } from "@/app/Context/AuthContext";
+
 import axios from "axios";
 import { postData } from "@/app/axios-services/services";
 import { toFHIRBusinessProfile } from "@yosemite-crew/fhir"
+import { useAuthStore } from "@/app/stores/authStore";
 
 
 type Option = {
@@ -40,7 +40,7 @@ const servicesList1 = [
 
 
 function CompleteProfile() {
-  const { userId } = useAuth();
+  const { userId } = useAuthStore();
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isDropdownOpen1, setIsDropdownOpen1] = useState(false);
@@ -68,6 +68,8 @@ function CompleteProfile() {
     postalCode: "",
     PhoneNumber: ""
   });
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [showValidation, setShowValidation] = useState(false);
 
   useEffect(() => {
     if (userId && name.userId !== userId) {
@@ -81,7 +83,7 @@ function CompleteProfile() {
     selectedServices,
     addDepartment,
   }: {
-    name: typeof name;
+    name: typeof name ;
     country: string;
     image: File | null;
     selectedServices: string[];
@@ -297,6 +299,56 @@ function CompleteProfile() {
     }
   }, [name.postalCode]);
 
+  // Validation for each step
+  const validateBusiness = () => {
+    const newErrors: { [key: string]: string } = {};
+    if (!image) newErrors.image = "Image is required";
+    if (!country) newErrors.country = "Country is required";
+    if (!name.registrationNumber) newErrors.registrationNumber = "Registration Number is required";
+    if (!name.businessName) newErrors.businessName = "Business Name is required";
+    if (!name.PhoneNumber) newErrors.PhoneNumber = "Phone Number is required";
+    // Website is optional
+    return newErrors;
+  };
+
+  const validateAddress = () => {
+    const newErrors: { [key: string]: string } = {};
+    if (!name.postalCode) newErrors.postalCode = "Postal Code is required";
+    if (!country) newErrors.country = "Country is required";
+    if (!name.addressLine1) newErrors.addressLine1 = "Address Line 1 is required";
+    if (!name.city) newErrors.city = "City is required";
+    if (!name.state) newErrors.state = "State is required";
+    return newErrors;
+  };
+
+  const validateService = () => {
+    const newErrors: { [key: string]: string } = {};
+    if (selectedServices.length === 0) newErrors.selectedServices = "At least one service must be selected";
+    if (addDepartment.length === 0) newErrors.addDepartment = "At least one department must be selected";
+    return newErrors;
+  };
+
+  // Handler for tab change with validation (no validation on back)
+  const handleTabSelect = (nextKey: string) => {
+    let stepErrors: { [key: string]: string } = {};
+    // Only validate if moving forward
+    if (
+      (key === "business" && nextKey === "address") ||
+      (key === "address" && nextKey === "service")
+    ) {
+      if (key === "business") stepErrors = validateBusiness();
+      if (key === "address") stepErrors = validateAddress();
+      if (Object.keys(stepErrors).length > 0) {
+        setErrors(stepErrors);
+        setShowValidation(true);
+        return; // Prevent tab change
+      }
+    }
+    setErrors({});
+    setShowValidation(false);
+    setKey(nextKey);
+  };
+
   return (
     <>
       <section className="CompltProfileSec">
@@ -307,7 +359,7 @@ function CompleteProfile() {
           </div>
 
           <div className="AddVetTabDiv">
-            <Tab.Container activeKey={key} onSelect={(k) => { if (typeof k === "string") setKey(k); }}>
+            <Tab.Container activeKey={key} onSelect={(k) => { if (typeof k === "string") handleTabSelect(k); }}>
               <div className="Add_Profile_Data">
                 <div>
                   <Nav variant="pills" className=" VetPills">
@@ -379,6 +431,11 @@ function CompleteProfile() {
                                   )}
                                 </label>
                                 <h5>Add Profile Picture</h5>
+                                {showValidation && errors.image && (
+                                  <div style={{ color: "#b30000", marginTop: 4, fontSize: 13 }}>
+                                    {errors.image}
+                                  </div>
+                                )}
                               </div>
 
                             </Col>
@@ -393,19 +450,39 @@ function CompleteProfile() {
                                 inname="country"
                                 placeholder="Select Country"
                               />
+                              {showValidation && errors.country && (
+                                <div style={{ color: "#b30000", marginTop: 4, fontSize: 13 }}>
+                                  {errors.country}
+                                </div>
+                              )}
                             </Col>
                             <Col md={6}>
                               <FormInput intype="text" inname="registrationNumber" value={name.registrationNumber} inlabel="Business Registration Number/PIMS ID" onChange={handleBusinessInformation} />
+                              {showValidation && errors.registrationNumber && (
+                                <div style={{ color: "#b30000", marginTop: 4, fontSize: 13 }}>
+                                  {errors.registrationNumber}
+                                </div>
+                              )}
                             </Col>
                           </Row>
                           <Row>
                             <Col md={12}>
                               <FormInput intype="text" inname="businessName" value={name.businessName} inlabel="Business Name" onChange={handleBusinessInformation} />
+                              {showValidation && errors.businessName && (
+                                <div style={{ color: "#b30000", marginTop: 4, fontSize: 13 }}>
+                                  {errors.businessName}
+                                </div>
+                              )}
                             </Col>
                           </Row>
                           <Row>
                             <Col md={12}>
                               <FormInput intype="number" inname="PhoneNumber" value={name.PhoneNumber} inlabel="Phone Number" onChange={handleBusinessInformation} />
+                              {showValidation && errors.PhoneNumber && (
+                                <div style={{ color: "#b30000", marginTop: 4, fontSize: 13 }}>
+                                  {errors.PhoneNumber}
+                                </div>
+                              )}
                             </Col>
                           </Row>
                           <Row>
@@ -416,7 +493,7 @@ function CompleteProfile() {
                         </div>
 
                         <div className="ComptBtn">
-                          <Button onClick={() => setKey("address")}>
+                          <Button onClick={() => handleTabSelect("address")}>
                             Get Started <IoIosArrowDropright />
                           </Button>
                         </div>
@@ -433,7 +510,14 @@ function CompleteProfile() {
                           <h5>Address</h5>
                           <div className="adrinpt">
                             <Row>
-                              <Col md={6}><FormInput intype="number" inname="postalCode" value={name.postalCode} inlabel="Postal Code" onChange={handleBusinessInformation} /></Col>
+                              <Col md={6}>
+                                <FormInput intype="number" inname="postalCode" value={name.postalCode} inlabel="Postal Code" onChange={handleBusinessInformation} />
+                                {showValidation && errors.postalCode && (
+                                  <div style={{ color: "#b30000", marginTop: 4, fontSize: 13 }}>
+                                    {errors.postalCode}
+                                  </div>
+                                )}
+                              </Col>
                               <Col md={6}>
                                 <DynamicSelect
                                   options={options}
@@ -442,24 +526,49 @@ function CompleteProfile() {
                                   inname="country"
                                   placeholder="Area"
                                 />
+                                {showValidation && errors.country && (
+                                  <div style={{ color: "#b30000", marginTop: 4, fontSize: 13 }}>
+                                    {errors.country}
+                                  </div>
+                                )}
                               </Col>
                             </Row>
                             <Row>
-                              <Col md={12}><FormInput intype="text" inname="addressLine1" value={name.addressLine1} inlabel="Address Line 1" onChange={handleBusinessInformation} /></Col>
+                              <Col md={12}>
+                                <FormInput intype="text" inname="addressLine1" value={name.addressLine1} inlabel="Address Line 1" onChange={handleBusinessInformation} />
+                                {showValidation && errors.addressLine1 && (
+                                  <div style={{ color: "#b30000", marginTop: 4, fontSize: 13 }}>
+                                    {errors.addressLine1}
+                                  </div>
+                                )}
+                              </Col>
                             </Row>
                             <Row>
-                              <Col md={6}><FormInput intype="text" inname="city" value={name.city} inlabel="City" onChange={handleBusinessInformation} /></Col>
-                              <Col md={6}><FormInput intype="text" inname="state" value={name.state} inlabel="State" onChange={handleBusinessInformation} /></Col>
+                              <Col md={6}>
+                                <FormInput intype="text" inname="city" value={name.city} inlabel="City" onChange={handleBusinessInformation} />
+                                {showValidation && errors.city && (
+                                  <div style={{ color: "#b30000", marginTop: 4, fontSize: 13 }}>
+                                    {errors.city}
+                                  </div>
+                                )}
+                              </Col>
+                              <Col md={6}>
+                                <FormInput intype="text" inname="state" value={name.state} inlabel="State" onChange={handleBusinessInformation} />
+                                {showValidation && errors.state && (
+                                  <div style={{ color: "#b30000", marginTop: 4, fontSize: 13 }}>
+                                    {errors.state}
+                                  </div>
+                                )}
+                              </Col>
                             </Row>
                           </div>
                         </div>
 
                         <div className="ComptBtn twbtn">
-                          <Button className="Hov"
-                            onClick={() => setKey("business")}>
+                          <Button className="Hov" onClick={() => handleTabSelect("business")}>
                             <IoIosArrowDropleft /> Back
                           </Button>
-                          <Button onClick={() => setKey("service")}>
+                          <Button onClick={() => handleTabSelect("service")}>
                             Next <IoIosArrowDropright />
                           </Button>
                         </div>
@@ -584,16 +693,33 @@ function CompleteProfile() {
                             </div>
                           )}
                         </div>
-
-
-
+                        {showValidation && errors.selectedServices && (
+                          <div style={{ color: "#b30000", marginTop: 4, fontSize: 13 }}>
+                            {errors.selectedServices}
+                          </div>
+                        )}
+                        {showValidation && errors.addDepartment && (
+                          <div style={{ color: "#b30000", marginTop: 4, fontSize: 13 }}>
+                            {errors.addDepartment}
+                          </div>
+                        )}
                         <div className="ComptBtn twbtn">
                           <Button
                             className="Hov"
-                            onClick={() => setKey("address")}>
+                            onClick={() => handleTabSelect("address")}>
                             <IoIosArrowDropleft /> Back
                           </Button>
-                          <Button onClick={handleSubmit}>
+                          <Button onClick={async () => {
+                            const stepErrors = validateService();
+                            if (Object.keys(stepErrors).length > 0) {
+                              setErrors(stepErrors);
+                              setShowValidation(true);
+                              return;
+                            }
+                            setErrors({});
+                            setShowValidation(false);
+                            await handleSubmit();
+                          }}>
                             <FaCircleCheck />
                             Submit
                           </Button>

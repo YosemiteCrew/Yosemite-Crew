@@ -1,5 +1,5 @@
 "use client";
-import React, { ReactNode } from "react";
+import React, {useState, ReactNode } from "react";
 import Footer from "@/app/Components/Footer/Footer";
 import "./HomePage.css";
 import { Container } from "react-bootstrap";
@@ -7,10 +7,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { IoIosFlash } from "react-icons/io";
 import { MdOutlineAccessTimeFilled } from "react-icons/md";
+import Header from "@/app/Components/Header/Header";
 
 function HomePage() {
+   const [isLoggedIn] = useState(false);
   return (
     <>
+     
       <section className="HomeHeroSection">
         <Container>
           <div className="HeroData">

@@ -7,7 +7,8 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 // Slick Slider 
 import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
-import { AuthProvider } from "./Context/AuthContext";
+import SessionInitializer from "./Components/SessionInitializer";
+import Header from "./Components/Header/Header";
 
 
 export const metadata: Metadata = {
@@ -23,9 +24,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body >
-         <AuthProvider>
+         {/* <AuthProvider> */}
+          <SessionInitializer />
+           <Header  />
           {children}
-        </AuthProvider>
+        {/* </AuthProvider> */}
       </body>
     </html>
   );

@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import "./AdminDashboardEmpty.css";
 import ExploringCard from "@/app/Components/ExploringCard/ExploringCard";
 import { Button, Col, Container, Dropdown, Row } from "react-bootstrap";
@@ -11,6 +11,7 @@ import { AiFillPlusCircle } from "react-icons/ai";
 import StatCard from "@/app/Components/StatCard/StatCard";
 import DynamicChartCard from "@/app/Components/BarGraph/DynamicChartCard";
 import BlankDonutCard from "@/app/Components/BarGraph/BlankDonutCard";
+import { useAuthStore } from "../../stores/authStore";
 
 
 
@@ -20,6 +21,12 @@ import BlankDonutCard from "@/app/Components/BarGraph/BlankDonutCard";
 
 
 function AdminDashboardEmpty() {
+
+   const { userId, email, userType } = useAuthStore();
+  
+    useEffect(() => {
+      console.log("user", userId, email, userType);
+    }, [userId, email, userType]);
   const [status, setStatus] = useState<"appointment" | "warning" | "verify">("appointment");// set to desired default
   const [linkClicked, setLinkClicked] = useState(false);
   const [selectedRange, setSelectedRange] = useState("Last 6 Months");// graphSelected 
