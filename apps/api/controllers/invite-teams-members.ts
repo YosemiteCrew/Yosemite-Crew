@@ -24,7 +24,7 @@ export const inviteTeamsMembersController = {
     InviteTeamsMembers: async (req: Request, res: Response): Promise<void> => {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         const data: InvitePayload[] = Array.isArray(req.body) ? req.body : [req.body];
-
+        console.log("Received invite data:", data);
         if (!data.length) {
             res.status(400).json({ message: "Request body is empty." });
             return;

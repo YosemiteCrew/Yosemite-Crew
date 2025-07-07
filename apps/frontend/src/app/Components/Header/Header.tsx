@@ -10,6 +10,7 @@ import { IoIosHelpCircleOutline, IoMdClose } from 'react-icons/io';
 import { IoNotifications } from 'react-icons/io5';
 import { FaSignInAlt } from 'react-icons/fa';
 import { RiAccountBoxFill } from 'react-icons/ri';
+import { useAuthStore } from '@/app/stores/authStore';
 
 interface NavItem {
   label: string;
@@ -17,9 +18,9 @@ interface NavItem {
   children?: NavItem[];
 }
 
-interface HeaderProps {
-  isLoggedIn: boolean;
-}
+// interface HeaderProps {
+//   isLoggedIn?: boolean;
+// }
 
 const navItems: NavItem[] = [
   { label: 'Home', href: '/' },
@@ -64,7 +65,10 @@ const navItems: NavItem[] = [
   }
 ];
 
-const Header: React.FC<HeaderProps> = ({ isLoggedIn }) => {
+const Header = () => {
+  const { userType } = useAuthStore();
+  console.log("userType", userType);
+  const isLoggedIn = Boolean(!userType);
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);

@@ -5,7 +5,6 @@ import { Button, Container, Form, Modal } from "react-bootstrap";
 import { PiFileArrowDownFill } from "react-icons/pi";
 import { IoIosArrowDropleft } from "react-icons/io";
 import { FaCircleCheck } from "react-icons/fa6";
-import Header from "@/app/Components/Header/Header";
 import DynamicSelect from "@/app/Components/DynamicSelect/DynamicSelect";
 import { FormInput } from "../Sign/SignUp";
 import { IoAddCircle } from "react-icons/io5";
@@ -15,8 +14,9 @@ import { LiaTimesCircle } from "react-icons/lia";
 import { HiDocumentArrowDown } from "react-icons/hi2";
 import { postData } from "@/app/axios-services/services";
 import Swal from "sweetalert2";
-import { useAuth } from "@/app/Context/AuthContext";
+// import { useAuth } from "@/app/Context/AuthContext";
 import "./InviteTeamMembers.css"; 
+import { useAuthStore } from "@/app/stores/authStore";
 // Bulk Invite Modal Component
 function BulkInviteModal({ show, onHide, onDataParsed }: {
   show: boolean;
@@ -107,9 +107,8 @@ function BulkInviteModal({ show, onHide, onDataParsed }: {
 }
 
 function InviteTeamMembers() {
-  const { userId } = useAuth();
+  const { userId } = useAuthStore();
   const [modalShow, setModalShow] = useState(false);
-  const [isLoggedIn] = useState(true);
 
   const [members, setMembers] = useState([
     { department: "", role: "", email: "", invitedBy: "" }
@@ -171,7 +170,6 @@ function InviteTeamMembers() {
 
   return (
     <>
-      <Header isLoggedIn={isLoggedIn} />
       <section className="PracticeTeamSec">
         <Container>
           <div className="PracticeTeamData">
