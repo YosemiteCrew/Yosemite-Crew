@@ -293,6 +293,7 @@ useEffect(() => {
 
   return (
     <>
+    
       {!inviteCode ? <section className="MainSignUpSec">
         <Container>
           <Row>

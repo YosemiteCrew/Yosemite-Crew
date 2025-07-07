@@ -26,7 +26,10 @@ const s3 = new S3({
   region: process.env.AWS_REGION!,
 });
 
-
+const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET as string;
+const ACCESS_SECRET = process.env.JWT_SECRET as string;
+const ACCESS_EXPIRY = process.env.EXPIRE_IN ?? "15m"; // short-lived
+const REFRESH_EXPIRY = process.env.EXPIRE_IN_REFRESH; // longer-lived
 const WebController = {
   Register: async (
     req: Request<register>,
@@ -268,11 +271,11 @@ const WebController = {
   },
 
   signIn: async (
-    req: Request<register>,
+    req: Request,
     res: Response
   ): Promise<Response> => {
     try {
-      const { email, password } = req.body as register;
+      const { email, password } = req.body;
 
       if (!email || !password) {
         return res
@@ -282,25 +285,25 @@ const WebController = {
 
       const secretHash = getSecretHash(email);
 
-      const authParams: AWS.CognitoIdentityServiceProvider.InitiateAuthRequest = {
-        AuthFlow: "USER_PASSWORD_AUTH",
-        ClientId: process.env.COGNITO_CLIENT_ID_WEB as string,
-        AuthParameters: {
-          SECRET_HASH: secretHash,
-          USERNAME: email,
-          PASSWORD: password,
-        },
-      };
-
-      const authData = await cognito.initiateAuth(authParams).promise();
+      const authData = await new AWS.CognitoIdentityServiceProvider()
+        .initiateAuth({
+          AuthFlow: "USER_PASSWORD_AUTH",
+          ClientId: process.env.COGNITO_CLIENT_ID_WEB!,
+          AuthParameters: {
+            SECRET_HASH: secretHash,
+            USERNAME: email,
+            PASSWORD: password,
+          },
+        })
+        .promise();
 
       if (!authData.AuthenticationResult) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
-      const userDetails = await cognito
+      const userDetails = await new AWS.CognitoIdentityServiceProvider()
         .adminGetUser({
-          UserPoolId: process.env.COGNITO_USER_POOL_ID_WEB as string,
+          UserPoolId: process.env.COGNITO_USER_POOL_ID_WEB!,
           Username: email,
         })
         .promise();
@@ -310,22 +313,12 @@ const WebController = {
       )?.Value;
 
       if (!cognitoId) {
-        return res
-          .status(500)
-          .json({ message: "Failed to retrieve Cognito ID" });
+        return res.status(500).json({ message: "Failed to retrieve Cognito ID" });
       }
 
       const user = await WebUser.findOne({ cognitoId });
-
       if (!user) {
         return res.status(404).json({ message: "User not found in the system" });
-      }
-
-      const sec = process.env.JWT_SECRET;
-      const expireIn = (process.env.EXPIRE_IN ?? "1h") as jwt.SignOptions["expiresIn"];
-
-      if (!sec) {
-        throw new Error("JWT_SECRET is not defined in environment variables");
       }
 
       const payload = {
@@ -334,31 +327,46 @@ const WebController = {
         userType: user.role,
       };
 
-      const signOptions: SignOptions = {
-        expiresIn: expireIn,
-      };
+      // ✅ Create tokens
+      const accessToken = jwt.sign(payload, ACCESS_SECRET, {
+        expiresIn: ACCESS_EXPIRY,
+      });
 
-      const token = jwt.sign(payload, sec, signOptions);
+      const refreshToken = jwt.sign(payload, REFRESH_SECRET, {
+        expiresIn: REFRESH_EXPIRY,
+      });
+
+      // ✅ Set secure cookies
+      res.cookie("accessToken", accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 1000 * 60 * 15, // 15 minutes
+      });
+
+      res.cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+      });
 
       return res.status(200).json({
-        token,
-        message: "Logged in successfully",
+        data: {
+          userId: cognitoId,
+          email,
+          userType: user.role,
+        }, message: "Logged in successfully"
       });
     } catch (error) {
       console.error("Error during sign-in:", error);
 
-      if (
-        typeof error === "object" &&
-        error !== null &&
-        "code" in error &&
-        error.code === "NotAuthorizedException"
-      ) {
+      if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "NotAuthorizedException") {
         return res.status(401).json({ message: "Invalid email or password" });
       }
 
-      return res.status(500).json({ message: "Internal server error", error });
+      return res.status(500).json({ message: "Internal server error" });
     }
-
   },
 
   signOut: (req: Request, res: Response): void => {
@@ -744,6 +752,52 @@ const WebController = {
       });
     }
   },
+  refreshToken: (req: Request, res: Response): Response => {
+    try {
+      const refreshToken:string = req.cookies.refreshToken;
+
+      if (!refreshToken) {
+        return res.status(401).json({ message: "No refresh token provided" });
+      }
+
+      // ✅ Verify refresh token
+      const decoded = jwt.verify(refreshToken, REFRESH_SECRET) as {
+        userId: string;
+        email: string;
+        userType: string;
+      };
+
+      // ✅ Create new access token
+      const newAccessToken = jwt.sign(
+        {
+          userId: decoded.userId,
+          email: decoded.email,
+          userType: decoded.userType,
+        },
+        ACCESS_SECRET,
+        { expiresIn: ACCESS_EXPIRY }
+      );
+
+      // ✅ Set new access token in cookie
+      res.cookie("accessToken", newAccessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 1000 * 60 * 15, // 15 minutes
+      });
+
+      return res.status(200).json({
+        data: {
+          userId: decoded.userId,
+          email: decoded.email,
+          userType: decoded.userType
+        }, message: "Access token refreshed"
+      });
+    } catch (error) {
+      console.error("Refresh error:", error);
+      return res.status(403).json({ message: "Invalid or expired refresh token" });
+    }
+  }
 
   //   getLocationdata: async (req:Request, res:Response) => {
   //     try {
@@ -795,7 +849,7 @@ const WebController = {
   //     }
   //   },
 
-  
+
 };
 function getSecretHash(email: string,) {
   const clientId = process.env.COGNITO_CLIENT_ID_WEB;
