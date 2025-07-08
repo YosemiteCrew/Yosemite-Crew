@@ -9,6 +9,8 @@ import CompletedAppointmentsTable from '@/app/Components/DataTable/CompletedAppo
 import Link from 'next/link';
 import { FaCalendar } from 'react-icons/fa6';
 import CalendarCard from '@/app/Components/CalendarCard/CalendarCard';
+import AssessmentCatalogue from '@/app/Components/DataTable/AssessmentCatalogue';
+import { HeadingDiv } from '../BusinessDashboard/BusinessDashboard';
 
 function AssessmentVet() {
       const [selectedDoctor, setSelectedDoctor] = useState("Appointment Status");
@@ -21,7 +23,7 @@ function AssessmentVet() {
 
                 <div className="TopAppontVet">
                     <div className="ApointHead">
-                        <h2>Appointment Management</h2>
+                        <h2>Assessment Management</h2>
                         <span>No New Appointments</span>
                     </div>
                     <div className="OverViewDiv">
@@ -54,6 +56,9 @@ function AssessmentVet() {
                         <TableTopBar TbleHName="Completed Appointments" TbleHNumb="03"/>
                         <CompletedAppointmentsTable/>
                     </div>
+                </Row>
+                <Row>
+                    <AssessmentCatalogue/>
                 </Row>
                 <Row>
                     <div className="DoctorClender">
