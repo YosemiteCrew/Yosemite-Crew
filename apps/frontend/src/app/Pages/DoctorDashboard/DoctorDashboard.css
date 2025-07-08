@@ -44,7 +44,7 @@
 .TopDoctorDashboard .RightDash{
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 10px;
     min-width: 160px;
 }
 .TopDoctorDashboard .RightDash p{
@@ -129,4 +129,122 @@
     color: var(--blue-text);
 }
 /* .TopDoctorDashboard Ended  */
+
+
+/* DoctorAvailabilty Started  */
+
+.DoctorAvailabilty{
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+.DoctorAvailabilty h2{
+  margin: 0;
+  color: var(--black-text);
+  font-family: var(--grotesk-font);
+  font-weight: 500;
+  font-size: 33px;
+  line-height: 120%;
+}
+
+.Add_Profile_Data .LeftProfileDiv .AvailabityDivDoctor{
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.Add_Profile_Data .LeftProfileDiv .AvailabityDivDoctor h5{
+  margin: 0;
+  font-weight: 500;
+  font-size: 23px;
+  line-height: 120%;
+  font-family: var(--grotesk-font);
+}
+.Add_Profile_Data .LeftProfileDiv .AvailabityDivDoctor .appointselect{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.Add_Profile_Data .LeftProfileDiv .AvailabityDivDoctor .appointselect .lft h6{
+  margin: 0;
+  font-weight: 500;
+  font-size: 23px;
+  line-height: 120%;
+  font-family: var(--grotesk-font);
+}
+.Add_Profile_Data .LeftProfileDiv .AvailabityDivDoctor .appointselect .lft p{
+  margin: 0;
+  font-weight: 400;
+  font-size: 15px;
+  line-height: 24px;
+  font-family: var(--satoshi-font);
+}
+.Add_Profile_Data .LeftProfileDiv .AvailabityDivDoctor .selectTimeSection{
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.Add_Profile_Data .LeftProfileDiv .AvailabityDivDoctor .selectTimeSection .selecttime{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.Add_Profile_Data .LeftProfileDiv .AvailabityDivDoctor .selectTimeSection .selecttime p{
+  margin: 0;
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 120%;
+  font-family: var(--satoshi-font);
+}
+.Add_Profile_Data .LeftProfileDiv .AvailabityDivDoctor .selectTimeSection .timeSlots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+.Add_Profile_Data .LeftProfileDiv .AvailabityDivDoctor .selectTimeSection .timeSlot {
+  padding: 10px 15px;
+  border: 1px solid #333;
+  border-radius: 20px;
+  background: #fff;
+  cursor: pointer;
+}
+.Add_Profile_Data .LeftProfileDiv .AvailabityDivDoctor .selectTimeSection .timeSlot.selected {
+  border: 2px solid #007bff;
+  background: #e6f0ff;
+}
+.Add_Profile_Data .LeftProfileDiv .AvailabityDivDoctor .selectTimeSection .timeSlot.unavailable {
+  background: #ddd;
+  color: #666;
+}
+.Add_Profile_Data .LeftProfileDiv .AvailabityDivDoctor .selectTimeSection .timeSlot.disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.AvailabityDivDoctor .updateBtn{
+  padding: 16px 32px;
+  border-radius: 28px;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 300px;
+  max-width: fit-content;
+  margin: 0 auto;
+  background: var(--black-bg);
+  color: var(--white-text);
+  border: 1px solid var(--black-bg);
+  font-family: var(--grotesk-font);
+  font-size: 23px;
+  font-weight: 500;
+  line-height: 120%;
+}
+.AvailabityDivDoctor .updateBtn:hover{
+  background: transparent;
+  color: var(--black-text);
+}
+
+
+
+/* DoctorAvailabilty Ended  */
 

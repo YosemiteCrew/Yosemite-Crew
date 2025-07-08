@@ -1,18 +1,67 @@
+/* Fonts */
 @font-face {
-  font-family: 'ClashGrotesk-Variable';
-  src: url('/font/ClashGrotesk-Variable.ttf') format('truetype');
-  font-weight: 200 700;
-  font-display: swap;
+  font-family: 'ClashGrotesk';
+  src: url('/fonts/ClashGrotesk/clashgrotesk-regular-webfont.woff2') format('woff2'),
+       url('/fonts/ClashGrotesk/clashgrotesk-regular-webfont.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'ClashGrotesk';
+  src: url('/fonts/ClashGrotesk/clashgrotesk-medium-webfont.woff2') format('woff2'),
+       url('/fonts/ClashGrotesk/clashgrotesk-medium-webfont.woff') format('woff');
+  font-weight: 500;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'ClashGrotesk';
+  src: url('/fonts/ClashGrotesk/clashgrotesk-bold-webfont.woff2') format('woff2'),
+       url('/fonts/ClashGrotesk/clashgrotesk-bold-webfont.woff') format('woff');
+  font-weight: 700;
   font-style: normal;
 }
 @font-face {
-  font-family: 'Satoshi-Variable';
-  src: url('/font/Satoshi-Variable.ttf') format('truetype');
-  src: url('/font/Satoshi-VariableItalic.ttf') format('truetype');
-  font-weight: 300 900;
-  font-display: swap;
+  font-family: 'Satoshi';
+  src: url('/fonts/ClashGrotesk/satoshi-light-webfont.woff2') format('woff2'),
+       url('/fonts/ClashGrotesk/satoshi-light-webfont.woff') format('woff');
+  font-weight: 300; /* Light */
   font-style: normal;
 }
+
+@font-face {
+  font-family: 'Satoshi';
+  src: url('/fonts/ClashGrotesk/satoshi-regular-webfont.woff2') format('woff2'),
+       url('/fonts/ClashGrotesk/satoshi-regular-webfont.woff') format('woff');
+  font-weight: 400; /* Regular */
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Satoshi';
+  src: url('/fonts/ClashGrotesk/satoshi-medium-webfont.woff2') format('woff2'),
+       url('/fonts/ClashGrotesk/satoshi-medium-webfont.woff') format('woff');
+  font-weight: 500; /* Medium */
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Satoshi';
+  src: url('/fonts/ClashGrotesk/satoshi-bold-webfont.woff2') format('woff2'),
+       url('/fonts/ClashGrotesk/satoshi-bold-webfont.woff') format('woff');
+  font-weight: 700; /* Bold */
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Satoshi';
+  src: url('/fonts/ClashGrotesk/satoshi-black-webfont.woff2') format('woff2'),
+       url('/fonts/ClashGrotesk/satoshi-black-webfont.woff') format('woff');
+  font-weight: 900; /* Black */
+  font-style: normal;
+}
+
 
 * {
   padding: 0;
@@ -70,8 +119,8 @@
 
 
   
-  --grotesk-font: 'ClashGrotesk-Variable';
-  --satoshi-font: 'Satoshi-Variable';
+  --grotesk-font: 'ClashGrotesk', sans-serif;
+  --satoshi-font: 'Satoshi', sans-serif;
   --mainBg: #FEF8F4;
   --homebg: #fff2e3;
   --fawncolor:#FDBD74;
@@ -476,4 +525,15 @@ input[type=number] {
   grid-template-columns: 1fr 1fr;
   align-items: flex-end;
   grid-gap: 24px;
+}
+
+
+.StatusSelect{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-radius: 28px;
+  border: 1px solid var(--greybg);
 }
