@@ -61,4 +61,4 @@ const userSchema = new mongoose.Schema({
 }, { timestamps: true});
 
 const appUsers = mongoose.model('appUsers',userSchema);
-module.exports = appUsers;
+ export default appUsers;

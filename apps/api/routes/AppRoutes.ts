@@ -1,11 +1,11 @@
 import express from "express";
  
 import petController from '../controllers/pet-controller';
-import appointmentController from '../controllers/appointmentController';
+import appointmentController from '../controllers/appointment-controller';
 import slotController from  '../controllers/slot-controller';
 import feedbackController from '../controllers/feedbackController';
 import detailsController from '../controllers/detailsController';
-import ListController from '../controllers/list-controller';
+import listController from '../controllers/list-controller';
 import immunizationController from "../controllers/immunization-controller";
 import diabetesController  from '../controllers/diabetes-controller';
 import SharedDutiesController from "../controllers/shared-duties-controller";
@@ -43,10 +43,10 @@ router.post("/Organization/addPetBoarding",verifyTokenAndRefresh, detailsControl
  
  
 router.post("/sendquery", verifyTokenAndRefresh, contactController.contactUs);
-router.get("/Organization/getLists",verifyTokenAndRefresh, ListController.GetLists);
-router.get("/Organization/SeachOrganization",verifyTokenAndRefresh, ListController.SeachOrganization);
-router.get("/Practitioner/getDoctorsLists",verifyTokenAndRefresh,ListController.getDoctorsList);
-router.get("/Practitioner/getDoctorsTeam",verifyTokenAndRefresh,ListController.DoctorsTeam);
+router.get("/Organization/getLists",verifyTokenAndRefresh, listController.getLists);
+router.get("/Organization/SeachOrganization",verifyTokenAndRefresh, listController.searchOrganization);
+router.get("/Practitioner/getDoctorsLists",verifyTokenAndRefresh,listController.getDoctorsList);
+router.get("/Practitioner/getDoctorsTeam",verifyTokenAndRefresh,listController.doctorsTeam);
 
 
 router.post("/Immunization/addVaccinationRecord", verifyTokenAndRefresh, immunizationController.createImmunization);
