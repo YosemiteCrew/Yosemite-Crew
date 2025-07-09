@@ -74,6 +74,7 @@
   --black-text: #302F2E;
   --black-bg: #302F2E;
   --darkblackbg:#141413;
+  --lightblack:#312943;
   --purple-text: #37223C;
   --pureblack: #000000;
   --black-grey: #747473;
@@ -89,6 +90,7 @@
   --greytext:#BFBFBE;
   --lightwhiteText:#EAEAEA;
   --slectedbg:#76767617;
+  
   
   --popupbg:#EAEAEA;
   --lightblue:#EAF3FF;
@@ -113,6 +115,12 @@
   --checkbg:#E6F4EF;
   --delete:#EA3729;
   --checkgreen:#008F5D;
+  --greenopt:#8AC1B126;
+  --halforange:#FDBD7426;
+  --darkFawn:#D09B5E;
+  --pendingbg:#FEF3E9;
+  --pendingtext:#F68523;
+  --redopacity:#D041221A;
 
 
 
@@ -387,7 +395,7 @@ input[type=number] {
   display: flex;
   justify-content: center;
   align-items: center;
-  border: 0.5px solid #312943;
+  border: 0.5px solid var(--lightblack);
   border-radius: 28px;
   font-size: 14px;
   font-weight: 400;
@@ -537,3 +545,175 @@ input[type=number] {
   border-radius: 28px;
   border: 1px solid var(--greybg);
 }
+
+
+/* Table TopBar Started  */
+.TableTopBar{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.TableTopBar .leftTopTbl .TbleText h3{
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--black-text);
+    font-family: var(--grotesk-font);
+    font-weight: 500;
+    font-size: 33px;
+    line-height: 120%;
+    margin: 0;
+}
+.RightTopTbl{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.RightTopTbl .Tblserchdiv{
+    display: flex;
+    align-items: center;
+    min-width: 320px;
+    padding: 10px 16px;
+    border-radius: 36px;
+    min-height: 40px;
+    position: relative;
+    border: 1px solid var(--greytext);
+}
+.RightTopTbl .Tblserchdiv input{
+    border: none;
+    outline: none;
+    background: transparent;
+    cursor: pointer;
+    flex: 1;
+    color: var( --notibg);
+    font-size: 15px;
+    line-height: 24px;
+    font-weight: 600;
+    font-family: var(--satoshi-font);
+}
+.RightTopTbl .Tblserchdiv input::placeholder{
+    color: var( --notibg);
+    font-weight: 400;
+}
+.RightTopTbl .Tblserchdiv button{
+    border: none;
+    background: transparent !important;
+    padding: 0;
+}
+.RightTopTbl .Tblserchdiv button svg{
+    color: var(--black-bg);
+}
+
+.DoctSlect button , .StatusSlect button{
+    min-width: 152px;
+    padding: 0px;
+    border: 1px solid var(--greytext) !important;
+    background: transparent !important;
+    color: var( --notibg) !important;
+    padding: 10px 16px;
+    border-radius: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 40px;
+
+}
+.StatusSlect button{
+    min-width: 104px !important;
+}
+/* Table TopBar Ended  */
+
+/* GenericTable Started  */
+
+.TableDiv{
+  box-shadow: 0px 0px 30px 0px #4738271A !important;
+  background: var(--whitebg) !important;
+  border: 1px solid var(--lightgrey) !important;
+  border-radius: 24px !important;
+  padding: 24px !important;
+  vertical-align: middle !important;
+  margin: 0 !important;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.TableDiv thead tr th , .TableDiv tbody tr td {
+  padding: 16px 18px;
+  vertical-align: middle;
+}
+.TableDiv tbody tr:hover{
+  background: var(--popupbg) !important;
+}
+.TableDiv thead tr th {
+  color: var(--black-text);
+  font-size: 15px;
+  font-weight: 700;
+  font-family: var(--satoshi-font);
+  opacity: 70%;
+}
+.TableDiv thead tr th , .TableDiv tbody tr td {
+  border-bottom: 1px solid var(--lightgrey);
+}
+.TableDiv tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.TableDiv tbody tr td p{
+  margin: 0px;
+  font-family: var(--satoshi-font);
+  color: var(--black-text);
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 120%;
+}
+.TableDiv tbody tr td span{
+  margin: 0px;
+  font-family: var(--satoshi-font);
+  color: var(--black-text);
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 120%;
+  opacity: 60%;
+}
+.custom-pagination{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+.custom-pagination button{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--whitebg) !important;
+  border-radius: 8px;
+  border: 1px solid var( --black-bg) !important;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+}
+.custom-pagination button svg{
+  color:  var( --black-bg);
+}
+.custom-pagination button:hover{
+  background: var( --black-bg) !important;
+}
+.custom-pagination button:hover svg{
+  color:  var( --whitebg);
+}
+.custom-pagination p{
+  color:  var(--notibg);
+  margin: 0;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 24px;
+  font-family: var(--satoshi-font);
+}
+.custom-pagination p span{
+  font-weight: 700;
+}
+
+
+
+
+/* GenericTable Ended  */

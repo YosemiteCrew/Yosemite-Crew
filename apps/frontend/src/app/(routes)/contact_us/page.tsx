@@ -1,16 +1,10 @@
-
-import PracticeTeam from '@/app/Pages/PracticeTeam/PracticeTeam'
+import ContactusPage from '@/app/Pages/ContactusPage/ContactusPage'
 import React from 'react'
 
 function page() {
   return (
     <>
-
-      <PracticeTeam/>
-
-
-
-
+        <ContactusPage/>
     </>
   )
 }
