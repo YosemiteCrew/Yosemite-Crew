@@ -1,6 +1,5 @@
 "use client";
 import React, { useState } from 'react'
-import "./TableTopBar.css"
 import { LuSearch } from 'react-icons/lu'
 import Dropdown from 'react-bootstrap/Dropdown';
 import { Button, Form } from 'react-bootstrap';
@@ -12,7 +11,7 @@ interface TableTopBarProps {
 
 function TableTopBar({ TbleHName ,TbleHNumb  }: TableTopBarProps) {
   const [search, setSearch] = useState("");
-  const [selectedDoctor, setSelectedDoctor] = useState("Doctor");
+  const [selectedDoctor, setSelectedDoctor] = useState("Specialization");
   const [selectedStatus, setSelectedStatus] = useState("Status");
 
   const handleSearch = (e: React.FormEvent) => {
@@ -36,7 +35,7 @@ function TableTopBar({ TbleHName ,TbleHNumb  }: TableTopBarProps) {
           <Form className="Tblserchdiv" onSubmit={handleSearch} >
             <input
               type="search"
-              placeholder="Search Patient name, time, Vet name"
+              placeholder="Search anything"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
