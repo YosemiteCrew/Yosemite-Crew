@@ -36,7 +36,12 @@
     justify-content: space-between;
 }
 .OverViewDiv h5{
-   margin: 0;
+    font-size: 23px;
+    font-weight: 500;
+    line-height: 120%;
+    margin: 0;
+    color: var(--black-text);
+    font-family: var(--grotesk-font);
 }
 .OverViewDiv .clnderSlect button{
     padding: 0px;
