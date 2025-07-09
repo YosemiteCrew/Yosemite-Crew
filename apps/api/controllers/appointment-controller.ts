@@ -158,13 +158,14 @@ const appointmentController = {
   cancelAppointment: async (req: Request<{appointmentId?:string}, unknown , unknown>, res: Response): Promise<void> => {
     try {
       const appointmentIdRaw = req.query.appointmentId;
-      const appointmentId = typeof appointmentIdRaw === 'string' ? appointmentIdRaw : Array.isArray(appointmentIdRaw) ? appointmentIdRaw[0] : undefined;
-      // Validate MongoDB ObjectId
-      if (!appointmentId || !Types.ObjectId.isValid(appointmentId as string)) {
-        res.status(200).json({ status: 0, message: "Invalid Appointment ID format" });
+      if (typeof appointmentIdRaw !== "string" || !/^[a-fA-F0-9-]{36}$/.test(appointmentIdRaw)) {
+         res.status(400).json({ status: 0, message: "Invalid Appointment ID format" });
         return;
       }
-      const result = await appointmentService.cancelAppointment(appointmentId as string);
+      // const appointmentId = typeof appointmentIdRaw === 'string' ? appointmentIdRaw : Array.isArray(appointmentIdRaw) ? appointmentIdRaw[0] : undefined;
+      // Validate MongoDB ObjectId
+     
+      const result = await appointmentService.cancelAppointment(appointmentIdRaw);
 
       if (!result) {
         res.status(200).json({ status: 0, message: "This appointment not found" });
@@ -186,17 +187,10 @@ const appointmentController = {
   rescheduleAppointment: async (req: Request<{appointmentId:string}, unknown, {timeslot:string,appointmentDate:string,  data :WebAppointmentType}>, res: Response): Promise<void> => {
     try {
     
-      const appointmentIdRaw = req.query.appointmentId;
-      
-      const appointmentId = typeof appointmentIdRaw === 'string'
-        ? appointmentIdRaw
-        : Array.isArray(appointmentIdRaw)
-          ? appointmentIdRaw[0]
-          : undefined;
-      
-      if (!appointmentId || !Types.ObjectId.isValid(appointmentId as string)) {
-        res.status(400).json({ message: "Invalid Appointment ID format" });
-        return
+       const appointmentIdRaw = req.query.appointmentId;
+      if (typeof appointmentIdRaw !== "string" || !/^[a-fA-F0-9-]{36}$/.test(appointmentIdRaw)) {
+         res.status(400).json({ status: 0, message: "Invalid Appointment ID format" });
+        return;
       }
       // const normalData = FHIRConverter.fromFHIRAppointment(req);
       const normalData :Partial<WebAppointmentType> = {
@@ -211,7 +205,7 @@ const appointmentController = {
         department: req.body.data.department,
         slotsId: req.body.data.slotsId,
       };
-      const result = await appointmentService.rescheduleAppointment(normalData, appointmentId as string);
+      const result = await appointmentService.rescheduleAppointment(normalData, appointmentIdRaw);
 
       res.status(200).json({ status: 1, message: "Appointment rescheduled successfully", data: result });
       return
