@@ -254,6 +254,9 @@ const timezone = 'Asia/Kolkata';
 
   static async cancelAppointment(id: string): Promise<WebAppointmentType> {
     const appointmentId = id;
+     if (typeof appointmentId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(appointmentId)) {
+       throw new Error("Invalid appointmentId format.");
+      }
     const updateData = {
       appointmentStatus: "cancelled",
       isCanceled: 1,
@@ -278,6 +281,11 @@ const timezone = 'Asia/Kolkata';
   ) {
     const { appointmentDate, appointmentTime, appointmentTime24 } = data;
 
+      
+     if (typeof appointmentId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(appointmentId)) {
+       throw new Error("Invalid appointmentId format.");
+      }
+      
     const appointmentRecord: WebAppointmentType | null = await webAppointments.findById(appointmentId);
     if (!appointmentRecord) {
       const error = new Error("Appointment not found") as Error & {
