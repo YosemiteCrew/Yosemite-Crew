@@ -70,6 +70,6 @@ const patSchema : Schema<pets>  = new mongoose.Schema({
 
 }, { timestamps: true});
 
-const pets :Model<pets>= mongoose.model<pets>('pets',patSchema);
+// const pets :Model<pets>= mongoose.model<pets>('pets',patSchema);
 
-export default pets;
+// export default pets;

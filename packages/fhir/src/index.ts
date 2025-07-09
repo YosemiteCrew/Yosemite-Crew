@@ -15,3 +15,5 @@ export { parseDiabetesObservation, toFHIRObservation } from "./diabetes/diabetes
 export { toFHIRBundleImmunization,VaccinationDoc } from "./immunization/immunization-fhir";
 export { validate } from "./immunization/immunization-fhir-validator";
 export { convertToFhirVetProfile,convertFromFhirVetProfile } from "./complete-vet-profile/complete-vet-profile";
+export { FHIRTransformer , fhirAppointmentFormatter } from "./appointment/appointment-fhir";
+export {BusinessFhirFormatter} from "./business-fhir/business-formatter-fhir";

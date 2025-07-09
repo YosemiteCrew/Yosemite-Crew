@@ -45,3 +45,5 @@ export type { TimeSlot,DoctorSlotDocument,AppointmentDocument,GetTimeSlotsInput,
 export type { ContactUsBody,TypedRequestBody } from "./contact/contact-types";
 export type {ConvertToFhirVetProfileParams,OperatingHourType,VetNameType} from './complete-vet-profile/complete-vet-profile'
 export type {TeamInviteMember,InvitePayload} from "./InviteTeamsMembers/invite-teams-members"
+export type { IBookAppointmentRequestBody , IParsedAppointmentDetails, IAppointmentData , IFHIRAppointmentData , } from "./appointment/appointment-types";
+export type { Department , Organization } from "./business-formatter-types/business-formatter-types";
