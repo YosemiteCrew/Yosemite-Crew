@@ -1,0 +1,130 @@
+.ProcedureEstimateSec{
+    padding: 80px 0px;
+}
+.ProcedureEstimateData{
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+}
+.ProcedureTopHead{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.ProcedureTopHead h2{
+    color: var(--black-text);
+    font-size: 40px;
+    font-weight: 500;
+    font-family: var(--grotesk-font);
+    margin: 0;
+}
+.FillBtn{
+    background: var(--black-bg);
+    border: 1px solid var(--black-bg);
+    border-radius: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 24px;
+    color: var(--white-text);
+    font-size: 18px;
+    font-weight: 500;
+    font-family: var(--grotesk-font);
+}
+.FillBtn:hover{
+    background: var(--whitebg);
+    color: var(--black-text);
+}
+.ProcedureTableDiv{
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* AddProcedureEstmDiv Started  */
+
+.AddProcedureEstmDiv{
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+.AddProcedureBox{
+    background: var(--whitebg);
+    border: 1px solid var(--lightgrey);
+    box-shadow: 0px 0px 8px 0px #47382714;
+    border-radius: 28px;
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+}
+.AddProcedureBox form{
+    display: flex;
+    flex-direction: column;
+    gap: 36px;
+}
+.AddProcedureBox .Lines{
+    border: 0.5px solid var(--black-grey);
+    opacity: 15%;
+}
+.ProcedureAddItemDiv{
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+.ProcedureAddItemDiv h6{
+
+}
+.ProcedureSummery{
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+.ProcedureSummery h6 , .ProcedureSummery .SummeryBox .SummryItems h5 , .ProcedureAddItemDiv h6{
+    margin: 0;
+    font-weight: 500;
+    line-height: 120%;
+    font-size: 23px;
+    font-family: var(--grotesk-font);
+    color: var(--black-text);
+}
+.ProcedureSummery .SummeryBox{
+    min-width: 464px;
+    border: 1px solid var(--black-grey);
+}
+.ProcedureSummery .SummeryBox .SummryItems{
+    padding: 20px 32px;
+    min-height: 68px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--black-grey);
+}
+.ProcedureSummery .SummeryBox .SummryItemsTotal{
+    background: var(--blue-text);
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 74px;
+}
+.ProcedureSummery .SummeryBox .SummryItemsTotal h4{
+    margin: 0;
+    font-weight: 500;
+    line-height: 120%;
+    font-size: 23px;
+    font-family: var(--grotesk-font);
+    color: var(--white-text);
+}
+
+.PrecedorBottomBtn{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding-top: 28px;
+}
+
+
+/* AddProcedureEstmDiv Ended  */

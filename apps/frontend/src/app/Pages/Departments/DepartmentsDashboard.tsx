@@ -12,10 +12,7 @@ import DepartmentBarChart from '@/app/Components/BarGraph/DepartmentBarChart';
 import SpecialitesAppoint from '@/app/Components/BarGraph/SpecialitesAppoint';
 
 
-
-
 function DepartmentsDashboard() {
-    const [isLoggedIn] = useState(true);
     const [selectedDoctor, setSelectedDoctor] = useState("Last 7 Days");
     const [selectedRange, setSelectedRange] = useState("Last 6 Months");// graphSelected 
 
@@ -49,7 +46,7 @@ function DepartmentsDashboard() {
     
   return (
     <>
-        <Header isLoggedIn={isLoggedIn} />
+        <Header />
         
         <section className='DeapartmentDashSection'>
             <Container>
@@ -61,7 +58,7 @@ function DepartmentsDashboard() {
                             <MBTN BICON={<IoAddCircleOutline />} BNAME="Add Specialities" BtHerf="adddepartments" />
                         </div>
                         <div className="SpeclistOverviewDiv">
-                        <OverviewDisp hideTitle={false} showDropdown={true} selectedDoctor={selectedDoctor} setSelectedDoctor={setSelectedDoctor}/>
+                          <OverviewDisp hideTitle={false} showDropdown={true} selectedDoctor={selectedDoctor} setSelectedDoctor={setSelectedDoctor}/>
                             <Row>
                                 <Col md={3}><StatCard icon="/Images/stact1.png" title="Appointments (Today)" value={158} /></Col>
                                 <Col md={3}><StatCard icon="/Images/stact2.png" title="Staff on-duty" value={122} /></Col>

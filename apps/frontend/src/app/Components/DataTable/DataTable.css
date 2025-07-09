@@ -212,19 +212,197 @@
 }
 /* Todays Appointemnt Ended */
 
+/* Cardiolgy Started  */
+
+.Cardiologybtn{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.Cardiologybtn button{
+  width: 40px;
+  height: 40px;
+  border-radius: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--greenopt) !important;
+  border: 1px solid var(--greenopt) !important;
+}
+.Cardiologybtn button.red{
+  background: var(--redopacity) !important;
+  border: 1px solid var(--redopacity) !important;
+}
+.Cardiologybtn button:hover{
+  background: var(--greenopt) !important;
+  border: 1px solid var(--greenopt) !important;
+}
+.Cardiologybtn button.red:hover{
+  background: var(--redopacity) !important;
+  border: 1px solid var(--redopacity) !important;
+}
+.Cardiologybtn button svg{
+  color: var(--avilbleText);
+}
+.Cardiologybtn button.red svg{
+  color: var(--delete);
+}
+
+.CardilogyStatus h6{
+  background: var(--avilblebg);
+  border-radius: 8px;
+  padding: 10px;
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--satoshi-font);
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 120%;
+  color: var(--avilbleText);
+  margin: 0;
+}
+.CardilogyStatus h6.on-break{
+  background: var(--halforange) !important;
+  color: var(--darkFawn) !important;
+}
+.CardilogyStatus h6.on-Consulting{
+  background: var(--counslingbg) !important;
+  color: var(--counslingtext) !important;
+}
+.CardilogyStatus h6.on-duty{
+  background: var(--offdutybg) !important;
+  color: var(--black-text) !important;
+}
+.CardilogyStatus h6.on-pending{
+  background: var(--pendingbg) !important;
+  color: var(--pendingtext) !important;
+}
+.CardilogyStatus h6.on-expire{
+  background: var(--errorbg) !important;
+  color: var(--delete) !important;
+}
+
+/* Cardiolgy Ended */
+
+/* ProcedureEstimatesTable started */
+
+.form-switch .form-check-input {
+  width: 3em;
+  height: 1.5em;
+  cursor: pointer;
+}
+.statusbadgebtn {
+  padding: 8px;
+  border-radius: 8px;
+  font-size: 15px;
+  text-align: center;
+  font-weight: 700;
+  font-family: var(--satoshi-font);
+}
+.statusbadgebtn.paid {
+  background-color: var(--avilblebg);
+  color: var(--checkgreen);
+}
+.statusbadgebtn.unpaid {
+  background-color: var(--pendingbg);
+  color: var(--pendingtext);
+}
+.statusbadgebtn.partially-paid {
+  background-color: var(--whitebg);
+  color: var(--black-text);
+  border: 1px solid var(--lightgrey);
+}
+.statusbadgebtn.overdue {
+  background-color: var(--errorbg);
+  color: var(--error-color);
+}
+.Procedaction-buttons {
+  display: flex;
+  gap: 8px;
+}
+.Procedaction-buttons .action-btn {
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--whitebg);
+  border: 1px solid var(--black-bg);
+}
+.Procedaction-buttons .action-btn svg {
+  color: var(--black-text);
+}
+.Procedaction-buttons .action-btn:hover {
+  background-color: var(--black-bg);
+}
+.Procedaction-buttons .action-btn:hover svg {
+  color: var(--white-text);
+}
+/* ProcedureEstimatesTable ended  */
+
+/* AddItemsTable Started  */
 
 
 
 
 
+/* AddItemsTable Ended */
 
 
 
+.add-items-table-wrapper .action-buttons {
+  display: flex;
+  gap: 10px;
+}
 
+.add-items-table-wrapper .action-btn {
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--whitebg);
+  border: 1px solid var(--black-bg);
+}
+.add-items-table-wrapper .action-btn svg{
+  color: var(--black-text);
+}
+.add-items-table-wrapper .action-btn.Save{
+  color: var(--blue-text);
+  border-radius: 0%;
+  text-decoration: none;
+  padding: 8px 16px !important;
+  width: fit-content;
+  border-radius: 8px;
+  background: var(--light-blue);
+  border: 1px solid var(--light-blue);
+  font-family: var(--satoshi-font);
+  font-weight: 700;
+  font-size: 15px;
+}
 
+.add-items-table-wrapper .form-control {
+    width: 100%;
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+}
 
+.add-item-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  margin-top: 20px;
+  padding: 15px;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+}
 
-
-
-
-
+.table-footerBtn {
+    margin-top: 20px;
+}

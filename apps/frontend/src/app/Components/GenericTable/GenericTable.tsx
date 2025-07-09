@@ -1,7 +1,6 @@
 "use client";
 import React, { useState } from "react";
 import { Button, Table } from "react-bootstrap";
-import "./GenericTable.css"
 import { FiArrowLeft, FiArrowRight } from "react-icons/fi";
 
 interface Column<T> {
