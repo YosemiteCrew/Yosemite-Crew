@@ -1,21 +1,20 @@
-const {  WebUser }  = require('../models/WebUser');
-
-const {
+import { WebUser } from "../models/WebUser";
+import {
   fetchDepartmentsAndRating,
   enrichClinics,
   enrichPetSitters,
   enrichGroomers
-} = require('../utils/enrichmentHelpers');
-
-const formatKey = (str : string) =>
+} from '../utils/enrichmentHelper';
+export const formatKey = (str: string) =>
   str.replace(/\s+/g, '').replace(/^./, (c) => c.toLowerCase());
+
 
 
 class BusinessService {
     
     static async getBusinessList(BusinessType :string, offset = 0, limit = 10) {
       const allowedTypes = ['Hospital', 'Clinic', 'Breeding Facility', 'Pet Sitter', 'Groomer Shop', 'all'];
-        const allData : any = {};
+        const allData :  object = {};
       
         const fetchUsers = async (type : string) => {
           const [users, totalCount] = await Promise.all([
@@ -160,5 +159,4 @@ class BusinessService {
       }   
       
 }
-
-module.exports = BusinessService;
+ export default BusinessService;

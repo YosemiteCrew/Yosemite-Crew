@@ -81,5 +81,5 @@ class FHIRService {
   
   }
   
-  module.exports = FHIRService;
+export default FHIRService;
   
