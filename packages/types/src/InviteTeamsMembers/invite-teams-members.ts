@@ -5,6 +5,7 @@ export type TeamInviteMember = {
   invitedBy: string; 
   invitedAt?: Date;
   inviteCode?: string; // Optional, can be generated later
+  status?: "pending" | "accepted" | "declined"; // Default is "pending"
 };
 export interface InvitePayload {
   email: string;

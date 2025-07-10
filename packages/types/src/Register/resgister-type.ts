@@ -12,5 +12,6 @@ export interface invitedTeamMembersInterface {
     role?: string,
     otp?: string | number,
     department?: string,
-    invitedBy?: string
+    invitedBy?: string,
+    inviteCode?: string,
 }

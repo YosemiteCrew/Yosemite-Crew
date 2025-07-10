@@ -13,13 +13,16 @@ export interface IProfileData extends Document {
     city?: string;
     state?: string;
     postalCode?: string;
+    area?: string;
     latitude?: string;
     longitude?: string;
+    country?: string;
 
   departmentFeatureActive?: string;
   selectedServices?: string[];
   image?: string;
   addDepartment:string[];
+  prescription_upload?: { name: string; url: string; }[];
 }
 export interface IWebUser {
   cognitoId?: string;

@@ -9,7 +9,7 @@ export function toFHIRBusinessProfile(input: BusinessProfile): FhirOrganization 
     telecom: [
       {
         system: "phone",
-        value: business.PhoneNumber,
+        value: business.phoneNumber,
       },
       {
         system: "url",
@@ -23,6 +23,7 @@ export function toFHIRBusinessProfile(input: BusinessProfile): FhirOrganization 
         state: business.state,
         postalCode: business.postalCode,
         country: input.country,
+        area: business.area || "", // Optional area field
         extension: [
           {
             url: "http://example.org/fhir/StructureDefinition/latitude",
@@ -35,6 +36,7 @@ export function toFHIRBusinessProfile(input: BusinessProfile): FhirOrganization 
         ],
       },
     ],
+    
     extension: [
       {
         url: "http://example.org/fhir/StructureDefinition/registrationNumber",
@@ -52,7 +54,13 @@ export function toFHIRBusinessProfile(input: BusinessProfile): FhirOrganization 
         url: "http://example.org/fhir/StructureDefinition/addDepartment",
         valueString: JSON.stringify(input.addDepartment),
       },
+      {
+        url: "http://example.org/fhir/StructureDefinition/image",
+        valueString: input.image ?? "",
+      },
+    
     ],
+    
   };
 }
 
@@ -89,12 +97,13 @@ export function fromFHIRBusinessProfile(fhir: FhirOrganization): BusinessProfile
       userId: fhir.id || "",
       businessName: fhir.name,
       website: fhir.telecom?.find((t) => t.system === "url")?.value || "",
-      PhoneNumber: fhir.telecom?.find((t) => t.system === "phone")?.value || "",
+      phoneNumber: fhir.telecom?.find((t) => t.system === "phone")?.value || "",
       addressLine1: address.line?.[0] || "",
       city: address.city || "",
       state: address.state || "",
       postalCode: address.postalCode || "",
       country: address.country || "",
+      area: address.area || "", // Optional area field
       latitude,
       longitude,
       registrationNumber: getExt("http://example.org/fhir/StructureDefinition/registrationNumber"),
@@ -103,7 +112,6 @@ export function fromFHIRBusinessProfile(fhir: FhirOrganization): BusinessProfile
     departmentFeatureActive: getExt("http://example.org/fhir/StructureDefinition/departmentFeatureActive"),
     selectedServices: parseExtArray("http://example.org/fhir/StructureDefinition/selectedServices"),
     addDepartment: parseExtArray("http://example.org/fhir/StructureDefinition/addDepartment"),
-    image: null,
-    previewUrl: "",
+    image: parseExtArray("http://example.org/fhir/StructureDefinition/image"),
   };
 }

@@ -9,6 +9,7 @@ import Swal from "sweetalert2";
 import { getData, postData } from "@/app/axios-services/services";
 import { AxiosError } from "axios";
 import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/app/stores/authStore";
 
 type SignUpProps = {
   inviteCode?: string
@@ -16,7 +17,7 @@ type SignUpProps = {
 function SignUp({ inviteCode }: SignUpProps) {
   const router = useRouter();
   //role
-  const [selectedType, setSelectedType] = useState( "");
+  const [selectedType, setSelectedType] = useState("");
   //emails
   const [email, setEmail] = useState("")
   //department
@@ -69,12 +70,6 @@ function SignUp({ inviteCode }: SignUpProps) {
     }
   };
 
-  type VerifyUserData = {
-    message: string;
-    token: string;
-    cognitoId: string;
-  };
-
   const handleVerify = async (): Promise<void> => {
     if (code.includes('')) {
       Swal.fire({
@@ -86,17 +81,30 @@ function SignUp({ inviteCode }: SignUpProps) {
     }
 
     try {
-      const response = await postData<VerifyUserData, { email: string; otp: string }>(
-        `/api/auth/verifyUser`,
+      const response = await postData<
+        { message: string; data?: { userId: string; email: string; userType: string } }
+      >(
+        '/api/auth/verifyUser',
         {
           email,
-          otp: code.join(''),
+          otp: code.join('')
+        },
+        {
+          withCredentials: true
         }
       );
 
+      if (response.status === 200 && response.data?.data) {
+        const { userId, email, userType } = response.data.data;
 
+        console.log("User Data:", userId, email, userType);
 
-      if (response.status === 200) {
+        // 👇 Save to Zustand
+        useAuthStore.getState().setUser({ userId, email, userType });
+
+        // 👇 Double-check if it's saved
+        // const storeData = useAuthStore.getState();
+        // console.log("Saved in Zustand:", storeData);
         Swal.fire({
           icon: 'success',
           title: 'Success',
@@ -104,7 +112,7 @@ function SignUp({ inviteCode }: SignUpProps) {
         });
         setCode(Array(6).fill(""));
         setShowVerifyModal(false);
-        sessionStorage.setItem('token', response.data.token);
+        // sessionStorage.setItem('token', response.data.token);
 
         router.push(`/emptydashboard`);
       }
@@ -155,100 +163,101 @@ function SignUp({ inviteCode }: SignUpProps) {
       });
     }
   };
-const handleSignUp = useCallback(async () => {
-  // Always validate passwords
-  if (password !== confirmPassword) {
-    Swal.fire({
-      icon: 'warning',
-      title: 'Password Mismatch',
-      text: 'Password and Confirm Password do not match.',
-    });
-    return;
-  }
-
-  // Only validate these if user is not invited (i.e., role is not provided)
-  if (!inviteCode) {
-    if (!selectedType) {
+  const handleSignUp = useCallback(async () => {
+    // Always validate passwords
+    if (password !== confirmPassword) {
       Swal.fire({
         icon: 'warning',
-        title: 'Business Type Not Selected',
-        text: 'Please select your business type.',
+        title: 'Password Mismatch',
+        text: 'Password and Confirm Password do not match.',
       });
       return;
     }
 
-    if (!subscribe) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Newsletter Not Checked',
-        text: 'Please check the Newsletter and Promotional emails box.',
-      });
-      return;
+    // Only validate these if user is not invited (i.e., role is not provided)
+    if (!inviteCode) {
+      if (!selectedType) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Business Type Not Selected',
+          text: 'Please select your business type.',
+        });
+        return;
+      }
+
+      if (!subscribe) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Newsletter Not Checked',
+          text: 'Please check the Newsletter and Promotional emails box.',
+        });
+        return;
+      }
+
+      if (!agree) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Terms Not Agreed',
+          text: 'Please check the "I agree to Terms and Conditions" box.',
+        });
+        return;
+      }
     }
 
-    if (!agree) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Terms Not Agreed',
-        text: 'Please check the "I agree to Terms and Conditions" box.',
-      });
-      return;
+    const formData = {
+      email,
+      password,
+      role: selectedType,
+      subscribe,
+      department,
+      invitedBy,
+      inviteCode, // Include inviteCode if available
+    };
+
+    const url = !inviteCode ? "/api/auth/register" : "/fhir/v1/invitedregister";
+
+    try {
+      const data = await postData<{ message: string }>(url, formData);
+
+      if (data?.status === 200) {
+        console.log("Signup successful", data)
+        setShowVerifyModal(true); // Show modal after signup
+      }
+    } catch (error: unknown) {
+      ;
+      let status: number | undefined;
+      let message: string = 'Something went wrong.';
+
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "response" in error &&
+        typeof (error as { response?: unknown }).response === "object" &&
+        (error as { response?: { status?: number; data?: { message?: string } } }).response !== null
+      ) {
+        const errResp = (error as { response: { status?: number; data?: { message?: string } } }).response;
+        status = errResp.status;
+        message = errResp.data?.message || message;
+      }
+
+      if (status === 409) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Already Registered',
+          text: message,
+        });
+      } else {
+        Swal.fire({
+          icon: 'error',
+          title: 'Signup Error',
+          text: message,
+        });
+      }
+
+      // For testing only: remove this if not needed
+      setShowVerifyModal(false);
     }
-  }
-
-  const formData = {
-    email,
-    password,
-    role: selectedType,
-    subscribe,
-    department,
-    invitedBy,
-  };
-
-  const url = !inviteCode? "/api/auth/register" : "/fhir/v1/invitedregister";
-
-  try {
-    const data = await postData<{ message: string }>(url, formData);
-
-    if (data?.status === 200) {
-          console.log("Signup successful",data)
-      setShowVerifyModal(true); // Show modal after signup
-    }
-  } catch (error: unknown) {
-;
-    let status: number | undefined;
-    let message: string = 'Something went wrong.';
-
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      "response" in error &&
-      typeof (error as { response?: unknown }).response === "object" &&
-      (error as { response?: { status?: number; data?: { message?: string } } }).response !== null
-    ) {
-      const errResp = (error as { response: { status?: number; data?: { message?: string } } }).response;
-      status = errResp.status;
-      message = errResp.data?.message || message;
-    }
-
-    if (status === 409) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Already Registered',
-        text: message,
-      });
-    } else {
-      Swal.fire({
-        icon: 'error',
-        title: 'Signup Error',
-        text: message,
-      });
-    }
-
-    // For testing only: remove this if not needed
-    setShowVerifyModal(false);
-  }
-}, [email, password, selectedType, confirmPassword, subscribe, agree, department, invitedBy,inviteCode]);
+  }, [email, password, selectedType, confirmPassword, subscribe, agree, department, invitedBy, inviteCode]);
 
 
 
@@ -262,30 +271,30 @@ const handleSignUp = useCallback(async () => {
     setSelectedType(type);
   };
 
-useEffect(() => {
-  const response = async () => {
-    if (inviteCode) {
-      try {
-        const data = await getData<{ email: string; role: string; department: string; invitedBy: string }>(
-          `/fhir/v1/inviteInfo?code=${inviteCode}`
-        );
-        if (data?.status === 200) {
-          setEmail(data.data.email);
-          setSelectedType(data.data.role);
-          setDepartment(data.data.department);
-          setInvitedBy(data.data.invitedBy);
+  useEffect(() => {
+    const response = async () => {
+      if (inviteCode) {
+        try {
+          const data = await getData<{ email: string; role: string; department: string; invitedBy: string }>(
+            `/fhir/v1/inviteInfo?code=${inviteCode}`
+          );
+          if (data?.status === 200) {
+            setEmail(data.data.email);
+            setSelectedType(data.data.role);
+            setDepartment(data.data.department);
+            setInvitedBy(data.data.invitedBy);
+          }
+        } catch (error) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: `${error instanceof Error ? error.message : 'Unable to fetch invite details.'}`,
+          })
         }
-      } catch (error) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: `${error instanceof Error ? error.message : 'Unable to fetch invite details.'}`,
-        })
       }
     }
-  }
-  response();
-},[inviteCode]);
+    response();
+  }, [inviteCode]);
 
 
 
@@ -293,7 +302,7 @@ useEffect(() => {
 
   return (
     <>
-    
+
       {!inviteCode ? <section className="MainSignUpSec">
         <Container>
           <Row>

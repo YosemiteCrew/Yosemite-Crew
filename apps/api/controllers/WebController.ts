@@ -3,20 +3,21 @@ import AWS from "aws-sdk";
 import crypto from "crypto";
 import { S3 } from "aws-sdk";
 import { Request, Response } from "express";
-import jwt, { SignOptions } from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import { WebUser, ProfileData } from "../models/WebUser";
 import {
   ConfirmForgotPasswordCommand,
   CognitoIdentityProviderClient,
   ConfirmForgotPasswordCommandInput
 } from "@aws-sdk/client-cognito-identity-provider";
-import { fromFHIRBusinessProfile } from "@yosemite-crew/fhir";
+import { fromFHIRBusinessProfile, toFHIRBusinessProfile } from "@yosemite-crew/fhir";
 const cognitoo = new CognitoIdentityProviderClient({
   region: process.env.AWS_REGION,
 });
 import dotenv from 'dotenv';
 dotenv.config();
-import type { BusinessProfile, register, UploadedFile } from '@yosemite-crew/types'
+import type { BusinessProfile, FhirOrganization, register, UploadedFile } from '@yosemite-crew/types'
+// import { validateFHIR } from "../Fhirvalidator/FhirValidator";
 
 const cognito = new AWS.CognitoIdentityServiceProvider();
 
@@ -239,12 +240,6 @@ const WebController = {
         return res.status(404).json({ message: "User not found in the system" });
       }
 
-      const sec = process.env.JWT_SECRET;
-      const expireIn = (process.env.EXPIRE_IN ?? "1h") as jwt.SignOptions["expiresIn"];
-
-      if (!sec) {
-        throw new Error("JWT_SECRET is not defined in environment variables");
-      }
 
       const payload = {
         userId: cognitoId,
@@ -252,15 +247,38 @@ const WebController = {
         userType: user.role,
       };
 
-      const signOptions: SignOptions = {
-        expiresIn: expireIn,
-      };
+      if (!ACCESS_SECRET || !REFRESH_SECRET) {
+        return res.status(500).json({ message: "JWT secrets not configured." });
+      }
+      const accessToken = jwt.sign(payload, ACCESS_SECRET, {
+        expiresIn: ACCESS_EXPIRY,
+      } as jwt.SignOptions);
 
-      const token = jwt.sign(payload, sec, signOptions);
+      const refreshToken = jwt.sign(payload, REFRESH_SECRET, {
+        expiresIn: REFRESH_EXPIRY,
+      } as jwt.SignOptions);
+
+      // ✅ Set secure cookies
+      res.cookie("accessToken", accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 1000 * 60 * 15, // 15 minutes
+      });
+
+      res.cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+      });
+
       return res.status(200).json({
-        message: "User verified successfully!",
-        token,
-        cognitoId,
+        data: {
+          userId: cognitoId,
+          email,
+          userType: user.role,
+        }, message: "Logged in successfully"
       });
     } catch (error) {
       console.error("Unexpected Error:", error);
@@ -328,13 +346,16 @@ const WebController = {
       };
 
       // ✅ Create tokens
+      if (!ACCESS_SECRET || !REFRESH_SECRET) {
+        return res.status(500).json({ message: "JWT secrets not configured." });
+      }
       const accessToken = jwt.sign(payload, ACCESS_SECRET, {
         expiresIn: ACCESS_EXPIRY,
-      });
+      } as jwt.SignOptions);
 
       const refreshToken = jwt.sign(payload, REFRESH_SECRET, {
         expiresIn: REFRESH_EXPIRY,
-      });
+      } as jwt.SignOptions);
 
       // ✅ Set secure cookies
       res.cookie("accessToken", accessToken, {
@@ -503,14 +524,20 @@ const WebController = {
             ContentType: file.mimetype,
           };
 
-          s3.upload(params, (err, data) => {
-            if (err) {
-              console.error("Error uploading to S3:", err);
-              reject(err);
-            } else {
-              resolve(data.Key);
+          s3.upload(
+            params,
+            (err: Error, data: AWS.S3.ManagedUpload.SendData) => {
+              if (err) {
+                console.error("Error uploading to S3:", err);
+                return reject(err);
+              }
+              if (data) {
+                resolve(data.Key);
+              } else {
+                reject(new Error("S3 upload failed, no data returned."));
+              }
             }
-          });
+          );
         });
       };
 
@@ -530,8 +557,8 @@ const WebController = {
       // Step 2: Convert to Internal Format
       let businessProfile: BusinessProfile;
       try {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-        businessProfile = fromFHIRBusinessProfile(parsedPayload);
+         
+        businessProfile = fromFHIRBusinessProfile(parsedPayload as FhirOrganization);
       } catch (error) {
         res.status(400).json({
           message: "Invalid FHIR structure",
@@ -560,20 +587,22 @@ const WebController = {
         registrationNumber,
         city,
         state,
+        area,
         addressLine1,
         postalCode,
         latitude,
         longitude,
-        PhoneNumber,
+        phoneNumber,
         country: nameCountry,
       } = name;
-
+      console.log("Parsed business profile:", businessProfile);
+      console.log("Parsed parsedPayload:", parsedPayload);
       if (!userId) {
         res.status(400).json({ message: "Missing required userId" });
         return;
       } else {
         // Step 3: Handle Image Upload if Exists
-        const imageFile = req.files?.image as UploadedFile | UploadedFile[] | undefined;
+        const imageFile = req.files?.image as any as UploadedFile | UploadedFile[] | undefined;
         const logoKey = imageFile && !Array.isArray(imageFile)
           ? await uploadToS3(imageFile, "logo")
           : undefined;
@@ -589,11 +618,12 @@ const WebController = {
               registrationNumber,
               city,
               state,
+              area, // Optional area field
               addressLine1,
               postalCode,
               latitude,
               longitude,
-              PhoneNumber,
+              phoneNumber,
               country: nameCountry || country,
               departmentFeatureActive,
               selectedServices,
@@ -633,6 +663,10 @@ const WebController = {
     }
 
     try {
+      const bucket = process.env.AWS_S3_BUCKET_NAME;
+      if (!bucket) {
+        return res.status(500).json({ message: "S3 bucket not configured" });
+      }
       const user = await ProfileData.findOne({ userId }).lean();
 
       if (!user) {
@@ -646,7 +680,7 @@ const WebController = {
       }
 
       const documentToDelete = user.prescription_upload.find(
-        (doc) => doc._id.toString() === docId
+        (doc: { _id: { toString: () => string } }) => doc._id.toString() === docId
       );
 
       if (!documentToDelete) {
@@ -657,7 +691,7 @@ const WebController = {
       console.log("S3 Key to delete:", s3Key);
 
       const deleteParams = {
-        Bucket: process.env.AWS_S3_BUCKET_NAME,
+        Bucket: bucket,
         Key: s3Key,
       };
 
@@ -707,20 +741,18 @@ const WebController = {
 
   getHospitalProfileFHIR: async (req: Request, res: Response) => {
     try {
-      const { userId } = req.params;
+      console.log("Fetching hospital profile for userId:", req.query.userId);
+      const { userId } = req.query as { userId: string };
       if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
         return res.status(400).json({ message: "Invalid doctorId format" });
       }
 
-      const profile = await ProfileData.findOne({ userId });
-      if (!profile) {
-        throw new Error("Profile not found");
-      }
+      const profile = await ProfileData.findOne({ userId })
 
-      const logo = profile.logo;
-      const image = logo ? `${process.env.CLOUD_FRONT_URI}/${logo}` : undefined;
 
-      profile.logo = image;
+
+      const image = profile?.image ? `${process.env.CLOUD_FRONT_URI}/${profile.image}` : undefined;
+
       if (!profile) {
         return res.status(404).json({
           resourceType: "OperationOutcome",
@@ -733,10 +765,29 @@ const WebController = {
           ],
         });
       }
-      const fhirBuilder = new HospitalProfileFHIRBuilder(
-        profile as HospitalProfile,
-      );
-      const fhirBundle = fhirBuilder.buildFHIRBundle() as HospitalProfile;
+      const formattedInput = {
+        name: {
+          userId: profile.userId,
+          businessName: profile.businessName,
+          phoneNumber: profile.phoneNumber,
+          website: profile.website,
+          addressLine1: profile.addressLine1,
+          city: profile.city,
+          state: profile.state,
+          area: profile.area, // Optional area field
+          postalCode: profile.postalCode,
+          latitude: profile.latitude,
+          longitude: profile.longitude,
+          registrationNumber: profile.registrationNumber,
+        },
+        country: profile.country,
+        departmentFeatureActive: profile.departmentFeatureActive,
+        selectedServices: profile.selectedServices,
+        addDepartment: profile.addDepartment,
+        image // Assuming logo is the image URL
+      };
+
+      const fhirBundle = toFHIRBusinessProfile(formattedInput as BusinessProfile);
       res.status(200).json(fhirBundle);
     } catch (error) {
       console.error("Error fetching hospital profile:", error);
@@ -754,7 +805,7 @@ const WebController = {
   },
   refreshToken: (req: Request, res: Response): Response => {
     try {
-      const refreshToken:string = req.cookies.refreshToken;
+      const refreshToken: string = req.cookies.refreshToken;
 
       if (!refreshToken) {
         return res.status(401).json({ message: "No refresh token provided" });
@@ -768,6 +819,9 @@ const WebController = {
       };
 
       // ✅ Create new access token
+      if (!ACCESS_SECRET) {
+        return res.status(500).json({ message: "JWT access secret not configured." });
+      }
       const newAccessToken = jwt.sign(
         {
           userId: decoded.userId,
@@ -775,7 +829,7 @@ const WebController = {
           userType: decoded.userType,
         },
         ACCESS_SECRET,
-        { expiresIn: ACCESS_EXPIRY }
+        { expiresIn: ACCESS_EXPIRY } as jwt.SignOptions
       );
 
       // ✅ Set new access token in cookie

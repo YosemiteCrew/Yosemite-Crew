@@ -26,7 +26,6 @@ export default function RootLayout({
       <body >
          {/* <AuthProvider> */}
           <SessionInitializer >
-           <Header  />
           {children}
           </SessionInitializer >
         {/* </AuthProvider> */}
