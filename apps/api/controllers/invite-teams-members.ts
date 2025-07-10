@@ -29,6 +29,10 @@ export const inviteTeamsMembersController = {
             return;
         }
         console.log("Received invite data:", process.env.MAIL_DRIVER, process.env.AWS_REGION);
+         if (typeof data[0].invitedBy  !== "string" || !/^[a-fA-F0-9-]{36}$/.test(data[0].invitedBy )) {
+        res.status(400).json({ message: "Invalid invitedBy format" });
+        return;
+      }
         const results: InviteResult[] = [];
         const name = await ProfileData.findOne({ userId: data[0].invitedBy });
         const inviterName = name?.businessName || "Unknown";
@@ -158,22 +162,31 @@ export const inviteTeamsMembersController = {
     invitedTeamMembersRegister: async (
         req: Request<invitedTeamMembersInterface>,
         res: Response
-    ): Promise<Response> => {
+    ): Promise<void> => {
         try {
             const { email, password, role, department, invitedBy, inviteCode } = req.body as invitedTeamMembersInterface;
+
+             if (typeof invitedBy !== "string" || !/^[a-fA-F0-9-]{36}$/.test(invitedBy)) {
+        res.status(400).json({ message: "Invalid invitedBy format" });
+        return
+      }
             // Validate required fields
             if (!email || !password || !role || !department || !invitedBy) {
-                return res.status(400).json({ message: "Missing required fields." });
+                
+                res.status(400).json({ message: "Missing required fields." });
+                return
             }
             // Step 1: Check if the user was invited
             const invitedRecord = await inviteTeamsMembers.findOne({ email });
             console.log("hello", invitedRecord)
             if (!invitedRecord) {
-                return res.status(403).json({ message: "This email was not invited." });
+                 res.status(403).json({ message: "This email was not invited." });
+                 return
             }
             // Step 2: Validate invitedBy
             if (invitedRecord.invitedBy !== invitedBy) {
-                return res.status(403).json({ message: "Invalid invitation or mismatched invitedBy." });
+                 res.status(403).json({ message: "Invalid invitation or mismatched invitedBy." });
+                 return
             }
             // Step 3: Check if user already exists in Cognito
             try {
@@ -192,9 +205,10 @@ export const inviteTeamsMembersController = {
                 console.log("Email verified status:", emailVerified);
 
                 if (emailVerified) {
-                    return res
+                     res
                         .status(409)
                         .json({ message: "User already exists. Please login." });
+                        return
                 }
 
                 // Resend OTP
@@ -210,9 +224,10 @@ export const inviteTeamsMembersController = {
 
                 await cognito.resendConfirmationCode(resendParams).promise();
 
-                return res
+                 res
                     .status(200)
                     .json({ message: "New OTP sent to your email." });
+                    return
 
             } catch (err) {
                 if (
@@ -222,9 +237,10 @@ export const inviteTeamsMembersController = {
                     (err as { code: string }).code !== "UserNotFoundException"
                 ) {
                     console.error("Error checking Cognito user:", err);
-                    return res
+                     res
                         .status(500)
                         .json({ message: "Error checking user status." });
+                        return
                 }
                 // if it's "UserNotFoundException", continue to signup logic
             }
@@ -243,12 +259,14 @@ export const inviteTeamsMembersController = {
                 cognitoResponse = await cognito.signUp(signUpParams).promise();
             } catch (err: unknown) {
                 if (typeof err === "object" && err !== null && "code" in err && (err as { code?: string }).code === "UsernameExistsException") {
-                    return res.status(409).json({
+                     res.status(409).json({
                         message: "User already exists in Cognito. Please verify your email.",
                     });
+                    return
                 }
                 console.error("Cognito Signup Error:", err);
-                return res.status(500).json({ message: "Error registering user. Please try again later." });
+                 res.status(500).json({ message: "Error registering user. Please try again later." });
+                 return
             }
             // Step 5: Determine businessId
             let businessId: string = invitedBy; // default fallback
@@ -281,23 +299,25 @@ export const inviteTeamsMembersController = {
                     { status: "accepted" }
                 );
             }
-            return res.status(200).json({
+             res.status(200).json({
                 message: "User registered successfully! Please verify your email with OTP.",
             });
+            return
         } catch (error) {
             console.error("Unexpected Error:", error);
-            return res.status(500).json({ message: "Internal Server Error. Please try again later." });
+             res.status(500).json({ message: "Internal Server Error. Please try again later." });
+             return
         }
     },
     manageInviteStatus: async (req: Request, res: Response): Promise<Response> => {
-        const { userId, status, department } = req.body;
+        const { userId, status } = req.body as { userId: string; status: string };
 
 
         if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
             return res.status(400).json({ message: "Invalid doctorId format" });
         }
         try {
-            const invite = await inviteTeamsMembers.findOne({ inviteCode });
+            const invite = await inviteTeamsMembers.findOne({ inviteCode : userId });
 
             if (!invite) {
                 return res.status(404).json({ message: "Invite not found." });
@@ -316,9 +336,6 @@ export const inviteTeamsMembersController = {
             return res.status(500).json({ message: "Internal Server Error." });
         }
     }
-
-
-
 
 };
 function getSecretHash(email: string,) {
