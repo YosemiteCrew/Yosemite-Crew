@@ -19,7 +19,7 @@ router.post('/forgotPassword', WebController.forgotPassword);
 router.post('/verifyotp', WebController.verifyOtp);
 // router.post('/updatepassword', WebController.updatePassword);
 router.post('/organization', WebController.setupProfile);
-router.get("/organization/:userId", WebController.getHospitalProfileFHIR)
+router.get("/organization/", WebController.getHospitalProfileFHIR)
 // router.get('/getProfile/:id', WebController.getProfile);
 router.post('/signOut', WebController.signOut);
 router.delete(

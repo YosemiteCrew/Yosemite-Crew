@@ -1,7 +1,6 @@
 'use client';
 import React, { useState ,useMemo ,useCallback } from 'react';
 import "./Departments.css"
-import Header from '@/app/Components/Header/Header';
 import ProfileProgressbar from '@/app/Components/ProfileProgressbar/ProfileProgressbar';
 import { Container, FloatingLabel, Form } from 'react-bootstrap';
 import { FormInput } from '../Sign/SignUp';
@@ -19,7 +18,6 @@ const servicesList = [
 ];
 
 function AddDepartments() {
-    const [isLoggedIn] = useState(true);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false); //DepartServices
     const [searchTerm, setSearchTerm] = useState("");//DepartServices
     const [selectedServices, setSelectedServices] = useState<string[]>([]);//DepartServices
@@ -63,7 +61,7 @@ function AddDepartments() {
 
   return (
     <>
-    <Header isLoggedIn={isLoggedIn} />
+    
     <section className='AddSpecialitiesSec'>
       <Container>
 
