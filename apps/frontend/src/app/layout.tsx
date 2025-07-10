@@ -25,9 +25,10 @@ export default function RootLayout({
     <html lang="en">
       <body >
          {/* <AuthProvider> */}
-          <SessionInitializer />
+          <SessionInitializer >
            <Header  />
           {children}
+          </SessionInitializer >
         {/* </AuthProvider> */}
       </body>
     </html>
