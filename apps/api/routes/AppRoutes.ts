@@ -3,7 +3,7 @@ import express from "express";
 import petController from '../controllers/pet-controller';
 import appointmentController from '../controllers/appointment-controller';
 import slotController from  '../controllers/slot-controller';
-import feedbackController from '../controllers/feedbackController';
+import feedbackController from '../controllers/feedback-controller';
 import detailsController from '../controllers/detailsController';
 import listController from '../controllers/list-controller';
 import immunizationController from "../controllers/immunization-controller";
