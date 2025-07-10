@@ -11,6 +11,8 @@ import { IoNotifications } from 'react-icons/io5';
 import { FaSignInAlt } from 'react-icons/fa';
 import { RiAccountBoxFill } from 'react-icons/ri';
 import { useAuthStore } from '@/app/stores/authStore';
+import { Button } from 'react-bootstrap';
+import { handleLogout } from '@/app/utils/LogoutApi';
 
 interface NavItem {
   label: string;
@@ -62,7 +64,8 @@ const navItems: NavItem[] = [
       { label: 'Resources', href: '#' },
       { label: 'Contact Us', href: '#' },
     ]
-  }
+  },
+  
 ];
 
 const Header = () => {
@@ -145,6 +148,7 @@ const Header = () => {
             {mobileOpen ? <IoMdClose size={28} /> : <FaBarsStaggered size={28} />}
           </button>
         </nav>
+          <Button variant='primary' onClick={()=>handleLogout()} >LOGOUT</Button>
 
         {isLoggedIn && (
           <div className="UserInfoHeader">
@@ -178,8 +182,8 @@ const Header = () => {
                       <Link href="/signup"><FaSignInAlt/> Sign Out</Link>
                     </div>
                     {/* <li><Link href="#"><RiAccountBoxFill/> Account Settings</Link></li>
-                    <li><Link href="#"><IoIosHelpCircleOutline/> Need Help?</Link></li>
-                    <li><Link href="/signup"><FaSignInAlt/> Sign Out</Link></li> */}
+                    <li><Link href="#"><IoIosHelpCircleOutline/> Need Help?</Link></li> */}
+                    <li><Link href="/signup"><FaSignInAlt/> Sign Out</Link></li> 
                   </div>
                 </li>
               </ul>
