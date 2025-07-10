@@ -1,19 +1,15 @@
 'use client';
-import React, { useState } from 'react';
 import "./BlogPage.css";
 import Image from "next/image";
 import { ExploreType } from "../ArticlePage/ArticlePage";
 import { GoCheckCircleFill } from "react-icons/go";
 import { Button } from "react-bootstrap";
 import { FiSearch } from "react-icons/fi";
-import Header from '@/app/Components/Header/Header';
 import Link from 'next/link';
 
 function BlogPage() {
-  const [isLoggedIn] = useState(true);
   return (
     <>
-    <Header isLoggedIn={isLoggedIn} />
       <section className="BlogPageSec">
         <div className="container">
           <div className="TopBlogDetail">
