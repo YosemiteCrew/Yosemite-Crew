@@ -1,38 +1,42 @@
 // controllers/inviteTeamsMembers.ts
 import AWS from "aws-sdk";
 import { Request, Response } from "express";
-import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
+import dotenv from 'dotenv';
+dotenv.config();
+// import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 import { inviteTeamsMembers } from "../models/invite-teams-members";
 import { invitedTeamMembersInterface, InvitePayload } from "@yosemite-crew/types";
 import crypto from "crypto";
 import { ProfileData, WebUser } from "../models/WebUser";
-const sesClient = new SESClient({
-    region: process.env.AWS_REGION,
-    credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? "",
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? "",
-    },
-});
-const cognito = new AWS.CognitoIdentityServiceProvider();
+const region = process.env.AWS_REGION || "eu-central-1";
+const SES = new AWS.SES({ region });
+
 type InviteResult = {
     email: string;
     status: "sent" | "failed" | "skipped";
     error?: string;
 };
 
+const cognito = new AWS.CognitoIdentityServiceProvider({ region: process.env.AWS_REGION || "us-east-1" });
+
 export const inviteTeamsMembersController = {
     InviteTeamsMembers: async (req: Request, res: Response): Promise<void> => {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        const data: InvitePayload[] = Array.isArray(req.body) ? req.body : [req.body];
-        console.log("Received invite data:", data);
+        const data: InvitePayload[] = Array.isArray(req.body)
+            ? (req.body as InvitePayload[])
+            : [req.body as InvitePayload];
         if (!data.length) {
             res.status(400).json({ message: "Request body is empty." });
             return;
         }
-        console.log(data)
+        console.log("Received invite data:", process.env.MAIL_DRIVER, process.env.AWS_REGION);
+         if (typeof data[0].invitedBy  !== "string" || !/^[a-fA-F0-9-]{36}$/.test(data[0].invitedBy )) {
+        res.status(400).json({ message: "Invalid invitedBy format" });
+        return;
+      }
         const results: InviteResult[] = [];
-        const name = await ProfileData.findOne({ userId: data[0].invitedBy })
-        console.log(name)
+        const name = await ProfileData.findOne({ userId: data[0].invitedBy });
+        const inviterName = name?.businessName || "Unknown";
+
         for (const invite of data) {
             const { email, role, department, invitedBy } = invite;
 
@@ -55,9 +59,7 @@ export const inviteTeamsMembersController = {
             }
 
             try {
-                const inviteCode = generateInviteCode();
-
-                // Save to DB
+                const inviteCode = Math.random().toString(36).substring(2, 10); // Simple code
                 await new inviteTeamsMembers({
                     email,
                     role,
@@ -69,45 +71,46 @@ export const inviteTeamsMembersController = {
                 const baseUrl = "http://localhost:3000";
                 const inviteLink = `${baseUrl}/signup?inviteCode=${inviteCode}`;
 
-                // Send Email
-                const command = new SendEmailCommand({
+                await SES.sendEmail({
+                    Source: process.env.MAIL_DRIVER!,
                     Destination: { ToAddresses: [email] },
                     Message: {
-                        Subject: { Data: "You're Invited to Join the Team!" },
+                        Subject: {
+                            Data: "You're Invited to Join the Team!",
+                            Charset: "UTF-8",
+                        },
                         Body: {
                             Html: {
+                                Charset: "UTF-8",
                                 Data: `
-            <html>
-              <body style="font-family: Arial, sans-serif;">
-                <div style="max-width: 600px; margin: auto; padding: 20px;">
-                  <h2>You’re Invited to Join Our Team!</h2>
-                  <p>Hi <strong>${email}</strong>,</p>
-                  <p>Click the button below to accept your invitation.</p>
-                  <p style="text-align: center; margin: 30px 0;">
-                    <a href="${inviteLink}" style="background-color: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
-                      Accept Invitation
-                    </a>
-                  </p>
-                  <p><strong>Invited by:</strong> ${name?.businessName ?? "Unknown"}</p>
-                  <p style="margin-top: 40px;">Thanks,<br/>Team Yosemite</p>
-                </div>
-              </body>
-            </html>
-            `,
+                                        <html>
+                                            <body style="font-family: Arial, sans-serif;">
+                                            <div style="max-width: 600px; margin: auto; padding: 20px;">
+                                                <h2>You’re Invited to Join Our Team!</h2>
+                                                <p>Hi <strong>${email}</strong>,</p>
+                                                <p>Click the button below to accept your invitation.</p>
+                                                <p style="text-align: center; margin: 30px 0;">
+                                                <a href="${inviteLink}" style="background-color: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
+                                                    Accept Invitation
+                                                </a>
+                                                </p>
+                                                <p><strong>Invited by:</strong> ${inviterName}</p>
+                                                <p style="margin-top: 40px;">Thanks,<br/>Team Yosemite</p>
+                                            </div>
+                                            </body>
+                                        </html>
+                                        `,
                             },
                         },
                     },
-                    Source: process.env.MAIL_DRIVER!,
-                });
-
-                await sesClient.send(command);
+                }).promise();
 
                 results.push({ email, status: "sent" });
             } catch (err: unknown) {
                 results.push({
                     email,
                     status: "failed",
-                    error: err && typeof err === "object" && "message" in err ? (err as { message?: string }).message : "Unknown error",
+                    error: err instanceof Error ? err.message : "Unknown error",
                 });
             }
         }
@@ -117,6 +120,7 @@ export const inviteTeamsMembersController = {
             invited: results,
         });
     },
+
     inviteInfo: async (req: Request, res: Response) => {
         const { code } = req.query;
 
@@ -151,70 +155,95 @@ export const inviteTeamsMembersController = {
             role: invite.role,
             department: invite.department,
             invitedBy: invite.invitedBy,
+            inviteCode: invite.inviteCode,
         });
     }
     ,
     invitedTeamMembersRegister: async (
         req: Request<invitedTeamMembersInterface>,
         res: Response
-    ): Promise<Response> => {
+    ): Promise<void> => {
         try {
-            const { email, password, role, department, invitedBy } = req.body as invitedTeamMembersInterface;
+            const { email, password, role, department, invitedBy, inviteCode } = req.body as invitedTeamMembersInterface;
 
+             if (typeof invitedBy !== "string" || !/^[a-fA-F0-9-]{36}$/.test(invitedBy)) {
+        res.status(400).json({ message: "Invalid invitedBy format" });
+        return
+      }
             // Validate required fields
             if (!email || !password || !role || !department || !invitedBy) {
-                return res.status(400).json({ message: "Missing required fields." });
+                
+                res.status(400).json({ message: "Missing required fields." });
+                return
             }
-
             // Step 1: Check if the user was invited
             const invitedRecord = await inviteTeamsMembers.findOne({ email });
             console.log("hello", invitedRecord)
             if (!invitedRecord) {
-                return res.status(403).json({ message: "This email was not invited." });
+                 res.status(403).json({ message: "This email was not invited." });
+                 return
             }
-
             // Step 2: Validate invitedBy
             if (invitedRecord.invitedBy !== invitedBy) {
-                return res.status(403).json({ message: "Invalid invitation or mismatched invitedBy." });
+                 res.status(403).json({ message: "Invalid invitation or mismatched invitedBy." });
+                 return
             }
-
             // Step 3: Check if user already exists in Cognito
             try {
                 const params: AWS.CognitoIdentityServiceProvider.AdminGetUserRequest = {
                     UserPoolId: process.env.COGNITO_USER_POOL_ID_WEB as string,
-                    Username: String(email),
+                    Username: email,
                 };
 
                 const userData = await cognito.adminGetUser(params).promise();
+                console.log("User found in Cognito:", userData);
+
                 const emailVerified = userData.UserAttributes?.find(
                     (attr) => attr.Name === "email_verified"
                 )?.Value === "true";
 
+                console.log("Email verified status:", emailVerified);
+
                 if (emailVerified) {
-                    return res.status(409).json({ message: "User already exists. Please login." });
+                     res
+                        .status(409)
+                        .json({ message: "User already exists. Please login." });
+                        return
                 }
 
-                // User not verified, resend OTP
+                // Resend OTP
+                console.log("User exists but is not verified. Resending OTP...");
                 const resendParams: AWS.CognitoIdentityServiceProvider.ResendConfirmationCodeRequest = {
                     ClientId: process.env.COGNITO_CLIENT_ID_WEB as string,
-                    Username: String(email),
+                    Username: email,
                 };
 
                 if (process.env.COGNITO_CLIENT_SECRET) {
-                    resendParams.SecretHash = getSecretHash(String(email));
+                    resendParams.SecretHash = getSecretHash(email);
                 }
 
                 await cognito.resendConfirmationCode(resendParams).promise();
-                return res.status(200).json({ message: "New OTP sent to your email." });
 
-            } catch (err: unknown) {
-                if (typeof err === "object" && err !== null && "code" in err && (err as { code?: string }).code !== "UserNotFoundException") {
+                 res
+                    .status(200)
+                    .json({ message: "New OTP sent to your email." });
+                    return
+
+            } catch (err) {
+                if (
+                    typeof err === "object" &&
+                    err !== null &&
+                    "code" in err &&
+                    (err as { code: string }).code !== "UserNotFoundException"
+                ) {
                     console.error("Error checking Cognito user:", err);
-                    return res.status(500).json({ message: "Error checking user status." });
+                     res
+                        .status(500)
+                        .json({ message: "Error checking user status." });
+                        return
                 }
-                // Continue if UserNotFoundException
+                // if it's "UserNotFoundException", continue to signup logic
             }
-
             // Step 4: Register user in Cognito
             const signUpParams: AWS.CognitoIdentityServiceProvider.SignUpRequest = {
                 ClientId: process.env.COGNITO_CLIENT_ID_WEB as string,
@@ -222,46 +251,91 @@ export const inviteTeamsMembersController = {
                 Password: password,
                 UserAttributes: [{ Name: "email", Value: email }],
             };
-
             if (process.env.COGNITO_CLIENT_SECRET) {
                 signUpParams.SecretHash = getSecretHash(email);
             }
-
             let cognitoResponse;
             try {
                 cognitoResponse = await cognito.signUp(signUpParams).promise();
             } catch (err: unknown) {
                 if (typeof err === "object" && err !== null && "code" in err && (err as { code?: string }).code === "UsernameExistsException") {
-                    return res.status(409).json({
+                     res.status(409).json({
                         message: "User already exists in Cognito. Please verify your email.",
                     });
+                    return
                 }
                 console.error("Cognito Signup Error:", err);
-                return res.status(500).json({ message: "Error registering user. Please try again later." });
+                 res.status(500).json({ message: "Error registering user. Please try again later." });
+                 return
+            }
+            // Step 5: Determine businessId
+            let businessId: string = invitedBy; // default fallback
+
+            const inviterUser = await WebUser.findOne({ cognitoId: invitedBy }).lean();
+            const rolesThatInheritBusiness = [
+                "Vet",
+                "Vet Technician",
+                "Nurse",
+                "Vet Assistant",
+                "Receptionist",
+            ];
+
+            if (inviterUser && rolesThatInheritBusiness.includes(inviterUser.role)) {
+                businessId = inviterUser.bussinessId || invitedBy;
             }
 
-            // Step 5: Save user to MongoDB
+            // Step 6: Save user to MongoDB
             const newUser = new WebUser({
                 cognitoId: String(cognitoResponse.UserSub),
-                role: String(role),
-                department: String(department),
+                role,
+                department,
+                bussinessId: businessId,
             });
-
-            await newUser.save();
-
-            return res.status(200).json({
+            const response = await newUser.save();
+            if (response) {
+                // Step 6: Save invite record with status "accepted"
+                await inviteTeamsMembers.updateOne(
+                    { inviteCode: String(inviteCode) },
+                    { status: "accepted" }
+                );
+            }
+             res.status(200).json({
                 message: "User registered successfully! Please verify your email with OTP.",
             });
-
+            return
         } catch (error) {
             console.error("Unexpected Error:", error);
-            return res.status(500).json({ message: "Internal Server Error. Please try again later." });
+             res.status(500).json({ message: "Internal Server Error. Please try again later." });
+             return
+        }
+    },
+    manageInviteStatus: async (req: Request, res: Response): Promise<Response> => {
+        const { userId, status } = req.body as { userId: string; status: string };
+
+
+        if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+            return res.status(400).json({ message: "Invalid doctorId format" });
+        }
+        try {
+            const invite = await inviteTeamsMembers.findOne({ inviteCode : userId });
+
+            if (!invite) {
+                return res.status(404).json({ message: "Invite not found." });
+            }
+
+            // Update the status of the invite
+            invite.status = status;
+            await invite.save();
+
+            return res.status(200).json({
+                message: `Invite status updated to ${status}.`,
+                invite,
+            });
+        } catch (error) {
+            console.error("Error managing invite status:", error);
+            return res.status(500).json({ message: "Internal Server Error." });
         }
     }
-
-
-
-
 
 };
 function getSecretHash(email: string,) {
@@ -273,6 +347,6 @@ function getSecretHash(email: string,) {
         .digest("base64");
 }
 
-const generateInviteCode = () => {
-    return Math.random().toString(36).substr(2, 8).toUpperCase(); // 8-character code
-};
+// const generateInviteCode = () => {
+//     return Math.random().toString(36).substr(2, 8).toUpperCase(); // 8-character code
+// };

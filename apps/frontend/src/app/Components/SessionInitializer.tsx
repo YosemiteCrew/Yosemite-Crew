@@ -3,11 +3,13 @@
 import { useEffect, useState } from "react";
 import { useAuthStore } from "../stores/authStore";
 import { postData } from "../axios-services/services";
-import SignIn from "../Pages/Sign/SignIn";
+// import SignIn from "../Pages/Sign/SignIn";
 import { usePathname } from "next/navigation";
 import { handleLogout } from "../utils/LogoutApi";
+import HomePage from "../Pages/HomePage/HomePage";
+import Header from "./Header/Header";
 
-const publicRoutes = ["/signup"]; // ✅ '/' NOT included (it's protected)
+const publicRoutes = ["/signup", "/signin"]; // ✅ '/' NOT included (it's protected)
 
 const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
   const setUser = useAuthStore((state) => state.setUser);
@@ -16,8 +18,10 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const pathname = usePathname();
 
-  const isPublicRoute = publicRoutes.some((route) =>
-    pathname === route || (route.includes("[") && matchDynamicRoute(route, pathname))
+  const isPublicRoute = publicRoutes.some(
+    (route) =>
+      pathname === route ||
+      (route.includes("[") && matchDynamicRoute(route, pathname))
   );
 
   // ✅ Handle dynamic route matching like /blog/[slug]
@@ -38,11 +42,11 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
         );
         const { userId, email, userType } = response.data.data;
         setUser({ userId, email, userType });
-        setVerified(true); 
+        setVerified(true);
         console.log("✅ User restored:", { userId, email, userType });
       } catch (err) {
         await handleLogout();
-        setVerified(false); 
+        setVerified(false);
       } finally {
         setLoading(false);
       }
@@ -51,15 +55,23 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
     fetchUser();
   }, []);
 
-  
-
   if (loading) return null;
 
   if (!isVerified && !isPublicRoute) {
-    return <SignIn />;
+    return (
+      <>
+        <Header />
+        <HomePage />;
+      </>
+    );
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      <Header />
+      {children}
+    </>
+  );
 };
 
 export default SessionInitializer;

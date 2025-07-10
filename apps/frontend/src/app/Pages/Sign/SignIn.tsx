@@ -93,7 +93,7 @@ function SignIn() {
           text: response.data.message || 'Sign in successful',
         });
 
-        router.push("/");
+        router.push("/emptydashboard");
       }
 
     } catch (error: unknown) {
