@@ -29,7 +29,7 @@ const servicesList = [
   { code: "V001", display: "Surgery and Operating Rooms" },
   { code: "D001", display: "Parasitology" },
   { code: "B001", display: "Dental Clinic" },
-];
+]; 
 
 const servicesList1 = [
   { code: "E001", display: "Internal Medicine" },
@@ -50,7 +50,8 @@ type NameState = {
     latitude: string;
     longitude: string;
     postalCode: string;
-    PhoneNumber: string;
+    area: string;
+    phoneNumber: string;
   };
 
 function CompleteProfile() {
