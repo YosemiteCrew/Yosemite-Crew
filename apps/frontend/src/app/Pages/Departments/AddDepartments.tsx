@@ -61,7 +61,6 @@ function AddDepartments() {
 
   return (
     <>
-    
     <section className='AddSpecialitiesSec'>
       <Container>
 
