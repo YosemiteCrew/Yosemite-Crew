@@ -27,7 +27,7 @@ function SignIn() {
   const [confirmPassword, setConfirmPassword] = useState("")
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
-
+  const setVerified = useAuthStore((state) => state.setVerified);
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, index: number) => {
     const value = e.target.value;
 
@@ -82,7 +82,7 @@ function SignIn() {
 
         // 👇 Save to Zustand
         useAuthStore.getState().setUser({ userId, email, userType });
-
+        setVerified(true); 
         // 👇 Double-check if it's saved
         const storeData = useAuthStore.getState();
         console.log("Saved in Zustand:", storeData);

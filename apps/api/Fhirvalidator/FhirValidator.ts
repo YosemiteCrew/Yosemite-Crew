@@ -7,7 +7,7 @@ const fhirValidator = new Fhir();
  * @param {Object} resource - FHIR Resource to validate
  * @returns {Object} - Validation result
  */
-const validateFHIR = (resource: Record<string, any>) => {
+const validateFHIR = (resource: Record<string, unknown>): object => {
   try {
     const result = fhirValidator.validate(resource);
 
@@ -22,10 +22,10 @@ const validateFHIR = (resource: Record<string, any>) => {
         errors: result.messages,
       };
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       valid: false,
-      errors: [`Validation failed: ${error.message}`],
+      errors: [`Validation failed: ${error instanceof Error ? error.message : String(error)}`],
     };
   }
 };

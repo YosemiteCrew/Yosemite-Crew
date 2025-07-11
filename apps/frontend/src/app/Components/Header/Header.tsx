@@ -11,6 +11,7 @@ import { IoNotifications } from 'react-icons/io5';
 import { FaSignInAlt } from 'react-icons/fa';
 import { RiAccountBoxFill } from 'react-icons/ri';
 import { useAuthStore } from '@/app/stores/authStore';
+import { handleLogout } from '@/app/utils/LogoutApi';
 
 interface NavItem {
   label: string;
@@ -27,52 +28,52 @@ const navItems: NavItem[] = [
   {
     label: 'Clinic',
     children: [
-      { label: 'Specialities', href: '#' },
-      { label: 'Practice Team', href: '#' },
-      { label: 'Manage Invites', href: '#' },
-      { label: 'Manage Clinic Visibility', href: '#' },
+      { label: 'Specialities', href: '/departmentsmain' },
+      { label: 'Practice Team', href: '/practiceTeam' },
+      { label: 'Manage Invites', href: '/inviteteammembers' },
+      { label: 'Manage Clinic Visibility', href: '/clinicvisiblity' },
     ]
   },
   {
     label: 'Operations',
     children: [
       { label: 'Queue Management', href: '#' },
-      { label: 'Appointments', href: '#' },
-      { label: 'Assessments', href: '#' },
+      { label: 'Appointments', href: '/AppointmentVet' },
+      { label: 'Assessments', href: '/AssessmentVet' },
       { label: 'Prescriptions', href: '#' },
-      { label: 'Inventory', href: '#' },
+      { label: 'Inventory', href: '/inventorydashboard' },
       { label: 'Procedure Packages', href: '#' },
     ]
   },
   {
     label: 'Finance',
     children: [
-      { label: 'Revenue Reporting', href: 'Revenue Reporting' },
+      { label: 'Revenue Reporting', href: '/RevenueManagement' },
       { label: 'Billing', href: '#' },
       { label: 'Client Statements', href: '#' },
       { label: 'Coupons', href: '#' },
       { label: 'Payment Methods', href: '#' },
-      { label: 'Procedure Estimates', href: '#' },
+      { label: 'Procedure Estimates', href: '/ProcedureEstimate' },
     ]
   },
   {
     label: 'Help & Resources',
     children: [
-      { label: 'Blog', href: 'blogpage' },
+      { label: 'Blog', href: '/blogpage' },
       { label: 'Resources', href: '#' },
-      { label: 'Contact Us', href: '#' },
+      { label: 'Contact Us', href: '/contact_us' },
     ]
-  }
+  },
+  
 ];
 
 const Header = () => {
   const { userType } = useAuthStore();
   console.log("userType", userType);
-  const isLoggedIn = Boolean(!userType);
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-
+  const isVerified = useAuthStore((state) => state.isVerified);
   useEffect(() => {
     document.body.classList.toggle('mobile-nav-active', mobileOpen);
   }, [mobileOpen]);
@@ -145,8 +146,7 @@ const Header = () => {
             {mobileOpen ? <IoMdClose size={28} /> : <FaBarsStaggered size={28} />}
           </button>
         </nav>
-
-        {isLoggedIn && (
+        {isVerified && (
           <div className="UserInfoHeader">
 
             <div className="Notify">
@@ -170,16 +170,16 @@ const Header = () => {
                     </div>
                     
                   </span>
-                  <div className="dropdown profileUl">
+                  <div className="profileUl">
                     <div className='ProfDiv'>
                       <Link href="#"><FaUser /> My Profile</Link>
                       <Link href="#"><RiAccountBoxFill/> Account Settings</Link>
                       <Link href="#"><IoIosHelpCircleOutline/> Need Help?</Link>
-                      <Link href="/signup"><FaSignInAlt/> Sign Out</Link>
+                      <Link href="/signup" onClick={()=>handleLogout()}><FaSignInAlt/> Sign Out</Link>
                     </div>
                     {/* <li><Link href="#"><RiAccountBoxFill/> Account Settings</Link></li>
-                    <li><Link href="#"><IoIosHelpCircleOutline/> Need Help?</Link></li>
-                    <li><Link href="/signup"><FaSignInAlt/> Sign Out</Link></li> */}
+                    <li><Link href="#"><IoIosHelpCircleOutline/> Need Help?</Link></li> */}
+                    {/* <li><Link href="/signup"><FaSignInAlt/> Sign Out</Link></li>  */}
                   </div>
                 </li>
               </ul>

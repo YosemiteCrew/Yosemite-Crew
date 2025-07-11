@@ -1,5 +1,5 @@
 import mongoose, { Types } from 'mongoose';
-import type { feedbackData } from "@yosemite-crew/types";
+import type { feedback, feedbackData } from "@yosemite-crew/types";
 
 
 

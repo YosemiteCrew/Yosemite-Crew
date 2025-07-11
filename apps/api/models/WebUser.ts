@@ -34,11 +34,14 @@ const ProfileDataSchema = new Schema<IProfileData>({
     postalCode: { type: String, required: true },
     latitude: { type: String, required: true },
     longitude: { type: String, required: true },
+    area: { type: String, required: true },
+    country: { type: String, required: true },
 
   departmentFeatureActive: { type: String },
   selectedServices: { type: [String], required: true },
   image: { type: String },
-  addDepartment:{type:[String], required:true}
+  addDepartment:{type:[String], required:true},
+  prescription_upload: { type: [{ name: String, url: String }] }
 });
 
 const ProfileData = model<IProfileData>('ProfileData', ProfileDataSchema);
