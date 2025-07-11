@@ -1,0 +1,114 @@
+.PracticeTeamSec{
+    padding: 80px 0px;
+}
+.PracticeTeamData{
+    display: flex;
+    flex-direction: column;
+    gap: 80px;
+}
+.PracticeTopHead{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.PracticeTopHead .leftPract h2{
+    font-family: var(--grotesk-font);
+    font-size: 40px;
+    font-weight: 500;
+    margin: 0;
+    color: var(--black-text);
+}
+.PracticeTopHead .leftPract h2 span{
+    color: var(--black-grey-Text);
+}
+.PracticeTopHead .RytPract{
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+.PracticeTopHead .RytPract a{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 24px;
+    border-radius: 28px;
+    border: 1px solid var(--black-bg);
+    background: var(--whitebg);
+    color: var(--black-text);
+    font-size: 19px;
+    font-weight: 500;
+    line-height: 120%;
+    font-family: var(--grotesk-font);
+}
+.PracticeTopHead .RytPract a:hover{
+    background: var(--black-bg);
+    color: var(--white-text);
+}
+.PracticeTopHead .RytPract a.fill{
+    background: var(--black-bg);
+    color: var(--white-text);
+}
+.PracticeTopHead .RytPract a.fill:hover{
+    background: var(--whitebg);
+    color: var(--black-text);
+}
+.Teamoverview{
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.Teamoverview h5{
+    margin: 0;
+    font-size: 23px;
+    font-weight: 500;
+    font-family: var(--grotesk-font);
+    line-height: 120%;
+}
+
+
+
+/* ManageInvitesDiv Stared  */
+
+.ManageInvitesDiv{
+    display: flex;
+    flex-direction: column;
+    gap: 80px;
+}
+.ManageInvitesDiv .TopManagInvite{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.ManageInvitesDiv .TopManagInvite h2{
+    font-size: 40px;
+    font-weight: 500;
+    color: var(--black-text);
+    margin: 0;
+    font-family: var(--grotesk-font);
+}
+.ManageInvitesDiv .TopManagInvite h2 span{
+    color: var(--black-grey-Text);
+}
+.ManageInvitesDiv .TopManagInvite a{
+    border: 1.5px solid var(--black-bg);
+    padding: 14px 24px;
+    border-radius: 28px;
+    font-weight: 500;
+    font-size: 19px;
+    font-family: var(--grotesk-font);
+    color: var(--black-text);
+}
+.ManageInvitesDiv .TopManagInvite a:hover{
+    background: var(--black-bg);
+    color: var(--white-text);
+}
+.MangeInviteTableDiv{
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+
+
+/* ManageInvitesDiv Ended  */

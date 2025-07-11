@@ -1,0 +1,176 @@
+.Exploring-Data{
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+}
+.Exploring-Data .ExplrHeading{
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.Exploring-Data .ExplrHeading h4{
+    font-family: var(--grotesk-font);
+    font-size: 33px;
+    font-weight: 500;
+    line-height: 120%;
+    color: var(--black-text);
+    margin: 0;
+}
+.Exploring-Data .ExplrHeading h4 span{
+    color: var(--black-grey);
+}
+.Exploring-Data .ExplrHeading p{
+    font-family: var(--satoshi-font);
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 120%;
+    color: var(--black-grey);
+    margin: 0;
+}
+
+.Exploring-Data .Explore-Card-Div{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: center;
+}
+.Exploring-Data .Explore-Card-Div .explr-card-item{
+    border: 1.25px solid #EAEAEA;
+    box-shadow: 0px 0px 8px -5px #55413414;
+    background: var( --whitebg);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-bottom: 32px;
+    border-radius: 16px;
+}
+.Exploring-Data .Explore-Card-Div .explr-card-item .exp-img{
+    border-radius: 16px 16px 0px 0px;
+}
+
+.Exploring-Data .Explore-Card-Div .explr-card-item .exp-img {
+  position: relative;
+  border-radius: 16px 16px 0 0;
+  overflow: hidden; /* ensures overlay is clipped to rounded corners */
+}
+
+.Exploring-Data .Explore-Card-Div .explr-card-item .exp-img::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 1;
+}
+
+/* If you want the overlay only on hover: */
+.Exploring-Data .Explore-Card-Div .explr-card-item .exp-img:hover::after {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+/* Ensure child elements (like play-button) appear above overlay */
+.Exploring-Data .Explore-Card-Div .explr-card-item .exp-img > .glightbox-video {
+  position: absolute;
+  z-index: 2;
+  /* center it within .exp-img */
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+
+
+/* Pulsating Play Button
+------------------------------*/
+.pulsating-play-btn {
+  width: 94px;
+  height: 94px;
+  background: radial-gradient(var(--whitebg) 50%, color-mix(in srgb, var(--whitebg), transparent 75%) 52%);
+  border-radius: 50%;
+  display: block;
+  position: relative;
+  overflow: hidden;
+}
+
+.pulsating-play-btn:before {
+  content: "";
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  animation-delay: 0s;
+  animation: pulsate-play-btn 2s;
+  animation-direction: forwards;
+  animation-iteration-count: infinite;
+  animation-timing-function: steps;
+  opacity: 1;
+  border-radius: 50%;
+  border: 5px solid color-mix(in srgb, var(--black-grey), transparent 30%);
+  top: -15%;
+  left: -15%;
+  background: var(--whitebg);
+}
+
+.pulsating-play-btn:after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translateX(-40%) translateY(-50%);
+  width: 0;
+  height: 0;
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+  border-left: 15px solid var(--black-grey);
+  z-index: 100;
+  transition: all 400ms cubic-bezier(0.55, 0.055, 0.675, 0.19);
+}
+
+.pulsating-play-btn:hover:before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translateX(-40%) translateY(-50%);
+  width: 0;
+  height: 0;
+  border: none;
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+  border-left: 15px solid var(--whitebg );
+  z-index: 200;
+  animation: none;
+  border-radius: 0;
+  background: var(--black-grey);
+}
+
+.pulsating-play-btn:hover:after {
+  border-left: 15px solid var(var(--black-grey));
+  transform: scale(20);
+}
+
+@keyframes pulsate-play-btn {
+  0% {
+    transform: scale(0.6, 0.6);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1, 1);
+    opacity: 0;
+  }
+}
+
+
+.explr-card-item .exp-text{
+  padding: 0px 16px;
+}
+.explr-card-item .exp-text h5{
+  font-family: var(--grotesk-font);
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 120%;
+  color: var(--black-text);
+  margin: 0;
+}

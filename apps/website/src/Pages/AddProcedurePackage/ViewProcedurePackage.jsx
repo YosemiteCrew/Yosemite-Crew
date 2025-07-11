@@ -11,8 +11,8 @@ import { useAuth } from "../../context/useAuth";
 import ViewPackageTable from "../../Components/PackageTable/ViewPackageTable";
 import Swal from "sweetalert2";
 import {
-  InventoryFHIRParser,
-  ProcedurePackageFHIR,
+  convertProcedurePackageToFHIR,
+  InventoryFHIRParser, 
 } from "../../utils/InventoryFHIRMapper";
 import { getData, putData } from "../../services/apiService";
 
@@ -96,13 +96,13 @@ function ViewProcedurePackage(fetchPackageData) {
     e.preventDefault();
     try {
       // const token = sessionStorage.getItem("token");
-
-      const data = new ProcedurePackageFHIR(procedureData);
-
+      console.log("procedureData",procedureData)
+      const data = convertProcedurePackageToFHIR(procedureData);
+      console.log("data",data);
       const response = await putData(
         `fhir/v1/procedures?id=${id}&hospitalId=${userId}`,
         data,
-        // { headers: { Authorization: `Bearer ${token}` } }
+
       );
       if (response.status ===200) {
        

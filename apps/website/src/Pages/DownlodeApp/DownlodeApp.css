@@ -110,7 +110,7 @@
 .ToolkitKeyData{
     display: flex;
     gap: 100px;
-    justify-content: end;
+    justify-content: flex-end;
     animation: scroll 20s linear infinite;
     padding: 100px 0px;
 }

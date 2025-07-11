@@ -3,7 +3,9 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
+    "start": "turbo run start",
     "lint": "turbo run lint",
+    "type-check": "turbo run type-check",
     "format": "prettier --write \"**/*.{ts,tsx,md}\""
   },
   "devDependencies": {
@@ -12,8 +14,10 @@
     "turbo": "^2.5.0"
   },
   "packageManager": "pnpm@8.15.6",
-  "name": "with-vite",
-  "dependencies": {
-    "sanitize-filename": "^1.6.3"
+  "name": "yosemitecrew",
+  "pnpm": {
+    "patchedDependencies": {
+      "react-native-country-codes-picker@2.3.5": "patches/react-native-country-codes-picker@2.3.5.patch"
+    }
   }
 }
