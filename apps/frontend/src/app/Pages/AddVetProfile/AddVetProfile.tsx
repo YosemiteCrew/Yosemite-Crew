@@ -15,6 +15,7 @@ import DynamicSelect from "@/app/Components/DynamicSelect/DynamicSelect";
 import UploadImage from "@/app/Components/UploadImage/UploadImage";
 import OperatingHours from "@/app/Components/OperatingHours/OperatingHours";
 import {  convertToFhirVetProfile } from "@yosemite-crew/fhir";
+import { OperatingHourType } from "@yosemite-crew/types"
 import { postData } from "@/app/axios-services/services";
 import Swal from "sweetalert2";
 import { useAuthStore } from "@/app/stores/authStore";
@@ -38,7 +39,7 @@ function AddVetProfile() {
    const [duration, setDuration] = useState<string>(''); // Set duration for consultation
   const [image, setImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
-  const [OperatingHour, setOperatingHours] = useState<string[]>([]);
+  const [OperatingHour, setOperatingHours] = useState<OperatingHourType[]>([]);
   const sanitizedPreview = previewUrl;
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [name, setName] = useState({
@@ -141,7 +142,7 @@ function AddVetProfile() {
     { value: 'coastal', label: '🏖️ Coastal Area' },
   ];
 
-  const handleSaveOperatingHours = (updatedHours: React.SetStateAction<string[]>) => {
+  const handleSaveOperatingHours = (updatedHours: React.SetStateAction<OperatingHourType[]>) => {
     setOperatingHours(updatedHours);
   };
  

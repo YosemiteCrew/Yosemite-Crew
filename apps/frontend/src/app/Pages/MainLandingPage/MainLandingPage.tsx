@@ -1,3 +1,4 @@
+"use client"
 import React from 'react'
 import "./MainLandingPage.css"
 import "slick-carousel/slick/slick.css";
@@ -9,7 +10,21 @@ import Slider from "react-slick"
 import Image from 'next/image'
 
 // Section data
-const sections = [
+type SectionButton = {
+  label: string;
+  variant: string;
+  icon?: React.ReactNode;
+};
+
+const sections: {
+  left: {
+    badge?: string;
+    title: string;
+    desc: string;
+    btns: SectionButton[];
+  };
+  slides: { img: string; caption: string }[];
+}[] = [
   {
     left: {
       title: "Redefining Veterinary Care",

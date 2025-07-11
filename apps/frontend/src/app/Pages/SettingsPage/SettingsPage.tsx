@@ -16,17 +16,17 @@ function SettingsPage() {
     animalType: 'Beagle/Dog',
     medicalCondition: 'Fair/Serious/Critical',
     checks: {
-      Temperature: true,
+      'Temperature': true,
       'Heart Rate': true,
       'Respiratory Rate': true,
       'Muscle Condition Score': false,
-      Behaviour: false,
-      Attitude: false,
+      'Behaviour': false,
+      'Attitude': false,
       'Blood Pressure': true,
       'Body Condition Score': true,
       'Body Weight': true,
       'Pain Score': true,
-      Hydration: true,
+      'Hydration': true,
     },
   });
 
@@ -60,7 +60,7 @@ function SettingsPage() {
     { name: 'Dr. Emily Foster', role: 'Internal Medicine' },
   ]);
 
-  const toggleCheck = (key) => {
+  const toggleCheck = (key: keyof typeof medicalTemplate.checks) => {
     setMedicalTemplate((prev) => ({
       ...prev,
       checks: {
@@ -81,7 +81,7 @@ function SettingsPage() {
     setTeamMembers([...teamMembers, { name: 'New Member', role: 'Role' }]);
   };
 
-  const removeTeamMember = (index) => {
+  const removeTeamMember = (index: any) => {
     const newList = [...teamMembers];
     newList.splice(index, 1);
     setTeamMembers(newList);
@@ -89,7 +89,7 @@ function SettingsPage() {
 
   return (
     <>
-      <Header isLoggedIn={isLoggedIn} />
+      <Header />
       <section className='SettingPageSec'>
         <Container>
           <div className='SettingData'>
@@ -150,7 +150,7 @@ function SettingsPage() {
                                 <Form.Check
                                 type="switch"
                                 checked={value}
-                                onChange={() => toggleCheck(key)}
+                                onChange={() => toggleCheck(key as keyof typeof medicalTemplate.checks)}
                                 />
                             </div>
                             ))}

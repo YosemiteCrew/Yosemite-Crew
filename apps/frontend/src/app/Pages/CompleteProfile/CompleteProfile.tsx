@@ -39,6 +39,19 @@ const servicesList1 = [
   { code: "B001", display: "Behavioural Therapy" },
 ];
 
+type NameState = {
+    userId: string;
+    businessName: string;
+    website: string;
+    registrationNumber: string;
+    city: string;
+    state: string;
+    addressLine1: string;
+    latitude: string;
+    longitude: string;
+    postalCode: string;
+    PhoneNumber: string;
+  };
 
 function CompleteProfile() {
   const { userId } = useAuthStore();
@@ -57,7 +70,7 @@ function CompleteProfile() {
   const [addDepartment, setAddDepartment] = useState<string[]>([]);
   const [departmentFeatureActive, setdepartmentFeatureActive] = useState("yes");
   const [country, setCountry] = useState<string>('');
-  const [name, setName] = useState({
+  const [name, setName] = useState<NameState>({
     userId: "",
     businessName: "",
     website: "",
@@ -79,6 +92,7 @@ function CompleteProfile() {
       setName(prev => ({ ...prev, userId }));
     }
   }, [userId, name.userId]);
+
   // const calculateProgress = ({
   //   name,
   //   country,
@@ -123,7 +137,6 @@ function CompleteProfile() {
   //   });
   //   setProgress(newProgress);
   // }, [name, country, image, selectedServices, addDepartment]);
-
 
   const handleBusinessInformation = useCallback((e: { target: { name: string; value: string; }; }) => {
     const { name, value } = e.target;
