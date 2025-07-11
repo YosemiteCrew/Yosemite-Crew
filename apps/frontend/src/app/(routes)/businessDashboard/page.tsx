@@ -3,6 +3,7 @@
 
 import React from "react";
 import BusinessDashboard from "@/app/Pages/BusinessDashboard/BusinessDashboard";
+import ProtectedRoute from "@/app/Components/ProtectedRoute";
 
 function page() {
   return (
