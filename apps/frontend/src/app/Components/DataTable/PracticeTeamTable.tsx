@@ -3,6 +3,7 @@ import React from "react";
 import GenericTable from "../GenericTable/GenericTable";
 import Image from "next/image";
 import { BsEye } from "react-icons/bs"; // For the eye icon
+import "./DataTable.css"
 
 
 type Appointment = {
@@ -176,12 +177,7 @@ function PracticeTeamTable() {
 
     <div
       className="table-wrapper"
-      style={{
-        background: "#fff",
-        borderRadius: 20,
-        boxShadow: "0 2px 16px rgba(0,0,0,0.06)",
-        padding: 0,
-      }}
+      
     >
       <GenericTable data={data} columns={columns} bordered={false} />
       <div

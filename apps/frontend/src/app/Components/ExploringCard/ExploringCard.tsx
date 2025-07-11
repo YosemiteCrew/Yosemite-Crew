@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import "./ExploringCard.css"
 import Image from "next/image";
-import GLightbox from "glightbox";
 import "glightbox/dist/css/glightbox.css";
 import Link from "next/link";
 
@@ -30,10 +29,17 @@ type ExploreSectionProps ={
 }
 export default function ExploreSection({Headtitle,Headpara , Headtitlespan}: ExploreSectionProps) {
   useEffect(() => {
-    const lightbox = GLightbox({ selector: ".glightbox-video", autoplayVideos: true });
-    lightbox.reload();
-    return () => lightbox.destroy();
-  }, [cards.length]);
+    const loadLightbox = async () => {
+      const GLightbox = (await import("glightbox")).default;
+      await import("glightbox/dist/css/glightbox.css" as any);
+      const lightbox = GLightbox({ selector: ".glightbox-video", autoplayVideos: true });
+      lightbox.reload();
+      return () => {
+        lightbox.destroy();
+      };
+    };
+    loadLightbox();
+  }, []);
 
   return (
     <div className="Exploring-Data">

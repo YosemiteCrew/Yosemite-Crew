@@ -121,6 +121,8 @@ const Dashboard = () => {
           
         );
         if (response.status === 200 && response.data.status === 1) {
+
+                    console.log("responsellllll ", response.data.data);
           const normalAppointments =
             NormalAppointmentConverter.convertAppointments({
               totalAppointments: response.data.data.total,

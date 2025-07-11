@@ -1,6 +1,6 @@
 const Department = require('../models/AddDepartment');
 const AddDoctors = require('../models/AddDoctor');
-const feedbacks = require('../models/FeedBack');
+const feedbacks = require('../models/feedback');
 
 async function enrichClinics(clinics) {
     return Promise.all(

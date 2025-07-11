@@ -166,6 +166,7 @@ function CheckInModal(props) {
   useEffect(() => {
     if (userId) {
       getPurposeOfVisit();
+      console.log("yyyyyyyy");
     
     }
   }, [getPurposeOfVisit,userId]);

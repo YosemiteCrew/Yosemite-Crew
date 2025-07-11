@@ -1,0 +1,410 @@
+.PracticeTeamSec{
+    padding: 80px 0px;
+}
+.PracticeTeamData{
+    display: grid;
+    grid-template-columns: 68% 30%;
+    grid-gap: 2%;
+}
+
+
+
+
+.PracticeTeamData .InviteContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.PracticeTeamData .InviteContainer .InviteHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.PracticeTeamData .InviteContainer .InviteHeader h4 {
+  font-size: 33px;
+  font-weight: 500;
+  color: var(--black-text);
+  line-height: 120%;
+  font-family: var(--grotesk-font);
+  margin: 0;
+}
+.PracticeTeamData .InviteContainer .InviteHeader h4 span {
+  color: var(--black-grey);
+}
+.PracticeTeamData .InviteContainer .InviteHeader button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 24px;
+  border: 1.5px solid var(--black-bg);
+  border-radius: 28px;
+  background: transparent !important;
+  color: var(--black-text);
+  font-size: 19px;
+  line-height: 120%;
+  font-weight: 500;
+}
+.PracticeTeamData .InviteContainer .InviteHeader button:hover {
+  background: var(--black-bg) !important;
+  color: var(--white-text);
+}
+.PracticeTeamData .InviteContainer .InviteCard {
+    border: 1px solid var(--profileborder);
+    padding: 40px;
+    border-radius: 28px;
+    background: var(--whitebg);
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+}
+
+
+.InviteCard .InviteTeamData{
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+.InviteCard .InviteTeamData .MemberFormBlock{
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+.MemberFormBlock .InviteTitleTrash{
+    display: flex;
+   align-items: center;
+   justify-content: space-between;
+   transition: all 0.3s ease;
+}
+.MemberFormBlock .InviteTitleTrash h2{
+    font-size: 23px;
+    font-weight: 500;
+    color: var(--black-text);
+    line-height: 120%;
+    font-family: var(--grotesk-font);
+    margin: 0;
+}
+.MemberFormBlock .InviteTitleTrash h2 span.member-number{
+    color: var(--black-grey-Text);
+}
+.MemberFormBlock .InviteTitleTrash button {
+    background: transparent !important;
+    padding: 0;
+    border: none;
+}
+.MemberFormBlock .InviteTitleTrash button svg{
+    font-size: 28px;
+    color: var(--delete);
+}
+.InviteCard .InviteTeamData .AddMemberDiv{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    flex-direction: column;
+}
+.InviteCard .InviteTeamData .AddMemberDiv button{
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: transparent !important;
+    border: none;
+    font-size: 19px;
+    font-weight: 500;
+    line-height: 120%;
+    color: var(--black-text);
+}
+.InviteCard .InviteTeamData .AddMemberDiv button svg{
+    color: var(--blue-text);
+    font-size: 20px;
+}
+.InviteCard .InviteTeamData .AddMemberDiv button:hover {
+    color: var(--blue-text);
+}
+.InviteCard .InviteTeamData .AddMemberDiv button:hover svg{
+    color: var(--black-text);
+}
+.InviteCard .InviteTeamData .AddMemberDiv p{
+    margin: 0;
+    font-size: 15px;
+    line-height: 24px;
+    font-weight: 700;
+    font-family: var(--satoshi-font);
+    color: var(--black-grey);
+}
+.InviteCard .InviteTeamData .AddMemberDiv p span{
+    color: var(--black-text);
+    cursor: pointer;
+}
+
+
+
+.PracticeTeamData .InviteContainer .InviteCard .InviteFooter {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.PracticeTeamData .InviteContainer .InviteCard .InviteFooter button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 28px;
+    padding: 16px 32px;
+    min-height: 60px;
+    border: 1px solid var(--black-bg) !important;
+    font-size: 23px;
+    font-weight: 500;
+    line-height: 120%;
+    font-family: var(--grotesk-font);
+}
+.PracticeTeamData .InviteContainer .InviteCard .InviteFooter button.SendBtn {
+    background: var(--black-bg) !important;
+    color: var(--white-text);
+}
+.PracticeTeamData .InviteContainer .InviteCard .InviteFooter button.BackBtn {
+    background: transparent !important;
+    color: var(--black-text);
+}
+
+.TopTabs .tab-content .BulkInpt{
+    display: grid;
+    grid-template-columns: 695px auto;
+    grid-gap: 15px;
+}
+.TopTabs .tab-content .BulkInpt button{
+   background: var(--errorbg) !important;
+   border: none !important;
+   border-radius: 50%;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   width: 60px;
+   height: 60px;
+   margin: 0 auto;
+}
+.TopTabs .tab-content .BulkInpt button svg{
+   font-size: 24px;
+   color: var(--error-color);
+}
+
+.TopTabs .tab-content .AddMorebtn {
+   display: flex;
+   align-items: center;
+   justify-content: center;
+}
+.TopTabs .tab-content .AddMorebtn button{
+    padding: 0px 24px;
+    min-height: 48px;
+    border-radius: 28px;
+    background: transparent !important;
+    border: 1px solid var(--black-bg) !important;
+    color: var(--black-text);
+    transition: 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-family: var(--grotesk-font);
+    font-size: 19px;
+    font-weight: 500;
+}
+.TopTabs .tab-content .AddMorebtn button:hover{
+    background: var(--black-bg) !important;
+    color: var(--white-text) !important;
+}
+.TopTabs .tab-content .AddMorebtn button svg{
+    font-size: 22px;
+}
+
+/* Bulk invite Modal Started  */
+.BulkInviteModalSec .modal-content{
+    box-shadow: 0px 10px 20px 0px #47382729;
+    background: var(--whitebg);
+    padding: 28px 40px;
+    position: relative;
+    border-radius: 28px;
+    min-width: 670px;
+    min-height: 595px;
+}
+.BulkInviteModalSec .modal-content .BulkInviteBody{
+    padding: 20px 0px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+}
+.BulkInviteModalSec .modal-content .BulkInviteBody .BulkHeader{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 4px;
+}
+.BulkInviteModalSec .modal-content .BulkInviteBody .BulkHeader h3{
+    margin: 0;
+    color: var(--black-text);
+    font-size: 33px;
+    line-height: 120%;
+    font-weight: 500;
+    font-family: var(--grotesk-font);
+}
+.BulkInviteModalSec .modal-content .BulkInviteBody .BulkHeader p{
+    margin: 0;
+    color: var(--black-grey-Text);
+    font-size: 15px;
+    line-height: 120%;
+    font-weight: 700;
+    font-family: var(--satoshi-font);
+}
+.BulkInviteModalSec .modal-content .BulkInviteBody .BulkMidContent{
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+.BulkInviteModalSec .modal-content .BulkInviteBody .BulkMidContent .Step1 , .BulkInviteModalSec .modal-content .BulkInviteBody .BulkMidContent .Step2{
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.BulkInviteModalSec .modal-content .BulkInviteBody .BulkMidContent .Step1 .Step1Hed , .BulkInviteModalSec .modal-content .BulkInviteBody .BulkMidContent .Step2 .Step2Hed{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0px 12px;
+}
+.BulkInviteModalSec .modal-content .BulkInviteBody .BulkMidContent .Step1 .Step1Hed h6 , .BulkInviteModalSec .modal-content .BulkInviteBody .BulkMidContent .Step2 .Step2Hed h6{
+    margin: 0;
+    font-weight: 700;
+    font-size: 15px;
+    line-height: 24px;
+    font-family: var(--satoshi-font);
+    color: var(--black-text);
+}
+.BulkInviteModalSec .modal-content .BulkInviteBody .BulkMidContent .Step1 .Step1Hed input[type=checkbox]:checked {
+  background-color: var(--checkgreen) !important;
+  border: 1px solid var(--checkgreen) !important;
+}
+.BulkInviteModalSec .modal-content .BulkInviteBody .BulkMidContent .Step1 .StepDownlde{
+    border: 0.5px solid var(--greytext);
+    border-radius: 20px;
+    padding: 28px 20px;
+    min-height: 107px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+}
+.BulkInviteModalSec .modal-content .BulkInviteBody .BulkMidContent .Step1 .StepDownlde .lftText h4{
+    color: var(--purple-text);
+    font-family: var(--grotesk-font);
+    font-weight: 500;
+    font-size: 19px;
+    line-height: 120%;
+    margin: 0;
+}
+.BulkInviteModalSec .modal-content .BulkInviteBody .BulkMidContent .Step1 .StepDownlde .lftText p{
+    color: var(--black-grey-Text);
+    font-family: var(--satoshi-font);
+    font-weight: 700;
+    font-size: 15px;
+    line-height: 24px;
+    margin: 0;
+}
+.BulkInviteModalSec .modal-content .BulkInviteBody .BulkMidContent .Step1 .StepDownlde .RytDoct svg{
+    font-size: 28px;
+    color: var(--blue-text);
+}
+.BulkInviteModalSec .modal-content .BulkInviteBody .BulkMidContent .Step2 .StepUplode{
+    border-radius: 20px;
+    border: 1px dashed var(--greyborder);
+    min-height: 158px;
+    padding: 28px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 32px;
+    text-align: center;
+    overflow: hidden;
+    cursor: pointer;
+    position: relative;
+}
+.BulkInviteModalSec .modal-content .BulkInviteBody .BulkMidContent .Step2 .StepUplode input{
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    z-index: 1;
+    opacity: 0;
+    cursor: pointer;
+}
+.BulkInviteModalSec .modal-content .BulkInviteBody .BulkMidContent .Step2 .StepUplode .UplodeInner{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    text-align: center;
+}
+.BulkInviteModalSec .modal-content .BulkInviteBody .BulkMidContent .Step2 .StepUplode .UplodeInner svg{
+    font-size: 40px;
+    color: var(--blue-text);
+}
+.BulkInviteModalSec .modal-content .BulkInviteBody .BulkMidContent .Step2 .StepUplode .UplodeInner h4{
+    margin: 0;
+    color: var(--purple-text);
+    font-weight: 700;
+    font-size: 18px;
+    line-height: 120%;
+    font-family: var(--satoshi-font); 
+}
+.BulkInviteModalSec .modal-content .BulkInviteBody .BulkMidContent .Step2 .StepUplode .UplodeInner p{
+    color: var(--black-grey-Text);
+    margin: 0;
+    font-weight: 400;
+    font-size: 15px;
+    line-height: 24px;
+    font-family: var(--satoshi-font); 
+}
+.BulkInviteModalSec .modal-content .BulkInviteBody .UpldBtn{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.BulkInviteModalSec .modal-content .BulkInviteBody .UpldBtn button{
+    background: var(--black-bg);
+    color: var(--white-text);
+    border-radius: 24px;
+    padding: 14px 24px;
+    border: 1px solid var(--black-bg);
+    font-size: 19px;
+    font-weight: 500;
+    font-family: var(--grotesk-font);
+    line-height: 120%;
+}
+.BulkInviteModalSec .modal-content .BulkInviteBody .UpldBtn button:hover{
+    background: transparent;
+    color: var(--black-text);
+}
+.BulkInviteModalSec .modal-content .CrossBtn{
+    position: absolute;
+    top: 0px;
+    right: 0px;
+}
+.BulkInviteModalSec .modal-content .CrossBtn button{
+    padding: 0;
+    border: 0;
+    line-height: 0;
+    background: transparent !important;
+}
+.BulkInviteModalSec .modal-content .CrossBtn button svg{
+    font-size: 24px;
+    color: var(--black-grey-Text);
+}
+
+
+/* Bulk invite Modal Ended  */
+
+

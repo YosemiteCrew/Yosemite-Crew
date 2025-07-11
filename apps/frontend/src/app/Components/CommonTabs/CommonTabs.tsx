@@ -7,6 +7,7 @@ interface TabData {
   eventKey: string;
   title: string;
   content: React.ReactNode;
+  count?: number; // optional
 }
 
 interface CommonTabsProps {
@@ -17,7 +18,7 @@ interface CommonTabsProps {
 
 const statusOptions = ['Confirmed', 'Pending', 'Cancelled'];
 
-const CommonTabs = ({ tabs, defaultActiveKey, showStatusSelect = false }: CommonTabsProps) => {
+const CommonTabs = ({ tabs, defaultActiveKey, showStatusSelect = false  }: CommonTabsProps) => {
   const [status, setStatus] = useState<string>('Confirmed');
 
   const handleDropdownSelect = (eventKey: string | null) => {
@@ -25,33 +26,39 @@ const CommonTabs = ({ tabs, defaultActiveKey, showStatusSelect = false }: Common
   };
 
   return (
-    <div className="LinesTabsSec">
-      <Tabs defaultActiveKey={defaultActiveKey || tabs[0].eventKey} className="linesTabs ">
-        {tabs.map((tab) => (
-          <Tab eventKey={tab.eventKey} title={tab.title} key={tab.eventKey}>
-            {tab.content}
-          </Tab>
-        ))}
-      </Tabs>
+    <>
 
-      {showStatusSelect && (
-        <div className="SelectStatus">
-          <p>Status:</p>
-          <Dropdown onSelect={handleDropdownSelect}>
-            <Dropdown.Toggle className="custom-status-dropdown" id="dropdown-status">
-              {status}
-            </Dropdown.Toggle>
-            <Dropdown.Menu>
-              {statusOptions.map((opt) => (
-                <Dropdown.Item eventKey={opt} key={opt} active={status === opt}>
-                  {opt}
-                </Dropdown.Item>
-              ))}
-            </Dropdown.Menu>
-          </Dropdown>
-        </div>
-      )}
-    </div>
+      <div className="LinesTabsSec">
+        <Tabs defaultActiveKey={defaultActiveKey || tabs[0].eventKey} className="linesTabs ">
+          {tabs.map((tab) => (
+            <Tab eventKey={tab.eventKey} title={<>{tab.title} {tab.count && (<span className="tab-count-badge">{tab.count}</span>)}</>} key={tab.eventKey}>
+              {tab.content}
+            </Tab>
+          ))}
+        </Tabs>
+        {showStatusSelect && (
+          <div className="SelectStatus">
+            <p>Status:</p>
+            <Dropdown onSelect={handleDropdownSelect}>
+              <Dropdown.Toggle className="custom-status-dropdown" id="dropdown-status">
+                {status}
+              </Dropdown.Toggle>
+              <Dropdown.Menu>
+                {statusOptions.map((opt) => (
+                  <Dropdown.Item eventKey={opt} key={opt} active={status === opt}>
+                    {opt}
+                  </Dropdown.Item>
+                ))}
+              </Dropdown.Menu>
+            </Dropdown>
+          </div>
+        )}
+      </div>
+
+      
+
+
+    </>
   );
 };
 

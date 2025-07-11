@@ -10,6 +10,8 @@ import { IoIosHelpCircleOutline, IoMdClose } from 'react-icons/io';
 import { IoNotifications } from 'react-icons/io5';
 import { FaSignInAlt } from 'react-icons/fa';
 import { RiAccountBoxFill } from 'react-icons/ri';
+import { useAuthStore } from '@/app/stores/authStore';
+import { handleLogout } from '@/app/utils/LogoutApi';
 
 interface NavItem {
   label: string;
@@ -17,47 +19,61 @@ interface NavItem {
   children?: NavItem[];
 }
 
-interface HeaderProps {
-  isLoggedIn: boolean;
-}
+// interface HeaderProps {
+//   isLoggedIn?: boolean;
+// }
 
 const navItems: NavItem[] = [
   { label: 'Home', href: '/' },
   {
     label: 'Clinic',
     children: [
-      { label: 'Dropdown 1', href: '/clinic/dropdown1' },
-      { label: 'Dropdown 2', href: '/clinic/dropdown2' },
+      { label: 'Specialities', href: '/departmentsmain' },
+      { label: 'Practice Team', href: '/practiceTeam' },
+      { label: 'Manage Invites', href: '/inviteteammembers' },
+      { label: 'Manage Clinic Visibility', href: '/clinicvisiblity' },
     ]
   },
   {
     label: 'Operations',
     children: [
-      { label: 'Dropdown 1', href: '/operations/dropdown1' },
-      { label: 'Dropdown 2', href: '/operations/dropdown2' },
+      { label: 'Queue Management', href: '#' },
+      { label: 'Appointments', href: '/AppointmentVet' },
+      { label: 'Assessments', href: '/AssessmentVet' },
+      { label: 'Prescriptions', href: '#' },
+      { label: 'Inventory', href: '/inventorydashboard' },
+      { label: 'Procedure Packages', href: '#' },
     ]
   },
   {
     label: 'Finance',
     children: [
-      { label: 'Dropdown 1', href: '/finance/dropdown1' },
-      { label: 'Dropdown 2', href: '/finance/dropdown2' },
+      { label: 'Revenue Reporting', href: '/RevenueManagement' },
+      { label: 'Billing', href: '#' },
+      { label: 'Client Statements', href: '#' },
+      { label: 'Coupons', href: '#' },
+      { label: 'Payment Methods', href: '#' },
+      { label: 'Procedure Estimates', href: '/ProcedureEstimate' },
     ]
   },
   {
     label: 'Help & Resources',
     children: [
-      { label: 'Dropdown 1', href: '/help/dropdown1' },
-      { label: 'Dropdown 2', href: '/help/dropdown2' },
+      { label: 'Blog', href: '/blogpage' },
+      { label: 'Resources', href: '#' },
+      { label: 'Contact Us', href: '/contact_us' },
     ]
-  }
+  },
+  
 ];
 
-const Header: React.FC<HeaderProps> = ({ isLoggedIn }) => {
+const Header = () => {
+  const { userType } = useAuthStore();
+  console.log("userType", userType);
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-
+  const isVerified = useAuthStore((state) => state.isVerified);
   useEffect(() => {
     document.body.classList.toggle('mobile-nav-active', mobileOpen);
   }, [mobileOpen]);
@@ -130,8 +146,7 @@ const Header: React.FC<HeaderProps> = ({ isLoggedIn }) => {
             {mobileOpen ? <IoMdClose size={28} /> : <FaBarsStaggered size={28} />}
           </button>
         </nav>
-
-        {isLoggedIn && (
+        {isVerified && (
           <div className="UserInfoHeader">
 
             <div className="Notify">
@@ -155,12 +170,17 @@ const Header: React.FC<HeaderProps> = ({ isLoggedIn }) => {
                     </div>
                     
                   </span>
-                  <ul className="dropdown profileUl">
-                    <li><Link href="#"><FaUser /> My Profile</Link></li>
-                    <li><Link href="#"><RiAccountBoxFill/> Account Settings</Link></li>
-                    <li><Link href="#"><IoIosHelpCircleOutline/> Need Help?</Link></li>
-                    <li><Link href="/signup"><FaSignInAlt/> Sign Out</Link></li>
-                  </ul>
+                  <div className="profileUl">
+                    <div className='ProfDiv'>
+                      <Link href="#"><FaUser /> My Profile</Link>
+                      <Link href="#"><RiAccountBoxFill/> Account Settings</Link>
+                      <Link href="#"><IoIosHelpCircleOutline/> Need Help?</Link>
+                      <Link href="/signup" onClick={()=>handleLogout()}><FaSignInAlt/> Sign Out</Link>
+                    </div>
+                    {/* <li><Link href="#"><RiAccountBoxFill/> Account Settings</Link></li>
+                    <li><Link href="#"><IoIosHelpCircleOutline/> Need Help?</Link></li> */}
+                    {/* <li><Link href="/signup"><FaSignInAlt/> Sign Out</Link></li>  */}
+                  </div>
                 </li>
               </ul>
             </div>

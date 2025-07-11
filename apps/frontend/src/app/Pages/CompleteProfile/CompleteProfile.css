@@ -14,7 +14,7 @@
 .ComptBtn{
     display: flex;
     align-items: center;
-    justify-content: end;
+    justify-content: flex-end;
 }
 .ComptBtn.twbtn{
     justify-content: space-between;
