@@ -204,7 +204,7 @@ const ChatApp: React.FC = () => {
             <Col md={9} className="chat-window">
               <div className="chat-header-top d-flex justify-content-between align-items-center">
                 <div className="d-flex align-items-center">
-                  <Image src="/Images/doctor.png" className="avatar" width={150} height={150} />
+                  <Image alt="Test" src="/Images/doctor.png" className="avatar" width={150} height={150} />
                   <strong className="ms-2">
                     {isTeamChat ? "Dr. Patrick Henry" : "Sky B"}
                   </strong>

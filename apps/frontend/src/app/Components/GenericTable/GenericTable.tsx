@@ -5,7 +5,7 @@ import { FiArrowLeft, FiArrowRight } from "react-icons/fi";
 
 interface Column<T> {
   label: string;
-  key: keyof T;
+  key: keyof T | string;
   render?: (item: T, index: number) => React.ReactNode;
   width?: string | number;
 }
@@ -59,7 +59,11 @@ function GenericTable<T extends object>({
                   style={col.width ? { width: col.width } : {}}
                 >
                   <div className="td-inner">
-                    {col.render ? col.render(row, index) : (row[col.key] as React.ReactNode)}
+                    {col.render
+                      ? col.render(row, index)
+                      : (typeof col.key === "string"
+                          ? (row[col.key as keyof T] as React.ReactNode)
+                          : (row[col.key] as React.ReactNode))}
                   </div>
                 </td>
               ))}
