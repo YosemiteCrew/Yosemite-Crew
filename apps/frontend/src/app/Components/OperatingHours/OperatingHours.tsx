@@ -24,6 +24,7 @@ type DayHours = {
 type OperatingHoursProps = {
   onSave?: (hours: DayHours[]) => void;
   onChange?: (duration: string) => void;
+  Optrtname?: string;
 };
 
 const defaultDays: DayHours[] = [

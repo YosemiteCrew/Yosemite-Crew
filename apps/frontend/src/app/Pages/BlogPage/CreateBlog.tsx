@@ -187,7 +187,7 @@ function CreateBlog() {
 console.log(formData,"formDataformDataformDataformData")
   return (
     <>
-      <Header isLoggedIn={isLoggedIn} />
+      <Header />
       <section className="CreateBlogSec">
         <Container>
           <Row>

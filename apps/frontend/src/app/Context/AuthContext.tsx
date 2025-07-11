@@ -79,14 +79,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const refreshProfileData = async (userId: string, userType: string) => {
     try {
       if (userType === "Hospital" || userType === "Groomer Shop") {
-        const data = await getProfiledata(userId);
+        const data = await getProfiledata(userId) as any;
         setProfileData({
           logoUrl: data.logoUrl,
           businessName: data.businessName,
           activeModes: data.activeModes,
         });
       } else if (userType === "Doctor") {
-        const data = await getdoctorprofile(userId);
+        const data = await getdoctorprofile(userId) as any;
         setProfileData({
           logoUrl: data.personalInfo.image,
           businessName: `${data.personalInfo.firstName} ${data.personalInfo.lastName}`,
