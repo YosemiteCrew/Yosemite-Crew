@@ -1,0 +1,119 @@
+.ContactUsPageSec{
+    padding: 80px 0px;
+    min-height: 100vh;
+}
+.ContactUsData{
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+}
+.ContactUsData .LeftContactUs h2{
+    font-size: 57px;
+    font-weight: 500;
+    line-height: 120%;
+    margin: 0;
+    font-family: var(--grotesk-font);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ContactInfoSec Started  */
+.ContactInfoSec{
+    background: url(/Images/ContactInfoBG.png) no-repeat;
+    background-size: 100% 100%;
+    min-height: 337px;
+    display: flex;
+    align-items: center;
+}
+.ContactInfoData{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.LeftContInfo{
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+.LeftContInfo span , .ContactUsData .LeftContactUs span{ 
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 120%;
+    font-family: var(--satoshi-font);
+    color: var(--blue-text);
+}
+.LeftContInfo h2{
+    font-size: 48px;
+    line-height: 120%;
+    margin: 0;
+    font-weight: 500;
+    color: var(--black-text);
+}
+
+.ContactInfoDetail{
+    display: flex;
+    gap: 80px;
+}
+.ContactInfoDetail .LeftDetails{
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+.ContactInfoDetail .LeftDetails .detailitem h4{
+    position: relative;
+    min-height: 43px;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 120%;
+    font-family: var(--satoshi-font);
+    color: var(--black-text);
+}
+.ContactInfoDetail .LeftDetails .detailitem h4::after{
+    position: absolute;
+    content: " ";
+    width: 22px;
+    height: 3px;
+    bottom: 0;
+    left: 0;
+    background: var(--black-bg);
+}
+.ContactInfoDetail .LeftDetails .detailTexed{
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+.ContactInfoDetail .LeftDetails .detailTexed h6{
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 120%;
+    font-family: var(--satoshi-font);
+    color: var(--black-text);
+    margin: 0;
+}
+.ContactInfoDetail .LeftDetails .detailTexed p{
+    max-width: 184px;
+    font-size: 18px;
+    font-weight: 400;
+    line-height: 140%;
+    font-family: var(--satoshi-font);
+    color: var(--black-text);
+    margin: 0;
+}
+
+
+
+/* ContactInfoSec Ended  */

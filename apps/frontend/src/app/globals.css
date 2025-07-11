@@ -1,42 +1,719 @@
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* Fonts */
+@font-face {
+  font-family: 'ClashGrotesk';
+  src: url('/fonts/ClashGrotesk/clashgrotesk-regular-webfont.woff2') format('woff2'),
+       url('/fonts/ClashGrotesk/clashgrotesk-regular-webfont.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+@font-face {
+  font-family: 'ClashGrotesk';
+  src: url('/fonts/ClashGrotesk/clashgrotesk-medium-webfont.woff2') format('woff2'),
+       url('/fonts/ClashGrotesk/clashgrotesk-medium-webfont.woff') format('woff');
+  font-weight: 500;
+  font-style: normal;
 }
 
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
+@font-face {
+  font-family: 'ClashGrotesk';
+  src: url('/fonts/ClashGrotesk/clashgrotesk-bold-webfont.woff2') format('woff2'),
+       url('/fonts/ClashGrotesk/clashgrotesk-bold-webfont.woff') format('woff');
+  font-weight: 700;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Satoshi';
+  src: url('/fonts/ClashGrotesk/satoshi-light-webfont.woff2') format('woff2'),
+       url('/fonts/ClashGrotesk/satoshi-light-webfont.woff') format('woff');
+  font-weight: 300; /* Light */
+  font-style: normal;
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@font-face {
+  font-family: 'Satoshi';
+  src: url('/fonts/ClashGrotesk/satoshi-regular-webfont.woff2') format('woff2'),
+       url('/fonts/ClashGrotesk/satoshi-regular-webfont.woff') format('woff');
+  font-weight: 400; /* Regular */
+  font-style: normal;
 }
+
+@font-face {
+  font-family: 'Satoshi';
+  src: url('/fonts/ClashGrotesk/satoshi-medium-webfont.woff2') format('woff2'),
+       url('/fonts/ClashGrotesk/satoshi-medium-webfont.woff') format('woff');
+  font-weight: 500; /* Medium */
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Satoshi';
+  src: url('/fonts/ClashGrotesk/satoshi-bold-webfont.woff2') format('woff2'),
+       url('/fonts/ClashGrotesk/satoshi-bold-webfont.woff') format('woff');
+  font-weight: 700; /* Bold */
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Satoshi';
+  src: url('/fonts/ClashGrotesk/satoshi-black-webfont.woff2') format('woff2'),
+       url('/fonts/ClashGrotesk/satoshi-black-webfont.woff') format('woff');
+  font-weight: 900; /* Black */
+  font-style: normal;
+}
+
 
 * {
-  box-sizing: border-box;
   padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+  scroll-behavior: smooth;
+}
+:root {
+
+  --black-text: #302F2E;
+  --black-bg: #302F2E;
+  --darkblackbg:#141413;
+  --lightblack:#312943;
+  --purple-text: #37223C;
+  --pureblack: #000000;
+  --black-grey: #747473;
+  --black-grey-Text: #747473;
+  --black-grey1: #302F2E;
+  --blue-text: #247AED;
+  --light-blue: #E9F2FD;
+  --white-text: #FFFFFF;
+  --whitebg: #FFFFFF;
+  --greyborder: #A09F9F;
+  --greybg: #A09F9F;
+  --lightgrey:#EAEAEA;
+  --greytext:#BFBFBE;
+  --lightwhiteText:#EAEAEA;
+  --slectedbg:#76767617;
+  
+  
+  --popupbg:#EAEAEA;
+  --lightblue:#EAF3FF;
+  --skytext:#428BEC;
+  
+  --pinkborder:#37223CB2;
+  --profileborder:#5D412F26;
+  --warnggrdt: linear-gradient(0deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.7)), linear-gradient(0deg, #F68523, #F68523);
+  --greenbg:#B0DCCD;
+  --error-color:#EE5F54;
+  --errorbg:#FDEBEA;
+  --notibg:#595958;
+  --avilblebg:#8AC1B133;
+  --avilbleText:#8AC1B1;
+  --lightgreen: #54B492;
+  --offdutybg:#302F2E26;
+  --counslingbg:#D0412226;
+  --counslingtext:#D04122;
+  --orange:#FF9500;
+  --red:#FF3B30;
+  --ddd:linear-gradient(180deg, rgba(191, 191, 190, 0.35) 0%, rgba(191, 191, 190, 0) 100%);
+  --checkbg:#E6F4EF;
+  --delete:#EA3729;
+  --checkgreen:#008F5D;
+  --greenopt:#8AC1B126;
+  --halforange:#FDBD7426;
+  --darkFawn:#D09B5E;
+  --pendingbg:#FEF3E9;
+  --pendingtext:#F68523;
+  --redopacity:#D041221A;
+
+
+
+
+
+  
+  --grotesk-font: 'ClashGrotesk', sans-serif;
+  --satoshi-font: 'Satoshi', sans-serif;
+  --mainBg: #FEF8F4;
+  --homebg: #fff2e3;
+  --fawncolor:#FDBD74;
+  --whitecolor: #FFFFFF;
+  --whitetcolor80: #FFFFFFCC;
+  --fawanGradient:linear-gradient(139.66deg, rgba(253, 189, 116, 0.21) 18.09%, rgba(253, 189, 116, 0.07) 86.04%);
+  --chilli-red: #D04122;
+  
+  --bluecolor:#37223C;
+  --purple: #8e88d2;
+  --frowndark: #d09b5e;
+  --green: #60b257;
+  --greenlight: #97c254;
+  --yellow: #e3ca57;
+  --orange: #f1963f;
+  --red: #eb3223;
+  --footbg: #e8e8d9;
+}
+html,
+body {
+  width: 100%;
+  height: 100%;
+}
+body {
+  background-color: var(--whitebg) !important;
+}
+a{
+  text-decoration: none !important;
+}
+p{
+  font-family: var(--satoshi-font);
+}
+.form-control:focus {
+  border-color: var(--black-text) !important ;
+  box-shadow: none !important;
+}
+
+.BlackButton{
+  background: var(--black-text) !important;
+  padding: 16px 32px !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-radius: 28px !important;
+  min-height: 60px;
+  width: 100%;
+  border: 1px solid var(--black-text) !important;
+  color: var(--white-text) !important;
+  font-weight: 500 !important;
+  font-size: 23px !important;
+  line-height: 120% !important;
+}
+.BlackButton:hover{
+  background:transparent !important;
+  color: var(--black-text) !important;
+  border: 1px solid var(--black-text) !important;
+}
+.BlackButton svg{
+ font-size: 24px;
+}
+
+
+input[type=checkbox] {
+  width: 21px;
+  height: 21px;
+  -moz-appearance: none;
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: 5px;
+  border: 1.2px solid var(--black-text) !important;
+  background-color: transparent;
+  cursor: pointer;
+  position: relative
+}
+
+input[type=checkbox]:checked {
+  background-color: var(--black-text);
+}
+.form-check-input:focus {
+    box-shadow: none !important;
+}
+/* Chrome, Safari, Edge, Opera */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
   margin: 0;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+/* Firefox */
+input[type=number] {
+  -moz-appearance: textfield;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
+/* serchbar style  */
+.Searchbar {
+  width: 100%;
+  max-width: 300px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--pinkborder);
+  padding: 2px 12px;
+  border-radius: 36px;
+  height: 48px;
 }
+.Searchbar input {
+  background-color: transparent;
+  border: none;
+}
+.Searchbar button {
+  background: transparent !important;
+  border: none;
+}
+.Searchbar button svg {
+  color: var(--black-text);
+  font-size: 20px;
+}
+/* serchbar style  */
+
+.Headingtext h3{
+  font-family: var( --grotesk-font);
+  font-size: 33px;
+  font-weight: 500;
+  line-height: 120%;
+  letter-spacing: -0.02em;
+  color: var(--black-text);
+  margin: 0;
+}
+.Headingtext h3 span{
+  color: var(--black-grey);
+}
+
+/* .Profile Tabs Started  */
+
+.Add_Profile_Data {
+  display: grid;
+  grid-template-columns: 68% 30%;
+  grid-gap: 22px;
+}
+.AddVetTabDiv .VetPills {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 839px;
+  margin: 30px 0px;
+  grid-gap: 50px;
+}
+.AddVetTabDiv .VetPills .nav-item{
+  position: relative;
+}
+.AddVetTabDiv .VetPills .nav-item::after{
+  position: absolute;
+  content: " ";
+  background: var(--black-bg);
+  width: 50px;
+  height: 3px;
+  top: 50%;
+  right: -80px;
+}
+.AddVetTabDiv .VetPills .nav-item:last-child:after{
+  display: none;
+}
+.AddVetTabDiv .VetPills .nav-item a{
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  grid-gap: 8px;
+  color: var(--black-grey);
+  font-family: var(--grotesk-font);
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 100%;
+  padding: 0px;
+}
+.AddVetTabDiv .VetPills .nav-item a span{
+  display: flex;
+  align-items: center;
+  background: var(--greyborder) !important;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+.AddVetTabDiv .VetPills .nav-item a span svg{
+  font-size: 20px;
+  color: var(--white-text);
+}
+.AddVetTabDiv .VetPills .nav-item a.active{
+  color: var( --black-text);
+  background: transparent;
+}
+.AddVetTabDiv .VetPills .nav-item a.active span{
+  background: var(--black-bg) !important;
+}
+
+
+.Add_Profile_Data .LeftProfileDiv{
+  border: 1px solid var(--profileborder);
+  padding: 40px;
+  border-radius: 28px;
+  /* box-shadow: 0px 0px 30px 0px #4738271A; */
+}
+
+/* .Profile Tabs Ended */
+
+
+
+/* Add image css  */
+.add-logo-container {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.upload-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+}
+.upload-placeholder {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--light-blue);
+  transition: border-color 0.3s ease;
+  border: 1px solid var(--skytext);
+}
+.preview-image {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--black-bg);
+}
+
+.add-logo-container h5 {
+  font-family: var(--grotesk-font);
+  font-size: 23px;
+  font-weight: 500;
+  line-height: 120%;
+  color: var(--black-text);
+  margin: 0;
+}
+/* Add image css  */
+
+
+
+
+/* select Ul  */
+
+.SelectUl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 0;
+  margin: 0;
+}
+.SelectUl li {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 0.5px solid var(--lightblack);
+  border-radius: 28px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 16.2px;
+  letter-spacing: -0.02em;
+  color: #37223c;
+  font-family: var(--satoshi-font);
+  min-width: 85px;
+  min-height: 42px;
+  cursor: pointer;
+  padding: 0px 20px;
+}
+.SelectUl li.active {
+  background: var(--light-blue);
+  border: 1px solid var(--blue-text);
+  color: var(--blue-text);
+  font-weight: 700;
+}
+/* select Ul  */
+
+.TableRowDiv{
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+
+
+/* DoctorClender started  */
+
+.DoctorClender{
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+.DoctorClender .TopClendr{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.DoctorClender .TopClendr .lftclndr h3{
+    color: var(--pureblack);
+    margin: 0;
+    font-family: var(--grotesk-font);
+    font-weight: 500;
+    font-size: 33px;
+    line-height: 120%;
+}
+.DoctorClender .TopClendr .Rytclndr{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.DoctorClender .TopClendr .Rytclndr .clnderSlect button{
+    min-width: 152px;
+    padding: 0px;
+    border: none;
+    background: transparent !important;
+    color: var( --notibg) !important;
+    padding: 10px 16px;
+    border-radius: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 40px;
+}
+
+
+.DoctorClender .TopClendr .Rytclndr .clnderBtn a{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 10px 16px;
+    border-radius: 28px;
+    background: var(--black-bg);
+    font-family: var(--grotesk-font);
+    font-weight: 500;
+    font-size: 16px;
+    color: var(--white-text);
+    border: 1px solid var(--black-bg);
+    transition: all 0.3s ease;
+}
+.DoctorClender .TopClendr .Rytclndr .clnderBtn a:hover{
+    background: var(--whitebg);
+    color: var(--black-text);
+}
+
+/* DoctorClender Ended  */
+
+
+/* Assessment Vet / Appointment Vet Started  */
+.AppointmentVetSection{
+    padding: 100px 0px;
+}
+.AppointmentVetSection .AppointmentVetData{
+    display: flex;
+    flex-direction: column;
+    gap: 80px;
+}
+.TopAppontVet{
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+}
+.TopAppontVet .ApointHead{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.TopAppontVet .ApointHead h2{
+    font-family: var(--grotesk-font);
+    font-size: 40px;
+    font-weight: 500;
+    line-height: 120%;
+    margin: 0;
+    color: var(--black-text);
+}
+.TopAppontVet .ApointHead span{
+    font-family: var(--satoshi-font);
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 120%;
+    margin: 0;
+    color: var(--skytext);
+    background: var(--lightblue);
+    padding: 12px 16px;
+    border-radius: 16px;
+}
+
+/* Assessment Vet / Appointment Vet Ended  */
+
+.GraphGridDiv{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: flex-end;
+  grid-gap: 24px;
+}
+
+
+.StatusSelect{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-radius: 28px;
+  border: 1px solid var(--greybg);
+}
+
+
+/* Table TopBar Started  */
+.TableTopBar{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.TableTopBar .leftTopTbl .TbleText h3{
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--black-text);
+    font-family: var(--grotesk-font);
+    font-weight: 500;
+    font-size: 33px;
+    line-height: 120%;
+    margin: 0;
+}
+.RightTopTbl{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.RightTopTbl .Tblserchdiv{
+    display: flex;
+    align-items: center;
+    min-width: 320px;
+    padding: 10px 16px;
+    border-radius: 36px;
+    min-height: 40px;
+    position: relative;
+    border: 1px solid var(--greytext);
+}
+.RightTopTbl .Tblserchdiv input{
+    border: none;
+    outline: none;
+    background: transparent;
+    cursor: pointer;
+    flex: 1;
+    color: var( --notibg);
+    font-size: 15px;
+    line-height: 24px;
+    font-weight: 600;
+    font-family: var(--satoshi-font);
+}
+.RightTopTbl .Tblserchdiv input::placeholder{
+    color: var( --notibg);
+    font-weight: 400;
+}
+.RightTopTbl .Tblserchdiv button{
+    border: none;
+    background: transparent !important;
+    padding: 0;
+}
+.RightTopTbl .Tblserchdiv button svg{
+    color: var(--black-bg);
+}
+
+.DoctSlect button , .StatusSlect button{
+    min-width: 152px;
+    padding: 0px;
+    border: 1px solid var(--greytext) !important;
+    background: transparent !important;
+    color: var( --notibg) !important;
+    padding: 10px 16px;
+    border-radius: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 40px;
+
+}
+.StatusSlect button{
+    min-width: 104px !important;
+}
+/* Table TopBar Ended  */
+
+/* GenericTable Started  */
+
+.TableDiv{
+  box-shadow: 0px 0px 30px 0px #4738271A !important;
+  background: var(--whitebg) !important;
+  border: 1px solid var(--lightgrey) !important;
+  border-radius: 24px !important;
+  padding: 24px !important;
+  vertical-align: middle !important;
+  margin: 0 !important;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.TableDiv thead tr th , .TableDiv tbody tr td {
+  padding: 16px 18px;
+  vertical-align: middle;
+}
+.TableDiv tbody tr:hover{
+  background: var(--popupbg) !important;
+}
+.TableDiv thead tr th {
+  color: var(--black-text);
+  font-size: 15px;
+  font-weight: 700;
+  font-family: var(--satoshi-font);
+  opacity: 70%;
+}
+.TableDiv thead tr th , .TableDiv tbody tr td {
+  border-bottom: 1px solid var(--lightgrey);
+}
+.TableDiv tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.TableDiv tbody tr td p{
+  margin: 0px;
+  font-family: var(--satoshi-font);
+  color: var(--black-text);
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 120%;
+}
+.TableDiv tbody tr td span{
+  margin: 0px;
+  font-family: var(--satoshi-font);
+  color: var(--black-text);
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 120%;
+  opacity: 60%;
+}
+.custom-pagination{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+.custom-pagination button{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--whitebg) !important;
+  border-radius: 8px;
+  border: 1px solid var( --black-bg) !important;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+}
+.custom-pagination button svg{
+  color:  var( --black-bg);
+}
+.custom-pagination button:hover{
+  background: var( --black-bg) !important;
+}
+.custom-pagination button:hover svg{
+  color:  var( --whitebg);
+}
+.custom-pagination p{
+  color:  var(--notibg);
+  margin: 0;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 24px;
+  font-family: var(--satoshi-font);
+}
+.custom-pagination p span{
+  font-weight: 700;
+}
+
+
+
+
+/* GenericTable Ended  */

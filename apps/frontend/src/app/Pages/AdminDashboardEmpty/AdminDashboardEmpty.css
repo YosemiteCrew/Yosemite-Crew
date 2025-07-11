@@ -1,0 +1,319 @@
+.SubscribePopup{
+    background: var(--popupbg);
+    padding: 16px 10px;
+    border-radius: 0px 0px 20px 20px;
+    height: 76px;
+}
+.SubsPopInner{
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    text-align: center;
+}
+.SubsPopInner h4{
+    font-family: var(--satoshi-font);
+    font-size: 19px;
+    font-weight: 500;
+    line-height: 120%;
+    color: var(--black-text);
+    margin: 0;
+}
+.SubsPopInner p{
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-family: var(--satoshi-font);
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 120%;
+    color: var(--black-text);
+    margin: 0;
+}
+.SubsPopInner p a{
+   font-weight: 700;
+   color: var(--blue-text);
+   animation: pulseGlow 1.8s ease-in-out infinite;
+}
+.SubsPopInner p a.clicked{
+   color: var(--black-text);
+}
+@keyframes pulseGlow {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+    text-shadow: 0 0 0 transparent;
+  }
+  50% {
+    transform: scale(1.02);
+    opacity: 0.8;
+
+  }
+}
+
+
+/* EmptyDashboardData */
+.EmptyDashboardData{
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    padding: 80px 0px;
+}
+
+.WelcomEmptyDash{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.EmtyDivDash{
+    display: flex;
+    flex-direction: column;
+    gap: 80px;
+}
+
+
+.leftwlmdiv{
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.leftwlmdiv span{
+    color: var(--black-grey);
+    font-family: var(--satoshi-font);
+    font-weight: 700;
+    font-size: 15px;
+    line-height: 120%;
+}
+.leftwlmdiv p{
+    color: var(--black-grey);
+    font-family: var(--satoshi-font);
+    font-weight: 700;
+    font-size: 18px;
+    line-height: 120%;
+    margin: 0;
+}
+.wlcdash{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.wlcdash h2{
+    font-family: var(--grotesk-font);
+    font-size: 40px;
+    font-weight: 500;
+    line-height: 120%;
+    margin: 0;
+}
+.Apoitpopup , .Wrningpopup ,.Verifypopup{
+    background: var(--lightblue);
+    padding: 12px 16px;
+    border-radius: 16px;
+    min-height: 46px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 18px;
+    line-height: 120%;
+    font-weight: 700;
+    color: var(--skytext);
+}
+.Wrningpopup{
+    background: var(--warnggrdt);
+    color: var(--black-text);
+}
+.Verifypopup{
+    background: var(--greenbg);
+    color: var(--black-text);
+}
+
+.Ryttwlmdiv button{
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 14px 24px;
+    opacity: 40%;
+    justify-content: center;
+    cursor: pointer;
+    font-family: var(--grotesk-font);
+    font-weight: 500;
+    font-size: 19px;
+    line-height: 120%;
+    background: transparent !important;
+    color: var(--black-text) !important;
+    border: none;
+}
+.Ryttwlmdiv .button  svg{
+    font-size: 20px;
+}
+.Ryttwlmdiv button.full-opacity {
+  opacity: 100%; 
+}
+
+/* EmptyPractice */
+
+.EmptyPractice{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--whitebg);
+    box-shadow: 0px 0px 30px 0px #4738271A;
+    border: 1px solid var(--blue-text);
+    min-height: 120px;
+    border-radius: 20px;
+    padding: 10px 24px;
+}
+.EmptyPractice .Leftpractice{
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-width: 816px;
+}
+.EmptyPractice .Leftpractice h6{
+    font-family: var(--grotesk-font);
+    font-weight: 500;
+    font-size: 23px;
+    line-height: 120%;
+    color: var(--black-text);
+    margin: 0;
+}
+.EmptyPractice .Leftpractice p{
+    color: var(--black-grey);
+    font-family: var(--satoshi-font);
+    font-weight: 400;
+    font-size: 16px;
+    line-height: 120%;
+    margin: 0;
+}
+.Rightpractice a{
+    background: var(--black-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 14px 24px;
+    border-radius: 28px;
+    min-height: 48px;
+    font-family: var(--grotesk-font);
+    font-weight: 500;
+    font-size: 19px;
+    line-height: 120%;
+    color: var(--white-text);
+    border: 1px solid var(--black-bg) !important;
+    transition: all 1s;
+}
+.Rightpractice a svg{
+    font-size: 20px;
+}
+.Rightpractice a:hover{
+    color: var(--black-text);
+    background: transparent;
+}
+
+/* GraphSelectDiv Started  */
+.GraphSelectDiv{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.GraphSelectDiv h5{
+    font-size: 23px;
+    font-weight: 500;
+    line-height: 120%;
+    margin: 0;
+    color: var(--black-text);
+    font-family: var(--grotesk-font);
+}
+.GraphSelectDiv .DaysSelectDiv button{
+    background: transparent !important;
+    border: none !important;
+    padding: 10px 16px !important;
+    border-radius: 28px !important;
+    opacity: 60%;
+    color: var(--black-text);
+    font-weight: 500;
+    line-height: 120%;
+
+}
+.GraphSelectDiv .DaysSelectDiv .dropdown-menu{
+    box-shadow: 0px 0px 8px 0px #47382714;
+    border: 1px solid var(--lightgrey);
+    background: var(--whitebg);
+}
+
+/* GraphSelectDiv Ended */
+
+.WorkCard{
+    display: flex;
+    flex-direction: column;
+    gap: 19px;
+    height: 100%;
+    justify-content: flex-end;
+}
+
+/* DummyTable Started */
+.DummyTableData{
+    display: flex;
+    flex-direction: column;
+    gap: 80px;
+}
+.DummyTable{
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+.DummyTable h5{
+    font-family: var(--grotesk-font);
+    font-size: 23px;
+    font-weight: 500;
+    line-height: 120%;
+    margin: 0;
+    color: var(--black-text);
+}
+.DummyTable h5 span{
+    color: var(--black-grey);
+}
+.DummyTable .TableDummyDiv{
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--lightgrey);
+    padding: 24px 40px;
+    border-radius: 24px;
+    box-shadow: 0px 0px 8px -5px #55413414;
+
+}
+.DummyTable .TableDummyDiv .tblhed{
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    min-height: 60px;
+    align-items: center;
+}
+.DummyTable .TableDummyDiv .tblhed h6{
+    margin: 0;
+    color: var(--black-grey);
+    font-family: var(--satoshi-font);
+    font-weight: 700;
+    font-size: 15px;
+    line-height: 24px;
+}
+.DummyTable .TableDummyDiv .tblbody{
+   min-height: 64px;
+   display: flex;
+   justify-content: center;
+   align-items: center;
+}
+.DummyTable .TableDummyDiv .tblbody p{
+    color: var(--black-text);
+    margin: 0;
+    font-family: var(--satoshi-font);
+    font-weight: 700;
+    font-size: 15px;
+    line-height: 24px;
+
+}
+
+
+
+/* DummyTable Ended*/

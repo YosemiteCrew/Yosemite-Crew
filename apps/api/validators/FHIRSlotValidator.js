@@ -1,6 +1,6 @@
 
-class FHIRSlotValidator {
-    static validateBundle(bundle) {
+const FHIRSlotValidator =  {
+     validateBundle: (bundle) => {
       const errors = [];
   
       if (!bundle || bundle.resourceType !== "Bundle" || bundle.type !== "collection") {
@@ -26,9 +26,9 @@ class FHIRSlotValidator {
       });
   
       return errors;
-    }
+    },
   
-    static validateSlot(slot, path = 'resource') {
+    validateSlot: (slot, path = 'resource') => {
       const errors = [];
   
       if (slot.resourceType !== "Slot") {

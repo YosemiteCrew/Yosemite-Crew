@@ -1,0 +1,250 @@
+.doctor-dashboard-Sec{
+    padding: 80px 0px;
+}
+
+.DoctorDashboardData{
+    display: flex;
+    flex-direction: column;
+    gap: 60px;
+}
+
+/* .TopDoctorDashboard Started  */
+.TopDoctorDashboard{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.TopDoctorDashboard .LeftDash{
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.TopDoctorDashboard .LeftDash img{
+    border-radius: 50%;
+    border: 1px solid var(--blue-text);
+}
+.TopDoctorDashboard .LeftDash .DoctorName{
+    display: flex;
+    flex-direction: column;
+}
+.TopDoctorDashboard .LeftDash .DoctorName p{
+    margin: 0;
+    color: var(--black-grey-Text);
+    font-weight: 700;
+    font-size: 15px;
+    line-height: 24px;
+}
+.TopDoctorDashboard .LeftDash .DoctorName h2{
+    color: var(--black-text);
+    font-weight: 500;
+    font-size: 40px;
+    line-height: 120%;
+    margin: 0;
+}
+.TopDoctorDashboard .RightDash{
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 160px;
+}
+.TopDoctorDashboard .RightDash p{
+    font-weight: 700;
+    font-size: 13px;
+    line-height: 120%;
+    color: var(--notibg);
+    margin: 0;
+}
+.TopDoctorDashboard .RightDash .custom-toggle-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.TopDoctorDashboard .RightDash .custom-toggle-container .custom-switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 28px;
+}
+.TopDoctorDashboard .RightDash .custom-toggle-container .custom-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.TopDoctorDashboard .RightDash .custom-toggle-container .custom-switch .slider {
+  position: absolute;
+  cursor: pointer;
+  background-color: var(--greybg);
+  border-radius: 34px;
+  transition: 0.4s;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+.TopDoctorDashboard .RightDash .custom-toggle-container .custom-switch .slider::before {
+  position: absolute;
+  content: '';
+  height: 20px;
+  width: 20px;
+  left: 4px;
+  bottom: 4px;
+  background-color: var(--whitebg);
+  border-radius: 50%;
+  transition: 0.4s;
+}
+.TopDoctorDashboard .RightDash .custom-toggle-container .custom-switch input:checked + .slider {
+  background-color: var(--blue-text);
+}
+.TopDoctorDashboard .RightDash .custom-toggle-container .custom-switch input:checked + .slider::before {
+  transform: translateX(22px);
+}
+.TopDoctorDashboard .RightDash .custom-toggle-container .status-text {
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 120%;
+  font-family: var(--satoshi-font);
+}
+.TopDoctorDashboard .RightDash .custom-toggle-container .status-text.available {
+  color: var(--blue-text);
+}
+.TopDoctorDashboard .RightDash .custom-toggle-container .status-text.not-available {
+  color: var(--greybg);
+}
+
+.TopDoctorDashboard .RightDash a{
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 700;
+    font-size: 15px;
+    line-height: 24px;
+    font-family: var(--satoshi-font);
+    color: var(--black-text);
+    transition: all 0.3s ease;
+}
+.TopDoctorDashboard .RightDash a svg{ 
+    font-size: 24px;
+}
+.TopDoctorDashboard .RightDash a:hover{ 
+    color: var(--blue-text);
+}
+/* .TopDoctorDashboard Ended  */
+
+
+/* DoctorAvailabilty Started  */
+
+.DoctorAvailabilty{
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+.DoctorAvailabilty h2{
+  margin: 0;
+  color: var(--black-text);
+  font-family: var(--grotesk-font);
+  font-weight: 500;
+  font-size: 33px;
+  line-height: 120%;
+}
+
+.Add_Profile_Data .LeftProfileDiv .AvailabityDivDoctor{
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.Add_Profile_Data .LeftProfileDiv .AvailabityDivDoctor h5{
+  margin: 0;
+  font-weight: 500;
+  font-size: 23px;
+  line-height: 120%;
+  font-family: var(--grotesk-font);
+}
+.Add_Profile_Data .LeftProfileDiv .AvailabityDivDoctor .appointselect{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.Add_Profile_Data .LeftProfileDiv .AvailabityDivDoctor .appointselect .lft h6{
+  margin: 0;
+  font-weight: 500;
+  font-size: 23px;
+  line-height: 120%;
+  font-family: var(--grotesk-font);
+}
+.Add_Profile_Data .LeftProfileDiv .AvailabityDivDoctor .appointselect .lft p{
+  margin: 0;
+  font-weight: 400;
+  font-size: 15px;
+  line-height: 24px;
+  font-family: var(--satoshi-font);
+}
+.Add_Profile_Data .LeftProfileDiv .AvailabityDivDoctor .selectTimeSection{
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.Add_Profile_Data .LeftProfileDiv .AvailabityDivDoctor .selectTimeSection .selecttime{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.Add_Profile_Data .LeftProfileDiv .AvailabityDivDoctor .selectTimeSection .selecttime p{
+  margin: 0;
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 120%;
+  font-family: var(--satoshi-font);
+}
+.Add_Profile_Data .LeftProfileDiv .AvailabityDivDoctor .selectTimeSection .timeSlots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+.Add_Profile_Data .LeftProfileDiv .AvailabityDivDoctor .selectTimeSection .timeSlot {
+  padding: 10px 15px;
+  border: 1px solid #333;
+  border-radius: 20px;
+  background: #fff;
+  cursor: pointer;
+}
+.Add_Profile_Data .LeftProfileDiv .AvailabityDivDoctor .selectTimeSection .timeSlot.selected {
+  border: 2px solid #007bff;
+  background: #e6f0ff;
+}
+.Add_Profile_Data .LeftProfileDiv .AvailabityDivDoctor .selectTimeSection .timeSlot.unavailable {
+  background: #ddd;
+  color: #666;
+}
+.Add_Profile_Data .LeftProfileDiv .AvailabityDivDoctor .selectTimeSection .timeSlot.disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.AvailabityDivDoctor .updateBtn{
+  padding: 16px 32px;
+  border-radius: 28px;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 300px;
+  max-width: fit-content;
+  margin: 0 auto;
+  background: var(--black-bg);
+  color: var(--white-text);
+  border: 1px solid var(--black-bg);
+  font-family: var(--grotesk-font);
+  font-size: 23px;
+  font-weight: 500;
+  line-height: 120%;
+}
+.AvailabityDivDoctor .updateBtn:hover{
+  background: transparent;
+  color: var(--black-text);
+}
+
+
+
+/* DoctorAvailabilty Ended  */
+

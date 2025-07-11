@@ -1,0 +1,77 @@
+.RelatesSliderSec{
+    padding: 50px 0px;
+}
+.RelatesSliderSec .slick-dots {
+    bottom: -55px;
+}
+.RelateSlidecard{
+    max-width: 305px;
+    box-shadow: 6.28px 6.28px 28.28px -7.86px #55413414;
+    background: #FFFFFF;
+    min-height: 377px;
+    border-radius: 12px;
+}
+.ReltartPic{
+    overflow: hidden;
+    max-height: 225px;
+    border-radius: 12px;
+}
+.ReltartPic img{
+    width: 100%;
+    transition: 0.3s;
+}
+.RelateSlidecard:hover img{
+    transform: scale(1.1);
+}
+.RelateInner{
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.Reltdate{
+    display: flex;
+    align-items: center;
+    gap: 50px;
+    position: relative;
+}
+.Reltdate::after{
+    position: absolute;
+    content: " ";
+    background-color: #DEDEDE;
+    width: 20px;
+    height: 2px;
+    top: 10px;
+    left: 60px;
+}
+.Reltdate h6{
+    font-family: var(--satoshi-font);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 15.6px;
+    letter-spacing: -0.03em;
+    color: var(--chilli-red);
+    margin: 0;
+}
+.Reltdate p{
+    font-family: var(--satoshi-font);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 15.6px;
+    letter-spacing: -0.03em;
+    color: var(--black-text);
+    opacity: 30%;
+    margin: 0;
+}
+
+.RelateInner{
+    max-height: 112px;
+    padding: 20px;
+}
+.RelateInner h5{
+   font-family: var( --grotesk-font);
+    font-size: 23px;
+    font-weight: 500;
+    line-height: 27.6px;
+    letter-spacing: -0.02em;
+    color: var(--black-text);
+}

@@ -18,7 +18,7 @@ jobs:
       with:
         files: |
           package.json
-          apps/website/**
+          apps/frontend/**
     build:
         needs: changed-files-check
         if: needs.changed-files-check.outputs.any_changed == 'true'
@@ -40,9 +40,9 @@ jobs:
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
             # - name: Linting
-            #   run: pnpm run lint --filter website
+            #   run: pnpm run lint --filter frontend
             - name: Build Website
-              run: pnpm run build --filter website
+              run: pnpm run build --filter frontend
     ci-website-status-check:
         if: always() && !cancelled()
         timeout-minutes: 1

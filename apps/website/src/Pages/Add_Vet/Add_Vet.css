@@ -54,7 +54,7 @@
 }
 .TabsBtn{
   display: flex;
-  justify-content: end;
+  justify-content: flex-end;
 }
 .TabsBtn button , .ProfBtn button{
   background: var(--chilli-red);
