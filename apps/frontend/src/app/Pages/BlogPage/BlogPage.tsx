@@ -13,7 +13,7 @@ function BlogPage() {
   const [isLoggedIn] = useState(true);
   return (
     <>
-    <Header isLoggedIn={isLoggedIn} />
+    <Header />
       <section className="BlogPageSec">
         <div className="container">
           <div className="TopBlogDetail">

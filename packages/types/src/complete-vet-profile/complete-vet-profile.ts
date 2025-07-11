@@ -27,8 +27,8 @@ export type OperatingHourType = {
 
 export type ConvertToFhirVetProfileParams = {
   name: VetNameType;
-  // image: File | null;
-  // uploadedFiles: File[];
+  image?: File | null;
+  uploadedFiles?: File[];
   specialization: string;
   countryCode: string;
   OperatingHour: OperatingHourType[];

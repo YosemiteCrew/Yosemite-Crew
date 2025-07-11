@@ -21,7 +21,7 @@ import { useAuthStore } from "@/app/stores/authStore";
 function BulkInviteModal({ show, onHide, onDataParsed }: {
   show: boolean;
   onHide: () => void;
-  onDataParsed: (data: { email: string; department: string; role: string }[]) => void;
+  onDataParsed: (data: { email: string; department: string; role: string, name: string }[]) => void;
 }) {
   return (
     <Modal show={show} onHide={onHide} centered className="BulkInviteModalSec">
@@ -80,6 +80,7 @@ function BulkInviteModal({ show, onHide, onDataParsed }: {
                           email: values[headers.indexOf("email")]?.trim(),
                           department: values[headers.indexOf("department")]?.trim(),
                           role: values[headers.indexOf("role")]?.trim(),
+                          name: values[headers.indexOf("name")]?.trim()
                         };
                       });
                       onDataParsed(parsed);
@@ -111,7 +112,7 @@ function InviteTeamMembers() {
   const [modalShow, setModalShow] = useState(false);
 
   const [members, setMembers] = useState([
-    { department: "", role: "", email: "", invitedBy: "" }
+    { department: "", role: "", email: "", invitedBy: "", name: "" }
   ]);
 
   useEffect(() => {
@@ -122,14 +123,14 @@ function InviteTeamMembers() {
     }
   }, [userId]);
 
-  const handleMemberChange = useCallback((index: number, field: "department" | "role" | "email", value: string) => {
+  const handleMemberChange = useCallback((index: number, field: "department" | "role" | "email" | "name", value: string) => {
     setMembers((prev) =>
       prev.map((m, i) => (i === index ? { ...m, [field]: value } : m))
     );
   }, []);
 
   const addMember = () => {
-    setMembers((prev) => [...prev, { department: "", role: "", email: "", invitedBy: userId || "" }]);
+    setMembers((prev) => [...prev, { department: "", role: "", email: "", invitedBy: userId || "", name: "" }]);
   };
 
   const removeMember = (idx: number) => {
@@ -202,6 +203,13 @@ function InviteTeamMembers() {
                           </Button>
                         )}
                       </div>
+                      <FormInput
+                        intype="string"
+                        inname="name"
+                        value={member.name}
+                        inlabel="Name"
+                        onChange={(e) => handleMemberChange(idx, "name", e.target.value)}
+                      />
                       <DynamicSelect
                         options={departmentOptions}
                         value={member.department}

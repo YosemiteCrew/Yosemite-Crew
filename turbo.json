@@ -18,15 +18,19 @@
       "dependsOn": []
     },
     "lint": {
-      "dependsOn": ["^build", "^lint"]
+      "dependsOn": ["^lint"]
     },
     "type-check": {
-      "dependsOn": ["^build", "^type-check"]
+      "dependsOn": ["^type-check"]
     },
     "dev": {
       "dependsOn": ["^build"],
       "cache": false,
       "persistent": true
+    },
+    "start": {
+      "dependsOn": ["^build"],
+      "cache": false
     }
   }
 }

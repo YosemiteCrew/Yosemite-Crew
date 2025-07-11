@@ -63,7 +63,7 @@ function AddDepartments() {
 
   return (
     <>
-    <Header isLoggedIn={isLoggedIn} />
+    <Header />
     <section className='AddSpecialitiesSec'>
       <Container>
 
