@@ -1,4 +1,5 @@
 import express from 'express';
+import { verifyToken } from '../middlewares/authMiddleware';
 const AddDoctorsControllers = require('../controllers/AddDoctorController');
 const router = express.Router();
 const {
@@ -7,7 +8,7 @@ const {
 } = require('../middlewares/authMiddleware');
 
 // Define the route to add doctors
-router.post('/Practitioner',verifyTokenAndRefresh, AddDoctorsControllers.addDoctor);
+router.post('/Practitioner',verifyToken, AddDoctorsControllers.addDoctor);
 router.get(
   '/getDoctorsBySpecilizationId/:id',
   AddDoctorsControllers.getDoctorsBySpecilizationId

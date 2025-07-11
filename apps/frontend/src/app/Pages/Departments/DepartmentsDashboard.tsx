@@ -1,7 +1,6 @@
 'use client';
 import React, { useState ,useEffect } from 'react';
 import "./Departments.css"
-import Header from '@/app/Components/Header/Header';
 import { Col, Container, Dropdown, Row } from 'react-bootstrap';
 import StatCard from '@/app/Components/StatCard/StatCard';
 import { MBTN } from '../BlogPage/BlogPage';
@@ -45,9 +44,7 @@ function DepartmentsDashboard() {
         ];
     
   return (
-    <>
-        <Header />
-        
+    <> 
         <section className='DeapartmentDashSection'>
             <Container>
                 <div className="SpecilistData">

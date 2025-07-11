@@ -143,6 +143,7 @@ function InviteTeamMembers() {
       if (response.status === 200) {
         const data = response.data as { message?: string };
         Swal.fire({ icon: "success", title: "Success", text: data.message || "Invitations sent successfully!" });
+        setMembers([{ department: "", role: "", email: "", invitedBy: userId || "" }]); // Reset to initial state
       }
     } catch (error: unknown) {
       let errorMessage = "Failed to send invitations.";

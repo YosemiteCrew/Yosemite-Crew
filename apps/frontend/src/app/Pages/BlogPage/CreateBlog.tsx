@@ -1,6 +1,5 @@
 "use client";
 import React, { useState, useRef } from "react";
-import Header from "@/app/Components/Header/Header";
 import { Col, Container, Row, Form, Button, Spinner } from "react-bootstrap";
 import {
   FaBold,
@@ -49,7 +48,6 @@ function CreateBlog() {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [loading, setLoading] = useState(false);
-  const [isLoggedIn] = useState(true);
 
   const descRef = useRef<HTMLTextAreaElement>(null);
 
@@ -187,7 +185,6 @@ function CreateBlog() {
 console.log(formData,"formDataformDataformDataformData")
   return (
     <>
-      <Header />
       <section className="CreateBlogSec">
         <Container>
           <Row>

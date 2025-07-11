@@ -5,11 +5,12 @@ export interface name {
   registrationNumber: string;
   city: string;
   state: string;
+  area?: string; // Optional area field
   addressLine1: string;
   latitude: string;
   longitude: string;
   postalCode: string;
-  PhoneNumber: string;
+  phoneNumber: string;
   country?:string
 }
 export interface BusinessProfile {
@@ -19,17 +20,18 @@ export interface BusinessProfile {
   registrationNumber?: string;
   city?: string;
   state?: string;
+  area?: string; // Optional area field
   addressLine1?: string;
   latitude?: string;
   longitude?: string;
   postalCode?: string;
-  PhoneNumber?: string;
+  phoneNumber?: string;
   name?: name;
   country: string;
   departmentFeatureActive: string; // yes/no
   selectedServices: string[];
   addDepartment: string[];
-  image?: File | null;
+  image?:string[]; // URL to the image
   previewUrl?: string;
 };
 
@@ -44,6 +46,7 @@ export interface FhirOrganization {
     state: string;
     postalCode: string;
     country: string;
+    area?: string; // Optional area field
     extension?: any[];
   }[];
   telecom?: { system: string; value: string }[];

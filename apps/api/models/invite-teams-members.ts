@@ -7,7 +7,8 @@ const inviteTeamsMembersSchema = new Schema<TeamInviteMember>({
     role:{type:String},
     invitedBy:{type:String},
     invitedAt: { type: Date, default: Date.now },
-    inviteCode: { type: String, required: true, unique: true }
+    inviteCode: { type: String, required: true, unique: true },
+    status: { type: String, enum: ["pending", "accepted", "declined"], default: "pending" },
 
 })
 

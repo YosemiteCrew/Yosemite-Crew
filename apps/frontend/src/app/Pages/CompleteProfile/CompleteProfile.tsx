@@ -15,6 +15,7 @@ import axios from "axios";
 import { postData } from "@/app/axios-services/services";
 import { toFHIRBusinessProfile } from "@yosemite-crew/fhir"
 import { useAuthStore } from "@/app/stores/authStore";
+import { useRouter } from "next/navigation";
 
 
 type Option = {
@@ -54,6 +55,7 @@ type NameState = {
 
 function CompleteProfile() {
   const { userId } = useAuthStore();
+  const router = useRouter();
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isDropdownOpen1, setIsDropdownOpen1] = useState(false);
@@ -75,11 +77,12 @@ function CompleteProfile() {
     registrationNumber: "",
     city: "",
     state: "",
+    area: "", 
     addressLine1: "",
     latitude: "",
     longitude: "",
     postalCode: "",
-    PhoneNumber: ""
+    phoneNumber: ""
   });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [showValidation, setShowValidation] = useState(false);
@@ -89,51 +92,51 @@ function CompleteProfile() {
       setName(prev => ({ ...prev, userId }));
     }
   }, [userId, name.userId]);
-  const calculateProgress = ({
-    name,
-    country,
-    image,
-    selectedServices,
-    addDepartment,
-  }: {
-    name: NameState;
-    country: string;
-    image: File | null;
-    selectedServices: string[];
-    addDepartment: string[];
-  }): number => {
-    let filled = 0;
 
-    if (name.businessName) filled++;
-    if (name.website) filled++;
-    if (name.registrationNumber) filled++;
-    if (name.city) filled++;
-    if (name.state) filled++;
-    if (name.addressLine1) filled++;
-    if (name.postalCode) filled++;
-    if (name.PhoneNumber) filled++;
-    if (country) filled++;
-    if (image) filled++;
-    if (selectedServices.length > 0) filled++;
-    if (addDepartment.length > 0) filled++;
+  // const calculateProgress = ({
+  //   name,
+  //   country,
+  //   image,
+  //   selectedServices,
+  //   addDepartment,
+  // }: {
+  //   name: typeof name ;
+  //   country: string;
+  //   image: File | null;
+  //   selectedServices: string[];
+  //   addDepartment: string[];
+  // }): number => {
+  //   let filled = 0;
 
-    const total = 12;
-    const maxProgress = 75;
+  //   if (name.businessName) filled++;
+  //   if (name.website) filled++;
+  //   if (name.registrationNumber) filled++;
+  //   if (name.city) filled++;
+  //   if (name.state) filled++;
+  //   if (name.addressLine1) filled++;
+  //   if (name.postalCode) filled++;
+  //   if (name.PhoneNumber) filled++;
+  //   if (country) filled++;
+  //   if (image) filled++;
+  //   if (selectedServices.length > 0) filled++;
+  //   if (addDepartment.length > 0) filled++;
 
-    return Math.round((filled / total) * maxProgress);
-  };
+  //   const total = 12;
+  //   const maxProgress = 75;
 
-  useEffect(() => {
-    const newProgress = calculateProgress({
-      name,
-      country,
-      image,
-      selectedServices,
-      addDepartment,
-    });
-    setProgress(newProgress);
-  }, [name, country, image, selectedServices, addDepartment]);
+  //   return Math.round((filled / total) * maxProgress);
+  // };
 
+  // useEffect(() => {
+  //   const newProgress = calculateProgress({
+  //     name,
+  //     country,
+  //     image,
+  //     selectedServices,
+  //     addDepartment,
+  //   });
+  //   setProgress(newProgress);
+  // }, [name, country, image, selectedServices, addDepartment]);
 
   const handleBusinessInformation = useCallback((e: { target: { name: string; value: string; }; }) => {
     const { name, value } = e.target;
@@ -142,6 +145,13 @@ function CompleteProfile() {
       [name]: value,
     }));
   }, []);
+
+const handleArea = (selectedOption: string) => {
+  setName((prev) => ({
+    ...prev,
+    area: selectedOption 
+  }));
+};
 
   const Option1: Option[] = useMemo(() =>
     countries.map((v) => ({
@@ -245,9 +255,8 @@ function CompleteProfile() {
       formData.append("image", image);
     }
 
-    // Append FHIR payload as a string
     formData.append("fhirPayload", JSON.stringify(fhirPayload));
-    // console.log("jjjj",image?.type,formData)
+
     try {
       const response = await postData(`/fhir/organization`, formData, {
         headers: {
@@ -255,7 +264,10 @@ function CompleteProfile() {
         },
       });
 
-      console.log(response);
+     if (response.status === 200) {
+        console.log("Submit successful:", response.data);
+       router.push("/emptydashboard"); // Redirect to dashboard or another page
+      }
     } catch (error) {
       console.error("Submit failed:", error);
     }
@@ -319,7 +331,7 @@ function CompleteProfile() {
     if (!country) newErrors.country = "Country is required";
     if (!name.registrationNumber) newErrors.registrationNumber = "Registration Number is required";
     if (!name.businessName) newErrors.businessName = "Business Name is required";
-    if (!name.PhoneNumber) newErrors.PhoneNumber = "Phone Number is required";
+    if (!name.phoneNumber) newErrors.phoneNumber = "Phone Number is required";
     // Website is optional
     return newErrors;
   };
@@ -360,6 +372,12 @@ function CompleteProfile() {
     setErrors({});
     setShowValidation(false);
     setKey(nextKey);
+    setProgress(() => {
+      if (nextKey === "business") return 0;
+      if (nextKey === "address") return 25;
+      if (nextKey === "service") return 50;
+      return 75; // Final step
+    });
   };
 
   return (
@@ -490,10 +508,10 @@ function CompleteProfile() {
                           </Row>
                           <Row>
                             <Col md={12}>
-                              <FormInput intype="number" inname="PhoneNumber" value={name.PhoneNumber} inlabel="Phone Number" onChange={handleBusinessInformation} />
-                              {showValidation && errors.PhoneNumber && (
+                              <FormInput intype="number" inname="phoneNumber" value={name.phoneNumber} inlabel="Phone Number" onChange={handleBusinessInformation} />
+                              {showValidation && errors.phoneNumber && (
                                 <div style={{ color: "#b30000", marginTop: 4, fontSize: 13 }}>
-                                  {errors.PhoneNumber}
+                                  {errors.phoneNumber}
                                 </div>
                               )}
                             </Col>
@@ -534,8 +552,8 @@ function CompleteProfile() {
                               <Col md={6}>
                                 <DynamicSelect
                                   options={options}
-                                  value={country}
-                                  onChange={setCountry}
+                                  value={name.area}
+                                  onChange={handleArea}
                                   inname="country"
                                   placeholder="Area"
                                 />
@@ -753,6 +771,7 @@ function CompleteProfile() {
                     blname="Profile"
                     spname="Progress"
                     progres={progress}
+                    onclicked={() => handleSubmit()}
                   />
                 </div>
               </div>
