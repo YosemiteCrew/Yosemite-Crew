@@ -9,7 +9,8 @@
         ".vercel/**",
         "dist/**",
         ".next/**",
-        "!.next/cache/**"
+        "!.next/cache/**",
+        "storybook-static/**"
       ]
     },
     "test": {
@@ -17,15 +18,19 @@
       "dependsOn": []
     },
     "lint": {
-      "dependsOn": ["^build", "^lint"]
+      "dependsOn": ["^lint"]
     },
-    "check-types": {
-      "dependsOn": ["^build", "^check-types"]
+    "type-check": {
+      "dependsOn": ["^type-check"]
     },
     "dev": {
       "dependsOn": ["^build"],
       "cache": false,
       "persistent": true
+    },
+    "start": {
+      "dependsOn": ["^build"],
+      "cache": false
     }
   }
 }

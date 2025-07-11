@@ -308,6 +308,8 @@ const Doctor_Dashboard = () => {
           `fhir/v1/Appointment?organization=Practitioner/${userId}&offset=${offset}&limit=${itemsPerPage}&type=${"AppointmentLists"}`
         );
         if (response.status === 200 && response.data.status === 1) {
+
+
           const normalAppointments =
             NormalAppointmentConverter.convertAppointments({
               totalAppointments: response.data.data.total,

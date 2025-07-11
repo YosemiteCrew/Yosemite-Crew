@@ -1,10 +1,11 @@
-import React from "react";
+'use client';
 import "./BlogPage.css";
 import Image from "next/image";
 import { ExploreType } from "../ArticlePage/ArticlePage";
 import { GoCheckCircleFill } from "react-icons/go";
 import { Button } from "react-bootstrap";
 import { FiSearch } from "react-icons/fi";
+import Link from 'next/link';
 
 function BlogPage() {
   return (
@@ -14,18 +15,12 @@ function BlogPage() {
           <div className="TopBlogDetail">
             <div className="PawnDiv">
               <h2>Paws & Insights</h2>
-              <MBTN BICON={<GoCheckCircleFill />} BNAME="Add Blog" />
+              <MBTN BICON={<GoCheckCircleFill />} BNAME="Add Blog" BtHerf="CreateBlog" />
             </div>
             <div className="BlogPicData">
               <div className="blogPicLeft">
                 <div className="Blogpic">
-                  <Image
-                    aria-hidden
-                    src={`${process.env.VITE_BASE_IMAGE_URL}/Blogpage/Puppy1.jpg`}
-                    alt="puppy"
-                    width={847}
-                    height={680}
-                  />
+                  <Image aria-hidden src={`${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/Blogpage/Puppy1.jpg`} alt="puppy" width={847} height={680}/>
                   <div className="bloginner">
                     <h3>
                       New Puppy Checklist: Everything You Need to Get
@@ -44,7 +39,7 @@ function BlogPage() {
                 <div className="Blogpic">
                   <Image
                     aria-hidden
-                    src={`${process.env.VITE_BASE_IMAGE_URL}/Blogpage/Puppy2.jpg`}
+                    src={`${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/Blogpage/Puppy2.jpg`}
                     alt="dd"
                     width={413}
                     height={325}
@@ -57,7 +52,7 @@ function BlogPage() {
                 <div className="Blogpic">
                   <Image
                     aria-hidden
-                    src={`${process.env.VITE_BASE_IMAGE_URL}/Blogpage/Puppy3.jpg`}
+                    src={`${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/Blogpage/Puppy3.jpg`}
                     alt="dd"
                     width={413}
                     height={325}
@@ -84,8 +79,7 @@ function BlogPage() {
                   <Button
                     id="searchQuerySubmit"
                     type="submit"
-                    name="searchQuerySubmit"
-                  >
+                    name="searchQuerySubmit">
                     <FiSearch />
                   </Button>
                 </div>
@@ -94,56 +88,56 @@ function BlogPage() {
                 <ExploreType />
                 <div className="ExploreCardData">
                   <ExplrCard
-                    expimg={`${process.env.VITE_BASE_IMAGE_URL}/Blogpage/cardpuppy1.png`}
+                    expimg={`${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/Blogpage/cardpuppy1.png`}
                     stnme="Skin Care"
                     stmint="5 mins read"
                     Extext="5 Home Remedies for Your Dog’s Itchy Skin"
-                    drimg={`${process.env.VITE_BASE_IMAGE_URL}/Blogpage/drf.jpg`}
+                    drimg={`${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/Blogpage/drf.jpg`}
                     drname="Dr. Jamie Sailor"
                     drdays="2 days ago"
                   />
                   <ExplrCard
-                    expimg={`${process.env.VITE_BASE_IMAGE_URL}/Blogpage/cardpuppy2.png`}
+                    expimg={`${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/Blogpage/cardpuppy2.png`}
                     stnme="Senior Cats"
                     stmint="8 mins read"
                     Extext="When Is a Cat Considered a Senior? What To Expect When Your Cat’s Aging"
-                    drimg={`${process.env.VITE_BASE_IMAGE_URL}/Blogpage/drf.jpg`}
+                    drimg={`${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/Blogpage/drf.jpg`}
                     drname="Dr. Ken Morrison"
                     drdays="Sep 25, 2024"
                   />
                   <ExplrCard
-                    expimg={`${process.env.VITE_BASE_IMAGE_URL}/Blogpage/cardpuppy3.png`}
+                    expimg={`${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/Blogpage/cardpuppy3.png`}
                     stnme="Nutrition"
                     stmint="5 mins read"
                     Extext="What Are Cat Supplements and How Do They Work?"
-                    drimg={`${process.env.VITE_BASE_IMAGE_URL}/Blogpage/drf.jpg`}
+                    drimg={`${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/Blogpage/drf.jpg`}
                     drname="Dr. John David"
                     drdays="Sep 18, 2024"
                   />
                   <ExplrCard
-                    expimg={`${process.env.VITE_BASE_IMAGE_URL}/Blogpage/cardpuppy4.png`}
+                    expimg={`${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/Blogpage/cardpuppy4.png`}
                     stnme="Healthy Living"
                     stmint="5 mins read"
                     Extext="Winter Care for Horses"
-                    drimg={`${process.env.VITE_BASE_IMAGE_URL}/Blogpage/drf.jpg`}
+                    drimg={`${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/Blogpage/drf.jpg`}
                     drname="Dr. Lisa Maiden"
                     drdays="2 days ago"
                   />
                   <ExplrCard
-                    expimg={`${process.env.VITE_BASE_IMAGE_URL}/Blogpage/cardpuppy5.png`}
+                    expimg={`${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/Blogpage/cardpuppy5.png`}
                     stnme="Skin Care"
                     stmint="5 mins read"
                     Extext="Dog Not Drinking Water? Possible Causes and When To Call Your Vet"
-                    drimg={`${process.env.VITE_BASE_IMAGE_URL}/Blogpage/drf.jpg`}
+                    drimg={`${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/Blogpage/drf.jpg`}
                     drname="Dr. Benny David"
                     drdays="Aug 30, 2024"
                   />
                   <ExplrCard
-                    expimg={`${process.env.VITE_BASE_IMAGE_URL}/Blogpage/cardpuppy6.png`}
+                    expimg={`${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/Blogpage/cardpuppy6.png`}
                     stnme="Wellness"
                     stmint="5 mins read"
                     Extext="Why Horse Rearing Happens and How To Stop It"
-                    drimg={`${process.env.VITE_BASE_IMAGE_URL}/Blogpage/drf.jpg`}
+                    drimg={`${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/Blogpage/drf.jpg`}
                     drname="Dr. Susan Martin"
                     drdays="Aug 18, 2024"
                   />
@@ -181,13 +175,7 @@ export const ExplrCard: React.FC<ExplrCardProps> = ({
   return (
     <div className="explCard">
       <div className="ReltartPic1">
-        <Image
-          aria-hidden
-          src={expimg}
-          alt="exploration"
-          width={100}
-          height={100}
-        />
+        <Image aria-hidden src={expimg} alt="exploration" width={100} height={100}/>
       </div>
 
       <div className="RelateInner1">
@@ -201,7 +189,7 @@ export const ExplrCard: React.FC<ExplrCardProps> = ({
 
       <div className="expelp">
         <div className="elpexlor">
-          <Image aria-hidden src={drimg} alt="doctor" width={40} height={40} />
+          <Image aria-hidden src={drimg} alt="doctor" width={40} height={40}/>
           <h6>{drname}</h6>
         </div>
         <p>{drdays}</p>
@@ -213,14 +201,15 @@ export const ExplrCard: React.FC<ExplrCardProps> = ({
 type MBTNProps = {
   BICON: React.ReactNode; // for JSX icon components like <FaIcon />
   BNAME: string;
+  BtHerf: string;
 };
 
-export function MBTN({ BICON, BNAME }: MBTNProps) {
+export function MBTN({ BICON, BNAME ,BtHerf }: MBTNProps) {
   return (
     <div className="Mbtn">
-      <Button>
+      <Link href={BtHerf}>
         {BICON} {BNAME}
-      </Button>
+      </Link>
     </div>
   );
 }

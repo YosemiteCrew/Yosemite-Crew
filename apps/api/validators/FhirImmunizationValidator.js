@@ -1,5 +1,5 @@
-class FhirImmunizationValidator {
-    static validate(data) {
+
+    export const validate = (data) => {
       const requiredFields = [
         'resourceType',
         'status',

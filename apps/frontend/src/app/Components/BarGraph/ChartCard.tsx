@@ -2,6 +2,7 @@ import React from "react";
 import { Card, Button } from "react-bootstrap";
 import { Line } from "react-chartjs-2";
 import "chart.js/auto";
+import type { ChartOptions } from "chart.js";
 
 const data = {
   labels: ["March", "April", "May", "June", "July", "August"],
@@ -18,7 +19,7 @@ const data = {
   ],
 };
 
-const options = {
+const options: ChartOptions<"line"> = {
   plugins: { legend: { display: false } },
   scales: {
     y: {
@@ -27,12 +28,15 @@ const options = {
       max: 20000,
       ticks: {
         stepSize: 4000,
-        callback: (value: number) => `$${value === 0 ? "0" : value / 1000 + "K"}`,
+        callback: (tickValue: string | number) => {
+          const value = typeof tickValue === "number" ? tickValue : parseFloat(tickValue);
+          return `$${value === 0 ? "0" : value / 1000 + "K"}`;
+        },
         color: "#302F2E",
         font: { size: 14 },
         padding: 8,
       },
-      grid: { color: "#BFBFBEB2", drawBorder: false },
+      grid: { color: "#BFBFBEB2" },
     },
     x: {
       ticks: { color: "#302F2E", font: { size: 14 } },

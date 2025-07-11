@@ -7,12 +7,14 @@ interface ProfileProgressbarProps {
   blname: string;
   spname: string;
   progres?: number; // optional
+  onclicked?: () => void; // optional click handler
 }
 
 const ProfileProgressbar: React.FC<ProfileProgressbarProps> = ({
   blname,
   spname,
   progres = 0, // default if not passed
+  onclicked // default click handler
 }) => {
   return (
     <div className="profProgressDiv">
@@ -32,7 +34,7 @@ const ProfileProgressbar: React.FC<ProfileProgressbarProps> = ({
         </div>
       </div>
       <div className="Profcomp">
-        <Button className="complete-button">
+        <Button className="complete-button" onClick={onclicked}>
           <Image aria-hidden  src="/Images/eyes.png" alt="Complete Later" width={24} height={24}/>
           Complete Later
         </Button>

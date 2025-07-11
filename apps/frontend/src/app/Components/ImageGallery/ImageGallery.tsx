@@ -29,12 +29,12 @@ const ImageGallery = () => {
   const [showMore, setShowMore] = useState(false); // State to track if more images are shown
 
   // Function to delete an image by ID
-  const handleDelete = (id) => {
+  const handleDelete = (id: any) => {
     setImages(images.filter((image) => image.id !== id));
   };
 
   // Function to handle file selection and automatically add the image
-  const handleFileChange = (e) => {
+  const handleFileChange = (e: any) => {
     const file = e.target.files[0]; // Get the selected file
     if (file) {
       const newId = images.length ? images[images.length - 1].id + 1 : 1; // Incremental ID for new images
@@ -42,7 +42,7 @@ const ImageGallery = () => {
       reader.onload = () => {
         setImages([
           ...images,
-          { id: newId, src: reader.result, alt: `Image ${newId}` },
+          { id: newId, src: reader.result as string, alt: `Image ${newId}` },
         ]);
       };
       reader.readAsDataURL(file); // Read the image as a data URL
