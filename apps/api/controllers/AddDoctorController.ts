@@ -32,127 +32,127 @@ function convertTo12HourFormat(dateObj: Date): string {
 }
 const AddDoctorsController = {
 
- addDoctor: async (req: Request, res: Response): Promise<void> => {
-  try {
-    const userId = req.query.userId as string;
-    let rawData: string = "";
+  addDoctor: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const userId = req.query.userId as string;
+      let rawData: string = "";
 
-    if (
-      req.body &&
-      typeof req.body === "object" &&
-      Object.prototype.hasOwnProperty.call(req.body, "data") &&
-      typeof (req.body as { data?: unknown }).data === "string"
-    ) {
-      rawData = (req.body as { data: string }).data;
-    } else {
-      res.status(400).json({ message: "Invalid request body: missing or invalid 'data' property." });
-      return;
-    }
-
-    const fhirData = JSON.parse(rawData);
-    if (typeof fhirData !== "object" || fhirData === null) {
-      res.status(400).json({ message: "Invalid FHIR data format." });
-      return;
-    }
-
-    const parsed = convertFromFhirVetProfile(fhirData);
-    const { name, specialization, countryCode, OperatingHour, duration } = parsed;
-
-    interface UploadedFile {
-      name: string;
-      data: Buffer;
-      mimetype: string;
-    }
-
-    const uploadToS3 = (file: UploadedFile, folderName: string): Promise<string> => {
-      return new Promise((resolve, reject) => {
-        const params = {
-          Bucket: process.env.AWS_S3_BUCKET_NAME!,
-          Key: `${folderName}/${Date.now()}_${file.name}`,
-          Body: file.data,
-          ContentType: file.mimetype,
-        };
-
-        s3.upload(params, (err, data) => {
-          if (err) {
-            console.error("S3 Upload Error:", err);
-            reject(err);
-          } else {
-            resolve(data.Key);
-          }
-        });
-      });
-    };
-
-    let imageUrl: string | null = null;
-    let imageFile: UploadedFile | undefined;
-
-    if (req.files && !Array.isArray(req.files) && typeof req.files === "object" && "image" in req.files) {
-      imageFile = (req.files as { [fieldname: string]: UploadedFile | UploadedFile[] }).image as UploadedFile;
-    }
-    if (imageFile) {
-      imageUrl = await uploadToS3(imageFile, "profilePictures");
-    }
-
-    // 🟢 Get existing doctor data to preserve previous documents
-    const existingDoctor = await AddDoctors.findOne({ registrationNumber: name.registrationNumber });
-    const existingDocuments = existingDoctor?.documents || [];
-
-    const documents: Document[] = [...existingDocuments];
-    const files = req.files as { [fieldname: string]: UploadedFile | UploadedFile[] } | undefined;
-    const docFiles = files?.["document[]"];
-
-    if (Array.isArray(docFiles)) {
-      for (const file of docFiles) {
-        const key = await uploadToS3(file, "documents");
-        documents.push({ name: key, type: file.mimetype, date: new Date() });
+      if (
+        req.body &&
+        typeof req.body === "object" &&
+        Object.prototype.hasOwnProperty.call(req.body, "data") &&
+        typeof (req.body as { data?: unknown }).data === "string"
+      ) {
+        rawData = (req.body as { data: string }).data;
+      } else {
+        res.status(400).json({ message: "Invalid request body: missing or invalid 'data' property." });
+        return;
       }
-    } else if (docFiles) {
-      const key = await uploadToS3(docFiles, "documents");
-      documents.push({ name: key, type: docFiles.mimetype, date: new Date() });
-    }
 
-    const newDoctor = {
-      ...name,
-      userId,
-      specialization,
-      countryCode,
-      availability: OperatingHour,
-      duration,
-      image: imageUrl || existingDoctor?.image || null,
-      documents,
-    };
+      const fhirData = JSON.parse(rawData);
+      if (typeof fhirData !== "object" || fhirData === null) {
+        res.status(400).json({ message: "Invalid FHIR data format." });
+        return;
+      }
 
-    const updatePayload = Object.fromEntries(
-      Object.entries(newDoctor).filter(([_, v]) => v !== undefined && v !== null)
-    );
+      const parsed = convertFromFhirVetProfile(fhirData);
+      const { name, specialization, countryCode, OperatingHour, duration } = parsed;
 
-    const updatedDoctor = await AddDoctors.findOneAndUpdate(
-      { registrationNumber: name.registrationNumber },
-      { $set: updatePayload },
-      { new: true, upsert: true }
-    );
+      interface UploadedFile {
+        name: string;
+        data: Buffer;
+        mimetype: string;
+      }
 
-    res.status(201).json({
-      message: "Doctor profile created successfully.",
-      data: updatedDoctor,
-    });
-  } catch (error: any) {
-    console.error("❌ Error creating doctor profile:", error);
-    res.status(500).json({
-      resourceType: "OperationOutcome",
-      issue: [
-        {
-          severity: "error",
-          code: "exception",
-          details: {
-            text: error.message,
+      const uploadToS3 = (file: UploadedFile, folderName: string): Promise<string> => {
+        return new Promise((resolve, reject) => {
+          const params = {
+            Bucket: process.env.AWS_S3_BUCKET_NAME!,
+            Key: `${folderName}/${Date.now()}_${file.name}`,
+            Body: file.data,
+            ContentType: file.mimetype,
+          };
+
+          s3.upload(params, (err, data) => {
+            if (err) {
+              console.error("S3 Upload Error:", err);
+              reject(err);
+            } else {
+              resolve(data.Key);
+            }
+          });
+        });
+      };
+
+      let imageUrl: string | null = null;
+      let imageFile: UploadedFile | undefined;
+
+      if (req.files && !Array.isArray(req.files) && typeof req.files === "object" && "image" in req.files) {
+        imageFile = (req.files as { [fieldname: string]: UploadedFile | UploadedFile[] }).image as UploadedFile;
+      }
+      if (imageFile) {
+        imageUrl = await uploadToS3(imageFile, "profilePictures");
+      }
+
+      // 🟢 Get existing doctor data to preserve previous documents
+      const existingDoctor = await AddDoctors.findOne({ registrationNumber: name.registrationNumber });
+      const existingDocuments = existingDoctor?.documents || [];
+
+      const documents: Document[] = [...existingDocuments];
+      const files = req.files as { [fieldname: string]: UploadedFile | UploadedFile[] } | undefined;
+      const docFiles = files?.["document[]"];
+
+      if (Array.isArray(docFiles)) {
+        for (const file of docFiles) {
+          const key = await uploadToS3(file, "documents");
+          documents.push({ name: key, type: file.mimetype, date: new Date() });
+        }
+      } else if (docFiles) {
+        const key = await uploadToS3(docFiles, "documents");
+        documents.push({ name: key, type: docFiles.mimetype, date: new Date() });
+      }
+
+      const newDoctor = {
+        ...name,
+        userId,
+        specialization,
+        countryCode,
+        availability: OperatingHour,
+        duration,
+        image: imageUrl || existingDoctor?.image || null,
+        documents,
+      };
+
+      const updatePayload = Object.fromEntries(
+        Object.entries(newDoctor).filter(([_, v]) => v !== undefined && v !== null)
+      );
+
+      const updatedDoctor = await AddDoctors.findOneAndUpdate(
+        { registrationNumber: name.registrationNumber },
+        { $set: updatePayload },
+        { new: true, upsert: true }
+      );
+
+      res.status(201).json({
+        message: "Doctor profile created successfully.",
+        data: updatedDoctor,
+      });
+    } catch (error: any) {
+      console.error("❌ Error creating doctor profile:", error);
+      res.status(500).json({
+        resourceType: "OperationOutcome",
+        issue: [
+          {
+            severity: "error",
+            code: "exception",
+            details: {
+              text: error.message,
+            },
           },
-        },
-      ],
-    });
-  }
-},
+        ],
+      });
+    }
+  },
 
   //  getOverview : async (req: Request, res: Response): Promise<Response> => {
   //   const subject = req.query.subject as string;
@@ -390,10 +390,10 @@ const AddDoctorsController = {
 
   getDoctors: async (req: Request, res: Response) => {
     try {
-      console.log("kkk",req.query)
+      console.log("kkk", req.query)
       const { userId } = req.query;
-      if (!userId) {
-        return res.status(400).json({ message: "User ID is required" });
+      if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        return res.status(400).json({ message: "Invalid User ID format" });
       }
 
       const doctor = await AddDoctors.findOne({ userId: userId }).lean();
