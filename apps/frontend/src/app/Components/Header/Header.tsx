@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
@@ -12,6 +12,7 @@ import { FaSignInAlt } from 'react-icons/fa';
 import { RiAccountBoxFill } from 'react-icons/ri';
 import { useAuthStore } from '@/app/stores/authStore';
 import { handleLogout } from '@/app/utils/LogoutApi';
+// import { BusinessProfile } from '@yosemite-crew/types';
 
 interface NavItem {
   label: string;
@@ -68,8 +69,19 @@ const navItems: NavItem[] = [
 ];
 
 const Header = () => {
-  const { userType } = useAuthStore();
-  console.log("userType", userType);
+  const roles = useMemo(
+    () => [
+      "Vet",
+      "Vet Technician",
+      "Nurse",
+      "Vet Assistant",
+      "Receptionist",
+    ],
+    []
+  );
+ const { profile ,vetAndTeamsProfile, userType} = useAuthStore();
+
+
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -132,7 +144,7 @@ const Header = () => {
         <Link href="/" className="logo d-flex align-items-center me-auto me-lg-0">
           <Image
             aria-hidden
-            src={logoUrl}
+            src={ logoUrl}
             alt="Logo"
             width={80}
             height={80}
@@ -146,7 +158,7 @@ const Header = () => {
             {mobileOpen ? <IoMdClose size={28} /> : <FaBarsStaggered size={28} />}
           </button>
         </nav>
-        {isVerified && (
+        {isVerified &&(
           <div className="UserInfoHeader">
 
             <div className="Notify">
@@ -159,11 +171,11 @@ const Header = () => {
                 <li className="nav-item dropdown">
                   <span className="nav-profile">
                     <div className="user">
-                      <Image src={logoUrl} alt="Profile" width={40} height={40} />
+                      <Image src={roles.includes(userType)?vetAndTeamsProfile?.image:profile?.image? profile.image : logoUrl} alt="Profile" width={40} height={40} />
                     </div>
                     <div className="userHostDiv">
                       <div className="userName">
-                        <p>San Francisco Animal<br />Medical Center </p>
+                        <p>{roles.includes(userType)?`${vetAndTeamsProfile?.name.firstName} ${vetAndTeamsProfile?.name.lastName}`:profile?.name?.businessName} </p>
                         <FaCaretDown />
                       </div>
                       <p className='Tier'>Free tier - Cloud hosted</p>

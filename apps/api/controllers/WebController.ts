@@ -788,6 +788,8 @@ const WebController = {
       };
 
       const fhirBundle = toFHIRBusinessProfile(formattedInput as BusinessProfile);
+      console.log("Converted FHIR Bundle:", JSON.stringify(fhirBundle, null, 2));
+      console.log("Converted FHIR Bundle:", fromFHIRBusinessProfile(fhirBundle));
       res.status(200).json(fhirBundle);
     } catch (error) {
       console.error("Error fetching hospital profile:", error);
