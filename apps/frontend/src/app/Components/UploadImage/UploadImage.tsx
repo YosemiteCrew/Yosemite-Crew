@@ -1,7 +1,12 @@
-// UploadImage.tsx
 import React, { useRef, useState, useEffect } from 'react';
 import "./UploadImage.css";
-import { FaCloudUploadAlt, FaFilePdf, FaFileWord, FaFileImage, FaTrashAlt } from "react-icons/fa";
+import {
+  FaCloudUploadAlt,
+  FaFilePdf,
+  FaFileWord,
+  FaFileImage,
+  FaTrashAlt
+} from "react-icons/fa";
 import Image from 'next/image';
 import { Button } from 'react-bootstrap';
 
@@ -15,25 +20,46 @@ const allowedTypes = [
 
 function getFileIcon(type: string) {
   if (type === "application/pdf") return <FaFilePdf className="file-icon pdf" />;
-  if (type === "application/msword" || type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") return <FaFileWord className="file-icon word" />;
+  if (type.includes("word")) return <FaFileWord className="file-icon word" />;
   if (type.startsWith("image/")) return <FaFileImage className="file-icon img" />;
   return <FaFileImage className="file-icon" />;
 }
 
-type Props = {
-  onChange?: (files: File[]) => void;
+type ExistingFile = {
+  name: string; // example: "abc.pdf"
+  type: string; // example: "application/pdf"
+  url: string;  // example: S3 URL
 };
 
-function UploadImage({ onChange }: Props) {
-  const [files, setFiles] = useState<File[]>([]);
+type Props = {
+  onChange?: (files: File[]) => void;
+  value?: File[];
+  existingFiles?: ExistingFile[];
+};
+
+function UploadImage({ onChange, value = [], existingFiles = [] }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [files, setFiles] = useState<File[]>(value);
+  const [apiFiles, setApiFiles] = useState<ExistingFile[]>(existingFiles);
+
+  useEffect(() => {
+    setFiles(value);
+  }, [value]);
+
+  useEffect(() => {
+    setApiFiles(existingFiles);
+  }, [existingFiles]);
 
   const handleFiles = (fileList: FileList | null) => {
     if (!fileList) return;
-    const arr = Array.from(fileList).filter(file =>
+    const newFiles = Array.from(fileList).filter(file =>
       allowedTypes.includes(file.type) && file.size <= 20 * 1024 * 1024
     );
-    setFiles(prev => [...prev, ...arr]);
+    setFiles(prev => {
+      const merged = [...prev, ...newFiles];
+      if (onChange) onChange(merged);
+      return merged;
+    });
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
@@ -42,17 +68,25 @@ function UploadImage({ onChange }: Props) {
   };
 
   const handleDelete = (idx: number) => {
-    setFiles(prev => prev.filter((_, i) => i !== idx));
+    const updated = files.filter((_, i) => i !== idx);
+    setFiles(updated);
+    if (onChange) onChange(updated);
   };
 
-  // Pass files to parent when updated
-  useEffect(() => {
-    if (onChange) onChange(files);
-  }, [files,onChange]);
+  const handleDeleteExisting = (idx: number) => {
+    const updated = apiFiles.filter((_, i) => i !== idx);
+    setApiFiles(updated);
+    // Optionally: notify parent via callback
+  };
 
   return (
     <>
-      <div className="UploadAreaData" onClick={() => inputRef.current?.click()} onDragOver={e => e.preventDefault()} onDrop={handleDrop}>
+      <div
+        className="UploadAreaData"
+        onClick={() => inputRef.current?.click()}
+        onDragOver={e => e.preventDefault()}
+        onDrop={handleDrop}
+      >
         <div className="upldCont">
           <FaCloudUploadAlt className="upload-cloud" />
           <h6>Upload Certifications/ Degrees</h6>
@@ -69,14 +103,38 @@ function UploadImage({ onChange }: Props) {
       </div>
 
       <div className="upload-preview-list">
+        {/* New user-selected files */}
         {files.map((file, idx) => (
-          <div className="upload-preview-item" key={idx}>
+          <div className="upload-preview-item" key={`file-${idx}`}>
             {file.type.startsWith("image/") ? (
               <Image
                 src={URL.createObjectURL(file)}
                 alt={file.name}
                 className="preview-img"
-                onLoad={e => URL.revokeObjectURL((e.target as HTMLImageElement).src)}
+                width={100}
+                height={100}
+                onLoad={() => URL.revokeObjectURL(URL.createObjectURL(file))}
+              />
+            ) : (
+              <div className="preview-doc">
+                {getFileIcon(file.type)}
+                <span className="file-name">{file.name}</span>
+              </div>
+            )}
+            <Button className="delete-btn" onClick={() => handleDelete(idx)}>
+              <FaTrashAlt />
+            </Button>
+          </div>
+        ))}
+
+        {/* API/S3 existing files */}
+        {apiFiles.map((file, idx) => (
+          <div className="upload-preview-item" key={`api-${idx}`}>
+            {file.type.startsWith("image/") ? (
+              <Image
+                src={file.url}
+                alt={file.name}
+                className="preview-img"
                 width={100}
                 height={100}
               />
@@ -86,7 +144,7 @@ function UploadImage({ onChange }: Props) {
                 <span className="file-name">{file.name}</span>
               </div>
             )}
-            <Button className="delete-btn" onClick={() => handleDelete(idx)}>
+            <Button className="delete-btn" onClick={() => handleDeleteExisting(idx)}>
               <FaTrashAlt />
             </Button>
           </div>

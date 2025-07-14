@@ -76,11 +76,10 @@ export function fromFHIRBusinessProfile(fhir: FhirOrganization): BusinessProfile
 
   const getExt = (url: string): string =>
     fhir.extension?.find((e) => e.url === url)?.valueString ?? "";
-
   const parseExtArray = (url: string): string[] => {
     const raw = getExt(url);
     try {
-      return JSON.parse(raw);
+      return raw.split(":")[0].includes("https") ?raw as any: JSON.parse(raw)
     } catch {
       return [];
     }
