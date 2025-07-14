@@ -21,6 +21,7 @@
     "framer-motion": "^12.18.1",
     "glightbox": "^3.3.1",
     "jwt-decode": "^4.0.0",
+    "lodash.isequal": "^4.5.0",
     "next": "15.3.3",
     "react": "^19.0.0",
     "react-bootstrap": "^2.10.9",
@@ -43,6 +44,8 @@
     "@types/react-dom": "^19",
     "@types/react-slick": "^0.23.13",
     "@types/react-slider": "^1.3.6",
+    "@yosemite-crew/fhir": "workspace:^",
+    "@yosemite-crew/types": "workspace:^",
     "eslint": "^9",
     "eslint-config-next": "15.3.3",
     "typescript": "^5"
