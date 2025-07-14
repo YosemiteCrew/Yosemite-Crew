@@ -65,7 +65,7 @@ const navItems: NavItem[] = [
       { label: 'Contact Us', href: '/contact_us' },
     ]
   },
-  
+
 ];
 
 const Header = () => {
@@ -79,7 +79,7 @@ const Header = () => {
     ],
     []
   );
- const { profile ,vetAndTeamsProfile, userType} = useAuthStore();
+  const { profile, vetAndTeamsProfile, userType } = useAuthStore();
 
 
   const pathname = usePathname();
@@ -92,8 +92,19 @@ const Header = () => {
 
   const toggleDropdown = (label: string) => {
     setActiveDropdown(prev => (prev === label ? null : label));
-  };
+  }; const logoUrl = process.env.NEXT_PUBLIC_BASE_IMAGE_URL
+    ? `${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/Logo.png`
+    : '/Logo.png';
+  function getImageUrl(input: unknown): string {
+    if (typeof input === "string") return input;
+    if (Array.isArray(input)) return input[0] || logoUrl;
+    if (input instanceof File) return URL.createObjectURL(input);
+    return logoUrl;
+  }
 
+  const imageSrc = getImageUrl(
+    roles.includes(userType as string) ? vetAndTeamsProfile?.image : profile?.image
+  );
   const renderNavItems = (items: NavItem[], isSubmenu = false) => (
     <ul className={classNames({ dropdown: isSubmenu })}>
       {items.map(item => {
@@ -134,9 +145,7 @@ const Header = () => {
     </ul>
   );
 
-  const logoUrl = process.env.NEXT_PUBLIC_BASE_IMAGE_URL
-    ? `${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/Logo.png`
-    : '/Logo.png';
+
 
   return (
     <header className="header d-flex align-items-center">
@@ -144,7 +153,7 @@ const Header = () => {
         <Link href="/" className="logo d-flex align-items-center me-auto me-lg-0">
           <Image
             aria-hidden
-            src={ logoUrl}
+            src={logoUrl}
             alt="Logo"
             width={80}
             height={80}
@@ -158,7 +167,7 @@ const Header = () => {
             {mobileOpen ? <IoMdClose size={28} /> : <FaBarsStaggered size={28} />}
           </button>
         </nav>
-        {isVerified &&(
+        {isVerified && (
           <div className="UserInfoHeader">
 
             <div className="Notify">
@@ -171,23 +180,22 @@ const Header = () => {
                 <li className="nav-item dropdown">
                   <span className="nav-profile">
                     <div className="user">
-                      <Image src={roles.includes(userType)?vetAndTeamsProfile?.image:profile?.image? profile.image : logoUrl} alt="Profile" width={40} height={40} />
-                    </div>
+                      <Image src={imageSrc} alt="Profile" width={40} height={40} />                    </div>
                     <div className="userHostDiv">
                       <div className="userName">
-                        <p>{roles.includes(userType)?`${vetAndTeamsProfile?.name.firstName} ${vetAndTeamsProfile?.name.lastName}`:profile?.name?.businessName} </p>
+                        <p>{roles.includes(userType as string) ? `${vetAndTeamsProfile?.name.firstName} ${vetAndTeamsProfile?.name.lastName}` : profile?.name?.businessName} </p>
                         <FaCaretDown />
                       </div>
                       <p className='Tier'>Free tier - Cloud hosted</p>
                     </div>
-                    
+
                   </span>
                   <div className="profileUl">
                     <div className='ProfDiv'>
                       <Link href="#"><FaUser /> My Profile</Link>
-                      <Link href="#"><RiAccountBoxFill/> Account Settings</Link>
-                      <Link href="#"><IoIosHelpCircleOutline/> Need Help?</Link>
-                      <Link href="/signup" onClick={()=>handleLogout()}><FaSignInAlt/> Sign Out</Link>
+                      <Link href="#"><RiAccountBoxFill /> Account Settings</Link>
+                      <Link href="#"><IoIosHelpCircleOutline /> Need Help?</Link>
+                      <Link href="/signup" onClick={() => handleLogout()}><FaSignInAlt /> Sign Out</Link>
                     </div>
                     {/* <li><Link href="#"><RiAccountBoxFill/> Account Settings</Link></li>
                     <li><Link href="#"><IoIosHelpCircleOutline/> Need Help?</Link></li> */}
