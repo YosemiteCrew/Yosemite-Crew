@@ -13,35 +13,66 @@ import DynamicDatePicker from "@/app/Components/DynamicDatePicker/DynamicDatePic
 import { PhoneInput } from "@/app/Components/PhoneInput/PhoneInput";
 import DynamicSelect from "@/app/Components/DynamicSelect/DynamicSelect";
 import UploadImage from "@/app/Components/UploadImage/UploadImage";
-import OperatingHours from "@/app/Components/OperatingHours/OperatingHours";
-import {  convertToFhirVetProfile } from "@yosemite-crew/fhir";
-import { OperatingHourType } from "@yosemite-crew/types"
+import OperatingHours, { DayHours } from "@/app/Components/OperatingHours/OperatingHours";
+import { convertToFhirVetProfile } from "@yosemite-crew/fhir";
 import { postData } from "@/app/axios-services/services";
 import Swal from "sweetalert2";
 import { useAuthStore } from "@/app/stores/authStore";
 
 
-function AddVetProfile() {
-  // const {userId} = useAuth()
-  const { userId, email, userType } = useAuthStore();
+// export type OperatingHourType = {
+//   day: string;
+//   checked: boolean;
+//   times: {
+//     from: { hour: string; minute: string; period: "AM" | "PM" };
+//     to: { hour: string; minute: string; period: "AM" | "PM" };
+//   }[];
+// };
 
+function AddVetProfile() {
+
+  const { userId, email, userType, vetAndTeamsProfile } = useAuthStore();
+console.log(vetAndTeamsProfile,"vetttttt")
   useEffect(() => {
     console.log("user", userId, email, userType);
   }, [userId, email, userType]);
   const [area, setArea] = useState<string>(''); //Set country
-  const [progress] = useState(48); // Progressbar cound
+  const [progress, setProgress] = useState(33); // Progressbar count
   const [key, setKey] = useState("profileInfo");
   // Add state for phone and country code
   const [countryCode, setCountryCode] = useState("+91");
 
   // add specialization options
   const [specialization, setSpecialization] = useState<string>("");
-   const [duration, setDuration] = useState<string>(''); // Set duration for consultation
+  const [duration, setDuration] = useState<string>(''); // Set duration for consultation
   const [image, setImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
-  const [OperatingHour, setOperatingHours] = useState<OperatingHourType[]>([]);
+  const [OperatingHour, setOperatingHours] = useState<DayHours[]>([]);
   const sanitizedPreview = previewUrl;
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [apiFiles, setApiFiles] = useState<[]>([]);
+
+  console.log(OperatingHour)
+console.log(uploadedFiles)
+useEffect(() => {
+  const filesFromApi = vetAndTeamsProfile?.uploadedFiles || [];
+
+  const transformed: any[] = filesFromApi.map((f: any) => ({
+    name: f.name.split('/').pop(),
+    type: f.type,
+    url: f.name,
+  }));
+
+  setApiFiles(transformed as []);
+  setUploadedFiles([]); // reset selected files if needed
+}, [vetAndTeamsProfile]);
+  type ErrorType = {
+    [key: string]: string;
+  };
+  const [errors, setErrors] = useState<ErrorType>({});
+
+
+  console.log("duration", duration)
   const [name, setName] = useState({
     registrationNumber: "",
     firstName: "",
@@ -60,7 +91,34 @@ function AddVetProfile() {
     biography: "",
 
   });
-  console.log("name", name);
+  useEffect(() => {
+    setName({
+      registrationNumber: vetAndTeamsProfile?.name.registrationNumber || "",
+      firstName: vetAndTeamsProfile?.name.firstName || "",
+      lastName: vetAndTeamsProfile?.name?.lastName || "",
+      email: vetAndTeamsProfile?.name.email || "",
+      mobileNumber: vetAndTeamsProfile?.name.mobileNumber || "",
+      gender: vetAndTeamsProfile?.name.gender || "",
+      dateOfBirth: vetAndTeamsProfile?.name.dateOfBirth || "",
+      linkedin: vetAndTeamsProfile?.name.linkedin || "",
+      medicalLicenseNumber: vetAndTeamsProfile?.name.medicalLicenseNumber || "",
+      yearsOfExperience: vetAndTeamsProfile?.name.yearsOfExperience || "",
+      postalCode: vetAndTeamsProfile?.name.postalCode || "",
+      addressLine1: vetAndTeamsProfile?.name.addressLine1 || "",
+      city: vetAndTeamsProfile?.name.city || "",
+      stateProvince: vetAndTeamsProfile?.name.stateProvince || "",
+      biography: vetAndTeamsProfile?.name.biography || "",
+    })
+    setArea(vetAndTeamsProfile?.name.area as string)
+    setSpecialization(vetAndTeamsProfile?.specialization as string)
+
+    setDuration(vetAndTeamsProfile?.duration as string)
+    setOperatingHours(vetAndTeamsProfile?.OperatingHour as [])
+  }, [vetAndTeamsProfile])
+
+
+
+  console.log("name", vetAndTeamsProfile);
   const handleBusinessInformation = (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -121,94 +179,132 @@ function AddVetProfile() {
 
   //Specialization Options
   const specializationOptions: Option[] = [
-    { value: 'cardiology', label: '🫀 Cardiology' },
-    { value: 'orthopedics', label: '🦴 Orthopedics' },
-    { value: 'dermatology', label: '🧴 Dermatology' },
-    { value: 'pediatrics', label: '🧒 Pediatrics' },
-    { value: 'neurology', label: '🧠 Neurology' },
-    { value: 'radiology', label: '🖼️ Radiology' },
-    { value: 'dentistry', label: '🦷 Dentistry' },
-    { value: 'psychiatry', label: '🧘 Psychiatry' },
+    { value: 'cardiology', label: 'Cardiology' },
+    { value: 'orthopedics', label: 'Orthopedics' },
+    { value: 'dermatology', label: 'Dermatology' },
+    { value: 'pediatrics', label: 'Pediatrics' },
+    { value: 'neurology', label: 'Neurology' },
+    { value: 'radiology', label: 'Radiology' },
+    { value: 'dentistry', label: 'Dentistry' },
+    { value: 'psychiatry', label: 'Psychiatry' },
   ];
   //Area Options
   const areaOptions: Option[] = [
-    { value: 'north', label: '⬆️ North Zone' },
-    { value: 'south', label: '⬇️ South Zone' },
-    { value: 'east', label: '➡️ East Zone' },
-    { value: 'west', label: '⬅️ West Zone' },
-    { value: 'central', label: '🧭 Central Zone' },
-    { value: 'urban', label: '🏙️ Urban Area' },
-    { value: 'rural', label: '🌾 Rural Area' },
-    { value: 'coastal', label: '🏖️ Coastal Area' },
+    { value: 'north', label: 'North Zone' },
+    { value: 'south', label: 'South Zone' },
+    { value: 'east', label: 'East Zone' },
+    { value: 'west', label: 'West Zone' },
+    { value: 'central', label: 'Central Zone' },
+    { value: 'urban', label: 'Urban Area' },
+    { value: 'rural', label: 'Rural Area' },
+    { value: 'coastal', label: 'Coastal Area' },
   ];
 
-  const handleSaveOperatingHours = (updatedHours: React.SetStateAction<OperatingHourType[]>) => {
-    setOperatingHours(updatedHours);
-  };
- 
-   // Handle Duration Change
-  const handleDurationChange = (value: React.SetStateAction<string>) => {
-    setDuration(value)
-  }
+const handleSaveOperatingHours = useCallback((updatedHours: DayHours[]) => {
+  setOperatingHours((prev) => {
+    const isSame = JSON.stringify(prev) === JSON.stringify(updatedHours);
+    return isSame ? prev : updatedHours;
+  });
+}, []);
+
+  // Handle Duration Change
+  // const handleDurationChange = (value: React.SetStateAction<string>) => {
+  //   setDuration(value)
+  // }
   const handleSubmit = useCallback(async () => {
-  try {
-    console.log("Submitting form with data:", )
-    const response = convertToFhirVetProfile({
-      name,
-      image,
-      countryCode,
-      OperatingHour,
-      specialization,
-      uploadedFiles,
-      duration,
-    });
-
-    const formdata = new FormData();
-formdata.append("data", JSON.stringify(response));
-
-if (image) {
-  formdata.append("image", image);
-}
-
-uploadedFiles.forEach((file) => {
-  formdata.append("document[]", file);
-});
-
-    const data = await postData(`/fhir/v1/Practitioner?userId=${userId}`, formdata,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      }
-    );
-
-    if (data.status === 201) {
-      Swal.fire({
-        icon: "success",
-        title: "Success",
-        text: "Doctor added successfully!",
+    try {
+      console.log("Submitting form with data:",)
+      const response = convertToFhirVetProfile({
+        name,
+        image: image || undefined,
+        area,
+        countryCode,
+        OperatingHour,
+        specialization,
+        uploadedFiles,
+        duration,
       });
-    }
-    //  else {
-    // //   const errorData = await data.json();
-    //   Swal.fire({
-    //     icon: "error",
-    //     title: "Submission Failed",
-    //     text:
-    //       errorData.issue?.[0]?.details?.text ||
-    //       "An error occurred while submitting the form. Please try again.",
-    //   });
-    // }
-  } catch (error) {
-    Swal.fire({
-      icon: "error",
-      title: "Error",
-      text: "Failed to submit the form. Please try again later.",
-    });
-    console.error("Submission Error:", error);
-  }
-}, [OperatingHour, countryCode, name, image, specialization, uploadedFiles, duration]);
 
+      const formdata = new FormData();
+      formdata.append("data", JSON.stringify(response));
+
+      if (image) {
+        formdata.append("image", image);
+      }
+
+      uploadedFiles.forEach((file) => {
+        formdata.append("document[]", file);
+      });
+
+      const data = await postData(`/fhir/v1/Practitioner?userId=${userId}`, formdata,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      if (data.status === 201) {
+        Swal.fire({
+          icon: "success",
+          title: "Success",
+          text: "Doctor added successfully!",
+        });
+      }
+    } catch (error) {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to submit the form. Please try again later.",
+      });
+      console.error("Submission Error:", error);
+    }
+  }, [name, area, image, countryCode, OperatingHour, specialization, uploadedFiles, duration, userId]);
+
+
+  const validateStep1 = () => {
+    const newErrors: ErrorType = {};
+    if (!name.registrationNumber) newErrors.registrationNumber = "Registration number is required";
+    if (!name.firstName) newErrors.firstName = "First name is required";
+    if (!name.lastName) newErrors.lastName = "Last name is required";
+    if (!name.gender) newErrors.gender = "Gender is required";
+    if (!name.dateOfBirth) newErrors.dateOfBirth = "Date of birth is required";
+    if (!name.email) newErrors.email = "Email is required";
+    if (!name.mobileNumber) newErrors.mobileNumber = "Mobile number is required";
+    if (!name.postalCode) newErrors.postalCode = "Postal code is required";
+    if (!area) newErrors.area = "Area is required";
+    if (!name.addressLine1) newErrors.addressLine1 = "Address is required";
+    if (!name.city) newErrors.city = "City is required";
+    if (!name.stateProvince) newErrors.stateProvince = "State/Province is required";
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const validateStep2 = () => {
+    const newErrors: ErrorType = {};
+    if (!name.linkedin) newErrors.linkedin = "LinkedIn link is required";
+    if (!name.medicalLicenseNumber) newErrors.medicalLicenseNumber = "Medical license number is required";
+    if (!name.yearsOfExperience) newErrors.yearsOfExperience = "Years of experience is required";
+    if (!specialization) newErrors.specialization = "Specialization is required";
+    if (!name.biography) newErrors.biography = "Biography is required";
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleNext = (nextKey: string) => {
+    let isValid = false;
+    if (key === "profileInfo") {
+      isValid = validateStep1();
+      if (isValid) setProgress(66);
+    } else if (key === "ProfDetails") {
+      isValid = validateStep2();
+      if (isValid) setProgress(100);
+    }
+
+    if (isValid) {
+      setKey(nextKey);
+    }
+  };
 
   return (
     <>
@@ -289,7 +385,7 @@ uploadedFiles.forEach((file) => {
                                 ) : (
                                   <div className="upload-placeholder">
                                     <Image
-                                      src="/Images/camera.png"
+                                      src={typeof vetAndTeamsProfile?.image === 'string' ? vetAndTeamsProfile.image : ''}
                                       alt="camera"
                                       className="icon"
                                       width={40}
@@ -310,6 +406,7 @@ uploadedFiles.forEach((file) => {
                                 inlabel="Business Registration Number/PIMS ID"
                                 onChange={handleBusinessInformation}
                               />
+                              {errors.registrationNumber && <p className="text-danger">{errors.registrationNumber}</p>}
                             </Col>
                           </Row>
                           <Row>
@@ -321,6 +418,7 @@ uploadedFiles.forEach((file) => {
                                 inlabel="First Name"
                                 onChange={handleBusinessInformation}
                               />
+                              {errors.firstName && <p className="text-danger">{errors.firstName}</p>}
                             </Col>
                             <Col md={6}>
                               <FormInput
@@ -330,6 +428,7 @@ uploadedFiles.forEach((file) => {
                                 inlabel="Last Name"
                                 onChange={handleBusinessInformation}
                               />
+                              {errors.lastName && <p className="text-danger">{errors.lastName}</p>}
                             </Col>
                           </Row>
                           <Row>
@@ -350,6 +449,7 @@ uploadedFiles.forEach((file) => {
                                   ))}
                                 </ul>
                               </div>
+                              {errors.gender && <p className="text-danger">{errors.gender}</p>}
                             </Col>
                             <Col md={6}>
                               <DynamicDatePicker
@@ -357,6 +457,7 @@ uploadedFiles.forEach((file) => {
                                 value={name.dateOfBirth}
                                 onDateChange={handleDateChange}
                               />
+                              {errors.dateOfBirth && <p className="text-danger">{errors.dateOfBirth}</p>}
                             </Col>
                           </Row>
                           <Row>
@@ -368,6 +469,7 @@ uploadedFiles.forEach((file) => {
                                 inlabel="Enter Email"
                                 onChange={handleBusinessInformation}
                               />
+                              {errors.email && <p className="text-danger">{errors.email}</p>}
                             </Col>
                           </Row>
                           <Row>
@@ -378,6 +480,7 @@ uploadedFiles.forEach((file) => {
                                 phone={name.mobileNumber}
                                 onPhoneChange={(value) => setName({ ...name, mobileNumber: value })}
                               />
+                              {errors.mobileNumber && <p className="text-danger">{errors.mobileNumber}</p>}
                             </Col>
                           </Row>
                         </div>
@@ -394,9 +497,11 @@ uploadedFiles.forEach((file) => {
                                 inlabel="Postal Code"
                                 onChange={handleBusinessInformation}
                               />
+                              {errors.postalCode && <p className="text-danger">{errors.postalCode}</p>}
                             </Col>
                             <Col md={6}>
                               <DynamicSelect options={areaOptions} value={area} onChange={setArea} inname="area" placeholder="Area" />
+                              {errors.area && <p className="text-danger">{errors.area}</p>}
                             </Col>
                           </Row>
                           <Row>
@@ -408,6 +513,7 @@ uploadedFiles.forEach((file) => {
                                 inlabel="AddressLine1"
                                 onChange={handleBusinessInformation}
                               />
+                              {errors.addressLine1 && <p className="text-danger">{errors.addressLine1}</p>}
                             </Col>
                           </Row>
                           <Row>
@@ -419,6 +525,7 @@ uploadedFiles.forEach((file) => {
                                 inlabel="City"
                                 onChange={handleBusinessInformation}
                               />
+                              {errors.city && <p className="text-danger">{errors.city}</p>}
                             </Col>
                             <Col md={6}>
                               <FormInput
@@ -428,12 +535,13 @@ uploadedFiles.forEach((file) => {
                                 inlabel="State/Province"
                                 onChange={handleBusinessInformation}
                               />
+                              {errors.stateProvince && <p className="text-danger">{errors.stateProvince}</p>}
                             </Col>
                           </Row>
                         </div>
 
                         <div className="ComptBtn">
-                          <Button onClick={() => setKey("ProfDetails")}>
+                          <Button onClick={() => handleNext("ProfDetails")}>
                             Next <IoIosArrowDropright />
                           </Button>
                         </div>
@@ -454,6 +562,7 @@ uploadedFiles.forEach((file) => {
                               inlabel="LinkedIn Link"
                               onChange={handleBusinessInformation}
                             />
+                            {errors.linkedin && <p className="text-danger">{errors.linkedin}</p>}
                           </Col>
                         </Row>
                         <Row>
@@ -465,6 +574,7 @@ uploadedFiles.forEach((file) => {
                               inlabel="Medical License Number"
                               onChange={handleBusinessInformation}
                             />
+                            {errors.medicalLicenseNumber && <p className="text-danger">{errors.medicalLicenseNumber}</p>}
                           </Col>
                           <Col md={6}>
                             <FormInput
@@ -474,11 +584,13 @@ uploadedFiles.forEach((file) => {
                               inlabel="Years of Experience"
                               onChange={handleBusinessInformation}
                             />
+                            {errors.yearsOfExperience && <p className="text-danger">{errors.yearsOfExperience}</p>}
                           </Col>
                         </Row>
                         <Row>
                           <Col md={12}>
                             <DynamicSelect options={specializationOptions} value={specialization} onChange={setSpecialization} inname="Specialisation" placeholder="Specialisation" />
+                            {errors.specialization && <p className="text-danger">{errors.specialization}</p>}
                           </Col>
                         </Row>
                         <Row>
@@ -488,16 +600,23 @@ uploadedFiles.forEach((file) => {
                                 <Form.Control
                                   as="textarea"
                                   placeholder="Leave a comment here"
+                                  value={name.biography}
                                   style={{ height: '100px' }}
                                   onChange={(e) => setName({ ...name, biography: e.target.value })}
                                 />
                               </FloatingLabel>
+                              {errors.biography && <p className="text-danger">{errors.biography}</p>}
                             </div>
                           </Col>
                         </Row>
                         <Row>
                           <Col md={12}>
-                            <UploadImage onChange={(files) => setUploadedFiles(files)} />
+
+                            <UploadImage
+  value={uploadedFiles}
+  onChange={setUploadedFiles}
+  existingFiles={apiFiles}
+/>
                           </Col>
                         </Row>
 
@@ -508,7 +627,7 @@ uploadedFiles.forEach((file) => {
                           >
                             <IoIosArrowDropleft /> Back
                           </Button>
-                          <Button onClick={() => setKey("AvaillConst")}>
+                          <Button onClick={() => handleNext("AvaillConst")}>
                             Next <IoIosArrowDropright />
                           </Button>
                         </div>
@@ -518,11 +637,13 @@ uploadedFiles.forEach((file) => {
                     {/* service & Consultation */}
                     <Tab.Pane eventKey="AvaillConst">
                       <Form className="ServiceData">
-                        <OperatingHours
-                          onSave={handleSaveOperatingHours}
-                          Optrtname="Availability"
-                          onChange={handleDurationChange}
-                        />
+<OperatingHours
+  onSave={handleSaveOperatingHours}
+  // Timeduration={duration} // ← this is string like "15 min"
+  // onChange={handleDurationChange} // ← updates state
+  value={OperatingHour}
+/>
+
                         <div className="ComptBtn twbtn">
                           <Button
                             className="Hov"
@@ -545,6 +666,7 @@ uploadedFiles.forEach((file) => {
                     blname="Profile"
                     spname="Progress"
                     progres={progress}
+                    onclicked={handleSubmit}
                   />
                 </div>
               </div>
