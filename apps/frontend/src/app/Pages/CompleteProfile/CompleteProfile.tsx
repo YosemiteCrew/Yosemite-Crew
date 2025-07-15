@@ -6,7 +6,7 @@ import { Button, Col, Container, Form, Nav, Row, Tab } from "react-bootstrap";
 import { IoIosArrowDropleft, IoIosArrowDropright, IoMdArrowDropdown, IoMdArrowDropup } from "react-icons/io";
 import { FaCircleCheck, FaSackDollar, FaSuitcaseMedical } from "react-icons/fa6";
 import ProfileProgressbar from "@/app/Components/ProfileProgressbar/ProfileProgressbar";
-import { IoLocationSharp } from "react-icons/io5";
+import { IoLocationSharp, IoSearchOutline } from "react-icons/io5";
 import { FormInput } from "../Sign/SignUp";
 import DynamicSelect from "@/app/Components/DynamicSelect/DynamicSelect";
 import Image from "next/image";
@@ -635,13 +635,13 @@ const handleArea = (selectedOption: string) => {
                           >
                             <span>Add Services</span>
                             <span className="arrow">
-                              {isDropdownOpen ? <IoMdArrowDropup /> : <IoMdArrowDropdown />}
+                              {isDropdownOpen ? <IoMdArrowDropup size={20} /> : <IoMdArrowDropdown size={20} />}
                             </span>
                           </div>
                           {isDropdownOpen && (
                             <div className="ServDropcontent">
                               <div className="serchbtn">
-                                <i className="ri-search-line"></i>
+                                <IoSearchOutline size={20} />
                                 <input
                                   type="text"
                                   className="search-input"
@@ -706,7 +706,7 @@ const handleArea = (selectedOption: string) => {
                           {isDropdownOpen1 && (
                             <div className="ServDropcontent">
                               <div className="serchbtn">
-                                <i className="ri-search-line"></i>
+                                <IoSearchOutline size={20} />
                                 <input
                                   type="text"
                                   className="search-input"
