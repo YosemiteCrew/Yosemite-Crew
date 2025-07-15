@@ -1357,7 +1357,7 @@ const HospitalController = {
           try {
             const { organization, offset = 0, limit = 10 } = req.query;
 
-            console.log(organization, "organization", offset, limit);
+            // console.log(organization, "organization", offset, limit);
 
             const hospitalId = organization
             const parsedOffset = parseInt(offset as string, 10);

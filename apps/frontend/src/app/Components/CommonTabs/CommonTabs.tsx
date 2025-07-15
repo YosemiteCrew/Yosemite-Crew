@@ -12,7 +12,7 @@ interface TabData {
 
 interface CommonTabsProps {
   tabs: TabData[];
-  onTabClick: (eventKey: string) => void;
+  onTabClick?: (eventKey: string) => void;
   defaultActiveKey?: string;
   showStatusSelect?: boolean;
   headname?:string // 👈 optional
