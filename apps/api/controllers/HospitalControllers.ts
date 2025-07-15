@@ -1359,7 +1359,7 @@ const HospitalController = {
 
             // console.log(organization, "organization", offset, limit);
 
-            const hospitalId = organization
+            const hospitalId = organization as string ;
             const parsedOffset = parseInt(offset as string, 10);
             const parsedLimit = parseInt(limit as string, 10);
 
