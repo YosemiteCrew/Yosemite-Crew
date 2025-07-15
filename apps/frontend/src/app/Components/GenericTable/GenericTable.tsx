@@ -51,7 +51,7 @@ function GenericTable<T extends object>({
           </tr>
         </thead>
         <tbody>
-          {paginatedData.map((row, index) => (
+          {paginatedData?.map((row, index) => (
             <tr key={index}>
               {columns.map((col) => (
                 <td
