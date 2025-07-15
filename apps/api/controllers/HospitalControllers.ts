@@ -26,6 +26,7 @@ import {
 import FeedBack from "../models/feedback";
 import { PipelineStage } from "mongoose";
 import { AggregatedAppointmentGraph, AppointmentStatusFHIRBundle, QueryParams } from "@yosemite-crew/types";
+import { validateFHIR } from "../Fhirvalidator/FhirValidator";
 
 const s3 = new AWS.S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -218,9 +219,12 @@ const HospitalController = {
             ]);
 
             const data = convertSpecialityWiseAppointmentsToFHIR(departmentWiseAppointments);
-
-            return res.status(200).json(data);
-          } catch (error:any) {
+            const validateFhir = validateFHIR(data);
+            if (validateFhir) {
+              return res.status(200).json(data);
+            }
+            return res.status(400).json("validation fhir failed");
+          } catch (error: any) {
             return res.status(500).json({
               resourceType: "OperationOutcome",
               issue: [
@@ -1343,11 +1347,11 @@ const HospitalController = {
     }
   },
   getAppointmentsForHospitalDashboard: async (req: Request, res: Response) => {
-    const { type } = req.query;
+    const { caseType } = req.query;
 
-    console.log(type, "type", req)
+    // console.log(type, "type", req)
     // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HOSPITAL DASHBOARD APPOINTMENT LIST >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    switch (type) {
+    switch (caseType) {
       case "AppointmentLists":
         if (req.method === "GET") {
           try {
