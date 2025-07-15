@@ -14,7 +14,7 @@ import Message from "../models/ChatModel";
 import FHIRConverter from "../utils/DoctorsHandler";
 // import { GraphDataToFHIR } from "../utils/HospitalFhirHandler";
 import { AppointmentFHIRConverter } from "../utils/WebAppointmentHandler";
-import { AppointmentsFHIRConverter } from "../utils/HospitalProfileHandler";
+// import { AppointmentsFHIRConverter } from "../utils/HospitalProfileHandler";
 import { AppointmentsStatusFHIRConverter, convertGraphDataToFHIR, convertSpecialityWiseAppointmentsToFHIR } from "@yosemite-crew/fhir";
 
 // import { validateFHIR } from "../Fhirvalidator/FhirValidator";
