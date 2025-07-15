@@ -14,14 +14,17 @@ type DataItem = {
   cancelled: number;
 };
 
-const appointmentData: DataItem[] = [
-  { name: 'March', completed: 600, cancelled: 100 },
-  { name: 'April', completed: 700, cancelled: 120 },
-  { name: 'May', completed: 550, cancelled: 200 },
-  { name: 'June', completed: 450, cancelled: 60 },
-  { name: 'July', completed: 650, cancelled: 90 },
-  { name: 'August', completed: 600, cancelled: 100 },
-];
+// const appointmentData: DataItem[] = [
+//   { name: 'March', completed: 600, cancelled: 100 },
+//   { name: 'April', completed: 700, cancelled: 120 },
+//   { name: 'May', completed: 550, cancelled: 200 },
+//   { name: 'June', completed: 450, cancelled: 60 },
+//   { name: 'July', completed: 650, cancelled: 90 },
+//   { name: 'August', completed: 600, cancelled: 100 },
+// ];
+
+ 
+
 
 const otherData: DataItem[] = [
   { name: 'March', completed: 700, cancelled: 50 },
@@ -32,9 +35,9 @@ const otherData: DataItem[] = [
   { name: 'August', completed: 500, cancelled: 110 },
 ];
 
-const AppointmentGraph = () => {
+const AppointmentGraph = ({data}:any) => {
   const [selected, setSelected] = useState('Appointments');
-  const [chartData, setChartData] = useState<DataItem[]>(appointmentData);
+  const [chartData, setChartData] = useState<DataItem[]>(data);
 
   const handleSelect = (key: string | null) => {
     if (!key) return;
@@ -46,6 +49,11 @@ const AppointmentGraph = () => {
     }
   };
 
+  console.log(data,"inventoryandAssessmentGraph")
+  const appointmentData: DataItem[] =  data?.map((res:any)=>{
+    return { name: res.monthname, completed: res.successful, cancelled: res.cancelled }
+    })
+    
   return (
     <div className="AppointmentChartWrapper">
 
@@ -66,7 +74,7 @@ const AppointmentGraph = () => {
       </div>
 
       <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={chartData} barCategoryGap="20%">
+        <BarChart data={appointmentData} barCategoryGap="20%">
           <CartesianGrid vertical={false} stroke="#f5f5f5" strokeDasharray="3 3" />
           <ReferenceLine x={0} stroke="#dcdcdc" strokeWidth={1} />
           <XAxis dataKey="name"  axisLine={false} tickLine={true} />

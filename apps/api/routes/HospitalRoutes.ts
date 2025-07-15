@@ -1,4 +1,5 @@
 import express from 'express';
+import { verifyToken } from '../middlewares/authMiddleware';
 const HospitalController = require('../controllers/HospitalControllers');
 const { verifyTokenAndRefresh } = require('../middlewares/authMiddleware');
 const router = express.Router();
@@ -15,7 +16,7 @@ const router = express.Router();
 //   HospitalController.getDataForWeeklyAppointmentChart
 // );
 router.get(
-  '/AppointmentGraphOnMonthBase',verifyTokenAndRefresh,
+  '/AppointmentGraphOnMonthBase',verifyToken,
   HospitalController.AppointmentGraphOnMonthBase
 );
 
@@ -37,9 +38,9 @@ router.get('/getVisibility', HospitalController.getVisibility);
 // router.get('/MeasureReport/hospitalDashboard',verifyTokenAndRefresh, HospitalController.hospitalDashboard);
 router.get('/Appointment/summaryByDoctor',verifyTokenAndRefresh, HospitalController.getDoctorsTotalAppointments)
 
-router.all("/Appointment",verifyTokenAndRefresh,HospitalController.getAppointmentsForHospitalDashboard)
+router.all("/Appointment",verifyToken,HospitalController.getAppointmentsForHospitalDashboard)
 router.all('/MeasureReport',verifyTokenAndRefresh, HospitalController.WaitingRoomOverView);
-router.all('/List',verifyTokenAndRefresh,HospitalController.AppointmentGraphs)
+router.all('/List',verifyToken,HospitalController.AppointmentGraphs)
 router.get("/Rating", HospitalController.handleGetRating)
 
 router.get('/getMessages',verifyTokenAndRefresh,HospitalController.getMessages)
