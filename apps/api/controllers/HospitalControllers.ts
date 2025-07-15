@@ -1365,7 +1365,7 @@ const HospitalController = {
                 message: "organization is required in 'Organization/<userId>' format",
               });
             }
-            console.log(organization, "organization", offset, limit);
+            // console.log(organization, "organization", offset, limit);
 
             // const hospitalId = organization as string ;
             const hospitalId = Array.isArray(organization) ? organization[0] : organization;
