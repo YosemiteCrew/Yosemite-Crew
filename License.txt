@@ -1,15 +1,7 @@
-YOSEMITE CREW trademarks are not subject to the below license grants.
+# YOSEMITE CREW name and associated trademarks are not licensed under the terms of this repository’s open source license. Any use of the YOSEMITE CREW name, logo, or branding in connection with commercial products or services is strictly prohibited without prior written permission. For commercial use or licensing inquiries, please contact us to obtain a separate commercial license.
 
 # YOSEMITE CREW LICENSING EXCEPTION
-
-This Yosemite CREW Licensing Exception is an additional permission under section 7
-of the GNU Affero General Public License, version 3.
-
-Permission is hereby granted to modify and/or combine the Program with works
-licensed under the Creative Commons Licenses CC-BY-3.0 and CC-BY-4.0.
-
-
-
+This Yosemite CREW Licensing Exception is an additional permission under section 7 of the GNU Affero General Public License, version 3. Permission is hereby granted to modify and/or combine the Program with works licensed under the Creative Commons Licenses CC-BY-3.0 and CC-BY-4.0.
 
 # GNU AFFERO GENERAL PUBLIC LICENSE
 
