@@ -112,7 +112,7 @@
     border: 1px solid var(--black-text);
 }
 .ServHeadr.open .arrow {
-    color: var(--chilli-red);
+    color: var(--black-bg);
 }
 .ServDropcontent {
     border-radius: 36px;
@@ -127,10 +127,7 @@
     border-bottom: 1px solid var(--black-text);
     padding: 0px 20px;
 }
-.ServDropcontent .serchbtn i{
-    color: var(--chilli-red);
-    font-size: 20px;
-}
+
 .ServDropcontent .search-input {
     width: 100%;
     height: 100%;
@@ -163,7 +160,7 @@
 }
 
 .ServDropcontent .service-item.selected {
-    background: #FFECE8;
+    background: var(--light-blue);
 }
 .ServDropcontent .service-item.selected label p {
     font-weight: 700;
