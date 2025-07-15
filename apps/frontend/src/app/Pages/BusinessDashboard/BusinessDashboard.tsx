@@ -156,7 +156,7 @@ function BusinessDashboard() {
   const fetchDashBoardDetails = async (type: any) => {
     try {
       const response = await getData("/fhir/v1/Appointment", {
-        type: type,
+        caseType: type,
         organization: userId,
       });
 
@@ -410,14 +410,14 @@ function BusinessDashboard() {
             <Row>
               <div className="TableItemsRow">
                 <HeadingDiv Headname="Today’s Schedule" Headspan="95" />
-                <CommonTabs tabs={scheduleTabs} showStatusSelect />
+                <CommonTabs  onTabClick={fetchInventoryDetails} tabs={scheduleTabs} showStatusSelect />
               </div>
             </Row>
 
             <Row>
               <div className="TableItemsRow">
                 <HeadingDiv Headname="Practice Team" Headspan="74" />
-                <CommonTabs tabs={practiceTabs} showStatusSelect />
+                <CommonTabs  onTabClick={fetchInventoryDetails} tabs={practiceTabs} showStatusSelect />
               </div>
             </Row>
 
