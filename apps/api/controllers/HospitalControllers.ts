@@ -1356,7 +1356,15 @@ const HospitalController = {
         if (req.method === "GET") {
           try {
             const { organization, offset = 0, limit = 10 } = req.query;
-
+            if (
+              typeof organization !== "string" ||
+              !organization.startsWith("Organization/") ||
+              !/^[0-9a-fA-F-]{36}$/.test(organization.split("/")[1])
+            ) {
+              return res.status(400).json({
+                message: "organization is required in 'Organization/<userId>' format",
+              });
+            }
             console.log(organization, "organization", offset, limit);
 
             // const hospitalId = organization as string ;
@@ -2306,7 +2314,7 @@ const HospitalController = {
               });
             }
 
-            
+
             if (!organization || !organization.includes("/")) {
               return res.status(400).json({ message: "organization is required in 'Organization/<userId>' format" });
             }
