@@ -42,7 +42,7 @@ const CommonTabs = ({
           // defaultActiveKey={defaultActiveKey || tabs[0].title}
           className="linesTabs "
           onSelect={(eventKey) => {
-            if (eventKey) onTabClick(eventKey);
+            if (eventKey && onTabClick) onTabClick(eventKey);
           }}
         >
           {tabs.map((tab) => (
