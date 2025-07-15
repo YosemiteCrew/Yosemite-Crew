@@ -1,63 +1,57 @@
 'use client';
-import React, { useState ,useMemo ,useCallback } from 'react';
+import React, { useState } from 'react';
 import "./Departments.css"
 import ProfileProgressbar from '@/app/Components/ProfileProgressbar/ProfileProgressbar';
 import { Container, FloatingLabel, Form } from 'react-bootstrap';
 import { FormInput } from '../Sign/SignUp';
 import { PhoneInput } from '@/app/Components/PhoneInput/PhoneInput';
-import { IoMdArrowDropdown, IoMdArrowDropup } from 'react-icons/io';
 import { HeadText } from '../CompleteProfile/CompleteProfile';
+import ServicesSelection from '@/app/Components/Services/ServicesSelection/ServicesSelection';
+import DepartmentHeadSelector from '@/app/Components/Services/DepartmentHeadSelector/DepartmentHeadSelector';
 
 
 const servicesList = [
-  { code: "E001", display: "Internal Medicine" },
-  { code: "S001", display: "24/7 Emergency Care" },
-  { code: "V001", display: "Surgery and Operating Rooms" },
-  { code: "D001", display: "Parasitology" },
-  { code: "B001", display: "Dental Clinic" },
+  { code: "E001", display: "Cardiac Health Screenings" },
+  { code: "S001", display: "Echocardiograms" },
+  { code: "V001", display: "Electrocardiograms (ECG)" },
+  { code: "D001", display: "Blood Pressure Monitoring" },
+  { code: "H001", display: "Holter Monitoring" },
+  { code: "G001", display: "Cardiac Catheterization" },
+  { code: "T001", display: "Congenital Heart Disease Management" },
 ];
 
+const ConditionsList = [
+  { code: "E001", display: "Congestive Heart Failure" },
+  { code: "S001", display: "Arrhythmias" },
+  { code: "V001", display: "Heart Murmurs" },
+  { code: "D001", display: "Dilated Cardiomyopathy" },
+  { code: "H001", display: "Valvular Heart Disease" },
+  { code: "G001", display: "Pericardial Effusion" },
+  { code: "T001", display: "Myocarditis" },
+];
+
+
+
 function AddDepartments() {
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false); //DepartServices
-    const [searchTerm, setSearchTerm] = useState("");//DepartServices
-    const [selectedServices, setSelectedServices] = useState<string[]>([]);//DepartServices
-    const [progress] = useState(0);
-    const [name, setName] = useState({ 
-      name: "",
-      email: "",
-      
-      });
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      setName({ ...name, [e.target.name]: e.target.value });
-    };
+  const [progress] = useState(0);
+  const [name, setName] = useState({ 
+    name: "",
+    email: "",
+  });
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setName({ ...name, [e.target.name]: e.target.value });
+  };
+    // Add state for phone and country code
+  const [countryCode, setCountryCode] = useState("+91");
+  const [phone, setPhone] = useState("");
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
 
-      // Add state for phone and country code
-      const [countryCode, setCountryCode] = useState("+91");
-      const [phone, setPhone] = useState("");
+  const handleServiceSelectionChange = (selectedServices: string[]) => {
+    setSelectedServices(selectedServices);
+  };
 
 
-      // Depart Services Started
-        const toggleDropdown = () => {
-          setIsDropdownOpen(!isDropdownOpen);
-        };
-        const filteredServices = useMemo(() =>
-          servicesList.filter((service) =>
-            service.display.toLowerCase().includes(searchTerm.toLowerCase())
-          ), [searchTerm]
-        ); 
-        const handleSearch = (event: { target: { value: React.SetStateAction<string>; }; }) => {
-          setSearchTerm(event.target.value);
-        };
-        const handleSelectService = useCallback((service: { code: string; display: string }) => {
-          setSelectedServices((prevSelected) => {
-            const isSelected = prevSelected.includes(service.display);
-            return isSelected
-              ? prevSelected.filter((s) => s !== service.display)
-              : [...prevSelected, service.display];
-          });
-        }, []);
-      // Depart Services Ended  
 
   return (
     <>
@@ -67,12 +61,9 @@ function AddDepartments() {
         <div className="mb-3">
           <HeadText blktext="Add" Spntext="Specialities" />
         </div>
-
         <div className="Add_Profile_Data">
           <div className="LeftProfileDiv">
             <div className="DepartMantAddData">
-
-            
 
               <div className='DepartInputDiv'>
                 <FormInput intype="text" inname="name"  value={name.name} inlabel="Department Name" onChange={handleChange}/>
@@ -89,59 +80,19 @@ function AddDepartments() {
                 <PhoneInput countryCode={countryCode}  onCountryCodeChange={setCountryCode} phone={phone} onPhoneChange={setPhone}/>
               </div>
 
-              <div className="DepartServices">
-                <div className="services_dropdown">
-                    <div className={`ServHeadr ${isDropdownOpen ? "open" : ""}`} onClick={toggleDropdown}>
-                      <span>Add Services</span>
-                      <span className="arrow">
-                        {isDropdownOpen ? <IoMdArrowDropup /> : <IoMdArrowDropdown />}
-                      </span>
-                    </div>
-                    {isDropdownOpen && (
-                      <div className="ServDropcontent">
-                        <div className="serchbtn">
-                          <i className="ri-search-line"></i>
-                          <input
-                            type="text"
-                            className="search-input"
-                            placeholder="Search"
-                            value={searchTerm}
-                            onChange={handleSearch}
-                          />
-                        </div>
-                        <ul className="services-list">
-                          {filteredServices.map((service) => (
-                            <li
-                              key={service.code}
-                              className={`service-item ${selectedServices.includes(service.display) ? "selected" : ""}`}
-                            >
-                              <label>
-                                <p>{service.display}</p>
-                                <input
-                                  type="checkbox"
-                                  className="form-check-input"
-                                  checked={selectedServices.includes(service.display)}
-                                  onChange={() => handleSelectService(service)}
-                                />
-                              </label>
-                            </li>
-                          ))}
-                        </ul>
-
-                      </div>
-                    )}
-                </div>
+              <div className="DepartServicesDiv">
+                <ServicesSelection Title="Add Services" services={servicesList} onSelectionChange={handleServiceSelectionChange}/>
               </div>
 
+              <DepartmentHeadSelector />
 
-
-
-
-
+              <div className="DepartServicesDiv">
+                <ServicesSelection Title="Conditions Treated" services={ConditionsList} onSelectionChange={handleServiceSelectionChange}/>
+              </div>
 
             </div>
-
           </div>
+
           <div className="RytProfileDiv">
             <ProfileProgressbar
               blname="Profile"
