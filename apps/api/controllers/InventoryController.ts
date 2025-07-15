@@ -74,7 +74,7 @@ const InventoryControllers = {
     try {
       const { searchItem, skip = "0", limit = "5", expiryDate, searchCategory, userId } = req.query;
 
-console.log(searchCategory,"searchCategory")
+// console.log(searchCategory,"searchCategory")
       if (!userId) {
         res.status(400).json({
           resourceType: "OperationOutcome",
