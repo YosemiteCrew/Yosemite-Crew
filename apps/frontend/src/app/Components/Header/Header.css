@@ -98,6 +98,7 @@
   font-weight: 700;
   line-height: 120%;
   margin: 0;
+  max-width: 142px;
 }
 .NavUL .nav-profile .userHostDiv .Tier{
   color: var(--blue-text);
