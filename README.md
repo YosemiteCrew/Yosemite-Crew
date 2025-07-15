@@ -108,7 +108,7 @@ For Developers
 - Star our repo and show your support!
 - [Tik-tok](https://www.tiktok.com/@yosemitecrew) and [Instagram](https://www.instagram.com/yosemite_crew) for memes
 - Follow us on [Twitter](https://github.com/YosemiteCrew/Yosemite-Crew) or [LinkedIn](https://www.linkedin.com/company/yosemitecrew/) to get all the latest news
-- Join our [Discord](https://discord.com/invite/yosemite-crew) to chat with fellow contributors and users
+- Join our [Discord](https://discord.com/invite/SwM6mX85KD) to chat with fellow contributors and users
 - [Contribute](https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md) — we love contributions! Whether it’s code, docs, or ideas, your help is always welcome!
 
 <br>
