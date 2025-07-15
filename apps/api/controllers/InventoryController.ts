@@ -12,7 +12,6 @@ import { convertFHIRPackageToNormal, convertProcedurePackagesToFHIRBundle, conve
 
 
 
-
 interface QueryParams {
   searchItem?: string;
   skip?: string;
@@ -75,6 +74,7 @@ const InventoryControllers = {
     try {
       const { searchItem, skip = "0", limit = "5", expiryDate, searchCategory, userId } = req.query;
 
+// console.log(searchCategory,"searchCategory")
       if (!userId) {
         res.status(400).json({
           resourceType: "OperationOutcome",
@@ -119,10 +119,9 @@ const InventoryControllers = {
         matchStage.$or = searchConditions;
       }
 
-      if (searchCategory) {
-        matchStage.category = { $regex: searchCategory, $options: "i" };
+      if (searchCategory && Types.ObjectId.isValid(searchCategory)) {
+        matchStage.category = new Types.ObjectId(searchCategory);
       }
-
       if (expiryDate) {
         matchStage.expiryDate = { $gte: expiryDate };
       }
@@ -138,7 +137,7 @@ const InventoryControllers = {
               { $limit: parseInt(limit, 10) || 10 },
               {
                 $addFields: {
-                  categoryObjId: { $toObjectId: "$category" },
+                  categoryObjId: {$toObjectId:"$category"},
                   itemCategoryObjId: { $toObjectId: "$itemCategory" },
                   manufacturerObjId: { $toObjectId: "$manufacturer" },
                 },

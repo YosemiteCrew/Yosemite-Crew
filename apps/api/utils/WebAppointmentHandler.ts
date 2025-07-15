@@ -188,7 +188,8 @@ export class AppointmentFHIRConverter {
       participant: this.getParticipants(),
       reasonCode: [{ text: this.appointment.appointmentType || "Unknown" }],
       description: this.getDescription(),
-      slot: [{ reference: `Slot/${this.appointment.slotsId}` }],
+      petType: this.getPetType(),
+      slot: [{ reference: `${this.appointment.slotsId}` }],
       specialty: [{ text: this.appointment.department || "General" }],
       extension: this.getExtensions(),
     };
@@ -242,6 +243,9 @@ export class AppointmentFHIRConverter {
 
   getDescription(): string {
     return `Appointment for ${this.appointment.petName} (${this.appointment.petType}, ${this.appointment.breed})`;
+  }
+  getPetType(): string {
+    return `${this.appointment.petType}`;
   }
 
   getExtensions(): Extension[] {
