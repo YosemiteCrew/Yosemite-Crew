@@ -1357,9 +1357,10 @@ const HospitalController = {
           try {
             const { organization, offset = 0, limit = 10 } = req.query;
 
-            // console.log(organization, "organization", offset, limit);
+            console.log(organization, "organization", offset, limit);
 
-            const hospitalId = organization as string ;
+            // const hospitalId = organization as string ;
+            const hospitalId = Array.isArray(organization) ? organization[0] : organization;
             const parsedOffset = parseInt(offset as string, 10);
             const parsedLimit = parseInt(limit as string, 10);
 
@@ -2295,7 +2296,17 @@ const HospitalController = {
         if (req.method === "GET") {
           try {
             const { organization } = req.query as { organization?: string };
+            if (
+              typeof organization !== "string" ||
+              !organization.startsWith("Organization/") ||
+              !/^[0-9a-fA-F-]{36}$/.test(organization.split("/")[1])
+            ) {
+              return res.status(400).json({
+                message: "organization is required in 'Organization/<userId>' format",
+              });
+            }
 
+            
             if (!organization || !organization.includes("/")) {
               return res.status(400).json({ message: "organization is required in 'Organization/<userId>' format" });
             }
