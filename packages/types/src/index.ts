@@ -33,7 +33,7 @@ export type { IAppointmentType, IBreed, IPurposeOfVisit } from "./models/appoint
 export { AnimalCategory } from "./models/appointment.options.types";
 export type { AppointmentsTokenType, WebAppointmentType, NormalizedAppointment } from "./models/appointments.model";
 export type { AppointmentStatus, AppointmentStatusFHIRBundle, AppointmentStatusFHIRBundleEntry } from "./AppointmentStatus/appointmentStatusTypes";
-export type { InventoryType, InputData, AggregationResult, InventoryOverviewType, InventoryOverviewFHIRBundle, InventoryOverviewFHIRObservation, ProcedureItemType, ProcedurePackageType, } from "./Inventory/InventoryType";
+export type { InventoryType, InputData, AggregationResult, InventoryOverviewType, InventoryOverviewFHIRBundle, InventoryOverviewFHIRObservation, ProcedureItemType, ProcedurePackageType,SupplyItem,FhirBundle,CategoryJson } from "./Inventory/InventoryType";
 export type { ProcedureFHIRBundle, PackageItem, ProcedurePackage,FHIRMedicalPackage, FHIRPackageItem, NormalMedicalPackage, NormalPackageItem  } from "./Procedure/procedureType";
 
 export type {FhirCarePlan} from "./ExercisePlan/exercisePlanTypes"
@@ -47,3 +47,4 @@ export type {ConvertToFhirVetProfileParams,OperatingHourType,VetNameType} from '
 export type {TeamInviteMember,InvitePayload} from "./InviteTeamsMembers/invite-teams-members"
 export type { IBookAppointmentRequestBody , IParsedAppointmentDetails, IAppointmentData , IFHIRAppointmentData , } from "./appointment/appointment-types";
 export type { Department , Organization } from "./business-formatter-types/business-formatter-types";
+export type {FHIRAppointmentAssessmentGraphBundle,QueryParams,AggregatedAppointmentGraph,DataItem,FHIRBundleGraph,FHIRBundleGraphForSpecialitywiseAppointments,FHIRtoJSONSpeacilityStats} from "./hospital-type/hospitalTypes";
