@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { DepartmentFromFHIRConverter } from '../utils/DepartmentFhirHandler';
 import { DepartmentCustomFormat } from '@yosemite-crew/types';
 import Department from '../models/AddDepartment';
+import { convertDepartmentFromFHIR } from '@yosemite-crew/fhir';
 // import AWS from 'aws-sdk';
 // import { UploadedFile } from 'express-fileupload';
 // console.log(process.env,process.env.AWS_ACCESS_KEY_ID,process.env.AWS_SECRET_ACCESS_KEY,process.env.AWS_REGION);
@@ -20,11 +21,24 @@ import Department from '../models/AddDepartment';
 
 const AddDepartmentController = {
   addDepartment: async (req: Request, res: Response): Promise<void> => {
-    const data: DepartmentCustomFormat = new DepartmentFromFHIRConverter(req.body).toCustomFormat();
-
+    const data: DepartmentCustomFormat = convertDepartmentFromFHIR(req.body);
+  
+    console.log("Data from FHIR:", data);
+  
     try {
+      // ✅ Check if department name already exists
+      const existingDepartment = await Department.findOne({ departmentName: { $regex: `^${data.departmentName.trim()}$`, $options: 'i' } });
+  
+      if (existingDepartment) {
+        res.status(400).json({
+         msg:"Department with this name already exists",
+         
+        });
+        return;
+      }
+  
       const newDepartment = new Department({
-        departmentName: data.departmentName,
+        departmentName: data.departmentName.trim(),
         bussinessId: data.bussinessId,
         description: data.description,
         email: data.email,
@@ -35,9 +49,9 @@ const AddDepartmentController = {
         consultationModes: data.consultationModes,
         conditionsTreated: data.conditionsTreated,
       });
-
+  
       const response = await newDepartment.save();
-
+  
       if (response) {
         res.status(201).json(newDepartment);
       }
