@@ -4,6 +4,7 @@ export type {
   DepartmentCustomFormat,
   FHIRAppointmentObservation,
   FHIRDepartment,
+  CustomDepartmentInput
 } from "./Departments/DepartmentTypes";
 
 export type { ISubscriber, SubscriberData } from "./models/Subscriber";
