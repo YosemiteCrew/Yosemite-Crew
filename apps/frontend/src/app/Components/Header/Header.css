@@ -229,6 +229,30 @@
   color: #FFFFFF;
 }
 
+
+
+.HeaderSign{
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 28px;
+  min-height: 48px;
+  background: var(--black-bg);
+  border: 1px solid var(--black-bg);
+  color: var(--white-text);
+  font-family: var(--grotesk-font);
+  font-weight: 500;
+  font-size: 19px;
+  line-height: 120%;
+  transition: 0.5s ease;
+}
+.HeaderSign:hover{
+  color: var(--black-text);
+  background: transparent;
+}
+
 /* ========================== */
 /* === NAVIGATION MENU === */
 /* ========================== */
