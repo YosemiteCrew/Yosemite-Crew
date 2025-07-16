@@ -37,6 +37,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@iconify/react": "^6.0.0",
     "@types/chart.js": "^4.0.1",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -51,4 +52,3 @@
     "typescript": "^5"
   }
 }
- 
