@@ -146,13 +146,38 @@
   font-size: 33px;
   line-height: 120%;
 }
+.AvailabityDivDoctor .AvltyFor{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.AvailabityDivDoctor .AvltyFor .avldate{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.AvailabityDivDoctor .AvltyFor .avldate input.AvlDatepicker{
+  min-width: 242px;
+  max-width: 242px;
+  min-height: 37px;
+  cursor: pointer;
+  border: none;
+  border-bottom: 1px solid var(--lightgrey);
+  border-radius: 0;
+  outline: none;
+}
+.AvailabityDivDoctor .AvltyFor .avldate input.AvlDatepicker:focus{
+  border-color: var(--lightgrey);
+}
+
+
 
 .Add_Profile_Data .LeftProfileDiv .AvailabityDivDoctor{
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
-.Add_Profile_Data .LeftProfileDiv .AvailabityDivDoctor h5{
+.Add_Profile_Data .LeftProfileDiv .AvailabityDivDoctor .AvltyFor .avldate h5{
   margin: 0;
   font-weight: 500;
   font-size: 23px;
