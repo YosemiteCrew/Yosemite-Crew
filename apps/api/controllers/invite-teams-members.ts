@@ -1,9 +1,6 @@
 // controllers/inviteTeamsMembers.ts
 import AWS from "aws-sdk";
 import { Request, Response } from "express";
-import dotenv from 'dotenv';
-dotenv.config();
-// import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 import { inviteTeamsMembers } from "../models/invite-teams-members";
 import { invitedTeamMembersInterface, InvitePayload } from "@yosemite-crew/types";
 import crypto from "crypto";

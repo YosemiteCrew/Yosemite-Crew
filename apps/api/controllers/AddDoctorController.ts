@@ -5,12 +5,13 @@ import AddDoctors from "../models/AddDoctor";
 import FHIRConverter from "../utils/DoctorsHandler";
 import { validateFHIR } from "../Fhirvalidator/FhirValidator";
 // import { equal } from 'assert';
-import  { S3 } from "aws-sdk";
+import { S3 } from "aws-sdk";
 
 import DoctorsTimeSlotes from "../models/doctors.slotes.model";
 import { webAppointments } from "../models/WebAppointment";
 import { Request, Response } from "express";
-import {   Document, convertFromFhirVetProfile } from "@yosemite-crew/fhir";
+import { Document, convertFromFhirVetProfile, convertToFhirVetProfile } from "@yosemite-crew/fhir";
+import { ConvertToFhirVetProfileParams } from "@yosemite-crew/types";
 
 
 const s3 = new S3({
@@ -32,203 +33,204 @@ function convertTo12HourFormat(dateObj: Date): string {
 const AddDoctorsController = {
 
   addDoctor: async (req: Request, res: Response): Promise<void> => {
-  try {
-   
-    const userId = req.query.userId as string;
-    let rawData: string = "";
-    if (
-      req.body &&
-      typeof req.body === "object" &&
-      Object.prototype.hasOwnProperty.call(req.body, "data") &&
-      typeof (req.body as { data?: unknown }).data === "string"
-    ) {
-      rawData = (req.body as { data: string }).data;
-    } else {
-      res.status(400).json({ message: "Invalid request body: missing or invalid 'data' property." });
-      return;
-    }
-    const fhirData = JSON.parse(rawData) as unknown;
-    // Ensure fhirData is an object before passing to convertFromFhirVetProfile
-    if (typeof fhirData !== "object" || fhirData === null) {
-      res.status(400).json({ message: "Invalid FHIR data format." });
-      return;
-    }
-    const parsed = convertFromFhirVetProfile(fhirData);
-    const { name, specialization, countryCode, OperatingHour, duration } = parsed;
+    try {
+      const userId = req.query.userId as string;
+      let rawData: string = "";
 
-    // 2. Upload helper
-    interface UploadedFile {
-      name: string;
-      data: Buffer;
-      mimetype: string;
-    }
-
-    const uploadToS3 = (file: UploadedFile, folderName: string): Promise<string> => {
-      return new Promise((resolve, reject) => {
-        const params = {
-          Bucket: process.env.AWS_S3_BUCKET_NAME!,
-          Key: `${folderName}/${Date.now()}_${file.name}`,
-          Body: file.data, // ✅ this is how express-fileupload gives the buffer
-          ContentType: file.mimetype,
-        };
-
-        s3.upload(params, (err: Error | null, data: S3.ManagedUpload.SendData) => {
-          if (err) {
-            console.error("S3 Upload Error:", err);
-            reject(err);
-          } else {
-            resolve(data.Key);
-          }
-        });
-      });
-    };
-
-    // 3. Handle image
-    let imageUrl: string | null = null;
-    let imageFile: UploadedFile | undefined;
-    if (req.files && !Array.isArray(req.files) && typeof req.files === "object" && "image" in req.files) {
-      imageFile = ((req.files as unknown) as { [fieldname: string]: UploadedFile | UploadedFile[] }).image as UploadedFile;
-    }
-    if (imageFile) {
-      imageUrl = await uploadToS3(imageFile, "profilePictures");
-    }
-
-    // 4. Handle documents (can be single or array)
-    const documents: Document[] = [];
-    const files = req.files as { [fieldname: string]: UploadedFile | UploadedFile[] } | undefined;
-    const docFiles = files && (files["document[]"] as UploadedFile | UploadedFile[] | undefined);
-
-    if (Array.isArray(docFiles)) {
-      for (const file of docFiles) {
-        const key = await uploadToS3(file, "documents");
-        documents.push({ name: key, type: file.mimetype, date: new Date() });
+      if (
+        req.body &&
+        typeof req.body === "object" &&
+        Object.prototype.hasOwnProperty.call(req.body, "data") &&
+        typeof (req.body as { data?: unknown }).data === "string"
+      ) {
+        rawData = (req.body as { data: string }).data;
+      } else {
+        res.status(400).json({ message: "Invalid request body: missing or invalid 'data' property." });
+        return;
       }
-    } else if (docFiles) {
-      const key = await uploadToS3(docFiles, "documents");
-      documents.push({ name: key, type: docFiles.mimetype, date: new Date() });
-    }
 
-    // 5. Create and save doctor
-   const newDoctor = {
-  ...name,
-  userId,
-  specialization,
-  countryCode,
-  availability: OperatingHour,
-  duration: duration as string, 
-  image: imageUrl,
-  documents,
-};
+      const fhirData = JSON.parse(rawData);
+      if (typeof fhirData !== "object" || fhirData === null) {
+        res.status(400).json({ message: "Invalid FHIR data format." });
+        return;
+      }
 
-// Use registrationNumber or email as the unique key
-const filter = { registrationNumber: name.registrationNumber };
+      const parsed = convertFromFhirVetProfile(fhirData);
+      const { name, specialization, countryCode, OperatingHour, duration } = parsed;
 
-// Update if exists, otherwise insert (upsert: true)
-const updatedDoctor = await AddDoctors.findOneAndUpdate(
-  filter,
-  newDoctor,
-  { new: true, upsert: true }
-);
+      interface UploadedFile {
+        name: string;
+        data: Buffer;
+        mimetype: string;
+      }
 
-    res.status(201).json({
-      message: "Doctor profile created successfully.",
-      data: updatedDoctor,
-    });
-  } catch (error: any) {
-    console.error("❌ Error creating doctor profile:", error);
-    res.status(500).json({
-      resourceType: "OperationOutcome",
-      issue: [
-        {
-          severity: "error",
-          code: "exception",
-          details: {
-            text: error.message,
+      const uploadToS3 = (file: UploadedFile, folderName: string): Promise<string> => {
+        return new Promise((resolve, reject) => {
+          const params = {
+            Bucket: process.env.AWS_S3_BUCKET_NAME!,
+            Key: `${folderName}/${Date.now()}_${file.name}`,
+            Body: file.data,
+            ContentType: file.mimetype,
+          };
+
+          s3.upload(params, (err, data) => {
+            if (err) {
+              console.error("S3 Upload Error:", err);
+              reject(err);
+            } else {
+              resolve(data.Key);
+            }
+          });
+        });
+      };
+
+      let imageUrl: string | null = null;
+      let imageFile: UploadedFile | undefined;
+
+      if (req.files && !Array.isArray(req.files) && typeof req.files === "object" && "image" in req.files) {
+        imageFile = (req.files as { [fieldname: string]: UploadedFile | UploadedFile[] }).image as UploadedFile;
+      }
+      if (imageFile) {
+        imageUrl = await uploadToS3(imageFile, "profilePictures");
+      }
+
+      // 🟢 Get existing doctor data to preserve previous documents
+      const existingDoctor = await AddDoctors.findOne({ registrationNumber: name.registrationNumber });
+      const existingDocuments = existingDoctor?.documents || [];
+
+      const documents: Document[] = [...existingDocuments];
+      const files = req.files as { [fieldname: string]: UploadedFile | UploadedFile[] } | undefined;
+      const docFiles = files?.["document[]"];
+
+      if (Array.isArray(docFiles)) {
+        for (const file of docFiles) {
+          const key = await uploadToS3(file, "documents");
+          documents.push({ name: key, type: file.mimetype, date: new Date() });
+        }
+      } else if (docFiles) {
+        const key = await uploadToS3(docFiles, "documents");
+        documents.push({ name: key, type: docFiles.mimetype, date: new Date() });
+      }
+
+      const newDoctor = {
+        ...name,
+        userId,
+        specialization,
+        countryCode,
+        availability: OperatingHour,
+        duration,
+        image: imageUrl || existingDoctor?.image || null,
+        documents,
+      };
+
+      const updatePayload = Object.fromEntries(
+        Object.entries(newDoctor).filter(([_, v]) => v !== undefined && v !== null)
+      );
+
+      const updatedDoctor = await AddDoctors.findOneAndUpdate(
+        { registrationNumber: name.registrationNumber },
+        { $set: updatePayload },
+        { new: true, upsert: true }
+      );
+
+      res.status(201).json({
+        message: "Doctor profile created successfully.",
+        data: updatedDoctor,
+      });
+    } catch (error: any) {
+      console.error("❌ Error creating doctor profile:", error);
+      res.status(500).json({
+        resourceType: "OperationOutcome",
+        issue: [
+          {
+            severity: "error",
+            code: "exception",
+            details: {
+              text: error.message,
+            },
           },
-        },
-      ],
-    });
-  }
-},
+        ],
+      });
+    }
+  },
 
-  
-//  getOverview : async (req: Request, res: Response): Promise<Response> => {
-//   const subject = req.query.subject as string;
-//   const reportType = req.query.reportType as string;
+  //  getOverview : async (req: Request, res: Response): Promise<Response> => {
+  //   const subject = req.query.subject as string;
+  //   const reportType = req.query.reportType as string;
 
-//   if (!subject || !reportType) {
-//     return res.status(400).json({ message: 'Missing required query parameters' });
-//   }
+  //   if (!subject || !reportType) {
+  //     return res.status(400).json({ message: 'Missing required query parameters' });
+  //   }
 
-//   const match = subject.match(/^Organization\/(.+)$/);
-//   if (!match) {
-//     return res.status(400).json({
-//       resourceType: 'OperationOutcome',
-//       reportType,
-//       issue: [
-//         {
-//           severity: 'error',
-//           code: 'invalid-subject',
-//           details: {
-//             text: 'Invalid subject format. Expected Organization/12345',
-//           },
-//         },
-//       ],
-//     });
-//   }
+  //   const match = subject.match(/^Organization\/(.+)$/);
+  //   if (!match) {
+  //     return res.status(400).json({
+  //       resourceType: 'OperationOutcome',
+  //       reportType,
+  //       issue: [
+  //         {
+  //           severity: 'error',
+  //           code: 'invalid-subject',
+  //           details: {
+  //             text: 'Invalid subject format. Expected Organization/12345',
+  //           },
+  //         },
+  //       ],
+  //     });
+  //   }
 
-//   const organizationId = match[1];
+  //   const organizationId = match[1];
 
-//   try {
-//     const aggregation = await AddDoctors.aggregate([
-//       {
-//         $match: { bussinessId: organizationId },
-//       },
-//       {
-//         $group: {
-//           _id: '$professionalBackground.specialization',
-//         },
-//       },
-//       {
-//         $count: 'totalSpecializations',
-//       },
-//     ]);
+  //   try {
+  //     const aggregation = await AddDoctors.aggregate([
+  //       {
+  //         $match: { bussinessId: organizationId },
+  //       },
+  //       {
+  //         $group: {
+  //           _id: '$professionalBackground.specialization',
+  //         },
+  //       },
+  //       {
+  //         $count: 'totalSpecializations',
+  //       },
+  //     ]);
 
-//     const totalDoctors = await AddDoctors.countDocuments({
-//       bussinessId: organizationId,
-//     });
+  //     const totalDoctors = await AddDoctors.countDocuments({
+  //       bussinessId: organizationId,
+  //     });
 
-//     const availableDoctors = await AddDoctors.countDocuments({
-//       bussinessId: organizationId,
-//       isAvailable: '1',
-//     });
+  //     const availableDoctors = await AddDoctors.countDocuments({
+  //       bussinessId: organizationId,
+  //       isAvailable: '1',
+  //     });
 
-//     const overview = {
-//       totalDoctors,
-//       totalSpecializations: aggregation[0]?.totalSpecializations || 0,
-//       availableDoctors,
-//     };
+  //     const overview = {
+  //       totalDoctors,
+  //       totalSpecializations: aggregation[0]?.totalSpecializations || 0,
+  //       availableDoctors,
+  //     };
 
-//     const converter = new FHIRConverter(overview);
-//     const response = converter.overviewConvertToFHIR();
+  //     const converter = new FHIRConverter(overview);
+  //     const response = converter.overviewConvertToFHIR();
 
-//     return res.status(200).json(response); // No need to stringify, Express handles objects
-//   } catch (error: any) {
-//     console.error('Error fetching overview data:', error);
-//     return res.status(500).json({
-//       resourceType: 'OperationOutcome',
-//       issue: [
-//         {
-//           severity: 'error',
-//           code: 'exception',
-//           details: {
-//             text: error.message,
-//           },
-//         },
-//       ],
-//     });
-//   }
-// },
+  //     return res.status(200).json(response); // No need to stringify, Express handles objects
+  //   } catch (error: any) {
+  //     console.error('Error fetching overview data:', error);
+  //     return res.status(500).json({
+  //       resourceType: 'OperationOutcome',
+  //       issue: [
+  //         {
+  //           severity: 'error',
+  //           code: 'exception',
+  //           details: {
+  //             text: error.message,
+  //           },
+  //         },
+  //       ],
+  //     });
+  //   }
+  // },
   getForAppDoctorsBySpecilizationId: async (req, res) => {
     try {
       const { userId, value } = req.query.params;
@@ -328,8 +330,8 @@ const updatedDoctor = await AddDoctors.findOneAndUpdate(
       }, {});
 
       function getS3Url(fileKey) {
-        
-        return fileKey ? `${process.env.CLOUD_FRONT_URI}/${fileKey}`: null;
+
+        return fileKey ? `${process.env.CLOUD_FRONT_URI}/${fileKey}` : null;
       }
       const doctorDataWithSpecializations = doctors.map((doctor) => {
         const specializationId = doctor.professionalBackground?.specialization;
@@ -386,83 +388,49 @@ const updatedDoctor = await AddDoctors.findOneAndUpdate(
     }
   },
 
-  getDoctors: async (req, res) => {
+  getDoctors: async (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
-
-      if (!id) {
-        return res.status(400).json({ message: "User ID is required" });
+      console.log("kkk", req.query)
+      const { userId } = req.query;
+      if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        return res.status(400).json({ message: "Invalid User ID format" });
       }
 
-      // console.log('Fetching doctor data for User ID:', id);
+      const doctor = await AddDoctors.findOne({ userId: userId }).lean();
+      if (!doctor) return res.status(404).json({ message: "Doctor not found" });
 
-      const doctor = await AddDoctors.findOne({ userId: id }).lean();
+      // 🧠 Prepare input for FHIR conversion
+      const formattedVetData = {
+        name: { ...doctor },
+        specialization: doctor.specialization,
+        countryCode: doctor.countrycode,
+        OperatingHour: doctor.availability,
+        duration: doctor.duration,
+      };
 
-      if (doctor) {
-        const department = await Department.findOne({
-          _id: doctor?.professionalBackground?.specialization,
-        });
-
-        if (doctor.personalInfo.image) {
-          const imageUrl = `${process.env.CLOUD_FRONT_URI}/${doctor.personalInfo.image}`
-          const updatedDocuments = doctor.documents?.map((doc) => {
-            const signedUrl = s3.getSignedUrl("getObject", {
-              Bucket: process.env.AWS_S3_BUCKET_NAME,
-              Key: doc.name,
-            });
-
-            return {
-              _id: doc._id,
-              name: signedUrl,
-              type: doc.type,
-              date: doc.date,
-            };
-          });
-
-          const data = JSON.stringify(
-            {
-              ...doctor._doc,
-              timeDuration: doctor.timeDuration,
-              availability: doctor.availability,
-              residentialAddress: doctor.residentialAddress,
-              personalInfo: { ...doctor.personalInfo, image: imageUrl },
-              professionalBackground: {
-                ...doctor.professionalBackground,
-                specialization: department?.departmentName,
-              },
-              documents: updatedDocuments,
-            },
-            null,
-            2
-          );
-
-          const fhirDoctor = FHIRConverter.toFHIR(JSON.parse(data));
-          const fhirDocuments = FHIRConverter.documentsToFHIR(
-            JSON.parse(data).documents
-          );
-          const fhirSchedule = FHIRConverter.availabilityToFHIR(
-            JSON.parse(data).availability
-          );
-          return res.status(200).json({
-            // ...doctor._doc,
-            // timeDuration: doctor.timeDuration,
-            // availability: doctor.availability,
-            // residentialAddress: doctor.residentialAddress,
-            // personalInfo: { ...doctor.personalInfo, image: imageUrl },
-            // professionalBackground: {
-            //   ...doctor.professionalBackground,
-            //   specialization: department?.departmentName,
-            // },
-            // documents: updatedDocuments,
-            fhirDoctor: fhirDoctor,
-            fhirDocuments: fhirDocuments,
-            fhirSchedule: fhirSchedule,
-          });
+      // 🔐 Generate signed image and document URLs (optional)
+      const image = doctor.image
+        ? {
+          name: `${process.env.CLOUD_FRONT_URI}/${doctor.image}`, // optionally detect MIME type
         }
-      } else {
-        // console.log('No doctor found for User ID:', id);
-        return res.status(404).json({ message: "Doctor not found" });
-      }
+        : undefined;
+
+      const uploadedFiles = (doctor.documents ?? []).map((doc) => ({
+        name: s3.getSignedUrl("getObject", {
+          Bucket: process.env.AWS_S3_BUCKET_NAME!,
+          Key: doc.name,
+        }),
+        type: doc.type,
+      }));
+
+      // ✅ Convert to FHIR
+      const fhirPractitioner = convertToFhirVetProfile({
+        ...formattedVetData,
+        image,
+        uploadedFiles,
+      }) as ConvertToFhirVetProfileParams;
+      return res.status(200).json(fhirPractitioner);
+
     } catch (error) {
       console.error("Error fetching doctor data:", error);
       return res.status(500).json({
@@ -473,12 +441,13 @@ const updatedDoctor = await AddDoctors.findOneAndUpdate(
             code: "exception",
             details: {
               text: error.message,
-            }
-          }
-        ]
+            },
+          },
+        ],
       });
     }
   },
+
 
   deleteDocumentsToUpdate: async (req, res) => {
     const { userId, docId } = req.params;
@@ -1075,4 +1044,4 @@ const updatedDoctor = await AddDoctors.findOneAndUpdate(
   },
 };
 
-module.exports = AddDoctorsController;
+export default AddDoctorsController;

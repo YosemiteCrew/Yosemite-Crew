@@ -2,111 +2,93 @@ import React, { useState, useEffect } from "react";
 import "./OperatingHours.css";
 import { RiDeleteBin6Line } from "react-icons/ri";
 import { IoAddCircleOutline } from "react-icons/io5";
-import DynamicSelect from "../DynamicSelect/DynamicSelect";
+// import DynamicSelect from "../DynamicSelect/DynamicSelect";
 
-type Time = {
+export type Time = {
   hour: string;
   minute: string;
   period: "AM" | "PM";
 };
 
-type TimeSlot = {
+export type TimeSlot = {
   from: Time;
   to: Time;
 };
 
-type DayHours = {
+export type DayHours = {
   day: string;
   times: TimeSlot[];
   checked: boolean;
 };
 
-type OperatingHoursProps = {
+export type Option = {
+  value: string;
+  label: string;
+};
+
+export type OperatingHoursProps = {
   onSave?: (hours: DayHours[]) => void;
-  onChange?: (duration: string) => void;
-  Optrtname?: string;
+  // onChange?: (duration: string) => void;
+  value?: DayHours[];
+  // Timeduration: string;
 };
 
 const defaultDays: DayHours[] = [
-  {
-    day: "Monday",
-    times: [
-      {
-        from: { hour: "8", minute: "30", period: "AM" },
-        to: { hour: "11", minute: "00", period: "AM" },
-      },
-    ],
-    checked: true,
-  },
-  {
-    day: "Tuesday",
-    times: [
-      {
-        from: { hour: "10", minute: "00", period: "AM" },
-        to: { hour: "5", minute: "00", period: "PM" },
-      },
-    ],
-    checked: true,
-  },
-  {
-    day: "Wednesday",
-    times: [
-      {
-        from: { hour: "10", minute: "00", period: "AM" },
-        to: { hour: "5", minute: "30", period: "PM" },
-      },
-    ],
-    checked: true,
-  },
-  {
-    day: "Thursday",
-    times: [
-      {
-        from: { hour: "10", minute: "00", period: "AM" },
-        to: { hour: "5", minute: "30", period: "PM" },
-      },
-    ],
-    checked: true,
-  },
-  {
-    day: "Friday",
-    times: [
-      {
-        from: { hour: "10", minute: "00", period: "AM" },
-        to: { hour: "5", minute: "30", period: "PM" },
-      },
-    ],
-    checked: true,
-  },
-  {
-    day: "Saturday",
-    times: [
-      {
-        from: { hour: "8", minute: "30", period: "AM" },
-        to: { hour: "11", minute: "00", period: "AM" },
-      },
-    ],
-    checked: true,
-  },
-  {
-    day: "Sunday",
-    times: [
-      {
-        from: { hour: "", minute: "", period: "AM" },
-        to: { hour: "", minute: "", period: "AM" },
-      },
-    ],
-    checked: false,
-  },
+  { day: "Monday", times: [{ from: { hour: "8", minute: "30", period: "AM" }, to: { hour: "11", minute: "00", period: "AM" } }], checked: true },
+  { day: "Tuesday", times: [{ from: { hour: "10", minute: "00", period: "AM" }, to: { hour: "5", minute: "00", period: "PM" } }], checked: true },
+  { day: "Wednesday", times: [{ from: { hour: "10", minute: "00", period: "AM" }, to: { hour: "5", minute: "30", period: "PM" } }], checked: true },
+  { day: "Thursday", times: [{ from: { hour: "10", minute: "00", period: "AM" }, to: { hour: "5", minute: "30", period: "PM" } }], checked: true },
+  { day: "Friday", times: [{ from: { hour: "10", minute: "00", period: "AM" }, to: { hour: "5", minute: "30", period: "PM" } }], checked: true },
+  { day: "Saturday", times: [{ from: { hour: "8", minute: "30", period: "AM" }, to: { hour: "11", minute: "00", period: "AM" } }], checked: true },
+  { day: "Sunday", times: [{ from: { hour: "", minute: "", period: "AM" }, to: { hour: "", minute: "", period: "AM" } }], checked: false },
 ];
 
-const OperatingHours: React.FC<OperatingHoursProps> = ({ onSave, onChange }) => {
-  const [hours, setHours] = useState<DayHours[]>(defaultDays);
-   const [duration, setDuration] = useState<string>('15 min'); //Set country
+// const durations: Option[] = [
+//   { value: "15 min", label: "15 minutes" },
+//   { value: "30 min", label: "30 minutes" },
+//   { value: "45 min", label: "45 minutes" },
+//   { value: "60 min", label: "60 minutes" },
+// ];
+
+const OperatingHours: React.FC<OperatingHoursProps> = ({ onSave,   value }) => {
+  const [hours, setHours] = useState<DayHours[]>([]);
+  // const [duration, setDuration] = useState<string>(Timeduration);
+
+  // Initialize hours with value or fallback to default
+
+  console.log("value",value)
   useEffect(() => {
-    if (onSave) onSave(hours);
-    if (onChange) onChange(duration);
-  }, [hours, onSave,duration, onChange]);
+    const updated = defaultDays.map((defaultDay) => {
+      const matched = value?.find((v) => v.day === defaultDay.day);
+
+      if (matched) {
+        return {
+          day: matched.day,
+          times: matched.times.map(({ from, to }) => ({ from, to })),
+          checked: true,
+        };
+      } else {
+        return { ...defaultDay, checked: false };
+      }
+    });
+
+    setHours(updated);
+  }, [value]);
+
+  // Sync duration from props initially
+  // useEffect(() => {
+  //   if (Timeduration !== duration) {
+  //     setDuration(Timeduration);
+  //   }
+  // }, [Timeduration]);
+
+  // Save operating hours on change
+  useEffect(() => {
+    if (onSave) {
+      const checkedDays = hours.filter((day) => day.checked);
+      onSave(checkedDays);
+    }
+  }, [hours, onSave]);
 
   const handleCheckboxChange = (index: number) => {
     setHours((prev) =>
@@ -122,13 +104,7 @@ const OperatingHours: React.FC<OperatingHoursProps> = ({ onSave, onChange }) => 
         i === dayIndex
           ? {
               ...hour,
-              times: [
-                ...hour.times,
-                {
-                  from: { hour: "", minute: "", period: "AM" },
-                  to: { hour: "", minute: "", period: "AM" },
-                },
-              ],
+              times: [...hour.times, { from: { hour: "", minute: "", period: "AM" }, to: { hour: "", minute: "", period: "AM" } }],
             }
           : hour
       )
@@ -139,10 +115,7 @@ const OperatingHours: React.FC<OperatingHoursProps> = ({ onSave, onChange }) => 
     setHours((prev) =>
       prev.map((hour, i) =>
         i === dayIndex
-          ? {
-              ...hour,
-              times: hour.times.filter((_, idx) => idx !== timeIndex),
-            }
+          ? { ...hour, times: hour.times.filter((_, idx) => idx !== timeIndex) }
           : hour
       )
     );
@@ -170,46 +143,37 @@ const OperatingHours: React.FC<OperatingHoursProps> = ({ onSave, onChange }) => 
       )
     );
   };
-   type Option = {
-    value: string;
-    label: string;
-  };
 
- const durations: Option[] = [
-    { value: '1', label: '15 minutes' },
-    { value: '2', label: '30 minutes' },
-    { value: '3', label: '45 minutes' },
-    { value: '4', label: '60 minutes' },
-    
-    
-    
-    
-  ];
   return (
-    <>
     <div className="ss">
       <h6>Availability</h6>
       <div className="ss">
-        <div className="s">
+        {/* <div className="s">
           <h4>Set Appointment Duration</h4>
           <p>Set the default time for appointments.</p>
-        </div>
-        <div className="s">
-  <DynamicSelect options={durations} value={duration} onChange={setDuration} inname="duration" />
-        </div>
-
+        </div> */}
+        {/* <div className="s">
+          <DynamicSelect
+            options={durations}
+            value={duration}
+            onChange={(val: string) => {
+              setDuration(val);
+              onChange?.(val); // Trigger only on user change
+            }}
+            inname="duration"
+          />
+        </div> */}
       </div>
 
-    
       <div className="operating-hours">
         <div className="Hours_List">
-          
           <div className="TopHoursTitle">
             <p>Days</p>
             <p>From</p>
             <p>To</p>
             <p></p>
           </div>
+
           {hours.map((hour, dayIndex) => (
             <div className="DaysRow" key={hour.day}>
               <div className="day_checkbox">
@@ -221,6 +185,7 @@ const OperatingHours: React.FC<OperatingHoursProps> = ({ onSave, onChange }) => 
                 />
                 <label>{hour.day}</label>
               </div>
+
               <div className="from-section">
                 {hour.times.map((time, timeIndex) => (
                   <div key={timeIndex} className="time-slot">
@@ -268,6 +233,7 @@ const OperatingHours: React.FC<OperatingHoursProps> = ({ onSave, onChange }) => 
                   </div>
                 ))}
               </div>
+
               <div className="to-section">
                 {hour.times.map((time, timeIndex) => (
                   <div key={timeIndex} className="time-slot">
@@ -315,6 +281,7 @@ const OperatingHours: React.FC<OperatingHoursProps> = ({ onSave, onChange }) => 
                   </div>
                 ))}
               </div>
+
               <div className="actions-section">
                 {hour.times.map((_, timeIndex) => (
                   <div key={timeIndex} className="action-buttons">
@@ -324,7 +291,7 @@ const OperatingHours: React.FC<OperatingHoursProps> = ({ onSave, onChange }) => 
                         className="remove-btn"
                         onClick={() => handleRemoveTimeSlot(dayIndex, timeIndex)}
                       >
-                      <RiDeleteBin6Line /> 
+                        <RiDeleteBin6Line />
                       </button>
                     )}
                     {timeIndex === hour.times.length - 1 && (
@@ -344,9 +311,7 @@ const OperatingHours: React.FC<OperatingHoursProps> = ({ onSave, onChange }) => 
         </div>
       </div>
     </div>
-    </>
   );
 };
 
 export default OperatingHours;
-                   

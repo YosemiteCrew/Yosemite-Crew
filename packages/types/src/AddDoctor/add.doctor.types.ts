@@ -56,3 +56,6 @@ duration: string; // newly added field
   createdAt?: Date;
   updatedAt?: Date;
 };
+
+
+

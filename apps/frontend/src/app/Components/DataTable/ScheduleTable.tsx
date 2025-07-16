@@ -5,15 +5,18 @@ import Image from "next/image";
 import "./DataTable.css"
 import { Button } from "react-bootstrap";
 import { FaEye, FaUser } from "react-icons/fa6";
-
+import { memo } from "react";
 
 type Appointment = {
   avatar: string;
   name: string;
+  participants: [{name:string}, {name:string}];
   subName: string;
   appointmentId: string;
   reason: string;
   petType: string;
+  slotRef:  string;
+  description: string;
   petSubType: string;
   time: string;
   date: string;
@@ -21,47 +24,47 @@ type Appointment = {
   doctorDept: string;
 };
 
-const data: Appointment[] = [
-  {
-    avatar: "/Images/pet.jpg",
-    name: "Kizie",
-    subName: "Sky B",
-    appointmentId: "DRO01-03-23-2024",
-    reason: "Annual Health Check-Up",
-    petType: "Dog",
-    petSubType: "Beagle",
-    time: "10:15 AM",
-    date: "24 Apr 2025",
-    doctor: "Dr. Emily Johnson",
-    doctorDept: "Cardiology",
-  },
-  {
-    avatar: "/Images/pet.jpg",
-    name: "Oscar",
-    subName: "Pika K",
-    appointmentId: "DRO02-03-23-2024",
-    reason: "Vaccination Updates",
-    petType: "Cat",
-    petSubType: "Egyptian Mau",
-    time: "10:15 AM",
-    date: "24 Apr 2025",
-    doctor: "Dr. David Brown",
-    doctorDept: "Gastroenterology",
-  },
-  {
-    avatar: "/Images/pet.jpg",
-    name: "King",
-    subName: "Henry C",
-    appointmentId: "DRO03-03-23-2024",
-    reason: "Deworming Treatment",
-    petType: "Horse",
-    petSubType: "Paso Fino",
-    time: "10:30 AM",
-    date: "24 Apr 2025",
-    doctor: "Dr. Megan Clark",
-    doctorDept: "Endocrinology",
-  },
-];
+// const data: Appointment[] = [
+//   {
+//     avatar: "/Images/pet.jpg",
+//     name: "Kizie",
+//     subName: "Sky B",
+//     appointmentId: "DRO01-03-23-2024",
+//     reason: "Annual Health Check-Up",
+//     petType: "Dog",
+//     petSubType: "Beagle",
+//     time: "10:15 AM",
+//     date: "24 Apr 2025",
+//     doctor: "Dr. Emily Johnson",
+//     doctorDept: "Cardiology",
+//   },
+//   {
+//     avatar: "/Images/pet.jpg",
+//     name: "Oscar",
+//     subName: "Pika K",
+//     appointmentId: "DRO02-03-23-2024",
+//     reason: "Vaccination Updates",
+//     petType: "Cat",
+//     petSubType: "Egyptian Mau",
+//     time: "10:15 AM",
+//     date: "24 Apr 2025",
+//     doctor: "Dr. David Brown",
+//     doctorDept: "Gastroenterology",
+//   },
+//   {
+//     avatar: "/Images/pet.jpg",
+//     name: "King",
+//     subName: "Henry C",
+//     appointmentId: "DRO03-03-23-2024",
+//     reason: "Deworming Treatment",
+//     petType: "Horse",
+//     petSubType: "Paso Fino",
+//     time: "10:30 AM",
+//     date: "24 Apr 2025",
+//     doctor: "Dr. Megan Clark",
+//     doctorDept: "Endocrinology",
+//   },
+// ];
 
 const columns = [
   {
@@ -84,7 +87,7 @@ const columns = [
     // width: "0px",
     render: (item: Appointment) => (
       <div>
-        <p>{item.name}</p>
+        <p>{item?.participants[0]?.name}</p>
         <div className="userinfo" >
           <span><FaUser /></span>
           {item.subName}
@@ -97,7 +100,7 @@ const columns = [
     key: "appointmentId",
     // width: "150px",
     render: (item: Appointment) => (
-      <p>{item.appointmentId}</p>
+      <p>{item?.slotRef}</p>
     ),
   },
   {
@@ -113,9 +116,9 @@ const columns = [
     render: (item: Appointment) => (
       <div>
         <p>{item.petType}</p>
-        <span>
+        {/* <span>
           {item.petSubType}
-        </span>
+        </span> */}
       </div>
     ),
   },
@@ -138,7 +141,7 @@ const columns = [
     // width: "150px",
     render: (item: Appointment) => (
       <div>
-        <p>{item.doctor}</p>
+        <p>{item?.participants[1]?.name}</p>
         <span>
           {item.doctorDept}
         </span>
@@ -157,7 +160,7 @@ const columns = [
 
 
 
-function ScheduleTable() {
+function ScheduleTable({data}:any) {
   return (
     <>
 
@@ -173,4 +176,4 @@ function ScheduleTable() {
   )
 }
 
-export default ScheduleTable
+export default memo(ScheduleTable)
