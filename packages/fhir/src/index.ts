@@ -20,3 +20,4 @@ export {BusinessFhirFormatter} from "./business-fhir/business-formatter-fhir";
 export {generateFHIRBlogResponse} from "./blog-fhir/blog";
 export {convertFhirInventoryBundleToJson,convertFhirToJson} from "./InventoryFhir/inventoryFhir";
 export {convertGraphDataToFHIR,convertFHIRToGraphData,convertSpecialityWiseAppointmentsToFHIR,FHIRtoJSONSpeacilityStats} from "./hospital-fhir/hospitalfhir";
+export {convertDepartmentFromFHIR,convertToFHIRDepartment} from "./addSpecialities/specialities-fhir";
