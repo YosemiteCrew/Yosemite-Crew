@@ -116,6 +116,8 @@
     display: flex;
     flex-direction: column;
     gap: 24px;
+    position: relative;
+    z-index: 1;
 }
 .DepartFormTexediv textarea{
     min-height: 133px;
@@ -133,101 +135,5 @@
    line-height: 120%;
    font-family: var(--satoshi-font);
 }
-
-/* Services Dropdown Started  */
-
-
-.DepartServices .services_dropdown {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 30px;
-}
-.DepartServices .ServHeadr{
-    width: 100% !important;
-    display: flex !important;
-    justify-content: space-between !important;
-    align-items: center !important;
-    height: 100%;
-    padding: 10px 24px;
-    border-radius: 36px;
-    min-height: 55px;
-    border: 1px solid #37223CB2;
-}
-.DepartServices .ServHeadr span{
-    color: var(--black-text);
-    font-size: 18px;
-    font-weight: 400;
-    line-height: 21.6px;
-    letter-spacing: -0.02em;
-    font-family: var(--satoshi-font);
-}
-.DepartServices .ServHeadr.open {
-    border: 1px solid var(--black-text);
-}
-.DepartServices .ServHeadr.open .arrow {
-    color: var(--chilli-red);
-}
-.DepartServices .ServDropcontent {
-    border-radius: 36px;
-    background: #FFFFFF;
-    box-shadow: 0px 0px 16px 0px #0000000F;
-}
-.DepartServices .ServDropcontent .serchbtn{
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    height: 50px;
-    border-bottom: 1px solid var(--black-text);
-    padding: 0px 20px;
-}
-.DepartServices .ServDropcontent .serchbtn i{
-    color: var(--chilli-red);
-    font-size: 20px;
-}
-.DepartServices .ServDropcontent .search-input {
-    width: 100%;
-    height: 100%;
-    margin-bottom: 10px;
-    border: none;
-    outline: none;
-    margin: 0;
-}
-.DepartServices .ServDropcontent .services-list {
-    padding: 20px 0px;
-    list-style: none;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-.DepartServices .ServDropcontent .service-item label{
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0px 20px;
-    height: 42px;
-}
-.DepartServices .ServDropcontent .service-item label p{
-    margin: 0;
-    font-size: 16px;
-    font-weight: 400;
-    line-height: 21.6px;
-    letter-spacing: -0.02em;
-}
-
-.DepartServices .ServDropcontent .service-item.selected {
-    background: var(--slectedbg);
-}
-.DepartServices .ServDropcontent .service-item.selected label p {
-    font-weight: 700;
-}
-
-/* Services  */
-
-
-
-
-
 
 /* AddSpecialitiesSec Page Ended  */

@@ -12,6 +12,7 @@ export type VetNameType = {
   postalCode: string;
   addressLine1: string;
   city: string;
+  area?:string;
   stateProvince: string;
   biography: string;
 };
@@ -20,8 +21,8 @@ export type OperatingHourType = {
   day: string;
   checked: boolean;
   times: {
-    from: { hour: string; minute: string; period: string };
-    to: { hour: string; minute: string; period: string };
+    from: { hour: string; minute: string; period: "AM" | "PM" };
+    to: { hour: string; minute: string; period: "AM" | "PM" };
   }[];
 };
 
@@ -29,6 +30,7 @@ export type ConvertToFhirVetProfileParams = {
   name: VetNameType;
   image?: File | null;
   uploadedFiles?: File[];
+  area?:string;
   specialization: string;
   countryCode: string;
   OperatingHour: OperatingHourType[];

@@ -1,5 +1,6 @@
 
-import type {InventoryType,InputData, InventoryOverviewFHIRBundle, InventoryOverviewType, InventoryOverviewFHIRObservation} from "@yosemite-crew/types";
+import type {InventoryType,InputData, InventoryOverviewFHIRBundle, InventoryOverviewType, InventoryOverviewFHIRObservation, SupplyItem, FHIRBundle, CategoryJson} from "@yosemite-crew/types";
+
 
 
 export function convertToNormalToAddInventoryData(bundle: InputData): InventoryType {
@@ -25,6 +26,78 @@ export function convertToNormalToAddInventoryData(bundle: InputData): InventoryT
   return inventoryData;
 }
 
+
+
+export function convertFhirInventoryBundleToJson(bundle: any): SupplyItem[] {
+  if (!bundle || !bundle.entry || !Array.isArray(bundle.entry)) return [];
+
+  return bundle.entry.map((entry: any) => {
+    const resource = entry.resource;
+
+    const getIdentifierValue = (system: string) => {
+      return (
+        resource.identifier?.find((id: any) => id.system === system)?.value || ""
+      );
+    };
+
+    const getExtensionValue = (url: string, key: string) => {
+      const ext = resource.extension?.find((e: any) => e.url === url);
+      return ext?.[key] ?? "";
+    };
+
+    return {
+      _id: resource.id || "",
+      bussinessId: getExtensionValue(
+        "http://example.com/fhir/StructureDefinition/bussinessId",
+        "valueString"
+      ),
+      category: getExtensionValue(
+        "http://example.com/fhir/StructureDefinition/category",
+        "valueString"
+      ),
+      barcode: getIdentifierValue("http://example.com/fhir/barcode"),
+      itemName: resource.code?.coding?.[0]?.display || "",
+      genericName: resource.code?.text || "",
+      manufacturer: resource.manufacturer?.display || "",
+      itemCategory: resource.code?.coding?.[0]?.code || "",
+      batchNumber: getIdentifierValue("http://example.com/fhir/batchNumber"),
+      sku: getIdentifierValue("http://example.com/fhir/sku"),
+      strength: getExtensionValue(
+        "http://example.com/fhir/StructureDefinition/strength",
+        "valueString"
+      ),
+      quantity: resource.quantity?.value || 0,
+      manufacturerPrice: getExtensionValue(
+        "http://example.com/fhir/StructureDefinition/manufacturerPrice",
+        "valueDecimal"
+      ),
+      markup: getExtensionValue(
+        "http://example.com/fhir/StructureDefinition/markup",
+        "valueDecimal"
+      ),
+      price: getExtensionValue(
+        "http://example.com/fhir/StructureDefinition/price",
+        "valueDecimal"
+      ),
+      stockReorderLevel: getExtensionValue(
+        "http://example.com/fhir/StructureDefinition/stockReorderLevel",
+        "valueInteger"
+      ),
+      expiryDate: getExtensionValue(
+        "http://example.com/fhir/StructureDefinition/expiryDate",
+        "valueDate"
+      ),
+      createdAt: getExtensionValue(
+        "http://example.com/fhir/StructureDefinition/createdAt",
+        "valueDateTime"
+      ),
+      updatedAt: getExtensionValue(
+        "http://example.com/fhir/StructureDefinition/updatedAt",
+        "valueDateTime"
+      ),
+    };
+  });
+}
 
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Convert to fhir inventory data >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -192,4 +265,34 @@ export function InventoryOverviewConvertToFHIR(overview: InventoryOverviewType):
   });
 
   return bundle;
+}
+
+export function convertFhirToJson(fhirBundle: FHIRBundle): CategoryJson[] {
+  if (
+    !fhirBundle ||
+    fhirBundle.resourceType !== "Bundle" ||
+    !Array.isArray(fhirBundle.entry)
+  ) {
+    throw new Error("Invalid FHIR Bundle");
+  }
+
+  return fhirBundle.entry.map((entry) => {
+    const resource:any = entry.resource;
+
+    const id = resource.id;
+    const category = resource.code?.text || "";
+
+    const businessId =
+      resource.extension?.find(
+        (ext:any) =>
+          ext.url ===
+          "http://example.org/fhir/StructureDefinition/business-id"
+      )?.valueIdentifier?.value || "";
+
+    return {
+      _id: id,
+      category,
+      businessId,
+    };
+  });
 }

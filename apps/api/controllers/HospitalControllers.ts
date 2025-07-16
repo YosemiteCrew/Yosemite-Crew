@@ -12,10 +12,10 @@ import AWS from "aws-sdk";
 import ProfileVisibility from "../models/profileVisibility";
 import Message from "../models/ChatModel";
 import FHIRConverter from "../utils/DoctorsHandler";
-import { GraphDataToFHIR } from "../utils/HospitalFhirHandler";
+// import { GraphDataToFHIR } from "../utils/HospitalFhirHandler";
 import { AppointmentFHIRConverter } from "../utils/WebAppointmentHandler";
-import {AppointmentsFHIRConverter} from "../utils/HospitalProfileHandler";
-import { AppointmentsStatusFHIRConverter } from "@yosemite-crew/fhir";
+// import { AppointmentsFHIRConverter } from "../utils/HospitalProfileHandler";
+import { AppointmentsStatusFHIRConverter, convertGraphDataToFHIR, convertSpecialityWiseAppointmentsToFHIR } from "@yosemite-crew/fhir";
 
 // import { validateFHIR } from "../Fhirvalidator/FhirValidator";
 // import { json, text } from "body-parser";
@@ -25,7 +25,8 @@ import {
 // import { response } from "express";
 import FeedBack from "../models/feedback";
 import { PipelineStage } from "mongoose";
-import { AppointmentStatusFHIRBundle } from "@yosemite-crew/types";
+import { AggregatedAppointmentGraph, AppointmentStatusFHIRBundle, QueryParams } from "@yosemite-crew/types";
+import { validateFHIR } from "../Fhirvalidator/FhirValidator";
 
 const s3 = new AWS.S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -150,16 +151,23 @@ const HospitalController = {
 
   // }
   // ,
-  AppointmentGraphs: async (req, res) => {
+  AppointmentGraphs: async (
+    req: Request<{}, {}, {}, QueryParams>,
+    res: Response
+  ) => {
+
+
     const { reportType } = req.query;
 
     switch (reportType) {
-      case "AppointmentGraphs":
+      case "specialityWiseAppointments":
         if (req.method === "GET") {
           try {
-            const { LastDays, userId } = req.query;
+            const { LastDays = '7', userId } = req.query;
             const days = parseInt(LastDays, 10) || 7;
-
+            if (!userId) {
+              return res.status(400).json({ message: "Missing userId" });
+            }
             const endDate = new Date();
             const startDate = new Date();
             startDate.setDate(endDate.getDate() - (days - 1));
@@ -210,12 +218,13 @@ const HospitalController = {
               },
             ]);
 
-            const data = new DepartmentFromFHIRConverter(
-              departmentWiseAppointments
-            ).toFHIR();
-
-            return res.status(200).json(data);
-          } catch (error) {
+            const data = convertSpecialityWiseAppointmentsToFHIR(departmentWiseAppointments);
+            const validateFhir = validateFHIR(data);
+            if (validateFhir) {
+              return res.status(200).json(data);
+            }
+            return res.status(400).json("validation fhir failed");
+          } catch (error: any) {
             return res.status(500).json({
               resourceType: "OperationOutcome",
               issue: [
@@ -315,25 +324,18 @@ const HospitalController = {
   },
   // getDataForWeeklyAppointmentChart: async (req, res) => {},
 
-  AppointmentGraphOnMonthBase: async (req, res) => {
+  AppointmentGraphOnMonthBase: async (
+    req: Request<{}, {}, {}, QueryParams>,
+    res: Response
+  ): Promise<Response> => {
     const monthNames = [
-      "January",
-      "February",
-      "March",
-      "April",
-      "May",
-      "June",
-      "July",
-      "August",
-      "September",
-      "October",
-      "November",
-      "December",
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December",
     ];
 
     try {
       const { days, userId } = req.query;
-      const monthsToFetch = parseInt(days, 10) || 6; // Default to last 6 months if not provided
+      const monthsToFetch = parseInt(days || "6", 10);
 
       if (!userId) {
         return res.status(400).json({ message: "UserId is required" });
@@ -344,11 +346,10 @@ const HospitalController = {
       startMonth.setMonth(endMonth.getMonth() - (monthsToFetch - 1));
       startMonth.setDate(1);
 
-      // Define date range (first day of startMonth to first day of next month of endMonth)
       const gt = new Date(startMonth.getFullYear(), startMonth.getMonth(), 1);
       const lt = new Date(endMonth.getFullYear(), endMonth.getMonth() + 1, 1);
 
-      const aggregatedAppointments = await webAppointments.aggregate([
+      const aggregatedAppointments: AggregatedAppointmentGraph[] = await webAppointments.aggregate([
         {
           $match: {
             hospitalId: userId,
@@ -385,16 +386,14 @@ const HospitalController = {
         },
       ]);
 
-      const results = [];
+      const results: AggregatedAppointmentGraph[] & { monthName: string }[] = [];
       let currentDate = new Date(startMonth);
 
       while (currentDate <= endMonth) {
-        const month = currentDate.getMonth() + 1; // Get month number (1-12)
+        const month = currentDate.getMonth() + 1;
         const monthName = monthNames[month - 1];
 
-        const existingData = aggregatedAppointments.find(
-          (item) => item.month === month
-        );
+        const existingData = aggregatedAppointments.find((item) => item.month === month);
 
         results.push(
           existingData
@@ -413,13 +412,15 @@ const HospitalController = {
 
       results.sort((a, b) => a.month - b.month);
 
-      const data = new GraphDataToFHIR(results).convertToFHIR();
+      const data = convertGraphDataToFHIR(results);
 
       return res.status(200).json({
         message: "Appointment data for the last X months fetched successfully",
-        data: JSON.stringify(data),
+        data: data
       });
-    } catch (error) {
+
+    } catch (error: unknown) {
+      const errMessage = error instanceof Error ? error.message : "Unknown server error";
       return res.status(500).json({
         resourceType: "OperationOutcome",
         issue: [
@@ -427,7 +428,7 @@ const HospitalController = {
             severity: "error",
             code: "processing",
             details: {
-              text: error.message,
+              text: errMessage,
             },
           },
         ],
@@ -1346,15 +1347,28 @@ const HospitalController = {
     }
   },
   getAppointmentsForHospitalDashboard: async (req: Request, res: Response) => {
-    const { type } = req.query;
+    const { caseType } = req.query;
+
+    // console.log(type, "type", req)
     // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HOSPITAL DASHBOARD APPOINTMENT LIST >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    switch (type) {
+    switch (caseType) {
       case "AppointmentLists":
         if (req.method === "GET") {
           try {
-            const { organization, offset = 0, limit } = req.query;
+            const { organization, offset = 0, limit = 10 } = req.query;
+            if (
+              typeof organization !== "string" ||
+              !organization.startsWith("Organization/") ||
+              !/^[0-9a-fA-F-]{36}$/.test(organization.split("/")[1])
+            ) {
+              return res.status(400).json({
+                message: "organization is required in 'Organization/<userId>' format",
+              });
+            }
+            // console.log(organization, "organization", offset, limit);
 
-            const hospitalId = (organization as string).split("/")[1];
+            // const hospitalId = organization as string ;
+            const hospitalId = Array.isArray(organization) ? organization[0] : organization;
             const parsedOffset = parseInt(offset as string, 10);
             const parsedLimit = parseInt(limit as string, 10);
 
@@ -1492,6 +1506,8 @@ const HospitalController = {
               },
             ]);
 
+
+            console.log(response, "response");
             interface AggregatedAppointment {
               total: number;
               Appointments: []; // You can strongly type this if desired
@@ -2285,117 +2301,127 @@ const HospitalController = {
         break;
 
       case "calenderaAppointment":
-  if (req.method === "GET") {
-    try {
-      const { organization } = req.query as { organization?: string };
+        if (req.method === "GET") {
+          try {
+            const { organization } = req.query as { organization?: string };
+            if (
+              typeof organization !== "string" ||
+              !organization.startsWith("Organization/") ||
+              !/^[0-9a-fA-F-]{36}$/.test(organization.split("/")[1])
+            ) {
+              return res.status(400).json({
+                message: "organization is required in 'Organization/<userId>' format",
+              });
+            }
 
-      if (!organization || !organization.includes("/")) {
-        return res.status(400).json({ message: "organization is required in 'Organization/<userId>' format" });
-      }
 
-      const userId = organization.split("/")[1];
-      if (!userId) {
-        return res.status(400).json({ message: "Invalid organization format, userId missing" });
-      }
+            if (!organization || !organization.includes("/")) {
+              return res.status(400).json({ message: "organization is required in 'Organization/<userId>' format" });
+            }
 
-      const totalCount = await webAppointments.countDocuments({
-        $or: [{ veterinarian: userId }, { hospitalId: userId }],
-      });
+            const userId = organization.split("/")[1];
+            if (!userId) {
+              return res.status(400).json({ message: "Invalid organization format, userId missing" });
+            }
 
-      const allAppointments = await webAppointments.aggregate([
-        {
-          $match: {
-            $or: [{ veterinarian: userId }, { hospitalId: userId }],
-            appointmentStatus: { $ne: "pending" },
-          },
-        },
-        {
-          $addFields: {
-            departmentObjId: { $toObjectId: "$department" },
-            parsedAppointmentDate: {
-              $dateFromString: { dateString: "$appointmentDate" },
-            },
-          },
-        },
-        {
-          $lookup: {
-            from: "adddoctors",
-            localField: "veterinarian",
-            foreignField: "userId",
-            as: "doctorInfo",
-          },
-        },
-        {
-          $lookup: {
-            from: "departments",
-            localField: "departmentObjId",
-            foreignField: "_id",
-            as: "departmentInfo",
-          },
-        },
-        {
-          $unwind: {
-            path: "$doctorInfo",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-        {
-          $unwind: {
-            path: "$departmentInfo",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-        {
-          $addFields: {
-            dayOfWeek: { $dayOfWeek: "$parsedAppointmentDate" },
-          },
-        },
-        {
-          $project: {
-            _id: 1,
-            userId: 1,
-            hospitalId: 1,
-            appointmentDate: "$parsedAppointmentDate",
-            appointmentTime: 1,
-            appointmentStatus: 1,
-            ownerName: 1,
-            petName: 1,
-            department: "$departmentInfo.departmentName",
-            veterinarian: {
-              $concat: [
-                "$doctorInfo.personalInfo.firstName",
-                " ",
-                "$doctorInfo.personalInfo.lastName",
+            const totalCount = await webAppointments.countDocuments({
+              $or: [{ veterinarian: userId }, { hospitalId: userId }],
+            });
+
+            const allAppointments = await webAppointments.aggregate([
+              {
+                $match: {
+                  $or: [{ veterinarian: userId }, { hospitalId: userId }],
+                  appointmentStatus: { $ne: "pending" },
+                },
+              },
+              {
+                $addFields: {
+                  departmentObjId: { $toObjectId: "$department" },
+                  parsedAppointmentDate: {
+                    $dateFromString: { dateString: "$appointmentDate" },
+                  },
+                },
+              },
+              {
+                $lookup: {
+                  from: "adddoctors",
+                  localField: "veterinarian",
+                  foreignField: "userId",
+                  as: "doctorInfo",
+                },
+              },
+              {
+                $lookup: {
+                  from: "departments",
+                  localField: "departmentObjId",
+                  foreignField: "_id",
+                  as: "departmentInfo",
+                },
+              },
+              {
+                $unwind: {
+                  path: "$doctorInfo",
+                  preserveNullAndEmptyArrays: true,
+                },
+              },
+              {
+                $unwind: {
+                  path: "$departmentInfo",
+                  preserveNullAndEmptyArrays: true,
+                },
+              },
+              {
+                $addFields: {
+                  dayOfWeek: { $dayOfWeek: "$parsedAppointmentDate" },
+                },
+              },
+              {
+                $project: {
+                  _id: 1,
+                  userId: 1,
+                  hospitalId: 1,
+                  appointmentDate: "$parsedAppointmentDate",
+                  appointmentTime: 1,
+                  appointmentStatus: 1,
+                  ownerName: 1,
+                  petName: 1,
+                  department: "$departmentInfo.departmentName",
+                  veterinarian: {
+                    $concat: [
+                      "$doctorInfo.personalInfo.firstName",
+                      " ",
+                      "$doctorInfo.personalInfo.lastName",
+                    ],
+                  },
+                },
+              },
+            ]);
+
+            const data = new AppointmentsFHIRConverter({
+              status: "Calendar",
+              appointments: allAppointments,
+              totalCount,
+            }).toCalenderFHIRBundle();
+
+            res.status(200).json(data);
+          } catch (error: any) {
+            res.status(500).json({
+              resourceType: "OperationOutcome",
+              issue: [
+                {
+                  severity: "error",
+                  code: "exception",
+                  details: {
+                    text: "Network error occurred while processing the request.",
+                  },
+                  diagnostics: error.message ?? "Unknown error",
+                },
               ],
-            },
-          },
-        },
-      ]);
-
-      const data = new AppointmentsFHIRConverter({
-        status: "Calendar",
-        appointments: allAppointments,
-        totalCount,
-      }).toCalenderFHIRBundle();
-
-      res.status(200).json(data);
-    } catch (error: any) {
-      res.status(500).json({
-        resourceType: "OperationOutcome",
-        issue: [
-          {
-            severity: "error",
-            code: "exception",
-            details: {
-              text: "Network error occurred while processing the request.",
-            },
-            diagnostics: error.message ?? "Unknown error",
-          },
-        ],
-      });
+            });
+          }
+        }
     }
-  }
-}
 
     // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NEXT CASES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
   },
