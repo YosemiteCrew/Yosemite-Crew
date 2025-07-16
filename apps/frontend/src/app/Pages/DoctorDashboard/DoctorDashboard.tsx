@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, {  useState } from "react";
 import "./DoctorDashboard.css";
 import { Button, Col, Container, Dropdown, Form, Row } from "react-bootstrap";
 import Image from "next/image";
@@ -12,12 +12,13 @@ import CalendarCard from "@/app/Components/CalendarCard/CalendarCard";
 
 
 
+
 function DoctorDashboard() {
   const [available, setAvailable] = useState(true);
   const [addNewLead, setAddNewLead] = useState(false);
 
   // selected 
-    const [status, setStatus] = useState<string>('30 mins');
+  const [status, setStatus] = useState<string>('30 mins');
     // const handleDropdownSelect = (eventKey: string | null) => {
     //   if (eventKey) setStatus(eventKey);
     // };
@@ -26,7 +27,6 @@ function DoctorDashboard() {
   const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
   const [unavailableSlots, setUnavailableSlots] = useState<string[]>([]);
   const [selectUnavailable, setSelectUnavailable] = useState(false);
-
   const handleDropdownSelect = (eventKey: string | null) => {
     setStatus(eventKey as string);
   };
@@ -53,13 +53,14 @@ function DoctorDashboard() {
     // Add your API call here
   };
 
-
   const timeSlots = [
     "10:30 AM", "11:00 AM", "11:30 AM", "12:00 PM", "12:30 PM", "01:00 PM",
     "01:30 PM", "02:00 PM", "02:30 PM", "03:00 PM", "04:00 PM",
     "03:30 PM", "04:30 PM", "05:00 PM", "05:30 PM", "06:00 PM",
     "06:30 PM", "07:00 PM", "07:30 PM", "08:00 PM", "08:30 PM",
   ];
+
+
 
 
 
@@ -147,7 +148,22 @@ function DoctorDashboard() {
                 <div className="LeftProfileDiv">
 
                   <div className="AvailabityDivDoctor">
-                    <h5>Availability</h5>
+
+                    <div className="AvltyFor">
+
+                      <div className="avldate">
+                        <h5>Availability for</h5>
+                        <Form.Control className="AvlDatepicker" type="date" id="appointmentDate" title="Choose your date" />
+                      </div>
+
+
+
+
+                    </div>
+
+                    
+
+
                     <div className="appointselect">
                       <div className="lft">
                         <h6>Set Appointment Duration</h6>
@@ -210,11 +226,16 @@ function DoctorDashboard() {
 
 
                 </div>
+
+
+
                 <div className="RytProfileDiv"></div>
 
               </div>
 
             </div>
+
+            
           )}
 
         </Container>

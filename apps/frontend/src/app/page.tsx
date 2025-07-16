@@ -1,8 +1,5 @@
 'use client';
-import BusinessDashboard from './Pages/BusinessDashboard/BusinessDashboard';
-// import React, { useEffect, useState } from 'react';
-import HomePage from './Pages/HomePage/HomePage';
-// import { useAuth } from './Context/AuthContext';
+import MainLandingPage from './Pages/MainLandingPage/MainLandingPage';
 
 
 
@@ -14,7 +11,7 @@ export default function Home() {
     <>
 
 
-      < BusinessDashboard />
+    <MainLandingPage/>
 
 
     </>
