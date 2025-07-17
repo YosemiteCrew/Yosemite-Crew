@@ -663,11 +663,13 @@ input[type=number] {
     align-items: center;
     justify-content: space-between;
     min-height: 40px;
+    gap: 50px;
 
 }
 .StatusSlect button{
     min-width: 104px !important;
 }
+
 /* Table TopBar Ended  */
 
 /* GenericTable Started  */
