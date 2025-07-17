@@ -18,6 +18,7 @@ import { convertToFhirVetProfile } from "@yosemite-crew/fhir";
 import { postData } from "@/app/axios-services/services";
 import Swal from "sweetalert2";
 import { useAuthStore } from "@/app/stores/authStore";
+import { useRouter } from "next/navigation";
 
 
 // export type OperatingHourType = {
@@ -30,9 +31,9 @@ import { useAuthStore } from "@/app/stores/authStore";
 // };
 
 function AddVetProfile() {
-
+  const router = useRouter()
   const { userId, email, userType, vetAndTeamsProfile } = useAuthStore();
-console.log(vetAndTeamsProfile,"vetttttt")
+
   useEffect(() => {
     console.log("user", userId, email, userType);
   }, [userId, email, userType]);
@@ -71,8 +72,6 @@ useEffect(() => {
   };
   const [errors, setErrors] = useState<ErrorType>({});
 
-
-  console.log("duration", duration)
   const [name, setName] = useState({
     registrationNumber: "",
     firstName: "",
@@ -250,6 +249,7 @@ const handleSaveOperatingHours = useCallback((updatedHours: DayHours[]) => {
           title: "Success",
           text: "Doctor added successfully!",
         });
+        router.push("/DoctorDashboard")
       }
     } catch (error) {
       Swal.fire({
@@ -259,7 +259,7 @@ const handleSaveOperatingHours = useCallback((updatedHours: DayHours[]) => {
       });
       console.error("Submission Error:", error);
     }
-  }, [name, area, image, countryCode, OperatingHour, specialization, uploadedFiles, duration, userId]);
+  }, [name, area, image, countryCode, OperatingHour, specialization, uploadedFiles, duration, userId,router]);
 
 
   const validateStep1 = () => {

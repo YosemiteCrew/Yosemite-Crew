@@ -24,7 +24,7 @@ export type DocumentFile = {
 
 export type AddDoctorDoc = {
   userId: string;
-  bussinessId: string;
+  status: string;
 
   registrationNumber: string;
   firstName: string;

@@ -2,12 +2,15 @@
 import React, { useState } from 'react';
 import "./Departments.css"
 import ProfileProgressbar from '@/app/Components/ProfileProgressbar/ProfileProgressbar';
-import { Container, FloatingLabel, Form } from 'react-bootstrap';
+import { Button, Container, FloatingLabel, Form } from 'react-bootstrap';
 import { FormInput } from '../Sign/SignUp';
 import { PhoneInput } from '@/app/Components/PhoneInput/PhoneInput';
 import { HeadText } from '../CompleteProfile/CompleteProfile';
 import ServicesSelection from '@/app/Components/Services/ServicesSelection/ServicesSelection';
 import DepartmentHeadSelector from '@/app/Components/Services/DepartmentHeadSelector/DepartmentHeadSelector';
+import axios from 'axios';
+import { postData } from '@/app/axios-services/services';
+import { convertToFHIRDepartment } from '@yosemite-crew/fhir';
 
 
 const servicesList = [
@@ -35,85 +38,137 @@ const ConditionsList = [
 function AddDepartments() {
 
   const [progress] = useState(0);
-  const [name, setName] = useState({ 
-    name: "",
-    email: "",
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    description: '',
   });
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setName({ ...name, [e.target.name]: e.target.value });
+
+  const [countryCode, setCountryCode] = useState('+91');
+  const [phone, setPhone] = useState('');
+  const [services, setServices] = useState<string[]>([]);
+  const [conditionsTreated, setConditionsTreated] = useState<string[]>([]);
+  const [departmentHeadId, setDepartmentHeadId] = useState<string>('');
+  const [consultationModes, setConsultationModes] = useState<string[]>([]); // like ['in-person', 'virtual']
+  const [loading, setLoading] = useState(false);
+  const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
-    // Add state for phone and country code
-  const [countryCode, setCountryCode] = useState("+91");
-  const [phone, setPhone] = useState("");
-  const [selectedServices, setSelectedServices] = useState<string[]>([]);
+// Utility: Validate form before submit
+const validateForm = (): boolean => {
+  const errors: { [key: string]: string } = {};
 
-  const handleServiceSelectionChange = (selectedServices: string[]) => {
-    setSelectedServices(selectedServices);
-  };
+  if (!formData.name.trim()) errors.name = 'Department name is required.';
+  if (!formData.description.trim()) errors.description = 'Description is required.';
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(formData.email)) errors.email = 'Invalid email format.';
+
+  const phoneRegex = /^[0-9]{7,15}$/;
+  if (!phoneRegex.test(phone)) errors.phone = 'Phone number must be 7–15 digits.';
+
+  if (!countryCode) errors.countryCode = 'Country code required.';
+  if (services.length === 0) errors.services = 'Select at least one service.';
+  if (conditionsTreated.length === 0) errors.conditions = 'Select at least one condition.';
+  if (!departmentHeadId) errors.departmentHeadId = 'Select a department head.';
+  // if (consultationModes.length === 0) errors.consultationModes = 'Select consultation mode.';  
+
+  setFormErrors(errors);
+  return Object.keys(errors).length === 0;
+};
+
+const handleSubmit = async () => {
+  const isValid = validateForm();
+  if (!isValid) return;
+
+  try {
+    const fhirPayload = convertToFHIRDepartment({
+      departmentName: formData.name,
+      description: formData.description,
+      email: formData.email,
+      phone,
+      countrycode: countryCode,
+      services,
+      conditionsTreated,
+      consultationModes,
+      departmentHeadId,
+      bussinessId: '123456',
+    });
+
+    const res = await postData('/fhir/HealthcareService', fhirPayload);
+    if (res.status === 201) {
+      alert('Department added!');
+    }
+  } catch (err:any) {
+    console.error('Failed to add department', err);
+    alert(`${err.response?.data?.msg || 'An error occurred while adding the department.'}`);
+  }
+};
 
 
+
+
+console.log(formErrors,"Form Data");
 
   return (
-    <>
     <section className='AddSpecialitiesSec'>
       <Container>
-
         <div className="mb-3">
           <HeadText blktext="Add" Spntext="Specialities" />
         </div>
         <div className="Add_Profile_Data">
           <div className="LeftProfileDiv">
             <div className="DepartMantAddData">
-
               <div className='DepartInputDiv'>
-                <FormInput intype="text" inname="name"  value={name.name} inlabel="Department Name" onChange={handleChange}/>
+                <FormInput intype="text" inname="name" value={formData.name} inlabel="Department Name" onChange={handleChange} />
+                {formErrors.name && <div className="text-danger small mt-1">{formErrors.name}</div>}
                 <div className="DepartFormTexediv">
-                    <FloatingLabel className="textarealabl" controlId="floatingTextarea2" label="Biography/Short Description">
-                        <Form.Control
-                        as="textarea"
-                        placeholder="Leave a comment here"
-                        style={{ height: '100px' }}
-                        />
-                    </FloatingLabel>
+                  <FloatingLabel className="textarealabl" controlId="floatingTextarea2" label="Biography/Short Description">
+                    <Form.Control
+                      as="textarea"
+                      name="description"
+                      placeholder="Enter description"
+                      value={formData.description}
+                      onChange={handleChange}
+                      style={{ height: '100px' }}
+                    />
+                  </FloatingLabel>
+                  {formErrors.description && <div className="text-danger small mt-1">{formErrors.description}</div>}
                 </div>
-                <FormInput intype="email" inname="email"  value={name.email} inlabel="Email Address" onChange={handleChange}/>
-                <PhoneInput countryCode={countryCode}  onCountryCodeChange={setCountryCode} phone={phone} onPhoneChange={setPhone}/>
+
+                <FormInput intype="email" inname="email" value={formData.email} inlabel="Email Address" onChange={handleChange} />
+                {formErrors.email && <div className="text-danger small mt-1">{formErrors.email}</div>}
+                <PhoneInput countryCode={countryCode} onCountryCodeChange={setCountryCode} phone={phone} onPhoneChange={setPhone} />
+                {formErrors.phone && <div className="text-danger small mt-1">{formErrors.phone}</div>}
               </div>
 
               <div className="DepartServicesDiv">
-                <ServicesSelection Title="Add Services" services={servicesList} onSelectionChange={handleServiceSelectionChange}/>
+                <ServicesSelection Title="Add Services" services={servicesList} onSelectionChange={setServices} />
               </div>
 
-              <DepartmentHeadSelector />
+              <DepartmentHeadSelector onSelectHead={setDepartmentHeadId} />
 
               <div className="DepartServicesDiv">
-                <ServicesSelection Title="Conditions Treated" services={ConditionsList} onSelectionChange={handleServiceSelectionChange}/>
+                <ServicesSelection Title="Conditions Treated" services={ConditionsList} onSelectionChange={setConditionsTreated} />
+                {formErrors.services && <div className="text-danger small">{formErrors.services}</div>}
               </div>
 
+              <div className="text-end mt-3">
+                <Button variant="primary" onClick={handleSubmit}>
+                  Save Department
+                </Button>
+              </div>
             </div>
           </div>
 
           <div className="RytProfileDiv">
-            <ProfileProgressbar
-              blname="Profile"
-              spname="Progress"
-              progres={progress}
-            />
+            <ProfileProgressbar blname="Profile" spname="Progress" progres={progress} />
           </div>
-
         </div>
-
-
-
       </Container>
     </section>
-    
-
-
-
-
-    </>
-  )
+  );
 }
 
 export default AddDepartments

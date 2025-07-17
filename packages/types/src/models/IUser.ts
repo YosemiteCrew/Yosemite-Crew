@@ -14,11 +14,15 @@ export type IUser = Document & {
   lastName?: string;
   mobilePhone?: string;
   countryCode?: string;
+  address?:string;
+  state?:string;
+  area?:string;
   city?: string;
   zipcode?: string;
   isProfessional?: string;
   isConfirmed?: boolean;
   professionType?: string[];
+  dateOfBirth?: Date;
   pimsCode?: string;
   profileImage?: {
     url: string;
@@ -35,13 +39,18 @@ export interface SignupRequestBody {
   lastName: string;
   mobilePhone: string;
   countryCode: string;
+  address:string;
+  state:string;
+  area:string;
   city: string;
   zipcode: string;
-  professionType: string[] | string;
-  pimsCode?: string;
+  // professionType: string[] | string;
+  // pimsCode?: string;
   confirmationCode?:string;
   otp?:string;
   encryptedData?: string;
   iv?: string;
   token?:string;
+  dateOfBirth: Date;
+
 }

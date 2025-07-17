@@ -7,182 +7,111 @@ import { FaEye } from "react-icons/fa6";
 
 
 type CardiolgyItems = {
-  avatar: string;
-  name: string;
-  subName: string;
+  image: string;
+  firstName: string;
+  lastName: string;
   email: string;
-  number: string;
+  mobileNumber: string;
   week: string;
   time: string;
   status: string;
 };
 
-const Cardiolgy: CardiolgyItems[] = [
-
-  {
-    avatar: "/Images/pet1.png",
-    name: "Dr. Laura Evans",
-    subName: "Senior Veterinary",
-    email: "dvm.lauraevans@yc.com",
-    number: "(704) 555-0127",
-    week: "Mon-Fri",
-    time: "9AM–5PM",
-    status: " ",
-  },
-  {
-    avatar: "/Images/pet1.png",
-    name: "Dr. Laura Evans",
-    subName: "Senior Veterinary",
-    email: "dvm.lauraevans@yc.com",
-    number: "(704) 555-0127",
-    week: "Mon-Fri",
-    time: "9AM–5PM",
-    status: "off-duty",
-  },
-  {
-    avatar: "/Images/pet1.png",
-    name: "Dr. Laura Evans",
-    subName: "Senior Veterinary",
-    email: "dvm.lauraevans@yc.com",
-    number: "(704) 555-0127",
-    week: "Mon-Fri",
-    time: "9AM–5PM",
-    status: "Consulting",
-  },
-  {
-    avatar: "/Images/pet1.png",
-    name: "Dr. Laura Evans",
-    subName: "Senior Veterinary",
-    email: "dvm.lauraevans@yc.com",
-    number: "(704) 555-0127",
-    week: "Mon-Fri",
-    time: "9AM–5PM",
-    status: "break",
-  },
- 
-
-
-
-];
-
-const columns = [
-
-  {
-    label: "",
-    key: "avatar",
-    width: "60px",
-    render: (item: CardiolgyItems) => (
-      <Image
-        src={item.avatar}
-        alt={item.name}
-        width={40}
-        height={40}
-        style={{ borderRadius: "50%" }}
-      />
-    ),
-  },
-  {
-    label: "Name",
-    key: "name",
-    // width: "0px",
-    render: (item: CardiolgyItems) => (
-      <div>
-        <p>{item.name}</p>
-        <span> {item.subName}</span>
-      </div>
-    ),
-  },
-  {
-    label: "Email Address",
-    key: "email",
-    // width: "150px",
-    render: (item: CardiolgyItems) => (
-      <p>{item.email}</p>
-    ),
-  },
-  {
-    label: "Phone Number",
-    key: "phone",
-    // width: "180px",
-    render: (item: CardiolgyItems) => <p>{item.number}</p>,
-  },
- 
-  {
-    label: "Schedule",
-    key: "schedule",
-    // width: "150px",
-    render: (item: CardiolgyItems) => (
-      <div>
-        <p>{item.week}</p>
-        <span>{item.time}</span>
-      </div>
-    ),
-  },
-  {
-  label: "Status",
-  key: "status",
-  render: (item: CardiolgyItems) => (
-    <div className="CardilogyStatus">
-      {item.status === "In-progress" ? (
-        <h6 className=" progress" title="Done">
-          In-progress
-        </h6>
-      ) : item.status === "off-duty" ? (
-        <h6 className="on-duty" title="off-duty">
-          Off-Duty
-        </h6>
-      ) : item.status === "Consulting" ? (
-        <h6 className="on-Consulting" title="Consulting">
-          Consulting
-        </h6>
-      ) : item.status === "break" ? (
-        <h6 className="on-break" title="break">
-          On Break
-        </h6>
-      ) : (
-        <h6
-          className="circle-btn view"
-          title="View"
-          onClick={() => console.log("View", item)}
-        >
-          Available
-        </h6>
-      )}
-    </div>
-  ),
-},
-
-
-  {
-    label: "Actions",
-    key: "actions",
-    width: "60px",
-    render: () => (
-        <div className="Cardiologybtn">
-            <Button> <FaEye size={24}/> </Button>
+export const getCardiologyColumns = () => {
+  return [
+    {
+      label: "",
+      key: "avatar",
+      width: "60px",
+      render: (item: CardiolgyItems) => (
+        <Image
+          src={item.image}
+          alt={item.image}
+          width={40}
+          height={40}
+          style={{ borderRadius: "50%" }}
+        />
+      ),
+    },
+    {
+      label: "Name",
+      key: "name",
+      render: (item: CardiolgyItems) => (
+        <div>
+          <p>{item.firstName}</p>
+          <span>{item.lastName}</span>
         </div>
-    ),
-  },
+      ),
+    },
+    {
+      label: "Email Address",
+      key: "email",
+      render: (item: CardiolgyItems) => <p>{item.email}</p>,
+    },
+    {
+      label: "Phone Number",
+      key: "phone",
+      render: (item: CardiolgyItems) => <p>{item.mobileNumber}</p>,
+    },
+    {
+      label: "Schedule",
+      key: "schedule",
+      render: (item: CardiolgyItems) => (
+        <div>
+          <p>{item.week}</p>
+          <span>{item.time}</span>
+        </div>
+      ),
+    },
+    {
+      label: "Status",
+      key: "status",
+      render: (item: CardiolgyItems) => (
+        <div className="CardilogyStatus">
+          {item.status === "In-progress" ? (
+            <h6 className="progress">In-progress</h6>
+          ) : item.status === "Off-Duty" ? (
+            <h6 className="on-duty">Off-Duty</h6>
+          ) : item.status === "Consulting" ? (
+            <h6 className="on-Consulting">Consulting</h6>
+          ) : item.status === "break" ? (
+            <h6 className="on-break">On Break</h6>
+          ) : (
+            <h6
+              className="circle-btn view"
+              onClick={() => console.log("View", item)}
+            >
+              Available
+            </h6>
+          )}
+        </div>
+      ),
+    },
+    {
+      label: "Actions",
+      key: "actions",
+      width: "60px",
+      render: () => (
+        <div className="Cardiologybtn">
+          <Button>
+            <FaEye size={24} />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+};
 
-  
+type Props = {
+  data?: CardiolgyItems[];
+};
 
-
-
-
-];
-
-
-
-function CardiologyTable() {
+function CardiologyTable({ data = [] }: Props) {
   return (
-    <>
-    
-      <div className="table-wrapper">
-        <GenericTable data={Cardiolgy} columns={columns} bordered={false} />
-      </div>
-
-    </>
-  )
+    <div className="table-wrapper">
+      <GenericTable data={data} columns={getCardiologyColumns()} bordered={false} />
+    </div>
+  );
 }
 
-export default CardiologyTable
+export default CardiologyTable;

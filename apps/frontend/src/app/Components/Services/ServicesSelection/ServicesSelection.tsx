@@ -18,7 +18,7 @@ const ServicesSelection: React.FC<ServicesSelectionProps> = ({ services, onSelec
   
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      const allServiceCodes = services.map(service => service.code);
+      const allServiceCodes = services.map(service => service.display);
       setSelectedServices(allServiceCodes);
       onSelectionChange(allServiceCodes);
     } else {
@@ -53,15 +53,15 @@ const ServicesSelection: React.FC<ServicesSelectionProps> = ({ services, onSelec
             </div>
             <ul className="services-list">
                 {services.map(service => (
-                <li key={service.code} className={`service-item ${selectedServices.includes(service.code) ? 'selected' : ''}`}>
-                    <label htmlFor={service.code}>
+                <li key={service.display} className={`service-item ${selectedServices.includes(service.display) ? 'selected' : ''}`}>
+                    <label htmlFor={service.display}>
                         <p>{service.display}</p>
                         <input
                             type="checkbox"
-                            id={service.code}
-                            value={service.code}
+                            id={service.display}
+                            value={service.display}
                             onChange={handleServiceChange}
-                            checked={selectedServices.includes(service.code)}
+                            checked={selectedServices.includes(service.display)}
                         />
                     </label>
                 </li>

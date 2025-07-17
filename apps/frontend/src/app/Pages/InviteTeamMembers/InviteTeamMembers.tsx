@@ -15,7 +15,7 @@ import { HiDocumentArrowDown } from "react-icons/hi2";
 import { postData } from "@/app/axios-services/services";
 import Swal from "sweetalert2";
 // import { useAuth } from "@/app/Context/AuthContext";
-import "./InviteTeamMembers.css"; 
+import "./InviteTeamMembers.css";
 import { useAuthStore } from "@/app/stores/authStore";
 // Bulk Invite Modal Component
 function BulkInviteModal({ show, onHide, onDataParsed }: {
@@ -110,18 +110,36 @@ function BulkInviteModal({ show, onHide, onDataParsed }: {
 function InviteTeamMembers() {
   const { userId } = useAuthStore();
   const [modalShow, setModalShow] = useState(false);
+  const [errors, setErrors] = useState<Record<number, Partial<Record<keyof typeof members[0], string>>>>({});
+
+  const validateMembers = () => {
+    const newErrors: typeof errors = {};
+
+    members.forEach((member, idx) => {
+      const memberErrors: Partial<Record<keyof typeof member, string>> = {};
+
+      if (!member.name.trim()) memberErrors.name = "Name is required.";
+      if (!member.department) memberErrors.department = "Department is required.";
+      if (!member.role) memberErrors.role = "Role is required.";
+      if (!member.email.trim()) {
+        memberErrors.email = "Email is required.";
+      } else if (!/^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/.test(member.email)) {
+        memberErrors.email = "Invalid email format.";
+      }
+
+      if (Object.keys(memberErrors).length > 0) {
+        newErrors[idx] = memberErrors;
+      }
+    });
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const [members, setMembers] = useState([
     { department: "", role: "", email: "", invitedBy: "", name: "" }
   ]);
 
-  useEffect(() => {
-    if (userId) {
-      setMembers((prev) =>
-        prev.map((member) => ({ ...member, invitedBy: userId }))
-      );
-    }
-  }, [userId]);
 
   const handleMemberChange = useCallback((index: number, field: "department" | "role" | "email" | "name", value: string) => {
     setMembers((prev) =>
@@ -138,21 +156,33 @@ function InviteTeamMembers() {
   };
 
   const handleSendInvite = async () => {
+    if (!validateMembers()) {
+      return;
+    }
+
+    const membersWithInviter = members.map(member => ({
+      ...member,
+      invitedBy: member.invitedBy || userId || ""
+    }));
+
     try {
-      const response = await postData("/fhir/v1/invite", members);
+      const response = await postData("/fhir/v1/invite", membersWithInviter);
       if (response.status === 200) {
         const data = response.data as { message?: string };
         Swal.fire({ icon: "success", title: "Success", text: data.message || "Invitations sent successfully!" });
-        setMembers([{ department: "", role: "", email: "", name: "", invitedBy: userId || "" }]); // Reset to initial state
+        setMembers([{ department: "", role: "", email: "", name: "", invitedBy: userId || "" }]);
+        setErrors({}); // reset errors
       }
     } catch (error: unknown) {
       let errorMessage = "Failed to send invitations.";
-      if (error && typeof error === "object" && "response" in error && error.response && typeof error.response === "object" && "data" in error.response && error.response.data && typeof error.response.data === "object" && "message" in error.response.data) {
-        errorMessage = (error.response as { data?: { message?: string } }).data?.message || errorMessage;
+      if (error && typeof error === "object" && "response" in error) {
+        const res = (error as any).response;
+        errorMessage = res?.data?.message || errorMessage;
       }
       Swal.fire({ icon: "error", title: "Error", text: errorMessage });
     }
   };
+
 
   const departmentOptions = [
     { value: "Internal Medicine", label: "Internal Medicine" },
@@ -164,10 +194,10 @@ function InviteTeamMembers() {
 
   const roleOptions = [
     { value: "Veterinarian", label: "Vet" },
-    { value: "Veterinary Assistant", label: "Vet Assistant" },
+    { value: "Vet Assistant", label: "Vet Assistant" },
     { value: "Receptionist", label: "Receptionist" },
     { value: "Nurse", label: "Nurse" },
-    { value: "Technician", label: "Vet Technician" },
+    { value: "Vet Technician", label: "Vet Technician" },
   ];
 
   return (
@@ -204,19 +234,23 @@ function InviteTeamMembers() {
                           </Button>
                         )}
                       </div>
-                      <FormInput
-                        intype="string"
-                        inname="name"
-                        value={member.name}
-                        inlabel="Name"
-                        onChange={(e) => handleMemberChange(idx, "name", e.target.value)}
-                      />
+                      <div className="w-100">
+                        <FormInput
+                          intype="string"
+                          inname="name"
+                          value={member.name}
+                          inlabel="Name"
+                          onChange={(e) => handleMemberChange(idx, "name", e.target.value)}
+                          error={errors[idx]?.name}
+                        />
+                      </div>
                       <DynamicSelect
                         options={departmentOptions}
                         value={member.department}
                         onChange={(val: string) => handleMemberChange(idx, "department", val)}
                         inname="department"
                         placeholder="Department"
+                        error={errors[idx]?.department}
                       />
                       <DynamicSelect
                         options={roleOptions}
@@ -224,14 +258,18 @@ function InviteTeamMembers() {
                         onChange={(val: string) => handleMemberChange(idx, "role", val)}
                         inname="role"
                         placeholder="Select Role"
+                        error={errors[idx]?.role}
                       />
-                      <FormInput
-                        intype="email"
-                        inname="email"
-                        value={member.email}
-                        inlabel="Email Address"
-                        onChange={(e) => handleMemberChange(idx, "email", e.target.value)}
-                      />
+                      <div className="w-100">
+                        <FormInput
+                          intype="email"
+                          inname="email"
+                          value={member.email}
+                          inlabel="Email Address"
+                          onChange={(e) => handleMemberChange(idx, "email", e.target.value)}
+                          error={errors[idx]?.email}
+                        />
+                      </div>
                     </div>
                   ))}
                   <div className="AddMemberDiv">

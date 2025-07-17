@@ -45,7 +45,7 @@ const DepartmentSchema = new Schema<IDepartment>(
         ],
       },
     ],
-    departmentHeadId: { type: String, required: true },
+    departmentHeadId: { type: String},
     consultationModes: {
       type: [String],
       enum: ['In-person', 'Online', 'Both'],

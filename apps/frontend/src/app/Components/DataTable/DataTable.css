@@ -347,7 +347,11 @@
 /* AddItemsTable Started  */
 
 
-
+.TableDropdownWrapper{
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
 
 
 /* AddItemsTable Ended */

@@ -1,3 +1,4 @@
+"use client";
 import React, { useState, useEffect } from 'react';
 import './DynamicDatePicker.css';
 import DatePicker from 'react-datepicker';
