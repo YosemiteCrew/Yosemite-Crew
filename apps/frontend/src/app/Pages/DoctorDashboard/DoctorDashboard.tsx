@@ -86,7 +86,8 @@ function DoctorDashboard() {
     "03:30 PM", "04:30 PM", "05:00 PM", "05:30 PM", "06:00 PM",
     "06:30 PM", "07:00 PM", "07:30 PM", "08:00 PM", "08:30 PM",
   ];
-
+const image:any = vetAndTeamsProfile?.image ||
+                    "https://images.unsplash.com/photo-1633332755192-727a05c4013d?q=80&w=880&auto=format&fit=crop"
   return (
     <section className="doctor-dashboard-Sec">
       <Container>
@@ -95,8 +96,7 @@ function DoctorDashboard() {
             <div className="TopDoctorDashboard">
               <div className="LeftDash">
                 <Image
-                  src={vetAndTeamsProfile?.image ||
-                    "https://images.unsplash.com/photo-1633332755192-727a05c4013d?q=80&w=880&auto=format&fit=crop"}
+                  src={image}
                   alt=""
                   width={80}
                   height={80}
