@@ -15,7 +15,7 @@ export function convertToFhirVetProfile({
   uploadedFiles?: { name: string; type: string }[];
 }) {
   const fhirProfile: any = {
-    
+
     resourceType: "Practitioner",
     identifier: [
       { system: "registrationNumber", value: name.registrationNumber },
@@ -41,7 +41,7 @@ export function convertToFhirVetProfile({
         line: [name.addressLine1],
         city: name.city,
         state: name.stateProvince,
-        area: area?area:name.area
+        area: area ? area : name.area
       },
     ],
     extension: [
@@ -65,6 +65,10 @@ export function convertToFhirVetProfile({
         url: "http://example.org/fhir/StructureDefinition/duration",
         valueString: duration,
       },
+      {
+        url: "http://example.org/fhir/StructureDefinition/status",
+        valueString: name.status || "", // default if not present
+      },
     ],
   };
 
@@ -81,7 +85,7 @@ export function convertToFhirVetProfile({
   }
 
   if (image) {
-    fhirProfile.photo =image.name
+    fhirProfile.photo = image.name
   }
 
   return fhirProfile;
@@ -124,17 +128,18 @@ export function convertFromFhirVetProfile(fhir: any): ConvertToFhirVetProfilePar
     addressLine1: address.line?.[0] || "",
     city: address.city || "",
     stateProvince: address.state || "",
-    area:address.area || "",
+    area: address.area || "",
     biography: extensions.biography || "",
+    status:extensions.status || ""
   };
-console.log("area",name)
+  console.log("area", name)
   // Optional image extraction
   const image = fhir.photo
-    // ? {
-    //   name: fhir.photo[0].title,
-    //   type: fhir.photo[0].contentType,
-    // }
-    // : undefined;
+  // ? {
+  //   name: fhir.photo[0].title,
+  //   type: fhir.photo[0].contentType,
+  // }
+  // : undefined;
 
   // Optional uploaded files extraction from certificates extension
   const uploadedFiles =
