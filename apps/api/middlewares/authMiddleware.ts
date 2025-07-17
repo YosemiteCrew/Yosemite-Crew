@@ -113,14 +113,14 @@ export const verifyToken = async (
       // Set new tokens
       res.cookie("accessToken", newAccessToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
+        secure: process.env.NODE_ENV === "development",
         sameSite: "strict",
         maxAge: 1000 * 60 * 15,
       });
 
       res.cookie("refreshToken", newRefreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
+        secure: process.env.NODE_ENV === "development",
         sameSite: "strict",
         maxAge: 1000 * 60 * 60 * 24 * 7,
       });
