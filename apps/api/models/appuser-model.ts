@@ -17,12 +17,15 @@ const userSchema = new Schema<IUser>(
     lastName: { type: String },
     mobilePhone: { type: String },
     countryCode: { type: String },
+    address: { type :String },
+    state: { type: String },
+    area: { type: String },
     city: { type: String },
     zipcode: { type: String },
     isProfessional: { type: String },
     isConfirmed: { type: Boolean, default: false },
-    professionType: { type: [String] },
-    pimsCode: { type: String },
+    // professionType: { type: [String] },
+    // pimsCode: { type: String },
     profileImage: [
       {
         url: { type: String },
@@ -30,6 +33,7 @@ const userSchema = new Schema<IUser>(
         mimetype: { type: String },
       },
     ],
+    dateOfBirth: { type: Date },
   },
   { timestamps: true }
 );
