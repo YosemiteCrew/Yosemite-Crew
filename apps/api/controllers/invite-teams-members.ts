@@ -87,6 +87,11 @@ export const inviteTeamsMembersController = {
                 }
                 const inviteCode = Math.random().toString(36).substring(2, 10);
 
+                if (!isValidEmail(email)) {
+                    throw new Error("Invalid email address.");
+                }
+
+
                 const existing = await inviteTeamsMembers.findOne({ email });
 
                 if (existing) {
@@ -679,6 +684,10 @@ function getSecretHash(email: string,) {
         .createHmac("SHA256", clientSecret)
         .update(email + clientId)
         .digest("base64");
+}
+function isValidEmail(email: string): boolean {
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  return emailRegex.test(email);
 }
 
 // const generateInviteCode = () => {

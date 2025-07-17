@@ -34,7 +34,8 @@ function ManageInviteTable() {
     try {
       const response = await getData(`/fhir/v1/getinvites?userId=${userId}&status=${status}&department=${department}&search=${search}`);
       if (response.status === 200) {
-        const invitesBack = fromFHIRInviteList(response.data.invite);
+        const data:any = response.data;
+        const invitesBack = fromFHIRInviteList(data.invite);
         console.log("invites", invitesBack)
         const mappedInvites: InviteCard[] = invitesBack.map((v) => ({
           name: v.name,
@@ -47,7 +48,7 @@ function ManageInviteTable() {
           status: v.status,
           action: v.status,
         }));
-        setCardiology(mappedInvites);
+        setCardiology(mappedInvites as ManageInviteItems[]);
       }
     } catch (error) {
       console.log("Failed to fetch invites:", error);
@@ -71,10 +72,11 @@ function ManageInviteTable() {
     try {
       const response = await postData("/fhir/v1/invite", members);
       if (response.status === 200) {
+        const { message}: any = response.data;
         Swal.fire({
           icon: "success",
           title: "Success",
-          text: response.data.message || "Invitation resent successfully!"
+          text: message || "Invitation resent successfully!"
         });
         await getInvites(); // Refresh list
       }
