@@ -985,39 +985,43 @@ const AddDoctorsController = {
       });
     }
   },
-  updateAvailability: async (req, res) => {
+  updateAvailability: async (req:Request, res:Response):Promise<void> => {
     try {
       const { userId, status } = req.query;
 
       // console.log("userid", userId, "status",status)
       if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
-        return res.status(400).json({ message: "Invalid doctorId format" });
+         res.status(400).json({ message: "Invalid doctorId format" });
+         return
       }
 
       const result = await AddDoctors.updateOne(
         { userId: userId },
-        { $set: { isAvailable: status } }
+        { $set: { status: status } }
       );
 
       // console.log('Update Result:', result);
 
       if (result.matchedCount === 0) {
-        return res.status(404).json({ message: "User not found." });
+         res.status(404).json({ message: "User not found." });
+         return
       }
 
-      return res.status(200).json({
+       res.status(200).json({
         message: "Availability updated successfully.",
         // isAvailable: status,
       });
+      return
     } catch (error) {
       console.error("Error in updateAvailability:", error);
-      return res.status(500).json({
+       res.status(500).json({
         message: "An error occurred while updating user availability.",
         error: error.message,
       });
+      return
     }
   },
-  getAvailabilityStatus: async (req, res) => {
+  getAvailabilityStatus: async (req:Request, res:Response) => {
     try {
       const { userId } = req.query;
 
@@ -1032,7 +1036,7 @@ const AddDoctorsController = {
       }
       return res.status(200).json({
         message: "Availability status retrieved successfully.",
-        isAvailable: result.isAvailable,
+        status: result.status as string,
       });
     } catch (error) {
       console.error("Error in getAvailabilityStatus:", error);

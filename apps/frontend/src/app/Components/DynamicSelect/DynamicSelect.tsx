@@ -10,6 +10,7 @@ interface DynamicSelectProps {
   value: string; // string only
   onChange: (value: string) => void;
   inname: string;
+  error?: string;
 }
 
 const DynamicSelect: React.FC<DynamicSelectProps> = ({
@@ -18,44 +19,49 @@ const DynamicSelect: React.FC<DynamicSelectProps> = ({
   value,
   onChange,
   inname,
+  error,
 }) => {
   const isValueInOptions = options.some((opt) => opt.value === value);
 
   return (
-    <div
-      className="SelectedInpt"
-      style={{
-        backgroundImage: `url(${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/selctarrow.png)`,
-        backgroundRepeat: "no-repeat",
-        backgroundPosition: "right 20px center",
-        backgroundSize: '28px',
-      }}
-    >
-      <Form.Select
-        aria-label="Dynamic select menu"
-        name={inname}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+    <div className='w-100'>
+      <div
+        className="SelectedInpt"
+        style={{
+          backgroundImage: `url(${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/selctarrow.png)`,
+          backgroundRepeat: "no-repeat",
+          backgroundPosition: "right 20px center",
+          backgroundSize: '28px',
+        }}
       >
-        <option value="">{placeholder}</option>
+        <Form.Select
+          aria-label="Dynamic select menu"
+          name={inname}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          isInvalid={!!error}
+        >
+          <option value="">{placeholder}</option>
 
-        {/* If value is not in options, add it temporarily */}
-        {!isValueInOptions && value && (
-          <option value={value}>{value}</option>
-        )}
+          {/* If value is not in options, add it temporarily */}
+          {!isValueInOptions && value && (
+            <option value={value}>{value}</option>
+          )}
 
-        {options.length > 0 ? (
-          options.map((option, index) => (
-            <option key={index} value={option.value}>
-              {option.label}
+          {options.length > 0 ? (
+            options.map((option, index) => (
+              <option key={index} value={option.value}>
+                {option.label}
+              </option>
+            ))
+          ) : (
+            <option value="" disabled>
+              No options available
             </option>
-          ))
-        ) : (
-          <option value="" disabled>
-            No options available
-          </option>
-        )}
-      </Form.Select>
+          )}
+        </Form.Select>
+      </div>
+      {error && <Form.Text className="text-danger">{error}</Form.Text>}
     </div>
   );
 };
