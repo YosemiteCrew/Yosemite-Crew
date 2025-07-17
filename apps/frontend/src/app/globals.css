@@ -110,6 +110,7 @@
   --black-grey1: #302F2E;
   --blue-text: #247AED;
   --light-blue: #E9F2FD;
+  --darklight-blue: #F5F8FD;
   --white-text: #FFFFFF;
   --whitebg: #FFFFFF;
   --greyborder: #A09F9F;
@@ -118,6 +119,7 @@
   --greytext:#BFBFBE;
   --lightwhiteText:#EAEAEA;
   --slectedbg:#76767617;
+  --opacityBlue:#F8FBFF;
   
   
   --popupbg:#EAEAEA;
@@ -661,11 +663,13 @@ input[type=number] {
     align-items: center;
     justify-content: space-between;
     min-height: 40px;
+    gap: 50px;
 
 }
 .StatusSlect button{
     min-width: 104px !important;
 }
+
 /* Table TopBar Ended  */
 
 /* GenericTable Started  */

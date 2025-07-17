@@ -2,6 +2,8 @@ import { TeamInviteMember } from "@yosemite-crew/types"
 import {Schema, model} from "mongoose"
 
 const inviteTeamsMembersSchema = new Schema<TeamInviteMember>({
+    bussinessId:{type:String},
+    name:{type:String},
     email:{type:String},
     department:{type:String},
     role:{type:String},

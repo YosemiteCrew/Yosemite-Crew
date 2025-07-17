@@ -75,22 +75,26 @@ const authController = {
         lastName,
         mobilePhone,
         countryCode,
+        address,
+        state, 
+        area,
         city,
         zipcode,
-        professionType,
-        pimsCode,
+        // professionType,
+        // pimsCode,
+        dateOfBirth
       } = body;
 
       const password = generatePassword(12);
 
      
 
-      const isProfessional =
-        Array.isArray(professionType) && professionType.length > 0 ? 'yes' : 'no';
-      const parsedProfessionType: string[] =
-        typeof professionType === 'string'
-          ? (JSON.parse(professionType.replace(/^'|'$/g, '')) as string[])
-          : professionType;
+      // const isProfessional =
+      //   Array.isArray(professionType) && professionType.length > 0 ? 'yes' : 'no';
+      // const parsedProfessionType: string[] =
+      //   typeof professionType === 'string'
+      //     ? (JSON.parse(professionType.replace(/^'|'$/g, '')) as string[])
+      //     : professionType;
 
       if (!process.env.COGNITO_CLIENT_ID || !process.env.COGNITO_CLIENT_SECRET) {
         res.status(200).json({ status: 0, message: 'Cognito configuration missing' });
@@ -109,7 +113,7 @@ const authController = {
         UserAttributes: [
           { Name: 'email', Value: email },
           { Name: 'phone_number', Value: `${countryCode}${mobilePhone}` },
-          { Name: 'address', Value: city },
+          { Name: 'address', Value: `${address} ${area} ${state} ${city} ${zipcode}` },
           { Name: 'name', Value: `${firstName} ${lastName}` },
         ],
       };
@@ -142,9 +146,6 @@ const authController = {
         }
         const safeEmail = email.trim().toLowerCase();
          const existingUser = await userModel.findOne({ email: safeEmail });
-        if (!existingUser) {
-           res.status(404).json({ status: 0, message: 'User not found' });
-        }
       if (existingUser) {
         const userData = existingUser.toObject() as IUser;
         delete userData.password;
@@ -162,12 +163,14 @@ const authController = {
         firstName,
         lastName,
         mobilePhone,
+        countryCode,
+        address,
+        state,
+        area,
         city,
         zipcode,
-        isProfessional,
-        professionType: parsedProfessionType,
-        pimsCode,
         profileImage: imageUrls,
+        dateOfBirth: typeof dateOfBirth === 'string' ? dateOfBirth : '',
       });
 
       res.status(201).json({
@@ -180,7 +183,7 @@ const authController = {
     }
   },
 
-  confirmSignup: async (req: Request, res: Response) => {
+  confirmSignup: async (req: Request, res: Response) :Promise<void>=> {
     const { email, confirmationCode } = req.body as SignupRequestBody;
 
     try {
@@ -194,18 +197,21 @@ const authController = {
         const result = await userModel.findOne({ email: safeEmail });
 
         if (!result) {
-           return res.status(200).json({ status: 0, message: 'User not found' });
+            res.status(200).json({ status: 0, message: 'User not found' });
+            return
         }
 
       const passwordData = result.password?.[0];
       if (!passwordData?.encryptedData || !passwordData.iv) {
-        return res.status(200).json({ status: 0, message: 'Invalid password data' });
+         res.status(200).json({ status: 0, message: 'Invalid password data' });
+         return
       }
 
       const decryptedPassword = decryptPassword(passwordData.encryptedData, passwordData.iv);
 
       if (!process.env.COGNITO_CLIENT_ID) {
-        return res.status(200).json({ status: 0, message: 'Cognito configuration missing' });
+        res.status(200).json({ status: 0, message: 'Cognito configuration missing' });
+        return 
       }
       const secretHash = getSecretHash(email);
 
@@ -256,13 +262,15 @@ const authController = {
         message: 'User confirmed successfully',
         userdata: userData,
       });
+      return 
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       res.status(200).json({ status: 0, message: 'Error during confirmation', error: message });
+      return 
     }
   },
 
-  sendOtp: async (req: Request, res: Response) => {
+  sendOtp: async (req: Request, res: Response):Promise<void> => {
     const { email } = req.body as SignupRequestBody;
 
     try {
@@ -284,7 +292,8 @@ const authController = {
       await userModel.updateOne({ email: safeEmail }, { $set: { otp, otpExpiry } });
 
       if (!process.env.MAIL_DRIVER) {
-        return res.status(500).json({ status: 0, message: 'MAIL_DRIVER not configured' });
+         res.status(500).json({ status: 0, message: 'MAIL_DRIVER not configured' });
+         return
       }
 
       await SES.sendEmail({
@@ -297,9 +306,11 @@ const authController = {
       }).promise();
 
       res.status(200).json({ status: 1, message: 'OTP sent successfully' });
+      return
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error during Sending OTP';
       res.status(200).json({ status: 0, message, error: message });
+      return
     }
   },
 
@@ -334,7 +345,7 @@ const authController = {
     }
   },
 
-  login: async (req: Request, res: Response) => {
+  login: async (req: Request, res: Response) :Promise<void> => {
     const { email, otp } = req.body as SignupRequestBody;
 
     try {
@@ -346,7 +357,8 @@ const authController = {
         const result = await userModel.findOne({ email: safeEmail });
 
         if (!result) {
-          return res.status(200).json({ status: 0, message: 'User not found' });
+           res.status(200).json({ status: 0, message: 'User not found' });
+           return
         }
 
       // Check OTP and expiry
@@ -355,24 +367,27 @@ const authController = {
         result.otp !== parseInt(otp) ||
         (result.otpExpiry && Date.now() > new Date(result.otpExpiry).getTime())
       ) {
-        return res.status(200).json({
+         res.status(200).json({
           status: 0,
           message:
             result.otpExpiry && Date.now() > new Date(result.otpExpiry).getTime()
               ? 'OTP has expired.'
               : 'Invalid OTP.',
         });
+        return
       }
 
       const passwordData = result.password?.[0];
       if (!passwordData?.encryptedData || !passwordData.iv) {
-        return res.status(200).json({ status: 0, message: 'Invalid password data' });
+         res.status(200).json({ status: 0, message: 'Invalid password data' });
+         return
       }
 
       const decryptedPassword = decryptPassword(passwordData.encryptedData, passwordData.iv);
 
       if (!process.env.COGNITO_CLIENT_ID) {
-        return res.status(200).json({ status: 0, message: 'Cognito configuration missing' });
+         res.status(200).json({ status: 0, message: 'Cognito configuration missing' });
+         return
       }
       const secretHash = getSecretHash(email);
 
@@ -410,13 +425,14 @@ const authController = {
       delete userData.password;
 
       res.status(200).json({ status: 1, message: 'User logged in successfully', userdata: userData });
+      return
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error during login';
       res.status(200).json({ status: 0, message: 'Error during login', error: message });
     }
   },
 
-  resendConfirmationCode: async (req: Request, res: Response) => {
+  resendConfirmationCode: async (req: Request, res: Response) :Promise<void>=> {
     const { email } = req.body as SignupRequestBody;
 
     try {
@@ -425,7 +441,8 @@ const authController = {
         }
 
       if (!process.env.COGNITO_CLIENT_ID) {
-        return res.status(500).json({ status: 0, message: 'Cognito configuration missing' });
+         res.status(500).json({ status: 0, message: 'Cognito configuration missing' });
+         return
       }
       const secretHash = getSecretHash(email);
 
@@ -436,9 +453,11 @@ const authController = {
       }).promise();
 
       res.status(200).json({ status: 1, message: 'Confirmation code resent successfully' });
+      return
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       res.status(200).json({ status: 0, message: 'Error resending confirmation code', error: message });
+      return
     }
   }
 };
