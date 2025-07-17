@@ -37,9 +37,9 @@ router.put(
   '/Appointment/:id', verifyTokenAndRefresh,
   AddDoctorsControllers.AppointmentAcceptedAndCancelFHIR
 );
-router.put('/updateAvailability', verifyTokenAndRefresh, AddDoctorsControllers.updateAvailability);
+router.put('/updateAvailability', verifyToken, AddDoctorsControllers.updateAvailability);
 router.get(
-  '/getAvailabilityStatus', verifyTokenAndRefresh,
+  '/getAvailabilityStatus', verifyToken,
   AddDoctorsControllers.getAvailabilityStatus
 );
 export default router;

@@ -4,7 +4,7 @@ import { AddDoctorDoc } from "@yosemite-crew/types";
 const vetSchema: Schema<AddDoctorDoc> = new Schema(
   {
     userId: { type: String, required: true },
-    // bussinessId: { type: String, required: true },
+    status: { type: String, required: true, default: "On-Duty" },
 
     registrationNumber: { type: String },
     firstName: { type: String },
