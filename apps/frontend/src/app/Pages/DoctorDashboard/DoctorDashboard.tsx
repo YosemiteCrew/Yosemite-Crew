@@ -1,7 +1,7 @@
 "use client";
 import React, {  useState } from "react";
 import "./DoctorDashboard.css";
-import { Button, Col, Container, Dropdown, Form, Row } from "react-bootstrap";
+import { Button, Col, Container, Dropdown, Form, Row, Tab, Tabs } from "react-bootstrap";
 import Image from "next/image";
 import Link from "next/link";
 import StatCard from "@/app/Components/StatCard/StatCard";
@@ -150,11 +150,44 @@ function DoctorDashboard() {
                   <div className="AvailabityDivDoctor">
 
                     <div className="AvltyFor">
-
                       <div className="avldate">
                         <h5>Availability for</h5>
                         <Form.Control className="AvlDatepicker" type="date" id="appointmentDate" title="Choose your date" />
                       </div>
+                      <div className="Avlswitch">
+                        <p>Availability Status</p>
+                        <div className="custom-toggle-container">
+                          <label className="custom-switch">
+                            <input
+                              type="checkbox"
+                              checked={available}
+                              onChange={() => setAvailable((prev) => !prev)}
+                            />
+                            <span className="slider" />
+                          </label>
+                          <span
+                            className={`status-text ${
+                              available ? "available" : "not-available"
+                            }`}
+                          >
+                            {available ? "Available" : "Not Available"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="ss">
+                      <Tabs defaultActiveKey="profile" id="uncontrolled-tab-example" className="mb-3" >
+                        <Tab eventKey="home" title="Daily">
+                          Tab content for Home
+                        </Tab>
+                        <Tab eventKey="profile" title="Mon-Fri">
+                          Tab content for Profile
+                        </Tab>
+                        <Tab eventKey="contact" title="Contact" disabled>
+                          Tab content for Contact
+                        </Tab>
+                      </Tabs>
 
 
 
