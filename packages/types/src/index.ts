@@ -45,7 +45,7 @@ export type { VaccinationDetailsType } from "./models/immunization-records";
 export type { TimeSlot,DoctorSlotDocument,AppointmentDocument,GetTimeSlotsInput,FHIRSlot,FHIRSlotBundle,SlotQuery,MonthlySlotQuery } from "./slot/slot-types";
 export type { ContactUsBody,TypedRequestBody } from "./contact/contact-types";
 export type {ConvertToFhirVetProfileParams,OperatingHourType,VetNameType} from './complete-vet-profile/complete-vet-profile'
-export type {TeamInviteMember,InvitePayload} from "./InviteTeamsMembers/invite-teams-members"
+export type {TeamInviteMember,InvitePayload,InviteCard,InviteItem,FhirTeamOverview,TeamOverview,DoctorType,WebUserType,AvailabilityDay,AvailabilityTime,DocumentItem,TeamMember} from "./InviteTeamsMembers/invite-teams-members"
 export type { IBookAppointmentRequestBody , IParsedAppointmentDetails, IAppointmentData , IFHIRAppointmentData , } from "./appointment/appointment-types";
 export type { Department , Organization } from "./business-formatter-types/business-formatter-types";
 export type {FHIRAppointmentAssessmentGraphBundle,QueryParams,AggregatedAppointmentGraph,DataItem,FHIRBundleGraph,FHIRBundleGraphForSpecialitywiseAppointments,FHIRtoJSONSpeacilityStats} from "./hospital-type/hospitalTypes";

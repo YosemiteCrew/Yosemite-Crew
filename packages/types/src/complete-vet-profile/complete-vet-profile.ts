@@ -1,5 +1,6 @@
 export type VetNameType = {
   registrationNumber: string;
+  status?:string;
   firstName: string;
   lastName: string;
   email: string;

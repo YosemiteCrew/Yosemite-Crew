@@ -116,7 +116,7 @@ function SignUp({ inviteCode }: SignUpProps) {
 
         router.push(`/emptydashboard`);
       }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     } catch (error: any) {
       Swal.fire({
         icon: 'error',
@@ -615,6 +615,7 @@ type FormInputProps = {
   inlabel: string;
   readonly?: boolean;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  error?: string;
 };
 export function FormInput({
   intype,
@@ -622,28 +623,33 @@ export function FormInput({
   inlabel,
   value,
   onChange,
-  readonly
+  readonly,
+  error,
 }: FormInputProps) {
   const [isFocused, setIsFocused] = useState(false);
 
   return (
-    <div
-      className={`SignInput floating-input ${isFocused || value ? "focused" : ""}`}
-    >
-      <input
-        type={intype}
-        name={inname}
-        id={inname}
-        value={value}
-        onChange={onChange}
-        autoComplete="off"
-        readOnly={readonly}
-        required
-        placeholder=" " // <-- Add a single space as placeholder
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
-      />
-      <label htmlFor={inname}>{inlabel}</label>
+    <div className='w-100'>
+      <div
+        className={`SignInput floating-input ${isFocused || value ? "focused" : ""}`}
+      >
+        <input
+          type={intype}
+          name={inname}
+          id={inname}
+          value={value}
+          onChange={onChange}
+          autoComplete="off"
+          readOnly={readonly}
+          required
+          placeholder=" " // <-- Add a single space as placeholder
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          className={error ? 'is-invalid' : ''}
+        />
+        <label htmlFor={inname}>{inlabel}</label>
+      </div>
+      {error && <Form.Text className="text-danger">{error}</Form.Text>}
     </div>
   );
 }
