@@ -22,3 +22,4 @@ export {convertFhirInventoryBundleToJson,convertFhirToJson} from "./InventoryFhi
 export {convertGraphDataToFHIR,convertFHIRToGraphData,convertSpecialityWiseAppointmentsToFHIR,FHIRtoJSONSpeacilityStats} from "./hospital-fhir/hospitalfhir";
 export {convertDepartmentFromFHIR,convertToFHIRDepartment} from "./addSpecialities/specialities-fhir";
 export {fromFHIRInviteItem,fromFHIRInviteList,toFHIRInviteItem,toFHIRInviteList,fromFhirTeamOverview,toFhirTeamOverview,convertFromFhirTeamMembers,convertToFhirTeamMembers } from './invites-teams/invites-teams'
+export { FHIRSlotValidator , MonthlySlotValidator} from "./slots";

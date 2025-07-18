@@ -1,9 +1,7 @@
 import { Request, Response } from 'express';
 import SlotService from '../services/slot-service';
 import MonthlySlotService from '../services/monthly.slot.service';
-import { FHIRSlotValidator } from '../validators/FHIRSlotValidator';
-import { MonthlySlotValidator } from '../validators/MonthlySlotValidator';
-import { FHIRValidator } from '../validators/FHIRValidator';
+import  {FHIRSlotValidator , MonthlySlotValidator}  from '@yosemite-crew/fhir';
 import validator from 'validator';
 import { SlotQuery, MonthlySlotQuery } from '@yosemite-crew/types'; // ✅ right
 
@@ -68,7 +66,7 @@ const SlotController = {
         });
       }
 
-      const validationErrors = FHIRSlotValidator.validateBundle(result);
+      const validationErrors  = FHIRSlotValidator.validateBundle(result);
       if (validationErrors.length > 0) {
         return res.status(200).json({
           issue: validationErrors.map(msg => ({
@@ -95,7 +93,7 @@ const SlotController = {
     }
   },
 
-  TimeSlotsByMonth: async (req: Request<unknown, unknown, unknown, MonthlySlotQuery>, res: Response): Promise<Response> => {
+  timeSlotsByMonth: async (req: Request<unknown, unknown, unknown, MonthlySlotQuery>, res: Response): Promise<Response> => {
     const { slotMonth, slotYear, doctorId } = req.query;
 
     if (typeof doctorId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(doctorId)) {
@@ -110,7 +108,7 @@ const SlotController = {
 
     try {
       const result = await MonthlySlotService.generateMonthlySlotSummary({ doctorId, slotMonth, slotYear });
-      const fhirIssues = FHIRValidator.validateFHIRBundle(result);
+      const fhirIssues = FHIRSlotValidator.validateFHIRBundle(result);
 
       if (fhirIssues.length > 0) {
         return res.status(200).json({ status: 0, issue: fhirIssues });
