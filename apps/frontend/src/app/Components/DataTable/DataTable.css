@@ -332,6 +332,7 @@
   justify-content: center;
   background: var(--whitebg);
   border: 1px solid var(--black-bg);
+  padding: 0;
 }
 .Procedaction-buttons .action-btn svg {
   color: var(--black-text);
@@ -346,12 +347,18 @@
 
 /* AddItemsTable Started  */
 
-
 .TableDropdownWrapper{
   display: flex;
   flex-direction: column;
   gap: 18px;
 }
+.StatementsTopBar{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+
 
 
 /* AddItemsTable Ended */
