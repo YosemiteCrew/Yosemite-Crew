@@ -1,11 +1,11 @@
-import React, { useState,useMemo } from 'react'
+"use client";
+import React, { useState } from 'react'
 import "./DataTable.css";
 import { Button, Dropdown, Form } from 'react-bootstrap';
 import { MdModeEditOutline } from 'react-icons/md';
 import { FaRegTrashAlt } from 'react-icons/fa';
 import GenericTable from '../GenericTable/GenericTable';
 import { LuSearch } from 'react-icons/lu';
-import { FaUser } from 'react-icons/fa6';
 import Image from 'next/image';
 
 
