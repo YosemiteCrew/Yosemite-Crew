@@ -1,6 +1,7 @@
-const moment = require('moment-timezone');
+import { AppointmentDocument } from '@yosemite-crew/types';
+import  moment  from 'moment-timezone';
 
-function createFHIRSlot(slot, doctorId, bookedAppointments) {
+function createFHIRSlot(slot: unknown, doctorId:string, bookedAppointments:AppointmentDocument[]): Record<string, unknown> {
     const isBooked = bookedAppointments.some(app => app.slotsId?.toString() === slot._id?.toString());
     
     return {
@@ -15,4 +16,4 @@ function createFHIRSlot(slot, doctorId, bookedAppointments) {
     };
 }
 
-module.exports = { createFHIRSlot };
+export  { createFHIRSlot };
