@@ -28,10 +28,10 @@ type TodayAppointmentItem = {
   image: string;
   appointmentId: string;
   reason: string;
-  breed: string;
+  petType: string;
   time: string;
   date: string;
-  doctor: string;
+  participants: any;
   specialization: string;
   status: AppointmentStatus;
 };
@@ -44,7 +44,7 @@ const appointments: TodayAppointmentItem[] = [
     image: "/Images/pet3.png",
     appointmentId: "DRO01-03-23-2024",
     reason: "Annual Health Check-Up",
-    breed: "Beagle/Dog",
+    petType: "Beagle/Dog",
     time: "11:30 AM",
     date: "01 Sep 2024",
     doctor: "Dr. Emily Johnson",
@@ -57,7 +57,7 @@ const appointments: TodayAppointmentItem[] = [
     image: "/Images/pet3.png",
     appointmentId: "DRO02-03-23-2024",
     reason: "Vaccination Updates",
-    breed: "Egyptian/Cat",
+    petType: "Egyptian/Cat",
     time: "12:15 PM",
     date: "01 Sep 2024",
     doctor: "Dr. David Brown",
@@ -70,7 +70,7 @@ const appointments: TodayAppointmentItem[] = [
     image: "/Images/pet3.png",
     appointmentId: "DRO03-03-23-2024",
     reason: "Deworming Treatment",
-    breed: "Paso Fino/Horse",
+    petType: "Paso Fino/Horse",
     time: "01:13 PM",
     date: "01 Sep 2024",
     doctor: "Dr. Megan Clark",
@@ -83,7 +83,7 @@ const appointments: TodayAppointmentItem[] = [
     image: "/Images/pet3.png",
     appointmentId: "DRO01-03-23-2024",
     reason: "Annual Health Check-Up",
-    breed: "Beagle/Dog",
+    petType: "Beagle/Dog",
     time: "11:30 AM",
     date: "01 Sep 2024",
     doctor: "Dr. Emily Johnson",
@@ -96,7 +96,7 @@ const appointments: TodayAppointmentItem[] = [
     image: "/Images/pet3.png",
     appointmentId: "DRO02-03-23-2024",
     reason: "Vaccination Updates",
-    breed: "Egyptian/Cat",
+    petType: "Egyptian/Cat",
     time: "12:15 PM",
     date: "01 Sep 2024",
     doctor: "Dr. David Brown",
@@ -109,7 +109,7 @@ const appointments: TodayAppointmentItem[] = [
     image: "/Images/pet3.png",
     appointmentId: "DRO03-03-23-2024",
     reason: "Deworming Treatment",
-    breed: "Paso Fino/Horse",
+    petType: "Paso Fino/Horse",
     time: "01:13 PM",
     date: "01 Sep 2024",
     doctor: "Dr. Megan Clark",
@@ -160,7 +160,7 @@ const columns: Column<TodayAppointmentItem>[] = [
 {
   label: "Breed/Pet",
   key: "breed",
-  render: (item: TodayAppointmentItem) => <p>{item.breed}</p>,
+  render: (item: TodayAppointmentItem) => <p>{item.petType}</p>,
 },
   {
     label: "Date",
@@ -177,8 +177,8 @@ const columns: Column<TodayAppointmentItem>[] = [
     key: "doctor",
     render: (item: TodayAppointmentItem) => (
       <div>
-        <p>{item.doctor}</p>
-        <span>{item.specialization}</span>
+        <p>{item?.participants[0]?.name}</p>
+        <span>{item?.participants[0]?.name}</span>
       </div>
     ),
   },
@@ -235,7 +235,7 @@ const columns: Column<TodayAppointmentItem>[] = [
 
 
 
-function UpComingAppointmentsTable() {
+function UpComingAppointmentsTable(data:any) {
 
 
     
@@ -245,7 +245,7 @@ function UpComingAppointmentsTable() {
   return (
     <div>
         <div className="table-wrapper">
-            <GenericTable data={appointments} columns={columns} bordered={false} pagination pageSize={3} />
+            <GenericTable data={data} columns={columns} bordered={false}  pageSize={3} />
             {/* <div className="table-footerBtn ">
                 <Button>Sell All</Button>
             </div> */}

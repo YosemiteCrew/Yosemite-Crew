@@ -44,7 +44,7 @@ function BusinessDashboard() {
   // departmentStats Started
 
   const [data, setData] = useState<DepartmentData[]>([]);
-  const userId = useAuthStore((state) => state.userId);
+  const userId = useAuthStore((state:any) => state.userId);
   useEffect(() => {
     fetchDashBoardDetails("AppointmentLists");
   }, [appointmentFilter]);

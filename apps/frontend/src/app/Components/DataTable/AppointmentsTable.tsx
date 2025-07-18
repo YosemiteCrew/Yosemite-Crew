@@ -23,12 +23,12 @@ type TodayAppointmentItem = {
   name: string;
   owner: string;
   image: string;
-  appointmentId: string;
+  tokenNumber: string;
   reason: string;
-  breed: string;
+  petType: string;
   time: string;
   date: string;
-  doctor: string;
+  participants: any;
   specialization: string;
   status: AppointmentStatus;
 };
@@ -108,7 +108,7 @@ const columns: Column<TodayAppointmentItem>[] = [
   {
   label: "Appointment ID",
   key: "appointmentId",
-  render: (item: TodayAppointmentItem) => <p>{item.appointmentId}</p>,
+  render: (item: TodayAppointmentItem) => <p>{item.tokenNumber}</p>,
 },
 {
   label: "Reason for Appointment",
@@ -118,7 +118,7 @@ const columns: Column<TodayAppointmentItem>[] = [
 {
   label: "Breed/Pet",
   key: "breed",
-  render: (item: TodayAppointmentItem) => <p>{item.breed}</p>,
+  render: (item: TodayAppointmentItem) => <p>{item.petType}</p>,
 },
   {
     label: "Date",
@@ -135,7 +135,7 @@ const columns: Column<TodayAppointmentItem>[] = [
     key: "doctor",
     render: (item: TodayAppointmentItem) => (
       <div>
-        <p>{item.doctor}</p>
+        <p>{item?.participants[0]?.name}</p>
         <span>{item.specialization}</span>
       </div>
     ),
@@ -186,12 +186,12 @@ const columns: Column<TodayAppointmentItem>[] = [
 
 ];
 
-function AppointmentsTable() {
+function AppointmentsTable({data}:any) {
   return (
     <>
 
         <div className="table-wrapper">
-            <GenericTable data={appointments} columns={columns} bordered={false} />
+            <GenericTable data={data} columns={columns} bordered={false} />
             {/* <div className="table-footerBtn ">
                 <Button>Sell All</Button>
             </div> */}
