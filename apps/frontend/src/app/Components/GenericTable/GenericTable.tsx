@@ -30,7 +30,7 @@ function GenericTable<T extends object>({
   const totalPages = Math.ceil(total / pageSize);
   const startIdx = (currentPage - 1) * pageSize;
   const endIdx = startIdx + pageSize;
-  const paginatedData = pagination ? data.slice(startIdx, endIdx) : data;
+  const paginatedData = pagination ? data?.slice(startIdx, endIdx) : data;
 
   const handlePrev = () => setCurrentPage((p) => Math.max(1, p - 1));
   const handleNext = () => setCurrentPage((p) => Math.min(totalPages, p + 1));
@@ -51,7 +51,7 @@ function GenericTable<T extends object>({
           </tr>
         </thead>
         <tbody>
-          {paginatedData?.map((row, index) => (
+          {paginatedData && paginatedData.length >0 && paginatedData?.map((row, index) => (
             <tr key={index}>
               {columns.map((col) => (
                 <td
