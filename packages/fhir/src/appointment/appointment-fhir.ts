@@ -319,8 +319,8 @@ export function convertFHIRToPlainJSON(fhirBundle: any): SimplifiedAppointment[]
 
 
 
-export function convertToFHIRMyCalender(input: AppointmentInput[]): FHIRAppointment[] {
-  return input.map((appt) => {
+export function convertToFHIRMyCalender(_input: AppointmentInput[]): FHIRAppointment[] {
+  return _input.map((appt:any) => {
     // Combine date and time to ISO format
     const date = new Date(appt.appointmentDate);
     const timeParts = appt.appointmentTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
