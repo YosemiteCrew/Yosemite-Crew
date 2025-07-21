@@ -1,7 +1,17 @@
-import { AppointmentDocument } from '@yosemite-crew/types';
+import { AppointmentDocument, TimeSlot } from '@yosemite-crew/types';
 import  moment  from 'moment-timezone';
 
-function createFHIRSlot(slot: unknown, doctorId:string, bookedAppointments:AppointmentDocument[]): Record<string, unknown> {
+interface FHIRSlot{
+    resourceType: string,
+      id: string,
+      schedule: {
+        reference: string,
+      },
+      isBooked: boolean | string,
+      slotTime: string,
+      start:string,
+}
+function createFHIRSlot(slot: TimeSlot, doctorId:string, bookedAppointments:AppointmentDocument[]): Partial<FHIRSlot> {
     const isBooked = bookedAppointments.some(app => app.slotsId?.toString() === slot._id?.toString());
     
     return {
@@ -12,7 +22,7 @@ function createFHIRSlot(slot: unknown, doctorId:string, bookedAppointments:Appoi
       },
       isBooked: isBooked ? "true" : "false",
       slotTime: slot.time,
-      start: moment.tz(`${slot.date} ${slot.time}`, ["YYYY-MM-DD h:mm A", "YYYY-MM-DD hh:mm A"], "Asia/Kolkata").toISOString(),
+      start: moment.parseZone(`${slot.time} ${slot.time}`, ["YYYY-MM-DD h:mm A", "YYYY-MM-DD hh:mm A"], "Asia/Kolkata").toISOString(),
     };
 }
 
