@@ -9,9 +9,9 @@ import petCoOwner  from '../models/pet-co-owner';
 import sharedRecord from '../models/shared-pet-duties';
 
 
-const sharedDutiesController: Record<string, unknown> = {
+const sharedDutiesController= {
 
-  savePetCoOwner: async (req: Request, res: Response) => {
+  savePetCoOwner: async (req: Request, res: Response) :Promise<void> => {
     try {
       const body = req.body as Record<string, unknown>;
       const fhirDataRaw = typeof body.data === 'string' ? body.data : '';
@@ -80,7 +80,7 @@ const sharedDutiesController: Record<string, unknown> = {
     }
   },
 
-  saveSharedDuties: async (req: Request, res: Response) => {
+  saveSharedDuties: async (req: Request, res: Response) :Promise<void> => {
     try {
     const body = req.body as Record<string, unknown>;
     const inputFhirData = typeof body.data === 'string' ? body.data : '';
@@ -176,7 +176,7 @@ const sharedDutiesController: Record<string, unknown> = {
     }
   },
  
- editSharedDuties: async (req: Request, res: Response) => {
+ editSharedDuties: async (req: Request, res: Response) :Promise<void> => {
     try {
       const body = req.body as { data?: string };
       const inputFhirData = body?.data;
@@ -339,7 +339,7 @@ const sharedDutiesController: Record<string, unknown> = {
     }
   },
 
-  getSharedDuties: async (req: Request, res: Response) => {
+  getSharedDuties: async (req: Request, res: Response) :Promise<void> => {
     try {
       const userId = getCognitoUserId(req);
       if (!userId) {
@@ -446,7 +446,7 @@ const sharedDutiesController: Record<string, unknown> = {
   },
   
 
-  deleteSharedDuties: async (req: Request, res: Response) => {
+  deleteSharedDuties: async (req: Request, res: Response) :Promise<void> => {
     try {
       const taskId = req.query.taskId as string;
 
@@ -470,7 +470,7 @@ const sharedDutiesController: Record<string, unknown> = {
     }
   },
 
-  deletePetCoOwner: async (req: Request, res: Response) => {
+  deletePetCoOwner: async (req: Request, res: Response) :Promise<void> => {
     const CoOwnerId = req.query.CoOwnerId as string;
     try {
       if (!mongoose.Types.ObjectId.isValid(CoOwnerId)) {
