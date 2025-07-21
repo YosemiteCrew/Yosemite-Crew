@@ -29,7 +29,7 @@ router.get("/getAppointments", verifyTokenAndRefresh, appointmentController.getA
 router.put("/cancelAppointment", verifyTokenAndRefresh, appointmentController.cancelAppointment);
 router.put("/rescheduleAppointment",verifyTokenAndRefresh, appointmentController.rescheduleAppointment);
 router.get("/Slot/getTimeSlots", verifyTokenAndRefresh, slotController.getTimeSlots);
-router.get("/Slot/getTimeSlotsByMonth",verifyTokenAndRefresh,slotController.TimeSlotsByMonth);
+router.get("/Slot/getTimeSlotsByMonth",verifyTokenAndRefresh,slotController.timeSlotsByMonth);
 router.post("/Observation/saveFeedBack",verifyTokenAndRefresh,feedbackController.addFeedBack);
 router.get("/Observation/getFeedBack",verifyTokenAndRefresh,feedbackController.getFeedback);
 router.put("/Observation/editFeedBack",verifyTokenAndRefresh,feedbackController.editFeedback);
