@@ -319,67 +319,39 @@ export function convertFHIRToPlainJSON(fhirBundle: any): SimplifiedAppointment[]
 
 
 
-export function convertToFHIRMyCalender(_input: AppointmentInput[]): FHIRAppointment[] {
-  return _input.map((appt:any) => {
-    // Combine date and time to ISO format
-    const date = new Date(appt.appointmentDate);
-    const timeParts = appt.appointmentTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
-    if (timeParts) {
-      let hours = parseInt(timeParts[1]);
-      const minutes = parseInt(timeParts[2]);
-      const period = timeParts[3].toUpperCase();
+export function convertToFHIRMyCalender(fhirAppointments: FHIRAppointment[]): AppointmentInput[] {
+  return fhirAppointments.map((appt: FHIRAppointment) => {
+    const dateObj = new Date(appt.start);
 
-      if (period === "PM" && hours !== 12) hours += 12;
-      if (period === "AM" && hours === 12) hours = 0;
+    const hours = dateObj.getHours();
+    const minutes = dateObj.getMinutes();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const hour12 = hours % 12 || 12; // convert 0 to 12
+    const paddedMinutes = minutes.toString().padStart(2, '0');
 
-      date.setHours(hours, minutes, 0, 0);
-    }
+    const appointmentTime = `${hour12}:${paddedMinutes} ${ampm}`;
+    const appointmentDate = dateObj.toISOString().split('T')[0]; // only YYYY-MM-DD
 
-    const fhirAppt: FHIRAppointment = {
-      resourceType: "Appointment",
-      id: appt._id,
-      status: appt.appointmentStatus,
-      serviceType: [
-        {
-          text: appt.department,
-        },
-      ],
-      start: date.toISOString(),
-      participant: [
-        {
-          actor: {
-            display: `Owner: ${appt.ownerName}`,
-          },
-          status: "accepted",
-        },
-        {
-          actor: {
-            display: `Pet: ${appt.petName}`,
-          },
-          status: "accepted",
-        },
-        ...(appt.veterinarian
-          ? [
-              {
-                actor: {
-                  display: `Veterinarian: ${appt.veterinarian}`,
-                },
-                status: "accepted",
-              },
-            ]
-          : []),
-      ],
-      extension: [
-        {
-          url: "http://example.org/fhir/StructureDefinition/hospitalId",
-          valueString: appt.hospitalId,
-        },
-      ],
+    const ownerParticipant = appt.participant.find(p => p.actor?.display?.startsWith("Owner:"));
+    const petParticipant = appt.participant.find(p => p.actor?.display?.startsWith("Pet:"));
+    const vetParticipant = appt.participant.find(p => p.actor?.display?.startsWith("Veterinarian:"));
+
+    const hospitalExt = appt.extension?.find(ext => ext.url.includes("hospitalId"));
+
+    return {
+      _id: appt.id,
+      appointmentDate,
+      appointmentTime,
+      appointmentStatus: appt.status,
+      department: appt.serviceType?.[0]?.text || '',
+      ownerName: ownerParticipant?.actor?.display?.replace("Owner: ", "") || '',
+      petName: petParticipant?.actor?.display?.replace("Pet: ", "") || '',
+      veterinarian: vetParticipant?.actor?.display?.replace("Veterinarian: ", "") || '',
+      hospitalId: hospitalExt?.valueString || '',
     };
-
-    return fhirAppt;
   });
 }
+
 
 
 
