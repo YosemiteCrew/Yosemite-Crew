@@ -10,6 +10,55 @@ import { getData, postData } from "@/app/axios-services/services";
 import { AxiosError } from "axios";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/app/stores/authStore";
+import { Icon } from "@iconify/react/dist/iconify.js";
+
+
+
+
+// Error Tost Started 
+
+type ErrorTostProps = {
+  message?: string;
+  iconElement?: React.ReactNode;
+  errortext: string;
+  className?: string; 
+  onClose?: () => void;
+};
+
+const ErrorTost: React.FC<ErrorTostProps> = ({
+  message,
+  iconElement,
+  errortext,
+  className = "",
+  onClose
+}) => {
+
+  return (
+    <div className={`SignError ${className}`}>
+      <Container>
+        <div className="ErroItemDiv">
+          <div className="errortopbar">
+            <div className="Errortexted">
+              {iconElement}
+              <h6>{errortext}</h6>
+            </div>
+            <p>{message}</p>
+          </div>
+          <Button onClick={onClose} variant="light">
+            <Icon icon="solar:close-circle-bold" width="24" height="24" />
+          </Button>
+        </div>
+      </Container>
+    </div>
+  );
+};
+
+// Error Tost Started 
+
+
+
+
+
 
 type SignUpProps = {
   inviteCode?: string
@@ -302,6 +351,9 @@ function SignUp({ inviteCode }: SignUpProps) {
 
   return (
     <>
+      
+
+
 
       {!inviteCode ? <section className="MainSignUpSec">
         <Container>
@@ -320,11 +372,8 @@ function SignUp({ inviteCode }: SignUpProps) {
                       </span>
                     </div>
                     <div className="CloudText">
-                      <h4>Cloud or Self-Hosted — You Decide.</h4>
-                      <p>
-                        Use our managed cloud service or deploy on your own
-                        infrastructure. Total flexibility, no lock-in.
-                      </p>
+                      <h4>Enjoy Cloud Hosting with us!</h4>
+                      <p>Website are hosted on a network of servers, offering greater, scalability, reliability, and flexibility.</p>
                     </div>
                   </div>
 
@@ -336,10 +385,7 @@ function SignUp({ inviteCode }: SignUpProps) {
                     </div>
                     <div className="CloudText">
                       <h4>Start Free. Pay as You Grow.</h4>
-                      <p>
-                        Enjoy generous free usage on cloud hosting. Upgrade only
-                        when you need more power.
-                      </p>
+                      <p>Enjoy generous free usage on cloud hosting. Upgrade only when you need more power.</p>
                     </div>
                   </div>
 
@@ -351,10 +397,7 @@ function SignUp({ inviteCode }: SignUpProps) {
                     </div>
                     <div className="CloudText">
                       <h4>GDPR-Ready, EU-Based Servers.</h4>
-                      <p>
-                        All cloud data is securely hosted in the EU with full
-                        GDPR compliance.
-                      </p>
+                      <p>All cloud data is securely hosted in the EU with full GDPR compliance.</p>
                     </div>
                   </div>
                 </div>
@@ -366,7 +409,7 @@ function SignUp({ inviteCode }: SignUpProps) {
                 <Form>
                   <div className="TopSignUp">
                     <div className="Headingtext">
-                      <h2>Sign up now </h2>
+                      <h2>Sign up for Cloud </h2>
                     </div>
 
                     <div className="SignFormItems">
@@ -444,6 +487,25 @@ function SignUp({ inviteCode }: SignUpProps) {
             </Col>
           </Row>
         </Container>
+
+        <ErrorTost
+          className="errofoundbg"
+          message="Seems like You did not enter your Email or Password. Enter email and password to create your profile."
+          errortext="Error Found!"
+          iconElement={<Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />}/>
+
+        <ErrorTost
+          className="oppsbg"
+          message="Something went wrong. We will inform you shortly"
+          errortext="Opps"
+          iconElement={<Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#F68523" />}/>
+
+        <ErrorTost
+          className="CongratsBg"
+          message="You have successfully created your profile"
+          errortext="🎉 Congratulations!"/>
+        
+
       </section> :
 
         <section className="CompleteSignUpSec">
@@ -580,6 +642,8 @@ function SignUp({ inviteCode }: SignUpProps) {
       </Modal>
     </>
   );
+
+
 }
 
 export default SignUp;
