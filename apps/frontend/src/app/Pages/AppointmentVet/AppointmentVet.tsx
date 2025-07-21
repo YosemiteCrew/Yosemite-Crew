@@ -106,7 +106,8 @@ const fetchOverviewStats = async() => {
   if (!response) {
     throw new Error("Network response was not ok");
   }
-  const data: any = await convertAppointmentStatsFromFHIR(response.data)
+  const data: any = await convertAppointmentStatsFromFHIR
+  (response.data)
  console.log(data,"Overview Stats Data");
 setOverviewStats(data);
 

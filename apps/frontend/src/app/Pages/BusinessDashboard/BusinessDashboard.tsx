@@ -19,8 +19,8 @@ import InventoryTable from "@/app/Components/DataTable/InventoryTable";
 import { getData, postData } from "@/app/axios-services/services";
 import { useStore } from "zustand";
 import { useAuthStore } from "@/app/stores/authStore";
-import { convertFhirAppointmentBundle } from "@/app/utils/common";
 import {
+  convertFhirAppointmentBundle,
   convertFhirInventoryBundleToJson,
   convertFHIRToGraphData,
   convertFhirToJson,
