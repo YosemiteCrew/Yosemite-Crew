@@ -8,6 +8,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    position: relative;
+    padding: 150px 0px 100px 0px;
 }
 
 .BuildEveryone{
@@ -196,7 +198,7 @@
     gap: 20px;
 }
 .Signbtn h6{
-    color: var(--blue-text);
+    color: var(--black-text);
     font-weight: 500;
     font-size: 19px;
     line-height: 120%;
@@ -204,7 +206,7 @@
     margin: 0;
 }
 .Signbtn h6 a{
-    color: var(--black-text);
+    color: var(--blue-text);
 }
 
 /* Sign Up Page Ended */
@@ -461,3 +463,85 @@
 }
 
 /* Sign In Ended */
+
+
+
+/* SignError Started  */
+
+.SignError{
+    width: 100%;
+    min-height: 85px;
+    position: absolute;
+    top: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 16px 10px;
+    border-radius: 0px 0px 20px 20px;
+}
+.SignError.errofoundbg{
+    background: var(--foungbg);
+}
+.SignError.oppsbg{
+    background: var(--opsbg);
+}
+.SignError.CongratsBg{
+    background: var(--greenbg);
+}
+.SignError .ErroItemDiv{
+    position: relative;
+}
+.SignError .ErroItemDiv .errortopbar{
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+    gap: 8px;
+    position: relative;
+}
+.SignError .ErroItemDiv .errortopbar .Errortexted{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.SignError .ErroItemDiv .errortopbar .Errortexted h6{
+    margin: 0;
+    font-weight: 500;
+    font-family: var(--grotesk-font);
+    font-size: 19px;
+    line-height: 120%;
+    color: var(--black-text);
+}
+.SignError .ErroItemDiv .errortopbar p{
+    margin: 0;
+    font-weight: 400;
+    font-family: var(--satoshi-font);
+    font-size: 18px;
+    line-height: 120%;
+    color: var(--black-text);
+}
+.SignError .ErroItemDiv button{
+    position: absolute;
+    right: 0;
+    top: 0;
+    padding: 0;
+    background: transparent !important;
+    border: none !important;
+}
+.SignError .ErroItemDiv button svg{
+    color: var(--black-bg);
+}
+
+
+
+
+
+
+
+
+
+
+
+/* SignError Ended */
