@@ -59,3 +59,44 @@ export interface IFHIRAppointmentData {
         }>;
     }>;
 }
+// --- Types ---
+type AppointmentStatus = "confirmed" | "cancelled" | "completed" | "pending" | string;
+
+export interface AppointmentInput {
+    _id: string;
+    ownerName: string;
+    petName: string;
+    appointmentTime: string; // e.g., "11:00 AM"
+    hospitalId: string;
+    appointmentStatus: string; // e.g., "booked", "cancelled"
+    appointmentDate: string; // e.g., "2025-06-04T00:00:00.000Z"
+    department: string;
+    veterinarian: string | null;
+}
+
+export interface FHIRAppointmentBundleParams {
+    status?: string;
+    appointments: AppointmentInput[];
+    totalCount: number;
+}
+export interface SimplifiedAppointment {
+    id: string;
+    petName?: string;
+    veterinarian?: string;
+    ownerName?: string;
+    department?: string;
+    dateTime: string;
+    status: string;
+  }
+  export interface FHIRAppointment  {
+    resourceType: "Appointment";
+    id: string;
+    status: string;
+    serviceType: { text: string }[];
+    start: string;
+    participant: { actor: { display: string }; status: string }[];
+    extension?: {
+      url: string;
+      valueString: string;
+    }[];
+  };
