@@ -19,8 +19,8 @@ import InventoryTable from "@/app/Components/DataTable/InventoryTable";
 import { getData, postData } from "@/app/axios-services/services";
 import { useStore } from "zustand";
 import { useAuthStore } from "@/app/stores/authStore";
-import { convertFhirAppointmentBundle } from "@/app/utils/common";
 import {
+  convertFhirAppointmentBundle,
   convertFhirInventoryBundleToJson,
   convertFHIRToGraphData,
   convertFhirToJson,
@@ -44,7 +44,7 @@ function BusinessDashboard() {
   // departmentStats Started
 
   const [data, setData] = useState<DepartmentData[]>([]);
-  const userId = useAuthStore((state) => state.userId);
+  const userId = useAuthStore((state:any) => state.userId);
   useEffect(() => {
     fetchDashBoardDetails("AppointmentLists");
   }, [appointmentFilter]);

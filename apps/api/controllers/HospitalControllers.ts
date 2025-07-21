@@ -9,13 +9,13 @@ import { ProfileData } from "../models/WebUser";
 
 const S3_BASE_URL = `https://${process.env.AWS_S3_BUCKET_NAME}.s3.amazonaws.com/`;
 import AWS from "aws-sdk";
-import ProfileVisibility from "../models/profileVisibility";
-import Message from "../models/ChatModel";
+// import ProfileVisibility from "../models/profileVisibility";
+// import Message from "../models/ChatModel";
 import FHIRConverter from "../utils/DoctorsHandler";
 // import { GraphDataToFHIR } from "../utils/HospitalFhirHandler";
 import { AppointmentFHIRConverter } from "../utils/WebAppointmentHandler";
 // import { AppointmentsFHIRConverter } from "../utils/HospitalProfileHandler";
-import { AppointmentsStatusFHIRConverter, convertGraphDataToFHIR, convertSpecialityWiseAppointmentsToFHIR } from "@yosemite-crew/fhir";
+import { AppointmentsStatusFHIRConverter, convertAppointmentStatsToFHIR, convertGraphDataToFHIR, convertSpecialityWiseAppointmentsToFHIR, convertToFHIRMyCalender } from "@yosemite-crew/fhir";
 
 // import { validateFHIR } from "../Fhirvalidator/FhirValidator";
 // import { json, text } from "body-parser";
@@ -278,7 +278,7 @@ const HospitalController = {
                 },
               },
             ]);
-            const weekData = {
+            const weekData:any = {
               Monday: 0,
               Tuesday: 0,
               Wednesday: 0,
@@ -292,7 +292,7 @@ const HospitalController = {
               weekData[day] = count;
             });
 
-            const responseData = Object.entries(weekData).map(
+            const responseData:any = Object.entries(weekData).map(
               ([day, count]) => ({
                 day,
                 count,
@@ -435,507 +435,563 @@ const HospitalController = {
       });
     }
   },
-  WaitingRoomOverView: async (req, res) => {
-    const { type } = req.query;
-    switch (type) {
-      case "waitingroomOverview":
-        if (req.method === "GET") {
-          try {
-            const { Organization } = req.query;
-            const userId = Organization.split("/")[1];
-            if (!userId) {
-              return res.status(400).json({ message: "userId is required" });
-            }
 
-            const currentDate = new Date().toISOString().split("T")[0];
-            const currentDateStart = new Date();
-            currentDateStart.setHours(0, 0, 0, 0);
-            const currentDateEnd = new Date();
-            currentDateEnd.setHours(23, 59, 59, 999);
-
-            const appointmentStats = await webAppointments.aggregate([
-              {
-                $match: { hospitalId: userId, appointmentDate: currentDate },
-              },
-              {
-                $group: {
-                  _id: null,
-                  totalAppointments: {
-                    $sum: {
-                      $cond: [{ $not: { $eq: ["$isCanceled", 2] } }, 1, 0],
-                    },
-                  },
-                  successful: {
-                    $sum: { $cond: [{ $eq: ["$isCanceled", 5] }, 1, 0] },
-                  },
-                  canceled: {
-                    $sum: { $cond: [{ $in: ["$isCanceled", [2, 3]] }, 1, 0] },
-                  },
-                  checkedIn: {
-                    $sum: { $cond: [{ $eq: ["$isCanceled", 4] }, 1, 0] },
-                  },
-                },
-              },
-            ]);
-
-            const availableDoctorsCount = await AddDoctors.countDocuments({
-              bussinessId: userId,
-              isAvailable: "1",
-            });
-
-            const appointmentsCreatedTodayCount =
-              await webAppointments.countDocuments({
-                hospitalId: userId,
-                createdAt: { $gte: currentDateStart, $lte: currentDateEnd },
-              });
-
-            const result = {
-              totalAppointments: appointmentStats[0]?.totalAppointments || 0,
-              successful: appointmentStats[0]?.successful || 0,
-              canceled: appointmentStats[0]?.canceled || 0,
-              checkedIn: appointmentStats[0]?.checkedIn || 0,
-              availableDoctors: availableDoctorsCount,
-              appointmentsCreatedToday: appointmentsCreatedTodayCount,
-            };
-            const data = new FHIRConverter(result).overviewConvertToFHIR();
-
-            return res.status(200).json(JSON.stringify(data)); // Removed JSON.stringify to ensure valid JSON format
-          } catch (error) {
-            return res.status(500).json({ message: "Internal server error" });
-          }
-        }
-        break;
-
-      case "dashboardOverview":
-        if (req.method === "GET") {
-          try {
-            const { subject, reportType } = req.query;
-
-            if (!subject || !reportType) {
-              return res
-                .status(400)
-                .json({ message: "Missing required query parameters" });
-            }
-
-            const match = subject.match(/^Organization\/(.+)$/);
-            if (!match) {
-              return res.status(400).json({
-                resourceType: "OperationOutcome",
-                reportType: reportType,
-                issue: [
-                  {
-                    severity: "error",
-                    code: "invalid-subject",
-                    details: {
-                      text: "Invalid subject format. Expected Organization/12345",
-                    },
-                  },
-                ],
-              });
-            }
-
-            const userId = match[1];
-            const { LastDays = 7 } = req.query;
-            const days = parseInt(LastDays, 10) || 7;
-            const endDate = new Date();
-            const startDate = new Date();
-            startDate.setDate(endDate.getDate() - (days - 1));
-
-            const formatDate = (date) => date.toISOString().split("T")[0];
-
-            const formattedStartDate = formatDate(startDate);
-            const formattedEndDate = formatDate(endDate);
-
-            const appointmentCounts = await webAppointments.countDocuments({
-              hospitalId: userId,
-              appointmentStatus: "fulfilled",
-              appointmentDate: {
-                $gte: formattedStartDate,
-                $lte: formattedEndDate,
-              },
-            });
-
-            const totalDoctors = await AddDoctors.countDocuments({
-              bussinessId: userId,
-            });
-            const totalDepartments = await Department.countDocuments({
-              bussinessId: userId,
-            });
-
-            const data = new FHIRConverter({
-              totalDoctors,
-              totalDepartments,
-              appointmentCounts,
-            }).overviewConvertToFHIR();
-
-            return res.status(200).json(JSON.stringify(data));
-          } catch (error) {
-            return res.status(500).json({
-              resourceType: "OperationOutcome",
-              issue: [
-                {
-                  severity: "error",
-                  code: "exception",
-                  details: {
-                    text: error.message,
-                  },
-                },
-              ],
-            });
-          }
-        }
-        break;
-
-      case "HospitalSideDoctorOverview":
-        if (req.method === "GET") {
-          try {
-            const { subject, reportType } = req.query;
-
-            if (!subject || !reportType) {
-              return res
-                .status(400)
-                .json({ message: "Missing required query parameters" });
-            }
-
-            const match = subject.match(/^Organization\/(.+)$/);
-            if (!match) {
-              return res.status(400).json({
-                resourceType: "OperationOutcome",
-                reportType: reportType,
-                issue: [
-                  {
-                    severity: "error",
-                    code: "invalid-subject",
-                    details: {
-                      text: "Invalid subject format. Expected Organization/12345",
-                    },
-                  },
-                ],
-              });
-            }
-
-            const organizationId = match[1];
-
-            const aggregation = await Department.countDocuments(
-              { bussinessId: organizationId }
-
-              // {
-              //   $group: {
-              //     _id: "$professionalBackground.specialization",
-              //   },
-              // },
-              // {
-              //   $count: "totalSpecializations",
-              // },
-            );
-
-            const totalDoctors = await AddDoctors.countDocuments({
-              bussinessId: organizationId,
-            });
-
-            const availableDoctors = await AddDoctors.countDocuments({
-              bussinessId: organizationId,
-              isAvailable: "1",
-            });
-
-            // const averageRaing = await AddDoctors.feedback({})
-            console.log("aggregation", aggregation, organizationId);
-            const overview = {
-              totalDoctors,
-              totalSpecializations: aggregation,
-              availableDoctors,
-            };
-            console.log("overview", overview);
-
-            const data = new FHIRConverter(overview).overviewConvertToFHIR();
-            return res.status(200).json(JSON.stringify(data));
-          } catch (error) {
-            return res.status(500).json({
-              resourceType: "OperationOutcome",
-              issue: [
-                {
-                  severity: "error",
-                  code: "exception",
-                  details: {
-                    text: error.message,
-                  },
-                },
-              ],
-            });
-          }
-        }
-        break;
-
-      // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Appointment Management>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
-      case "AppointmentManagement":
-        if (req.method === "GET") {
-          try {
-            const { LastDays, userId } = req.query;
-
-            if (!LastDays) {
-              return res.status(400).json({
-                resourceType: "OperationOutcome",
-                issue: [
-                  {
-                    severity: "error",
-                    code: "exception",
-                    details: { text: "Missing required parameter: LastDays" },
-                  },
-                ],
-              });
-            } else if (!userId) {
-              return res.status(400).json({
-                resourceType: "OperationOutcome",
-                issue: [
-                  {
-                    severity: "error",
-                    code: "exception",
-                    details: { text: "missing required parameter: userId" },
-                  },
-                ],
-              });
-            }
-            const days = parseInt(LastDays, 10) || 7; // Default to 7 days if not provided
-
-            const endDate = new Date();
-            const startDate = new Date();
-            startDate.setDate(endDate.getDate() - (days - 1));
-
-            // const today = new Date().toISOString().split('T')[0]; // Today's date in "YYYY-MM-DD" format
-
-            const appointments = await webAppointments.aggregate([
-              {
-                $addFields: {
-                  appointmentDateObj: { $toDate: "$appointmentDate" }, // Convert string to Date
-                },
-              },
-              {
-                $match: {
-                  appointmentDateObj: { $gte: startDate, $lte: endDate },
-                  $or: [{ hospitalId: userId }, { veterinarian: userId }],
-                },
-              },
-              {
-                $group: {
-                  _id: null,
-                  newAppointments: {
-                    $sum: { $cond: [{ $eq: ["$isCanceled", 0] }, 1, 0] },
-                  },
-                  upcomingAppointments: {
-                    $sum: {
-                      $cond: [
-                        { $gt: ["$appointmentDateObj", new Date()] },
-                        1,
-                        0,
-                      ],
-                    },
-                  },
-                  canceled: {
-                    $sum: { $cond: [{ $eq: ["$isCanceled", 2] }, 1, 0] },
-                  },
-                  successful: {
-                    $sum: { $cond: [{ $eq: ["$isCanceled", 3] }, 1, 0] },
-                  },
-                },
-              },
-            ]);
-
-            const result = appointments[0] || {
-              newAppointments: 0,
-              upcomingAppointments: 0,
-              canceled: 0,
-              successful: 0,
-            };
-            const data = new FHIRConverter(result).overviewConvertToFHIR();
-            return res.status(200).json({ data });
-          } catch (error) {
-            return res.status(500).json({
-              resourceType: "OperationOutcome",
-              issue: [
-                {
-                  severity: "fatal",
-                  code: "exception",
-                  details: {
-                    text: "An error occurred while fetching data.",
-                  },
-                  diagnostics: error.message,
-                },
-              ],
-            });
-          }
-        }
-      case "DepartmentOverview":
-        if (req.method === "GET") {
-          try {
-            const { LastDays, userId } = req.query;
-            const days = parseInt(LastDays, 10) || 7;
-
-            const endDate = new Date();
-            const startDate = new Date();
-            startDate.setDate(endDate.getDate() - (days - 1));
-            const startDateStr = startDate;
-            // .toISOString().split("T")[0];
-            const endDateStr = endDate;
-            // .toISOString().split("T")[0];
-            // Sanitize userId (since it's from Cognito and user input)
-            if (
-              typeof userId !== "string" ||
-              userId.length > 100 ||
-              userId.includes("$") ||
-              userId.includes(".")
-            ) {
-              return res.status(400).json({ message: "Invalid userId." });
-            }
-
-            const matchConditions = {
-              createdAt: {
-                $gte: startDateStr,
-                $lte: endDateStr,
-              },
-              $or: [{ hospitalId: userId }, { bussinessId: userId }],
-            };
-
-            const countAggregation = [
-              { $match: matchConditions },
-              { $count: "totalCount" },
-            ];
-
-            // STEP 1: Find petIds that only appear once in the entire collection
-            const oneTimePetIdsResult = await webAppointments.aggregate([
-              {
-                $match: {
-                  petId: { $ne: null },
-                },
-              },
-              {
-                $group: {
-                  _id: "$petId",
-                  totalAppointments: { $sum: 1 },
-                },
-              },
-              {
-                $match: {
-                  totalAppointments: 1,
-                },
-              },
-            ]);
-
-            const oneTimePetIds = oneTimePetIdsResult.map((p) => p._id);
-
-            const uniquePetCount = await webAppointments.countDocuments({
-              petId: { $in: oneTimePetIds },
-              appointmentDate: {
-                $gte: startDate,
-                $lte: endDate,
-              },
-              $or: [{ hospitalId: userId }, { bussinessId: userId }],
-            });
-
-            // STEP 3: Run department, doctor, and appointment counts
-
-            const [departmentsCount, doctorsCount, appointmentsCount] =
-              await Promise.all([
-                Department.aggregate(countAggregation),
-                AddDoctors.aggregate(countAggregation),
-                webAppointments.aggregate(countAggregation),
-              ]);
-
-            const result = {
-              totalDepartments:
-                departmentsCount.length > 0
-                  ? departmentsCount[0].totalCount
-                  : 0,
-              totalDoctors:
-                doctorsCount.length > 0 ? doctorsCount[0].totalCount : 0,
-              totalAppointments:
-                appointmentsCount.length > 0
-                  ? appointmentsCount[0].totalCount
-                  : 0,
-              newPetsCount: uniquePetCount,
-            };
-            console.log("result", result);
-            const data = new FHIRConverter(result).overviewConvertToFHIR();
-
-            return res.status(200).json({
-              message: "Data counts fetched successfully",
-              data,
-            });
-          } catch (error) {
-            return res.status(500).json({
-              resourceType: "OperationOutcome",
-              issue: [
-                {
-                  severity: "error",
-                  code: "exception",
-                  details: {
-                    text: "Network error occurred while processing the request.",
-                  },
-                  diagnostics: error.message,
-                },
-              ],
-            });
-          }
-        }
-        break;
-      case "DoctorDashOverview":
-        if (req.method === "GET") {
-          try {
-            const { doctorId } = req.query;
-            const today = new Date();
-            const sevenDaysAgo = new Date();
-            sevenDaysAgo.setDate(today.getDate() - 6);
-
-            // Convert both to YYYY-MM-DD strings
-            const todayStr = today.toISOString().split("T")[0]; // e.g. "2025-05-05"
-            const sevenDaysAgoStr = sevenDaysAgo.toISOString().split("T")[0]; // e.g. "2025-04-29"
-
-            if (
-              typeof doctorId !== "string" ||
-              !/^[a-fA-F0-9-]{36}$/.test(doctorId)
-            ) {
-              return res
-                .status(400)
-                .json({ message: "Invalid doctorId format" });
-            }
-
-            const totalAppointments = await webAppointments.countDocuments({
-              veterinarian: doctorId,
-              appointmentDate: {
-                $gte: sevenDaysAgoStr,
-                $lte: todayStr,
-              },
-            });
-
-            const totalRating = await FeedBack.countDocuments({
-              doctorId: doctorId,
-            });
-
-            // const totalAssessment = await
-
-            const data = new FHIRConverter({
-              totalAppointments,
-              totalRating,
-            }).overviewConvertToFHIR();
-            return res.status(200).json(data);
-          } catch (error) {
-            return res.status(500).json({
-              resourceType: "OperationOutcome",
-              issue: [
-                {
-                  severity: "error",
-                  code: "exception",
-                  details: {
-                    text: "Network error occurred while processing the request.",
-                  },
-                  diagnostics: error.message,
-                },
-              ],
-            });
-          }
-        }
+   AppointmentOverviewStats: async (
+    req: Request,
+    res: Response
+  ): Promise<void> => {
+    try {
+      const { userId } = req.query;
+  
+      if (!userId || typeof userId !== "string") {
+        res.status(400).json({
+          message: "Missing or invalid userId in query",
+        });
+        return;
+      }
+  
+      const today = new Date().toISOString().split("T")[0];
+  
+      const [
+        todaysAppointments,
+        upcomingAppointments,
+        completedAppointments,
+        newAppointments
+      ] = await Promise.all([
+        webAppointments.countDocuments({
+          hospitalId: userId,
+          appointmentDate: today,
+        }),
+        webAppointments.countDocuments({
+          hospitalId: userId,
+          appointmentDate: { $gt: today },
+          isCanceled: false,
+        }),
+        webAppointments.countDocuments({
+          hospitalId: userId,
+          appointmentStatus: "completed",
+        }),
+        webAppointments.countDocuments({
+          hospitalId: userId,
+          appointmentStatus: "pending",
+          appointmentDate: { $gte: today },
+        }),
+      ]);
+  
+      res.status(200).json(convertAppointmentStatsToFHIR({
+        todaysAppointments,
+        upcomingAppointments,
+        completedAppointments,
+        newAppointments,
+      }))
+    } catch (error: any) {
+      res.status(500).json({
+        message: "Failed to fetch appointment stats",
+        error: error.message,
+      });
     }
   },
+  // WaitingRoomOverView: async (req, res) => {
+  //   const { type } = req.query;
+  //   switch (type) {
+  //     case "waitingroomOverview":
+  //       if (req.method === "GET") {
+  //         try {
+  //           const { Organization } = req.query;
+  //           const userId = Organization.split("/")[1];
+  //           if (!userId) {
+  //             return res.status(400).json({ message: "userId is required" });
+  //           }
+
+  //           const currentDate = new Date().toISOString().split("T")[0];
+  //           const currentDateStart = new Date();
+  //           currentDateStart.setHours(0, 0, 0, 0);
+  //           const currentDateEnd = new Date();
+  //           currentDateEnd.setHours(23, 59, 59, 999);
+
+  //           const appointmentStats = await webAppointments.aggregate([
+  //             {
+  //               $match: { hospitalId: userId, appointmentDate: currentDate },
+  //             },
+  //             {
+  //               $group: {
+  //                 _id: null,
+  //                 totalAppointments: {
+  //                   $sum: {
+  //                     $cond: [{ $not: { $eq: ["$isCanceled", 2] } }, 1, 0],
+  //                   },
+  //                 },
+  //                 successful: {
+  //                   $sum: { $cond: [{ $eq: ["$isCanceled", 5] }, 1, 0] },
+  //                 },
+  //                 canceled: {
+  //                   $sum: { $cond: [{ $in: ["$isCanceled", [2, 3]] }, 1, 0] },
+  //                 },
+  //                 checkedIn: {
+  //                   $sum: { $cond: [{ $eq: ["$isCanceled", 4] }, 1, 0] },
+  //                 },
+  //               },
+  //             },
+  //           ]);
+
+  //           const availableDoctorsCount = await AddDoctors.countDocuments({
+  //             bussinessId: userId,
+  //             isAvailable: "1",
+  //           });
+
+  //           const appointmentsCreatedTodayCount =
+  //             await webAppointments.countDocuments({
+  //               hospitalId: userId,
+  //               createdAt: { $gte: currentDateStart, $lte: currentDateEnd },
+  //             });
+
+  //           const result = {
+  //             totalAppointments: appointmentStats[0]?.totalAppointments || 0,
+  //             successful: appointmentStats[0]?.successful || 0,
+  //             canceled: appointmentStats[0]?.canceled || 0,
+  //             checkedIn: appointmentStats[0]?.checkedIn || 0,
+  //             availableDoctors: availableDoctorsCount,
+  //             appointmentsCreatedToday: appointmentsCreatedTodayCount,
+  //           };
+  //           const data = new FHIRConverter(result).overviewConvertToFHIR();
+
+  //           return res.status(200).json(JSON.stringify(data)); // Removed JSON.stringify to ensure valid JSON format
+  //         } catch (error) {
+  //           return res.status(500).json({ message: "Internal server error" });
+  //         }
+  //       }
+  //       break;
+
+  //     case "dashboardOverview":
+  //       if (req.method === "GET") {
+  //         try {
+  //           const { subject, reportType } = req.query;
+
+  //           if (!subject || !reportType) {
+  //             return res
+  //               .status(400)
+  //               .json({ message: "Missing required query parameters" });
+  //           }
+
+  //           const match = subject.match(/^Organization\/(.+)$/);
+  //           if (!match) {
+  //             return res.status(400).json({
+  //               resourceType: "OperationOutcome",
+  //               reportType: reportType,
+  //               issue: [
+  //                 {
+  //                   severity: "error",
+  //                   code: "invalid-subject",
+  //                   details: {
+  //                     text: "Invalid subject format. Expected Organization/12345",
+  //                   },
+  //                 },
+  //               ],
+  //             });
+  //           }
+
+  //           const userId = match[1];
+  //           const { LastDays = 7 } = req.query;
+  //           const days = parseInt(LastDays, 10) || 7;
+  //           const endDate = new Date();
+  //           const startDate = new Date();
+  //           startDate.setDate(endDate.getDate() - (days - 1));
+
+  //           const formatDate = (date:any) => date.toISOString().split("T")[0];
+
+  //           const formattedStartDate = formatDate(startDate);
+  //           const formattedEndDate = formatDate(endDate);
+
+  //           const appointmentCounts = await webAppointments.countDocuments({
+  //             hospitalId: userId,
+  //             appointmentStatus: "fulfilled",
+  //             appointmentDate: {
+  //               $gte: formattedStartDate,
+  //               $lte: formattedEndDate,
+  //             },
+  //           });
+
+  //           const totalDoctors = await AddDoctors.countDocuments({
+  //             bussinessId: userId,
+  //           });
+  //           const totalDepartments = await Department.countDocuments({
+  //             bussinessId: userId,
+  //           });
+
+  //           const data = new FHIRConverter({
+  //             totalDoctors,
+  //             totalDepartments,
+  //             appointmentCounts,
+  //           }).overviewConvertToFHIR();
+
+  //           return res.status(200).json(JSON.stringify(data));
+  //         } catch (error:any) {
+  //           return res.status(500).json({
+  //             resourceType: "OperationOutcome",
+  //             issue: [
+  //               {
+  //                 severity: "error",
+  //                 code: "exception",
+  //                 details: {
+  //                   text: error.message,
+  //                 },
+  //               },
+  //             ],
+  //           });
+  //         }
+  //       }
+  //       break;
+
+  //     case "HospitalSideDoctorOverview":
+  //       if (req.method === "GET") {
+  //         try {
+  //           const { subject, reportType } = req.query;
+
+  //           if (!subject || !reportType) {
+  //             return res
+  //               .status(400)
+  //               .json({ message: "Missing required query parameters" });
+  //           }
+
+  //           const match = subject.match(/^Organization\/(.+)$/);
+  //           if (!match) {
+  //             return res.status(400).json({
+  //               resourceType: "OperationOutcome",
+  //               reportType: reportType,
+  //               issue: [
+  //                 {
+  //                   severity: "error",
+  //                   code: "invalid-subject",
+  //                   details: {
+  //                     text: "Invalid subject format. Expected Organization/12345",
+  //                   },
+  //                 },
+  //               ],
+  //             });
+  //           }
+
+  //           const organizationId = match[1];
+
+  //           const aggregation = await Department.countDocuments(
+  //             { bussinessId: organizationId }
+
+  //             // {
+  //             //   $group: {
+  //             //     _id: "$professionalBackground.specialization",
+  //             //   },
+  //             // },
+  //             // {
+  //             //   $count: "totalSpecializations",
+  //             // },
+  //           );
+
+  //           const totalDoctors = await AddDoctors.countDocuments({
+  //             bussinessId: organizationId,
+  //           });
+
+  //           const availableDoctors = await AddDoctors.countDocuments({
+  //             bussinessId: organizationId,
+  //             isAvailable: "1",
+  //           });
+
+  //           // const averageRaing = await AddDoctors.feedback({})
+  //           console.log("aggregation", aggregation, organizationId);
+  //           const overview = {
+  //             totalDoctors,
+  //             totalSpecializations: aggregation,
+  //             availableDoctors,
+  //           };
+  //           console.log("overview", overview);
+
+  //           const data = new FHIRConverter(overview).overviewConvertToFHIR();
+  //           return res.status(200).json(JSON.stringify(data));
+  //         } catch (error:any) {
+  //           return res.status(500).json({
+  //             resourceType: "OperationOutcome",
+  //             issue: [
+  //               {
+  //                 severity: "error",
+  //                 code: "exception",
+  //                 details: {
+  //                   text: error.message,
+  //                 },
+  //               },
+  //             ],
+  //           });
+  //         }
+  //       }
+  //       break;
+
+  //     // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Appointment Management>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+      // case "AppointmentManagement":
+      //   if (req.method === "GET") {
+      //     try {
+      //       const { LastDays, userId } = req.query;
+
+      //       if (!LastDays) {
+      //         return res.status(400).json({
+      //           resourceType: "OperationOutcome",
+      //           issue: [
+      //             {
+      //               severity: "error",
+      //               code: "exception",
+      //               details: { text: "Missing required parameter: LastDays" },
+      //             },
+      //           ],
+      //         });
+      //       } else if (!userId) {
+      //         return res.status(400).json({
+      //           resourceType: "OperationOutcome",
+      //           issue: [
+      //             {
+      //               severity: "error",
+      //               code: "exception",
+      //               details: { text: "missing required parameter: userId" },
+      //             },
+      //           ],
+      //         });
+      //       }
+      //       const days = parseInt(LastDays, 10) || 7; // Default to 7 days if not provided
+
+      //       const endDate = new Date();
+      //       const startDate = new Date();
+      //       startDate.setDate(endDate.getDate() - (days - 1));
+
+      //       // const today = new Date().toISOString().split('T')[0]; // Today's date in "YYYY-MM-DD" format
+
+      //       const appointments = await webAppointments.aggregate([
+      //         {
+      //           $addFields: {
+      //             appointmentDateObj: { $toDate: "$appointmentDate" }, // Convert string to Date
+      //           },
+      //         },
+      //         {
+      //           $match: {
+      //             appointmentDateObj: { $gte: startDate, $lte: endDate },
+      //             $or: [{ hospitalId: userId }, { veterinarian: userId }],
+      //           },
+      //         },
+      //         {
+      //           $group: {
+      //             _id: null,
+      //             newAppointments: {
+      //               $sum: { $cond: [{ $eq: ["$isCanceled", 0] }, 1, 0] },
+      //             },
+      //             upcomingAppointments: {
+      //               $sum: {
+      //                 $cond: [
+      //                   { $gt: ["$appointmentDateObj", new Date()] },
+      //                   1,
+      //                   0,
+      //                 ],
+      //               },
+      //             },
+      //             canceled: {
+      //               $sum: { $cond: [{ $eq: ["$isCanceled", 2] }, 1, 0] },
+      //             },
+      //             successful: {
+      //               $sum: { $cond: [{ $eq: ["$isCanceled", 3] }, 1, 0] },
+      //             },
+      //           },
+      //         },
+      //       ]);
+
+      //       const result = appointments[0] || {
+      //         newAppointments: 0,
+      //         upcomingAppointments: 0,
+      //         canceled: 0,
+      //         successful: 0,
+      //       };
+      //       const data = new FHIRConverter(result).overviewConvertToFHIR();
+      //       return res.status(200).json({ data });
+      //     } catch (error:any) {
+      //       return res.status(500).json({
+      //         resourceType: "OperationOutcome",
+      //         issue: [
+      //           {
+      //             severity: "fatal",
+      //             code: "exception",
+      //             details: {
+      //               text: "An error occurred while fetching data.",
+      //             },
+      //             diagnostics: error.message,
+      //           },
+      //         ],
+      //       });
+      //     }
+      //   }
+  //     case "DepartmentOverview":
+  //       if (req.method === "GET") {
+  //         try {
+  //           const { LastDays, userId } = req.query;
+  //           const days = parseInt(LastDays, 10) || 7;
+
+  //           const endDate = new Date();
+  //           const startDate = new Date();
+  //           startDate.setDate(endDate.getDate() - (days - 1));
+  //           const startDateStr = startDate;
+  //           // .toISOString().split("T")[0];
+  //           const endDateStr = endDate;
+  //           // .toISOString().split("T")[0];
+  //           // Sanitize userId (since it's from Cognito and user input)
+  //           if (
+  //             typeof userId !== "string" ||
+  //             userId.length > 100 ||
+  //             userId.includes("$") ||
+  //             userId.includes(".")
+  //           ) {
+  //             return res.status(400).json({ message: "Invalid userId." });
+  //           }
+
+  //           const matchConditions = {
+  //             createdAt: {
+  //               $gte: startDateStr,
+  //               $lte: endDateStr,
+  //             },
+  //             $or: [{ hospitalId: userId }, { bussinessId: userId }],
+  //           };
+
+  //           const countAggregation = [
+  //             { $match: matchConditions },
+  //             { $count: "totalCount" },
+  //           ];
+
+  //           // STEP 1: Find petIds that only appear once in the entire collection
+  //           const oneTimePetIdsResult = await webAppointments.aggregate([
+  //             {
+  //               $match: {
+  //                 petId: { $ne: null },
+  //               },
+  //             },
+  //             {
+  //               $group: {
+  //                 _id: "$petId",
+  //                 totalAppointments: { $sum: 1 },
+  //               },
+  //             },
+  //             {
+  //               $match: {
+  //                 totalAppointments: 1,
+  //               },
+  //             },
+  //           ]);
+
+  //           const oneTimePetIds = oneTimePetIdsResult.map((p) => p._id);
+
+  //           const uniquePetCount = await webAppointments.countDocuments({
+  //             petId: { $in: oneTimePetIds },
+  //             appointmentDate: {
+  //               $gte: startDate,
+  //               $lte: endDate,
+  //             },
+  //             $or: [{ hospitalId: userId }, { bussinessId: userId }],
+  //           });
+
+  //           // STEP 3: Run department, doctor, and appointment counts
+
+  //           const [departmentsCount, doctorsCount, appointmentsCount] =
+  //             await Promise.all([
+  //               Department.aggregate(countAggregation),
+  //               AddDoctors.aggregate(countAggregation),
+  //               webAppointments.aggregate(countAggregation),
+  //             ]);
+
+  //           const result = {
+  //             totalDepartments:
+  //               departmentsCount.length > 0
+  //                 ? departmentsCount[0].totalCount
+  //                 : 0,
+  //             totalDoctors:
+  //               doctorsCount.length > 0 ? doctorsCount[0].totalCount : 0,
+  //             totalAppointments:
+  //               appointmentsCount.length > 0
+  //                 ? appointmentsCount[0].totalCount
+  //                 : 0,
+  //             newPetsCount: uniquePetCount,
+  //           };
+  //           console.log("result", result);
+  //           const data = new FHIRConverter(result).overviewConvertToFHIR();
+
+  //           return res.status(200).json({
+  //             message: "Data counts fetched successfully",
+  //             data,
+  //           });
+  //         } catch (error:any) {
+  //           return res.status(500).json({
+  //             resourceType: "OperationOutcome",
+  //             issue: [
+  //               {
+  //                 severity: "error",
+  //                 code: "exception",
+  //                 details: {
+  //                   text: "Network error occurred while processing the request.",
+  //                 },
+  //                 diagnostics: error.message,
+  //               },
+  //             ],
+  //           });
+  //         }
+  //       }
+  //       break;
+  //     case "DoctorDashOverview":
+  //       if (req.method === "GET") {
+  //         try {
+  //           const { doctorId } = req.query;
+  //           const today = new Date();
+  //           const sevenDaysAgo = new Date();
+  //           sevenDaysAgo.setDate(today.getDate() - 6);
+
+  //           // Convert both to YYYY-MM-DD strings
+  //           const todayStr = today.toISOString().split("T")[0]; // e.g. "2025-05-05"
+  //           const sevenDaysAgoStr = sevenDaysAgo.toISOString().split("T")[0]; // e.g. "2025-04-29"
+
+  //           if (
+  //             typeof doctorId !== "string" ||
+  //             !/^[a-fA-F0-9-]{36}$/.test(doctorId)
+  //           ) {
+  //             return res
+  //               .status(400)
+  //               .json({ message: "Invalid doctorId format" });
+  //           }
+
+  //           const totalAppointments = await webAppointments.countDocuments({
+  //             veterinarian: doctorId,
+  //             appointmentDate: {
+  //               $gte: sevenDaysAgoStr,
+  //               $lte: todayStr,
+  //             },
+  //           });
+
+  //           const totalRating = await FeedBack.countDocuments({
+  //             doctorId: doctorId,
+  //           });
+
+  //           // const totalAssessment = await
+
+  //           const data = new FHIRConverter({
+  //             totalAppointments,
+  //             totalRating,
+  //           }).overviewConvertToFHIR();
+  //           return res.status(200).json(data);
+  //         } catch (error:any) {
+  //           return res.status(500).json({
+  //             resourceType: "OperationOutcome",
+  //             issue: [
+  //               {
+  //                 severity: "error",
+  //                 code: "exception",
+  //                 details: {
+  //                   text: "Network error occurred while processing the request.",
+  //                 },
+  //                 diagnostics: error.message,
+  //               },
+  //             ],
+  //           });
+  //         }
+  //       }
+  //   }
+  // },
 
   // WaittingRoomOverViewPatientInQueue: async (req, res) => {
   //   try {
@@ -1066,286 +1122,286 @@ const HospitalController = {
   //     });
   //   }
   // },
-  getDepartmentDataForHospitalProfile: async (req, res) => {
-    try {
-      const { userId } = req.query;
+  // getDepartmentDataForHospitalProfile: async (req, res) => {
+  //   try {
+  //     const { userId } = req.query;
 
-      if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
-        return res.status(400).json({ message: "Invalid doctorId format" });
-      }
-      const profileData = await ProfileData.findOne(
-        { userId },
-        {
-          _id: 0,
-          address: {
-            addressLine1: 1,
-            city: 1,
-            street: 1,
-            state: 1,
-            zipCode: 1,
-            email: 1,
-          },
-          phoneNumber: 1,
-          businessName: 1,
-          logo: 1,
-          website: 1,
-          selectedServices: 1,
-        }
-      );
+  //     if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+  //       return res.status(400).json({ message: "Invalid doctorId format" });
+  //     }
+  //     const profileData = await ProfileData.findOne(
+  //       { userId },
+  //       {
+  //         _id: 0,
+  //         address: {
+  //           addressLine1: 1,
+  //           city: 1,
+  //           street: 1,
+  //           state: 1,
+  //           zipCode: 1,
+  //           email: 1,
+  //         },
+  //         phoneNumber: 1,
+  //         businessName: 1,
+  //         logo: 1,
+  //         website: 1,
+  //         selectedServices: 1,
+  //       }
+  //     );
 
-      if (profileData?.logo) {
-        profileData.logo = s3.getSignedUrl("getObject", {
-          Bucket: process.env.AWS_S3_BUCKET_NAME,
-          Key: profileData.logo,
-        });
-      }
+  //     if (profileData?.logo) {
+  //       profileData.logo = s3.getSignedUrl("getObject", {
+  //         Bucket: process.env.AWS_S3_BUCKET_NAME,
+  //         Key: profileData.logo,
+  //       });
+  //     }
 
-      const departmentData = await Department.aggregate([
-        {
-          $match: { bussinessId: userId },
-        },
-        {
-          $lookup: {
-            from: "adddoctors",
-            let: { deptId: { $toString: "$_id" } },
-            pipeline: [
-              {
-                $match: {
-                  $expr: {
-                    $eq: ["$professionalBackground.specialization", "$$deptId"],
-                  },
-                },
-              },
-              {
-                $project: {
-                  _id: 0,
-                  fullName: {
-                    $concat: [
-                      { $ifNull: ["$personalInfo.firstName", ""] },
-                      " ",
-                      { $ifNull: ["$personalInfo.lastName", ""] },
-                    ],
-                  },
-                },
-              },
-            ],
-            as: "doctors",
-          },
-        },
-        {
-          $addFields: {
-            doctorCount: { $size: "$doctors" },
-            doctorNames: "$doctors.fullName",
-          },
-        },
-        {
-          $project: {
-            departmentName: 1,
-            doctorCount: 1,
-            doctorNames: 1,
-            description: 1,
-            email: 1,
-            phone: 1,
-            _id: 1,
-          },
-        },
-      ]);
+  //     const departmentData = await Department.aggregate([
+  //       {
+  //         $match: { bussinessId: userId },
+  //       },
+  //       {
+  //         $lookup: {
+  //           from: "adddoctors",
+  //           let: { deptId: { $toString: "$_id" } },
+  //           pipeline: [
+  //             {
+  //               $match: {
+  //                 $expr: {
+  //                   $eq: ["$professionalBackground.specialization", "$$deptId"],
+  //                 },
+  //               },
+  //             },
+  //             {
+  //               $project: {
+  //                 _id: 0,
+  //                 fullName: {
+  //                   $concat: [
+  //                     { $ifNull: ["$personalInfo.firstName", ""] },
+  //                     " ",
+  //                     { $ifNull: ["$personalInfo.lastName", ""] },
+  //                   ],
+  //                 },
+  //               },
+  //             },
+  //           ],
+  //           as: "doctors",
+  //         },
+  //       },
+  //       {
+  //         $addFields: {
+  //           doctorCount: { $size: "$doctors" },
+  //           doctorNames: "$doctors.fullName",
+  //         },
+  //       },
+  //       {
+  //         $project: {
+  //           departmentName: 1,
+  //           doctorCount: 1,
+  //           doctorNames: 1,
+  //           description: 1,
+  //           email: 1,
+  //           phone: 1,
+  //           _id: 1,
+  //         },
+  //       },
+  //     ]);
 
-      res.status(200).json({
-        profile: profileData,
-        departments: departmentData,
-      });
-    } catch (error) {
-      res.status(500).json({ message: "Internal server error" });
-    }
-  },
-  saveVisibility: async (req, res) => {
-    try {
-      const { facilitys, selectedServices, selectedDepartments, images } =
-        req.body;
-      const { userId } = req.query;
+  //     res.status(200).json({
+  //       profile: profileData,
+  //       departments: departmentData,
+  //     });
+  //   } catch (error) {
+  //     res.status(500).json({ message: "Internal server error" });
+  //   }
+  // },
+  // saveVisibility: async (req, res) => {
+  //   try {
+  //     const { facilitys, selectedServices, selectedDepartments, images } =
+  //       req.body;
+  //     const { userId } = req.query;
 
-      if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
-        return res.status(400).json({ message: "Invalid doctorId format" });
-      }
+  //     if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+  //       return res.status(400).json({ message: "Invalid doctorId format" });
+  //     }
 
-      await ProfileVisibility.deleteOne({ hospitalId: userId });
+  //     await ProfileVisibility.deleteOne({ hospitalId: userId });
 
-      // Create and save the new profile visibility data
-      const profileVisibility = new ProfileVisibility({
-        hospitalId: userId,
-        facility: facilitys,
-        department: selectedDepartments,
-        services: selectedServices,
-        images,
-        createdAt: new Date(), // Set the current timestamp
-      });
+  //     // Create and save the new profile visibility data
+  //     const profileVisibility = new ProfileVisibility({
+  //       hospitalId: userId,
+  //       facility: facilitys,
+  //       department: selectedDepartments,
+  //       services: selectedServices,
+  //       images,
+  //       createdAt: new Date(), // Set the current timestamp
+  //     });
 
-      await profileVisibility.save();
-      res.status(201).json(profileVisibility);
-    } catch (error) {
-      res.status(400).json({ message: error.message });
-    }
-  },
+  //     await profileVisibility.save();
+  //     res.status(201).json(profileVisibility);
+  //   } catch (error) {
+  //     res.status(400).json({ message: error.message });
+  //   }
+  // },
 
-  getVisibility: async (req, res) => {
-    try {
-      const { userId } = req.query;
+  // getVisibility: async (req, res) => {
+  //   try {
+  //     const { userId } = req.query;
 
-      if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
-        return res.status(400).json({ message: "Invalid doctorId format" });
-      }
+  //     if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+  //       return res.status(400).json({ message: "Invalid doctorId format" });
+  //     }
 
-      const visibilityData = await ProfileVisibility.findOne({
-        hospitalId: userId,
-      });
+  //     const visibilityData = await ProfileVisibility.findOne({
+  //       hospitalId: userId,
+  //     });
 
-      if (visibilityData) {
-        res.status(200).json(visibilityData);
-      }
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  },
+  //     if (visibilityData) {
+  //       res.status(200).json(visibilityData);
+  //     }
+  //   } catch (error) {
+  //     res.status(500).json({ message: error.message });
+  //   }
+  // },
 
   // getConfirmedAppointments: async (req, res) => {},
   // getCompletedAppointments: async (req, res) => {},
   // getCanceledAppointments: async (req, res) => {},
   // getUpcomingAppointments: async (req, res) => {},
 
-  getDoctorsTotalAppointments: async (req, res) => {
-    try {
-      const { userId, LastDays, search, page = 1, limit = 10 } = req.query;
-      const days = parseInt(LastDays, 10) || 7;
-      const pageNumber = parseInt(page, 10);
-      const pageSize = parseInt(limit, 10);
+  // getDoctorsTotalAppointments: async (req, res) => {
+  //   try {
+  //     const { userId, LastDays, search, page = 1, limit = 10 } = req.query;
+  //     const days = parseInt(LastDays, 10) || 7;
+  //     const pageNumber = parseInt(page, 10);
+  //     const pageSize = parseInt(limit, 10);
 
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(endDate.getDate() - (days - 1));
+  //     const endDate = new Date();
+  //     const startDate = new Date();
+  //     startDate.setDate(endDate.getDate() - (days - 1));
 
-      // Convert to YYYY-MM-DD strings for string-based comparison
-      const todayStr = endDate.toISOString().split("T")[0];
-      const sevenDaysAgoStr = startDate.toISOString().split("T")[0];
+  //     // Convert to YYYY-MM-DD strings for string-based comparison
+  //     const todayStr = endDate.toISOString().split("T")[0];
+  //     const sevenDaysAgoStr = startDate.toISOString().split("T")[0];
 
-      const basePipeline = [
-        {
-          $match: {
-            hospitalId: userId,
-            appointmentDate: {
-              $gte: sevenDaysAgoStr,
-              $lte: todayStr,
-            },
-            appointmentStatus: "fulfilled",
-          },
-        },
-        {
-          $group: {
-            _id: "$veterinarian",
-            department: { $first: "$department" },
-            totalAppointments: { $sum: 1 },
-          },
-        },
-        { $addFields: { departmentId: { $toObjectId: "$department" } } },
-        {
-          $lookup: {
-            from: "adddoctors",
-            localField: "_id",
-            foreignField: "userId",
-            as: "doctorInfo",
-          },
-        },
-        { $unwind: "$doctorInfo" },
-        {
-          $lookup: {
-            from: "departments",
-            localField: "departmentId",
-            foreignField: "_id",
-            as: "departmentInfo",
-          },
-        },
-        { $unwind: "$departmentInfo" },
-      ];
+  //     const basePipeline = [
+  //       {
+  //         $match: {
+  //           hospitalId: userId,
+  //           appointmentDate: {
+  //             $gte: sevenDaysAgoStr,
+  //             $lte: todayStr,
+  //           },
+  //           appointmentStatus: "fulfilled",
+  //         },
+  //       },
+  //       {
+  //         $group: {
+  //           _id: "$veterinarian",
+  //           department: { $first: "$department" },
+  //           totalAppointments: { $sum: 1 },
+  //         },
+  //       },
+  //       { $addFields: { departmentId: { $toObjectId: "$department" } } },
+  //       {
+  //         $lookup: {
+  //           from: "adddoctors",
+  //           localField: "_id",
+  //           foreignField: "userId",
+  //           as: "doctorInfo",
+  //         },
+  //       },
+  //       { $unwind: "$doctorInfo" },
+  //       {
+  //         $lookup: {
+  //           from: "departments",
+  //           localField: "departmentId",
+  //           foreignField: "_id",
+  //           as: "departmentInfo",
+  //         },
+  //       },
+  //       { $unwind: "$departmentInfo" },
+  //     ];
 
-      // Search filter
-      if (search) {
-        basePipeline.push({
-          $match: {
-            $or: [
-              {
-                "doctorInfo.personalInfo.firstName": {
-                  $regex: search,
-                  $options: "i",
-                },
-              },
-              {
-                "doctorInfo.personalInfo.lastName": {
-                  $regex: search,
-                  $options: "i",
-                },
-              },
-            ],
-          },
-        });
-      }
+  //     // Search filter
+  //     if (search) {
+  //       basePipeline.push({
+  //         $match: {
+  //           $or: [
+  //             {
+  //               "doctorInfo.personalInfo.firstName": {
+  //                 $regex: search,
+  //                 $options: "i",
+  //               },
+  //             },
+  //             {
+  //               "doctorInfo.personalInfo.lastName": {
+  //                 $regex: search,
+  //                 $options: "i",
+  //               },
+  //             },
+  //           ],
+  //         },
+  //       });
+  //     }
 
-      // Count total documents
-      const countPipeline = [...basePipeline, { $count: "totalCount" }];
-      const totalDocs = await webAppointments.aggregate(countPipeline);
-      const totalCount = totalDocs.length > 0 ? totalDocs[0].totalCount : 0;
+  //     // Count total documents
+  //     const countPipeline = [...basePipeline, { $count: "totalCount" }];
+  //     const totalDocs = await webAppointments.aggregate(countPipeline);
+  //     const totalCount = totalDocs.length > 0 ? totalDocs[0].totalCount : 0;
 
-      // Apply sorting and pagination
-      const paginationPipeline = [
-        { $sort: { "doctorInfo.personalInfo.firstName": 1 } },
-        { $skip: (pageNumber - 1) * pageSize },
-        { $limit: pageSize },
-        {
-          $project: {
-            _id: 0,
-            doctorId: "$_id",
-            doctorName: {
-              $concat: [
-                "$doctorInfo.personalInfo.firstName",
-                " ",
-                "$doctorInfo.personalInfo.lastName",
-              ],
-            },
-            image: { $concat: [S3_BASE_URL, "$doctorInfo.personalInfo.image"] },
-            department: "$departmentInfo.departmentName",
-            totalAppointments: 1,
-          },
-        },
-      ];
+  //     // Apply sorting and pagination
+  //     const paginationPipeline = [
+  //       { $sort: { "doctorInfo.personalInfo.firstName": 1 } },
+  //       { $skip: (pageNumber - 1) * pageSize },
+  //       { $limit: pageSize },
+  //       {
+  //         $project: {
+  //           _id: 0,
+  //           doctorId: "$_id",
+  //           doctorName: {
+  //             $concat: [
+  //               "$doctorInfo.personalInfo.firstName",
+  //               " ",
+  //               "$doctorInfo.personalInfo.lastName",
+  //             ],
+  //           },
+  //           image: { $concat: [S3_BASE_URL, "$doctorInfo.personalInfo.image"] },
+  //           department: "$departmentInfo.departmentName",
+  //           totalAppointments: 1,
+  //         },
+  //       },
+  //     ];
 
-      // Execute paginated query
-      const totalAppointments = await webAppointments.aggregate([
-        ...basePipeline,
-        ...paginationPipeline,
-      ]);
+  //     // Execute paginated query
+  //     const totalAppointments = await webAppointments.aggregate([
+  //       ...basePipeline,
+  //       ...paginationPipeline,
+  //     ]);
 
-      const data = new AppointmentFHIRConverter({
-        totalAppointments,
-        page: pageNumber,
-        totalPages: Math.ceil(totalCount / pageSize),
-        totalCount,
-      }).toFHIRBundle();
+  //     const data = new AppointmentFHIRConverter({
+  //       totalAppointments,
+  //       page: pageNumber,
+  //       totalPages: Math.ceil(totalCount / pageSize),
+  //       totalCount,
+  //     }).toFHIRBundle();
 
-      res.status(200).json(JSON.stringify(data, null, 2));
-    } catch (error) {
-      res.status(500).json({
-        resourceType: "OperationOutcome",
-        issue: [
-          {
-            severity: "error",
-            code: "exception",
-            details: {
-              text: error.message,
-            },
-          },
-        ],
-      });
-    }
-  },
+  //     res.status(200).json(JSON.stringify(data, null, 2));
+  //   } catch (error) {
+  //     res.status(500).json({
+  //       resourceType: "OperationOutcome",
+  //       issue: [
+  //         {
+  //           severity: "error",
+  //           code: "exception",
+  //           details: {
+  //             text: error.message,
+  //           },
+  //         },
+  //       ],
+  //     });
+  //   }
+  // },
   getAppointmentsForHospitalDashboard: async (req: Request, res: Response) => {
     const { caseType } = req.query;
 
@@ -1356,7 +1412,7 @@ const HospitalController = {
         if (req.method === "GET") {
           try {
             const { organization, offset = 0, limit = 10 } = req.query;
-            console.log("organization",organization)
+            console.log("organization", organization)
             if (typeof organization !== "string" || !/^[a-fA-F0-9-]{36}$/.test(organization)) {
               res.status(400).json({
                 resourceType: "OperationOutcome",
@@ -1370,7 +1426,7 @@ const HospitalController = {
               });
               return;
             }
-           
+
             // console.log(organization, "organization", offset, limit);
 
             // const hospitalId = organization as string ;
@@ -1823,9 +1879,11 @@ const HospitalController = {
             ]);
 
             const formattedAppointments = confirmedAppointments.map(
-              (appointment: AppointmentStatusFHIRBundle) => ({
+              (appointment: AppointmentStatusFHIRBundle | any) => ({
                 ...appointment,
-                appointmentDate: `${daysMap[appointment.appointmentDay]}, ${appointment.appointmentDate}`,
+                appointmentDate: appointment.appointmentDate 
+                  ? `${daysMap[new Date(appointment.appointmentDate).getDay() + 1]}, ${appointment.appointmentDate}` 
+                  : "Invalid Date",
               })
             );
 
@@ -2310,22 +2368,22 @@ const HospitalController = {
         if (req.method === "GET") {
           try {
             const { organization } = req.query as { organization?: string };
-            if (
-              typeof organization !== "string" ||
-              !organization.startsWith("Organization/") ||
-              !/^[0-9a-fA-F-]{36}$/.test(organization.split("/")[1])
-            ) {
-              return res.status(400).json({
-                message: "organization is required in 'Organization/<userId>' format",
-              });
-            }
+            // if (
+            //   typeof organization !== "string" ||
+            //   !organization.startsWith("Organization/") ||
+            //   !/^[0-9a-fA-F-]{36}$/.test(organization.split("/")[1])
+            // ) {
+            //   return res.status(400).json({
+            //     message: "organization is required in 'Organization/<userId>' format",
+            //   });
+            // }
 
 
-            if (!organization || !organization.includes("/")) {
-              return res.status(400).json({ message: "organization is required in 'Organization/<userId>' format" });
-            }
+            // if (!organization || !organization.includes("/")) {
+            //   return res.status(400).json({ message: "organization is required in 'Organization/<userId>' format" });
+            // }
 
-            const userId = organization.split("/")[1];
+            const userId = organization;
             if (!userId) {
               return res.status(400).json({ message: "Invalid organization format, userId missing" });
             }
@@ -2334,7 +2392,7 @@ const HospitalController = {
               $or: [{ veterinarian: userId }, { hospitalId: userId }],
             });
 
-            const allAppointments = await webAppointments.aggregate([
+            const allAppointments: any = await webAppointments.aggregate([
               {
                 $match: {
                   $or: [{ veterinarian: userId }, { hospitalId: userId }],
@@ -2404,12 +2462,13 @@ const HospitalController = {
               },
             ]);
 
-            const data = new AppointmentsFHIRConverter({
-              status: "Calendar",
-              appointments: allAppointments,
-              totalCount,
-            }).toCalenderFHIRBundle();
-
+            // const data = new AppointmentsFHIRConverter({
+            //   status: "Calendar",
+            //   appointments: allAppointments,
+            //   totalCount,
+            // }).toCalenderFHIRBundle();
+            const data = convertToFHIRMyCalender(allAppointments)
+            // const data =allAppointments
             res.status(200).json(data);
           } catch (error: any) {
             res.status(500).json({
@@ -2428,214 +2487,215 @@ const HospitalController = {
           }
         }
     }
+  }
 
-    // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NEXT CASES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-  },
+  //   // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NEXT CASES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  // },
 
   // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Message>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-  getMessages: async (req, res) => {
-    try {
-      const { senderId, receiverId, page = 1, limit = 10 } = req.query;
-      const pageNumber = parseInt(page);
-      const limitNumber = parseInt(limit);
-      const skip = (pageNumber - 1) * limitNumber;
+  // getMessages: async (req, res) => {
+  //   try {
+  //     const { senderId, receiverId, page = 1, limit = 10 } = req.query;
+  //     const pageNumber = parseInt(page);
+  //     const limitNumber = parseInt(limit);
+  //     const skip = (pageNumber - 1) * limitNumber;
 
-      const messages = await Message.aggregate([
-        {
-          $match: {
-            $or: [
-              { sender: senderId, receiver: receiverId },
-              { sender: receiverId, receiver: senderId },
-            ],
-          },
-        },
-        { $sort: { timestamp: -1 } }, // Sort in ascending order
-        { $skip: skip }, // Skip for pagination
-        { $limit: limitNumber }, // Limit messages per page
-        {
-          $project: {
-            _id: 1,
-            sender: 1,
-            receiver: 1,
-            content: 1,
-            type: 1,
-            timestamp: 1,
-            time: 1,
-            fileUrl: {
-              $cond: {
-                if: { $ne: ["$fileUrl", ""] },
-                then: { $concat: [S3_BASE_URL, "$fileUrl"] },
-                else: "",
-              },
-            },
-          },
-        },
-      ]);
+  //     const messages = await Message.aggregate([
+  //       {
+  //         $match: {
+  //           $or: [
+  //             { sender: senderId, receiver: receiverId },
+  //             { sender: receiverId, receiver: senderId },
+  //           ],
+  //         },
+  //       },
+  //       { $sort: { timestamp: -1 } }, // Sort in ascending order
+  //       { $skip: skip }, // Skip for pagination
+  //       { $limit: limitNumber }, // Limit messages per page
+  //       {
+  //         $project: {
+  //           _id: 1,
+  //           sender: 1,
+  //           receiver: 1,
+  //           content: 1,
+  //           type: 1,
+  //           timestamp: 1,
+  //           time: 1,
+  //           fileUrl: {
+  //             $cond: {
+  //               if: { $ne: ["$fileUrl", ""] },
+  //               then: { $concat: [S3_BASE_URL, "$fileUrl"] },
+  //               else: "",
+  //             },
+  //           },
+  //         },
+  //       },
+  //     ]);
 
-      // Check if more messages exist
-      const totalMessages = await Message.countDocuments({
-        $or: [
-          { sender: senderId, receiver: receiverId },
-          { sender: receiverId, receiver: senderId },
-        ],
-      });
-      const hasMore = totalMessages > skip + limitNumber;
+  //     // Check if more messages exist
+  //     const totalMessages = await Message.countDocuments({
+  //       $or: [
+  //         { sender: senderId, receiver: receiverId },
+  //         { sender: receiverId, receiver: senderId },
+  //       ],
+  //     });
+  //     const hasMore = totalMessages > skip + limitNumber;
 
-      res.status(200).json({ messages, hasMore });
-    } catch (error) {
-      res.status(500).json({ error: "Internal server error" });
-    }
-  },
-  handleGetRating: async (req, res) => {
-    try {
-      const { doctorId } = req.query.params;
+  //     res.status(200).json({ messages, hasMore });
+  //   } catch (error) {
+  //     res.status(500).json({ error: "Internal server error" });
+  //   }
+  // },
+  // handleGetRating: async (req, res) => {
+  //   try {
+  //     const { doctorId } = req.query.params;
 
-      if (!doctorId) {
-        return res.status(400).json({
-          resourceType: "OperationOutcome",
-          issue: [
-            {
-              severity: "error",
-              code: "invalid",
-              details: {
-                text: "Missing required parameter: doctorId",
-              },
-            },
-          ],
-        });
-      }
+  //     if (!doctorId) {
+  //       return res.status(400).json({
+  //         resourceType: "OperationOutcome",
+  //         issue: [
+  //           {
+  //             severity: "error",
+  //             code: "invalid",
+  //             details: {
+  //               text: "Missing required parameter: doctorId",
+  //             },
+  //           },
+  //         ],
+  //       });
+  //     }
 
-      // Current date and date 1 week ago
-      const currentDate = new Date();
-      const oneWeekAgo = new Date(
-        currentDate.setDate(currentDate.getDate() - 7)
-      );
+  //     // Current date and date 1 week ago
+  //     const currentDate = new Date();
+  //     const oneWeekAgo = new Date(
+  //       currentDate.setDate(currentDate.getDate() - 7)
+  //     );
 
-      const response = await FeedBack.aggregate([
-        {
-          $match: {
-            doctorId: doctorId,
-          },
-        },
-        {
-          $lookup: {
-            from: "yoshusers",
-            localField: "userId",
-            foreignField: "cognitoId",
-            as: "usersInfo",
-          },
-        },
-        {
-          $addFields: {
-            petsId: { $toObjectId: "$petId" },
-          },
-        },
-        {
-          $lookup: {
-            from: "yoshpets",
-            localField: "petsId",
-            foreignField: "_id",
-            as: "petInfo",
-          },
-        },
-        {
-          $unwind: {
-            path: "$usersInfo",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-        {
-          $unwind: {
-            path: "$petInfo",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-        {
-          $addFields: {
-            formattedDate: {
-              $dateToString: {
-                format: "%d %B %Y",
-                date: "$usersInfo.createdAt",
-                timezone: "UTC",
-              },
-            },
-            isOld: {
-              $lte: ["$createdAt", oneWeekAgo], // Compare if the feedback date is older than 1 week
-            },
-          },
-        },
-        {
-          $project: {
-            _id: 1,
-            feedback: 1,
-            rating: 1,
-            name: {
-              $concat: ["$usersInfo.firstName", " ", "$usersInfo.lastName"],
-            },
-            image: {
-              $concat: [
-                `https://${process.env.AWS_S3_BUCKET_NAME}.s3.amazonaws.com/`,
-                {
-                  $ifNull: [
-                    { $arrayElemAt: ["$usersInfo.profileImage.url", 0] },
-                    "",
-                  ],
-                },
-              ],
-            },
-            petName: "$petInfo.petName",
-            date: "$formattedDate",
-            isOld: 1,
-          },
-        },
-      ]);
+  //     const response = await FeedBack.aggregate([
+  //       {
+  //         $match: {
+  //           doctorId: doctorId,
+  //         },
+  //       },
+  //       {
+  //         $lookup: {
+  //           from: "yoshusers",
+  //           localField: "userId",
+  //           foreignField: "cognitoId",
+  //           as: "usersInfo",
+  //         },
+  //       },
+  //       {
+  //         $addFields: {
+  //           petsId: { $toObjectId: "$petId" },
+  //         },
+  //       },
+  //       {
+  //         $lookup: {
+  //           from: "yoshpets",
+  //           localField: "petsId",
+  //           foreignField: "_id",
+  //           as: "petInfo",
+  //         },
+  //       },
+  //       {
+  //         $unwind: {
+  //           path: "$usersInfo",
+  //           preserveNullAndEmptyArrays: true,
+  //         },
+  //       },
+  //       {
+  //         $unwind: {
+  //           path: "$petInfo",
+  //           preserveNullAndEmptyArrays: true,
+  //         },
+  //       },
+  //       {
+  //         $addFields: {
+  //           formattedDate: {
+  //             $dateToString: {
+  //               format: "%d %B %Y",
+  //               date: "$usersInfo.createdAt",
+  //               timezone: "UTC",
+  //             },
+  //           },
+  //           isOld: {
+  //             $lte: ["$createdAt", oneWeekAgo], // Compare if the feedback date is older than 1 week
+  //           },
+  //         },
+  //       },
+  //       {
+  //         $project: {
+  //           _id: 1,
+  //           feedback: 1,
+  //           rating: 1,
+  //           name: {
+  //             $concat: ["$usersInfo.firstName", " ", "$usersInfo.lastName"],
+  //           },
+  //           image: {
+  //             $concat: [
+  //               `https://${process.env.AWS_S3_BUCKET_NAME}.s3.amazonaws.com/`,
+  //               {
+  //                 $ifNull: [
+  //                   { $arrayElemAt: ["$usersInfo.profileImage.url", 0] },
+  //                   "",
+  //                 ],
+  //               },
+  //             ],
+  //           },
+  //           petName: "$petInfo.petName",
+  //           date: "$formattedDate",
+  //           isOld: 1,
+  //         },
+  //       },
+  //     ]);
 
-      if (response.length > 0) {
-        const data = new FHIRConverter(response).ratingConvertToFHIR();
+  //     if (response.length > 0) {
+  //       const data = new FHIRConverter(response).ratingConvertToFHIR();
 
-        // Check if data is old or new and add corresponding parameter
-        // const result = response.map((item) => {
-        //   if (item.isOld) {
-        //     item.status = "Old";
-        //   } else {
-        //     item.status = "New";
-        //   }
-        //   return item;
-        // });
+  //       // Check if data is old or new and add corresponding parameter
+  //       // const result = response.map((item) => {
+  //       //   if (item.isOld) {
+  //       //     item.status = "Old";
+  //       //   } else {
+  //       //     item.status = "New";
+  //       //   }
+  //       //   return item;
+  //       // });
 
-        res.status(200).json({
-          rating: data,
-        });
-      } else {
-        res.status(200).json({
-          resourceType: "OperationOutcome",
-          issue: [
-            {
-              severity: "information",
-              code: "informational",
-              details: {
-                text: "No ratings found.",
-              },
-            },
-          ],
-        });
-      }
-    } catch (error) {
-      res.status(500).json({
-        resourceType: "OperationOutcome",
-        issue: [
-          {
-            severity: "error",
-            code: "exception",
-            details: {
-              text: "Network error occurred while processing the request.",
-            },
-            diagnostics: error.message,
-          },
-        ],
-      });
-    }
-  },
-};
+  //       res.status(200).json({
+  //         rating: data,
+  //       });
+  //     } else {
+  //       res.status(200).json({
+  //         resourceType: "OperationOutcome",
+  //         issue: [
+  //           {
+  //             severity: "information",
+  //             code: "informational",
+  //             details: {
+  //               text: "No ratings found.",
+  //             },
+  //           },
+  //         ],
+  //       });
+  //     }
+  //   } catch (error) {
+  //     res.status(500).json({
+  //       resourceType: "OperationOutcome",
+  //       issue: [
+  //         {
+  //           severity: "error",
+  //           code: "exception",
+  //           details: {
+  //             text: "Network error occurred while processing the request.",
+  //           },
+  //           diagnostics: error.message,
+  //         },
+  //       ],
+  //     });
+  //   }
+  // },
+}
 
 module.exports = HospitalController;
