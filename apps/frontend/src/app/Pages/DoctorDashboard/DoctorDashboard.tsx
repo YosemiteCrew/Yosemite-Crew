@@ -22,6 +22,10 @@ import { useAuthStore } from "@/app/stores/authStore";
 import { putData } from "@/app/axios-services/services";
 import Swal from "sweetalert2";
 
+
+
+import DoctorSlots from "./DoctorSlots";
+
 function DoctorDashboard() {
   const { vetAndTeamsProfile, userId, fetchVetAndTeamsProfile } =
     useAuthStore();
@@ -53,11 +57,8 @@ function DoctorDashboard() {
     }
   };
 
-  const [status, setStatus] = useState<string>("30 mins");
-
-  const handleDropdownSelect = (eventKey: string | null) => {
-    setStatus(eventKey as string);
-  };
+ 
+  
 
   
 
@@ -134,72 +135,7 @@ const image:any = vetAndTeamsProfile?.image ||
             </div>
           </div>
         ) : (
-          <div className="DoctorAvailabilty">
-            <h2>Appointment Slot Availability</h2>
-           
-            <div className="AvailabityDivDoctor">
-
-              <div className="AvltyFor">
-                <div className="avldate">
-                  <h5>Availability for</h5>
-                  <Form.Control
-                    className="AvlDatepicker"
-                    type="date"
-                    id="appointmentDate"
-                    title="Choose your date"
-                  />
-                </div>
-                <div className="Avlswitch">
-                  <p>Availability Status</p>
-                  <div className="custom-toggle-container">
-                    <label className="custom-switch">
-                      <input
-                        type="checkbox"
-                        checked={available}
-                        onChange={() => setAvailable(!available)}
-                      />
-                      <span className="slider" />
-                    </label>
-                    <span className={`status-text ${available ? "available" : "not-available"}`}>
-                      {available ? "Available" : "Not Available"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="appointselect">
-                <div className="lft">
-                  <h6>Set Appointment Duration</h6>
-                  <p>Set the default time for appointments.</p>
-                </div>
-                <div className="ryt">
-                  <Dropdown onSelect={handleDropdownSelect}>
-                    <Dropdown.Toggle className="custom-status-dropdown" id="dropdown-status">
-                      {status}
-                    </Dropdown.Toggle>
-                    <Dropdown.Menu>
-                      {["15 mins", "30 mins", "45 mins", "60 mins"].map((opt) => (
-                        <Dropdown.Item key={opt} eventKey={opt} active={status === opt}>
-                          {opt}
-                        </Dropdown.Item>
-                      ))}
-                    </Dropdown.Menu>
-                  </Dropdown>
-                </div>
-              </div>
-
-             
-
-              <Button  className="updateBtn">
-                Update <FaCircleCheck size={20} />
-              </Button>
-
-
-            </div>
-           
-              
-           
-          </div>
+          <DoctorSlots/>
         )}
       </Container>
     </section>
