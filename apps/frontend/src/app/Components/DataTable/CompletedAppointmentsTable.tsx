@@ -239,12 +239,12 @@ const columns: Column<TodayAppointmentItem>[] = [
 
 
 
-function CompletedAppointmentsTable() {
+function CompletedAppointmentsTable(data:any) {
   return (
     <>
 
     <div className="table-wrapper">
-        <GenericTable data={appointments} columns={columns} bordered={false} pagination pageSize={3} />
+        <GenericTable data={data} columns={columns} bordered={false}  pageSize={3} />
         {/* <div className="table-footerBtn ">
             <Button>Sell All</Button>
         </div> */}

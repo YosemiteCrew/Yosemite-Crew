@@ -46,6 +46,6 @@ export type { TimeSlot,DoctorSlotDocument,AppointmentDocument,GetTimeSlotsInput,
 export type { ContactUsBody,TypedRequestBody } from "./contact/contact-types";
 export type {ConvertToFhirVetProfileParams,OperatingHourType,VetNameType} from './complete-vet-profile/complete-vet-profile'
 export type {TeamInviteMember,InvitePayload,InviteCard,InviteItem,FhirTeamOverview,TeamOverview,DoctorType,WebUserType,AvailabilityDay,AvailabilityTime,DocumentItem,TeamMember} from "./InviteTeamsMembers/invite-teams-members"
-export type { IBookAppointmentRequestBody , IParsedAppointmentDetails, IAppointmentData , IFHIRAppointmentData , } from "./appointment/appointment-types";
+export type { IBookAppointmentRequestBody , IParsedAppointmentDetails, IAppointmentData , IFHIRAppointmentData ,AppointmentInput, FHIRAppointmentBundleParams,SimplifiedAppointment,FHIRAppointment} from "./appointment/appointment-types";
 export type { Department , Organization } from "./business-formatter-types/business-formatter-types";
 export type {FHIRAppointmentAssessmentGraphBundle,QueryParams,AggregatedAppointmentGraph,DataItem,FHIRBundleGraph,FHIRBundleGraphForSpecialitywiseAppointments,FHIRtoJSONSpeacilityStats} from "./hospital-type/hospitalTypes";
