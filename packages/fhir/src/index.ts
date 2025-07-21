@@ -15,11 +15,11 @@ export { parseDiabetesObservation, toFHIRObservation } from "./diabetes/diabetes
 export { toFHIRBundleImmunization,VaccinationDoc } from "./immunization/immunization-fhir";
 export { validate } from "./immunization/immunization-fhir-validator";
 export { convertToFhirVetProfile,convertFromFhirVetProfile } from "./complete-vet-profile/complete-vet-profile";
-export { FHIRTransformer , fhirAppointmentFormatter } from "./appointment/appointment-fhir";
+export { convertFhirAppointmentBundle,convertToFHIRMyCalender,convertFromFHIRAppointments } from "./appointment/appointment-fhir";
 export {BusinessFhirFormatter} from "./business-fhir/business-formatter-fhir";
 export {generateFHIRBlogResponse} from "./blog-fhir/blog";
 export {convertFhirInventoryBundleToJson,convertFhirToJson} from "./InventoryFhir/inventoryFhir";
-export {convertGraphDataToFHIR,convertFHIRToGraphData,convertSpecialityWiseAppointmentsToFHIR,FHIRtoJSONSpeacilityStats} from "./hospital-fhir/hospitalfhir";
+export {convertGraphDataToFHIR,convertFHIRToGraphData,convertSpecialityWiseAppointmentsToFHIR,FHIRtoJSONSpeacilityStats,convertAppointmentStatsFromFHIR} from "./hospital-fhir/hospitalfhir";
 export {convertDepartmentFromFHIR,convertToFHIRDepartment} from "./addSpecialities/specialities-fhir";
 export {fromFHIRInviteItem,fromFHIRInviteList,toFHIRInviteItem,toFHIRInviteList,fromFhirTeamOverview,toFhirTeamOverview,convertFromFhirTeamMembers,convertToFhirTeamMembers } from './invites-teams/invites-teams'
 export { FHIRSlotValidator , MonthlySlotValidator} from "./slots";
