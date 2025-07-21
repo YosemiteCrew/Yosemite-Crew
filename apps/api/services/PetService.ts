@@ -1,4 +1,4 @@
-import pet from '../models/Pets';
+import pet from '../models/pet.model';
 import helpers from '../utils/helpers';
 import mongoose from 'mongoose';
 import { handleMultipleFileUpload } from '../middlewares/upload';
