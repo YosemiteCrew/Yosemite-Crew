@@ -4,7 +4,7 @@ import petController from '../controllers/pet-controller';
 import appointmentController from '../controllers/appointment-controller';
 import slotController from  '../controllers/slot-controller';
 import feedbackController from '../controllers/feedback-controller';
-import detailsController from '../controllers/detailsController';
+import detailsController from '../controllers/details-controller';
 import listController from '../controllers/list-controller';
 import immunizationController from "../controllers/immunization-controller";
 import diabetesController  from '../controllers/diabetes-controller';
@@ -12,7 +12,7 @@ import SharedDutiesController from "../controllers/shared-duties-controller";
 import contactController  from "../controllers/contact-controller";
 import planController from '../controllers/plan-controller';
  
-import medicalRecordsController from '../controllers/medicalRecordsController';
+import medicalRecordsController from '../controllers/medical-records-controller';
  
  
  

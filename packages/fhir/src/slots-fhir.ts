@@ -75,9 +75,9 @@ export const FHIRSlotValidator = {
 export const MonthlySlotValidator = {
   validateRequest(input: unknown): ValidationIssue[] {
     const issues: ValidationIssue[] = [];
-
     const { doctorId, slotMonth, slotYear } = input as SlotRequest;
-
+    const month = Number(slotMonth);
+    const year = Number(slotYear);
     if (!doctorId) {
       issues.push({
         severity: "error",
@@ -85,23 +85,21 @@ export const MonthlySlotValidator = {
         details: { text: "Doctor ID is required" },
       });
     }
-
-    if (!slotMonth || isNaN(slotMonth) || slotMonth < 1 || slotMonth > 12) {
+    if (!month || isNaN(month) || month < 1 || month > 12) {
       issues.push({
         severity: "error",
         code: "invalid",
         details: { text: "Valid month (1-12) is required" },
       });
     }
-
-    if (!slotYear || isNaN(slotYear) || slotYear.toString().length !== 4) {
+    if (!year || isNaN(year) || year.toString().length !== 4) {
       issues.push({
         severity: "error",
         code: "invalid",
         details: { text: "Valid 4-digit year is required" },
       });
     }
-
     return issues;
-  }
+  },
 };
+
