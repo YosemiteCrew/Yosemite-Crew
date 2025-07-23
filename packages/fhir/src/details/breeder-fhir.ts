@@ -17,7 +17,7 @@ export function toFhirOrganizationBreeder(breeder: breeder): {
     name: breeder.breederName,
     telecom: [
       breeder.telephone ? { system: "phone", value: breeder.telephone } : null,
-      breeder.emailAddress ? { system: "email", value: breeder.emailAddress } : null,
+      breeder.emailAddess ? { system: "email", value: breeder.emailAddess } : null,
       breeder.website ? { system: "url", value: breeder.website } : null
     ].filter(Boolean) as { system: string; value: string }[],
     address: [
