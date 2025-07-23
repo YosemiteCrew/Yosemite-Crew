@@ -22,45 +22,72 @@
   font-weight: 700;
   font-style: normal;
 }
-@font-face {
-  font-family: 'Satoshi';
-  src: url('/fonts/ClashGrotesk/satoshi-light-webfont.woff2') format('woff2'),
-       url('/fonts/ClashGrotesk/satoshi-light-webfont.woff') format('woff');
-  font-weight: 300; /* Light */
-  font-style: normal;
-}
 
 @font-face {
   font-family: 'Satoshi';
-  src: url('/fonts/ClashGrotesk/satoshi-regular-webfont.woff2') format('woff2'),
-       url('/fonts/ClashGrotesk/satoshi-regular-webfont.woff') format('woff');
-  font-weight: 400; /* Regular */
-  font-style: normal;
+  src: url('/fonts/satoshi-font/Satoshi-Light.woff2') format('woff2'),
+       url('/fonts/satoshi-font/Satoshi-Light.woff') format('woff'),
+       url('/fonts/satoshi-font/Satoshi-Light.ttf') format('truetype');
+       font-weight: 300;
+       font-display: swap;
+       font-style: normal;
 }
+
+
+
 
 @font-face {
   font-family: 'Satoshi';
-  src: url('/fonts/ClashGrotesk/satoshi-medium-webfont.woff2') format('woff2'),
-       url('/fonts/ClashGrotesk/satoshi-medium-webfont.woff') format('woff');
-  font-weight: 500; /* Medium */
-  font-style: normal;
+  src: url('/fonts/satoshi-font/Satoshi-Regular.woff2') format('woff2'),
+       url('/fonts/satoshi-font/Satoshi-Regular.woff') format('woff'),
+       url('/fonts/satoshi-font/Satoshi-Regular.ttf') format('truetype');
+       font-weight: 400;
+       font-display: swap;
+       font-style: normal;
 }
+
+
+
+
 
 @font-face {
   font-family: 'Satoshi';
-  src: url('/fonts/ClashGrotesk/satoshi-bold-webfont.woff2') format('woff2'),
-       url('/fonts/ClashGrotesk/satoshi-bold-webfont.woff') format('woff');
-  font-weight: 700; /* Bold */
-  font-style: normal;
+  src: url('/fonts/satoshi-font/Satoshi-Medium.woff2') format('woff2'),
+       url('/fonts/satoshi-font/Satoshi-Medium.woff') format('woff'),
+       url('/fonts/satoshi-font/Satoshi-Medium.ttf') format('truetype');
+       font-weight: 500;
+       font-display: swap;
+       font-style: normal;
 }
+
+
+
 
 @font-face {
   font-family: 'Satoshi';
-  src: url('/fonts/ClashGrotesk/satoshi-black-webfont.woff2') format('woff2'),
-       url('/fonts/ClashGrotesk/satoshi-black-webfont.woff') format('woff');
-  font-weight: 900; /* Black */
-  font-style: normal;
+  src: url('/fonts/satoshi-font/Satoshi-Bold.woff2') format('woff2'),
+       url('/fonts/satoshi-font/Satoshi-Bold.woff') format('woff'),
+       url('/fonts/satoshi-font/Satoshi-Bold.ttf') format('truetype');
+       font-weight: 700;
+       font-display: swap;
+       font-style: normal;
 }
+
+
+
+
+@font-face {
+  font-family: 'Satoshi';
+  src: url('/fonts/satoshi-font/Satoshi-Black.woff2') format('woff2'),
+       url('/fonts/satoshi-font/Satoshi-Black.woff') format('woff'),
+       url('/fonts/satoshi-font/Satoshi-Black.ttf') format('truetype');
+       font-weight: 900;
+       font-display: swap;
+       font-style: normal;
+}
+
+
+
 
 
 * {
@@ -74,6 +101,7 @@
   --black-text: #302F2E;
   --black-bg: #302F2E;
   --darkblackbg:#141413;
+  --blck:#333333;
   --lightblack:#312943;
   --purple-text: #37223C;
   --pureblack: #000000;
@@ -82,6 +110,7 @@
   --black-grey1: #302F2E;
   --blue-text: #247AED;
   --light-blue: #E9F2FD;
+  --darklight-blue: #F5F8FD;
   --white-text: #FFFFFF;
   --whitebg: #FFFFFF;
   --greyborder: #A09F9F;
@@ -90,6 +119,9 @@
   --greytext:#BFBFBE;
   --lightwhiteText:#EAEAEA;
   --slectedbg:#76767617;
+  --opacityBlue:#F8FBFF;
+  --opsbg:#FCD9BB;
+  --foungbg:#F8C1BD;
   
   
   --popupbg:#EAEAEA;
@@ -165,7 +197,12 @@ p{
   border-color: var(--black-text) !important ;
   box-shadow: none !important;
 }
-
+.form-check-input:focus{
+  border-color: var(--black-text) !important;
+}
+.form-check-input{
+  border-color: var(--black-text) !important;
+}
 .BlackButton{
   background: var(--black-text) !important;
   padding: 16px 32px !important;
@@ -202,14 +239,38 @@ input[type=checkbox] {
   border: 1.2px solid var(--black-text) !important;
   background-color: transparent;
   cursor: pointer;
-  position: relative
+  position: relative;
 }
-
 input[type=checkbox]:checked {
   background-color: var(--black-text);
 }
+input[type=checkbox]:checked::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: 5px;
+  height: 10px;
+  /* border: solid var(--whitebg); */
+  border-width: 0 3px 3px 0;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+
 .form-check-input:focus {
     box-shadow: none !important;
+}
+.form-check-label {
+  color: var(--black-text);
+  font-family: var(--satoshi-font);
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 120%;
+  vertical-align: middle;
+  padding-left: 3px;
+}
+.form-check {
+ margin: 0;
 }
 /* Chrome, Safari, Edge, Opera */
 input::-webkit-outer-spin-button,
@@ -616,11 +677,13 @@ input[type=number] {
     align-items: center;
     justify-content: space-between;
     min-height: 40px;
+    gap: 50px;
 
 }
 .StatusSlect button{
     min-width: 104px !important;
 }
+
 /* Table TopBar Ended  */
 
 /* GenericTable Started  */

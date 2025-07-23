@@ -22,7 +22,7 @@ export const getData = async <T>(
   params: Record<string, unknown> = {}
 ): Promise<AxiosResponse<T>> => {
   try {
-    return await api.get<T>(endpoint, {
+    return  api.get<T>(endpoint, {
       params,
       withCredentials: true,
     });
@@ -56,7 +56,7 @@ export const postData = async <T, D = unknown>(
 // ===============================
 export const putData = async <T, D = unknown>(
   endpoint: string,
-  data: D
+  data?: D
 ): Promise<AxiosResponse<T>> => {
   try {
     return await api.put<T>(endpoint, data, {

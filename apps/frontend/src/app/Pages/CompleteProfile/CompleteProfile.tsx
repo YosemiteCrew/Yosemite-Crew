@@ -6,7 +6,7 @@ import { Button, Col, Container, Form, Nav, Row, Tab } from "react-bootstrap";
 import { IoIosArrowDropleft, IoIosArrowDropright, IoMdArrowDropdown, IoMdArrowDropup } from "react-icons/io";
 import { FaCircleCheck, FaSackDollar, FaSuitcaseMedical } from "react-icons/fa6";
 import ProfileProgressbar from "@/app/Components/ProfileProgressbar/ProfileProgressbar";
-import { IoLocationSharp } from "react-icons/io5";
+import { IoLocationSharp, IoSearchOutline } from "react-icons/io5";
 import { FormInput } from "../Sign/SignUp";
 import DynamicSelect from "@/app/Components/DynamicSelect/DynamicSelect";
 import Image from "next/image";
@@ -29,7 +29,7 @@ const servicesList = [
   { code: "V001", display: "Surgery and Operating Rooms" },
   { code: "D001", display: "Parasitology" },
   { code: "B001", display: "Dental Clinic" },
-]; 
+];
 
 const servicesList1 = [
   { code: "E001", display: "Internal Medicine" },
@@ -39,23 +39,9 @@ const servicesList1 = [
   { code: "B001", display: "Behavioural Therapy" },
 ];
 
-type NameState = {
-    userId: string;
-    businessName: string;
-    website: string;
-    registrationNumber: string;
-    city: string;
-    state: string;
-    addressLine1: string;
-    latitude: string;
-    longitude: string;
-    postalCode: string;
-    area: string;
-    phoneNumber: string;
-  };
 
 function CompleteProfile() {
-  const { userId } = useAuthStore();
+  const { userId,profile } = useAuthStore();
   const router = useRouter();
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -69,9 +55,10 @@ function CompleteProfile() {
   const [progress, setProgress] = useState(0);
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [addDepartment, setAddDepartment] = useState<string[]>([]);
-  const [departmentFeatureActive, setdepartmentFeatureActive] = useState("yes");
-  const [country, setCountry] = useState<string>('');
-  const [name, setName] = useState<NameState>({
+  const [departmentFeatureActive, setdepartmentFeatureActive] = useState("");
+  const [country, setCountry] = useState<string>("");
+
+  const [name, setName] = useState({
     userId: "",
     businessName: "",
     website: "",
@@ -81,7 +68,7 @@ function CompleteProfile() {
     area: "", 
     addressLine1: "",
     latitude: "",
-    longitude: "",
+    longitude:"",
     postalCode: "",
     phoneNumber: ""
   });
@@ -93,6 +80,30 @@ function CompleteProfile() {
       setName(prev => ({ ...prev, userId }));
     }
   }, [userId, name.userId]);
+
+useEffect(()=>{
+  if(profile){
+    setName({
+      userId: "",
+    businessName:profile?.name?.businessName|| "",
+    website:profile?.name?.website|| "",
+    registrationNumber:profile?.name?.registrationNumber|| "",
+    city:profile?.name?.city|| "",
+    state: profile?.name?.state||"",
+    area:profile?.name?.area|| "", 
+    addressLine1:profile?.name?.addressLine1 || "",
+    latitude:profile?.name?.latitude || "",
+    longitude:profile?.name?.latitude || "",
+    postalCode:profile?.name?.postalCode|| "",
+    phoneNumber:profile?.name?.phoneNumber|| ""
+    })
+    setCountry(profile?.name?.country as string)
+    setAddDepartment(profile?.addDepartment)
+    setSelectedServices(profile.selectedServices)
+    setdepartmentFeatureActive(profile.departmentFeatureActive)
+  }
+},[profile])
+console.log(addDepartment)
 
   // const calculateProgress = ({
   //   name,
@@ -138,6 +149,7 @@ function CompleteProfile() {
   //   });
   //   setProgress(newProgress);
   // }, [name, country, image, selectedServices, addDepartment]);
+
 
   const handleBusinessInformation = useCallback((e: { target: { name: string; value: string; }; }) => {
     const { name, value } = e.target;
@@ -328,7 +340,7 @@ const handleArea = (selectedOption: string) => {
   // Validation for each step
   const validateBusiness = () => {
     const newErrors: { [key: string]: string } = {};
-    if (!image) newErrors.image = "Image is required";
+    // if (!image) newErrors.image = "Image is required";
     if (!country) newErrors.country = "Country is required";
     if (!name.registrationNumber) newErrors.registrationNumber = "Registration Number is required";
     if (!name.businessName) newErrors.businessName = "Business Name is required";
@@ -453,7 +465,7 @@ const handleArea = (selectedOption: string) => {
                                   ) : (
                                     <div className="upload-placeholder">
                                       <Image
-                                        src="/Images/camera.png"
+                                        src={profile?.image as any}
                                         alt="camera"
                                         className="icon"
                                         width={40}
@@ -623,13 +635,13 @@ const handleArea = (selectedOption: string) => {
                           >
                             <span>Add Services</span>
                             <span className="arrow">
-                              {isDropdownOpen ? <IoMdArrowDropup /> : <IoMdArrowDropdown />}
+                              {isDropdownOpen ? <IoMdArrowDropup size={20} /> : <IoMdArrowDropdown size={20} />}
                             </span>
                           </div>
                           {isDropdownOpen && (
                             <div className="ServDropcontent">
                               <div className="serchbtn">
-                                <i className="ri-search-line"></i>
+                                <IoSearchOutline size={20} />
                                 <input
                                   type="text"
                                   className="search-input"
@@ -694,7 +706,7 @@ const handleArea = (selectedOption: string) => {
                           {isDropdownOpen1 && (
                             <div className="ServDropcontent">
                               <div className="serchbtn">
-                                <i className="ri-search-line"></i>
+                                <IoSearchOutline size={20} />
                                 <input
                                   type="text"
                                   className="search-input"
@@ -809,4 +821,3 @@ export function HeadText({ Spntext, blktext, spanFirst = false }: HeadTextProps)
     </div>
   );
 }
-

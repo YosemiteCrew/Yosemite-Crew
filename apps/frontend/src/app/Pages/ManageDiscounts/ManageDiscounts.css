@@ -1,0 +1,88 @@
+.ManageDiscountSec{
+    padding: 100px 0;
+}
+.ManageDiscountData{
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+}
+.ManageDiscountData .ManageTopBar{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.ManageDiscountData .ManageTopBar h2{
+    font-size: 40px;
+    font-weight: 500;
+    line-height: 120%;
+    font-family: var(--grotesk-font);
+    margin: 0;
+    color: var(--black-text);
+}
+.ManageDiscountData .ManageTopBar a{
+    background: var(--black-bg);
+    border: 1px solid var(--black-bg);
+    border-radius: 28px;
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--white-text);
+    transition: all 0.3s ease;
+    font-size: 19px;
+    font-weight: 500;
+    line-height: 120%;
+    font-family: var(--grotesk-font);
+}
+.ManageDiscountData .ManageTopBar a:hover{
+    background: var(---whitebg);
+    color: var(--black-text);
+}
+
+/* AddDiscountData Started  */
+.AddDiscountData{
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+}
+.AddDiscountData .DicountInner{
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.AddDiscountData .DicountInner .DiscountForm{
+    display: flex;
+    flex-direction: column;
+    gap: 36px;
+    padding: 40px;
+    border-radius: 28px;
+    box-shadow: 0px 0px 8px 0px #47382714;
+    border: 1px solid var(--popupbg);
+}
+.Discountupdtbtn{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.Discountupdtbtn button{
+    background: var(--black-bg);
+    border: 1px solid var(--black-bg) !important;
+    border-radius: 28px;
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--white-text);
+    transition: all 0.3s ease;
+    font-size: 23px;
+    font-weight: 500;
+    line-height: 120%;
+    font-family: var(--grotesk-font);
+}
+.Discountupdtbtn button:hover{
+    background: var(---whitebg);
+    color: var(--black-text);
+}
+
+
+/* AddDiscountData Ended  */

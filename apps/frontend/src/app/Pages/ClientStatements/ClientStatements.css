@@ -1,0 +1,9 @@
+.ClientStatementsDashboardSec{
+    padding: 100px 0px;
+}
+.ClientStatementData{
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+   
+}

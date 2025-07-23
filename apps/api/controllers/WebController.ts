@@ -261,14 +261,14 @@ const WebController = {
       // ✅ Set secure cookies
       res.cookie("accessToken", accessToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
+        secure: process.env.NODE_ENV === "development",
         sameSite: "strict",
         maxAge: 1000 * 60 * 15, // 15 minutes
       });
 
       res.cookie("refreshToken", refreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
+        secure: process.env.NODE_ENV === "development",
         sameSite: "strict",
         maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
       });
@@ -360,14 +360,14 @@ const WebController = {
       // ✅ Set secure cookies
       res.cookie("accessToken", accessToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
+        secure: process.env.NODE_ENV === "development",
         sameSite: "strict",
         maxAge: 1000 * 60 * 15, // 15 minutes
       });
 
       res.cookie("refreshToken", refreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
+        secure: process.env.NODE_ENV === "development",
         sameSite: "strict",
         maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
       });
@@ -788,6 +788,8 @@ const WebController = {
       };
 
       const fhirBundle = toFHIRBusinessProfile(formattedInput as BusinessProfile);
+      console.log("Converted FHIR Bundle:", JSON.stringify(fhirBundle, null, 2));
+      console.log("Converted FHIR Bundle:", fromFHIRBusinessProfile(fhirBundle));
       res.status(200).json(fhirBundle);
     } catch (error) {
       console.error("Error fetching hospital profile:", error);
