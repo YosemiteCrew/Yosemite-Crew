@@ -40,3 +40,16 @@ export interface MonthlySlotQuery {
   slotYear?: string;
   doctorId?: string;
 }
+export interface ValidationIssue {   
+  severity: "error" | "warning";   
+  code: string;   
+  details: {    
+  text: string;   
+}; 
+} 
+export interface SlotRequest {   
+  appointmentDate: string;   
+  doctorId: string;   
+  slotMonth?: string;   
+  slotYear?: string; 
+}
