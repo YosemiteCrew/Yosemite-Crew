@@ -111,5 +111,64 @@ export function getLastDayOfMonth(month: number): number {
       };
     });
   }
+  export function convertAppointmentStatsToFHIR(stats: {
+    todaysAppointments: number;
+    upcomingAppointments: number;
+    completedAppointments: number;
+    newAppointments: number;
+  }) {
+    const entries = Object.entries(stats).map(([key, value]) => ({
+      resource: {
+        resourceType: "Observation",
+        id: key,
+        code: {
+          text: formatStatName(key),
+        },
+        valueInteger: value,
+      },
+    }));
   
+    return {
+      resourceType: "Bundle",
+      type: "collection",
+      entry: entries,
+    };
+  }
   
+  function formatStatName(key: string): string {
+    switch (key) {
+      case "todaysAppointments":
+        return "Today's Appointments";
+      case "upcomingAppointments":
+        return "Upcoming Appointments";
+      case "completedAppointments":
+        return "Completed Appointments";
+      case "newAppointments":
+        return "New Appointments";
+      default:
+        return key;
+    }
+  }
+  // convertAppointmentStatsFromFHIR.ts
+export function convertAppointmentStatsFromFHIR(fhirBundle: any): {
+  todaysAppointments: number;
+  upcomingAppointments: number;
+  completedAppointments: number;
+  newAppointments: number;
+} {
+  const result: Record<string, number> = {};
+
+  for (const entry of fhirBundle.entry || []) {
+    const resource = entry.resource;
+    if (resource.resourceType === "Observation" && resource.id && typeof resource.valueInteger === "number") {
+      result[resource.id] = resource.valueInteger;
+    }
+  }
+
+  return {
+    todaysAppointments: result.todaysAppointments || 0,
+    upcomingAppointments: result.upcomingAppointments || 0,
+    completedAppointments: result.completedAppointments || 0,
+    newAppointments: result.newAppointments || 0,
+  };
+}

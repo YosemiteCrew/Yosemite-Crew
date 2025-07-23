@@ -6,11 +6,12 @@ import {
   GetTimeSlotsInput,
   AppointmentDocument,
   DoctorSlotDocument,
-  TimeSlot
+  TimeSlot,
+  FHIRSlotBundle
 } from "@yosemite-crew/types";
 
 const SlotService = {
-  getAvailableTimeSlots: async ({ appointmentDate, doctorId }: GetTimeSlotsInput): Promise<{ resourceType: string; type: string; entry: object[] } | { issue: object[] } | { status: number; message: string }> => {
+  getAvailableTimeSlots: async ({ appointmentDate, doctorId }: GetTimeSlotsInput): Promise<FHIRSlotBundle> => {
     let dateObj: moment.Moment;
     if (moment && typeof moment.tz === 'function') {
       dateObj = (moment.tz as (input: moment.MomentInput, format: moment.MomentFormatSpecification, timezone: string) => moment.Moment)(
@@ -120,7 +121,7 @@ const SlotService = {
         );
         const slotObj = (typeof createFHIRSlot === 'function'
           ? createFHIRSlot(slot, doctorId, bookedAppointments)
-          : {}) as Record<string, any>;
+          : {}) as Record<string, string | number>;
         if (slotObj && typeof slotObj === 'object') {
           slotObj.start = slotDateTime.toISOString();
         }

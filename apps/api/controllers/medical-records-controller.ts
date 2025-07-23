@@ -7,21 +7,56 @@ import medicalRecords from '../models/MedicalRecords';
 import FHIRMedicalRecordService from '../services/FHIRMedicalRecordService';
 import  mongoose  from 'mongoose';
 import helpers from '../utils/helpers';
-import { AuthenticatedRequest, FHIRMedicalRecord, MedicalRecordRequestBody } from '@yosemite-crew/types';
+import {  FHIRMedicalRecord, MedicalRecordRequestBody,FileUrl } from '@yosemite-crew/types';
+
 import PetService from '../services/PetService';
+import { UploadedFile } from 'express-fileupload';
 
 const medicalRecordsController = {
 
-  saveMedicalRecord: async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
+  saveMedicalRecord:async (req: Request, res: Response) => {
   try {
      
     const { data }: MedicalRecordRequestBody = req.body;
-        const { files }: MedicalRecordRequestBody = req.files;
+    let fileArray: unknown[] = [];
+    if (req.files) {
+      if (Array.isArray(req.files)) {
+        fileArray = req.files;
+      } else if (typeof req.files === 'object') {
+        // If multer is configured with fields, req.files is an object: { fieldname: File[] }
+        // Try to get all files from all fields
+        fileArray = Object.values(req.files).flat();
+      }
+    }
+   
+    // Now filter and upload
+    const updatedPetData = fileArray.length > 0
+    ? await helpers.uploadFiles(fileArray as unknown as UploadedFile[])
+    : [];
 
-    
+    const profileImage: FileUrl[] = (updatedPetData as unknown[]).map((file) => {
+      if (
+        typeof file === 'object' &&
+        file !== null &&
+        typeof (file as { url?: unknown }).url === 'string' &&
+        typeof (file as { originalname?: unknown }).originalname === 'string' &&
+        typeof (file as { mimetype?: unknown }).mimetype === 'string'
+      ) {
+        return {
+          url: (file as { url: string }).url,
+          originalname: (file as { originalname: string }).originalname,
+          mimetype: (file as { mimetype: string }).mimetype
+        };
+      }
+      // Optionally handle invalid file objects
+      return {
+        url: '',
+        originalname: '',
+        mimetype: ''
+      };
+    });
+
+
     if (!data) {
       res.status(200).json({
         status: 0,

@@ -42,10 +42,17 @@ export type { IUser, SignupRequestBody } from "./models/IUser";
 export type { FHIRCodingDiabetes,FHIRAttachmentDiabetes,DiabetesRecord,FHIRCodeDiabetes,FHIRComponentDiabetes,FHIRObservationDiabetes,FHIRValueQuantityDiabetes,ParsedDiabetesObservation } from "./diabetes/diabetes-types";
 export type { FHIRDocumentReference,FHIRImmunizationNote,FHIRImmunizationExtension,FHIRImmunization,FHIRBundle,BasicImmunizationResource,TransformedVaccination } from "./immunization/immunization-types";
 export type { VaccinationDetailsType } from "./models/immunization-records";
-export type { TimeSlot,DoctorSlotDocument,AppointmentDocument,GetTimeSlotsInput,FHIRSlot,FHIRSlotBundle,SlotQuery,MonthlySlotQuery } from "./slot/slot-types";
+export type { TimeSlot,DoctorSlotDocument,AppointmentDocument,GetTimeSlotsInput,FHIRSlot,FHIRSlotBundle,SlotQuery,MonthlySlotQuery,ValidationIssue,SlotRequest } from "./slot/slot-types";
 export type { ContactUsBody,TypedRequestBody } from "./contact/contact-types";
+export type { PetCoOwner } from "./models/pet-co-owner";
+export type { SharedPetDuties } from "./models/pet-shared-duties";
+export type {  SharedPetDutyInput, TaskDetail,UpdateData,RecordTaskDetail,RecordType } from "./pet-duties/pet-duties-types";
+export type {  PetCoOwnerInput,FileUrl } from "./pet-duties/pet-co-owner-types";
+export type { IVetClinic } from "./models/vet-clinic";
+export type { PetGroomer } from "./models/pet-groomer";
+export type { PetBoarding } from "./models/pet-boarding";
 export type {ConvertToFhirVetProfileParams,OperatingHourType,VetNameType} from './complete-vet-profile/complete-vet-profile'
 export type {TeamInviteMember,InvitePayload,InviteCard,InviteItem,FhirTeamOverview,TeamOverview,DoctorType,WebUserType,AvailabilityDay,AvailabilityTime,DocumentItem,TeamMember} from "./InviteTeamsMembers/invite-teams-members"
-export type { IBookAppointmentRequestBody , IParsedAppointmentDetails, IAppointmentData , IFHIRAppointmentData , } from "./appointment/appointment-types";
+export type { IBookAppointmentRequestBody , IParsedAppointmentDetails, IAppointmentData , IFHIRAppointmentData ,AppointmentInput, FHIRAppointmentBundleParams,SimplifiedAppointment,FHIRAppointment} from "./appointment/appointment-types";
 export type { Department , Organization } from "./business-formatter-types/business-formatter-types";
 export type {FHIRAppointmentAssessmentGraphBundle,QueryParams,AggregatedAppointmentGraph,DataItem,FHIRBundleGraph,FHIRBundleGraphForSpecialitywiseAppointments,FHIRtoJSONSpeacilityStats} from "./hospital-type/hospitalTypes";
