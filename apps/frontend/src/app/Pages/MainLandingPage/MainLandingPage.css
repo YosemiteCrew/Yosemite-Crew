@@ -1,169 +1,99 @@
-.VeterinarycareSec{
-    padding: 80px 0;
+.landingSection{
+    min-height: 100vh;
+    padding: 80px 0px;
 }
-.VeterinaryData{
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    align-items: center;
-    gap: 32px;
+.landingSection .LandingData{
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
 }
-.leftVetery {
+.landingSection .LandingData .LeftLanding{
     display: flex;
     flex-direction: column;
-    gap: 32px;
-    justify-content: center;
-    height: 100%;
+    gap: 120px;
 }
-.vetTexed h2 {
-    font-family: var(--grotesk-font, 'Arial Black', Arial, sans-serif);
-    font-size: 2.5rem;
-    font-weight: 700;
-    margin-bottom: 18px;
-    color: #222;
-    line-height: 1.1;
-}
-.vetTexed p {
-    font-size: 1.1rem;
-    color: #444;
-    margin-bottom: 32px;
-    font-family: var(--satoshi-font, Arial, sans-serif);
-}
-.vetbtn {
-    display: flex;
-    gap: 18px;
-}
-.vetbtn .btn {
-    border-radius: 32px;
-    font-size: 1.1rem;
-    font-weight: 600;
-    padding: 12px 28px;
+.landingSection .LandingData .LeftLanding .landingTop button{
     display: flex;
     align-items: center;
+    justify-content: center;
+    border: 1px solid var(--black-bg);
+    border-radius: 40px;
+    padding: 20px 24px;
+    min-height: 63px;
+    background: transparent;
+    color: var(--black-text);
+    font-size: 19px;
+    font-weight: 500;
+    font-family: var(--grotesk-font);
+    line-height: 120%;
+    transition: 0.3s;
+}
+.landingSection .LandingData .LeftLanding .landingTop button:hover{
+    background: var(--black-bg);
+    color: var(--whitecolor);
+}
+.landingSection .LandingData .LeftLanding .landingTexed{
+   display: flex;
+   flex-direction: column;
+   gap: 40px;
+   max-width: 388px;
+}
+.landingSection .LandingData .LeftLanding .landingTexed a{
+    display: flex;
+    align-items: center;
+    justify-content: left;
     gap: 8px;
+    padding: 16px 32px;
+    min-height: 60px;
+    background: var(--black-bg);
+    color: var(--whitecolor);
+    width: fit-content;
+    border-radius: 28px;
+    min-width: 160px;
+    font-size: 23px;
+    font-weight: 500;
+    font-family: var(--grotesk-font);
+    line-height: 120%;
+    transition: 0.3s;
+    border: 1px solid var(--black-bg);
 }
-.RightVetery {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 400px;
+.landingSection .LandingData .LeftLanding .landingTexed a:hover{
+    background: transparent;
+    color: var(--black-text);
 }
-.slider-slide {
+.landingSection .LandingData .LeftLanding .landingTexed .landinginnerTexed{
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
+    gap: 16px;
 }
-.slider-img {
-    width: 100%;
-    max-width: 420px;
-    height: 340px;
-    object-fit: cover;
-    border-radius: 18px;
-    margin: 0 auto;
-    box-shadow: 0 4px 32px #0001;
+.landingSection .LandingData .LeftLanding .landingTexed .landinginnerTexed h2{
+    margin: 0;
+    font-size: 38px;
+    font-weight: 500;
+    font-family: var(--grotesk-font);
+    line-height: 120%;
+    color: var(--black-text);
 }
-.slider-caption {
-    text-align: center;
-    font-size: 1.15rem;
-    color: #222;
-    font-family: var(--satoshi-font, Arial, sans-serif);
-    margin: 18px 0 0 0;
-    padding-bottom: 8px;
+.landingSection .LandingData .LeftLanding .landingTexed .landinginnerTexed p{
+    margin: 0;
+    font-size: 18px;
+    font-weight: 400;
+    font-family: var(--satoshi-font);
+    line-height: 120%;
+    color: var(--black-text);
 }
-.slick-dots {
-    bottom: -18px;
+.landingSection .LandingData .RightLanding img{
+    height: auto;
+    max-width: 100%;
 }
-.slick-dots li button:before {
-    color: #222;
-    font-size: 12px;
+.OpacityBlueSec{
+    background: var(--opacityBlue);
+    border-radius: 40px 40px 0px 0px;
 }
-.slick-arrow {
-    z-index: 2;
+.DarkBlueSec{
+    background: var(--light-blue);
+    border-radius: 40px 40px 0px 0px;
 }
-.slick-prev, .slick-next {
-    width: 36px;
-    height: 36px;
-    background: #fff !important;
-    border-radius: 50%;
-    box-shadow: 0 2px 8px #0001;
-    top: 50%;
-    transform: translateY(-50%);
-}
-.slick-prev:before, .slick-next:before {
-    color: #222;
-    font-size: 22px;
-}
-.upload-btn-wrapper {
-    display: flex;
-    justify-content: center;
-    margin-top: 18px;
-}
-.upload-btn {
-    background: #fff;
-    color: #222;
-    border: 2px solid #222;
-    border-radius: 24px;
-    padding: 10px 28px;
-    font-size: 1.05rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s, color 0.2s;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    box-shadow: 0 2px 8px #0001;
-}
-.upload-btn:hover {
-    background: #222;
-    color: #fff;
-}
-.section-badge {
-    display: inline-block;
-    background: #eaf2ff;
-    color: #2563eb;
-    font-size: 0.95rem;
-    font-weight: 600;
-    border-radius: 16px;
-    padding: 6px 18px;
-    margin-bottom: 18px;
-    letter-spacing: 0.02em;
-}
-
-.section-alt {
-    background: #f7fafd;
-}
-
-.VeterinarycareSec {
-    padding: 80px 0;
-}
-
-@media (max-width: 900px) {
-    .VeterinaryData {
-        grid-template-columns: 1fr;
-        gap: 32px;
-    }
-    .RightVetery {
-        min-height: 220px;
-        padding: 24px 0;
-    }
-    .leftVetery {
-        padding: 32px 18px 18px 18px;
-    }
-}
-
-@media (max-width: 600px) {
-    .vetTexed h2 {
-        font-size: 2rem;
-    }
-    .slider-img {
-        max-width: 100%;
-        height: 200px;
-        border-radius: 12px;
-    }
-    .slider-caption {
-        font-size: 1rem;
-    }
-    .VeterinarycareSec {
-        padding: 36px 0;
-    }
+.DarkLightBlueSec{
+    background: var(--darklight-blue);
 }

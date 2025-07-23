@@ -1,9 +1,9 @@
 "use client";
-import React, { useState,useEffect } from "react";
-import "./BusinessDashboard.css"
-import {  Col, Container, Row } from 'react-bootstrap'
-import StatCard from '@/app/Components/StatCard/StatCard'
-import { GraphSelected } from '../AdminDashboardEmpty/AdminDashboardEmpty'
+import React, { useState, useEffect, useCallback } from "react";
+import "./BusinessDashboard.css";
+import { Col, Container, Row } from "react-bootstrap";
+import StatCard from "@/app/Components/StatCard/StatCard";
+import { GraphSelected } from "../AdminDashboardEmpty/AdminDashboardEmpty";
 import DepartmentBarChart from "@/app/Components/BarGraph/DepartmentBarChart";
 import { DepartmentData } from "@/app/types";
 import { IoIosAddCircleOutline, IoMdEye } from "react-icons/io";
@@ -16,173 +16,249 @@ import ScheduleTable from "@/app/Components/DataTable/ScheduleTable";
 import ChartCard from "@/app/Components/BarGraph/ChartCard";
 import PracticeTeamTable from "@/app/Components/DataTable/PracticeTeamTable";
 import InventoryTable from "@/app/Components/DataTable/InventoryTable";
-
-
+import { getData, postData } from "@/app/axios-services/services";
+import { useStore } from "zustand";
+import { useAuthStore } from "@/app/stores/authStore";
+import {
+  convertFhirAppointmentBundle,
+  convertFhirInventoryBundleToJson,
+  convertFHIRToGraphData,
+  convertFhirToJson,
+  FHIRtoJSONSpeacilityStats,
+} from "@yosemite-crew/fhir";
 
 function BusinessDashboard() {
-
-  const [selectedRange, setSelectedRange] = useState("Last 30 Days");// graphSelected 
-
-  // departmentStats Started 
+  const [selectedRange, setSelectedRange] = useState("Last 30 Days"); // graphSelected
+  const [appointmentsData, setAppointmentsData] = useState([]);
+  const [practiceTeamData, setPracticeTeamData] = useState([]);
+  const [assessmentData, setAccessmentData] = useState([]);
+  const [inventoryData, setInventoryData] = useState([]);
+  const [inventoryCategory, setInventoryCategory] = useState([]);
+  const [appointmentFilter, setAppointmentFilter] = useState("Confirmed");
+  const [practiceFilter, setPracticeFilter] = useState("Cardiology");
+  const [inventoryFilter, setInventoryFilter] = useState("Pharmaceuticals");
+  const [inventoryandAssessmentGraph, setInventoryandAssessmentGraph] =
+    useState([]);
+  const [specialityWiseAppointmentsGraph, setSpecialityWiseAppointmentsGraph] =
+    useState([]);
+  // departmentStats Started
 
   const [data, setData] = useState<DepartmentData[]>([]);
+  const userId = useAuthStore((state:any) => state.userId);
   useEffect(() => {
-    fetch('/api/departments')
-      .then(res => res.json())
-      .then(json => setData(json));
+    fetchDashBoardDetails("AppointmentLists");
+  }, [appointmentFilter]);
+  // useEffect(() => {
+  //   fetchDashBoardDetails("")
+  // }, [practiceFilter]);
+  useEffect(() => {
+    fetchInventoryDetails("Pharmaceuticals");
+  }, [inventoryFilter]);
+  useEffect(() => {
+    getInventoryCategory();
+  }, []);
+  useEffect(() => {
+    getAppointmentGraph();
+  }, []);
+  useEffect(() => {
+    getSpecialityWiseAppointment();
   }, []);
 
   const departmentStats = [
-    { name: 'Oncology', value: 250 },
-    { name: 'Cardiology', value: 167 },
-    { name: 'Internal Medicine', value: 118 },
-    { name: 'Gastroenterology', value: 74 },
-    { name: 'Orthopaedics', value: 348 },
+    { name: "Oncology", value: 250 },
+    { name: "Cardiology", value: 167 },
+    { name: "Internal Medicine", value: 118 },
+    { name: "Gastroenterology", value: 74 },
+    { name: "Orthopaedics", value: 348 },
   ];
   // departmentStats Ended
 
-
   const scheduleTabs = [
     {
-      eventKey: 'Appointments',
-      title: 'Appointments',
+      eventKey: "Appointments",
+      title: "Appointments",
       content: (
         <>
-          <ScheduleTable
-          />
+          <ScheduleTable data={appointmentsData} />
         </>
       ),
     },
     {
-      eventKey: 'Assessments',
-      title: 'Assessments',
+      eventKey: "Assessments",
+      title: "Assessments",
       content: (
         <>
-          <ScheduleTable
-          />
+          <ScheduleTable data={assessmentData} />
         </>
       ),
-    }
+    },
   ];
 
   const practiceTabs = [
     {
-      eventKey: 'Cardiology',
-      title: 'Cardiology',
+      eventKey: "Cardiology",
+      title: "Cardiology",
       content: (
         <>
-          <PracticeTeamTable/>
+          <PracticeTeamTable />
         </>
       ),
     },
     {
-      eventKey: 'Dermatology',
-      title: 'Dermatology',
+      eventKey: "Dermatology",
+      title: "Dermatology",
       content: (
         <>
-          <PracticeTeamTable/>
+          <PracticeTeamTable />
         </>
       ),
     },
     {
-      eventKey: 'Emergency and Critical Care',
-      title: 'Emergency and Critical Care',
+      eventKey: "Emergency and Critical Care",
+      title: "Emergency and Critical Care",
       content: (
         <>
-          <PracticeTeamTable/>
+          <PracticeTeamTable />
         </>
       ),
     },
     {
-      eventKey: 'Dentistry',
-      title: 'Dentistry',
+      eventKey: "Dentistry",
+      title: "Dentistry",
       content: (
         <>
-          <PracticeTeamTable/>
+          <PracticeTeamTable />
         </>
       ),
     },
     {
-      eventKey: 'Marketing',
-      title: 'Marketing',
+      eventKey: "Marketing",
+      title: "Marketing",
       content: (
         <>
-          <PracticeTeamTable/>
+          <PracticeTeamTable />
         </>
       ),
     },
-    
   ];
 
+  const inventoryTabs = inventoryCategory.map((cat: any) => ({
+    eventKey: cat._id, // use ObjectId as eventKey
+    title: cat.category,
+    content: (
+      <InventoryTable
+        categoryId={cat._id}
+        data={inventoryData} // Filtered by category, ideally
+      />
+    ),
+  }));
 
-  const inventoryTabs = [
-    {
-      eventKey: 'Pharmaceuticals',
-      title: 'Pharmaceuticals',
-      content: (
-        <>
-          <InventoryTable/>
-        </>
-      ),
-    },
-    {
-      eventKey: 'Medical Supplies',
-      title: 'Medical Supplies',
-      content: (
-        <>
-          <InventoryTable/>
-        </>
-      ),
-    },
-    {
-      eventKey: 'Pet Care Products',
-      title: 'Pet Care Products',
-      content: (
-        <>
-          <InventoryTable/>
-        </>
-      ),
-    },
-    {
-      eventKey: 'Diagnostics',
-      title: 'Diagnostics',
-      content: (
-        <>
-          <InventoryTable/>
-        </>
-      ),
-    },
-    {
-      eventKey: 'Equipments',
-      title: 'Equipments',
-      content: (
-        <>
-          <InventoryTable/>
-        </>
-      ),
-    },
-    {
-      eventKey: 'Office Supplies',
-      title: 'Office Supplies',
-      content: (
-        <>
-          <InventoryTable/>
-        </>
-      ),
-    },
-    
-    
-  ];
+  const fetchDashBoardDetails = async (type: any) => {
+    try {
+      const response = await getData("/fhir/v1/Appointment", {
+        caseType: type,
+        organization: userId,
+      });
 
+      if (!response) {
+        throw new Error("Network response was not ok");
+      }
+      const data: any = await response.data;
+      // console.log(data, "DATAAAAAAAAAAAAAAAA");
+      const convertToJson: any = await convertFhirAppointmentBundle(
+        data.data.entry
+      );
+      // console.log(convertToJson, "convertToJson");
+      setAppointmentsData(convertToJson);
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+    }
+  };
+  const fetchInventoryDetails = async (searchCategory: any) => {
+    console.log(searchCategory, "searchCategory");
+    try {
+      if (!userId) {
+        throw new Error("userId is required");
+      }
 
+      const queryParams = new URLSearchParams({
+        userId,
+        searchCategory,
+      });
 
+      const response = await getData(
+        `/api/inventory/InventoryItem?${queryParams.toString()}`
+      );
+
+      if (!response) {
+        throw new Error("Network response was not ok");
+      }
+
+      const data: any = await response.data;
+      // console.log(data, "FHIR Inventory Data");
+
+      const convertToJson: any = await convertFhirInventoryBundleToJson(data);
+      console.log(convertToJson, "Converted Inventory JSON");
+
+      setInventoryData(convertToJson);
+    } catch (error) {
+      console.error("Error fetching inventory data:", error);
+    }
+  };
+  const getInventoryCategory = useCallback(async () => {
+    try {
+      const response: any = await getData(
+        `fhir/admin/GetAddInventoryCategory?bussinessId=${userId}&type=category`
+      );
+      if (response.status === 200) {
+        const res: any = convertFhirToJson(response?.data);
+        setInventoryCategory(res);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }, [userId]);
+  const getSpecialityWiseAppointment = useCallback(async () => {
+    try {
+      const response: any = await getData(
+        `fhir/v1/List?reportType=specialityWiseAppointments&userId=${userId}&LastDays=${6}`
+      );
+      if (response.status === 200) {
+        // const res:any = response?.data
+        const res: any = FHIRtoJSONSpeacilityStats(response?.data);
+        console.log(res, "FHIRtoJSONSpeacilityStats");
+        setSpecialityWiseAppointmentsGraph(res);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }, [userId]);
+
+  const getAppointmentGraph = useCallback(async () => {
+    try {
+      const response: any = await getData(
+        `fhir/v1/AppointmentGraphOnMonthBase?userId=${userId}&days=${3}`
+      );
+      if (response.status === 200) {
+        // const res:any = response?.data
+        const res: any = convertFHIRToGraphData(response?.data?.data);
+        console.log(res, "Res");
+        setInventoryandAssessmentGraph(res);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }, [userId]);
+
+  console.log(
+    specialityWiseAppointmentsGraph,
+    "specialityWiseAppointmentsGraph"
+  );
   return (
     <>
-    <section className='BusinessDashboardSec'>
+      <section className="BusinessDashboardSec">
         <Container>
-
           <div className="BusinessDashboardData">
-
             <div className="BuisnessDashTop">
               <div className="TopDashHead">
                 <div className="leftwlmdiv">
@@ -196,41 +272,69 @@ function BusinessDashboard() {
                 </div>
                 <div className="Ryttwlmdiv">
                   <div className="ClinicVisibleBtn">
-                    <Link href="" ><IoMdEye /> Manage Clinic Visibility</Link>
+                    <Link href="">
+                      <IoMdEye /> Manage Clinic Visibility
+                    </Link>
                   </div>
                   <div className="invitbtn">
-                    <Link href="/practiceTeam" ><IoIosAddCircleOutline /> Invite Practice Member</Link>
+                    <Link href="/practiceTeam">
+                      <IoIosAddCircleOutline /> Invite Practice Member
+                    </Link>
                   </div>
                 </div>
               </div>
               <Row>
-                <Col md={3}><StatCard icon="/Images/stact1.png" title="Appointments (Today)" value={158} /></Col>
-                <Col md={3}><StatCard icon="/Images/stact2.png" title="Staff on-duty" value={122} /></Col>
-                <Col md={3}><StatCard icon="/Images/stact3.png" title="Inventory Out-of-Stock" value={45} /></Col>
-                <Col md={3}><StatCard icon="/Images/stact4.png" title="Revenue (Today)" value="$7,298" /></Col>
+                <Col md={3}>
+                  <StatCard
+                    icon="/Images/stact1.png"
+                    title="Appointments (Today)"
+                    value={158}
+                  />
+                </Col>
+                <Col md={3}>
+                  <StatCard
+                    icon="/Images/stact2.png"
+                    title="Staff on-duty"
+                    value={122}
+                  />
+                </Col>
+                <Col md={3}>
+                  <StatCard
+                    icon="/Images/stact3.png"
+                    title="Inventory Out-of-Stock"
+                    value={45}
+                  />
+                </Col>
+                <Col md={3}>
+                  <StatCard
+                    icon="/Images/stact4.png"
+                    title="Revenue (Today)"
+                    value="$7,298"
+                  />
+                </Col>
               </Row>
             </div>
 
             <Row>
               <Col md={6}>
                 <GraphSelected
-                  title="Revenue"
+                  title="Appointments & Assessments"
                   options={["Last 3 Months", "Last 6 Months", "Last 1 Year"]}
                   selectedOption={selectedRange}
-                  onSelect={setSelectedRange}/>
+                  onSelect={setSelectedRange}
+                />
 
-                <AppointmentGraph/>
-
+                <AppointmentGraph data={inventoryandAssessmentGraph} />
               </Col>
               <Col md={6}>
                 <GraphSelected
-                  title="Department-wise Income"
+                  title="Revenue"
                   options={["Last 30 Days", "Last 6 Months", "Last 1 Year"]}
                   selectedOption={selectedRange}
-                  onSelect={setSelectedRange}/>
+                  onSelect={setSelectedRange}
+                />
 
-                  <ChartCard/>
-                
+                <ChartCard />
               </Col>
             </Row>
 
@@ -240,60 +344,65 @@ function BusinessDashboard() {
                   title="Speciality-wise appointments"
                   options={["Last 3 Months", "Last 6 Months", "Last 1 Year"]}
                   selectedOption={selectedRange}
-                  onSelect={setSelectedRange}/>
-                <DepartmentBarChart data={data.length > 0 ? data : departmentStats} />
-
+                  onSelect={setSelectedRange}
+                />
+                <DepartmentBarChart
+                  data={
+                    data.length > 0 ? data : specialityWiseAppointmentsGraph
+                  }
+                />
               </Col>
               <Col md={6}>
                 <GraphSelected
                   title="Department-wise Income"
                   options={["Last 30 Days", "Last 6 Months", "Last 1 Year"]}
                   selectedOption={selectedRange}
-                  onSelect={setSelectedRange}/>
+                  onSelect={setSelectedRange}
+                />
                 <div className="DepartIncomDiv">
-                    <div className="DeprtInner">
-                      <div className="onclogydiv">
-                        <div className="departText">
-                          <p>Oncology</p>
-                          <h5>$9,700</h5>
-                        </div>
-                      </div>
-
-                      <div className="intrmedcndiv">
-                        <div className="departText">
-                          <p>Internal Medicine</p>
-                          <h5>$7,500</h5>
-                        </div>
-                      </div>
-
-                      <div className="Orthopedicsdiv">
-                        <div className="departText">
-                          <p>Orthopedics</p>
-                          <h5>$6,200</h5>
-                        </div>
-                      </div>
-
-                      <div className="Gastroenterologydiv">
-                        <div className="departText">
-                          <p>Gastroenterology</p>
-                          <h5>$6,500</h5>
-                        </div>
-                      </div>
-
-                      <div className="Cardiologydiv">
-                        <div className="departText">
-                          <p>Cardiology</p>
-                          <h5>$9,700</h5>
-                        </div>
-                      </div>
-
-                      <div className="Neurologydiv">
-                        <div className="departText">
-                          <p>Neurology</p>
-                          <h5>$6,230</h5>
-                        </div>
+                  <div className="DeprtInner">
+                    <div className="onclogydiv">
+                      <div className="departText">
+                        <p>Oncology</p>
+                        <h5>$9,700</h5>
                       </div>
                     </div>
+
+                    <div className="intrmedcndiv">
+                      <div className="departText">
+                        <p>Internal Medicine</p>
+                        <h5>$7,500</h5>
+                      </div>
+                    </div>
+
+                    <div className="Orthopedicsdiv">
+                      <div className="departText">
+                        <p>Orthopedics</p>
+                        <h5>$6,200</h5>
+                      </div>
+                    </div>
+
+                    <div className="Gastroenterologydiv">
+                      <div className="departText">
+                        <p>Gastroenterology</p>
+                        <h5>$6,500</h5>
+                      </div>
+                    </div>
+
+                    <div className="Cardiologydiv">
+                      <div className="departText">
+                        <p>Cardiology</p>
+                        <h5>$9,700</h5>
+                      </div>
+                    </div>
+
+                    <div className="Neurologydiv">
+                      <div className="departText">
+                        <p>Neurology</p>
+                        <h5>$6,230</h5>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </Col>
             </Row>
@@ -301,40 +410,38 @@ function BusinessDashboard() {
             <Row>
               <div className="TableItemsRow">
                 <HeadingDiv Headname="Today’s Schedule" Headspan="95" />
-                <CommonTabs tabs={scheduleTabs} showStatusSelect/>
+                <CommonTabs  onTabClick={fetchInventoryDetails} tabs={scheduleTabs} showStatusSelect />
               </div>
             </Row>
 
             <Row>
               <div className="TableItemsRow">
                 <HeadingDiv Headname="Practice Team" Headspan="74" />
-                <CommonTabs tabs={practiceTabs} showStatusSelect/>
+                <CommonTabs  onTabClick={fetchInventoryDetails} tabs={practiceTabs} showStatusSelect />
               </div>
             </Row>
 
             <Row>
               <div className="TableItemsRow">
                 <HeadingDiv Headname="Inventory" />
-                <CommonTabs tabs={inventoryTabs} showStatusSelect/>
+                <CommonTabs
+                headname="Inventory"
+                  tabs={inventoryTabs}
+                  onTabClick={fetchInventoryDetails}
+                  showStatusSelect
+                />
               </div>
             </Row>
-
           </div>
-
         </Container>
-    </section>
-
-
+      </section>
     </>
-  )
+  );
 }
 
-export default BusinessDashboard
+export default BusinessDashboard;
 
-
-
-
-// HeadingDivProps Started 
+// HeadingDivProps Started
 interface HeadingDivProps {
   Headname: string;
   Headspan?: string | number; // <-- Now it's optional

@@ -218,6 +218,9 @@ importers:
       jwt-decode:
         specifier: ^4.0.0
         version: 4.0.0
+      lodash.isequal:
+        specifier: ^4.5.0
+        version: 4.5.0
       next:
         specifier: 15.3.3
         version: 15.3.3(react-dom@19.1.0)(react@19.1.0)
@@ -227,6 +230,9 @@ importers:
       react-bootstrap:
         specifier: ^2.10.9
         version: 2.10.10(@types/react@19.1.8)(react-dom@19.1.0)(react@19.1.0)
+      react-calendar:
+        specifier: ^5.1.0
+        version: 5.1.0(@types/react@19.1.8)(react-dom@19.1.0)(react@19.1.0)
       react-chartjs-2:
         specifier: ^5.3.0
         version: 5.3.0(chart.js@4.5.0)(react@19.1.0)
@@ -258,6 +264,9 @@ importers:
       '@eslint/eslintrc':
         specifier: ^3
         version: 3.3.1
+      '@iconify/react':
+        specifier: ^6.0.0
+        version: 6.0.0(react@19.1.0)
       '@types/chart.js':
         specifier: ^4.0.1
         version: 4.0.1
@@ -3904,6 +3913,19 @@ packages:
   /@humanwhocodes/retry@0.4.3:
     resolution: {integrity: sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ==}
     engines: {node: '>=18.18'}
+    dev: true
+
+  /@iconify/react@6.0.0(react@19.1.0):
+    resolution: {integrity: sha512-eqNscABVZS8eCpZLU/L5F5UokMS9mnCf56iS1nM9YYHdH8ZxqZL9zyjSwW60IOQFsXZkilbBiv+1paMXBhSQnw==}
+    peerDependencies:
+      react: '>=16'
+    dependencies:
+      '@iconify/types': 2.0.0
+      react: 19.1.0
+    dev: true
+
+  /@iconify/types@2.0.0:
+    resolution: {integrity: sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg==}
     dev: true
 
   /@img/sharp-darwin-arm64@0.34.2:
@@ -11772,6 +11794,11 @@ packages:
 
   /lodash.isboolean@3.0.3:
     resolution: {integrity: sha512-Bz5mupy2SVbPHURB98VAcw+aHh4vRV5IPNhILUCsOzRmsTmSQ17jIuqopAentWoehktxGd9e/hbIXq980/1QJg==}
+    dev: false
+
+  /lodash.isequal@4.5.0:
+    resolution: {integrity: sha512-pDo3lu8Jhfjqls6GkMgpahsF9kCyayhgykjyLMNFTKWrpVdAQtYyB4muAMWozBB4ig/dtWAmsMxLEI8wuz+DYQ==}
+    deprecated: This package is deprecated. Use require('node:util').isDeepStrictEqual instead.
     dev: false
 
   /lodash.isinteger@4.0.4:

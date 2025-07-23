@@ -94,7 +94,27 @@ export type AggregationResult = {
   totalPages: number;
   inventory: AggregatedInventoryItem[];
 }[];
-
+export type SupplyItem = {
+  _id: string;
+  bussinessId: string;
+  category: string;
+  barcode: string;
+  itemName: string;
+  genericName: string;
+  manufacturer: string;
+  itemCategory: string;
+  batchNumber: string;
+  sku: string;
+  strength: string;
+  quantity: number;
+  manufacturerPrice: number;
+  markup: number;
+  price: number;
+  stockReorderLevel: number;
+  expiryDate: string;
+  createdAt: string;
+  updatedAt: string;
+};
 
 
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< for OverView >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -140,8 +160,38 @@ export type InventoryOverviewFHIRBundle = {
   type: "collection";
   entry: InventoryOverviewFHIRBundleEntry[];
 };
+interface FhirExtension {
+  url: string;
+  valueIdentifier: {
+    system: string;
+    value: string;
+  };
+}
+type FhirBasicResource= {
+  resourceType: "Basic";
+  id: string;
+  code: {
+    coding: {
+      system: string;
+      code: string;
+      display: string;
+    }[];
+    text: string;
+  };
+  extension: FhirExtension[];
+}
 
-
-
-
+type FhirEntry = {
+  resource: FhirBasicResource;
+}
+export type  FhirBundle = {
+  resourceType: "Bundle";
+  type: string;
+  entry: FhirEntry[];
+}
+export type CategoryJson = {
+  _id: string;
+  category: string;
+  businessId: string;
+}
 

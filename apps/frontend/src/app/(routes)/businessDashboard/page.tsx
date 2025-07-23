@@ -7,9 +7,9 @@ import ProtectedRoute from "@/app/Components/ProtectedRoute";
 
 function page() {
   return (
-    <ProtectedRoute allowedRoles={["Veterinary Business"]}>
+    // <ProtectedRoute allowedRoles={["Veterinary Business"]}>
       <BusinessDashboard />
-    </ProtectedRoute>
+    // </ProtectedRoute>
   );
 }
 

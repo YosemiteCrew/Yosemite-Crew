@@ -1,16 +1,13 @@
 import { Request, Response } from 'express';
 import SlotService from '../services/slot-service';
 import MonthlySlotService from '../services/monthly.slot.service';
-import { FHIRSlotValidator } from '../validators/FHIRSlotValidator';
-import { MonthlySlotValidator } from '../validators/MonthlySlotValidator';
-import { FHIRValidator } from '../validators/FHIRValidator';
+import  {FHIRSlotValidator , MonthlySlotValidator}  from '@yosemite-crew/fhir';
 import validator from 'validator';
-import { SlotQuery, MonthlySlotQuery } from '@yosemite-crew/types'; // ✅ right
-
+import { SlotQuery } from '@yosemite-crew/types';
 
 const SlotController = {
   // FHIR spec requires GET with query params
-  getTimeSlots: async (req: Request<unknown, unknown, unknown, SlotQuery>, res: Response): Promise<Response> => {
+  getTimeSlots : async (req: Request<unknown, unknown, unknown, SlotQuery>, res: Response):Promise<void> => {
     try {
       const { appointmentDate, doctorId } = req.query as { appointmentDate?: string; doctorId?: string };
 
@@ -19,7 +16,8 @@ const SlotController = {
           typeof appointmentDate !== 'string' ||
           !validator.isISO8601(appointmentDate)
         ) {
-          return res.status(400).json({ message: 'Invalid appointment date' });
+           res.status(400).json({ message: 'Invalid appointment date' });
+           return
         }
 
         if (
@@ -27,7 +25,8 @@ const SlotController = {
           typeof doctorId !== 'string' ||
           !/^[a-f\d]{24}$/i.test(doctorId)
         ) {
-          return res.status(400).json({ message: 'Invalid doctor ID' });
+           res.status(400).json({ message: 'Invalid doctor ID' });
+           return
         }
 
       const isValidDate = (dateStr: string): boolean => {
@@ -36,7 +35,7 @@ const SlotController = {
       };
 
       if (!isValidDate(appointmentDate)) {
-        return res.status(200).json({
+         res.status(200).json({
           issue: [{
             status: 0,
             severity: "error",
@@ -44,11 +43,12 @@ const SlotController = {
             details: { text: "Invalid appointment date format. Expected YYYY-MM-DD" }
           }]
         });
+        return
       }
 
       const today = new Date().toISOString().split('T')[0];
       if (appointmentDate < today) {
-        return res.status(200).json({
+         res.status(200).json({
           issue: [{
             status: 0,
             severity: "error",
@@ -56,21 +56,22 @@ const SlotController = {
             details: { text: "Appointment date cannot be in the past" }
           }]
         });
+        return
       }
 
       const result = await SlotService.getAvailableTimeSlots({ appointmentDate, doctorId });
 
       if (appointmentDate === today) {
         const now = new Date();
-        result.entry = result.entry?.filter((slot: any) => {
+        result.entry = result.entry?.filter((slot) => {
           const startTime = new Date(slot.resource.start);
           return startTime > now;
         });
       }
 
-      const validationErrors = FHIRSlotValidator.validateBundle(result);
+      const validationErrors  = FHIRSlotValidator.validateBundle(result) as Array<{ text: string }>;
       if (validationErrors.length > 0) {
-        return res.status(200).json({
+         res.status(200).json({
           issue: validationErrors.map(msg => ({
             status: 0,
             severity: "error",
@@ -78,13 +79,14 @@ const SlotController = {
             details: { text: msg }
           }))
         });
+        return
       }
 
-      return res.status(200).json({ status: 1, data: result });
+       res.status(200).json({ status: 1, data: result }); return
 
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      return res.status(200).json({
+       res.status(200).json({
         issue: [{
           status: 0,
           severity: "error",
@@ -92,37 +94,42 @@ const SlotController = {
           details: { text: "Error while fetching time slots", diagnostics: message }
         }]
       });
+      return
     }
   },
 
-  TimeSlotsByMonth: async (req: Request<unknown, unknown, unknown, MonthlySlotQuery>, res: Response): Promise<Response> => {
+  timeSlotsByMonth : async (req: Request<unknown, unknown, unknown, {slotMonth?:number, slotYear?:number, doctorId?:string}>, res: Response) :Promise<void>=> {
     const { slotMonth, slotYear, doctorId } = req.query;
 
     if (typeof doctorId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(doctorId)) {
-      return res.status(200).json({ status: 0, message: 'Invalid doctor ID' });
+       res.status(200).json({ status: 0, message: 'Invalid doctor ID' });
+       return
     }
 
     const issues = MonthlySlotValidator.validateRequest({ doctorId, slotMonth, slotYear });
 
     if (issues.length > 0) {
-      return res.status(200).json({ status: 0, issue: issues });
+       res.status(200).json({ status: 0, issue: issues });
+       return
     }
 
     try {
       const result = await MonthlySlotService.generateMonthlySlotSummary({ doctorId, slotMonth, slotYear });
-      const fhirIssues = FHIRValidator.validateFHIRBundle(result);
+      const fhirIssues = FHIRSlotValidator.validateFHIRBundle(result);
 
       if (fhirIssues.length > 0) {
-        return res.status(200).json({ status: 0, issue: fhirIssues });
+         res.status(200).json({ status: 0, issue: fhirIssues });
+         return
       }
 
-      return res.status(200).json({ status: 1, data: result });
+       res.status(200).json({ status: 1, data: result });
+       return
     } catch (error: unknown) {
       console.error("MonthlySlotController Error:", error);
       const message = error instanceof Error ? error.message : 'Internal Server Error';
-      return res.status(500).json({ error: message });
+       res.status(500).json({ error: message });
+       return
     }
   }
 };
-
 export default SlotController;

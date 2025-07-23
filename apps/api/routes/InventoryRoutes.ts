@@ -1,10 +1,10 @@
 import express from 'express';
 import InventoryControllers from '../controllers/InventoryController';
-import { verifyTokenAndRefresh } from '../middlewares/authMiddleware';
+import { verifyToken, verifyTokenAndRefresh } from '../middlewares/authMiddleware';
 const router = express.Router();
 
 router.post('/addInventory',verifyTokenAndRefresh, InventoryControllers.AddInventory);
-router.get('/InventoryItem',verifyTokenAndRefresh, InventoryControllers.getInventory);
+router.get('/InventoryItem',verifyToken, InventoryControllers.getInventory);
 router.post('/AddProcedurePackage',verifyTokenAndRefresh, InventoryControllers.AddProcedurePackage);
 router.get(
   '/InventoryReport',verifyTokenAndRefresh,

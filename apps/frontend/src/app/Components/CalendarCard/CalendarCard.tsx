@@ -98,8 +98,8 @@ const calendarData = [
     date: "Appointment Cancelled",
   },
 ];
-
-function CalendarCard() {
+function CalendarCard(data: any) {
+  console.log(data?.data, "CalendarCard Data");
   return (
     <div className="Doct_Clender_Data">
       <div className="CalendarStatusColumns">
@@ -138,60 +138,62 @@ function CalendarCard() {
             </div>
 
             <div className="ClendrCard">
-              {calendarData
-                .filter((item) => item.status === col.status)
-                .slice(0, 4) // ✅ Show only 4 cards per section
-                .map((item, i) => (
-                  <div key={i} className="CalendarCardItem">
-                    <div className="ClndrUser">
-                      <Image
-                        aria-hidden
-                        src={item.avatar}
-                        alt={item.name}
-                        width={60}
-                        height={60}
-                      />
+              {data &&
+                data.data.length > 0 &&
+                data.data 
+                  ?.filter((item: any) => item.appointmentStatus === col.key)
+                  // .slice(0, 4) // ✅ Show only 4 cards per section
+                  .map((item: any, i: any) => (
+                    <div key={i} className="CalendarCardItem">
+                      <div className="ClndrUser">
+                        <Image
+                          aria-hidden
+                          src={item.avatar}
+                          alt={item.name}
+                          width={60}
+                          height={60}
+                        />
 
-                      <div className="ClndrUserText">
-                        <h6>{item.name}</h6>
-                        <p>
-                          <span>
-                            <FaUser />
-                          </span>{" "}
-                          {item.doctor}
-                        </p>
+                        <div className="ClndrUserText">
+                          <h6>{item.ownerName}</h6>
+                          <p>
+                            <span>
+                              <FaUser />
+                            </span>{" "}
+                            {item.veterinarian}
+                          </p>
+                        </div>
                       </div>
-                    </div>
 
-                    <Button className="ClnderBtn">
-                      {item.status === "Confirmed" ||
-                      item.status === "Upcoming" ? (
-                        <>
-                          <span>
-                            <FaCalendar />
-                          </span>
-                          {item.date}
-                        </>
-                      ) : null}
-                      {item.status === "Completed" && (
-                        <>
-                          <span>
-                            <FaCircleCheck />
-                          </span>
-                          Appointment Completed
-                        </>
-                      )}
-                      {item.status === "Cancelled" && (
-                        <>
-                          <span>
-                            <AiFillMinusCircle />
-                          </span>
-                          Appointment Cancelled
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                ))}
+                      <Button className="ClnderBtn">
+                        {item.appointmentStatus === "booked" ||
+                        item.appointmentStatus === "upcoming" ? (
+                          <>
+                            <span>
+                              <FaCalendar />
+                            </span>
+                            {item.date}
+                          </>
+                        ) : null}
+                        {item.appointmentStatus === "completed" && (
+                          <>
+                            <span>
+                              <FaCircleCheck />
+                            </span>
+                            Appointment Completed
+                          </>
+                        )}
+                        {item.appointmentStatus === "cancelled" && (
+                          <>
+                            <span>
+                              <AiFillMinusCircle />
+                            </span>
+                            Appointment Cancelled
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  ))}
             </div>
           </div>
         ))}

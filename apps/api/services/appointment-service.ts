@@ -4,7 +4,7 @@ import mongoose from 'mongoose';
 import moment from 'moment-timezone';
 import { Moment } from 'moment';
 import { webAppointments, AppointmentsToken } from '../models/WebAppointment';
-import appUsers from '../models/AppUsers';
+import appUsers from '../models/appuser-model';
 import { AddDoctorDoc, DoctorSlotDocument, IProfileData, IUser, pets,  WebAppointmentType } from '@yosemite-crew/types';
 import doctorsTimeSlots from '../models/doctors.slotes.model';
 import addDoctors from '../models/AddDoctor';

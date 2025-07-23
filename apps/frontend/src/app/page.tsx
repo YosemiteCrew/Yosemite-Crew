@@ -1,7 +1,5 @@
 'use client';
-// import React, { useEffect, useState } from 'react';
-import HomePage from './Pages/HomePage/HomePage';
-// import { useAuth } from './Context/AuthContext';
+import MainLandingPage from './Pages/MainLandingPage/MainLandingPage';
 
 
 
@@ -13,7 +11,7 @@ export default function Home() {
     <>
 
 
-      <HomePage />
+    <MainLandingPage/>
 
 
     </>

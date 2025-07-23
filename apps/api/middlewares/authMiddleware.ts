@@ -69,7 +69,8 @@ export const verifyToken = async (
   console.log("Refresh Token:", refreshToken);
   // 1️⃣ If neither token is present
   if (!accessToken && !refreshToken) {
-    return res.status(401).json({ message: 'No tokens provided' });
+     res.status(401).json({ message: 'No tokens provided' });
+     return
   }
 
   // 2️⃣ Try Access Token
@@ -78,10 +79,12 @@ export const verifyToken = async (
       const decoded = jwt.verify(accessToken, ACCESS_SECRET) as JwtPayload;
       console.log("Decoded Access Token:", decoded);
       req.user = decoded;
-      return next(); // ✅ Access token is valid
+       next(); // ✅ Access token is valid
+       return
     } catch (err) {
       if (!(err instanceof jwt.TokenExpiredError)) {
-        return res.status(403).json({ message: 'Invalid access token' });
+         res.status(403).json({ message: 'Invalid access token' });
+         return
       }
       // else — token expired, try refresh
     }
@@ -110,25 +113,28 @@ export const verifyToken = async (
       // Set new tokens
       res.cookie("accessToken", newAccessToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
+        secure: process.env.NODE_ENV === "development",
         sameSite: "strict",
         maxAge: 1000 * 60 * 15,
       });
 
       res.cookie("refreshToken", newRefreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
+        secure: process.env.NODE_ENV === "development",
         sameSite: "strict",
         maxAge: 1000 * 60 * 60 * 24 * 7,
       });
 
       req.user = newPayload;
-      return next(); // ✅ Token refreshed
+       next(); // ✅ Token refreshed
+       return
     } catch (err) {
-      return res.status(403).json({ message: 'Invalid or expired refresh token' });
+       res.status(403).json({ message: 'Invalid or expired refresh token' });
+       return
     }
   }
 
   // 4️⃣ Fallback - no valid tokens
-  return res.status(401).json({ message: 'Authentication failed' });
+   res.status(401).json({ message: 'Authentication failed' });
+   return
 };

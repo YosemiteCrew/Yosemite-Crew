@@ -32,7 +32,7 @@ function TableTopBar({ TbleHName ,TbleHNumb  }: TableTopBarProps) {
 
         <div className="RightTopTbl" >
 
-          <Form className="Tblserchdiv" onSubmit={handleSearch} >
+          {/* <Form className="Tblserchdiv" onSubmit={handleSearch} >
             <input
               type="search"
               placeholder="Search anything"
@@ -42,11 +42,11 @@ function TableTopBar({ TbleHName ,TbleHNumb  }: TableTopBarProps) {
             <Button type="submit" >
               <LuSearch size={20} />
             </Button>
-          </Form>
+          </Form> */}
 
 
           <div className="DoctSlect">
-            <Dropdown onSelect={val => setSelectedDoctor(val || "Doctor")}>
+            {/* <Dropdown onSelect={val => setSelectedDoctor(val || "Doctor")}>
               <Dropdown.Toggle id="doctor-dropdown" >
                 {selectedDoctor}
               </Dropdown.Toggle>
@@ -56,11 +56,11 @@ function TableTopBar({ TbleHName ,TbleHNumb  }: TableTopBarProps) {
                 <Dropdown.Item eventKey="Dr. Jane">Dr. Jane</Dropdown.Item>
                 <Dropdown.Item eventKey="Dr. Lee">Dr. Lee</Dropdown.Item>
               </Dropdown.Menu>
-            </Dropdown>
+            </Dropdown> */}
           </div>
 
 
-          <div className="StatusSlect">
+          {/* <div className="StatusSlect">
             <Dropdown onSelect={val => setSelectedStatus(val || "Status")}>
               <Dropdown.Toggle id="status-dropdown" style={{ borderRadius: '25px', border: '1px solid #D9D9D9', background: '#fff', color: '#222', minWidth: '100px', fontWeight: 400 }}>
                 {selectedStatus}
@@ -72,7 +72,7 @@ function TableTopBar({ TbleHName ,TbleHNumb  }: TableTopBarProps) {
                 <Dropdown.Item eventKey="Cancelled">Cancelled</Dropdown.Item>
               </Dropdown.Menu>
             </Dropdown>
-          </div>
+          </div> */}
 
 
         </div>

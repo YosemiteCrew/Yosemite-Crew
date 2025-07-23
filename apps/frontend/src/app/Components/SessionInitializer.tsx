@@ -1,20 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect,  useState } from "react";
 import { useAuthStore } from "../stores/authStore";
 import { postData } from "../axios-services/services";
-// import SignIn from "../Pages/Sign/SignIn";
 import { usePathname } from "next/navigation";
 import { handleLogout } from "../utils/LogoutApi";
 import HomePage from "../Pages/HomePage/HomePage";
 import Header from "./Header/Header";
 
-const publicRoutes = ["/signup", "/signin"]; // ✅ '/' NOT included (it's protected)
+// ✅ Define roles outside to avoid re-declaring them on every render
+const VET_ROLES = [
+  "Vet",
+  "Vet Technician",
+  "Nurse",
+  "Vet Assistant",
+  "Receptionist",
+];
+
+const publicRoutes = ["/signup", "/signin"];
 
 const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
   const setUser = useAuthStore((state) => state.setUser);
   const setVerified = useAuthStore((state) => state.setVerified);
   const isVerified = useAuthStore((state) => state.isVerified);
+  const { fetchBusinessProfile, fetchVetAndTeamsProfile } = useAuthStore((state) => state);
   const [loading, setLoading] = useState(true);
   const pathname = usePathname();
 
@@ -24,7 +33,6 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
       (route.includes("[") && matchDynamicRoute(route, pathname))
   );
 
-  // ✅ Handle dynamic route matching like /blog/[slug]
   function matchDynamicRoute(pattern: string, path: string) {
     const patternRegex = new RegExp(
       "^" + pattern.replace(/\[.*?\]/g, "[^/]+") + "$"
@@ -44,6 +52,12 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
         setUser({ userId, email, userType });
         setVerified(true);
         console.log("✅ User restored:", { userId, email, userType });
+
+        if (userType && isVerified && !VET_ROLES.includes(userType)) {
+          fetchBusinessProfile();
+        } else {
+          fetchVetAndTeamsProfile(userId);
+        }
       } catch (err) {
         await handleLogout();
         setVerified(false);
@@ -53,7 +67,7 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
     };
 
     fetchUser();
-  }, []);
+  }, [fetchBusinessProfile, fetchVetAndTeamsProfile, isVerified, setUser, setVerified]);
 
   if (loading) return null;
 
@@ -61,7 +75,7 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
     return (
       <>
         <Header />
-        <HomePage />;
+        <HomePage />
       </>
     );
   }

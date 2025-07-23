@@ -1,5 +1,4 @@
 import dotenv from 'dotenv';
-dotenv.config();
 
 import express from 'express';
 import { Server } from 'socket.io';
@@ -28,9 +27,10 @@ import NewsletterRoutes from './routes/NewsletterRoutes';
 import cors from 'cors';
 
 import type { S3File } from '@yosemite-crew/types'
-
+dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
+dotenv.config();
 
 const s3 = new AWS.S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
