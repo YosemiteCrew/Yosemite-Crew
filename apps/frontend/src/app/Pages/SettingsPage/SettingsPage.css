@@ -5,95 +5,379 @@
   min-height: 100vh;
 }
 .SettingPageSec .SettingData{
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 850px;
 }
 .SettingPageSec .SettingData h4{
-    margin: 0;
-    color: var(--black-text);
-    font-size: 40px;
-    font-weight: 500;
-    line-height: 120%;
-    font-family: var(--grotesk-font);
+  margin: 0;
+  color: var(--black-text);
+  font-size: 40px;
+  font-weight: 500;
+  line-height: 120%;
+  font-family: var(--grotesk-font);
 }
+
+/* SettingFormDiv Started  */
+.SettingFormDiv .SettingInnerprofile{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.SettingFormDiv .SettingInnerprofile .SetProfile{
+  border-radius: 50%;
+  border: 1.5px solid var(--skytext);
+}
+.SettingFormDiv .SettingInnerprofile .SetProfile img{
+  border-radius: 50%;
+  object-fit: cover;
+}
+.SettingFormDiv .SettingInnerprofile h3{
+  max-width: 432px;
+  margin: 0;
+  color: var(--black-text);
+  font-size: 33px;
+  font-weight: 500;
+  line-height: 120%;
+  font-family: var(--grotesk-font);
+}
+.SettingFormDiv .SettingInnerprofile button{
+  min-height: 48px;
+  min-width: 100px;
+  border-radius: 28px;
+  background: var(--black-bg);
+  border: 1px solid var(--black-bg) !important;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--white-text);
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 120%;
+  font-family: var(--grotesk-font);
+}
+.SettingFormDiv .SettingInnerprofile button:hover{
+  background: transparent;
+  border: 1px solid var(--black-bg) !important;
+  color: var(--black-text);
+}
+.SettingData .SettingFormDiv{
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--lightgrey);
+}
+.SettingData .SettingFormDiv .SettinginnerItem{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0px 20px;
+  min-height: 67px;
+  border-bottom: 1px solid var(--lightgrey);
+}
+.SettingData .SettingFormDiv .SettinginnerItem:last-child{
+  border-bottom: none;
+}
+.SettingData .SettingFormDiv .SettinginnerItem h6{
+  margin: 0;
+  color: var(--black-text);
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 120%;
+  font-family: var(--grotesk-font);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.SettingData .SettingFormDiv .SettinginnerItem h6 span{
+  margin: 0;
+  color: var(--skytext);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 120%;
+  font-family: var(--satoshi-font);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--lightblue);
+  padding: 4px 8px;
+  border: 0.75px solid var(--skytext);
+  border-radius: 8px;
+}
+.SettingData .SettingFormDiv .SettinginnerItem button{
+  color: var(--black-text);
+  background: transparent !important;
+  padding: 0px !important;
+  border: none !important;
+}
+/* SettingFormDiv Ended  */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 .SettingPageSec .SettingData .SettingAccordian{
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 .SettingAccordian .accordion-item{
-    border: 1px solid var(--lightgrey);
-    background: var(--whitebg);
-    border-radius: 24px;
-    margin: 0;
+  border: 1px solid var(--lightgrey);
+  background: var(--whitebg);
+  border-radius: 24px;
+  margin: 0;
 }
-.SettingAccordian .accordion-item.MedicalAcorditem .accordion-body , .SettingAccordian .accordion-item.MedicalShorthAcorditem .accordion-body{
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-    padding: 0px 20px 20px 20px !important;
+.SettingAccordian .accordion-item.Notificationitem .accordion-body {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 0px 20px 20px 20px !important;
 }
 .SettingAccordian .accordion-item .accordion-button.collapsed{
-    color: var(--black-text);
-    font-size: 19px;
-    font-weight: 500;
-    line-height: 120%;
-    font-family: var(--grotesk-font);
-    border: none;
-    box-shadow: none;
+  color: var(--black-text);
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 120%;
+  font-family: var(--grotesk-font);
+  border: none;
+  box-shadow: none;
 }
 .SettingAccordian .accordion-item .accordion-button:not(.collapsed){
-    background: transparent;
-    color: var(--black-text);
-    font-size: 19px;
-    font-weight: 500;
-    line-height: 120%;
-    font-family: var(--grotesk-font);
-    border: none;
-    box-shadow: none;
-}
-.SettingAccordian .accordion-item .MedicalTabs{
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-gap: 20px 37px;
-}
-.SettingAccordian .accordion-item .MedicalTabs .MedicalTogleDiv{
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border: 1px solid var(--greytext);
-    min-height: 60px;
-    border-radius: 16px;
-    padding: 16px ;
-}
-.SettingAccordian .accordion-item .MedicalTabs .MedicalTogleDiv h6{
-    margin: 0;
-    font-weight: 700;
-    font-family: var(--satoshi-font);
-    font-size: 18px;
-    font-weight: 120% !important;
-    color: var(--notibg);
-}
-.SettingAccordian .accordion-item .MedicalTabs button{
-    background: var(--whitebg);
-    border: 1px solid var(--black-bg);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    color: var(--black-text);
-    padding: 0px 16px;
-    border-radius: 16px;
-    font-size: 18px;
-    line-height: 120%;
-    font-weight: 700;
-    font-family: var(--satoshi-font);
-}
-.SettingAccordian .accordion-item .MedicalTabs button svg{
-    font-size: 24px;
+  background: transparent;
+  color: var(--black-text);
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 120%;
+  font-family: var(--grotesk-font);
+  border: none;
+  box-shadow: none;
 }
 
+/* === Practicing Team Started === */
 
+.SettingAccordian .accordion-item .PracticingTeamDiv , .SettingAccordian .accordion-item .SetNotifylTabs{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-gap: 20px 60px;
+}
+.SettingAccordian .accordion-item .PracticingTeamDiv .Practicinginner{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--lightgrey);
+  min-height: 67px;
+}
+.SettingAccordian .accordion-item .PracticingTeamDiv .Practicinginner .PractInfo{
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.SettingAccordian .accordion-item .PracticingTeamDiv .Practicinginner .PractInfo img{
+  border-radius: 50%;
+  border: 1.5px solid var(--skytext);
+  object-fit: cover;
+}
+.SettingAccordian .accordion-item .PracticingTeamDiv .Practicinginner .PractInfo h6{
+  font-family: var(--satoshi-font);
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 18px;
+  color: var(--notibg);
+  margin: 0;
+}
+.SettingAccordian .accordion-item .PracticingTeamDiv .Practicinginner .PractInfo p{
+  font-family: var(--satoshi-font);
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 24px;
+  margin: 0;
+  color: var(--greyborder);
+}
+.SettingAccordian .accordion-item .PracticingTeamDiv .Practicinginner button{
+  background: transparent !important;
+  border: none !important;
+  padding: 0;
+  color: var(--black-bg);
+}
+.SettingAccordian .accordion-item .PracticingTeamDiv .Prctadbtn{
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+.SettingAccordian .accordion-item .PracticingTeamDiv .Prctadbtn button{
+  min-height: 48px;
+  min-width: 80px;
+  border-radius: 28px;
+  background: var(--black-bg);
+  border: 1px solid var(--black-bg) !important;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--white-text);
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 120%;
+  font-family: var(--grotesk-font);
+}
+.SettingAccordian .accordion-item .PracticingTeamDiv .Prctadbtn button:hover{
+  background: transparent;
+  border: 1px solid var(--black-bg) !important;
+  color: var(--black-text);
+}
+/* === Practicing Team Endded === */
+
+
+
+
+/* === Notification Started === */
+
+
+/* === Notification Endded === */
+
+.SettingAccordian .accordion-item .SetNotifylTabs .NotifyTogleDiv{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--lightgrey);
+  min-height: 67px;
+}
+.SettingAccordian .accordion-item .SetNotifylTabs .NotifyTogleDiv .notinfo{
+  max-width: 283px;
+  padding: 12px 0px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.SettingAccordian .accordion-item .SetNotifylTabs .NotifyTogleDiv .notinfo h6{
+  font-size: 15px;
+  line-height: 24px;
+  font-weight: 700;
+  font-family: var(--satoshi-font);
+  margin: 0;
+  color: var(--notibg);
+}
+.SettingAccordian .accordion-item .SetNotifylTabs .NotifyTogleDiv .notinfo p{
+  font-size: 13px;
+  line-height: 120%;
+  font-weight: 400;
+  font-family: var(--satoshi-font);
+  color: var(--black-grey-Text);
+  margin: 0;
+}
+
+/* SecuritySetItem Started  */
+.SettingAccordian .SecuritySetItem .accordion-body{
+  padding-top: 0px !important;
+}
+.SettingAccordian .SecuritySetItem .SecurtSetTabs{
+  border: 1px solid var(--lightgrey);
+  background: var(--whitebg);
+  border-radius: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+}
+.SettingAccordian .SecuritySetItem .SecurtSetTabs h4{
+  color: var(--notibg);
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 120%;
+  margin: 0;
+  font-family: var(--grotesk-font);
+}
+.SettingAccordian .SecuritySetItem .SecurtSetTabs span{
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--satoshi-font);
+  color: var(--notibg);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 24px;
+  margin: 0;
+}
+.SettingAccordian .SecuritySetItem .SecurtSetTabs .TwoStepCode{
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 21px;
+  border-radius: 24px;
+}
+.SettingAccordian .SecuritySetItem .SecurtSetTabs .TwoStepCode p{
+  font-weight: 400;
+  font-size: 15px;
+  line-height: 24px;
+  font-family: var(--satoshi-font);
+  color: var(--black-text);
+  margin: 0;
+}
+.SettingAccordian .SecuritySetItem .SecurtSetTabs .TwoStepCode .veryfycontrol {
+  position: relative;
+}
+.SettingAccordian .SecuritySetItem .SecurtSetTabs .TwoStepCode .veryfycontrol input{
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 24px;
+  font-family: var(--satoshi-font);
+  color: var(--black-text);
+  margin: 0;
+  border: 1px solid var(--black-grey);
+  min-height: 48px;
+  border-radius: 16px;
+  padding: 0px 16px;
+}
+.SettingAccordian .SecuritySetItem .SecurtSetTabs .TwoStepCode .veryfycontrol input::placeholder{
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 24px;
+  font-family: var(--satoshi-font);
+  color: var(--black-text);
+  margin: 0;
+}
+.SettingAccordian .SecuritySetItem .SecurtSetTabs .TwoStepCode svg{
+  position: absolute;
+  top: 50%;
+  right: 2%;
+  transform: translate(-50%, -50%);
+}
+
+/* SecuritySetItem Ended */
+
+
+/* Feedback Started */
+
+
+
+/* Feedback Ended */
+
+
+
+
+
+/* 
 
 .SettingData h4 {
   font-size: 24px;
@@ -182,4 +466,4 @@ button {
 .SettingData .d-flex span {
   font-size: 15px;
 }
-
+ */
