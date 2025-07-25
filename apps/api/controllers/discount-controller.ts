@@ -74,12 +74,12 @@ export const getAllDiscounts = async (_req: Request, res: Response) => {
 export const updateDiscount = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-
+    const { isActive } = req.body;
     if (!id.match(/^[0-9a-fA-F]{24}$/)) {
       return res.status(400).json({ success: false, message: "Invalid discount ID" });
     }
 
-    const updated = await DiscountCode.findByIdAndUpdate(id, req.body, { new: true });
+    const updated = await DiscountCode.findByIdAndUpdate(id, isActive, { new: true });
     if (!updated) {
       return res.status(404).json({ success: false, message: "Discount not found" });
     }
