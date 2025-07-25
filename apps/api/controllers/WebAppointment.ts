@@ -202,7 +202,7 @@ const Appointmenttoken = await AppointmentsToken.findOneAndUpdate(
   }
 },
 
-  getDoctorsSlotes: async (req: Request, res: Response): Promise<Response> => {
+  getDoctorsSlotes: async (req: Request, res: Response): Promise<void> => {
   try {
     const { doctorId, day, date } = req.query.params as {
       doctorId?: string;
@@ -324,4 +324,4 @@ const Appointmenttoken = await AppointmentsToken.findOneAndUpdate(
   }}
 };
 
-module.exports = webAppointmentController;
+export default webAppointmentController;
