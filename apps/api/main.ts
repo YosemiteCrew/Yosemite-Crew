@@ -1,5 +1,4 @@
 import dotenv from 'dotenv';
-
 import express from 'express';
 import { Server } from 'socket.io';
 import { Socket } from 'socket.io';
@@ -24,6 +23,7 @@ import adminInventory from './routes/AdminApiRoutes';
 import apiRoutes from './routes/apiRoutes';
 import BlogApiRoutes from './routes/BlogApiRoutes';
 import NewsletterRoutes from './routes/NewsletterRoutes';
+import addDiscountCodeRoutes from './routes/addDiscountCodeRoutes'
 import cors from 'cors';
 
 import type { S3File } from '@yosemite-crew/types'
@@ -104,13 +104,14 @@ app.use('/api/hospitals', hospitalRoutes);
 app.use('/api/inventory', AdminApiRoutes);
 //app.use('/fhir/extensions', fhirRoutes);
 app.use('/fhir/v1', doctorRoutes);
+app.use('/fhir/v1', addDiscountCodeRoutes);
 app.use('/fhir/v1', apointmentRoutes);
 app.use('/fhir/v1', hospitalRoutes);
-app.use('/fhir', authRoutes);
+// app.use('/fhir', authRoutes);
 app.use('/fhir/admin', adminInventory);
 app.use('/fhir/v1', AdminApiRoutes);
 app.use('/fhir/v1', apiRoutes);
-app.use('/newsletter', NewsletterRoutes);
+// app.use('/newsletter', NewsletterRoutes);
 app.use('/fhir/v1', BlogApiRoutes);
 app.use('/fhir/v1',inviteRoutes)
 // Global error handler

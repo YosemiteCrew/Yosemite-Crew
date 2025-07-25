@@ -34,7 +34,7 @@ function GenericTable<T extends object>({
 
   const handlePrev = () => setCurrentPage((p) => Math.max(1, p - 1));
   const handleNext = () => setCurrentPage((p) => Math.min(totalPages, p + 1));
-
+console.log(paginatedData,"datadatadata")
   return (
     <>
       <Table hover responsive bordered={bordered} className="TableDiv mb-3">
