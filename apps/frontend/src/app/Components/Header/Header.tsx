@@ -16,6 +16,7 @@ import { FaSignInAlt } from 'react-icons/fa';
 import { useAuthStore } from '@/app/stores/authStore';
 import { handleLogout } from '@/app/utils/LogoutApi';
 import { Icon } from '@iconify/react/dist/iconify.js';
+import { Button } from 'react-bootstrap';
 
 interface NavItem {
   label: string;
@@ -202,7 +203,7 @@ const LoggedInHeader = () => {
                   <Link href="#"><FaUser /> My Profile</Link>
                   <Link href="#"><RiAccountBoxFill /> Account Settings</Link>
                   <Link href="#"><IoIosHelpCircleOutline /> Need Help?</Link>
-                  <Link href="/signup" onClick={() => handleLogout()}><FaSignInAlt /> Sign Out</Link>
+                  <Link href='#' onClick={() => handleLogout()}><FaSignInAlt /> Sign Out</Link>
                 </div>
               </div>
             </li>
