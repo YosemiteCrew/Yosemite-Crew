@@ -18,6 +18,7 @@ export type { UploadedFile } from "./files/express.files.types";
 
 export type { contact } from "./models/contact";
 export type { breeder } from "./models/breeder";
+export type { IMessage } from "./models/message";
 export type { timeSlot, doctorSlot } from "./models/doctors-slotes";
 export type { medicalDoc, medicalRecord } from "./models/medical-record";
 export type { assessment } from "./models/assessment";
