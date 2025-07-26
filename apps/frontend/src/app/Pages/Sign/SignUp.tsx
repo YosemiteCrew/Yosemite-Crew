@@ -11,6 +11,7 @@ import { AxiosError } from "axios";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/app/stores/authStore";
 import { Icon } from "@iconify/react/dist/iconify.js";
+import { useStore } from "zustand";
 
 
 
@@ -82,6 +83,7 @@ function SignUp({ inviteCode }: SignUpProps) {
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [agree, setIagree] = useState(false)
   const [subscribe, setSubscribe] = useState(false)
+  const isVerified = useStore(useAuthStore, (state) => state.isVerified);
   console.log("agree", agree)
   // Stable ref callback to avoid React warning
   const setOtpRef = (el: HTMLInputElement | null, idx: number) => {
@@ -133,7 +135,7 @@ function SignUp({ inviteCode }: SignUpProps) {
       const response = await postData<
         { message: string; data?: { userId: string; email: string; userType: string } }
       >(
-        '/api/auth/verifyUser',
+        '/api/auth/verifyUser ',
         {
           email,
           otp: code.join('')
@@ -346,7 +348,14 @@ function SignUp({ inviteCode }: SignUpProps) {
   }, [inviteCode]);
 
 
-
+if(isVerified){
+  return (
+    <div className="alreadySignedIn">
+      <h2>You are already signed in!</h2>
+      <p>Please log out to sign in with a different account.</p>
+      <MainBtn btnname="Go to Dashboard" onClick={() => router.push("/")} />
+    </div>     )   
+}
 
 
   return (

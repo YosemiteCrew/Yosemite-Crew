@@ -28,6 +28,8 @@ function SignIn() {
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const setVerified = useAuthStore((state) => state.setVerified);
+  const isVerified = useAuthStore((state) => state.isVerified);
+  const userType = useAuthStore((state) => state.userType);
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, index: number) => {
     const value = e.target.value;
 
@@ -211,7 +213,26 @@ function SignIn() {
       }
     }
   };
-
+  const redirectToDashboard = () => { 
+    if(userType === "Veterinary Business"){
+      router.push("/emptydashboard");
+    } else if(userType === "Breeding Facility"){  
+      router.push("/DoctorDashboard"); 
+    } else if(userType === "Pet Sitter"){  
+      router.push("/DoctorDashboard");
+    }else if(userType === "Groomer Shop"){  
+      router.push("/DoctorDashboard");
+    }    
+   }
+if(isVerified){
+  return (
+    <div className="alreadySignedIn">
+      <h2>You are already signed in!</h2>
+      <p>Please log out to sign in with a different account.</p>
+      <MainBtn btnname="Go to Dashboard" onClick={() => redirectToDashboard()} />
+    </div>     )   
+}
+  
 
   return (
     <>
@@ -243,7 +264,7 @@ function SignIn() {
                 </div>
                 <div className="Signbtn">
                   <MainBtn btnicon={<GoCheckCircleFill />} btnname="Sign in" iconPosition="left" onClick={handleSignIn} />
-                  <h6> Don’t have an account? <Link href="#">Sign up.</Link></h6>
+                  <h6> Don’t have an account? <Link href="/signup">Sign up.</Link></h6>
                 </div>
               </Form>
             </div>
