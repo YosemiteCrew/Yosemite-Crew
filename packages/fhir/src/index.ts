@@ -19,7 +19,7 @@ export { convertFhirAppointmentBundle,convertToFHIRMyCalender,convertFromFHIRApp
 export {BusinessFhirFormatter} from "./business-fhir/business-formatter-fhir";
 export {generateFHIRBlogResponse} from "./blog-fhir/blog";
 export {convertFhirInventoryBundleToJson,convertFhirToJson} from "./InventoryFhir/inventoryFhir";
-export {convertGraphDataToFHIR,convertFHIRToGraphData,convertSpecialityWiseAppointmentsToFHIR,FHIRtoJSONSpeacilityStats,convertAppointmentStatsFromFHIR} from "./hospital-fhir/hospitalfhir";
+export {convertGraphDataToFHIR,convertFHIRToGraphData,convertSpecialityWiseAppointmentsToFHIR,FHIRtoJSONSpeacilityStats,convertAppointmentStatsFromFHIR,convertAppointmentStatsToFHIR} from "./hospital-fhir/hospitalfhir";
 export {convertDepartmentFromFHIR,convertToFHIRDepartment} from "./addSpecialities/specialities-fhir";
 export {fromFHIRInviteItem,fromFHIRInviteList,toFHIRInviteItem,toFHIRInviteList,fromFhirTeamOverview,toFhirTeamOverview,convertFromFhirTeamMembers,convertToFhirTeamMembers } from './invites-teams/invites-teams'
 export { toFhirOrganizationBreeder } from "./details/breeder-fhir";

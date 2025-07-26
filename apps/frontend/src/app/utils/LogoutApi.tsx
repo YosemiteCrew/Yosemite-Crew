@@ -5,7 +5,7 @@ export const handleLogout = async () => {
     const logout = useAuthStore.getState().logout;
   
     try {
-      await postData("fhir/signOut", {}, { withCredentials: true });
+      await postData("/api/auth/signOut", {}, { withCredentials: true });
       console.log("✅ Logout API called");
     } catch (error) {
       console.error("⚠️ Logout API error:", error);
