@@ -1012,4 +1012,4 @@ const AdminController = {
   },
 };
 
-module.exports = { AdminController };
+export default AdminController;
