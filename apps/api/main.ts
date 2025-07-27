@@ -19,7 +19,7 @@ import fileUpload from 'express-fileupload';
 import apointmentRoutes from './routes/AppointmentRoutes';
 import hospitalRoutes from './routes/HospitalRoutes';
 import AdminApiRoutes from './routes/InventoryRoutes';
-import adminInventory from './routes/AdminApiRoutes';
+import adminInventory from './routes/admin-api-routes';
 import apiRoutes from './routes/apiRoutes';
 import BlogApiRoutes from './routes/BlogApiRoutes';
 import NewsletterRoutes from './routes/NewsletterRoutes';

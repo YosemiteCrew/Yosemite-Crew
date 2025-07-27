@@ -1,6 +1,6 @@
 import express from 'express';
 import { verifyToken } from '../middlewares/authMiddleware';
-import  AdminController  from "../controllers/ApiAdminControllers";
+import AdminController from "../controllers/api-admin-controller";
 import {verifyTokenAndRefresh} from '../middlewares/authMiddleware';
 
 const router = express.Router();
