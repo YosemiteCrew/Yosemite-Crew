@@ -552,7 +552,7 @@ const InventoryControllers = {
       console.log("sanitizedItems", data)
       // Update the procedure package
       const procedurePackagee = await ProcedurePackage.findOneAndUpdate(
-        { _id: id, bussinessId: hospitalId },
+        { _id: new mongoose.Types.ObjectId(id), bussinessId: hospitalId },
         {
           packageName: typeof packageName === "string" ? packageName : "",
           category: typeof category === "string" ? category : "",

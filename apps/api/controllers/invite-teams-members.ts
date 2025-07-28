@@ -174,10 +174,9 @@ export const inviteTeamsMembersController = {
 
         console.log("Invite Code:", code);
 
-        if (!code) {
-            res.status(400).json({ message: "Invite code is required." });
-            return
-        }
+      if (typeof code !== "string" || !/^[a-zA-Z0-9]{8}$/.test(code)) {
+    return res.status(400).json({ message: "Invalid or missing invite code." });
+  }
 
         const invite = await inviteTeamsMembers.findOne({ inviteCode: code });
 
@@ -721,13 +720,12 @@ export const inviteTeamsMembersController = {
                 { bussinessId: userId },
                 { _id: 1, departmentName: 1 }
             );
-            console.log("departments", departments)
+
 
             if (!departments.length) {
                 res.status(404).json({ message: "No departments found." });
                 return;
             }
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
             const data = convertToFhirDepartment(departments)
             res.status(200).json({
                 message: "Departments fetched successfully",
