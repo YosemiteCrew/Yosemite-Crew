@@ -1,3 +1,5 @@
+import { Request, Response } from "express";
+
 import {
   InventoryCategory,
   InventoryManufacturer,
@@ -13,14 +15,14 @@ import ProductCategoryFHIRConverter from "../utils/InventoryFhirHandler";
 const { PurposeOfVisitFHIRConverter } = require("../utils/AdminFhirHandler");
 
 const AdminController = {
-  AddInventoryCategory: async (req, res) => {
+  AddInventoryCategory: async (req: Request, res: Response): Promise<void> => {
     try {
       let { category, bussinessId } = req.body;
       if (
         typeof bussinessId !== "string" ||
         !/^[a-fA-F0-9-]{36}$/.test(bussinessId)
       ) {
-        return res.status(400).json({
+        res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
             {
@@ -30,6 +32,7 @@ const AdminController = {
             },
           ],
         });
+        return;
       }
 
       if (
@@ -37,7 +40,7 @@ const AdminController = {
         category.length < 2 ||
         category.length > 100
       ) {
-        return res.status(400).json({
+        res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
             {
@@ -47,6 +50,7 @@ const AdminController = {
             },
           ],
         });
+        return;
       }
       category = category.trim().replace(/[^\w\s\-]/gi, "");
 
@@ -55,7 +59,8 @@ const AdminController = {
         bussinessId,
       });
       if (getItem) {
-        return res.status(200).json({ message: `${category} already exist` });
+        res.status(200).json({ message: `${category} already exist` });
+        return;
       } else {
         const response = await InventoryCategory.create({
           category,
@@ -72,7 +77,7 @@ const AdminController = {
       res.status(500).json({ message: "Server error" });
     }
   },
-  AddInventoryManufacturer: async (req, res) => {
+  AddInventoryManufacturer: async (req: Request, res: Response) => {
     try {
       let { manufacturer, bussinessId } = req.body;
 
@@ -80,7 +85,7 @@ const AdminController = {
         typeof bussinessId !== "string" ||
         !/^[a-fA-F0-9-]{36}$/.test(bussinessId)
       ) {
-        return res.status(400).json({
+        res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
             {
@@ -90,6 +95,7 @@ const AdminController = {
             },
           ],
         });
+        return;
       }
 
       if (
@@ -97,7 +103,7 @@ const AdminController = {
         manufacturer.length < 2 ||
         manufacturer.length > 100
       ) {
-        return res.status(400).json({
+        res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
             {
@@ -107,6 +113,7 @@ const AdminController = {
             },
           ],
         });
+        return;
       }
 
       manufacturer = manufacturer.trim().replace(/[^\w\s\-]/gi, "");
@@ -116,9 +123,10 @@ const AdminController = {
         bussinessId,
       });
       if (getItem) {
-        return res
+        res
           .status(200)
           .json({ message: `${manufacturer} already exist` });
+        return;
       } else {
         const response = await InventoryManufacturer.create({
           manufacturer,
@@ -139,14 +147,14 @@ const AdminController = {
     }
   },
 
-  AddInventoryItemCategory: async (req, res) => {
+  AddInventoryItemCategory: async (req: Request, res: Response): Promise<void> => {
     try {
       let { itemCategory, bussinessId } = req.body;
       if (
         typeof bussinessId !== "string" ||
         !/^[a-fA-F0-9-]{36}$/.test(bussinessId)
       ) {
-        return res.status(400).json({
+        res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
             {
@@ -156,6 +164,7 @@ const AdminController = {
             },
           ],
         });
+        return;
       }
 
       if (
@@ -163,7 +172,7 @@ const AdminController = {
         itemCategory.length < 2 ||
         itemCategory.length > 100
       ) {
-        return res.status(400).json({
+        res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
             {
@@ -173,6 +182,7 @@ const AdminController = {
             },
           ],
         });
+        return;
       }
 
       itemCategory = itemCategory.trim().replace(/[^\w\s\-]/gi, "");
@@ -182,9 +192,10 @@ const AdminController = {
         itemCategory,
       });
       if (getItem) {
-        return res
+        res
           .status(200)
           .json({ message: `${itemCategory} already exist` });
+        return;
       } else {
         const response = await InventoryItemCategory.create({
           itemCategory,
@@ -207,10 +218,11 @@ const AdminController = {
 
   // <<<<<<<<<<<<<<<<<<<<<<<<< get Api's Of Cotegory >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-  GetAddInventoryCategory: async (req, res) => {
+  GetAddInventoryCategory: async (req: Request, res: Response): Promise<void> => {
     const { type } = req.query;
     if (!type) {
-      return res.status(400).json({ message: "Missing type query params" });
+      res.status(400).json({ message: "Missing type query params" });
+      return;
     }
     switch (type) {
       case "category":
@@ -218,26 +230,30 @@ const AdminController = {
           try {
             const { bussinessId } = req.query;
             if (!bussinessId) {
-              return res.status(400).json({ message: "Missing BussinessId" });
+              res.status(400).json({ message: "Missing BussinessId" });
+              return;
             }
             if (
               typeof bussinessId !== "string" ||
               !/^[a-fA-F0-9-]{36}$/.test(bussinessId)
             ) {
-              return res
+              res
                 .status(400)
                 .json({ message: "Invalid bussinessId format" });
+              return;
             }
             const getItem = await InventoryCategory.find({ bussinessId });
             if (getItem) {
               const Response = new ProductCategoryFHIRConverter(
                 getItem
               ).toFHIRBundle();
-              return res.status(200).json(Response);
+              res.status(200).json(Response);
+              return;
             } else {
-              return res
+              res
                 .status(400)
                 .json({ message: "Failed to get Cotegory" });
+              return;
             }
           } catch (error) {
             res.status(500).json(error);
@@ -249,29 +265,34 @@ const AdminController = {
           try {
             const { bussinessId } = req.query;
             if (!bussinessId) {
-              return res.status(400).json({ message: "Missing BussinessId" });
+              res.status(400).json({ message: "Missing BussinessId" });
+              return;
             }
             if (
               typeof bussinessId !== "string" ||
               !/^[a-fA-F0-9-]{36}$/.test(bussinessId)
             ) {
-              return res
+              res
                 .status(400)
                 .json({ message: "Invalid bussinessId format" });
+              return;
             }
             const getItem = await InventoryItemCategory.find({ bussinessId });
             if (getItem) {
               const Response = new ProductCategoryFHIRConverter(
                 getItem
               ).toFHIRBundle();
-              return res.status(200).json(Response);
+              res.status(200).json(Response);
+              return;
             } else {
-              return res
+              res
                 .status(400)
                 .json({ message: "failled to get items category" });
+              return;
             }
           } catch (error) {
-            return res.status(500).json({ message: "server error" });
+            res.status(500).json({ message: "server error" });
+            return;
           }
         }
         break;
@@ -280,37 +301,43 @@ const AdminController = {
           try {
             const { bussinessId } = req.query;
             if (!bussinessId) {
-              return res.status(400).json({ message: "Missing BussinessId" });
+              res.status(400).json({ message: "Missing BussinessId" });
+              return;
             }
             if (
               typeof bussinessId !== "string" ||
               !/^[a-fA-F0-9-]{36}$/.test(bussinessId)
             ) {
-              return res
+              res
                 .status(400)
                 .json({ message: "Invalid bussinessId format" });
+              return;
             }
             const getItem = await InventoryManufacturer.find({ bussinessId });
             if (getItem) {
               const Response = new ProductCategoryFHIRConverter(
                 getItem
               ).toFHIRBundle();
-              return res.status(200).json(Response);
+              res.status(200).json(Response);
+              return;
             } else {
-              return res
+              res
                 .status(400)
                 .json({ message: "failled to get manufacturer category" });
+              return;
             }
           } catch (error) {
-            return res.status(500).json({ message: "server error" });
+            res.status(500).json({ message: "server error" });
+            return;
           }
         }
       default:
-        return res.status(400).json({ message: "Invalid type query params" });
+        res.status(400).json({ message: "Invalid type query params" });
+        return;
     }
   },
 
-  CreateProcedurepackageCategory: async (req, res) => {
+  CreateProcedurepackageCategory: async (req: Request, res: Response): Promise<void> => {
     try {
       let { category, bussinessId } = req.body;
 
@@ -319,7 +346,7 @@ const AdminController = {
         typeof bussinessId !== "string" ||
         !/^[a-fA-F0-9-]{36}$/.test(bussinessId)
       ) {
-        return res.status(400).json({
+        res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
             {
@@ -329,6 +356,7 @@ const AdminController = {
             },
           ],
         });
+        return;
       }
 
       // Validate category
@@ -337,7 +365,7 @@ const AdminController = {
         category.length < 2 ||
         category.length > 100
       ) {
-        return res.status(400).json({
+        res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
             {
@@ -347,6 +375,7 @@ const AdminController = {
             },
           ],
         });
+        return;
       }
 
       // Clean category name
@@ -359,7 +388,7 @@ const AdminController = {
       });
 
       if (getItem) {
-        return res.status(400).json({
+        res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
             {
@@ -369,6 +398,7 @@ const AdminController = {
             },
           ],
         });
+        return;
       }
 
       // Create category
@@ -377,7 +407,7 @@ const AdminController = {
         category,
       });
 
-      return res.status(201).json({
+      res.status(201).json({
         resourceType: "OperationOutcome",
         issue: [
           {
@@ -387,8 +417,9 @@ const AdminController = {
           },
         ],
       });
+      return;
     } catch (error) {
-      return res.status(500).json({
+      res.status(500).json({
         resourceType: "OperationOutcome",
         issue: [
           {
@@ -398,15 +429,16 @@ const AdminController = {
           },
         ],
       });
+      return;
     }
   },
-  ProcedurePacakageCategorys: async (req, res) => {
+  ProcedurePacakageCategorys: async (req: Request, res: Response): Promise<void> => {
     try {
       const { bussinessId } = req.query;
 
       // Check if bussinessId is missing
       if (!bussinessId) {
-        return res.status(400).json({
+        res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
             {
@@ -418,6 +450,7 @@ const AdminController = {
             },
           ],
         });
+        return;
       }
       console.log("hello", bussinessId);
       // Check if bussinessId format is valid UUID
@@ -425,7 +458,7 @@ const AdminController = {
         typeof bussinessId !== "string" ||
         !/^[a-fA-F0-9-]{36}$/.test(bussinessId)
       ) {
-        return res.status(400).json({
+        res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
             {
@@ -437,6 +470,7 @@ const AdminController = {
             },
           ],
         });
+        return;
       }
 
       const getItems = await ProcedureCategory.find({ bussinessId });
@@ -447,12 +481,12 @@ const AdminController = {
       if (getItems) {
         const data = new ProductCategoryFHIRConverter(getItems).toFHIRBundle();
           console.log("mil gaya data", data);
-        return res.status(200).json({ data });
-      
+        res.status(200).json({ data });
+        return;
       }
 
     } catch (error) {
-      return res.status(500).json({
+      res.status(500).json({
         resourceType: "OperationOutcome",
         issue: [
           {
@@ -464,12 +498,13 @@ const AdminController = {
           },
         ],
       });
+      return;
     }
   },
 
   // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Appointments Api's>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-  Breeds: async (req, res) => {
+  Breeds: async (req: Request, res: Response): Promise<void> => {
     try {
       const { category, name } = req.body;
 
@@ -478,7 +513,7 @@ const AdminController = {
         name.trim().length === 0 ||
         name.length > 50
       ) {
-        return res.status(400).json({
+        res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
             {
@@ -488,9 +523,10 @@ const AdminController = {
             },
           ],
         });
+        return;
       }
 
-      const capitalizeWords = (str) =>
+      const capitalizeWords = (str: string) =>
         str
           .trim()
           .split(" ")
@@ -505,7 +541,7 @@ const AdminController = {
 
       const getData = await Breeds.findOne({ name: sanitizedName });
       if (getData) {
-        return res.status(200).json({
+        res.status(200).json({
           resourceType: "OperationOutcome",
           issue: [
             {
@@ -517,6 +553,7 @@ const AdminController = {
             },
           ],
         });
+        return;
       }
 
       const response = await Breeds.create({
@@ -546,7 +583,7 @@ const AdminController = {
             severity: "fatal",
             code: "exception",
             details: {
-              text: `${error.message} network error`,
+              text: `${(error as Error).message} network error`,
             },
           },
         ],
@@ -554,7 +591,7 @@ const AdminController = {
     }
   },
 
-  Breed: async (req, res) => {
+  Breed: async (req: Request, res: Response): Promise<void> => {
     try {
       const { category } = req.query;
 
@@ -563,7 +600,7 @@ const AdminController = {
         category.trim().length === 0 ||
         category.length > 50
       ) {
-        return res.status(400).json({
+        res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
             {
@@ -573,6 +610,7 @@ const AdminController = {
             },
           ],
         });
+        return;
       }
 
       // Optional: sanitize input (e.g., remove special characters if needed)
@@ -610,7 +648,7 @@ const AdminController = {
             severity: "fatal",
             code: "exception",
             details: {
-              text: `${error.message} network error`,
+              text: `${(error as Error).message} network error`,
             },
           },
         ],
@@ -618,14 +656,14 @@ const AdminController = {
     }
   },
   // <<<<<<<<<<<<<<<<<<<<<<create Api>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-  PurposeOfVisit: async (req, res) => {
+  PurposeOfVisit: async (req: Request, res: Response): Promise<void> => {
     try {
       const { name, HospitalId } = req.body;
       if (
         typeof HospitalId !== "string" ||
         !/^[a-fA-F0-9-]{36}$/.test(HospitalId)
       ) {
-        return res.status(400).json({
+        res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
             {
@@ -637,6 +675,7 @@ const AdminController = {
             },
           ],
         });
+        return;
       }
 
       if (
@@ -644,7 +683,7 @@ const AdminController = {
         name.trim().length === 0 ||
         name.length > 50
       ) {
-        return res.status(400).json({
+        res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
             {
@@ -654,6 +693,7 @@ const AdminController = {
             },
           ],
         });
+        return;
       }
       const sanitizedName = name.trim();
       const getData = await PurposeOfVisits.findOne({
@@ -662,7 +702,7 @@ const AdminController = {
       });
 
       if (getData) {
-        return res.status(200).json({
+        res.status(200).json({
           resourceType: "operationOutcome",
           issue: [
             {
@@ -674,6 +714,7 @@ const AdminController = {
             },
           ],
         });
+        return;
       }
       const response = await PurposeOfVisits.create({
         name: sanitizedName,
@@ -703,7 +744,7 @@ const AdminController = {
             details: {
               text: "An unexpected network error occurred.",
             },
-            diagnostics: error.message || "Unknown error",
+            diagnostics: (error as Error).message || "Unknown error",
           },
         ],
       });
@@ -712,14 +753,14 @@ const AdminController = {
 
   // <<<<<<<<<<<<<<<<<<<<Get Api>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-  PurposeOfVisitList: async (req, res) => {
+  PurposeOfVisitList: async (req: Request, res: Response): Promise<void> => {
 
 
 
     try {
       const { HospitalId } = req.query;
       if (!HospitalId) {
-        return res.status(400).json({
+        res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
             {
@@ -731,13 +772,14 @@ const AdminController = {
             },
           ],
         });
+        return;
       }
 
       if (
         typeof HospitalId !== "string" ||
         !/^[a-fA-F0-9-]{36}$/.test(HospitalId)
       ) {
-        return res.status(400).json({
+        res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
             {
@@ -749,12 +791,13 @@ const AdminController = {
             },
           ],
         });
+        return;
       }
 
       const response = await PurposeOfVisits.find({ HospitalId: HospitalId });
 
       if (!response) {
-        return res.status(200).json({
+        res.status(200).json({
           resourceType: "OperationOutcome",
           issue: [
             {
@@ -766,6 +809,7 @@ const AdminController = {
             },
           ],
         });
+        return;
       } else {
         const data = new PurposeOfVisitFHIRConverter(
           response,
@@ -781,7 +825,7 @@ const AdminController = {
             severity: "fatal",
             code: "exception",
             details: {
-              text: `${error.message} network error`,
+              text: `${(error as Error).message} network error`,
             },
           },
         ],
@@ -790,11 +834,11 @@ const AdminController = {
   },
   // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<AppointmentType Api's For Book Appointment>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-  AppointmentType: async (req, res) => {
+  AppointmentType: async (req: Request, res: Response): Promise<void> => {
     try {
       const { HospitalId, name, category } = req.body;
       if (!HospitalId) {
-        return res.status(400).json({
+        res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
             {
@@ -806,12 +850,13 @@ const AdminController = {
             },
           ],
         });
+        return;
       }
       if (
         typeof HospitalId !== "string" ||
         !/^[a-fA-F0-9-]{36}$/.test(HospitalId)
       ) {
-        return res.status(400).json({
+        res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
             {
@@ -823,13 +868,14 @@ const AdminController = {
             },
           ],
         });
+        return;
       }
       if (
         typeof category !== "string" ||
         category.trim().length === 0 ||
         category.length > 50
       ) {
-        return res.status(400).json({
+        res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
             {
@@ -841,6 +887,7 @@ const AdminController = {
             },
           ],
         });
+        return;
       }
 
       if (
@@ -848,7 +895,7 @@ const AdminController = {
         name.trim().length === 0 ||
         name.length > 50
       ) {
-        return res.status(400).json({
+        res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
             {
@@ -860,8 +907,9 @@ const AdminController = {
             },
           ],
         });
+        return;
       }
-      const capitalizeWords = (str) =>
+      const capitalizeWords = (str: string) =>
         str
           .trim()
           .split(" ")
@@ -879,7 +927,7 @@ const AdminController = {
         category: modifyCategory,
       });
       if (getData) {
-        return res.status(200).json({
+        res.status(200).json({
           resourceType: "OperationOutcome",
           issue: [
             {
@@ -891,6 +939,7 @@ const AdminController = {
             },
           ],
         });
+        return;
       } else {
         const response = await AppointmentType.create({
           HospitalId: HospitalId,
@@ -899,7 +948,7 @@ const AdminController = {
         });
 
         if (response) {
-          return res.status(200).json({
+          res.status(200).json({
             resourceType: "OperationOutcome",
             issue: [
               {
@@ -911,6 +960,7 @@ const AdminController = {
               },
             ],
           });
+          return;
         }
       }
     } catch (error) {
@@ -921,7 +971,7 @@ const AdminController = {
             severity: "fatal",
             code: "exception",
             details: {
-              text: `${error.message} network error`,
+              text: `${(error as Error).message} network error`,
             },
           },
         ],
@@ -929,11 +979,11 @@ const AdminController = {
     }
   },
 
-  Appointments: async (req, res) => {
+  Appointments: async (req: Request, res: Response) => {
     try {
       const { HospitalId, category } = req.query;
       if (!HospitalId) {
-        return res.status(400).json({
+        res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
             {
@@ -945,12 +995,13 @@ const AdminController = {
             },
           ],
         });
+        return;
       }
       if (
         typeof HospitalId !== "string" ||
         !/^[a-fA-F0-9-]{36}$/.test(HospitalId)
       ) {
-        return res.status(400).json({
+        res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
             {
@@ -962,13 +1013,14 @@ const AdminController = {
             },
           ],
         });
+        return;
       }
       if (
         typeof category !== "string" ||
         category.trim().length === 0 ||
         category.length > 50
       ) {
-        return res.status(400).json({
+        res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
             {
@@ -978,6 +1030,7 @@ const AdminController = {
             },
           ],
         });
+        return;
       }
 
       // Optional: sanitize input (e.g., remove special characters if needed)
@@ -991,9 +1044,10 @@ const AdminController = {
           response,
           HospitalId
         ).toValueSet();
-        return res.status(200).json({
+        res.status(200).json({
           data,
         });
+        return;
       }
     } catch (error) {
       res.status(500).json({
@@ -1003,7 +1057,7 @@ const AdminController = {
             severity: "fatal",
             code: "exception",
             details: {
-              text: `${error.message} network error`,
+              text: `${(error as Error).message} network error`,
             },
           },
         ],
