@@ -1,7 +1,7 @@
 import express from 'express';
 import { verifyToken } from '../middlewares/authMiddleware';
-const HospitalController = require('../controllers/HospitalControllers');
-const { verifyTokenAndRefresh } = require('../middlewares/authMiddleware');
+import HospitalController from '../controllers/HospitalControllers';
+import { verifyTokenAndRefresh } from '../middlewares/authMiddleware';
 const router = express.Router();
 
 // router.get('/getAllAppointments', verifyTokenAndRefresh,HospitalController.getAllAppointments);
@@ -46,4 +46,4 @@ router.all('/List',verifyToken,HospitalController.AppointmentGraphs)
 
 // router.get('/getMessages',verifyTokenAndRefresh,HospitalController.getMessages)
 
-module.exports = router;
+export default router;
