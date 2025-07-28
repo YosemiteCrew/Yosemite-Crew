@@ -34,6 +34,7 @@ export type IUser = Document & {
 }
 
 export interface SignupRequestBody {
+  data:{
   email: string;
   firstName: string;
   lastName: string;
@@ -52,5 +53,5 @@ export interface SignupRequestBody {
   iv?: string;
   token?:string;
   dateOfBirth: Date;
-
+  }
 }

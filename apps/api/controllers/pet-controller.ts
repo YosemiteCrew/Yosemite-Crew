@@ -1,10 +1,11 @@
 import { Request, Response } from 'express';
-import pet from '../models/Pets';
-import { handleMultipleFileUpload, deleteFromS3 } from "../middlewares/upload";
+import {  deleteFromS3 , handleMultipleFileUpload} from "../middlewares/upload";
 import { getCognitoUserId } from '../middlewares/authMiddleware';
-import type { pets} from "@yosemite-crew/types";
+import type { pets as petType} from "@yosemite-crew/types";
 import { Types } from 'mongoose'; // for ObjectId validation
 import { convertPetToFHIR, convertFHIRToPet } from "@yosemite-crew/fhir";
+import pets  from '../models/pet.model';
+import helpers from '../utils/helpers';
 
 
 const baseUrl = process.env.BASE_URL || '';
@@ -20,20 +21,10 @@ const petController = {
       const parsedFhirData: unknown = JSON.parse(fhirData as string);
       const addPetData = convertFHIRToPet(parsedFhirData) as pets;
 
-       let imageUrls: string[] = [];
+      // Validate required fields
+      const files = Array.isArray(req.files.files) ? req.files.files : [req.files.files]; 
+      const imageUrls = await helpers.uploadFiles(files);
 
-      if (req.files && req.files.files) {
-        const files = Array.isArray(req.files.files)
-          ? req.files.files
-          : [req.files.files]; // wrap single file into array
-
-        const imageFiles = files.filter(file => file.mimetype && file.mimetype.startsWith("image/"));
-
-        if (imageFiles.length > 0) {
-          const uploadedImages = await handleMultipleFileUpload(imageFiles, 'Images');
-          imageUrls = uploadedImages.map((img: { url: string }) => img.url);
-        }
-      }
       const petData = { ...addPetData, cognitoUserId, petImage: imageUrls };
 
       if (petData.petdateofBirth) {
@@ -44,8 +35,8 @@ const petController = {
       } else {
         petData.petAge = undefined;
       }
-
-      const newPet = await pet.create(petData);
+console.log(petData, 'petData');
+      const newPet = await pets.create(petData);
 
       if (newPet) {
         const fhirData = convertPetToFHIR(newPet, baseUrl);
@@ -54,10 +45,13 @@ const petController = {
           message: 'Pet Added successfully',
           data: fhirData,
         });
+        return
       }
 
       res.status(400).json({ status: 0, message: 'Unable to add pet' });
+      return
     } catch (error) {
+      console.log(error);
       const message = error instanceof Error ? error.message : "Unknown error occurred";
        res.status(500).json({
         resourceType: "OperationOutcome",
@@ -79,9 +73,9 @@ const petController = {
       const cognitoUserId = getCognitoUserId(req);
       const limit = parseInt(req.query.limit as string) || 10;
       const offset = parseInt(req.query.offset as string) || 0;
-      const pets : pets[]= await pet.find({ cognitoUserId }).skip(offset).limit(limit);
+      const petsRecord :petType[]= await pets.find({ cognitoUserId }).skip(offset).limit(limit);
 
-      if (!pets.length) {
+      if (!petsRecord.length) {
          res.status(200).json({
           resourceType: 'Bundle',
           type: 'searchset',
@@ -92,7 +86,7 @@ const petController = {
       }
 
       const fhirPets = await Promise.all(
-        pets.map((pet) => ({
+        petsRecord.map((pet) => ({
           resource: convertPetToFHIR(pet, baseUrl)
         }))
       );
@@ -135,6 +129,7 @@ const petController = {
             message: "Invalid Pet ID format",
           }]
         });
+        return
       }
 
       // Parse and validate FHIR input
@@ -152,8 +147,8 @@ const petController = {
         });
       }
 
-      const updatedPetData: pets = convertFHIRToPet(parsedData) as pets;
-
+      const updatedPetData: petType = convertFHIRToPet(parsedData) as petType;
+let imageUrls;
       // Handle file uploads (optional)
       if (req.files && req.files.files) {
         const files = Array.isArray(req.files.files)
@@ -163,14 +158,17 @@ const petController = {
         const imageFiles = files.filter(file => file.mimetype && file.mimetype.startsWith("image/"));
 
         if (imageFiles.length > 0) {
-          const imageUrls = await handleMultipleFileUpload(imageFiles, 'Images');
+           imageUrls = await handleMultipleFileUpload(imageFiles, 'Images');
           // Assign only the array of URLs if petImage expects string[]
-          updatedPetData.petImage = imageUrls.map((img: { url: string }) => img.url) as unknown as typeof updatedPetData.petImage;
+       
         }
+        // const imageUrls = await helpers.uploadFiles(req.files);
+console.log(imageUrls,'imageUrls');
+        updatedPetData.petImage = imageUrls.map((img: { url: string }) => img) as unknown as typeof updatedPetData.petImage;
       }
 
       // Securely update the pet record
-      const editPetData = await pet.findByIdAndUpdate(id, updatedPetData, { new: true });
+      const editPetData = await pets.findByIdAndUpdate(id, updatedPetData, { new: true });
       if (!editPetData) {
          res.status(404).json({
           resourceType: "OperationOutcome",
@@ -181,19 +179,7 @@ const petController = {
             message: `No pet (Patient) found}`,
           }]
         });
-      }
-
-      if (!editPetData) {
-        res.status(404).json({
-          resourceType: "OperationOutcome",
-          issue: [{
-            status: 0,
-            severity: "error",
-            code: "not-found",
-            message: `No pet (Patient) found}`,
-          }]
-        });
-        return;
+        return
       }
 
       const fhirFormattedResponse = convertPetToFHIR(editPetData, baseUrl);
