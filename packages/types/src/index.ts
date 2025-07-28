@@ -33,9 +33,9 @@ export type { feedback ,feedbackData} from "./models/feedback";
 export type { AddDoctorDoc } from "./AddDoctor/add.doctor.types";
 export type { IAppointmentType, IBreed, IPurposeOfVisit } from "./models/appointment.options.types";
 export { AnimalCategory } from "./models/appointment.options.types";
-export type { AppointmentsTokenType, WebAppointmentType, NormalizedAppointment } from "./models/appointments.model";
+export type { AppointmentsTokenType, WebAppointmentType, NormalizedAppointment,IUnavailableSlot} from "./models/appointments.model";
 export type { AppointmentStatus, AppointmentStatusFHIRBundle, AppointmentStatusFHIRBundleEntry } from "./AppointmentStatus/appointmentStatusTypes";
-export type { InventoryType, InputData, AggregationResult, InventoryOverviewType, InventoryOverviewFHIRBundle, InventoryOverviewFHIRObservation, ProcedureItemType, ProcedurePackageType,SupplyItem,FhirBundle,CategoryJson } from "./Inventory/InventoryType";
+export type { InventoryType, InputData, AggregationResult, InventoryOverviewType, InventoryOverviewFHIRBundle, InventoryOverviewFHIRObservation, ProcedureItemType, ProcedurePackageType,SupplyItem,FhirBundle,CategoryJson,InventoryTypes } from "./Inventory/InventoryType";
 export type { ProcedureFHIRBundle, PackageItem, ProcedurePackage,FHIRMedicalPackage, FHIRPackageItem, NormalMedicalPackage, NormalPackageItem  } from "./Procedure/procedureType";
 
 export type {FhirCarePlan} from "./ExercisePlan/exercisePlanTypes"
@@ -43,7 +43,7 @@ export type { IUser, SignupRequestBody } from "./models/IUser";
 export type { FHIRCodingDiabetes,FHIRAttachmentDiabetes,DiabetesRecord,FHIRCodeDiabetes,FHIRComponentDiabetes,FHIRObservationDiabetes,FHIRValueQuantityDiabetes,ParsedDiabetesObservation } from "./diabetes/diabetes-types";
 export type { FHIRDocumentReference,FHIRImmunizationNote,FHIRImmunizationExtension,FHIRImmunization,FHIRBundle,BasicImmunizationResource,TransformedVaccination } from "./immunization/immunization-types";
 export type { VaccinationDetailsType } from "./models/immunization-records";
-export type { TimeSlot,DoctorSlotDocument,AppointmentDocument,GetTimeSlotsInput,FHIRSlot,FHIRSlotBundle,SlotQuery,MonthlySlotQuery,ValidationIssue,SlotRequest } from "./slot/slot-types";
+export type { TimeSlot,DoctorSlotDocument,AppointmentDocument,GetTimeSlotsInput,FHIRSlot,FHIRSlotBundle,SlotQuery,MonthlySlotQuery,FhirSlot,Slot,SlotRequest,ValidationIssue } from "./slot/slot-types";
 export type { ContactUsBody,TypedRequestBody } from "./contact/contact-types";
 export type { PetCoOwner } from "./models/pet-co-owner";
 export type { SharedPetDuties } from "./models/pet-shared-duties";
@@ -53,7 +53,7 @@ export type { IVetClinic } from "./models/vet-clinic";
 export type { PetGroomer } from "./models/pet-groomer";
 export type { PetBoarding } from "./models/pet-boarding";
 export type {ConvertToFhirVetProfileParams,OperatingHourType,VetNameType} from './complete-vet-profile/complete-vet-profile'
-export type {TeamInviteMember,InvitePayload,InviteCard,InviteItem,FhirTeamOverview,TeamOverview,DoctorType,WebUserType,AvailabilityDay,AvailabilityTime,DocumentItem,TeamMember} from "./InviteTeamsMembers/invite-teams-members"
+export type {TeamInviteMember,InvitePayload,InviteCard,InviteItem,FhirTeamOverview,TeamOverview,DoctorType,WebUserType,AvailabilityDay,AvailabilityTime,DocumentItem,TeamMember,DepartmentsForInvite} from "./InviteTeamsMembers/invite-teams-members"
 export type { IBookAppointmentRequestBody , IParsedAppointmentDetails, IAppointmentData , IFHIRAppointmentData ,AppointmentInput, FHIRAppointmentBundleParams,SimplifiedAppointment,FHIRAppointment} from "./appointment/appointment-types";
 export type { Department , Organization } from "./business-formatter-types/business-formatter-types";
 export type {FHIRAppointmentAssessmentGraphBundle,QueryParams,AggregatedAppointmentGraph,DataItem,FHIRBundleGraph,FHIRBundleGraphForSpecialitywiseAppointments,FHIRtoJSONSpeacilityStats} from "./hospital-type/hospitalTypes";

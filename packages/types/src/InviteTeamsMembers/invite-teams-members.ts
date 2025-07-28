@@ -32,6 +32,7 @@ export type InviteItem = {
   invitedAtFormatted?: string;
   name?: string;
   bussinessId?: string;
+  departmentId?: string; // Optional, can be used for filtering
 };
 
 export type InviteCard = {
@@ -136,4 +137,11 @@ export type TeamMember = {
   stateProvince: string;
   area: string;
   status: string;
+};
+
+
+
+export type DepartmentsForInvite = {
+  _id: string;
+  departmentName: string;
 };

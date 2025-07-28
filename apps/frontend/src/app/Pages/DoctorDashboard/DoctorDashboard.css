@@ -176,7 +176,7 @@
   line-height: 120%;
   font-family: var(--grotesk-font);
 }
-.AvailabityDivDoctor .AvltyFor .avldate input.AvlDatepicker{
+/* .AvailabityDivDoctor .AvltyFor .avldate input.AvlDatepicker{
   min-width: 242px;
   max-width: 242px;
   min-height: 37px;
@@ -193,7 +193,7 @@
 }
 .AvailabityDivDoctor .AvltyFor .avldate input.AvlDatepicker:focus{
   border-color: var(--lightgrey);
-}
+} */
 .AvailabityDivDoctor .AvltyFor .Avlswitch{
   display: flex;
   flex-direction: column;
@@ -297,7 +297,10 @@
   flex-direction: column;
   gap: 16px;
 }
-.AvailDateSlotDiv .left-calendar {
+
+
+
+/* .AvailDateSlotDiv .left-calendar {
   min-width: 330px;
 }
 .AvailDateSlotDiv .left-calendar .react-calendar{
@@ -356,7 +359,7 @@
 }
 .AvailDateSlotDiv .left-calendar .react-calendar__tile--active:enabled:hover, .react-calendar__tile--active:enabled:focus , .AvailDateSlotDiv .left-calendar .react-calendar__tile--active {
   background: var(--light-blue) !important;
-}
+} */
 
 
 
@@ -401,42 +404,11 @@
   border: 1px solid var(--greyborder);
 }
 .AvailDateSlotDiv .right-slots .slot-grid button.selected {
-  background: var(--blue-text);
+  /* background: var(--blue-text); */
+  background: rgb(228, 14, 14);
   color: var(--white-text);
   border: 1px solid var(--blue-text);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -467,4 +439,20 @@
 
 
 /* DoctorAvailabilty Ended  */
+.slot-gridd {
+  display: flex;
+ align-items: center;
+ justify-content: space-between;
+  gap: 8px;
+  padding: 10px;
 
+border: 2px solid #EAEAEA
+
+}
+
+.kk{
+  display: flex;
+    gap: 5px;
+    align-items: flex-start;
+    justify-content: center;
+}
