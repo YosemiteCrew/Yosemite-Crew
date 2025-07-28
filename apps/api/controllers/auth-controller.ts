@@ -76,18 +76,18 @@ const authController = {
         mobilePhone,
         countryCode,
         address,
-        state, 
+        state,
         area,
         city,
         zipcode,
         // professionType,
         // pimsCode,
         dateOfBirth
-      } = body;
+      } = body.data;
 
       const password = generatePassword(12);
 
-     
+
 
       // const isProfessional =
       //   Array.isArray(professionType) && professionType.length > 0 ? 'yes' : 'no';
@@ -100,9 +100,9 @@ const authController = {
         res.status(200).json({ status: 0, message: 'Cognito configuration missing' });
         return;
       }
-       if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
-           res.status(200).json({ status: 0, message: 'Invalid email address' });
-        }
+      if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
+        res.status(200).json({ status: 0, message: 'Invalid email address' });
+      }
       const secretHash = getSecretHash(email);
 
       const params: AWS.CognitoIdentityServiceProvider.SignUpRequest = {
@@ -141,11 +141,12 @@ const authController = {
           imageUrls = uploaded.map(file => file.url);
         }
       }
-     if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
-           res.status(200).json({ status: 0, message: 'Invalid email address' });
-        }
-        const safeEmail = email.trim().toLowerCase();
-         const existingUser = await userModel.findOne({ email: safeEmail });
+      if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
+        res.status(200).json({ status: 0, message: 'Invalid email address' });
+        return
+      }
+      const safeEmail = email.trim().toLowerCase();
+      const existingUser = await userModel.findOne({ email: safeEmail });
       if (existingUser) {
         const userData = existingUser.toObject() as IUser;
         delete userData.password;
@@ -173,45 +174,46 @@ const authController = {
         dateOfBirth: typeof dateOfBirth === 'string' ? dateOfBirth : '',
       });
 
-      res.status(201).json({
+      res.status(200).json({
         status: 1,
         message: 'User created successfully, please verify your email',
       });
+      return
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'An unknown error occurred';
       res.status(200).json({ status: 0, message });
     }
   },
 
-  confirmSignup: async (req: Request, res: Response) :Promise<void>=> {
-    const { email, confirmationCode } = req.body as SignupRequestBody;
+  confirmSignup: async (req: Request, res: Response): Promise<void> => {
+    const { data:{ email, confirmationCode } } = req.body as SignupRequestBody;
 
     try {
-      
+
       if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
-           res.status(200).json({ status: 0, message: 'Invalid email address' });
-        }
+        res.status(200).json({ status: 0, message: 'Invalid email address' });
+      }
 
-        const safeEmail = email.trim().toLowerCase();
+      const safeEmail = email.trim().toLowerCase();
 
-        const result = await userModel.findOne({ email: safeEmail });
+      const result = await userModel.findOne({ email: safeEmail });
 
-        if (!result) {
-            res.status(200).json({ status: 0, message: 'User not found' });
-            return
-        }
+      if (!result) {
+        res.status(200).json({ status: 0, message: 'User not found' });
+        return
+      }
 
       const passwordData = result.password?.[0];
       if (!passwordData?.encryptedData || !passwordData.iv) {
-         res.status(200).json({ status: 0, message: 'Invalid password data' });
-         return
+        res.status(200).json({ status: 0, message: 'Invalid password data' });
+        return
       }
 
       const decryptedPassword = decryptPassword(passwordData.encryptedData, passwordData.iv);
 
       if (!process.env.COGNITO_CLIENT_ID) {
         res.status(200).json({ status: 0, message: 'Cognito configuration missing' });
-        return 
+        return
       }
       const secretHash = getSecretHash(email);
 
@@ -262,29 +264,31 @@ const authController = {
         message: 'User confirmed successfully',
         userdata: userData,
       });
-      return 
+      return
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       res.status(200).json({ status: 0, message: 'Error during confirmation', error: message });
-      return 
+      return
     }
   },
 
-  sendOtp: async (req: Request, res: Response):Promise<void> => {
+  sendOtp: async (req: Request, res: Response): Promise<void> => {
     const { email } = req.body as SignupRequestBody;
 
     try {
-       if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
-           res.status(200).json({ status: 0, message: 'Invalid email address' });
-        }
+      if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
+        res.status(200).json({ status: 0, message: 'Invalid email address' });
+        return
+      }
 
-        const safeEmail = email.trim().toLowerCase();
+      const safeEmail = email.trim().toLowerCase();
 
-        const result = await userModel.findOne({ email: safeEmail });
+      const result = await userModel.findOne({ email: safeEmail });
 
-        if (!result) {
-           res.status(404).json({ status: 0, message: 'User not found' });
-        }
+      if (!result) {
+        res.status(200).json({ status: 0, message: 'User not found' });
+        return
+      }
 
       const otp = Math.floor(100000 + Math.random() * 900000);
       const otpExpiry = new Date(Date.now() + 5 * 60 * 1000);
@@ -292,8 +296,8 @@ const authController = {
       await userModel.updateOne({ email: safeEmail }, { $set: { otp, otpExpiry } });
 
       if (!process.env.MAIL_DRIVER) {
-         res.status(500).json({ status: 0, message: 'MAIL_DRIVER not configured' });
-         return
+        res.status(500).json({ status: 0, message: 'MAIL_DRIVER not configured' });
+        return
       }
 
       await SES.sendEmail({
@@ -318,17 +322,18 @@ const authController = {
     const { email } = req.body as SignupRequestBody;
 
     try {
-     if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
-           res.status(200).json({ status: 0, message: 'Invalid email address' });
-        }
+      if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
+        res.status(200).json({ status: 0, message: 'Invalid email address' });
+      }
 
-        const safeEmail = email.trim().toLowerCase();
+      const safeEmail = email.trim().toLowerCase();
 
-        const result = await userModel.findOne({ email: safeEmail });
+      const result = await userModel.findOne({ email: safeEmail });
 
-        if (!result) {
-           res.status(200).json({ status: 0, message: 'User not found' });
-        }
+      if (!result) {
+        res.status(200).json({ status: 0, message: 'User not found' });
+        return
+      }
       if (!process.env.COGNITO_USER_POOL_ID) {
         return res.status(500).json({ status: 0, message: 'Cognito User Pool ID missing' });
       }
@@ -345,21 +350,22 @@ const authController = {
     }
   },
 
-  login: async (req: Request, res: Response) :Promise<void> => {
+  login: async (req: Request, res: Response): Promise<void> => {
     const { email, otp } = req.body as SignupRequestBody;
 
     try {
-     if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
-           res.status(200).json({ status: 0, message: 'Invalid email address' });
-        }
-        const safeEmail = email.trim().toLowerCase();
+      if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
+        res.status(200).json({ status: 0, message: 'Invalid email address' });
+        return
+      }
+      const safeEmail = email.trim().toLowerCase();
 
-        const result = await userModel.findOne({ email: safeEmail });
+      const result = await userModel.findOne({ email: safeEmail });
 
-        if (!result) {
-           res.status(200).json({ status: 0, message: 'User not found' });
-           return
-        }
+      if (!result) {
+        res.status(200).json({ status: 0, message: 'User not found' });
+        return
+      }
 
       // Check OTP and expiry
       if (
@@ -367,7 +373,7 @@ const authController = {
         result.otp !== parseInt(otp) ||
         (result.otpExpiry && Date.now() > new Date(result.otpExpiry).getTime())
       ) {
-         res.status(200).json({
+        res.status(200).json({
           status: 0,
           message:
             result.otpExpiry && Date.now() > new Date(result.otpExpiry).getTime()
@@ -379,15 +385,15 @@ const authController = {
 
       const passwordData = result.password?.[0];
       if (!passwordData?.encryptedData || !passwordData.iv) {
-         res.status(200).json({ status: 0, message: 'Invalid password data' });
-         return
+        res.status(200).json({ status: 0, message: 'Invalid password data' });
+        return
       }
 
       const decryptedPassword = decryptPassword(passwordData.encryptedData, passwordData.iv);
 
       if (!process.env.COGNITO_CLIENT_ID) {
-         res.status(200).json({ status: 0, message: 'Cognito configuration missing' });
-         return
+        res.status(200).json({ status: 0, message: 'Cognito configuration missing' });
+        return
       }
       const secretHash = getSecretHash(email);
 
@@ -432,17 +438,18 @@ const authController = {
     }
   },
 
-  resendConfirmationCode: async (req: Request, res: Response) :Promise<void>=> {
+  resendConfirmationCode: async (req: Request, res: Response): Promise<void> => {
     const { email } = req.body as SignupRequestBody;
 
     try {
-     if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
-           res.status(200).json({ status: 0, message: 'Invalid email address' });
-        }
+      if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
+        res.status(200).json({ status: 0, message: 'Invalid email address' });
+        return
+      }
 
       if (!process.env.COGNITO_CLIENT_ID) {
-         res.status(500).json({ status: 0, message: 'Cognito configuration missing' });
-         return
+        res.status(500).json({ status: 0, message: 'Cognito configuration missing' });
+        return
       }
       const secretHash = getSecretHash(email);
 
@@ -459,7 +466,32 @@ const authController = {
       res.status(200).json({ status: 0, message: 'Error resending confirmation code', error: message });
       return
     }
-  }
+  },
+  logout: (req: Request, res: Response): void => {
+
+    try {
+      const isProduction = process.env.NODE_ENV === "production";
+
+      // Clear access and refresh tokens
+      res.clearCookie("accessToken", {
+        httpOnly: true,               // Recommended: prevent JS access
+        secure: isProduction,         // Only send over HTTPS in production
+        sameSite: "strict",
+      });
+
+      res.clearCookie("refreshToken", {
+        httpOnly: true,               // Recommended: prevent JS access
+        secure: isProduction,
+        sameSite: "strict",
+      });
+
+      res.status(200).json({ message: "Logout successful" });
+      return
+    } catch (error) {
+      console.error("Error during sign-out:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  },
 };
 
 export default authController;
