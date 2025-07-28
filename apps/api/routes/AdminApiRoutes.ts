@@ -1,7 +1,7 @@
 import express from 'express';
 import { verifyToken } from '../middlewares/authMiddleware';
-const { AdminController } = require("../controllers/ApiAdminControllers");
-const { verifyTokenAndRefresh } = require('../middlewares/authMiddleware');
+import  AdminController  from "../controllers/ApiAdminControllers";
+import {verifyTokenAndRefresh} from '../middlewares/authMiddleware';
 
 const router = express.Router();
 
@@ -17,5 +17,6 @@ router.post("/visits",AdminController.PurposeOfVisit)
 router.get("/visits",AdminController.PurposeOfVisitList)
 router.post("/AppointmentType",AdminController.AppointmentType)
 router.get("/AppointmentType",AdminController.Appointments)
-module.exports = router;
+
+export default router;
 
