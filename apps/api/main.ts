@@ -24,6 +24,7 @@ import apiRoutes from './routes/apiRoutes';
 import BlogApiRoutes from './routes/BlogApiRoutes';
 import NewsletterRoutes from './routes/NewsletterRoutes';
 import addDiscountCodeRoutes from './routes/addDiscountCodeRoutes'
+import doctorSlots from './routes/doctor.slots'
 import cors from 'cors';
 
 import type { S3File } from '@yosemite-crew/types'
@@ -111,6 +112,7 @@ app.use('/fhir/v1', hospitalRoutes);
 app.use('/fhir/admin', adminInventory);
 app.use('/fhir/v1', AdminApiRoutes);
 app.use('/fhir/v1', apiRoutes);
+app.use('/fhir/v1', doctorSlots);
 // app.use('/newsletter', NewsletterRoutes);
 app.use('/fhir/v1', BlogApiRoutes);
 app.use('/fhir/v1',inviteRoutes)

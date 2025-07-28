@@ -1,5 +1,5 @@
 'use client';
-import React, { useState , useEffect } from 'react';
+import React, { useState , useEffect, useCallback } from 'react';
 import "./InventoryDashboard.css"
 import { Col, Container, Row } from 'react-bootstrap'
 import { HeadText } from '../CompleteProfile/CompleteProfile'
@@ -12,11 +12,16 @@ import { DepartmentData } from '@/app/types';
 import CommonTabs from '@/app/Components/CommonTabs/CommonTabs';
 import ManageInventoryTable from '@/app/Components/DataTable/ManageInventoryTable';
 import ProcedurePackagesTable from '@/app/Components/DataTable/ProcedurePackagesTable';
+import { getData } from '@/app/axios-services/services';
+import { convertFhirBundleToInventory, convertFhirToJson } from '@yosemite-crew/fhir';
+import { useAuthStore } from '@/app/stores/authStore';
 
 function InventoryDashboard() {
-
+    const { userId } = useAuthStore();
     const [selectedDoctor, setSelectedDoctor] = useState("Last 30 Days");
     const [selectedRange, setSelectedRange] = useState("Last 3 Months");// graphSelected 
+    const [inventoryCategory, setInventoryCategory] = useState<any[]>([]);
+    const [inventoryData, setInventoryData] = useState<any[]>([]);
 
      // departmentStats Started 
         
@@ -44,27 +49,92 @@ function InventoryDashboard() {
     ];
 
 
-    const manageinvtTabs = [
-        {
-        eventKey: 'Appointments',
-        title: 'Appointments',
-        content: (
-            <>
-                <ManageInventoryTable/>
-            </>
-        ),
-        },
-        {
-        eventKey: 'Assessments',
-        title: 'Assessments',
-        content: (
-            <>
-                <ManageInventoryTable/>
-            </>
-        ),
-        }
-    ];
 
+  const getInventoryCategory = useCallback(async () => {
+    try {
+      const response: any = await getData(
+        `fhir/admin/GetAddInventoryCategory?bussinessId=${userId}&type=category`
+      );
+      if (response.status === 200) {
+        const res: any = convertFhirToJson(response?.data);
+        setInventoryCategory(res);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }, [userId]);
+
+ useEffect(() => {
+   if (userId) {
+     getInventoryCategory();
+   }
+  }, [getInventoryCategory, userId]);
+
+
+const fetchInventoryDetails = async (searchCategory: any) => {
+    console.log(searchCategory, "searchCategory");
+    try {
+      if (!userId) {
+        throw new Error("userId is required");
+      }
+
+      const queryParams = new URLSearchParams({
+        userId,
+        searchCategory,
+      });
+
+      const response = await getData(
+        `/api/inventory/InventoryItem?${queryParams.toString()}`
+      );
+
+      if (!response) {
+        throw new Error("Network response was not ok");
+      }
+
+      const data: any = await response.data;
+      // console.log(data, "FHIR Inventory Data");
+
+      const convertToJson: any = convertFhirBundleToInventory(data);
+      console.log(convertToJson, "Converted Inventory JSON");
+
+      setInventoryData(convertToJson.data);
+    } catch (error) {
+      console.error("Error fetching inventory data:", error);
+    }
+  };
+
+
+
+    // const manageinvtTabs = [
+    //     {
+    //     eventKey: 'Appointments',
+    //     title: 'Appointments',
+    //     content: (
+    //         <>
+    //             <ManageInventoryTable/>
+    //         </>
+    //     ),
+    //     },
+    //     {
+    //     eventKey: 'Assessments',
+    //     title: 'Assessments',
+    //     content: (
+    //         <>
+    //             <ManageInventoryTable/>
+    //         </>
+    //     ),
+    //     }
+    // ];
+const inventoryTabs = inventoryCategory.map((cat: any) => ({
+    eventKey: cat._id, // use ObjectId as eventKey
+    title: cat.category,
+    content: (
+      <ManageInventoryTable
+        categoryId={cat._id}
+        data={inventoryData} // Filtered by category, ideally
+      />
+    ),
+  }));
   return (
     <>
 
@@ -104,7 +174,12 @@ function InventoryDashboard() {
                 </div>
                 <div className="MangeInventryData">
                     <HeadText blktext="Manage" Spntext="Inventory" />
-                    <CommonTabs tabs={manageinvtTabs} />
+                   <CommonTabs
+                headname="Inventory"
+                  tabs={inventoryTabs}
+                  onTabClick={fetchInventoryDetails}
+                  showStatusSelect
+                />
                     <div className="ProcedurePackage">
                         <h4>Procedure Packages</h4>
                         <ProcedurePackagesTable/>

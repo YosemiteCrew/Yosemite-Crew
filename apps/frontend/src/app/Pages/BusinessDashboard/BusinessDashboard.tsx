@@ -16,12 +16,12 @@ import ScheduleTable from "@/app/Components/DataTable/ScheduleTable";
 import ChartCard from "@/app/Components/BarGraph/ChartCard";
 import PracticeTeamTable from "@/app/Components/DataTable/PracticeTeamTable";
 import InventoryTable from "@/app/Components/DataTable/InventoryTable";
-import { getData, postData } from "@/app/axios-services/services";
-import { useStore } from "zustand";
+import { getData } from "@/app/axios-services/services";
 import { useAuthStore } from "@/app/stores/authStore";
 import {
+  
   convertFhirAppointmentBundle,
-  convertFhirInventoryBundleToJson,
+  convertFhirBundleToInventory,
   convertFHIRToGraphData,
   convertFhirToJson,
   FHIRtoJSONSpeacilityStats,
@@ -52,7 +52,7 @@ function BusinessDashboard() {
   //   fetchDashBoardDetails("")
   // }, [practiceFilter]);
   useEffect(() => {
-    fetchInventoryDetails("Pharmaceuticals");
+    fetchInventoryDetails("");
   }, [inventoryFilter]);
   useEffect(() => {
     getInventoryCategory();
@@ -197,10 +197,10 @@ function BusinessDashboard() {
       const data: any = await response.data;
       // console.log(data, "FHIR Inventory Data");
 
-      const convertToJson: any = await convertFhirInventoryBundleToJson(data);
+      const convertToJson: any = convertFhirBundleToInventory(data);
       console.log(convertToJson, "Converted Inventory JSON");
 
-      setInventoryData(convertToJson);
+      setInventoryData(convertToJson.data);
     } catch (error) {
       console.error("Error fetching inventory data:", error);
     }

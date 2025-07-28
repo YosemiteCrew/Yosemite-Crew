@@ -16,7 +16,7 @@ type InventoryItem = {
   price: string;
   manufacturerPrice: string;
   stockReorderLevel: number;
-  stockSub: number;
+  quantity: number;
   expiryDate: string;
 };
 
@@ -139,11 +139,11 @@ const columns = [
     key: "sku",
     render: (item: InventoryItem) => <p>{item.sku}</p>,
   },
-  {
-    label: "Strength",
-    key: "strength",
-    render: (item: InventoryItem) => <p>{item.strength}</p>,
-  },
+  // {
+  //   label: "Strength",
+  //   key: "strength",
+  //   render: (item: InventoryItem) => <p>{item.strength}</p>,
+  // },
   {
     label: "Category",
     key: "category",
@@ -170,7 +170,7 @@ const columns = [
     render: (item: InventoryItem) => (
       <div>
         <p>{item.stockReorderLevel}</p>
-        <span><BsFillBoxSeamFill /> {item.stockSub}</span>
+        <span><BsFillBoxSeamFill /> {item.quantity}</span>
       </div>
     ),
   },
