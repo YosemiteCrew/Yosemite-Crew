@@ -1,4 +1,4 @@
-import { FhirTeamOverview, InviteItem, TeamMember, TeamOverview } from "@yosemite-crew/types";
+import { DepartmentsForInvite, FhirTeamOverview, InviteItem, TeamMember, TeamOverview } from "@yosemite-crew/types";
 
 export function toFHIRInviteItem(invite: InviteItem): any {
   return {
@@ -35,6 +35,10 @@ export function toFHIRInviteItem(invite: InviteItem): any {
         url: "http://example.com/fhir/StructureDefinition/invitedAtFormatted",
         valueString: invite.invitedAtFormatted || "",
       },
+      {
+        url: "http://example.com/fhir/StructureDefinition/departmentId",
+        valueString: invite.departmentId || "",
+      },
     ],
   };
 }
@@ -58,6 +62,8 @@ export function fromFHIRInviteItem(fhir: any): InviteItem {
       fhir.extension?.find((e: any) => e.url.includes("invitedAtFormatted"))?.valueString || "",
     bussinessId:
       fhir.extension?.find((e: any) => e.url.includes("business-id"))?.valueString || "",
+    departmentId:
+      fhir.extension?.find((e: any) => e.url.includes("departmentId"))?.valueString || "",
   };
 }
 export function toFHIRInviteList(invites: InviteItem[]): any[] {
@@ -326,3 +332,39 @@ function parseTimeToObj(time?: string) {
     period,
   };
 }
+
+
+
+
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Department for Invite>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+
+
+
+
+export function convertToFhirDepartment(departments: DepartmentsForInvite[]) {
+  return {
+    resourceType: "Bundle",
+    type: "collection",
+    entry: departments.map((dept) => ({
+      resource: {
+        resourceType: "HealthcareService",
+        id: dept._id,
+        name: dept.departmentName.trim(),
+      },
+    })),
+  };
+}
+
+export function convertFromFhirDepartment(fhirBundle: any): DepartmentsForInvite[] {
+  if (!fhirBundle || !Array.isArray(fhirBundle.entry)) return [];
+
+  return fhirBundle.entry.map((entry: any) => ({
+    _id: entry.resource?.id || "",
+    departmentName: entry.resource?.name || "",
+  }));
+}
+
+
+
+

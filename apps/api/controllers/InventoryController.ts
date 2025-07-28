@@ -1,4 +1,4 @@
-import mongoose, {  Types } from "mongoose";
+import mongoose from "mongoose";
 import { Inventory, ProcedurePackage } from "../models/Inventory";
 import {
   // ProductCategoryFHIRConverter,
@@ -8,7 +8,8 @@ import {
 import { Request, Response } from "express";
 
 import { FHIRMedicalPackage, InventoryType, NormalMedicalPackage, ProcedurePackageType, } from "@yosemite-crew/types";
-import { convertFHIRPackageToNormal, convertProcedurePackagesToFHIRBundle, convertToNormalToAddInventoryData,convertFhirToNormalToUpdateProcedurePackage, InventoryOverviewConvertToFHIR, toInventoryBundleFHIR, toInventoryFHIR, } from "@yosemite-crew/fhir";
+import { convertFHIRPackageToNormal, convertProcedurePackagesToFHIRBundle, convertFhirToNormalToUpdateProcedurePackage, InventoryOverviewConvertToFHIR } from "@yosemite-crew/fhir";
+import { convertFhirBundleToInventory, convertToFhirInventory, convertToNormalFromFhirInventoryData } from "@yosemite-crew/fhir/dist/InventoryFhir/inventoryFhir";
 
 
 
@@ -37,44 +38,46 @@ interface FHIRResponse {
 
 
 const InventoryControllers = {
-  AddInventory: async (req: Request, res: Response) => {
+  AddInventory: async (req: Request, res: Response): Promise<void> => {
     try {
+      const respon: InventoryType = convertToNormalFromFhirInventoryData(req.body);
+      const { userId } = req.query
+      // console.log("expiryDate", req);
 
-
-
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      const respon: InventoryType = convertToNormalToAddInventoryData(req.body)
-      console.log("expiarydate", respon);
-      const getbarcode: unknown = await Inventory.findOne({ barcode: respon.barcode });
-      if (getbarcode) {
-        return res.status(400).json({ message: `${respon.barcode} barcode already exist` });
+      const getSku = await Inventory.findOne({ sku: respon.sku });
+      if (getSku) {
+        res.status(400).json({ message: `${respon.sku} sku already exists` });
+        return;
       }
 
-      const getbatchNumber = await Inventory.findOne({ batchNumber: respon.batchNumber });
-      if (getbatchNumber) {
-        return res.status(400).json({ message: `${respon.batchNumber} batchNumber already exist` });
-      }
+      const formattedExpiryDate = respon.expiryDate
+        ? new Date(respon.expiryDate).toISOString().split("T")[0]
+        : null;
 
-      const getsku = await Inventory.findOne({ sku: respon.sku });
-      if (getsku) {
-        return res.status(400).json({ message: `${respon.sku} sku already exist` });
-      }
-
-      const formattedExpiryDate = respon.expiryDate ? new Date(respon.expiryDate).toISOString().split("T")[0] : null;
-      const inventory = new Inventory({ ...respon, expiryDate: formattedExpiryDate });
+      const inventory = new Inventory({ bussinessId: userId, ...respon, expiryDate: formattedExpiryDate });
       await inventory.save();
+
       res.status(200).json({ message: "Inventory Added Successfully" });
     } catch (error) {
-      console.log(error);
-      res.status(500).json({ message: "Server Error", error: error });
+      console.error("AddInventory Error:", error);
+      res.status(500).json({ message: "Server Error", error });
     }
   },
 
-  getInventory: async (req: { query: QueryParams }, res: Response): Promise<void> => {
+  getInventory: async (
+    req: { query: QueryParams },
+    res: Response
+  ): Promise<void> => {
     try {
-      const { searchItem, skip = "0", limit = "5", expiryDate, searchCategory, userId } = req.query;
-
-// console.log(searchCategory,"searchCategory")
+      const {
+        searchItem,
+        skip = "0",
+        limit = "5",
+        expiryDate,
+        searchCategory = "",
+        userId,
+      } = req.query;
+      console.log("getInventory called with params:", req.query);
       if (!userId) {
         res.status(400).json({
           resourceType: "OperationOutcome",
@@ -90,8 +93,7 @@ const InventoryControllers = {
       }
 
       const sortBy = "expiryDate";
-      const order = "asc";
-      const sortOrder = order === "desc" ? -1 : 1;
+      const sortOrder = 1;
 
       const matchStage: Record<string, unknown> = {
         bussinessId: userId,
@@ -101,13 +103,11 @@ const InventoryControllers = {
 
       if (searchItem) {
         const searchNumber = Number(searchItem);
-
         if (!isNaN(searchNumber)) {
           searchConditions.push(
             { stockReorderLevel: searchNumber },
             { quantity: searchNumber },
-            { sku: searchNumber },
-            { barcode: searchNumber }
+            { sku: searchNumber }
           );
         }
 
@@ -119,9 +119,12 @@ const InventoryControllers = {
         matchStage.$or = searchConditions;
       }
 
-      if (searchCategory && Types.ObjectId.isValid(searchCategory)) {
-        matchStage.category = new Types.ObjectId(searchCategory);
+      if (searchCategory) {
+        matchStage.itemCategory = searchCategory;
       }
+
+
+
       if (expiryDate) {
         matchStage.expiryDate = { $gte: expiryDate };
       }
@@ -133,30 +136,17 @@ const InventoryControllers = {
           $facet: {
             metadata: [{ $count: "totalItems" }],
             data: [
-              { $skip: parseInt(skip, 10) || 0 },
-              { $limit: parseInt(limit, 10) || 10 },
+              { $skip: parseInt(skip, 10) },
+              { $limit: parseInt(limit, 10) },
               {
                 $addFields: {
-                  categoryObjId: {$toObjectId:"$category"},
-                  itemCategoryObjId: { $toObjectId: "$itemCategory" },
-                  manufacturerObjId: { $toObjectId: "$manufacturer" },
+                  categoryObjId: { $toObjectId: "$itemCategory" },
                 },
               },
               {
                 $lookup: {
                   from: "inventorycategories",
                   localField: "categoryObjId",
-                  foreignField: "_id",
-                  as: "categoryy",
-                },
-              },
-              {
-                $unwind: { path: "$categoryy", preserveNullAndEmptyArrays: true },
-              },
-              {
-                $lookup: {
-                  from: "inventoryitemcategories",
-                  localField: "itemCategoryObjId",
                   foreignField: "_id",
                   as: "itemCategoryData",
                 },
@@ -168,34 +158,13 @@ const InventoryControllers = {
                 },
               },
               {
-                $lookup: {
-                  from: "inventorymanufacturers",
-                  localField: "manufacturerObjId",
-                  foreignField: "_id",
-                  as: "manufacturerData",
-                },
-              },
-              {
-                $unwind: {
-                  path: "$manufacturerData",
-                  preserveNullAndEmptyArrays: true,
-                },
-              },
-              {
                 $addFields: {
-                  category: "$categoryy.category",
-                  itemCategory: "$itemCategoryData.itemCategory",
-                  manufacturer: "$manufacturerData.manufacturer",
+                  itemCategory: "$itemCategoryData.category",
                 },
               },
               {
                 $project: {
-                  categoryObjId: 0,
-                  itemCategoryObjId: 0,
-                  manufacturerObjId: 0,
-                  categoryy: 0,
                   itemCategoryData: 0,
-                  manufacturerData: 0,
                 },
               },
             ],
@@ -210,7 +179,7 @@ const InventoryControllers = {
               $ceil: {
                 $divide: [
                   { $ifNull: [{ $arrayElemAt: ["$metadata.totalItems", 0] }, 0] },
-                  parseInt(limit, 10) || 10,
+                  parseInt(limit, 10),
                 ],
               },
             },
@@ -218,16 +187,11 @@ const InventoryControllers = {
         },
       ]);
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const fhirData = toInventoryBundleFHIR({
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-        totalItems: inventory[0]?.totalItems || 0,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-        totalPages: inventory[0]?.totalPages || 0,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-        inventory: inventory[0]?.data || [],
-        currentPage: Math.floor(parseInt(skip, 10) / parseInt(limit, 10)) + 1,
-      });
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      const fhirData = convertToFhirInventory(inventory[0]);
+      const inventoryData = convertFhirBundleToInventory(fhirData);
+
+      console.log("Converted Inventory JSON:", inventoryData);
 
       res.status(200).json(fhirData);
     } catch (error) {
@@ -301,152 +265,152 @@ const InventoryControllers = {
   },
 
 
-  getToViewItemsDetaild: async (req: { query: QueryParams }, res: Response) => {
-    try {
-      const { userId, itemId } = req.query;
+  // getToViewItemsDetaild: async (req: { query: QueryParams }, res: Response) => {
+  //   try {
+  //     const { userId, itemId } = req.query;
 
-      if (!userId) {
-        res.status(400).json({
-          resourceType: "OperationOutcome",
-          issue: [
-            {
-              severity: "error",
-              code: "invalid",
-              details: { text: "Missing required parameter: userId" },
-            },
-          ],
-        } as FHIRResponse);
-      } else if (!itemId) {
-        res.status(400).json({
-          resourceType: "OperationOutcome",
-          issue: [
-            {
-              severity: "error",
-              code: "invalid",
-              details: { text: "Missing required parameter: itemId" },
-            },
-          ],
-        } as FHIRResponse);
-      }
+  //     if (!userId) {
+  //       res.status(400).json({
+  //         resourceType: "OperationOutcome",
+  //         issue: [
+  //           {
+  //             severity: "error",
+  //             code: "invalid",
+  //             details: { text: "Missing required parameter: userId" },
+  //           },
+  //         ],
+  //       } as FHIRResponse);
+  //     } else if (!itemId) {
+  //       res.status(400).json({
+  //         resourceType: "OperationOutcome",
+  //         issue: [
+  //           {
+  //             severity: "error",
+  //             code: "invalid",
+  //             details: { text: "Missing required parameter: itemId" },
+  //           },
+  //         ],
+  //       } as FHIRResponse);
+  //     }
 
-      if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
-        return res.status(400).json({
-          resourceType: "OperationOutcome",
-          issue: [
-            {
-              severity: "error",
-              code: "invalid",
-              details: { text: "Invalid userId format" },
-            },
-          ],
-        } as FHIRResponse);
-      }
+  //     if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+  //       return res.status(400).json({
+  //         resourceType: "OperationOutcome",
+  //         issue: [
+  //           {
+  //             severity: "error",
+  //             code: "invalid",
+  //             details: { text: "Invalid userId format" },
+  //           },
+  //         ],
+  //       } as FHIRResponse);
+  //     }
 
-      if (!mongoose.Types.ObjectId.isValid(itemId as string)) {
-        return res.status(400).json({
-          resourceType: "OperationOutcome",
-          issue: [
-            {
-              severity: "error",
-              code: "invalid",
-              details: { text: "Invalid MongoDB itemId" },
-            },
-          ],
-        } as FHIRResponse);
-      }
+  //     if (!mongoose.Types.ObjectId.isValid(itemId as string)) {
+  //       return res.status(400).json({
+  //         resourceType: "OperationOutcome",
+  //         issue: [
+  //           {
+  //             severity: "error",
+  //             code: "invalid",
+  //             details: { text: "Invalid MongoDB itemId" },
+  //           },
+  //         ],
+  //       } as FHIRResponse);
+  //     }
 
-      const inventory = await Inventory.aggregate([
-        { $match: { _id: new Types.ObjectId(itemId), bussinessId: userId } },
-        {
-          $addFields: {
-            categoryObjId: { $toObjectId: "$category" },
-            itemCategoryObjId: { $toObjectId: "$itemCategory" },
-            manufacturerObjId: { $toObjectId: "$manufacturer" },
-          },
-        },
-        {
-          $lookup: {
-            from: "inventorycategories",
-            localField: "categoryObjId",
-            foreignField: "_id",
-            as: "categoryy",
-          },
-        },
-        { $unwind: { path: "$categoryy", preserveNullAndEmptyArrays: true } },
-        {
-          $lookup: {
-            from: "inventoryitemcategories",
-            localField: "itemCategoryObjId",
-            foreignField: "_id",
-            as: "itemCategoryData",
-          },
-        },
-        {
-          $unwind: { path: "$itemCategoryData", preserveNullAndEmptyArrays: true },
-        },
-        {
-          $lookup: {
-            from: "inventorymanufacturers",
-            localField: "manufacturerObjId",
-            foreignField: "_id",
-            as: "manufacturerData",
-          },
-        },
-        {
-          $unwind: { path: "$manufacturerData", preserveNullAndEmptyArrays: true },
-        },
-        {
-          $addFields: {
-            category: "$categoryy.category",
-            itemCategory: "$itemCategoryData.itemCategory",
-            manufacturer: "$manufacturerData.manufacturer",
-          },
-        },
-        {
-          $project: {
-            categoryObjId: 0,
-            itemCategoryObjId: 0,
-            manufacturerObjId: 0,
-            categoryy: 0,
-            itemCategoryData: 0,
-            manufacturerData: 0,
-          },
-        },
-      ]);
+  //     const inventory = await Inventory.aggregate([
+  //       { $match: { _id: new Types.ObjectId(itemId), bussinessId: userId } },
+  //       {
+  //         $addFields: {
+  //           categoryObjId: { $toObjectId: "$category" },
+  //           itemCategoryObjId: { $toObjectId: "$itemCategory" },
+  //           manufacturerObjId: { $toObjectId: "$manufacturer" },
+  //         },
+  //       },
+  //       {
+  //         $lookup: {
+  //           from: "inventorycategories",
+  //           localField: "categoryObjId",
+  //           foreignField: "_id",
+  //           as: "categoryy",
+  //         },
+  //       },
+  //       { $unwind: { path: "$categoryy", preserveNullAndEmptyArrays: true } },
+  //       {
+  //         $lookup: {
+  //           from: "inventoryitemcategories",
+  //           localField: "itemCategoryObjId",
+  //           foreignField: "_id",
+  //           as: "itemCategoryData",
+  //         },
+  //       },
+  //       {
+  //         $unwind: { path: "$itemCategoryData", preserveNullAndEmptyArrays: true },
+  //       },
+  //       {
+  //         $lookup: {
+  //           from: "inventorymanufacturers",
+  //           localField: "manufacturerObjId",
+  //           foreignField: "_id",
+  //           as: "manufacturerData",
+  //         },
+  //       },
+  //       {
+  //         $unwind: { path: "$manufacturerData", preserveNullAndEmptyArrays: true },
+  //       },
+  //       {
+  //         $addFields: {
+  //           category: "$categoryy.category",
+  //           itemCategory: "$itemCategoryData.itemCategory",
+  //           manufacturer: "$manufacturerData.manufacturer",
+  //         },
+  //       },
+  //       {
+  //         $project: {
+  //           categoryObjId: 0,
+  //           itemCategoryObjId: 0,
+  //           manufacturerObjId: 0,
+  //           categoryy: 0,
+  //           itemCategoryData: 0,
+  //           manufacturerData: 0,
+  //         },
+  //       },
+  //     ]);
 
-      if (!inventory || inventory.length === 0) {
-        return res.status(400).json({
-          resourceType: "OperationOutcome",
-          issue: [
-            {
-              severity: "error",
-              code: "not-found",
-              details: { text: "Inventory item not found" },
-            },
-          ],
-        } as FHIRResponse);
-      }
+  //     if (!inventory || inventory.length === 0) {
+  //       return res.status(400).json({
+  //         resourceType: "OperationOutcome",
+  //         issue: [
+  //           {
+  //             severity: "error",
+  //             code: "not-found",
+  //             details: { text: "Inventory item not found" },
+  //           },
+  //         ],
+  //       } as FHIRResponse);
+  //     }
 
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument
-      const newdata = toInventoryFHIR(inventory[0]);
-      res.status(200).json(newdata);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
-      res.status(500).json({
-        resourceType: "OperationOutcome",
-        issue: [
-          {
-            severity: "error",
-            code: "exception",
-            details: { text: "Internal server error" },
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-            diagnostics: error.message,
-          },
-        ],
-      } as FHIRResponse);
-    }
-  },
+  //     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+  //     const newdata = toInventoryFHIR(inventory[0]);
+  //     res.status(200).json(newdata);
+  //     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  //   } catch (error: any) {
+  //     res.status(500).json({
+  //       resourceType: "OperationOutcome",
+  //       issue: [
+  //         {
+  //           severity: "error",
+  //           code: "exception",
+  //           details: { text: "Internal server error" },
+  //           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+  //           diagnostics: error.message,
+  //         },
+  //       ],
+  //     } as FHIRResponse);
+  //   }
+  // },
 
   getProceurePackage: async (req: { query: { params: QueryParams } }, res: Response) => {
     try {
@@ -578,25 +542,25 @@ const InventoryControllers = {
         } as FHIRResponse);
       }
 
-     const fhirData = req.body as FHIRMedicalPackage;
-     console.log("fhirData",JSON.stringify(fhirData, null, 2));
-     
-       
-      const data: NormalMedicalPackage = convertFhirToNormalToUpdateProcedurePackage(fhirData);
-      const { packageName, category, description, packageItems } = data  ;
+      const fhirData = req.body as FHIRMedicalPackage;
+      console.log("fhirData", JSON.stringify(fhirData, null, 2));
 
-        console.log("sanitizedItems", data)
-        // Update the procedure package
-        const procedurePackagee = await ProcedurePackage.findOneAndUpdate(
-          { _id: id, bussinessId: hospitalId },
-          {
-            packageName :typeof packageName === "string" ?packageName:"",
-            category: typeof category === "string" ? category:"",
-            description: typeof description === "string" ? description:"",
-            packageItems: packageItems,
-          },
-          { new: true }
-        ).lean().exec();
+
+      const data: NormalMedicalPackage = convertFhirToNormalToUpdateProcedurePackage(fhirData);
+      const { packageName, category, description, packageItems } = data;
+
+      console.log("sanitizedItems", data)
+      // Update the procedure package
+      const procedurePackagee = await ProcedurePackage.findOneAndUpdate(
+        { _id: id, bussinessId: hospitalId },
+        {
+          packageName: typeof packageName === "string" ? packageName : "",
+          category: typeof category === "string" ? category : "",
+          description: typeof description === "string" ? description : "",
+          packageItems: packageItems,
+        },
+        { new: true }
+      ).lean().exec();
 
       if (!procedurePackagee) {
         return res.status(404).json({
@@ -898,7 +862,7 @@ const InventoryControllers = {
         },
       ]);
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
       const response = InventoryOverviewConvertToFHIR(inventory[0]);
       res.status(200).json(response);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
