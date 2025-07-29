@@ -27,17 +27,8 @@ const immunizationController =  {
          res.status(200).json({ status: 0, error: error });
       }
 
-      let fileArray: unknown[] = [];
-      if (req.files) {
-        if (Array.isArray(req.files)) {
-          fileArray = req.files;
-        } else if (typeof req.files === 'object') {
-          // If multer is configured with fields, req.files is an object: { fieldname: File[] }
-          // Try to get all files from all fields
-          fileArray = Object.values(req.files).flat();
-        }
-      }
 
+      const fileArray = req.files as File[] | UploadedFile[] | undefined;
       const vaccineFileUrl = fileArray.length > 0
         ? await helpers.uploadFiles(fileArray as unknown as UploadedFile[])
         : [];

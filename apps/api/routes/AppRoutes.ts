@@ -1,5 +1,4 @@
 import express from "express";
- 
 import petController from '../controllers/pet-controller';
 import appointmentController from '../controllers/appointment-controller';
 import slotController from  '../controllers/slot-controller';
@@ -11,15 +10,12 @@ import diabetesController  from '../controllers/diabetes-controller';
 import SharedDutiesController from "../controllers/shared-duties-controller";
 import contactController  from "../controllers/contact-controller";
 import planController from '../controllers/plan-controller';
- 
 import medicalRecordsController from '../controllers/medical-records-controller';
- 
- 
- 
-const router = express.Router();
- 
+
 import { verifyTokenAndRefresh } from '../middlewares/authMiddleware';
- 
+  
+
+const router = express.Router();
 router.post("/Patient/addPet", verifyTokenAndRefresh,petController.addPet);
 router.put("/Patient/editPet", verifyTokenAndRefresh, petController.editPet);
 router.get("/Patient/getPets", verifyTokenAndRefresh,petController.getPet);
@@ -59,6 +55,7 @@ router.post("/saveExercisePlan",verifyTokenAndRefresh, planController.exercisePl
 router.get("/getexercise-list/:userId",verifyTokenAndRefresh, planController.getExercisePlan);
 router.post("/savepainjournal",verifyTokenAndRefresh, planController.addPainJournal);
 router.get("/getpainjournal/:userId",verifyTokenAndRefresh, planController.getPainJournal);
+router.post('/documentReference/saveMedicalFolder',  medicalRecordsController.createMedicalRecordFolder);
 router.post("/DocumentReference/saveMedicalRecord", verifyTokenAndRefresh,medicalRecordsController.saveMedicalRecord);
 router.get("/DocumentReference/getMedicalRecordList",verifyTokenAndRefresh, medicalRecordsController.medicalRecordList);
 router.post( "/Observation/saveDiabetesRecords",verifyTokenAndRefresh,diabetesController.diabetesRecords);
