@@ -49,7 +49,7 @@ async function handleFileUpload(file: UploadedFile, folderName: string) {
         if (!file) {
             throw new Error('No file uploaded.');
         }
-console.log(file.mimetype,'file.mimetype', file.name,'file.name', file);
+
         const allowedMimeTypes = ['image/jpeg', 'image/png', 'application/pdf'];
         if (!allowedMimeTypes.includes(file.mimetype)) {
             throw new Error('Unsupported file type.');

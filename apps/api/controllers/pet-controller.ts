@@ -35,7 +35,7 @@ const petController = {
       } else {
         petData.petAge = undefined;
       }
-console.log(petData, 'petData');
+
       const newPet = await pets.create(petData);
 
       if (newPet) {
@@ -83,6 +83,7 @@ console.log(petData, 'petData');
           entry: [],
           message: 'No pets found'
         });
+        return
       }
 
       const fhirPets = await Promise.all(
@@ -145,10 +146,11 @@ console.log(petData, 'petData');
             diagnostics: `Invalid FHIR JSON data: ${(error as Error).message}`
           }]
         });
+        return
       }
 
       const updatedPetData: petType = convertFHIRToPet(parsedData) as petType;
-let imageUrls;
+      let imageUrls;
       // Handle file uploads (optional)
       if (req.files && req.files.files) {
         const files = Array.isArray(req.files.files)
@@ -158,12 +160,13 @@ let imageUrls;
         const imageFiles = files.filter(file => file.mimetype && file.mimetype.startsWith("image/"));
 
         if (imageFiles.length > 0) {
+        
            imageUrls = await handleMultipleFileUpload(imageFiles, 'Images');
           // Assign only the array of URLs if petImage expects string[]
        
         }
         // const imageUrls = await helpers.uploadFiles(req.files);
-console.log(imageUrls,'imageUrls');
+
         updatedPetData.petImage = imageUrls.map((img: { url: string }) => img) as unknown as typeof updatedPetData.petImage;
       }
 
