@@ -1,16 +1,18 @@
-// app/businessDashboard/page.tsx
-"use client";
-
 import React from "react";
 import BusinessDashboard from "@/app/Pages/BusinessDashboard/BusinessDashboard";
-import ProtectedRoute from "@/app/Components/ProtectedRoute";
+import { useAuthStore } from "@/app/stores/authStore";
 
-function page() {
+function Page() {
+  const userType = useAuthStore((state) => state.userType);
   return (
-    // <ProtectedRoute allowedRoles={["Veterinary Business"]}>
-      <BusinessDashboard />
-    // </ProtectedRoute>
+    <>
+      {userType === "veterinaryBusiness" ? (
+        <BusinessDashboard />
+      ) : (
+        "YOU ARE NOT ALLOWED TO ACCESS THIS PAGE"
+      )}
+    </>
   );
 }
 
-export default page
+export default Page;
