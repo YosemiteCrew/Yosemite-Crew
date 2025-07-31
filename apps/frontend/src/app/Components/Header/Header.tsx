@@ -1,17 +1,17 @@
-'use client';
-import React, { useState, useEffect, useMemo } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
-import { usePathname } from 'next/navigation';
-import classNames from 'classnames';
+"use client";
+import React, { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { usePathname } from "next/navigation";
+import classNames from "classnames";
 
-import './Header.css';
+import "./Header.css";
 
-import { FaBarsStaggered, FaCaretDown, FaUser } from 'react-icons/fa6';
-import { IoIosHelpCircleOutline, IoMdClose } from 'react-icons/io';
-import { IoNotifications } from 'react-icons/io5';
-import { RiAccountBoxFill } from 'react-icons/ri';
-import { FaSignInAlt } from 'react-icons/fa';
+import { FaBarsStaggered, FaCaretDown, FaUser } from "react-icons/fa6";
+import { IoIosHelpCircleOutline, IoMdClose } from "react-icons/io";
+import { IoNotifications } from "react-icons/io5";
+import { RiAccountBoxFill } from "react-icons/ri";
+import { FaSignInAlt } from "react-icons/fa";
 
 import { useAuthStore } from '@/app/stores/authStore';
 import { handleLogout } from '@/app/utils/LogoutApi';
@@ -24,57 +24,16 @@ interface NavItem {
   children?: NavItem[];
 }
 
-const clinicNavItems: NavItem[] = [
-  { label: 'Home', href: '/' },
-  {
-    label: 'Clinic',
-    children: [
-      { label: 'Specialities', href: '/departmentsmain' },
-      { label: 'Practice Team', href: '/practiceTeam' },
-      { label: 'Manage Invites', href: '/inviteteammembers' },
-      { label: 'Manage Clinic Visibility', href: '/clinicvisiblity' },
-    ]
-  },
-  {
-    label: 'Operations',
-    children: [
-      { label: 'Queue Management', href: '#' },
-      { label: 'Appointments', href: '/AppointmentVet' },
-      { label: 'Assessments', href: '/AssessmentVet' },
-      { label: 'Prescriptions', href: '#' },
-      { label: 'Inventory', href: '/inventorydashboard' },
-      { label: 'Procedure Packages', href: '#' },
-    ]
-  },
-  {
-    label: 'Finance',
-    children: [
-      { label: 'Revenue Reporting', href: '/RevenueManagement' },
-      { label: 'Billing', href: '#' },
-      { label: 'Client Statements', href: '#' },
-      { label: 'Coupons', href: '#' },
-      { label: 'Payment Methods', href: '#' },
-      { label: 'Procedure Estimates', href: '/ProcedureEstimate' },
-    ]
-  },
-  {
-    label: 'Help & Resources',
-    children: [
-      { label: 'Blog', href: '/blogpage' },
-      { label: 'Resources', href: '#' },
-      { label: 'Contact Us', href: '/contact_us' },
-    ]
-  },
-];
+
 
 const publicNavItems: NavItem[] = [
-  { label: 'Home', href: '/' },
-  { label: 'About Us', href: '#' },
-  { label: 'PMS', href: '#' },
-  { label: 'Developers', href: '#' },
-  { label: 'Resources', href: '#' },
-  { label: 'Contact Us', href: '#' },
-  { label: 'Blog', href: '#' },
+  { label: "Home", href: "/" },
+  { label: "About Us", href: "#" },
+  { label: "PMS", href: "#" },
+  { label: "Developers", href: "#" },
+  { label: "Resources", href: "#" },
+  { label: "Contact Us", href: "#" },
+  { label: "Blog", href: "#" },
 ];
 
 const Header = () => {
@@ -101,10 +60,52 @@ const LoggedInHeader = () => {
     () => ["Vet", "Vet Technician", "Nurse", "Vet Assistant", "Receptionist"],
     []
   );
-
+const clinicNavItems: NavItem[] = [
+  { label: "Home", href: "/" },
+  { label: "Dashboard", href: getDashboardRoute() },
+  {
+    label: "Clinic",
+    children: [
+      { label: "Specialities", href: "/departmentsmain" },
+      { label: "Practice Team", href: "/practiceTeam" },
+      { label: "Manage Invites", href: "/inviteteammembers" },
+      { label: "Manage Clinic Visibility", href: "/clinicvisiblity" },
+    ],
+  },
+  {
+    label: "Operations",
+    children: [
+      { label: "Queue Management", href: "#" },
+      { label: "Appointments", href: "/AppointmentVet" },
+      { label: "Assessments", href: "/AssessmentVet" },
+      { label: "Prescriptions", href: "#" },
+      { label: "Inventory", href: "/inventorydashboard" },
+      { label: "Procedure Packages", href: "#" },
+    ],
+  },
+  {
+    label: "Finance",
+    children: [
+      { label: "Revenue Reporting", href: "/RevenueManagement" },
+      { label: "Billing", href: "#" },
+      { label: "Client Statements", href: "#" },
+      { label: "Coupons", href: "#" },
+      { label: "Payment Methods", href: "#" },
+      { label: "Procedure Estimates", href: "/ProcedureEstimate" },
+    ],
+  },
+  {
+    label: "Help & Resources",
+    children: [
+      { label: "Blog", href: "/blogpage" },
+      { label: "Resources", href: "#" },
+      { label: "Contact Us", href: "/contact_us" },
+    ],
+  },
+];
   const logoUrl = process.env.NEXT_PUBLIC_BASE_IMAGE_URL
     ? `${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/Logo.png`
-    : '/Logo.png';
+    : "/Logo.png";
 
   function getImageUrl(input: unknown): string {
     if (typeof input === "string") return input;
@@ -112,35 +113,54 @@ const LoggedInHeader = () => {
     if (input instanceof File) return URL.createObjectURL(input);
     return logoUrl;
   }
-
+  function getDashboardRoute  ()  {
+    switch (userType) {
+      case "veterinaryBusiness":
+        return "/emptydashboard";
+      case "breedingFacility":
+      case "petSitter":
+      case "groomerShop":
+        return "/DoctorDashboard";
+      default:
+        return "/businessDashboard";
+    }
+  };
   const imageSrc = getImageUrl(
-    roles.includes(userType as string) ? vetAndTeamsProfile?.image : profile?.image
+    roles.includes(userType as string)
+      ? vetAndTeamsProfile?.image
+      : profile?.image
   );
 
   useEffect(() => {
-    document.body.classList.toggle('mobile-nav-active', mobileOpen);
+    document.body.classList.toggle("mobile-nav-active", mobileOpen);
   }, [mobileOpen]);
 
   const toggleDropdown = (label: string) => {
-    setActiveDropdown(prev => (prev === label ? null : label));
+    setActiveDropdown((prev) => (prev === label ? null : label));
   };
 
   const renderNavItems = (items: NavItem[], isSubmenu = false) => (
     <ul className={classNames({ dropdown: isSubmenu })}>
-      {items.map(item => {
+      {items.map((item) => {
         const hasChildren = item.children?.length ?? 0 > 0;
         const isActive = pathname === item.href;
         const isOpen = activeDropdown === item.label;
 
         return (
-          <li key={item.label} className={classNames({ dropdown: hasChildren, active: isOpen })}>
+          <li
+            key={item.label}
+            className={classNames({ dropdown: hasChildren, active: isOpen })}
+          >
             {hasChildren ? (
               <>
                 <Link
                   href="#"
                   className="dropdown-toggle"
                   onClick={(e) => {
-                    if (typeof window !== 'undefined' && window.innerWidth < 1200) {
+                    if (
+                      typeof window !== "undefined" &&
+                      window.innerWidth < 1200
+                    ) {
                       e.preventDefault();
                       toggleDropdown(item.label);
                     }
@@ -171,9 +191,12 @@ const LoggedInHeader = () => {
         <Image src={logoUrl} alt="Logo" width={80} height={80} priority />
       </Link>
 
-      <nav className={classNames('navmenu', { open: mobileOpen })}>
+      <nav className={classNames("navmenu", { open: mobileOpen })}>
         {renderNavItems(clinicNavItems)}
-        <button className="mobile-nav-toggle d-xl-none" onClick={() => setMobileOpen(!mobileOpen)}>
+        <button
+          className="mobile-nav-toggle d-xl-none"
+          onClick={() => setMobileOpen(!mobileOpen)}
+        >
           {mobileOpen ? <IoMdClose size={28} /> : <FaBarsStaggered size={28} />}
         </button>
       </nav>
@@ -192,12 +215,17 @@ const LoggedInHeader = () => {
                 </div>
                 <div className="userHostDiv">
                   <div className="userName">
-                    <p>{roles.includes(userType as string) ? `${vetAndTeamsProfile?.name.firstName} ${vetAndTeamsProfile?.name.lastName}` : profile?.name?.businessName}</p>
+                    <p>
+                      {roles.includes(userType as string)
+                        ? `${vetAndTeamsProfile?.name.firstName} ${vetAndTeamsProfile?.name.lastName}`
+                        : profile?.name?.businessName}
+                    </p>
                     <FaCaretDown />
                   </div>
-                  <p className='Tier'>Free tier - Cloud hosted</p>
+                  <p className="Tier">Free tier - Cloud hosted</p>
                 </div>
               </span>
+             
               <div className="profileUl">
                 <div className='ProfDiv'>
                   <Link href="#"><FaUser /> My Profile</Link>
@@ -222,10 +250,10 @@ const PublicHeader = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const logoUrl = process.env.NEXT_PUBLIC_BASE_IMAGE_URL
     ? `${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/Logo.png`
-    : '/Logo.png';
+    : "/Logo.png";
 
   useEffect(() => {
-    document.body.classList.toggle('mobile-nav-active', mobileOpen);
+    document.body.classList.toggle("mobile-nav-active", mobileOpen);
   }, [mobileOpen]);
 
   return (
@@ -234,17 +262,23 @@ const PublicHeader = () => {
         <Image src={logoUrl} alt="Logo" width={80} height={80} priority />
       </Link>
 
-      <nav className={classNames('navmenu', { open: mobileOpen })}>
+      <nav className={classNames("navmenu", { open: mobileOpen })}>
         <ul>
-          {publicNavItems.map(item => (
+          {publicNavItems.map((item) => (
             <li key={item.label}>
-              <Link href={item.href!} className={classNames({ active: pathname === item.href })}>
+              <Link
+                href={item.href!}
+                className={classNames({ active: pathname === item.href })}
+              >
                 {item.label}
               </Link>
             </li>
           ))}
         </ul>
-        <button className="mobile-nav-toggle d-xl-none" onClick={() => setMobileOpen(!mobileOpen)}>
+        <button
+          className="mobile-nav-toggle d-xl-none"
+          onClick={() => setMobileOpen(!mobileOpen)}
+        >
           {mobileOpen ? <IoMdClose size={28} /> : <FaBarsStaggered size={28} />}
         </button>
       </nav>

@@ -312,12 +312,13 @@ function SignUp({ inviteCode }: SignUpProps) {
 
 
 
-  const businessTypes = [
-    "Veterinary Business",
-    "Breeding Facility",
-    "Pet Sitter",
-    "Groomer Shop",
-  ];
+const businessTypes = [
+  { key: "veterinaryBusiness", value: "Veterinary Business" },
+  { key: "breedingFacility", value: "Breeding Facility" },
+  { key: "petSitter", value: "Pet Sitter" },
+  { key: "groomerShop", value: "Groomer Shop" },
+];
+
   const handleSelectType = (type: React.SetStateAction<string>) => {
     setSelectedType(type);
   };
@@ -449,13 +450,13 @@ if(isVerified){
                       <p>Select Your Business Type</p>
                       <div className="button-group">
                         <ul>
-                          {businessTypes.map((type) => (
+                          {businessTypes.map(({key,value}) => (
                             <li
-                              key={type}
-                              className={`business-button ${selectedType === type ? "selected" : ""}`}
-                              onClick={() => handleSelectType(type)}
+                              key={key}
+                              className={`business-button ${selectedType === key ? "selected" : ""}`}
+                              onClick={() => handleSelectType(key)}
                             >
-                              {type}
+                              {value}
                             </li>
                           ))}
                         </ul>
@@ -683,11 +684,12 @@ export function MainBtn({
 // FormInputProps started
 type FormInputProps = {
   intype: string;
-  inname: string;
+  inname?: string;
   value: string;
   inlabel: string;
   readonly?: boolean;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onBlur?:(e: React.ChangeEvent<HTMLInputElement>) => void;
   error?: string;
 };
 export function FormInput({
@@ -696,6 +698,7 @@ export function FormInput({
   inlabel,
   value,
   onChange,
+  onBlur,
   readonly,
   error,
 }: FormInputProps) {
