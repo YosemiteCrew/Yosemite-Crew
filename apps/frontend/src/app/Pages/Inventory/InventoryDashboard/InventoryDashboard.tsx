@@ -2,10 +2,7 @@
 import React, { useState , useEffect, useCallback } from 'react';
 import "./InventoryDashboard.css"
 import { Col, Container, Row } from 'react-bootstrap'
-import { HeadText } from '../CompleteProfile/CompleteProfile'
 import StatCard from '@/app/Components/StatCard/StatCard'
-import { OverviewDisp } from '../Departments/DepartmentsDashboard'
-import { GraphSelected } from '../AdminDashboardEmpty/AdminDashboardEmpty';
 import DepartmentBarChart from '@/app/Components/BarGraph/DepartmentBarChart';
 import ApprochExpireGraph from '@/app/Components/BarGraph/ApprochExpireGraph';
 import { DepartmentData } from '@/app/types';
@@ -15,6 +12,9 @@ import ProcedurePackagesTable from '@/app/Components/DataTable/ProcedurePackages
 import { getData } from '@/app/axios-services/services';
 import { convertFhirBundleToInventory, convertFhirToJson } from '@yosemite-crew/fhir';
 import { useAuthStore } from '@/app/stores/authStore';
+import { HeadText } from '../../CompleteProfile/CompleteProfile';
+import { OverviewDisp } from '../../Departments/DepartmentsDashboard';
+import { GraphSelected } from '../../AdminDashboardEmpty/AdminDashboardEmpty';
 
 function InventoryDashboard() {
     const { userId } = useAuthStore();
