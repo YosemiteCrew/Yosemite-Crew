@@ -13,16 +13,13 @@ import { useAuthStore } from "@/app/stores/authStore";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import { useStore } from "zustand";
 
-
-
-
-// Error Tost Started 
+// Error Tost Started
 
 type ErrorTostProps = {
   message?: string;
   iconElement?: React.ReactNode;
   errortext: string;
-  className?: string; 
+  className?: string;
   onClose?: () => void;
 };
 
@@ -31,9 +28,8 @@ const ErrorTost: React.FC<ErrorTostProps> = ({
   iconElement,
   errortext,
   className = "",
-  onClose
+  onClose,
 }) => {
-
   return (
     <div className={`SignError ${className}`}>
       <Container>
@@ -54,25 +50,20 @@ const ErrorTost: React.FC<ErrorTostProps> = ({
   );
 };
 
-// Error Tost Started 
-
-
-
-
-
+// Error Tost Started
 
 type SignUpProps = {
-  inviteCode?: string
+  inviteCode?: string;
 };
 function SignUp({ inviteCode }: SignUpProps) {
   const router = useRouter();
   //role
   const [selectedType, setSelectedType] = useState("");
   //emails
-  const [email, setEmail] = useState("")
+  const [email, setEmail] = useState("");
   //department
   const [department, setDepartment] = useState("");
-  const [invitedBy, setInvitedBy] = useState('')
+  const [invitedBy, setInvitedBy] = useState("");
   //password
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -81,16 +72,19 @@ function SignUp({ inviteCode }: SignUpProps) {
   const [code, setCode] = useState(Array(6).fill(""));
   const [activeInput, setActiveInput] = useState(0);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const [agree, setIagree] = useState(false)
-  const [subscribe, setSubscribe] = useState(false)
-  const isVerified = useStore(useAuthStore, (state) => state.isVerified);
-  console.log("agree", agree)
+  const [agree, setIagree] = useState(false);
+  const [subscribe, setSubscribe] = useState(false);
+
+
   // Stable ref callback to avoid React warning
   const setOtpRef = (el: HTMLInputElement | null, idx: number) => {
     otpRefs.current[idx] = el;
   };
 
-  const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>, idx: number) => {
+  const handleCodeChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    idx: number
+  ) => {
     const val = e.target.value.replace(/[^0-9]/g, "");
     if (!val) return;
     const newCode = [...code];
@@ -102,7 +96,10 @@ function SignUp({ inviteCode }: SignUpProps) {
     }
   };
 
-  const handleCodeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, idx: number) => {
+  const handleCodeKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    idx: number
+  ) => {
     if (e.key === "Backspace") {
       if (code[idx]) {
         const newCode = [...code];
@@ -122,26 +119,27 @@ function SignUp({ inviteCode }: SignUpProps) {
   };
 
   const handleVerify = async (): Promise<void> => {
-    if (code.includes('')) {
+    if (code.includes("")) {
       Swal.fire({
-        icon: 'warning',
-        title: 'Error',
-        text: 'Please enter the full OTP',
+        icon: "warning",
+        title: "Error",
+        text: "Please enter the full OTP",
       });
       return;
     }
 
     try {
-      const response = await postData<
-        { message: string; data?: { userId: string; email: string; userType: string } }
-      >(
-        '/api/auth/verifyUser ',
+      const response = await postData<{
+        message: string;
+        data?: { userId: string; email: string; userType: string };
+      }>(
+        "/api/auth/verifyUser ",
         {
           email,
-          otp: code.join('')
+          otp: code.join(""),
         },
         {
-          withCredentials: true
+          withCredentials: true,
         }
       );
 
@@ -157,8 +155,8 @@ function SignUp({ inviteCode }: SignUpProps) {
         // const storeData = useAuthStore.getState();
         // console.log("Saved in Zustand:", storeData);
         Swal.fire({
-          icon: 'success',
-          title: 'Success',
+          icon: "success",
+          title: "Success",
           text: response.data.message,
         });
         setCode(Array(6).fill(""));
@@ -167,19 +165,18 @@ function SignUp({ inviteCode }: SignUpProps) {
 
         router.push(`/emptydashboard`);
       }
-
     } catch (error: any) {
       Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: `OTP verification failed: ${error.response?.data?.message || 'Unable to connect to the server.'
-          }`,
+        icon: "error",
+        title: "Error",
+        text: `OTP verification failed: ${
+          error.response?.data?.message || "Unable to connect to the server."
+        }`,
       });
     }
   };
 
   const handleResend = async (): Promise<void> => {
-
     const formData = {
       email,
       password,
@@ -194,22 +191,22 @@ function SignUp({ inviteCode }: SignUpProps) {
 
       if (response.status === 200) {
         Swal.fire({
-          icon: 'info',
-          title: 'Code Resent',
-          text: 'A new verification code has been sent to your email.',
+          icon: "info",
+          title: "Code Resent",
+          text: "A new verification code has been sent to your email.",
         });
       }
     } catch (error: unknown) {
-      let message = 'Something went wrong.';
+      let message = "Something went wrong.";
 
-      if (error && typeof error === 'object' && 'isAxiosError' in error) {
+      if (error && typeof error === "object" && "isAxiosError" in error) {
         const axiosError = error as AxiosError<{ message: string }>;
         message = axiosError.response?.data?.message || message;
       }
 
       Swal.fire({
-        icon: 'error',
-        title: 'Error',
+        icon: "error",
+        title: "Error",
         text: message,
       });
     }
@@ -218,9 +215,9 @@ function SignUp({ inviteCode }: SignUpProps) {
     // Always validate passwords
     if (password !== confirmPassword) {
       Swal.fire({
-        icon: 'warning',
-        title: 'Password Mismatch',
-        text: 'Password and Confirm Password do not match.',
+        icon: "warning",
+        title: "Password Mismatch",
+        text: "Password and Confirm Password do not match.",
       });
       return;
     }
@@ -229,26 +226,26 @@ function SignUp({ inviteCode }: SignUpProps) {
     if (!inviteCode) {
       if (!selectedType) {
         Swal.fire({
-          icon: 'warning',
-          title: 'Business Type Not Selected',
-          text: 'Please select your business type.',
+          icon: "warning",
+          title: "Business Type Not Selected",
+          text: "Please select your business type.",
         });
         return;
       }
 
       if (!subscribe) {
         Swal.fire({
-          icon: 'warning',
-          title: 'Newsletter Not Checked',
-          text: 'Please check the Newsletter and Promotional emails box.',
+          icon: "warning",
+          title: "Newsletter Not Checked",
+          text: "Please check the Newsletter and Promotional emails box.",
         });
         return;
       }
 
       if (!agree) {
         Swal.fire({
-          icon: 'warning',
-          title: 'Terms Not Agreed',
+          icon: "warning",
+          title: "Terms Not Agreed",
           text: 'Please check the "I agree to Terms and Conditions" box.',
         });
         return;
@@ -271,36 +268,43 @@ function SignUp({ inviteCode }: SignUpProps) {
       const data = await postData<{ message: string }>(url, formData);
 
       if (data?.status === 200) {
-        console.log("Signup successful", data)
+        console.log("Signup successful", data);
         setShowVerifyModal(true); // Show modal after signup
       }
     } catch (error: unknown) {
-      ;
       let status: number | undefined;
-      let message: string = 'Something went wrong.';
+      let message: string = "Something went wrong.";
 
       if (
         typeof error === "object" &&
         error !== null &&
         "response" in error &&
         typeof (error as { response?: unknown }).response === "object" &&
-        (error as { response?: { status?: number; data?: { message?: string } } }).response !== null
+        (
+          error as {
+            response?: { status?: number; data?: { message?: string } };
+          }
+        ).response !== null
       ) {
-        const errResp = (error as { response: { status?: number; data?: { message?: string } } }).response;
+        const errResp = (
+          error as {
+            response: { status?: number; data?: { message?: string } };
+          }
+        ).response;
         status = errResp.status;
         message = errResp.data?.message || message;
       }
 
       if (status === 409) {
         Swal.fire({
-          icon: 'error',
-          title: 'Already Registered',
+          icon: "error",
+          title: "Already Registered",
           text: message,
         });
       } else {
         Swal.fire({
-          icon: 'error',
-          title: 'Signup Error',
+          icon: "error",
+          title: "Signup Error",
           text: message,
         });
       }
@@ -308,15 +312,23 @@ function SignUp({ inviteCode }: SignUpProps) {
       // For testing only: remove this if not needed
       setShowVerifyModal(false);
     }
-  }, [email, password, selectedType, confirmPassword, subscribe, agree, department, invitedBy, inviteCode]);
-
-
+  }, [
+    email,
+    password,
+    selectedType,
+    confirmPassword,
+    subscribe,
+    agree,
+    department,
+    invitedBy,
+    inviteCode,
+  ]);
 
   const businessTypes = [
-    "Veterinary Business",
-    "Breeding Facility",
-    "Pet Sitter",
-    "Groomer Shop",
+    "veterinaryBusiness",
+    "breedingFacility",
+    "petSitter",
+    "groomerShop",
   ];
   const handleSelectType = (type: React.SetStateAction<string>) => {
     setSelectedType(type);
@@ -326,9 +338,12 @@ function SignUp({ inviteCode }: SignUpProps) {
     const response = async () => {
       if (inviteCode) {
         try {
-          const data = await getData<{ email: string; role: string; department: string; invitedBy: string }>(
-            `/fhir/v1/inviteInfo?code=${inviteCode}`
-          );
+          const data = await getData<{
+            email: string;
+            role: string;
+            department: string;
+            invitedBy: string;
+          }>(`/fhir/v1/inviteInfo?code=${inviteCode}`);
           if (data?.status === 200) {
             setEmail(data.data.email);
             setSelectedType(data.data.role);
@@ -337,322 +352,356 @@ function SignUp({ inviteCode }: SignUpProps) {
           }
         } catch (error) {
           Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: `${error instanceof Error ? error.message : 'Unable to fetch invite details.'}`,
-          })
+            icon: "error",
+            title: "Error",
+            text: `${error instanceof Error ? error.message : "Unable to fetch invite details."}`,
+          });
         }
       }
-    }
+    };
     response();
   }, [inviteCode]);
 
-
-if(isVerified){
-  return (
-    <div className="alreadySignedIn">
-      <h2>You are already signed in!</h2>
-      <p>Please log out to sign in with a different account.</p>
-      <MainBtn btnname="Go to Dashboard" onClick={() => router.push("/")} />
-    </div>     )   
-}
-
+  // if(isVerified){
+  //   return (
+  //     <div className="alreadySignedIn">
+  //       <h2>You are already signed in!</h2>
+  //       <p>Please log out to sign in with a different account.</p>
+  //       <MainBtn btnname="Go to Dashboard" onClick={() => router.push("/")} />
+  //     </div>     )
+  // }
 
   return (
     <>
-      
+ 
+          {!inviteCode ? (
+            <section className="MainSignUpSec">
+              <Container>
+                <Row>
+                  <Col md={6}>
+                    <div className="BuildEveryone">
+                      <div className="BuildText">
+                        <h2>Built for Everyone, from Day One.</h2>
+                      </div>
 
+                      <div className="BuildCloud">
+                        <div className="CloudItems">
+                          <div className="CloudIcon">
+                            <span>
+                              <GoCheckCircleFill />
+                            </span>
+                          </div>
+                          <div className="CloudText">
+                            <h4>Enjoy Cloud Hosting with us!</h4>
+                            <p>
+                              Website are hosted on a network of servers,
+                              offering greater, scalability, reliability, and
+                              flexibility.
+                            </p>
+                          </div>
+                        </div>
 
+                        <div className="CloudItems">
+                          <div className="CloudIcon">
+                            <span>
+                              <GoCheckCircleFill />
+                            </span>
+                          </div>
+                          <div className="CloudText">
+                            <h4>Start Free. Pay as You Grow.</h4>
+                            <p>
+                              Enjoy generous free usage on cloud hosting.
+                              Upgrade only when you need more power.
+                            </p>
+                          </div>
+                        </div>
 
-      {!inviteCode ? <section className="MainSignUpSec">
-        <Container>
-          <Row>
-            <Col md={6}>
-              <div className="BuildEveryone">
-                <div className="BuildText">
-                  <h2>Built for Everyone, from Day One.</h2>
-                </div>
-
-                <div className="BuildCloud">
-                  <div className="CloudItems">
-                    <div className="CloudIcon">
-                      <span>
-                        <GoCheckCircleFill />
-                      </span>
-                    </div>
-                    <div className="CloudText">
-                      <h4>Enjoy Cloud Hosting with us!</h4>
-                      <p>Website are hosted on a network of servers, offering greater, scalability, reliability, and flexibility.</p>
-                    </div>
-                  </div>
-
-                  <div className="CloudItems">
-                    <div className="CloudIcon">
-                      <span>
-                        <GoCheckCircleFill />
-                      </span>
-                    </div>
-                    <div className="CloudText">
-                      <h4>Start Free. Pay as You Grow.</h4>
-                      <p>Enjoy generous free usage on cloud hosting. Upgrade only when you need more power.</p>
-                    </div>
-                  </div>
-
-                  <div className="CloudItems">
-                    <div className="CloudIcon">
-                      <span>
-                        <GoCheckCircleFill />
-                      </span>
-                    </div>
-                    <div className="CloudText">
-                      <h4>GDPR-Ready, EU-Based Servers.</h4>
-                      <p>All cloud data is securely hosted in the EU with full GDPR compliance.</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </Col>
-
-            <Col md={6}>
-              <div className="SignUpFormDiv">
-                <Form>
-                  <div className="TopSignUp">
-                    <div className="Headingtext">
-                      <h2>Sign up for Cloud </h2>
-                    </div>
-
-                    <div className="SignFormItems">
-                      <FormInput
-                        intype="email"
-                        inname="email"
-                        value={email}
-                        inlabel="Enter Email Address"
-                        onChange={(e) => setEmail(e.target.value)}
-                      />
-                      <FormInputPass
-                        intype="password"
-                        inname="password"
-                        value={password}
-                        inlabel="Set up Password"
-                        onChange={(e) => setPassword(e.target.value)}
-                      />
-                      <FormInputPass
-                        intype="password"
-                        inname="password"
-                        value={confirmPassword}
-                        inlabel="Confirm Password"
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                      />
-                    </div>
-
-                    <div className="business-type-container">
-                      <p>Select Your Business Type</p>
-                      <div className="button-group">
-                        <ul>
-                          {businessTypes.map((type) => (
-                            <li
-                              key={type}
-                              className={`business-button ${selectedType === type ? "selected" : ""}`}
-                              onClick={() => handleSelectType(type)}
-                            >
-                              {type}
-                            </li>
-                          ))}
-                        </ul>
+                        <div className="CloudItems">
+                          <div className="CloudIcon">
+                            <span>
+                              <GoCheckCircleFill />
+                            </span>
+                          </div>
+                          <div className="CloudText">
+                            <h4>GDPR-Ready, EU-Based Servers.</h4>
+                            <p>
+                              All cloud data is securely hosted in the EU with
+                              full GDPR compliance.
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </Col>
 
-                  <div className="Sign_check">
-                    <Form.Check
-                      type="checkbox"
-                      label="I agree to Yosemite Crew’s Terms and Conditions and Privacy Policy"
-                      onChange={(e) => setIagree(e.target.checked)}
-                    />
+                  <Col md={6}>
+                    <div className="SignUpFormDiv">
+                      <Form>
+                        <div className="TopSignUp">
+                          <div className="Headingtext">
+                            <h2>Sign up for Cloud </h2>
+                          </div>
 
-                    <Form.Check
-                      type="checkbox"
-                      label="Sign me up for Newsletter and Promotional emails"
-                      onChange={(e) => setSubscribe(e.target.checked)}
-                    />
-                  </div>
+                          <div className="SignFormItems">
+                            <FormInput
+                              intype="email"
+                              inname="email"
+                              value={email}
+                              inlabel="Enter Email Address"
+                              onChange={(e) => setEmail(e.target.value)}
+                            />
+                            <FormInputPass
+                              intype="password"
+                              inname="password"
+                              value={password}
+                              inlabel="Set up Password"
+                              onChange={(e) => setPassword(e.target.value)}
+                            />
+                            <FormInputPass
+                              intype="password"
+                              inname="password"
+                              value={confirmPassword}
+                              inlabel="Confirm Password"
+                              onChange={(e) =>
+                                setConfirmPassword(e.target.value)
+                              }
+                            />
+                          </div>
 
-                  <div className="Signbtn">
-                    <MainBtn
-                      btnicon={<GoCheckCircleFill />}
-                      btnname="Sign up"
-                      iconPosition="left"
-                      onClick={handleSignUp}
-                    />
-                    {/* <MainBtn btnname="Sign up" btnicon={<GoCheckCircleFill />} iconPosition="left" /> */}
-                    <h6>
-                      {" "}
-                      Already have an account?{" "}
-                      <Link href="/signin">Login</Link>
-                    </h6>
-                  </div>
-                </Form>
-              </div>
-            </Col>
-          </Row>
-        </Container>
+                          <div className="business-type-container">
+                            <p>Select Your Business Type</p>
+                            <div className="button-group">
+                              <ul>
+                                {businessTypes.map((type) => (
+                                  <li
+                                    key={type}
+                                    className={`business-button ${selectedType === type ? "selected" : ""}`}
+                                    onClick={() => handleSelectType(type)}
+                                  >
+                                    {type}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
 
-        <ErrorTost
-          className="errofoundbg"
-          message="Seems like You did not enter your Email or Password. Enter email and password to create your profile."
-          errortext="Error Found!"
-          iconElement={<Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />}/>
+                        <div className="Sign_check">
+                          <Form.Check
+                            type="checkbox"
+                            label="I agree to Yosemite Crew’s Terms and Conditions and Privacy Policy"
+                            onChange={(e) => setIagree(e.target.checked)}
+                          />
 
-        <ErrorTost
-          className="oppsbg"
-          message="Something went wrong. We will inform you shortly"
-          errortext="Opps"
-          iconElement={<Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#F68523" />}/>
+                          <Form.Check
+                            type="checkbox"
+                            label="Sign me up for Newsletter and Promotional emails"
+                            onChange={(e) => setSubscribe(e.target.checked)}
+                          />
+                        </div>
 
-        <ErrorTost
-          className="CongratsBg"
-          message="You have successfully created your profile"
-          errortext="🎉 Congratulations!"/>
-        
-
-      </section> :
-
-        <section className="CompleteSignUpSec">
-          <div
-            className="LeftCompleteSign"
-            style={
-              {
-                "--dynamic-bg-image": `url("/Images/doctorbg.png")`,
-              } as React.CSSProperties
-            }
-          ></div>
-          <div className="RightCompleteSign">
-            <div className="ComplteSignInner">
-              <Form>
-                <div className="CompleteText">
-                  <h2>
-                    San Francisco Animal Medical Center{" "}
-                    <span>
-                      has invited you to join their team on Yosemite Crew
-                    </span>{" "}
-                  </h2>
-                </div>
-
-                <div className="CompletSignInpt">
-                  <h6>Complete Your Sign-Up</h6>
-
-                  <div className="inputDiv">
-                    <FormInput
-                      readonly={true}
-                      intype="email"
-                      inname="email"
-                      value={email}
-                      inlabel="Email Address"
-                      onChange={(e) => setEmail(e.target.value)}
-                    />
-                    <div className="pasdiv">
-                      <FormInputPass
-                        intype="password"
-                        inname="password"
-                        value={password}
-                        inlabel="Password"
-                        onChange={(e) => setPassword(e.target.value)}
-                      />
-                      <p>
-                        Password must be at least 8 characters long, including an
-                        uppercase letter, a number, and a special character.
-                      </p>
+                        <div className="Signbtn">
+                          <MainBtn
+                            btnicon={<GoCheckCircleFill />}
+                            btnname="Sign up"
+                            iconPosition="left"
+                            onClick={handleSignUp}
+                          />
+                          {/* <MainBtn btnname="Sign up" btnicon={<GoCheckCircleFill />} iconPosition="left" /> */}
+                          <h6>
+                            {" "}
+                            Already have an account?{" "}
+                            <Link href="/signin">Login</Link>
+                          </h6>
+                        </div>
+                      </Form>
                     </div>
-                    <FormInputPass
-                      intype="password"
-                      inname="password"
-                      value={confirmPassword}
-                      inlabel="Confirm Password"
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                    />
-                  </div>
+                  </Col>
+                </Row>
+              </Container>
 
-                  <div className="Signbtn">
-                    <MainBtn
-                      btnicon={<GoCheckCircleFill />}
-                      btnname="Complete Sign up"
-                      iconPosition="left"
-                      onClick={handleSignUp}
-                    />
-                  </div>
+              <ErrorTost
+                className="errofoundbg"
+                message="Seems like You did not enter your Email or Password. Enter email and password to create your profile."
+                errortext="Error Found!"
+                iconElement={
+                  <Icon
+                    icon="solar:danger-triangle-bold"
+                    width="20"
+                    height="20"
+                    color="#EA3729"
+                  />
+                }
+              />
+
+              <ErrorTost
+                className="oppsbg"
+                message="Something went wrong. We will inform you shortly"
+                errortext="Opps"
+                iconElement={
+                  <Icon
+                    icon="solar:danger-triangle-bold"
+                    width="20"
+                    height="20"
+                    color="#F68523"
+                  />
+                }
+              />
+
+              <ErrorTost
+                className="CongratsBg"
+                message="You have successfully created your profile"
+                errortext="🎉 Congratulations!"
+              />
+            </section>
+          ) : (
+            <section className="CompleteSignUpSec">
+              <div
+                className="LeftCompleteSign"
+                style={
+                  {
+                    "--dynamic-bg-image": `url("/Images/doctorbg.png")`,
+                  } as React.CSSProperties
+                }
+              ></div>
+              <div className="RightCompleteSign">
+                <div className="ComplteSignInner">
+                  <Form>
+                    <div className="CompleteText">
+                      <h2>
+                        San Francisco Animal Medical Center{" "}
+                        <span>
+                          has invited you to join their team on Yosemite Crew
+                        </span>{" "}
+                      </h2>
+                    </div>
+
+                    <div className="CompletSignInpt">
+                      <h6>Complete Your Sign-Up</h6>
+
+                      <div className="inputDiv">
+                        <FormInput
+                          readonly={true}
+                          intype="email"
+                          inname="email"
+                          value={email}
+                          inlabel="Email Address"
+                          onChange={(e) => setEmail(e.target.value)}
+                        />
+                        <div className="pasdiv">
+                          <FormInputPass
+                            intype="password"
+                            inname="password"
+                            value={password}
+                            inlabel="Password"
+                            onChange={(e) => setPassword(e.target.value)}
+                          />
+                          <p>
+                            Password must be at least 8 characters long,
+                            including an uppercase letter, a number, and a
+                            special character.
+                          </p>
+                        </div>
+                        <FormInputPass
+                          intype="password"
+                          inname="password"
+                          value={confirmPassword}
+                          inlabel="Confirm Password"
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="Signbtn">
+                        <MainBtn
+                          btnicon={<GoCheckCircleFill />}
+                          btnname="Complete Sign up"
+                          iconPosition="left"
+                          onClick={handleSignUp}
+                        />
+                      </div>
+                    </div>
+                  </Form>
                 </div>
-              </Form>
-            </div>
-          </div>
-        </section>}
+              </div>
+            </section>
+          )}
 
-      {/* Verification Modal */}
-      <Modal
-        show={showVerifyModal}
-        onHide={() => setShowVerifyModal(false)}
-        centered
-        contentClassName="verify-modal"
-      >
-        <Modal.Body>
-          <div style={{ textAlign: "center", padding: "24px 12px" }}>
-            <h2 style={{ fontWeight: 600, fontSize: 28, marginBottom: 8 }}>Verify <span style={{ color: "#888" }}>code</span></h2>
-            <p style={{ color: "#888", marginBottom: 24 }}>
-              Enter the code we just sent to your email to proceed with resetting your password.
-            </p>
-            <div className="verifyInput" style={{ marginBottom: 24 }}>
-              {code.map((digit, idx) => (
-                <input
-                  key={idx}
-                  ref={el => setOtpRef(el, idx)}
-                  type="text"
-                  maxLength={1}
-                  value={digit}
-                  autoFocus={activeInput === idx}
-                  onChange={e => handleCodeChange(e, idx)}
-                  onKeyDown={e => handleCodeKeyDown(e, idx)}
+          {/* Verification Modal */}
+          <Modal
+            show={showVerifyModal}
+            onHide={() => setShowVerifyModal(false)}
+            centered
+            contentClassName="verify-modal"
+          >
+            <Modal.Body>
+              <div style={{ textAlign: "center", padding: "24px 12px" }}>
+                <h2 style={{ fontWeight: 600, fontSize: 28, marginBottom: 8 }}>
+                  Verify <span style={{ color: "#888" }}>code</span>
+                </h2>
+                <p style={{ color: "#888", marginBottom: 24 }}>
+                  Enter the code we just sent to your email to proceed with
+                  resetting your password.
+                </p>
+                <div className="verifyInput" style={{ marginBottom: 24 }}>
+                  {code.map((digit, idx) => (
+                    <input
+                      key={idx}
+                      ref={(el) => setOtpRef(el, idx)}
+                      type="text"
+                      maxLength={1}
+                      value={digit}
+                      autoFocus={activeInput === idx}
+                      onChange={(e) => handleCodeChange(e, idx)}
+                      onKeyDown={(e) => handleCodeKeyDown(e, idx)}
+                      style={{
+                        width: 56,
+                        height: 64,
+                        fontSize: 32,
+                        border: "1px solid #ccc",
+                        borderRadius: 8,
+                        textAlign: "center",
+                        marginRight: idx < 5 ? 8 : 0,
+                      }}
+                    />
+                  ))}
+                </div>
+                <Button
                   style={{
-                    width: 56,
-                    height: 64,
-                    fontSize: 32,
-                    border: "1px solid #ccc",
-                    borderRadius: 8,
-                    textAlign: "center",
-                    marginRight: idx < 5 ? 8 : 0,
+                    width: "100%",
+                    borderRadius: 24,
+                    background: "#222",
+                    border: "none",
+                    fontSize: 20,
+                    padding: "12px 0",
+                    marginBottom: 16,
                   }}
-                />
-              ))}
-            </div>
-            <Button
-              style={{
-                width: "100%",
-                borderRadius: 24,
-                background: "#222",
-                border: "none",
-                fontSize: 20,
-                padding: "12px 0",
-                marginBottom: 16,
-              }}
-              onClick={handleVerify}
-            >
-              Verify Code
-            </Button>
-            <div>
-              <span style={{ color: "#888" }}>Didn&apos;t receive the code?</span>{" "}
-              <Button
-                variant="link"
-                style={{ color: "#007bff", padding: 0, fontWeight: 500, textDecoration: "underline" }}
-                onClick={handleResend}
-              >
-                Request New Code.
-              </Button>
-            </div>
-          </div>
-        </Modal.Body>
-      </Modal>
+                  onClick={handleVerify}
+                >
+                  Verify Code
+                </Button>
+                <div>
+                  <span style={{ color: "#888" }}>
+                    Didn&apos;t receive the code?
+                  </span>{" "}
+                  <Button
+                    variant="link"
+                    style={{
+                      color: "#007bff",
+                      padding: 0,
+                      fontWeight: 500,
+                      textDecoration: "underline",
+                    }}
+                    onClick={handleResend}
+                  >
+                    Request New Code.
+                  </Button>
+                </div>
+              </div>
+            </Modal.Body>
+          </Modal>
+        
     </>
   );
-
-
 }
 
 export default SignUp;
@@ -702,7 +751,7 @@ export function FormInput({
   const [isFocused, setIsFocused] = useState(false);
 
   return (
-    <div className='w-100'>
+    <div className="w-100">
       <div
         className={`SignInput floating-input ${isFocused || value ? "focused" : ""}`}
       >
@@ -718,7 +767,7 @@ export function FormInput({
           placeholder=" " // <-- Add a single space as placeholder
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          className={error ? 'is-invalid' : ''}
+          className={error ? "is-invalid" : ""}
         />
         <label htmlFor={inname}>{inlabel}</label>
       </div>
