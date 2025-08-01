@@ -18,13 +18,7 @@
     font-size: 33px;
     line-height: 120%;
 }
-.InventoryData .AddInventoryHead h2{
-    margin: 0;
-    font-family: var(--grotesk-font);
-    font-weight: 500;
-    font-size: 33px;
-    line-height: 120%;
-}
+
 .InventrySearch{
     display: flex;
     align-items: center;
