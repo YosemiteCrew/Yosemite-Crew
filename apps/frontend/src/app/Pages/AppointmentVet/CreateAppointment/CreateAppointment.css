@@ -1,0 +1,132 @@
+.CreateAppointmentSec{
+    padding: 80px 0px;
+}
+.CreateAppointmentData{
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+}
+.CreateAppointmentData h2{
+    margin: 0;
+    font-weight: 500;
+    font-family: var(--grotesk-font);
+    font-size: 33px;
+    line-height: 120%;
+}
+.CreateAppointCard{
+    display: flex;
+    flex-direction: column;
+    gap: 80px;
+}
+.CreateAppointCard .CreatePetCard{
+    border: 1px solid var(--lightgrey);
+    border-radius: 24px;
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+
+.CreateAppointCard .CreatePetCard .AddInventoryHead{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.CreateAppointCard .CreatePetCard .AddInventoryHead h6{
+    margin: 0;
+    font-family: var(--grotesk-font);
+    font-weight: 500;
+    font-size: 19px;
+    line-height: 120%;
+}
+.CreateAppointCard .CreatePetCard .AddInventoryHead h4{
+    margin: 0;
+    font-family: var(--grotesk-font);
+    font-weight: 500;
+    font-size: 23px;
+    line-height: 120%;
+}
+.CreateAppointCard .CreatePetCard .AddInventoryHead .InventrySearch{
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    border: 1px solid var(--lightgrey);
+    border-radius: 24px;
+    min-height: 50px;
+    width: 100%;
+    max-width: 590px;
+    padding: 0px 24px;
+}
+.CreateAppointCard .CreatePetCard .AddInventoryHead .InventrySearch svg{
+    color: var(--black-text);
+}
+.CreateAppointCard .CreatePetCard .AddInventoryHead .InventrySearch input{
+    border: none !important;
+    color: var(--greytext);
+    font-family: var(--satoshi-font);
+    font-weight: 400;
+    font-size: 18px;
+    line-height: 120%;
+    color: var(--black-text);
+}
+.CreateAppointCard .CreatePetCard .AddInventoryHead .InventrySearch input{
+    opacity: 60%;
+}
+.CreateAppointCard .CreateAppint{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+
+
+/* Toggle */
+.ApointTime-Container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+.ApointTime-Container p{
+    font-family: var(--satoshi-font);
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 120%;
+    color: var(--black-text);
+    margin: 0;
+}
+ .ApointTime-Container .button-group ul {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 0;
+    margin: 0;
+}
+ .ApointTime-Container .button-group .business-button {
+    padding: 0px 20px;
+    border: 0.5px solid var(--black-text);
+    border-radius: 28px; 
+    background-color: transparent; 
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: var(--satoshi-font);
+    color: var(--bluecolor);
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 120%;
+    min-height: 48px;
+}
+ .ApointTime-Container .button-group .business-button:hover {
+    color: var(--blue-text);
+    border-color: var(--blue-text);
+    background: var(--whitebg);
+}
+.ApointTime-Container .button-group .business-button.selected {
+    color: var(--blue-text);
+    border-color: var(--blue-text);
+    background: var(--whitebg);
+    font-weight: 700;
+}
