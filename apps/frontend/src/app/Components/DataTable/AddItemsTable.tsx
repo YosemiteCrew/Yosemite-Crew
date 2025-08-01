@@ -5,6 +5,7 @@ import { FaRegTrashAlt } from "react-icons/fa";
 import { MdModeEditOutline } from "react-icons/md";
 import { IoAddCircle } from "react-icons/io5";
 import "./DataTable.css";
+import { Icon } from "@iconify/react/dist/iconify.js";
 
 type Item = {
   id: number;
@@ -115,11 +116,11 @@ const AddItemsTable = () => {
                       <Button variant="link" className="action-btn Save" onClick={() => handleSave()}>Save</Button>
                     ) : (
                       <Button variant="link" className="action-btn" onClick={() => handleEdit(item.id)}>
-                        <MdModeEditOutline size={20} />
+                        <Icon icon="solar:pen-bold" width="20" height="20" />
                       </Button>
                     )}
                     <Button variant="link" className="action-btn" onClick={() => handleDelete(item.id)}>
-                      <FaRegTrashAlt size={20} />
+                      <Icon icon="solar:trash-bin-trash-bold" width="20" height="20" />
                     </Button>
                   </div>
                 </td>
@@ -137,7 +138,7 @@ const AddItemsTable = () => {
         </div>
       </div>
       <div className="table-footerBtn">
-        <Button onClick={handleAddItem}><IoAddCircle size={20} /> Add Item</Button>
+        <Button onClick={handleAddItem}><Icon icon="carbon:add-filled" width="20" height="20" /> Add Item</Button>
       </div>
     </div>
   );

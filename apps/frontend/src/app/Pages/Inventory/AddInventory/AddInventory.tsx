@@ -5,8 +5,12 @@ import { Button, Col, Container, Form, Row } from 'react-bootstrap'
 import { Icon } from '@iconify/react/dist/iconify.js'
 import { FormInput } from '../../Sign/SignUp'
 import DynamicSelect from "@/app/Components/DynamicSelect/DynamicSelect";
+import DynamicDatePicker from "@/app/Components/DynamicDatePicker/DynamicDatePicker";
+
 
 function AddInventory() {
+  // Quantity state
+ const [quantity, setQuantity] = useState(0);
 
     const [country, setCountry] = useState<string>("");
     type Option = {
@@ -23,20 +27,7 @@ function AddInventory() {
         barcode: "",
         item: "",
         genric: "",
-
-
-        userId: "",
-        businessName: "",
-        website: "",
-        registrationNumber: "",
-        city: "",
-        state: "",
-        area: "", 
-        addressLine1: "",
-        latitude: "",
-        longitude:"",
-        postalCode: "",
-        phoneNumber: ""
+        dateOfBirth: "",
     });
     const handleBusinessInformation = useCallback((e: { target: { name: string; value: string; }; }) => {
         const { name, value } = e.target;
@@ -46,6 +37,14 @@ function AddInventory() {
         }));
     }, []);
 
+
+    // Use this handler for date picker:
+  const handleDateChange = (date: string | null) => {
+    setName((prevData) => ({
+      ...prevData,
+      dateOfBirth: date || "",
+    }));
+  };
 
 
   return (
@@ -111,12 +110,12 @@ function AddInventory() {
                             </Row>
 
                             <Row>
-                                <Col md={6}>
-                                    <DynamicSelect options={options} value={country} onChange={setCountry} inname="country" placeholder="On Hand"/>
-                                </Col>
-                                <Col md={6}>
-                                    <DynamicSelect options={options} value={country} onChange={setCountry} inname="country" placeholder="$ Per Qty Price"/>
-                                </Col>
+                              <Col md={6}>
+                                <DynamicSelect options={options} value={country} onChange={setCountry} inname="country" placeholder="On Hand"/>
+                              </Col>
+                              <Col md={6}>
+                                <DynamicSelect options={options} value={country} onChange={setCountry} inname="country" placeholder="$ Per Qty Price"/>
+                              </Col>
                             </Row>
 
                             <Row>
@@ -130,7 +129,7 @@ function AddInventory() {
                                     <FormInput intype="text" inname="item" value={name.item} inlabel="Strength (ex: 500mg)" onChange={handleBusinessInformation} />
                                 </Col>
                                 <Col md={3}>
-                                    <FormInput intype="text" inname="item" value={name.item} inlabel="Item Name" onChange={handleBusinessInformation} />
+                                    <QuantityInput value={quantity} onChange={setQuantity} />
                                 </Col>
                             </Row>
 
@@ -154,7 +153,11 @@ function AddInventory() {
                                     <FormInput intype="number" inname="item" value={name.item} inlabel="Stock Reorder Level" onChange={handleBusinessInformation} />
                                 </Col>
                                 <Col md={6}>
-                                    <FormInput intype="text" inname="item" value={name.item} inlabel="% Markup" onChange={handleBusinessInformation} />
+                                    <DynamicDatePicker
+                                    placeholder="Expiry Date (dd--mm-yyyy)"
+                                    value={name.dateOfBirth}
+                                    onDateChange={handleDateChange}
+                              />
                                 </Col>
                             </Row>
 
@@ -173,3 +176,28 @@ function AddInventory() {
 }
 
 export default AddInventory
+
+
+
+// QuantityInput component
+interface QuantityInputProps {
+  value: number;
+  onChange: (val: number) => void;
+}
+function QuantityInput({ value, onChange }: QuantityInputProps) {
+  const handleDecrease = () => {
+    if (value > 0) onChange(value - 1);
+  };
+  const handleIncrease = () => {
+    onChange(value + 1);
+  };
+  return (
+    <div className="AddQuanity">
+      <Button type="button" onClick={handleDecrease}><Icon icon="solar:minus-circle-bold" width="24" height="24" color="#302F2E" /></Button>
+      <span className="quntyname">Quantity</span>
+      <span style={{marginLeft:16,fontSize:20,fontWeight:600}}>{value}</span>
+      <Button type="button" onClick={handleIncrease}><Icon icon="solar:add-circle-bold" width="24" height="24" color="#302F2E" /></Button>
+      
+    </div>
+  );
+}

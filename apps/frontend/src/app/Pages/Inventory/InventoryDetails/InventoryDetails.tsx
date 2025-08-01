@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import "./InventoryDetails.css"
 import { Button, Card, Col, Container, Form, ProgressBar, Row } from 'react-bootstrap';
+import { Icon } from '@iconify/react/dist/iconify.js';
 
 type InventoryItem = {
   category: string;
@@ -59,114 +60,141 @@ const InventoryDetails: React.FC = () => {
 
             <div className="InventryHeading">
                 <h4>Item Details</h4>
-                <Button variant="outline-dark" size="sm" onClick={() => setEditMode(!editMode)}>
-                ✏️ {editMode ? 'Cancel Edit' : 'Edit Details'}
-                </Button>
+                <Button onClick={() => setEditMode(!editMode)}><Icon icon="solar:pen-bold" width="14" height="14" color='#247AED' />{editMode ? 'Cancel Edit' : 'Edit Details'}</Button>
             </div>
 
-            <Card className="">
+            <Card className="InvtDetailCard">
             
-                <hr />
-
                 {/* Basic Info */}
-                <h6>Basic</h6>
-                <Row className="mb-4">
+              <div className="BasicInvt">
+                <h5>Basic</h5>
+                <div className="BasicGrid">
                     {['category', 'itemName', 'genericName', 'itemCategory', 'manufacturer'].map((key, i) => (
-                    <Col md={2} key={i}>
-                        <div className="mb-2 fw-semibold">{capitalize(key)}</div>
+                    <div key={i} className='BasicItems'>
+                        <p>{capitalize(key)}</p>
                         {editMode ? (
                         <Form.Control name={key} value={item[key as keyof InventoryItem] as string} onChange={handleChange} />
                         ) : (
-                        <div>{item[key as keyof InventoryItem]}</div>
+                        <h6>{item[key as keyof InventoryItem]}</h6>
                         )}
-                    </Col>
+                    </div>
                     ))}
-                </Row>
+                </div>
+              </div>
+                
 
                 <hr />
-
                 {/* Stock Info */}
-                <h6>Stock</h6>
-                <Row className="mb-3">
-                    <Col md={2}><strong>Batch Number</strong><div>{item.batchNumber}</div></Col>
-                    <Col md={2}><strong>SKU</strong><div>{item.sku}</div></Col>
-                    <Col md={2}><strong>Strength</strong><div>{item.strength}</div></Col>
-                    <Col md={3}>
-                    <strong>Expiry Date</strong>
-                    {editMode ? (
-                        <Form.Control
-                        type="date"
-                        name="expiryDate"
-                        value={item.expiryDate}
-                        onChange={handleChange}
-                        />
-                    ) : (
-                        <div>{formatDate(item.expiryDate)}</div>
-                    )}
-                    </Col>
-                    <Col md={3}><strong>Manufacturer</strong><div>{item.manufacturer}</div></Col>
-                </Row>
-                <Row>
-                    <Col md={2}><strong>Total Stock</strong><div>{item.totalStock}</div></Col>
-                    <Col md={2}><strong>Available Stock</strong><div>{item.availableStock}</div></Col>
-                    <Col md={3}><strong>Stock Reorder Level</strong><div>{item.reorderLevel}</div></Col>
-                    <Col md={3}><strong>Status</strong><div className="text-success">● Available</div></Col>
-                </Row>
-
-                <div className="mt-3">
-                    <div className="d-flex justify-content-between">
-                    <span>Remaining</span>
-                    <span>{stockPercentage}%</span>
+                <div className="BasicInvt">
+                  <h5>Stock</h5>
+                  <div className="BasicGrid">
+                    <div className='BasicItems'>
+                      <p>Batch Number</p>
+                      <h6>{item.batchNumber}</h6>
                     </div>
-                    <ProgressBar now={stockPercentage} variant="success" />
+
+                    <div className='BasicItems'>
+                      <p>SKU</p>
+                      <h6>{item.sku}</h6>
+                    </div>
+
+                    <div className='BasicItems'>
+                      <p>Strength</p>
+                      <h6>{item.strength}</h6>
+                    </div>
+
+                    <div className='BasicItems'>
+                      <p>Expiry Date</p>
+                      {editMode ? (
+                          <Form.Control
+                          type="date"
+                          name="expiryDate"
+                          value={item.expiryDate}
+                          onChange={handleChange}
+                          />
+                      ) : (
+                          <h6>{formatDate(item.expiryDate)}</h6>
+                      )}
+                    </div>
+                    <div className='BasicItems'>
+                      <p>Manufacturer</p>
+                      <h6>{item.manufacturer}</h6>
+                    </div>
+                  </div>
+                  <div className="BasicGrid">
+                      <div className='BasicItems'>
+                        <p>Total Stock</p>
+                        <h6>{item.totalStock}</h6>
+                      </div>
+                      <div className='BasicItems'>
+                        <p>Available Stock</p>
+                        <h6>{item.availableStock}</h6>
+                      </div>
+                      <div className='BasicItems'>
+                        <p>Stock Reorder Level</p>
+                        <h6>{item.reorderLevel}</h6>
+                      </div>
+                      <div className='BasicItems'>
+                        <p>Status</p>
+                        <h6 className="text-success">● Available</h6>
+                      </div>
+                  </div>
+
+                  <div className="">
+                      <div className="d-flex justify-content-between">
+                      <span>Remaining</span>
+                      <span>{stockPercentage}%</span>
+                      </div>
+                      <ProgressBar now={stockPercentage} variant="success" />
+                  </div>
+
                 </div>
 
-                <hr />
+                  <hr />
 
                 {/* Pricing */}
-                <h6>Pricing</h6>
-                <Row className="mb-3">
-                    <Col md={3}>
-                    <strong>Manufacturer Price</strong>
-                    {editMode ? (
-                        <Form.Control
-                        type="number"
-                        name="manufacturerPrice"
-                        value={item.manufacturerPrice}
-                        onChange={handleChange}
-                        />
-                    ) : (
-                        <div>${item.manufacturerPrice.toFixed(2)}</div>
-                    )}
-                    </Col>
-                    <Col md={3}>
-                    <strong>Markup Percentage</strong>
-                    {editMode ? (
-                        <Form.Control
-                        type="number"
-                        name="markupPercentage"
-                        value={item.markupPercentage}
-                        onChange={handleChange}
-                        />
-                    ) : (
-                        <div>% {item.markupPercentage}</div>
-                    )}
-                    </Col>
-                    <Col md={3}>
-                    <strong>Price</strong>
-                    <div>${sellingPrice}</div>
-                    </Col>
-                </Row>
-
+                <div className="BasicInvt">
+                  <h5>Pricing</h5>
+                  <div className="BasicGrid">
+                      <div className='BasicItems'>
+                        <p>Manufacturer Price</p>
+                        {editMode ? (
+                            <Form.Control
+                            type="number"
+                            name="manufacturerPrice"
+                            value={item.manufacturerPrice}
+                            onChange={handleChange}
+                            />
+                        ) : (
+                            <h6>${item.manufacturerPrice.toFixed(2)}</h6>
+                        )}
+                      </div>
+                      <div className='BasicItems'>
+                        <p>Markup Percentage</p>
+                        {editMode ? (
+                            <Form.Control
+                            type="number"
+                            name="markupPercentage"
+                            value={item.markupPercentage}
+                            onChange={handleChange}
+                            />
+                        ) : (
+                            <h6>% {item.markupPercentage}</h6>
+                        )}
+                      </div>
+                      <div className='BasicItems'>
+                        <p>Price</p>
+                        <h6>${sellingPrice}</h6>
+                      </div>
+                  </div>
+                </div>
             
             </Card>
 
             {editMode && (
-                <div className="text-center mt-4">
-                <Button variant="dark" onClick={() => setEditMode(false)}>
-                    ✅ Update
-                </Button>
-                </div>
+              <div className="InvtUpdateBtn">
+                <Button onClick={() => setEditMode(false)}><Icon icon="carbon:checkmark-filled" width="24" height="24" /> Update </Button>
+              </div>
             )}
 
         </div>
