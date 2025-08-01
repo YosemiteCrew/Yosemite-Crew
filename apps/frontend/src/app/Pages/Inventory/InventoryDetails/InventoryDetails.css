@@ -17,4 +17,106 @@
     font-weight: 500;
     font-size: 33px;
     line-height: 120%;
+    color: var(--black-text);
+}
+.InventryData .InventryHeading button{
+    border: 1px solid var(--black-bg);
+    background: transparent;
+    color: var(--black-text);
+    padding: 10px 16px;
+    border-radius: 28px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 39px;
+    font-weight: 500;
+    font-size: 16px;
+    line-height: 120%;
+    &:hover{
+        background: var(--black-bg);
+        color: var(--white-text);
+
+    }
+}
+.InventryData .InvtDetailCard{
+    background: #FEEEDC1A;
+    border: 1px solid var(--profileborder);
+    border-radius: 28px;
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+}
+.InventryData .InvtDetailCard .BasicInvt{
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+.InventryData .InvtDetailCard .BasicInvt h5{
+    margin: 0;
+    color: var(--black-text);
+    font-family: var(--grotesk-font);
+    font-size: 23px;
+    line-height: 120%;
+    font-weight: 500;
+}
+.InventryData .InvtDetailCard .BasicInvt .BasicGrid{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 40px 72px;
+}
+.InventryData .InvtDetailCard .BasicInvt .BasicGrid .BasicItems{
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.InventryData .InvtDetailCard .BasicInvt .BasicGrid .BasicItems p{
+    margin: 0;
+    font-family: var(--satoshi-font);
+    font-weight: 700;
+    font-size: 15px;
+    line-height: 120%;
+    color: var(--black-grey-Text);
+}
+.InventryData .InvtDetailCard .BasicInvt .BasicGrid .BasicItems .form-control{
+    border: 1px solid var(--greyborder) !important;
+    border-radius: 28px !important;
+    font-weight: 400;
+    font-size: 18px;
+    line-height: 120%;
+    color: var(--black-text);
+    background: transparent !important;
+}
+.InventryData .InvtDetailCard .BasicInvt .BasicGrid .BasicItems h6{
+    margin: 0;
+    font-weight: 700;
+    font-size: 18px;
+    line-height: 120%;
+    color: var(--black-text);
+}
+.InvtUpdateBtn{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.InvtUpdateBtn button{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px 32px;
+    border-radius: 28px;
+    min-width: 160px;
+    min-height: 60px;
+    background: var(--black-bg);
+    border: 1px solid var(--black-bg) !important;
+    color: var(--white-text);
+    font-weight: 500;
+    font-size: 23px;
+    line-height: 120%;
+    font-family: var(--grotesk-font);
+    &:hover{
+        background: transparent;
+        color: var(--black-text);
+    }
 }
