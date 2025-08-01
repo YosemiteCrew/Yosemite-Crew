@@ -87,3 +87,30 @@
         color: var(--black-text);
     }
 }
+
+.AddQuanity{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px solid var(--greyborder);
+    padding: 10px 24px ;
+    border-radius: 36px;
+    min-height: 60px;
+}
+.AddQuanity button{
+    padding: 0px;
+    line-height: 0px;
+    background: transparent !important;
+    border: none !important;
+}
+.AddQuanity span , .AddQuanity span.quntyname{
+    font-size: 18px;
+    font-weight: 400;
+    font-family: var(--satoshi-font);
+    line-height: 120%;
+    opacity: 60%;
+    color: var(--black-text);
+}
+.AddQuanity span{
+    opacity: 100%;
+}

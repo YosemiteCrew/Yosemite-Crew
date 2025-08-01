@@ -258,7 +258,7 @@ input[type=checkbox]:checked::after {
 
 
 .form-check-input:focus {
-    box-shadow: none !important;
+  box-shadow: none !important;
 }
 .form-check-label {
   color: var(--black-text);
@@ -439,7 +439,14 @@ input[type=number] {
   margin: 0;
 }
 /* Add image css  */
-
+.form-floating textarea {
+  background: transparent;
+  min-height: 90px !important;
+}
+.form-floating textarea:focus {
+  background: transparent;
+  border: 1px solid var(--black-bg) !important;
+}
 
 
 
