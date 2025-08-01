@@ -1,3 +1,4 @@
+'use client';
 import React from "react";
 import BusinessDashboard from "@/app/Pages/BusinessDashboard/BusinessDashboard";
 import { useAuthStore } from "@/app/stores/authStore";
