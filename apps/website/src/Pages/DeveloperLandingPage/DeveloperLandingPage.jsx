@@ -13,7 +13,7 @@ import './DeveloperLandingPage.css';
 // import Stepitems2 from '../../../../public/Images/Devlperlanding/Stepitems2.png';
 // import Stepitems3 from '../../../../public/Images/Devlperlanding/Stepitems3.png';
 // import devlpbuild from '../../../../public/Images/Devlperlanding/devlpbuild.png';
-import { FillBtn } from '../Homepage/Homepage';
+import { FillBtn } from "../../Components/FillBtn/FillBtn"
 import LaunchGrowTab from '../../Components/LaunchGrowTab/LaunchGrowTab';
 import { Link } from 'react-router-dom';
 

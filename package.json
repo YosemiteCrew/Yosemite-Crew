@@ -19,5 +19,9 @@
     "patchedDependencies": {
       "react-native-country-codes-picker@2.3.5": "patches/react-native-country-codes-picker@2.3.5.patch"
     }
+  },
+  "dependencies": {
+    "framer-motion": "^12.18.1",
+    "react-intersection-observer": "^9.16.0"
   }
 }

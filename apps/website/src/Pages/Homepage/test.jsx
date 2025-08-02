@@ -1,0 +1,378 @@
+
+
+import "./Homepage.css";
+import PropTypes from "prop-types";
+import { SectionText } from "../Pricing/Pricing";
+import { Link } from "react-router-dom";
+
+const Homepage = () => {
+  return (
+
+      <div className="HomeMain">
+        {/* HeroSection */}
+        <section className="HeroSection"
+        style={{
+          "--background-image": `url(${import.meta.env.VITE_BASE_IMAGE_URL}/heroafter.png)`
+        }}
+        >
+          <div className="container">
+            <div className="HeroData">
+              <div className="LeftHeroDiv">
+                <div className="herotext">
+                  <h1 className="type first">Helping You Help Pets,</h1>
+                  <h1>
+                    <span className="type second">Without the Hassle</span>
+                  </h1>
+                </div>
+                <div className="heroPara">
+                  <div className="paraitem">
+                    <p>
+                      <img src={`${import.meta.env.VITE_BASE_IMAGE_URL}/Homepage/P1.png`} alt="Hero" /> Open source, cloud-based
+                      system
+                    </p>
+                  </div>
+                  <div className="paraitem">
+                    <p>
+                      <img src={`${import.meta.env.VITE_BASE_IMAGE_URL}/Homepage/P2.png`} alt="Hero" /> Enhance your daily workflow
+                    </p>
+                  </div>
+                  <div className="paraitem">
+                    <p>
+                      <img src={`${import.meta.env.VITE_BASE_IMAGE_URL}/Homepage/P3.png`} alt="Hero" /> Easy-to-use, time-saving
+                      features
+                    </p>
+                  </div>
+                  <div className="paraitem">
+                    <p>
+                      <img src={`${import.meta.env.VITE_BASE_IMAGE_URL}/Homepage/P4.png`} alt="Hero" /> Access data anytime, anywhere
+                    </p>
+                  </div>
+                </div>
+                <div className="HeroBtn">
+                  <Link className="Fillbtn" to="/signup">
+                    <i className="ri-flashlight-fill"></i> Get Started
+                  </Link>
+                  <Link className="Sbtn" to="/contact">
+                    <i className="ri-time-fill"></i> Book a Demo
+                  </Link>
+                </div>
+              </div>
+              <div className="RytHeroDiv">
+                <img src={`${import.meta.env.VITE_BASE_IMAGE_URL}/Homepage/Heroimg.png`} alt="Hero" />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* PracticeSection */}
+        <section className="PracticeSection">
+          <div className="container">
+            <HeadLine
+              spnhead="Everything You Need"
+              blkhead="to Run Your Practice"
+            />
+
+            <div className="Practice_Box_Data">
+              <BoxPract
+                Bpimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/Homepage/Pr1.png`}
+                BpTxt1="Appointment"
+                BpTxt2="Scheduling"
+                BpPara="Easily manage bookings, cancellations, and reminders to minimize no-shows."
+              />
+              <BoxPract
+                Bpimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/Homepage/Pr2.png`}
+                BpTxt1="Medical Records"
+                BpTxt2="Management"
+                BpPara="Organize patient data, treatment history, and prescriptions in one secure platform."
+              />
+              <BoxPract
+                Bpimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/Homepage/Pr3.png`}
+                BpTxt1="Client"
+                BpTxt2="Communication"
+                BpPara="Send automated reminders, updates, and follow-up messages via email or text."
+              />
+              <BoxPract
+                Bpimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/Homepage/Pr4.png`}
+                BpTxt1="Billing &"
+                BpTxt2="Payments"
+                BpPara="Generate invoices, process payments, and track financials with ease."
+              />
+              <BoxPract
+                Bpimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/Homepage/Pr5.png`}
+                BpTxt1="Invoicing"
+                BpTxt2="Management"
+                BpPara="Automate check-out with invoicing, quick payments, downpayments, split payments, and refunds."
+              />
+              <BoxPract
+                Bpimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/Homepage/Pr6.png`}
+                BpTxt1="Pet Parent"
+                BpTxt2="App"
+                BpPara="Give clients a vet-in-your-pocket with a dedicated app for reminders, medical records, and invoices—all in one."
+              />
+              <BoxPract
+                Bpimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/Homepage/Pr7.png`}
+                BpTxt1="Report &"
+                BpTxt2="Analytics"
+                BpPara="Monitor practice performance with detailed insights into appointments, revenue, and client retention."
+              />
+              <BoxPract
+                Bpimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/Homepage/Pr8.png`}
+                BpTxt1="Inventory"
+                BpTxt2="Management"
+                BpPara="Keep track of stock levels, place orders, and receive notifications when supplies are low."
+              />
+            </div>
+            
+
+          </div>
+        </section>
+        
+        {/* FocusSection */}
+        <section className="FocusSection">
+          <div className="container">
+            <div className="foctext">
+              <SectionText secspan1="Focus on Care," secblk2="Not Admin" />
+              <p>
+                The easy-to-use, cloud-based software that simplifies practice
+                management and elevates patient care.
+              </p>
+            </div>
+
+            <div className="Focus_data">
+              <FocusCard
+                Focimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/Homepage/focus1.png`}
+                focname="API-Driven"
+                focpara="Seamlessly integrate with external tools and systems, offering flexible data sharing and connectivity."
+              />
+              <FocusCard
+                focadcls="purplecard"
+                Focimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/Homepage/focus2.png`}
+                focname="Open Source"
+                focpara="With Yosemite Crew’s GPL license, you own the software—SaaS simplicity with Open Source freedom and no vendor lock-in."
+              />
+              <FocusCard
+                focadcls="browncard"
+                Focimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/Homepage/focus3.png`}
+                focname="Automated Workflows"
+                focpara="Automate invoicing, appointment scheduling, and reminders, freeing up your team to focus on what matters most."
+              />
+              <FocusCard
+                focadcls="greencard"
+                Focimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/Homepage/focus4.png`}
+                focname="Secure & Compliant"
+                focpara="Built with GDPR, SOC2, and ISO 27001 compliance, ensuring the highest standards of security and trust."
+              />
+              <FocusCard
+                focadcls="blckcard"
+                Focimg={`${import.meta.env.VITE_BASE_IMAGE_URL}/Homepage/focus5.png`}
+                focname="Scalable"
+                focpara="Grow with confidence – whether you're a small clinic or a multi-location practice, our software evolves with your needs."
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* TrustExpert  */}
+        <section className="TrustExpertSec">
+          <div className="container">
+            <SectionText secspan1="Trusted" secblk2="by Veterinary Experts" />
+
+            <div className="TrustExpertData"
+            style={{
+              "--trust-image":`url(${import.meta.env.VITE_BASE_IMAGE_URL}/heart.png)`
+            }}
+            >
+              <div className="Expertitems">
+                <div className="expertPara">
+                  <p>
+                    Yosemite Crew has transformed the way we manage our clinic.
+                    The open-source platform allows us to customize it to our
+                    needs, and the automated workflows save us hours every week!
+                  </p>
+                </div>
+                <div className="expertBio">
+                  <img src={`${import.meta.env.VITE_BASE_IMAGE_URL}/Homepage/exprt1.png`} alt="" />
+                  <div className="exprtName">
+                    <h6>Dr. Sarah Mitchell</h6>
+                    <p>
+                      Senior Veterinarian <br /> Paws & Claws Animal Hospital
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="Expertitems purpleitem">
+                <div className="expertPara">
+                  <p>
+                    Our team is more efficient, and our clients love the mobile
+                    app. It’s made communication so much easier, and patient
+                    care is more organized than ever.t
+                  </p>
+                </div>
+                <div className="expertBio purplebio">
+                  <img src={`${import.meta.env.VITE_BASE_IMAGE_URL}/Homepage/exprt2.png`} alt="" />
+                  <div className="exprtName">
+                    <h6>Dr. Michael Lawson</h6>
+                    <p>
+                      Director <br /> Healthy Paws Veterinary Center
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="Expertitems greenitem">
+                <div className="expertPara">
+                  <p>
+                    Switching to Yosemite Crew was the best decision for our
+                    practice. The integration with third-party tools and
+                    real-time analytics have given us incredible insights into
+                    how to improve our operations.
+                  </p>
+                </div>
+                <div className="expertBio greenbio">
+                  <img src={`${import.meta.env.VITE_BASE_IMAGE_URL}/Homepage/exprt3.png`} alt="" />
+                  <div className="exprtName">
+                    <h6>Dr. Emily Carter</h6>
+                    <p>
+                      Clinic Manager <br /> Furry Friends Veterinary Clinic
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              
+            </div>
+          </div>
+        </section>
+
+        {/* WhoCareSec */}
+        <section className="WhoCareSec">
+          <div className="container">
+            <div className="whocareData">
+              <div className="lftcare">
+                <HeadLine
+                  spnhead="Caring for the Vets"
+                  blkhead="Who Care for Pets"
+                />
+                <p>
+                  We prioritize your data security and compliance with
+                  industry-leading standards. Our platform is fully compliant
+                  with:
+                </p>
+              </div>
+              <div className="rytcare">
+                <p>Our platform is fully compliant with:</p>
+                <div className="carelog">
+                  <img src={`${import.meta.env.VITE_BASE_IMAGE_URL}/Homepage/cr1.png`} alt="" width={109} height={112} />
+                  <img src={`${import.meta.env.VITE_BASE_IMAGE_URL}/Homepage/cr2.png`} alt="" width={261} height={196} />
+                  <img src={`${import.meta.env.VITE_BASE_IMAGE_URL}/Homepage/cr3.png`} alt="" width={194} height={137} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* BettercareSec */}
+        <section className="BettercareSec"
+        style={{
+          "--better-image": `url(${import.meta.env.VITE_BASE_IMAGE_URL}/Homepage/LINES.png)`
+        }}
+        >
+          <div className="container">
+            <div className="BettercareBox">
+              <div className="lftbetter">
+                <div className="betInner">
+                  <h2>
+                    <span>Better Care</span> is just a <br /> click away
+                  </h2>
+                  <p>
+                    Join hundreds of veterinary clinics already enhancing
+                    patient care and streamlining their workflow.
+                  </p>
+                  <FillBtn
+                    FilName="Book a Demo"
+                    FilIcon="ri-flashlight-fill "
+                    Filhref="#"
+                  />
+                  {/* <a className='Fillbtn' href="#"><i className="ri-flashlight-fill"></i> Book a Demo</a> */}
+                </div>
+              </div>
+              <div className="lftbetter">
+                <img src={`${import.meta.env.VITE_BASE_IMAGE_URL}/Homepage/betterimg.png`} alt="" />
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+  );
+};
+
+export default Homepage;
+
+// FocusCard
+FocusCard.propTypes = {
+  Focimg: PropTypes.string.isRequired,
+  focname: PropTypes.string.isRequired,
+  focpara: PropTypes.string.isRequired,
+  focadcls: PropTypes.string.isRequired,
+};
+function FocusCard({ Focimg, focname, focpara, focadcls }) {
+  return (
+    <div className={`FocusItem ${focadcls}`}>
+      <img src={Focimg} alt="" width={100} height={100} />
+      <div className="focusText">
+        <h4>{focname}</h4>
+        <p>{focpara}</p>
+      </div>
+    </div>
+  );
+}
+
+// HeadLine
+HeadLine.propTypes = {
+  spnhead: PropTypes.string.isRequired,
+  blkhead: PropTypes.string.isRequired,
+};
+function HeadLine({ spnhead, blkhead }) {
+  return (
+    <div className="SecHeading">
+      <h2>
+        <span>{spnhead}</span> <br /> {blkhead}{" "}
+      </h2>
+    </div>
+  );
+}
+
+// Fill Btn
+FillBtn.propTypes = {
+  FilName: PropTypes.string.isRequired,
+  FilIcon: PropTypes.string.isRequired,
+  Filhref: PropTypes.string.isRequired,
+};
+export function FillBtn({ FilName, FilIcon, Filhref }) {
+  return (
+    <Link className="Fillbtn" to={Filhref}>
+      <i className={FilIcon}></i> {FilName}
+    </Link>
+  );
+}
+
+// BoxPract
+BoxPract.propTypes = {
+  Bpimg: PropTypes.string.isRequired,
+  BpTxt1: PropTypes.string.isRequired,
+  BpTxt2: PropTypes.string.isRequired,
+  BpPara: PropTypes.string.isRequired,
+};
+function BoxPract({ Bpimg, BpTxt1, BpTxt2, BpPara }) {
+  return (
+    <div className="PracBox">
+      <img src={Bpimg} alt="" />
+      <h4>
+        {BpTxt1} <br /> {BpTxt2}
+      </h4>
+      <p>{BpPara}</p>
+    </div>
+  );
+}
