@@ -1,6 +1,7 @@
-const mongoose = require('mongoose');
+import mongoose, { Schema, Model } from 'mongoose';
+import type { IMessage } from '@yosemite-crew/types';
 
-const messageSchema = new mongoose.Schema({
+const messageSchema: Schema<IMessage> = new mongoose.Schema({
   sender: { type: String, required: true },
   receiver: { type: String, required: true },
   content: { type: String, default: '' }, // Text message
@@ -15,7 +16,7 @@ const messageSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-});
+}, { timestamps: true });
 
-const Message = mongoose.model('Message', messageSchema);
-module.exports = Message;
+const Message: Model<IMessage> = mongoose.model<IMessage>('Message', messageSchema);
+export default Message

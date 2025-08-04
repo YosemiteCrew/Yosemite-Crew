@@ -2,11 +2,12 @@
 import AWS from "aws-sdk";
 import { Request, Response } from "express";
 import { inviteTeamsMembers } from "../models/invite-teams-members";
-import { DoctorType, invitedTeamMembersInterface, InvitePayload, TeamOverview, WebUserType } from "@yosemite-crew/types";
+import { DepartmentsForInvite, DoctorType, invitedTeamMembersInterface, InviteItem, InvitePayload, TeamOverview, WebUserType } from "@yosemite-crew/types";
 import crypto from "crypto";
 import { ProfileData, WebUser } from "../models/WebUser";
 import AddDoctors from "../models/AddDoctor";
-import { convertToFhirTeamMembers, toFHIRInviteList, toFhirTeamOverview } from "@yosemite-crew/fhir";
+import { convertToFhirDepartment, convertToFhirTeamMembers, toFHIRInviteList, toFhirTeamOverview } from "@yosemite-crew/fhir";
+import Department from "../models/AddDepartment";
 const region = process.env.AWS_REGION || "eu-central-1";
 const SES = new AWS.SES({ region });
 
@@ -173,10 +174,9 @@ export const inviteTeamsMembersController = {
 
         console.log("Invite Code:", code);
 
-        if (!code) {
-            res.status(400).json({ message: "Invite code is required." });
-            return
-        }
+      if (typeof code !== "string" || !/^[a-zA-Z0-9]{8}$/.test(code)) {
+    return res.status(400).json({ message: "Invalid or missing invite code." });
+  }
 
         const invite = await inviteTeamsMembers.findOne({ inviteCode: code });
 
@@ -196,7 +196,7 @@ export const inviteTeamsMembersController = {
         const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
 
         if (diffInDays > 3) {
-            await inviteTeamsMembers.deleteOne({ inviteCode: code });
+            await inviteTeamsMembers.updateMany({ inviteCode: code }, { status: "expired" });
             res.status(410).json({ message: "This invite link has expired." });
             return
         }
@@ -408,7 +408,7 @@ export const inviteTeamsMembersController = {
             }
 
 
-            const invites = await inviteTeamsMembers.aggregate([
+            const invites: InviteItem[] = await inviteTeamsMembers.aggregate<InviteItem>([
                 { $match: matchStage as object },
 
                 // Lookup in ProfileData (for businessName)
@@ -421,7 +421,24 @@ export const inviteTeamsMembersController = {
                     }
                 },
 
-                // Lookup in AddDoctors (for full name)
+                // Convert string department to ObjectId
+                {
+                    $addFields: {
+                        departmentObjectId: { $toObjectId: "$department" }
+                    }
+                },
+
+                // Lookup in Departments to get department name
+                {
+                    $lookup: {
+                        from: "departments",
+                        localField: "departmentObjectId",
+                        foreignField: "_id",
+                        as: "departmentInfo"
+                    }
+                },
+
+                // Lookup in AddDoctors (for invitedBy full name)
                 {
                     $lookup: {
                         from: "adddoctors",
@@ -431,7 +448,7 @@ export const inviteTeamsMembersController = {
                     }
                 },
 
-                // Add invitedByName and formatted date
+                // Add custom fields like invitedByName, formatted date, department name/id
                 {
                     $addFields: {
                         invitedByName: {
@@ -458,24 +475,34 @@ export const inviteTeamsMembersController = {
                                 format: "%b %d, %Y",
                                 date: "$invitedAt"
                             }
-                        }
+                        },
+                        departmentId: "$department",
+                        department: {
+                            $cond: [
+                                { $gt: [{ $size: "$departmentInfo" }, 0] },
+                                { $arrayElemAt: ["$departmentInfo.departmentName", 0] },
+                                "Unknown"
+                            ]
+                        },
                     }
                 },
 
                 {
                     $project: {
                         businessProfile: 0,
-                        doctorProfile: 0
+                        doctorProfile: 0,
+                        departmentInfo: 0,
+                        departmentObjectId: 0
                     }
                 }
             ]);
+
 
             if (!invites.length) {
                 res.status(404).json({ message: "No invites found." });
                 return;
             }
             console.log("invites", invites)
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
             const invitesFHIR = toFHIRInviteList(invites);
 
             res.status(200).json({
@@ -519,7 +546,12 @@ export const inviteTeamsMembersController = {
             }
 
 
-            const [result] = await WebUser.aggregate([
+            const [result = {
+                totalWebUsers: 0,
+                onDutyCount: 0,
+                invitedCount: 0,
+                departmentCount: 0
+            }] = await WebUser.aggregate<TeamOverview>([
                 {
                     $match: {
                         bussinessId: userId,
@@ -596,11 +628,7 @@ export const inviteTeamsMembersController = {
                         },
                     },
                 },
-                // {
-                //     $addFields: {
 
-                //     },
-                // },
                 {
                     $project: {
                         _id: 0,
@@ -615,7 +643,7 @@ export const inviteTeamsMembersController = {
             res.status(200).json({
                 message: "Team overview fetched successfully",
                 data: toFhirTeamOverview(
-                    result as TeamOverview || {
+                    result || {
                         totalWebUsers: 0,
                         onDutyCount: 0,
                         invitedCount: 0,
@@ -651,10 +679,11 @@ export const inviteTeamsMembersController = {
                 }
             ]);
             // Flatten and add S3 URLs
-            const result = rawData.map((user: WebUserType) => {
+            const result = rawData.map((user: WebUserWithDoctorInfo) => {
                 const doctor: DoctorType | undefined = user.doctorsInfo?.[0];
 
-                const { doctorsInfo, ...userWithoutDoctorsInfo } = user as object;
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                const { doctorsInfo, ...userWithoutDoctorsInfo } = user;
 
                 const merged = {
                     ...userWithoutDoctorsInfo,
@@ -669,10 +698,41 @@ export const inviteTeamsMembersController = {
                 return merged;
             });
 
-            const response = convertToFhirTeamMembers(result)
+
+            const response = convertToFhirTeamMembers(result as []);;
             res.status(200).json({ message: "Fetched Successfully", response });
         } catch (error) {
             console.error("Error fetching practice team list:", error);
+            res.status(500).json({ message: "Internal Server Error" });
+        }
+    },
+
+    getDepartmentForInvite: async (req: Request, res: Response) => {
+        try {
+            const { userId } = req.query as { userId: string };
+
+            if (!/^[a-fA-F0-9-]{36}$/.test(userId)) {
+                res.status(400).json({ message: "Invalid userId format" });
+                return;
+            }
+
+            const departments: DepartmentsForInvite[] = await Department.find(
+                { bussinessId: userId },
+                { _id: 1, departmentName: 1 }
+            );
+
+
+            if (!departments.length) {
+                res.status(404).json({ message: "No departments found." });
+                return;
+            }
+            const data = convertToFhirDepartment(departments)
+            res.status(200).json({
+                message: "Departments fetched successfully",
+                data: data as object,
+            });
+        } catch (error) {
+            console.error("Error fetching departments:", error);
             res.status(500).json({ message: "Internal Server Error" });
         }
     }
@@ -686,10 +746,10 @@ function getSecretHash(email: string,) {
         .digest("base64");
 }
 function isValidEmail(email: string): boolean {
-  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-  return emailRegex.test(email);
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return emailRegex.test(email);
 }
 
-// const generateInviteCode = () => {
-//     return Math.random().toString(36).substr(2, 8).toUpperCase(); // 8-character code
-// };
+export type WebUserWithDoctorInfo = WebUserType & {
+    doctorsInfo?: DoctorType[];
+};

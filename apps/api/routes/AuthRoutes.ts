@@ -10,7 +10,8 @@ router.post('/signup', authController.signUp);
  router.post('/login', authController.login);
  router.post('/sendOtp', authController.sendOtp);
 // router.post('/deleteUser', authController.deleteUser);
-// router.post('/confirmSignup', authController.confirmSignup);
+router.post('/confirmSignup', authController.confirmSignup);
+router.post('/logout', authController.logout);
 router.post('/resendConfirmationCode', authController.resendConfirmationCode);
 router.post('/register', WebController.Register);
 router.post('/verifyUser', WebController.verifyUser);
@@ -22,10 +23,10 @@ router.post('/organization', WebController.setupProfile);
 router.get("/organization/", WebController.getHospitalProfileFHIR)
 // router.get('/getProfile/:id', WebController.getProfile);
 router.post('/signOut', WebController.signOut);
-router.delete(
-  '/:userId/deleteDocumentsToUpdate/:docId',
-  WebController.deleteDocumentsToUpdate
-);
+// router.delete(
+//   '/:userId/deleteDocumentsToUpdate/:docId',
+//   WebController.deleteDocumentsToUpdate
+// );
 router.post('/refreshToken', WebController.refreshToken);
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Add Department >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 

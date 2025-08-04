@@ -1,9 +1,9 @@
 import mongoose, { Schema, Model } from "mongoose";
-import type { IPet } from "@yosemite-crew/types";
+import type { pets } from "@yosemite-crew/types";
 
 
 
-const PetSchema: Schema<IPet> = new mongoose.Schema(
+const PetSchema: Schema<pets> = new mongoose.Schema(
   {
     cognitoUserId: { type: String, required: true },
     petType: { type: String },
@@ -14,7 +14,7 @@ const PetSchema: Schema<IPet> = new mongoose.Schema(
     petAge: { type: String },
     petCurrentWeight: { type: String },
     petColor: { type: String },
-    petBloodGroup: { type: String },
+    // petBloodGroup: { type: String },
     isNeutered: { type: String },
     ageWhenNeutered: { type: String },
     microChipNumber: { type: String },
@@ -34,7 +34,7 @@ const PetSchema: Schema<IPet> = new mongoose.Schema(
   { timestamps: true }
 );
 
-const pets: Model<IPet> = mongoose.model<IPet>(
+const pets: Model<pets> = mongoose.model<pets>(
   "pets",
   PetSchema
 );

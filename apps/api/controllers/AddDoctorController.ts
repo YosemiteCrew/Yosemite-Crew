@@ -668,107 +668,113 @@ const AddDoctorsController = {
     }
   },
 
-  AddDoctorsSlote: async (req, res) => {
-    try {
-      const { day, slots } = req.body;
-      const doctorId = req.params.id;
+//   AddDoctorsSlote: async (
+//   req: Request<{ id: string }, {}, { day: string; slots: { entry: SlotEntry[] } }>,
+//   res: Response
+// ): Promise<void> => {
+//   try {
+//     const { day, slots } = req.body;
+//     const doctorId = req.params.id;
 
-      if (
-        typeof doctorId !== "string" ||
-        !/^[a-fA-F0-9-]{36}$/.test(doctorId)
-      ) {
-        return res.status(400).json({ message: "Invalid doctorId format" });
-      }
+//     if (
+//       typeof doctorId !== "string" ||
+//       !/^[a-fA-F0-9-]{36}$/.test(doctorId)
+//     ) {
+//       res.status(400).json({ message: "Invalid doctorId format" });
+//       return;
+//     }
 
-      const validDays = [
-        "Monday",
-        "Tuesday",
-        "Wednesday",
-        "Thursday",
-        "Friday",
-        "Saturday",
-        "Sunday",
-      ];
-      if (typeof day !== "string" || !validDays.includes(day)) {
-        return res.status(400).json({ message: "Invalid day value" });
-      }
+//     const validDays = [
+//       "Monday",
+//       "Tuesday",
+//       "Wednesday",
+//       "Thursday",
+//       "Friday",
+//       "Saturday",
+//       "Sunday",
+//     ];
 
-      // console.log("day doctors",day, doctorId)
-      const formattedSlots = slots.entry.map((entry) => {
-        const resource = entry.resource || entry;
-        const dateObj = new Date(resource.start);
+//     if (typeof day !== "string" || !validDays.includes(day)) {
+//       res.status(400).json({ message: "Invalid day value" });
+//       return;
+//     }
 
-        const hours24 = dateObj.getHours().toString().padStart(2, "0");
-        const minutes = dateObj.getMinutes().toString().padStart(2, "0");
-        const time24 = `${hours24}:${minutes}`;
-        const time = convertTo12HourFormat(dateObj); // AM/PM format
+//     const formattedSlots: Slot[] = slots.entry.map((entry) => {
+//       const resource = entry.resource || entry;
+//       const dateObj = new Date(resource.start);
 
-        return {
-          ...resource,
-          time,
-          time24,
-          selected: resource.status === "true",
-        };
-      });
+//       const hours24 = dateObj.getHours().toString().padStart(2, "0");
+//       const minutes = dateObj.getMinutes().toString().padStart(2, "0");
+//       const time24 = `${hours24}:${minutes}`;
+//       const time = convertTo12HourFormat(dateObj);
 
-      let existingRecord = await DoctorsTimeSlotes.findOne({ doctorId, day });
+//       return {
+//         ...resource,
+//         time,
+//         time24,
+//         selected: resource.status === "true",
+//       };
+//     });
 
-      if (existingRecord) {
-        const incomingTimes = formattedSlots.map((slot) => slot.time);
-        const existingTimes = existingRecord.timeSlots.map((slot) => slot.time);
+//     let existingRecord = await DoctorsTimeSlotes.findOne({ doctorId, day });
 
-        const slotsToRemove = existingTimes.filter(
-          (time) => !incomingTimes.includes(time)
-        );
+//     if (existingRecord) {
+//       const incomingTimes = formattedSlots.map((slot) => slot.time);
+//       const existingTimes = existingRecord.timeSlots.map((slot: Slot) => slot.time);
 
-        const updatedSlots = existingRecord.timeSlots.map((existingSlot) => {
-          const incomingSlot = formattedSlots.find(
-            (slot) => slot.time === existingSlot.time
-          );
-          if (incomingSlot) {
-            existingSlot.selected = incomingSlot.selected;
-            existingSlot.time24 = incomingSlot.time24;
-          }
-          return existingSlot;
-        });
+//       const slotsToRemove = existingTimes.filter(
+//         (time: string) => !incomingTimes.includes(time)
+//       );
 
-        const newSlots = formattedSlots.filter(
-          (slot) => !existingTimes.includes(slot.time)
-        );
-        updatedSlots.push(...newSlots);
+//       const updatedSlots = existingRecord.timeSlots.map((existingSlot: Slot) => {
+//         const incomingSlot = formattedSlots.find(
+//           (slot) => slot.time === existingSlot.time
+//         );
+//         if (incomingSlot) {
+//           existingSlot.selected = incomingSlot.selected;
+//           existingSlot.time24 = incomingSlot.time24;
+//         }
+//         return existingSlot;
+//       });
 
-        const finalSlots = updatedSlots.filter(
-          (slot) => !slotsToRemove.includes(slot.time)
-        );
+//       const newSlots = formattedSlots.filter(
+//         (slot) => !existingTimes.includes(slot.time)
+//       );
+//       updatedSlots.push(...newSlots);
 
-        existingRecord.timeSlots = finalSlots;
-        await existingRecord.save();
+//       const finalSlots = updatedSlots.filter(
+//         (slot) => !slotsToRemove.includes(slot.time)
+//       );
 
-        return res.status(200).json({
-          message: "Slots updated successfully.",
-          data: existingRecord,
-        });
-      } else {
-        const newRecord = new DoctorsTimeSlotes({
-          doctorId,
-          day,
-          timeSlots: formattedSlots,
-        });
-        await newRecord.save();
+//       existingRecord.timeSlots = finalSlots;
+//       await existingRecord.save();
 
-        return res.status(201).json({
-          message: "New slots created successfully.",
-          data: newRecord,
-        });
-      }
-    } catch (error) {
-      console.error("Error in AddDoctorsSlot:", error);
-      return res.status(500).json({
-        message: "An error occurred while adding/updating slots.",
-        error: error.message,
-      });
-    }
-  },
+//       res.status(200).json({
+//         message: "Slots updated successfully.",
+//         data: existingRecord,
+//       });
+//     } else {
+//       const newRecord = new DoctorsTimeSlotes({
+//         doctorId,
+//         day,
+//         timeSlots: formattedSlots,
+//       });
+
+//       await newRecord.save();
+
+//       res.status(201).json({
+//         message: "New slots created successfully.",
+//         data: newRecord,
+//       });
+//     }
+//   } catch (error: any) {
+//     console.error("Error in addDoctorSlots:", error);
+//     res.status(500).json({
+//       message: "An error occurred while adding/updating slots.",
+//       error: error.message,
+//     });
+//   }
+// },
   getDoctorsSlotes: async (req, res) => {
     try {
       const { doctorId, day, date } = req.query;
@@ -1049,3 +1055,28 @@ const AddDoctorsController = {
 };
 
 export default AddDoctorsController;
+
+
+
+
+
+
+
+
+
+export type SlotEntry = {
+  resource: {
+    start: string;
+    status: string;
+    [key: string]: unknown;
+  };
+};
+
+export type Slot = {
+  start: string;
+  status: string;
+  time: string;
+  time24: string;
+  selected: boolean;
+  [key: string]: unknown;
+};

@@ -15,6 +15,7 @@ type ManageInviteItems = {
   email: string;
   role: string;
   specialize: string;
+  specializeId?: string; // Optional, can be used for filtering
   inviteon: string;
   inviteby: string;
   invitedBy: string;
@@ -42,6 +43,7 @@ function ManageInviteTable() {
           email: v.email,
           role: v.role,
           specialize: v.department,
+          specializeId: v.departmentId,
           inviteon: v.invitedAtFormatted,
           inviteby: v.invitedByName,
           invitedBy: v.invitedBy,
@@ -63,7 +65,7 @@ function ManageInviteTable() {
   // ✅ Resend Invite
   const handleSendInvite = async (item: ManageInviteItems) => {
     const members = [{
-      department: item.specialize,
+      department: item.specializeId,
       role: item.role,
       email: item.email,
       invitedBy: item.invitedBy,
@@ -164,7 +166,7 @@ function ManageInviteTable() {
             <h6 className="on-pending">Pending</h6>
           ) : item.status === "accepted" ? (
             <h6 className="Accepted">Accepted</h6>
-          ) : item.status === "expire" ? (
+          ) : item.status === "expired" ? (
             <h6 className="on-expire">Expired</h6>
           ) : (
             <h6 className="circle-btn view">Available</h6>
@@ -178,7 +180,7 @@ function ManageInviteTable() {
       render: (item: ManageInviteItems) => (
         <div className="CardilogyStatus">
           {item.action === "pending" && <Button onClick={()=>RemoveInvites(item)}>Remove</Button>}
-          {item.action === "expire" && (
+          {item.action === "expired" && (
             <Button onClick={() => handleSendInvite(item)}>Send Again</Button>
           )}
         </div>

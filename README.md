@@ -8,7 +8,7 @@
 
 <div align="center"> 
   
-[![Website](https://img.shields.io/badge/Yosemite%20Crew-D04122)](https://yosemitecrew.com/) [![Contributing](https://img.shields.io/badge/Contribute-FF9800)](https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md) [![Github License](https://img.shields.io/badge/License-4CAF50)](https://github.com/YosemiteCrew/Yosemite-Crew/tree/main?tab=License-1-ov-file) [![Discord](https://img.shields.io/discord/1326589224811757568?color=7289da&label=Discord&logo=discord&logoColor=ffffff)](https://discord.gg/SwM6mX85KD) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/YosemiteCrew/Yosemite-Crew)
+[![Website](https://img.shields.io/badge/Yosemite%20Crew-D04122)](https://yosemitecrew.com/) [![Contributing](https://img.shields.io/badge/Contribute-FF9800)](https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md) [![Github License](https://img.shields.io/badge/License-4CAF50)](https://github.com/YosemiteCrew/Yosemite-Crew/tree/main?tab=License-1-ov-file) [![Figma](https://img.shields.io/badge/Figma-383838?logo=figma)](https://www.figma.com/design/NAAV4XGcJ6FlGXGK68AUbp/Yosemite-Crew?node-id=0-1&t=qCMi0h3RReIRMkrK-1) [![Discord](https://img.shields.io/discord/1325181058777616395?color=7289da&label=Discord&logo=discord&logoColor=ffffff)](https://discord.gg/SwM6mX85KD) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/YosemiteCrew/Yosemite-Crew) 
   
 </div>
 
