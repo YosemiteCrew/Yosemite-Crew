@@ -8,7 +8,7 @@ import { FaEye } from "react-icons/fa6";
 
 type ManageInventryItem = {
   status: "in-stock" | "low-stock";
-  name: string;
+  itemName: string;
   genericName: string;
   sku: string;
   strength: string;
@@ -17,180 +17,10 @@ type ManageInventryItem = {
   price: string;
   manufacturerPrice: string;
   stock: number;
-  stockSub: number;
-  expiry: string;
+  quantity: number;
+  expiryDate: string;
 };
 
-const data: ManageInventryItem[] = [
-  {
-    status: "in-stock",
-    name: "Zimax",
-    genericName: "Azithromycin",
-    sku: "UY3750",
-    strength: "500mg",
-    category: "Tablet",
-    manufacturer: "Zoetis",
-    price: "USD 20.55",
-    manufacturerPrice: "USD 15.00",
-    stock: 20,
-    stockSub: 150,
-    expiry: "19/12/2024",
-  },
-  {
-    status: "in-stock",
-    name: "Oxidon",
-    genericName: "Domperidon",
-    sku: "UY3749",
-    strength: "10mg",
-    category: "Tablet",
-    manufacturer: "Intas",
-    price: "USD 15.00",
-    manufacturerPrice: "USD 12.00",
-    stock: 13,
-    stockSub: 60,
-    expiry: "17/05/2025",
-  },
-  {
-    status: "low-stock",
-    name: "Ceevit",
-    genericName: "Multivitamin",
-    sku: "UY3710",
-    strength: "250mg",
-    category: "Vitamins",
-    manufacturer: "Boehringer In...",
-    price: "USD 12.45",
-    manufacturerPrice: "USD 10.00",
-    stock: 5,
-    stockSub: 45,
-    expiry: "19/12/2024",
-  },
-  {
-    status: "in-stock",
-    name: "DON A",
-    genericName: "Domperidon",
-    sku: "UY3798",
-    strength: "10mg",
-    category: "Tablet",
-    manufacturer: "Virbac",
-    price: "USD 50.00",
-    manufacturerPrice: "USD 40.00",
-    stock: 11,
-    stockSub: 55,
-    expiry: "08/07/2026",
-  },
-  {
-    status: "in-stock",
-    name: "Pantorix",
-    genericName: "Pantoprazol",
-    sku: "UY3760",
-    strength: "20mg",
-    category: "Tablet",
-    manufacturer: "Boehringer In...",
-    price: "USD 10.45",
-    manufacturerPrice: "USD 8.00",
-    stock: 27,
-    stockSub: 100,
-    expiry: "14/01/2026",
-  },
-  {
-    status: "low-stock",
-    name: "Isoniazid",
-    genericName: "Hydrazine",
-    sku: "UY3740",
-    strength: "1.5ml",
-    category: "Syrup",
-    manufacturer: "Boehringer In...",
-    price: "USD 25.85",
-    manufacturerPrice: "USD 17.25",
-    stock: 4,
-    stockSub: 48,
-    expiry: "07/03/2025",
-  },
-  {
-    status: "in-stock",
-    name: "Zimax",
-    genericName: "Azithromycin",
-    sku: "UY3750",
-    strength: "500mg",
-    category: "Tablet",
-    manufacturer: "Zoetis",
-    price: "USD 20.55",
-    manufacturerPrice: "USD 15.00",
-    stock: 20,
-    stockSub: 150,
-    expiry: "19/12/2024",
-  },
-  {
-    status: "in-stock",
-    name: "Oxidon",
-    genericName: "Domperidon",
-    sku: "UY3749",
-    strength: "10mg",
-    category: "Tablet",
-    manufacturer: "Intas",
-    price: "USD 15.00",
-    manufacturerPrice: "USD 12.00",
-    stock: 13,
-    stockSub: 60,
-    expiry: "17/05/2025",
-  },
-  {
-    status: "low-stock",
-    name: "Ceevit",
-    genericName: "Multivitamin",
-    sku: "UY3710",
-    strength: "250mg",
-    category: "Vitamins",
-    manufacturer: "Boehringer In...",
-    price: "USD 12.45",
-    manufacturerPrice: "USD 10.00",
-    stock: 5,
-    stockSub: 45,
-    expiry: "19/12/2024",
-  },
-  {
-    status: "in-stock",
-    name: "DON A",
-    genericName: "Domperidon",
-    sku: "UY3798",
-    strength: "10mg",
-    category: "Tablet",
-    manufacturer: "Virbac",
-    price: "USD 50.00",
-    manufacturerPrice: "USD 40.00",
-    stock: 11,
-    stockSub: 55,
-    expiry: "08/07/2026",
-  },
-  {
-    status: "in-stock",
-    name: "Pantorix",
-    genericName: "Pantoprazol",
-    sku: "UY3760",
-    strength: "20mg",
-    category: "Tablet",
-    manufacturer: "Boehringer In...",
-    price: "USD 10.45",
-    manufacturerPrice: "USD 8.00",
-    stock: 27,
-    stockSub: 100,
-    expiry: "14/01/2026",
-  },
-  {
-    status: "low-stock",
-    name: "Isoniazid",
-    genericName: "Hydrazine",
-    sku: "UY3740",
-    strength: "1.5ml",
-    category: "Syrup",
-    manufacturer: "Boehringer In...",
-    price: "USD 25.85",
-    manufacturerPrice: "USD 17.25",
-    stock: 4,
-    stockSub: 48,
-    expiry: "07/03/2025",
-  },
-];
 
 const columns = [
 
@@ -209,7 +39,7 @@ const columns = [
     // width: "0px",
     render: (item: ManageInventryItem) => (
       <div>
-        <p>{item.name}</p>
+        <p>{item.itemName}</p>
         
       </div>
     ),
@@ -255,14 +85,14 @@ const columns = [
     render: (item: ManageInventryItem) => (
       <div>
         <p>{item.stock}</p>
-        <span><BsFillBoxSeamFill /> {item.stockSub}</span>
+        <span><BsFillBoxSeamFill /> {item.quantity}</span>
       </div>
     ),
   },
   {
     label: "Expiry Date",
     key: "expiry",
-    render: (item: ManageInventryItem) => <p>{item.expiry}</p>,
+    render: (item: ManageInventryItem) => <p>{item.expiryDate}</p>,
   },
   {
     label: "Actions",
@@ -276,7 +106,7 @@ const columns = [
     },
 ];
 
-function ManageInventoryTable() {
+function ManageInventoryTable({data}:any) {
   return (
     <>
     <div className="d"></div>

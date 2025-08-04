@@ -173,6 +173,7 @@ input[type='number'] {
 
 .form-floating textarea {
   background: transparent;
+  min-height: 90px;
 }
 .form-floating textarea:focus {
   background: transparent;

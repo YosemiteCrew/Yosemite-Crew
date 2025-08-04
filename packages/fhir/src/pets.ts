@@ -77,7 +77,7 @@ export const  convertFHIRToPet = (fhirPatient: any) => {
 
   // Animal Info
   pet.petType = fhirPatient.animal?.species?.coding?.[0]?.display || '';
-  pet.petBreed = fhirPatient.animal?.breed?.coding?.[0]?.display || '';
+  pet.petBreed = fhirPatient.animal?.breed?.text || '';
   pet.isNeutered = fhirPatient.animal?.genderStatus?.coding?.[0]?.code === 'neutered' ? 'Yes' : 'No';
 
   // FHIR Extensions

@@ -1,220 +1,195 @@
 
-import type {InventoryType,InputData, InventoryOverviewFHIRBundle, InventoryOverviewType, InventoryOverviewFHIRObservation, SupplyItem, FHIRBundle, CategoryJson} from "@yosemite-crew/types";
+import type {InventoryType, InventoryOverviewFHIRBundle, InventoryOverviewType, InventoryOverviewFHIRObservation, FHIRBundle, CategoryJson, InventoryTypes} from "@yosemite-crew/types";
 
 
 
-export function convertToNormalToAddInventoryData(bundle: InputData): InventoryType {
-  const inventoryData: InventoryType = {};
+export const convertToNormalFromFhirInventoryData = (fhirData: any): InventoryType => {
+  const extensions = fhirData.extension || [];
 
-  const entry = bundle.entry?.[0]?.resource;
-  if (!entry || entry.resourceType !== "Basic") return inventoryData;
-
-  // itemName from code.text
-  if (entry.code?.text) {
-    inventoryData.itemName = entry.code.text;
-  }
-
-  // All values are strings; store them as-is
-  entry.extension?.forEach((ext) => {
-    const rawKey = ext.url.split("/").pop()
-    const rawValue = ext.valueString;
-
-    if (!rawKey || rawValue === undefined) return;
-    (inventoryData as any)[rawKey] = rawValue;
-  });
-
-  return inventoryData;
-}
-
-
-
-export function convertFhirInventoryBundleToJson(bundle: any): SupplyItem[] {
-  if (!bundle || !bundle.entry || !Array.isArray(bundle.entry)) return [];
-
-  return bundle.entry.map((entry: any) => {
-    const resource = entry.resource;
-
-    const getIdentifierValue = (system: string) => {
-      return (
-        resource.identifier?.find((id: any) => id.system === system)?.value || ""
-      );
-    };
-
-    const getExtensionValue = (url: string, key: string) => {
-      const ext = resource.extension?.find((e: any) => e.url === url);
-      return ext?.[key] ?? "";
-    };
-
-    return {
-      _id: resource.id || "",
-      bussinessId: getExtensionValue(
-        "http://example.com/fhir/StructureDefinition/bussinessId",
-        "valueString"
-      ),
-      category: getExtensionValue(
-        "http://example.com/fhir/StructureDefinition/category",
-        "valueString"
-      ),
-      barcode: getIdentifierValue("http://example.com/fhir/barcode"),
-      itemName: resource.code?.coding?.[0]?.display || "",
-      genericName: resource.code?.text || "",
-      manufacturer: resource.manufacturer?.display || "",
-      itemCategory: resource.code?.coding?.[0]?.code || "",
-      batchNumber: getIdentifierValue("http://example.com/fhir/batchNumber"),
-      sku: getIdentifierValue("http://example.com/fhir/sku"),
-      strength: getExtensionValue(
-        "http://example.com/fhir/StructureDefinition/strength",
-        "valueString"
-      ),
-      quantity: resource.quantity?.value || 0,
-      manufacturerPrice: getExtensionValue(
-        "http://example.com/fhir/StructureDefinition/manufacturerPrice",
-        "valueDecimal"
-      ),
-      markup: getExtensionValue(
-        "http://example.com/fhir/StructureDefinition/markup",
-        "valueDecimal"
-      ),
-      price: getExtensionValue(
-        "http://example.com/fhir/StructureDefinition/price",
-        "valueDecimal"
-      ),
-      stockReorderLevel: getExtensionValue(
-        "http://example.com/fhir/StructureDefinition/stockReorderLevel",
-        "valueInteger"
-      ),
-      expiryDate: getExtensionValue(
-        "http://example.com/fhir/StructureDefinition/expiryDate",
-        "valueDate"
-      ),
-      createdAt: getExtensionValue(
-        "http://example.com/fhir/StructureDefinition/createdAt",
-        "valueDateTime"
-      ),
-      updatedAt: getExtensionValue(
-        "http://example.com/fhir/StructureDefinition/updatedAt",
-        "valueDateTime"
-      ),
-    };
-  });
-}
-
-// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Convert to fhir inventory data >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
-
-export const toInventoryFHIR = (item: InventoryType): any => ({
-  resourceType: "SupplyItem",
-  id: item._id,
-  identifier: [
-    {
-      system: "http://example.com/fhir/barcode",
-      value: item.barcode,
-    },
-    {
-      system: "http://example.com/fhir/batchNumber",
-      value: item.batchNumber,
-    },
-    {
-      system: "http://example.com/fhir/sku",
-      value: item.sku,
-    },
-  ],
-  manufacturer: {
-    display: item.manufacturer,
-  },
-  quantity: {
-    value: item.quantity,
-    unit: "units",
-  },
-  code: {
-    coding: [
-      {
-        system: "http://example.com/fhir/itemCategory",
-        code: item.itemCategory,
-        display: item.itemName,
-      },
-    ],
-    text: item.genericName,
-  },
-  extension: [
-    {
-      url: "http://example.com/fhir/StructureDefinition/strength",
-      valueString: item.strength,
-    },
-    {
-      url: "http://example.com/fhir/StructureDefinition/markup",
-      valueDecimal: item.markup,
-    },
-    {
-      url: "http://example.com/fhir/StructureDefinition/manufacturerPrice",
-      valueDecimal: item.manufacturerPrice,
-    },
-    {
-      url: "http://example.com/fhir/StructureDefinition/price",
-      valueDecimal: item.price,
-    },
-    {
-      url: "http://example.com/fhir/StructureDefinition/stockReorderLevel",
-      valueInteger: item.stockReorderLevel,
-    },
-    {
-      url: "http://example.com/fhir/StructureDefinition/category",
-      valueString: item.category,
-    },
-    {
-      url: "http://example.com/fhir/StructureDefinition/bussinessId",
-      valueString: item.bussinessId,
-    },
-    {
-      url: "http://example.com/fhir/StructureDefinition/expiryDate",
-      valueDate: item.expiryDate,
-    },
-    {
-      url: "http://example.com/fhir/StructureDefinition/createdAt",
-      valueDateTime: item.createdAt,
-    },
-    {
-      url: "http://example.com/fhir/StructureDefinition/updatedAt",
-      valueDateTime: item.updatedAt,
-    },
-  ],
-});
-
-export const toInventoryBundleFHIR = (inventoryResponse: {
-  totalItems: number;
-  totalPages: number;
-  currentPage: number;
-  inventory: any[];
-}): any => {
-  const { totalItems, totalPages, currentPage, inventory } = inventoryResponse;
+  const getExtensionValue = (urlKey: string): any => {
+    const ext = extensions.find((e: any) => e.url.endsWith(urlKey));
+    return ext?.valueString || ext?.valueDecimal || ext?.valueDate || undefined;
+  };
 
   return {
-    resourceType: "Bundle",
-    type: "searchset",
-    total: totalItems,
-    meta: {
-      tag: [
-        {
-          system: "http://example.com/fhir/StructureDefinition/totalPages",
-          code: `${totalPages}`,
-        },
-        {
-          system: "http://example.com/fhir/StructureDefinition/currentPage",
-          code: `${currentPage}`,
-        },
-      ],
-    },
-    entry: inventory.map((item) => ({
-      resource: toInventoryFHIR(item),
-    })),
+    // _id: fhirData.id,
+    itemName: fhirData.code?.text,
+    manufacturer: fhirData.manufacturer?.display,
+    dosageAdministration: fhirData.form?.text,
+    quantity: fhirData.amount?.value?.toString(),
+
+    genericName: getExtensionValue("genericName"),
+    sku: getExtensionValue("sku"),
+    category: getExtensionValue("category"),
+    itemCategory: getExtensionValue("itemCategory"),
+    manufacturerPrice: getExtensionValue("manufacturerPrice")?.toString(),
+    price: getExtensionValue("price")?.toString(),
+    manufacturingDate: getExtensionValue("manufacturingDate"),
+    expiryDate: getExtensionValue("expiryDate"),
   };
 };
 
 
 
 
+export const convertToFhirInventoryData = (data: InventoryType): any => {
+  return {
+    resourceType: "Medication",
+    // id: data._id,
+    code: {
+      text: data.itemName,
+    },
+    manufacturer: {
+      display: data.manufacturer,
+    },
+    form: {
+      text: data.dosageAdministration,
+    },
+    amount: {
+      value: data.quantity ? Number(data.quantity) : undefined,
+    },
+    extension: [
+      {
+        url: "http://example.com/fhir/inventory#genericName",
+        valueString: data.genericName,
+      },
+      {
+        url: "http://example.com/fhir/inventory#sku",
+        valueString: data.sku,
+      },
+      {
+        url: "http://example.com/fhir/inventory#category",
+        valueString: data.category,
+      },
+      {
+        url: "http://example.com/fhir/inventory#itemCategory",
+        valueString: data.itemCategory,
+      },
+      {
+        url: "http://example.com/fhir/inventory#manufacturerPrice",
+        valueDecimal: data.manufacturerPrice ? Number(data.manufacturerPrice) : undefined,
+      },
+      {
+        url: "http://example.com/fhir/inventory#price",
+        valueDecimal: data.price ? Number(data.price) : undefined,
+      },
+      {
+        url: "http://example.com/fhir/inventory#manufacturingDate",
+        valueDate: data.manufacturingDate,
+      },
+      {
+        url: "http://example.com/fhir/inventory#expiryDate",
+        valueDate: data.expiryDate,
+      },
+    ],
+  };
+};
 
-// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< For OverView >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Convert to fhir inventory data >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+export const convertToFhirInventory = (inventoryData: InventoryTypes) => {
+  return {
+    resourceType: "Bundle",
+    type: "searchset",
+    total: inventoryData.totalItems || 0,
+    entry: (inventoryData.data || []).map((item) => ({
+      resource: {
+        resourceType: "Medication",
+        id: item._id,
+        code: {
+          text: item.itemName || "Unknown",
+        },
+        manufacturer: {
+          display: item.manufacturer || "Unknown",
+        },
+        form: {
+          text: item.dosageAdministration || "Unknown",
+        },
+        amount: {
+          value: item.quantity ?? 0,
+        },
+        extension: [
+          {
+            url: "http://example.com/fhir/inventory#genericName",
+            valueString: item.genericName || "",
+          },
+          {
+            url: "http://example.com/fhir/inventory#sku",
+            valueString: item.sku || "",
+          },
+          {
+            url: "http://example.com/fhir/inventory#category",
+            valueString: item.category || "",
+          },
+          {
+            url: "http://example.com/fhir/inventory#itemCategory",
+            valueString: item.itemCategory || "",
+          },
+          {
+            url: "http://example.com/fhir/inventory#manufacturerPrice",
+            valueDecimal: item.manufacturerPrice ?? 0,
+          },
+          {
+            url: "http://example.com/fhir/inventory#price",
+            valueDecimal: item.price ?? 0,
+          },
+          {
+            url: "http://example.com/fhir/inventory#manufacturingDate",
+            valueDate: item.manufacturingDate || "",
+          },
+          {
+            url: "http://example.com/fhir/inventory#expiryDate",
+            valueDate: item.expiryDate || "",
+          },
+        ],
+      },
+    })),
+    meta: {
+      totalPages: inventoryData.totalPages || 1,
+      currentPage: inventoryData.currentPage || 1,
+    },
+  };
+};
+
+export const convertFhirBundleToInventory = (fhirBundle: any): InventoryTypes => {
+  const extractExtension = (extensions: any[], name: string) => {
+    return extensions?.find((ext) => ext.url.endsWith(`#${name}`));
+  };
+
+  const data = (fhirBundle.entry || []).map((entry: any) => {
+    const resource = entry.resource;
+    const extensions = resource.extension || [];
+
+    return {
+      bussinessId: resource.id,
+      itemName: resource.code?.text || "",
+      genericName: extractExtension(extensions, "genericName")?.valueString || "",
+      category: extractExtension(extensions, "category")?.valueString || "",
+      sku: extractExtension(extensions, "sku")?.valueString || "",
+      itemCategory: extractExtension(extensions, "itemCategory")?.valueString || "",
+      dosageAdministration: resource.form?.text || "",
+      manufacturer: resource.manufacturer?.display || "",
+      manufacturerPrice: extractExtension(extensions, "manufacturerPrice")?.valueDecimal || 0,
+      price: extractExtension(extensions, "price")?.valueDecimal || 0,
+      quantity: resource.amount?.value || 0,
+      manufacturingDate: extractExtension(extensions, "manufacturingDate")?.valueDate || "",
+      expiryDate: extractExtension(extensions, "expiryDate")?.valueDate || "",
+    };
+  });
+
+  return {
+    totalItems: fhirBundle.total || data.length,
+    totalPages: fhirBundle.meta?.totalPages || 1,
+    currentPage: fhirBundle.meta?.currentPage || 1,
+    data,
+  };
+};
+
+
+
+
+// // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< For OverView >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 
 export function InventoryOverviewConvertToFHIR(overview: InventoryOverviewType): InventoryOverviewFHIRBundle {
@@ -296,3 +271,85 @@ export function convertFhirToJson(fhirBundle: FHIRBundle): CategoryJson[] {
     };
   });
 }
+
+
+
+
+
+// export const toInventoryFHIR = (item: InventoryType): any => ({
+//   resourceType: "SupplyItem",
+//   id: item._id,
+//   identifier: [
+//     {
+//       system: "http://example.com/fhir/barcode",
+//       value: item.barcode,
+//     },
+//     {
+//       system: "http://example.com/fhir/batchNumber",
+//       value: item.batchNumber,
+//     },
+//     {
+//       system: "http://example.com/fhir/sku",
+//       value: item.sku,
+//     },
+//   ],
+//   manufacturer: {
+//     display: item.manufacturer,
+//   },
+//   quantity: {
+//     value: item.quantity,
+//     unit: "units",
+//   },
+//   code: {
+//     coding: [
+//       {
+//         system: "http://example.com/fhir/itemCategory",
+//         code: item.itemCategory,
+//         display: item.itemName,
+//       },
+//     ],
+//     text: item.genericName,
+//   },
+//   extension: [
+//     {
+//       url: "http://example.com/fhir/StructureDefinition/strength",
+//       valueString: item.strength,
+//     },
+//     {
+//       url: "http://example.com/fhir/StructureDefinition/markup",
+//       valueDecimal: item.markup,
+//     },
+//     {
+//       url: "http://example.com/fhir/StructureDefinition/manufacturerPrice",
+//       valueDecimal: item.manufacturerPrice,
+//     },
+//     {
+//       url: "http://example.com/fhir/StructureDefinition/price",
+//       valueDecimal: item.price,
+//     },
+//     {
+//       url: "http://example.com/fhir/StructureDefinition/stockReorderLevel",
+//       valueInteger: item.stockReorderLevel,
+//     },
+//     {
+//       url: "http://example.com/fhir/StructureDefinition/category",
+//       valueString: item.category,
+//     },
+//     {
+//       url: "http://example.com/fhir/StructureDefinition/bussinessId",
+//       valueString: item.bussinessId,
+//     },
+//     {
+//       url: "http://example.com/fhir/StructureDefinition/expiryDate",
+//       valueDate: item.expiryDate,
+//     },
+//     {
+//       url: "http://example.com/fhir/StructureDefinition/createdAt",
+//       valueDateTime: item.createdAt,
+//     },
+//     {
+//       url: "http://example.com/fhir/StructureDefinition/updatedAt",
+//       valueDateTime: item.updatedAt,
+//     },
+//   ],
+// });

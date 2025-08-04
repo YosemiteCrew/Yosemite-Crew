@@ -1,11 +1,11 @@
 import express from 'express';
 const router = express.Router();
-const webAppointmentController = require('../controllers/WebAppointment');
-const { verifyTokenAndRefresh } = require('../middlewares/authMiddleware');
-const { uploadimage } = require('../controllers/AddDepartmentController');
+import webAppointmentController from "../controllers/WebAppointment"
+import { verifyTokenAndRefresh } from '../middlewares/authMiddleware';
+//import { uploadimage } from '../controllers/AddDepartmentController';
 
 router.post('/Appointment', verifyTokenAndRefresh,webAppointmentController.createWebAppointment);
 router.get('/schedule', verifyTokenAndRefresh,webAppointmentController.getDoctorsSlotes);
 // router.post("/uploadimage",uploadimage)
 
-module.exports = router;
+export default router;

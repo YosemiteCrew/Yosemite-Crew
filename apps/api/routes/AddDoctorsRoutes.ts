@@ -23,7 +23,6 @@ router.delete(
   '/:userId/documents/:docId',
   AddDoctorsControllers.deleteDocumentsToUpdate
 );
-router.post('/addDoctorsSlots/:id', verifyTokenAndRefresh, AddDoctorsControllers.AddDoctorsSlote);
 router.get('/getDoctorsSlotes', verifyTokenAndRefresh, AddDoctorsControllers.getDoctorsSlotes);
 router.get(
   '/getAppointmentForDoctorDashboard', verifyTokenAndRefresh,

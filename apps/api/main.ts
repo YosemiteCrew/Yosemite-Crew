@@ -1,5 +1,4 @@
 import dotenv from 'dotenv';
-
 import express from 'express';
 import { Server } from 'socket.io';
 import { Socket } from 'socket.io';
@@ -20,10 +19,12 @@ import fileUpload from 'express-fileupload';
 import apointmentRoutes from './routes/AppointmentRoutes';
 import hospitalRoutes from './routes/HospitalRoutes';
 import AdminApiRoutes from './routes/InventoryRoutes';
-import adminInventory from './routes/AdminApiRoutes';
+import adminInventory from './routes/admin-api-routes';
 import apiRoutes from './routes/apiRoutes';
 import BlogApiRoutes from './routes/BlogApiRoutes';
 import NewsletterRoutes from './routes/NewsletterRoutes';
+import addDiscountCodeRoutes from './routes/addDiscountCodeRoutes'
+import doctorSlots from './routes/doctor.slots'
 import cors from 'cors';
 
 import type { S3File } from '@yosemite-crew/types'
@@ -88,7 +89,7 @@ app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 app.use(fileUpload({ limits: { fileSize: 50 * 1024 * 1024 } }));
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(express.json());
-
+app.use(express.urlencoded());
 // Serve static files
 const UPLOADS_DIR = path.join(__dirname, 'Uploads/Images');
 app.locals.uploadPath = UPLOADS_DIR;
@@ -104,13 +105,15 @@ app.use('/api/hospitals', hospitalRoutes);
 app.use('/api/inventory', AdminApiRoutes);
 //app.use('/fhir/extensions', fhirRoutes);
 app.use('/fhir/v1', doctorRoutes);
+app.use('/fhir/v1', addDiscountCodeRoutes);
 app.use('/fhir/v1', apointmentRoutes);
 app.use('/fhir/v1', hospitalRoutes);
-app.use('/fhir', authRoutes);
+// app.use('/fhir', authRoutes);
 app.use('/fhir/admin', adminInventory);
 app.use('/fhir/v1', AdminApiRoutes);
 app.use('/fhir/v1', apiRoutes);
-app.use('/newsletter', NewsletterRoutes);
+app.use('/fhir/v1', doctorSlots);
+// app.use('/newsletter', NewsletterRoutes);
 app.use('/fhir/v1', BlogApiRoutes);
 app.use('/fhir/v1',inviteRoutes)
 // Global error handler

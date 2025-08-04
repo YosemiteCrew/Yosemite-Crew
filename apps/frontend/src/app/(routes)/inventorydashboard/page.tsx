@@ -1,4 +1,5 @@
-import InventoryDashboard from '@/app/Pages/InventoryDashboard/InventoryDashboard'
+
+import InventoryDashboard from '@/app/Pages/Inventory/InventoryDashboard/InventoryDashboard'
 import React from 'react'
 
 function page() {
