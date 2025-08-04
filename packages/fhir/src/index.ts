@@ -9,7 +9,7 @@ export {AppointmentsStatusFHIRConverter} from "./AppointmentStatus/apointmentSta
 export  { convertToFhir, convertFhirToNormal} from "./feedback";
 export  { convertExerciseToFHIR, convertPlanTypesToFHIR , convertExerciseTypeToFHIR} from "./exercises";
 export { convertPetToFHIR , convertFHIRToPet } from "./pets";
-export {convertFhirToJson,convertToFhirInventoryData,convertToFhirInventory,convertFhirBundleToInventory,InventoryOverviewConvertToFHIR} from "./InventoryFhir/inventoryFhir";
+export {convertFhirToJson,convertToFhirInventoryData,convertFromFHIRInventory,convertToFHIRInventory,convertFhirBundleToInventory,InventoryOverviewConvertToFHIR} from "./InventoryFhir/inventoryFhir";
 
 export {convertProcedurePackagesToFHIRBundle,convertFHIRPackageToNormal,convertFhirToNormalToUpdateProcedurePackage} from "./ProcedurePackage/procedurePackage";
 export { parseDiabetesObservation, toFHIRObservation } from "./diabetes/diabetes-fhir";

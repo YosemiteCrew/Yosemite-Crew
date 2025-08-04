@@ -8,8 +8,8 @@ import {
 import { Request, Response } from "express";
 
 import { FHIRMedicalPackage, InventoryType, NormalMedicalPackage, ProcedurePackageType, } from "@yosemite-crew/types";
-import { convertFHIRPackageToNormal, convertProcedurePackagesToFHIRBundle, convertFhirToNormalToUpdateProcedurePackage, InventoryOverviewConvertToFHIR } from "@yosemite-crew/fhir";
-import { convertFhirBundleToInventory, convertToFhirInventory, convertToNormalFromFhirInventoryData } from "@yosemite-crew/fhir/dist/InventoryFhir/inventoryFhir";
+import { convertFHIRPackageToNormal, convertProcedurePackagesToFHIRBundle, convertFromFHIRInventory,convertFhirToNormalToUpdateProcedurePackage, InventoryOverviewConvertToFHIR,convertToFHIRInventory ,convertFhirBundleToInventory} from "@yosemite-crew/fhir";
+// import { convertFhirBundleToInventory, convertToFHIRInventory, convertToNormalFromFhirInventoryData } from "@yosemite-crew/fhir/dist/InventoryFhir/inventoryFhir";
 import { inventorySchema, validateInventoryData } from "../validators/inventoryValidator";
 
 
@@ -41,7 +41,7 @@ const InventoryControllers = {
   AddInventory:async (req: Request, res: Response): Promise<void> => {
   try {
     const { userId } = req.query;
-    const data:InventoryType = req.body as InventoryType;
+    const data:InventoryType = convertFromFHIRInventory(req.body);
 
     // Step 1: Validate input
     const validationError = validateInventoryData(data);
@@ -199,7 +199,7 @@ const InventoryControllers = {
       ]);
 
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      const fhirData = convertToFhirInventory(inventory[0]);
+      const fhirData = convertToFHIRInventory(inventory[0]);
       const inventoryData = convertFhirBundleToInventory(fhirData);
 
       console.log("Converted Inventory JSON:", inventoryData);
