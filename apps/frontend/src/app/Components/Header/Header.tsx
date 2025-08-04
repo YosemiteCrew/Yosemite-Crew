@@ -16,7 +16,6 @@ import { FaSignInAlt } from "react-icons/fa";
 import { useAuthStore } from '@/app/stores/authStore';
 import { handleLogout } from '@/app/utils/LogoutApi';
 import { Icon } from '@iconify/react/dist/iconify.js';
-import { Button } from 'react-bootstrap';
 
 interface NavItem {
   label: string;
