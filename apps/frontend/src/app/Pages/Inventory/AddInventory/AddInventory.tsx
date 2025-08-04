@@ -10,6 +10,7 @@ import DynamicSelect from "@/app/Components/DynamicSelect/DynamicSelect";
 import DynamicDatePicker from "@/app/Components/DynamicDatePicker/DynamicDatePicker";
 import axios from 'axios';
 import { postData } from "@/app/axios-services/services";
+import { convertToFHIRInventory } from "@yosemite-crew/fhir";
 
 interface InventoryFormData {
   barCode: string;
@@ -154,7 +155,7 @@ function AddInventory(): React.JSX.Element {
         markup: Number(formData.markup),
         stockReorderLevel: Number(formData.stockReorderLevel),
       };
-const fhir = convertToFhirInventory(payload);
+const fhir = convertToFHIRInventory(payload);
       await postData("/api/inventory/addInventory", fhir);
       setSuccessMessage("Inventory added successfully.");
       setFormData({
