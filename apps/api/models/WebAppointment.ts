@@ -3,7 +3,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 import mongoose, { Schema, Model, model } from 'mongoose';
-import { AppointmentsTokenType, WebAppointmentType } from "@yosemite-crew/types";
+import { AppointmentsTokenType, IUnavailableSlot, WebAppointmentType } from "@yosemite-crew/types";
 
 const WebAppointmentSchema = new Schema<WebAppointmentType>(
   {
@@ -181,7 +181,11 @@ const AppointmentsToken: Model<AppointmentsTokenType> = model<AppointmentsTokenT
   AppointmentsTokenSchema
 );
 
-// In your createWebAppointment function
+
+// models/UnavailableSlot.ts
+
+
+
 
 
  export { AppointmentsToken };

@@ -1,5 +1,5 @@
 import { handleMultipleFileUpload, deleteFromS3 } from "../middlewares/upload";
-
+import { S3 } from "aws-sdk";
 interface UploadedFile {
   name: string;
   mimetype: string;
@@ -59,6 +59,15 @@ calculateAge: (date: string | Date): number => {
 
   deleteFiles: async (fileurl: string) => {
     return await deleteFromS3(fileurl);
+  },
+
+  getS3Instance: () =>{
+    const s3 = new S3({
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+      region: process.env.AWS_REGION!,
+    });
+    return s3;
   }
 }
 

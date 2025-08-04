@@ -56,16 +56,8 @@ const Add_Vet = () => {
     country: "",
     zipCode: "",
   });
-  const [professionalBackground, setProfessionalBackground] = useState({
-    specialization: "",
-    qualification: "",
-    medicalLicenseNumber: "",
-    yearsOfExperience: "",
-    languagesSpoken: "",
-    biography: "",
-    document: [],
-    cvFile: "",
-  });
+  
+  
 
   // const [selectedFile, setSelectedFile] = useState(null);
   const [consultFee, setConsultFee] = useState("");

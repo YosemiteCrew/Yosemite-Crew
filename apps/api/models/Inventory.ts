@@ -3,25 +3,27 @@ import type { InventoryType,ProcedurePackageType } from '@yosemite-crew/types';
 
 const InventorySchema = new Schema<InventoryType>(
   {
-    bussinessId: { type: String, required: true },
-    category: { type: String, required: true },
-    barcode: { type: String, unique: true },
-    itemName: { type: String, required: true },
-    genericName: String,
-    manufacturer: { type: String, required: true },
-    itemCategory: { type: String, required: true },
-    batchNumber: { type: String, unique: true },
-    sku: { type: String, unique: true },
-    strength: String,
-    quantity: { type: Number, required: true },
-    manufacturerPrice: { type: Number, required: true },
-    markup: { type: Number, required: true },
-    price: { type: Number, required: true },
-    stockReorderLevel: { type: Number, required: true },
-    expiryDate: { type: String, required: true },
+    bussinessId: { type: String, required: true }, // keep this as it's essential
+
+    itemName: { type: String, required: true },      // Name
+    genericName: { type: String },                   // Generic Name
+    category: { type: String, required: true },      // Stock Category
+    sku: { type: String, unique: true },             // SKU
+
+    dosageAdministration: { type: String },          // Dosage Administration
+    itemCategory: { type: String },                  // If falls in pet Type Category
+
+    manufacturer: { type: String, required: true },  // Manufacturer
+    manufacturerPrice: { type: Number },             // Manufacturer Price
+    price: { type: Number, required: true },         // Price
+    quantity: { type: Number, required: true },      // Stock
+
+    manufacturingDate: { type: String },             // Manufacturing Date
+    expiryDate: { type: String, required: true },    // Expiry Date
   },
   { timestamps: true }
 );
+
 
 export const Inventory = model<InventoryType>('Inventory', InventorySchema);
 

@@ -2698,4 +2698,4 @@ const HospitalController = {
   // },
 }
 
-module.exports = HospitalController;
+export default HospitalController;

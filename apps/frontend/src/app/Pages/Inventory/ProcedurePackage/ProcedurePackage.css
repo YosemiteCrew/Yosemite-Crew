@@ -1,0 +1,43 @@
+.ProcedurePackageSec{
+    padding: 80px 0px;
+}
+.ProcedurePackageData{
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+}
+.ProcedurePackageData h2{
+    margin: 0;
+    font-family: var(--grotesk-font);
+    font-weight: 500;
+    font-size: 33px;
+    line-height: 120%;
+    color: var(--black-text);
+}
+.ProcedurePackageData .ProsPackageCard{
+    border-radius: 28px;
+    padding: 40px;
+    background: #FEEEDC1A;
+    border: 1px solid var(--profileborder);
+    display: flex;
+    flex-direction: column;
+    gap: 36px;
+}
+.ProcPackTble{
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+.ProcPackTble h6{
+    margin: 0;
+    color: var(--black-text);
+    font-weight: 500;
+    font-size: 23px;
+    font-family: var(--grotesk-font);
+}
+
+.ProsPackageCard .PackageForm{
+    display: flex;
+    flex-direction: column;
+    gap: 36px;
+}

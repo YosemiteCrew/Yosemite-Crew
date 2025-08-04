@@ -35,15 +35,16 @@ const WebController = {
   Register: async (
     req: Request<register>,
     res: Response
-  ): Promise<Response> => {
+  ): Promise<void> => {
     try {
 
       const { email, password, role, subscribe } = req.body as register;
 
       if (!email || !password) {
-        return res
+         res
           .status(400)
           .json({ message: "Email and password are required." });
+          return
       }
 
       console.log("Checking if user exists in Cognito...");
@@ -64,9 +65,10 @@ const WebController = {
         console.log("Email verified status:", emailVerified);
 
         if (emailVerified) {
-          return res
+             res
             .status(409)
             .json({ message: "User already exists. Please login." });
+            return
         }
 
         // Resend OTP
@@ -82,9 +84,10 @@ const WebController = {
 
         await cognito.resendConfirmationCode(resendParams).promise();
 
-        return res
+         res
           .status(200)
           .json({ message: "New OTP sent to your email." });
+          return
 
       } catch (err) {
         if (
@@ -94,9 +97,10 @@ const WebController = {
           (err as { code: string }).code !== "UserNotFoundException"
         ) {
           console.error("Error checking Cognito user:", err);
-          return res
+           res
             .status(500)
             .json({ message: "Error checking user status." });
+            return
         }
         // if it's "UserNotFoundException", continue to signup logic
       }
@@ -128,21 +132,25 @@ const WebController = {
           "code" in err &&
           (err as { code: string }).code === "UsernameExistsException"
         ) {
-          return res.status(409).json({
+           res.status(409).json({
             message: "User already exists in Cognito. Please verify your email.",
           });
+          return
         }
 
-        return res.status(500).json({
+         res.status(500).json({
           message: "Error registering user. Please try again later.",
         });
+        return
       }
 
       if (typeof subscribe !== "boolean") {
-        return res.status(400).json({ message: "Subscribe value must be true or false." });
+         res.status(400).json({ message: "Subscribe value must be true or false." });
+         return
       }
       if (typeof role !== "string") {
-        return res.status(400).json({ message: "role value must be string." });
+         res.status(400).json({ message: "role value must be string." });
+         return
       }
 
       const newUser = new WebUser({
@@ -153,27 +161,30 @@ const WebController = {
 
       await newUser.save();
 
-      return res.status(200).json({
+       res.status(200).json({
         message: "User registered successfully! Please verify your email with OTP.",
       });
+      return
 
     } catch (error) {
       console.error("Unexpected Error:", error);
-      return res
+       res
         .status(500)
         .json({ message: "Internal Server Error. Please try again later." });
     }
+    return;
   },
 
   verifyUser: async (
     req: Request<register>,
     res: Response
-  ): Promise<Response> => {
+  ): Promise<void> => {
     try {
       const { email, otp } = req.body as register;
 
       if (!email || !otp) {
-        return res.status(400).json({ message: "Email and OTP are required." });
+         res.status(400).json({ message: "Email and OTP are required." });
+         return
       }
 
       console.log("Verifying OTP for email:", email);
@@ -204,15 +215,17 @@ const WebController = {
 
         if (!cognitoId) {
           console.error("Cognito ID (sub) not found.");
-          return res.status(500).json({ message: "Cognito ID not found." });
+           res.status(500).json({ message: "Cognito ID not found." });
+           return
         }
 
         console.log("Cognito ID:", cognitoId);
       } catch (err) {
         console.error("Error retrieving Cognito user:", err);
-        return res
+         res
           .status(500)
           .json({ message: "Error retrieving user details." });
+          return
       }
 
       if (!isUserVerified) {
@@ -228,16 +241,18 @@ const WebController = {
           console.log("User confirmed with OTP");
         } catch (err) {
           console.error("Cognito Verification Error:", err);
-          return res
+           res
             .status(400)
             .json({ message: "Invalid OTP or user already verified." });
+            return
         }
       }
 
       const user = await WebUser.findOne({ cognitoId });
 
       if (!user) {
-        return res.status(404).json({ message: "User not found in the system" });
+         res.status(404).json({ message: "User not found in the system" });
+         return
       }
 
 
@@ -248,7 +263,8 @@ const WebController = {
       };
 
       if (!ACCESS_SECRET || !REFRESH_SECRET) {
-        return res.status(500).json({ message: "JWT secrets not configured." });
+         res.status(500).json({ message: "JWT secrets not configured." });
+          return
       }
       const accessToken = jwt.sign(payload, ACCESS_SECRET, {
         expiresIn: ACCESS_EXPIRY,
@@ -273,35 +289,38 @@ const WebController = {
         maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
       });
 
-      return res.status(200).json({
+       res.status(200).json({
         data: {
           userId: cognitoId,
           email,
           userType: user.role,
         }, message: "Logged in successfully"
       });
+      return
     } catch (error) {
       console.error("Unexpected Error:", error);
-      return res
+       res
         .status(500)
         .json({ message: "Internal Server Error. Please try again later." });
+        return
     }
   },
 
   signIn: async (
     req: Request,
     res: Response
-  ): Promise<Response> => {
+  ): Promise<void> => {
     try {
       const { email, password } = req.body;
 
       if (!email || !password) {
-        return res
+         res
           .status(400)
           .json({ message: "Email and password are required" });
+          return
       }
 
-      const secretHash = getSecretHash(email);
+      const secretHash = getSecretHash(email as string);
 
       const authData = await new AWS.CognitoIdentityServiceProvider()
         .initiateAuth({
@@ -316,7 +335,8 @@ const WebController = {
         .promise();
 
       if (!authData.AuthenticationResult) {
-        return res.status(401).json({ message: "Invalid credentials" });
+         res.status(401).json({ message: "Invalid credentials" });
+         return
       }
 
       const userDetails = await new AWS.CognitoIdentityServiceProvider()
@@ -331,12 +351,14 @@ const WebController = {
       )?.Value;
 
       if (!cognitoId) {
-        return res.status(500).json({ message: "Failed to retrieve Cognito ID" });
+         res.status(500).json({ message: "Failed to retrieve Cognito ID" });
+         return
       }
 
       const user = await WebUser.findOne({ cognitoId });
       if (!user) {
-        return res.status(404).json({ message: "User not found in the system" });
+         res.status(404).json({ message: "User not found in the system" });
+         return
       }
 
       const payload = {
@@ -347,7 +369,8 @@ const WebController = {
 
       // ✅ Create tokens
       if (!ACCESS_SECRET || !REFRESH_SECRET) {
-        return res.status(500).json({ message: "JWT secrets not configured." });
+         res.status(500).json({ message: "JWT secrets not configured." });
+         return
       }
       const accessToken = jwt.sign(payload, ACCESS_SECRET, {
         expiresIn: ACCESS_EXPIRY,
@@ -372,21 +395,24 @@ const WebController = {
         maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
       });
 
-      return res.status(200).json({
+       res.status(200).json({
         data: {
           userId: cognitoId,
           email,
           userType: user.role,
         }, message: "Logged in successfully"
       });
+      return
     } catch (error) {
       console.error("Error during sign-in:", error);
 
       if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "NotAuthorizedException") {
-        return res.status(401).json({ message: "Invalid email or password" });
+         res.status(401).json({ message: "Invalid email or password" });
+         return
       }
 
-      return res.status(500).json({ message: "Internal server error" });
+       res.status(500).json({ message: "Internal server error" });
+       return
     }
   },
 
@@ -413,12 +439,13 @@ const WebController = {
       res.status(500).json({ message: "Internal server error" });
     }
   },
-  forgotPassword: async (req: Request, res: Response): Promise<Response> => {
+  forgotPassword: async (req: Request, res: Response): Promise<void> => {
     try {
       const { email } = req.body as { email: string };
 
       if (!email) {
-        return res.status(400).json({ message: "Email is required." });
+         res.status(400).json({ message: "Email is required." });
+         return
       }
 
       // Step 1: Check if user exists in Cognito
@@ -436,13 +463,15 @@ const WebController = {
           "code" in err &&
           (err as AWS.AWSError).code === "UserNotFoundException"
         ) {
-          return res.status(404).json({ message: "User not found in Cognito." });
+           res.status(404).json({ message: "User not found in Cognito." });
+           return
         }
 
         console.error("Error checking user in Cognito:", err);
-        return res
+         res
           .status(500)
           .json({ message: "Error checking user status in Cognito." });
+          return
       }
 
       // Step 2: Send password reset code
@@ -457,21 +486,23 @@ const WebController = {
 
       await cognito.forgotPassword(resetParams).promise();
 
-      return res.status(200).json({
+       res.status(200).json({
         message:
           "Password reset code sent to your email. Please check your inbox.",
       });
+      return
     } catch (error) {
       console.error("Error during forgotPassword:", error);
-      return res.status(500).json({
+       res.status(500).json({
         message: "Error during password reset process",
         error:
           error instanceof Error ? error.message : "Unexpected error occurred",
       });
+      return
     }
   },
 
-  verifyOtp: async (req: Request, res: Response): Promise<Response> => {
+  verifyOtp: async (req: Request, res: Response): Promise<void> => {
     try {
       const { email, otp, password: newPassword } = req.body as {
         email: string;
@@ -480,9 +511,10 @@ const WebController = {
       };
 
       if (!email || !otp || !newPassword) {
-        return res.status(400).json({
+         res.status(400).json({
           message: "Email, OTP, and new password are required.",
         });
+        return
       }
 
       const params: ConfirmForgotPasswordCommandInput = {
@@ -498,17 +530,19 @@ const WebController = {
 
       await cognitoo.send(new ConfirmForgotPasswordCommand(params));
 
-      return res.status(200).json({
+       res.status(200).json({
         message: "Password reset successfully. You can now log in.",
       });
+      return
     } catch (error) {
       console.error("Error resetting password:", error);
 
-      return res.status(500).json({
+       res.status(500).json({
         message: "Error resetting password.",
         error:
           error instanceof Error ? error.message : "Unexpected error occurred",
       });
+      return
     }
   },
 
@@ -595,14 +629,15 @@ const WebController = {
         phoneNumber,
         country: nameCountry,
       } = name;
-      console.log("Parsed business profile:", businessProfile);
-      console.log("Parsed parsedPayload:", parsedPayload);
+      // console.log("Parsed business profile:", businessProfile);
+      // console.log("Parsed parsedPayload:", parsedPayload);
       if (!userId) {
         res.status(400).json({ message: "Missing required userId" });
         return;
       } else {
         // Step 3: Handle Image Upload if Exists
-        const imageFile = req.files?.image as any as UploadedFile | UploadedFile[] | undefined;
+        const img = req.files as { image?: UploadedFile };
+        const imageFile = img?.image 
         const logoKey = imageFile && !Array.isArray(imageFile)
           ? await uploadToS3(imageFile, "logo")
           : undefined;
@@ -654,97 +689,98 @@ const WebController = {
       }
     }
   },
-  deleteDocumentsToUpdate: async (req: Request, res: Response) => {
-    const { userId, docId } = req.params;
-    console.log("User ID:", userId);
-    console.log("Document ID:", docId);
-    if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
-      return res.status(400).json({ message: "Invalid doctorId format" });
-    }
+  // deleteDocumentsToUpdate: async (req: Request, res: Response) => {
+  //   const { userId, docId } = req.params;
+  //   console.log("User ID:", userId);
+  //   console.log("Document ID:", docId);
+  //   if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+  //     return res.status(400).json({ message: "Invalid doctorId format" });
+  //   }
 
-    try {
-      const bucket = process.env.AWS_S3_BUCKET_NAME;
-      if (!bucket) {
-        return res.status(500).json({ message: "S3 bucket not configured" });
-      }
-      const user = await ProfileData.findOne({ userId }).lean();
+  //   try {
+  //     const bucket = process.env.AWS_S3_BUCKET_NAME;
+  //     if (!bucket) {
+  //       return res.status(500).json({ message: "S3 bucket not configured" });
+  //     }
+  //     const user = await ProfileData.findOne({ userId }).lean();
 
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
+  //     if (!user) {
+  //       return res.status(404).json({ message: "User not found" });
+  //     }
 
-      if (!user.prescription_upload || user.prescription_upload.length === 0) {
-        return res
-          .status(404)
-          .json({ message: "No documents found for this user" });
-      }
+  //     if (!user.prescription_upload || user.prescription_upload.length === 0) {
+  //       return res
+  //         .status(404)
+  //         .json({ message: "No documents found for this user" });
+  //     }
 
-      const documentToDelete = user.prescription_upload.find(
-        (doc: { _id: { toString: () => string } }) => doc._id.toString() === docId
-      );
+  //     const documentToDelete = user.prescription_upload.find(
+  //       (doc: { _id: { toString: () => string } }) => doc._id.toString() === docId 
+  //     ) 
 
-      if (!documentToDelete) {
-        return res.status(404).json({ message: "Document not found" });
-      }
+  //     if (!documentToDelete) {
+  //       return res.status(404).json({ message: "Document not found" });
+  //     }
 
-      const s3Key = documentToDelete.name;
-      console.log("S3 Key to delete:", s3Key);
+  //     const s3Key = documentToDelete.name;
+  //     console.log("S3 Key to delete:", s3Key);
 
-      const deleteParams = {
-        Bucket: bucket,
-        Key: s3Key,
-      };
+  //     const deleteParams = {
+  //       Bucket: bucket,
+  //       Key: s3Key,
+  //     };
 
-      try {
-        const headObject = await s3.headObject(deleteParams).promise();
-        console.log("S3 File Found:", headObject);
-      } catch (headErr) {
-        console.error("S3 File Not Found:", headErr);
-        return res.status(404).json({ message: "File not found in S3" });
-      }
+  //     try {
+  //       const headObject = await s3.headObject(deleteParams).promise();
+  //       console.log("S3 File Found:", headObject);
+  //     } catch (headErr) {
+  //       console.error("S3 File Not Found:", headErr);
+  //       return res.status(404).json({ message: "File not found in S3" });
+  //     }
 
-      try {
-        const deleteResponse = await s3.deleteObject(deleteParams).promise();
-        console.log("S3 Delete Response:", deleteResponse);
-      } catch (deleteErr) {
-        console.error("S3 Deletion Error:", deleteErr);
-        return res
-          .status(500)
-          .json({ message: "Failed to delete file from S3", error: deleteErr });
-      }
+  //     try {
+  //       const deleteResponse = await s3.deleteObject(deleteParams).promise();
+  //       console.log("S3 Delete Response:", deleteResponse);
+  //     } catch (deleteErr) {
+  //       console.error("S3 Deletion Error:", deleteErr);
+  //       return res
+  //         .status(500)
+  //         .json({ message: "Failed to delete file from S3", error: deleteErr });
+  //     }
 
-      const updatedUser = await ProfileData.findOneAndUpdate(
-        { userId },
-        { $pull: { prescription_upload: { _id: docId } } },
-        { new: true }
-      );
+  //     const updatedUser = await ProfileData.findOneAndUpdate(
+  //       { userId },
+  //       { $pull: { prescription_upload: { _id: docId } } },
+  //       { new: true }
+  //     );
 
-      if (!updatedUser) {
-        return res
-          .status(404)
-          .json({ message: "Document not found in the database" });
-      }
+  //     if (!updatedUser) {
+  //       return res
+  //         .status(404)
+  //         .json({ message: "Document not found in the database" });
+  //     }
 
-      console.log("Document deleted successfully from both database and S3");
-      res.status(200).json({
-        message: "Document deleted successfully from both database and S3",
-        updatedUser,
-      });
-    } catch (err) {
-      console.error("Unexpected Error:", err);
-      res.status(500).json({
-        message: "An error occurred while deleting the document",
-        error: err,
-      });
-    }
-  },
+  //     console.log("Document deleted successfully from both database and S3");
+  //     res.status(200).json({
+  //       message: "Document deleted successfully from both database and S3",
+  //       updatedUser,
+  //     });
+  //   } catch (err) {
+  //     console.error("Unexpected Error:", err);
+  //     res.status(500).json({
+  //       message: "An error occurred while deleting the document",
+  //       error: err,
+  //     });
+  //   }
+  // },
 
-  getHospitalProfileFHIR: async (req: Request, res: Response) => {
+  getHospitalProfileFHIR: async (req: Request, res: Response): Promise<void> => {
     try {
       console.log("Fetching hospital profile for userId:", req.query.userId);
       const { userId } = req.query as { userId: string };
       if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
-        return res.status(400).json({ message: "Invalid doctorId format" });
+         res.status(400).json({ message: "Invalid doctorId format" });
+         return
       }
 
       const profile = await ProfileData.findOne({ userId })
@@ -754,7 +790,7 @@ const WebController = {
       const image = profile?.image ? `${process.env.CLOUD_FRONT_URI}/${profile.image}` : undefined;
 
       if (!profile) {
-        return res.status(404).json({
+         res.status(404).json({
           resourceType: "OperationOutcome",
           issue: [
             {
@@ -764,6 +800,7 @@ const WebController = {
             },
           ],
         });
+        return
       }
       const formattedInput = {
         name: {
@@ -805,12 +842,13 @@ const WebController = {
       });
     }
   },
-  refreshToken: (req: Request, res: Response): Response => {
+  refreshToken: (req: Request, res: Response) => {
     try {
       const refreshToken: string = req.cookies.refreshToken;
 
       if (!refreshToken) {
-        return res.status(401).json({ message: "No refresh token provided" });
+         res.status(401).json({ message: "No refresh token provided" });
+         
       }
 
       // ✅ Verify refresh token
@@ -822,7 +860,7 @@ const WebController = {
 
       // ✅ Create new access token
       if (!ACCESS_SECRET) {
-        return res.status(500).json({ message: "JWT access secret not configured." });
+         res.status(500).json({ message: "JWT access secret not configured." });
       }
       const newAccessToken = jwt.sign(
         {
@@ -842,16 +880,18 @@ const WebController = {
         maxAge: 1000 * 60 * 15, // 15 minutes
       });
 
-      return res.status(200).json({
+       res.status(200).json({
         data: {
           userId: decoded.userId,
           email: decoded.email,
           userType: decoded.userType
         }, message: "Access token refreshed"
       });
+      
     } catch (error) {
       console.error("Refresh error:", error);
-      return res.status(403).json({ message: "Invalid or expired refresh token" });
+       res.status(403).json({ message: "Invalid or expired refresh token" });
+       
     }
   }
 

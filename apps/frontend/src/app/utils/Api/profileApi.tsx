@@ -6,7 +6,7 @@ import { ConvertToFhirVetProfileParams, FhirOrganization } from "@yosemite-crew/
 const ProfileApi = {
   getBusinessProfile: async (userId: string) => {
     try {
-      const response = await getData(`/fhir/organization/?userId=${userId}`);
+      const response = await getData(`/api/auth/organization/?userId=${userId}`);
       return  fromFHIRBusinessProfile(response.data as FhirOrganization);
     } catch (error) {
       console.error("Error fetching business profile:", error);

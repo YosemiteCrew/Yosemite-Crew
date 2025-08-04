@@ -12,25 +12,80 @@ import { MdDeleteForever } from "react-icons/md";
 import { RiUploadCloud2Fill } from "react-icons/ri";
 import { LiaTimesCircle } from "react-icons/lia";
 import { HiDocumentArrowDown } from "react-icons/hi2";
-import { postData } from "@/app/axios-services/services";
+import { getData, postData } from "@/app/axios-services/services";
 import Swal from "sweetalert2";
 // import { useAuth } from "@/app/Context/AuthContext";
 import "./InviteTeamMembers.css";
 import { useAuthStore } from "@/app/stores/authStore";
+import { convertFromFhirDepartment } from "@yosemite-crew/fhir";
 // Bulk Invite Modal Component
-function BulkInviteModal({ show, onHide, onDataParsed }: {
+type Member = {
+  name: string;
+  email: string;
+  role: string;
+  department: string;
+  invitedBy: string;
+};
+
+function BulkInviteModal({
+  show,
+  onHide,
+  onDataParsed,
+  departmentOptions,
+}: {
   show: boolean;
   onHide: () => void;
-  onDataParsed: (data: { email: string; department: string; role: string, name: string }[]) => void;
+  onDataParsed: (data: Member[]) => void;
+  departmentOptions: { label: string; value: string }[];
 }) {
+  const parseCsv = (text: string) => {
+    const lines = text.split("\n").filter((line) => line.trim() !== "");
+    const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+    const rows = lines.slice(1);
+
+    return rows.map((row) => {
+      const values = row.split(",").map((v) => v.trim());
+      const record: any = {};
+      headers.forEach((header, idx) => {
+        record[header] = values[idx];
+      });
+      return {
+        name: record.name || "",
+        email: record.email || "",
+        role: record.role || "",
+        department:
+          departmentOptions.find(
+            (opt) =>
+              opt.label.toLowerCase() === (record.department || "").toLowerCase()
+          )?.value || "", // Map department label to ID
+        invitedBy: "",
+      };
+    });
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      const parsedData = parseCsv(content);
+      onDataParsed(parsedData);
+      onHide();
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <Modal show={show} onHide={onHide} centered className="BulkInviteModalSec">
       <Modal.Body>
         <div className="BulkInviteBody">
           <div className="BulkHeader">
             <h3>Bulk Invite Team Members</h3>
-            <p>Upload a CSV file with details to invite multiple team members at once</p>
+            <p>Upload a CSV with name, email, role and department</p>
           </div>
+
           <div className="BulkMidContent">
             <div className="Step1">
               <div className="Step1Hed">
@@ -40,7 +95,7 @@ function BulkInviteModal({ show, onHide, onDataParsed }: {
               <div className="StepDownlde">
                 <div className="lftText">
                   <h4>Download the sample CSV</h4>
-                  <p>Add your team data in the format given in the sample CSV</p>
+                  <p>Add your team data as shown in the format</p>
                 </div>
                 <div className="RytDoct">
                   <a href="/InviteMembers.csv" download className="DownloadIcon">
@@ -57,61 +112,43 @@ function BulkInviteModal({ show, onHide, onDataParsed }: {
               <div className="StepUplode">
                 <label htmlFor="csvUpload" className="UplodeInner">
                   <RiUploadCloud2Fill size={40} />
-                  <h4>Upload the CSV with your team member details</h4>
-                  <p>Max size supported 20 MB</p>
+                  <h4>Upload the CSV</h4>
+                  <p>Max size: 20MB</p>
                 </label>
                 <input
                   type="file"
                   id="csvUpload"
                   accept=".csv"
-                  style={{ display: "none" }}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                      const text = event.target?.result as string;
-                      const rows = text.split("\n").filter(Boolean);
-                      const headers = rows[0].trim().split(",");
-                      const parsed = rows.slice(1).map((row) => {
-                        const values = row.trim().split(",");
-                        return {
-                          email: values[headers.indexOf("email")]?.trim(),
-                          department: values[headers.indexOf("department")]?.trim(),
-                          role: values[headers.indexOf("role")]?.trim(),
-                          name: values[headers.indexOf("name")]?.trim()
-                        };
-                      });
-                      onDataParsed(parsed);
-                      onHide();
-                    };
-                    reader.readAsText(file);
-                  }}
+                  hidden
+                  onChange={handleFileUpload}
                 />
               </div>
             </div>
           </div>
 
           <div className="UpldBtn">
-            <Button variant="primary">Upload CSV</Button>
+            <Button onClick={onHide}>Done</Button>
           </div>
-        </div>
-        <div className="CrossBtn">
-          <Button variant="light" onClick={onHide} aria-label="Close modal">
-            <LiaTimesCircle size={28} />
-          </Button>
+          <div className="CrossBtn">
+            <Button variant="light" onClick={onHide}>
+              <LiaTimesCircle size={28} />
+            </Button>
+          </div>
         </div>
       </Modal.Body>
     </Modal>
   );
 }
 
+
 function InviteTeamMembers() {
   const { userId } = useAuthStore();
   const [modalShow, setModalShow] = useState(false);
   const [errors, setErrors] = useState<Record<number, Partial<Record<keyof typeof members[0], string>>>>({});
+  const [departmentOptions, setDepartmentOptions] = useState<{ value: string; label: string }[]>([]);
 
+
+ 
   const validateMembers = () => {
     const newErrors: typeof errors = {};
 
@@ -139,7 +176,7 @@ function InviteTeamMembers() {
   const [members, setMembers] = useState([
     { department: "", role: "", email: "", invitedBy: "", name: "" }
   ]);
-
+ console.log("InviteTeamMembers rendered with userId:", members);
 
   const handleMemberChange = useCallback((index: number, field: "department" | "role" | "email" | "name", value: string) => {
     setMembers((prev) =>
@@ -184,13 +221,33 @@ function InviteTeamMembers() {
   };
 
 
-  const departmentOptions = [
-    { value: "Internal Medicine", label: "Internal Medicine" },
-    { value: "Surgery", label: "Surgery Department" },
-    { value: "Orthopedics", label: "Orthopedics" },
-    { value: "Radiology", label: "Radiology" },
-    { value: "Dermatology", label: "Dermatology" },
-  ];
+  useEffect(() => {
+    const getDepartmentForInvite = async () => {
+    try {
+      const response = await getData(`/fhir/v1/getDepartmentForInvite?userId=${userId}`,);
+      if (response.status === 200) {
+        const data = response.data as { data: any[] };
+        // console.log("Fetched departments:", data.data);
+        const departments = convertFromFhirDepartment(data.data).map((dept: any) => ({
+          value: dept._id,
+          label: dept.departmentName
+        }));
+        setDepartmentOptions(departments);
+      } else {
+        Swal.fire({ icon: "error", title: "Error", text: "Failed to fetch departments." });
+      }
+    } catch (error) {
+      let errorMessage = "Failed to fetch departments.";
+      if (error && typeof error === "object" && "response" in error) {
+        const res = (error as any).response;
+        errorMessage = res?.data?.message || errorMessage;
+      }
+      Swal.fire({ icon: "error", title: "Error", text: errorMessage });
+    }
+  };
+    getDepartmentForInvite();
+  }, [userId]);
+
 
   const roleOptions = [
     { value: "Veterinarian", label: "Vet" },
@@ -214,13 +271,17 @@ function InviteTeamMembers() {
               </div>
 
               <BulkInviteModal
-                show={modalShow}
-                onHide={() => setModalShow(false)}
-                onDataParsed={(parsedData) => {
-                  const withUser = parsedData.map((item) => ({ ...item, invitedBy: userId || "" }));
-                  setMembers(withUser);
-                }}
-              />
+              show={modalShow}
+              onHide={() => setModalShow(false)}
+              departmentOptions={departmentOptions}
+              onDataParsed={(parsed) => {
+                const withUser = parsed.map((p) => ({
+                  ...p,
+                  invitedBy: userId || "",
+                }));
+                setMembers(withUser);
+              }}
+            />
 
               <div className="InviteCard">
                 <div className="InviteTeamData">

@@ -20,4 +20,4 @@ router.post('/subscribe', NewsletterController.subscribe);
 router.get('/unsubscribe', NewsletterController.unsubscribe)
 router.post('/upload-batch', upload.single('file'), NewsletterController.batchUpload);
 
-module.exports = router;
+export default router;

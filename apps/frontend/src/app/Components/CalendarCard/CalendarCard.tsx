@@ -99,7 +99,7 @@ const calendarData = [
   },
 ];
 function CalendarCard(data: any) {
-  console.log(data?.data, "CalendarCard Data");
+  console.log(data, "CalendarCard Data");
   return (
     <div className="Doct_Clender_Data">
       <div className="CalendarStatusColumns">
@@ -139,8 +139,8 @@ function CalendarCard(data: any) {
 
             <div className="ClendrCard">
               {data &&
-                data.data.length > 0 &&
-                data.data 
+                data?.data?.length > 0 &&
+                data?.data 
                   ?.filter((item: any) => item.appointmentStatus === col.key)
                   // .slice(0, 4) // ✅ Show only 4 cards per section
                   .map((item: any, i: any) => (

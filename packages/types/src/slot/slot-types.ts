@@ -4,6 +4,7 @@ export interface TimeSlot {
 
 export interface DoctorSlotDocument {
   doctorId: string;
+  duration: string; // Duration in minutes
   day: string;
   timeSlots: TimeSlot[];
 }
@@ -40,16 +41,41 @@ export interface MonthlySlotQuery {
   slotYear?: string;
   doctorId?: string;
 }
+
+
+
+
+
+
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Get Slots To Book Appointment Types >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+
+
+export type Slot = {
+  time: string;
+  selected: boolean;
+};
+
+export type FhirSlot = {
+  resourceType: "Slot";
+  id: string;
+  extension: {
+    url: string;
+    valueString: string;
+  }[];
+  status: "free" | "busy";
+};
+
 export interface ValidationIssue {   
   severity: "error" | "warning";   
   code: string;   
   details: {    
   text: string;   
-}; 
-} 
+};
+}
 export interface SlotRequest {   
   appointmentDate: string;   
   doctorId: string;   
   slotMonth?: string;   
-  slotYear?: string; 
+  slotYear?: string;
 }

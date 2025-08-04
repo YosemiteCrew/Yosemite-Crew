@@ -2,24 +2,26 @@ import {  Types } from "mongoose";
 
 export type InventoryType = {
   _id?: string;
-  barcode?: string;
-  batchNumber?: string;
-  sku?: string;
-  manufacturer?: string;
-  quantity?: string;
-  itemCategory?: string;
-  itemName?: string;
-  genericName?: string;
-  strength?: string;
-  markup?: string;
-  manufacturerPrice?: string;
-  price?: string;
-  stockReorderLevel?: string;
-  category?: string;
   bussinessId?: string;
-  expiryDate?: string;    // format: YYYY-MM-DD
-  createdAt?: string;     // format: ISO 8601 datetime
-  updatedAt?: string;     // format: ISO 8601 datetime
+
+  itemName?: string;              // Name
+  genericName?: string;           // Generic Name
+  category?: string;              // Stock Category
+  sku?: string;                   // SKU
+
+  dosageAdministration?: string;  // Dosage Administration
+  itemCategory?: string;          // If falls in pet Type Category
+
+  manufacturer?: string;          // Manufacturer
+  manufacturerPrice?: string;     // Manufacturer Price
+  price?: string;                 // Price
+  quantity?: string;              // Stock
+
+  manufacturingDate?: string;     // Manufacturing Date (format: YYYY-MM-DD)
+  expiryDate?: string;            // Expiry Date (format: YYYY-MM-DD)
+
+  createdAt?: string;             // ISO 8601 format
+  updatedAt?: string;             // ISO 8601 format
 };
 
 
@@ -195,3 +197,25 @@ export type CategoryJson = {
   businessId: string;
 }
 
+export type InventoryItem = {
+  _id: string;
+  itemName?: string;
+  manufacturer?: string;
+  dosageAdministration?: string;
+  quantity?: number;
+  genericName?: string;
+  sku?: string;
+  category?: string;
+  itemCategory?: string;
+  manufacturerPrice?: number;
+  price?: number;
+  manufacturingDate?: string;
+  expiryDate?: string;
+};
+
+export type InventoryTypes = {
+  totalItems?: number;
+  totalPages?: number;
+  currentPage?: number;
+  data?: InventoryItem[];
+};
