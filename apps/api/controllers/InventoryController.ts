@@ -41,7 +41,7 @@ const InventoryControllers = {
   AddInventory:async (req: Request, res: Response): Promise<void> => {
   try {
     const { userId } = req.query;
-    const data = req.body;
+    const data = req.body as InventoryType;
 
     // Step 1: Validate input
     const validationError = validateInventoryData(data);
