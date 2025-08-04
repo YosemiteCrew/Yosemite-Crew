@@ -154,8 +154,8 @@ function AddInventory(): React.JSX.Element {
         markup: Number(formData.markup),
         stockReorderLevel: Number(formData.stockReorderLevel),
       };
-
-      await postData("/api/inventory/addInventory", payload);
+const fhir = convertToFhirInventory(payload);
+      await postData("/api/inventory/addInventory", fhir);
       setSuccessMessage("Inventory added successfully.");
       setFormData({
         barCode: "",
