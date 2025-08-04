@@ -10,7 +10,7 @@ import { Request, Response } from "express";
 import { FHIRMedicalPackage, InventoryType, NormalMedicalPackage, ProcedurePackageType, } from "@yosemite-crew/types";
 import { convertFHIRPackageToNormal, convertProcedurePackagesToFHIRBundle, convertFhirToNormalToUpdateProcedurePackage, InventoryOverviewConvertToFHIR } from "@yosemite-crew/fhir";
 import { convertFhirBundleToInventory, convertToFhirInventory, convertToNormalFromFhirInventoryData } from "@yosemite-crew/fhir/dist/InventoryFhir/inventoryFhir";
-
+import { inventorySchema, validateInventoryData } from "../validators/inventoryValidator";
 
 
 interface QueryParams {
@@ -38,32 +38,43 @@ interface FHIRResponse {
 
 
 const InventoryControllers = {
-  AddInventory: async (req: Request, res: Response): Promise<void> => {
-    try {
-      const respon: InventoryType = convertToNormalFromFhirInventoryData(req.body);
-      const { userId } = req.query
-      // console.log("expiryDate", req);
+  AddInventory:async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { userId } = req.query;
+    const data = req.body;
 
-      const getSku = await Inventory.findOne({ sku: respon.sku });
-      if (getSku) {
-        res.status(400).json({ message: `${respon.sku} sku already exists` });
-        return;
-      }
-
-      const formattedExpiryDate = respon.expiryDate
-        ? new Date(respon.expiryDate).toISOString().split("T")[0]
-        : null;
-
-      const inventory = new Inventory({ bussinessId: userId, ...respon, expiryDate: formattedExpiryDate });
-      await inventory.save();
-
-      res.status(200).json({ message: "Inventory Added Successfully" });
-    } catch (error) {
-      console.error("AddInventory Error:", error);
-      res.status(500).json({ message: "Server Error", error });
+    // Step 1: Validate input
+    const validationError = validateInventoryData(data);
+    if (validationError) {
+      res.status(400).json({ message: validationError });
+      return;
     }
-  },
 
+    // Step 2: Check SKU uniqueness
+    const existing = await Inventory.findOne({ sku: data.sku });
+    if (existing) {
+      res.status(400).json({ message: `SKU ${data.sku} already exists.` });
+      return;
+    }
+
+    // Step 3: Convert expiryDate to Date object
+    const expiryDate = data.expiryDate ? new Date(data.expiryDate) : null;
+
+    // Step 4: Save inventory
+    const newInventory = new Inventory({
+      ...data,
+      bussinessId: userId,
+      expiryDate,
+    });
+
+    await newInventory.save();
+    res.status(200).json({ message: 'Inventory Added Successfully' });
+
+  } catch (error) {
+    console.error('AddInventory Error:', error);
+    res.status(500).json({ message: 'Server Error', error });
+  }
+},
   getInventory: async (
     req: { query: QueryParams },
     res: Response

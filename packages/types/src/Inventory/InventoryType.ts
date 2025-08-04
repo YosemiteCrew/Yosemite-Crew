@@ -1,27 +1,29 @@
 import {  Types } from "mongoose";
 
 export type InventoryType = {
-  _id?: string;
   bussinessId?: string;
-
-  itemName?: string;              // Name
-  genericName?: string;           // Generic Name
-  category?: string;              // Stock Category
-  sku?: string;                   // SKU
-
-  dosageAdministration?: string;  // Dosage Administration
-  itemCategory?: string;          // If falls in pet Type Category
-
-  manufacturer?: string;          // Manufacturer
-  manufacturerPrice?: string;     // Manufacturer Price
-  price?: string;                 // Price
-  quantity?: string;              // Stock
-
-  manufacturingDate?: string;     // Manufacturing Date (format: YYYY-MM-DD)
-  expiryDate?: string;            // Expiry Date (format: YYYY-MM-DD)
-
-  createdAt?: string;             // ISO 8601 format
-  updatedAt?: string;             // ISO 8601 format
+   barCode: string;
+  category: string;
+  itemName: string;
+  genericName?: string;
+  department: string;
+  sexType?: string;
+  manufacturer: string;
+  itemCategory: string;
+  speciesSpecific1?: string;
+  speciesSpecific2?: string;
+  onHand: string;
+  perQtyPrice: number;
+  batchNumber?: string;
+  sku?: string;
+  strength?: string;
+  quantity: number;
+  manufacturerPrice: number;
+  markup: number;
+  upc?: string;
+  price: number;
+  stockReorderLevel: number;
+  expiryDate: string;    // ISO 8601 format
 };
 
 
