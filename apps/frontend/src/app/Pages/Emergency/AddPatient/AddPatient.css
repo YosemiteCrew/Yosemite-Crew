@@ -1,0 +1,60 @@
+.AddPatientSec{
+    padding: 100px 0px;
+}
+.PatientData{
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+}
+.PatientData .PatientHead{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.PatientData .PatientHead h2{
+    margin: 0;
+    font-weight: 500;
+    font-size: 40px;
+    line-height: 120%;
+    font-family: var(--grotesk-font);
+}
+.PatientData .PatientPetDetails{
+    border: 1px solid var(--popupbg);
+    border-radius: 24px;
+    padding: 40px;
+}
+.PatientData .PatientPetDetails form{
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.SelectTab .SelectUl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 0;
+  margin: 0;
+}
+.SelectTab .SelectUl li {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 0.5px solid var(--lightblack);
+  border-radius: 28px;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 120%;
+  color: #37223c;
+  font-family: var(--satoshi-font);
+  min-width: 135px;
+  min-height: 60px;
+  cursor: pointer;
+  padding: 0px 20px;
+}
+.SelectTab .SelectUl li.active {
+  background: var(--light-blue);
+  border: 1px solid var(--blue-text);
+  color: var(--blue-text);
+  font-weight: 700;
+}
