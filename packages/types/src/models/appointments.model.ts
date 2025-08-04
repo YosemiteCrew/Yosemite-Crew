@@ -81,3 +81,13 @@ export type NormalizedAppointment = {
   day: string; // e.g., "Wednesday"
   timeSlots: TimeSlot[];
 }
+
+
+
+
+ export type IUnavailableSlot = Document & {
+  userId: string; // ID of the user who owns the slot
+  date: string;        // e.g., "2025-07-23"
+  day: string;         // e.g., "Wednesday"
+  slots: string[];     // e.g., ["5:00 PM", "4:30 PM", ...]
+}

@@ -11,6 +11,7 @@ import { AxiosError } from "axios";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/app/stores/authStore";
 import { Icon } from "@iconify/react/dist/iconify.js";
+import { useStore } from "zustand";
 
 
 
@@ -82,6 +83,7 @@ function SignUp({ inviteCode }: SignUpProps) {
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [agree, setIagree] = useState(false)
   const [subscribe, setSubscribe] = useState(false)
+  const isVerified = useStore(useAuthStore, (state) => state.isVerified);
   console.log("agree", agree)
   // Stable ref callback to avoid React warning
   const setOtpRef = (el: HTMLInputElement | null, idx: number) => {
@@ -133,7 +135,7 @@ function SignUp({ inviteCode }: SignUpProps) {
       const response = await postData<
         { message: string; data?: { userId: string; email: string; userType: string } }
       >(
-        '/api/auth/verifyUser',
+        '/api/auth/verifyUser ',
         {
           email,
           otp: code.join('')
@@ -310,12 +312,13 @@ function SignUp({ inviteCode }: SignUpProps) {
 
 
 
-  const businessTypes = [
-    "Veterinary Business",
-    "Breeding Facility",
-    "Pet Sitter",
-    "Groomer Shop",
-  ];
+const businessTypes = [
+  { key: "veterinaryBusiness", value: "Veterinary Business" },
+  { key: "breedingFacility", value: "Breeding Facility" },
+  { key: "petSitter", value: "Pet Sitter" },
+  { key: "groomerShop", value: "Groomer Shop" },
+];
+
   const handleSelectType = (type: React.SetStateAction<string>) => {
     setSelectedType(type);
   };
@@ -346,7 +349,14 @@ function SignUp({ inviteCode }: SignUpProps) {
   }, [inviteCode]);
 
 
-
+if(isVerified){
+  return (
+    <div className="alreadySignedIn">
+      <h2>You are already signed in!</h2>
+      <p>Please log out to sign in with a different account.</p>
+      <MainBtn btnname="Go to Dashboard" onClick={() => router.push("/")} />
+    </div>     )   
+}
 
 
   return (
@@ -440,13 +450,13 @@ function SignUp({ inviteCode }: SignUpProps) {
                       <p>Select Your Business Type</p>
                       <div className="button-group">
                         <ul>
-                          {businessTypes.map((type) => (
+                          {businessTypes.map(({key,value}) => (
                             <li
-                              key={type}
-                              className={`business-button ${selectedType === type ? "selected" : ""}`}
-                              onClick={() => handleSelectType(type)}
+                              key={key}
+                              className={`business-button ${selectedType === key ? "selected" : ""}`}
+                              onClick={() => handleSelectType(key)}
                             >
-                              {type}
+                              {value}
                             </li>
                           ))}
                         </ul>
@@ -674,11 +684,12 @@ export function MainBtn({
 // FormInputProps started
 type FormInputProps = {
   intype: string;
-  inname: string;
+  inname?: string;
   value: string;
   inlabel: string;
   readonly?: boolean;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onBlur?:(e: React.ChangeEvent<HTMLInputElement>) => void;
   error?: string;
 };
 export function FormInput({
@@ -687,6 +698,7 @@ export function FormInput({
   inlabel,
   value,
   onChange,
+  onBlur,
   readonly,
   error,
 }: FormInputProps) {

@@ -133,7 +133,6 @@ overviewConvertToFHIR() {
                       case "successful":
                         case "canceled":
                           case "checkedIn":
-                            case "availableDoctors":
                               case "appointmentsCreatedToday":
                                 case "newAppointments":
                                   case "upcomingAppointments":

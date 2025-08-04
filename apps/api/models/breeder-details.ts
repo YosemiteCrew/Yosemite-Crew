@@ -1,10 +1,12 @@
-import mongoose, { Schema, Model } from 'mongoose';
+import mongoose, {Schema, Model} from 'mongoose';
 import type { breeder } from "@yosemite-crew/types";
 
-const breederSchema: Schema<breeder> = new mongoose.Schema({
-   userId: {
-    type: String,
-    required: true,
+const breederSchema : Schema<breeder> = new mongoose.Schema({
+
+    userId: {
+        type: Schema.Types.ObjectId,
+        required: true,
+        ref: "YoshUser"
     },
     breederName: {
         type: String,
@@ -24,15 +26,13 @@ const breederSchema: Schema<breeder> = new mongoose.Schema({
     telephone: {
         type: String,
     },
-    emailAddress: {
+    emailAddess: {
         type: String,
-        match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email'],
     },
     website: {
         type: String,
-        match: [/^https?:\/\/.+/, 'Please enter a valid URL'],
     }
-}, { timestamps: true });
 
-const BreederDetails: Model<breeder> = mongoose.model<breeder>('BreederDetails', breederSchema);
-export default BreederDetails;
+}, { timestamps: true});
+const BreederDetails : Model<breeder>= mongoose.model<breeder>('BreederDetails',breederSchema);
+module.exports = BreederDetails;

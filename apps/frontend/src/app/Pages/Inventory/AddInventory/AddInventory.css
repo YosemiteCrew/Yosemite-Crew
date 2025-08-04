@@ -1,0 +1,110 @@
+.AddInventorySec{
+    padding: 100px 0px;
+}
+.InventoryData{
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+.InventoryData .AddInventoryHead{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.InventoryData .AddInventoryHead h2{
+    margin: 0;
+    font-family: var(--grotesk-font);
+    font-weight: 500;
+    font-size: 33px;
+    line-height: 120%;
+}
+
+.InventrySearch{
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    border: 1px solid var(--lightgrey);
+    border-radius: 24px;
+    min-height: 50px;
+    width: 100%;
+    max-width: 590px;
+    padding: 0px 24px;
+}
+.InventrySearch svg{
+    color: var(--black-text);
+}
+.InventrySearch input{
+    border: none !important;
+    color: var(--greytext);
+    font-family: var(--satoshi-font);
+    font-weight: 400;
+    font-size: 18px;
+    line-height: 120%;
+    color: var(--black-text);
+}
+.InventrySearch input{
+    opacity: 60%;
+}
+.InventoryData .AddInventryForm{
+    border: 1px solid var(--profileborder);
+    border-radius: 28px;
+    padding: 40px;
+}
+.InventoryData .AddInventryForm form {
+    display: flex;
+    flex-direction: column;
+    gap: 36px;
+}
+.InventoryData .InventryBtn {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.InventoryData .InventryBtn button {
+    background: var(--black-bg);
+    padding: 16px 32px;
+    min-width: 160px;
+    border-radius: 28px;
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--white-text);
+    border: 1px solid var(--black-bg) !important;
+    font-size: 23px;
+    line-height: 120%;
+    font-weight: 500;
+    font-family: var(--grotesk-font);
+    &:hover {
+        background: transparent; 
+        color: var(--black-text);
+    }
+}
+
+.AddQuanity{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px solid var(--greyborder);
+    padding: 10px 24px ;
+    border-radius: 36px;
+    min-height: 60px;
+}
+.AddQuanity button{
+    padding: 0px;
+    line-height: 0px;
+    background: transparent !important;
+    border: none !important;
+}
+.AddQuanity span , .AddQuanity span.quntyname{
+    font-size: 18px;
+    font-weight: 400;
+    font-family: var(--satoshi-font);
+    line-height: 120%;
+    opacity: 60%;
+    color: var(--black-text);
+}
+.AddQuanity span{
+    opacity: 100%;
+}

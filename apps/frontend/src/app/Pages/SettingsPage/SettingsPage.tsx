@@ -1,65 +1,50 @@
 'use client';
 import React, { useState } from 'react';
 import './SettingsPage.css';
-import Header from '@/app/Components/Header/Header';
-import { Container, Accordion, Form, Button, Badge, Row, Col } from 'react-bootstrap';
-import { FormInput } from '../Sign/SignUp';
-import { AiFillPlusCircle } from 'react-icons/ai';
+import { Container, Accordion, Form, Button } from 'react-bootstrap';
+import { Icon } from '@iconify/react/dist/iconify.js';
+import Image from 'next/image';
+import Link from 'next/link';
+import { AddressDetailsModal, BusinessDetailsModal, ServiceDetailsModal } from './SettingModal';
+
 
 function SettingsPage() {
-  const [isLoggedIn] = useState(true);
-    const [email, setEmail] = useState("");
 
-  // --- Medical Template State ---
-  const [medicalTemplate, setMedicalTemplate] = useState({
-    templateType: 'Ophthalmology/Dermatology',
-    animalType: 'Beagle/Dog',
-    medicalCondition: 'Fair/Serious/Critical',
-    checks: {
-      'Temperature': true,
-      'Heart Rate': true,
-      'Respiratory Rate': true,
-      'Muscle Condition Score': false,
-      'Behaviour': false,
-      'Attitude': false,
-      'Blood Pressure': true,
-      'Body Condition Score': true,
-      'Body Weight': true,
-      'Pain Score': true,
-      'Hydration': true,
-    },
-  });
+  // SettingModal Started
+    const [modalShow1, setModalShow1] = React.useState(false); 
+    const [modalShow2, setModalShow2] = React.useState(false); 
+    const [modalShow3, setModalShow3] = React.useState(false); 
+  // SettingModal Ended
 
-    // Add this inside your component
-    const addCheckItem = () => {
-    const newCheck = prompt('Enter new check item name:');
-    if (newCheck && !medicalTemplate.checks.hasOwnProperty(newCheck)) {
-        setMedicalTemplate((prev) => ({
-        ...prev,
-        checks: {
-            ...prev.checks,
-            [newCheck]: false, // default to false
-        },
-        }));
-    } else {
-        alert('Invalid or duplicate name.');
-    }
-    };
-
-  // --- Medical Shorthands State ---
-  const [shorthands, setShorthands] = useState([
-    'derma/dog/beagle/: #ddgb',
-    'ophthalmology/dog/beagle/: #odgb',
-    'dental/dog/beagle/: #dndgb',
-  ]);
-
-  // --- Team Members State ---
+  // Practice Team
   const [teamMembers, setTeamMembers] = useState([
     { name: 'Dr. Laura Evans', role: 'Internal Medicine' },
     { name: 'Dr. Luna Peters', role: 'Internal Medicine' },
     { name: 'Dr. Emily Foster', role: 'Internal Medicine' },
   ]);
 
+  const addTeamMember = () => {
+    setTeamMembers([...teamMembers, { name: 'New Member', role: 'Role' }]);
+  };
+  const removeTeamMember = (index: any) => {
+    const newList = [...teamMembers];
+    newList.splice(index, 1);
+    setTeamMembers(newList);
+  };
+  // Practice Team ended 
+
+  // --- Notifications Started ---
+  const [medicalTemplate, setMedicalTemplate] = useState({
+    checks: {
+      'Appointment Notification': true,
+      'Document/Record Notification': true,
+      'Emergency Appointment Notification': true,
+      'Team Chat Notification': false,
+      'Assessment Notification': true,
+      'Patient Chat Notification': false,
+      'Patient Status Notification': true,
+    },
+  });
   const toggleCheck = (key: keyof typeof medicalTemplate.checks) => {
     setMedicalTemplate((prev) => ({
       ...prev,
@@ -69,141 +54,330 @@ function SettingsPage() {
       },
     }));
   };
+  // --- Notifications Started ---
 
+  // Deleted information Started 
 
-
-
-  const addShorthand = () => {
-    setShorthands([...shorthands, 'new/shorthand/: #new']);
+  type DeletedItem = {
+    id: number;
+    title: string;
+    author: string;
+    type: string;
+    date: string;
+    thumbnail: string;
+    userImg: string;
+  };
+  const [deletedItems, setDeletedItems] = useState<DeletedItem[]>([
+    {
+      id: 1,
+      userImg: '/Images/pet.jpg',
+      title: 'Max',
+      author: 'David Martin',
+      type: 'Share Assessment Report',
+      date: '15 Aug 2024 11:30 AM',
+      thumbnail: '/Images/report.png', 
+    },
+    {
+      id: 2,
+      userImg: '/Images/pet.jpg',
+      title: 'Bold',
+      author: 'David Martin',
+      type: 'Share Assessment Report',
+      date: '15 Aug 2024 11:30 AM',
+      thumbnail: '/Images/report.png',
+    },
+  ]);
+  const [selectedItems, setSelectedItems] = useState<number[]>([]);
+  const toggleSelect = (id: number) => {
+    setSelectedItems(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+  const deleteSelected = () => {
+    setDeletedItems(items => items.filter(item => !selectedItems.includes(item.id)));
+    setSelectedItems([]);
+  };
+  const deleteAll = () => {
+    setDeletedItems([]);
+    setSelectedItems([]);
   };
 
-  const addTeamMember = () => {
-    setTeamMembers([...teamMembers, { name: 'New Member', role: 'Role' }]);
+  // Deleted information Ended  
+
+  // FeedBack Started 
+
+  type FeedbackItem = {
+    id: number;
+    user: string;
+    pet: string;
+    avatar: string;
+    date: string;
+    rating: number;
+    content: string;
+    expanded: boolean;
   };
 
-  const removeTeamMember = (index: any) => {
-    const newList = [...teamMembers];
-    newList.splice(index, 1);
-    setTeamMembers(newList);
+  const initialFeedbacks: FeedbackItem[] = [
+    {
+      id: 1,
+      user: 'Sky B',
+      pet: 'Kizie',
+      avatar: '/Images/feedback1.png',
+      date: '25 August 2024',
+      rating: 5.0,
+      content:
+        "We are very happy with the services so far. Dr. Brown has been extremely thorough and generous with his time and explaining everything to us. When one is dealing with serious health issues it makes a huge difference to understand what's going on and know that the health providers are doing their best. Thanks!",
+      expanded: true,
+    },
+    {
+      id: 2,
+      user: 'Pika',
+      pet: 'Oscar',
+      avatar: '/Images/feedback2.png',
+      date: '24 August 2024',
+      rating: 4.7,
+      content:
+        "Dr. Brown, the Gastroenterology Specialist was very thorough with Oscar. Zoey was pre diabetic so Doc changed her meds from Prednisolone to Budesonide. In 5 days, Oscar’s glucose numbers were lower and in normal range. We are staying with Dr. Brown as Oscar’s vet as I don’t feel any anxiety dealing with Oscar’s illness now.",
+      expanded: true,
+    },
+  ];
+  const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>(initialFeedbacks);
+  const [showAll, setShowAll] = useState(false);
+
+  const toggleExpand = (id: number) => {
+    setFeedbacks(f =>
+      f.map(item => (item.id === id ? { ...item, expanded: !item.expanded } : item))
+    );
   };
+
+  const deleteFeedback = (id: number) => {
+    setFeedbacks(f => f.filter(item => item.id !== id));
+  };
+
+  const addFeedback = () => {
+    const newFeedback: FeedbackItem = {
+      id: Date.now(),
+      user: 'New User',
+      pet: 'New Pet',
+      avatar: '/avatar1.png',
+      date: new Date().toLocaleDateString(),
+      rating: 5,
+      content: 'This is a new feedback message.',
+      expanded: false,
+    };
+    setFeedbacks(prev => [newFeedback, ...prev]);
+  };
+
+  const displayedFeedbacks = showAll ? feedbacks : feedbacks.slice(0, 2);
+
+  // FeedBack Ended 
+
+  
+
+
+
+  
 
   return (
     <>
-      <Header />
       <section className='SettingPageSec'>
         <Container>
           <div className='SettingData'>
-            <div className="LeftSettingData">
-                <h4>Settings</h4>
+              <h4>Settings</h4>
 
-                <Accordion defaultActiveKey="0" className='SettingAccordian'>
-                    {/* === Medical Template === */}
-                    <Accordion.Item eventKey="0" className='MedicalAcorditem'>
-                        <Accordion.Header>Medical Template</Accordion.Header>
-                        <Accordion.Body>
-                            <Row>
-                                <Col md={4}>
-                                    <FormInput intype="text" inname="email" value={email}  inlabel="Template Type" onChange={(e) => setEmail(e.target.value)} />
-                                </Col>
-                                <Col md={4}>
-                                    <FormInput intype="text" inname="email" value={email}  inlabel="Animal Type" onChange={(e) => setEmail(e.target.value)} />
-                                </Col>
-                                <Col md={4}>
-                                    <FormInput intype="text" inname="email" value={email}  inlabel="Medical Condition" onChange={(e) => setEmail(e.target.value)} />
-                                </Col>
-                            </Row>
-                        {/* <div className='mb-3'>
-                            <Form.Label>Template Type</Form.Label>
-                            <Form.Control
-                            type="text"
-                            value={medicalTemplate.templateType}
-                            onChange={(e) =>
-                                setMedicalTemplate({ ...medicalTemplate, templateType: e.target.value })
-                            }
-                            />
-                        </div>
-                        <div className='mb-3'>
-                            <Form.Label>Animal Type</Form.Label>
-                            <Form.Control
-                            type="text"
-                            value={medicalTemplate.animalType}
-                            onChange={(e) =>
-                                setMedicalTemplate({ ...medicalTemplate, animalType: e.target.value })
-                            }
-                            />
-                        </div>
-                        <div className='mb-3'>
-                            <Form.Label>Medical Condition</Form.Label>
-                            <Form.Control
-                            type="text"
-                            value={medicalTemplate.medicalCondition}
-                            onChange={(e) =>
-                                setMedicalTemplate({ ...medicalTemplate, medicalCondition: e.target.value })
-                            }
-                            />
-                        </div> */}
+              <div className="SettingFormDiv">
 
-                        <div className='MedicalTabs'>
-                            {Object.entries(medicalTemplate.checks).map(([key, value]) => (
-                            <div key={key} className='MedicalTogleDiv'>
-                                <h6>{key}</h6>
-                                <Form.Check
-                                type="switch"
-                                checked={value}
-                                onChange={() => toggleCheck(key as keyof typeof medicalTemplate.checks)}
-                                />
+                <div className="SettingInnerprofile">
+                  <div className="SetProfile">
+                    <Image aria-hidden src="/Images/settingimg.png" alt="settingimg" width={150} height={150}/>
+                  </div>
+                  <h3>San Francisco Animal Medical Center</h3>
+                  <Button><Icon icon="solar:pen-bold" width="20" height="20" /> Edit Profile</Button>
+                </div>
+
+                <div className="SettinginnerItem">
+                  <h6>Business Details</h6>
+                  <Button onClick={() => setModalShow1(true)}><Icon icon="solar:pen-bold" width="20" height="20" /></Button>
+                </div>
+                <div className="SettinginnerItem">
+                  <h6>Address Details</h6>
+                  <Button onClick={() => setModalShow2(true)}><Icon icon="solar:pen-bold" width="20" height="20" /></Button>
+                </div>
+                <div className="SettinginnerItem">
+                  <h6>Service and Department Details</h6>
+                  <Button onClick={() => setModalShow3(true)}><Icon icon="solar:pen-bold" width="20" height="20" /></Button>
+                </div>
+                <div className="SettinginnerItem">
+                  <h6>Business Documnets</h6>
+                  <Button><Icon icon="solar:pen-bold" width="20" height="20" /></Button>
+                </div>
+                <div className="SettinginnerItem">
+                  <h6>Your Plan <span>Free tier - Cloud hosted</span></h6>
+                  <Button><Icon icon="solar:pen-bold" width="20" height="20" /></Button>
+                </div>
+
+                <BusinessDetailsModal show={modalShow1} onHide={() => setModalShow1(false)} />
+                <AddressDetailsModal show={modalShow2} onHide={() => setModalShow2(false)} />
+                <ServiceDetailsModal show={modalShow3} onHide={() => setModalShow3(false)} />
+
+
+
+              </div>
+
+              <Accordion defaultActiveKey="0" className='SettingAccordian'>
+
+                {/* === Practicing Team === */}
+                <Accordion.Item eventKey="0">
+                    <Accordion.Header>Practicing Team</Accordion.Header>
+                    <Accordion.Body>
+                      <div className='PracticingTeamDiv'>
+                        {teamMembers.map((member, idx) => (
+                          <div key={idx} className='Practicinginner'>
+                            <div className="PractInfo">
+                              <Image src="/Images/settingimg.png" alt="team-member" width={40} height={40} />
+                              <div>
+                                <h6>{member.name}</h6>
+                                <p>{member.role}</p>
+                              </div>
                             </div>
-                            ))}
-                            <Button onClick={addCheckItem}>Add More <AiFillPlusCircle /></Button>
-                        </div>
-                       
-                        </Accordion.Body>
-                    </Accordion.Item>
+                            <Button onClick={() => removeTeamMember(idx)}>
+                              <Icon icon="solar:minus-circle-bold" width="20" height="20" />
+                            </Button>
+                          </div>
+                        ))}
+                        <div className="Prctadbtn">
+                          <Button onClick={addTeamMember}><Icon icon="carbon:checkmark-filled" width="20" height="20" /> Add Member </Button>
+                        </div> 
+                      </div>
+                    </Accordion.Body>
+                </Accordion.Item>
 
-                    {/* === Medical Shorthands === */}
-                    <Accordion.Item eventKey="1" className='MedicalShorthAcorditem'>
-                        <Accordion.Header>Medical Shorthands</Accordion.Header>
-                        <Accordion.Body>
-                        <div>
-                            {shorthands.map((item, idx) => (
-                            <Badge key={idx} bg="light" text="dark" className='me-2 mb-2'>
-                                {item}
-                            </Badge>
-                            ))}
+                {/* === Notification Template === */}
+                <Accordion.Item eventKey="1" className='Notificationitem'>
+                  <Accordion.Header>Notification Settings</Accordion.Header>
+                  <Accordion.Body>  
+                    <div className='SetNotifylTabs'>
+                        {Object.entries(medicalTemplate.checks).map(([key, value]) => (
+                        <div key={key} className='NotifyTogleDiv'>
+                          <div className="notinfo">
+                            <h6>{key}</h6>
+                            <p>{key}</p>
+                          </div>
+                          <Form.Check  type="switch" checked={value} onChange={() => toggleCheck(key as keyof typeof medicalTemplate.checks)}/>
                         </div>
-                        <Button variant="secondary" onClick={addShorthand} className='mt-2'>
-                            Add More
-                        </Button>
-                        </Accordion.Body>
-                    </Accordion.Item>
+                        ))}     
+                    </div>
+                  </Accordion.Body>
+                </Accordion.Item>
 
-                    {/* === Team Members === */}
-                    <Accordion.Item eventKey="2">
-                        <Accordion.Header>Team Members</Accordion.Header>
-                        <Accordion.Body>
-                        <div>
-                            {teamMembers.map((member, idx) => (
-                            <div
-                                key={idx}
-                                className='d-flex justify-content-between align-items-center mb-2'
-                            >
-                                <span>{member.name} - {member.role}</span>
-                                <Button variant="outline-danger" size="sm" onClick={() => removeTeamMember(idx)}>
-                                Remove
-                                </Button>
+                {/* === Security  Settings Template === */}
+                <Accordion.Item eventKey="2" className='SecuritySetItem'>
+                  <Accordion.Header>Security  Settings</Accordion.Header>
+                  <Accordion.Body>  
+                    <div className='SecurtSetTabs'>
+                      <h4>Two Factor Authentication</h4>
+                      <span>Email ID <Icon icon="solar:verified-check-bold" width="20" height="20" color='#33A57D' /></span>
+                      <span>Phone Number <Icon icon="solar:danger-triangle-bold" width="20" height="20" color='#EE5F54' /></span>
+                      <div className="TwoStepCode">
+                        <p>Open the <strong>Two-step verification</strong> app on your mobile device to get your verification code. <br /> Don’t have access to your mobile device? <strong>Enter a Recovery Code</strong></p>
+                        <div className="veryfycontrol">
+                          <Form.Control type="number" placeholder="Verification Code" />
+                          <Icon icon="solar:menu-dots-square-bold" width="20" height="20" color='#302F2E' />
+                        </div>
+                      </div>                   
+                    </div>
+                  </Accordion.Body>
+                </Accordion.Item>
+
+                {/* === Deleted information Template === */}
+                <Accordion.Item eventKey="3" className='DeleteInformationItem'>
+                  <Accordion.Header>Deleted information</Accordion.Header>
+                  <Accordion.Body>  
+                    <div className='DeleteInfoDiv'>
+                      <div className="DeleteBtn">
+                        <Button onClick={deleteAll}><Icon icon="solar:trash-bin-trash-bold" width="14" height="14" /> Delete All</Button>
+                        <Button onClick={deleteSelected}><Icon icon="solar:trash-bin-trash-bold" width="14" height="14" /> Delete Selected </Button>
+                      </div>
+                      <div>
+                        {deletedItems.map(item => (
+                          <div key={item.id} className='DeleteReports'>
+
+                            <div className='Deltecheck'>
+                              <Form.Check type="checkbox"checked={selectedItems.includes(item.id)}onChange={() => toggleSelect(item.id)}/>
+                              <Image src={item.userImg} alt={item.userImg} width={40} height={40} /> 
+                              <div className='DeletTexed'>
+                                <h6>{item.title}</h6>
+                                <p><Icon icon="mingcute:user-2-fill" /> {item.author}</p>
+                              </div>
                             </div>
-                            ))}
+
+                            <div className="DeletMidTexed">
+                              <h6>{item.type}</h6>
+                              <p>{item.date}</p>
+                            </div>
+
+                            <div className='DelteDoctDiv'>
+                              <Icon icon="solar:file-download-bold" width="24" height="24" color='#302F2E' />
+                              <Icon icon="solar:trash-bin-trash-bold" width="24" height="24" color='#247AED' onClick={deleteSelected}/>
+                              <div className="DeletThumnil">
+                                <Image src={item.thumbnail} alt={item.thumbnail} width={100} height={100}  />
+                                <Link href=""><Icon icon="solar:eye-bold" width="24" height="24" color='#302F2E' /></Link>
+                              </div>
+                              
+                            </div>
+
+                          </div>
+                        ))}
+                      </div>
+                      <div className="ReportBottom">
+                        <p>These documents will automatically get deleted after <span>90 days.</span></p>
+                      </div>                                
+                    </div>
+                  </Accordion.Body>
+                </Accordion.Item>
+
+                {/* === Feedback Template === */}
+                <Accordion.Item eventKey="4" className='FeedBackitem'>
+                  <Accordion.Header>Feedback</Accordion.Header>
+                  <Accordion.Body>  
+                    <div className='FeedbackInnerDiv'>
+                      {displayedFeedbacks.map(f => (
+                        <div key={f.id} className="feedbackCard">
+                          <div className="FeedBackTopItem">
+                            <div className="FeedBackUser">
+                              <Image src={f.avatar} alt='' width={60} height={60} />
+                              <div className='feedbackhead'>
+                                <h4>{f.user}</h4>
+                                <p><Image src="/Images/paws.png" alt='paws' width={16} height={16} /> {f.pet}</p>
+                              </div>
+                            </div>
+                            <Button onClick={addFeedback}><Icon icon="solar:add-circle-bold" width={24} height={24}/> </Button>
+                            {/* <Button onClick={() => deleteFeedback(f.id)}><Icon icon="solar:minus-circle-bold" width={24} height={24} /></Button> */}
+                          </div>
+                          <div className="FeedbackContent">
+                            <div className="FeedDated">
+                              <h6>{f.date}</h6>
+                              <p><Icon icon="solar:star-bold" color="#007bff" /> {f.rating}</p>
+                            </div>
+                            <div className="FeedbackPara">
+                              <p>{f.content}</p>
+                            </div>
+                          </div>
                         </div>
-                        <Button variant="primary" onClick={addTeamMember}>
-                            Add Member
-                        </Button>
-                        </Accordion.Body>
-                    </Accordion.Item>
+                      ))}
+                      <div className="FeedMore">
+                        <Button onClick={() => setShowAll(!showAll)}><Icon icon="mdi:eye" width={14} height={14} /> {showAll ? 'View Less' : 'View More'}</Button>
+                      </div>             
+                    </div>
+                  </Accordion.Body>
+                </Accordion.Item>
+
+                  
 
 
 
-                </Accordion>
-            </div>
+              </Accordion>
+
 
           </div>
         </Container>

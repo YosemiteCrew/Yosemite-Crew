@@ -1,20 +1,17 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import mongoose from 'mongoose';
-import medicalRecords from '../models/MedicalRecords';
-import helpers from '../utils/helpers';
-import { FHIRMedicalDocumentReference, InternalMedicalRecord, MedicalDoc, MedicalRecord } from '@yosemite-crew/types';
+import { FHIRMedicalRecord, medicalRecord, MedicalRecordResponse } from "@yosemite-crew/types";
+import mongoose from "mongoose";
+import medicalRecords from "../models/medical-records-model";
+import helpers from "../utils/helpers";
 
 
-export default class FHIRMedicalRecordService {
-  static convertFHIRToMedicalRecord(fhirData: unknown): InternalMedicalRecord {
+class FHIRMedicalRecordService {
+  static convertFHIRToMedicalRecord(fhirData: MedicalRecordResponse): FHIRMedicalRecord {
     if (!fhirData || typeof fhirData !== 'object') {
       throw new Error("Invalid FHIR data format.");
     }
 
      
-    const data = fhirData as FHIRMedicalDocumentReference;
+    const data = fhirData;
 
      console.log("hello",data)
     if (data.resourceType !== 'DocumentReference') {
@@ -49,11 +46,11 @@ export default class FHIRMedicalRecordService {
     };
   }
 
-  static convertMedicalRecordToFHIR(record: MedicalRecord): any {
+  static convertMedicalRecordToFHIR(record: medicalRecord): MedicalRecordResponse {
   if (!record) throw new Error("Invalid medical record.");
 
-  const id = record._id ? record._id.toString() : record.id;
-
+  const id :string  = record._id;
+  if (!id) throw new Error("Medical record ID is required.");
   return {
     resourceType: "DocumentReference",
     id,
@@ -80,7 +77,7 @@ export default class FHIRMedicalRecordService {
     },
 
     content: Array.isArray(record.medicalDocs) && record.medicalDocs.length > 0
-      ? record.medicalDocs.map((doc: MedicalDoc) => ({
+      ? record.medicalDocs.map((doc) => ({
           attachment: {
             url: doc.url ?? '',
             title: doc.originalname ?? '',
@@ -118,3 +115,4 @@ export default class FHIRMedicalRecordService {
     return await medicalRecords.deleteOne({ _id: objectId });
   }
 }
+export default FHIRMedicalRecordService;
