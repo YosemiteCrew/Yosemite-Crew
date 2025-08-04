@@ -1,25 +1,31 @@
 import { Schema, model } from 'mongoose';
-import type { InventoryType,ProcedurePackageType } from '@yosemite-crew/types';
+import type { InventoryType, ProcedurePackageType } from '@yosemite-crew/types';
 
 const InventorySchema = new Schema<InventoryType>(
   {
-    bussinessId: { type: String, required: true }, // keep this as it's essential
-
-    itemName: { type: String, required: true },      // Name
-    genericName: { type: String },                   // Generic Name
-    category: { type: String, required: true },      // Stock Category
-    sku: { type: String, unique: true },             // SKU
-
-    dosageAdministration: { type: String },          // Dosage Administration
-    itemCategory: { type: String },                  // If falls in pet Type Category
-
-    manufacturer: { type: String, required: true },  // Manufacturer
-    manufacturerPrice: { type: Number },             // Manufacturer Price
-    price: { type: Number, required: true },         // Price
-    quantity: { type: Number, required: true },      // Stock
-
-    manufacturingDate: { type: String },             // Manufacturing Date
-    expiryDate: { type: String, required: true },    // Expiry Date
+    bussinessId: String,
+    barCode: String,
+    category: String,
+    itemName: String,
+    genericName: String,
+    department: String,
+    sexType: String,
+    manufacturer: String,
+    itemCategory: String,
+    speciesSpecific1: String,
+    speciesSpecific2: String,
+    onHand: String,
+    perQtyPrice: Number,
+    batchNumber: String,
+    sku: String,
+    strength: String,
+    quantity: Number,
+    manufacturerPrice: Number,
+    markup: Number,
+    upc: String,
+    price: Number,
+    stockReorderLevel: Number,
+    expiryDate: Date,
   },
   { timestamps: true }
 );
