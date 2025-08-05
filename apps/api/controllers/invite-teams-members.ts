@@ -169,13 +169,14 @@ export const inviteTeamsMembersController = {
     },
 
 
-    inviteInfo: async (req: Request, res: Response) => {
+    inviteInfo: async (req: Request, res: Response):Promise<void> => {
         const { code } = req.query;
 
         console.log("Invite Code:", code);
 
       if (typeof code !== "string" || !/^[a-zA-Z0-9]{8}$/.test(code)) {
-    return res.status(400).json({ message: "Invalid or missing invite code." });
+     res.status(400).json({ message: "Invalid or missing invite code." });
+     return
   }
 
         const invite = await inviteTeamsMembers.findOne({ inviteCode: code });
