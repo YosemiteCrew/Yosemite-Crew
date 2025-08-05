@@ -334,91 +334,47 @@ const listController = {
         const countQuery = matchStage;
         const [users, totalCount] = await Promise.all([
           WebUser.aggregate([
-            // { $match: matchStage },
-            // {
-            //   $lookup: {
-            //     from: 'profiledatas',
-            //     localField: 'cognitoId',
-            //     foreignField: 'userId',
-            //     as: 'profileData',
-            //   },
-            // },
-            // {
-            // $lookup: {
-            //   from: 'departments',
-            //   let: { userIdFromProfile: '$profileData.userId' },
-            //   pipeline: [
-            //       {
-            //         $match: {
-            //         // $expr: {
-            //         // $eq: ['$bussinessId', '$$userIdFromProfile']
-            //         //   }
-            //         }
-            //       }
-            //           ],
-            //   as: 'businessData'
-            //       }
-            // },
-            // {
-            //   $unwind: {
-            //     path: '$profileData',
-            //     preserveNullAndEmptyArrays: true,
-            //   },
-            // },
-            // {
-            //   $unwind:{
-            //     path: '$businessData',
-            //     preserveNullAndEmptyArrays:true
-            //   }
-            // },
+            { $match: matchStage },
+            {
+              $lookup: {
+                from: 'profiledatas',
+                localField: 'cognitoId',
+                foreignField: 'userId',
+                as: 'profileData',
+              }
+            },
+            {
+              $unwind: {
+                path: '$profileData',
+                preserveNullAndEmptyArrays: true
+              }
+            },
+            {
+              $lookup: {
+                from: 'departments',
+                let: { userIdFromProfile: '$profileData.userId' },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $eq: ['$userId', '$$userIdFromProfile']
+                      }
+                    }
+                  },
+                  {
+                    $project: {
+                      departmentId: '$_id',
+                      _id: 0,
+                      departmentName: 1,
+                      userId: 1,
 
-             { $match: matchStage },
+                    }
+                  }
+                ],
+                as: 'departments'
+              }
+            },
 
-  // Step 1: Lookup profileData using cognitoId
-  {
-    $lookup: {
-      from: 'profiledatas',
-      localField: 'cognitoId',
-      foreignField: 'userId',
-      as: 'profileData',
-    }
-  },
-
-  // Step 2: Unwind profileData to access fields
-  {
-    $unwind: {
-      path: '$profileData',
-      preserveNullAndEmptyArrays: true
-    }
-  },
-
-  // Step 3: Lookup departments using profileData.userId
-  {
-    $lookup: {
-      from: 'departments',
-      let: { userIdFromProfile: '$profileData.userId' },
-      pipeline: [
-        {
-          $match: {
-            $expr: {
-              $eq: ['$userId', '$$userIdFromProfile']
-            }
-          }
-        },
-        {
-        $project: {
-          departmentId: '$_id',
-          _id: 0,
-          departmentName: 1,
-          userId: 1,
-         
-        }
-      }
-      ],
-      as: 'departments'
-    }
-  },
-          
             { $skip: offset },
             { $limit: limit },
           ]),

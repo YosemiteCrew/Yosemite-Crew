@@ -19,7 +19,7 @@ const immunizationController =  {
       } else {
         rawData = body;
       }
-      console.log(rawData,'deta');
+      
      const fhirData: Partial<BasicImmunizationResource> = typeof rawData === 'string'
   ? (JSON.parse(rawData) as Partial<BasicImmunizationResource>)
   : (rawData as Partial<BasicImmunizationResource>);
@@ -31,7 +31,7 @@ const immunizationController =  {
 
 
       const fileArray = req.files as File[] | UploadedFile[] | undefined;
-      console.log(fileArray,'fff');
+      
       const vaccineFileUrl = fileArray 
         ? await helpers.uploadFiles(fileArray.files as unknown as UploadedFile[])
         : [];
