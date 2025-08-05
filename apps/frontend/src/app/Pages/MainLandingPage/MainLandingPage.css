@@ -30,7 +30,7 @@
 }
 .landingSection .LandingData .LeftLanding .landingTop button:hover{
     background: var(--black-bg);
-    color: var(--whitecolor);
+    color: var(--white-text);
 }
 .landingSection .LandingData .LeftLanding .landingTexed{
    display: flex;
@@ -46,7 +46,7 @@
     padding: 16px 32px;
     min-height: 60px;
     background: var(--black-bg);
-    color: var(--whitecolor);
+    color: var(--white-text);
     width: fit-content;
     border-radius: 28px;
     min-width: 160px;
