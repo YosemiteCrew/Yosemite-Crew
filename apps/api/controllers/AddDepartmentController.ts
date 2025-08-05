@@ -138,33 +138,38 @@ const AddDepartmentController = {
       res.status(500).json({ message });
     }
   },
-getDepartmentById:async(req:Request,res:Response):Promise<void> =>{
+getDepartmentById: async (req: Request, res: Response): Promise<void> => {
   try {
-    const {Id} = req.query
-    if (!mongoose.Types.ObjectId.isValid(Id as string)) {
-  res.status(400).json({ message: 'Invalid departmentId format' });
-  return;
-}
-      const response = await Department.findOne({departmentId:Id})
-     if (response) {
-   const data =  convertToFHIRDepartment({
-      departmentId: response.departmentId,
-      biography: response.biography,
-      email: response.email,
-      phone: response.phone,
-      countrycode: response.countrycode,
-      services: response.services,
-      departmentHeadId: response.departmentHeadId,
-      bussinessId: response.bussinessId,
-    })
-  res.status(200).json(data);
-}else{
-  res.status(404).json({message:"No Department Data Exist"})
-}
+    const { Id } = req.query;
 
+    // Validate Id exists and is a valid string
+    if (typeof Id !== 'string' || !mongoose.Types.ObjectId.isValid(Id)) {
+      res.status(400).json({ message: 'Invalid or missing departmentId format' });
+      return;
+    }
+
+    // Always use parameterized queries — you're doing this correctly here
+    const response = await Department.findOne({ departmentId: Id });
+
+    if (response) {
+      const data = convertToFHIRDepartment({
+        departmentId: response.departmentId,
+        biography: response.biography,
+        email: response.email,
+        phone: response.phone,
+        countrycode: response.countrycode,
+        services: response.services,
+        departmentHeadId: response.departmentHeadId,
+        bussinessId: response.bussinessId,
+      });
+      res.status(200).json(data);
+    } else {
+      res.status(404).json({ message: "No Department Data Exist" });
+    }
 
   } catch (error) {
-    console.error(error)
+    console.error(error);
+    res.status(500).json({ message: "Server Error" });
   }
 }
   // uploadimage: async (req: Request, res: Response): Promise<void> => {
