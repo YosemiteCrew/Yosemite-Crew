@@ -25,11 +25,13 @@ export interface VaccinationDoc {
   expiryDate: string;
   reminder: boolean;
   vaccineImage?: VaccineImage[];
+  petImageUrl:string
 }
 
 export const toImmunizationResource = (vaccinationDoc: VaccinationDoc): FHIRImmunization => {
+
   const containedDocs: FHIRDocumentReference[] =
-    vaccinationDoc.vaccineImage?.map((img, index) => ({
+    vaccinationDoc?.vaccineImage?.map((img, index) => ({
       resourceType: "DocumentReference",
       id: `doc-${index + 1}`,
       status: "current",
@@ -48,7 +50,7 @@ export const toImmunizationResource = (vaccinationDoc: VaccinationDoc): FHIRImmu
     })) || [];
 
   const imageRefs: { reference: string }[] =
-    vaccinationDoc.vaccineImage?.map((_, index) => ({
+    vaccinationDoc?.vaccineImage?.map((_, index) => ({
       reference: `#doc-${index + 1}`
     })) || [];
 
@@ -57,7 +59,8 @@ export const toImmunizationResource = (vaccinationDoc: VaccinationDoc): FHIRImmu
     id: typeof vaccinationDoc._id === "string" ? vaccinationDoc._id : vaccinationDoc._id.toString(),
     status: "completed",
     patient: {
-      reference: `Patient/${vaccinationDoc.petId}`
+      reference: `Patient/${vaccinationDoc.petId}`,
+      petImageUrl:vaccinationDoc?.petImageUrl
     },
     vaccineCode: {
       coding: [
