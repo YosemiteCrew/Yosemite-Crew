@@ -1,10 +1,10 @@
 import mongoose from "mongoose";
 import { Inventory, ProcedurePackage } from "../models/Inventory";
-import {
-  // ProductCategoryFHIRConverter,
-  // InventoryFHIRConverter,
-  ApproachingExpiryReportConverter,
-} from "../utils/InventoryFhirHandler";
+// import {
+//   // ProductCategoryFHIRConverter,
+//   // InventoryFHIRConverter,
+//   ApproachingExpiryReportConverter,
+// } from "../utils/InventoryFhirHandler";
 import { Request, Response } from "express";
 
 import { FHIRMedicalPackage, InventoryType, NormalMedicalPackage, ProcedurePackageType, } from "@yosemite-crew/types";
@@ -722,120 +722,121 @@ const InventoryControllers = {
     }
   },
 
-  getApproachngExpiryGraphs: async (req: { query: QueryParams }, res: Response) => {
-    try {
-      const { userId } = req.query;
-      const today = new Date();
+  // getApproachngExpiryGraphs: async (req: { query: QueryParams }, res: Response) => {
+  //   try {
+  //     const { userId } = req.query;
+  //     const today = new Date();
 
-      if (!userId) {
-        return res.status(400).json({
-          resourceType: "OperationOutcome",
-          issue: [
-            {
-              severity: "error",
-              code: "invalid",
-              details: { text: "Missing required parameter: userId" },
-            },
-          ],
-        } as FHIRResponse);
-      }
+  //     if (!userId) {
+  //       return res.status(400).json({
+  //         resourceType: "OperationOutcome",
+  //         issue: [
+  //           {
+  //             severity: "error",
+  //             code: "invalid",
+  //             details: { text: "Missing required parameter: userId" },
+  //           },
+  //         ],
+  //       } as FHIRResponse);
+  //     }
 
-      const response = await Inventory.aggregate([
-        { $match: { bussinessId: userId } },
-        {
-          $addFields: {
-            expiryDateConverted: { $toDate: "$expiryDate" },
-          },
-        },
-        {
-          $addFields: {
-            daysUntilExpiry: {
-              $dateDiff: {
-                startDate: today,
-                endDate: "$expiryDateConverted",
-                unit: "day",
-              },
-            },
-          },
-        },
-        {
-          $match: {
-            daysUntilExpiry: { $gte: 0, $lte: 60 },
-          },
-        },
-        {
-          $group: {
-            _id: {
-              $switch: {
-                branches: [
-                  { case: { $lte: ["$daysUntilExpiry", 7] }, then: "7 days" },
-                  {
-                    case: {
-                      $and: [
-                        { $gt: ["$daysUntilExpiry", 7] },
-                        { $lte: ["$daysUntilExpiry", 15] },
-                      ],
-                    },
-                    then: "15 days",
-                  },
-                  {
-                    case: {
-                      $and: [
-                        { $gt: ["$daysUntilExpiry", 15] },
-                        { $lte: ["$daysUntilExpiry", 30] },
-                      ],
-                    },
-                    then: "30 days",
-                  },
-                  {
-                    case: {
-                      $and: [
-                        { $gt: ["$daysUntilExpiry", 30] },
-                        { $lte: ["$daysUntilExpiry", 60] },
-                      ],
-                    },
-                    then: "60 days",
-                  },
-                ],
-                default: null,
-              },
-            },
-            totalCount: { $sum: 1 },
-          },
-        },
-        {
-          $project: {
-            _id: 0,
-            category: "$_id",
-            totalCount: 1,
-          },
-        },
-        { $sort: { category: 1 } },
-      ]);
+  //     const response = await Inventory.aggregate([
+  //       { $match: { bussinessId: userId } },
+  //       {
+  //         $addFields: {
+  //           expiryDateConverted: { $toDate: "$expiryDate" },
+  //         },
+  //       },
+  //       {
+  //         $addFields: {
+  //           daysUntilExpiry: {
+  //             $dateDiff: {
+  //               startDate: today,
+  //               endDate: "$expiryDateConverted",
+  //               unit: "day",
+  //             },
+  //           },
+  //         },
+  //       },
+  //       {
+  //         $match: {
+  //           daysUntilExpiry: { $gte: 0, $lte: 60 },
+  //         },
+  //       },
+  //       {
+  //         $group: {
+  //           _id: {
+  //             $switch: {
+  //               branches: [
+  //                 { case: { $lte: ["$daysUntilExpiry", 7] }, then: "7 days" },
+  //                 {
+  //                   case: {
+  //                     $and: [
+  //                       { $gt: ["$daysUntilExpiry", 7] },
+  //                       { $lte: ["$daysUntilExpiry", 15] },
+  //                     ],
+  //                   },
+  //                   then: "15 days",
+  //                 },
+  //                 {
+  //                   case: {
+  //                     $and: [
+  //                       { $gt: ["$daysUntilExpiry", 15] },
+  //                       { $lte: ["$daysUntilExpiry", 30] },
+  //                     ],
+  //                   },
+  //                   then: "30 days",
+  //                 },
+  //                 {
+  //                   case: {
+  //                     $and: [
+  //                       { $gt: ["$daysUntilExpiry", 30] },
+  //                       { $lte: ["$daysUntilExpiry", 60] },
+  //                     ],
+  //                   },
+  //                   then: "60 days",
+  //                 },
+  //               ],
+  //               default: null,
+  //             },
+  //           },
+  //           totalCount: { $sum: 1 },
+  //         },
+  //       },
+  //       {
+  //         $project: {
+  //           _id: 0,
+  //           category: "$_id",
+  //           totalCount: 1,
+  //         },
+  //       },
+  //       { $sort: { category: 1 } },
+  //     ]);
 
-      const fhirdata = ApproachingExpiryReportConverter.toFHIR(response, {
-        userId,
-      });
+  //     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+  //     // const fhirdata = ApproachingExpiryReportConverter.toFHIR(response, {
+  //     //   userId,
+  //     // });
 
 
-      res.status(200).json(fhirdata);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
+  //     // res.status(200).json(fhirdata);
+  //     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  //   } catch (error: any) {
 
-      res.status(500).json({
-        resourceType: "OperationOutcome",
-        issue: [
-          {
-            severity: "error",
-            code: "exception",
-            details: { text: "Internal server error" },
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-            diagnostics: error.message,
-          },
-        ],
-      } as FHIRResponse);
-    }
-  },
+  //     res.status(500).json({
+  //       resourceType: "OperationOutcome",
+  //       issue: [
+  //         {
+  //           severity: "error",
+  //           code: "exception",
+  //           details: { text: "Internal server error" },
+  //           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+  //           diagnostics: error.message,
+  //         },
+  //       ],
+  //     } as FHIRResponse);
+  //   }
+  // },
 
   inventoryOverView: async (req: { query: QueryParams }, res: Response) => {
     try {
@@ -873,7 +874,7 @@ const InventoryControllers = {
         },
       ]);
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       const response = InventoryOverviewConvertToFHIR(inventory[0]);
       res.status(200).json(response);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

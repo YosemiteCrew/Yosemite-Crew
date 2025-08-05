@@ -1,6 +1,4 @@
 import express from 'express';
-import InventoryControllers from '../controllers/InventoryController';
-import { verifyTokenAndRefresh } from '../middlewares/authMiddleware';
 import BlogController from '../controllers/BlogController';
 const router = express.Router();
 

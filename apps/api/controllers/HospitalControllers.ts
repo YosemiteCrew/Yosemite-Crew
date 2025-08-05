@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
 
 import { webAppointments } from "../models/WebAppointment";
-import Department from "../models/AddDepartment";
-import AddDoctors from "../models/AddDoctor";
-import { ProfileData } from "../models/WebUser";
+// import Department from "../models/AddDepartment";
+// import AddDoctors from "../models/AddDoctor";
+// import { ProfileData } from "../models/WebUser";
 // const YoshPet = require('../models/YoshPet');
 // const YoshUser = require('../models/YoshUser');
 

@@ -5,7 +5,7 @@ export interface Demo {
 
 export  {toFHIRBusinessProfile,fromFHIRBusinessProfile} from "./hospital-profile-fhir";
 export {parseFhirBundle,File,Files,Document,ParsedData} from "./add.doctor.type"
-export {AppointmentsStatusFHIRConverter} from "./AppointmentStatus/apointmentStatusFhir";
+export {AppointmentsStatusFHIRConverter,convertFromFhirPurposeOfVisit,convertToFhirPurposeOfVisit,convertFromFhirAppointmentTypes,convertToFhirAppointmentTypes} from "./AppointmentStatus/apointmentStatusFhir";
 export  { convertToFhir, convertFhirToNormal} from "./feedback";
 export  { convertExerciseToFHIR, convertPlanTypesToFHIR , convertExerciseTypeToFHIR} from "./exercises";
 export { convertPetToFHIR , convertFHIRToPet } from "./pets";
@@ -20,10 +20,13 @@ export { convertFhirAppointmentBundle,convertToFHIRMyCalender,convertFromFHIRApp
 export {BusinessFhirFormatter} from "./business-fhir/business-formatter-fhir";
 export {generateFHIRBlogResponse} from "./blog-fhir/blog";
 export {convertGraphDataToFHIR,convertFHIRToGraphData,convertSpecialityWiseAppointmentsToFHIR,FHIRtoJSONSpeacilityStats,convertAppointmentStatsFromFHIR,convertAppointmentStatsToFHIR} from "./hospital-fhir/hospitalfhir";
-export {convertDepartmentFromFHIR,convertToFHIRDepartment} from "./addSpecialities/specialities-fhir";
+export {convertDepartmentFromFHIR,convertToFHIRDepartment,convertDepartmentsFromFHIR,convertDepartmentsToFHIR} from "./addSpecialities/specialities-fhir";
 export {fromFHIRInviteItem,fromFHIRInviteList,toFHIRInviteItem,toFHIRInviteList,fromFhirTeamOverview,toFhirTeamOverview,convertFromFhirTeamMembers,convertToFhirTeamMembers,convertFromFhirDepartment,convertToFhirDepartment } from './invites-teams/invites-teams'
 export {convertFromFhirSlotBundle,convertToFhirSlotResource,convertFromFhirSlots,convertToFhirSlotResources} from "./doctor-slots/doctor-slots"
 export { toFhirOrganizationBreeder } from "./details/breeder-fhir";
 export { toFhirOrganizationGroomer } from "./details/groomer-fhir";
 export { toFhirOrganizationBoarding } from "./details/boarding-fhir";
 export  {FHIRSlotValidator,MonthlySlotValidator} from "./slots-fhir";
+export {convertFhirToNormalPetData,convertPetDataToFhir} from "./WebAppointments/web-appointments"
+export {convertAdminDepartmentsToFHIR,convertFHIRToAdminDepartments} from "./admin-departments/admin-departments"
+

@@ -26,3 +26,58 @@ export type AppointmentStatusFHIRBundle = {
   hasMore?: boolean;
   appointmentDate?:AppointmentStatus
 };
+
+
+
+
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Purpose of visit & Appointment Types >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+
+export type MongoPurposeOfVisit = {
+  _id: string;
+  name: string;
+};
+
+export type FhirPurposeOfVisit = {
+  resourceType: "Basic";
+  id: string;
+  code: {
+    coding: [
+      {
+        system: string;
+        code: string;
+        display: string;
+      }
+    ];
+    text: string;
+  };
+};
+
+
+
+export type AppointmentType = {
+  _id: string;
+  name: string;
+  category: string;
+};
+
+export type FhirHealthcareService = {
+  resourceType: "HealthcareService";
+  id: string;
+  type?: {
+    coding: {
+      system: string;
+      code: string;
+      display: string;
+    }[];
+    text?: string;
+  }[];
+  category?: {
+    coding: {
+      system: string;
+      code: string;
+      display: string;
+    }[];
+    text?: string;
+  };
+};
