@@ -7,6 +7,7 @@ import Vaccination  from '../models/Vaccination';
 import helpers from '../utils/helpers';
 import { getCognitoUserId }  from  '../middlewares/authMiddleware';
 import { UploadedFile } from 'express-fileupload';
+import pets from '../models/pet.model'
 
 const immunizationController =  {
   createImmunization: async(req: Request, res: Response): Promise<void> => {
@@ -18,6 +19,7 @@ const immunizationController =  {
       } else {
         rawData = body;
       }
+      console.log(rawData,'deta');
      const fhirData: Partial<BasicImmunizationResource> = typeof rawData === 'string'
   ? (JSON.parse(rawData) as Partial<BasicImmunizationResource>)
   : (rawData as Partial<BasicImmunizationResource>);
@@ -29,8 +31,9 @@ const immunizationController =  {
 
 
       const fileArray = req.files as File[] | UploadedFile[] | undefined;
-      const vaccineFileUrl = fileArray.length > 0
-        ? await helpers.uploadFiles(fileArray as unknown as UploadedFile[])
+      console.log(fileArray,'fff');
+      const vaccineFileUrl = fileArray 
+        ? await helpers.uploadFiles(fileArray.files as unknown as UploadedFile[])
         : [];
 
       const cognitoUserId = getCognitoUserId(req);
@@ -55,11 +58,25 @@ const immunizationController =  {
     const saved = await Vaccination.create(transformed);
       if (!saved) {
         res.status(200).json({ status: 0, message: 'Failed to save vaccination record' });
+        return
       }else{
-       res.status(200).json({
-        status: 1,
-        message: 'Vaccination record added successfully',
+         const pet = await pets.findById(transformed.petId).lean(); // .lean() returns plain JS object
+         
+         let vaccinationUrl=saved
+         if(pet){
+           const petImageUrls = pet?.petImage?.map(img => img.url)||''
+          vaccinationUrl = {
+            ...vaccinationUrl,
+          petImageUrl:petImageUrls
+         }
+         }
+         const fhirBundle = toFHIRBundleImmunization([vaccinationUrl]);
+         res.status(200).json({
+         status: 1,
+         message: 'Vaccination record added successfully',
+         data:fhirBundle
       });
+      return
        }
     } catch (error: unknown) {
        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
@@ -87,6 +104,7 @@ const immunizationController =  {
       const results = await Vaccination.find(query).skip(offset).limit(limit);
       if (results.length === 0) {
         res.status(200).json({ status: 0, message: 'No vaccination record found for this user' });
+        return
       }
       // Convert to FHIR Bundle
       const transformed: VaccinationDoc[] = results.map((doc) => ({
@@ -157,14 +175,11 @@ const immunizationController =  {
   
     let updatedVaccination;
             if (vaccineFileUrl && vaccineFileUrl.length > 0) {
-          const fileObjects = vaccineFileUrl.map((filePath: unknown) => {
-            const url = typeof filePath === 'string' ? filePath : '';
+          const fileObjects = vaccineFileUrl.map((filePath) => {
             return {
-              url,
-              mimetype: 'application/pdf', // or derive dynamically if needed
-              originalname: typeof url === 'string' && url.split('/').length > 0
-                ? url.split('/').pop() || 'file.pdf'
-                : 'file.pdf',
+              url: filePath.url,
+              mimetype: 'image/jpeg', // or derive dynamically if needed
+              originalname:filePath.originalname
             };
           });
 
@@ -187,7 +202,11 @@ const immunizationController =  {
       res.status(200).json({ status: 0, message: 'Vaccination record not found' });
       return;
     }
-
+    const petProfileData  = await pets.findOne({_id:updatedVaccination.petId}).lean()
+    let petImageUrl;
+    if(petProfileData){
+      petImageUrl= petProfileData?.petImage[0].url || ''
+      }
     const vaccinationDoc: VaccinationDoc = {
       _id: updatedVaccination._id,
       petId: updatedVaccination.petId,
@@ -207,12 +226,13 @@ const immunizationController =  {
             : updatedVaccination.expiryDate || '')
         : '',
       reminder: updatedVaccination.reminder ?? false,
-      vaccineImage: updatedVaccination.vaccineImage || []
+      vaccineImage: updatedVaccination.vaccineImage || [],
+      petImageUrl:  petImageUrl || ''
     };
 
     const fhirResponse = toFHIRBundleImmunization([vaccinationDoc]);
 
-    res.status(200).json({ status: 1, data: fhirResponse });
+    res.status(200).json({ status: 1, data: fhirResponse , message:'Record updated successfully!' });
     return;
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -227,11 +247,13 @@ const immunizationController =  {
 
       if (!Types.ObjectId.isValid(id)) {
         res.status(200).json({ status: 0, message: 'Invalid Vaccination ID' });
+        return;
       }
       const objectId = new mongoose.Types.ObjectId(id); 
       const data = await Vaccination.find({ _id: objectId });  
       if (data.length === 0) {
        res.status(200).json({ status: 0, message: 'Vaccination record not found' });
+       return;
       }
     
       if (Array.isArray(data[0].vaccineImage) && data[0].vaccineImage.length > 0) {
@@ -247,6 +269,7 @@ const immunizationController =  {
 
       if (result.deletedCount === 0) {
          res.status(200).json({ status: 0, message: 'Could not be deleted' });
+         return;
       }
 
        res.status(200).json({ status: 1, message: 'Vaccination record deleted successfully' });
@@ -256,11 +279,12 @@ const immunizationController =  {
     }
   },
 
-  recentVaccinationRecord: async (req: Request, res: Response): Promise<void> => {
+  recentVaccinationRecord: async (req: Request, res: Response): Promise<void> => {  
     try {
       const userId = getCognitoUserId(req);
        if (typeof userId !== 'string' || userId.trim() === '') {
        res.status(200).json({ status: 0, message: 'Invalid userId' });
+       return;
     }
       let limit = parseInt(req.query.limit as string) || 10;
       let offset = parseInt(req.query.offset as string) || 0;
@@ -269,17 +293,62 @@ const immunizationController =  {
        const sanitizedUserId = userId.trim();
        const today = new Date();
        today.setUTCHours(0, 0, 0, 0);
-        const query = {
-          userId: sanitizedUserId,
-          vaccinationDate: { $lt: today },
-        };
+        // const query = {
+        //   userId: sanitizedUserId,
+        //   vaccinationDate: { $lt: today },
+        // };
 
-        const results = await Vaccination.find(query).sort({ vaccinationDate: -1 }).skip(offset).limit(limit);
-     
+        const results : VaccinationDoc[]= await Vaccination.aggregate([
+          {
+            $match: {
+              userId: sanitizedUserId,
+              vaccinationDate: { $lt: today },
+            },
+          },
+          {
+            $addFields: {
+              petObjId: { $toObjectId: '$petId' },
+            },
+          },
+          {
+            $lookup: {
+              from: 'pets',
+              localField: 'petObjId',
+              foreignField: '_id',
+              as: 'petInfo',
+            },
+          },
+          {
+            $unwind: {
+              path: '$petInfo',
+              preserveNullAndEmptyArrays: true,
+            },
+          },
+          {
+            $addFields: {
+              petImageUrl: '$petInfo.petImage', // or extract first one with $arrayElemAt
+              petName: '$petInfo.petName',
+            },
+          },
+          {
+            $project: {
+              petInfo: 0,
+              petObjId: 0,
+            },
+          },
+          { $sort: { vaccinationDate: -1 } },
+          { $skip: offset },
+          { $limit: limit },
+        ]);
+
+
+
       if (results.length === 0) {
          res.status(200).json({ status: 0, message: 'No vaccination record found for this user' });
+         return;
       }
-
+     
+        
       const transformed: VaccinationDoc[] = results.map((doc) => ({
         _id: doc._id,
         petId: doc.petId,
@@ -299,7 +368,8 @@ const immunizationController =  {
               : doc.expiryDate || '')
           : '',
         reminder: doc.reminder ?? false,
-        vaccineImage: doc.vaccineImage || []
+        vaccineImage: doc.vaccineImage || [],
+        petImageUrl: doc.petImageUrl[0].url
       }));
       const fhirBundle = toFHIRBundleImmunization(transformed);
        res.status(200).json({ status: 1, data: fhirBundle });

@@ -9,7 +9,7 @@ const router = Router();
 router.post('/signup', authController.signUp);
  router.post('/login', authController.login);
  router.post('/sendOtp', authController.sendOtp);
-// router.post('/deleteUser', authController.deleteUser);
+router.post('/deleteUser', authController.deleteUser);
 router.post('/confirmSignup', authController.confirmSignup);
 router.post('/logout', authController.logout);
 router.post('/resendConfirmationCode', authController.resendConfirmationCode);
@@ -32,7 +32,7 @@ router.post('/refreshToken', WebController.refreshToken);
 
 router.post('/HealthcareService', verifyToken,AddDepartmentController.addDepartment);
 router.get('/getAddDepartment', verifyTokenAndRefresh,AddDepartmentController.getAddDepartment);
-
+router.post('/google-login', authController.googleLogin)
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Google Map>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 // router.get('/getLocationdata',WebController.getLocationdata); 
 

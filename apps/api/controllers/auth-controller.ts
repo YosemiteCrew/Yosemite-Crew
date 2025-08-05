@@ -8,6 +8,7 @@ import jwt, { SignOptions } from 'jsonwebtoken';
 import userModel from '../models/appuser-model';
 import helpers from "../utils/helpers";
 import { IUser, SignupRequestBody } from "@yosemite-crew/types";
+import { OAuth2Client } from 'google-auth-library';
 
 const region = process.env.AWS_REGION!;
 const SES = new AWS.SES({ region });
@@ -75,15 +76,15 @@ const authController = {
         lastName,
         mobilePhone,
         countryCode,
-        address,
+        addressLine1,
         state,
         area,
-        city,
-        zipcode,
+        city, zipcode,
         // professionType,
         // pimsCode,
         dateOfBirth
-      } = body.data;
+      } = JSON.parse(body.data);
+
 
       const password = generatePassword(12);
 
@@ -101,7 +102,9 @@ const authController = {
         return;
       }
       if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
+        
         res.status(200).json({ status: 0, message: 'Invalid email address' });
+        return
       }
       const secretHash = getSecretHash(email);
 
@@ -113,34 +116,15 @@ const authController = {
         UserAttributes: [
           { Name: 'email', Value: email },
           { Name: 'phone_number', Value: `${countryCode}${mobilePhone}` },
-          { Name: 'address', Value: `${address} ${area} ${state} ${city} ${zipcode}` },
+          { Name: 'address', Value: `${addressLine1} ${area} ${state} ${city} ${zipcode}` },
           { Name: 'name', Value: `${firstName} ${lastName}` },
         ],
       };
 
-      let imageUrls: string[] = [];
-
-      const uploadedFiles = req.files as { files: Express.Multer.File | Express.Multer.File[] } | undefined;
-
-      if (uploadedFiles?.files) {
-        const files = Array.isArray(uploadedFiles.files)
-          ? uploadedFiles.files
-          : [uploadedFiles.files];
-
-        const images = files.filter(file => file.mimetype?.startsWith('image/'));
-
-        if (images.length > 0) {
-          // Map Express.Multer.File[] to UploadedFile[]
-          const uploadedFilesForHelper = images.map(file => ({
-            name: file.originalname,
-            data: file.buffer,
-            mimetype: file.mimetype,
-            size: file.size,
-          }));
-          const uploaded = await helpers.uploadFiles(uploadedFilesForHelper);
-          imageUrls = uploaded.map(file => file.url);
-        }
-      }
+  
+      const files = Array.isArray(req.files.files) ? req.files.files : [req.files.files]
+  
+      const imageUrls = await helpers.uploadFiles(files);
       if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
         res.status(200).json({ status: 0, message: 'Invalid email address' });
         return
@@ -161,15 +145,15 @@ const authController = {
         cognitoId: data.UserSub,
         email,
         password: [encryptedPassword],
-        firstName,
-        lastName,
-        mobilePhone,
-        countryCode,
-        address,
-        state,
-        area,
-        city,
-        zipcode,
+        firstName:firstName as string,
+        lastName: lastName as string,
+        mobilePhone : mobilePhone as string,
+        countryCode : countryCode as string,
+        address: addressLine1 as string,
+        state: state as string,
+        area : area as string,
+        city: city as string,
+        zipcode: zipcode as string,
         profileImage: imageUrls,
         dateOfBirth: typeof dateOfBirth === 'string' ? dateOfBirth : '',
       });
@@ -186,12 +170,13 @@ const authController = {
   },
 
   confirmSignup: async (req: Request, res: Response): Promise<void> => {
-    const { data:{ email, confirmationCode } } = req.body as SignupRequestBody;
-
+    const { email, confirmationCode } = req.body as { email:string, confirmationCode:string};
+  
     try {
 
       if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
         res.status(200).json({ status: 0, message: 'Invalid email address' });
+        return
       }
 
       const safeEmail = email.trim().toLowerCase();
@@ -221,7 +206,7 @@ const authController = {
         ClientId: process.env.COGNITO_CLIENT_ID,
         SecretHash: secretHash,
         Username: email,
-        ConfirmationCode: confirmationCode!,
+        ConfirmationCode: confirmationCode,
       }).promise();
 
       const authData = await cognito.initiateAuth({
@@ -273,7 +258,7 @@ const authController = {
   },
 
   sendOtp: async (req: Request, res: Response): Promise<void> => {
-    const { email } = req.body as SignupRequestBody;
+    const { email } = req.body as {email:string};
 
     try {
       if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
@@ -318,12 +303,13 @@ const authController = {
     }
   },
 
-  deleteUser: async (req: Request, res: Response) => {
-    const { email } = req.body as SignupRequestBody;
+  deleteUser: async (req: Request, res: Response):Promise<void> => {
+    const { email } = req.body as {email:string};
 
     try {
       if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
         res.status(200).json({ status: 0, message: 'Invalid email address' });
+        return
       }
 
       const safeEmail = email.trim().toLowerCase();
@@ -335,7 +321,8 @@ const authController = {
         return
       }
       if (!process.env.COGNITO_USER_POOL_ID) {
-        return res.status(500).json({ status: 0, message: 'Cognito User Pool ID missing' });
+         res.status(500).json({ status: 0, message: 'Cognito User Pool ID missing' });
+         return
       }
       await cognito.adminDeleteUser({
         UserPoolId: process.env.COGNITO_USER_POOL_ID,
@@ -351,7 +338,7 @@ const authController = {
   },
 
   login: async (req: Request, res: Response): Promise<void> => {
-    const { email, otp } = req.body as SignupRequestBody;
+    const { email, otp } = req.body as {email:string, otp:string};
 
     try {
       if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
@@ -410,7 +397,6 @@ const authController = {
       const accessToken = authData.AuthenticationResult!.AccessToken!;
       const decoded = jwt.decode(accessToken) as { sub: string };
 
-     
       const payload = {
         username: decoded.sub,
         accessToken,
@@ -439,7 +425,7 @@ const authController = {
   },
 
   resendConfirmationCode: async (req: Request, res: Response): Promise<void> => {
-    const { email } = req.body as SignupRequestBody;
+    const { email } = req.body as {email:string};
 
     try {
       if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
@@ -477,21 +463,52 @@ const authController = {
         httpOnly: true,               // Recommended: prevent JS access
         secure: isProduction,         // Only send over HTTPS in production
         sameSite: "strict",
+        expires: new Date(0), // Set expiration to past
       });
 
       res.clearCookie("refreshToken", {
         httpOnly: true,               // Recommended: prevent JS access
         secure: isProduction,
         sameSite: "strict",
+          expires: new Date(0), // Set expiration to past
       });
 
-      res.status(200).json({ message: "Logout successful" });
+      res.status(200).json({ status: 1, message: "Logout successful" });
       return
-    } catch (error) {
+    } catch (error:unknown) {
+      const message = error instanceof Error ? error.message :'Unknown error';
       console.error("Error during sign-out:", error);
-      res.status(500).json({ message: "Internal server error" });
+      res.status(200).json({ status: 0, message:message });
     }
   },
+  googleLogin: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id_token } = req.body as { id_token: string };
+    
+      const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+      if (!GOOGLE_CLIENT_ID) {
+        throw new Error("Missing GOOGLE_CLIENT_ID in environment variables.");
+      }
+      const client = new OAuth2Client(GOOGLE_CLIENT_ID);
+      if (!id_token) {
+        res.status(400).json({ error: "Token missing" });
+        return
+      }
+      console.log(GOOGLE_CLIENT_ID,'process.env.GOOGLE_CLIENT_ID');
+      const ticket = await client.verifyIdToken({
+        idToken: id_token,
+        audience: GOOGLE_CLIENT_ID,
+      });
+      const payload = ticket.getPayload();
+
+      res.status(200).json({ message: 1, data: payload })
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      console.error("Google Login Error:", error);
+      if(error instanceof Error)
+      res.status(200).json({message:0, error:message });
+    }
+  }
 };
 
 export default authController;
