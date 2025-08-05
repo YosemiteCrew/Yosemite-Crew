@@ -1,5 +1,6 @@
+"use client";
 import React from 'react';
-import { Form } from 'react-bootstrap';
+import { Dropdown, Form } from 'react-bootstrap';
 import './DynamicSelect.css';
 
 export type Option = { value: string; label: string };
@@ -7,7 +8,7 @@ export type Option = { value: string; label: string };
 interface DynamicSelectProps {
   options: Option[];
   placeholder?: string;
-  value: string; // string only
+  value: string;
   onChange: (value: string) => void;
   inname: string;
   error?: string;
@@ -21,46 +22,38 @@ const DynamicSelect: React.FC<DynamicSelectProps> = ({
   inname,
   error,
 }) => {
-  const isValueInOptions = options.some((opt) => opt.value === value);
+  const selectedLabel = options.find((opt) => opt.value === value)?.label || placeholder;
+
+  const handleSelect = (selectedKey: string | null) => {
+    if (selectedKey !== null) {
+      onChange(selectedKey);
+    }
+  };
 
   return (
-    <div className='w-100'>
-      <div
-        className="SelectedInpt"
-        style={{
-          backgroundImage: `url(${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/selctarrow.png)`,
-          backgroundRepeat: "no-repeat",
-          backgroundPosition: "right 20px center",
-          backgroundSize: '28px',
-        }}
-      >
-        <Form.Select
-          aria-label="Dynamic select menu"
-          name={inname}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          isInvalid={!!error}
-        >
-          <option value="">{placeholder}</option>
+    <div className="SelectedInptDropdown" >
+      <Dropdown onSelect={handleSelect} >
+        <Dropdown.Toggle id={`${inname}-dropdown`} className="custom-dropdown-toggle" >
+          {selectedLabel}
+        </Dropdown.Toggle>
 
-          {/* If value is not in options, add it temporarily */}
-          {!isValueInOptions && value && (
-            <option value={value}>{value}</option>
-          )}
+        <Dropdown.Menu className="custom-dropdown-menu">
+          <Dropdown.Item eventKey="">
+            {placeholder}
+          </Dropdown.Item>
 
           {options.length > 0 ? (
             options.map((option, index) => (
-              <option key={index} value={option.value}>
+              <Dropdown.Item key={index} eventKey={option.value}>
                 {option.label}
-              </option>
+              </Dropdown.Item>
             ))
           ) : (
-            <option value="" disabled>
-              No options available
-            </option>
+            <Dropdown.Item disabled>No options available</Dropdown.Item>
           )}
-        </Form.Select>
-      </div>
+        </Dropdown.Menu>
+      </Dropdown>
+
       {error && <Form.Text className="text-danger">{error}</Form.Text>}
     </div>
   );
