@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { DoctorsTimeSlotes, UnavailableSlot } from "../models/doctors.slotes.model";
-import { convertFromFhirSlotBundle, convertFromFhirSlots, convertToFhirSlotResource, convertToFhirSlotResources } from "@yosemite-crew/fhir";
-import { FhirSlot } from "@yosemite-crew/types";
+import { convertFromFhirSlotBundle, convertToFhirSlotResource, convertToFhirSlotResources } from "@yosemite-crew/fhir";
+
 
 type Slot = {
   time: string;
@@ -229,7 +229,7 @@ getDoctoSlots: async(req: Request, res: Response) => {
   //  console.log("Doctor Slots:", slots);
   res.status(200).json({
       messageSchema: "Doctor slots retrieved successfully",
-      data: slots as FHIRSlot[],
+      data: slots,
     })
   } catch (error) {
     res.status(500).json({
@@ -245,6 +245,44 @@ getDoctoSlots: async(req: Request, res: Response) => {
     });
     console.error("❌ Error in getDoctoSlots:", error);
     return;
+  }
+},
+getDoctoSlotsToBookAppointment: async(req:Request, res:Response) =>{
+  try {
+    const {userId,day, date} = req.query
+
+       if (!userId || typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+      res.status(400).json({ message: "Invalid doctorId format" });
+      return;
+    }
+    if (!date || typeof date !== "string") {
+      res.status(400).json({ message: "Invalid date format" });
+      return;
+    }
+     const validDays = [
+      "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"
+    ];
+    if (!day || typeof day !== "string" || !validDays.includes(day)) {
+      res.status(400).json({ message: "Invalid day value" });
+      return;
+    }
+
+    const response = await DoctorsTimeSlotes.findOne({
+      doctorId:userId,
+      day
+    })
+    const unavailable = await UnavailableSlot.findOne({userId,day,date})
+    
+    const result = response?.timeSlots.filter((slot)=>{
+          return !unavailable?.slots.includes(slot.time)
+    })
+
+
+   res.status(200).json({
+    data:result
+   })
+  } catch (error) {
+    console.log(error)
   }
 }
 

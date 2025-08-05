@@ -130,3 +130,44 @@
     background: var(--whitebg);
     font-weight: 700;
 }
+
+
+
+
+.InventrySearch {
+    position: relative;
+}
+
+.search-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 300px;
+    overflow-y: auto;
+    background: white;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    margin-top: 5px;
+}
+
+.dropdown-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+}
+
+.dropdown-item:hover {
+    background-color: #f8f9fa;
+}
+
+.pet-name {
+    font-weight: bold;
+}
+
+.pet-owner {
+    font-size: 0.9em;
+    color: #666;
+}

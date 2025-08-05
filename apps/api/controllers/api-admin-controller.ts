@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { Request, response, Response } from "express";
 
 import {
   InventoryCategory,
@@ -12,16 +12,19 @@ import {
   AppointmentType,
 } from "../models/AppointmentOption";
 import ProductCategoryFHIRConverter from "../utils/InventoryFhirHandler";
-const { PurposeOfVisitFHIRConverter } = require("../utils/AdminFhirHandler");
+import { convertToFhirAppointmentTypes, convertToFhirPurposeOfVisit } from "@yosemite-crew/fhir";
+import { FhirHealthcareService, FhirPurposeOfVisit, MongoPurposeOfVisit } from "@yosemite-crew/types";
+import { validateFHIR } from "../Fhirvalidator/FhirValidator";
+// const { PurposeOfVisitFHIRConverter } = require("../utils/AdminFhirHandler");
 
 const AdminController = {
   AddInventoryCategory: async (req: Request, res: Response): Promise<void> => {
     try {
-      let { category, bussinessId } = req.body;
-      if (
-        typeof bussinessId !== "string" ||
-        !/^[a-fA-F0-9-]{36}$/.test(bussinessId)
-      ) {
+      // eslint-disable-next-line prefer-const
+      let { category, bussinessId } = req.body as { category: string; bussinessId: string };
+
+      // Validate bussinessId (UUID v4 format)
+      if (typeof bussinessId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(bussinessId)) {
         res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
@@ -35,11 +38,8 @@ const AdminController = {
         return;
       }
 
-      if (
-        typeof category !== "string" ||
-        category.length < 2 ||
-        category.length > 100
-      ) {
+      // Validate and sanitize category
+      if (typeof category !== "string" || category.length < 2 || category.length > 100) {
         res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
@@ -52,39 +52,37 @@ const AdminController = {
         });
         return;
       }
+
+      // eslint-disable-next-line no-useless-escape
       category = category.trim().replace(/[^\w\s\-]/gi, "");
 
-      const getItem = await InventoryCategory.findOne({
-        category,
-        bussinessId,
-      });
-      if (getItem) {
-        res.status(200).json({ message: `${category} already exist` });
+      // Check for existing category
+      const existing = await InventoryCategory.findOne({ category, bussinessId });
+      if (existing) {
+        res.status(200).json({ message: `${category} already exists` });
         return;
-      } else {
-        const response = await InventoryCategory.create({
-          category,
-          bussinessId,
-        });
+      }
 
-        if (response) {
-          res.status(200).json({ message: `${category} added successfully` });
-        } else {
-          res.status(400).json({ message: "Failed to add Inventory Category" });
-        }
+      // Add new category
+      const response = await InventoryCategory.create({ category, bussinessId });
+      if (response) {
+        res.status(200).json({ message: `${category} added successfully` });
+      } else {
+        res.status(400).json({ message: "Failed to add Inventory Category" });
       }
     } catch (error) {
+      console.error("Error adding inventory category:", error);
       res.status(500).json({ message: "Server error" });
     }
   },
-  AddInventoryManufacturer: async (req: Request, res: Response) => {
-    try {
-      let { manufacturer, bussinessId } = req.body;
 
-      if (
-        typeof bussinessId !== "string" ||
-        !/^[a-fA-F0-9-]{36}$/.test(bussinessId)
-      ) {
+  AddInventoryManufacturer: async (req: Request, res: Response): Promise<void> => {
+    try {
+      // eslint-disable-next-line prefer-const
+      let { manufacturer, bussinessId } = req.body as { manufacturer: string; bussinessId: string };
+
+      // Validate bussinessId (UUID format)
+      if (typeof bussinessId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(bussinessId)) {
         res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
@@ -98,11 +96,8 @@ const AdminController = {
         return;
       }
 
-      if (
-        typeof manufacturer !== "string" ||
-        manufacturer.length < 2 ||
-        manufacturer.length > 100
-      ) {
+      // Validate and sanitize manufacturer
+      if (typeof manufacturer !== "string" || manufacturer.length < 2 || manufacturer.length > 100) {
         res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
@@ -116,44 +111,38 @@ const AdminController = {
         return;
       }
 
+      // eslint-disable-next-line no-useless-escape
       manufacturer = manufacturer.trim().replace(/[^\w\s\-]/gi, "");
 
-      const getItem = await InventoryManufacturer.findOne({
-        manufacturer,
-        bussinessId,
-      });
-      if (getItem) {
-        res
-          .status(200)
-          .json({ message: `${manufacturer} already exist` });
+      // Check if manufacturer already exists
+      const existing = await InventoryManufacturer.findOne({ manufacturer, bussinessId });
+      if (existing) {
+        res.status(200).json({ message: `${manufacturer} already exists` });
         return;
+      }
+
+      // Create new manufacturer
+      const created = await InventoryManufacturer.create({ manufacturer, bussinessId });
+
+      if (created) {
+        res.status(200).json({ message: `${manufacturer} added successfully` });
       } else {
-        const response = await InventoryManufacturer.create({
-          manufacturer,
-          bussinessId,
-        });
-        if (response) {
-          res
-            .status(200)
-            .json({ message: `${manufacturer} added Succesfully` });
-        } else {
-          res
-            .status(400)
-            .json({ message: "Failed to add Inventory Manufacturer" });
-        }
+        res.status(400).json({ message: "Failed to add inventory manufacturer" });
       }
     } catch (error) {
-      res.status(500).json({ message: "Server Error" });
+      console.error("Error in AddInventoryManufacturer:", error);
+      res.status(500).json({ message: "Server error" });
     }
   },
 
+
   AddInventoryItemCategory: async (req: Request, res: Response): Promise<void> => {
     try {
-      let { itemCategory, bussinessId } = req.body;
-      if (
-        typeof bussinessId !== "string" ||
-        !/^[a-fA-F0-9-]{36}$/.test(bussinessId)
-      ) {
+      // eslint-disable-next-line prefer-const
+      let { itemCategory, bussinessId } = req.body as { itemCategory: string; bussinessId: string };
+
+      // Validate businessId
+      if (typeof bussinessId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(bussinessId)) {
         res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
@@ -167,11 +156,8 @@ const AdminController = {
         return;
       }
 
-      if (
-        typeof itemCategory !== "string" ||
-        itemCategory.length < 2 ||
-        itemCategory.length > 100
-      ) {
+      // Validate and sanitize itemCategory
+      if (typeof itemCategory !== "string" || itemCategory.length < 2 || itemCategory.length > 100) {
         res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
@@ -185,41 +171,36 @@ const AdminController = {
         return;
       }
 
+      // eslint-disable-next-line no-useless-escape
       itemCategory = itemCategory.trim().replace(/[^\w\s\-]/gi, "");
 
-      const getItem = await InventoryItemCategory.findOne({
-        bussinessId,
-        itemCategory,
-      });
-      if (getItem) {
-        res
-          .status(200)
-          .json({ message: `${itemCategory} already exist` });
+      // Check if item category already exists
+      const existing = await InventoryItemCategory.findOne({ bussinessId, itemCategory });
+      if (existing) {
+        res.status(200).json({ message: `${itemCategory} already exists` });
         return;
+      }
+
+      // Add new item category
+      const created = await InventoryItemCategory.create({ itemCategory, bussinessId });
+
+      if (created) {
+        res.status(200).json({ message: `${itemCategory} added successfully` });
       } else {
-        const response = await InventoryItemCategory.create({
-          itemCategory,
-          bussinessId,
-        });
-        if (response) {
-          res
-            .status(200)
-            .json({ message: `${itemCategory} added succesfully` });
-        } else {
-          res
-            .status(400)
-            .json({ message: "Failed to add Inventory ItemCotegory" });
-        }
+        res.status(400).json({ message: "Failed to add Inventory ItemCategory" });
       }
     } catch (error) {
-      res.status(500).json({ message: "Server Error" });
+      console.error("Error in AddInventoryItemCategory:", error);
+      res.status(500).json({ message: "Server error" });
     }
   },
+
 
   // <<<<<<<<<<<<<<<<<<<<<<<<< get Api's Of Cotegory >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
   GetAddInventoryCategory: async (req: Request, res: Response): Promise<void> => {
     const { type } = req.query;
+    console.log("hello", req.query)
     if (!type) {
       res.status(400).json({ message: "Missing type query params" });
       return;
@@ -242,12 +223,10 @@ const AdminController = {
                 .json({ message: "Invalid bussinessId format" });
               return;
             }
-            const getItem = await InventoryCategory.find({ bussinessId });
+            const getItem = await InventoryCategory.find({ bussinessId }).select('-__v');
             if (getItem) {
-              const Response = new ProductCategoryFHIRConverter(
-                getItem
-              ).toFHIRBundle();
-              res.status(200).json(Response);
+
+              res.status(200).json(getItem);
               return;
             } else {
               res
@@ -258,78 +237,78 @@ const AdminController = {
           } catch (error) {
             res.status(500).json(error);
           }
-        }
-        break;
-      case "itemCategory":
-        if (req.method === "GET") {
-          try {
-            const { bussinessId } = req.query;
-            if (!bussinessId) {
-              res.status(400).json({ message: "Missing BussinessId" });
-              return;
-            }
-            if (
-              typeof bussinessId !== "string" ||
-              !/^[a-fA-F0-9-]{36}$/.test(bussinessId)
-            ) {
-              res
-                .status(400)
-                .json({ message: "Invalid bussinessId format" });
-              return;
-            }
-            const getItem = await InventoryItemCategory.find({ bussinessId });
-            if (getItem) {
-              const Response = new ProductCategoryFHIRConverter(
-                getItem
-              ).toFHIRBundle();
-              res.status(200).json(Response);
-              return;
-            } else {
-              res
-                .status(400)
-                .json({ message: "failled to get items category" });
-              return;
-            }
-          } catch (error) {
-            res.status(500).json({ message: "server error" });
-            return;
-          }
-        }
-        break;
-      case "manufacturerCategory":
-        if (req.method === "GET") {
-          try {
-            const { bussinessId } = req.query;
-            if (!bussinessId) {
-              res.status(400).json({ message: "Missing BussinessId" });
-              return;
-            }
-            if (
-              typeof bussinessId !== "string" ||
-              !/^[a-fA-F0-9-]{36}$/.test(bussinessId)
-            ) {
-              res
-                .status(400)
-                .json({ message: "Invalid bussinessId format" });
-              return;
-            }
-            const getItem = await InventoryManufacturer.find({ bussinessId });
-            if (getItem) {
-              const Response = new ProductCategoryFHIRConverter(
-                getItem
-              ).toFHIRBundle();
-              res.status(200).json(Response);
-              return;
-            } else {
-              res
-                .status(400)
-                .json({ message: "failled to get manufacturer category" });
-              return;
-            }
-          } catch (error) {
-            res.status(500).json({ message: "server error" });
-            return;
-          }
+          // }
+          // break;
+          // case "itemCategory":
+          //   if (req.method === "GET") {
+          //     try {
+          //       const { bussinessId } = req.query;
+          //       if (!bussinessId) {
+          //         res.status(400).json({ message: "Missing BussinessId" });
+          //         return;
+          //       }
+          //       if (
+          //         typeof bussinessId !== "string" ||
+          //         !/^[a-fA-F0-9-]{36}$/.test(bussinessId)
+          //       ) {
+          //         res
+          //           .status(400)
+          //           .json({ message: "Invalid bussinessId format" });
+          //         return;
+          //       }
+          //       const getItem = await InventoryItemCategory.find({ bussinessId });
+          //       if (getItem) {
+          //         const Response = new ProductCategoryFHIRConverter(
+          //           getItem
+          //         ).toFHIRBundle();
+          //         res.status(200).json(Response);
+          //         return;
+          //       } else {
+          //         res
+          //           .status(400)
+          //           .json({ message: "failled to get items category" });
+          //         return;
+          //       }
+          //     } catch (error) {
+          //       res.status(500).json({ message: "server error" });
+          //       return;
+          //     }
+          //   }
+          //   break;
+          // case "manufacturerCategory":
+          //   if (req.method === "GET") {
+          //     try {
+          //       const { bussinessId } = req.query;
+          //       if (!bussinessId) {
+          //         res.status(400).json({ message: "Missing BussinessId" });
+          //         return;
+          //       }
+          //       if (
+          //         typeof bussinessId !== "string" ||
+          //         !/^[a-fA-F0-9-]{36}$/.test(bussinessId)
+          //       ) {
+          //         res
+          //           .status(400)
+          //           .json({ message: "Invalid bussinessId format" });
+          //         return;
+          //       }
+          //       const getItem = await InventoryManufacturer.find({ bussinessId });
+          //       if (getItem) {
+          //         const Response = new ProductCategoryFHIRConverter(
+          //           getItem
+          //         ).toFHIRBundle();
+          //         res.status(200).json(Response);
+          //         return;
+          //       } else {
+          //         res
+          //           .status(400)
+          //           .json({ message: "failled to get manufacturer category" });
+          //         return;
+          //       }
+          //     } catch (error) {
+          //       res.status(500).json({ message: "server error" });
+          //       return;
+          //     }
         }
       default:
         res.status(400).json({ message: "Invalid type query params" });
@@ -474,13 +453,13 @@ const AdminController = {
       }
 
       const getItems = await ProcedureCategory.find({ bussinessId });
-      
+
 
 
 
       if (getItems) {
         const data = new ProductCategoryFHIRConverter(getItems).toFHIRBundle();
-          console.log("mil gaya data", data);
+        console.log("mil gaya data", data);
         res.status(200).json({ data });
         return;
       }
@@ -794,7 +773,7 @@ const AdminController = {
         return;
       }
 
-      const response = await PurposeOfVisits.find({ HospitalId: HospitalId });
+      const response: MongoPurposeOfVisit[] = await PurposeOfVisits.find({ HospitalId: HospitalId }).select("-__v -HospitalId");
 
       if (!response) {
         res.status(200).json({
@@ -811,11 +790,9 @@ const AdminController = {
         });
         return;
       } else {
-        const data = new PurposeOfVisitFHIRConverter(
-          response,
-          HospitalId
-        ).toValueSet();
-        res.status(200).json({ data });
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+        const data = convertToFhirPurposeOfVisit(response) as FhirPurposeOfVisit[]
+        res.status(200).json(data);
       }
     } catch (error) {
       res.status(500).json({
@@ -835,149 +812,94 @@ const AdminController = {
   // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<AppointmentType Api's For Book Appointment>>>>>>>>>>>>>>>>>>>>>>>>>>
 
   AppointmentType: async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { HospitalId, name, category } = req.body;
-      if (!HospitalId) {
-        res.status(400).json({
-          resourceType: "OperationOutcome",
-          issue: [
-            {
-              severity: "information",
-              code: "informational",
-              details: {
-                text: "Missing required parameter: HospitalId",
-              },
-            },
-          ],
-        });
-        return;
-      }
-      if (
-        typeof HospitalId !== "string" ||
-        !/^[a-fA-F0-9-]{36}$/.test(HospitalId)
-      ) {
-        res.status(400).json({
-          resourceType: "OperationOutcome",
-          issue: [
-            {
-              severity: "error",
-              code: "invalid",
-              details: {
-                text: "Invalid HospitalId format.",
-              },
-            },
-          ],
-        });
-        return;
-      }
-      if (
-        typeof category !== "string" ||
-        category.trim().length === 0 ||
-        category.length > 50
-      ) {
-        res.status(400).json({
-          resourceType: "OperationOutcome",
-          issue: [
-            {
-              severity: "error",
-              code: "invalid",
-              details: {
-                text: "Invalid or missing category.",
-              },
-            },
-          ],
-        });
-        return;
-      }
+  try {
+    const { HospitalId, name, category } = req.body as {HospitalId:string, name:string, category:string};
 
-      if (
-        typeof name !== "string" ||
-        name.trim().length === 0 ||
-        name.length > 50
-      ) {
-        res.status(400).json({
-          resourceType: "OperationOutcome",
-          issue: [
-            {
-              severity: "error",
-              code: "invalid",
-              details: {
-                text: "invalid or missing name.",
-              },
-            },
-          ],
-        });
-        return;
-      }
-      const capitalizeWords = (str: string) =>
-        str
-          .trim()
-          .split(" ")
-          .filter(Boolean)
-          .map(
-            (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-          )
-          .join(" ");
+    // ✅ Utility: Capitalize Each Word
+    const capitalizeWords = (str: string): string =>
+      str
+        .trim()
+        .split(" ")
+        .filter(Boolean)
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(" ");
 
-      const sanitizedName = capitalizeWords(name);
-      const modifyCategory = capitalizeWords(category);
-      const getData = await AppointmentType.findOne({
-        HospitalId: HospitalId,
-        name: sanitizedName,
-        category: modifyCategory,
-      });
-      if (getData) {
-        res.status(200).json({
-          resourceType: "OperationOutcome",
-          issue: [
-            {
-              severity: "information",
-              code: "informational",
-              details: {
-                text: `${getData.name} already exist`,
-              },
-            },
-          ],
-        });
-        return;
-      } else {
-        const response = await AppointmentType.create({
-          HospitalId: HospitalId,
-          name: sanitizedName,
-          category: modifyCategory,
-        });
-
-        if (response) {
-          res.status(200).json({
-            resourceType: "OperationOutcome",
-            issue: [
-              {
-                severity: "information",
-                code: "informational",
-                details: {
-                  text: `${sanitizedName} saved successfully`,
-                },
-              },
-            ],
-          });
-          return;
-        }
-      }
-    } catch (error) {
-      res.status(500).json({
+    // ✅ Validation Responses
+    const sendError = (message: string, severity: "error" | "information" | "fatal", code: string, statusCode: number): void => {
+      res.status(statusCode).json({
         resourceType: "OperationOutcome",
         issue: [
           {
-            severity: "fatal",
-            code: "exception",
+            severity,
+            code,
+            details: { text: message },
+          },
+        ],
+      });
+    };
+
+    // ✅ Validations
+    if (!HospitalId) {
+      return sendError("Missing required parameter: HospitalId", "information", "informational", 400);
+    }
+    if (typeof HospitalId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(HospitalId)) {
+      return sendError("Invalid HospitalId format.", "error", "invalid", 400);
+    }
+    if (typeof category !== "string" || category.trim().length === 0 || category.length > 50) {
+      return sendError("Invalid or missing category.", "error", "invalid", 400);
+    }
+    if (typeof name !== "string" || name.trim().length === 0 || name.length > 50) {
+      return sendError("Invalid or missing name.", "error", "invalid", 400);
+    }
+
+    const sanitizedName = capitalizeWords(name);
+    const sanitizedCategory = capitalizeWords(category);
+
+    const existing = await AppointmentType.findOne({
+      HospitalId,
+      name: sanitizedName,
+      category: sanitizedCategory,
+    });
+
+    if (existing) {
+      return sendError(`${existing.name} already exists`, "information", "informational", 200);
+    }
+
+    const newType = await AppointmentType.create({
+      HospitalId,
+      name: sanitizedName,
+      category: sanitizedCategory,
+    });
+
+    if (newType) {
+      res.status(200).json({
+        resourceType: "OperationOutcome",
+        issue: [
+          {
+            severity: "information",
+            code: "informational",
             details: {
-              text: `${(error as Error).message} network error`,
+              text: `${sanitizedName} saved successfully`,
             },
           },
         ],
       });
     }
-  },
+  } catch (error) {
+    res.status(500).json({
+      resourceType: "OperationOutcome",
+      issue: [
+        {
+          severity: "fatal",
+          code: "exception",
+          details: {
+            text: `${(error as Error).message} - network error`,
+          },
+        },
+      ],
+    });
+  }
+},
 
   Appointments: async (req: Request, res: Response) => {
     try {
@@ -1038,15 +960,12 @@ const AdminController = {
       const response = await AppointmentType.find({
         HospitalId: HospitalId,
         category: sanitizedName,
-      });
+      }).select("-__v -HospitalId");
       if (response) {
-        var data = new PurposeOfVisitFHIRConverter(
-          response,
-          HospitalId
-        ).toValueSet();
-        res.status(200).json({
-          data,
-        });
+
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+        const data = convertToFhirAppointmentTypes(response as []) as FhirHealthcareService[]
+        res.status(200).json(data);
         return;
       }
     } catch (error) {

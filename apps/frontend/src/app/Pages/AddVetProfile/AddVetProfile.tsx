@@ -20,32 +20,20 @@ import Swal from "sweetalert2";
 import { useAuthStore } from "@/app/stores/authStore";
 import { useRouter } from "next/navigation";
 
-
-// export type OperatingHourType = {
-//   day: string;
-//   checked: boolean;
-//   times: {
-//     from: { hour: string; minute: string; period: "AM" | "PM" };
-//     to: { hour: string; minute: string; period: "AM" | "PM" };
-//   }[];
-// };
-
 function AddVetProfile() {
-  const router = useRouter()
+  const router = useRouter();
   const { userId, email, userType, vetAndTeamsProfile } = useAuthStore();
 
   useEffect(() => {
     console.log("user", userId, email, userType);
   }, [userId, email, userType]);
-  const [area, setArea] = useState<string>(''); //Set country
-  const [progress, setProgress] = useState(33); // Progressbar count
-  const [key, setKey] = useState("profileInfo");
-  // Add state for phone and country code
-  const [countryCode, setCountryCode] = useState("+91");
 
-  // add specialization options
+  const [area, setArea] = useState<string>("");
+  const [progress, setProgress] = useState(33);
+  const [key, setKey] = useState("profileInfo");
+  const [countryCode, setCountryCode] = useState("+91");
   const [specialization, setSpecialization] = useState<string>("");
-  const [duration, setDuration] = useState<string>(''); // Set duration for consultation
+  const [duration, setDuration] = useState<string>("");
   const [image, setImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [OperatingHour, setOperatingHours] = useState<DayHours[]>([]);
@@ -53,20 +41,20 @@ function AddVetProfile() {
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [apiFiles, setApiFiles] = useState<[]>([]);
 
-  console.log(OperatingHour)
-console.log(uploadedFiles)
-useEffect(() => {
-  const filesFromApi = vetAndTeamsProfile?.uploadedFiles || [];
+  console.log(OperatingHour);
+  console.log(uploadedFiles);
 
-  const transformed: any[] = filesFromApi.map((f: any) => ({
-    name: f.name.split('/').pop(),
-    type: f.type,
-    url: f.name,
-  }));
+  useEffect(() => {
+    const filesFromApi = vetAndTeamsProfile?.uploadedFiles || [];
+    const transformed: any[] = filesFromApi.map((f: any) => ({
+      name: f.name.split("/").pop(),
+      type: f.type,
+      url: f.name,
+    }));
+    setApiFiles(transformed as []);
+    setUploadedFiles([]);
+  }, [vetAndTeamsProfile]);
 
-  setApiFiles(transformed as []);
-  setUploadedFiles([]); // reset selected files if needed
-}, [vetAndTeamsProfile]);
   type ErrorType = {
     [key: string]: string;
   };
@@ -88,8 +76,8 @@ useEffect(() => {
     city: "",
     stateProvince: "",
     biography: "",
-
   });
+
   useEffect(() => {
     setName({
       registrationNumber: vetAndTeamsProfile?.name.registrationNumber || "",
@@ -107,20 +95,16 @@ useEffect(() => {
       city: vetAndTeamsProfile?.name.city || "",
       stateProvince: vetAndTeamsProfile?.name.stateProvince || "",
       biography: vetAndTeamsProfile?.name.biography || "",
-    })
-    setArea(vetAndTeamsProfile?.name.area as string)
-    setSpecialization(vetAndTeamsProfile?.specialization as string)
-
-    setDuration(vetAndTeamsProfile?.duration as string)
-    setOperatingHours(vetAndTeamsProfile?.OperatingHour as [])
-  }, [vetAndTeamsProfile])
-
-
+    });
+    setArea(vetAndTeamsProfile?.name.area as string);
+    setSpecialization(vetAndTeamsProfile?.specialization as string);
+    setDuration(vetAndTeamsProfile?.duration as string);
+    setOperatingHours(vetAndTeamsProfile?.OperatingHour as []);
+  }, [vetAndTeamsProfile]);
 
   console.log("name", vetAndTeamsProfile);
-  const handleBusinessInformation = (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
+
+  const handleBusinessInformation = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setName((prevData) => ({
       ...prevData,
@@ -134,9 +118,7 @@ useEffect(() => {
       gender,
     }));
   };
-  // Input Feild Ended
 
-  // Use this handler for date picker:
   const handleDateChange = (date: string | null) => {
     setName((prevData) => ({
       ...prevData,
@@ -144,22 +126,22 @@ useEffect(() => {
     }));
   };
 
-  // Profile Picture Started
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setImage(file);
     }
   };
+
   const formData = new FormData();
   if (image) {
     formData.append("profilePicture", image);
   }
+
   useEffect(() => {
     if (image) {
       const url = URL.createObjectURL(image);
       setPreviewUrl(url);
-
       return () => {
         URL.revokeObjectURL(url);
       };
@@ -167,52 +149,44 @@ useEffect(() => {
       setPreviewUrl("");
     }
   }, [image]);
-  // Profile Picture Ended
 
   type Option = {
     value: string;
     label: string;
   };
 
-
-
-  //Specialization Options
   const specializationOptions: Option[] = [
-    { value: 'cardiology', label: 'Cardiology' },
-    { value: 'orthopedics', label: 'Orthopedics' },
-    { value: 'dermatology', label: 'Dermatology' },
-    { value: 'pediatrics', label: 'Pediatrics' },
-    { value: 'neurology', label: 'Neurology' },
-    { value: 'radiology', label: 'Radiology' },
-    { value: 'dentistry', label: 'Dentistry' },
-    { value: 'psychiatry', label: 'Psychiatry' },
+    { value: "cardiology", label: "Cardiology" },
+    { value: "orthopedics", label: "Orthopedics" },
+    { value: "dermatology", label: "Dermatology" },
+    { value: "pediatrics", label: "Pediatrics" },
+    { value: "neurology", label: "Neurology" },
+    { value: "radiology", label: "Radiology" },
+    { value: "dentistry", label: "Dentistry" },
+    { value: "psychiatry", label: "Psychiatry" },
   ];
-  //Area Options
+
   const areaOptions: Option[] = [
-    { value: 'north', label: 'North Zone' },
-    { value: 'south', label: 'South Zone' },
-    { value: 'east', label: 'East Zone' },
-    { value: 'west', label: 'West Zone' },
-    { value: 'central', label: 'Central Zone' },
-    { value: 'urban', label: 'Urban Area' },
-    { value: 'rural', label: 'Rural Area' },
-    { value: 'coastal', label: 'Coastal Area' },
+    { value: "north", label: "North Zone" },
+    { value: "south", label: "South Zone" },
+    { value: "east", label: "East Zone" },
+    { value: "west", label: "West Zone" },
+    { value: "central", label: "Central Zone" },
+    { value: "urban", label: "Urban Area" },
+    { value: "rural", label: "Rural Area" },
+    { value: "coastal", label: "Coastal Area" },
   ];
 
-const handleSaveOperatingHours = useCallback((updatedHours: DayHours[]) => {
-  setOperatingHours((prev) => {
-    const isSame = JSON.stringify(prev) === JSON.stringify(updatedHours);
-    return isSame ? prev : updatedHours;
-  });
-}, []);
+  const handleSaveOperatingHours = useCallback((updatedHours: DayHours[]) => {
+    setOperatingHours((prev) => {
+      const isSame = JSON.stringify(prev) === JSON.stringify(updatedHours);
+      return isSame ? prev : updatedHours;
+    });
+  }, []);
 
-  // Handle Duration Change
-  // const handleDurationChange = (value: React.SetStateAction<string>) => {
-  //   setDuration(value)
-  // }
   const handleSubmit = useCallback(async () => {
     try {
-      console.log("Submitting form with data:",)
+      console.log("Submitting form with data:");
       const response = convertToFhirVetProfile({
         name,
         image: image || undefined,
@@ -235,13 +209,11 @@ const handleSaveOperatingHours = useCallback((updatedHours: DayHours[]) => {
         formdata.append("document[]", file);
       });
 
-      const data = await postData(`/fhir/v1/Practitioner?userId=${userId}`, formdata,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
+      const data = await postData(`/fhir/v1/Practitioner?userId=${userId}`, formdata, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
 
       if (data.status === 201) {
         Swal.fire({
@@ -249,7 +221,7 @@ const handleSaveOperatingHours = useCallback((updatedHours: DayHours[]) => {
           title: "Success",
           text: "Doctor added successfully!",
         });
-        router.push("/DoctorDashboard")
+        router.push("/DoctorDashboard");
       }
     } catch (error) {
       Swal.fire({
@@ -259,8 +231,7 @@ const handleSaveOperatingHours = useCallback((updatedHours: DayHours[]) => {
       });
       console.error("Submission Error:", error);
     }
-  }, [name, area, image, countryCode, OperatingHour, specialization, uploadedFiles, duration, userId,router]);
-
+  }, [name, area, image, countryCode, OperatingHour, specialization, uploadedFiles, duration, userId, router]);
 
   const validateStep1 = () => {
     const newErrors: ErrorType = {};
@@ -292,17 +263,52 @@ const handleSaveOperatingHours = useCallback((updatedHours: DayHours[]) => {
   };
 
   const handleNext = (nextKey: string) => {
-    let isValid = false;
-    if (key === "profileInfo") {
+    let isValid = true;
+    if (key === "profileInfo" && nextKey === "ProfDetails") {
       isValid = validateStep1();
       if (isValid) setProgress(66);
-    } else if (key === "ProfDetails") {
+    } else if (key === "ProfDetails" && nextKey === "AvaillConst") {
       isValid = validateStep2();
       if (isValid) setProgress(100);
     }
-
     if (isValid) {
       setKey(nextKey);
+    }
+  };
+
+  const handleBack = (prevKey: string) => {
+    setKey(prevKey);
+    setErrors({}); // Clear errors when navigating back
+    if (prevKey === "profileInfo") {
+      setProgress(33);
+    } else if (prevKey === "ProfDetails") {
+      setProgress(66);
+    }
+  };
+
+  // New function to handle tab changes
+  const handleTabChange = (selectedKey: string | null) => {
+    if (!selectedKey) return;
+    
+    // Define tab order for determining direction
+    const tabOrder = ["profileInfo", "ProfDetails", "AvaillConst"];
+    const currentIndex = tabOrder.indexOf(key);
+    const nextIndex = tabOrder.indexOf(selectedKey);
+
+    if (nextIndex > currentIndex) {
+      // Forward navigation: validate and update progress
+      handleNext(selectedKey);
+    } else {
+      // Backward navigation: no validation, update progress
+      setKey(selectedKey);
+      setErrors({}); // Clear errors
+      if (selectedKey === "profileInfo") {
+        setProgress(33);
+      } else if (selectedKey === "ProfDetails") {
+        setProgress(66);
+      } else if (selectedKey === "AvaillConst") {
+        setProgress(100);
+      }
     }
   };
 
@@ -315,37 +321,23 @@ const handleSaveOperatingHours = useCallback((updatedHours: DayHours[]) => {
           </div>
 
           <div className="AddVetTabDiv">
-            <Tab.Container
-              activeKey={key}
-              onSelect={(k) => setKey(k as string)}
-            >
+            <Tab.Container activeKey={key} onSelect={handleTabChange}>
               <div className="Add_Profile_Data">
                 <div>
-                  <Nav variant="pills" className=" VetPills">
+                  <Nav variant="pills" className="VetPills">
                     <Nav.Item>
                       <Nav.Link eventKey="profileInfo">
-                        <span>
-                          <RiShieldUserFill />
-                        </span>{" "}
-                        Personal Information
+                        <span><RiShieldUserFill /></span> Personal Information
                       </Nav.Link>
                     </Nav.Item>
-
                     <Nav.Item>
                       <Nav.Link eventKey="ProfDetails">
-                        <span>
-                          <FaSuitcaseRolling />
-                        </span>{" "}
-                        Professional Details
+                        <span><FaSuitcaseRolling /></span> Professional Details
                       </Nav.Link>
                     </Nav.Item>
-
                     <Nav.Item>
                       <Nav.Link eventKey="AvaillConst">
-                        <span>
-                          <FaCalendar />
-                        </span>{" "}
-                        Availability & Consultation
+                        <span><FaCalendar /></span> Availability & Consultation
                       </Nav.Link>
                     </Nav.Item>
                   </Nav>
@@ -370,10 +362,7 @@ const handleSaveOperatingHours = useCallback((updatedHours: DayHours[]) => {
                                 onChange={handleImageChange}
                                 style={{ display: "none" }}
                               />
-                              <label
-                                htmlFor="logo-upload"
-                                className="upload-label"
-                              >
+                              <label htmlFor="logo-upload" className="upload-label">
                                 {image && sanitizedPreview ? (
                                   <Image
                                     src={sanitizedPreview}
@@ -385,7 +374,7 @@ const handleSaveOperatingHours = useCallback((updatedHours: DayHours[]) => {
                                 ) : (
                                   <div className="upload-placeholder">
                                     <Image
-                                      src={typeof vetAndTeamsProfile?.image === 'string' ? vetAndTeamsProfile.image : ''}
+                                      src={typeof vetAndTeamsProfile?.image === "string" ? vetAndTeamsProfile.image : ""}
                                       alt="camera"
                                       className="icon"
                                       width={40}
@@ -439,9 +428,7 @@ const handleSaveOperatingHours = useCallback((updatedHours: DayHours[]) => {
                                   {["Male", "Female", "Other"].map((gender) => (
                                     <li
                                       key={gender}
-                                      className={
-                                        name.gender === gender ? "active" : ""
-                                      }
+                                      className={name.gender === gender ? "active" : ""}
                                       onClick={() => handleGenderClick(gender)}
                                     >
                                       {gender}
@@ -485,7 +472,6 @@ const handleSaveOperatingHours = useCallback((updatedHours: DayHours[]) => {
                           </Row>
                         </div>
                         <div className="DivideLine"></div>
-
                         <div className="doctadressdiv">
                           <h6>Residential Address</h6>
                           <Row>
@@ -500,7 +486,13 @@ const handleSaveOperatingHours = useCallback((updatedHours: DayHours[]) => {
                               {errors.postalCode && <p className="text-danger">{errors.postalCode}</p>}
                             </Col>
                             <Col md={6}>
-                              <DynamicSelect options={areaOptions} value={area} onChange={setArea} inname="area" placeholder="Area" />
+                              <DynamicSelect
+                                options={areaOptions}
+                                value={area}
+                                onChange={setArea}
+                                inname="area"
+                                placeholder="Area"
+                              />
                               {errors.area && <p className="text-danger">{errors.area}</p>}
                             </Col>
                           </Row>
@@ -539,7 +531,6 @@ const handleSaveOperatingHours = useCallback((updatedHours: DayHours[]) => {
                             </Col>
                           </Row>
                         </div>
-
                         <div className="ComptBtn">
                           <Button onClick={() => handleNext("ProfDetails")}>
                             Next <IoIosArrowDropright />
@@ -547,12 +538,9 @@ const handleSaveOperatingHours = useCallback((updatedHours: DayHours[]) => {
                         </div>
                       </Form>
                     </Tab.Pane>
-
-                    {/* ProfDetails Details */}
                     <Tab.Pane eventKey="ProfDetails">
                       <Form className="ProfileDetailsData">
                         <h6>Professional Details</h6>
-
                         <Row>
                           <Col md={12}>
                             <FormInput
@@ -589,7 +577,13 @@ const handleSaveOperatingHours = useCallback((updatedHours: DayHours[]) => {
                         </Row>
                         <Row>
                           <Col md={12}>
-                            <DynamicSelect options={specializationOptions} value={specialization} onChange={setSpecialization} inname="Specialisation" placeholder="Specialisation" />
+                            <DynamicSelect
+                              options={specializationOptions}
+                              value={specialization}
+                              onChange={setSpecialization}
+                              inname="Specialisation"
+                              placeholder="Specialisation"
+                            />
                             {errors.specialization && <p className="text-danger">{errors.specialization}</p>}
                           </Col>
                         </Row>
@@ -601,7 +595,7 @@ const handleSaveOperatingHours = useCallback((updatedHours: DayHours[]) => {
                                   as="textarea"
                                   placeholder="Leave a comment here"
                                   value={name.biography}
-                                  style={{ height: '100px' }}
+                                  style={{ height: "100px" }}
                                   onChange={(e) => setName({ ...name, biography: e.target.value })}
                                 />
                               </FloatingLabel>
@@ -611,20 +605,11 @@ const handleSaveOperatingHours = useCallback((updatedHours: DayHours[]) => {
                         </Row>
                         <Row>
                           <Col md={12}>
-
-                            <UploadImage
-  value={uploadedFiles}
-  onChange={setUploadedFiles}
-  existingFiles={apiFiles}
-/>
+                            <UploadImage value={uploadedFiles} onChange={setUploadedFiles} existingFiles={apiFiles} />
                           </Col>
                         </Row>
-
                         <div className="ComptBtn twbtn">
-                          <Button
-                            className="Hov"
-                            onClick={() => setKey("profileInfo")}
-                          >
+                          <Button className="Hov" onClick={() => handleBack("profileInfo")}>
                             <IoIosArrowDropleft /> Back
                           </Button>
                           <Button onClick={() => handleNext("AvaillConst")}>
@@ -633,34 +618,24 @@ const handleSaveOperatingHours = useCallback((updatedHours: DayHours[]) => {
                         </div>
                       </Form>
                     </Tab.Pane>
-
-                    {/* service & Consultation */}
                     <Tab.Pane eventKey="AvaillConst">
                       <Form className="ServiceData">
-<OperatingHours
-  onSave={handleSaveOperatingHours}
-  // Timeduration={duration} // ← this is string like "15 min"
-  // onChange={handleDurationChange} // ← updates state
-  value={OperatingHour}
-/>
-
+                        <OperatingHours
+                          onSave={handleSaveOperatingHours}
+                          value={OperatingHour}
+                        />
                         <div className="ComptBtn twbtn">
-                          <Button
-                            className="Hov"
-                            onClick={() => setKey("ProfDetails")}
-                          >
+                          <Button className="Hov" onClick={() => handleBack("ProfDetails")}>
                             <IoIosArrowDropleft /> Back
                           </Button>
                           <Button onClick={handleSubmit}>
-                            <FaCircleCheck />
-                            Finish
+                            <FaCircleCheck /> Finish
                           </Button>
                         </div>
                       </Form>
                     </Tab.Pane>
                   </Tab.Content>
                 </div>
-
                 <div className="RytProfileDiv">
                   <ProfileProgressbar
                     blname="Profile"
@@ -672,7 +647,6 @@ const handleSaveOperatingHours = useCallback((updatedHours: DayHours[]) => {
               </div>
             </Tab.Container>
           </div>
-
         </Container>
       </section>
     </>

@@ -10,13 +10,14 @@ import {
   CognitoIdentityProviderClient,
   ConfirmForgotPasswordCommandInput
 } from "@aws-sdk/client-cognito-identity-provider";
-import { fromFHIRBusinessProfile, toFHIRBusinessProfile } from "@yosemite-crew/fhir";
+import { convertAdminDepartmentsToFHIR, fromFHIRBusinessProfile, toFHIRBusinessProfile } from "@yosemite-crew/fhir";
 const cognitoo = new CognitoIdentityProviderClient({
   region: process.env.AWS_REGION,
 });
 import dotenv from 'dotenv';
 dotenv.config();
 import type { BusinessProfile, FhirOrganization, register, UploadedFile } from '@yosemite-crew/types'
+import adminDepartments from "../models/admin-department";
 // import { validateFHIR } from "../Fhirvalidator/FhirValidator";
 
 const cognito = new AWS.CognitoIdentityServiceProvider();
@@ -41,10 +42,10 @@ const WebController = {
       const { email, password, role, subscribe } = req.body as register;
 
       if (!email || !password) {
-         res
+        res
           .status(400)
           .json({ message: "Email and password are required." });
-          return
+        return
       }
 
       console.log("Checking if user exists in Cognito...");
@@ -65,10 +66,10 @@ const WebController = {
         console.log("Email verified status:", emailVerified);
 
         if (emailVerified) {
-             res
+          res
             .status(409)
             .json({ message: "User already exists. Please login." });
-            return
+          return
         }
 
         // Resend OTP
@@ -84,10 +85,10 @@ const WebController = {
 
         await cognito.resendConfirmationCode(resendParams).promise();
 
-         res
+        res
           .status(200)
           .json({ message: "New OTP sent to your email." });
-          return
+        return
 
       } catch (err) {
         if (
@@ -97,10 +98,10 @@ const WebController = {
           (err as { code: string }).code !== "UserNotFoundException"
         ) {
           console.error("Error checking Cognito user:", err);
-           res
+          res
             .status(500)
             .json({ message: "Error checking user status." });
-            return
+          return
         }
         // if it's "UserNotFoundException", continue to signup logic
       }
@@ -132,25 +133,25 @@ const WebController = {
           "code" in err &&
           (err as { code: string }).code === "UsernameExistsException"
         ) {
-           res.status(409).json({
+          res.status(409).json({
             message: "User already exists in Cognito. Please verify your email.",
           });
           return
         }
 
-         res.status(500).json({
+        res.status(500).json({
           message: "Error registering user. Please try again later.",
         });
         return
       }
 
       if (typeof subscribe !== "boolean") {
-         res.status(400).json({ message: "Subscribe value must be true or false." });
-         return
+        res.status(400).json({ message: "Subscribe value must be true or false." });
+        return
       }
       if (typeof role !== "string") {
-         res.status(400).json({ message: "role value must be string." });
-         return
+        res.status(400).json({ message: "role value must be string." });
+        return
       }
 
       const newUser = new WebUser({
@@ -161,14 +162,14 @@ const WebController = {
 
       await newUser.save();
 
-       res.status(200).json({
+      res.status(200).json({
         message: "User registered successfully! Please verify your email with OTP.",
       });
       return
 
     } catch (error) {
       console.error("Unexpected Error:", error);
-       res
+      res
         .status(500)
         .json({ message: "Internal Server Error. Please try again later." });
     }
@@ -183,8 +184,8 @@ const WebController = {
       const { email, otp } = req.body as register;
 
       if (!email || !otp) {
-         res.status(400).json({ message: "Email and OTP are required." });
-         return
+        res.status(400).json({ message: "Email and OTP are required." });
+        return
       }
 
       console.log("Verifying OTP for email:", email);
@@ -215,17 +216,17 @@ const WebController = {
 
         if (!cognitoId) {
           console.error("Cognito ID (sub) not found.");
-           res.status(500).json({ message: "Cognito ID not found." });
-           return
+          res.status(500).json({ message: "Cognito ID not found." });
+          return
         }
 
         console.log("Cognito ID:", cognitoId);
       } catch (err) {
         console.error("Error retrieving Cognito user:", err);
-         res
+        res
           .status(500)
           .json({ message: "Error retrieving user details." });
-          return
+        return
       }
 
       if (!isUserVerified) {
@@ -241,18 +242,18 @@ const WebController = {
           console.log("User confirmed with OTP");
         } catch (err) {
           console.error("Cognito Verification Error:", err);
-           res
+          res
             .status(400)
             .json({ message: "Invalid OTP or user already verified." });
-            return
+          return
         }
       }
 
       const user = await WebUser.findOne({ cognitoId });
 
       if (!user) {
-         res.status(404).json({ message: "User not found in the system" });
-         return
+        res.status(404).json({ message: "User not found in the system" });
+        return
       }
 
 
@@ -263,8 +264,8 @@ const WebController = {
       };
 
       if (!ACCESS_SECRET || !REFRESH_SECRET) {
-         res.status(500).json({ message: "JWT secrets not configured." });
-          return
+        res.status(500).json({ message: "JWT secrets not configured." });
+        return
       }
       const accessToken = jwt.sign(payload, ACCESS_SECRET, {
         expiresIn: ACCESS_EXPIRY,
@@ -289,7 +290,7 @@ const WebController = {
         maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
       });
 
-       res.status(200).json({
+      res.status(200).json({
         data: {
           userId: cognitoId,
           email,
@@ -299,10 +300,10 @@ const WebController = {
       return
     } catch (error) {
       console.error("Unexpected Error:", error);
-       res
+      res
         .status(500)
         .json({ message: "Internal Server Error. Please try again later." });
-        return
+      return
     }
   },
 
@@ -314,10 +315,10 @@ const WebController = {
       const { email, password } = req.body;
 
       if (!email || !password) {
-         res
+        res
           .status(400)
           .json({ message: "Email and password are required" });
-          return
+        return
       }
 
       const secretHash = getSecretHash(email as string);
@@ -335,8 +336,8 @@ const WebController = {
         .promise();
 
       if (!authData.AuthenticationResult) {
-         res.status(401).json({ message: "Invalid credentials" });
-         return
+        res.status(401).json({ message: "Invalid credentials" });
+        return
       }
 
       const userDetails = await new AWS.CognitoIdentityServiceProvider()
@@ -351,14 +352,14 @@ const WebController = {
       )?.Value;
 
       if (!cognitoId) {
-         res.status(500).json({ message: "Failed to retrieve Cognito ID" });
-         return
+        res.status(500).json({ message: "Failed to retrieve Cognito ID" });
+        return
       }
 
       const user = await WebUser.findOne({ cognitoId });
       if (!user) {
-         res.status(404).json({ message: "User not found in the system" });
-         return
+        res.status(404).json({ message: "User not found in the system" });
+        return
       }
 
       const payload = {
@@ -369,8 +370,8 @@ const WebController = {
 
       // ✅ Create tokens
       if (!ACCESS_SECRET || !REFRESH_SECRET) {
-         res.status(500).json({ message: "JWT secrets not configured." });
-         return
+        res.status(500).json({ message: "JWT secrets not configured." });
+        return
       }
       const accessToken = jwt.sign(payload, ACCESS_SECRET, {
         expiresIn: ACCESS_EXPIRY,
@@ -394,25 +395,34 @@ const WebController = {
         sameSite: "strict",
         maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
       });
+      await WebUser.findOneAndUpdate({
+        cognitoId: user.cognitoId,
+      },
+        {
+          lastLogin: new Date(),
+        }
+        , { new: true, upsert: true }
 
-       res.status(200).json({
+      )
+      res.status(200).json({
         data: {
           userId: cognitoId,
           email,
           userType: user.role,
         }, message: "Logged in successfully"
       });
+
       return
     } catch (error) {
       console.error("Error during sign-in:", error);
 
       if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "NotAuthorizedException") {
-         res.status(401).json({ message: "Invalid email or password" });
-         return
+        res.status(401).json({ message: "Invalid email or password" });
+        return
       }
 
-       res.status(500).json({ message: "Internal server error" });
-       return
+      res.status(500).json({ message: "Internal server error" });
+      return
     }
   },
 
@@ -444,8 +454,8 @@ const WebController = {
       const { email } = req.body as { email: string };
 
       if (!email) {
-         res.status(400).json({ message: "Email is required." });
-         return
+        res.status(400).json({ message: "Email is required." });
+        return
       }
 
       // Step 1: Check if user exists in Cognito
@@ -463,15 +473,15 @@ const WebController = {
           "code" in err &&
           (err as AWS.AWSError).code === "UserNotFoundException"
         ) {
-           res.status(404).json({ message: "User not found in Cognito." });
-           return
+          res.status(404).json({ message: "User not found in Cognito." });
+          return
         }
 
         console.error("Error checking user in Cognito:", err);
-         res
+        res
           .status(500)
           .json({ message: "Error checking user status in Cognito." });
-          return
+        return
       }
 
       // Step 2: Send password reset code
@@ -486,14 +496,14 @@ const WebController = {
 
       await cognito.forgotPassword(resetParams).promise();
 
-       res.status(200).json({
+      res.status(200).json({
         message:
           "Password reset code sent to your email. Please check your inbox.",
       });
       return
     } catch (error) {
       console.error("Error during forgotPassword:", error);
-       res.status(500).json({
+      res.status(500).json({
         message: "Error during password reset process",
         error:
           error instanceof Error ? error.message : "Unexpected error occurred",
@@ -511,7 +521,7 @@ const WebController = {
       };
 
       if (!email || !otp || !newPassword) {
-         res.status(400).json({
+        res.status(400).json({
           message: "Email, OTP, and new password are required.",
         });
         return
@@ -530,14 +540,14 @@ const WebController = {
 
       await cognitoo.send(new ConfirmForgotPasswordCommand(params));
 
-       res.status(200).json({
+      res.status(200).json({
         message: "Password reset successfully. You can now log in.",
       });
       return
     } catch (error) {
       console.error("Error resetting password:", error);
 
-       res.status(500).json({
+      res.status(500).json({
         message: "Error resetting password.",
         error:
           error instanceof Error ? error.message : "Unexpected error occurred",
@@ -591,7 +601,7 @@ const WebController = {
       // Step 2: Convert to Internal Format
       let businessProfile: BusinessProfile;
       try {
-         
+
         businessProfile = fromFHIRBusinessProfile(parsedPayload as FhirOrganization);
       } catch (error) {
         res.status(400).json({
@@ -607,6 +617,8 @@ const WebController = {
         departmentFeatureActive,
         selectedServices,
         addDepartment,
+        key,
+        progress
       } = businessProfile;
 
       if (!name) {
@@ -637,7 +649,7 @@ const WebController = {
       } else {
         // Step 3: Handle Image Upload if Exists
         const img = req.files as { image?: UploadedFile };
-        const imageFile = img?.image 
+        const imageFile = img?.image
         const logoKey = imageFile && !Array.isArray(imageFile)
           ? await uploadToS3(imageFile, "logo")
           : undefined;
@@ -664,6 +676,8 @@ const WebController = {
               selectedServices,
               addDepartment,
               image: logoKey,
+              key,
+              progress
             },
           },
           { new: true, upsert: true }
@@ -689,6 +703,37 @@ const WebController = {
       }
     }
   },
+
+
+  getDepartmentsList:async (req: Request, res: Response) => {
+  try {
+    const departments = await adminDepartments.find();
+    
+    if (departments && departments.length > 0) {
+      res.status(200).json({
+        success: true,
+         
+        data: convertAdminDepartmentsToFHIR(departments)
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        message: "No departments available"
+      });
+    }
+  } catch (err) {
+    const error = err as Error;
+    console.error("get departments error:", error.message);
+    
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        message: "Internal Server Error",
+        error: error.message
+      });
+    }
+  }
+},
   // deleteDocumentsToUpdate: async (req: Request, res: Response) => {
   //   const { userId, docId } = req.params;
   //   console.log("User ID:", userId);
@@ -779,8 +824,8 @@ const WebController = {
       console.log("Fetching hospital profile for userId:", req.query.userId);
       const { userId } = req.query as { userId: string };
       if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
-         res.status(400).json({ message: "Invalid doctorId format" });
-         return
+        res.status(400).json({ message: "Invalid doctorId format" });
+        return
       }
 
       const profile = await ProfileData.findOne({ userId })
@@ -790,7 +835,7 @@ const WebController = {
       const image = profile?.image ? `${process.env.CLOUD_FRONT_URI}/${profile.image}` : undefined;
 
       if (!profile) {
-         res.status(404).json({
+        res.status(404).json({
           resourceType: "OperationOutcome",
           issue: [
             {
@@ -821,7 +866,9 @@ const WebController = {
         departmentFeatureActive: profile.departmentFeatureActive,
         selectedServices: profile.selectedServices,
         addDepartment: profile.addDepartment,
-        image // Assuming logo is the image URL
+        image, // Assuming logo is the image URL
+        key:profile.key,
+        progress:profile.progress
       };
 
       const fhirBundle = toFHIRBusinessProfile(formattedInput as BusinessProfile);
@@ -847,8 +894,8 @@ const WebController = {
       const refreshToken: string = req.cookies.refreshToken;
 
       if (!refreshToken) {
-         res.status(401).json({ message: "No refresh token provided" });
-         
+        res.status(401).json({ message: "No refresh token provided" });
+
       }
 
       // ✅ Verify refresh token
@@ -860,7 +907,7 @@ const WebController = {
 
       // ✅ Create new access token
       if (!ACCESS_SECRET) {
-         res.status(500).json({ message: "JWT access secret not configured." });
+        res.status(500).json({ message: "JWT access secret not configured." });
       }
       const newAccessToken = jwt.sign(
         {
@@ -880,18 +927,18 @@ const WebController = {
         maxAge: 1000 * 60 * 15, // 15 minutes
       });
 
-       res.status(200).json({
+      res.status(200).json({
         data: {
           userId: decoded.userId,
           email: decoded.email,
           userType: decoded.userType
         }, message: "Access token refreshed"
       });
-      
+
     } catch (error) {
       console.error("Refresh error:", error);
-       res.status(403).json({ message: "Invalid or expired refresh token" });
-       
+      res.status(403).json({ message: "Invalid or expired refresh token" });
+
     }
   }
 
