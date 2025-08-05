@@ -33,8 +33,13 @@ const webAppointmentController = {
     res: Response
   ): Promise<void> => {
     try {
-      const { names, microChip } = req.query;
+      const rawNames = req.query.names;
+      const rawMicroChip = req.query.microChip;
 
+      // Sanitize microChip to avoid potential CodeQL issues
+      // eslint-disable-next-line no-useless-escape
+      const microChip = typeof rawMicroChip === 'string' ? rawMicroChip.trim().replace(/[^\w\-]/g, '') : '';
+      const names = typeof rawNames === 'string' ? rawNames.trim() : '';
       // Validate input
       if ((names && microChip) || (!names && !microChip)) {
         const errorResponse: OperationOutcome = {
@@ -84,8 +89,8 @@ const webAppointmentController = {
       // Search by names (owner name or pet name)
       const appUser: IUser | null = await AppUser.findOne({
         $or: [
-          { firstName: new RegExp(names as string, "i") },
-          { lastName: new RegExp(names as string, "i") }
+          { firstName: new RegExp(names, "i") },
+          { lastName: new RegExp(names, "i") }
         ]
       });
 
@@ -111,7 +116,7 @@ const webAppointmentController = {
 
       // Search by pet name only
       const petsByName: Ipet[] = await pets.find({
-        petName: new RegExp(names as string, "i")
+        petName: new RegExp(names, "i")
       });
 
       if (petsByName.length === 0) {

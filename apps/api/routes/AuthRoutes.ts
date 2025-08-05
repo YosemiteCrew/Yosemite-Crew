@@ -33,7 +33,7 @@ router.post('/refreshToken', WebController.refreshToken);
 router.post('/HealthcareService', verifyToken,AddDepartmentController.addDepartment);
 router.get('/getAddDepartment', verifyToken,AddDepartmentController.getAddDepartment);
 router.post('/google-login', authController.googleLogin)
-router.get('/getAddDepartment', verifyToken,AddDepartmentController.getAddDepartment);
+// router.get('/getAddDepartment', verifyToken,AddDepartmentController.getAddDepartment);
 router.get('/getDepartments',verifyToken,AddDepartmentController.getDepartmets)
 router.get('/getDepartmentAllData',verifyToken,AddDepartmentController.getDepartmentById)
 
