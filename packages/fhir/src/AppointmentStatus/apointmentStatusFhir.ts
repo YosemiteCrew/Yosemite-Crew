@@ -1,4 +1,4 @@
- import {AppointmentStatusFHIRBundle,AppointmentStatusFHIRBundleEntry,AppointmentStatus} from "@yosemite-crew/types"
+ import {AppointmentStatusFHIRBundle,AppointmentStatusFHIRBundleEntry,AppointmentStatus, MongoPurposeOfVisit, FhirPurposeOfVisit, AppointmentType, FhirHealthcareService} from "@yosemite-crew/types"
 
 
 
@@ -95,4 +95,81 @@ export class AppointmentsStatusFHIRConverter {
   }
  
   
+}
+
+
+
+
+
+
+
+//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<purpose of visit & Appointment Types>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+export function convertToFhirPurposeOfVisit(data: { _id: string; name: string }[]): FhirPurposeOfVisit[] {
+  return data.map((item) => ({
+    resourceType: "Basic",
+    id: item._id,
+    code: {
+      coding: [
+        {
+          system: "http://example.org/fhir/purpose-of-visit",
+          code: item._id,
+          display: item.name,
+        },
+      ],
+      text: item.name,
+    },
+  }));
+}
+
+export function convertFromFhirPurposeOfVisit(fhirData: FhirPurposeOfVisit[]): { _id: string; name: string }[] {
+  return fhirData.map((resource) => ({
+    _id: resource.id,
+    name: resource.code.text,
+  }));
+}
+
+
+
+
+
+export function convertToFhirAppointmentTypes(
+  data: AppointmentType[]
+): FhirHealthcareService[] {
+  return data.map((item) => ({
+    resourceType: "HealthcareService",
+    id: item._id,
+    type: [
+      {
+        coding: [
+          {
+            system: "http://example.org/fhir/appointment-type",
+            code: item.name.toLowerCase().replace(/\s+/g, "-"),
+            display: item.name,
+          },
+        ],
+        text: item.name,
+      },
+    ],
+    category: {
+      coding: [
+        {
+          system: "http://example.org/fhir/appointment-category",
+          code: item.category.toLowerCase().replace(/\s+/g, "-"),
+          display: item.category,
+        },
+      ],
+      text: item.category,
+    },
+  }));
+}
+
+
+export function convertFromFhirAppointmentTypes(
+  fhirData: FhirHealthcareService[]
+): AppointmentType[] {
+  return fhirData.map((item) => ({
+    _id: item.id,
+    name: item.type?.[0]?.coding?.[0]?.display || "",
+    category: item.category?.coding?.[0]?.display || "",
+  }));
 }

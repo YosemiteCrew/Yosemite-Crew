@@ -5,8 +5,6 @@ function page() {
   return (
     <>
     <AddVetProfile/>
-    
-    
     </>
   )
 }
