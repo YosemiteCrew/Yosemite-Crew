@@ -38,11 +38,13 @@ class BusinessFhirFormatter {
       address: [{
         text: org.profileData?.address?.addressLine1 || ""
       }],
+      image:org.profileData?.image,
       extension: extensions
     };
   }
   
     static toFhirHealthcareServices(org:Organization) {
+      console.log(org,'departmentsdepartments');
       return (org.departments || []).map((dept :Department) => ({
         resourceType: "HealthcareService",
         id: `${dept.departmentId}`,
