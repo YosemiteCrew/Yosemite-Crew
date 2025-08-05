@@ -194,6 +194,26 @@ const fhir = convertToFHIRInventory(payload);
       setErrors({ api: error.response?.data?.message || error.message });
     }
   };
+
+
+
+  //Specialization Options
+  const [country, setCountry] = useState<string>("");
+  type Option = {
+      value: string;
+      label: string;
+  };
+  const options: Option[] = [
+      { value: 'us', label: '🇺🇸 United States' },
+      { value: 'in', label: '🇮🇳 India' },
+      { value: 'uk', label: '🇬🇧 United Kingdom' },
+  ];
+
+
+
+
+
+
 console.log(errors)
   return (
     <section className='AddInventorySec'>
@@ -208,115 +228,122 @@ console.log(errors)
               <Row>
                 <Col md={6}>
                   <FormInput intype="text" inname="barCode" value={formData.barCode} inlabel="Bar Code" onChange={handleChange} />
-                {errors.barCode && <div className="text-danger">{errors.barCode}</div>}
+                  {errors.barCode && <div className="text-danger">{errors.barCode}</div>}
                 </Col>
                 <Col md={6}>
+                  <DynamicSelect options={options} value={country} onChange={setCountry} inname="country" placeholder="Select Category" />
                   <FormInput intype="text" inname="category" value={formData.category} inlabel="Category" onChange={handleChange} />
-                {errors.category && <div className="text-danger">{errors.category}</div>}
+                  {errors.category && <div className="text-danger">{errors.category}</div>}
                 </Col>
               </Row>
 
               <Row>
                 <Col md={6}>
                   <FormInput intype="text" inname="itemName" value={formData.itemName} inlabel="Item Name" onChange={handleChange} />
-                {errors.itemName && <div className="text-danger">{errors.itemName}</div>}
+                  {errors.itemName && <div className="text-danger">{errors.itemName}</div>}
                 </Col>
                 <Col md={6}>
                   <FormInput intype="text" inname="genericName" value={formData.genericName} inlabel="Generic Name" onChange={handleChange} />
-                {errors.genericName && <div className="text-danger">{errors.genericName}</div>}
+                  {errors.genericName && <div className="text-danger">{errors.genericName}</div>}
                 </Col>
               </Row>
 
               <Row>
                 <Col md={6}>
+                  <DynamicSelect options={options} value={country} onChange={setCountry} inname="country" placeholder="Department" />
                   <FormInput intype="text" inname="department" value={formData.department} inlabel="Department" onChange={handleChange} />
-                {errors.department && <div className="text-danger">{errors.department}</div>}
+                  {errors.department && <div className="text-danger">{errors.department}</div>}
                 </Col>
                 <Col md={6}>
+                  <DynamicSelect options={options} value={country} onChange={setCountry} inname="country" placeholder="Sex Type" />
                   <FormInput intype="text" inname="sexType" value={formData.sexType} inlabel="Sex Type" onChange={handleChange} />
-                {errors.sexType && <div className="text-danger">{errors.sexType}</div>}
+                  {errors.sexType && <div className="text-danger">{errors.sexType}</div>}
                 </Col>
               </Row>
 
               <Row>
                 <Col md={6}>
+                  <DynamicSelect options={options} value={country} onChange={setCountry} inname="country" placeholder="Manufacturer" />
                   <FormInput intype="text" inname="manufacturer" value={formData.manufacturer} inlabel="Manufacturer" onChange={handleChange} />
-                {errors.manufacturer && <div className="text-danger">{errors.manufacturer}</div>}
+                  {errors.manufacturer && <div className="text-danger">{errors.manufacturer}</div>}
                 </Col>
                 <Col md={6}>
+                  <DynamicSelect options={options} value={country} onChange={setCountry} inname="country" placeholder="Item Category (like Tablet, Syrup, etc)" />
                   <FormInput intype="text" inname="itemCategory" value={formData.itemCategory} inlabel="Item Category" onChange={handleChange} />
-                {errors.itemCategory && <div className="text-danger">{errors.itemCategory}</div>}
+                  {errors.itemCategory && <div className="text-danger">{errors.itemCategory}</div>}
                 </Col>
               </Row>
 
               <Row>
                 <Col md={6}>
+                  <DynamicSelect options={options} value={country} onChange={setCountry} inname="country" placeholder="Species Specific 1 (optional)" />
                   <FormInput intype="text" inname="speciesSpecific1" value={formData.speciesSpecific1} inlabel="Species Specific 1" onChange={handleChange} />
-                {errors.speciesSpecific1 && <div className="text-danger">{errors.speciesSpecific1}</div>}
+                  {errors.speciesSpecific1 && <div className="text-danger">{errors.speciesSpecific1}</div>}
                 </Col>
                 <Col md={6}>
+                  <DynamicSelect options={options} value={country} onChange={setCountry} inname="country" placeholder="Species Specific 2 (optional)" />
                   <FormInput intype="text" inname="speciesSpecific2" value={formData.speciesSpecific2} inlabel="Species Specific 2" onChange={handleChange} />
-                {errors.speciesSpecific2 && <div className="text-danger">{errors.speciesSpecific2}</div>}
+                  {errors.speciesSpecific2 && <div className="text-danger">{errors.speciesSpecific2}</div>}
                 </Col>
               </Row>
 
               <Row>
                 <Col md={6}>
                   <FormInput intype="text" inname="onHand" value={formData.onHand} inlabel="On Hand" onChange={handleChange} />
-                {errors.onHand && <div className="text-danger">{errors.onHand}</div>}
+                  {errors.onHand && <div className="text-danger">{errors.onHand}</div>}
                 </Col>
                 <Col md={6}>
                   <FormInput intype="number" inname="perQtyPrice" value={formData.perQtyPrice} inlabel="$ Per Qty Price" onChange={handleChange} />
-                {errors.perQtyPrice && <div className="text-danger">{errors.perQtyPrice}</div>}
+                  {errors.perQtyPrice && <div className="text-danger">{errors.perQtyPrice}</div>}
                 </Col>
               </Row>
 
               <Row>
                 <Col md={3}>
                   <FormInput intype="text" inname="batchNumber" value={formData.batchNumber} inlabel="Batch Number" onChange={handleChange} />
-                {errors.batchNumber && <div className="text-danger">{errors.batchNumber}</div>}
+                  {errors.batchNumber && <div className="text-danger">{errors.batchNumber}</div>}
                 </Col>
                 <Col md={3}>
                   <FormInput intype="text" inname="sku" value={formData.sku} inlabel="SKU" onChange={handleChange} />
-                {errors.sku && <div className="text-danger">{errors.sku}</div>}
+                  {errors.sku && <div className="text-danger">{errors.sku}</div>}
                 </Col>
                 <Col md={3}>
-                  <FormInput intype="text" inname="strength" value={formData.strength} inlabel="Strength" onChange={handleChange} />
-                {errors.strength && <div className="text-danger">{errors.strength}</div>}
+                  <FormInput intype="text" inname="strength" value={formData.strength} inlabel="Strength (ex: 500mg)" onChange={handleChange} />
+                  {errors.strength && <div className="text-danger">{errors.strength}</div>}
                 </Col>
                 <Col md={3}>
                   <QuantityInput value={formData.quantity} onChange={handleQuantityChange} />
-                {errors.quantity && <div className="text-danger">{errors.quantity}</div>}
+                  {errors.quantity && <div className="text-danger">{errors.quantity}</div>}
                 </Col>
               </Row>
 
               <Row>
                 <Col md={3}>
                   <FormInput intype="number" inname="manufacturerPrice" value={formData.manufacturerPrice} inlabel="$ Manufacturer Price" onChange={handleChange} />
-                {errors.manufacturerPrice && <div className="text-danger">{errors.manufacturerPrice}</div>}
+                  {errors.manufacturerPrice && <div className="text-danger">{errors.manufacturerPrice}</div>}
                 </Col>
                 <Col md={3}>
                   <FormInput intype="number" inname="markup" value={formData.markup} inlabel="% Markup" onChange={handleChange} />
-                {errors.markup && <div className="text-danger">{errors.markup}</div>}
+                  {errors.markup && <div className="text-danger">{errors.markup}</div>}
                 </Col>
                 <Col md={3}>
                   <FormInput intype="text" inname="upc" value={formData.upc} inlabel="UPC" onChange={handleChange} />
-                {errors.upc && <div className="text-danger">{errors.upc}</div>}
+                  {errors.upc && <div className="text-danger">{errors.upc}</div>}
                 </Col>
                 <Col md={3}>
                   <FormInput intype="number" inname="price" value={formData.price} inlabel="$ Price" onChange={handleChange} />
-                {errors.price && <div className="text-danger">{errors.price}</div>}
+                  {errors.price && <div className="text-danger">{errors.price}</div>}
                 </Col>
               </Row>
 
               <Row>
                 <Col md={6}>
                   <FormInput intype="number" inname="stockReorderLevel" value={formData.stockReorderLevel} inlabel="Stock Reorder Level" onChange={handleChange} />
-                {errors.stockReorderLevel && <div className="text-danger">{errors.stockReorderLevel}</div>}
+                  {errors.stockReorderLevel && <div className="text-danger">{errors.stockReorderLevel}</div>}
                 </Col>
                 <Col md={6}>
                   <DynamicDatePicker placeholder="Expiry Date (dd-mm-yyyy)" value={formData.expiryDate} onDateChange={handleDateChange} />
-                {errors.expiryDate && <div className="text-danger">{errors.expiryDate}</div>}
+                  {errors.expiryDate && <div className="text-danger">{errors.expiryDate}</div>}
                 </Col>
               </Row>
             </Form>
