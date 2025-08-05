@@ -104,7 +104,15 @@ function AddInventory(): React.JSX.Element {
   required("manufacturer", "Manufacturer");
   required("itemCategory", "Item category");
   required("sku", "SKU");
-
+  required("sexType", "Sex Type");
+  required("strength", "Strength");
+  required("upc", "UPC");
+  required("expiryDate", "Expiry Date");
+  required("price", "Price");
+  required("perQtyPrice", "Per Qty Price");
+  required("manufacturerPrice", "Manufacturer Price");
+  required("markup", "Markup");
+  
   // Regex checks
   for (const key in regexChecks) {
     const check = regexChecks[key as keyof InventoryFormData];
