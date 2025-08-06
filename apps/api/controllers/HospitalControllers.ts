@@ -2696,6 +2696,48 @@ const HospitalController = {
   //     });
   //   }
   // },
+  ,
+  DoctorWiseAppointments: async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.query;
+
+    if (!userId || typeof userId !== "string") {
+      return res.status(400).json({ error: "Invalid user ID" });
+    }
+
+    const result = await webAppointments.aggregate([
+      { $match: { userId } },
+      {
+        $group: {
+          _id: "$doctor",
+          count: { $sum: 1 },
+          appointments: { $push: "$$ROOT" },
+        },
+      },
+    ]);
+
+    if (!result.length) {
+      return res.status(200).json({ message: "No appointments found for this user" });
+    }
+
+    const fhirMapped = result.map((group) => {
+      return {
+        doctor: group._id,
+        totalAppointments: group.count,
+        appointments: group.appointments.map((app: any) =>
+          AppointmentFHIRConverter.convertAppointments(app)
+        ),
+      };
+    });
+
+    res.status(200).json(fhirMapped);
+  } catch (error) {
+    console.error("Error in DoctorWiseAppointments:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 }
+}
+
+
 
 export default HospitalController;

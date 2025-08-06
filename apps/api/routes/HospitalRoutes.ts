@@ -45,5 +45,6 @@ router.all('/List',verifyToken,HospitalController.AppointmentGraphs)
 // router.get("/Rating", HospitalController.handleGetRating)
 
 // router.get('/getMessages',verifyTokenAndRefresh,HospitalController.getMessages)
+router.get('/doctor-wise-appointments', HospitalController.DoctorWiseAppointments);
 
 export default router;
