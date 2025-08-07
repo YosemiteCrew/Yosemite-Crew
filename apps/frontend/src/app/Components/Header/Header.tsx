@@ -56,52 +56,56 @@ const LoggedInHeader = () => {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
   const roles = useMemo(
-    () => ["Vet", "Vet Technician", "Nurse", "Vet Assistant", "Receptionist"],
+    () => ["vet",
+      "vetTechnician",
+      "nurse",
+      "vetAssistant",
+      "receptionist",],
     []
   );
-const clinicNavItems: NavItem[] = [
-  { label: "Home", href: "/" },
-  { label: "Dashboard", href: getDashboardRoute() },
-  {
-    label: "Clinic",
-    children: [
-      { label: "Specialities", href: "/departmentsmain" },
-      { label: "Practice Team", href: "/practiceTeam" },
-      { label: "Manage Invites", href: "/inviteteammembers" },
-      { label: "Manage Clinic Visibility", href: "/clinicvisiblity" },
-    ],
-  },
-  {
-    label: "Operations",
-    children: [
-      { label: "Queue Management", href: "#" },
-      { label: "Appointments", href: "/AppointmentVet" },
-      { label: "Assessments", href: "/AssessmentVet" },
-      { label: "Prescriptions", href: "#" },
-      { label: "Inventory", href: "/inventorydashboard" },
-      { label: "Procedure Packages", href: "#" },
-    ],
-  },
-  {
-    label: "Finance",
-    children: [
-      { label: "Revenue Reporting", href: "/RevenueManagement" },
-      { label: "Billing", href: "#" },
-      { label: "Client Statements", href: "#" },
-      { label: "Coupons", href: "#" },
-      { label: "Payment Methods", href: "#" },
-      { label: "Procedure Estimates", href: "/ProcedureEstimate" },
-    ],
-  },
-  {
-    label: "Help & Resources",
-    children: [
-      { label: "Blog", href: "/blogpage" },
-      { label: "Resources", href: "#" },
-      { label: "Contact Us", href: "/contact_us" },
-    ],
-  },
-];
+  const clinicNavItems: NavItem[] = [
+    { label: "Home", href: "/" },
+    { label: "Dashboard", href: getDashboardRoute() },
+    {
+      label: "Clinic",
+      children: [
+        { label: "Specialities", href: "/departmentsmain" },
+        { label: "Practice Team", href: "/practiceTeam" },
+        { label: "Manage Invites", href: "/inviteteammembers" },
+        { label: "Manage Clinic Visibility", href: "/clinicvisiblity" },
+      ],
+    },
+    {
+      label: "Operations",
+      children: [
+        { label: "Queue Management", href: "#" },
+        { label: "Appointments", href: "/AppointmentVet" },
+        { label: "Assessments", href: "/AssessmentVet" },
+        { label: "Prescriptions", href: "#" },
+        { label: "Inventory", href: "/inventorydashboard" },
+        { label: "Procedure Packages", href: "#" },
+      ],
+    },
+    {
+      label: "Finance",
+      children: [
+        { label: "Revenue Reporting", href: "/RevenueManagement" },
+        { label: "Billing", href: "#" },
+        { label: "Client Statements", href: "#" },
+        { label: "Coupons", href: "#" },
+        { label: "Payment Methods", href: "#" },
+        { label: "Procedure Estimates", href: "/ProcedureEstimate" },
+      ],
+    },
+    {
+      label: "Help & Resources",
+      children: [
+        { label: "Blog", href: "/blogpage" },
+        { label: "Resources", href: "#" },
+        { label: "Contact Us", href: "/contact_us" },
+      ],
+    },
+  ];
   const logoUrl = process.env.NEXT_PUBLIC_BASE_IMAGE_URL
     ? `${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/Logo.png`
     : "/Logo.png";
@@ -112,7 +116,7 @@ const clinicNavItems: NavItem[] = [
     if (input instanceof File) return URL.createObjectURL(input);
     return logoUrl;
   }
-  function getDashboardRoute  ()  {
+  function getDashboardRoute() {
     switch (userType) {
       case "veterinaryBusiness":
         return "/emptydashboard";
@@ -224,7 +228,7 @@ const clinicNavItems: NavItem[] = [
                   <p className="Tier">Free tier - Cloud hosted</p>
                 </div>
               </span>
-             
+
               <div className="profileUl">
                 <div className='ProfDiv'>
                   <Link href="#"><FaUser /> My Profile</Link>

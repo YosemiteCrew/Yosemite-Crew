@@ -76,8 +76,7 @@ const AddDepartmentController = {
         },
         {
           departmentId: data.departmentId.trim(),
-          bussinessId: data.bussinessId,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          bussinessId: data.bussinessId,           
           biography: data.biography,
           email: data.email,
           phone: data.phone,
@@ -154,7 +153,7 @@ getDepartmentById: async (req: Request, res: Response): Promise<void> => {
     if (response) {
       const data = convertToFHIRDepartment({
         departmentId: response.departmentId,
-        biography: response.biography,
+        biography: response.biography || "",
         email: response.email,
         phone: response.phone,
         countrycode: response.countrycode,
