@@ -8,6 +8,7 @@ import { ProfileData, WebUser } from "../models/WebUser";
 import AddDoctors from "../models/AddDoctor";
 import { convertToFhirDepartment, convertToFhirTeamMembers, toFHIRInviteList, toFhirTeamOverview } from "@yosemite-crew/fhir";
 import adminDepartments from "../models/admin-department";
+import mongoose from "mongoose";
 const region = process.env.AWS_REGION || "eu-central-1";
 const SES = new AWS.SES({ region });
 
@@ -120,7 +121,10 @@ export const inviteTeamsMembersController = {
                 });
 
                 await newInvite.save();
-
+                if (typeof department !== 'string' || !mongoose.Types.ObjectId.isValid(department)) {
+                    res.status(400).json({ message: 'Invalid or missing departmentId format' });
+                    return;
+                }
                 const baseUrl = "http://localhost:3000"; // Use ENV for prod
                 const inviteLink = `${baseUrl}/signup?inviteCode=${inviteCode}`;
                 const departmentInfo = await adminDepartments.findOne({ _id: department }, { name: 1 });
@@ -577,11 +581,10 @@ export const inviteTeamsMembersController = {
         try {
             const { userId } = req.query as { userId: string };
 
-            if (!/^[a-fA-F0-9-]{36}$/.test(userId)) {
-                res.status(400).json({ message: "Invalid userId format" });
+            if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+                res.status(400).json({ message: 'Invalid userId format' });
                 return;
             }
-
             // Aggregation ke liye basic data
             const [result = {
                 totalWebUsers: 0,
@@ -768,9 +771,9 @@ export const inviteTeamsMembersController = {
         try {
             const { userId } = req.query as { userId: string };
 
-            if (!/^[a-fA-F0-9-]{36}$/.test(userId)) {
-                res.status(400).json({ message: "Invalid userId format" });
-                return
+            if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+                res.status(400).json({ message: 'Invalid userId format' });
+                return;
             }
 
             let departmentIds: string[] = [];

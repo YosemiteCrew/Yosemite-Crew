@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import authController from '../controllers/auth-controller';
 import WebController from '../controllers/WebController';
-import AddDepartmentController from '../controllers/AddDepartmentController';
+import AddDepartmentController from '../controllers/add-department-controller';
 
 import { verifyToken } from'../middlewares/authMiddleware';
 const router = Router();
