@@ -350,7 +350,7 @@ export function convertToFhirDepartment(departments: DepartmentsForInvite[]) {
       resource: {
         resourceType: "HealthcareService",
         id: dept._id,
-        name: dept.departmentName.trim(),
+        name: dept.name.trim(),
       },
     })),
   };
@@ -361,7 +361,7 @@ export function convertFromFhirDepartment(fhirBundle: any): DepartmentsForInvite
 
   return fhirBundle.entry.map((entry: any) => ({
     _id: entry.resource?.id || "",
-    departmentName: entry.resource?.name || "",
+    name: entry.resource?.name || "",
   }));
 }
 

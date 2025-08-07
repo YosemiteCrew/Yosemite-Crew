@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import "./PracticeTeam.css";
-import { Button, Col, Container, Row } from "react-bootstrap";
+import { Col, Container, Row } from "react-bootstrap";
 import Link from "next/link";
 import { IoAddCircleOutline } from "react-icons/io5";
 import StatCard from "@/app/Components/StatCard/StatCard";
@@ -9,19 +9,16 @@ import { HeadingDiv } from "../BusinessDashboard/BusinessDashboard";
 import RoundCommonTabs from "@/app/Components/RoundCommonTabs/RoundCommonTabs";
 import CardiologyTable from "@/app/Components/DataTable/CardiologyTable";
 import ManageInviteTable from "@/app/Components/DataTable/ManageInviteTable";
-import { LuSearch } from "react-icons/lu";
 import { getData } from "@/app/axios-services/services";
 import { useAuthStore } from "@/app/stores/authStore";
 import { convertFromFhirTeamMembers, fromFhirTeamOverview } from "@yosemite-crew/fhir";
 import { TeamMember, TeamOverview } from "@yosemite-crew/types";
+import { Icon } from "@iconify/react/dist/iconify.js";
 
 function PracticeTeam() {
   const { userId } = useAuthStore();
 
   const [departmentWiseTeam, setDepartmentWiseTeam] = useState<TeamMember | [] | any>([]);
-
-
-  console.log("practiceTeam", departmentWiseTeam)
 
   const [Overview, setOverView] = useState<TeamOverview>({
     departmentCount: 0,
@@ -136,28 +133,28 @@ function PracticeTeam() {
                 <Row>
                   <Col md={3}>
                     <StatCard
-                      icon="/Images/stact1.png"
+                      icon="solar:home-add-bold"
                       title="Specilities"
                       value={Overview.departmentCount}
                     />
                   </Col>
                   <Col md={3}>
                     <StatCard
-                      icon="/Images/stact2.png"
+                      icon="mingcute:user-2-fill"
                       title="Total Members"
                       value={Overview.totalWebUsers}
                     />
                   </Col>
                   <Col md={3}>
                     <StatCard
-                      icon="/Images/stact3.png"
+                      icon="carbon:checkmark-filled"
                       title="On-Duty"
                       value={Overview.onDutyCount}
                     />
                   </Col>
                   <Col md={3}>
                     <StatCard
-                      icon="/Images/stact4.png"
+                      icon="solar:letter-bold"
                       title="Members Invited"
                       value={Overview.invitedCount}
                     />

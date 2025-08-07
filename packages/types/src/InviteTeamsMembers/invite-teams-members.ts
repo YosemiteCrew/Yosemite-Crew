@@ -143,5 +143,5 @@ export type TeamMember = {
 
 export type DepartmentsForInvite = {
   _id: string;
-  departmentName: string;
+  name: string;
 };
