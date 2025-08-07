@@ -7,7 +7,8 @@ import crypto from "crypto";
 import { ProfileData, WebUser } from "../models/WebUser";
 import AddDoctors from "../models/AddDoctor";
 import { convertToFhirDepartment, convertToFhirTeamMembers, toFHIRInviteList, toFhirTeamOverview } from "@yosemite-crew/fhir";
-import Department from "../models/AddDepartment";
+import adminDepartments from "../models/admin-department";
+import mongoose from "mongoose";
 const region = process.env.AWS_REGION || "eu-central-1";
 const SES = new AWS.SES({ region });
 
@@ -16,6 +17,14 @@ type InviteResult = {
     status: "sent" | "failed" | "skipped";
     error?: string;
 };
+
+
+function formatRole(role: string): string {
+    return role
+        .replace(/([a-z])([A-Z])/g, '$1 $2')  // insert space before capital letters
+        .replace(/\b\w/g, char => char.toUpperCase()); // capitalize first letter of each word
+}
+
 
 const cognito = new AWS.CognitoIdentityServiceProvider({ region: process.env.AWS_REGION || "us-east-1" });
 
@@ -38,10 +47,8 @@ export const inviteTeamsMembersController = {
 
         const results: InviteResult[] = [];
 
-        // Fetch name from either business profile or doctor profile
         const invitedByProfile = await ProfileData.findOne({ userId: invitedBy });
         const invitedByDoctor = await AddDoctors.findOne({ userId: invitedBy });
-        // console.log("llllllllll",invitedByProfile,invitedByDoctor)
         let inviterName = "Unknown";
         if (invitedByProfile?.businessName) {
             inviterName = invitedByProfile.businessName;
@@ -76,11 +83,11 @@ export const inviteTeamsMembersController = {
 
                 const inviterUser = await WebUser.findOne({ cognitoId: invitedBy }).lean();
                 const rolesThatInheritBusiness = [
-                    "Vet",
-                    "Vet Technician",
-                    "Nurse",
-                    "Vet Assistant",
-                    "Receptionist",
+                    "vet",
+                    "vetTechnician",
+                    "nurse",
+                    "vetAssistant",
+                    "receptionist",
                 ];
 
                 if (inviterUser && rolesThatInheritBusiness.includes(inviterUser.role as string)) {
@@ -114,10 +121,16 @@ export const inviteTeamsMembersController = {
                 });
 
                 await newInvite.save();
-
+                if (typeof department !== 'string' || !mongoose.Types.ObjectId.isValid(department)) {
+                    res.status(400).json({ message: 'Invalid or missing departmentId format' });
+                    return;
+                }
                 const baseUrl = "http://localhost:3000"; // Use ENV for prod
                 const inviteLink = `${baseUrl}/signup?inviteCode=${inviteCode}`;
+                const departmentInfo = await adminDepartments.findOne({ _id: department }, { name: 1 });
+                const departmentName = departmentInfo?.name || "Unknown Department";
 
+                const roles = formatRole(role)
                 await SES.sendEmail({
                     Source: process.env.MAIL_DRIVER!,
                     Destination: { ToAddresses: [email] },
@@ -130,23 +143,50 @@ export const inviteTeamsMembersController = {
                             Html: {
                                 Charset: "UTF-8",
                                 Data: `
-                <html>
-                  <body style="font-family: Arial, sans-serif;">
-                    <div style="max-width: 600px; margin: auto; padding: 20px;">
-                      <h2>Hi <strong>${name}</strong>, You’re Invited to Join Our Team!</h2>
-                      <p>Hi <strong>${email}</strong>,</p>
-                      <p>Click the button below to accept your invitation.</p>
-                      <p style="text-align: center; margin: 30px 0;">
-                        <a href="${inviteLink}" style="background-color: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
-                          Accept Invitation
-                        </a>
-                      </p>
-                      <p><strong>Invited by:</strong> ${inviterName}</p>
-                      <p style="margin-top: 40px;">Thanks,<br/>Team Yosemite</p>
-                    </div>
-                  </body>
-                </html>
-              `,
+                                        <html>
+                                            <body style="font-family: Arial, sans-serif; background-color: #f9f9f9; padding: 20px;">
+                                            <div style="max-width: 600px; margin: auto; background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);">
+                                                <h2 style="color: #333;">You're Invited to Join Our Team</h2>
+                                                <p style="font-size: 16px; color: #555;">
+                                                Hello <strong>${name}</strong>,
+                                                </p>
+                                                <p style="font-size: 16px; color: #555;">
+                                                We’re excited to invite you to be a part of our team at <strong>Yosemite</strong>.
+                                                </p>
+
+                                                <p style="font-size: 16px; color: #555;">
+                                                Here are your invitation details:
+                                                </p>
+                                                <ul style="font-size: 16px; color: #555; padding-left: 20px;">
+                                                <li><strong>Email:</strong> ${email}</li>
+                                                <li><strong>Role:</strong> ${roles}</li>
+                                                <li><strong>Department:</strong> ${departmentName}</li>
+                                                <li><strong>Invited by:</strong> ${inviterName}</li>
+                                                </ul>
+
+                                                <p style="font-size: 16px; color: #555;">
+                                                To accept the invitation and set up your account, please click the button below:
+                                                </p>
+
+                                                <p style="text-align: center; margin: 30px 0;">
+                                                <a href="${inviteLink}" style="background-color: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-size: 16px;">
+                                                    Accept Invitation
+                                                </a>
+                                                </p>
+
+                                                <p style="font-size: 16px; color: #555;">
+                                                If you have any questions, feel free to reach out. We look forward to having you on board.
+                                                </p>
+
+                                                <p style="font-size: 16px; color: #555; margin-top: 40px;">
+                                                Best regards,<br />
+                                                Team Yosemite
+                                                </p>
+                                            </div>
+                                            </body>
+                                        </html>
+                                        `
+
                             },
                         },
                     },
@@ -169,15 +209,15 @@ export const inviteTeamsMembersController = {
     },
 
 
-    inviteInfo: async (req: Request, res: Response):Promise<void> => {
+    inviteInfo: async (req: Request, res: Response): Promise<void> => {
         const { code } = req.query;
 
         console.log("Invite Code:", code);
 
-      if (typeof code !== "string" || !/^[a-zA-Z0-9]{8}$/.test(code)) {
-     res.status(400).json({ message: "Invalid or missing invite code." });
-     return
-  }
+        if (typeof code !== "string" || !/^[a-zA-Z0-9]{8}$/.test(code)) {
+            res.status(400).json({ message: "Invalid or missing invite code." });
+            return
+        }
 
         const invite = await inviteTeamsMembers.findOne({ inviteCode: code });
 
@@ -328,11 +368,11 @@ export const inviteTeamsMembersController = {
 
             const inviterUser = await WebUser.findOne({ cognitoId: invitedBy }).lean();
             const rolesThatInheritBusiness = [
-                "Vet",
-                "Vet Technician",
-                "Nurse",
-                "Vet Assistant",
-                "Receptionist",
+                "vet",
+                "vetTechnician",
+                "nurse",
+                "vetAssistant",
+                "receptionist",
             ];
 
             if (inviterUser && rolesThatInheritBusiness.includes(inviterUser.role as string)) {
@@ -432,7 +472,7 @@ export const inviteTeamsMembersController = {
                 // Lookup in Departments to get department name
                 {
                     $lookup: {
-                        from: "departments",
+                        from: "admindepartments",
                         localField: "departmentObjectId",
                         foreignField: "_id",
                         as: "departmentInfo"
@@ -481,7 +521,7 @@ export const inviteTeamsMembersController = {
                         department: {
                             $cond: [
                                 { $gt: [{ $size: "$departmentInfo" }, 0] },
-                                { $arrayElemAt: ["$departmentInfo.departmentName", 0] },
+                                { $arrayElemAt: ["$departmentInfo.name", 0] },
                                 "Unknown"
                             ]
                         },
@@ -541,12 +581,11 @@ export const inviteTeamsMembersController = {
         try {
             const { userId } = req.query as { userId: string };
 
-            if (!/^[a-fA-F0-9-]{36}$/.test(userId)) {
-                res.status(400).json({ message: "Invalid userId format" });
+            if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+                res.status(400).json({ message: 'Invalid userId format' });
                 return;
             }
-
-
+            // Aggregation ke liye basic data
             const [result = {
                 totalWebUsers: 0,
                 onDutyCount: 0,
@@ -566,22 +605,10 @@ export const inviteTeamsMembersController = {
                         as: "doctorProfile",
                     },
                 },
-
                 {
                     $unwind: {
                         path: "$doctorProfile",
                         preserveNullAndEmptyArrays: true,
-                    },
-                },
-                {
-                    $group: {
-                        _id: null,
-                        totalWebUsers: { $sum: 1 },
-                        onDutyCount: {
-                            $sum: {
-                                $cond: [{ $eq: ["$doctorProfile.status", "On-Duty"] }, 1, 0],
-                            },
-                        },
                     },
                 },
                 {
@@ -591,9 +618,7 @@ export const inviteTeamsMembersController = {
                         pipeline: [
                             {
                                 $match: {
-                                    $expr: {
-                                        $eq: ["$bussinessId", "$$invitedById"],
-                                    },
+                                    $expr: { $eq: ["$bussinessId", "$$invitedById"] },
                                 },
                             },
                             {
@@ -602,49 +627,58 @@ export const inviteTeamsMembersController = {
                         ],
                         as: "invited",
                     },
-                }, {
-                    $lookup: {
-                        from: "departments",
-                        let: { bId: userId },
-                        pipeline: [
-                            {
-                                $match: {
-                                    $expr: { $eq: ["$bussinessId", "$$bId"] },
-                                },
-                            },
-                            {
-                                $count: "count",
-                            },
-                        ],
-                        as: "departmentCount",
-                    }
                 },
                 {
-                    $addFields: {
+                    $project: {
+                        doctorStatus: "$doctorProfile.status",
                         invitedCount: {
                             $ifNull: [{ $arrayElemAt: ["$invited.invitedCount", 0] }, 0],
                         },
-                        departmentCount: {
-                            $ifNull: [{ $arrayElemAt: ["$departmentCount.count", 0] }, 0],
-                        },
                     },
                 },
-
+                {
+                    $group: {
+                        _id: null,
+                        totalWebUsers: { $sum: 1 },
+                        onDutyCount: {
+                            $sum: {
+                                $cond: [{ $eq: ["$doctorStatus", "On-Duty"] }, 1, 0],
+                            },
+                        },
+                        invitedCount: { $first: "$invitedCount" },
+                    },
+                },
                 {
                     $project: {
                         _id: 0,
                         totalWebUsers: 1,
                         onDutyCount: 1,
                         invitedCount: 1,
-                        departmentCount: 1,
                     },
                 },
             ]);
 
+            // Aggregation ke bahar departmentCount calculate karo
+            const profileData = await ProfileData.find({ userId: userId }).lean();
+            const allDepartments = profileData.reduce((acc: string[], doc) => {
+                const departments = Array.isArray(doc.addDepartment) ? doc.addDepartment : [];
+                return [...acc, ...departments];
+            }, []);
+
+            // Get unique departments
+            const uniqueDepartments = Array.from(new Set(allDepartments));
+            const departmentCount = uniqueDepartments.length;
+            // Final result mein departmentCount add karo
+            const finalResult = {
+                ...result,
+                departmentCount,
+            };
+
+            console.log("result", finalResult);
             res.status(200).json({
                 message: "Team overview fetched successfully",
                 data: toFhirTeamOverview(
-                    result || {
+                    finalResult || {
                         totalWebUsers: 0,
                         onDutyCount: 0,
                         invitedCount: 0,
@@ -670,6 +704,26 @@ export const inviteTeamsMembersController = {
 
             const rawData = await WebUser.aggregate([
                 { $match: { bussinessId: userId } },
+                // Convert string to ObjectId before lookup
+                {
+                    $addFields: {
+                        departmentObjectId: {
+                            $cond: [
+                                { $eq: [{ $type: "$department" }, "string"] },
+                                { $toObjectId: "$department" },
+                                "$department"
+                            ]
+                        }
+                    }
+                },
+                {
+                    $lookup: {
+                        from: "admindepartments",
+                        localField: "departmentObjectId",
+                        foreignField: "_id",
+                        as: "departmentInfo"
+                    }
+                },
                 {
                     $lookup: {
                         from: "adddoctors",
@@ -679,16 +733,20 @@ export const inviteTeamsMembersController = {
                     }
                 }
             ]);
-            // Flatten and add S3 URLs
-            const result = rawData.map((user: WebUserWithDoctorInfo) => {
+
+            const result = rawData.map((
+                user: WebUserWithDoctorInfo & { departmentInfo?: { name?: string }[], departmentObjectId?: string }
+            ) => {
                 const doctor: DoctorType | undefined = user.doctorsInfo?.[0];
+                const departmentName: string = user.departmentInfo?.[0]?.name ?? "Unknown";
 
                 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                const { doctorsInfo, ...userWithoutDoctorsInfo } = user;
+                const { doctorsInfo, departmentInfo, departmentObjectId, ...rest } = user;
 
                 const merged = {
-                    ...userWithoutDoctorsInfo,
+                    ...rest,
                     ...(doctor || {}),
+                    department: departmentName,
                     image: doctor?.image ? `${process.env.CLOUD_FRONT_URI}/${doctor.image}` : undefined,
                     documents: doctor?.documents?.map(doc => ({
                         ...doc,
@@ -700,7 +758,8 @@ export const inviteTeamsMembersController = {
             });
 
 
-            const response = convertToFhirTeamMembers(result as []);;
+
+            const response = convertToFhirTeamMembers(result as []);
             res.status(200).json({ message: "Fetched Successfully", response });
         } catch (error) {
             console.error("Error fetching practice team list:", error);
@@ -708,35 +767,67 @@ export const inviteTeamsMembersController = {
         }
     },
 
-    getDepartmentForInvite: async (req: Request, res: Response) => {
+    getDepartmentForInvite: async (req: Request, res: Response): Promise<void> => {
         try {
             const { userId } = req.query as { userId: string };
 
-            if (!/^[a-fA-F0-9-]{36}$/.test(userId)) {
-                res.status(400).json({ message: "Invalid userId format" });
+            if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+                res.status(400).json({ message: 'Invalid userId format' });
                 return;
             }
 
-            const departments: DepartmentsForInvite[] = await Department.find(
-                { bussinessId: userId },
-                { _id: 1, departmentName: 1 }
-            );
+            let departmentIds: string[] = [];
 
+            // Step 1: Try to find in profileData using userId
+            const profile = await ProfileData.findOne({ userId });
+
+            if (profile && Array.isArray(profile.addDepartment)) {
+                departmentIds = profile.addDepartment;
+            } else {
+                // Step 2: Find user in webUsers to get bussinessId
+                const user = await WebUser.findOne({ cognitoId: userId });
+
+                if (!user || !user.bussinessId) {
+                    res.status(404).json({ message: "User or Business not found" });
+                    return
+                }
+
+                // Step 3: Use bussinessId to get profile and department IDs
+                const businessProfile = await ProfileData.findOne({ userId: user.bussinessId });
+
+                if (!businessProfile || !Array.isArray(businessProfile.addDepartment)) {
+                    res.status(404).json({ message: "No departments found for business" });
+                    return
+                }
+
+                departmentIds = businessProfile.addDepartment;
+            }
+
+            // Step 4: Fetch department details by IDs
+            const departments: DepartmentsForInvite[] = await adminDepartments.find(
+                { _id: { $in: departmentIds } },
+                { _id: 1, name: 1 }
+            );
 
             if (!departments.length) {
                 res.status(404).json({ message: "No departments found." });
-                return;
+                return
             }
-            const data = convertToFhirDepartment(departments)
+
+            const data = convertToFhirDepartment(departments);
+
             res.status(200).json({
                 message: "Departments fetched successfully",
                 data: data as object,
             });
+            return
         } catch (error) {
             console.error("Error fetching departments:", error);
             res.status(500).json({ message: "Internal Server Error" });
+            return
         }
     }
+
 }
 function getSecretHash(email: string,) {
     const clientId = process.env.COGNITO_CLIENT_ID_WEB;
