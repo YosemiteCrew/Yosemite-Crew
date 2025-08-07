@@ -65,6 +65,7 @@ type SignUpProps = {
   inviteCode?: string
 };
 function SignUp({ inviteCode }: SignUpProps) {
+  console.log("inviteCode",inviteCode)
   const router = useRouter();
   //role
   const [selectedType, setSelectedType] = useState("");
