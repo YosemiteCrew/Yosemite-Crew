@@ -31,8 +31,9 @@ function ManageInviteTable() {
   const [department, setDepartment] = useState(""); // id
   const [selectedDepartmentName, setSelectedDepartmentName] = useState("Specialization"); // label
 
-  const [departmentOptions, setDepartmentOptions] = useState<{ value: string; label: string }[]>([])
-
+const [departmentOptions, setDepartmentOptions] = useState<{ value: string; label: string }[]>([
+    { value: "", label: "All" },
+  ]);
   // ✅ Fetch invites (reusable)
   const getInvites = async (): Promise<void> => {
     try {
@@ -145,7 +146,7 @@ function ManageInviteTable() {
             value: dept._id,
             label: dept.name
           }));
-          setDepartmentOptions(departments);
+          setDepartmentOptions([{ value: "", label: "All" }, ...departments]);
         } else {
           Swal.fire({ icon: "error", title: "Error", text: "Failed to fetch departments." });
         }
@@ -267,7 +268,7 @@ function ManageInviteTable() {
                 <Dropdown.Item eventKey="">All</Dropdown.Item>
                 <Dropdown.Item eventKey="pending">Pending</Dropdown.Item>
                 <Dropdown.Item eventKey="accepted">Accepted</Dropdown.Item>
-                <Dropdown.Item eventKey="expire">Expire</Dropdown.Item>
+                <Dropdown.Item eventKey="expired">Expire</Dropdown.Item>
               </Dropdown.Menu>
             </Dropdown>
           </div>

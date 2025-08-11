@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 
-import { webAppointments } from "../models/WebAppointment";
+import { webAppointments } from "../models/web-appointment";
 // import Department from "../models/AddDepartment";
 // import AddDoctors from "../models/AddDoctor";
 // import { ProfileData } from "../models/WebUser";

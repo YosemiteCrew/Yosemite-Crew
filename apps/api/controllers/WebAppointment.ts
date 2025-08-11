@@ -2,9 +2,13 @@
 import { Request, Response } from "express";
 import pets from "../models/pet.model";
 import AppUser from "../models/appuser-model";
-import { IUser, pets as Ipet, NormalPetData } from "@yosemite-crew/types";
-import { convertPetDataToFhir } from "@yosemite-crew/fhir";
+import { FHIRSlotBundle, IUser, pets as Ipet, NormalPetData, WebAppointmentType ,FHIRAppointmentBooking} from "@yosemite-crew/types";
+import { convertFHIRToAppointment, convertPetDataToFhir, convertTimeSlotsToFHIR, convertToFHIRDoctorOptions } from "@yosemite-crew/fhir";
 import { OperationOutcome, SearchPetsRequestBody } from "@yosemite-crew/types/dist/web-appointments-types/web-appointments";
+import { ProfileData, WebUser } from "../models/WebUser";
+import AddDoctors from "../models/AddDoctor";
+import { AppointmentsToken, webAppointments } from "../models/web-appointment";
+import { DoctorsTimeSlotes, UnavailableSlot } from "../models/doctors.slotes.model";
 
 // const { json } = require('body-parser');
 // import DoctorsTimeSlotes from "../models/doctors.slotes.model";
@@ -150,311 +154,361 @@ const webAppointmentController = {
       };
       res.status(500).json(errorResponse);
     }
+  },
+
+
+  getDoctorsByDepartmentId: async (req: Request, res: Response) => {
+    try {
+      const { userId, departmentId } = req.query as { userId: string, departmentId: string };
+
+      // Step 1: Get business ID from WebUser
+      const user = await WebUser.findOne({ cognitoId: userId }).select("bussinessId -_id");
+      if (!user || !user.bussinessId) {
+        res.status(404).json({ message: "Business ID not found for user." });
+        return
+      }
+
+      // Step 2: Find all vets under the same business
+      const vetUsers = await WebUser.find({
+        bussinessId: user.bussinessId,
+        department: departmentId,
+        role: "vet",
+      }).select("cognitoId -_id");
+
+      const vetIds = vetUsers.map((v) => v.cognitoId);
+      if (vetIds.length === 0) {
+        res.status(200).json({ message: "No vets found.", data: [] });
+        return
+      }
+
+      // Step 3: Find doctor profile data
+      const allDoctors = await AddDoctors.find({ userId: { $in: vetIds }, status: "On-Duty" }).select("firstName lastName userId -_id");
+
+      // Step 4: Format response as { label, value }
+      const formattedDoctors = allDoctors.map((doc) => ({
+        label: `${doc.firstName} ${doc.lastName}`,
+        value: doc.userId,
+      }));
+
+      res.status(200).json({
+        message: "Fetched doctors successfully",
+
+        data: convertToFHIRDoctorOptions(formattedDoctors)
+      });
+      return
+    } catch (error) {
+      console.error("Error fetching doctors by department ID:", error);
+      res.status(500).json({
+        message: "Internal server error",
+        error: (error as Error).message,
+      });
+      return
+    }
+  },
+
+  createWebAppointment: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const {
+        petName,
+        ownerName,
+        passportNumber,
+        microChipNumber,
+        purposeOfVisit,
+        appointmentType,
+        department,
+        veterinarian,
+        appointmentDate,
+        // appointmentTime,
+        day,
+        slotsId, // This is the slot ID from frontend
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+      } = convertFHIRToAppointment( req.body as FHIRAppointmentBooking) as WebAppointmentType;
+
+      // Validate appointmentDate format (YYYY-MM-DD)
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(appointmentDate)) {
+        res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [{
+            severity: "error",
+            code: "invalid",
+            details: { text: "appointmentDate must be in YYYY-MM-DD format." },
+          }],
+        });
+        return
+      }
+
+      // Get hospital info from user
+      const user = await WebUser.findOne({cognitoId:veterinarian});
+      if (!user || !user.bussinessId) {
+        res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [{
+            severity: "error",
+            code: "not-found",
+            details: { text: "User or hospital information not found." },
+          }],
+        });
+        return
+      }
+
+      // Get hospital details
+      const hospital = await ProfileData.findOne({ userId: user.bussinessId });
+      if (!hospital) {
+        res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [{
+            severity: "error",
+            code: "not-found",
+            details: { text: "Hospital information not found." },
+          }],
+        });
+        return
+      }
+     const existingAppointment = await webAppointments.findOne({
+        veterinarian,
+        appointmentDate,
+        slotsId,
+        status: { $ne: 'cancelled' } // Only check non-cancelled appointments
+      });
+
+      if (existingAppointment) {
+         res.status(409).json({ // 409 Conflict
+          resourceType: "OperationOutcome",
+          issue: [{
+            severity: "error",
+            code: "duplicate",
+            details: { 
+              text: "An appointment already exists for this time slot.",
+              existingAppointment: existingAppointment
+            },
+          }],
+        });
+        return
+      }
+      // Get the slot details
+      const slot = await DoctorsTimeSlotes.findOne(
+
+        { 'timeSlots._id': slotsId },
+        { 'timeSlots.$': 1 }
+      );
+
+      if (!slot || !slot.timeSlots || slot.timeSlots.length === 0) {
+        res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [{
+            severity: "error",
+            code: "not-found",
+            details: { text: "Selected time slot not found." },
+          }],
+        });
+        return
+      }
+     
+      const timeSlot = slot.timeSlots[0];
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const timeSlot24 = slot.timeSlots[0].time24
+  
+const initials = hospital.businessName
+        ? hospital.businessName.split(" ")
+            .map((word: string) => word[0])
+            .join("")
+        : "XX";
+const Appointmenttoken = await AppointmentsToken.findOneAndUpdate(
+    { hospitalId:hospital.userId, appointmentDate },
+    {
+      $inc: { tokenCounts: 1 },
+      $setOnInsert: { appointmentDate }, // Ensure appointmentDate is set in the new document
+    },
+    { new: true, upsert: true, setDefaultsOnInsert: true }
+  );
+      const tokenNumber = `${initials}00${Appointmenttoken.tokenCounts}-${appointmentDate}`;
+
+      // Create the appointment
+      const newAppointment = await webAppointments.create({
+        hospitalId: user.bussinessId,
+        tokenNumber,
+        ownerName,
+        petName,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        passportNumber,
+        microChipNumber,
+        purposeOfVisit,
+        appointmentType,
+        appointmentSource: 'web',
+        department,
+        veterinarian,
+        appointmentDate,
+        day,
+        appointmentTime: timeSlot.time,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        appointmentTime24:timeSlot24,
+        slotsId: slotsId,
+        status: 'booked'
+      });
+
+      res.status(200).json({
+        resourceType: "OperationOutcome",
+        status: "success",
+        issue: [{
+          severity: "information",
+          code: "informational",
+          details: {
+            text: "Appointment created successfully",
+            appointment: newAppointment,
+            tokenNumber
+          },
+        }],
+      });
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      console.error("Error in createWebAppointment:", error);
+      res.status(500).json({
+        resourceType: "OperationOutcome",
+        issue: [{
+          severity: "error",
+          code: "exception",
+          details: {
+            text: "Internal server error while creating appointment.",
+            diagnostics: errorMessage,
+          },
+        }],
+      });
+    }
+  },
+  getDoctorsSlotes: async (req: Request, res: Response): Promise<void> => {
+    interface TimeSlot {
+      toObject(): unknown[];
+      _id: string;
+      time: string;
+      selected?: boolean;
+      // Add other properties if they exist in your timeSlots
+    }
+
+    interface ForBookingTimeSlot extends TimeSlot {
+      selected: boolean;
+    }
+
+    interface UnavailableSlotDocument {
+      userId: string;
+      date: string;
+      day: string;
+      slots: string[];
+    }
+
+    interface DoctorsTimeSlotesDocument {
+      userId: string;
+      day: string;
+      timeSlots: TimeSlot[];
+    }
+
+    interface WebAppointment {
+      veterinarian: string;
+      appointmentDate: string;
+      slotsId: string;
+    }
+
+    try {
+      const { userId, day, date } = req.query as {
+        userId?: string;
+        day?: string;
+        date?: string;
+      };
+
+      // ========= VALIDATION =========
+      if (!userId || !day || !date) {
+        const missingParams: string[] = [];
+        if (!userId) missingParams.push("userId");
+        if (!day) missingParams.push("day");
+        if (!date) missingParams.push("date");
+
+        res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "information",
+              code: "informational",
+              details: { text: `Missing required parameter(s): ${missingParams.join(", ")}` },
+            },
+          ],
+        });
+        return;
+      }
+
+      // UUID format validation
+      if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        res.status(400).json({ message: "Invalid doctorId format" });
+        return;
+      }
+
+      const validDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+      if (!validDays.includes(day)) {
+        res.status(400).json({ message: "Invalid day value" });
+        return;
+      }
+
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        res.status(400).json({ message: "Invalid date format. Expected YYYY-MM-DD" });
+        return;
+      }
+
+      // ========= STEP 1: FETCH UNAVAILABLE SLOTS =========
+      const unavailableRecord: UnavailableSlotDocument | null = await UnavailableSlot.findOne({ userId: userId, date, day });
+      const unavailableTimes: string[] = unavailableRecord ? unavailableRecord.slots : [];
+
+      // ========= STEP 2: FETCH BOOKED SLOTS =========
+      const bookedSlots: WebAppointment[] = await webAppointments.find({
+        veterinarian: userId,
+        appointmentDate: date,
+      });
+      const bookedSlotIds: string[] = bookedSlots.map((slot: WebAppointment) => slot.slotsId.toString());
+
+      // ========= STEP 3: FETCH DOCTOR'S SLOTS =========
+      const doctorTimeSlot: DoctorsTimeSlotesDocument | null = await DoctorsTimeSlotes.findOne({ doctorId: userId, day }, { "timeSlots.time24": 0 });
+      if (!doctorTimeSlot) {
+        res.status(200).json({
+          message: "No slots found for this doctor/day",
+          timeSlots: [],
+        });
+        return;
+      }
+
+      // ========= STEP 4: REMOVE UNAVAILABLE =========
+      const filteredSlots: TimeSlot[] = doctorTimeSlot.timeSlots
+        .filter((slot: TimeSlot) => !unavailableTimes.includes(slot.time));
+
+      // ========= STEP 5: UPDATE selected IF BOOKED =========
+      const updatedTimeSlots: ForBookingTimeSlot[] | object = filteredSlots.map((slot: TimeSlot) => {
+        const isBooked = bookedSlotIds.includes(slot._id.toString());
+
+        return {
+          ...slot.toObject(),
+          selected: isBooked ? true : slot.selected || false,
+        };
+      }) as object;
+      const FhirData = convertTimeSlotsToFHIR(updatedTimeSlots as []);
+
+      // ========= STEP 6: RETURN =========
+      res.status(200).json({
+        message: "Data fetched successfully",
+        timeSlots: FhirData as FHIRSlotBundle,
+      });
+
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      res.status(500).json({
+        resourceType: "OperationOutcome",
+        issue: [
+          {
+            severity: "error",
+            code: "exception",
+            details: { text: errorMessage },
+          },
+        ],
+      });
+    }
   }
 
-
-  //   createWebAppointment:async (req: Request, res: Response): Promise<void> => {
-  //   try {
-  //     console.log("Raw FHIR Data:", JSON.stringify(req.body, null, 2));
-
-  //     const fhirConverter = new FHIRToNormalConverter(req.body);
-  //     const normalData = fhirConverter.convertToNormal() as NormalizedAppointment;
-
-  //     console.log("Converted Data:", normalData);
-
-  //     const {
-  //       hospitalId,
-  //       HospitalName,
-  //       ownerName,
-  //       phone,
-  //       addressline1,
-  //       street,
-  //       city,
-  //       state,
-  //       zipCode,
-  //       petName,
-  //       petAge,
-  //       petType,
-  //       gender,
-  //       breed,
-  //       purposeOfVisit,
-  //       appointmentType,
-  //       appointmentSource,
-  //       department,
-  //       veterinarian,
-  //       appointmentDate,
-  //       day,
-  //       timeSlots,
-  //     } = normalData;
-
-  //     // Validate required fields
-  //     if (!hospitalId || !HospitalName || !ownerName || !appointmentDate) {
-  //       console.error("Missing required fields:", { hospitalId, HospitalName, ownerName, appointmentDate });
-  //       res.status(400).json({
-  //         resourceType: "OperationOutcome",
-  //         issue: [
-  //           {
-  //             severity: "error",
-  //             code: "required",
-  //             details: { text: "Required fields are missing: hospitalId, HospitalName, ownerName, and appointmentDate are required." },
-  //           },
-  //         ],
-  //       });
-  //       return;
-  //     }
-
-  //     // Validate appointmentDate format (YYYY-MM-DD)
-  //     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-  //     if (!dateRegex.test(appointmentDate)) {
-  //       res.status(400).json({
-  //         resourceType: "OperationOutcome",
-  //         issue: [
-  //           {
-  //             severity: "error",
-  //             code: "invalid",
-  //             details: { text: "appointmentDate must be in YYYY-MM-DD format." },
-  //           },
-  //         ],
-  //       });
-  //       return;
-  //     }
-
-  //     // Validate timeSlots
-  //     if (!timeSlots || !Array.isArray(timeSlots) || timeSlots.length === 0 || !timeSlots[0]?.time) {
-  //       res.status(400).json({
-  //         resourceType: "OperationOutcome",
-  //         issue: [
-  //           {
-  //             severity: "error",
-  //             code: "invalid",
-  //             details: { text: "timeSlots must be a non-empty array with at least one valid time slot." },
-  //           },
-  //         ],
-  //       });
-  //       return;
-  //     }
-
-  //     // Convert time to 12-hour and 24-hour formats
-
-
-  //     const initials = HospitalName
-  //       ? HospitalName.split(" ")
-  //           .map((word: string) => word[0])
-  //           .join("")
-  //       : "XX";
-  //     console.log("Normaldata", initials, appointmentDate);
-
-  //     // Create or update token for the hospital and date
-  //     // Explicitly set appointmentDate in the new document during upsert
-  //  // In your createWebAppointment function
-  // const Appointmenttoken = await AppointmentsToken.findOneAndUpdate(
-  //   { hospitalId, appointmentDate },
-  //   {
-  //     $inc: { tokenCounts: 1 },
-  //     $setOnInsert: { appointmentDate }, // Ensure appointmentDate is set in the new document
-  //   },
-  //   { new: true, upsert: true, setDefaultsOnInsert: true }
-  // );
-
-  //     console.log("Normaldata", initials, Appointmenttoken);
-
-  //     const tokenCounts = Appointmenttoken?.tokenCounts ?? 1;
-  //     const tokenNumber = `${initials}00${tokenCounts}-${appointmentDate}`;
-  //     console.log("Generated Token Number:", tokenNumber);
-
-  //     const response = await webAppointments.create({
-  //       hospitalId,
-  //       tokenNumber,
-  //       ownerName,
-  //       phone,
-  //       addressline1,
-  //       street,
-  //       city,
-  //       state,
-  //       zipCode,
-  //       petName,
-  //       petAge,
-  //       petType,
-  //       gender,
-  //       breed,
-  //       purposeOfVisit,
-  //       appointmentType,
-  //       appointmentSource,
-  //       department,
-  //       veterinarian,
-  //       appointmentDate,
-  //        appointmentTime: timeSlots?.[0]?.time || "",
-  //         day,
-  //         appointmentTime24: timeSlots?.[0]?.time24 || "",
-  //         slotsId: timeSlots?.[0]?._id || "",
-  //     });
-
-  //     if (response) {
-  //       res.status(200).json({
-  //         resourceType: "OperationOutcome",
-  //         status: "success",
-  //         issue: [
-  //           {
-  //             severity: "information",
-  //             code: "informational",
-  //             details: {
-  //               text: "Appointment created successfully",
-  //             },
-  //           },
-  //         ],
-  //         data: response,
-  //       });
-  //       return;
-  //     }
-
-  //     res.status(400).json({
-  //       resourceType: "OperationOutcome",
-  //       issue: [
-  //         {
-  //           severity: "error",
-  //           code: "bad",
-  //           details: { text: "Appointment creation failed" },
-  //         },
-  //       ],
-  //     });
-  //   } catch (error: any) {
-  //     console.error("Error in createWebAppointment:", error);
-  //     res.status(500).json({
-  //       resourceType: "OperationOutcome",
-  //       issue: [
-  //         {
-  //           severity: "error",
-  //           code: "exception",
-  //           details: {
-  //             text: "Internal server error while creating appointment.",
-  //           },
-  //           diagnostics: error.message,
-  //         },
-  //       ],
-  //     });
-  //   }
-  // },
-
-  //   getDoctorsSlotes: async (req: Request, res: Response): Promise<void> => {
-  //   try {
-  //     const { doctorId, day, date } = req.query.params as {
-  //       doctorId?: string;
-  //       day?: string;
-  //       date?: string;
-  //     };
-  //     // Validation checks
-  //     if (!doctorId) {
-  //        res.status(400).json({
-  //         resourceType: 'OperationOutcome',
-  //         issue: [
-  //           {
-  //             severity: 'information',
-  //             code: 'informational',
-  //             details: { text: 'Missing required parameter: doctorId' },
-  //           },
-  //         ],
-  //       });
-  //     }
-
-  //     if (!day) {
-  //        res.status(400).json({
-  //         resourceType: 'OperationOutcome',
-  //         issue: [
-  //           {
-  //             severity: 'information',
-  //             code: 'informational',
-  //             details: { text: 'Missing required parameter: day' },
-  //           },
-  //         ],
-  //       });
-  //     }
-
-  //     if (!date) {
-  //        res.status(400).json({
-  //         resourceType: 'OperationOutcome',
-  //         issue: [
-  //           {
-  //             severity: 'information',
-  //             code: 'informational',
-  //             details: { text: 'Missing required parameter: date' },
-  //           },
-  //         ],
-  //       });
-  //     }
-
-  //     // doctorId format validation (UUID v4)
-  //     if (typeof doctorId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(doctorId)) {
-  //        res.status(400).json({ message: 'Invalid doctorId format' });
-  //     }
-
-  //     const validDays = [
-  //       'Monday',
-  //       'Tuesday',
-  //       'Wednesday',
-  //       'Thursday',
-  //       'Friday',
-  //       'Saturday',
-  //       'Sunday',
-  //     ];
-
-  //     if (typeof day !== 'string' || !validDays.includes(day)) {
-  //        res.status(400).json({ message: 'Invalid day value' });
-  //     }
-
-  //     if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-  //        res
-  //         .status(400)
-  //         .json({ message: 'Invalid date format. Expected YYYY-MM-DD' });
-  //     }
-
-  //     const bookedSlots = await webAppointments.find({
-  //       veterinarian: doctorId,
-  //       appointmentDate: date,
-  //     });
-
-  //     const doctorTimeSlot = await DoctorsTimeSlotes.findOne({ doctorId, day });
-  //   console.log("kjjjjkjkjkjkjkjkj",doctorTimeSlot);
-  //     if (doctorTimeSlot) {
-  //       const filteredSlots = doctorTimeSlot.timeSlots.filter(
-  //         (slot: any) => slot.selected === true
-  //       );
-
-  //       const bookedSlotIds = bookedSlots.map((slot: any) =>
-  //         slot.slotsId.toString()
-  //       );
-
-  //       const updatedTimeSlots = filteredSlots.map((slot: any) => ({
-  //         ...slot.toObject(),
-  //         isBooked: bookedSlotIds.includes(slot._id.toString()),
-  //       }));
-
-  //       const fhirConverter = new FHIRSlotConverter(updatedTimeSlots, doctorId, null, date);
-  //       const fhirBundle = fhirConverter.convertToFHIRBundle();
-
-  //        res.status(200).json({
-  //         message: 'Data fetched successfully',
-  //         timeSlots: fhirBundle,
-  //       });
-  //     } else {
-  //        res.status(200).json({
-  //         message: 'Data fetch Failed',
-  //         timeSlots: [],
-  //       });
-  //     }
-  //   } catch (error: any) {
-  //      res.status(500).json({
-  //       resourceType: 'OperationOutcome',
-  //       issue: [
-  //         {
-  //           severity: 'error',
-  //           code: 'exception',
-  //           details: {
-  //             text: error.message,
-  //           },
-  //         },
-  //       ],
-  //     });
-  //   }}
-};
+}
 
 export default webAppointmentController;

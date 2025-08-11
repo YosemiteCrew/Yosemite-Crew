@@ -177,11 +177,6 @@ function PracticeTeam() {
                     </Row>
                   );
                 })}
-
-
-
-
-
             </div>
           ) : (
             <div className="ManageInvitesDiv">
