@@ -8,7 +8,7 @@ import { validateFHIR } from "../Fhirvalidator/FhirValidator";
 import { S3 } from "aws-sdk";
 
 import DoctorsTimeSlotes from "../models/doctors.slotes.model";
-import { webAppointments } from "../models/WebAppointment";
+import { webAppointments } from "../models/web-appointment";
 import { Request, Response } from "express";
 import { Document, convertFromFhirVetProfile, convertToFhirVetProfile } from "@yosemite-crew/fhir";
 import { ConvertToFhirVetProfileParams } from "@yosemite-crew/types";
@@ -231,28 +231,28 @@ const AddDoctorsController = {
   //     });
   //   }
   // },
-  getForAppDoctorsBySpecilizationId: async (req, res) => {
-    try {
-      const { userId, value } = req.query.params;
+  // getForAppDoctorsBySpecilizationId: async (req, res) => {
+  //   try {
+  //     const { userId, value } = req.query.params;
 
-      const doctors = await AddDoctors.find({
-        "professionalBackground.specialization": { $exists: true, $eq: value },
-        bussinessId: { $exists: true, $eq: userId },
-      }).select("userId personalInfo.firstName personalInfo.lastName");
+  //     const doctors = await AddDoctors.find({
+  //       "professionalBackground.specialization": { $exists: true, $eq: value },
+  //       bussinessId: { $exists: true, $eq: userId },
+  //     }).select("userId personalInfo.firstName personalInfo.lastName");
 
-      if (!doctors || doctors.length === 0) {
-        return res
-          .status(404)
-          .json({ message: "No doctors found for this specialization" });
-      }
+  //     if (!doctors || doctors.length === 0) {
+  //       return res
+  //         .status(404)
+  //         .json({ message: "No doctors found for this specialization" });
+  //     }
 
-      return res.status(200).json(doctors);
-    } catch (error) {
-      console.error("Error fetching doctors by specialization ID:", error);
+  //     return res.status(200).json(doctors);
+  //   } catch (error) {
+  //     console.error("Error fetching doctors by specialization ID:", error);
 
-      return res.status(500).json({ message: "Internal server error", error });
-    }
-  },
+  //     return res.status(500).json({ message: "Internal server error", error });
+  //   }
+  // },
   getDoctorsBySpecilizationId: async (req, res) => {
     try {
       const { id } = req.params;

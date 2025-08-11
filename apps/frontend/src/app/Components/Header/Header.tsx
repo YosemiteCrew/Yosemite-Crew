@@ -116,6 +116,7 @@ const LoggedInHeader = () => {
     if (input instanceof File) return URL.createObjectURL(input);
     return logoUrl;
   }
+
   function getDashboardRoute() {
     switch (userType) {
       case "veterinaryBusiness":
@@ -124,10 +125,21 @@ const LoggedInHeader = () => {
       case "petSitter":
       case "groomerShop":
         return "/DoctorDashboard";
+      case "vet":
+        return "/DoctorDashboard";
+      case "vetTechnician":
+        return "/DoctorDashboard";
+      case "nurse":
+        return "/DoctorDashboard";
+      case "vetAssistant":
+        return "/DoctorDashboard";
+      case "receptionist":
+        return "/DoctorDashboard";
       default:
         return "/businessDashboard";
     }
-  };
+  }
+
   const imageSrc = getImageUrl(
     roles.includes(userType as string)
       ? vetAndTeamsProfile?.image
@@ -187,7 +199,14 @@ const LoggedInHeader = () => {
       })}
     </ul>
   );
-
+  const getDisplayName = () => {
+    if (roles.includes(userType as string)) {
+      const first = vetAndTeamsProfile?.name?.firstName ?? "";
+      const last = vetAndTeamsProfile?.name?.lastName ?? "";
+      return `${first} ${last}`.trim() || "Complete Your Profile";
+    }
+    return profile?.name?.businessName ?? "Complete Your Profile";
+  };
   return (
     <div className="container-fluid container-xl d-flex align-items-center justify-content-between">
       <Link href="/" className="logo d-flex align-items-center me-auto me-lg-0">
@@ -219,9 +238,7 @@ const LoggedInHeader = () => {
                 <div className="userHostDiv">
                   <div className="userName">
                     <p>
-                      {roles.includes(userType as string)
-                        ? `${vetAndTeamsProfile?.name.firstName} ${vetAndTeamsProfile?.name.lastName}`
-                        : profile?.name?.businessName}
+                      {getDisplayName()}
                     </p>
                     <FaCaretDown />
                   </div>

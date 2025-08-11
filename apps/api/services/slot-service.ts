@@ -1,6 +1,6 @@
 import moment from 'moment-timezone';
 import DoctorsTimeSlots from '../models/doctors.slotes.model';
-import { webAppointments } from "../models/WebAppointment";
+import { webAppointments } from "../models/web-appointment";
 import { createFHIRSlot } from '../utils/fhirUtils';
 import {
   GetTimeSlotsInput,
