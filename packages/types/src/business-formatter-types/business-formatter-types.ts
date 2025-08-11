@@ -16,6 +16,7 @@ export interface ProfileData {
     website: string;
     selectedServices: Service[];
     logo?: string;
+    image?:String;
 }
 export interface Organization {
     cognitoId: string;

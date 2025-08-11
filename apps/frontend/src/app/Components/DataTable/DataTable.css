@@ -417,3 +417,24 @@
 .table-footerBtn {
     margin-top: 20px;
 }
+
+
+/* All Apointment table Started  */
+
+.TableTopTexed{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.TableTopTexed .LeftTopTbl h3{
+  margin: 0;
+  font-family: var(--grotesk-font);
+  font-weight: 500;
+  font-size: 33px;
+  line-height: 120%;
+  color: var(--black-text);
+}
+
+
+
+/* All Apointment table Ended */

@@ -1,5 +1,5 @@
 'use client';
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./CompleteProfile.css";
 import { countries } from "country-list-json";
 import { Button, Col, Container, Form, Nav, Row, Tab } from "react-bootstrap";
@@ -11,12 +11,11 @@ import { FormInput } from "../Sign/SignUp";
 import DynamicSelect from "@/app/Components/DynamicSelect/DynamicSelect";
 import Image from "next/image";
 
-import axios from "axios";
-import { postData } from "@/app/axios-services/services";
-import { toFHIRBusinessProfile } from "@yosemite-crew/fhir"
+import { getData, postData } from "@/app/axios-services/services";
+import { convertFHIRToAdminDepartments, toFHIRBusinessProfile } from "@yosemite-crew/fhir"
 import { useAuthStore } from "@/app/stores/authStore";
 import { useRouter } from "next/navigation";
-
+import { LoadScript, Autocomplete } from "@react-google-maps/api";
 
 type Option = {
   value: string;
@@ -31,33 +30,34 @@ const servicesList = [
   { code: "B001", display: "Dental Clinic" },
 ];
 
-const servicesList1 = [
-  { code: "E001", display: "Internal Medicine" },
-  { code: "S001", display: "Surgery" },
-  { code: "V001", display: "Pain Management" },
-  { code: "D001", display: "Parasitology" },
-  { code: "B001", display: "Behavioural Therapy" },
-];
+// const servicesList1 = [
+//   { code: "E001", display: "Internal Medicine" },
+//   { code: "S001", display: "Surgery" },
+//   { code: "V001", display: "Pain Management" },
+//   { code: "D001", display: "Parasitology" },
+//   { code: "B001", display: "Behavioural Therapy" },
+// ];
 
 
 function CompleteProfile() {
-  const { userId,profile } = useAuthStore();
+  const { userId, profile } = useAuthStore();
+  const autoCompleteRef: any = useRef("");
   const router = useRouter();
-
+  //  console.log(profile,222222)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isDropdownOpen1, setIsDropdownOpen1] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [searchTerm1, setSearchTerm1] = useState("");
-  const [key, setKey] = useState("business");
+  const [key, setKey] = useState<string>("business");
   const [image, setImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const sanitizedPreview = previewUrl;
-  const [progress, setProgress] = useState(0);
+  const [progress, setProgress] = useState<number>(0);
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [addDepartment, setAddDepartment] = useState<string[]>([]);
   const [departmentFeatureActive, setdepartmentFeatureActive] = useState("");
   const [country, setCountry] = useState<string>("");
-
+  const [servicesList1, setServicesList1] = useState([{code:"",display:""}])
   const [name, setName] = useState({
     userId: "",
     businessName: "",
@@ -65,16 +65,16 @@ function CompleteProfile() {
     registrationNumber: "",
     city: "",
     state: "",
-    area: "", 
+    area: "",
     addressLine1: "",
     latitude: "",
-    longitude:"",
+    longitude: "",
     postalCode: "",
     phoneNumber: ""
   });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [showValidation, setShowValidation] = useState(false);
-
+  // console.log("name", name)
   useEffect(() => {
     if (userId && name.userId !== userId) {
       setName(prev => ({ ...prev, userId }));
@@ -82,73 +82,49 @@ function CompleteProfile() {
   }, [userId, name.userId]);
 
 useEffect(()=>{
-  if(profile){
-    setName({
-      userId: "",
-    businessName:profile?.name?.businessName|| "",
-    website:profile?.name?.website|| "",
-    registrationNumber:profile?.name?.registrationNumber|| "",
-    city:profile?.name?.city|| "",
-    state: profile?.name?.state||"",
-    area:profile?.name?.area|| "", 
-    addressLine1:profile?.name?.addressLine1 || "",
-    latitude:profile?.name?.latitude || "",
-    longitude:profile?.name?.latitude || "",
-    postalCode:profile?.name?.postalCode|| "",
-    phoneNumber:profile?.name?.phoneNumber|| ""
-    })
-    setCountry(profile?.name?.country as string)
-    setAddDepartment(profile?.addDepartment)
-    setSelectedServices(profile.selectedServices)
-    setdepartmentFeatureActive(profile.departmentFeatureActive)
+  const getDpartments = async()=>{
+  try {
+    const data = await getData(`/api/auth/getDepartmentsList`)
+    if (data){
+      const response:any = data.data
+      const DepData = convertFHIRToAdminDepartments(response.data)
+      setServicesList1(DepData.map((v)=>({
+        code:v._id,
+        display:v.name
+      })))
+    }
+  } catch (error) {
+    console.error(error)
   }
-},[profile])
-console.log(addDepartment)
+}
+getDpartments()
+},[])
 
-  // const calculateProgress = ({
-  //   name,
-  //   country,
-  //   image,
-  //   selectedServices,
-  //   addDepartment,
-  // }: {
-  //   name: typeof name ;
-  //   country: string;
-  //   image: File | null;
-  //   selectedServices: string[];
-  //   addDepartment: string[];
-  // }): number => {
-  //   let filled = 0;
+  useEffect(() => {
+    if (profile) {
+      setName({
+        userId: "",
+        businessName: profile?.name?.businessName || "",
+        website: profile?.name?.website || "",
+        registrationNumber: profile?.name?.registrationNumber || "",
+        city: profile?.name?.city || "",
+        state: profile?.name?.state || "",
+        area: profile?.name?.area || "",
+        addressLine1: profile?.name?.addressLine1 || "",
+        latitude: profile?.name?.latitude || "",
+        longitude: profile?.name?.longitude || "",
+        postalCode: profile?.name?.postalCode || "",
+        phoneNumber: profile?.name?.phoneNumber || ""
+      })
+      setCountry(profile?.name?.country as string)
+      setAddDepartment(profile?.addDepartment||"")
+      setSelectedServices(profile.selectedServices)
+      setdepartmentFeatureActive(profile.departmentFeatureActive)
+      setKey(profile.key as string)
+      setProgress(profile.progress as number)
+    }
+  }, [profile])
 
-  //   if (name.businessName) filled++;
-  //   if (name.website) filled++;
-  //   if (name.registrationNumber) filled++;
-  //   if (name.city) filled++;
-  //   if (name.state) filled++;
-  //   if (name.addressLine1) filled++;
-  //   if (name.postalCode) filled++;
-  //   if (name.PhoneNumber) filled++;
-  //   if (country) filled++;
-  //   if (image) filled++;
-  //   if (selectedServices.length > 0) filled++;
-  //   if (addDepartment.length > 0) filled++;
-
-  //   const total = 12;
-  //   const maxProgress = 75;
-
-  //   return Math.round((filled / total) * maxProgress);
-  // };
-
-  // useEffect(() => {
-  //   const newProgress = calculateProgress({
-  //     name,
-  //     country,
-  //     image,
-  //     selectedServices,
-  //     addDepartment,
-  //   });
-  //   setProgress(newProgress);
-  // }, [name, country, image, selectedServices, addDepartment]);
 
 
   const handleBusinessInformation = useCallback((e: { target: { name: string; value: string; }; }) => {
@@ -159,12 +135,12 @@ console.log(addDepartment)
     }));
   }, []);
 
-const handleArea = (selectedOption: string) => {
-  setName((prev) => ({
-    ...prev,
-    area: selectedOption 
-  }));
-};
+  // const handleArea = (selectedOption: any) => {
+  //   setName((prev) => ({
+  //     ...prev,
+  //     area: selectedOption
+  //   }));
+  // };
 
   const Option1: Option[] = useMemo(() =>
     countries.map((v) => ({
@@ -189,10 +165,10 @@ const handleArea = (selectedOption: string) => {
 
   const handleSelectService1 = useCallback((service: { code: string; display: string }) => {
     setAddDepartment((prev) => {
-      const isSelected = prev.includes(service.display);
+      const isSelected = prev.includes(service.code);
       return isSelected
-        ? prev.filter((s) => s !== service.display)
-        : [...prev, service.display];
+        ? prev.filter((s) => s !== service.code)
+        : [...prev, service.code];
     });
   }, []);
 
@@ -220,9 +196,9 @@ const handleArea = (selectedOption: string) => {
   );
 
   const filteredServices1 = useMemo(() =>
-    servicesList1.filter((service) =>
+    servicesList1?.filter((service:any) =>
       service.display.toLowerCase().includes(searchTerm1.toLowerCase())
-    ), [searchTerm1]
+    ), [servicesList1,searchTerm1]
   );
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -252,90 +228,7 @@ const handleArea = (selectedOption: string) => {
     }
   };
 
-  const handleSubmit = async () => {
 
-    const fhirPayload = toFHIRBusinessProfile({
-      name,
-      country,
-      departmentFeatureActive,
-      selectedServices,
-      addDepartment,
-    });
-
-    const formData = new FormData();
-
-    if (image) {
-      formData.append("image", image);
-    }
-
-    formData.append("fhirPayload", JSON.stringify(fhirPayload));
-
-    try {
-      const response = await postData(`/fhir/organization`, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data", // Optional: depends on your `postData` helper
-        },
-      });
-
-     if (response.status === 200) {
-        console.log("Submit successful:", response.data);
-       router.push("/emptydashboard"); // Redirect to dashboard or another page
-      }
-    } catch (error) {
-      console.error("Submit failed:", error);
-    }
-  };
-
-  useEffect(() => {
-    const fetchLocation = async () => {
-      try {
-        const response = await axios.get(
-          `https://maps.googleapis.com/maps/api/geocode/json`,
-          {
-            params: {
-              address: name.postalCode,
-              key: process.env.NEXT_PUBLIC_BASE_GOOGLE_MAPS_API_KEY,
-            },
-          }
-        );
-
-        if (response.data.status === "OK") {
-          const location = response.data.results[0];
-          const { lat, lng } = location.geometry.location;
-          const addressComponents = location.address_components;
-
-          type AddressComponent = {
-            long_name: string;
-            short_name: string;
-            types: string[];
-          };
-
-          const cityObj = addressComponents.find((comp: AddressComponent) =>
-            comp.types.includes("locality")
-          );
-          const stateObj = addressComponents.find((comp: AddressComponent) =>
-            comp.types.includes("administrative_area_level_1")
-          );
-
-          setName((prev) => ({
-            ...prev,
-            city: cityObj?.long_name || "",
-            state: stateObj?.long_name || "",
-            latitude: lat.toString(),
-            longitude: lng.toString(),
-          }));
-        } else {
-          console.error("Location not found:", response.data.status);
-        }
-      } catch (error) {
-        console.error("Error fetching location:", error);
-      }
-    };
-
-    if (name.postalCode.length >= 3) {
-      fetchLocation();
-    }
-  }, [name.postalCode]);
 
   // Validation for each step
   const validateBusiness = () => {
@@ -369,30 +262,151 @@ const handleArea = (selectedOption: string) => {
   // Handler for tab change with validation (no validation on back)
   const handleTabSelect = (nextKey: string) => {
     let stepErrors: { [key: string]: string } = {};
-    // Only validate if moving forward
+
+    // Step validation when moving forward
     if (
       (key === "business" && nextKey === "address") ||
       (key === "address" && nextKey === "service")
     ) {
       if (key === "business") stepErrors = validateBusiness();
       if (key === "address") stepErrors = validateAddress();
+
       if (Object.keys(stepErrors).length > 0) {
         setErrors(stepErrors);
         setShowValidation(true);
-        return; // Prevent tab change
+        return; // Stop tab switch if there are errors
       }
     }
+
+    // Clear errors and move to next tab
     setErrors({});
     setShowValidation(false);
     setKey(nextKey);
-    setProgress(() => {
-      if (nextKey === "business") return 0;
-      if (nextKey === "address") return 25;
-      if (nextKey === "service") return 50;
-      return 75; // Final step
-    });
+
+    // Update progress based on nextKey
+    const progressMap: { [key: string]: number } = {
+      business: 0,
+      address: 33,
+      service: 66,
+      review: 100,
+    };
+
+    setProgress(progressMap[nextKey] ?? 0);
   };
 
+  const handleSubmit = async () => {
+    let stepErrors: { [key: string]: string } = {};
+    if (key === "business") stepErrors = validateBusiness();
+    if (key === "address") stepErrors = validateAddress();
+    if (key === "service") stepErrors = validateService()
+
+    if (Object.keys(stepErrors).length > 0) {
+      setErrors(stepErrors);
+      setShowValidation(true);
+      return; // Stop tab switch if there are errors
+    }
+    const fhirPayload = toFHIRBusinessProfile({
+      name,
+      country,
+      departmentFeatureActive,
+      selectedServices,
+      addDepartment,
+      key,
+      progress: key === "service" ? 100 : progress
+    });
+
+    const formData = new FormData();
+
+    if (image) {
+      formData.append("image", image);
+    }
+
+    formData.append("fhirPayload", JSON.stringify(fhirPayload));
+
+    try {
+      const response = await postData(`/api/auth/organization`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data", // Optional: depends on your `postData` helper
+        },
+      });
+
+      if (response.status === 200) {
+       
+        router.push("/emptydashboard"); // Redirect to dashboard or another page
+      }
+    } catch (error) {
+      console.error("Submit failed:", error);
+    }
+  };
+
+
+  const extractAddressDetails = (place: any) => {
+    const addressResp = {
+      address: "",
+      street: "",
+      area: "", // <-- Added
+      city: "",
+      state: "",
+      postalCode: "", // <-- fixed key to match your `handlePlaceSelect` usage
+      country: "",
+      lat: place.geometry?.location?.lat(),
+      long: place.geometry?.location?.lng(),
+    };
+
+    const address_components = place.address_components || [];
+
+    address_components.forEach((component: any) => {
+      const types = component.types;
+
+      if (types.includes("route")) {
+        addressResp.street = component.long_name;
+      }
+      if (types.includes("sublocality") || types.includes("sublocality_level_1") || types.includes("neighborhood")) {
+        addressResp.area = component.long_name; // <-- Extract area or locality
+      }
+      if (types.includes("locality")) {
+        addressResp.city = component.long_name;
+      }
+      if (types.includes("administrative_area_level_1")) {
+        addressResp.state = component.short_name;
+      }
+      if (types.includes("postal_code")) {
+        addressResp.postalCode = component.long_name;
+      }
+      if (types.includes("country")) {
+        addressResp.country = component.long_name;
+      }
+    });
+
+    return addressResp;
+  };
+
+
+  const libraries: any | [] = ["places"];
+  const handlePlaceSelect = () => {
+    if (autoCompleteRef.current) {
+      const place = autoCompleteRef.current.getPlace();
+      console.log("placesss", place)
+      if (!place || !place.formatted_address) return; // Ensure a valid selection
+
+      const firstPartOfAddress = String(place.formatted_address).split(",")[0]; // Extract first part
+
+      const placeDetails: any = extractAddressDetails(place);
+
+      if (placeDetails) {
+        setName((prevState) => ({
+          ...prevState,
+          addressLine1: firstPartOfAddress, // Set first part of address
+          area: placeDetails.area || "",
+          city: placeDetails.city || "",
+          state: placeDetails.state || "",
+          postalCode: placeDetails.postalCode || "",
+          latitude: placeDetails.lat || "",
+          longitude: placeDetails.long || "",
+        }));
+      }
+    }
+  };
   return (
     <>
       <section className="CompltProfileSec">
@@ -554,6 +568,39 @@ const handleArea = (selectedOption: string) => {
                           <h5>Address</h5>
                           <div className="adrinpt">
                             <Row>
+                              <Col md={12}>
+                                <LoadScript
+                                  googleMapsApiKey={process.env.NEXT_PUBLIC_BASE_GOOGLE_MAPS_API_KEY as string} libraries={libraries}
+                                >
+                                  <Autocomplete
+                                    fields={[
+                                      "geometry",
+                                      "place_id",
+                                      "formatted_address",
+                                      "address_components",
+                                    ]}
+                                    onLoad={(ref) => (autoCompleteRef.current = ref)}
+                                    onPlaceChanged={handlePlaceSelect}
+                                  >
+                                    <FormInput
+                                      intype="text"
+                                      inname="addressLine1"
+                                      value={name.addressLine1}
+                                      inlabel="Address Line 1"
+                                      onChange={handleBusinessInformation}
+                                    />
+                                  </Autocomplete>
+                                </LoadScript>
+
+                                {showValidation && errors.addressLine1 && (
+                                  <div style={{ color: "#b30000", marginTop: 4, fontSize: 13 }}>
+                                    {errors.addressLine1}
+                                  </div>
+                                )}
+                              </Col>
+                            </Row>
+
+                            <Row>
                               <Col md={6}>
                                 <FormInput intype="number" inname="postalCode" value={name.postalCode} inlabel="Postal Code" onChange={handleBusinessInformation} />
                                 {showValidation && errors.postalCode && (
@@ -563,12 +610,12 @@ const handleArea = (selectedOption: string) => {
                                 )}
                               </Col>
                               <Col md={6}>
-                                <DynamicSelect
-                                  options={options}
+                                <FormInput
+                                  intype="text"
                                   value={name.area}
-                                  onChange={handleArea}
-                                  inname="country"
-                                  placeholder="Area"
+                                  onChange={handleBusinessInformation}
+                                  inname="area"
+                                  inlabel="Area"
                                 />
                                 {showValidation && errors.country && (
                                   <div style={{ color: "#b30000", marginTop: 4, fontSize: 13 }}>
@@ -577,16 +624,7 @@ const handleArea = (selectedOption: string) => {
                                 )}
                               </Col>
                             </Row>
-                            <Row>
-                              <Col md={12}>
-                                <FormInput intype="text" inname="addressLine1" value={name.addressLine1} inlabel="Address Line 1" onChange={handleBusinessInformation} />
-                                {showValidation && errors.addressLine1 && (
-                                  <div style={{ color: "#b30000", marginTop: 4, fontSize: 13 }}>
-                                    {errors.addressLine1}
-                                  </div>
-                                )}
-                              </Col>
-                            </Row>
+                            
                             <Row>
                               <Col md={6}>
                                 <FormInput intype="text" inname="city" value={name.city} inlabel="City" onChange={handleBusinessInformation} />
@@ -725,7 +763,7 @@ const handleArea = (selectedOption: string) => {
                                       <input
                                         type="checkbox"
                                         className="form-check-input"
-                                        checked={addDepartment.includes(service.display)}
+                                        checked={addDepartment.includes(service.code)}
                                         onChange={() => handleSelectService1(service)}
                                       />
                                       <p>{service.display}</p>

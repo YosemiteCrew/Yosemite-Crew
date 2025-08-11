@@ -33,7 +33,6 @@ const ErrorTost: React.FC<ErrorTostProps> = ({
   className = "",
   onClose
 }) => {
-
   return (
     <div className={`SignError ${className}`}>
       <Container>
@@ -65,6 +64,7 @@ type SignUpProps = {
   inviteCode?: string
 };
 function SignUp({ inviteCode }: SignUpProps) {
+  console.log("inviteCode",inviteCode)
   const router = useRouter();
   //role
   const [selectedType, setSelectedType] = useState("");
@@ -89,6 +89,7 @@ function SignUp({ inviteCode }: SignUpProps) {
   const setOtpRef = (el: HTMLInputElement | null, idx: number) => {
     otpRefs.current[idx] = el;
   };
+ const setVerified = useAuthStore((state) => state.setVerified);
 
   const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>, idx: number) => {
     const val = e.target.value.replace(/[^0-9]/g, "");
@@ -161,10 +162,10 @@ function SignUp({ inviteCode }: SignUpProps) {
           title: 'Success',
           text: response.data.message,
         });
+        setVerified(true);
         setCode(Array(6).fill(""));
         setShowVerifyModal(false);
         // sessionStorage.setItem('token', response.data.token);
-
         router.push(`/emptydashboard`);
       }
 
