@@ -5,7 +5,8 @@ import GenericTable from '../GenericTable/GenericTable'
 import { Button, Dropdown } from 'react-bootstrap'
 import {  BsThreeDotsVertical } from 'react-icons/bs';
 import Image from 'next/image';
-import { FaCircleCheck, FaEye, FaUser } from 'react-icons/fa6';
+import { FaUser } from 'react-icons/fa6';
+import { Icon } from '@iconify/react/dist/iconify.js';
 
 
 // Define the Column type
@@ -148,7 +149,7 @@ const columns: Column<TodayAppointmentItem>[] = [
       {item.status === "In-progress" ? (
         <Button className="circle-btn done"
           title="Done">
-            <FaCircleCheck size={24} />
+            <Icon icon="carbon:checkmark-filled" width="24" height="24" />
           
         </Button>
       ) : (
@@ -158,7 +159,7 @@ const columns: Column<TodayAppointmentItem>[] = [
           
           onClick={() => console.log("View", item)}
         >
-            <FaEye size={24}/>
+          <Icon icon="solar:eye-bold" width="24" height="24" />
         </Button>
       )}
     </div>

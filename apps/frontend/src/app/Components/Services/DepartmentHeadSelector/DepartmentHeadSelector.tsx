@@ -1,10 +1,14 @@
-import React, { useCallback, useEffect, useMemo, useState} from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import './DepartmentHeadSelector.css';
 import { Form } from 'react-bootstrap';
 import { FaSearch } from "react-icons/fa";
 import Image from 'next/image';
 import { IoMdArrowDropdown, IoMdArrowDropup } from 'react-icons/io';
 import { IoSearchOutline } from 'react-icons/io5';
+import { getData } from '@/app/axios-services/services';
+import { convertFromFhirTeamMembers } from '@yosemite-crew/fhir';
+import { useAuthStore } from '@/app/stores/authStore';
+import { TeamMember } from '@yosemite-crew/types';
 
 interface DepartmentHead {
   code: string;
@@ -14,21 +18,30 @@ interface DepartmentHead {
 
 interface Props {
   onSelectHead: (code: string) => void;
+  Head: string
 }
 
-const departmentHeadsList = [
-  { code: "E001", name: 'Dr. Sarah Mitchell', image: 'https://plus.unsplash.com/premium_photo-1671656349322-41de944d259b?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'  },
-  { code: "E001", name: 'Dr. James Carter',   image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
-  { code: "E001", name: 'Dr. Laura Bennett', image: 'https://plus.unsplash.com/premium_photo-1683121366070-5ceb7e007a97?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
-  { code: "E001", name: 'Dr. Michael Green', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
-  { code: "E001", name: 'Dr. Emily Turner', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
-];
+// const departmentHeadsList = [
+//   { code: "E001", name: 'Dr. Sarah Mitchell', image: 'https://plus.unsplash.com/premium_photo-1671656349322-41de944d259b?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'  },
+//   { code: "E001", name: 'Dr. James Carter',   image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
+//   { code: "E001", name: 'Dr. Laura Bennett', image: 'https://plus.unsplash.com/premium_photo-1683121366070-5ceb7e007a97?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
+//   { code: "E001", name: 'Dr. Michael Green', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
+//   { code: "E001", name: 'Dr. Emily Turner', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
+// ];
 
-const DepartmentHeadSelector: React.FC<Props> = ({ onSelectHead }) => {
+
+
+
+
+
+
+const DepartmentHeadSelector: React.FC<Props> = ({ onSelectHead, Head }) => {
+
+  const { userId } = useAuthStore()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedHead, setSelectedHead] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-
+const [departmentHeadsList, setDepartmentHeadsList] = useState<DepartmentHead[]>([]);
   const toggleDropdown = () => setIsDropdownOpen(!isDropdownOpen);
 
   const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -38,13 +51,43 @@ const DepartmentHeadSelector: React.FC<Props> = ({ onSelectHead }) => {
   const filteredHeads = useMemo(() =>
     departmentHeadsList.filter((head) =>
       head.name.toLowerCase().includes(searchTerm.toLowerCase())
-    ), [searchTerm]
+    ), [searchTerm, departmentHeadsList]
   );
 
   const handleSelectHead = useCallback((head: DepartmentHead) => {
-    setSelectedHead(head.name);
+    // setSelectedHead(head.code);
     onSelectHead(head.code); // ✅ send back code
   }, [onSelectHead]);
+  useEffect(() => {
+    setSelectedHead(Head)
+  }, [Head])
+  useEffect(() => {
+    const getPracticeTeamsList = async () => {
+      try {
+        const response = await getData(`/fhir/v1/practiceTeamsList?userId=${userId}`);
+        if (response.status === 200) {
+
+          const result: any = response.data
+          const { practitioners, roles }: any = result.response;
+          const teamMembers = convertFromFhirTeamMembers(practitioners, roles);
+          // console.log("hello", teamMembers)
+          const data = teamMembers.map((v) => ({
+            code: v._id,
+            name: `Dr. ${v.firstName} ${v.lastName}`,
+            image: v.image
+          }))
+          setDepartmentHeadsList(data)
+        }
+      } catch (error) {
+        console.error("Error fetching practice team list:", error);
+      }
+    };
+
+    getPracticeTeamsList();
+  }, [userId]);
+
+
+
 
   return (
     <div className="Departservices_dropdown">
@@ -73,8 +116,8 @@ const DepartmentHeadSelector: React.FC<Props> = ({ onSelectHead }) => {
           <ul className="services-list">
             {filteredHeads.map((head) => (
               <li
-                key={head.code + head.name}
-                className={`service-item ${selectedHead === head.name ? "selected" : ""}`}
+                key={head.code}
+                className={`service-item ${selectedHead === head.code ? "selected" : ""}`}
               >
                 <label>
                   <div className="doctimg">
@@ -84,7 +127,7 @@ const DepartmentHeadSelector: React.FC<Props> = ({ onSelectHead }) => {
                   <input
                     type="radio"
                     className="form-check-input"
-                    checked={selectedHead === head.name}
+                    checked={selectedHead === head.code}
                     onChange={() => handleSelectHead(head)}
                   />
                 </label>

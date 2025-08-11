@@ -33,6 +33,8 @@ export interface BusinessProfile {
   addDepartment: string[];
   image?:string[]; // URL to the image
   previewUrl?: string;
+  key?:string
+  progress?: number
 };
 
 export interface FhirOrganization {

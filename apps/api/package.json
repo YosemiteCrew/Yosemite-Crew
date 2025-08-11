@@ -27,6 +27,7 @@
     "express-rate-limit": "^7.5.0",
     "fhir": "4.12.0",
     "fhir-validator": "^0.5.1",
+    "google-auth-library": "^10.2.0",
     "jsonwebtoken": "9.0.2",
     "moment": "2.30.1",
     "moment-timezone": "^0.5.48",

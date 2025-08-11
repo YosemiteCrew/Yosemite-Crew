@@ -1,84 +1,72 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import "./Departments.css";
 import ProfileProgressbar from "@/app/Components/ProfileProgressbar/ProfileProgressbar";
-import { Button, Container, FloatingLabel, Form } from "react-bootstrap";
+import { Container, FloatingLabel, Form } from "react-bootstrap";
 import { FormInput } from "../Sign/SignUp";
 import { PhoneInput } from "@/app/Components/PhoneInput/PhoneInput";
 import { HeadText } from "../CompleteProfile/CompleteProfile";
 import ServicesSelection from "@/app/Components/Services/ServicesSelection/ServicesSelection";
 import DepartmentHeadSelector from "@/app/Components/Services/DepartmentHeadSelector/DepartmentHeadSelector";
-import axios from "axios";
-import { postData } from "@/app/axios-services/services";
-import { convertToFHIRDepartment } from "@yosemite-crew/fhir";
-import { useStore } from "zustand";
+import { getData, postData } from "@/app/axios-services/services";
+import { convertDepartmentFromFHIR, convertFHIRToAdminDepartments, convertToFHIRDepartment } from "@yosemite-crew/fhir";
 import { useAuthStore } from "@/app/stores/authStore";
-
-const servicesList = [
-  { code: "E001", display: "Cardiac Health Screenings" },
-  { code: "S001", display: "Echocardiograms" },
-  { code: "V001", display: "Electrocardiograms (ECG)" },
-  { code: "D001", display: "Blood Pressure Monitoring" },
-  { code: "H001", display: "Holter Monitoring" },
-  { code: "G001", display: "Cardiac Catheterization" },
-  { code: "T001", display: "Congenital Heart Disease Management" },
-];
-
-const ConditionsList = [
-  { code: "E001", display: "Congestive Heart Failure" },
-  { code: "S001", display: "Arrhythmias" },
-  { code: "V001", display: "Heart Murmurs" },
-  { code: "D001", display: "Dilated Cardiomyopathy" },
-  { code: "H001", display: "Valvular Heart Disease" },
-  { code: "G001", display: "Pericardial Effusion" },
-  { code: "T001", display: "Myocarditis" },
-];
+import { FillBtn } from "../HomePage/HomePage";
+import { Icon } from "@iconify/react/dist/iconify.js";
+import DynamicSelect from "@/app/Components/DynamicSelect/DynamicSelect";
 
 function AddDepartments() {
   const [progress] = useState(0);
   const [formData, setFormData] = useState({
-    name: "",
+    departmentId: "",
     email: "",
-    description: "",
+    biography: "",
   });
-
+  const [servicesList, setServiceList] = useState([
+    { code: "E001", display: "Cardiac Health Screenings" },
+    { code: "S001", display: "Echocardiograms" },
+    { code: "V001", display: "Electrocardiograms (ECG)" },
+    { code: "D001", display: "Blood Pressure Monitoring" },
+    { code: "H001", display: "Holter Monitoring" },
+    { code: "G001", display: "Cardiac Catheterization" },
+    { code: "T001", display: "Congenital Heart Disease Management" },
+  ]);
   const [countryCode, setCountryCode] = useState("+91");
   const [phone, setPhone] = useState("");
+  const [department, setDepartments] = useState([]);
   const [services, setServices] = useState<string[]>([]);
-  const [conditionsTreated, setConditionsTreated] = useState<string[]>([]);
   const [departmentHeadId, setDepartmentHeadId] = useState<string>("");
-  const [consultationModes, setConsultationModes] = useState<string[]>([]); // like ['in-person', 'virtual']
-  const [loading, setLoading] = useState(false);
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
   const userId = useAuthStore((state: any) => state.userId);
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
+
   // Utility: Validate form before submit
   const validateForm = (): boolean => {
     const errors: { [key: string]: string } = {};
 
-    if (!formData.name.trim()) errors.name = "Department name is required.";
-    if (!formData.description.trim())
-      errors.description = "Description is required.";
+    if (!formData.departmentId.trim()) errors.name = "Department name is required.";
+    if (!formData.biography.trim())
+      errors.biography = "Description is required.";
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email))
+    if (!formData.email.trim()) errors.email = "Email is required.";
+    else if (!emailRegex.test(formData.email))
       errors.email = "Invalid email format.";
 
     const phoneRegex = /^[0-9]{7,15}$/;
-    if (!phoneRegex.test(phone))
+    if (!phone.trim()) errors.phone = "Phone number is required.";
+    else if (!phoneRegex.test(phone))
       errors.phone = "Phone number must be 7–15 digits.";
 
     if (!countryCode) errors.countryCode = "Country code required.";
     if (services.length === 0) errors.services = "Select at least one service.";
-    if (conditionsTreated.length === 0)
-      errors.conditions = "Select at least one condition.";
     if (!departmentHeadId)
       errors.departmentHeadId = "Select a department head.";
-    // if (consultationModes.length === 0) errors.consultationModes = 'Select consultation mode.';
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -90,31 +78,79 @@ function AddDepartments() {
 
     try {
       const fhirPayload = convertToFHIRDepartment({
-        departmentName: formData.name,
-        description: formData.description,
+        departmentId: formData.departmentId,
+        biography: formData.biography,
         email: formData.email,
         phone,
         countrycode: countryCode,
         services,
-        conditionsTreated,
-        consultationModes,
         departmentHeadId,
         bussinessId: userId,
       });
-
-      const res = await postData("/fhir/HealthcareService", fhirPayload);
+      const res = await postData("/api/auth/HealthcareService", fhirPayload);
       if (res.status === 201) {
-        alert("Department added!");
+        alert("Department added or updated!");
       }
     } catch (err: any) {
-      console.error("Failed to add department", err);
+      console.error("Failed to add or update department", err);
       alert(
-        `${err.response?.data?.msg || "An error occurred while adding the department."}`
+        `${err.response?.data?.msg || "An error occurred while adding or updating the department."}`
       );
     }
   };
 
-  console.log(formErrors, "Form Data");
+  useEffect(() => {
+    const getDepartmentData = async () => {
+      if (!formData.departmentId || !userId) return;
+
+      try {
+        const response = await getData(`/api/auth/getDepartmentAllData?Id=${formData.departmentId}&userId=${userId}`);
+        if (response.status === 200) {
+          const data: any = response.data;
+          const fhir = convertDepartmentFromFHIR(data);
+          setFormData({ email: fhir.email || "", biography: fhir.biography || "", departmentId: formData.departmentId });
+          setPhone(fhir.phone || "");
+          setCountryCode(fhir.countrycode || "+91");
+          setDepartmentHeadId(fhir.departmentHeadId || "");
+          const selectedServiceCodes = 
+            Array.isArray(fhir.services)
+              ? fhir.services
+                  .map((serviceCode: string) => 
+                    servicesList.find((s) => s.code === serviceCode)?.code
+                  )
+                  .filter((code): code is string => Boolean(code))
+              : [];
+          setServices(selectedServiceCodes);
+        }
+      } catch (error) {
+        console.error("Failed to fetch department data:", error);
+      }
+    };
+    getDepartmentData();
+  }, [formData.departmentId, servicesList, userId]);
+
+  useEffect(() => {
+    const getDepartmentsList = async () => {
+      if (!userId) return;
+
+      try {
+        const response = await getData(`/api/auth/getDepartments?userId=${userId}`);
+        if (response?.data) {
+          const data: any = response.data;
+          const fhirData: any = convertFHIRToAdminDepartments(data.data);
+          const formatted = fhirData.map((v: any) => ({
+            value: v._id,
+            label: v.name,
+          }));
+          setDepartments(formatted);
+        }
+      } catch (error) {
+        console.error("Failed to fetch departments:", error);
+      }
+    };
+
+    getDepartmentsList();
+  }, [userId]);
 
   return (
     <section className="AddSpecialitiesSec">
@@ -126,13 +162,7 @@ function AddDepartments() {
           <div className="LeftProfileDiv">
             <div className="DepartMantAddData">
               <div className="DepartInputDiv">
-                <FormInput
-                  intype="text"
-                  inname="name"
-                  value={formData.name}
-                  inlabel="Department Name"
-                  onChange={handleChange}
-                />
+                <DynamicSelect options={department} value={formData.departmentId} onChange={(v) => setFormData((pre) => ({ ...pre, departmentId: v }))} inname="departmentId" placeholder="Department Name" />
                 {formErrors.name && (
                   <div className="text-danger small mt-1">
                     {formErrors.name}
@@ -146,16 +176,16 @@ function AddDepartments() {
                   >
                     <Form.Control
                       as="textarea"
-                      name="description"
-                      placeholder="Enter description"
-                      value={formData.description}
+                      name="biography"
+                      placeholder="Enter biography"
+                      value={formData.biography}
                       onChange={handleChange}
                       style={{ height: "100px" }}
                     />
                   </FloatingLabel>
-                  {formErrors.description && (
+                  {formErrors.biography && (
                     <div className="text-danger small mt-1">
-                      {formErrors.description}
+                      {formErrors.biography}
                     </div>
                   )}
                 </div>
@@ -183,33 +213,32 @@ function AddDepartments() {
                     {formErrors.phone}
                   </div>
                 )}
+                {formErrors.countryCode && (
+                  <div className="text-danger small mt-1">
+                    {formErrors.countryCode}
+                  </div>
+                )}
               </div>
 
               <div className="DepartServicesDiv">
                 <ServicesSelection
                   Title="Add Services"
                   services={servicesList}
+                  selected={services}
                   onSelectionChange={setServices}
-                />
-              </div>
-
-              <DepartmentHeadSelector onSelectHead={setDepartmentHeadId} />
-
-              <div className="DepartServicesDiv">
-                <ServicesSelection
-                  Title="Conditions Treated"
-                  services={ConditionsList}
-                  onSelectionChange={setConditionsTreated}
                 />
                 {formErrors.services && (
                   <div className="text-danger small">{formErrors.services}</div>
                 )}
               </div>
 
-              <div className="text-end mt-3">
-                <Button variant="primary" onClick={handleSubmit}>
-                  Save Department
-                </Button>
+              <DepartmentHeadSelector onSelectHead={setDepartmentHeadId} Head={departmentHeadId} />
+              {formErrors.departmentHeadId && (
+                <div className="text-danger small mt-1">{formErrors.departmentHeadId}</div>
+              )}
+
+              <div className="">
+                <FillBtn onClick={handleSubmit} icon={<Icon icon="carbon:checkmark-filled" width="24" height="24" />} text="Add Department" href="#" />
               </div>
             </div>
           </div>

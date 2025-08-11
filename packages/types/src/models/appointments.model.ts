@@ -1,29 +1,17 @@
-import { Document } from 'mongoose';
-
-type DocumentFile = {
-  url: string;
-  originalname: string;
-  mimetype: string;
+type UploadRecord = {
+  fileName: string;
+  fileType: string;
+  fileUrl: string;
+  uploadedAt: Date;
 };
 
 export type WebAppointmentType = Document & {
   userId?: string;
   tokenNumber?: string;
   ownerName?: string;
-  phone?: string;
-  addressline1?: string;
-  street?: string;
-  city?: string;
-  state?: string;
-  zipCode?: string;
   petId?: string;
   petName?: string;
-  petAge?: string;
-  petType?: string;
-  gender?: 'Male' | 'Female' | 'Other';
-  breed?: string;
   purposeOfVisit: string;
-  concernOfVisit?: string;
   appointmentType?: string;
   appointmentSource?: string;
   department: string;
@@ -34,14 +22,15 @@ export type WebAppointmentType = Document & {
   day: string;
   hospitalId?: string;
   slotsId: string;
+  passportNumber?: string;
+  description?: string;
+  cancelReason?: string;
+  microChipNumber?: string;
   appointmentStatus?: string;
   isCanceled?: string;
   cancelledBy?: string;
-  document?: DocumentFile[];
-  createdAt?: Date;
-  updatedAt?: Date;
+  uploadRecords?: UploadRecord[];
 };
-
 
 export type AppointmentsTokenType = Document & {
   hospitalId: string;

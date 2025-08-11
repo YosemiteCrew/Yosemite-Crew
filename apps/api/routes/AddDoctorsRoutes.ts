@@ -10,7 +10,7 @@ router.get(
   '/getDoctorsBySpecilizationId/:id',
   AddDoctorsControllers.getDoctorsBySpecilizationId
 );
-router.get('/getForAppDoctorsBySpecilizationId', verifyTokenAndRefresh, AddDoctorsControllers.getForAppDoctorsBySpecilizationId);
+// router.get('/getForAppDoctorsBySpecilizationId', verifyTokenAndRefresh, AddDoctorsControllers.getForAppDoctorsBySpecilizationId);
 // router.get('/MeasureReport', AddDoctorsControllers.getOverview);
 router.get(
   '/Practitioner',
