@@ -1,7 +1,7 @@
 import moment from 'moment-timezone';
 import { v4 as uuidv4 } from 'uuid';
 import DoctorsTimeSlotes from '../models/doctors.slotes.model';
-import { webAppointments } from '../models/WebAppointment';
+import { webAppointments } from '../models/web-appointment';
 
 interface AvailableSlotPerDay {
   date: string;
