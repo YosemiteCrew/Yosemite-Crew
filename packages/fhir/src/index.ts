@@ -27,6 +27,6 @@ export { toFhirOrganizationBreeder } from "./details/breeder-fhir";
 export { toFhirOrganizationGroomer } from "./details/groomer-fhir";
 export { toFhirOrganizationBoarding } from "./details/boarding-fhir";
 export  {FHIRSlotValidator,MonthlySlotValidator} from "./slots-fhir";
-export {convertFhirToNormalPetData,convertPetDataToFhir} from "./WebAppointments/web-appointments"
+export {convertFhirToNormalPetData,convertPetDataToFhir,convertFromFHIRDoctorOptions,convertToFHIRDoctorOptions,convertFHIRToTimeSlots,convertTimeSlotsToFHIR,convertAppointmentToFHIR,convertFHIRToAppointment} from "./WebAppointments/web-appointments"
 export {convertAdminDepartmentsToFHIR,convertFHIRToAdminDepartments} from "./admin-departments/admin-departments"
 

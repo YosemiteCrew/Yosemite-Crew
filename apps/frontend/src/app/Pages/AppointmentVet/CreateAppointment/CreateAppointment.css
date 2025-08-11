@@ -171,3 +171,49 @@
     font-size: 0.9em;
     color: #666;
 }
+/* Add these styles to your existing CSS */
+.business-button {
+  position: relative;
+}
+
+.business-button.disabled {
+  background-color: #e0e0e0;
+  color: #a0a0a0;
+  cursor: not-allowed;
+  pointer-events: none;
+  text-decoration: line-through;
+}
+
+.booked-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background-color: #ff4444;
+  color: white;
+  border-radius: 50%;
+  width: auto;
+  height: auto;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.business-button.selected {
+  background-color: #4CAF50;
+  color: white;
+}
+.error-message {
+    color: var(--error-color);
+    font-size: 13px;
+    line-height: 120%;
+    font-family: var(--satoshi-font);
+    margin: 0;
+    animation: blinkSmooth 1.5s ease-in-out infinite;
+}
+
+@keyframes blinkSmooth {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+}
+

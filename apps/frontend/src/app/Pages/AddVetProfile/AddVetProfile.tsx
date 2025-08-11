@@ -22,7 +22,7 @@ import { useRouter } from "next/navigation";
 
 function AddVetProfile() {
   const router = useRouter();
-  const { userId, email, userType, vetAndTeamsProfile } = useAuthStore();
+  const { userId, email, userType, vetAndTeamsProfile ,fetchVetAndTeamsProfile} = useAuthStore();
 
   useEffect(() => {
     console.log("user", userId, email, userType);
@@ -40,9 +40,6 @@ function AddVetProfile() {
   const sanitizedPreview = previewUrl;
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [apiFiles, setApiFiles] = useState<[]>([]);
-
-  console.log(OperatingHour);
-  console.log(uploadedFiles);
 
   useEffect(() => {
     const filesFromApi = vetAndTeamsProfile?.uploadedFiles || [];
@@ -102,7 +99,6 @@ function AddVetProfile() {
     setOperatingHours(vetAndTeamsProfile?.OperatingHour as []);
   }, [vetAndTeamsProfile]);
 
-  console.log("name", vetAndTeamsProfile);
 
   const handleBusinessInformation = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -221,6 +217,9 @@ function AddVetProfile() {
           title: "Success",
           text: "Doctor added successfully!",
         });
+        if(userId){
+          fetchVetAndTeamsProfile(userId)
+        }
         router.push("/DoctorDashboard");
       }
     } catch (error) {
@@ -231,7 +230,7 @@ function AddVetProfile() {
       });
       console.error("Submission Error:", error);
     }
-  }, [name, area, image, countryCode, OperatingHour, specialization, uploadedFiles, duration, userId, router]);
+  }, [name, area, image, countryCode, OperatingHour, specialization, uploadedFiles, duration, userId, router,fetchVetAndTeamsProfile]);
 
   const validateStep1 = () => {
     const newErrors: ErrorType = {};

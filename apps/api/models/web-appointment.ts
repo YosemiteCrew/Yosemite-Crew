@@ -5,78 +5,43 @@
 import mongoose, { Schema, Model, model } from 'mongoose';
 import { AppointmentsTokenType, WebAppointmentType } from "@yosemite-crew/types";
 
+
+const UploadRecordSchema = new Schema(
+  {
+    fileName: { type: String, required: true },
+    fileType: { type: String, required: true },
+    fileUrl: { type: String, required: true },
+    uploadedAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
 const WebAppointmentSchema = new Schema<WebAppointmentType>(
   {
+    hospitalId: String,
     userId: String,
+    petId: String,
     tokenNumber: String,
     ownerName: String,
-    phone: String,
-    addressline1: String,
-    street: String,
-    city: String,
-    state: String,
-    zipCode: String,
-    petId: String,
     petName: String,
-    petAge: String,
-    petType: String,
-    gender: {
-      type: String,
-      enum: ['Male', 'Female', 'Other'],
-    },
-    breed: String,
-    purposeOfVisit: {
-      type: String,
-      required: true,
-    },
-    concernOfVisit: String,
+    purposeOfVisit: { type: String, required: true },
+    passportNumber: String,
+    microChipNumber: String,
     appointmentType: String,
     appointmentSource: String,
-    department: {
-      type: String,
-      required: true,
-    },
-    veterinarian: {
-      type: String,
-      required: true,
-    },
-    appointmentDate: {
-      type: String,
-      required: true,
-    },
-    appointmentTime: {
-      type: String,
-      required: true,
-    },
-    appointmentTime24: {
-      type: String,
-      required: true,
-    },
-    day: {
-      type: String,
-      required: true,
-    },
-    hospitalId: String,
-    slotsId: {
-      type: String,
-      required: true,
-    },
-    appointmentStatus: {
-      type: String,
-      default: 'pending',
-    },
-    isCanceled: {
-      type: String,
-      default: '0',
-    },
+    department: { type: String, required: true },
+    veterinarian: { type: String, required: true },
+    appointmentDate: { type: String, required: true },
+    appointmentTime: { type: String, required: true },
+    appointmentTime24: { type: String, required: true },
+    day: { type: String, required: true },
+    slotsId: { type: String, required: true },
+    description: String,
+    cancelReason: String,
+    appointmentStatus: { type: String, default: "pending" },
+    isCanceled: { type: String, default: "0" },
     cancelledBy: String,
-    document: [
-      {
-        url: String,
-        originalname: String,
-        mimetype: String,
-      },
-    ],
+    uploadRecords: [UploadRecordSchema],
   },
   { timestamps: true }
 );
@@ -180,12 +145,6 @@ const AppointmentsToken: Model<AppointmentsTokenType> = model<AppointmentsTokenT
   'AppointmentsToken',
   AppointmentsTokenSchema
 );
-
-
-// models/UnavailableSlot.ts
-
-
-
 
 
  export { AppointmentsToken };
