@@ -1,111 +1,71 @@
-import { CustomDepartmentInput, DepartmentCustomFormat, FHIRDepartment } from "@yosemite-crew/types";
-export const servicesList = [
-  { code: "E001", display: "Cardiac Health Screenings" },
-  { code: "S001", display: "Echocardiograms" },
-  { code: "V001", display: "Electrocardiograms (ECG)" },
-  { code: "D001", display: "Blood Pressure Monitoring" },
-  { code: "H001", display: "Holter Monitoring" },
-  { code: "G001", display: "Cardiac Catheterization" },
-  { code: "T001", display: "Congenital Heart Disease Management" },
-];
+import {  DepartmentCustomFormat, FHIRDepartment, FHIRHealthcareService, NormalDepartment } from "@yosemite-crew/types";
 
-export const ConditionsList = [
-  { code: "E001", display: "Congestive Heart Failure" },
-  { code: "S001", display: "Arrhythmias" },
-  { code: "V001", display: "Heart Murmurs" },
-  { code: "D001", display: "Dilated Cardiomyopathy" },
-  { code: "H001", display: "Valvular Heart Disease" },
-  { code: "G001", display: "Pericardial Effusion" },
-  { code: "T001", display: "Myocarditis" },
-];
-export function convertDepartmentFromFHIR(department: FHIRDepartment): DepartmentCustomFormat {
-  const telecomPhone = department.telecom?.find(t => t.system === 'phone')?.value || '';
-  const countryCodeMatch = telecomPhone.match(/^(\+\d{1,3})/);
-  const countrycode = countryCodeMatch ? countryCodeMatch[1] : '';
-  const phone = telecomPhone.replace(countrycode, '');
-
+export function convertDepartmentFromFHIR(fhir: FHIRDepartment): DepartmentCustomFormat {
+  const phoneValue = fhir.telecom?.find((t) => t.system === "phone")?.value || "";
   return {
-    departmentName: department.name,
-    description: department.extraDetails || '',
-    email: department.telecom?.find(t => t.system === 'email')?.value || '',
-    phone,
-    bussinessId: department.id,
-    countrycode,
-    services: department.serviceType?.map(s => s.concept?.text || '') || [],
-    conditionsTreated: department.specialty?.map(s => s.text || '') || [],
-    consultationModes: department.program?.map(p => p.text || '') || [],
-    departmentHeadId: department.endpoint?.[0]?.reference?.split('/')?.[1] || null,
+    departmentId: fhir.id,
+    bussinessId: fhir.providedBy?.reference?.split("/")[1] || "",
+    phone: phoneValue.split(" ")[1],               // assumes last 7 digits are phone
+    countrycode: phoneValue.split(" ")[0],
+    email: fhir.telecom?.find((t) => t.system === "email")?.value || "",
+    biography: fhir.extension?.find((e) => e.url === "biography")?.valueString || "",
+    departmentHeadId: fhir.extension?.find((e) => e.url === "departmentHeadId")?.valueString || "",
+    services: fhir.serviceType?.map((s) => s.type.text) || [],
   };
 }
 
-// export function convertToFHIRDepartment(formData: CustomDepartmentInput): FHIRDepartment {
-//     const telecom: { system: string; value: string }[] = [];
-  
-//     if (formData.phone && formData.countrycode) {
-//       telecom.push({
-//         system: 'phone',
-//         value: `${formData.countrycode}${formData.phone}`,
-//       });
-//     }
-  
-//     if (formData.email) {
-//       telecom.push({
-//         system: 'email',
-//         value: formData.email,
-//       });
-//     }
-  
-//     const serviceType = formData.services.map(service => ({
-//       concept: {
-//         text: service
-//       }
-//     }));
-  
-//     const specialty = formData.conditionsTreated.map(condition => ({
-//       text: condition
-//     }));
-  
-//     const program = formData.consultationModes.map(mode => ({
-//       text: mode
-//     }));
-  
-//     const endpoint = formData.departmentHeadId
-//       ? [{ reference: `Practitioner/${formData.departmentHeadId}` }]
-//       : [];
-  
-//     const fhirDepartment: FHIRDepartment = {
-//       id: formData.bussinessId,
-//       name: formData.departmentName,
-//       extraDetails: formData.description || undefined,
-//       telecom: telecom.length > 0 ? telecom : undefined,
-//       serviceType: serviceType.length > 0 ? serviceType : undefined,
-//       specialty: specialty.length > 0 ? specialty : undefined,
-//       program: program.length > 0 ? program : undefined,
-//       endpoint: endpoint.length > 0 ? endpoint : undefined,
-//     };
-  
-//     return fhirDepartment;
-//   }
-  export const convertToFHIRDepartment = (input: CustomDepartmentInput): FHIRDepartment => {
-    return {
-      id: input.bussinessId,
-      name: input.departmentName,
-      extraDetails: input.description,
-      telecom: [
-        { system: 'email', value: input.email||"" },
-        { system: 'phone', value: `${input.countrycode}${input.phone}` },
-      ],
-      serviceType: input.services.map(code => ({
-        concept: {
-          text: servicesList.find(service => service.code === code)?.display || code
-        }
-      })),
-      specialty: input.conditionsTreated.map(code => ({
-        text: ConditionsList.find(condition => condition.code === code)?.display || code
-      })),
-      program: input.consultationModes.map(mode => ({ text: mode })),
-      endpoint: input.departmentHeadId
-        ? [{ reference: `Practitioner/${input.departmentHeadId}` }]
-        : undefined,
-    };
+export function convertToFHIRDepartment(data: DepartmentCustomFormat): FHIRDepartment {
+  return {
+    resourceType: "HealthcareService",
+    id: data.departmentId,
+    providedBy: {
+      reference: `Organization/${data.bussinessId}`,
+    },
+    telecom: [
+      {
+        system: "phone",
+        value: `${data.countrycode} ${data.phone}`,
+      },
+      {
+        system: "email",
+        value: data.email,
+      },
+    ],
+    extension: [
+      {
+        url: "biography",
+        valueString: data.biography,
+      },
+      {
+        url: "departmentHeadId",
+        valueString: data.departmentHeadId,
+      },
+    ],
+    serviceType: data.services.map((service) => ({
+      type: {
+        text: service,
+      },
+    })),
   };
+}
+
+
+
+
+  // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<For only departmentName>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 
+
+ export function convertDepartmentsToFHIR(departments: NormalDepartment[]): FHIRHealthcareService[] {
+  return departments.map((dept) => ({
+    resourceType: "HealthcareService",
+    id: dept._id,
+    name: dept.name.trim(),
+  }));
+}
+
+
+export function convertDepartmentsFromFHIR(fhirResources: FHIRHealthcareService[]): NormalDepartment[] {
+  return fhirResources.map((resource) => ({
+    _id: resource.id,
+    name: resource.name.trim(),
+  }));
+}

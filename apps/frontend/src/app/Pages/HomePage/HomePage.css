@@ -72,6 +72,7 @@ a.Fillbtn{
     padding: 16px 32px;
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
     color: var(--white-text);
     transition: all 0.3s ease;
@@ -92,6 +93,7 @@ a.UnFillbtn{
     padding: 16px 32px;
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
     transition: all 0.3s ease;
     font-size: 21px;

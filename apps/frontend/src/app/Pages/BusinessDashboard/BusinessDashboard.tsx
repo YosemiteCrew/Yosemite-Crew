@@ -286,29 +286,29 @@ function BusinessDashboard() {
               <Row>
                 <Col md={3}>
                   <StatCard
-                    icon="/Images/stact1.png"
-                    title="Appointments (Today)"
+                    icon="solar:wallet-2-bold"
+                    title="Revenue (Today)"
                     value={158}
                   />
                 </Col>
                 <Col md={3}>
                   <StatCard
-                    icon="/Images/stact2.png"
-                    title="Staff on-duty"
+                    icon="solar:calendar-mark-bold"
+                    title="Appointments (Today)"
                     value={122}
                   />
                 </Col>
                 <Col md={3}>
                   <StatCard
-                    icon="/Images/stact3.png"
-                    title="Inventory Out-of-Stock"
+                    icon="solar:medical-kit-bold"
+                    title="Staff on-duty"
                     value={45}
                   />
                 </Col>
                 <Col md={3}>
                   <StatCard
-                    icon="/Images/stact4.png"
-                    title="Revenue (Today)"
+                    icon="solar:home-add-bold"
+                    title="Inventory Out-of-Stock"
                     value="$7,298"
                   />
                 </Col>

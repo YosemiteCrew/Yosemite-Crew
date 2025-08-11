@@ -1,16 +1,16 @@
 import mongoose from "mongoose";
 import { Inventory, ProcedurePackage } from "../models/Inventory";
-import {
-  // ProductCategoryFHIRConverter,
-  // InventoryFHIRConverter,
-  ApproachingExpiryReportConverter,
-} from "../utils/InventoryFhirHandler";
+// import {
+//   // ProductCategoryFHIRConverter,
+//   // InventoryFHIRConverter,
+//   ApproachingExpiryReportConverter,
+// } from "../utils/InventoryFhirHandler";
 import { Request, Response } from "express";
 
 import { FHIRMedicalPackage, InventoryType, NormalMedicalPackage, ProcedurePackageType, } from "@yosemite-crew/types";
-import { convertFHIRPackageToNormal, convertProcedurePackagesToFHIRBundle, convertFhirToNormalToUpdateProcedurePackage, InventoryOverviewConvertToFHIR } from "@yosemite-crew/fhir";
-import { convertFhirBundleToInventory, convertToFhirInventory, convertToNormalFromFhirInventoryData } from "@yosemite-crew/fhir/dist/InventoryFhir/inventoryFhir";
-
+import { convertFHIRPackageToNormal, convertProcedurePackagesToFHIRBundle, convertFromFHIRInventory,convertFhirToNormalToUpdateProcedurePackage, InventoryOverviewConvertToFHIR,convertToFHIRInventory ,convertFhirBundleToInventory} from "@yosemite-crew/fhir";
+// import { convertFhirBundleToInventory, convertToFHIRInventory, convertToNormalFromFhirInventoryData } from "@yosemite-crew/fhir/dist/InventoryFhir/inventoryFhir";
+import { inventorySchema, validateInventoryData } from "../validators/inventoryValidator";
 
 
 interface QueryParams {
@@ -38,32 +38,43 @@ interface FHIRResponse {
 
 
 const InventoryControllers = {
-  AddInventory: async (req: Request, res: Response): Promise<void> => {
-    try {
-      const respon: InventoryType = convertToNormalFromFhirInventoryData(req.body);
-      const { userId } = req.query
-      // console.log("expiryDate", req);
+  AddInventory:async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { userId } = req.query;
+    const data:InventoryType = convertFromFHIRInventory(req.body);
 
-      const getSku = await Inventory.findOne({ sku: respon.sku });
-      if (getSku) {
-        res.status(400).json({ message: `${respon.sku} sku already exists` });
-        return;
-      }
-
-      const formattedExpiryDate = respon.expiryDate
-        ? new Date(respon.expiryDate).toISOString().split("T")[0]
-        : null;
-
-      const inventory = new Inventory({ bussinessId: userId, ...respon, expiryDate: formattedExpiryDate });
-      await inventory.save();
-
-      res.status(200).json({ message: "Inventory Added Successfully" });
-    } catch (error) {
-      console.error("AddInventory Error:", error);
-      res.status(500).json({ message: "Server Error", error });
+    // Step 1: Validate input
+    const validationError = validateInventoryData(data);
+    if (validationError) {
+      res.status(400).json({ message: validationError });
+      return;
     }
-  },
 
+    // Step 2: Check SKU uniqueness
+    const existing = await Inventory.findOne({ sku: data.sku });
+    if (existing) {
+      res.status(400).json({ message: `SKU ${data.sku} already exists.` });
+      return;
+    }
+
+    // Step 3: Convert expiryDate to Date object
+    const expiryDate = data.expiryDate ? new Date(data.expiryDate) : null;
+
+    // Step 4: Save inventory
+    const newInventory = new Inventory({
+      ...data,
+      bussinessId: userId,
+      expiryDate,
+    });
+
+    await newInventory.save();
+    res.status(200).json({ message: 'Inventory Added Successfully' });
+
+  } catch (error) {
+    console.error('AddInventory Error:', error);
+    res.status(500).json({ message: 'Server Error', error });
+  }
+},
   getInventory: async (
     req: { query: QueryParams },
     res: Response
@@ -188,7 +199,7 @@ const InventoryControllers = {
       ]);
 
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      const fhirData = convertToFhirInventory(inventory[0]);
+      const fhirData = convertToFHIRInventory(inventory[0]);
       const inventoryData = convertFhirBundleToInventory(fhirData);
 
       console.log("Converted Inventory JSON:", inventoryData);
@@ -711,120 +722,121 @@ const InventoryControllers = {
     }
   },
 
-  getApproachngExpiryGraphs: async (req: { query: QueryParams }, res: Response) => {
-    try {
-      const { userId } = req.query;
-      const today = new Date();
+  // getApproachngExpiryGraphs: async (req: { query: QueryParams }, res: Response) => {
+  //   try {
+  //     const { userId } = req.query;
+  //     const today = new Date();
 
-      if (!userId) {
-        return res.status(400).json({
-          resourceType: "OperationOutcome",
-          issue: [
-            {
-              severity: "error",
-              code: "invalid",
-              details: { text: "Missing required parameter: userId" },
-            },
-          ],
-        } as FHIRResponse);
-      }
+  //     if (!userId) {
+  //       return res.status(400).json({
+  //         resourceType: "OperationOutcome",
+  //         issue: [
+  //           {
+  //             severity: "error",
+  //             code: "invalid",
+  //             details: { text: "Missing required parameter: userId" },
+  //           },
+  //         ],
+  //       } as FHIRResponse);
+  //     }
 
-      const response = await Inventory.aggregate([
-        { $match: { bussinessId: userId } },
-        {
-          $addFields: {
-            expiryDateConverted: { $toDate: "$expiryDate" },
-          },
-        },
-        {
-          $addFields: {
-            daysUntilExpiry: {
-              $dateDiff: {
-                startDate: today,
-                endDate: "$expiryDateConverted",
-                unit: "day",
-              },
-            },
-          },
-        },
-        {
-          $match: {
-            daysUntilExpiry: { $gte: 0, $lte: 60 },
-          },
-        },
-        {
-          $group: {
-            _id: {
-              $switch: {
-                branches: [
-                  { case: { $lte: ["$daysUntilExpiry", 7] }, then: "7 days" },
-                  {
-                    case: {
-                      $and: [
-                        { $gt: ["$daysUntilExpiry", 7] },
-                        { $lte: ["$daysUntilExpiry", 15] },
-                      ],
-                    },
-                    then: "15 days",
-                  },
-                  {
-                    case: {
-                      $and: [
-                        { $gt: ["$daysUntilExpiry", 15] },
-                        { $lte: ["$daysUntilExpiry", 30] },
-                      ],
-                    },
-                    then: "30 days",
-                  },
-                  {
-                    case: {
-                      $and: [
-                        { $gt: ["$daysUntilExpiry", 30] },
-                        { $lte: ["$daysUntilExpiry", 60] },
-                      ],
-                    },
-                    then: "60 days",
-                  },
-                ],
-                default: null,
-              },
-            },
-            totalCount: { $sum: 1 },
-          },
-        },
-        {
-          $project: {
-            _id: 0,
-            category: "$_id",
-            totalCount: 1,
-          },
-        },
-        { $sort: { category: 1 } },
-      ]);
+  //     const response = await Inventory.aggregate([
+  //       { $match: { bussinessId: userId } },
+  //       {
+  //         $addFields: {
+  //           expiryDateConverted: { $toDate: "$expiryDate" },
+  //         },
+  //       },
+  //       {
+  //         $addFields: {
+  //           daysUntilExpiry: {
+  //             $dateDiff: {
+  //               startDate: today,
+  //               endDate: "$expiryDateConverted",
+  //               unit: "day",
+  //             },
+  //           },
+  //         },
+  //       },
+  //       {
+  //         $match: {
+  //           daysUntilExpiry: { $gte: 0, $lte: 60 },
+  //         },
+  //       },
+  //       {
+  //         $group: {
+  //           _id: {
+  //             $switch: {
+  //               branches: [
+  //                 { case: { $lte: ["$daysUntilExpiry", 7] }, then: "7 days" },
+  //                 {
+  //                   case: {
+  //                     $and: [
+  //                       { $gt: ["$daysUntilExpiry", 7] },
+  //                       { $lte: ["$daysUntilExpiry", 15] },
+  //                     ],
+  //                   },
+  //                   then: "15 days",
+  //                 },
+  //                 {
+  //                   case: {
+  //                     $and: [
+  //                       { $gt: ["$daysUntilExpiry", 15] },
+  //                       { $lte: ["$daysUntilExpiry", 30] },
+  //                     ],
+  //                   },
+  //                   then: "30 days",
+  //                 },
+  //                 {
+  //                   case: {
+  //                     $and: [
+  //                       { $gt: ["$daysUntilExpiry", 30] },
+  //                       { $lte: ["$daysUntilExpiry", 60] },
+  //                     ],
+  //                   },
+  //                   then: "60 days",
+  //                 },
+  //               ],
+  //               default: null,
+  //             },
+  //           },
+  //           totalCount: { $sum: 1 },
+  //         },
+  //       },
+  //       {
+  //         $project: {
+  //           _id: 0,
+  //           category: "$_id",
+  //           totalCount: 1,
+  //         },
+  //       },
+  //       { $sort: { category: 1 } },
+  //     ]);
 
-      const fhirdata = ApproachingExpiryReportConverter.toFHIR(response, {
-        userId,
-      });
+  //     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+  //     // const fhirdata = ApproachingExpiryReportConverter.toFHIR(response, {
+  //     //   userId,
+  //     // });
 
 
-      res.status(200).json(fhirdata);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
+  //     // res.status(200).json(fhirdata);
+  //     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  //   } catch (error: any) {
 
-      res.status(500).json({
-        resourceType: "OperationOutcome",
-        issue: [
-          {
-            severity: "error",
-            code: "exception",
-            details: { text: "Internal server error" },
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-            diagnostics: error.message,
-          },
-        ],
-      } as FHIRResponse);
-    }
-  },
+  //     res.status(500).json({
+  //       resourceType: "OperationOutcome",
+  //       issue: [
+  //         {
+  //           severity: "error",
+  //           code: "exception",
+  //           details: { text: "Internal server error" },
+  //           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+  //           diagnostics: error.message,
+  //         },
+  //       ],
+  //     } as FHIRResponse);
+  //   }
+  // },
 
   inventoryOverView: async (req: { query: QueryParams }, res: Response) => {
     try {
@@ -862,7 +874,7 @@ const InventoryControllers = {
         },
       ]);
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       const response = InventoryOverviewConvertToFHIR(inventory[0]);
       res.status(200).json(response);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

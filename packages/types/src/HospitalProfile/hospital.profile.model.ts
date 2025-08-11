@@ -23,6 +23,8 @@ export interface IProfileData extends Document {
   image?: string;
   addDepartment:string[];
   prescription_upload?: { name: string; url: string; }[];
+  key?:string,
+  progress?:number
 }
 export interface IWebUser {
   cognitoId?: string;
@@ -32,4 +34,6 @@ export interface IWebUser {
   otpExpiry?: Date;
   subscribe?:boolean;
   department?:string
+  lastLogin?: Date;
+  isVerified?:number
 }

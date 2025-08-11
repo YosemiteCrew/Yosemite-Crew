@@ -6,6 +6,12 @@ export interface FHIRAttachment {
   url: string;
 }
 
+export interface VaccineImageFile {
+  url: string;
+  originalname: string;
+  mimetype: string;
+}
+
 export interface FHIRDocumentReference {
   resourceType: "DocumentReference";
   id: string;
@@ -35,6 +41,7 @@ export interface FHIRImmunization {
   status: "completed";
   patient: {
     reference: string;
+    petImageUrl:string
   };
   vaccineCode: {
     coding: {
@@ -58,6 +65,7 @@ export interface FHIRImmunization {
   supportingInformation?: {
     reference: string;
   }[];
+  petImageUrl?:VaccineImageFile[]
 }
 
 export interface FHIRBundle {
@@ -107,11 +115,6 @@ export interface BasicImmunizationResource {
 }
 
 
-export interface VaccineImageFile {
-  url: string;
-  originalname: string;
-  mimetype: string;
-}
 
 export interface TransformedVaccination {
   userId: string;

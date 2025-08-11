@@ -10,7 +10,7 @@ function Page() {
 
   if (loading) return <p>Loading profile...</p>
 
-  return type === 'Veterinary Business' ? <CompleteProfile /> : <AddVetProfile />
+  return ["veterinaryBusiness", "breedingFacility", "petSitter", "groomerShop"].includes(type as string)? <CompleteProfile /> : <AddVetProfile />
 }
 
 export default Page

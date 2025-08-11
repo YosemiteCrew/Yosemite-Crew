@@ -130,3 +130,90 @@
     background: var(--whitebg);
     font-weight: 700;
 }
+
+
+
+
+.InventrySearch {
+    position: relative;
+}
+
+.search-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 300px;
+    overflow-y: auto;
+    background: white;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    margin-top: 5px;
+}
+
+.dropdown-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+}
+
+.dropdown-item:hover {
+    background-color: #f8f9fa;
+}
+
+.pet-name {
+    font-weight: bold;
+}
+
+.pet-owner {
+    font-size: 0.9em;
+    color: #666;
+}
+/* Add these styles to your existing CSS */
+.business-button {
+  position: relative;
+}
+
+.business-button.disabled {
+  background-color: #e0e0e0;
+  color: #a0a0a0;
+  cursor: not-allowed;
+  pointer-events: none;
+  text-decoration: line-through;
+}
+
+.booked-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background-color: #ff4444;
+  color: white;
+  border-radius: 50%;
+  width: auto;
+  height: auto;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.business-button.selected {
+  background-color: #4CAF50;
+  color: white;
+}
+.error-message {
+    color: var(--error-color);
+    font-size: 13px;
+    line-height: 120%;
+    font-family: var(--satoshi-font);
+    margin: 0;
+    animation: blinkSmooth 1.5s ease-in-out infinite;
+}
+
+@keyframes blinkSmooth {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+}
+
