@@ -9,6 +9,7 @@ import { ProfileData, WebUser } from "../models/WebUser";
 import AddDoctors from "../models/AddDoctor";
 import { AppointmentsToken, webAppointments } from "../models/web-appointment";
 import { DoctorsTimeSlotes, UnavailableSlot } from "../models/doctors.slotes.model";
+import mongoose from "mongoose";
 
 // const { json } = require('body-parser');
 // import DoctorsTimeSlotes from "../models/doctors.slotes.model";
@@ -236,7 +237,10 @@ const webAppointmentController = {
         });
         return
       }
-
+       if (typeof veterinarian !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(veterinarian)) {
+        res.status(400).json({ message: 'Invalid doctorId format' });
+        return;
+      } 
       // Get hospital info from user
       const user = await WebUser.findOne({cognitoId:veterinarian});
       if (!user || !user.bussinessId) {
@@ -250,7 +254,10 @@ const webAppointmentController = {
         });
         return
       }
-
+      if (typeof user.bussinessId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(user.bussinessId)) {
+        res.status(400).json({ message: 'Invalid hospitalId format' });
+        return;
+      } 
       // Get hospital details
       const hospital = await ProfileData.findOne({ userId: user.bussinessId });
       if (!hospital) {
@@ -263,6 +270,16 @@ const webAppointmentController = {
           }],
         });
         return
+      }
+       if (typeof slotsId !== 'string' || !mongoose.Types.ObjectId.isValid(slotsId)) {
+            res.status(400).json({ message: 'Invalid or missing slotsId format' });
+            return;
+          }
+
+
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(appointmentDate)) {
+        res.status(400).json({ message: "Invalid date format. Expected YYYY-MM-DD" });
+        return;
       }
      const existingAppointment = await webAppointments.findOne({
         veterinarian,
@@ -313,6 +330,11 @@ const initials = hospital.businessName
             .map((word: string) => word[0])
             .join("")
         : "XX";
+
+         if (typeof hospital.userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(hospital.userId)) {
+        res.status(400).json({ message: 'Invalid hospitalId format' });
+        return;
+      } 
 const Appointmenttoken = await AppointmentsToken.findOneAndUpdate(
     { hospitalId:hospital.userId, appointmentDate },
     {
