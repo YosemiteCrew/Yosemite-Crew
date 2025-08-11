@@ -312,50 +312,76 @@ const listController = {
       offset = validator.isInt(offset.toString(), { min: 0 }) ? parseInt(String(offset), 10) : 0;
       limit = validator.isInt(limit.toString(), { min: 1, max: 100 }) ? parseInt(String(limit), 10) : 10;
 
-      let businessType = '';
-      if (type === 'breedingFacility') {
-        businessType = 'Breeding Facility';
-      } else if (type === 'petSitter') {
-        businessType = 'Pet Sitter';
-      } else if (type === 'groomerShop') {
-        businessType = 'Groomer Shop';
-      } else {
-        businessType = type;
+      let businessType ='';
+      if(type !=='hospital'){
+        businessType=type;
       }
 
-      const allowedTypes: string[] = ['Hospital', 'Clinic', 'Breeding Facility', 'Pet Sitter', 'Groomer Shop', 'all'];
-      if (businessType && !allowedTypes.includes(businessType)) {
-        res.status(400).json({ status: 0, message: "Invalid Business Type" });
-        return
+      const allowedTypes: string[] = ['','veterinaryBusiness', 'breedingFacility', 'petSitter', 'groomerShop', 'all'];
+
+      // const businessType = type;
+
+      if (!allowedTypes.includes(businessType)) {
+        res.status(200).json({ status: 0, message: "Invalid Business Type" });
+        return;
       }
 
       const businessData: Record<string, unknown> = {};
 
       const fetchUsers = async (type: string) => {
+        console.log(type,'typppe');
+        const matchStage = type ? { role: type } : {};
+        const countQuery = matchStage;
         const [users, totalCount] = await Promise.all([
           WebUser.aggregate([
-            { $match: { businessType: type } },
+            { $match: matchStage },
             {
               $lookup: {
                 from: 'profiledatas',
                 localField: 'cognitoId',
                 foreignField: 'userId',
                 as: 'profileData',
-              },
+              }
             },
             {
               $unwind: {
                 path: '$profileData',
-                preserveNullAndEmptyArrays: true,
-              },
+                preserveNullAndEmptyArrays: true
+              }
             },
+            {
+              $lookup: {
+                from: 'departments',
+                let: { userIdFromProfile: '$profileData.userId' },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $eq: ['$userId', '$$userIdFromProfile']
+                      }
+                    }
+                  },
+                  {
+                    $project: {
+                      departmentId: '$_id',
+                      _id: 0,
+                      departmentName: 1,
+                      userId: 1,
+
+                    }
+                  }
+                ],
+                as: 'departments'
+              }
+            },
+
             { $skip: offset },
             { $limit: limit },
           ]),
-          WebUser.countDocuments({ businessType: { $eq: type } }),
+         WebUser.countDocuments(countQuery),
         ]);
 
-        if (type === 'Hospital') {
+        if (type === 'hospital') {
           await fetchDepartmentsAndRating(users);
         }
 
@@ -381,7 +407,7 @@ const listController = {
         const nestedResources = [];
 
         for (const org of group) {
-          const fhirOrg = BusinessFhirFormatter.toFhirOrganization(org) as Record<string, unknown>;
+          const fhirOrg = BusinessFhirFormatter.toFhirOrganization(org) as Record<string, unknown>; 
           const fhirDepts = BusinessFhirFormatter.toFhirHealthcareServices(org);
 
           fhirOrg.healthcareServices = fhirDepts;

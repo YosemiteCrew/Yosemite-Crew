@@ -122,12 +122,9 @@
   --opacityBlue:#F8FBFF;
   --opsbg:#FCD9BB;
   --foungbg:#F8C1BD;
-  
-  
   --popupbg:#EAEAEA;
   --lightblue:#EAF3FF;
   --skytext:#428BEC;
-  
   --pinkborder:#37223CB2;
   --profileborder:#5D412F26;
   --warnggrdt: linear-gradient(0deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.7)), linear-gradient(0deg, #F68523, #F68523);
@@ -153,31 +150,9 @@
   --pendingbg:#FEF3E9;
   --pendingtext:#F68523;
   --redopacity:#D041221A;
-
-
-
-
-
-  
   --grotesk-font: 'ClashGrotesk', sans-serif;
   --satoshi-font: 'Satoshi', sans-serif;
-  --mainBg: #FEF8F4;
-  --homebg: #fff2e3;
-  --fawncolor:#FDBD74;
-  --whitecolor: #FFFFFF;
-  --whitetcolor80: #FFFFFFCC;
-  --fawanGradient:linear-gradient(139.66deg, rgba(253, 189, 116, 0.21) 18.09%, rgba(253, 189, 116, 0.07) 86.04%);
-  --chilli-red: #D04122;
   
-  --bluecolor:#37223C;
-  --purple: #8e88d2;
-  --frowndark: #d09b5e;
-  --green: #60b257;
-  --greenlight: #97c254;
-  --yellow: #e3ca57;
-  --orange: #f1963f;
-  --red: #eb3223;
-  --footbg: #e8e8d9;
 }
 html,
 body {
@@ -451,7 +426,20 @@ input[type=number] {
 
 
 /* select Ul  */
-
+.FormGendr {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 100%;
+}
+.FormGendr p{
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 21.6px;
+  letter-spacing: -0.02em;
+  color: #302f2e;
+  margin: 0;
+}
 .SelectUl {
   display: flex;
   flex-wrap: wrap;

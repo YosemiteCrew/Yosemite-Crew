@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect,  useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuthStore } from "../stores/authStore";
 import { postData } from "../axios-services/services";
 import { usePathname } from "next/navigation";
@@ -10,11 +10,11 @@ import Header from "./Header/Header";
 
 // ✅ Define roles outside to avoid re-declaring them on every render
 const VET_ROLES = [
-  "Vet",
-  "Vet Technician",
-  "Nurse",
-  "Vet Assistant",
-  "Receptionist",
+  "vet",
+  "vetTechnician",
+  "nurse",
+  "vetAssistant",
+  "receptionist",
 ];
 
 const publicRoutes = ["/signup", "/signin"];

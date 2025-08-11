@@ -372,11 +372,12 @@ type ButtonProps = {
   icon: ReactNode;
   text: string;
   href:string;
+  onClick?:() => void;
 }
 
-export function FillBtn({ icon, text , href}: ButtonProps) {
+export function FillBtn({ icon, text ,onClick, href}: ButtonProps) {
   return (
-    <Link className="Fillbtn" href={href}>
+    <Link className="Fillbtn" href={href} onClick={onClick}>
       {icon} {text}
     </Link>
   );

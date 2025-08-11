@@ -230,7 +230,7 @@ function InviteTeamMembers() {
         // console.log("Fetched departments:", data.data);
         const departments = convertFromFhirDepartment(data.data).map((dept: any) => ({
           value: dept._id,
-          label: dept.departmentName
+          label: dept.name
         }));
         setDepartmentOptions(departments);
       } else {
@@ -250,11 +250,11 @@ function InviteTeamMembers() {
 
 
   const roleOptions = [
-    { value: "Veterinarian", label: "Vet" },
-    { value: "Vet Assistant", label: "Vet Assistant" },
-    { value: "Receptionist", label: "Receptionist" },
-    { value: "Nurse", label: "Nurse" },
-    { value: "Vet Technician", label: "Vet Technician" },
+    { value: "vet", label: "Vet" },
+    { value: "vetAssistant", label: "Vet Assistant" },
+    { value: "receptionist", label: "Receptionist" },
+    { value: "nurse", label: "Nurse" },
+    { value: "vetTechnician", label: "Vet Technician" },
   ];
 
   return (

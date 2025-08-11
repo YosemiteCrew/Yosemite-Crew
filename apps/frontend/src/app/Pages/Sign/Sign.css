@@ -99,7 +99,7 @@
     border-radius: 36px;
     min-height: 60px;
     border: 1px solid var(--greyborder) !important;
-    color: var(--black-text);
+    color: var(--lightblack);
     font-size: 18px;
     font-weight: 400;
     line-height: 120%;

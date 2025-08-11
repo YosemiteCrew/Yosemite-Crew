@@ -11,8 +11,12 @@ const WebUserSchema = new Schema<IWebUser>({
   otp: { type: Number },
   otpExpiry: { type: Date },
   subscribe:{type:Boolean},
-  department:{type:String}
-});
+  department:{type:String},
+  lastLogin: { type: Date },
+  isVerified:{type:Number, default:0} // 0 unverified 1 verified
+  
+},{
+  timestamps: true,});
 
 const WebUser = model<IWebUser>('WebUser', WebUserSchema);
 
@@ -41,7 +45,15 @@ const ProfileDataSchema = new Schema<IProfileData>({
   selectedServices: { type: [String], required: true },
   image: { type: String },
   addDepartment:{type:[String], required:true},
-  prescription_upload: { type: [{ name: String, url: String }] }
+  prescription_upload: { type: [{ name: String, url: String }] },
+  key:{
+    type:String
+  },
+  progress:{
+    type:Number
+  }
+},{
+  timestamps: true,
 });
 
 const ProfileData = model<IProfileData>('ProfileData', ProfileDataSchema);

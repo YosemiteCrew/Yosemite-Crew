@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import './ServicesSelection.css';
 
 interface Service {
@@ -11,14 +11,21 @@ interface ServicesSelectionProps {
   services: Service[];
   Title: string;
   onSelectionChange: (selectedServices: string[]) => void;
+  selected: string[];
 }
 
-const ServicesSelection: React.FC<ServicesSelectionProps> = ({ services, onSelectionChange , Title }) => {
-  const [selectedServices, setSelectedServices] = useState<string[]>([]);
-  
+const ServicesSelection: React.FC<ServicesSelectionProps> = ({ services = [], onSelectionChange, Title, selected = [] }) => {
+  console.log("services", services);
+  const [selectedServices, setSelectedServices] = useState<string[]>(selected);
+  console.log("selectedServices", Title);
+
+  useEffect(() => {
+    setSelectedServices(selected);
+  }, [selected]);
+
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      const allServiceCodes = services.map(service => service.display);
+      const allServiceCodes = services.map(service => service.code);
       setSelectedServices(allServiceCodes);
       onSelectionChange(allServiceCodes);
     } else {
@@ -53,15 +60,15 @@ const ServicesSelection: React.FC<ServicesSelectionProps> = ({ services, onSelec
             </div>
             <ul className="services-list">
                 {services.map(service => (
-                <li key={service.display} className={`service-item ${selectedServices.includes(service.display) ? 'selected' : ''}`}>
-                    <label htmlFor={service.display}>
+                <li key={service.code} className={`service-item ${selectedServices.includes(service.code) ? 'selected' : ''}`}>
+                    <label htmlFor={service.code}>
                         <p>{service.display}</p>
                         <input
                             type="checkbox"
-                            id={service.display}
-                            value={service.display}
+                            id={service.code}
+                            value={service.code}
                             onChange={handleServiceChange}
-                            checked={selectedServices.includes(service.display)}
+                            checked={selectedServices.includes(service.code)}
                         />
                     </label>
                 </li>

@@ -3,7 +3,7 @@ import { Request } from 'express';
 import mongoose from 'mongoose';
 import moment from 'moment-timezone';
 import { Moment } from 'moment';
-import { webAppointments, AppointmentsToken } from '../models/WebAppointment';
+import { webAppointments, AppointmentsToken } from '../models/web-appointment';
 import appUsers from '../models/appuser-model';
 import { AddDoctorDoc, DoctorSlotDocument, IProfileData, IUser, pets,  WebAppointmentType } from '@yosemite-crew/types';
 import doctorsTimeSlots from '../models/doctors.slotes.model';
