@@ -15,7 +15,6 @@ const BlogController = {
   AddBlog: async (req: Request, res: Response): Promise<void> => {
     try {
       const { blogTitle, description, animalType, topic } = req.body;
-console.log(blogTitle, "TITLE", description, "DESCRIPTION", animalType, "ANIMAL TYPE", topic, "TOPIC");
       if (!blogTitle || blogTitle.trim().length < 5) {
         res.status(400).json({ message: 'Blog title must be at least 5 characters long.' });
         return;

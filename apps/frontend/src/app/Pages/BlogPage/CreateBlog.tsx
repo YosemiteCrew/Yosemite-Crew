@@ -130,7 +130,7 @@ function CreateBlog() {
     const htmlString = edjsParser.parse(data);
     setFormData((prev) => ({ ...prev, description: htmlString }));
   };
-  console.log(formData, "formData");
+  // console.log(formData, "formData");
   return (
     <section className="CreateBlogSec">
       <Container>
