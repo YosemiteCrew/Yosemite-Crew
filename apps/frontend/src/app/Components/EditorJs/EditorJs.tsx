@@ -2,7 +2,6 @@
 
 import React, { useEffect, useRef } from "react";
 import EditorJS from "@editorjs/editorjs";
-// @ts-ignore
 import Header from "@editorjs/header";
 import List from "@editorjs/list";
 import Quote from "@editorjs/quote";
@@ -34,9 +33,9 @@ const EditorJSRenderer: React.FC<EditorProps> = ({ data, onChange }) => {
             uploader: {
               async uploadByFile(file: File) {
                 try {
-                  const formData = new FormData();` `
+                  const formData = new FormData();
                   formData.append("image", file);
-                  const res = await axios.post(
+                  const res:any = await axios.post(
                     `${process.env.NEXT_PUBLIC_BASE_URL}fhir/v1/uploadDescriptionImg`,
                     formData,
                     { headers: { "Content-Type": "multipart/form-data" } }
