@@ -1,15 +1,15 @@
 import { Router } from 'express';
 import authController from '../controllers/auth-controller';
 import WebController from '../controllers/WebController';
-import AddDepartmentController from '../controllers/AddDepartmentController';
+import AddDepartmentController from '../controllers/add-department-controller';
 
-import { verifyToken, verifyTokenAndRefresh } from'../middlewares/authMiddleware';
+import { verifyToken } from'../middlewares/authMiddleware';
 const router = Router();
 
 router.post('/signup', authController.signUp);
  router.post('/login', authController.login);
  router.post('/sendOtp', authController.sendOtp);
-// router.post('/deleteUser', authController.deleteUser);
+router.post('/deleteUser', authController.deleteUser);
 router.post('/confirmSignup', authController.confirmSignup);
 router.post('/logout', authController.logout);
 router.post('/resendConfirmationCode', authController.resendConfirmationCode);
@@ -31,9 +31,13 @@ router.post('/refreshToken', WebController.refreshToken);
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Add Department >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 router.post('/HealthcareService', verifyToken,AddDepartmentController.addDepartment);
-router.get('/getAddDepartment', verifyTokenAndRefresh,AddDepartmentController.getAddDepartment);
+router.get('/getAddDepartment', verifyToken,AddDepartmentController.getAddDepartment);
+router.post('/google-login', authController.googleLogin)
+// router.get('/getAddDepartment', verifyToken,AddDepartmentController.getAddDepartment);
+router.get('/getDepartments',verifyToken,AddDepartmentController.getDepartmets)
+router.get('/getDepartmentAllData',verifyToken,AddDepartmentController.getDepartmentById)
 
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Google Map>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-// router.get('/getLocationdata',WebController.getLocationdata); 
+router.get('/getDepartmentsList',WebController.getDepartmentsList); 
 
 export default router;

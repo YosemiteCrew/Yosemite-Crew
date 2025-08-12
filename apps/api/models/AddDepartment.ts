@@ -1,25 +1,25 @@
 import { Schema, Document, model } from 'mongoose';
  
 export interface IDepartment extends Document {
-  departmentName: string;
+  departmentId: string;
   bussinessId: string;
-  description?: string;
+  biography?: string;
   email: string;
   countrycode: string;
   phone: string;
   services: string[];
   departmentHeadId: string;
-  consultationModes: ('In-person' | 'Online' | 'Both')[];
-  conditionsTreated: string[];
+  // consultationModes: ('In-person' | 'Online' | 'Both')[];
+  // conditionsTreated: string[];
   createdAt?: Date;
   updatedAt?: Date;
 }
  
 const DepartmentSchema = new Schema<IDepartment>(
   {
-    departmentName: { type: String, required: true },
+    departmentId: { type: String, required: true },
     bussinessId: { type: String, required: true },
-    description: { type: String },
+    biography: { type: String },
     email: {
       type: String,
       required: true,
@@ -46,25 +46,25 @@ const DepartmentSchema = new Schema<IDepartment>(
       },
     ],
     departmentHeadId: { type: String},
-    consultationModes: {
-      type: [String],
-      enum: ['In-person', 'Online', 'Both'],
-      required: true,
-    },
-    conditionsTreated: [
-      {
-        type: String,
-        enum: [
-          'Congestive Heart Failure',
-          'Arrhythmias',
-          'Heart Murmurs',
-          'Dilated Cardiomyopathy',
-          'Valvular Heart Disease',
-          'Pericardial Effusion',
-          'Myocarditis',
-        ],
-      },
-    ],
+    // consultationModes: {
+    //   type: [String],
+    //   enum: ['In-person', 'Online', 'Both'],
+    //   required: true,
+    // },
+    // conditionsTreated: [
+    //   {
+    //     type: String,
+    //     enum: [
+    //       'Congestive Heart Failure',
+    //       'Arrhythmias',
+    //       'Heart Murmurs',
+    //       'Dilated Cardiomyopathy',
+    //       'Valvular Heart Disease',
+    //       'Pericardial Effusion',
+    //       'Myocarditis',
+    //     ],
+    //   },
+    // ],
   },
   { timestamps: true }
 );

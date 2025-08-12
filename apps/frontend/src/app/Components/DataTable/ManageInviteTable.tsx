@@ -6,7 +6,7 @@ import { Button, Dropdown, Form } from "react-bootstrap";
 import { deleteData, getData, postData } from "@/app/axios-services/services";
 import { useAuthStore } from "@/app/stores/authStore";
 import Swal from "sweetalert2";
-import { fromFHIRInviteList } from "@yosemite-crew/fhir";
+import { convertFromFhirDepartment, fromFHIRInviteList } from "@yosemite-crew/fhir";
 import { InviteCard } from "@yosemite-crew/types";
 import { LuSearch } from "react-icons/lu";
 
@@ -28,14 +28,18 @@ function ManageInviteTable() {
   const [Cardiolgy, setCardiology] = useState<ManageInviteItems[]>([]);
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
-  const [department, setDepartment] = useState("");
+  const [department, setDepartment] = useState(""); // id
+  const [selectedDepartmentName, setSelectedDepartmentName] = useState("Specialization"); // label
 
+const [departmentOptions, setDepartmentOptions] = useState<{ value: string; label: string }[]>([
+    { value: "", label: "All" },
+  ]);
   // ✅ Fetch invites (reusable)
   const getInvites = async (): Promise<void> => {
     try {
       const response = await getData(`/fhir/v1/getinvites?userId=${userId}&status=${status}&department=${department}&search=${search}`);
       if (response.status === 200) {
-        const data:any = response.data;
+        const data: any = response.data;
         const invitesBack = fromFHIRInviteList(data.invite);
         console.log("invites", invitesBack)
         const mappedInvites: InviteCard[] = invitesBack.map((v) => ({
@@ -59,7 +63,7 @@ function ManageInviteTable() {
 
   useEffect(() => {
     if (userId) getInvites();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, department, search, status]);
 
   // ✅ Resend Invite
@@ -74,7 +78,7 @@ function ManageInviteTable() {
     try {
       const response = await postData("/fhir/v1/invite", members);
       if (response.status === 200) {
-        const { message}: any = response.data;
+        const { message }: any = response.data;
         Swal.fire({
           icon: "success",
           title: "Success",
@@ -93,43 +97,70 @@ function ManageInviteTable() {
 
   // Remove Invites Function
 
-  const RemoveInvites = async (item:any) => {
+  const RemoveInvites = async (item: any) => {
 
-  try {
-    const result = await Swal.fire({
-      title: 'Are you sure?',
-      text: "This will remove the invite permanently.",
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Yes, delete it!',
-    });
+    try {
+      const result = await Swal.fire({
+        title: 'Are you sure?',
+        text: "This will remove the invite permanently.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, delete it!',
+      });
 
-    if (result.isConfirmed) {
-      const response = await deleteData(`/fhir/v1/removeInvites?email=${item.email}`);
+      if (result.isConfirmed) {
+        const response = await deleteData(`/fhir/v1/removeInvites?email=${item.email}`);
 
-      if (response.status === 200) {
-        Swal.fire({
-          icon: 'success',
-          title: 'Deleted!',
-          text: 'The invite has been removed.',
-          timer: 2000,
-          showConfirmButton: false,
-        });
-         await getInvites();
+        if (response.status === 200) {
+          Swal.fire({
+            icon: 'success',
+            title: 'Deleted!',
+            text: 'The invite has been removed.',
+            timer: 2000,
+            showConfirmButton: false,
+          });
+          await getInvites();
+        }
       }
+    } catch (error) {
+      console.error("Error removing invite:", error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Failed',
+        text: 'Could not remove invite. Please try again later.',
+      });
     }
-  } catch (error) {
-    console.error("Error removing invite:", error);
-    Swal.fire({
-      icon: 'error',
-      title: 'Failed',
-      text: 'Could not remove invite. Please try again later.',
-    });
-  }
-};
+  };
 
+
+  useEffect(() => {
+    const getDepartmentForSearch = async () => {
+      try {
+        const response = await getData(`/fhir/v1/getDepartmentForInvite?userId=${userId}`,);
+        if (response.status === 200) {
+          const data = response.data as { data: any[] };
+          // console.log("Fetched departments:", data.data);
+          const departments = convertFromFhirDepartment(data.data).map((dept: any) => ({
+            value: dept._id,
+            label: dept.name
+          }));
+          setDepartmentOptions([{ value: "", label: "All" }, ...departments]);
+        } else {
+          Swal.fire({ icon: "error", title: "Error", text: "Failed to fetch departments." });
+        }
+      } catch (error) {
+        let errorMessage = "Failed to fetch departments.";
+        if (error && typeof error === "object" && "response" in error) {
+          const res = (error as any).response;
+          errorMessage = res?.data?.message || errorMessage;
+        }
+        Swal.fire({ icon: "error", title: "Error", text: errorMessage });
+      }
+    };
+    getDepartmentForSearch()
+  }, [userId])
   // ✅ Table Columns (inside to access functions)
   const columns = [
     {
@@ -179,7 +210,7 @@ function ManageInviteTable() {
       key: "action",
       render: (item: ManageInviteItems) => (
         <div className="CardilogyStatus">
-          {item.action === "pending" && <Button onClick={()=>RemoveInvites(item)}>Remove</Button>}
+          {item.action === "pending" && <Button onClick={() => RemoveInvites(item)}>Remove</Button>}
           {item.action === "expired" && (
             <Button onClick={() => handleSendInvite(item)}>Send Again</Button>
           )}
@@ -208,19 +239,25 @@ function ManageInviteTable() {
           </Form>
 
           <div className="DoctSlect">
-            <Dropdown onSelect={(val) => setDepartment(val || "")}>
+            <Dropdown onSelect={(val) => {
+              setDepartment(val || "");
+              const selected = departmentOptions.find(d => d.value === val);
+              setSelectedDepartmentName(selected?.label || "Specialization");
+            }}>
               <Dropdown.Toggle id="doctor-dropdown">
-                {department || "Department"}
+                {selectedDepartmentName}
               </Dropdown.Toggle>
               <Dropdown.Menu>
-                <Dropdown.Item eventKey="">All</Dropdown.Item>
-                <Dropdown.Item eventKey="Internal Medicine">Internal Medicine</Dropdown.Item>
-                <Dropdown.Item eventKey="Surgery">Surgery</Dropdown.Item>
-                <Dropdown.Item eventKey="Cardiology">Cardiology</Dropdown.Item>
-                <Dropdown.Item eventKey="Neurology">Neurology</Dropdown.Item>
+                {departmentOptions?.map((dept) => (
+                  <Dropdown.Item eventKey={dept.value} key={dept.value}>
+                    {dept.label}
+                  </Dropdown.Item>
+                ))}
               </Dropdown.Menu>
             </Dropdown>
+
           </div>
+
 
           <div className="StatusSlect">
             <Dropdown onSelect={(val) => setStatus(val || "")}>
@@ -231,7 +268,7 @@ function ManageInviteTable() {
                 <Dropdown.Item eventKey="">All</Dropdown.Item>
                 <Dropdown.Item eventKey="pending">Pending</Dropdown.Item>
                 <Dropdown.Item eventKey="accepted">Accepted</Dropdown.Item>
-                <Dropdown.Item eventKey="expire">Expire</Dropdown.Item>
+                <Dropdown.Item eventKey="expired">Expire</Dropdown.Item>
               </Dropdown.Menu>
             </Dropdown>
           </div>

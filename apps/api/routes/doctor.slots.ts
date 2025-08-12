@@ -8,6 +8,7 @@ const router = express.Router();
 router.post("/addDoctorsSlots",verifyToken, DoctorSlots.AddDoctorsSlote);
 router.get("/doctorslottocompare", verifyToken, DoctorSlots.getDoctorSloteToCompare);
 router.get("/getDoctorSlots", verifyToken, DoctorSlots.getDoctoSlots);
+router.get("/getDoctoSlotsToBookAppointment",verifyToken, DoctorSlots.getDoctoSlotsToBookAppointment)
 
 
 export default router;

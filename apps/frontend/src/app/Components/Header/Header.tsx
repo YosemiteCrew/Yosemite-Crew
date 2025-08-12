@@ -16,7 +16,6 @@ import { FaSignInAlt } from "react-icons/fa";
 import { useAuthStore } from '@/app/stores/authStore';
 import { handleLogout } from '@/app/utils/LogoutApi';
 import { Icon } from '@iconify/react/dist/iconify.js';
-import { Button } from 'react-bootstrap';
 
 interface NavItem {
   label: string;
@@ -57,52 +56,56 @@ const LoggedInHeader = () => {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
   const roles = useMemo(
-    () => ["Vet", "Vet Technician", "Nurse", "Vet Assistant", "Receptionist"],
+    () => ["vet",
+      "vetTechnician",
+      "nurse",
+      "vetAssistant",
+      "receptionist",],
     []
   );
-const clinicNavItems: NavItem[] = [
-  { label: "Home", href: "/" },
-  { label: "Dashboard", href: getDashboardRoute() },
-  {
-    label: "Clinic",
-    children: [
-      { label: "Specialities", href: "/departmentsmain" },
-      { label: "Practice Team", href: "/practiceTeam" },
-      { label: "Manage Invites", href: "/inviteteammembers" },
-      { label: "Manage Clinic Visibility", href: "/clinicvisiblity" },
-    ],
-  },
-  {
-    label: "Operations",
-    children: [
-      { label: "Queue Management", href: "#" },
-      { label: "Appointments", href: "/AppointmentVet" },
-      { label: "Assessments", href: "/AssessmentVet" },
-      { label: "Prescriptions", href: "#" },
-      { label: "Inventory", href: "/inventorydashboard" },
-      { label: "Procedure Packages", href: "#" },
-    ],
-  },
-  {
-    label: "Finance",
-    children: [
-      { label: "Revenue Reporting", href: "/RevenueManagement" },
-      { label: "Billing", href: "#" },
-      { label: "Client Statements", href: "#" },
-      { label: "Coupons", href: "#" },
-      { label: "Payment Methods", href: "#" },
-      { label: "Procedure Estimates", href: "/ProcedureEstimate" },
-    ],
-  },
-  {
-    label: "Help & Resources",
-    children: [
-      { label: "Blog", href: "/blogpage" },
-      { label: "Resources", href: "#" },
-      { label: "Contact Us", href: "/contact_us" },
-    ],
-  },
-];
+  const clinicNavItems: NavItem[] = [
+    { label: "Home", href: "/" },
+    { label: "Dashboard", href: getDashboardRoute() },
+    {
+      label: "Clinic",
+      children: [
+        { label: "Specialities", href: "/departmentsmain" },
+        { label: "Practice Team", href: "/practiceTeam" },
+        { label: "Manage Invites", href: "/inviteteammembers" },
+        { label: "Manage Clinic Visibility", href: "/clinicvisiblity" },
+      ],
+    },
+    {
+      label: "Operations",
+      children: [
+        { label: "Queue Management", href: "#" },
+        { label: "Appointments", href: "/AppointmentVet" },
+        { label: "Assessments", href: "/AssessmentVet" },
+        { label: "Prescriptions", href: "#" },
+        { label: "Inventory", href: "/inventorydashboard" },
+        { label: "Procedure Packages", href: "#" },
+      ],
+    },
+    {
+      label: "Finance",
+      children: [
+        { label: "Revenue Reporting", href: "/RevenueManagement" },
+        { label: "Billing", href: "#" },
+        { label: "Client Statements", href: "#" },
+        { label: "Coupons", href: "#" },
+        { label: "Payment Methods", href: "#" },
+        { label: "Procedure Estimates", href: "/ProcedureEstimate" },
+      ],
+    },
+    {
+      label: "Help & Resources",
+      children: [
+        { label: "Blog", href: "/blogpage" },
+        { label: "Resources", href: "#" },
+        { label: "Contact Us", href: "/contact_us" },
+      ],
+    },
+  ];
   const logoUrl = process.env.NEXT_PUBLIC_BASE_IMAGE_URL
     ? `${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/Logo.png`
     : "/Logo.png";
@@ -113,7 +116,8 @@ const clinicNavItems: NavItem[] = [
     if (input instanceof File) return URL.createObjectURL(input);
     return logoUrl;
   }
-  function getDashboardRoute  ()  {
+
+  function getDashboardRoute() {
     switch (userType) {
       case "veterinaryBusiness":
         return "/emptydashboard";
@@ -121,10 +125,21 @@ const clinicNavItems: NavItem[] = [
       case "petSitter":
       case "groomerShop":
         return "/DoctorDashboard";
+      case "vet":
+        return "/DoctorDashboard";
+      case "vetTechnician":
+        return "/DoctorDashboard";
+      case "nurse":
+        return "/DoctorDashboard";
+      case "vetAssistant":
+        return "/DoctorDashboard";
+      case "receptionist":
+        return "/DoctorDashboard";
       default:
         return "/businessDashboard";
     }
-  };
+  }
+
   const imageSrc = getImageUrl(
     roles.includes(userType as string)
       ? vetAndTeamsProfile?.image
@@ -184,7 +199,14 @@ const clinicNavItems: NavItem[] = [
       })}
     </ul>
   );
-
+  const getDisplayName = () => {
+    if (roles.includes(userType as string)) {
+      const first = vetAndTeamsProfile?.name?.firstName ?? "";
+      const last = vetAndTeamsProfile?.name?.lastName ?? "";
+      return `${first} ${last}`.trim() || "Complete Your Profile";
+    }
+    return profile?.name?.businessName ?? "Complete Your Profile";
+  };
   return (
     <div className="container-fluid container-xl d-flex align-items-center justify-content-between">
       <Link href="/" className="logo d-flex align-items-center me-auto me-lg-0">
@@ -216,16 +238,14 @@ const clinicNavItems: NavItem[] = [
                 <div className="userHostDiv">
                   <div className="userName">
                     <p>
-                      {roles.includes(userType as string)
-                        ? `${vetAndTeamsProfile?.name.firstName} ${vetAndTeamsProfile?.name.lastName}`
-                        : profile?.name?.businessName}
+                      {getDisplayName()}
                     </p>
                     <FaCaretDown />
                   </div>
                   <p className="Tier">Free tier - Cloud hosted</p>
                 </div>
               </span>
-             
+
               <div className="profileUl">
                 <div className='ProfDiv'>
                   <Link href="#"><FaUser /> My Profile</Link>

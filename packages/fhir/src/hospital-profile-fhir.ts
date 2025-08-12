@@ -58,6 +58,14 @@ export function toFHIRBusinessProfile(input: BusinessProfile): FhirOrganization 
         url: "http://example.org/fhir/StructureDefinition/image",
         valueString: input.image ?? "",
       },
+      {
+        url:"http://example.org/fhir/StructureDefinition/key",
+        valueString: JSON.stringify(input.key),
+      },
+      {
+        url:"http://example.org/fhir/StructureDefinition/progress",
+        valueString:  JSON.stringify(input.progress)
+      }
     
     ],
     
@@ -76,7 +84,7 @@ export function fromFHIRBusinessProfile(fhir: FhirOrganization): BusinessProfile
 
   const getExt = (url: string): string =>
     fhir.extension?.find((e) => e.url === url)?.valueString ?? "";
-  const parseExtArray = (url: string): string[] => {
+  const parseExtArray = (url: string | any): string[] | any => {
     const raw = getExt(url);
     try {
       return raw.split(":")[0].includes("https") ?raw as any: JSON.parse(raw)
@@ -112,5 +120,7 @@ export function fromFHIRBusinessProfile(fhir: FhirOrganization): BusinessProfile
     selectedServices: parseExtArray("http://example.org/fhir/StructureDefinition/selectedServices"),
     addDepartment: parseExtArray("http://example.org/fhir/StructureDefinition/addDepartment"),
     image: parseExtArray("http://example.org/fhir/StructureDefinition/image"),
+    key: parseExtArray("http://example.org/fhir/StructureDefinition/key"),
+    progress: parseExtArray("http://example.org/fhir/StructureDefinition/progress"),
   };
 }

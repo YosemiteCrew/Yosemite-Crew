@@ -2,14 +2,9 @@
 import React, { useEffect, useState } from "react";
 import "./DoctorDashboard.css";
 import {
-  Button,
   Col,
   Container,
-  Dropdown,
-  Form,
   Row,
-  Tab,
-  Tabs,
 } from "react-bootstrap";
 import Image from "next/image";
 import Link from "next/link";
@@ -27,7 +22,7 @@ import Swal from "sweetalert2";
 import DoctorSlots from "./DoctorSlots";
 
 function DoctorDashboard() {
-  const { vetAndTeamsProfile, userId, fetchVetAndTeamsProfile } =
+  const { vetAndTeamsProfile, userId, fetchVetAndTeamsProfile, userType } =
     useAuthStore();
 
   const [available, setAvailable] = useState(true);
@@ -57,15 +52,8 @@ function DoctorDashboard() {
     }
   };
 
- 
-  
-
-  
-
-
-  
-const image:any = vetAndTeamsProfile?.image ||
-                    "https://images.unsplash.com/photo-1633332755192-727a05c4013d?q=80&w=880&auto=format&fit=crop"
+  const image: any = vetAndTeamsProfile?.image ||
+    "https://images.unsplash.com/photo-1633332755192-727a05c4013d?q=80&w=880&auto=format&fit=crop"
   return (
     <section className="doctor-dashboard-Sec">
       <Container>
@@ -101,16 +89,16 @@ const image:any = vetAndTeamsProfile?.image ||
                     {available ? "Available" : "Not Available"}
                   </span>
                 </div>
-                <Link href="#" onClick={() => setAddNewLead(true)}>
+                {userType === "vet" ? <Link href="#" onClick={() => setAddNewLead(true)}>
                   <Image src="/Images/stact1.png" alt="stact1" width={24} height={24} /> Manage Appointment Slots
-                </Link>
+                </Link> : ""}
               </div>
             </div>
             <Row>
-              <Col md={3}><StatCard icon="/Images/stact1.png" title="Appointments (Today)" value={158} /></Col>
-              <Col md={3}><StatCard icon="/Images/stact2.png" title="Staff on-duty" value={122} /></Col>
-              <Col md={3}><StatCard icon="/Images/stact3.png" title="Inventory Out-of-Stock" value={45} /></Col>
-              <Col md={3}><StatCard icon="/Images/stact4.png" title="Revenue (Today)" value="$7,298" /></Col>
+              <Col md={3}><StatCard icon="solar:calendar-mark-bold" title="Emergency Appointment" value={158} /></Col>
+              <Col md={3}><StatCard icon="solar:document-medicine-bold" title="Today’s Appointment" value={122} /></Col>
+              <Col md={3}><StatCard icon="solar:clipboard-check-bold" title="Assessments" value={45} /></Col>
+              <Col md={3}><StatCard icon="solar:calendar-add-bold" title="Calender View" value="$7,298" /></Col>
             </Row>
             {["Emergency Appointments", "Today’s Appointments", "Assessment"].map((title, i) => (
               <Row key={i}>
@@ -135,7 +123,7 @@ const image:any = vetAndTeamsProfile?.image ||
             </div>
           </div>
         ) : (
-          <DoctorSlots/>
+          <DoctorSlots />
         )}
       </Container>
     </section>

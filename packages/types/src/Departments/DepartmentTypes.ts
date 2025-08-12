@@ -1,43 +1,29 @@
 export type FHIRDepartment = {
+  resourceType: string;
   id: string;
-  name: string;
-  extraDetails?: string;
-  telecom?: {
-    system: string;
-    value: string;
-  }[];
-  serviceType?: {
-    concept?: {
-      text?: string;
-    };
-  }[];
-  specialty?: {
-    text?: string;
-  }[];
-  program?: {
-    text?: string;
-  }[];
-  endpoint?: {
-    reference?: string;
-  }[];
-}
+  providedBy?: {
+    reference: string;
+  };
+  telecom?: { system: string; value: string }[];
+  extension?: { url: string; valueString: string }[];
+  serviceType?: { type: { text: string } }[];
+};
+
 
 export type DepartmentCustomFormat = {
-  departmentName: string;
-  description: string;
-  email: string;
-  phone: string;
+  departmentId: string;
   bussinessId: string;
+  phone: string;
   countrycode: string;
+  email: string;
+  biography: string;
+  departmentHeadId: string;
   services: string[];
-  conditionsTreated: string[];
-  consultationModes: string[];
-  departmentHeadId: string | null;
-}
+};
 
 export type DepartmentAppointmentSummary ={
   _id: string;
-  departmentName: string;
+  departmentId: string;
   count: number;
 }
 
@@ -61,7 +47,7 @@ export type FHIRAppointmentObservation ={
   }[];
 }
 export type CustomDepartmentInput = {
-  departmentName: string;
+  departmentId: string;
   description: string;
   email: string;
   phone: string;
@@ -72,3 +58,20 @@ export type CustomDepartmentInput = {
   departmentHeadId: string;
   bussinessId: string;
 }
+
+
+
+
+
+
+
+export type NormalDepartment = {
+  _id: string;
+  name: string;
+};
+
+export type FHIRHealthcareService = {
+  resourceType: "HealthcareService";
+  id: string;
+  name: string;
+};

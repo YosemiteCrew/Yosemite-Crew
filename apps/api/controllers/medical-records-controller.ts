@@ -145,7 +145,7 @@ const medicalRecordsController = {
       const [medicalDocs] = await Promise.all([
         req.files ? PetService.uploadFiles(req.files) : Promise.resolve([]),
       ]);
-      console.log("medical", medicalDocs)
+      
       const newMedicalRecord = await medicalRecords.create({
         userId: req.user.username,
         documentType: medicalData.documentType,
@@ -160,24 +160,40 @@ const medicalRecordsController = {
       const fhirResponse = FHIRMedicalRecordService.convertMedicalRecordToFHIR(newMedicalRecord);
 
       res.status(200).json({ status: 1, data: fhirResponse });
-    } catch (error: Error) {
+    } catch (error: unknown) {
+      let message = "Internal server error";
+
       console.error("SaveMedicalRecord Error:", error);
 
-      if (error.name === "ValidationError") {
+      if (error instanceof Error) {
+        message = error.message;
+
+        // Mongoose validation error (optional check)
+        if ((error as any).name === "ValidationError") {
+          res.status(200).json({
+            status: 0,
+            message: message,
+            errors: (error as any).errors,
+          });
+          return
+        }
+
         res.status(200).json({
           status: 0,
-          message: "Mongoose validation failed",
-          errors: error.errors,
+          message: message,
+          error: error.stack, // optional: detailed trace for debugging
         });
+        return
       } else {
         res.status(200).json({
           status: 0,
-          message: "Internal server error",
-          error: error.message,
+          message: message,
         });
+        return
       }
     }
   },
+
 
   medicalRecordList: async (req: Request, res: Response): Promise<void> => {
     try {
@@ -213,13 +229,13 @@ const medicalRecordsController = {
         entry: fhirRecords.map(resource => ({ resource })),
       });
       return
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("medicalRecordList Error:", error);
-
+      const message = error instanceof Error ? error.message:'Unknown error'
       res.status(500).json({
         status: 0,
         message: "Internal server error",
-        error: error.message ?? "Unknown error",
+        error: message,
       });
       return
     }
@@ -259,13 +275,13 @@ const medicalRecordsController = {
         message: "Medical record deleted successfully",
       });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("deleteMedicalRecord Error:", error);
-
+      const message = error instanceof Error ? error.message:'Unknown error'
       res.status(500).json({
         status: 0,
-        message: "Internal server error",
-        error: error.message ?? "Unknown error",
+        message: message,
+        error: message,
       });
     }
   },
@@ -403,7 +419,8 @@ const medicalRecordsController = {
 
       res.status(200).json({ status: 1, data: fhirResponse });
     } catch (error) {
-      res.status(200).json({ status: 0, message: "Error updating Medical record", error: error.message });
+      const message = error instanceof Error ? error.message:'Error updating Medical record'
+      res.status(200).json({ status: 0, message: message });
     }
   },
 
@@ -476,7 +493,7 @@ const medicalRecordsController = {
 
       const newFolder = new MedicalRecordFolderModel({
         folderName: caseFolderName.toLowerCase(),
-        folderUrl: `https://${BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${folderKey}`,
+        folderUrl: folderKey,
       });
 
       await newFolder.save();
