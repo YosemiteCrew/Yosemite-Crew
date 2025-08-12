@@ -10,6 +10,12 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@editorjs/checklist": "^1.6.0",
+    "@editorjs/editorjs": "^2.30.8",
+    "@editorjs/header": "^2.8.8",
+    "@editorjs/image": "^2.10.3",
+    "@editorjs/list": "^2.0.8",
+    "@editorjs/quote": "^2.7.6",
     "@react-google-maps/api": "^2.20.6",
     "@types/lodash": "^4.17.20",
     "@yosemite-crew/fhir": "workspace:^",
@@ -20,6 +26,7 @@
     "chart.js": "^4.4.8",
     "classnames": "^2.5.1",
     "country-list-json": "^1.1.0",
+    "editorjs-html": "^4.0.5",
     "framer-motion": "^12.18.1",
     "glightbox": "^3.3.1",
     "jwt-decode": "^4.0.0",
