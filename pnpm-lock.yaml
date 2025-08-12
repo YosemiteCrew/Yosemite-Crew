@@ -185,6 +185,24 @@ importers:
 
   apps/frontend:
     dependencies:
+      '@editorjs/checklist':
+        specifier: ^1.6.0
+        version: 1.6.0
+      '@editorjs/editorjs':
+        specifier: ^2.30.8
+        version: 2.30.8
+      '@editorjs/header':
+        specifier: ^2.8.8
+        version: 2.8.8
+      '@editorjs/image':
+        specifier: ^2.10.3
+        version: 2.10.3
+      '@editorjs/list':
+        specifier: ^2.0.8
+        version: 2.0.8
+      '@editorjs/quote':
+        specifier: ^2.7.6
+        version: 2.7.6
       '@react-google-maps/api':
         specifier: ^2.20.6
         version: 2.20.6(react-dom@19.1.0)(react@19.1.0)
@@ -215,6 +233,9 @@ importers:
       country-list-json:
         specifier: ^1.1.0
         version: 1.1.0
+      editorjs-html:
+        specifier: ^4.0.5
+        version: 4.0.5
       framer-motion:
         specifier: ^12.18.1
         version: 12.19.1(react-dom@19.1.0)(react@19.1.0)
@@ -3418,12 +3439,66 @@ packages:
       react: 19.0.0
     dev: false
 
+  /@codexteam/icons@0.0.5:
+    resolution: {integrity: sha512-s6H2KXhLz2rgbMZSkRm8dsMJvyUNZsEjxobBEg9ztdrb1B2H3pEzY6iTwI4XUPJWJ3c3qRKwV4TrO3J5jUdoQA==}
+    dev: false
+
+  /@codexteam/icons@0.3.3:
+    resolution: {integrity: sha512-cp7mkZPgmBuSxigTm3Vb+DtVHYeX7qXfQd7o05vcLD8Ag5WvRlol2QSn5P10k0CDAJwmkH9nQGQLBycErS9lsQ==}
+    dev: false
+
   /@cspotcode/source-map-support@0.8.1:
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
     engines: {node: '>=12'}
     dependencies:
       '@jridgewell/trace-mapping': 0.3.9
     dev: true
+
+  /@editorjs/checklist@1.6.0:
+    resolution: {integrity: sha512-hRNP36DInr73mSK3noHBQeoQb7DA12ANfqTXufEkTgQzx+k4mRJ0HdeGukTIR4JbwjHJ9ecUBnnQqIEGnxCFEg==}
+    dependencies:
+      '@codexteam/icons': 0.3.3
+    dev: false
+
+  /@editorjs/dom@0.0.5:
+    resolution: {integrity: sha512-SZ78Gwpkp3EUhjBIp0lSojeQ35V9acF8SubJsMeOH/vlOUE40GOnvvwWZnF05lO7bIB0dOHhhJy4N7IIAWxP2w==}
+    dependencies:
+      '@editorjs/helpers': 0.0.4
+    dev: false
+
+  /@editorjs/editorjs@2.30.8:
+    resolution: {integrity: sha512-ClFuxI1qZTfXPJTacQfsJtOUP6bKoIe6BQNdAvGsDTDVwMnZEzoaSOwvUpdZEE56xppVfQueNK/1MElV9SJKHg==}
+    dev: false
+
+  /@editorjs/header@2.8.8:
+    resolution: {integrity: sha512-bsMSs34u2hoi0UBuRoc5EGWXIFzJiwYgkFUYQGVm63y5FU+s8zPBmVx5Ip2sw1xgs0fqfDROqmteMvvmbCy62w==}
+    dependencies:
+      '@codexteam/icons': 0.0.5
+      '@editorjs/editorjs': 2.30.8
+    dev: false
+
+  /@editorjs/helpers@0.0.4:
+    resolution: {integrity: sha512-ieg3dzo2m1/ELze/RMNADiAiC5amXxIlVXoJ5vvXITOu/p/dPsrF+Oi3h5gBYvtGk9vg5LJUSG5YWU0tBUO1tw==}
+    dev: false
+
+  /@editorjs/image@2.10.3:
+    resolution: {integrity: sha512-ekCsGICZOIdghF/U2T34H7CItqaWAoJDXbkRD+x8l/LIo/7Ozf7KovYm21qz+CluArgV4RurVFHqwlz+O0vfJA==}
+    dependencies:
+      '@codexteam/icons': 0.3.3
+    dev: false
+
+  /@editorjs/list@2.0.8:
+    resolution: {integrity: sha512-/EJNvpeJYa1YDtYa85ug9R3sbDyI5ZlMHQ2bIh5S9iPa19qXe45jk6kgcew+jMNQq3j4NS4Q6YeeFbU1QkNMWw==}
+    dependencies:
+      '@codexteam/icons': 0.3.3
+    dev: false
+
+  /@editorjs/quote@2.7.6:
+    resolution: {integrity: sha512-D01KUMSDj2r+6Z+xjDkQqI+y6URpeHCvj0+P4pah+GtkG040lWjFb2H4pgHFXuol2cbfyAoraYSw85fuPheCvw==}
+    dependencies:
+      '@codexteam/icons': 0.3.3
+      '@editorjs/dom': 0.0.5
+    dev: false
 
   /@egjs/hammerjs@2.0.17:
     resolution: {integrity: sha512-XQsZgjm2EcVUiZQf11UBJQfmZeEmOW8DpI1gsFeln6w0ae0ii4dMQEQ0kjl6DspdWX1aGY1/loyXnP0JS06e/A==}
@@ -9043,6 +9118,10 @@ packages:
     resolution: {integrity: sha512-nagl3RYrbNv6kQkeJIpt6NJZy8twLB/2vtz6yN9Z4vRKHN4/QZJIEbqohALSgwKdnksuY3k5Addp5lg8sVoVcQ==}
     dependencies:
       safe-buffer: 5.2.1
+    dev: false
+
+  /editorjs-html@4.0.5:
+    resolution: {integrity: sha512-ImQYxB3fNCJcd+nJ+Vbne/6PxidO1cYByNpu9nBDStVabfjVrMW65BuR+IEZfOii8VKYH+CW/lYDb2GDlzZtDg==}
     dev: false
 
   /ee-first@1.1.1:
