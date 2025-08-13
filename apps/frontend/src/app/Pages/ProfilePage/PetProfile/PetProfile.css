@@ -1,0 +1,239 @@
+.PetProfileSec{
+    padding: 80px 0px;
+}
+
+.PetProfileSec .PetProfileData{
+    display: grid;
+    grid-template-columns: 70% 30%;
+    grid-gap: 20px;
+}
+.PetProfileSec .PetProfileData .LeftPetProfile{
+    display: flex;
+    flex-direction: column;
+    gap: 80px;
+}
+                                                /* PetBasicDiv Started  */
+.LeftPetProfile .PetBasicDiv {
+    border: 1px solid var(--lightgrey);
+    border-radius: 24px;
+    background: var(--whitebg);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+.LeftPetProfile .PetBasicDiv .BasicProfile{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.LeftPetProfile .PetBasicDiv .BasicProfile .ProfilePic{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.LeftPetProfile .PetBasicDiv .BasicProfile .ProfilePic img{
+    border-radius: 50%;
+    border: 1px solid var(--blue-text);
+    object-fit: cover;
+}
+.LeftPetProfile .PetBasicDiv .BasicProfile .ProfilePic .pfname h2{
+    margin: 0;
+    font-weight: 500;
+    font-size: 40px;
+    line-height: 120%;
+    font-family: var(--grotesk-font);
+    color: var(--black-text);
+}
+.LeftPetProfile .PetBasicDiv .BasicProfile .ProfilePic .pfname h6 {
+    margin: 0;
+    font-weight: 500;
+    font-size: 19px;
+    line-height: 120%;
+    color: var(--black-text);
+    opacity: 70%;
+}
+.LeftPetProfile .PetBasicDiv .BasicProfile .ProfilePic .pfname h4{
+    margin: 0;
+    font-weight: 500;
+    font-size: 23px;
+    line-height: 120%;
+    font-family: var(--grotesk-font);
+    color: var(--black-text);
+}
+.LeftPetProfile .PetBasicDiv .BasicProfile .ProfilePic .pfname p {
+    margin: 0;
+    font-weight: 500;
+    font-size: 15px;
+    line-height: 120%;
+    color: var(--black-text);
+    opacity: 70%;
+}
+.LeftPetProfile .PetBasicDiv .BasicProfile .ProfTeams{
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+.PetBasicDiv .BasicInfoDiv {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+.PetBasicDiv .BasicInfoDiv h6{
+    margin: 0;
+    font-weight: 500;
+    font-size: 19px;
+    line-height: 120%;
+    color: var(--black-text);
+}
+.PetBasicDiv .BasicInfoDiv .BasicinfoForm{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-gap: 20px 30px;
+}
+.PetBasicDiv .BasicInfoDiv .BasicinfoForm .FormItems{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-gap: 20px;
+    min-height: 26px;
+    align-items: center;
+    border-bottom: 1px solid var(--lightgrey);
+}
+.PetBasicDiv .BasicInfoDiv .BasicinfoForm .FormItems:last-child,
+.PetBasicDiv .BasicInfoDiv .BasicinfoForm .FormItems:nth-last-child(2) , .LeftPetProfile .PetHealthSumy .HealthSummryItem:last-child {
+    border-bottom: none;
+}
+.PetBasicDiv .BasicInfoDiv .BasicinfoForm .FormItems p , .PetBasicDiv .BasicInfoDiv .BasicinfoForm .FormItems h6 , .LeftPetProfile .PetHealthSumy .HealthSummryItem p , .LeftPetProfile .PetHealthSumy .HealthSummryItem h6{
+    margin: 0;
+    color: var(--black-grey-Text);
+    font-family: var(--satoshi-font);
+    font-weight: 700;
+    font-size: 15px;
+    line-height: 120%;
+}
+.PetBasicDiv .BasicInfoDiv .BasicinfoForm .FormItems h6 , .LeftPetProfile .PetHealthSumy .HealthSummryItem h6{
+    color: var(--black-text);
+}
+                                                        /* PetBasicDiv Ended  */
+
+
+                                                        /* Health Summary Started */
+.LeftPetProfile .PetHealthSumy{
+    border: 1px solid var(--lightgrey);
+    border-radius: 24px;
+    background: var(--whitebg);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+.LeftPetProfile .PetHealthSumy h4{
+    margin: 0;
+    font-family: var(--grotesk-font);
+    font-size: 23px;
+    font-weight: 500;
+    line-height: 120%;
+}
+.LeftPetProfile .PetHealthSumy .HealthSummryItem{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+    min-height: 26px;
+    border-bottom: 1px solid var(--lightgrey);
+}
+
+
+
+                                                        /* UpcommingConsultDiv Started */
+
+.UpcommingConsultDiv{
+    border: 1px solid var(--lightgrey);
+    border-radius: 24px;
+    background: var(--whitebg);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+
+
+
+/* RightPetProfile Started  */
+
+.PetProfileData .RightPetProfile{
+    display: flex;
+    flex-direction: column;
+    gap: 50px;
+}
+.PetProfileData .RightPetProfile .PetParentsDetailsDiv{
+    width: 100%;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.PetProfileData .RightPetProfile .PetParentsDetailsDiv h5{
+    font-weight: 500;
+    font-family: var(--grotesk-font);
+    line-height: 120%;
+    font-size: 23px;
+    color: var(--black-text);
+    margin: 0;
+}
+.PetProfileData .RightPetProfile .PetParentsDetailsDiv .petparentsItems{
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.PetProfileData .RightPetProfile .PetParentsDetailsDiv .petparentsItems .FormItems{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 38px;
+    border-bottom: 1px solid var(--lightgrey);
+}
+.PetProfileData .RightPetProfile .PetParentsDetailsDiv .petparentsItems .FormItems:last-child {
+    border: none;
+}
+.PetProfileData .RightPetProfile .PetParentsDetailsDiv .petparentsItems .FormItems p ,.PetProfileData .RightPetProfile .PetParentsDetailsDiv .petparentsItems .FormItems h6{
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 120%;
+    color: var(--black-text);
+    font-family: var(--satoshi-font);
+    opacity: 70%;
+    max-width: 180px;
+}
+.PetProfileData .RightPetProfile .PetParentsDetailsDiv .petparentsItems .FormItems h6{
+    opacity: 100%;
+    text-align: end;
+}
+.PetProfileData .RightPetProfile .PetParentsDetailsDiv .petparentsItems .PetparentBtn{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.PetProfileData .RightPetProfile .PetParentsDetailsDiv .petparentsItems .PetparentBtn button{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-height: 39px;
+    border-radius: 28px;
+    padding: 10px 16px;
+    background: var(--black-bg);
+    border: 1px solid var(--black-bg);
+    color: var(--white-text);
+    font-size: 16px;
+    line-height: 120%;
+    font-weight: 500;
+    &:hover{
+        background: transparent;
+        color: var(--black-text);
+    }
+}
+
+
+/* RightPetProfile Ended  */

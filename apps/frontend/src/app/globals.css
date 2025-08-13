@@ -165,6 +165,7 @@ body {
 a{
   text-decoration: none !important;
 }
+
 p{
   font-family: var(--satoshi-font);
 }
