@@ -23,8 +23,9 @@ const petController = {
 
       // Validate required fields
       const files = Array.isArray(req.files.files) ? req.files.files : [req.files.files]; 
-      const imageUrls = await helpers.uploadFiles(files);
-
+      // const imageUrls = await helpers.uploadFiles(files);
+      const result = await helpers.uploadFiles(files);
+      const imageUrls = {url: result[0].url, originalname: result[0].originalname, mimetype: result[0].mimetype};
       const petData = { ...addPetData, cognitoUserId, petImage: imageUrls };
 
       if (petData.petdateofBirth) {
@@ -167,7 +168,7 @@ const petController = {
         }
         // const imageUrls = await helpers.uploadFiles(req.files);
 
-        updatedPetData.petImage = imageUrls.map((img: { url: string }) => img) as unknown as typeof updatedPetData.petImage;
+        updatedPetData.petImage = {url: imageFiles[0].url, originalname: imageFiles[0].originalname, mimetype: imageFiles[0].mimetype};
       }
 
       // Securely update the pet record
@@ -220,7 +221,7 @@ const petController = {
       }
 
       const objectId = new Types.ObjectId(petId);
-      const data = await pet.find({ _id: objectId });
+      const data = await pets.find({ _id: objectId });
       if (data.length === 0) {
          res.status(200).json({
           resourceType: "OperationOutcome",
@@ -242,7 +243,7 @@ const petController = {
       }
 
       //const result = await PetService.deletePetById(petId);
-      const result = await pet.findOneAndDelete({ _id: { $eq: petId } });
+      const result = await pets.findOneAndDelete({ _id: { $eq: petId } });
 
       if (!result) {
          res.status(200).json({
@@ -257,13 +258,8 @@ const petController = {
       }
       if(result){
         res.status(200).json({
-          resourceType: "OperationOutcome",
-          issue: [{
             status: 1,
-            severity: "information",
-            code: "informational",
-            message: `Pet deleted successfully`,
-          }]
+            message: `Pet deleted successfully`
         });
       }
     } catch (error) {

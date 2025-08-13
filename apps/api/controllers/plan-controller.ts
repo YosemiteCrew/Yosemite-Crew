@@ -54,8 +54,7 @@ const planController = {
         res.status(201).json({
           message: 'Pain assessment saved to pain journal successfully',
           Feline: {
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
-            id: newJournal._id.toString(),
+            id: newJournal._id,
           },
         });
       }
@@ -72,7 +71,6 @@ const planController = {
 
     const userid = req.params.userId;
 
-    console.log("hello", userid)
     const result = await exercisePlan.find({ userId: { $eq: userid } });
     if (result) {
       res.json(result);

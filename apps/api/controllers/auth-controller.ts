@@ -8,7 +8,7 @@ import jwt, { SignOptions } from 'jsonwebtoken';
 import userModel from '../models/appuser-model';
 import helpers from "../utils/helpers";
 import { IUser, SignupRequestBody } from "@yosemite-crew/types";
-import { OAuth2Client } from 'google-auth-library';
+import { verifySocialToken } from '../utils/verifySocialToken';
 
 const region = process.env.AWS_REGION!;
 const SES = new AWS.SES({ region });
@@ -463,14 +463,14 @@ const authController = {
         httpOnly: true,               // Recommended: prevent JS access
         secure: isProduction,         // Only send over HTTPS in production
         sameSite: "strict",
-        expires: new Date(0), // Set expiration to past
+        // expires: new Date(0), // Set expiration to past
       });
 
       res.clearCookie("refreshToken", {
         httpOnly: true,               // Recommended: prevent JS access
         secure: isProduction,
         sameSite: "strict",
-          expires: new Date(0), // Set expiration to past
+          // expires: new Date(0), // Set expiration to past
       });
 
       res.status(200).json({ status: 1, message: "Logout successful" });
@@ -481,27 +481,12 @@ const authController = {
       res.status(200).json({ status: 0, message:message });
     }
   },
-  googleLogin: async (req: Request, res: Response): Promise<void> => {
+  socialLogin: async (req: Request, res: Response): Promise<void> => {
     try {
-      const { id_token } = req.body as { id_token: string };
-    
-      const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-      if (!GOOGLE_CLIENT_ID) {
-        throw new Error("Missing GOOGLE_CLIENT_ID in environment variables.");
-      }
-      const client = new OAuth2Client(GOOGLE_CLIENT_ID);
-      if (!id_token) {
-        res.status(400).json({ error: "Token missing" });
-        return
-      }
-      console.log(GOOGLE_CLIENT_ID,'process.env.GOOGLE_CLIENT_ID');
-      const ticket = await client.verifyIdToken({
-        idToken: id_token,
-        audience: GOOGLE_CLIENT_ID,
-      });
-      const payload = ticket.getPayload();
+      const { token_id, type } = req.body as { token_id: string , type:string};
+      const payload = await verifySocialToken(type, token_id)
 
-      res.status(200).json({ message: 1, data: payload })
+      res.status(200).json({ status:1, message: 1, data: payload })
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       console.error("Google Login Error:", error);

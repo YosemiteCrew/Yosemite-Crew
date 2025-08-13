@@ -1,8 +1,11 @@
 type UploadRecord = {
-  fileName: string;
-  fileType: string;
-  fileUrl: string;
-  uploadedAt: Date;
+  // fileName: string;
+  // fileType: string;
+  // fileUrl: string;
+  // uploadedAt: Date;
+  url: string;
+  originalname: string;
+  mimetype: string;
 };
 
 export type WebAppointmentType = Document & {

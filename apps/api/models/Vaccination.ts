@@ -4,7 +4,7 @@ import type { VaccinationDetailsType } from "@yosemite-crew/types";
 
 const vaccinationSchema = new Schema<VaccinationDetailsType>({
   userId: { type: String, required: true },
-  petId: { type: String, required: true },
+  petId: { type: mongoose.Schema.Types.ObjectId, required: true , ref:'pets'},
   manufacturerName: String,
   vaccineName: String,
   batchNumber: String,

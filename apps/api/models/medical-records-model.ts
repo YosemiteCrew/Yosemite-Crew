@@ -1,4 +1,4 @@
-import mongoose, {Schema, Model} from 'mongoose';
+import mongoose, {Schema, Model, Types} from 'mongoose';
 import type { medicalDoc, medicalRecord } from "@yosemite-crew/types";
 
 
@@ -29,12 +29,14 @@ const medicalRecordSchema : Schema<medicalRecord>= new mongoose.Schema({
         default: false,
     },
     petId: {
-        type: String,
+        type: Types.ObjectId,
+        ref:'pets'
     },
     expiryDate: {
         type: String,
     },
     medicalDocs: [medicalDocSchema],
+    isRead:{ type:Boolean, default: false },
 
 }, { timestamps: true});
 
