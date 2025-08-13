@@ -55,7 +55,7 @@ export const convertPetToFHIR = (pet: pets, baseUrl: string) => {
       { url: `${baseUrl}/fhir/extensions/pet-from`, valueString: pet.petFrom },
       {
         url: `${baseUrl}/fhir/StructureDefinition/pet-images`,
-        valueString: Array.isArray(pet.petImage) && pet.petImage.length > 0 ? pet.petImage[0] : ''
+        valueString: typeof pet.petImage ==='object' && pet.petImage ?  pet.petImage.url : ''
       }
     ],
     meta: {

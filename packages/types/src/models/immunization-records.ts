@@ -9,7 +9,7 @@ export type VaccineImage = Document & {
 export type VaccinationDetailsType = Document & {
   _id?: string;
   userId: string;
-  petId: string;
+  petId: Types.ObjectId;
   manufacturerName?: string;
   vaccineName?: string;
   batchNumber?: string;

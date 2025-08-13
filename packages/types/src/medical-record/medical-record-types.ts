@@ -8,9 +8,27 @@ export interface FHIRMedicalRecord {
       patientId : string,
 
 }
+export type FhirDocumentReference = {
+  resourceType: string;
+  type: {
+    text: string;
+  };
+  description: string;
+  date?: string;
+  context?: {
+    period?: {
+      end?: string;
+    };
+  };
+  subject: {
+    reference: string; // format: "Patient/123"
+  };
+  [key: string]: any; // for other FHIR fields
+};
+
 
 export interface MedicalRecordRequestBody {
-    data:object
+    data:string
 }
 
 export interface MedicalRecordResponse {
@@ -32,6 +50,7 @@ export interface MedicalRecordResponse {
             value: string;
         };
         reference?: string;
+        image?:string;
     };
     content?:{
         attachment:{
@@ -44,7 +63,7 @@ export interface MedicalRecordResponse {
         url: string;
         valueBoolean?: string;
     }[];
-
+    effectiveDateTime:Date
     }
 
     export interface MedicalDoc {

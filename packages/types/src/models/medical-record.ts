@@ -19,6 +19,9 @@ export type medicalRecord = Document &{
   petId?: string;
   expiryDate?: string;
   medicalDocs?: medicalDoc[];
+  isRead?: boolean;
+  createdAt?: Date;
+  petImage?:medicalDoc
 }
 export interface FHIRMedicalRecord {
   documentType: string;

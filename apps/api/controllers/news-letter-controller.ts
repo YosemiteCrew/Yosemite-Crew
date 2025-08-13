@@ -7,13 +7,20 @@ import { parse } from "csv-parse/sync";
 import pinClient from "../config/pinpointClient";
 import Subscriber from "../models/Subscriber";
 import validator from "validator";
-import mongoose from "mongoose";
+import mongoose ,{Types}from "mongoose";
 import { Request, Response } from "express";
 
 import type { SubscriberData } from "@yosemite-crew/types";
 
 const { ObjectId } = mongoose.Types;
 
+type CSVRecord ={
+  _id:Types.ObjectId
+  Name:string,
+  UserType:string,
+  Address:string,
+  CountryCode:string
+}
 function isValidEmail(email: string) {
   return validator.isEmail(email);
 }
@@ -31,13 +38,14 @@ const checkEmail = async (req: Request, res: Response): Promise<void> => {
       return;
     }
     res.status(200).json({ message: "Email not subscribed" });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message:'Internal server error'
+    res.status(500).json({ error: message });
   }
 };
 
 const checkEmailAuth = async (req: Request, res: Response): Promise<void> => {
-  const { email } = req.body;
+  const { email } = req.body as { email:string };
   if (!email || !isValidEmail(email)) {
     res.status(400).json({ error: "Enter a valid Email" });
     return;
@@ -49,13 +57,14 @@ const checkEmailAuth = async (req: Request, res: Response): Promise<void> => {
       return;
     }
     res.status(200).json({ message: "Email not subscribed" });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+     const message = error instanceof Error ? error.message:'Internal server error'
+    res.status(500).json({ error: message });
   }
 };
 
 const subscribe = async (req: Request, res: Response): Promise<void> => {
-  const { email, name, countryCode, userType, userId } = req.body;
+  const { email, name, countryCode, userType, userId } = req.body as {email:string, name:string, countryCode:string, userType:string, userId:Types.ObjectId}
   const allowedUserTypes = ["Pet Owner", "Business", "Developer"];
   if (!name) {
     res.status(400).json({ error: "Enter a valid Name" });
@@ -148,8 +157,9 @@ const subscribe = async (req: Request, res: Response): Promise<void> => {
     }
     // Send a welcome email
     res.status(200).json({ message: "Subscription successful!" });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message :'Internal server error'
+    res.status(500).json({ error: message });
   }
 };
 
@@ -159,6 +169,11 @@ const unsubscribe = async (req: Request, res: Response): Promise<void> => {
     res.status(400).json({ error: "UUID is required" });
     return;
   }
+
+if (typeof uuid !== "string") {
+  res.status(400).json({ error: "Invalid UUID" });
+  return;
+}
   try {
     const subscriber = await Subscriber.findOne({ _id: { $eq: uuid } });
     if (!subscriber) {
@@ -173,6 +188,7 @@ const unsubscribe = async (req: Request, res: Response): Promise<void> => {
       { email: subscriber.email },
       { subscribed: false }
     );
+
     const params = {
       ApplicationId: process.env.PINPOINT_APPLICATION_ID,
       EndpointId: uuid,
@@ -194,8 +210,9 @@ const unsubscribe = async (req: Request, res: Response): Promise<void> => {
     }
     // Send an unsubscribe email
     res.status(200).json({ message: "Unsubscription successful!" });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    const message  = error instanceof Error ? error.message :'Internal server error'
+    res.status(500).json({ error: message });
   }
 };
 
@@ -211,7 +228,7 @@ const batchUpload = async (req: Request, res: Response): Promise<void> => {
       columns: true,
       skip_empty_lines: true,
       skip_records_with_empty_values: true,
-    });
+    }) as CSVRecord[]
     if (!Array.isArray(records) || records.length === 0) {
       res.status(400).json({ error: "Invalid or empty CSV" });
       return;
@@ -257,7 +274,7 @@ const batchUpload = async (req: Request, res: Response): Promise<void> => {
       _id: new ObjectId(),
     }));
 
-    const operations = records.map((r: any) => ({
+    const operations = records.map((r) => ({
       updateOne: {
         filter: { email: r.Address },
         update: {
@@ -277,11 +294,11 @@ const batchUpload = async (req: Request, res: Response): Promise<void> => {
     const params = {
       ApplicationId: process.env.PINPOINT_APPLICATION_ID,
       EndpointBatchRequest: {
-        Item: records.map((r: any) => {
+        Item: records.map((r) => {
           const newId = r._id.toString();
           return {
             Id: newId,
-            ChannelType: "EMAIL",
+            ChannelType: "EMAIL"  as ChannelType,
             Address: r.Address,
             OptOut: "NONE",
             Location: {
