@@ -179,7 +179,7 @@ export function parseAppointment(fhirData: IFHIRAppointmentData): Partial<WebApp
  
   const appointmentDate :number|string|null = fhirData.start || "";
       const purposeOfVisit = fhirData.description || "";
-       console.log(fhirData,'inside fhird');
+       
       const concernOfVisit = fhirData.reasonCode[0]?.text || "";
   
       // Extract slotId from extensions
@@ -210,13 +210,7 @@ export function parseAppointment(fhirData: IFHIRAppointmentData): Partial<WebApp
       const department =
         fhirData.serviceType?.[0]?.coding?.[0]?.code ||
         "";
-console.log(appointmentDate ,
-        purposeOfVisit,
-        hospitalId,
-        department,
-        petId,
-        slotsId,
-     doctorId,'hhhhhhhhhh')
+
 
       // Optional: derive timeslot from appointment start
       let timeslot = "";
@@ -224,14 +218,7 @@ console.log(appointmentDate ,
         const dateObj = new Date(appointmentDate);
         timeslot = dateObj.toTimeString().split(" ")[0]; // HH:MM:SS
       }
-console.log(appointmentDate ,
-        purposeOfVisit,
-        hospitalId,
-        department,
-        petId,
-        slotsId,
-     doctorId,
-        timeslot);
+
       return {
         appointmentDate : appointmentDate as string,
         purposeOfVisit,
