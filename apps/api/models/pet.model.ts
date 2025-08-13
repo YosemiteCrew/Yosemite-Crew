@@ -23,13 +23,11 @@ const PetSchema: Schema<pets> = new mongoose.Schema(
     policyNumber: { type: String },
     passportNumber: { type: String },
     petFrom: { type: String },
-    petImage: [
-      {
+    petImage: {
         url: { type: String },
         originalname: { type: String },
         mimetype: { type: String },
       },
-    ],
   },
   { timestamps: true }
 );
