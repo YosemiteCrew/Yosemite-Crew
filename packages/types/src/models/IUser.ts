@@ -31,6 +31,7 @@ export type IUser = Document & {
   }[];
   createdAt?: Date;
   updatedAt?: Date;
+  lastLogin?: Date ,
 }
 
 export interface SignupRequestBody {

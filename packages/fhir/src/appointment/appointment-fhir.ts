@@ -169,6 +169,72 @@ import  {v4 as  uuidv4 }  from "uuid";
 
 // }
 
+export function parseAppointment(fhirData: IFHIRAppointmentData): Partial<WebAppointmentType> | null {
+
+  try{
+  if (!fhirData || fhirData.resourceType !== "Appointment") {
+    return null;
+  }
+  const startDateObj = new Date(fhirData.start);
+ 
+  const appointmentDate :number|string|null = fhirData.start || "";
+      const purposeOfVisit = fhirData.description || "";
+       
+      const concernOfVisit = fhirData.reasonCode[0]?.text || "";
+  
+      // Extract slotId from extensions
+      const slotsId =
+        fhirData.extension?.find(
+          (ext: any) =>
+            ext.url ===
+            "http://example.org/fhir/StructureDefinition/slotsId"
+        )?.valueString || "";
+
+      // Extract patientId, doctorId, and hospitalId from participants
+      let petId = "";
+      let doctorId = "";
+      let hospitalId = "";
+
+      (fhirData.participant || []).forEach((p: any) => {
+        const ref = p.actor?.reference || "";
+        if (ref.startsWith("Patient/")) {
+          petId = ref.replace("Patient/", "");
+        } else if (ref.startsWith("Practitioner/")) {
+          doctorId = ref.replace("Practitioner/", "");
+        } else if (ref.startsWith("Location/")) {
+          hospitalId = ref.replace("Location/", "");
+        }
+      });
+
+      // Extract department info from serviceType
+      const department =
+        fhirData.serviceType?.[0]?.coding?.[0]?.code ||
+        "";
+
+
+      // Optional: derive timeslot from appointment start
+      let timeslot = "";
+      if (appointmentDate) {
+        const dateObj = new Date(appointmentDate);
+        timeslot = dateObj.toTimeString().split(" ")[0]; // HH:MM:SS
+      }
+
+      return {
+        appointmentDate : appointmentDate as string,
+        purposeOfVisit,
+        hospitalId,
+        department,
+        petId,
+        slotsId,
+        veterinarian:doctorId,
+        // timeslot
+      };
+    } catch (err) {
+      console.error("Error parsing FHIR Appointment:", err);
+      return null;
+    }
+  }
+
 
 export function convertFhirAppointmentBundle(bundle: any) {
   if (!bundle || !Array.isArray(bundle)) {
