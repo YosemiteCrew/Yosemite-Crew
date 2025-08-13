@@ -367,17 +367,17 @@ function AddVetProfile() {
                                     src={sanitizedPreview}
                                     alt="Preview"
                                     className="preview-image"
-                                    width={40}
-                                    height={40}
+                                    width={80}
+                                    height={80}
                                   />
                                 ) : (
                                   <div className="upload-placeholder">
                                     <Image
                                       src={typeof vetAndTeamsProfile?.image === "string" ? vetAndTeamsProfile.image : ""}
                                       alt="camera"
-                                      className="icon"
-                                      width={40}
-                                      height={40}
+                                      className="preview-image"
+                                      width={80}
+                                      height={80}
                                     />
                                   </div>
                                 )}
