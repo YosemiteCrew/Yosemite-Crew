@@ -289,8 +289,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
               onChange={(value) => handleInputChange('isAppointmentBased', value)}
               className="toggle-group"
             >
-              <ToggleButton value="No" variant="outline-primary">No</ToggleButton>
-              <ToggleButton value="Yes" variant="outline-primary">Yes</ToggleButton>
+              {/* <ToggleButton value="No" variant="outline-primary">No</ToggleButton>
+              <ToggleButton value="Yes" variant="outline-primary">Yes</ToggleButton> */}
             </ToggleButtonGroup>
           </div>
 
