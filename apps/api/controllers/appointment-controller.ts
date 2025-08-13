@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { Types } from 'mongoose';
 import { getCognitoUserId } from '../middlewares/authMiddleware';
 import appointmentService from '../services/appointment-service'
-import {fhirAppointmentFormatter} from '@yosemite-crew/fhir'
+import {fhirAppointmentFormatter, parseAppointment} from '@yosemite-crew/fhir'
 import helpers from '../utils/helpers';
 import {FHIRTransformer} from '@yosemite-crew/fhir';
 import { IFHIRAppointmentData, IParsedAppointmentDetails, IProfileData, WebAppointmentType } from '@yosemite-crew/types';
@@ -18,8 +18,9 @@ const appointmentController = {
       const data  = req.body.data;
       let appointmentDetails: IParsedAppointmentDetails | null = null;
       if (data) {
-        appointmentDetails =  FHIRTransformer.parseAppointment(req.body.data);
+        appointmentDetails =  parseAppointment(req.body.data);
       }
+      
 
       if (!appointmentDetails) {
         res.status(400).json({
@@ -34,7 +35,7 @@ const appointmentController = {
         purposeOfVisit,
         hospitalId,
         department,
-        doctorId,
+        veterinarian,
         petId,
         slotsId,
         timeslot,
@@ -45,7 +46,14 @@ const appointmentController = {
       const dayOfWeek = new Date(appointmentDate).toLocaleDateString('en-US', { weekday: 'long' });
 
       // Check slot availability
-      const isBooked = await appointmentService.checkAppointment(doctorId, appointmentDate, timeslot);
+      if(veterinarian === undefined || null || veterinarian === '') {
+        res.status(200).json({
+          status: 0,
+          message: "Invalid veterinarian ID.",
+        });
+        return;
+      }
+      const isBooked = await appointmentService.checkAppointment(String(veterinarian), appointmentDate, timeslot);
       if (isBooked) {
         res.status(200).json({
           status: 0,
@@ -112,7 +120,7 @@ const appointmentController = {
         purposeOfVisit: purposeOfVisit ?? '',
         concernOfVisit,
         appointmentSource: "App",
-        document: documentFiles,
+        uploadRecords: documentFiles,
       };
 
 

@@ -27,7 +27,7 @@ export type pets = Document & {
   policyNumber?: string;
   passportNumber?: string;
   petFrom?: string;
-  petImage?: petImage[];
+  petImage?: petImage;
   updatedAt ?: string;
 };
 
