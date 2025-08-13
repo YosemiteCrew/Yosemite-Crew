@@ -435,6 +435,16 @@
   color: var(--black-text);
 }
 
-
-
 /* All Apointment table Ended */
+
+.ConstBtn{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ConstBtn button{
+  padding: 0;
+  background: transparent !important;
+  border: none !important;
+  line-height: 0px !important;
+}
