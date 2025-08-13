@@ -216,9 +216,19 @@ const medicalRecordsController = {
         },
         {
           $project: {
-            vaccineName: 1,
-            vaccinationDate: 1,
-            petImage: { $arrayElemAt: ["$petData.petImage", 0] }
+           _id: 1,
+            userId: 1,
+            documentType: 1,
+            title: 1,
+            issueDate: 1,
+            hasExpiryDate: 1,
+            expiryDate: 1,
+            medicalDocs: 1,
+            isRead: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            petImage: { $arrayElemAt: ["$petData.petImage", 0] },
+             petId: { $arrayElemAt: ["$petData._id", 0] },
           }
         }
       ]);
