@@ -1,13 +1,16 @@
 "use client";
 import React, { useCallback, useEffect, useState, useRef } from "react";
 import "./MobChatApp.css";
-import socket from "../../Socket/Socket";
+import { Socket, io } from "socket.io-client";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/app/stores/authStore";
 
-type Message = {
-  sender: string;
+// Initialize socket instance
+const socket: Socket = io(process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000");
+
+interface Message {
+  sender: string|null;
   receiver: string;
   time: string;
   content: string;
@@ -19,39 +22,42 @@ type Message = {
   };
   fileUrl?: string;
   fileName?: string;
-};
+}
 
-const MobChatApp = () => {
+const MobChatApp: React.FC = () => {
   const { userId } = useAuthStore();
-  const navigate = useNavigate();
+  const router = useRouter();
 
-  const receiver =
+  const receiver: string =
     userId === "c3e4a8d2-80e1-7065-09e1-8c6db4e36757"
       ? "4334c802-f0d1-70c2-f67e-65998fa0148b"
       : "c3e4a8d2-80e1-7065-09e1-8c6db4e36757";
 
   const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState("");
-  const [isInputVisible, setIsInputVisible] = useState(false);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
+  const [newMessage, setNewMessage] = useState<string>("");
+  const [isInputVisible, setIsInputVisible] = useState<boolean>(false);
+  const [page, setPage] = useState<number>(1);
+  const [hasMore, setHasMore] = useState<boolean>(true);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
-  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [isAtBottom, setIsAtBottom] = useState<boolean>(true);
 
   // Fallback logout handler
-  const onLogout = useCallback((navigateFn: any) => {
+  const onLogout = useCallback(() => {
     sessionStorage.clear();
-    navigateFn("/signin");
-  }, []);
+    router.push("/signin");
+  }, [router]);
 
   const getMessages = useCallback(async () => {
     try {
       const token = sessionStorage.getItem("token");
-      const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_BASE_URL}api/hospitals/getMessages?senderId=${userId}&receiverId=${receiver}&page=${page}&limit=10`,
+      const response = await axios.get<{
+        messages: Message[];
+        hasMore: boolean;
+      }>(
+        `${process.env.NEXT_PUBLIC_BASE_URL}/api/hospitals/getMessages?senderId=${userId}&receiverId=${receiver}&page=${page}&limit=10`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      if (response) {
+      if (response.data) {
         const newMessages = response.data.messages.reverse();
         setMessages((prevMessages) => [...newMessages, ...prevMessages]);
         setHasMore(response.data.hasMore);
@@ -59,18 +65,18 @@ const MobChatApp = () => {
     } catch (error: any) {
       if (error.response?.status === 401) {
         console.log("Session expired. Redirecting to signin...");
-        onLogout(navigate);
+        onLogout();
       }
     }
-  }, [userId, receiver, page, navigate, onLogout]);
+  }, [userId, receiver, page, onLogout]);
 
-  useEffect(() => {
+  useEffect((): void => {
     if (userId) {
       getMessages();
     }
   }, [userId, getMessages]);
 
-  useEffect(() => {
+  useEffect((): void => {
     if (userId) {
       socket.emit("userOnline", userId);
     }
@@ -81,7 +87,9 @@ const MobChatApp = () => {
       setMessages((prevMessages) => [...prevMessages, data]);
     };
     socket.on("receivePrivateMessage", handleReceiveMessage);
-    return () => socket.off("receivePrivateMessage", handleReceiveMessage);
+    return () => {
+      socket.off("receivePrivateMessage", handleReceiveMessage);
+    };
   }, []);
 
   const sendMessage = () => {
@@ -151,10 +159,10 @@ const MobChatApp = () => {
     const container = messagesContainerRef.current;
     if (container) {
       container.addEventListener("scroll", handleScroll);
+      return () => {
+        container.removeEventListener("scroll", handleScroll);
+      };
     }
-    return () => {
-      container?.removeEventListener("scroll", handleScroll);
-    };
   }, [handleScroll]);
 
   const scrollToBottom = () => {
@@ -176,11 +184,7 @@ const MobChatApp = () => {
         <h5>Chat with Sky B</h5>
       </div>
       <div className="ChatApp_container">
-        <div
-          className="Chatmessages mostly_scrollbar"
-          ref={messagesContainerRef}
-          
-        >
+        <div className="Chatmessages mostly_scrollbar" ref={messagesContainerRef}>
           {messages.map((msg, index) => (
             <div
               key={index}
@@ -192,12 +196,12 @@ const MobChatApp = () => {
 
               {msg.type === "text" && <p>{msg.content}</p>}
 
-              {msg.type === "image" && (
-                <img src={msg.fileUrl} alt="sent"  />
+              {msg.type === "image" && msg.fileUrl && (
+                <img src={msg.fileUrl} alt="sent" />
               )}
 
-              {msg.type === "video" && (
-                <video controls >
+              {msg.type === "video" && msg.fileUrl && (
+                <video controls>
                   <source src={msg.fileUrl} type="video/mp4" />
                 </video>
               )}
@@ -216,7 +220,6 @@ const MobChatApp = () => {
                     textDecoration: "underline",
                   }}
                 >
-                  {/* <HiDocumentArrowDown  /> */}
                   {msg.fileName || "Download File"}
                 </a>
               )}
@@ -234,8 +237,7 @@ const MobChatApp = () => {
 
         <div className="ChatAppBootom">
           <div className="Addicon">
-            <p onClick={() => setIsInputVisible(!isInputVisible)}>
-            </p>
+            <p onClick={() => setIsInputVisible(!isInputVisible)}></p>
             <div className={`AddinputDiv ${isInputVisible ? "show" : ""}`}>
               {isInputVisible && (
                 <>
@@ -283,14 +285,11 @@ const MobChatApp = () => {
               placeholder="Type a message..."
             />
           </div>
-          <button onClick={sendMessage}>
-          </button>
+          <button onClick={sendMessage}>Send</button>
         </div>
       </div>
       <div className="EndBtn">
-        <p>
-           End Chat
-        </p>
+        <p>End Chat</p>
       </div>
     </div>
   );
