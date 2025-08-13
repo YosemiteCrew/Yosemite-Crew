@@ -6,7 +6,7 @@ export interface IParsedAppointmentDetails {
     purposeOfVisit?: string;
     hospitalId: string;
     department: string;
-    doctorId: string;
+    veterinarian: string;
     petId: string;
     slotsId: string;
     timeslot: string;

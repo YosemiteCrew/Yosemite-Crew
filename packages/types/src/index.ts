@@ -59,6 +59,6 @@ export type {TeamInviteMember,InvitePayload,InviteCard,InviteItem,FhirTeamOvervi
 export type { IBookAppointmentRequestBody , IParsedAppointmentDetails, IAppointmentData , IFHIRAppointmentData ,AppointmentInput, FHIRAppointmentBundleParams,SimplifiedAppointment,FHIRAppointment} from "./appointment/appointment-types";
 export type { Department , Organization } from "./business-formatter-types/business-formatter-types";
 export type {FHIRAppointmentAssessmentGraphBundle,QueryParams,AggregatedAppointmentGraph,DataItem,FHIRBundleGraph,FHIRBundleGraphForSpecialitywiseAppointments,FHIRtoJSONSpeacilityStats} from "./hospital-type/hospitalTypes";
-export type {FHIRMedicalRecord , MedicalRecordRequestBody, MedicalRecordResponse, MedicalDoc, MedicalRecordFolderRequest} from "./medical-record/medical-record-types";
 export type {FhirPetResource,NormalPetData,OperationOutcome,OperationOutcomeIssue,PetResponse,FHIRDoctorOption,NormalDoctorOption,ForBookingFHIRSlot,ForBookingTimeSlot,TimeSlotFHIRBundle,FHIRAppointmentBooking,NormalAppointmentData,} from "./web-appointments-types/web-appointments"
+export type {FHIRMedicalRecord ,FhirDocumentReference, MedicalRecordRequestBody, MedicalRecordResponse, MedicalDoc, MedicalRecordFolderRequest} from "./medical-record/medical-record-types";
 export type {adminDepartment,AdminDepartmentItem,AdminFHIRHealthcareService} from './models/admin-department'

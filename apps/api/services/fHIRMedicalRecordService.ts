@@ -1,55 +1,54 @@
-import { FHIRMedicalRecord, medicalRecord, MedicalRecordResponse } from "@yosemite-crew/types";
+import { FHIRMedicalRecord, medicalRecord, MedicalRecordResponse , FhirDocumentReference} from "@yosemite-crew/types";
 import mongoose from "mongoose";
 import medicalRecords from "../models/medical-records-model";
 import helpers from "../utils/helpers";
 
 
 class FHIRMedicalRecordService {
-  static convertFHIRToMedicalRecord(fhirData: MedicalRecordResponse): FHIRMedicalRecord {
-    if (!fhirData || typeof fhirData !== 'object') {
-      throw new Error("Invalid FHIR data format.");
-    }
 
-     
-    const data = fhirData;
-
-     console.log("hello",data)
-    if (data.resourceType !== 'DocumentReference') {
-      throw new Error("Unsupported FHIR resourceType. Expected 'DocumentReference'.");
-    }
-
-     
-    const documentType = data.type?.text;
-    const title = data.description;
-    const issueDate = data.date;
-    const expiryDate = data.context?.period?.end;
-    const patientId = data.subject?.reference?.split('/')?.[1];
-
-    if (!documentType) {
-      throw new Error("Missing required FHIR field: type.text");
-    }
-
-    if (!title) {
-      throw new Error("Missing required FHIR field: description");
-    }
-
-    if (!patientId) {
-      throw new Error("Missing or invalid FHIR field: subject.reference");
-    }
-
-    return {
-      documentType,
-      title,
-      issueDate,
-      expiryDate,
-      patientId,
-    };
+  static convertFhirToMedicalRecord(fhirData: FhirDocumentReference): FHIRMedicalRecord {
+  if (!fhirData || typeof fhirData !== 'object') {
+    throw new Error("Invalid FHIR data format.");
   }
+
+  if (!fhirData.resourceType) {
+    throw new Error("Unsupported FHIR resourceType. Expected 'DocumentReference'.");
+  }
+
+  if (!fhirData.type || !fhirData.type.text) {
+    throw new Error("Missing required FHIR field: type.text");
+  }
+
+  if (!fhirData.description) {
+    throw new Error("Missing required FHIR field: description");
+  }
+
+  if (!fhirData.subject || !fhirData.subject.reference) {
+    throw new Error("Missing or invalid FHIR field: subject.reference");
+  }
+
+  const documentType = fhirData.type.text as string;
+  const title = fhirData.description as string;
+  const issueDate = fhirData.date as string;
+  const expiryDate = fhirData.context?.period?.end as string;
+  const patientId = fhirData.subject.reference.split('/')[1] as string; // extract ID from "Patient/12345"
+
+  return {
+    documentType,
+    title,
+    issueDate,
+    expiryDate,
+    patientId,
+  };
+}
+
+
+
 
   static convertMedicalRecordToFHIR(record: medicalRecord): MedicalRecordResponse {
   if (!record) throw new Error("Invalid medical record.");
 
-  const id :string  = record._id;
+  const id:string  = record._id;
   if (!id) throw new Error("Medical record ID is required.");
   return {
     resourceType: "DocumentReference",
@@ -68,6 +67,9 @@ class FHIRMedicalRecordService {
         value: record.userId,
       },
       reference: record.petId ? `Patient/${record.petId}` : undefined,
+      image: record?.petImage && typeof record.petImage === 'object' && 'url' in record.petImage
+        ? (record.petImage as { url: string }).url
+        : undefined
     },
 
     context: {
@@ -92,10 +94,11 @@ class FHIRMedicalRecordService {
         valueBoolean: record.hasExpiryDate,
       },
     ],
+    effectiveDateTime: record.createdAt as Date,
   };
 }
 
-  static async deleteMedicalRecord(id: string): Promise<object | null> {
+  static async deleteMedicalRecord(id: string): Promise<{deletedCount:number} | null> {
     const objectId = new mongoose.Types.ObjectId(id);
     const data = await medicalRecords.find({ _id: objectId });
 

@@ -1,7 +1,7 @@
 import express from 'express';
 import multer from 'multer';
 import { verifyTokenAndRefresh } from '../middlewares/authMiddleware';
-import NewsletterController from '../controllers/NewsletterController';
+import NewsletterController from '../controllers/news-letter-controller';
 
 const router = express.Router();
 

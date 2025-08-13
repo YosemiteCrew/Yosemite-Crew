@@ -55,9 +55,20 @@ router.post("/saveExercisePlan",verifyTokenAndRefresh, planController.exercisePl
 router.get("/getexercise-list/:userId",verifyTokenAndRefresh, planController.getExercisePlan);
 router.post("/savepainjournal",verifyTokenAndRefresh, planController.addPainJournal);
 router.get("/getpainjournal/:userId",verifyTokenAndRefresh, planController.getPainJournal);
-router.post('/documentReference/saveMedicalFolder',  medicalRecordsController.createMedicalRecordFolder);
+
+router.post('/DocumentReference/saveMedicalFolder', verifyTokenAndRefresh,  medicalRecordsController.saveMedicalRecordFolder);
+router.get('/DocumentReference/getMedicalFolderList', verifyTokenAndRefresh, medicalRecordsController.getMedicalRecordFolderList);
+router.delete('/DocumentReference/deleteMedicalFolder', verifyTokenAndRefresh, medicalRecordsController.deleteMedicalRecordFolder)
 router.post("/DocumentReference/saveMedicalRecord", verifyTokenAndRefresh,medicalRecordsController.saveMedicalRecord);
 router.get("/DocumentReference/getMedicalRecordList",verifyTokenAndRefresh, medicalRecordsController.medicalRecordList);
+router.get("/DocumentReference/getMedicalUnreadRecords", verifyTokenAndRefresh, medicalRecordsController.getMedicalUnreadRecords);
+router.get("/DocumentReference/getMedicalRecordById", verifyTokenAndRefresh, medicalRecordsController.getSpecificMedicalRecordById);
+router.put("/DocumentReference/editMedicalRecord", verifyTokenAndRefresh, medicalRecordsController.editMedicalRecord);
+router.delete("/DocumentReference/deleteMedicalRecord", verifyTokenAndRefresh, medicalRecordsController.deleteMedicalRecord);
+router.get("/DocumentReference/getFilesOfAllMedicalRecords", verifyTokenAndRefresh, medicalRecordsController.getFilesOfAllMedicalRecords);
+router.delete("/DocumentReference/deleteSpecificImageFromMedicalRecord", verifyTokenAndRefresh, medicalRecordsController.deleteSpecificImageFromMedicalRecord);
+
+
 router.post( "/Observation/saveDiabetesRecords",verifyTokenAndRefresh,diabetesController.diabetesRecords);
 router.get("/Observation/getDiabetesLogs", verifyTokenAndRefresh,diabetesController.getDiabetesLogs);
 router.delete("/Observation/deleteDiabetesLog", verifyTokenAndRefresh,diabetesController.deleteDiabetesLog);
