@@ -31,6 +31,9 @@ dotenv.config();
 //   return `${hours}:${minutes} ${period}`;
 // }
 
+function escapeRegex(input: string): string {
+  return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); // Escape special chars
+}
 
 
 const webAppointmentController = {
@@ -74,7 +77,11 @@ const webAppointmentController = {
           res.status(404).json({ message: "No pet found with provided microchip number." });
           return;
         }
-
+        if (typeof pet.cognitoUserId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(pet.cognitoUserId)) {
+          res.status(400).json({ message: "Invalid doctorId format" });
+          return;
+        }
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
         const petParentName = await getPetParentName(pet.cognitoUserId as string);
         const petData = {
           petId: pet._id?.toString(),
@@ -91,16 +98,20 @@ const webAppointmentController = {
         res.status(200).json({ data: fhirData });
         return;
       }
-
+       const safeName = escapeRegex(names);
       // Search by names (owner name or pet name)
       const appUser: IUser | null = await AppUser.findOne({
         $or: [
-          { firstName: new RegExp(names, "i") },
-          { lastName: new RegExp(names, "i") }
+          { firstName: new RegExp(safeName, "i") },
+          { lastName: new RegExp(safeName, "i") }
         ]
       });
 
       if (appUser) {
+         if (typeof appUser.cognitoId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(appUser.cognitoId)) {
+          res.status(400).json({ message: "Invalid doctorId format" });
+          return;
+        }
         const petList: Ipet[] = await pets.find({ cognitoUserId: appUser.cognitoId });
         const petParentName = `${appUser.firstName} ${appUser.lastName}`;
 
@@ -162,7 +173,14 @@ const webAppointmentController = {
   getDoctorsByDepartmentId: async (req: Request, res: Response) => {
     try {
       const { userId, departmentId } = req.query as { userId: string, departmentId: string };
-
+      if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        res.status(400).json({ message: "Invalid doctorId format" });
+        return;
+      }
+      if (typeof departmentId !== 'string' || !mongoose.Types.ObjectId.isValid(departmentId)) {
+        res.status(400).json({ message: 'Invalid or missing departmentId format' });
+        return;
+      }
       // Step 1: Get business ID from WebUser
       const user = await WebUser.findOne({ cognitoId: userId }).select("bussinessId -_id");
       if (!user || !user.bussinessId) {
@@ -280,12 +298,12 @@ const webAppointmentController = {
       }
 
 
-     const safeAppointmentDate = new Date(`${appointmentDate}T00:00:00Z`);
-if (isNaN(safeAppointmentDate.getTime())) {
-  res.status(400).json({ message: "Invalid appointmentDate" });
-  return;
-}
-const date =safeAppointmentDate.toISOString().split("T")[0]
+      const safeAppointmentDate = new Date(`${appointmentDate}T00:00:00Z`);
+      if (isNaN(safeAppointmentDate.getTime())) {
+        res.status(400).json({ message: "Invalid appointmentDate" });
+        return;
+      }
+      const date = safeAppointmentDate.toISOString().split("T")[0]
       const existingAppointment = await webAppointments.findOne({
         veterinarian,
         date,
@@ -475,19 +493,20 @@ const date =safeAppointmentDate.toISOString().split("T")[0]
         return;
       }
 
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        res.status(400).json({ message: "Invalid date format. Expected YYYY-MM-DD" });
+      const safeAppointmentDate = new Date(`${date}T00:00:00Z`);
+      if (isNaN(safeAppointmentDate.getTime())) {
+        res.status(400).json({ message: "Invalid appointmentDate" });
         return;
       }
-
+      const dates = safeAppointmentDate.toISOString().split("T")[0]
       // ========= STEP 1: FETCH UNAVAILABLE SLOTS =========
-      const unavailableRecord: UnavailableSlotDocument | null = await UnavailableSlot.findOne({ userId: userId, date, day });
+      const unavailableRecord: UnavailableSlotDocument | null = await UnavailableSlot.findOne({ userId: userId, dates, day });
       const unavailableTimes: string[] = unavailableRecord ? unavailableRecord.slots : [];
 
       // ========= STEP 2: FETCH BOOKED SLOTS =========
       const bookedSlots: WebAppointment[] = await webAppointments.find({
         veterinarian: userId,
-        appointmentDate: date,
+        appointmentDate: dates,
       });
       const bookedSlotIds: string[] = bookedSlots.map((slot: WebAppointment) => slot.slotsId.toString());
 
@@ -552,17 +571,17 @@ const date =safeAppointmentDate.toISOString().split("T")[0]
       // Filter by doctorId
       if (doctorId) {
         if (typeof doctorId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(doctorId)) {
-        res.status(400).json({ message: "Invalid doctorId format" });
-        return;
-      }
+          res.status(400).json({ message: "Invalid doctorId format" });
+          return;
+        }
         matchQuery.veterinarian = doctorId;
       }
       // Or filter by userId (hospitalId from WebUser)
       else if (userId) {
         if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
-        res.status(400).json({ message: "Invalid userId format" });
-        return;
-      }
+          res.status(400).json({ message: "Invalid userId format" });
+          return;
+        }
 
         const webuser = await WebUser.findOne({ cognitoId: userId }).lean();
         if (!webuser) {
