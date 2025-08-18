@@ -433,11 +433,15 @@ export function convertEmergencyAppointmentFromFHIRForTable(
     ownerName: fhir.participant.find((p) => p.actor.reference.startsWith("Patient/"))?.actor.display.split(" (")[0] || "",
     petName: fhir.description?.split(" (")[0] || "",
     appointmentStatus: fhir.status,
-    petType: fhir.description?.match(/\((.*?)\)/)?.[1] || "",
+    petType: fhir.description?.split("(")[1]?.split(")")[0] || "",
     petBreed: fhir.description?.split("- ")[1] || "",
     gender: fhir.extension?.find((e) => e.url.includes("gender"))?.valueString || "",
     phoneNumber: Number(fhir.extension?.find((e) => e.url.includes("phoneNumber"))?.valueString) || 0,
-    email: fhir.participant.find((p) => p.actor.reference.startsWith("Patient/"))?.actor.display.match(/\((.*?)\)/)?.[1] || "",
+   email:
+  fhir.participant.find((p) =>
+    p.actor.reference.startsWith("Patient/")
+  )?.actor.display.split("(")[1]?.split(")")[0] || "",
+
     veterinarian: fhir.participant.find((p) => p.actor.reference.startsWith("Practitioner/"))?.actor.display || "",
     departmentName: fhir.supportingInformation?.find((s) => s.reference.startsWith("HealthcareService/"))?.display || "",
     appointmentTime:

@@ -1,7 +1,7 @@
 
 import { Request, Response } from "express";
 import { emergencyAppointment } from "../models/emergency-appointment";
-import { FHIREmergencyAppointment, FHIRPractitioner, NormalDoctor, NormalEmergencyAppointment } from "@yosemite-crew/types";
+import { FHIREmergencyAppointment, FHIRPractitioner, NormalDoctor, NormalEmergencyAppointment, NormalEmergencyAppointmentForTable } from "@yosemite-crew/types";
 import { ProfileData, WebUser } from "../models/WebUser";
 import { convertDoctorsToFHIR, convertEmergencyAppointmentFromFHIR, convertEmergencyAppointmentToFHIRForTable } from "@yosemite-crew/fhir";
 import { AppointmentsToken } from "../models/web-appointment";
@@ -288,8 +288,8 @@ export const emergencyAppointments = {
         res.status(404).json({ message: "No appointments found" });
         return;
       }
-      const fhirAppointments = appointments.map((appt) =>
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call
+      const fhirAppointments = appointments.map((appt:NormalEmergencyAppointmentForTable) =>
+         
         convertEmergencyAppointmentToFHIRForTable(appt)
       );
       res.status(200).json({
