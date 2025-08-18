@@ -1,16 +1,17 @@
-
+import dotenv from 'dotenv';
 import { Request, Response } from "express";
 import pets from "../models/pet.model";
 import AppUser from "../models/appuser-model";
-import { FHIRSlotBundle, IUser, pets as Ipet, NormalPetData, WebAppointmentType ,FHIRAppointmentBooking} from "@yosemite-crew/types";
-import { convertFHIRToAppointment, convertPetDataToFhir, convertTimeSlotsToFHIR, convertToFHIRDoctorOptions } from "@yosemite-crew/fhir";
-import { OperationOutcome, SearchPetsRequestBody } from "@yosemite-crew/types/dist/web-appointments-types/web-appointments";
+import { FHIRSlotBundle, IUser, pets as Ipet, NormalPetData, WebAppointmentType, FHIRAppointmentBooking } from "@yosemite-crew/types";
+import { convertFHIRToAppointment, convertPetDataToFhir, convertTimeSlotsToFHIR, convertToFHIRDoctorOptions, toFHIR } from "@yosemite-crew/fhir";
+import { FHIRAppointmentData, MyAppointmentData, OperationOutcome, SearchPetsRequestBody } from "@yosemite-crew/types/dist/web-appointments-types/web-appointments";
 import { ProfileData, WebUser } from "../models/WebUser";
 import AddDoctors from "../models/AddDoctor";
 import { AppointmentsToken, webAppointments } from "../models/web-appointment";
 import { DoctorsTimeSlotes, UnavailableSlot } from "../models/doctors.slotes.model";
-import mongoose from "mongoose";
-
+import mongoose, { PipelineStage } from "mongoose";
+import dayjs from "dayjs";
+dotenv.config();
 // const { json } = require('body-parser');
 // import DoctorsTimeSlotes from "../models/doctors.slotes.model";
 // import {
@@ -80,7 +81,7 @@ const webAppointmentController = {
           petName: pet.petName,
           microChipNumber: pet.microChipNumber,
           passportNumber: pet.passportNumber,
-          petImage: `${process.env.CLOUD_FRONT_URI}/${pet.petImage?.[0]?.url ?? ""}`,
+          petImage: `${process.env.CLOUD_FRONT_URI}/${pet.petImage?.url ?? ""}`,
           petParentId: pet.cognitoUserId,
           petParentName: petParentName
         };
@@ -108,7 +109,7 @@ const webAppointmentController = {
           petName: pet.petName,
           microChipNumber: pet.microChipNumber,
           passportNumber: pet.passportNumber,
-          petImage: `${process.env.CLOUD_FRONT_URI}/${pet.petImage?.[0]?.url ?? ""}`,
+          petImage: `${process.env.CLOUD_FRONT_URI}/${pet.petImage?.url ?? ""}`,
           petParentId: pet.cognitoUserId,
           petParentName: petParentName
         }));
@@ -134,7 +135,7 @@ const webAppointmentController = {
         petName: pet.petName,
         microChipNumber: pet.microChipNumber,
         passportNumber: pet.passportNumber,
-        petImage: `${process.env.CLOUD_FRONT_URI}/${pet.petImage?.[0]?.url ?? ""}`,
+        petImage: `${process.env.CLOUD_FRONT_URI}/${pet.petImage?.url ?? ""}`,
         petParentId: pet.cognitoUserId,
         petParentName: await getPetParentName(pet.cognitoUserId as string)
       })));
@@ -221,9 +222,11 @@ const webAppointmentController = {
         appointmentDate,
         // appointmentTime,
         day,
+        petId,
+        ownerId,
         slotsId, // This is the slot ID from frontend
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-      } = convertFHIRToAppointment( req.body as FHIRAppointmentBooking) as WebAppointmentType;
+
+      } = convertFHIRToAppointment(req.body as FHIRAppointmentBooking) as WebAppointmentType;
 
       // Validate appointmentDate format (YYYY-MM-DD)
       if (!/^\d{4}-\d{2}-\d{2}$/.test(appointmentDate)) {
@@ -237,12 +240,12 @@ const webAppointmentController = {
         });
         return
       }
-       if (typeof veterinarian !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(veterinarian)) {
+      if (typeof veterinarian !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(veterinarian)) {
         res.status(400).json({ message: 'Invalid doctorId format' });
         return;
-      } 
+      }
       // Get hospital info from user
-      const user = await WebUser.findOne({cognitoId:veterinarian});
+      const user = await WebUser.findOne({ cognitoId: veterinarian });
       if (!user || !user.bussinessId) {
         res.status(400).json({
           resourceType: "OperationOutcome",
@@ -257,7 +260,7 @@ const webAppointmentController = {
       if (typeof user.bussinessId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(user.bussinessId)) {
         res.status(400).json({ message: 'Invalid hospitalId format' });
         return;
-      } 
+      }
       // Get hospital details
       const hospital = await ProfileData.findOne({ userId: user.bussinessId });
       if (!hospital) {
@@ -271,17 +274,17 @@ const webAppointmentController = {
         });
         return
       }
-       if (typeof slotsId !== 'string' || !mongoose.Types.ObjectId.isValid(slotsId)) {
-            res.status(400).json({ message: 'Invalid or missing slotsId format' });
-            return;
-          }
+      if (typeof slotsId !== 'string' || !mongoose.Types.ObjectId.isValid(slotsId)) {
+        res.status(400).json({ message: 'Invalid or missing slotsId format' });
+        return;
+      }
 
 
       if (!/^\d{4}-\d{2}-\d{2}$/.test(appointmentDate)) {
         res.status(400).json({ message: "Invalid date format. Expected YYYY-MM-DD" });
         return;
       }
-     const existingAppointment = await webAppointments.findOne({
+      const existingAppointment = await webAppointments.findOne({
         veterinarian,
         appointmentDate,
         slotsId,
@@ -289,12 +292,12 @@ const webAppointmentController = {
       });
 
       if (existingAppointment) {
-         res.status(409).json({ // 409 Conflict
+        res.status(409).json({ // 409 Conflict
           resourceType: "OperationOutcome",
           issue: [{
             severity: "error",
             code: "duplicate",
-            details: { 
+            details: {
               text: "An appointment already exists for this time slot.",
               existingAppointment: existingAppointment
             },
@@ -320,29 +323,29 @@ const webAppointmentController = {
         });
         return
       }
-     
+
       const timeSlot = slot.timeSlots[0];
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const timeSlot24 = slot.timeSlots[0].time24
-  
-const initials = hospital.businessName
+
+      const initials = hospital.businessName
         ? hospital.businessName.split(" ")
-            .map((word: string) => word[0])
-            .join("")
+          .map((word: string) => word[0])
+          .join("")
         : "XX";
 
-         if (typeof hospital.userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(hospital.userId)) {
+      if (typeof hospital.userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(hospital.userId)) {
         res.status(400).json({ message: 'Invalid hospitalId format' });
         return;
-      } 
-const Appointmenttoken = await AppointmentsToken.findOneAndUpdate(
-    { hospitalId:hospital.userId, appointmentDate },
-    {
-      $inc: { tokenCounts: 1 },
-      $setOnInsert: { appointmentDate }, // Ensure appointmentDate is set in the new document
-    },
-    { new: true, upsert: true, setDefaultsOnInsert: true }
-  );
+      }
+      const Appointmenttoken = await AppointmentsToken.findOneAndUpdate(
+        { hospitalId: hospital.userId, appointmentDate },
+        {
+          $inc: { tokenCounts: 1 },
+          $setOnInsert: { appointmentDate }, // Ensure appointmentDate is set in the new document
+        },
+        { new: true, upsert: true, setDefaultsOnInsert: true }
+      );
       const tokenNumber = `${initials}00${Appointmenttoken.tokenCounts}-${appointmentDate}`;
 
       // Create the appointment
@@ -351,7 +354,8 @@ const Appointmenttoken = await AppointmentsToken.findOneAndUpdate(
         tokenNumber,
         ownerName,
         petName,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        petId,
+        ownerId,
         passportNumber,
         microChipNumber,
         purposeOfVisit,
@@ -363,7 +367,7 @@ const Appointmenttoken = await AppointmentsToken.findOneAndUpdate(
         day,
         appointmentTime: timeSlot.time,
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        appointmentTime24:timeSlot24,
+        appointmentTime24: timeSlot24,
         slotsId: slotsId,
         status: 'booked'
       });
@@ -529,8 +533,276 @@ const Appointmenttoken = await AppointmentsToken.findOneAndUpdate(
         ],
       });
     }
-  }
+  },
 
+  getAllAppointments: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { userId, doctorId, status } = req.query as {
+        userId?: string;
+        doctorId?: string;
+        status?: string;
+      };
+
+      const matchQuery: Record<string, unknown> = {};
+      const currentDate = dayjs().format("YYYY-MM-DD");
+      matchQuery.appointmentDate = currentDate;
+
+      // Filter by doctorId
+      if (doctorId) {
+        if (typeof doctorId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(doctorId)) {
+        res.status(400).json({ message: "Invalid doctorId format" });
+        return;
+      }
+        matchQuery.veterinarian = doctorId;
+      }
+      // Or filter by userId (hospitalId from WebUser)
+      else if (userId) {
+        if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        res.status(400).json({ message: "Invalid userId format" });
+        return;
+      }
+
+        const webuser = await WebUser.findOne({ cognitoId: userId }).lean();
+        if (!webuser) {
+          res.status(404).json({ message: "User not found" });
+          return;
+        }
+        if (webuser.role === "vet") {
+          // Case 1: This userId belongs to a doctor
+          matchQuery.veterinarian = userId;
+          // console.log("vet")
+        }
+        else if (webuser.role === "veterinaryBusiness") {
+          // Case 2: This userId belongs to a hospital — match directly with hospitalId
+          matchQuery.hospitalId = userId;
+          // console.log("veterinaryBusiness")
+
+        }
+        else {
+          // Case 3: This is some other role, use their businessId
+          // console.log("other")
+          matchQuery.hospitalId = webuser.bussinessId;
+        }
+
+      } else {
+        res.status(400).json({ message: "Either userId or doctorId is required" });
+        return;
+      }
+
+      // Filter by appointment status if provided
+      if (status) {
+        if (typeof status !== "string" || status.trim() === "") {
+          res.status(400).json({ message: "Invalid status" });
+          return;
+        }
+        matchQuery.appointmentStatus = status;
+      }
+      if (status && typeof status === "string" && status.trim() !== "") {
+        matchQuery.appointmentStatus = status;
+      }
+      const pipeline: PipelineStage[] = [
+        { $match: matchQuery },
+
+        // Lookup doctor info
+        {
+          $lookup: {
+            from: "adddoctors",
+            let: { vetId: "$veterinarian" },
+            pipeline: [
+              { $match: { $expr: { $eq: ["$userId", "$$vetId"] } } },
+              { $project: { firstName: 1, lastName: 1, _id: 1 } },
+            ],
+            as: "doctor",
+          },
+        },
+        { $unwind: { path: "$doctor", preserveNullAndEmptyArrays: true } },
+
+        // Lookup webuser info for vet
+        {
+          $lookup: {
+            from: "webusers",
+            let: { vetCognitoId: "$veterinarian" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ["$cognitoId", "$$vetCognitoId"] },
+                  role: "vet",
+                },
+              },
+              {
+                $project: {
+                  department: 1,
+                  businessId: 1,
+                  cognitoId: 1,
+                  _id: 1,
+                },
+              },
+            ],
+            as: "webuser",
+          },
+        },
+        { $unwind: { path: "$webuser", preserveNullAndEmptyArrays: true } },
+
+        // Lookup department info
+        {
+          $lookup: {
+            from: "admindepartments",
+            let: { deptIdStr: "$webuser.department" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $ne: ["$$deptIdStr", null] },
+                      { $eq: ["$_id", { $toObjectId: "$$deptIdStr" }] },
+                    ],
+                  },
+                },
+              },
+              { $project: { name: 1, _id: 0 } },
+            ],
+            as: "department",
+          },
+        },
+        { $unwind: { path: "$department", preserveNullAndEmptyArrays: true } },
+        {
+          $addFields: {
+            petsId: { $toObjectId: "$petId" },
+          },
+        },
+        // Lookup pet with image URL
+        {
+          $lookup: {
+            from: "pets",
+            localField: "petsId",
+            foreignField: "_id",
+            as: "pet",
+            pipeline: [
+              {
+                $project: {
+                  petImage: 1,
+                  petType: 1,
+                  petBreed: 1,
+                  _id: 0,
+                },
+              },
+            ],
+          },
+        },
+        { $unwind: { path: "$pet", preserveNullAndEmptyArrays: true } },
+        {
+          $addFields: {
+            formattedAppointmentDate: {
+              $dateToString: {
+                format: "%d %b %Y", // "01 Sep 2024"
+                date: {
+                  $dateFromString: {
+                    dateString: "$appointmentDate",
+                    format: "%Y-%m-%d"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          $addFields: {
+            fixedTime: {
+              $cond: {
+                if: { $regexMatch: { input: "$appointmentTime", regex: /^[0-9]:/ } },
+                then: { $concat: ["0", "$appointmentTime"] },
+                else: "$appointmentTime"
+              }
+            }
+          }
+        }, // Final projection
+        {
+          $project: {
+            _id: 1,
+            tokenNumber: 1,
+            ownerName: 1,
+            petName: 1,
+            pet: "$pet.petType",
+            breed: "$pet.petBreed",
+            petImage: {
+              $cond: {
+                if: { $ne: ["$pet.petImage.url", null] },
+                then: {
+                  $concat: [
+                    process.env.CLOUD_FRONT_URI || "",
+                    "/",
+                    "$pet.petImage.url"
+                  ]
+                },
+                else: null
+              }
+            },
+            purposeOfVisit: 1,
+            passportNumber: 1,
+            microChipNumber: 1,
+            appointmentType: 1,
+            appointmentSource: 1,
+            departmentName: {
+              $ifNull: [
+                "$department.name",
+                {
+                  $cond: {
+                    if: { $eq: ["$webuser.department", null] },
+                    then: "No Department",
+                    else: "Department Not Found",
+                  },
+                },
+              ],
+            },
+            veterinarianId: "$veterinarian",
+            // doctorFirstName: { $ifNull: ["$doctor.firstName", null] },
+            // doctorLastName: { $ifNull: ["$doctor.lastName", null] },
+            doctorName: {
+              $cond: {
+                if: {
+                  $and: [
+                    { $ne: ["$doctor.firstName", null] },
+                    { $ne: ["$doctor.lastName", null] },
+                  ],
+                },
+                then: { $concat: ["$doctor.firstName", " ", "$doctor.lastName"] },
+                else: { $ifNull: ["$doctor.firstName", null] },
+              },
+            },
+            appointmentDate: "$formattedAppointmentDate", // formatted date
+            appointmentTime: "$fixedTime",
+            appointmentStatus: 1,
+            slotsId: 1,
+            // createdAt: 1,
+            // updatedAt: 1,
+
+          },
+        },
+
+        { $sort: { appointmentDate: -1, appointmentTime: -1 } },
+      ];
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const appointments: MyAppointmentData[] = await webAppointments.aggregate(pipeline).allowDiskUse(true);
+      console.log(appointments)
+      if (appointments.length === 0) {
+        res.status(404).json({ message: "No appointments found", data: [] });
+        return;
+      }
+
+      const data: FHIRAppointmentData[] = toFHIR(appointments)
+      res.status(200).json({
+        message: "Appointments fetched successfully",
+        data: data,
+      });
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err.message : "An unknown error occurred"
+      res.status(500).json({
+        message: "Internal Server Error",
+        error: error
+      });
+    }
+  },
 }
 
 export default webAppointmentController;

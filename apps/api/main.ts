@@ -23,6 +23,7 @@ import adminInventory from './routes/admin-api-routes';
 import apiRoutes from './routes/apiRoutes';
 import BlogApiRoutes from './routes/BlogApiRoutes';
 import newsletterRoutes from './routes/news-letter-routes';
+import emergencyAppointments from './routes/emergency-appointment-routes'
 import addDiscountCodeRoutes from './routes/addDiscountCodeRoutes'
 import doctorSlots from './routes/doctor.slots'
 import cors from 'cors';
@@ -116,6 +117,7 @@ app.use('/fhir/v1', doctorSlots);
 // app.use('/newsletter', newsletterRoutes);
 app.use('/fhir/v1', BlogApiRoutes);
 app.use('/fhir/v1',inviteRoutes)
+app.use('/fhir/v1',emergencyAppointments)
 // Global error handler
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Error:', err.message);

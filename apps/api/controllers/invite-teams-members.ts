@@ -384,6 +384,7 @@ export const inviteTeamsMembersController = {
                 cognitoId: String(cognitoResponse.UserSub),
                 role,
                 department,
+                email,
                 bussinessId: businessId,
             });
             const response = await newUser.save();

@@ -158,6 +158,7 @@ const WebController = {
         cognitoId: data.UserSub,
         role,
         subscribe,
+        email
       });
 
       await newUser.save();
