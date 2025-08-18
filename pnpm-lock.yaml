@@ -233,6 +233,9 @@ importers:
       country-list-json:
         specifier: ^1.1.0
         version: 1.1.0
+      dayjs:
+        specifier: ^1.11.13
+        version: 1.11.13
       editorjs-html:
         specifier: ^4.0.5
         version: 4.0.5

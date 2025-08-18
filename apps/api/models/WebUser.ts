@@ -8,6 +8,7 @@ const WebUserSchema = new Schema<IWebUser>({
   cognitoId: { type: String, required: true },
   role: { type: String, required: true },
   bussinessId: { type: String },
+  email:{type:String,required:true},
   otp: { type: Number },
   otpExpiry: { type: Date },
   subscribe:{type:Boolean},
