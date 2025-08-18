@@ -14,7 +14,113 @@
     margin: 0;
     font-family: var(--grotesk-font);
 }
+.ContactUsData .RightContactUs{
+    box-shadow: 0px 0px 8px 0px #47382714;
+    border: 1px solid var(--greytext);
+    background: var(--whitebg);
+    padding: 64px 40px;
+    border-radius: 28px;
+    max-width: 630px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 36px;
+}
+.ContactUsData .RightContactUs .QueryText h3{
+    margin: 0;
+    font-size: 33px;
+    font-weight: 500;
+    line-height: 120%;
+    font-family: var(--grotesk-font);
+    color: var(--black-text);
+}
+.ContactUsData .RightContactUs .QueryText h3 span{
+    color: var(--black-grey-Text);
+}
+.ContactUsData .RightContactUs .ContactForm{
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.ContactUsData .RightContactUs .QueryTypeRadioGroup{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.ContactUsData .RightContactUs .QueryTypeRadioGroup label{
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    font-size: 19px;
+    font-weight: 500;
+    color: var(--black-text);
+}
+.ContactUsData .RightContactUs .QueryDetailsFields{
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.ContactUsData .RightContactUs .QueryDetailsFields{
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.ContactUsData .RightContactUs .QueryDetailsFields label{
+    font-size: 19px;
+    font-weight: 500;
+    color: var(--black-text);
+    line-height: 120%;
+}
+.ContactUsData .RightContactUs .QueryDetailsFields textarea{
+    border: 1px solid var(--pinkborder) !important;       
+    padding: 12px 10px !important;    
+    border-radius: 16px !important;
+    min-height: 114px !important;
+    outline: none !important;   
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--black-text);
+    line-height: 120%;   
+    font-family: var(--satoshi-font);   
+}
+.ContactUsData .RightContactUs .QueryDetailsFields textarea::placeholder{
+    font-size: 18px;
+    font-weight: 400;
+    line-height: 120%;
+    font-family: var(--satoshi-font);  
+    color: var(--black-text);
+    opacity: 60%;
+}
+.ContactUsData .RightContactUs .DataServiceAccessFields{
+    display: flex;
+    flex-direction: column;
+    gap: 36px;
+}
+.ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted{
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted p{
+    margin: 0;
+    font-family: var(--grotesk-font);
+    font-weight: 500;
+    font-size: 19px;
+    line-height: 120%;
+}
+.ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted label{
+    display: flex;
+    gap: 6px;
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 120%;
+    font-family: var(--satoshi-font);  
+    color: var(--black-text);
+}
+.ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted label:has(input:checked) {
+  font-weight: 700;
 
+}
 
 
 
