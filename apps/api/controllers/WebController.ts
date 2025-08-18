@@ -644,10 +644,10 @@ const WebController = {
       } = name;
       // console.log("Parsed business profile:", businessProfile);
       // console.log("Parsed parsedPayload:", parsedPayload);
-      if (!userId) {
-        res.status(400).json({ message: "Missing required userId" });
-        return;
-      } else {
+        if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+          res.status(400).json({ message: "Invalid userId format" });
+          return;
+        }else {
         // Step 3: Handle Image Upload if Exists
         const img = req.files as { image?: UploadedFile };
         const imageFile = img?.image
