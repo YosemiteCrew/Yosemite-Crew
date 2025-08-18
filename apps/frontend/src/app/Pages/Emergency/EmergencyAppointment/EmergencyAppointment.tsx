@@ -284,9 +284,9 @@ function EmergencyAppointment() {
                 </Col>
               </Row>
             </div>
-            <AllAppointmentsTable data={appointmentData} />
+            {/* <AllAppointmentsTable data={appointmentData} /> */}
           </div>
-          <NewEmergency data={appointmentData.filter((item) => item.status === "new")} />
+          {/* <NewEmergency data={appointmentData.filter((item) => item.status === "new")} /> */}
           <EmergencyAppointForm
             email={email}
             setEmail={(value) => {

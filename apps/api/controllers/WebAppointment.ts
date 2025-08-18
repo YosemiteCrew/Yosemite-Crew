@@ -280,13 +280,15 @@ const webAppointmentController = {
       }
 
 
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(appointmentDate)) {
-        res.status(400).json({ message: "Invalid date format. Expected YYYY-MM-DD" });
-        return;
-      }
+     const safeAppointmentDate = new Date(`${appointmentDate}T00:00:00Z`);
+if (isNaN(safeAppointmentDate.getTime())) {
+  res.status(400).json({ message: "Invalid appointmentDate" });
+  return;
+}
+const date =safeAppointmentDate.toISOString().split("T")[0]
       const existingAppointment = await webAppointments.findOne({
         veterinarian,
-        appointmentDate,
+        date,
         slotsId,
         status: { $ne: 'cancelled' } // Only check non-cancelled appointments
       });
@@ -339,10 +341,10 @@ const webAppointmentController = {
         return;
       }
       const Appointmenttoken = await AppointmentsToken.findOneAndUpdate(
-        { hospitalId: hospital.userId, appointmentDate },
+        { hospitalId: hospital.userId, date },
         {
           $inc: { tokenCounts: 1 },
-          $setOnInsert: { appointmentDate }, // Ensure appointmentDate is set in the new document
+          $setOnInsert: { date }, // Ensure appointmentDate is set in the new document
         },
         { new: true, upsert: true, setDefaultsOnInsert: true }
       );
