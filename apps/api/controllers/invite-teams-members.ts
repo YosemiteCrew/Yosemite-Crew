@@ -1,5 +1,6 @@
 // controllers/inviteTeamsMembers.ts
 import AWS from "aws-sdk";
+import validator from "validator";
 import { Request, Response } from "express";
 import { inviteTeamsMembers } from "../models/invite-teams-members";
 import { DepartmentsForInvite, DoctorType, invitedTeamMembersInterface, InviteItem, InvitePayload, TeamOverview, WebUserType } from "@yosemite-crew/types";
@@ -95,15 +96,13 @@ export const inviteTeamsMembersController = {
                 }
                 const inviteCode = Math.random().toString(36).substring(2, 10);
 
-                if (!isValidEmail(email)) {
-                    throw new Error("Invalid email address.");
-                }
+               const isEmail = validator.isEmail(email);
 
 
-                const existing = await inviteTeamsMembers.findOne({ email });
+                const existing = await inviteTeamsMembers.findOne({ isEmail });
 
                 if (existing) {
-                    const result = await inviteTeamsMembers.deleteOne({ email });
+                    const result = await inviteTeamsMembers.deleteOne({ isEmail });
                     if (result.deletedCount === 0) {
                         res.status(500).json({ message: "Failed to delete previous invite" });
                         return;
@@ -271,8 +270,9 @@ export const inviteTeamsMembersController = {
                 res.status(400).json({ message: "Missing required fields." });
                 return
             }
+            const isEmail = validator.isEmail(email);
             // Step 1: Check if the user was invited
-            const invitedRecord = await inviteTeamsMembers.findOne({ email });
+            const invitedRecord = await inviteTeamsMembers.findOne({ isEmail });
             console.log("hello", invitedRecord)
             if (!invitedRecord) {
                 res.status(403).json({ message: "This email was not invited." });
@@ -384,6 +384,7 @@ export const inviteTeamsMembersController = {
                 cognitoId: String(cognitoResponse.UserSub),
                 role,
                 department,
+                email,
                 bussinessId: businessId,
             });
             const response = await newUser.save();
@@ -837,10 +838,7 @@ function getSecretHash(email: string,) {
         .update(email + clientId)
         .digest("base64");
 }
-function isValidEmail(email: string): boolean {
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    return emailRegex.test(email);
-}
+
 
 export type WebUserWithDoctorInfo = WebUserType & {
     doctorsInfo?: DoctorType[];
