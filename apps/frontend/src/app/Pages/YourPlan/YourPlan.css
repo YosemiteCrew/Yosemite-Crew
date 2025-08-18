@@ -1,0 +1,99 @@
+.YourPlanSec{
+    padding: 80px 0px;
+}
+.YourPlanData{
+    display: flex;
+    flex-direction: column;
+    gap: 80px;
+}
+.YourPlanData h2{
+    margin: 0;
+    color: var(--black-text);
+    font-size: 40px;
+    line-height: 120%;
+    font-family: var(--grotesk-font);
+}
+
+
+
+
+.YourPlanSec {
+  padding: 30px 0;
+}
+
+.plan-card {
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: #fff;
+}
+
+.plan-card.selected {
+  border-color: #4a90e2;
+  background: #eaf4ff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.plan-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.status {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.status.active {
+  background: #e6f9f0;
+  color: #28a745;
+}
+
+.status.inactive {
+  background: #fce8e8;
+  color: #dc3545;
+}
+
+.description {
+  margin: 10px 0;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.plan-benefits div {
+  margin: 5px 0;
+}
+
+.usage-card {
+  background: #f3f8ff;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.usage-card h3 {
+  font-weight: bold;
+}
+
+.usage-details div {
+  margin: 5px 0;
+}
+
+.due-date {
+  font-size: 0.85rem;
+  color: #888;
+}
+
+.stripe-btn {
+  margin-top: 15px;
+  border-radius: 20px;
+}
+
+.stripe-text {
+  color: #635bff;
+}
