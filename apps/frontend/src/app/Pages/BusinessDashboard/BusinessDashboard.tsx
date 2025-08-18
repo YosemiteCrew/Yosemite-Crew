@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useCallback } from "react";
 import "./BusinessDashboard.css";
-import { Col, Container, Row } from "react-bootstrap";
+import { Button, Col, Container, Row } from "react-bootstrap";
 import StatCard from "@/app/Components/StatCard/StatCard";
 import { GraphSelected } from "../AdminDashboardEmpty/AdminDashboardEmpty";
 import DepartmentBarChart from "@/app/Components/BarGraph/DepartmentBarChart";
@@ -19,13 +19,14 @@ import InventoryTable from "@/app/Components/DataTable/InventoryTable";
 import { getData } from "@/app/axios-services/services";
 import { useAuthStore } from "@/app/stores/authStore";
 import {
-  
+
   convertFhirAppointmentBundle,
   convertFhirBundleToInventory,
   convertFHIRToGraphData,
   convertFhirToJson,
   FHIRtoJSONSpeacilityStats,
 } from "@yosemite-crew/fhir";
+import { Icon } from "@iconify/react/dist/iconify.js";
 
 function BusinessDashboard() {
   const [selectedRange, setSelectedRange] = useState("Last 30 Days"); // graphSelected
@@ -44,7 +45,7 @@ function BusinessDashboard() {
   // departmentStats Started
 
   const [data, setData] = useState<DepartmentData[]>([]);
-  const userId = useAuthStore((state:any) => state.userId);
+  const userId = useAuthStore((state: any) => state.userId);
   useEffect(() => {
     fetchDashBoardDetails("AppointmentLists");
   }, [appointmentFilter]);
@@ -410,14 +411,14 @@ function BusinessDashboard() {
             <Row>
               <div className="TableItemsRow">
                 <HeadingDiv Headname="Today’s Schedule" Headspan="95" />
-                <CommonTabs  onTabClick={fetchInventoryDetails} tabs={scheduleTabs} showStatusSelect />
+                <CommonTabs onTabClick={fetchInventoryDetails} tabs={scheduleTabs} showStatusSelect />
               </div>
             </Row>
 
             <Row>
               <div className="TableItemsRow">
                 <HeadingDiv Headname="Practice Team" Headspan="74" />
-                <CommonTabs  onTabClick={fetchInventoryDetails} tabs={practiceTabs} showStatusSelect />
+                <CommonTabs onTabClick={fetchInventoryDetails} tabs={practiceTabs} showStatusSelect />
               </div>
             </Row>
 
@@ -425,7 +426,7 @@ function BusinessDashboard() {
               <div className="TableItemsRow">
                 <HeadingDiv Headname="Inventory" />
                 <CommonTabs
-                headname="Inventory"
+                  headname="Inventory"
                   tabs={inventoryTabs}
                   onTabClick={fetchInventoryDetails}
                   showStatusSelect
@@ -443,18 +444,29 @@ export default BusinessDashboard;
 
 // HeadingDivProps Started
 interface HeadingDivProps {
-  Headname: string;
-  Headspan?: string | number; // <-- Now it's optional
+  Headname?: string;
+  btntext?: string;
+  href?: string; // ✅ optional now
+  icon?: string;
+  Headspan?: string | number;
 }
 
-export function HeadingDiv({ Headname, Headspan }: HeadingDivProps) {
+export function HeadingDiv({ Headname, Headspan, btntext, icon, href }: HeadingDivProps) {
   return (
     <div className="DivHeading">
       <h5>
         {Headname}
         {Headspan !== undefined && <span>({Headspan})</span>}
       </h5>
+      {btntext && href && (
+        <Link href={href}>
+          {icon && <Icon icon={icon} width="20" height="20" />}
+          {btntext}
+        </Link>
+      )}
     </div>
   );
 }
+
+
 // HeadingDivProps Ended

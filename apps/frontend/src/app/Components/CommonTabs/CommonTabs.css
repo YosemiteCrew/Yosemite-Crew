@@ -125,6 +125,8 @@
     border: 1px solid var(--lightgrey);
     border-radius: 12px;
     padding: 0;
+    max-height: 250px;
+    overflow: auto;
 }
 .dropdown-item {
   font-size: 15px;

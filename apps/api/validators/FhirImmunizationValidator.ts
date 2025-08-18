@@ -1,5 +1,5 @@
 
-    export const validate = (data) => {
+    export const validate = (data:{[key:string]:unknown,resourceType:string}) => {
       const requiredFields = [
         'resourceType',
         'status',
@@ -23,7 +23,5 @@
   
       return { valid: true };
     }
-  }
   
-  module.exports = FhirImmunizationValidator;
   

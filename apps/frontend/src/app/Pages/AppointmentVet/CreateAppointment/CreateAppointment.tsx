@@ -31,6 +31,8 @@ interface PetDetails {
     appointmentDate: string;
     slotsId: string;
     day: string
+    ownerId:string
+    petId:string
 }
 
 interface TimeSlot {
@@ -44,6 +46,8 @@ function CreateAppointment() {
     const [petDetails, setPetDetails] = useState<PetDetails>({
         petName: "",
         ownerName: "",
+        ownerId:"",
+        petId:"",
         passportNumber: "",
         microChipNumber: "",
         purposeOfVisit: "",
@@ -69,7 +73,6 @@ function CreateAppointment() {
     const [selectedDay, setSelectedDay] = useState<string>("");
     const [selectedSlotId, setSelectedSlotId] = useState<string>("");
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
-    console.log("allSlots", allSlots)
     type Option = {
         value: string;
         label: string;
@@ -148,6 +151,7 @@ function CreateAppointment() {
             const data: any = response.data;
             const petData = convertFhirToNormalPetData(data.data);
             setSearchData(petData);
+            // console.log("petdata",petData)
             setShowDropdown(petData.length > 0);
         } catch (error) {
             console.error(error);
@@ -170,6 +174,8 @@ function CreateAppointment() {
             ownerName: pet.petParentName || "",
             passportNumber: pet.passportNumber || "",
             microChipNumber: pet.microChipNumber || "",
+            petId:pet.petId||"",
+            ownerId:pet.petParentId
         }));
         setShowDropdown(false);
         setErrors((prev) => ({

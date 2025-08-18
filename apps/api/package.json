@@ -54,7 +54,7 @@
     "@types/node": "^22.15.21",
     "@types/socket.io": "^3.0.2",
     "@types/uuid": "^10.0.0",
-    "@types/validator": "^13.15.1",
+    "@types/validator": "^13.15.2",
     "@yosemite-crew/fhir": "workspace:^",
     "@yosemite-crew/types": "workspace:^",
     "esbuild": "^0.25.4",

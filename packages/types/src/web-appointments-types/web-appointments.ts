@@ -96,13 +96,15 @@ export type TimeSlotFHIRBundle = {
 
   //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< for book appointment >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
   export type NormalAppointmentData = {
+  petId: string; // ✅ added
   petName: string;
+  ownerId: string; // ✅ added
   ownerName: string;
   passportNumber: string;
   microChipNumber: string;
   purposeOfVisit: string;
-  appointmentDate: string; // keep as-is
-  appointmentTime: string; // keep as-is
+  appointmentDate: string;
+  appointmentTime: string;
   appointmentType: string;
   day: string;
   department: string;
@@ -115,12 +117,66 @@ export type FHIRAppointmentBooking = {
   id: string;
   status: string;
   serviceType: {
-    coding: { system: string; code: string; display: string }[];
+    coding: {
+      system: string;
+      code: string;
+      display: string;
+    }[];
   }[];
-  start: string; // appointmentDate as-is
-  extension: { url: string; valueString: string }[];
+  start: string;
+  extension: {
+    url: string;
+    valueString: string;
+  }[];
   participant: {
-    actor: { reference: string; display: string };
+    actor: {
+      reference: string; // Practitioner/{id}, RelatedPerson/{id}, Patient/{id}
+      display: string;
+    };
     status: string;
   }[];
 };
+
+
+
+// types.ts
+export interface MyAppointmentData {
+  _id: string;
+  tokenNumber: string;
+  ownerName: string;
+  petName: string;
+  purposeOfVisit: string;
+  passportNumber: string;
+  microChipNumber: string;
+  appointmentType: string;
+  appointmentSource: string;
+  slotsId: string;
+  appointmentStatus: string;
+  petImage: string | null;
+  departmentName: string;
+  veterinarianId: string;
+  doctorName: string;
+  pet:string;
+  breed:string
+  appointmentDate: string; // e.g. "12 Aug 2025"
+  appointmentTime: string; // e.g. "01:30 PM"
+}
+
+export interface FHIRAppointmentData {
+  resourceType: "Appointment";
+  id: string;
+  status: string;
+  description?: string;
+  start?: string; // in our case we'll keep custom fields
+  participant: Array<{
+    actor?: {
+      reference: string;
+      display: string;
+    };
+    status: string;
+  }>;
+  extension?: Array<{
+    url: string;
+    valueString: string;
+  }>;
+}

@@ -30,50 +30,8 @@ type AppointmentItem = {
   doctor: string;
   specialization: string;
   status: AppointmentStatus;
+  pet:string
 };
-
-// Sample Data
-const appointments: AppointmentItem[] = [
-  {
-    name: "Kizie",
-    owner: "Sky B",
-    image: "/Images/pet3.png",
-    appointmentId: "DRO01-03-23-2024",
-    reason: "Annual Health Check-Up",
-    breed: "Beagle/Dog",
-    time: "11:30 AM",
-    date: "01 Sep 2024",
-    doctor: "Dr. Emily Johnson",
-    specialization: "Cardiology",
-    status: "In-progress",
-  },
-  {
-    name: "Oscar",
-    owner: "Pika K",
-    image: "/Images/pet3.png",
-    appointmentId: "DRO02-03-23-2024",
-    reason: "Vaccination Updates",
-    breed: "Egyptian/Cat",
-    time: "12:15 PM",
-    date: "01 Sep 2024",
-    doctor: "Dr. David Brown",
-    specialization: "Gastroenterology",
-    status: "Checked-In",
-  },
-  {
-    name: "King",
-    owner: "Henry C",
-    image: "/Images/pet3.png",
-    appointmentId: "DRO03-03-23-2024",
-    reason: "Deworming Treatment",
-    breed: "Paso Fino/Horse",
-    time: "01:13 PM",
-    date: "01 Sep 2024",
-    doctor: "Dr. Megan Clark",
-    specialization: "Endocrinology",
-    status: "Pending",
-  },
-];
 
 // Columns for GenericTable
 const columns: Column<AppointmentItem>[] = [
@@ -117,7 +75,7 @@ const columns: Column<AppointmentItem>[] = [
 {
   label: "Breed/Pet",
   key: "breed",
-  render: (item: AppointmentItem) => <p>{item.breed}</p>,
+  render: (item: AppointmentItem) => <p>{item.breed}/{item.pet}</p>,
 },
   {
     label: "Date",
@@ -162,11 +120,11 @@ const columns: Column<AppointmentItem>[] = [
         <Dropdown.Toggle as="span" className="custom-toggle">
           <BsThreeDotsVertical className="menu-icon" />
         </Dropdown.Toggle>
-        <Dropdown.Menu>
+        {/* <Dropdown.Menu>
           <Dropdown.Item onClick={() => console.log("Edit", item)}>Edit</Dropdown.Item>
           <Dropdown.Item onClick={() => console.log("Save", item)}>Save</Dropdown.Item>
           <Dropdown.Item onClick={() => console.log("Delete", item)}>Delete</Dropdown.Item>
-        </Dropdown.Menu>
+        </Dropdown.Menu> */}
       </Dropdown>
     </div>
   ),
@@ -175,11 +133,11 @@ const columns: Column<AppointmentItem>[] = [
 
 ];
 
-function EmergencyAppointmentsTable() {
+function EmergencyAppointmentsTable({ data }: { data: AppointmentItem[] }) {
   return (
     <>
         <div className="table-wrapper">
-            <GenericTable data={appointments} columns={columns} bordered={false} />
+            <GenericTable data={data} columns={columns} bordered={false} />
             <div className="table-footerBtn ">
                 <Button>Sell All</Button>
             </div>
