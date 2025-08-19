@@ -1,4 +1,10 @@
-import {FlatList, Image, TouchableOpacity, View} from 'react-native';
+import {
+  Dimensions,
+  FlatList,
+  Image,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import React, {useEffect} from 'react';
 import {useTranslation} from 'react-i18next';
 import {Images} from '../../../../../utils';
@@ -6,9 +12,13 @@ import {colors} from '../../../../../../assets/colors';
 import {styles} from './styles';
 import GText from '../../../../../components/GText/GText';
 import HeaderButton from '../../../../../components/HeaderButton';
+import GButton from '../../../../../components/GButton';
+import {scaledValue} from '../../../../../utils/design.utils';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 const PainJournal = ({navigation}) => {
   const {t} = useTranslation();
+  const insets = useSafeAreaInsets();
   useEffect(() => {
     configureHeader();
   }, []);
@@ -18,7 +28,6 @@ const PainJournal = ({navigation}) => {
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
-          tintColor={colors.darkPurple}
           onPress={() => {
             navigation?.goBack();
           }}
@@ -27,7 +36,6 @@ const PainJournal = ({navigation}) => {
       headerRight: () => (
         <HeaderButton
           icon={Images.bellBold}
-          tintColor={colors.appRed}
           onPress={() => {
             navigation?.navigate('StackScreens', {
               screen: 'Notifications',
@@ -71,7 +79,7 @@ const PainJournal = ({navigation}) => {
                       />
                       <GText
                         GrMedium
-                        text={` ${t('journal_string')}`}
+                        text={` ${t('pain_journal_string')}`}
                         style={styles.journalText}
                       />
                     </View>
@@ -82,26 +90,24 @@ const PainJournal = ({navigation}) => {
                     />
                   </View>
                 </View>
-                <TouchableOpacity
-                  onPress={() => {
-                    navigation?.navigate('StackScreens', {
-                      screen: 'NewPainAssessment',
-                    });
-                  }}
-                  style={styles.addNewButton}>
-                  <Image source={Images.PlusBold} style={styles.addNewImage} />
-                  <GText
-                    SatoshiBold
-                    text={'Add New'}
-                    style={styles.addNewText}
-                  />
-                </TouchableOpacity>
               </View>
               <Image source={item?.img} style={styles.mainImage} />
             </View>
           )}
         />
       </View>
+      <GButton
+        title={t('go_to_dashboard_string')}
+        icon={Images.Dashboard}
+        iconStyle={{width: scaledValue(16), height: scaledValue(16)}}
+        style={{
+          width: Dimensions.get('window').width - scaledValue(40),
+          alignSelf: 'center',
+          position: 'absolute',
+          bottom: insets.bottom,
+          gap: scaledValue(8),
+        }}
+      />
     </View>
   );
 };

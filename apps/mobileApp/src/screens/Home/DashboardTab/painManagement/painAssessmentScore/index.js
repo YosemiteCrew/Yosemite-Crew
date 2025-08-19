@@ -22,7 +22,6 @@ const PainAssessmentScore = ({navigation}) => {
       headerRight: () => (
         <HeaderButton
           icon={Images.bellBold}
-          tintColor={colors.appRed}
           onPress={() => {
             navigation?.navigate('StackScreens', {
               screen: 'Notifications',
@@ -33,7 +32,7 @@ const PainAssessmentScore = ({navigation}) => {
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
-          tintColor={colors.darkPurple}
+          tintColor={colors.jetBlack}
           onPress={() => {
             navigation?.goBack();
           }}
@@ -69,13 +68,15 @@ const PainAssessmentScore = ({navigation}) => {
       <View style={styles.buttonView(insets)}>
         <GButton
           onPress={() => {}}
-          title={t('save_pain_journal_string')}
+          icon={Images.tickImage}
+          title={t('create_appointment_string')}
           style={styles.createButton}
-          textStyle={styles.buttonText}
         />
-        <GTextButton
-          title={t('retake_assessment_string')}
-          titleStyle={styles.skipButton}
+        <GButton
+          onPress={() => {}}
+          title={t('save_pain_journal_string')}
+          style={styles.skipButton}
+          textStyle={styles.buttonText}
         />
       </View>
     </View>

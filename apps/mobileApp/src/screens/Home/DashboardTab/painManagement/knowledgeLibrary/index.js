@@ -29,7 +29,6 @@ const KnowledgeLibrary = ({navigation}) => {
       headerRight: () => (
         <HeaderButton
           icon={Images.bellBold}
-          tintColor={colors.appRed}
           onPress={() => {
             navigation?.navigate('StackScreens', {
               screen: 'Notifications',
@@ -40,7 +39,7 @@ const KnowledgeLibrary = ({navigation}) => {
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
-          tintColor={colors.darkPurple}
+          tintColor={colors.jetBlack}
           onPress={() => {
             navigation?.goBack();
           }}
@@ -108,11 +107,6 @@ const KnowledgeLibrary = ({navigation}) => {
         <View style={styles.titleView}>
           <GText
             GrMedium
-            text={`${t('popular_string')}`}
-            style={styles.popularText}
-          />
-          <GText
-            GrMedium
             text={` ${t('articles_string')}`}
             style={styles.articleText}
           />
@@ -148,7 +142,6 @@ const HeaderSection = () => {
   const {t} = useTranslation();
   return (
     <View style={styles.headerContainer}>
-      <GText GrMedium text={t('explore_string')} style={styles.ongoingText} />
       <GText
         GrMedium
         text={` ${t('popular_topics_string')}`}
@@ -206,7 +199,7 @@ const ArticlesSection = ({articles, navigation}) => {
               <View style={styles.likeContainer}>
                 <Image
                   source={Images.Heart}
-                  tintColor={colors.appRed}
+                  tintColor={colors.primaryBlue}
                   style={styles.heartImg}
                 />
                 <GText

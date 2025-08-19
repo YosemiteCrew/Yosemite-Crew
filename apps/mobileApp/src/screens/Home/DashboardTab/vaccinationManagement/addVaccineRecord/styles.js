@@ -45,21 +45,20 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(23),
     lineHeight: scaledHeightValue(27.6),
     letterSpacing: scaledValue(23 * -0.01),
-    color: colors.darkPurple,
   },
   recordsText: {
     fontSize: scaledValue(23),
     lineHeight: scaledHeightValue(27.6),
     letterSpacing: scaledValue(23 * -0.01),
-    color: colors.darkPurple,
   },
   button: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: scaledValue(4),
   },
   catImage: {
-    width: scaledValue(40),
-    height: scaledValue(40),
+    width: scaledValue(39),
+    height: scaledValue(39),
     borderRadius: scaledValue(20),
   },
   arrowImage: {
@@ -70,12 +69,12 @@ export const styles = StyleSheet.create({
     width: '100%',
     backgroundColor: 'transparent',
     fontSize: scaledValue(16),
-    // lineHeight: scaledValue(16),
-    marginTop: scaledValue(16),
+    marginTop: scaledValue(-6),
     paddingLeft: scaledValue(10),
   },
   formContainer: {
-    marginTop: scaledValue(37),
+    marginTop: scaledValue(28),
+    gap: scaledValue(16),
   },
   headerContainer: {
     marginTop: scaledValue(16),
@@ -87,6 +86,7 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(16),
     lineHeight: scaledHeightValue(19.2),
     letterSpacing: scaledValue(16 * -0.02),
+    color: colors.darkPurple,
   },
   uploadContainer: {
     width: scaledValue(335),
@@ -106,7 +106,6 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(18),
     lineHeight: scaledHeightValue(21.6),
     letterSpacing: scaledValue(18 * -0.01),
-    color: colors.darkPurple,
     textAlign: 'center',
     paddingHorizontal: scaledValue(53),
     marginTop: scaledValue(10),
@@ -114,38 +113,57 @@ export const styles = StyleSheet.create({
   documentText: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    color: colors.darkPurple,
     textAlign: 'center',
     paddingHorizontal: scaledValue(53),
     opacity: 0.7,
     marginTop: scaledValue(10),
     marginBottom: scaledValue(16),
   },
-  buttonText: {
-    fontSize: scaledValue(18),
-    lineHeight: scaledHeightValue(18),
-    letterSpacing: scaledValue(18 * -0.01),
-    color: colors.brown,
-    fontFamily: fonts?.CLASH_GRO_MEDIUM,
-  },
+
   buttonStyle: {
-    backgroundColor: '#FDBD74',
     marginTop: scaledValue(40),
     marginBottom: scaledValue(62),
-    height: scaledValue(52),
     borderRadius: scaledValue(28),
   },
+  // datePickerContainer: val => ({
+  //   borderWidth: scaledValue(val ? 1 : 0.5),
+  //   height: scaledValue(48),
+  //   borderRadius: scaledValue(24),
+  //   paddingHorizontal: scaledValue(20),
+  //   flexDirection: 'row',
+  //   alignItems: 'center',
+  //   justifyContent: 'space-between',
+  //   borderColor: colors.jetBlack,
+  // }),
+
+  inputWrapper: {
+    position: 'relative',
+  },
+
+  inlineLabelWrapper: {
+    position: 'absolute',
+    top: scaledValue(-8),
+    left: scaledValue(20),
+    backgroundColor: colors.themeColor,
+    zIndex: 1,
+    paddingHorizontal: scaledValue(5),
+  },
+
+  inlineLabel: {
+    fontSize: scaledValue(12),
+  },
+
   datePickerContainer: val => ({
     borderWidth: scaledValue(val ? 1 : 0.5),
     height: scaledValue(48),
-    marginTop: scaledValue(16),
     borderRadius: scaledValue(24),
     paddingHorizontal: scaledValue(20),
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderColor: val ? colors.primary : '#312943',
+    borderColor: colors.jetBlack,
   }),
+
   dateText: val => ({
     fontSize: scaledValue(16),
     // lineHeight: scaledHeightValue(16),

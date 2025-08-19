@@ -42,7 +42,6 @@ export const styles = StyleSheet.create({
   shareText: {
     fontSize: scaledValue(14),
     lineHeight: scaledValue(16.8),
-    color: colors.appRed,
     marginTop: scaledValue(3),
   },
   tagView: {
@@ -55,13 +54,13 @@ export const styles = StyleSheet.create({
   tagText: {
     fontSize: scaledValue(12),
     lineHeight: scaledHeightValue(14.4),
-    color: colors.jetLightBlack,
-    letterSpacing: scaledValue(10 * -0.02),
+    color: colors.jetBlack300,
+    letterSpacing: scaledValue(12 * -0.02),
   },
   pointer: {
     width: scaledValue(4),
     height: scaledValue(4),
-    backgroundColor: colors.appRed,
+    backgroundColor: colors.primaryBlue,
     borderRadius: scaledValue(4),
   },
 
@@ -89,7 +88,7 @@ export const styles = StyleSheet.create({
   buttonText: {
     fontSize: scaledValue(16),
     lineHeight: scaledHeightValue(19.2),
-    color: colors.darkPurple,
+
     fontFamily: fonts.CLASH_GRO_MEDIUM,
     marginLeft: scaledValue(3),
   },

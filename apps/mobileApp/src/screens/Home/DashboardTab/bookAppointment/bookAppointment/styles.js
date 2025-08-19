@@ -1,10 +1,10 @@
-import {Dimensions, StyleSheet} from 'react-native';
+import { Dimensions, StyleSheet } from 'react-native';
 import {
   scaledHeightValue,
   scaledValue,
 } from '../../../../../utils/design.utils';
-import {fonts} from '../../../../../utils/fonts';
-import {colors} from '../../../../../../assets/colors';
+import { fonts } from '../../../../../utils/fonts';
+import { colors } from '../../../../../../assets/colors';
 
 export const styles = StyleSheet.create({
   dashboardMainView: {
@@ -23,20 +23,37 @@ export const styles = StyleSheet.create({
     borderRadius: scaledValue(12),
   },
   card: {
-    width: scaledValue(335),
-    backgroundColor: '#FEF8F4',
-    flexDirection: 'row',
+  //   width: scaledValue(335),
+  //   backgroundColor: colors.white,
+  //   flexDirection: 'row',
     marginTop: scaledValue(22),
     marginHorizontal: scaledValue(20),
-    borderRadius: scaledValue(20),
+  //   borderRadius: scaledValue(20),
     paddingBottom: scaledValue(16),
     paddingTop: scaledValue(12),
     paddingLeft: scaledValue(12),
+  //   borderColor: colors.paletteWhite,
+  //  shadowColor: '##47382714',
+  //   shadowOffset: { width: 6, height: 2 },
+  //   shadowOpacity: 0.15,
+  //   shadowRadius: 20,
+  //   elevation: 4,
+  backgroundColor: colors.white,
+    width: scaledValue(335),
+    borderRadius: scaledValue(20),
+    borderColor: colors.paletteWhite,
+   shadowColor: '##47382714',
+    shadowOffset: { width: 6, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 4,
+    flexDirection:"row",
+    
   },
   departmentText: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    color: colors.darkPurple,
+
     opacity: 0.7,
     marginTop: scaledValue(2),
   },
@@ -46,12 +63,12 @@ export const styles = StyleSheet.create({
   ongoingText: {
     fontSize: scaledValue(18),
     letterSpacing: scaledValue(18 * -0.01),
-    color: colors.appRed,
+    color: colors.jetBlack,
   },
   plansText: {
     fontSize: scaledValue(18),
     letterSpacing: scaledValue(18 * -0.01),
-    color: colors.darkPurple,
+
   },
   headerContainer: {
     flexDirection: 'row',
@@ -63,7 +80,7 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(16),
     lineHeight: scaledHeightValue(19.2),
     letterSpacing: scaledValue(16 * -0.02),
-    color: colors.darkPurple,
+
     marginTop: scaledValue(4),
   },
   imgStyle: {
@@ -94,7 +111,6 @@ export const styles = StyleSheet.create({
   professionalText: {
     fontSize: scaledValue(16),
     letterSpacing: scaledValue(16 * -0.03),
-    color: colors.darkPurple2,
   },
   arrowIcon: {
     width: scaledValue(20),
@@ -116,7 +132,7 @@ export const styles = StyleSheet.create({
   slotText: (pickSlot, item) => ({
     fontSize: scaledValue(13),
     lineHeight: scaledHeightValue(15.6),
-    color: pickSlot === item ? colors.paletteWhite : colors.appRed,
+    color: pickSlot === item ? colors.paletteWhite : colors.jetBlack,
     marginTop: scaledValue(8),
     marginBottom: scaledValue(8),
   }),
@@ -154,12 +170,13 @@ export const styles = StyleSheet.create({
     height: scaledValue(40),
     alignSelf: 'center',
     marginTop: scaledValue(16),
+    tintColor:colors.jetBlack,
   },
   uploadText: {
     fontSize: scaledValue(18),
     lineHeight: scaledHeightValue(21.6),
     letterSpacing: scaledValue(18 * -0.01),
-    color: colors.darkPurple,
+
     textAlign: 'center',
     paddingHorizontal: scaledValue(53),
     marginTop: scaledValue(10),
@@ -167,7 +184,7 @@ export const styles = StyleSheet.create({
   documentText: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    color: colors.darkPurple,
+
     textAlign: 'center',
     paddingHorizontal: scaledValue(53),
     opacity: 0.7,
@@ -178,11 +195,11 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(18),
     lineHeight: scaledHeightValue(18),
     letterSpacing: scaledValue(18 * -0.01),
-    color: colors.brown,
+    color: colors.white,
     fontFamily: fonts?.CLASH_GRO_MEDIUM,
   },
   buttonStyle: {
-    backgroundColor: '#FDBD74',
+    backgroundColor:colors.jetBlack,
     marginTop: scaledValue(40),
     marginBottom: scaledValue(62),
     height: scaledValue(52),
@@ -194,16 +211,19 @@ export const styles = StyleSheet.create({
     marginLeft: scaledValue(20),
   },
   slotCard: (pickSlot, item) => ({
-    backgroundColor: pickSlot === item?.code?.date ? colors.appRed : '#FFF6EB',
+    backgroundColor: pickSlot === item?.code?.date ? colors.jetBlack :colors.white,
     width: scaledValue(64),
-    borderRadius: scaledValue(8),
     alignItems: 'center',
     opacity: item?.valueInteger === 0 && 0.5,
-    shadowColor: '#47382726',
-    shadowOffset: {width: 1, height: 5},
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 8,
+    borderRadius: scaledValue(8),
+    borderColor: colors.paletteWhite,
+   shadowColor: '##47382714',
+    shadowOffset: { width: 6, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 2,
+    marginVertical:scaledValue(8),
+    marginHorizontal:scaledValue(2),
   }),
   slotTimeUpperView: {
     marginTop: scaledValue(39),
@@ -212,15 +232,16 @@ export const styles = StyleSheet.create({
     flexWrap: 'wrap',
     columnGap: scaledValue(8),
     rowGap: scaledValue(16),
+    backgroundColor:"transparent"
   },
   slotTimeCard: (pickSlotTime, i) => ({
     backgroundColor:
-      pickSlotTime === i?.resource?.slotTime ? colors.appRed : 'transparent',
+      pickSlotTime === i?.resource?.slotTime ? colors.jetBlack : 'transparent',
     borderRadius: scaledValue(8),
     height: scaledValue(40),
     justifyContent: 'center',
     shadowColor: '#47382726',
-    shadowOffset: {width: 1, height: 5},
+    shadowOffset: { width: 1, height: 5 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 8,
@@ -228,8 +249,8 @@ export const styles = StyleSheet.create({
       i?.resource?.isBooked === 'true'
         ? scaledValue(0.5)
         : pickSlotTime != i?.resource?.slotTime
-        ? scaledValue(0.75)
-        : 0,
+          ? scaledValue(0.75)
+          : 0,
     paddingHorizontal: scaledValue(11),
     opacity: i?.resource?.isBooked === 'true' && 0.4,
     borderColor: colors.jetBlack,

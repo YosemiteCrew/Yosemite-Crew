@@ -26,7 +26,7 @@ const Notifications = ({navigation}) => {
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
-          tintColor={colors.darkPurple}
+          tintColor={colors.jetBlack}
           onPress={() => {
             navigation?.goBack();
           }}
@@ -53,7 +53,7 @@ const Notifications = ({navigation}) => {
         {
           borderWidth: selectedOption === item.title ? 0 : scaledValue(1),
           backgroundColor:
-            selectedOption === item.title ? colors.appRed : 'transparent',
+            selectedOption === item.title ? colors.jetBlack : 'transparent',
         },
       ]}>
       <GText
@@ -62,7 +62,8 @@ const Notifications = ({navigation}) => {
         style={[
           styles.optionText,
           {
-            color: selectedOption === item.title ? colors.white : colors.appRed,
+            color:
+              selectedOption === item.title ? colors.white : colors.jetBlack,
           },
         ]}
       />
@@ -170,6 +171,21 @@ const Notifications = ({navigation}) => {
       </View>
       <FlatList
         data={filterNotifications()}
+        ListEmptyComponent={() => {
+          return (
+            <View style={{flex: 1}}>
+              <Image
+                source={Images.emptyNotification}
+                style={{
+                  width: scaledValue(288),
+                  height: scaledValue(325),
+                  alignSelf: 'center',
+                  justifyContent: 'center',
+                }}
+              />
+            </View>
+          );
+        }}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.flatListContainer}
         renderItem={({item}) => <NotificationItem item={item} />}

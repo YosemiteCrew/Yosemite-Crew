@@ -1,7 +1,7 @@
-import {StyleSheet} from 'react-native';
-import {scaledHeightValue, scaledValue} from '../../../utils/design.utils';
-import {fonts} from '../../../utils/fonts';
-import {colors} from '../../../../assets/colors';
+import { StyleSheet } from 'react-native';
+import { scaledHeightValue, scaledValue } from '../../../utils/design.utils';
+import { fonts } from '../../../utils/fonts';
+import { colors } from '../../../../assets/colors';
 
 export const styles = StyleSheet.create({
   container: {
@@ -49,13 +49,13 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(23),
     lineHeight: scaledHeightValue(27.6),
     letterSpacing: scaledValue(23 * -0.01),
-    color: colors.darkPurple,
+
   },
   breed: {
     textAlign: 'center',
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    color: colors.darkPurple,
+
     marginTop: scaledValue(2),
     opacity: 0.7,
   },
@@ -95,15 +95,7 @@ export const styles = StyleSheet.create({
     marginTop: scaledValue(41),
   },
   buttonStyle: {
-    backgroundColor: '#FDBD74',
-    width: '90%',
-    height: scaledValue(52),
-    borderRadius: scaledValue(28),
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
-    marginBottom: scaledValue(48),
-    marginTop: scaledValue(17),
+    marginTop: scaledValue(50),
   },
   buttonText: {
     fontSize: scaledValue(18),
@@ -112,7 +104,7 @@ export const styles = StyleSheet.create({
     fontFamily: fonts?.CLASH_GRO_MEDIUM,
     color: colors.brown,
   },
-  cityMainView: {flexDirection: 'row', gap: scaledValue(16)},
+  cityMainView: { flexDirection: 'row', gap: scaledValue(16) },
   cityText: {
     fontSize: scaledValue(16),
     lineHeight: scaledHeightValue(16),
@@ -196,13 +188,13 @@ export const styles = StyleSheet.create({
   lineSeparator: {
     width: scaledValue(32),
     borderWidth: scaledValue(0.5),
-    borderColor: colors.darkPurple,
+    border,
   },
   orText: {
     fontSize: scaledValue(16),
     lineHeight: scaledHeightValue(19.2),
     letterSpacing: scaledValue(16 * -0.01),
-    color: colors.darkPurple,
+
     opacity: 0.5,
   },
   detailsContainer: {
@@ -242,5 +234,20 @@ export const styles = StyleSheet.create({
     color: colors.appRed,
     marginLeft: scaledValue(8),
     top: scaledValue(2),
+  },
+  petImageWrapper: {
+    width: scaledValue(100),
+    height: scaledValue(100),
+    borderRadius: scaledValue(50),
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primaryBlue,
+    marginTop: scaledValue(18),
+    alignSelf: 'center',
+  },
+  petImg: {
+    width: scaledValue(95),
+    height: scaledValue(95),
+    borderRadius: scaledValue(47.5),
   },
 });

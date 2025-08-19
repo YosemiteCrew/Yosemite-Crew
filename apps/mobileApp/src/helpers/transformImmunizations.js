@@ -5,11 +5,11 @@
  * @param {Array<Object>} immunizations Raw JSON from the server
  * @param {Object} [options]
  * @param {boolean} [options.useFhirId=false] If true, use FHIR resource.id as the key
- * @returns {Array<Object>} [{ id, status, vaccine, date, manufacturer, lotNumber, location, nextDue, expiryDate, attachments: [] }]
+ * @returns {Array<Object>} [{ id, status, vaccine, date, manufacturer, lotNumber, location, nextDue, expiryDate, petImage, petId, attachments: [] }]
  */
 export function transformImmunizations(
   immunizations,
-  { useFhirId = false } = {}
+  {useFhirId = false} = {},
 ) {
   if (!Array.isArray(immunizations)) return [];
 
@@ -24,10 +24,13 @@ export function transformImmunizations(
     const lotNumber = res.lotNumber || null;
     const location = res.location?.display || null;
 
+    const petImage = res.patient?.petImageUrl || null;
+    const petId = res.patient?.reference?.split('/')?.[1] || null;
+
     // Extract notes
     let nextDue = null;
     let expiryDate = null;
-    (res.note || []).forEach((n) => {
+    (res.note || []).forEach(n => {
       if (n.text?.startsWith('Next due:')) {
         nextDue = n.text.replace('Next due:', '').trim();
       } else if (n.text?.startsWith('Expiry date:')) {
@@ -37,10 +40,10 @@ export function transformImmunizations(
 
     // Merge attachments (images + pdfs)
     const attachments = [];
-    (res.contained || []).forEach((doc) => {
-      (doc?.content || []).forEach((content) => {
-        const { attachment } = content;
-        const { contentType, title, url } = attachment;
+    (res.contained || []).forEach(doc => {
+      (doc?.content || []).forEach(content => {
+        const {attachment} = content;
+        const {contentType, title, url} = attachment;
 
         if (contentType && title && url) {
           const type = contentType.includes('image')
@@ -49,7 +52,7 @@ export function transformImmunizations(
             ? 'pdf'
             : 'other';
 
-          attachments.push({ title, url, type });
+          attachments.push({title, url, type});
         }
       });
     });
@@ -64,6 +67,8 @@ export function transformImmunizations(
       location,
       nextDue,
       expiryDate,
+      petImage,
+      petId,
       attachments,
     };
   });

@@ -9,6 +9,7 @@ import {colors} from '../../../../../../assets/colors';
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.themeColor,
   },
   petImg: {
     width: Dimensions.get('screen').width,
@@ -35,34 +36,30 @@ export const styles = StyleSheet.create({
     paddingHorizontal: scaledValue(20),
   },
   tagText: {
-    fontSize: scaledValue(10),
-    lineHeight: scaledHeightValue(12),
-    color: colors.darkPurple,
-    letterSpacing: scaledValue(10 * -0.02),
+    fontSize: scaledValue(12),
+    lineHeight: scaledHeightValue(12 * 1.2),
+    letterSpacing: scaledValue(12 * -0.02),
   },
   pointer: {
     width: scaledValue(4),
     height: scaledValue(4),
-    backgroundColor: colors.appRed,
+    backgroundColor: colors.primaryBlue,
     borderRadius: scaledValue(4),
   },
   titleText: {
     fontSize: scaledValue(20),
     lineHeight: scaledHeightValue(24),
-    color: '#302F2E',
     letterSpacing: scaledValue(20 * -0.01),
     width: '70%',
+    opacity: 0.9,
   },
   subTitleText: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(21),
-    color: '#302F2E',
     marginTop: scaledValue(8),
   },
   button: insets => ({
-    backgroundColor: '#FDBD74',
     height: scaledValue(48),
-    borderRadius: scaledValue(28),
     bottom: insets?.bottom + scaledValue(50),
     width: '70%',
     alignSelf: 'center',
@@ -72,11 +69,12 @@ export const styles = StyleSheet.create({
     width: scaledValue(20),
     height: scaledValue(20),
     marginRight: scaledValue(3),
+    tintColor: colors.white,
   },
   buttonText: {
     fontSize: scaledValue(16),
     lineHeight: scaledHeightValue(19.2),
-    color: colors.darkPurple,
+
     fontFamily: fonts.CLASH_GRO_MEDIUM,
     marginLeft: scaledValue(3),
   },
@@ -89,7 +87,7 @@ export const styles = StyleSheet.create({
   shareImgView: {
     width: scaledValue(40),
     height: scaledValue(40),
-    backgroundColor: '#D041221A',
+    backgroundColor: colors.paletteBlue,
     borderRadius: scaledValue(40),
     alignItems: 'center',
     justifyContent: 'center',
@@ -97,5 +95,12 @@ export const styles = StyleSheet.create({
   titleView: {
     paddingHorizontal: scaledValue(20),
     marginTop: scaledValue(40),
+  },
+  shareText: {
+    fontSize: scaledValue(14),
+    lineHeight: scaledHeightValue(14 * 1.2),
+    color: colors.primaryBlue,
+    marginTop: scaledValue(4),
+    textAlign: 'center',
   },
 });

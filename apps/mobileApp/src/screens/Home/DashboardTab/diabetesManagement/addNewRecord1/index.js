@@ -76,7 +76,7 @@ const AddNewRecord1 = ({navigation, route}) => {
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
-          tintColor={colors.darkPurple}
+          tintColor={colors.jetBlack}
           onPress={() => navigation.goBack()}
         />
       ),
@@ -372,8 +372,6 @@ const AddNewRecord1 = ({navigation, route}) => {
         status === 'unavailable' ||
         status === 'never_ask_again'
       ) {
-        console.log('underGranted');
-
         ImagePicker.openPicker({
           width: 800,
           height: 800,
@@ -389,14 +387,12 @@ const AddNewRecord1 = ({navigation, route}) => {
                 : image?.filename;
             let type = image?.mime;
             let localUri = image?.path;
-            console.log('herherhehher000', image);
             setImage(image?.path);
             setApiCallImage({name, uri: localUri, type});
           })
           .catch(error => {
             console.error('Error opening picker:', error);
           });
-        console.log('Permission granted');
       } else if (status === 'denied' || status === 'blocked') {
         Alert.alert(
           'Permission Blocked',
@@ -425,7 +421,6 @@ const AddNewRecord1 = ({navigation, route}) => {
           compressImageMaxWidth: 800,
           mediaType: 'photo',
         }).then(image => {
-          console.log('imagePickertss', image);
           let name =
             Platform.OS == 'android'
               ? image?.path.substring(image?.path.lastIndexOf('/') + 1)

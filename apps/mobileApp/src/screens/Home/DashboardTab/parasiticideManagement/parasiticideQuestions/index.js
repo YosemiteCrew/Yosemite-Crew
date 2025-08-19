@@ -16,7 +16,7 @@ const ParasiticideRiskQuestion = ({navigation}) => {
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
-          tintColor={colors.darkPurple}
+          tintColor={colors.jetBlack}
           onPress={navigation.goBack}
         />
       ),

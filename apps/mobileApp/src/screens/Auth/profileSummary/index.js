@@ -1,146 +1,117 @@
 import {Image, TouchableOpacity, View} from 'react-native';
-import React from 'react';
-import {styles} from './styles';
-import GText from '../../../components/GText/GText';
-import {scaledValue} from '../../../utils/design.utils';
+import React, {useEffect} from 'react';
 import {useTranslation} from 'react-i18next';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {styles} from './styles';
 import {Images} from '../../../utils';
+import {colors} from '../../../../assets/colors';
+import GText from '../../../components/GText/GText';
+import GImage from '../../../components/GImage';
+import HeaderButton from '../../../components/HeaderButton';
 
-const PetSummary = ({navigation}) => {
-  const insets = useSafeAreaInsets();
-  const statusBarHeight = insets.top;
+const PetSummary = ({navigation, route}) => {
+  const {petDetails} = route?.params;
   const {t} = useTranslation();
 
+  useEffect(() => {
+    navigation.setOptions({
+      headerLeft: () => (
+        <HeaderButton
+          icon={Images.arrowLeftOutline}
+          tintColor={colors.jetBlack}
+          onPress={() => navigation.goBack()}
+        />
+      ),
+    });
+  }, [navigation, t]);
+
   const summaryList = [
-    {
-      id: 1,
-      summary: t('basic_info_string'),
-      status: t('complete_string'),
-      onAction: () => {},
-    },
+    {id: 1, summary: t('basic_info_string'), status: t('complete_string')},
     {
       id: 2,
       summary: t('emergency_contacts_string'),
       status: t('complete_string'),
-      onAction: () => {},
     },
     {
       id: 3,
       summary: t('veterinary_details_string'),
       status: t('pending_string'),
-      onAction: () => {
-        navigation?.navigate('VeterinaryDetails');
-      },
+      route: 'VeterinaryDetails',
     },
     {
       id: 4,
       summary: t('medical_record_string'),
       status: t('pending_string'),
-      onAction: () => {
-        navigation?.navigate('VeterinaryDetails');
-      },
+      route: 'VeterinaryDetails',
     },
     {
       id: 5,
       summary: t('breeder_details_string'),
       status: t('pending_string'),
-      onAction: () => {
-        navigation?.navigate('AddBreederDetails');
-      },
+      route: 'AddBreederDetails',
     },
     {
       id: 6,
       summary: t('groomer_details_string'),
       status: t('pending_string'),
-      onAction: () => {
-        navigation?.navigate('GroomerDetails');
-      },
+      route: 'GroomerDetails',
     },
     {
       id: 7,
       summary: t('pet_boarding_string'),
       status: t('pending_string'),
-      onAction: () => {
-        navigation?.navigate('PetBoardingDetails');
-      },
+      route: 'PetBoardingDetails',
     },
   ];
 
   return (
     <View style={styles.container}>
-      <View
-        style={[
-          styles.headerContainer,
-          {marginTop: statusBarHeight + scaledValue(20)},
-        ]}>
-        <TouchableOpacity
-          onPress={() => {
-            navigation?.goBack();
-          }}
-          style={styles.backButton}>
-          <Image
-            source={Images.Left_Circle_Arrow}
-            style={styles.backButtonImage}
-          />
-        </TouchableOpacity>
-        <View style={styles.headerTextContainer}>
-          <GText
-            GrMedium
-            text={t('your_pets_string')}
-            style={styles.headerText}
+      <View style={styles.petProfileContainer}>
+        <View style={styles.petImageWrapper}>
+          <GImage
+            image={petDetails?.petImage?.url}
+            style={styles.petImg}
+            noImageSource={Images.Kizi}
           />
         </View>
-      </View>
-      <View style={styles.petProfileContainer}>
-        <Image source={Images.Kizi} style={styles.petImg} />
         <TouchableOpacity style={styles.cameraView}>
           <Image source={Images.ProfileCamera} style={styles.cameraImg} />
         </TouchableOpacity>
       </View>
       <GText GrMedium text={'Kizie'} style={styles.petName} />
       <GText SatoshiMedium text={'Beagle'} style={styles.breed} />
+
       <View style={styles.flatListView}>
-        {summaryList?.map((item, index) => (
-          <>
+        {summaryList.map((item, index) => (
+          <React.Fragment key={item.id}>
             <TouchableOpacity
-              disabled={item?.status != t('pending_string')}
-              onPress={item?.onAction}
-              key={item?.id}
+              disabled={item.status !== t('pending_string')}
+              onPress={() =>
+                item.route &&
+                navigation.navigate(item.route, {
+                  petDetails: petDetails,
+                })
+              }
               style={styles.tileView}>
               <GText
                 SatoshiBold
-                text={item?.summary}
+                text={item.summary}
                 style={styles.summaryText}
               />
-              <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                <View
-                  style={[
-                    styles.statusView,
-                    {
-                      backgroundColor:
-                        item?.status == t('pending_string')
-                          ? '#FDBD74'
-                          : '#8AC1B1',
-                      paddingHorizontal:
-                        item?.status == t('pending_string')
-                          ? scaledValue(13)
-                          : scaledValue(9),
-                    },
-                  ]}>
+              <View style={styles.statusMainView}>
+                <View style={styles.statusView(item.status)}>
                   <GText
                     SatoshiBold
-                    text={item?.status}
-                    style={styles.statusText}
+                    text={item.status}
+                    style={styles.statusText(item.status)}
                   />
                 </View>
                 <Image source={Images.RightArrow} style={styles.arrowImg} />
               </View>
             </TouchableOpacity>
-            {item.id !== summaryList[summaryList.length - 1].id && (
+            {index !== summaryList.length - 1 && (
               <View style={styles.divider} />
             )}
-          </>
+          </React.Fragment>
         ))}
       </View>
     </View>

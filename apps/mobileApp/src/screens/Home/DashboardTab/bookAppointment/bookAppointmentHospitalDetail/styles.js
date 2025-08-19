@@ -1,10 +1,10 @@
-import {Dimensions, StyleSheet} from 'react-native';
+import { Dimensions, StyleSheet } from 'react-native';
 import {
   scaledHeightValue,
   scaledValue,
 } from '../../../../../utils/design.utils';
-import {fonts} from '../../../../../utils/fonts';
-import {colors} from '../../../../../../assets/colors';
+import { fonts } from '../../../../../utils/fonts';
+import { colors } from '../../../../../../assets/colors';
 
 export const styles = StyleSheet.create({
   dashboardMainView: {
@@ -28,7 +28,6 @@ export const styles = StyleSheet.create({
   timeText: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    color: colors.darkPurple,
     marginTop: scaledValue(2),
     opacity: 0.7,
   },
@@ -41,8 +40,9 @@ export const styles = StyleSheet.create({
     paddingTop: scaledValue(12),
   },
   locationImg: {
-    width: scaledValue(16),
-    height: scaledValue(16),
+    width: scaledValue(20),
+    height: scaledValue(20),
+    
   },
   distanceText: {
     fontSize: scaledValue(16),
@@ -53,38 +53,35 @@ export const styles = StyleSheet.create({
   addressView: {
     flexDirection: 'row',
     marginTop: scaledValue(12),
+    alignItems: 'center',
   },
   addressText: {
     fontSize: scaledValue(14),
     lineHeight: scaledValue(16.8),
-    color: colors.darkPurple,
-    opacity: 0.7,
     marginLeft: scaledValue(8),
     width: '90%',
   },
   buttonTextStyle: {
     fontSize: scaledValue(16),
-    color: colors.brown,
     marginLeft: scaledValue(2),
     letterSpacing: scaledValue(14 * -0.01),
-    fontFamily: fonts.CLASH_GRO_MEDIUM,
   },
   buttonStyle: {
     marginTop: scaledValue(20),
     borderRadius: scaledValue(28),
     height: scaledValue(44),
-    backgroundColor: colors.fawn,
+    gap: scaledValue(6)
   },
   iconStyle: {
     width: scaledValue(14),
     height: scaledValue(14),
     marginRight: scaledValue(2),
-    tintColor: colors.brown,
+    tintColor: colors.white,
   },
   departmentText: {
     fontSize: scaledValue(18),
     lineHeight: scaledValue(21.6),
-    color: colors.appRed,
+    color: colors.jetBlack,
     marginTop: scaledValue(25),
     letterSpacing: scaledValue(18 * -0.01),
   },
@@ -99,7 +96,7 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(16),
     lineHeight: scaledHeightValue(19.2),
     letterSpacing: scaledValue(16 * -0.02),
-    color: colors.appRed,
+    color: colors.blue,
   },
   rightArrow: {
     width: scaledValue(20),
@@ -115,7 +112,7 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(16),
     lineHeight: scaledHeightValue(19.2),
     letterSpacing: scaledValue(16 * -0.02),
-    color: colors.darkPurple,
+
     textTransform: 'capitalize',
   },
   circleImg: {
@@ -125,7 +122,7 @@ export const styles = StyleSheet.create({
   serviceText: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    color: colors.darkPurple,
+
     opacity: 0.8,
     marginLeft: scaledValue(8),
   },
@@ -142,15 +139,12 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(18),
     lineHeight: scaledHeightValue(18),
     letterSpacing: scaledValue(18 * -0.01),
-    color: colors.brown,
+    color: colors.white,
     fontFamily: fonts?.CLASH_GRO_MEDIUM,
   },
   buttonStyle1: {
-    backgroundColor: '#FDBD74',
     marginTop: scaledValue(40),
     marginBottom: scaledValue(62),
-    height: scaledValue(52),
-    borderRadius: scaledValue(28),
     position: 'absolute',
     bottom: 0,
     width: Dimensions.get('window').width - 40,
