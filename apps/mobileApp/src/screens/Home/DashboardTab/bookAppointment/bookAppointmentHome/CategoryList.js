@@ -10,11 +10,11 @@ import {
 } from 'react-native';
 import GText from '../../../../../components/GText/GText';
 import GButton from '../../../../../components/GButton';
-import { Images } from '../../../../../utils';
-import { styles } from './styles';
-import { useTranslation } from 'react-i18next';
+import {Images} from '../../../../../utils';
+import {styles} from './styles';
+import {useTranslation} from 'react-i18next';
 import GImage from '../../../../../components/GImage';
-import { scaledValue } from '../../../../../utils/design.utils';
+import {scaledValue} from '../../../../../utils/design.utils';
 
 const CategoryList = ({
   data,
@@ -25,7 +25,7 @@ const CategoryList = ({
   navigation,
   type,
 }) => {
-  const { t } = useTranslation();
+  const {t} = useTranslation();
 
   return (
     <View>
@@ -41,14 +41,13 @@ const CategoryList = ({
       </View>
       <View style={styles.flatListView}>
         <FlatList
-          data={data?.slice(0, 2)}
+          data={data?.slice(0, 5)}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.containerStyle}
           horizontal
-          renderItem={({ item }) => {
+          renderItem={({item}) => {
             const lat = item?.profileData?.address?.latitude;
             const lng = item?.profileData?.address?.longitude;
-            console.log('item?.logo', item);
 
             return (
               <>
@@ -63,8 +62,7 @@ const CategoryList = ({
                     });
                   }}
                   activeOpacity={0.9}
-                  style={styles.flatListUnderView}
-                >
+                  style={styles.flatListUnderView}>
                   <GImage image={item?.logo} style={styles.imgStyle} />
                   <GText
                     componentProps={{
@@ -81,7 +79,7 @@ const CategoryList = ({
                       numberOfLines: 3,
                     }}
                     text={item?.selectedServices
-                      ?.map((service) => service.display)
+                      ?.map(service => service.display)
                       .join(', ')}
                     style={styles.descriptionText}
                   />

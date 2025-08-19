@@ -20,7 +20,6 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(18),
     lineHeight: scaledHeightValue(21.6),
     letterSpacing: scaledValue(18 * -0.01),
-    color: colors.darkPurple,
   },
   iconRow: {
     flexDirection: 'row',
@@ -44,7 +43,6 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
     letterSpacing: scaledValue(14 * -0.02),
-    color: colors.darkPurple,
   },
   swiperContainer: {
     height: '60%',
@@ -75,10 +73,17 @@ export const styles = StyleSheet.create({
   pageIndicator: {
     flexDirection: 'row',
   },
-  pageText: {
-    fontSize: scaledValue(16),
-    lineHeight: scaledHeightValue(19.2),
-    color: colors.appRed,
+  pageText1: {
+    fontSize: scaledValue(12),
+    lineHeight: scaledHeightValue(12),
+    color: colors.jetBlack,
+    lineHeight: scaledHeightValue(17),
+  },
+  pageText2: {
+    fontSize: scaledValue(12),
+    lineHeight: scaledHeightValue(12),
+    color: colors.thinGrey,
+    lineHeight: scaledHeightValue(17),
   },
   buttonGroup: {
     flexDirection: 'row',
@@ -106,5 +111,39 @@ export const styles = StyleSheet.create({
     lineHeight: scaledHeightValue(16.8),
     color: colors.appRed,
     marginTop: scaledValue(4),
+  },
+  shareIcon: {
+    height: 28,
+    width: 28,
+    tintColor: colors.jetBlack,
+  },
+  editIcon: {
+    height: 28,
+    width: 28,
+    tintColor: colors.jetBlack,
+  },
+  trashIcon: {
+    height: 28,
+    width: 28,
+    tintColor: colors.jetBlack,
+  },
+  buttonsView: {
+    flexDirection: 'row',
+    alignSelf: 'center',
+    gap: scaledValue(40),
+    marginHorizontal: scaledValue(75),
+  },
+  greyBg: {
+    height: scaledValue(48),
+    width: scaledValue(48),
+    backgroundColor: colors.jetBlack50,
+    borderRadius: scaledValue(24),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  buttonsText: {
+    textAlign: 'center',
+    mmarginTop: scaledValue(4),
+    fontSize: scaledValue(14),
   },
 });

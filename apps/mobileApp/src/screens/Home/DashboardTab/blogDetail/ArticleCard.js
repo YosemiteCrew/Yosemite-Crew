@@ -61,7 +61,6 @@ const styles = StyleSheet.create({
   remedieText: {
     fontSize: scaledValue(14),
     lineHeight: scaledValue(16.8),
-    color: colors.appRed,
   },
   smallHorizontalLine: {
     width: scaledValue(16),
@@ -79,7 +78,7 @@ const styles = StyleSheet.create({
     fontSize: scaledValue(20),
     lineHeight: scaledValue(24),
     letterSpacing: scaledValue(20 * -0.01),
-    color: colors.jetBlack,
+    color: colors.jetLightBlack,
     marginHorizontal: scaledValue(16),
   },
 });

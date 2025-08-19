@@ -23,7 +23,6 @@ const BookAppointmentDepartmentDetail = ({navigation, route}) => {
       headerRight: () => (
         <HeaderButton
           icon={Images.bellBold}
-          tintColor={colors.appRed}
           onPress={() => {
             navigation?.navigate('StackScreens', {
               screen: 'Notifications',
@@ -38,7 +37,7 @@ const BookAppointmentDepartmentDetail = ({navigation, route}) => {
           style={{
             fontSize: scaledValue(18),
             letterSpacing: scaledValue(18 * -0.01),
-            color: colors.darkPurple,
+
             textTransform: 'capitalize',
           }}
         />
@@ -46,7 +45,7 @@ const BookAppointmentDepartmentDetail = ({navigation, route}) => {
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
-          tintColor={colors.darkPurple}
+          tintColor={colors.jetBlack}
           onPress={() => {
             navigation?.goBack();
           }}
@@ -94,6 +93,7 @@ const BookAppointmentDepartmentDetail = ({navigation, route}) => {
           style={{marginBottom: scaledValue(100)}}
           contentContainerStyle={{
             gap: scaledValue(24),
+            marginVertical: scaledValue(11),
           }}
           renderItem={({item, index}) => {
             const docDetails = item?.resource?.extension?.reduce(

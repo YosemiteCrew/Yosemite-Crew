@@ -17,71 +17,63 @@ import {colors} from '../../../../../../assets/colors';
 import {scaledValue} from '../../../../../utils/design.utils';
 import GText from '../../../../../components/GText/GText';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import Input from '../../../../../components/Input';
 import GButton from '../../../../../components/GButton';
 
 import React, {useState, useRef} from 'react';
+import {useAppSelector} from '../../../../../redux/store/storeUtils';
+import GImage from '../../../../../components/GImage';
 // import ContactOption from './ContactOption';
 
 const ContactVet = ({navigation}) => {
   const {t} = useTranslation();
-  const refRBSheet = useRef();
   const insets = useSafeAreaInsets();
   const statusBarHeight = insets.top;
-  const [subject, setSubject] = useState('');
-  const [contactOption, setContactOption] = useState('general');
-  const [selectedSubmitRequest, setSelectedSubmitRequest] = useState('');
-  const [selectedSubmitRequestTo, setSelectedSubmitRequestTo] = useState('');
-  const [selectedConfirmTerm, setSelectedConfirmTerm] = useState('');
-
-  const options = [
-    {type: 'general', title: 'General Enquiry'},
-    {type: 'feature', title: 'Feature Request'},
-    {type: 'dsar', title: 'DSAR'},
-  ];
-  const petList = [
-    {id: 1, name: 'Kizie', img: Images.Kizi},
-    {id: 2, name: 'Oscar', img: Images.CatImg},
-  ];
+  const petList = useAppSelector(state => state.pets?.petLists);
 
   const [selectPet, setSelectPet] = useState({});
+
   const handlePetSelection = pet => {
-    if (selectPet?.id === pet.id) {
+    if (selectPet?.id === pet?.resource?.id) {
       setSelectPet(null);
     } else {
-      setSelectPet(pet);
+      setSelectPet(pet?.resource);
     }
   };
-  const renderPetItem = ({item}) => (
-    <TouchableOpacity
-      onPress={() => handlePetSelection(item)}
-      style={{opacity: selectPet?.id === item.id ? 0.5 : 1}}>
-      <Image source={item.img} style={styles.petImage} />
-      <GText SatoshiBold text={item.name} style={styles.petNameText} />
-    </TouchableOpacity>
-  );
+  const renderPetItem = ({item}) => {
+    const petDetails = item?.resource?.extension?.reduce((acc, item) => {
+      acc[item.title] = item.valueString;
+      return acc;
+    }, {});
 
-  // const renderContactOption = (optionType, title) => (
-  //   <ContactOption
-  //     icon={
-  //       contactOption === optionType
-  //         ? Images.Circle_Radio
-  //         : Images.Circle_Button
-  //     }
-  //     title={title}
-  //     onPress={() => setContactOption(optionType)}
-  //     titleStyle={{
-  //       color: contactOption === optionType ? colors.appRed : colors.darkPurple,
-  //     }}
-  //   />
-  // );
+    const isSelected = selectPet?.id === item?.resource?.id;
+    return (
+      <TouchableOpacity
+        onPress={() => handlePetSelection(item)}
+        style={styles.petItemContainer}
+        activeOpacity={0.7}>
+        >
+        <View style={styles.petImageBorder(isSelected)}>
+          <GImage
+            image={petDetails?.petImage?.url}
+            style={styles.petImage}
+            noImageSource={Images.Kizi}
+          />
+        </View>
+        <GText
+          SatoshiBold
+          text={item?.resource?.name[0]?.text}
+          style={styles.petNameText}
+        />
+        <View style={styles.petUnderline(isSelected)} />
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <KeyboardAvoidingView
       style={styles.dashboardMainView}
       behavior={Platform.OS === 'ios' ? 'padding' : ''}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}>
-      {/* <View style={styles.dashboardMainView}> */}
       <ScrollView showsVerticalScrollIndicator={false}>
         <ImageBackground
           source={Images.contactVet}
@@ -110,7 +102,7 @@ const ContactVet = ({navigation}) => {
               <Image
                 source={Images.arrowLeftOutline}
                 style={styles.headerIcon}
-                tintColor={colors.darkPurple}
+                tintColor={colors.jetBlack}
               />
             </TouchableOpacity>
             <GText
@@ -123,71 +115,42 @@ const ContactVet = ({navigation}) => {
             </TouchableOpacity>
           </View>
         </ImageBackground>
-        <View style={styles.helpTextContainer}>
-          <GText GrMedium text={t('send_an_string')} style={styles.happyText} />
-          <GText
-            GrMedium
-            text={t('emergency_message_string')}
-            style={styles.helpText}
-          />
-        </View>
-        <View style={styles.companionView}>
-          <GText
-            GrMedium
-            //
-            text={t('choose_a_companion_string')}
-            style={styles.petsText}
-          />
+        <GText GrMedium text={t('send_an_string')} style={styles.happyText} />
 
-          <View style={styles.petListContainer}>
-            <FlatList
-              data={petList}
-              horizontal
-              contentContainerStyle={styles.petList}
-              renderItem={renderPetItem}
-            />
-          </View>
-        </View>
+        <GText
+          GrMedium
+          text={t('choose_a_companion_string')}
+          style={styles.petsText}
+        />
+
+        <FlatList
+          data={petList?.entry}
+          style={{marginTop: scaledValue(15)}}
+          horizontal
+          contentContainerStyle={styles.petList}
+          renderItem={renderPetItem}
+        />
 
         <TextInput
           multiline={true}
-          placeholder={'Describe your issue'}
-          placeholderTextColor={'#aaa'}
+          placeholder={t('desc_issue_string')}
+          placeholderTextColor={colors.jetBlack300}
           style={styles.textInputStyle}
         />
         <View style={styles.uploadImageView}>
           <Image style={styles.uploadImage} source={Images.Upload} />
           <GText
-            medium
+            GrMedium
             text={t('upload_image_string')}
             style={styles.uploadText}
           />
-          <GText
-            SatoshiRegular
-            text={t('maximum_string')}
-            style={styles.maxSize}
-          />
+          <GText text={t('maximum_string')} style={styles.maxSize} />
         </View>
         <GButton
           title={'Send Message'}
-          style={[
-            styles.buttonStyle,
-            {marginBottom: insets.bottom || scaledValue(20)},
-          ]}
-          textStyle={styles.buttonText}
+          style={[styles.buttonStyle(insets.bottom)]}
         />
       </ScrollView>
-      {/* <GMultipleOptions
-        refRBSheet={refRBSheet}
-        title="Are you a pet professional?"
-        options={professionalList}
-        search={false}
-        value={selectProfessional}
-        multiSelect={true}
-        onChoose={val => {
-          setSelectProfessional(val);
-        }}
-      /> */}
     </KeyboardAvoidingView>
   );
 };

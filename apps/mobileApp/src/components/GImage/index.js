@@ -1,9 +1,9 @@
 import React from 'react';
-import { ImageBackground, StyleSheet } from 'react-native';
+import {ImageBackground, StyleSheet} from 'react-native';
 import FastImage from 'react-native-fast-image';
-import { IMAGE_CLOUD_URL } from '../../constants';
-import { scaledValue } from '../../utils/design.utils';
-import { defaultImage } from '../../utils/Images';
+import {IMAGE_CLOUD_URL} from '../../constants';
+import {scaledValue} from '../../utils/design.utils';
+import {defaultImage} from '../../utils/Images';
 
 const GImage = ({
   image,
@@ -17,7 +17,7 @@ const GImage = ({
 }) => {
   const imageSource = image
     ? {
-        uri: directUrl ? image : IMAGE_CLOUD_URL + image,
+        uri: directUrl ? image || image?.uri : IMAGE_CLOUD_URL + image,
         priority: FastImage.priority.high,
         cache: FastImage.cacheControl.immutable, // Use `immutable` for better caching
       }
@@ -31,8 +31,7 @@ const GImage = ({
           source={imageSource}
           defaultSource={defaultImage}
           resizeMode={resizeMode || 'cover'}
-          style={[styles.imageStyle, fullImageStyle]}
-        >
+          style={[styles.imageStyle, fullImageStyle]}>
           {typeof content === 'function' ? content() : null}
         </ImageBackground>
       ) : (

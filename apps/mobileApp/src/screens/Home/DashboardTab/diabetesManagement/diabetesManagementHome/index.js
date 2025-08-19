@@ -54,7 +54,7 @@ const DiabetesManagement = ({navigation}) => {
       headerRight: () => (
         <HeaderButton
           icon={Images.bellBold}
-          tintColor={colors.appRed}
+          tintColor={colors.jetBlack}
           onPress={() => {
             navigation?.navigate('StackScreens', {
               screen: 'Notifications',
@@ -65,7 +65,7 @@ const DiabetesManagement = ({navigation}) => {
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
-          tintColor={colors.darkPurple}
+          tintColor={colors.jetBlack}
           onPress={() => navigation.goBack()}
         />
       ),
@@ -142,13 +142,13 @@ const DiabetesManagement = ({navigation}) => {
       <ScrollView
         style={styles.containerView}
         showsVerticalScrollIndicator={false}>
-        <GText
+        {/* <GText
           GrMedium
           text={t('status_overview_string')}
           style={styles.headerTitle}
-        />
-        <View style={styles.petListContainer}>
-          <FlatList
+        /> */}
+        {/* <View style={styles.petListContainer}> */}
+          {/* <FlatList
             data={petList}
             horizontal
             contentContainerStyle={styles.petList}
@@ -183,8 +183,8 @@ const DiabetesManagement = ({navigation}) => {
                 </View>
               );
             }}
-          />
-        </View>
+          /> */}
+        {/* </View> */}
         <View style={styles.bloodGulcoseButtonView}>
           <View style={styles.headerImageContainer}>
             <Image source={Images.CatImg} style={styles.catImage} />
@@ -214,7 +214,7 @@ const DiabetesManagement = ({navigation}) => {
               data={lineData}
               thickness={3}
               yAxisLabelWidth={60} // Reduce space between y-axis text
-              color="#FFAA4C" // Orange line color
+              color={colors.jetBlack} // Orange line color
               curved
               showDataPoints
               dataPointsRadius={8} // Larger data points
@@ -226,7 +226,7 @@ const DiabetesManagement = ({navigation}) => {
               showScrollIndicator={false}
               isAnimated
               animateOnDataChange
-              startFillColor="#fadab6" // Gradient fill under the line
+              startFillColor="#302F2E66" // Gradient fill under the line
               endFillColor="#faf1e8" // Fades out
               gradientDirection="vertical" // Top to bottom gradient
               rulesColor="rgba(0,0,0,0.1)" // Light grid lines
@@ -279,7 +279,7 @@ const DiabetesManagement = ({navigation}) => {
           style={styles.button}
         />
       </ScrollView>
-      <OptionMenuSheet
+      {/* <OptionMenuSheet
         refRBSheet={refRBSheet}
         options={petRecordList}
         height={(petRecordList + 1) * 56 + 18}
@@ -289,7 +289,7 @@ const DiabetesManagement = ({navigation}) => {
           refRBSheet.current.close();
         }}
         onPressCancel={() => refRBSheet.current.close()}
-      />
+      /> */}
     </View>
   );
 };
