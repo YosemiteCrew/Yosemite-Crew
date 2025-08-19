@@ -21,6 +21,7 @@ const WebAppointmentSchema = new Schema<WebAppointmentType>(
     hospitalId: String,
     userId: String,
     petId: String,
+    ownerId:String,
     tokenNumber: String,
     ownerName: String,
     petName: String,

@@ -1,9 +1,9 @@
 import {
+  Alert,
   Image,
-  KeyboardAvoidingView,
+  PermissionsAndroid,
   Platform,
   ScrollView,
-  Text,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -20,66 +20,146 @@ import {styles} from './styles';
 import GMultipleOptions from '../../../components/GMultipleOptions';
 import {useAppDispatch} from '../../../redux/store/storeUtils';
 import {sign_up} from '../../../redux/slices/authSlice';
+import {colors} from '../../../../assets/colors';
+import DatePicker from 'react-native-date-picker';
+import {KeyboardAwareScrollView} from 'react-native-keyboard-controller';
+import ImagePicker from 'react-native-image-crop-picker';
+import {openSettings, PERMISSIONS, request} from 'react-native-permissions';
+import {fonts} from '../../../utils/fonts';
+import FastImage from 'react-native-fast-image';
 
-const CreateAccount = ({navigation}) => {
+const CreateAccount = ({navigation, route}) => {
+  const {userDetails} = route?.params;
+
   const insets = useSafeAreaInsets();
   const statusBarHeight = insets.top;
-  const dispatch = useAppDispatch();
-  const refRBSheet = useRef();
+  const [apiCallImage, setApiCallImage] = useState({
+    uri: userDetails?.picture,
+  });
   const {t} = useTranslation();
-  const [selectProfessional, setSelectProfessional] = useState();
-  console.log('selectProfessional', selectProfessional);
-
+  const [open, setOpen] = useState(false);
+  const [date, setDate] = useState('');
   const [formValue, setFormValue] = useState({
-    firstName: '',
-    lastName: '',
+    firstName: userDetails?.name?.split(' ')[0],
+    lastName: userDetails?.name?.split(' ')[1] || '',
     countryCode: '+1',
     phone: '',
-    email: '',
-    city: '',
-    zip: '',
-    pimsCode: '',
+    email: userDetails?.email,
+    dob: '',
   });
 
-  const [isChecked, setIsChecked] = useState(false);
-
-  const toggleCheckbox = () => {
-    setIsChecked(!isChecked);
+  const formatDate = dateString => {
+    return new Date(dateString).toLocaleDateString('en-GB');
   };
 
-  const sign_up_hit = () => {
-    let input = {
-      email: formValue?.email,
-      firstName: formValue?.firstName,
-      lastName: formValue?.lastName,
-      mobilePhone: formValue?.phone,
-      city: formValue?.city,
-      zipcode: formValue?.zip,
-      professionType: JSON.stringify(selectProfessional),
-      pimsCode: formValue?.pimsCode,
-      countryCode: formValue?.countryCode,
-      isProfessional: 'yes',
-    };
+  const handlePicker = async () => {
+    if (Platform.OS == 'android') {
+      const status = await PermissionsAndroid.request(
+        'android.permission.READ_MEDIA_IMAGES',
+      );
 
-    dispatch(sign_up(input)).then(res => {
-      if (sign_up.fulfilled.match(res)) {
-        console.log('res0123', res);
+      if (
+        status === 'granted' ||
+        status === 'unavailable' ||
+        status === 'never_ask_again'
+      ) {
+        ImagePicker.openPicker({
+          width: 800,
+          height: 800,
+          cropping: false,
+          compressImageMaxHeight: 800,
+          compressImageMaxWidth: 800,
+          // mediaType: 'photo',
+        })
+          .then(image => {
+            let name =
+              Platform.OS == 'android'
+                ? image?.path.substring(image?.path.lastIndexOf('/') + 1)
+                : image?.filename;
+            let type = image?.mime;
+            let localUri = image?.path;
+            setApiCallImage({name, uri: localUri, type});
 
-        if (res?.payload?.status === 1) {
-          navigation?.navigate('ConfirmSignUp', {
-            email: formValue?.email,
+            // setImage(image?.path);
+          })
+          .catch(error => {
+            console.error('Error opening picker:', error);
           });
-        }
+      } else if (status === 'denied' || status === 'blocked') {
+        Alert.alert(
+          'Permission Blocked',
+          'Please grant permission to access photos in order to select an image.',
+          [
+            {
+              text: 'Cancel',
+              style: 'cancel',
+              onPress: () => console.log('cancel'),
+            },
+            {
+              text: 'Open Settings',
+              onPress: () => openSettings(),
+            },
+          ],
+        );
       }
-    });
+    } else {
+      const status = await request(PERMISSIONS.IOS.PHOTO_LIBRARY);
+      if (status === 'granted' || status === 'limited') {
+        ImagePicker.openPicker({
+          width: 800,
+          height: 800,
+          cropping: false,
+          compressImageMaxHeight: 800,
+          compressImageMaxWidth: 800,
+          mediaType: 'photo',
+        }).then(image => {
+          let name =
+            Platform.OS == 'android'
+              ? image?.path.substring(image?.path.lastIndexOf('/') + 1)
+              : image?.filename;
+          let type = image?.mime;
+          let localUri = image?.path;
+          setApiCallImage({name, uri: localUri, type});
+        });
+      } else if (status === 'denied') {
+        Alert.alert(
+          'Permission Denied',
+          'Please grant permission to access photos in order to select an image.',
+          [
+            {
+              text: 'Cancel',
+              style: 'cancel',
+              onPress: () => console.log('cancel'),
+            },
+            {
+              text: 'Open Settings',
+              onPress: () => openSettings(),
+            },
+          ],
+        );
+      } else if (status === 'blocked') {
+        Alert.alert(
+          'Permission Blocked',
+          'Please grant permission to access photos in order to select an image.',
+          [
+            {
+              text: 'Cancel',
+              style: 'cancel',
+              onPress: () => console.log('cancel'),
+            },
+            {
+              text: 'Open Settings',
+              onPress: () => openSettings(),
+            },
+          ],
+        );
+      }
+    }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.scrollView}
-      behavior={Platform.OS === 'ios' ? 'padding' : ''}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+    <>
+      <KeyboardAwareScrollView style={styles.scrollView} bottomOffset={20}>
         <GText
           GrMedium
           text={t('create_an_account_string')}
@@ -88,9 +168,27 @@ const CreateAccount = ({navigation}) => {
             {marginTop: scaledValue(statusBarHeight + scaledValue(17))},
           ]}
         />
-        <TouchableOpacity style={styles.profileButton}>
-          <Image source={Images.importProfile} style={styles.profileImage} />
+        <TouchableOpacity
+          activeOpacity={0.6}
+          onPress={handlePicker}
+          style={styles.profileButton(apiCallImage?.uri)}>
+          <Image
+            source={
+              apiCallImage?.uri
+                ? {uri: apiCallImage?.uri}
+                : Images.importProfile
+            }
+            style={styles.profileImage}
+          />
         </TouchableOpacity>
+        <GText
+          GrMedium
+          text={t('personal_details_string')}
+          style={{
+            marginTop: scaledValue(67),
+            paddingHorizontal: scaledValue(35),
+          }}
+        />
         <View style={styles.formContainer}>
           <Input
             value={formValue.firstName}
@@ -121,22 +219,7 @@ const CreateAccount = ({navigation}) => {
             style={styles.phoneInput}
             keyboardType="phone-pad"
           />
-          <View style={styles.cityZipContainer}>
-            <Input
-              value={formValue.city}
-              label={t('city_string')}
-              onChangeText={value => setFormValue({...formValue, city: value})}
-              style={styles.cityInput}
-              keyboardType={'email-address'}
-            />
-            <Input
-              value={formValue.zip}
-              label={t('zip_code_string')}
-              onChangeText={value => setFormValue({...formValue, zip: value})}
-              style={styles.zipInput}
-              keyboardType="phone-pad"
-            />
-          </View>
+
           <Input
             value={formValue.email}
             label={t('email_address_string')}
@@ -145,53 +228,37 @@ const CreateAccount = ({navigation}) => {
             keyboardType={'email-address'}
           />
           <TouchableOpacity
-            onPress={() => {
-              refRBSheet?.current?.open();
-            }}
-            style={styles.professionalButton}>
+            onPress={() => setOpen(true)}
+            activeOpacity={0.7}
+            style={{
+              flexDirection: 'row',
+              borderWidth: scaledValue(0.5),
+              paddingVertical: scaledValue(16),
+              borderRadius: scaledValue(24),
+              borderColor: colors.jetBlack,
+              paddingHorizontal: scaledValue(20),
+              justifyContent: 'space-between',
+            }}>
             <GText
-              SatoshiRegular
-              text={t('are_you_pet_professional_string')}
-              style={styles.professionalText}
+              text={date ? formatDate(date) : t('dob_string')}
+              style={{
+                fontSize: scaledValue(16),
+                opacity: date ? 0.8 : 0.6,
+                color: colors.jetBlack,
+                fontFamily: fonts.SATOSHI_MEDIUM,
+              }}
             />
-            <Image source={Images.ArrowDown} style={styles.arrowIcon} />
+            <Image source={Images.Calender} style={styles.scanIcon} />
           </TouchableOpacity>
-          <Input
-            value={formValue.pimsCode}
-            label={t('pims_code_string')}
-            rightIcon={Images.Scan}
-            iconStyle={styles.scanIcon}
-            keyboardType="phone-pad"
-            onChangeText={value =>
-              setFormValue({...formValue, pimsCode: value})
-            }
-            style={styles.input}
-          />
-
-          <View style={styles.container}>
-            <View style={styles.checkboxContainer}>
-              <TouchableOpacity onPress={toggleCheckbox}>
-                <Image
-                  source={isChecked ? Images.Check_fill : Images.UnCheck}
-                  style={styles.checkboxIcon}
-                />
-              </TouchableOpacity>
-
-              <Text style={styles.text}>
-                {t('terms_agreement_string')}
-                <Text style={styles.link}>{t('terms_conditions_string')}</Text>
-                {t('and_string')}
-                <Text style={styles.link}>{t('privacy_policy_string')}</Text>
-              </Text>
-            </View>
-          </View>
           <GButton
             onPress={() => {
-              sign_up_hit();
+              navigation?.navigate('AddAddress', {
+                userDetails: formValue,
+                apiCallImage: apiCallImage,
+              });
             }}
-            title={t('create_account_button')}
+            title={t('add_address_string')}
             style={styles.createAccountButton}
-            textStyle={styles.createAccountButtonText}
           />
           <View style={styles.memberContainer}>
             <GText
@@ -206,19 +273,21 @@ const CreateAccount = ({navigation}) => {
             />
           </View>
         </View>
-        <GMultipleOptions
-          refRBSheet={refRBSheet}
-          title="Are you a pet professional?"
-          options={professionalList}
-          search={false}
-          value={selectProfessional}
-          multiSelect={true}
-          onChoose={val => {
-            setSelectProfessional(val);
-          }}
-        />
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
+
+      <DatePicker
+        modal
+        open={open}
+        date={date || new Date()}
+        mode="date"
+        onConfirm={date => {
+          setOpen(false);
+          setDate(date);
+          setFormValue({...formValue, dob: formatDate(date)});
+        }}
+        onCancel={() => setOpen(false)}
+      />
+    </>
   );
 };
 

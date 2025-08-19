@@ -1,10 +1,10 @@
-import {StyleSheet} from 'react-native';
+import { StyleSheet } from 'react-native';
 import {
   scaledHeightValue,
   scaledValue,
 } from '../../../../../utils/design.utils';
-import {fonts} from '../../../../../utils/fonts';
-import {colors} from '../../../../../../assets/colors';
+import { fonts } from '../../../../../utils/fonts';
+import { colors } from '../../../../../../assets/colors';
 
 export const styles = StyleSheet.create({
   dashboardMainView: {
@@ -42,25 +42,23 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(20),
     lineHeight: scaledHeightValue(24),
     letterSpacing: scaledValue(20 * -0.01),
-    color: colors.appRed,
+    color: colors.primaryBlue,
   },
   dueOnText: {
     fontSize: scaledValue(13),
     lineHeight: scaledHeightValue(15.6),
     letterSpacing: scaledValue(13 * -0.01),
-    color: colors.darkPurple,
     opacity: 0.6,
   },
   reminderText: {
     fontSize: scaledValue(11),
     lineHeight: scaledHeightValue(13.2),
-    color: colors.darkPurple,
     marginTop: scaledValue(4),
+    color: '#37223C'
   },
   titleText: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    color: colors.darkPurple,
     marginTop: scaledValue(40),
     opacity: 0.6,
   },
@@ -69,15 +67,15 @@ export const styles = StyleSheet.create({
     borderColor: 'rgba(55, 34, 60, 0.1)',
     marginVertical: scaledValue(17),
   },
-  iconStyle: {width: scaledValue(16), height: scaledValue(16)},
+  iconStyle: { width: scaledValue(16), height: scaledValue(16) },
   buttonStyle: {
-    backgroundColor: '#FDBD74',
-    width: scaledValue(198),
+    // width: scaledValue(198),
     height: scaledValue(48),
-    borderRadius: scaledValue(28),
     alignSelf: 'center',
     position: 'absolute',
     bottom: 0,
+    gap: scaledValue(6),
+    paddingHorizontal: scaledHeightValue(20)
   },
   buttonText: {
     fontSize: scaledValue(18),
@@ -101,7 +99,6 @@ export const styles = StyleSheet.create({
   diseaseText: {
     fontSize: scaledValue(16),
     lineHeight: scaledHeightValue(20),
-    color: colors.darkPurple,
   },
   statusImage: {
     width: scaledValue(16),
@@ -111,7 +108,6 @@ export const styles = StyleSheet.create({
   nameText: {
     fontSize: scaledValue(13),
     lineHeight: scaledHeightValue(15.6),
-    color: colors.darkPurple,
     opacity: 0.6,
     marginTop: scaledValue(2),
   },
@@ -124,7 +120,6 @@ export const styles = StyleSheet.create({
   dateText: {
     fontSize: scaledValue(11),
     lineHeight: scaledHeightValue(13.2),
-    color: colors.darkPurple,
     opacity: 0.6,
   },
   dot: {
@@ -136,7 +131,6 @@ export const styles = StyleSheet.create({
   clinicText: {
     fontSize: scaledValue(11),
     lineHeight: scaledHeightValue(13.2),
-    color: colors.darkPurple,
     opacity: 0.6,
   },
   itemImage: {
@@ -156,27 +150,25 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(23),
     lineHeight: scaledHeightValue(27.6),
     letterSpacing: scaledValue(23 * -0.01),
-    color: colors.appRed,
   },
   vaccinationText: {
     fontSize: scaledValue(23),
     lineHeight: scaledHeightValue(27.6),
     letterSpacing: scaledValue(23 * -0.01),
-    color: colors.darkPurple,
   },
   recordsText: {
     fontSize: scaledValue(23),
     lineHeight: scaledHeightValue(27.6),
     letterSpacing: scaledValue(23 * -0.01),
-    color: colors.darkPurple,
   },
   button: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: scaledValue(4),
   },
   catImage: {
-    width: scaledValue(40),
-    height: scaledValue(40),
+    width: scaledValue(39),
+    height: scaledValue(39),
     borderRadius: scaledValue(20),
   },
   arrowImage: {

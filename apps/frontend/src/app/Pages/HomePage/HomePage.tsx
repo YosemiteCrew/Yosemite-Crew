@@ -1,5 +1,5 @@
 "use client";
-import React, {useState, ReactNode } from "react";
+import React, {useState, ReactNode, FormEvent } from "react";
 import Footer from "@/app/Components/Footer/Footer";
 import "./HomePage.css";
 import { Container } from "react-bootstrap";
@@ -372,7 +372,7 @@ type ButtonProps = {
   icon: ReactNode;
   text: string;
   href:string;
-  onClick?:() => void;
+  onClick?:(e:FormEvent<Element>) => void;
 }
 
 export function FillBtn({ icon, text ,onClick, href}: ButtonProps) {
@@ -382,9 +382,9 @@ export function FillBtn({ icon, text ,onClick, href}: ButtonProps) {
     </Link>
   );
 }
-export function UnFillBtn({ icon, text,href }: ButtonProps) {
+export function UnFillBtn({ icon, text,href,onClick }: ButtonProps) {
   return (
-    <Link className="UnFillbtn" href={href}>
+    <Link className="UnFillbtn" href={href} onClick={onClick}>
       {icon} {text}
     </Link>
   );

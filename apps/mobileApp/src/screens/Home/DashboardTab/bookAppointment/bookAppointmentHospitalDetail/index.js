@@ -24,7 +24,7 @@ const BookAppointmentDetail = ({navigation, route}) => {
       headerRight: () => (
         <HeaderButton
           icon={Images.bellBold}
-          tintColor={colors.appRed}
+          tintColor={colors.jetBlack}
           onPress={() => {
             navigation?.navigate('StackScreens', {
               screen: 'Notifications',
@@ -35,7 +35,7 @@ const BookAppointmentDetail = ({navigation, route}) => {
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
-          tintColor={colors.darkPurple}
+          tintColor={colors.jetBlack}
           onPress={() => {
             navigation?.goBack();
           }}
@@ -48,11 +48,10 @@ const BookAppointmentDetail = ({navigation, route}) => {
     <View style={styles.dashboardMainView}>
       <ScrollView>
         <View style={{paddingHorizontal: scaledValue(20)}}>
-          {/* <Image source={Images.Hospital1} style={styles.clinicImg} /> */}
           <GImage image={businessDetails?.logo} style={styles.clinicImg} />
           <GText
             GrMedium
-            text={businessDetails?.profileData?.businessName}
+            text={businessDetails?.name}
             style={styles.clinicName}
           />
           <GText SatoshiBold text={'Open 24 Hours'} style={styles.timeText} />
@@ -96,7 +95,7 @@ const BookAppointmentDetail = ({navigation, route}) => {
             <GText
               GrMedium
               text={`${businessDetails?.healthcareServices?.length} Departments`}
-              style={styles.addressText}
+              style={[styles.addressText, {color: colors.jetLightBlack}]}
             />
           </View>
           <GButton
@@ -122,6 +121,7 @@ const BookAppointmentDetail = ({navigation, route}) => {
             }}>
             <Image
               source={Images.chat_round}
+              tintColor={colors.jetBlack}
               style={{width: scaledValue(16), height: scaledValue(16)}}
             />
             <GText
@@ -130,7 +130,7 @@ const BookAppointmentDetail = ({navigation, route}) => {
               style={{
                 fontSize: scaledValue(16),
                 letterSpacing: scaledValue(16 * -0.01),
-                color: colors.appRed,
+                color: colors.jetBlack,
               }}
             />
           </TouchableOpacity>
@@ -192,7 +192,6 @@ const BookAppointmentDetail = ({navigation, route}) => {
                   <View style={styles.serviceView}>
                     <Image
                       source={Images.CircleCheck}
-                      tintColor={'#8AC1B1'}
                       style={styles.circleImg}
                     />
                     <GText

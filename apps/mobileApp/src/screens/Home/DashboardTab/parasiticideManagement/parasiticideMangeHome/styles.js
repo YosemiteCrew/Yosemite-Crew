@@ -1,9 +1,9 @@
-import {StyleSheet} from 'react-native';
+import { StyleSheet } from 'react-native';
 import {
   scaledHeightValue,
   scaledValue,
 } from '../../../../../utils/design.utils';
-import {colors} from '../../../../../../assets/colors';
+import { colors } from '../../../../../../assets/colors';
 
 export const styles = StyleSheet.create({
   dashboardMainView: {
@@ -93,7 +93,6 @@ export const styles = StyleSheet.create({
   vigilanceText: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    color: colors.darkPurple,
     opacity: 0.6,
     paddingHorizontal: scaledValue(21),
     textAlign: 'center',
@@ -112,7 +111,7 @@ export const styles = StyleSheet.create({
     borderRadius: scaledValue(20),
     marginBottom: scaledValue(51),
     shadowColor: '#47382726',
-    shadowOffset: {width: 10, height: 10},
+    shadowOffset: { width: 10, height: 10 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 10,
@@ -126,14 +125,12 @@ export const styles = StyleSheet.create({
   parasiteRiskText: {
     fontSize: scaledValue(18),
     lineHeight: scaledHeightValue(21.6),
-    color: colors.darkPurple,
     textAlign: 'center',
     marginTop: scaledValue(16),
   },
   evaluateText: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    color: colors.darkPurple,
     opacity: 0.8,
     paddingHorizontal: scaledValue(35),
     textAlign: 'center',
@@ -153,7 +150,6 @@ export const styles = StyleSheet.create({
   petName: {
     fontSize: scaledValue(16),
     lineHeight: scaledHeightValue(19.2),
-    color: colors.darkPurple,
     textAlign: 'center',
     marginTop: scaledValue(4),
     letterSpacing: scaledValue(16 * -0.02),

@@ -1,4 +1,4 @@
-import {Image, View} from 'react-native';
+import {Alert, Image, View} from 'react-native';
 import React from 'react';
 import {Images} from '../../../utils';
 import {scaledValue} from '../../../utils/design.utils';
@@ -8,21 +8,61 @@ import GText from '../../../components/GText/GText';
 import GButton from '../../../components/GButton';
 import {styles} from './styles';
 import GTextButton from '../../../components/GTextButton/GTextButton';
+import {colors} from '../../../../assets/colors';
+import {
+  GoogleSignin,
+  statusCodes,
+} from '@react-native-google-signin/google-signin';
+import {WEB_CLIENT_ID} from '../../../constants';
+import {social_login} from '../../../redux/slices/authSlice';
+import {useAppDispatch} from '../../../redux/store/storeUtils';
 
 const SignupOptions = ({navigation}) => {
   const insets = useSafeAreaInsets();
   const statusBarHeight = insets.top;
   const {t} = useTranslation();
+  const dispatch = useAppDispatch();
+  React.useEffect(() => {
+    GoogleSignin.configure({
+      webClientId: WEB_CLIENT_ID,
+    });
+  }, []);
 
+  const GoogleSingUp = async () => {
+    try {
+      await GoogleSignin.hasPlayServices();
+      await GoogleSignin.signIn().then(async result => {
+        GoogleSignin.signOut();
+
+        socialLogin(result?.data?.idToken, 'google');
+      });
+    } catch (error) {
+      if (error.code === statusCodes.SIGN_IN_CANCELLED || error.code === '-1') {
+        // user cancelled the login flow
+        Alert.alert('User cancelled the login flow !');
+      } else if (error.code === statusCodes.IN_PROGRESS) {
+        Alert.alert('Signin in progress');
+        // operation (f.e. sign in) is in progress already
+      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        Alert.alert('Google play services not available or outdated !');
+        // play services not available or outdated
+      } else {
+        Alert.alert(`Getting error in GoogleSingIn with code: ${error.code}`);
+      }
+    }
+  };
   const buttonList = [
     {
       id: 1,
       title: t('sign_up_email_string'),
       icon: Images.email,
-      backgroundColor: '#FDBD74',
-      textColor: '#37223C',
+      backgroundColor: colors.jetBlack,
+      textColor: colors.paletteWhite,
       action: () => {
-        navigation?.navigate('CreateAccount');
+        navigation?.navigate('CreateAccount', {
+          userDetails: {},
+          apiCallImage: '',
+        });
       },
     },
     {
@@ -32,7 +72,7 @@ const SignupOptions = ({navigation}) => {
       backgroundColor: '#FFFFFF',
       textColor: '#344054',
       action: () => {
-        navigation?.navigate('CreateAccount');
+        GoogleSingUp();
       },
     },
     {
@@ -49,13 +89,29 @@ const SignupOptions = ({navigation}) => {
       id: 4,
       title: t('sign_up_apple_string'),
       icon: Images.apple,
-      backgroundColor: '#000000',
+      backgroundColor: colors.jetBlack,
       textColor: '#FFFEFE',
       action: () => {
         navigation?.navigate('CreateAccount');
       },
     },
   ];
+
+  const socialLogin = (token, type) => {
+    const input = {
+      type: type,
+      token_id: token,
+    };
+    dispatch(social_login(input)).then(res => {
+      if (social_login.fulfilled.match(res)) {
+        if (res?.payload?.status === 1) {
+          navigation?.navigate('CreateAccount', {
+            userDetails: res.payload.data,
+          });
+        }
+      }
+    });
+  };
 
   return (
     <View style={styles.container}>

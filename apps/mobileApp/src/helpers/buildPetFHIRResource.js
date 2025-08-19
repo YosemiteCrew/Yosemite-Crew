@@ -10,7 +10,6 @@ export const buildPetFHIRResource = ({
   genderStatusDisplay,
   weight,
   color,
-  bloodGroup,
   ageWhenNeutered,
   microchipNumber,
   insuranceCompany,
@@ -21,7 +20,7 @@ export const buildPetFHIRResource = ({
 }) => ({
   resourceType: 'Patient',
   id,
-  name: [{ text: name }],
+  name: [{text: name}],
   gender,
   birthDate,
   animal: {
@@ -30,12 +29,12 @@ export const buildPetFHIRResource = ({
         {
           system: 'http://hl7.org/fhir/animal-species',
           code:
-            speciesDisplay === 'Horse'
+            speciesDisplay?.value === 'Horse'
               ? 'equine'
-              : speciesDisplay === 'Dog'
+              : speciesDisplay?.value === 'Dog'
               ? 'canislf'
               : 'feline',
-          display: speciesDisplay,
+          display: speciesDisplay?.value,
         },
       ],
     },
@@ -54,7 +53,7 @@ export const buildPetFHIRResource = ({
   },
   extension: [
     {
-      url: 'http://yourdomain.com/fhir/StructureDefinition/pet-weight',
+      url: 'http://yourdomain.com/fhir/StructureDefinition/pet-current-weight',
       valueString: weight,
     },
     {
@@ -62,12 +61,8 @@ export const buildPetFHIRResource = ({
       valueString: color,
     },
     {
-      url: 'http://yourdomain.com/fhir/StructureDefinition/pet-bloodgroup',
-      valueString: bloodGroup,
-    },
-    {
       url: 'http://yourdomain.com/fhir/StructureDefinition/age-when-neutered',
-      valueInteger: ageWhenNeutered,
+      valueString: ageWhenNeutered,
     },
     {
       url: 'http://yourdomain.com/fhir/StructureDefinition/microchip-number',

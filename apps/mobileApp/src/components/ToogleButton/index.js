@@ -1,7 +1,7 @@
-import {Animated, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import React from 'react';
-import {scaledValue} from '../../utils/design.utils';
-import {colors} from '../../../assets/colors';
+import { scaledValue } from '../../utils/design.utils';
+import { colors } from '../../../assets/colors';
 
 const ToggleButton = ({
   toggleState,
@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
     left: 0,
   }),
   activeContainer: {
-    backgroundColor: colors.fawn,
+    backgroundColor: colors.primaryBlue,
   },
   inactiveContainer: {
     backgroundColor: colors.borderColor,
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
     width: circleWidth ? scaledValue(circleWidth) : scaledValue(20),
     height: circleWidth ? scaledValue(circleWidth) : scaledValue(20),
     borderRadius: scaledValue(15),
-    backgroundColor: !toggleState ? '#fff' : colors.fawn,
+    backgroundColor: !toggleState ? '#fff' : colors.primaryBlue,
     borderColor: '#ccc',
     justifyContent: 'center',
     alignItems: 'flex-start',

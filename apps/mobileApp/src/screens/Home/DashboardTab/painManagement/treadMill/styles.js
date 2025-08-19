@@ -62,7 +62,6 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(12),
     lineHeight: scaledHeightValue(14.4),
     letterSpacing: scaledValue(12 * -0.02),
-    color: colors.darkPurple,
   },
   redDot: {
     width: scaledValue(4),
@@ -90,25 +89,23 @@ export const styles = StyleSheet.create({
     marginTop: scaledValue(8),
   },
   button: {
-    backgroundColor: '#FDBD74',
     height: scaledValue(48),
-    borderRadius: scaledValue(28),
     bottom: scaledValue(30),
     width: '70%',
     alignSelf: 'center',
     position: 'absolute',
+    gap: scaledValue(8),
   },
   buttonIcon: {
     width: scaledValue(20),
     height: scaledValue(20),
     marginRight: scaledValue(3),
+    tintColor: colors.white,
   },
   buttonText: {
     fontSize: scaledValue(16),
     lineHeight: scaledHeightValue(19.2),
-    color: colors.darkPurple,
     fontFamily: fonts.CLASH_GRO_MEDIUM,
-    marginLeft: scaledValue(3),
   },
   mainView: {marginBottom: scaledValue(100)},
 });

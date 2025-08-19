@@ -1,10 +1,10 @@
-import {StyleSheet} from 'react-native';
-import {colors} from '../../../../../../assets/colors';
+import { StyleSheet } from 'react-native';
+import { colors } from '../../../../../../assets/colors';
 import {
   scaledHeightValue,
   scaledValue,
 } from '../../../../../utils/design.utils';
-import {fonts} from '../../../../../utils/fonts';
+import { fonts } from '../../../../../utils/fonts';
 
 export const styles = StyleSheet.create({
   dashboardMainView: {
@@ -37,7 +37,6 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(16),
     lineHeight: scaledHeightValue(19.2),
     letterSpacing: scaledValue(16 * -0.02),
-    color: colors.darkPurple,
     marginLeft: scaledValue(8),
     width: '90%',
   },
@@ -54,37 +53,40 @@ export const styles = StyleSheet.create({
     marginVertical: scaledValue(17),
   },
   container: {
-    marginTop: scaledValue(20),
-    backgroundColor: '#FFF6EB',
     paddingHorizontal: scaledValue(20),
-    marginHorizontal: scaledValue(21),
     borderRadius: scaledValue(20),
-    shadowColor: '#47382726',
-    shadowOffset: {width: 10, height: 10},
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 10,
+    shadowColor: '##47382714',
+    shadowOffset: { width: 6, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 4,
+    borderWidth: scaledValue(1),
+    borderColor: colors.paletteWhite,
+    backgroundColor: colors.themeColor,
+    shadowColor: '##47382714',
+    marginHorizontal: scaledValue(20),
+    padding: scaledValue(12),
+    marginTop: scaledValue(20),
   },
   questionTitle: {
     fontSize: scaledValue(23),
     lineHeight: scaledHeightValue(27.6),
     letterSpacing: scaledValue(23 * -0.01),
-    color: colors.appRed,
+    color: colors.jetBlack,
     marginTop: scaledValue(20),
   },
   descriptionText: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(21),
-    color: '#302F2E',
     marginTop: scaledValue(8),
-    opacity: 0.8,
+    color: colors.jetLightBlack
+
   },
   helperText: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    color: colors.darkPurple,
     marginTop: scaledValue(24),
-    opacity: 0.6,
+    color: colors.jetLightBlack
   },
   buttonContainer: {
     gap: scaledValue(8),
@@ -99,10 +101,10 @@ export const styles = StyleSheet.create({
     height: scaledValue(38),
     borderRadius: scaledValue(28),
     backgroundColor: 'transparent',
-    borderColor: colors.appRed,
+    borderColor: colors.jetBlack,
   },
   buttonText: {
-    color: colors.appRed,
+    color: colors.jetBlack,
     fontSize: scaledValue(14),
     fontFamily: fonts.CLASH_GRO_MEDIUM,
     letterSpacing: scaledValue(14 * -0.01),
@@ -115,7 +117,5 @@ export const styles = StyleSheet.create({
   relatedQuestionText: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    color: colors.darkPurple,
-    opacity: 0.6,
   },
 });

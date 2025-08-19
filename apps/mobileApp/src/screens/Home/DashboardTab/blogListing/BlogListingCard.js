@@ -40,7 +40,7 @@ export default BlogListingCard;
 
 const styles = StyleSheet.create({
   cardMainContainer: {
-    backgroundColor: colors.pearlWhite,
+    backgroundColor: colors.paletteWhite,
     borderTopLeftRadius: scaledValue(18),
     borderTopRightRadius: scaledValue(18),
     borderBottomLeftRadius: scaledValue(12),
@@ -66,7 +66,6 @@ const styles = StyleSheet.create({
   remedieText: {
     fontSize: scaledValue(14),
     lineHeight: scaledValue(16.8),
-    color: colors.appRed,
   },
   smallHorizontalLine: {
     width: scaledValue(16),
@@ -108,5 +107,11 @@ const styles = StyleSheet.create({
     letterSpacing: scaledValue(20 * -0.01),
     color: colors.jetLightBlack,
     flex: 1,
+  },
+  dateText: {
+    fontSize: scaledValue(14),
+    lineHeight: scaledValue(16.8),
+    letterSpacing: scaledValue(20 * -0.01),
+    color: colors.jetBlack200,
   },
 });

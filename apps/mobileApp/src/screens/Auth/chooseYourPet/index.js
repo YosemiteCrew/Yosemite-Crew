@@ -30,9 +30,8 @@ const ChooseYourPet = ({navigation}) => {
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
-          tintColor={colors.darkPurple}
+          tintColor={colors.jetBlack}
           onPress={() => navigation.goBack()}
-          style={{paddingHorizontal: scaledValue(20)}}
         />
       ),
     });
@@ -94,22 +93,38 @@ const ChooseYourPet = ({navigation}) => {
       />
       <View style={styles.petListContainer}>
         {petList.map((item, index) => (
-          <TouchableOpacity
-            key={index}
-            style={[
-              styles.petItem,
-              {opacity: selectedPetId?.id === item.id ? 0.5 : 1},
-            ]}
-            onPress={() => handlePetSelection(item)}>
-            <Image source={item?.icon} style={item?.style} />
-            <GText GrMedium text={item?.title} style={styles.petTitle} />
-          </TouchableOpacity>
+          <View>
+            <TouchableOpacity
+              key={index}
+              style={[
+                styles.petItem,
+                {opacity: selectedPetId?.id === item.id ? 0.5 : 1},
+              ]}
+              onPress={() => handlePetSelection(item)}>
+              <Image source={item?.icon} style={item?.style} />
+              <GText GrMedium text={item?.title} style={styles.petTitle} />
+            </TouchableOpacity>
+            {selectedPetId?.id === item.id && (
+              <View
+                style={{
+                  borderWidth: scaledValue(2),
+                  width: '100%',
+                  borderColor: colors.primaryBlue,
+                }}
+              />
+            )}
+          </View>
         ))}
       </View>
       <GButton
         disabled={!selectedPetId}
         onPress={() => {
-          refRBSheet?.current?.open();
+          navigation?.navigate('AddPetDetails', {
+            choosePetData: {
+              petType: selectedPetId,
+              petDetails: {},
+            },
+          });
         }}
         title={t('continue_string')}
         style={styles.button}
@@ -131,7 +146,6 @@ const ChooseYourPet = ({navigation}) => {
           setTimeout(() => {
             navigation?.navigate('AddPetDetails', {
               choosePetData: {
-                petBreed: selectPetBreed,
                 petType: selectedPetId?.title,
               },
             });

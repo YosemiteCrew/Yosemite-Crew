@@ -1,10 +1,10 @@
-import {StyleSheet} from 'react-native';
+import { StyleSheet } from 'react-native';
 import {
   scaledHeightValue,
   scaledValue,
 } from '../../../../../utils/design.utils';
-import {fonts} from '../../../../../utils/fonts';
-import {colors} from '../../../../../../assets/colors';
+import { fonts } from '../../../../../utils/fonts';
+import { colors } from '../../../../../../assets/colors';
 
 export const styles = StyleSheet.create({
   dashboardMainView: {
@@ -27,7 +27,7 @@ export const styles = StyleSheet.create({
     borderColor: '#312943',
     textAlignVertical: 'top',
     fontSize: scaledValue(16),
-    color: colors.darkPurple,
+
     backgroundColor: 'transparent',
     width: '100%',
     borderWidth: scaledValue(0.5),
@@ -65,7 +65,7 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(18),
     lineHeight: scaledValue(21.6),
     letterSpacing: scaledValue(18 * -0.01),
-    color: colors.darkPurple,
+
   },
   prescriptionName: {
     fontSize: scaledValue(18),
@@ -96,7 +96,7 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(18),
     lineHeight: scaledValue(21.6),
     letterSpacing: scaledValue(18 * -0.01),
-    color: colors.darkPurple,
+
     marginTop: scaledValue(44),
   },
   feedbackContainer: {
@@ -120,7 +120,7 @@ export const styles = StyleSheet.create({
   doctorSpeciality: {
     fontSize: scaledValue(14),
     lineHeight: scaledValue(16.8),
-    color: colors.darkPurple,
+
     marginTop: scaledValue(4),
     opacity: 0.7,
   },
