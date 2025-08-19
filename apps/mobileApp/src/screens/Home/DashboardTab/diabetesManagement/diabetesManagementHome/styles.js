@@ -1,10 +1,10 @@
-import {Dimensions, Platform, StyleSheet} from 'react-native';
-import {colors} from '../../../../../../assets/colors';
+import { Dimensions, Platform, StyleSheet } from 'react-native';
+import { colors } from '../../../../../../assets/colors';
 import {
   scaledHeightValue,
   scaledValue,
 } from '../../../../../utils/design.utils';
-import {fonts} from '../../../../../utils/fonts';
+import { fonts } from '../../../../../utils/fonts';
 
 export const styles = StyleSheet.create({
   dashboardMainView: {
@@ -28,7 +28,7 @@ export const styles = StyleSheet.create({
     lineHeight: scaledHeightValue(19.2),
     marginTop: scaledValue(4),
     letterSpacing: scaledValue(16 * -0.02),
-    color: colors.darkPurple,
+
     textAlign: 'center',
   },
   healthyStatus: {
@@ -76,7 +76,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: scaledValue(16),
     borderRadius: scaledValue(20),
     shadowColor: '#47382726',
-    shadowOffset: {width: 5, height: 5},
+    shadowOffset: { width: 5, height: 5 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 10,
@@ -96,12 +96,12 @@ export const styles = StyleSheet.create({
   },
   containerView: {
     paddingHorizontal: scaledValue(20),
-    marginTop: scaledValue(30),
+    marginTop: scaledValue(21),
   },
   headerTitle: {
     fontSize: scaledValue(18),
     lineHeight: scaledHeightValue(21.6),
-    color: colors.darkPurple,
+
     letterSpacing: scaledValue(18 * -0.01),
   },
   headerImageContainer: {
@@ -132,7 +132,7 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
     letterSpacing: scaledValue(16 * -0.03),
-    color: colors.darkPurple,
+
   },
   arrowIcon: {
     width: scaledValue(20),
@@ -143,7 +143,7 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: scaledValue(12),
-    paddingVertical: scaledValue(6),
+    // paddingVertical: scaledValue(6),
   },
   buttonIcon: {
     width: scaledValue(20),
@@ -154,7 +154,7 @@ export const styles = StyleSheet.create({
     height: scaledValue(48),
     width: scaledValue(198),
     alignSelf: 'center',
-    backgroundColor: '#FDBD74',
+    backgroundColor: colors.jetBlack,
     borderRadius: scaledValue(28),
     marginBottom: scaledValue(60),
   },
@@ -163,7 +163,7 @@ export const styles = StyleSheet.create({
     lineHeight: scaledHeightValue(18),
     letterSpacing: scaledValue(18 * -0.01),
     fontFamily: fonts?.CLASH_GRO_MEDIUM,
-    color: colors.brown,
+    color: colors.white,
     marginLeft: scaledValue(3),
     top: scaledValue(2),
     textTransform: 'capitalize',
@@ -173,7 +173,7 @@ export const styles = StyleSheet.create({
     height: scaledValue(280),
     marginBottom: scaledValue(40),
     shadowColor: '#47382726',
-    shadowOffset: {width: 1, height: scaledValue(2)},
+    shadowOffset: { width: 1, height: scaledValue(2) },
     shadowOpacity: 0.8,
     shadowRadius: 4,
     elevation: 8,

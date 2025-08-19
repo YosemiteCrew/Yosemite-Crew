@@ -1,123 +1,23 @@
-import {createAsyncThunk, createSlice} from '@reduxjs/toolkit';
-import {setLoading} from './loadingSlice';
-import API from '../../services/API';
-import {navigationContainerRef} from '../../../App';
-import {showToast} from '../../components/Toast';
+import {makeThunk} from './thunks';
 
-export const get_feedback_list = createAsyncThunk(
+/* ===================== FEEDBACK ===================== */
+export const get_feedback_list = makeThunk(
   'Observation/getFeedBack',
-  async (credentials, {rejectWithValue, dispatch}) => {
-    try {
-      dispatch(setLoading(true));
-      console.log('credentials=>>>', credentials);
-
-      const response = await API({
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        route: `Observation/getFeedBack`,
-        body: credentials,
-        method: 'GET',
-      });
-      dispatch(setLoading(false));
-      console.log('getFeedBack_response=>>', JSON.stringify(response?.data));
-      if (response.status !== 200) {
-        return rejectWithValue(response?.data);
-      }
-
-      return response?.data;
-    } catch (error) {
-      console.log(error);
-      return rejectWithValue(error);
-    }
-  },
+  'Observation/getFeedBack',
+  {method: 'GET'},
 );
-
-export const save_a_feedback = createAsyncThunk(
+export const save_a_feedback = makeThunk(
   'Observation/saveFeedBack',
-  async (credentials, {rejectWithValue, dispatch}) => {
-    try {
-      dispatch(setLoading(true));
-      console.log('credentials=>>>', credentials);
-
-      const response = await API({
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        route: `Observation/saveFeedBack`,
-        body: credentials,
-        method: 'POST',
-        multiPart: true,
-      });
-      dispatch(setLoading(false));
-      console.log('saveFeedBack_response=>>', JSON.stringify(response?.data));
-      if (response.status !== 200) {
-        return rejectWithValue(response?.data);
-      }
-
-      return response?.data;
-    } catch (error) {
-      console.log(error);
-      return rejectWithValue(error);
-    }
-  },
+  'Observation/saveFeedBack',
+  {method: 'POST', multiPart: true},
 );
-
-export const update_a_feedback = createAsyncThunk(
+export const update_a_feedback = makeThunk(
   'Observation/editFeedBack',
-  async (credentials, {rejectWithValue, dispatch}) => {
-    try {
-      dispatch(setLoading(true));
-      console.log('credentials=>>>', credentials);
-
-      const response = await API({
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        route: `Observation/editFeedBack?feedbackId=${credentials?.feedBackId}`,
-        body: credentials?.fhirData,
-        method: 'PUT',
-        multiPart: true,
-      });
-      dispatch(setLoading(false));
-      console.log('editFeedBack_response=>>', JSON.stringify(response?.data));
-      if (response.status !== 200) {
-        return rejectWithValue(response?.data);
-      }
-
-      return response?.data;
-    } catch (error) {
-      console.log(error);
-      return rejectWithValue(error);
-    }
-  },
+  d => `Observation/editFeedBack?feedbackId=${d?.feedBackId}`,
+  {method: 'PUT', multiPart: true, bodyKey: 'fhirData'},
 );
-
-export const delete_a_feedback = createAsyncThunk(
+export const delete_a_feedback = makeThunk(
   'Observation/deleteFeedBack',
-  async (credentials, {rejectWithValue, dispatch}) => {
-    try {
-      dispatch(setLoading(true));
-      console.log('credentials=>>>', credentials);
-
-      const response = await API({
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        route: `Observation/deleteFeedBack?feedbackId=${credentials?.feedBackId}`,
-        body: {},
-        method: 'DELETE',
-      });
-      dispatch(setLoading(false));
-      console.log('deleteFeedBack_response=>>', JSON.stringify(response?.data));
-      if (response.status !== 200) {
-        return rejectWithValue(response?.data);
-      }
-
-      return response?.data;
-    } catch (error) {
-      console.log(error);
-      return rejectWithValue(error);
-    }
-  },
+  d => `Observation/deleteFeedBack?feedbackId=${d?.feedBackId}`,
+  {method: 'DELETE'},
 );

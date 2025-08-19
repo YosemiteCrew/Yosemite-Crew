@@ -44,7 +44,7 @@ export const styles = StyleSheet.create({
   searchText: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    color: colors.darkPurple,
+
     opacity: 0.7,
   },
   searchIcon: {
@@ -61,7 +61,6 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(18),
     lineHeight: scaledHeightValue(21.6),
     letterSpacing: scaledValue(18 * -0.01),
-    color: colors.darkPurple,
   },
   headerContainer: {
     flexDirection: 'row',
@@ -80,19 +79,20 @@ export const styles = StyleSheet.create({
   },
   topicButton: (selectTopic, topic) => ({
     height: scaledValue(35),
-    borderWidth: scaledValue(0.75),
+    borderWidth: selectTopic !== topic && scaledValue(0.75),
     borderRadius: scaledValue(24),
-    borderColor: colors.appRed,
+    borderColor: colors.primayBlue100,
     justifyContent: 'center',
     paddingHorizontal: scaledValue(12),
     marginTop: scaledValue(12),
-    backgroundColor: selectTopic === topic ? colors.appRed : '#FDBD741A',
+    backgroundColor:
+      selectTopic === topic ? colors.primaryBlue : colors.paletteBlue,
   }),
   topicText: (selectTopic, topic) => ({
     fontSize: scaledValue(16),
     lineHeight: scaledHeightValue(19.2),
     letterSpacing: scaledValue(16 * -0.01),
-    color: selectTopic === topic ? colors.white : colors.appRed,
+    color: selectTopic === topic ? colors.white : colors.jetBlack,
   }),
   popularText: {
     fontSize: scaledValue(18),
@@ -102,7 +102,6 @@ export const styles = StyleSheet.create({
   articleText: {
     fontSize: scaledValue(18),
     lineHeight: scaledHeightValue(21.6),
-    color: colors.darkPurple,
   },
   titleView: {
     paddingHorizontal: scaledValue(20),
@@ -113,13 +112,13 @@ export const styles = StyleSheet.create({
   pointer: {
     width: scaledValue(4),
     height: scaledValue(4),
-    backgroundColor: colors.appRed,
+    backgroundColor: colors.primaryBlue,
     borderRadius: scaledValue(4),
   },
   tagText: {
     fontSize: scaledValue(10),
     lineHeight: scaledHeightValue(12),
-    color: colors.darkPurple,
+
     letterSpacing: scaledValue(10 * -0.02),
   },
   titleText: {
@@ -137,7 +136,7 @@ export const styles = StyleSheet.create({
   likeText: {
     fontSize: scaledValue(12),
     lineHeight: scaledHeightValue(14.4),
-    color: colors.darkPurple,
+
     opacity: 0.7,
     letterSpacing: scaledValue(12 * -0.02),
   },
@@ -151,5 +150,11 @@ export const styles = StyleSheet.create({
     paddingHorizontal: scaledValue(20),
     marginTop: scaledValue(8),
     marginBottom: scaledValue(73),
+  },
+  likeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'absolute',
+    bottom: scaledValue(7),
   },
 });

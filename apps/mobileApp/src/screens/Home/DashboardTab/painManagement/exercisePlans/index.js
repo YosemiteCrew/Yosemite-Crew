@@ -1,5 +1,11 @@
-import {FlatList, Image, ScrollView, View} from 'react-native';
-import React, {useEffect} from 'react';
+import {
+  FlatList,
+  Image,
+  ScrollView,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import React, {useEffect, useState} from 'react';
 import {useTranslation} from 'react-i18next';
 import {Images} from '../../../../../utils';
 import {colors} from '../../../../../../assets/colors';
@@ -9,9 +15,13 @@ import CustomProgressBar from '../../../../../components/CustomProgressBar';
 import GButton from '../../../../../components/GButton';
 import HeaderButton from '../../../../../components/HeaderButton';
 import {styles} from './styles';
+import ToggleButton from '../../../../../components/ToogleButton';
 
 const ExercisePlans = ({navigation}) => {
   const {t} = useTranslation();
+  const [selectReminder, setSelectReminder] = useState(null);
+  const [toggleState, setToggleState] = useState(true);
+
   useEffect(() => {
     configureHeader();
   }, []);
@@ -21,7 +31,7 @@ const ExercisePlans = ({navigation}) => {
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
-          tintColor={colors.darkPurple}
+          tintColor={colors.jetBlack}
           onPress={() => {
             navigation?.goBack();
           }}
@@ -54,29 +64,52 @@ const ExercisePlans = ({navigation}) => {
         },
       ],
     },
+    // {
+    //   id: 2,
+    //   exerciseName: t('prome_exercise_string'),
+    //   img: Images.CatImg,
+    //   petName: 'Oscar',
+    //   week: '2 Weeks',
+    //   exerciseList: [
+    //     {
+    //       id: 1,
+    //       title: 'Hind Leg Stands',
+    //       exercise: '15 X 3',
+    //     },
+    //     {
+    //       id: 2,
+    //       title: 'Adductor Muscle Stretch',
+    //       exercise: '5 mins',
+    //     },
+    //     {
+    //       id: 3,
+    //       title: 'Joint Extension',
+    //       exercise: '5 mins',
+    //     },
+    //   ],
+    // },
+  ];
+
+  const reminderList = [
+    {
+      id: 1,
+      reminder: '30 mins prior',
+    },
     {
       id: 2,
-      exerciseName: t('prome_exercise_string'),
-      img: Images.CatImg,
-      petName: 'Oscar',
-      week: '2 Weeks',
-      exerciseList: [
-        {
-          id: 1,
-          title: 'Hind Leg Stands',
-          exercise: '15 X 3',
-        },
-        {
-          id: 2,
-          title: 'Adductor Muscle Stretch',
-          exercise: '5 mins',
-        },
-        {
-          id: 3,
-          title: 'Joint Extension',
-          exercise: '5 mins',
-        },
-      ],
+      reminder: '1 hour prior',
+    },
+    {
+      id: 3,
+      reminder: '12 hours prior',
+    },
+    {
+      id: 4,
+      reminder: '1 day prior',
+    },
+    {
+      id: 5,
+      reminder: '3 days prior',
     },
   ];
 
@@ -86,12 +119,7 @@ const ExercisePlans = ({navigation}) => {
         <View style={styles.headerContainer}>
           <GText
             GrMedium
-            text={t('on_going_string')}
-            style={styles.ongoingText}
-          />
-          <GText
-            GrMedium
-            text={` ${t('plans_string')}`}
+            text={`${t('on_going_plan_string')}`}
             style={styles.plansText}
           />
         </View>
@@ -101,29 +129,53 @@ const ExercisePlans = ({navigation}) => {
             renderItem={({item, index}) => {
               return (
                 <View style={styles.cardStyle}>
-                  <View style={styles.imgView}>
-                    <Image source={item?.img} style={styles.petImgStyle} />
-                    <View style={styles.nameView}>
-                      <GText
-                        GrMedium
-                        text={item?.exerciseName}
-                        style={styles.weightText}
-                      />
-                      <View style={styles.petNameView}>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}>
+                    <View style={styles.imgView}>
+                      <Image source={item?.img} style={styles.petImgStyle} />
+                      <View style={styles.nameView}>
                         <GText
-                          SatoshiBold
-                          text={item?.petName}
-                          style={styles.petName}
+                          GrMedium
+                          text={item?.exerciseName}
+                          style={styles.weightText}
                         />
-                        <View style={styles.pointer} />
-                        <GText
-                          SatoshiBold
-                          text={item?.week}
-                          style={styles.petName}
-                        />
+                        <View style={styles.petNameView}>
+                          <GText
+                            SatoshiBold
+                            text={item?.petName}
+                            style={styles.petName}
+                          />
+                          <View style={styles.pointer} />
+                          <GText
+                            SatoshiBold
+                            text={item?.week}
+                            style={styles.petName}
+                          />
+                        </View>
                       </View>
                     </View>
+                    <TouchableOpacity>
+                      <Image
+                        source={Images.info}
+                        style={{
+                          width: scaledValue(24),
+                          height: scaledValue(24),
+                        }}
+                      />
+                    </TouchableOpacity>
                   </View>
+                  <Image
+                    source={Images.exercise_frame}
+                    style={{
+                      width: scaledValue(295),
+                      height: scaledValue(124),
+                      marginTop: scaledValue(20),
+                    }}
+                  />
                   <View style={styles.progressView}>
                     <CustomProgressBar
                       percentage={21}
@@ -156,7 +208,6 @@ const ExercisePlans = ({navigation}) => {
                           />
                           <View style={styles.titleView}>
                             <GText
-                              SatoshiRegular
                               text={item?.exercise}
                               style={styles.exerciseTextStyle}
                             />
@@ -174,18 +225,42 @@ const ExercisePlans = ({navigation}) => {
               );
             }}
           />
+          <View style={styles.dateRow}>
+            <GText
+              SatoshiBold
+              text={t('reminder_string')}
+              style={styles.dateText}
+            />
+            <ToggleButton
+              toggleState={toggleState}
+              setToggleState={setToggleState}
+            />
+          </View>
+          <View style={styles.reminderView}>
+            {reminderList?.map((item, index) => (
+              <TouchableOpacity
+                onPress={() => {
+                  setSelectReminder(item.id);
+                }}
+                style={styles.placeView(selectReminder, item.id)}>
+                <GText
+                  SatoshiRegular
+                  text={item.reminder}
+                  style={styles.placeText(selectReminder, item.id)}
+                />
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
         <GButton
           onPress={() => {
             navigation?.navigate('StackScreens', {
-              screen: 'CreateNewPlan',
+              screen: 'TreadMill',
             });
           }}
-          title={t('create_new_plan_string')}
-          icon={Images.PlusIcon}
-          iconStyle={styles.iconStyle}
+          title={t('done_for_today_string')}
+          icon={Images.tickImage}
           style={styles.buttonStyle}
-          textStyle={styles.buttonTextStyle}
         />
       </ScrollView>
     </View>

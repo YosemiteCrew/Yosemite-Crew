@@ -1,10 +1,11 @@
-import {Dimensions, Platform, StyleSheet} from 'react-native';
-import {scaledHeightValue, scaledValue} from '../../../utils/design.utils';
-import {colors} from '../../../../assets/colors';
+import { Dimensions, Platform, StyleSheet } from 'react-native';
+import { scaledHeightValue, scaledValue } from '../../../utils/design.utils';
+import { colors } from '../../../../assets/colors';
+import { fonts } from '../../../utils/fonts';
 
 export const styles = StyleSheet.create({
   //--------- Common Styles ---------//
-  onboardingMainContainer: {backgroundColor: '#FFF2E3', width: '100%'},
+  onboardingMainContainer: { backgroundColor: '#FFFEFE', width: '100%' },
   onboardingTitleView: statusBarHeight => ({
     marginTop: statusBarHeight + scaledValue(90),
   }),
@@ -13,19 +14,19 @@ export const styles = StyleSheet.create({
     lineHeight: scaledHeightValue(43.2),
     letterSpacing: scaledValue(36 * -0.02),
     textAlign: 'center',
-    color: colors.darkPurple,
+
   },
   onboardingSecondTitleStyle: color => ({
     fontSize: scaledValue(36),
     lineHeight: scaledHeightValue(43.2),
     letterSpacing: scaledValue(36 * -0.02),
     textAlign: 'center',
-    color: color,
+    color: colors.jetBlack300,
   }),
 
   indicator: {
-    width: scaledValue(148),
-    height: scaledValue(28),
+    width: scaledValue(40),
+    height: scaledValue(4),
     alignSelf: 'center',
     marginTop: scaledValue(28),
   },
@@ -40,14 +41,14 @@ export const styles = StyleSheet.create({
     lineHeight: scaledHeightValue(36),
     letterSpacing: scaledValue(36 * -0.02),
     textAlign: 'center',
-    color: colors.darkPurple,
+
   },
   simplifiedText: {
     fontSize: scaledValue(36),
     lineHeight: scaledHeightValue(36),
     letterSpacing: scaledValue(36 * -0.02),
     textAlign: 'center',
-    color: colors.lightOrange,
+    color: colors.jetBlack300,
   },
 
   firstScreenFirstPlusImage: {
@@ -102,7 +103,7 @@ export const styles = StyleSheet.create({
     marginBottom: scaledValue(10),
   },
 
-  secondScreenEclipseImageView: {marginTop: scaledValue(-10)},
+  secondScreenEclipseImageView: { marginTop: scaledValue(-10) },
 
   secondScreenBgEclipse: {
     width: '100%',
@@ -126,7 +127,7 @@ export const styles = StyleSheet.create({
   }),
 
   //--------- Third Onboarding Styles ---------//
-  thirdScreenEclipseImageView: {marginTop: scaledValue(150)},
+  thirdScreenEclipseImageView: { marginTop: scaledValue(150) },
   thirdScreenBgEclipse: {
     width: '100%',
     height: scaledValue(370.51),
@@ -162,12 +163,13 @@ export const styles = StyleSheet.create({
     height: scaledValue(50),
     alignSelf: 'center',
     borderRadius: scaledValue(28),
-    backgroundColor: '#FDBD74',
+    backgroundColor: colors.jetBlack,
   },
   getStartedTextBtn: {
     fontSize: scaledValue(18),
     letterSpacing: scaledValue(18 * -0.01),
-    color: colors.brown,
+    color: colors.paletteWhite,
+    fontFamily: fonts.CLASH_GRO_MEDIUM,
   },
   forthScreenEclipseImageView: {
     marginTop: Platform.OS == 'android' ? scaledValue(48) : scaledValue(70),

@@ -11,7 +11,7 @@ export const styles = StyleSheet.create({
   },
   createAccountText: {
     textAlign: 'center',
-    color: colors.darkPurple,
+
     fontSize: scaledValue(23),
     lineHeight: scaledHeightValue(27.6),
     letterSpacing: scaledValue(23 * -0.01),
@@ -19,11 +19,11 @@ export const styles = StyleSheet.create({
   codeView: {
     justifyContent: 'center',
     borderBottomColor: 'black',
-    backgroundColor: 'rgba(253, 189, 116, 0.12)',
+    backgroundColor: 'transparent',
     borderRadius: scaledValue(12),
     borderWidth: scaledValue(0.5),
     borderColor: 'rgba(55, 34, 60, 0.6)',
-    marginTop: 30,
+    marginTop: scaledValue(16),
     // paddingHorizontal: scaledValue(28),
     // paddingVertical: scaledValue(10),
     width: scaledValue(50),
@@ -38,27 +38,13 @@ export const styles = StyleSheet.create({
     letterSpacing: scaledValue(30 * 0.01),
   },
   rootStyle: {
-    marginTop: scaledValue(20),
     justifyContent: 'space-evenly',
   },
   createAccountButton: {
-    backgroundColor: '#FDBD74',
     width: '100%',
-    height: scaledValue(52),
-    borderRadius: scaledValue(28),
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
-    marginVertical: scaledValue(27),
-    marginTop: scaledValue(55),
+    marginTop: scaledValue(97),
   },
-  createAccountButtonText: {
-    fontSize: scaledValue(18),
-    lineHeight: scaledHeightValue(18),
-    letterSpacing: scaledValue(18 * -0.01),
-    fontFamily: fonts?.CLASH_GRO_MEDIUM,
-    color: '#4E3F2F',
-  },
+
   backButton: {
     width: scaledValue(48),
     height: scaledValue(48),

@@ -1,258 +1,238 @@
+import React, {useEffect, useRef, useState} from 'react';
+import {FlatList, Image, TouchableOpacity, View} from 'react-native';
+import {useDispatch} from 'react-redux';
+import {useTranslation} from 'react-i18next';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {
-  Dimensions,
-  FlatList,
-  Image,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import React, { useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { styles } from './styles';
+  Menu,
+  MenuOptions,
+  MenuOption,
+  MenuTrigger,
+} from 'react-native-popup-menu';
+import {useAppSelector} from '../../../redux/store/storeUtils';
+import {delete_pet_api, updatePetList} from '../../../redux/slices/petSlice';
+import {styles} from './styles';
+import {Images} from '../../../utils';
+import {colors} from '../../../../assets/colors';
 import GText from '../../../components/GText/GText';
-import { Images } from '../../../utils';
-import { scaledValue } from '../../../utils/design.utils';
 import GButton from '../../../components/GButton';
-import OptionMenuSheet from '../../../components/OptionMenuSheet';
-import { useAppSelector } from '../../../redux/store/storeUtils';
-
-import { delete_pet_api, updatePetList } from '../../../redux/slices/petSlice';
-import { useDispatch, useSelector } from 'react-redux';
 import GImage from '../../../components/GImage';
-import LinearGradient from 'react-native-linear-gradient';
+import HeaderButton from '../../../components/HeaderButton';
 
-const PetProfileList = ({ navigation }) => {
-  const refRBSheet = useRef();
-  const insets = useSafeAreaInsets();
-  const statusBarHeight = insets.top;
-  const { t } = useTranslation();
+const PetProfileList = ({navigation}) => {
+  const {t} = useTranslation();
   const dispatch = useDispatch();
-  const [selectPet, setSelectPet] = useState({});
-  const petList = useAppSelector((state) => state.pets?.petLists);
-  const authState = useAppSelector((state) => state.auth);
+  const insets = useSafeAreaInsets();
+  const [selectedPet, setSelectedPet] = useState({});
+  const petList = useAppSelector(state => state.pets?.petLists);
+  const authState = useAppSelector(state => state.auth);
 
-  const petListOptionMenu = [
-    {
-      id: 1,
-      title: 'Edit Profile',
-      subTitle: '',
-      textColor: '#007AFF',
-      action: () => {
-        navigation?.navigate('StackScreens', {
-          screen: 'AddPetDetails',
-          params: {
-            petDetails: selectPet,
-          },
-        });
-      },
-    },
+  useEffect(() => {
+    navigation.setOptions({
+      headerLeft: () => (
+        <HeaderButton
+          icon={Images.arrowLeftOutline}
+          tintColor={colors.jetBlack}
+          onPress={() => navigation.goBack()}
+          style={styles.headerLeftBtn}
+        />
+      ),
+    });
+  }, [navigation]);
 
-    {
-      id: 2,
-      title: 'Delete',
-      subTitle: '',
-      textColor: '#F42626',
-      action: () => {
-        delete_pet();
-      },
-    },
-  ];
-
-  const CustomProgressBar = ({ percentage }) => {
-    // Calculate the filled and remaining width based on the percentage
-    const filledWidth = (142 * percentage) / 100;
-    const remainingWidth = 142 - filledWidth;
-
-    return (
-      <View style={styles.progressBarContainer}>
-        {/* Filled part */}
-        <View style={[styles.filledBar, { width: filledWidth }]} />
-        {/* Remaining part */}
-        <View style={[styles.remainingBar, { width: remainingWidth }]} />
-      </View>
-    );
-  };
-
-  const delete_pet = () => {
-    const input = {
-      petId: selectPet?.id,
-    };
-
-    dispatch(delete_pet_api(input)).then((res) => {
+  const deletePet = () => {
+    dispatch(delete_pet_api({petId: selectedPet?.id})).then(res => {
       if (delete_pet_api.fulfilled.match(res)) {
         const filteredEntries = petList.entry.filter(
-          (item) => item.resource.id !== selectPet?.id
+          item => item.resource.id !== selectedPet?.id,
         );
-        const updatedBundle = {
-          ...petList,
-          total: filteredEntries.length,
-          entry: filteredEntries,
-        };
-
-        dispatch(updatePetList(updatedBundle));
-        setSelectPet({});
+        dispatch(
+          updatePetList({
+            ...petList,
+            entry: filteredEntries,
+            total: filteredEntries.length,
+          }),
+        );
+        setSelectedPet({});
       }
     });
   };
 
+  const CustomProgressBar = ({percentage}) => {
+    const filledWidth = (142 * percentage) / 100;
+    const remainingWidth = 142 - filledWidth;
+    return (
+      <View style={styles.progressBarContainer}>
+        <View style={[styles.filledBar, {width: filledWidth}]} />
+        <View style={[styles.remainingBar, {width: remainingWidth}]} />
+      </View>
+    );
+  };
+
+  const renderPetItem = ({item}) => {
+    const petDetails = item?.resource?.extension?.reduce((acc, e) => {
+      const value =
+        e.valueString ?? e.valueDecimal ?? e.valueInteger ?? e.valueBoolean;
+      acc[e.title] = value;
+      return acc;
+    }, {});
+
+    return (
+      <View style={styles.petProfileMainContainer}>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          style={styles.petProfileContainer}
+          onPress={() =>
+            navigation.navigate('StackScreens', {
+              screen: 'PetSummary',
+              params: {
+                petDetails: petDetails,
+                item: item,
+              },
+            })
+          }>
+          <View style={styles.petImageWrapper}>
+            <GImage
+              image={item?.petImages}
+              style={styles.petImg}
+              noImageSource={Images.Kizi}
+            />
+          </View>
+          <View style={styles.infoView}>
+            <GText GrMedium text={item?.name} style={styles.petName} />
+            <GText SatoshiMedium text={item?.breed} style={styles.breed} />
+            <View style={styles.otherInfoView}>
+              <GText SatoshiMedium text={item?.gender} style={styles.gender} />
+              <View style={styles.pointer} />
+              <GText
+                SatoshiMedium
+                text={`${item?.petAge} Y`}
+                style={[
+                  styles.gender,
+                  {
+                    textTransform: 'none',
+                  },
+                ]}
+              />
+              <View style={styles.pointer} />
+              <GText
+                SatoshiMedium
+                text={`${item?.petCurrentWeight} lbs`}
+                style={[
+                  styles.gender,
+                  {
+                    textTransform: 'none',
+                  },
+                ]}
+              />
+            </View>
+            <CustomProgressBar percentage={10} />
+            <View style={{flexDirection: 'row'}}>
+              <GText SatoshiBold text="10%" style={styles.percentageText} />
+              <GText
+                SatoshiMedium
+                text={' Profile Complete'}
+                style={styles.gender}
+              />
+            </View>
+          </View>
+        </TouchableOpacity>
+
+        <Menu style={styles.menuView}>
+          <MenuTrigger style={styles.menuTriggerView}>
+            <View style={styles.dotView}>
+              <Image source={Images.ThreeDots} style={styles.threeDot} />
+            </View>
+          </MenuTrigger>
+          <MenuOptions
+            customStyles={{
+              optionsWrapper: styles.optionsWrapper,
+              optionsContainer: styles.optionsContainer,
+            }}>
+            <MenuOption
+              style={styles.menuOption}
+              onSelect={() => {
+                setSelectedPet(item);
+                navigation.navigate('StackScreens', {
+                  screen: 'AddPetDetails',
+                  params: {petDetails: item},
+                });
+              }}>
+              <Image source={Images.penBold} style={styles.editImg} />
+              <GText
+                GrMedium
+                style={styles.editText}
+                text={t('edit_profile_string')}
+              />
+            </MenuOption>
+            <View style={styles.menuDivider} />
+            <MenuOption
+              style={styles.menuOption}
+              onSelect={() => {
+                setSelectedPet(item);
+                deletePet();
+              }}>
+              <Image source={Images.deleteBold} style={styles.editImg} />
+              <GText
+                GrMedium
+                style={styles.editText}
+                text={t('delete_profile_string')}
+              />
+            </MenuOption>
+          </MenuOptions>
+        </Menu>
+      </View>
+    );
+  };
+
   return (
     <View style={styles.container}>
-      <View
-        style={[
-          styles.headerContainer,
-          { marginTop: statusBarHeight + scaledValue(20) },
-        ]}
-      >
-        <TouchableOpacity
-          onPress={() => {
-            navigation?.goBack();
-          }}
-          style={styles.backButton}
-        >
-          <Image
-            source={Images.Left_Circle_Arrow}
-            style={styles.backButtonImage}
-          />
-        </TouchableOpacity>
-        <View style={styles.headerTextContainer}>
-          <GText
-            GrMedium
-            text={t('your_pets_string')}
-            style={styles.headerText}
+      <FlatList
+        data={petList}
+        keyExtractor={(item, index) => index.toString()}
+        renderItem={renderPetItem}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View style={styles.emptyView}>
+            <Image source={Images.noPet} style={styles.noPetImage} />
+            <GText
+              GrMedium
+              text={t('sad_to_know_string')}
+              style={styles.emptyTitle}
+            />
+            <GText
+              text={t('empty_pet_des_string')}
+              style={styles.emptyDescription}
+            />
+            <GButton
+              onPress={() =>
+                navigation.navigate('StackScreens', {screen: 'ChooseYourPet'})
+              }
+              title={t('add_new_pet_string')}
+              icon={Images?.PlusIcon}
+              iconStyle={styles.iconStyle}
+              style={styles.buttonStyle}
+            />
+          </View>
+        }
+        contentContainerStyle={styles.contentStyle}
+      />
+
+      {petList?.length > 0 && (
+        <View style={styles.btnView(insets.bottom)}>
+          <GButton
+            onPress={() =>
+              navigation.navigate('StackScreens', {
+                screen: authState?.user ? 'ChooseYourPet' : 'PetSummary',
+              })
+            }
+            title={t('add_new_pet_string')}
+            icon={Images?.PlusIcon}
+            iconStyle={styles.iconStyle}
+            style={styles.buttonStyle}
           />
         </View>
-      </View>
-      <View style={{ marginTop: scaledValue(12) }}>
-        <FlatList
-          data={petList?.entry}
-          contentContainerStyle={{
-            paddingBottom: Dimensions.get('window').height / 3,
-          }}
-          renderItem={({ item, index }) => {
-            const petDetails = item?.resource?.extension?.reduce(
-              (acc, item) => {
-                const value =
-                  item?.valueString ??
-                  item?.valueDecimal ??
-                  item?.valueInteger ??
-                  item?.valueBoolean;
-                acc[item.title] = value;
-                return acc;
-              },
-              {}
-            );
-
-            return (
-              <View style={styles.petProfileMainContainer}>
-                <View style={styles.petProfileContainer}>
-                  <LinearGradient
-                    colors={['#D04122', '#FDBD74']}
-                    start={{ x: 0, y: 1 }}
-                    end={{ x: 1, y: 1 }}
-                    style={{ borderRadius: scaledValue(50) }}
-                  >
-                    <GImage
-                      image={petDetails?.petImage?.url}
-                      style={styles.petImg}
-                      noImageSource={Images.Kizi}
-                    />
-                  </LinearGradient>
-
-                  <View style={styles.infoView}>
-                    <GText
-                      GrMedium
-                      text={item?.resource?.name[0]?.text}
-                      style={styles.petName}
-                    />
-                    <GText
-                      SatoshiMedium
-                      text={item?.resource?.animal?.breed?.coding[0]?.display}
-                      style={styles.breed}
-                    />
-                    <View style={styles.otherInfoView}>
-                      <GText
-                        SatoshiMedium
-                        text={item?.resource?.gender}
-                        style={styles.gender}
-                      />
-                      <View style={styles.pointer} />
-                      <GText
-                        SatoshiMedium
-                        text={`${petDetails?.petAge} Y`}
-                        style={[
-                          styles.gender,
-                          {
-                            textTransform: 'none',
-                          },
-                        ]}
-                      />
-                      <View style={styles.pointer} />
-                      <GText
-                        SatoshiMedium
-                        text={`${petDetails?.petCurrentWeight} lbs`}
-                        style={[
-                          styles.gender,
-                          {
-                            textTransform: 'none',
-                          },
-                        ]}
-                      />
-                    </View>
-                    <CustomProgressBar percentage={10} />
-                    <View style={{ flexDirection: 'row' }}>
-                      <GText
-                        GrMedium
-                        text={`${10}%`}
-                        style={styles.percentageText}
-                      />
-                      <GText
-                        SatoshiMedium
-                        text={' Profile Complete'}
-                        style={styles.gender}
-                      />
-                    </View>
-                  </View>
-                </View>
-                <TouchableOpacity
-                  hitSlop={styles.hitSlop}
-                  onPress={() => {
-                    setSelectPet(item?.resource);
-                    refRBSheet.current.open();
-                  }}
-                >
-                  <Image source={Images.ThreeDots} style={styles.threeDot} />
-                </TouchableOpacity>
-              </View>
-            );
-          }}
-        />
-      </View>
-      <GButton
-        onPress={async () => {
-          if (!authState?.user) {
-            navigation?.navigate('PetSummary');
-          } else {
-            navigation?.navigate('StackScreens', {
-              screen: 'ChooseYourPet',
-            });
-          }
-        }}
-        title={t('add_new_pet_string')}
-        icon={Images?.PlusIcon}
-        iconStyle={styles.iconStyle}
-        style={styles.buttonStyle}
-        textStyle={styles.buttonText}
-      />
-
-      <OptionMenuSheet
-        refRBSheet={refRBSheet}
-        options={petListOptionMenu}
-        onChoose={(val) => {
-          val.action();
-          refRBSheet.current.close();
-        }}
-        onPressCancel={() => refRBSheet.current.close()}
-      />
+      )}
     </View>
   );
 };

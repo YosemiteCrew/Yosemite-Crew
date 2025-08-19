@@ -3,7 +3,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Text,
   View,
 } from 'react-native';
 import React, {useEffect, useState} from 'react';
@@ -14,20 +13,8 @@ import {useTranslation} from 'react-i18next';
 import GButton from '../../../components/GButton';
 import GTextButton from '../../../components/GTextButton/GTextButton';
 import {styles} from './styles';
-import {
-  CodeField,
-  Cursor,
-  useBlurOnFulfill,
-  useClearByFocusCell,
-} from 'react-native-confirmation-code-field';
-import {
-  send_otp_sign_in,
-  setUserData,
-  sign_in,
-} from '../../../redux/slices/authSlice';
+import {send_otp_sign_in} from '../../../redux/slices/authSlice';
 import {useAppDispatch} from '../../../redux/store/storeUtils';
-
-const CELL_COUNT = 6;
 
 const SignIn = ({navigation}) => {
   const {t} = useTranslation();
@@ -35,12 +22,6 @@ const SignIn = ({navigation}) => {
   const [email, setEmail] = useState('');
   const [timerCount, setTimer] = useState();
   const [showButton, setShowButton] = useState(false);
-  const [value, setValue] = useState('');
-  const ref = useBlurOnFulfill({value, cellCount: CELL_COUNT});
-  const [props, getCellOnLayoutHandler] = useClearByFocusCell({
-    value,
-    setValue,
-  });
 
   useEffect(() => {
     if (timerCount > 0) {
@@ -87,19 +68,10 @@ const SignIn = ({navigation}) => {
     dispatch(send_otp_sign_in(input)).then(res => {
       if (send_otp_sign_in.fulfilled.match(res)) {
         if (res?.payload?.status === 1) {
-          setShowButton(true);
+          navigation.navigate('VerifyOtp', {email: email});
         }
       }
     });
-  };
-
-  const sign_in_hit = () => {
-    let input = {
-      email: email,
-      otp: value,
-    };
-
-    dispatch(sign_in(input));
   };
 
   return (
@@ -130,41 +102,12 @@ const SignIn = ({navigation}) => {
             keyboardType={'email-address'}
             autoCapitalize="none"
           />
-          {showButton && (
-            <CodeField
-              ref={ref}
-              {...props}
-              value={value}
-              onChangeText={setValue}
-              cellCount={CELL_COUNT}
-              rootStyle={styles.rootStyle}
-              keyboardType="number-pad"
-              textContentType="oneTimeCode"
-              renderCell={({index, symbol, isFocused}) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.codeView,
-                    isFocused && {borderColor: '#0B0E10', color: '#0B0E10'},
-                  ]}
-                  onLayout={getCellOnLayoutHandler(index)}>
-                  <Text style={styles.codeText}>
-                    {symbol || (isFocused ? <Cursor /> : null)}
-                  </Text>
-                </View>
-              )}
-            />
-          )}
 
           <GButton
             onPress={() => {
-              if (showButton) {
-                sign_in_hit();
-              } else {
-                send_otp_hit();
-              }
+              send_otp_hit();
             }}
-            title={showButton ? t('verify_code_string') : t('send_otp_string')}
+            title={t('send_otp_string')}
             style={styles.button}
             textStyle={styles.buttonText}
           />

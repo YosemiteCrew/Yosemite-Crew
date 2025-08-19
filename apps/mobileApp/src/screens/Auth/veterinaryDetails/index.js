@@ -1,4 +1,5 @@
 import {
+  FlatList,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -6,7 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {styles} from './styles';
 import {useTranslation} from 'react-i18next';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -16,18 +17,15 @@ import {scaledValue} from '../../../utils/design.utils';
 import {colors} from '../../../../assets/colors';
 import Input from '../../../components/Input';
 import GButton from '../../../components/GButton';
-import GTextButton from '../../../components/GTextButton/GTextButton';
-import Modal from 'react-native-modal';
 import {useDispatch} from 'react-redux';
-import {setUserData} from '../../../redux/slices/authSlice';
+import HeaderButton from '../../../components/HeaderButton';
+import GImage from '../../../components/GImage';
 
-const VeterinaryDetails = ({navigation}) => {
-  const insets = useSafeAreaInsets();
+const VeterinaryDetails = ({navigation, route}) => {
+  const {petDetails} = route?.params;
   const dispatch = useDispatch();
-  const statusBarHeight = insets.top;
+  const insets = useSafeAreaInsets();
   const {t} = useTranslation();
-  const [visible, setVisible] = useState(false);
-  const [check, setCheck] = useState(false);
   const [formValue, setFormValue] = useState({
     clinic_name: '',
     vet_name: '',
@@ -39,211 +37,313 @@ const VeterinaryDetails = ({navigation}) => {
     email: '',
     website: '',
   });
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerLeft: () => (
+        <HeaderButton
+          icon={Images.arrowLeftOutline}
+          tintColor={colors.jetBlack}
+          onPress={() => navigation.goBack()}
+        />
+      ),
+    });
+  }, [navigation, t]);
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : ''}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        <View
-          style={[
-            styles.headerContainer,
-            {marginTop: statusBarHeight + scaledValue(20)},
-          ]}>
-          <TouchableOpacity
-            onPress={() => {
-              navigation?.goBack();
+        <>
+          <Input
+            // value={}
+            label={t('search_hospital_clinic_string')}
+            onChangeText={value => setFormValue({...formValue, weight: value})}
+            style={styles.input}
+            rightIcon={Images.Search}
+            iconStyle={{width: scaledValue(20), height: scaledValue(20)}}
+          />
+          <Image
+            source={Images.add_vet}
+            style={{
+              width: scaledValue(188.71),
+              height: scaledValue(201.25),
+              alignSelf: 'center',
+              marginTop: scaledValue(16),
             }}
-            style={styles.backButton}>
+          />
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: scaledValue(8),
+              borderWidth: scaledValue(1),
+              paddingHorizontal: scaledValue(28),
+              paddingVertical: scaledValue(17),
+              borderRadius: scaledValue(28),
+              width: scaledValue(208),
+              alignSelf: 'center',
+            }}>
             <Image
-              source={Images.Left_Circle_Arrow}
-              style={styles.backButtonImage}
+              source={Images.Scan}
+              style={{width: scaledValue(20), height: scaledValue(20)}}
             />
+            <GText GrMedium text={t('scan_pms_string')} />
           </TouchableOpacity>
-          <View style={styles.headerTextContainer}>
-            <GText
-              GrMedium
-              text={t('veterinary_clinic_string')}
-              style={styles.headerText}
+          <View
+            style={{
+              flexDirection: 'row',
+              width: '100%',
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginTop: scaledValue(30),
+              gap: scaledValue(18),
+            }}>
+            <View
+              style={{
+                height: scaledValue(1),
+                backgroundColor: colors.black,
+                flex: 1,
+              }}
             />
             <GText
               GrMedium
-              text={` ${t('details_string')}`}
-              style={[
-                styles.headerText,
-                {
-                  color: colors.darkPurple,
-                },
-              ]}
+              text={t('send_or_invite_string')}
+              style={styles.sendText}
+            />
+            <View
+              style={{
+                height: scaledValue(1),
+                backgroundColor: colors.black,
+                flex: 1,
+              }}
             />
           </View>
-        </View>
-        <View style={styles.petProfileContainer}>
-          <Image source={Images.Kizi} style={styles.petImg} />
+          <View style={styles.inputView}>
+            <Input
+              value={formValue.clinic_name}
+              label={t('clinic_name_string')}
+              onChangeText={value =>
+                setFormValue({...formValue, clinic_name: value})
+              }
+              style={styles.inputStyle}
+              keyboardType={'email-address'}
+            />
+            <Input
+              value={formValue.vet_name}
+              label={t('vet_name_string')}
+              onChangeText={value =>
+                setFormValue({...formValue, vet_name: value})
+              }
+              style={styles.inputStyle}
+              keyboardType={'email-address'}
+            />
+            <Input
+              value={formValue.address}
+              label={t('clinic_address_string')}
+              onChangeText={value =>
+                setFormValue({...formValue, address: value})
+              }
+              style={styles.inputStyle}
+              keyboardType={'email-address'}
+            />
+
+            <Input
+              value={formValue.zip}
+              label={t('zip_code_string')}
+              onChangeText={value => setFormValue({...formValue, zip: value})}
+              style={styles.inputStyle}
+              keyboardType={'email-address'}
+            />
+            <Input
+              value={formValue.phone}
+              label={t('telephone_string')}
+              onChangeText={value => setFormValue({...formValue, phone: value})}
+              style={styles.inputStyle}
+              keyboardType="number-pad"
+            />
+            <Input
+              value={formValue.email}
+              label={t('email_address_string')}
+              onChangeText={value => setFormValue({...formValue, email: value})}
+              style={styles.inputStyle}
+              keyboardType={'email-address'}
+            />
+          </View>
+          <View
+            style={{
+              marginBottom: insets.bottom + scaledValue(40),
+              alignSelf: 'center',
+              width: '100%',
+              marginTop: scaledValue(44),
+            }}>
+            <GButton
+              onPress={() =>
+                navigation.navigate('StackScreens', {
+                  screen: authState?.user ? 'ChooseYourPet' : 'PetSummary',
+                })
+              }
+              title={t('add_new_pet_string')}
+              icon={Images?.tickImage}
+              iconStyle={styles.iconStyle}
+              style={styles.buttonStyle}
+            />
+          </View>
+        </>
+        <View style={styles.petImageWrapper}>
+          <GImage
+            image={petDetails?.petImage?.url}
+            style={styles.petImg}
+            noImageSource={Images.Kizi}
+          />
         </View>
         <GText GrMedium text={'Kizie'} style={styles.petName} />
         <GText SatoshiMedium text={'Beagle'} style={styles.breed} />
-        <View style={styles.inputView}>
-          <Input
-            value={formValue.clinic_name}
-            label={t('clinic_name_string')}
-            onChangeText={value =>
-              setFormValue({...formValue, clinic_name: value})
-            }
-            style={styles.inputStyle}
-            keyboardType={'email-address'}
-          />
-          <Input
-            value={formValue.vet_name}
-            label={t('vet_name_string')}
-            onChangeText={value =>
-              setFormValue({...formValue, vet_name: value})
-            }
-            style={styles.inputStyle}
-            keyboardType={'email-address'}
-          />
-          <Input
-            value={formValue.address}
-            label={t('clinic_address_string')}
-            onChangeText={value => setFormValue({...formValue, address: value})}
-            style={styles.inputStyle}
-            keyboardType={'email-address'}
-          />
-          <View style={styles.cityMainView}>
-            <TouchableOpacity style={styles.cityView}>
-              <GText
-                SatoshiRegular
-                text={t('city_string')}
-                style={styles.cityText}
-              />
-              <Image source={Images.ArrowDown} style={styles.arrowIcon} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.cityView}>
-              <GText
-                SatoshiRegular
-                text={t('country_string')}
-                style={styles.cityText}
-              />
-              <Image source={Images.ArrowDown} style={styles.arrowIcon} />
-            </TouchableOpacity>
-          </View>
-          <Input
-            value={formValue.zip}
-            label={t('zip_code_string')}
-            onChangeText={value => setFormValue({...formValue, zip: value})}
-            style={styles.inputStyle}
-            keyboardType={'email-address'}
-          />
-          <Input
-            value={formValue.phone}
-            label={t('telephone_string')}
-            onChangeText={value => setFormValue({...formValue, phone: value})}
-            style={styles.inputStyle}
-            keyboardType="number-pad"
-          />
-          <Input
-            value={formValue.email}
-            label={t('email_address_string')}
-            onChangeText={value => setFormValue({...formValue, email: value})}
-            style={styles.inputStyle}
-            keyboardType={'email-address'}
-          />
-          <Input
-            value={formValue.website}
-            label={t('website_string')}
-            onChangeText={value => setFormValue({...formValue, website: value})}
-            style={styles.inputStyle}
-            keyboardType={'email-address'}
-          />
-        </View>
-        <GTextButton
-          onPress={() => {
-            setVisible(true);
+        <FlatList
+          data={[1, 2]}
+          contentContainerStyle={{
+            marginTop: scaledValue(24),
+            gap: scaledValue(24),
           }}
-          title={t('skip_for_now_string')}
-          titleStyle={styles.textButton}
-        />
-        <GButton
-          onPress={() => {
-            dispatch(
-              setUserData({
-                name: 'Yosemite',
-              }),
+          renderItem={({item, index}) => {
+            return (
+              <View
+                style={{
+                  borderWidth: scaledValue(1),
+                  borderColor: '#EAEAEA',
+                  borderRadius: scaledValue(24),
+                  paddingVertical: scaledValue(12),
+                  paddingHorizontal: scaledValue(12),
+                  width: '100%',
+                }}>
+                <View style={{flexDirection: 'row', gap: scaledValue(8)}}>
+                  <GImage
+                    image={petDetails?.petImage?.url}
+                    style={{
+                      width: scaledValue(88),
+                      height: scaledValue(88),
+                      borderRadius: scaledValue(12),
+                    }}
+                    noImageSource={Images.Kizi}
+                  />
+                  <View
+                    style={{
+                      gap: scaledValue(2),
+                      flexWrap: 'wrap',
+                    }}>
+                    <GText
+                      GrMedium
+                      text={'Dr. Emily Johnson'}
+                      style={{letterSpacing: scaledValue(18 * -0.02)}}
+                    />
+                    <GText
+                      SatoshiBold
+                      text={'Cardiology'}
+                      style={{
+                        letterSpacing: scaledValue(14 * -0.02),
+                        fontSize: scaledValue(14),
+                        color: colors.jetBlack300,
+                      }}
+                    />
+                    <GText
+                      SatoshiBold
+                      componentProps={{
+                        numberOfLines: 2,
+                      }}
+                      text={'San Francisco Animal Medical Center'}
+                      style={{
+                        letterSpacing: scaledValue(14 * -0.02),
+                        fontSize: scaledValue(14),
+                        color: colors.jetBlack300,
+                        flexWrap: 'wrap',
+                        width: '85%',
+                      }}
+                    />
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        width: '84%',
+                      }}>
+                      <GText
+                        text={'SFAM Building 36 square D Road SanFrancisco '}
+                        style={{
+                          letterSpacing: scaledValue(13 * -0.02),
+                          fontSize: scaledValue(13),
+                          // flexWrap: 'wrap',
+                          width: '70%',
+                          // backgroundColor: 'blue',
+                        }}
+                      />
+                      <TouchableOpacity>
+                        <Image
+                          source={Images.arrowSquare}
+                          style={{
+                            width: scaledValue(20),
+                            height: scaledValue(20),
+                          }}
+                        />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+                <GButton
+                  onPress={() =>
+                    navigation.navigate('StackScreens', {
+                      screen: authState?.user ? 'ChooseYourPet' : 'PetSummary',
+                    })
+                  }
+                  title={t('create_appointment_string')}
+                  icon={Images?.add_plus}
+                  iconStyle={[styles.iconStyle]}
+                  textStyle={{color: colors.jetBlack}}
+                  style={{
+                    backgroundColor: 'transparent',
+                    borderWidth: scaledValue(1),
+                    marginTop: scaledValue(10),
+                    gap: scaledValue(8),
+                  }}
+                />
+                <GButton
+                  onPress={() =>
+                    navigation.navigate('StackScreens', {
+                      screen: authState?.user ? 'ChooseYourPet' : 'PetSummary',
+                    })
+                  }
+                  title={t('chat_string')}
+                  icon={Images?.chat_like}
+                  iconStyle={[styles.iconStyle]}
+                  textStyle={{color: colors.jetBlack}}
+                  style={{
+                    backgroundColor: 'transparent',
+                    borderWidth: scaledValue(1),
+                    marginTop: scaledValue(10),
+                    gap: scaledValue(8),
+                  }}
+                />
+              </View>
             );
           }}
-          title={t('save_details_string')}
-          style={styles.buttonStyle}
-          textStyle={styles.buttonText}
+        />
+        <GButton
+          onPress={() =>
+            navigation.navigate('StackScreens', {
+              screen: authState?.user ? 'ChooseYourPet' : 'PetSummary',
+            })
+          }
+          title={t('add_pet_string')}
+          icon={Images?.PlusIcon}
+          iconStyle={[styles.iconStyle]}
+          style={{
+            gap: scaledValue(8),
+            marginTop: scaledValue(24),
+            marginBottom: scaledValue(47),
+          }}
         />
       </ScrollView>
-      <Modal isVisible={visible}>
-        <View style={styles.modalContainer}>
-          <TouchableOpacity
-            onPress={() => setVisible(false)}
-            style={styles.closeButton}>
-            <Image source={Images.CircleClose} style={styles.closeIcon} />
-          </TouchableOpacity>
-          <Image source={Images.NoVet} style={styles.noVetImage} />
-          <View style={styles.titleContainer}>
-            <GText
-              GrMedium
-              text={t('vet_pet_string')}
-              style={styles.titleRedText}
-            />
-            <GText
-              GrMedium
-              text={` ${'is_on_the_string'}`}
-              style={styles.titleBlackText}
-            />
-          </View>
-          <GText
-            GrMedium
-            text={t('yosemite_text_string')}
-            style={styles.invitationText}
-          />
-          <GButton
-            onPress={() => {}}
-            title={t('send_invite_string')}
-            icon={Images.Share}
-            iconStyle={styles.buttonIcon}
-            style={styles.sendInviteButton}
-            textStyle={styles.sendInviteButtonText}
-          />
-          <View style={styles.orContainer}>
-            <View style={styles.lineSeparator} />
-            <GText
-              GrMedium
-              text={t('let_us_know_string')}
-              style={styles.orText}
-            />
-            <View style={styles.lineSeparator} />
-          </View>
-          <View style={styles.detailsContainer}>
-            <TouchableOpacity
-              onPress={() => {
-                setCheck(!check);
-              }}>
-              <Image
-                source={check ? Images.Check_fill : Images.UnCheck}
-                style={styles.checkIcon}
-              />
-            </TouchableOpacity>
-            <GText
-              SatoshiRegular
-              text={t('i_accept_that_string')}
-              style={styles.detailsText}
-            />
-          </View>
-          <GButton
-            onPress={() => {}}
-            title={t('invite_behalf')}
-            icon={Images.CircleCheck}
-            iconStyle={styles.buttonIcon}
-            style={styles.inviteButton}
-            textStyle={styles.inviteButtonText}
-          />
-        </View>
-      </Modal>
     </KeyboardAvoidingView>
   );
 };

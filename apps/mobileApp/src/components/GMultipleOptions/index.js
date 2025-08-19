@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Text,
   ScrollView,
@@ -11,10 +11,10 @@ import {
 import RBSheet from 'react-native-raw-bottom-sheet';
 import GText from '../GText/GText';
 import GTextButton from '../GTextButton/GTextButton';
-import {Images} from '../../utils';
-import {scaledHeightValue, scaledValue} from '../../utils/design.utils';
-import {fonts} from '../../utils/fonts';
-import {colors} from '../../../assets/colors';
+import { Images } from '../../utils';
+import { scaledHeightValue, scaledValue } from '../../utils/design.utils';
+import { fonts } from '../../utils/fonts';
+import { colors } from '../../../assets/colors';
 
 const styles = {
   container: {
@@ -34,7 +34,7 @@ const styles = {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
     marginTop: scaledValue(4),
-    color: colors.darkPurple,
+
   },
   searchInput: {
     padding: 10,
@@ -105,7 +105,7 @@ const GMultipleOptions = props => {
   const [search, setSearch] = useState('');
   const [filteredOptions, setFilteredOptions] = useState(options);
 
-  const isCloseToBottom = ({layoutMeasurement, contentOffset, contentSize}) => {
+  const isCloseToBottom = ({ layoutMeasurement, contentOffset, contentSize }) => {
     const paddingToBottom = 20;
     return (
       layoutMeasurement.height + contentOffset.y >=
@@ -117,8 +117,8 @@ const GMultipleOptions = props => {
     setFilteredOptions(options.filter(o => o[titleKey].includes(search)));
   }, [search, options]);
 
-  const Option = ({title, value}) => (
-    <View style={{height: 60, flexDirection: 'row', alignItems: 'center'}}>
+  const Option = ({ title, value }) => (
+    <View style={{ height: 60, flexDirection: 'row', alignItems: 'center' }}>
       <GTextButton
         disabled={true}
         titleStyle={[
@@ -146,7 +146,7 @@ const GMultipleOptions = props => {
         },
       }}>
       <ScrollView
-        onScroll={({nativeEvent}) => {
+        onScroll={({ nativeEvent }) => {
           if (isCloseToBottom(nativeEvent)) {
             setOptionsCount(optionsCount + 20);
           }
@@ -155,7 +155,7 @@ const GMultipleOptions = props => {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
         <View style={styles.container}>
-          <View style={{alignItems: 'center', marginBottom: 20}}>
+          <View style={{ alignItems: 'center', marginBottom: 20 }}>
             <GText GrMedium text={title} style={styles.headerText} />
             <GText
               SatoshiRegular
