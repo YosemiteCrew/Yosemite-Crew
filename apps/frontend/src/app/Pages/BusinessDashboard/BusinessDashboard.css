@@ -186,7 +186,11 @@
 
 /* DepartmentDiv */
 
-
+.DivHeading{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
 .DivHeading h5{
     display: flex;
     align-items: center;
@@ -200,6 +204,26 @@
 }
 .DivHeading h5 span{
     color: var(--black-grey);
+}
+.DivHeading a{
+    background: transparent !important;
+    border-radius: 28px;
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 48px;
+    border: 1px solid var(--black-bg) !important;
+    color: var(--black-text);
+    font-size: 19px;
+    line-height: 120%;
+    font-weight: 500;
+    font-family: var(--grotesk-font);
+    &:hover{
+        background: var(--black-bg) !important;
+        color: var(--white-text);
+    }
 }
 
 .TableItemsRow{
