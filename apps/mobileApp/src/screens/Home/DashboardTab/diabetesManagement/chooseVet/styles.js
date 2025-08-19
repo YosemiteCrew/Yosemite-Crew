@@ -1,10 +1,10 @@
-import {StyleSheet} from 'react-native';
-import {colors} from '../../../../../../assets/colors';
+import { StyleSheet } from 'react-native';
+import { colors } from '../../../../../../assets/colors';
 import {
   scaledHeightValue,
   scaledValue,
 } from '../../../../../utils/design.utils';
-import {fonts} from '../../../../../utils/fonts';
+import { fonts } from '../../../../../utils/fonts';
 
 export const styles = StyleSheet.create({
   dashboardMainView: {
@@ -14,7 +14,7 @@ export const styles = StyleSheet.create({
   headerTitle: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    color: colors.darkPurple,
+
     textAlign: 'center',
     opacity: 0.8,
   },
@@ -49,7 +49,7 @@ export const styles = StyleSheet.create({
     gap: scaledValue(12),
     marginBottom: scaledValue(5),
   },
-  checkFill: {width: scaledValue(24), height: scaledValue(24)},
+  checkFill: { width: scaledValue(24), height: scaledValue(24) },
   buttonView: insets => ({
     paddingHorizontal: scaledValue(20),
     marginBottom: insets.bottom + scaledValue(30),

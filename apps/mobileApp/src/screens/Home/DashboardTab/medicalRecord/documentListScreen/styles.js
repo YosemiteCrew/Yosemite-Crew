@@ -1,10 +1,10 @@
-import {StyleSheet} from 'react-native';
+import { StyleSheet } from 'react-native';
 import {
   scaledHeightValue,
   scaledValue,
 } from '../../../../../utils/design.utils';
-import {fonts} from '../../../../../utils/fonts';
-import {colors} from '../../../../../../assets/colors';
+import { fonts } from '../../../../../utils/fonts';
+import { colors } from '../../../../../../assets/colors';
 
 export const styles = StyleSheet.create({
   dashboardMainView: {
@@ -26,7 +26,7 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(23),
     lineHeight: scaledHeightValue(27.6),
     letterSpacing: scaledValue(23 * -0.01),
-    color: colors.darkPurple,
+
     textTransform: 'lowercase',
   },
   buttonText: {
@@ -61,7 +61,7 @@ export const styles = StyleSheet.create({
     height: scaledValue(88),
     borderRadius: scaledValue(16),
     shadowColor: '#47382726',
-    shadowOffset: {width: 1, height: 5},
+    shadowOffset: { width: 1, height: 5 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 8,
@@ -70,12 +70,12 @@ export const styles = StyleSheet.create({
   titleText: {
     fontSize: scaledValue(16),
     lineHeight: scaledHeightValue(19.2),
-    color: colors.darkPurple,
+
   },
   dateText: {
     fontSize: scaledValue(12),
     lineHeight: scaledHeightValue(14.4),
-    color: colors.darkPurple,
+
     opacity: 0.5,
     letterSpacing: scaledValue(12 * -0.02),
     marginTop: scaledValue(2),

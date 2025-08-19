@@ -1,10 +1,10 @@
-import {StyleSheet} from 'react-native';
+import { StyleSheet } from 'react-native';
 import {
   scaledHeightValue,
   scaledValue,
 } from '../../../../../utils/design.utils';
-import {fonts} from '../../../../../utils/fonts';
-import {colors} from '../../../../../../assets/colors';
+import { fonts } from '../../../../../utils/fonts';
+import { colors } from '../../../../../../assets/colors';
 
 export const styles = StyleSheet.create({
   dashboardMainView: {
@@ -18,8 +18,8 @@ export const styles = StyleSheet.create({
   searchText: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    color: colors.darkPurple,
-    opacity: 0.7,
+    color: colors.jetLightBlack
+
   },
   searchIcon: {
     width: scaledValue(24),
@@ -39,7 +39,6 @@ export const styles = StyleSheet.create({
   hospitalText: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    color: colors.appRed,
   },
   optionContainer: {
     flexDirection: 'row',
@@ -51,7 +50,7 @@ export const styles = StyleSheet.create({
     borderRadius: scaledValue(24),
     justifyContent: 'center',
     paddingHorizontal: scaledValue(18),
-    borderColor: colors.appRed,
+    borderColor: colors.jetBlack,
   },
   optionText: {
     fontSize: scaledValue(16),
@@ -65,13 +64,13 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(20),
     lineHeight: scaledValue(24),
     letterSpacing: scaledValue(20 * -0.01),
-    color: colors.darkPurple,
+
   },
   nearText: {
     fontSize: scaledValue(12),
     lineHeight: scaledValue(14.4),
     letterSpacing: scaledValue(12 * -0.02),
-    color: colors.darkPurple,
+
     opacity: 0.7,
   },
   imgStyle: {
@@ -88,14 +87,14 @@ export const styles = StyleSheet.create({
   timeText: {
     fontSize: scaledValue(12),
     lineHeight: scaledValue(14.4),
-    color: colors.darkPurple,
+
     marginTop: scaledValue(2),
     opacity: 0.7,
   },
   descriptionText: {
     fontSize: scaledValue(12),
     lineHeight: scaledValue(15.6),
-    color: colors.darkPurple,
+
     marginTop: scaledValue(6),
     opacity: 0.8,
   },
@@ -112,26 +111,27 @@ export const styles = StyleSheet.create({
   buttonTextStyle: {
     fontSize: scaledValue(14),
     lineHeight: scaledValue(16),
-    color: colors.appRed,
+    color: colors.jetBlack,
     marginLeft: scaledValue(2),
     letterSpacing: scaledValue(14 * -0.01),
     fontFamily: fonts.CLASH_GRO_MEDIUM,
   },
   buttonStyle: {
     borderWidth: scaledValue(1),
-    borderColor: colors.appRed,
-    // marginTop: scaledValue(12),
+    borderColor: colors.jetBlack,
     borderRadius: scaledValue(28),
     height: scaledValue(38),
     position: 'absolute',
     bottom: 0,
     width: '92%',
     marginHorizontal: scaledValue(20),
+    backgroundColor: 'transparent',
+    gap: scaledValue(4)
   },
   iconStyle: {
     width: scaledValue(14),
     height: scaledValue(14),
-    marginRight: scaledValue(2),
+    color: colors.jetBlack
   },
   innerView: {
     flexDirection: 'row',

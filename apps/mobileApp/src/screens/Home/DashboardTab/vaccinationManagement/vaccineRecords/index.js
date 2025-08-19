@@ -30,8 +30,7 @@ const VaccineRecords = ({navigation}) => {
   const refRBSheet = useRef();
   const [toggleState, setToggleState] = useState(false);
   const petList = useAppSelector(state => state.pets?.petLists);
-  const PetData = transformPets(petList?.entry, {useFhirId: true});
-  const [selectedPet, setSelectedPet] = useState(PetData[0]);
+  const [selectedPet, setSelectedPet] = useState(petList[0]);
 
   useEffect(() => {
     configureHeader();
@@ -42,7 +41,7 @@ const VaccineRecords = ({navigation}) => {
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
-          tintColor={colors.darkPurple}
+          tintColor={colors.jetBlack}
           onPress={() => {
             navigation?.goBack();
           }}
@@ -51,7 +50,6 @@ const VaccineRecords = ({navigation}) => {
       headerRight: () => (
         <HeaderButton
           icon={Images.bellBold}
-          tintColor={colors.appRed}
           onPress={() => {
             navigation?.navigate('StackScreens', {
               screen: 'Notifications',
@@ -75,7 +73,7 @@ const VaccineRecords = ({navigation}) => {
     'getVaccinationRecord',
     true,
     {
-      petId: petList?.entry[0]?.resource?.id,
+      petId: petList[0]?.id,
       limit: 10,
     },
     'GET',
@@ -85,8 +83,6 @@ const VaccineRecords = ({navigation}) => {
     useFhirId: true,
   });
 
-  console.log('vaccinationList', vaccinationList);
-
   return (
     <View style={styles.dashboardMainView}>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -95,7 +91,7 @@ const VaccineRecords = ({navigation}) => {
             <View style={styles.row}>
               <GText
                 GrMedium
-                text={`${selectedPet?.title}’s`}
+                text={`${selectedPet?.name}’s`}
                 style={styles.oscarText}
               />
               <GText
@@ -116,7 +112,14 @@ const VaccineRecords = ({navigation}) => {
             }}
             activeOpacity={0.7}
             style={styles.button}>
-            <GImage image={selectedPet?.petImage} style={styles.catImage} />
+            <View
+              style={{
+                borderWidth: 1,
+                borderRadius: scaledValue(20),
+                borderColor: colors.primaryBlue,
+              }}>
+              <GImage image={selectedPet?.petImages} style={styles.catImage} />
+            </View>
             <Image source={Images.ArrowDown} style={styles.arrowImage} />
           </TouchableOpacity>
         </View>
@@ -128,7 +131,11 @@ const VaccineRecords = ({navigation}) => {
             justifyContent: 'space-between',
           }}>
           <View style={styles.headerContainer}>
-            <Image source={Images.Shield} style={styles.shieldImage} />
+            <Image
+              source={Images.Inj}
+              tintColor={colors.primaryBlue}
+              style={styles.shieldImage}
+            />
             <View style={styles.upcomingVaccinationContainer}>
               <GText
                 GrMedium
@@ -144,6 +151,9 @@ const VaccineRecords = ({navigation}) => {
           </View>
           <View style={{alignItems: 'center'}}>
             <ToggleButton
+              width={scaledValue(48)}
+              height={scaledValue(28)}
+              circleWidth={scaledValue(24)}
               toggleState={toggleState}
               setToggleState={setToggleState}
             />
@@ -252,12 +262,11 @@ const VaccineRecords = ({navigation}) => {
                 : insets.bottom,
           },
         ]}
-        textStyle={styles.buttonText}
       />
       <OptionMenuSheet
         refRBSheet={refRBSheet}
         // title={formValue?.blood_group || 'Select Blood Group'}
-        options={PetData}
+        options={petList}
         onChoose={val => {
           setSelectedPet(val);
           refreshData({

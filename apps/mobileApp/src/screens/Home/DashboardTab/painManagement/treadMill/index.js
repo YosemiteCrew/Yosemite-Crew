@@ -24,16 +24,11 @@ const TreadMill = ({navigation}) => {
   const configureHeader = () => {
     navigation.setOptions({
       headerRight: () => (
-        <HeaderButton
-          icon={Images.bellBold}
-          tintColor={colors.appRed}
-          onPress={() => {}}
-        />
+        <HeaderButton icon={Images.bellBold} onPress={() => {}} />
       ),
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
-          tintColor={colors.darkPurple}
           onPress={() => {
             navigation?.goBack();
           }}

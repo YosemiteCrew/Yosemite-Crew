@@ -1,4 +1,4 @@
-import {Image, TouchableOpacity, View} from 'react-native';
+import {Image, Text, TouchableOpacity, View} from 'react-native';
 import React, {useEffect, useRef, useState} from 'react';
 import {useTranslation} from 'react-i18next';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -33,17 +33,10 @@ const RecordPreview = ({navigation}) => {
 
   const configureHeader = () => {
     navigation.setOptions({
-      headerRight: () => (
-        <HeaderButton
-          icon={Images.PlusBold}
-          tintColor={colors.appRed}
-          onPress={() => {}}
-        />
-      ),
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
-          tintColor={colors.darkPurple}
+          tintColor={colors.jetBlack}
           onPress={() => navigation.goBack()}
         />
       ),
@@ -76,7 +69,7 @@ const RecordPreview = ({navigation}) => {
           text={'Invoice for consultation'}
           style={styles.titleText}
         />
-        {scrollIndex < 2 && (
+        {/* {scrollIndex < 2 && (
           <View style={styles.iconRow}>
             <TouchableOpacity>
               <Image
@@ -92,7 +85,7 @@ const RecordPreview = ({navigation}) => {
               <Image source={Images.Trash} style={styles.icon} />
             </TouchableOpacity>
           </View>
-        )}
+        )} */}
       </View>
       <View style={styles.issuedRow}>
         <GText
@@ -124,28 +117,28 @@ const RecordPreview = ({navigation}) => {
         </Swiper>
       </View>
       <View style={styles.navigationRow}>
-        <TouchableOpacity onPress={() => onPressBackButton()}>
+        {/* <TouchableOpacity onPress={() => onPressBackButton()}>
           <Image source={Images.arrowLeftOutline} style={styles.navIcon} />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
         <View style={styles.pageIndicator}>
           <GText
-            GrMedium
+            SatoshiBold
             text={`${t('page_string')} 1`}
-            style={styles.pageText}
+            style={styles.pageText1}
           />
           <GText
-            GrMedium
+            SatoshiBold
             text={` ${t('of_string')} 3`}
-            style={styles.pageText}
+            style={styles.pageText2}
           />
         </View>
-        <TouchableOpacity onPress={() => onPressNextButton()}>
+        {/* <TouchableOpacity onPress={() => onPressNextButton()}>
           <Image
             source={Images.arrowLeftOutline}
             tintColor={colors.appRed}
             style={styles.navIconRotated}
           />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
       <View style={styles.buttonGroup}>
         {scrollIndex > 1 &&
@@ -161,6 +154,39 @@ const RecordPreview = ({navigation}) => {
               <GText SatoshiBold text={i?.title} style={styles.buttonText} />
             </View>
           ))}
+      </View>
+      <View style={styles.buttonsView}>
+        <TouchableOpacity
+          style={styles.buttonView}
+          onPress={() => {
+            // Handle share action
+          }}>
+          <View style={styles.greyBg}>
+            <Image source={Images.Share} style={styles.shareIcon} />
+          </View>
+          <GText SatoshiBold style={styles.buttonsText} text="Share" />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.buttonView}
+          onPress={() => {
+            // Handle share action
+          }}>
+          <View style={styles.greyBg}>
+            <Image source={Images.Edit} style={styles.editIcon} />
+          </View>
+          <GText SatoshiBold style={styles.buttonsText} text="Edit" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.buttonView}
+          onPress={() => {
+            // Handle share action
+          }}>
+          <View style={styles.greyBg}>
+            <Image source={Images.Trash} style={styles.trashIcon} />
+          </View>
+          <GText SatoshiBold style={styles.buttonsText} text="Delete" />
+        </TouchableOpacity>
       </View>
     </View>
   );

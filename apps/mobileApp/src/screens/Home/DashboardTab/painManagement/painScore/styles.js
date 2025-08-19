@@ -1,4 +1,4 @@
-import {Platform, StyleSheet} from 'react-native';
+import {Dimensions, Platform, StyleSheet} from 'react-native';
 import {
   scaledHeightValue,
   scaledValue,
@@ -33,7 +33,7 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(12),
     lineHeight: scaledValue(12),
     textAlign: 'center',
-    color: colors.appRed,
+    color: colors.jetBlack300,
   },
   eclipse: {
     width: scaledValue(335),
@@ -57,14 +57,12 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(20),
     lineHeight: scaledValue(24),
     textAlign: 'center',
-    color: colors.darkPurple,
     letterSpacing: scaledValue(20 * -0.01),
   },
   numberText: {
     fontSize: scaledValue(41),
     lineHeight: scaledValue(49.2),
     textAlign: 'center',
-    color: colors.darkPurple,
     letterSpacing: scaledValue(41 * -0.01),
     marginTop: scaledValue(12),
   },
@@ -79,20 +77,15 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(16),
     ineHeight: scaledValue(22.4),
     textAlign: 'center',
-    color: colors.darkPurple,
     letterSpacing: scaledValue(16 * -0.02),
     marginTop: scaledValue(20),
     paddingHorizontal: scaledValue(25),
+    color: colors.jetLightBlack,
   },
   createButton: {
-    backgroundColor: '#FDBD74',
-    width: scaledValue(335),
-    height: scaledValue(52),
-    borderRadius: scaledValue(28),
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
     marginTop: scaledValue(68),
+    width: Dimensions.get('window').width - scaledValue(40),
+    gap: scaledValue(8),
   },
   buttonText: {
     fontSize: scaledValue(18),
@@ -102,13 +95,10 @@ export const styles = StyleSheet.create({
     color: colors.brown,
   },
   skipButton: {
-    fontSize: scaledValue(18),
-    lineHeight: scaledHeightValue(18),
-    letterSpacing: scaledValue(18 * -0.01),
-    color: colors.appRed,
-    fontFamily: fonts?.CLASH_GRO_MEDIUM,
-    textAlign: 'center',
-    marginTop: scaledValue(17),
+    backgroundColor: 'transparent',
+    marginTop: scaledValue(12),
+    borderWidth: scaledValue(1),
+    borderColor: colors.jetBlack,
   },
   buttonView: insets => ({
     position: 'absolute',

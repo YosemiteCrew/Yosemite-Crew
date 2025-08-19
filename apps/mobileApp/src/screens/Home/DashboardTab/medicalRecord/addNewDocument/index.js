@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   View,
+  Text,
 } from 'react-native';
 import React, {useEffect, useRef, useState} from 'react';
 import {useTranslation} from 'react-i18next';
@@ -20,26 +21,43 @@ import GButton from '../../../../../components/GButton';
 import MenuBottomSheet from '../../../../../components/MenuBottomSheet';
 import DatePicker from 'react-native-date-picker';
 import OptionMenuSheet from '../../../../../components/OptionMenuSheet';
-import {useAppSelector} from '../../../../../redux/store/storeUtils';
+import {
+  useAppDispatch,
+  useAppSelector,
+} from '../../../../../redux/store/storeUtils';
 import {transformPets} from '../../../../../helpers/transformPets';
 import GImage from '../../../../../components/GImage';
+import {add_medical_record} from '../../../../../redux/slices/medicalRecordSlice';
+import {createDocumentReference} from '../../../../../helpers/createDocumentReference';
+import {convertDateFormat} from '../../../../../utils/constants';
+import {pick, types} from '@react-native-documents/picker';
+import {scaledValue} from '../../../../../utils/design.utils';
+import {Dropdown} from 'react-native-element-dropdown';
 
 const AddNewDocument = ({navigation}) => {
   const refRBMenuSheet = useRef();
   const {t} = useTranslation();
   const [toggleState, setToggleState] = useState(true);
   const [expiryToggleState, setExpiryToggleState] = useState(false);
-  const [date, setDate] = useState(new Date());
+  const [date, setDate] = useState(null);
+  const [value, setValue] = useState(null);
+
+  const [expiryDate, setExpiryDate] = useState(null);
   const [open, setOpen] = useState(false);
   const refRBSheet = useRef();
   const petList = useAppSelector(state => state.pets?.petLists);
-  const PetData = transformPets(petList?.entry, {useFhirId: true});
-  const [selectedPet, setSelectedPet] = useState(PetData[0]);
+  const folderList = useAppSelector(state => state.medicalRecord.folderList);
 
+  const [selectedPet, setSelectedPet] = useState(petList[0]);
+  const [currentField, setCurrentField] = useState(null);
+  const [apiCallImage, setApiCallImage] = useState([]);
+
+  const dispatch = useAppDispatch();
   const [formValue, setFormValue] = useState({
     document_type: '',
     title: '',
     date_of_isssue: '',
+    expiryDate: '',
   });
 
   useEffect(() => {
@@ -51,7 +69,7 @@ const AddNewDocument = ({navigation}) => {
       headerRight: () => (
         <HeaderButton
           icon={Images.bellBold}
-          tintColor={colors.appRed}
+          tintColor={colors.jetBlack}
           onPress={() => {
             navigation?.navigate('StackScreens', {
               screen: 'Notifications',
@@ -62,7 +80,7 @@ const AddNewDocument = ({navigation}) => {
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
-          tintColor={colors.darkPurple}
+          tintColor={colors.jetBlack}
           onPress={() => navigation.goBack()}
         />
       ),
@@ -70,7 +88,8 @@ const AddNewDocument = ({navigation}) => {
   };
 
   const handleOpenDatePicker = field => {
-    console.log('here');
+    setCurrentField(field);
+    setOpen(true);
   };
 
   const uploadDocumentMenuList = [
@@ -78,7 +97,6 @@ const AddNewDocument = ({navigation}) => {
       id: 1,
       title: 'Take Photo',
       image: Images.Camera,
-      textColor: colors.darkPurple,
       height: 48,
       fontSize: 16,
       action: () => {},
@@ -87,7 +105,6 @@ const AddNewDocument = ({navigation}) => {
       id: 2,
       title: 'Choose from Gallery',
       image: Images.Gallery,
-      textColor: colors.darkPurple,
       height: 48,
       fontSize: 16,
       action: () => {},
@@ -96,7 +113,6 @@ const AddNewDocument = ({navigation}) => {
       id: 3,
       title: 'Upload from Drive',
       image: Images.Drive,
-      textColor: colors.darkPurple,
       height: 48,
       fontSize: 16,
       action: () => {},
@@ -106,6 +122,82 @@ const AddNewDocument = ({navigation}) => {
   const formatDate = dateString => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-GB');
+  };
+
+  const handleConfirm = selectedDate => {
+    setOpen(false);
+    switch (currentField) {
+      case 'issue':
+        setDate(selectedDate);
+        setFormValue({
+          ...formValue,
+          date_of_isssue: formatDate(selectedDate),
+        });
+        break;
+      case 'expire':
+        setExpiryDate(selectedDate);
+        setFormValue({
+          ...formValue,
+          expiryDate: formatDate(selectedDate),
+        });
+        break;
+      default:
+        break;
+    }
+  };
+
+  const save_record = () => {
+    const input = {
+      typeText: value?.folderName,
+      description: formValue?.title,
+      date: convertDateFormat(formValue?.date_of_isssue),
+      contextPeriodEnd: convertDateFormat(formValue?.expiryDate),
+      patientId: selectedPet?.id,
+      folderId: value?._id,
+    };
+    const fhirPayload = createDocumentReference(input);
+    const api_credentials = {
+      data: fhirPayload,
+      files: apiCallImage,
+    };
+    dispatch(add_medical_record(api_credentials));
+  };
+
+  const uploadDocument = async () => {
+    try {
+      const result = await pick({
+        // type: [types.doc, types.images, types.pdf],
+        type: Platform.select({
+          ios: [
+            'public.image', // Includes most common image types
+            'public.data', // generic catch-all
+            'com.adobe.pdf',
+            'com.microsoft.word.doc',
+            'org.openxmlformats.wordprocessingml.document',
+          ],
+          android: [types.doc, types.images, types.pdf],
+        }),
+        allowMultiSelection: true,
+      });
+      result?.map(d => onSuccessDoc(d));
+      const fileUri = Platform.select({
+        android: result[0].uri,
+        ios: result[0].uri.replace('file:///private/', ''),
+      });
+
+      if (!fileUri) {
+        return;
+      }
+    } catch (err) {
+      console.log('documentError', err);
+    }
+  };
+
+  const onSuccessDoc = files => {
+    let name = files?.name;
+    let type = files?.type;
+    let localUri = files?.uri;
+    setApiCallImage(prevState => [...prevState, {name, uri: localUri, type}]);
   };
 
   return (
@@ -133,21 +225,72 @@ const AddNewDocument = ({navigation}) => {
             }}
             activeOpacity={0.7}
             style={styles.headerImageContainer}>
-            <GImage image={selectedPet?.petImage} style={styles.catImage} />
+            <GImage image={selectedPet?.petImages} style={styles.catImage} />
             <Image source={Images.ArrowDown} style={styles.arrowDownImage} />
           </TouchableOpacity>
         </View>
         <View style={styles.inputContainer}>
-          <Input
-            value={formValue.document_type}
-            rightIcon={Images.ArrowDown}
-            iconStyle={styles.iconStyle}
-            label={t('document_category_string')}
-            onChangeText={value =>
-              setFormValue({...formValue, document_type: value})
-            }
-            style={styles.input}
-            onFocus={() => handleOpenDatePicker()}
+          {value && (
+            <View style={styles.inlineLabelWrapper}>
+              <GText
+                SatoshiBold
+                text={'Choose Folder'}
+                style={styles.inlineLabel}
+              />
+            </View>
+          )}
+          <Dropdown
+            style={styles.dropdown(value)}
+            placeholderStyle={styles.placeholderStyle}
+            selectedTextStyle={styles.selectedTextStyle}
+            data={folderList?.data}
+            labelField="folderName"
+            valueField="_id"
+            placeholder="Select folder"
+            value={value}
+            selectedTextProps={{
+              style: {
+                textTransform: 'capitalize',
+              },
+            }}
+            renderRightIcon={() => (
+              <Image source={Images.ArrowDown} style={styles.iconStyle} />
+            )}
+            onChange={item => {
+              setValue(item);
+            }}
+            // Custom list item with icon + text
+            renderItem={item => (
+              <View style={styles.itemContainer}>
+                <Image
+                  source={{
+                    uri: 'https://img.icons8.com/ios-filled/50/folder-invoices.png',
+                  }}
+                  style={styles.icon}
+                />
+                <GText
+                  SatoshiMedium
+                  text={item?.folderName}
+                  style={styles.professionalText}
+                />
+              </View>
+            )}
+            // Show selected item with icon
+            renderSelectedItem={item => (
+              <View style={styles.itemContainer}>
+                <Image
+                  source={{
+                    uri: 'https://img.icons8.com/ios-filled/50/folder-invoices.png',
+                  }}
+                  style={styles.icon}
+                />
+                <GText
+                  SatoshiMedium
+                  text={item?.folderName}
+                  style={styles.professionalText}
+                />
+              </View>
+            )}
           />
           <Input
             value={formValue.title}
@@ -167,16 +310,36 @@ const AddNewDocument = ({navigation}) => {
               setToggleState={setToggleState}
             />
           </View>
-          <TouchableOpacity
-            onPress={() => setOpen(true)}
-            style={styles.professionalButton}>
-            <GText
-              SatoshiRegular
-              text={date ? formatDate(date) : t('date_of_issue_string')}
-              style={styles.professionalText}
-            />
-            <Image source={Images.Calender} style={styles.iconStyle} />
-          </TouchableOpacity>
+          {toggleState && (
+            <>
+              <View style={styles.inputWrapper}>
+                {date && (
+                  <View style={styles.inlineLabelWrapper}>
+                    <GText
+                      SatoshiBold
+                      text={t('date_of_issue_string')}
+                      style={styles.inlineLabel}
+                    />
+                  </View>
+                )}
+                <TouchableOpacity
+                  onPress={() => handleOpenDatePicker('issue')}
+                  style={styles.professionalButton}>
+                  <GText
+                    SatoshiRegular
+                    text={date ? formatDate(date) : t('date_of_issue_string')}
+                    style={[
+                      styles.professionalText,
+                      {
+                        paddingLeft: scaledValue(0),
+                      },
+                    ]}
+                  />
+                  <Image source={Images.Calender} style={styles.iconStyle} />
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
 
           <View style={styles.dateRow}>
             <GText
@@ -189,29 +352,96 @@ const AddNewDocument = ({navigation}) => {
               setToggleState={setExpiryToggleState}
             />
           </View>
+          {expiryToggleState && (
+            <View style={styles.inputWrapper}>
+              {expiryDate && (
+                <View style={styles.inlineLabelWrapper}>
+                  <GText
+                    SatoshiBold
+                    text={t('expiry_date_string')}
+                    style={styles.inlineLabel}
+                  />
+                </View>
+              )}
+              <TouchableOpacity
+                onPress={() => handleOpenDatePicker('expire')}
+                style={styles.professionalButton}>
+                <GText
+                  SatoshiRegular
+                  text={
+                    expiryDate
+                      ? formatDate(expiryDate)
+                      : t('expiry_date_string')
+                  }
+                  style={[
+                    styles.professionalText,
+                    {
+                      paddingLeft: scaledValue(0),
+                    },
+                  ]}
+                />
+                <Image source={Images.Calender} style={styles.iconStyle} />
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
-        {/* <TouchableOpacity
-        style={styles.uploadContainer}
-        onPress={() => refRBMenuSheet.current.open()}
-      >
-        <Image source={Images.Upload} style={styles.uploadImage} />
-        <GText
-          GrMedium
-          text={t('upload_document_string')}
-          style={styles.uploadText}
-        />
-        <GText
-          SatoshiRegular
-          text={t('document_text_string')}
-          style={styles.documentText}
-        />
-      </TouchableOpacity> */}
+
         <GText
           SatoshiBold
           text={t('uploaded_document_string')}
           style={styles.vaccineText}
         />
-        <View style={styles.imgContainer}>
+
+        {apiCallImage?.length > 0 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              marginTop: scaledValue(20),
+              gap: scaledValue(16),
+            }}>
+            {apiCallImage?.map((i, d) => (
+              <View>
+                <Image source={{uri: i?.uri}} style={styles.imageStyle} />
+                <TouchableOpacity
+                  onPress={() => {
+                    setApiCallImage(prev => prev.filter((_, idx) => idx !== d));
+                  }}
+                  style={styles.crossImgView}>
+                  <Image source={Images.CrossIcon} style={styles.crossStyle} />
+                </TouchableOpacity>
+              </View>
+            ))}
+            <TouchableOpacity
+              onPress={uploadDocument}
+              style={styles.addImgButton}>
+              <Image
+                source={Images.PlusIcon}
+                tintColor={colors.appRed}
+                style={styles.PlusIconImage}
+              />
+            </TouchableOpacity>
+          </ScrollView>
+        ) : (
+          <TouchableOpacity
+            onPress={uploadDocument}
+            style={styles.uploadContainer}>
+            <Image source={Images.Upload} style={styles.uploadImage} />
+            <GText
+              GrMedium
+              text={t('upload_document_string')}
+              style={styles.uploadText}
+            />
+            <GText
+              SatoshiRegular
+              text={t('document_text_string')}
+              style={styles.documentText}
+            />
+          </TouchableOpacity>
+        )}
+        {/* <View style={styles.imgContainer}>
           <View>
             <FlatList
               data={[1, 2]}
@@ -236,17 +466,15 @@ const AddNewDocument = ({navigation}) => {
             style={styles.addImgButton}
             onPress={() => refRBMenuSheet.current.open()}>
             <Image
-              tintColor={colors.appRed}
+              tintColor={colors.jetBlack}
               source={Images.PlusIcon}
               style={styles.PlusIconImage}
             />
           </TouchableOpacity>
-        </View>
+        </View> */}
         <GButton
           onPress={() => {
-            navigation?.navigate('StackScreens', {
-              screen: 'DocumentListScreen',
-            });
+            save_record();
           }}
           title={t('create_new_record_string')}
           textStyle={styles.buttonText}
@@ -270,7 +498,7 @@ const AddNewDocument = ({navigation}) => {
         <OptionMenuSheet
           refRBSheet={refRBSheet}
           // title={formValue?.blood_group || 'Select Blood Group'}
-          options={PetData}
+          options={petList}
           onChoose={val => {
             setSelectedPet(val);
 
@@ -281,12 +509,15 @@ const AddNewDocument = ({navigation}) => {
         <DatePicker
           modal
           open={open}
-          date={date || new Date()}
+          date={
+            currentField === 'issue'
+              ? date || new Date()
+              : currentField === 'expire'
+              ? expiryDate || new Date()
+              : new Date()
+          }
           mode="date"
-          onConfirm={newDate => {
-            setOpen(false);
-            setDate(newDate);
-          }}
+          onConfirm={handleConfirm}
           onCancel={() => setOpen(false)}
         />
       </ScrollView>

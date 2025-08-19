@@ -55,7 +55,7 @@ const AddNewTask = ({navigation}) => {
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
-          tintColor={colors.darkPurple}
+          tintColor={colors.jetBlack}
           onPress={() => {
             navigation?.goBack();
           }}
@@ -260,14 +260,7 @@ const AddNewTask = ({navigation}) => {
         </View>
         <View style={styles.reminderView}>
           {reminderList?.map((item, index) => (
-            <LinearGradient
-              key={index}
-              style={styles.linearView}
-              colors={
-                selectReminder === item.id
-                  ? ['rgba(253, 189, 116, 0.21)', 'rgba(253, 189, 116, 0.07)']
-                  : [colors.themeColor, colors.themeColor]
-              }>
+          
               <TouchableOpacity
                 onPress={() => {
                   setFormValue({
@@ -283,7 +276,7 @@ const AddNewTask = ({navigation}) => {
                   style={styles.placeText(selectReminder, item.id)}
                 />
               </TouchableOpacity>
-            </LinearGradient>
+           
           ))}
         </View>
         <View style={[styles.dateRow, {marginTop: scaledValue(24)}]}>

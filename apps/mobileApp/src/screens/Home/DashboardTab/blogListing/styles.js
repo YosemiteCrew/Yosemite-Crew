@@ -16,17 +16,18 @@ export const styles = StyleSheet.create({
     height: scaledValue(35),
     borderWidth: scaledValue(0.75),
     borderRadius: scaledValue(24),
-    borderColor: colors.appRed,
+    borderColor: colors.primayBlue100,
     justifyContent: 'center',
     paddingHorizontal: scaledValue(12),
     marginTop: scaledValue(12),
-    backgroundColor: selectTopic === topic ? colors.appRed : '#FDBD741A',
+    backgroundColor:
+      selectTopic === topic ? colors.primaryBlue : colors.paletteBlue,
   }),
   topicText: (selectTopic, topic) => ({
     fontSize: scaledValue(16),
     lineHeight: scaledHeightValue(19.2),
     letterSpacing: scaledValue(16 * -0.01),
-    color: selectTopic === topic ? colors.white : colors.appRed,
+    color: selectTopic === topic ? colors.white : colors.jetBlack,
   }),
   searchBar: {
     height: scaledValue(48),
@@ -47,7 +48,7 @@ export const styles = StyleSheet.create({
   searchText: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    color: colors.darkPurple,
+
     opacity: 0.7,
   },
   searchIcon: {
@@ -66,7 +67,6 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(20),
     lineHeight: scaledValue(24),
     letterSpacing: scaledValue(20 * -0.01),
-    color: colors.appRed,
     marginBottom: scaledValue(12),
   },
   swipeImageView: {
@@ -84,7 +84,6 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(20),
     lineHeight: scaledValue(24),
     letterSpacing: scaledValue(20 * -0.01),
-    color: colors.jetBlack,
     marginTop: scaledValue(12),
     marginBottom: scaledValue(48),
   },
@@ -93,6 +92,5 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(20),
     lineHeight: scaledValue(24),
     letterSpacing: scaledValue(20 * -0.01),
-    color: colors.jetBlack,
   },
 });

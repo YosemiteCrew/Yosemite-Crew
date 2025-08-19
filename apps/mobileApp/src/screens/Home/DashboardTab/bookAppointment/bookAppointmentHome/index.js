@@ -34,11 +34,6 @@ const BookAppointmentHome = ({navigation}) => {
     groomerCount: '',
   });
 
-  const [petCenterData, setPetCenterData] = useState({
-    petCenterList: [],
-    petCenterCount: '',
-  });
-
   const [petSitterData, setPetSitterData] = useState({
     petSitterList: [],
     petSitterCount: '',
@@ -50,27 +45,23 @@ const BookAppointmentHome = ({navigation}) => {
 
   const getHospitalsCentersList = () => {
     let api_credentials = {
-      Type: businessType,
+      type: businessType,
       limit: 10,
       offset: 0,
     };
     dispatch(hospitals_centers_list(api_credentials)).then(res => {
       if (hospitals_centers_list.fulfilled.match(res)) {
         setHospitalData({
-          hospitalList: parseOrganizations(res.payload?.data?.hospital?.entry),
-          hospitalCount: res.payload?.data?.hospital?.total,
+          hospitalList: parseOrganizations(
+            res.payload?.data?.veterinaryBusiness?.entry,
+          ),
+          hospitalCount: res.payload?.data?.veterinaryBusiness?.total,
         });
         setBreederData({
           breederList: parseOrganizations(
             res.payload?.data?.breedingFacility?.entry,
           ),
           breederCount: res.payload?.data?.breedingFacility?.total,
-        });
-        setPetCenterData({
-          petCenterList: parseOrganizations(
-            res.payload?.data?.petSitter?.entry,
-          ),
-          petCenterCount: res.payload?.data?.petSitter?.total,
         });
         setGroomerData({
           groomerList: parseOrganizations(
@@ -80,7 +71,7 @@ const BookAppointmentHome = ({navigation}) => {
         });
         setPetSitterData({
           petSitterList: parseOrganizations(res.payload.data?.petSitter?.entry),
-          groomerCount: res.payload.data?.petSitter?.total,
+          petSitterCount: res.payload.data?.petSitter?.total,
         });
       }
     });
@@ -104,7 +95,6 @@ const BookAppointmentHome = ({navigation}) => {
       headerRight: () => (
         <HeaderButton
           icon={Images.bellBold}
-          tintColor={colors.appRed}
           onPress={() => {
             navigation?.navigate('StackScreens', {
               screen: 'Notifications',
@@ -115,7 +105,7 @@ const BookAppointmentHome = ({navigation}) => {
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
-          tintColor={colors.darkPurple}
+          tintColor={colors.jetBlack}
           onPress={() => {
             navigation?.goBack();
           }}
@@ -156,7 +146,7 @@ const BookAppointmentHome = ({navigation}) => {
         {
           borderWidth: selectedOption === item.title ? 0 : scaledValue(1),
           backgroundColor:
-            selectedOption === item.title ? colors.appRed : 'transparent',
+            selectedOption === item.title ? colors.jetBlack : 'transparent',
         },
       ]}>
       <GText
@@ -165,7 +155,8 @@ const BookAppointmentHome = ({navigation}) => {
         style={[
           styles.optionText,
           {
-            color: selectedOption === item.title ? colors.white : colors.appRed,
+            color:
+              selectedOption === item.title ? colors.white : colors.jetBlack,
           },
         ]}
       />
@@ -220,15 +211,6 @@ const BookAppointmentHome = ({navigation}) => {
           />
         )}
 
-        {petCenterData?.petCenterList?.length > 0 && (
-          <CategoryList
-            navigation={navigation}
-            total_count={petCenterData?.petCenterCount}
-            data={petCenterData?.petCenterList}
-            categoryTitle={t('pet_centers_string')}
-            nearYouText={t('near_you_string')}
-          />
-        )}
         {petSitterData?.petSitterList?.length > 0 && (
           <CategoryList
             navigation={navigation}

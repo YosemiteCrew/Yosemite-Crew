@@ -49,18 +49,15 @@ const BookAppointment = ({navigation, route}) => {
   const {doctorDetail, departmentDetail, businessDetails} = route?.params;
   const {t} = useTranslation();
   const refRBSheet = useRef();
-  console.log('doctorDetaildoctorDetail', JSON.stringify(doctorDetail));
 
   const [selectedPetId, setSelectedPetId] = useState(null);
   const [pickSlotTime, setPickSlotTime] = useState(null);
   const [pickSlot, setPickSlot] = useState(null);
-  console.log('pickSlotpickSlotaaas', pickSlotTime);
   const [apiCallImage, setApiCallImage] = useState([]);
   const qualification =
     doctorDetail?.resource.qualification?.[0]?.code?.text || 'N/A';
   const department =
     doctorDetail?.resource.department?.[0]?.code?.text || 'N/A';
-  console.log('businessDetailsbusinessDetails', businessDetails);
 
   const [message, setMessage] = useState('');
   const [date, setDate] = useState(new Date());
@@ -78,8 +75,6 @@ const BookAppointment = ({navigation, route}) => {
 
   const onValueChange = useCallback(
     (event, newDate) => {
-      console.log(event, newDate);
-
       const selectedDate = newDate || date;
       showPicker(false);
       if (event === 'dateSetAction') {
@@ -108,14 +103,14 @@ const BookAppointment = ({navigation, route}) => {
       headerRight: () => (
         <HeaderButton
           icon={Images.bellBold}
-          tintColor={colors.appRed}
+          tintColor={colors.jetBlack}
           onPress={() => {}}
         />
       ),
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
-          tintColor={colors.darkPurple}
+          tintColor={colors.jetBlack}
           onPress={() => navigation.goBack()}
         />
       ),
@@ -137,8 +132,6 @@ const BookAppointment = ({navigation, route}) => {
     };
     dispatch(get_time_slots_by_date(api_credentials)).then(res => {
       if (get_time_slots_by_date.fulfilled.match(res)) {
-        console.log('getTimeSlots0123', JSON.stringify(res.payload));
-
         setTimeSlotsList(res.payload?.data?.entry);
       }
     });
@@ -176,18 +169,13 @@ const BookAppointment = ({navigation, route}) => {
         type: [types.doc, types.images, types.pdf],
         allowMultiSelection: true,
       });
-      console.log(result);
       result?.map(d => onSuccessDoc(d));
       const fileUri = Platform.select({
         android: result[0].uri,
         ios: result[0].uri.replace('file:///private/', ''),
       });
-      console.log('fileUri0', result[0]?.uri);
-
-      console.log('fileUri', fileUri);
 
       if (!fileUri) {
-        console.log('File URI is undefined or null');
         return;
       }
 
@@ -211,9 +199,6 @@ const BookAppointment = ({navigation, route}) => {
   };
 
   const onSuccessDoc = files => {
-    // setProjectDoc();
-    console.log('abcdef', files);
-
     let name = files?.name;
     let type = files?.type;
     let localUri = files?.uri;
@@ -245,10 +230,7 @@ const BookAppointment = ({navigation, route}) => {
     } else if (!message) {
       showToast(0, 'Please describe your concern.');
     } else {
-      console.log('api_credentialsapi_credentials', api_credentials);
-
       const fhirPayload = createPetAppointmentFHIRResource(api_credentials);
-      console.log('api_credentialss', JSON.stringify(fhirPayload));
 
       const input = {
         data: fhirPayload,
@@ -422,12 +404,6 @@ const BookAppointment = ({navigation, route}) => {
         {timeSlotsList?.length > 0 && (
           <View style={styles.slotTimeUpperView}>
             {timeSlotsList?.map((item, index) => {
-              console.log(
-                'item?.isBooked',
-                item?.resource?.isBooked,
-                item?.resource?.slotTime,
-              );
-
               return (
                 <TouchableOpacity
                   key={index}
@@ -551,7 +527,7 @@ const BookAppointment = ({navigation, route}) => {
               style={styles.addImgButton}>
               <Image
                 source={Images.PlusIcon}
-                tintColor={colors.appRed}
+                tintColor={colors.jetBlack}
                 style={styles.PlusIconImage}
               />
             </TouchableOpacity>

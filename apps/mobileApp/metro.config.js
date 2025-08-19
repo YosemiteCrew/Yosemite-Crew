@@ -1,4 +1,7 @@
 const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config');
+const {
+  wrapWithReanimatedMetroConfig,
+} = require('react-native-reanimated/metro-config');
 const path = require('path');
 
 /**
@@ -7,12 +10,13 @@ const path = require('path');
  *
  * @type {import('@react-native/metro-config').MetroConfig}
  */
-const config = {
-    resolver: {
-      unstable_enableSymlinks: true, // this enable the use of Symlinks
-    },
-    // this specifies the folder where are located the node_modules for the project
-    watchFolders: [path.join(__dirname, '..', '..')],
-  };
+const customConfig = {
+  resolver: {
+    unstable_enableSymlinks: true,
+  },
+  watchFolders: [path.join(__dirname, '..', '..')],
+};
 
-module.exports = mergeConfig(getDefaultConfig(__dirname), config);
+const mergedConfig = mergeConfig(getDefaultConfig(__dirname), customConfig);
+
+module.exports = wrapWithReanimatedMetroConfig(mergedConfig);
