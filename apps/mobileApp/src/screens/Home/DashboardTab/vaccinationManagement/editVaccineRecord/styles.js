@@ -40,7 +40,6 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(23),
     lineHeight: scaledHeightValue(27.6),
     letterSpacing: scaledValue(23 * -0.01),
-    color: colors.darkPurple,
     textAlign: 'center',
     marginTop: scaledValue(8),
   },
@@ -48,7 +47,6 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(23),
     lineHeight: scaledHeightValue(27.6),
     letterSpacing: scaledValue(23 * -0.01),
-    color: colors.darkPurple,
   },
   button: {
     alignSelf: 'center',
@@ -58,6 +56,9 @@ export const styles = StyleSheet.create({
   catImage: {
     width: scaledValue(40),
     height: scaledValue(40),
+    borderRadius: scaledValue(20),
+    borderWidth: scaledValue(0.67),
+    borderColor: colors.jetBlack,
   },
   arrowImage: {
     width: scaledValue(16),
@@ -67,12 +68,12 @@ export const styles = StyleSheet.create({
     width: '100%',
     backgroundColor: 'transparent',
     fontSize: scaledValue(16),
-    // lineHeight: scaledValue(16),
-    marginTop: scaledValue(16),
+    marginTop: scaledValue(-6),
     paddingLeft: scaledValue(10),
   },
   formContainer: {
     marginTop: scaledValue(16),
+    gap: scaledValue(16),
   },
   headerContainer: {
     marginTop: scaledValue(16),
@@ -103,7 +104,6 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(18),
     lineHeight: scaledHeightValue(21.6),
     letterSpacing: scaledValue(18 * -0.01),
-    color: colors.darkPurple,
     textAlign: 'center',
     paddingHorizontal: scaledValue(53),
     marginTop: scaledValue(10),
@@ -111,7 +111,6 @@ export const styles = StyleSheet.create({
   documentText: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    color: colors.darkPurple,
     textAlign: 'center',
     paddingHorizontal: scaledValue(53),
     opacity: 0.7,
@@ -126,17 +125,13 @@ export const styles = StyleSheet.create({
     fontFamily: fonts?.CLASH_GRO_MEDIUM,
   },
   buttonStyle: {
-    backgroundColor: '#FDBD74',
     marginTop: scaledValue(40),
     marginBottom: scaledValue(62),
-    height: scaledValue(52),
-    borderRadius: scaledValue(28),
   },
   vaccineText: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    color: colors.darkPurple,
-    opacity: 0.8,
+    opacity: 0.6,
     marginTop: scaledValue(34),
   },
   imageStyle: {
@@ -181,23 +176,38 @@ export const styles = StyleSheet.create({
   datePickerContainer: val => ({
     borderWidth: scaledValue(val ? 1 : 0.5),
     height: scaledValue(48),
-    marginTop: scaledValue(16),
     borderRadius: scaledValue(24),
     paddingHorizontal: scaledValue(20),
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderColor: val ? colors.primary : '#312943',
+    borderColor: val ? colors.jetLightBlack : colors.darkPurple2,
   }),
   dateText: val => ({
     fontSize: scaledValue(16),
     // lineHeight: scaledHeightValue(16),
     letterSpacing: scaledValue(16 * -0.03),
-    color: '#312943',
+    color: colors.darkPurple2,
     fontFamily: val ? fonts?.SATOSHI_MEDIUM : fonts?.SATOSHI_REGULAR,
   }),
   dateIcon: {
     width: scaledValue(20),
     height: scaledValue(20),
+  },
+  inputWrapper: {
+    position: 'relative',
+  },
+
+  inlineLabelWrapper: {
+    position: 'absolute',
+    top: scaledValue(-8),
+    left: scaledValue(20),
+    backgroundColor: colors.themeColor,
+    zIndex: 1,
+    paddingHorizontal: scaledValue(5),
+  },
+
+  inlineLabel: {
+    fontSize: scaledValue(12),
   },
 });

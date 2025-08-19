@@ -14,6 +14,10 @@ import GText from '../../../../../components/GText/GText';
 import GButton from '../../../../../components/GButton';
 import Swiper from 'react-native-swiper';
 import HeaderButton from '../../../../../components/HeaderButton';
+import {
+  scaledHeightValue,
+  scaledValue,
+} from '../../../../../utils/design.utils';
 
 const GrimaceScale = ({navigation}) => {
   const {t} = useTranslation();
@@ -40,9 +44,6 @@ const GrimaceScale = ({navigation}) => {
     // Get the current index directly from the Swiper instance
     const currentSwiperIndex = swiperRef.current?.state.index;
 
-    // Log the current swiper index for debugging
-    console.log('currentSwiperIndex:', currentSwiperIndex);
-
     if (currentSwiperIndex > 0) {
       // Scroll back by one screen
       swiperRef.current?.scrollBy(-1);
@@ -61,7 +62,6 @@ const GrimaceScale = ({navigation}) => {
       headerRight: () => (
         <HeaderButton
           icon={Images.bellBold}
-          tintColor={colors.appRed}
           onPress={() => {
             navigation?.navigate('StackScreens', {
               screen: 'Notifications',
@@ -72,7 +72,7 @@ const GrimaceScale = ({navigation}) => {
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
-          tintColor={colors.darkPurple}
+          tintColor={colors.jetBlack}
           onPress={onPressBackButton}
         />
       ),
@@ -231,10 +231,20 @@ const GrimaceScale = ({navigation}) => {
           </TouchableOpacity>
         ))}
       </View>
+      <GText
+        text={'Feline Grimace Scale © Université de Montréal'}
+        style={{
+          fontSize: scaledValue(13),
+          lineHeight: scaledHeightValue(13 * 1.2),
+          color: colors.jetLightBlack,
+          textAlign: 'center',
+          marginTop: scaledValue(62),
+          marginBottom: scaledValue(12),
+        }}
+      />
       <GButton
         onPress={onPressNextButton}
         title={t('next_string')}
-        textStyle={styles.filledButtonText}
         style={styles.filledButtonStyle}
       />
     </ScrollView>

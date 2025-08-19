@@ -22,7 +22,6 @@ const PainScore = ({navigation}) => {
       headerRight: () => (
         <HeaderButton
           icon={Images.bellBold}
-          tintColor={colors.appRed}
           onPress={() => {
             navigation?.navigate('StackScreens', {
               screen: 'Notifications',
@@ -33,7 +32,7 @@ const PainScore = ({navigation}) => {
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
-          tintColor={colors.darkPurple}
+          tintColor={colors.jetBlack}
           onPress={() => navigation?.goBack()}
         />
       ),
@@ -63,21 +62,19 @@ const PainScore = ({navigation}) => {
           />
         </ImageBackground>
       </View>
-      <GText
-        SatoshiRegular
-        text={t('pain_score_text_string')}
-        style={styles.description}
-      />
+      <GText text={t('pain_score_text_string')} style={styles.description} />
       <View style={styles.buttonView(insets)}>
         <GButton
           onPress={() => {}}
-          title={t('save_pain_journal_string')}
+          icon={Images.tickImage}
+          title={t('send_vet_string')}
           style={styles.createButton}
-          textStyle={styles.buttonText}
         />
-        <GTextButton
-          title={t('retake_assessment_string')}
-          titleStyle={styles.skipButton}
+        <GButton
+          onPress={() => {}}
+          title={t('save_pain_journal_string')}
+          style={styles.skipButton}
+          textStyle={styles.buttonText}
         />
       </View>
     </View>

@@ -27,8 +27,8 @@ export const styles = StyleSheet.create({
     height: scaledValue(28),
   },
   petImage: {
-    width: scaledValue(80),
-    height: scaledValue(80),
+    width: scaledValue(79),
+    height: scaledValue(79),
     borderRadius: scaledValue(40),
   },
   petNameText: {
@@ -36,7 +36,6 @@ export const styles = StyleSheet.create({
     lineHeight: scaledHeightValue(19.2),
     marginTop: scaledValue(4),
     letterSpacing: scaledValue(16 * -0.02),
-    color: colors.darkPurple,
     textAlign: 'center',
   },
   healthyStatus: {
@@ -77,7 +76,7 @@ export const styles = StyleSheet.create({
   quickActionsText: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    marginTop: scaledValue(36),
+    marginTop: scaledValue(29),
     opacity: 0.6,
   },
   quickActionItem: {
@@ -112,6 +111,9 @@ export const styles = StyleSheet.create({
   imgStyle: {
     width: scaledValue(40),
     height: scaledValue(40),
+    borderRadius: scaledValue(20),
+    borderWidth: scaledValue(0.67),
+    borderColor: colors.jetLightBlack,
   },
   optionView: {
     flexDirection: 'row',
@@ -126,7 +128,6 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(18),
     lineHeight: scaledHeightValue(21.6),
     letterSpacing: scaledValue(18 * -0.01),
-    color: colors.darkPurple,
     marginLeft: scaledValue(10),
   },
   imgTitleView: {
@@ -136,7 +137,6 @@ export const styles = StyleSheet.create({
   dateStyle: {
     fontSize: scaledValue(13),
     lineHeight: scaledHeightValue(15.6),
-    color: colors.darkPurple,
     marginLeft: scaledValue(10),
     opacity: 0.6,
   },
@@ -162,14 +162,11 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(13),
     lineHeight: scaledHeightValue(15.6),
     letterSpacing: scaledValue(13 * -0.01),
-    color: colors.darkPurple,
     opacity: 0.6,
   },
   vaccinationStatusText: {
     fontSize: scaledValue(18),
-    lineHeight: scaledHeightValue(21.6),
     letterSpacing: scaledValue(18 * -0.01),
-    color: colors.darkPurple,
     marginTop: scaledValue(39),
   },
   petListContainer: {
@@ -186,5 +183,29 @@ export const styles = StyleSheet.create({
   },
   dividerSpacing: {
     marginVertical: scaledValue(17),
+  },
+  noDataImage: {
+    width: scaledValue(92.04),
+    height: scaledValue(113.35),
+    alignSelf: 'center',
+    marginTop: scaledValue(50),
+  },
+  noDataText: {
+    fontSize: scaledValue(26),
+    letterSpacing: scaledValue(26 * -0.01),
+    textAlign: 'center',
+    marginTop: scaledValue(40),
+  },
+  addVaccinationText: {
+    fontSize: scaledValue(16),
+    lineHeight: scaledHeightValue(19.2),
+    letterSpacing: scaledValue(16 * -0.02),
+    textAlign: 'center',
+    marginTop: scaledValue(17),
+    paddingHorizontal: scaledValue(20),
+  },
+  addImage: {
+    height: scaledValue(20),
+    width: scaledValue(20),
   },
 });

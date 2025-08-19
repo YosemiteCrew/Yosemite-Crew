@@ -26,6 +26,7 @@
     "chart.js": "^4.4.8",
     "classnames": "^2.5.1",
     "country-list-json": "^1.1.0",
+    "dayjs": "^1.11.13",
     "editorjs-html": "^4.0.5",
     "framer-motion": "^12.18.1",
     "glightbox": "^3.3.1",

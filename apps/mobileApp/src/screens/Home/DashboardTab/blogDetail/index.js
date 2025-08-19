@@ -34,7 +34,7 @@ const BlogDetail = () => {
           <TouchableOpacity style={styles.shareImgView}>
             <Image
               source={Images.Share}
-              tintColor={colors.appRed}
+              tintColor={colors.jetBlack}
               style={styles.shareImg}
             />
           </TouchableOpacity>

@@ -49,13 +49,11 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(18),
     lineHeight: scaledValue(21.6),
     letterSpacing: scaledValue(18 * -0.01),
-    color: colors.appRed,
   },
   journalText: {
     fontSize: scaledValue(18),
     lineHeight: scaledValue(21.6),
     letterSpacing: scaledValue(18 * -0.01),
-    color: colors.darkPurple,
   },
   dateText: {
     fontSize: scaledValue(12),

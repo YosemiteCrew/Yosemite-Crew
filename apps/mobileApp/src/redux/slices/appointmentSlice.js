@@ -1,226 +1,43 @@
-import {createAsyncThunk, createSlice} from '@reduxjs/toolkit';
-import {setLoading} from './loadingSlice';
-import API from '../../services/API';
-import {navigationContainerRef} from '../../../App';
 import {showToast} from '../../components/Toast';
+import {makeThunk} from './thunks';
 
-export const get_time_slots_by_date = createAsyncThunk(
+/* ===================== APPOINTMENT ===================== */
+export const get_time_slots_by_date = makeThunk(
   'appointment/getTimeSlots',
-  async (credentials, {rejectWithValue, dispatch}) => {
-    try {
-      dispatch(setLoading(true));
-      console.log('credentials=>>>', credentials);
-
-      const response = await API({
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        route: `Slot/getTimeSlots`,
-        body: credentials,
-        method: 'GET',
-      });
-      dispatch(setLoading(false));
-      console.log('getTimeSlots_response=>>', JSON.stringify(response?.data));
-      if (response.status !== 200) {
-        return rejectWithValue(response?.data);
-      }
-
-      return response?.data;
-    } catch (error) {
-      console.log(error);
-      return rejectWithValue(error);
-    }
-  },
+  'Slot/getTimeSlots',
+  {method: 'GET'},
 );
-
-export const get_time_slots_by_Month = createAsyncThunk(
+export const get_time_slots_by_Month = makeThunk(
   'appointment/getTimeSlotsByMonth',
-  async (credentials, {rejectWithValue, dispatch}) => {
-    try {
-      dispatch(setLoading(true));
-      console.log('credentials=>>>', credentials);
-
-      const response = await API({
-        headers: {
-          // 'Content-Type': 'multipart/form-data',
-        },
-        route: `Slot/getTimeSlotsByMonth`,
-        body: credentials,
-        method: 'GET',
-      });
-      dispatch(setLoading(false));
-      console.log(
-        'getTimeSlotsByMonth_response=>>',
-        JSON.stringify(response?.data),
-      );
-      if (response.status !== 200) {
-        return rejectWithValue(response?.data);
-      }
-
-      return response?.data;
-    } catch (error) {
-      console.log(error);
-      return rejectWithValue(error);
-    }
-  },
+  'Slot/getTimeSlotsByMonth',
+  {method: 'GET', headers: {}},
 );
-
-export const book_appointment_api = createAsyncThunk(
+export const book_appointment_api = makeThunk(
   'appointment/bookAppointment',
-  async (credentials, {rejectWithValue, dispatch}) => {
-    try {
-      dispatch(setLoading(true));
-      console.log('credentials=>>>', credentials);
-
-      const response = await API({
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        route: `bookAppointment`,
-        body: credentials,
-        method: 'POST',
-        multiPart: true,
-      });
-      dispatch(setLoading(false));
-      showToast(response?.data?.status, response?.data?.message);
-      console.log(
-        'bookAppointment_response=>>',
-        JSON.stringify(response?.data),
-      );
-      if (response.status !== 200) {
-        return rejectWithValue(response?.data);
-      }
-
-      return response?.data;
-    } catch (error) {
-      console.log(error);
-      return rejectWithValue(error);
-    }
+  'bookAppointment',
+  {
+    method: 'POST',
+    multiPart: true,
+    onSuccess: res => showToast(res?.data?.status, res?.data?.message),
   },
 );
-
-export const hospitals_centers_list = createAsyncThunk(
+export const hospitals_centers_list = makeThunk(
   'appointment/getLists',
-  async (credentials, {rejectWithValue, dispatch}) => {
-    try {
-      dispatch(setLoading(true));
-      console.log('credentials=>>>', credentials);
-
-      const response = await API({
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        // route: `Organization/getLists?BusinessType=${credentials?.BusinessType}&limit=${credentials?.limit}&offset=${credentials?.offset}`,
-        route: `Organization/getLists`,
-        body: credentials,
-        method: 'GET',
-      });
-      dispatch(setLoading(false));
-      console.log('getLists_response=>>', JSON.stringify(response?.data));
-      if (response.status !== 200) {
-        return rejectWithValue(response?.data);
-      }
-
-      return response?.data;
-    } catch (error) {
-      console.log(error);
-      return rejectWithValue(error);
-    }
-  },
+  'Organization/getLists',
+  {method: 'GET'},
 );
-
-export const doctors_by_departments = createAsyncThunk(
+export const doctors_by_departments = makeThunk(
   'appointment/getDoctorsLists',
-  async (credentials, {rejectWithValue, dispatch}) => {
-    try {
-      dispatch(setLoading(true));
-      console.log('credentials=>>>', credentials);
-
-      const response = await API({
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        route: `getDoctorsLists`,
-        body: credentials,
-        method: 'POST',
-      });
-      dispatch(setLoading(false));
-      console.log(
-        'getDoctorsLists_response=>>',
-        JSON.stringify(response?.data),
-      );
-      if (response.status !== 200) {
-        return rejectWithValue(response?.data);
-      }
-
-      return response?.data;
-    } catch (error) {
-      console.log(error);
-      return rejectWithValue(error);
-    }
-  },
+  'getDoctorsLists',
+  {method: 'POST'},
 );
-
-export const get_appointment_list = createAsyncThunk(
+export const get_appointment_list = makeThunk(
   'appointment/getappointments',
-  async (credentials, {rejectWithValue, dispatch}) => {
-    try {
-      dispatch(setLoading(true));
-      console.log('credentials=>>>', credentials);
-
-      const response = await API({
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        route: `getappointments`,
-        body: credentials,
-        method: 'GET',
-      });
-      dispatch(setLoading(false));
-      console.log(
-        'getappointments_response=>>',
-        JSON.stringify(response?.data),
-      );
-      if (response.status !== 200) {
-        return rejectWithValue(response?.data);
-      }
-
-      return response?.data;
-    } catch (error) {
-      console.log(error);
-      return rejectWithValue(error);
-    }
-  },
+  'getappointments',
+  {method: 'GET', showToastMessage: false},
 );
-
-export const get_appointment_reasons_list = createAsyncThunk(
+export const get_appointment_reasons_list = makeThunk(
   'appointment/admin/AppointmentType',
-  async (credentials, {rejectWithValue, dispatch}) => {
-    try {
-      dispatch(setLoading(true));
-      console.log('credentials=>>>', credentials);
-
-      const response = await API({
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        route: `admin/AppointmentType`,
-        body: credentials,
-        method: 'GET',
-      });
-      dispatch(setLoading(false));
-      console.log(
-        'admin/AppointmentType_response=>>',
-        JSON.stringify(response?.data),
-      );
-      if (response.status !== 200) {
-        return rejectWithValue(response?.data);
-      }
-
-      return response?.data;
-    } catch (error) {
-      console.log(error);
-      return rejectWithValue(error);
-    }
-  },
+  'admin/AppointmentType',
+  {method: 'GET'},
 );

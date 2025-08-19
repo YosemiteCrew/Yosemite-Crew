@@ -30,6 +30,7 @@ export interface IWebUser {
   cognitoId?: string;
   role?: string;
   bussinessId?: string;
+  email?:string;
   otp?: number;
   otpExpiry?: Date;
   subscribe?:boolean;

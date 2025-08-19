@@ -53,6 +53,7 @@ const ContactUs = ({navigation}) => {
     {type: 'general', title: 'General Enquiry'},
     {type: 'feature', title: 'Feature Request'},
     {type: 'dsar', title: 'Data Subject Access Request'},
+    {type: 'complaint', title: 'Complaint'},
   ];
 
   const renderContactOption = (optionType, title) => (
@@ -70,7 +71,7 @@ const ContactUs = ({navigation}) => {
         setSubject('');
       }}
       titleStyle={{
-        color: contactOption === optionType ? colors.appRed : colors.darkPurple,
+        color: colors.jetBlack,
       }}
     />
   );
@@ -105,7 +106,6 @@ const ContactUs = ({navigation}) => {
       message: message,
       requests: JSON.stringify(requests),
     };
-    console.log('DSARinput', DSARinput);
 
     if (contactOption === 'dsar') {
       if (
@@ -177,7 +177,7 @@ const ContactUs = ({navigation}) => {
               <Image
                 source={Images.arrowLeftOutline}
                 style={styles.headerIcon}
-                tintColor={colors.darkPurple}
+                tintColor={colors.jetBlack}
               />
             </TouchableOpacity>
             <GText GrMedium text="Contact us" style={styles.contactText} />
@@ -187,8 +187,7 @@ const ContactUs = ({navigation}) => {
           </View>
         </ImageBackground>
         <View style={styles.helpTextContainer}>
-          <GText GrMedium text="We’re happy" style={styles.happyText} />
-          <GText GrMedium text=" to help" style={styles.helpText} />
+          <GText GrMedium text="We’re happ to help" style={styles.helpText} />
         </View>
         <View style={styles.contactOptionMainView}>
           {options.map(option =>
@@ -222,7 +221,7 @@ const ContactUs = ({navigation}) => {
             />
           </>
         )}
-        {contactOption == 'dsar' && (
+        {['dsar', 'complaint']?.includes(contactOption) && (
           <>
             <GText
               GrMedium
@@ -252,55 +251,63 @@ const ContactUs = ({navigation}) => {
                 />
               </TouchableOpacity>
             ))}
-            <GText
-              GrMedium
-              text="Under the rights of which law are you making this request?"
-              style={styles.underRightText}
-            />
-            <TouchableOpacity
-              onPress={() => {
-                refRBSheet?.current?.open();
-              }}
-              style={styles.professionalButton}>
-              <GText
-                SatoshiRegular
-                text={selectLaw?.title || t('select_one_string')}
-                style={styles.professionalText}
-              />
-              <Image source={Images.ArrowDown} style={styles.arrowIcon} />
-            </TouchableOpacity>
-            <GText
-              GrMedium
-              text="You are submitting this request to"
-              style={styles.submittingRequestToText}
-            />
-
-            {submitRequestToList?.map((item, index) => (
-              <TouchableOpacity
-                key={item?.id}
-                style={styles.submitRequestView(index, submitRequestToList)}
-                onPress={() => setSelectedSubmitRequestTo(item)}>
-                <Image
-                  source={
-                    selectedSubmitRequestTo?.id == item?.id
-                      ? Images.Circle_Radio
-                      : Images.Circle_Button
-                  }
-                  style={styles.radioButton}
-                />
+            {contactOption !== 'complaint' && (
+              <>
                 <GText
-                  text={item?.name}
-                  style={styles.submitRequestItemName(
-                    selectedSubmitRequestTo?.id,
-                    item,
-                  )}
+                  GrMedium
+                  text="Under the rights of which law are you making this request?"
+                  style={styles.underRightText}
                 />
-              </TouchableOpacity>
-            ))}
+                <TouchableOpacity
+                  onPress={() => {
+                    refRBSheet?.current?.open();
+                  }}
+                  style={styles.professionalButton}>
+                  <GText
+                    SatoshiRegular
+                    text={selectLaw?.title || t('select_one_string')}
+                    style={styles.professionalText}
+                  />
+                  <Image source={Images.ArrowDown} style={styles.arrowIcon} />
+                </TouchableOpacity>
+                <GText
+                  GrMedium
+                  text="You are submitting this request to"
+                  style={styles.submittingRequestToText}
+                />
+
+                {submitRequestToList?.map((item, index) => (
+                  <TouchableOpacity
+                    key={item?.id}
+                    style={styles.submitRequestView(index, submitRequestToList)}
+                    onPress={() => setSelectedSubmitRequestTo(item)}>
+                    <Image
+                      source={
+                        selectedSubmitRequestTo?.id == item?.id
+                          ? Images.Circle_Radio
+                          : Images.Circle_Button
+                      }
+                      style={styles.radioButton}
+                    />
+                    <GText
+                      text={item?.name}
+                      style={styles.submitRequestItemName(
+                        selectedSubmitRequestTo?.id,
+                        item,
+                      )}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </>
+            )}
 
             <GText
               GrMedium
-              text="Please leave details regarding your action request or question"
+              text={
+                contactOption !== 'complaint'
+                  ? 'Please leave details regarding your action request or question'
+                  : 'Please leave details regarding your complaint.'
+              }
               style={styles.leaveDetailsText}
             />
             <TextInput
@@ -312,6 +319,26 @@ const ContactUs = ({navigation}) => {
               style={[
                 styles.textInputStyle,
                 {marginTop: scaledValue(8), marginBottom: scaledValue(36)},
+              ]}
+            />
+            <GText
+              GrMedium
+              text={'Please add link regarding your complaint (optional)'}
+              style={[styles.leaveDetailsText, {marginTop: 0}]}
+            />
+            <TextInput
+              value={message}
+              onChangeText={text => setMessage(text)}
+              placeholder={t('your_message_string')}
+              placeholderTextColor={'#aaa'}
+              style={[
+                styles.textInputStyle,
+                {
+                  marginTop: scaledValue(8),
+                  marginBottom: scaledValue(36),
+                  height: scaledValue(43),
+                  paddingTop: scaledValue(0),
+                },
               ]}
             />
             <GText
@@ -347,7 +374,11 @@ const ContactUs = ({navigation}) => {
             <GButton
               disabled={selectedConfirmTerms?.length < 3}
               onPress={contactUs}
-              title={'Submit Request'}
+              title={
+                contactOption === 'complaint'
+                  ? 'Sumbit Complaint'
+                  : 'Submit Request'
+              }
               style={[
                 styles.buttonStyle,
                 {
@@ -355,7 +386,6 @@ const ContactUs = ({navigation}) => {
                   marginBottom: insets.bottom || scaledValue(20),
                 },
               ]}
-              textStyle={styles.buttonText}
             />
           </>
         )}

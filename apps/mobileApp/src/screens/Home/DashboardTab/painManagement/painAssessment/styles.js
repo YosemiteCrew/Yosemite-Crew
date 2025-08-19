@@ -1,4 +1,4 @@
-import {StyleSheet} from 'react-native';
+import {Dimensions, StyleSheet} from 'react-native';
 import {
   scaledHeightValue,
   scaledValue,
@@ -33,7 +33,7 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(12),
     lineHeight: scaledValue(12),
     textAlign: 'center',
-    color: colors.appRed,
+    color: colors.jetLightBlack,
   },
   petImg: {
     width: scaledValue(60),
@@ -42,33 +42,33 @@ export const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   titleText: {
-    fontSize: scaledValue(18),
-    lineHeight: scaledValue(25.2),
+    fontSize: scaledValue(16),
+    lineHeight: scaledValue(16 * 1.4),
     textAlign: 'center',
-    color: colors.appRed,
-    letterSpacing: scaledValue(18 * -0.02),
+    letterSpacing: scaledValue(16 * -0.02),
     marginTop: scaledValue(20),
   },
   subTitleText: {
     fontSize: scaledValue(14),
     lineHeight: scaledValue(16.8),
     textAlign: 'center',
-    color: colors.darkPurple,
     marginTop: scaledValue(8),
-    paddingHorizontal: scaledValue(30),
+    paddingHorizontal: scaledValue(10),
     paddingBottom: scaledValue(30),
   },
   cardContainer: {
     marginTop: scaledValue(28),
-    backgroundColor: '#FFF6EB',
+    backgroundColor: colors.themeColor,
     marginHorizontal: scaledValue(20),
     borderRadius: scaledValue(20),
     shadowColor: '#47382726',
-    shadowOffset: {width: 10, height: 10},
-    shadowOpacity: 0.2,
+    // shadowOffset: {width: 10, height: 10},
+    shadowOpacity: 0.5,
     shadowRadius: 4,
     elevation: 10,
     paddingHorizontal: scaledValue(20),
+    borderWidth: scaledValue(1),
+    borderColor: colors.jetBlack50,
   },
   optionImage: {
     width: scaledValue(20),
@@ -82,14 +82,14 @@ export const styles = StyleSheet.create({
   title: (select, i) => ({
     fontSize: scaledValue(18),
     lineHeight: scaledValue(21.6),
-    color: select === i?.id ? colors.appRed : colors.darkPurple,
+    color: select === i?.id ? colors.primaryBlue : colors.darkPurple,
     letterSpacing: scaledValue(18 * -0.01),
   }),
   subTitle: {
     fontSize: scaledValue(14),
     lineHeight: scaledValue(16.8),
-    color: colors.darkPurple,
     marginTop: scaledValue(6),
+    opacity: 0.8,
   },
   separator: {
     borderWidth: scaledValue(0.5),
@@ -103,13 +103,10 @@ export const styles = StyleSheet.create({
     marginVertical: scaledValue(17),
   },
   createButton: {
-    backgroundColor: '#FDBD74',
-    width: scaledValue(335),
-    height: scaledValue(52),
-    borderRadius: scaledValue(28),
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
+    width: Dimensions.get('window').width - scaledValue(40),
   },
   buttonText: {
     fontSize: scaledValue(18),
@@ -122,7 +119,7 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(18),
     lineHeight: scaledHeightValue(18),
     letterSpacing: scaledValue(18 * -0.01),
-    color: colors.appRed,
+    color: colors.jetBlack,
     fontFamily: fonts?.CLASH_GRO_MEDIUM,
     textAlign: 'center',
     marginTop: scaledValue(17),
@@ -132,7 +129,6 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(16),
     lineHeight: scaledHeightValue(22.4),
     letterSpacing: scaledValue(16 * -0.01),
-    color: colors.darkPurple,
     marginBottom: scaledValue(12),
   },
   innerView: {
@@ -142,13 +138,12 @@ export const styles = StyleSheet.create({
   editText: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    color: colors.appRed,
+    color: colors.primaryBlue,
   },
   happyText: {
     fontSize: scaledValue(18),
     lineHeight: scaledHeightValue(21.6),
     letterSpacing: scaledValue(18 * -0.01),
-    color: colors.darkPurple,
   },
   secondSeparator: {
     borderWidth: scaledValue(0.5),
