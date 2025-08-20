@@ -5,7 +5,7 @@ const router = express.Router();
 
 router.post('/addInventory',verifyToken, InventoryControllers.AddInventory);
 router.get('/InventoryItem',verifyToken, InventoryControllers.getInventory);
-router.post('/AddProcedurePackage',verifyTokenAndRefresh, InventoryControllers.AddProcedurePackage);
+router.post('/AddProcedurePackage',verifyToken, InventoryControllers.AddProcedurePackage);
 // router.get(
 //   '/InventoryReport',verifyTokenAndRefresh,
 //   InventoryControllers.getToViewItemsDetaild
