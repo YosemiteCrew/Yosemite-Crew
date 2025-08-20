@@ -8,6 +8,7 @@ import AddDoctors from '../models/AddDoctor';
 import { AddDoctorDoc, Department, IProfileData, IWebUser, Organization, WebAppointmentType } from '@yosemite-crew/types';
 import { ProfileData, WebUser } from '../models/WebUser';
 import { fetchDepartmentsAndRating } from '../utils/enrichmentHelper';
+import adminDepartments from '../models/admin-department';
 
 const baseUrl = process.env.BASE_URL;
 const listController = {
@@ -453,6 +454,11 @@ const listController = {
   getDoctorCountDepartmentWise: async (req: Request, res: Response): Promise<void> => {
     try {
       const { cognitoId } = req.query as { cognitoId: string };
+
+     if (!cognitoId || typeof cognitoId !== "string") {
+        res.status(200).json({ status: 0, message: "Cognito ID is required" });
+        return
+      }
 
       const hospital: IWebUser | null = await WebUser.findOne({ cognitoId });
       if (!hospital) {
