@@ -4,7 +4,7 @@ import keys from "../google-services.json";
 
 export class GoogleAuth {
   static getAuthenticatedClient(): OAuth2Client {
-    console.log(keys,'keysss');
+    
     return new OAuth2Client({
       clientId: keys.web.client_id,
       clientSecret: keys.web.client_secret,
@@ -14,7 +14,6 @@ export class GoogleAuth {
 
   static getAuthUrl(): string {
     const oAuth2Client = this.getAuthenticatedClient();
-    console.log(oAuth2Client,'ss');
     const scopes = [
       "https://www.googleapis.com/auth/userinfo.profile",
       "https://www.googleapis.com/auth/userinfo.email",
