@@ -1,3 +1,4 @@
+import React, {useEffect, useState} from 'react';
 import {
   Dimensions,
   Image,
@@ -5,17 +6,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Text,
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
-import React, {useEffect, useState} from 'react';
 import RBSheet from 'react-native-raw-bottom-sheet';
+import {TextInput} from 'react-native-paper';
 import {Images} from '../../utils';
 import GText from '../GText/GText';
-import {TextInput} from 'react-native-paper';
-import GTextButton from '../GTextButton/GTextButton';
 import GButton from '../GButton';
 import {styles} from './styles';
 import {useTranslation} from 'react-i18next';
@@ -24,36 +22,31 @@ const ChoosePetBreed = props => {
   const refRBSheet = props.refRBSheet;
   const petName = props.pet;
   const continuePress = props?.continuePress;
-  const {t} = useTranslation();
-  const [search, setSearch] = useState('');
-  const [optionsCount, setOptionsCount] = useState(20);
   const onChoose = props.onChoose || null;
   const value = props.value || [];
   const options = props.options || [];
   const titleKey = props.titleKey || 'name';
+  const {t} = useTranslation();
+  const [search, setSearch] = useState('');
+  const [optionsCount, setOptionsCount] = useState(20);
+  const [isFocused, setIsFocused] = useState(false);
   const [filteredOptions, setFilteredOptions] = useState(options);
-
-  const isCloseToBottom = ({layoutMeasurement, contentOffset, contentSize}) => {
-    const paddingToBottom = 20;
-    return (
-      layoutMeasurement.height + contentOffset.y >=
-      contentSize.height - paddingToBottom
-    );
-  };
 
   useEffect(() => {
     setFilteredOptions(options.filter(o => o[titleKey].includes(search)));
   }, [search, options]);
 
-  const Option = ({title, value}) => (
+  const isCloseToBottom = ({layoutMeasurement, contentOffset, contentSize}) =>
+    layoutMeasurement.height + contentOffset.y >= contentSize.height - 20;
+
+  const Option = ({title, selected}) => (
     <View style={styles.optionContainer}>
-      <GTextButton
-        disabled={true}
-        titleStyle={[
+      <GText
+        text={title}
+        style={[
           styles.optionText,
-          value ? styles.optionTextSelected : styles.optionTextDefault,
+          selected ? styles.optionTextSelected : styles.optionTextDefault,
         ]}
-        title={title}
       />
     </View>
   );
@@ -62,23 +55,20 @@ const ChoosePetBreed = props => {
     <RBSheet
       ref={refRBSheet}
       height={Dimensions.get('screen').height / 1.17}
-      closeOnDragDown={true}
-      closeOnPressMask={true}
+      closeOnDragDown
+      closeOnPressMask
       onClose={() => {
         setSearch('');
         onChoose(null);
       }}
       customStyles={{
-        draggableIcon: {
-          backgroundColor: '#ddd',
-        },
+        draggableIcon: {backgroundColor: '#ddd'},
         container: styles.rbsheetContainer,
       }}>
-      <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <KeyboardAvoidingView
           style={{flex: 1}}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}>
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <View style={styles.headerContainer}>
             <TouchableOpacity
               onPress={() => {
@@ -88,11 +78,7 @@ const ChoosePetBreed = props => {
               style={styles.closeButton}>
               <Image source={Images.Close_Circle} style={styles.closeIcon} />
             </TouchableOpacity>
-            <Image
-              source={petName?.icon}
-              resizeMode="contain"
-              style={styles.dogImage}
-            />
+
             <GText
               GrMedium
               text={`${t('select_string')} ${petName?.title} ${t(
@@ -100,14 +86,16 @@ const ChoosePetBreed = props => {
               )}`}
               style={styles.titleText}
             />
+
             <TextInput
               placeholder={t('search_breed_string')}
               mode="outlined"
-              placeholderTextColor={'#312943'}
-              outlineStyle={styles.textInputOutline}
-              style={styles.textInput}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              outlineStyle={styles.textInputOutline(isFocused)}
+              style={styles.textInput(search)}
               returnKeyType="search"
-              onChangeText={text => setSearch(text)}
+              onChangeText={setSearch}
               right={
                 <TextInput.Icon
                   icon={() => (
@@ -117,6 +105,7 @@ const ChoosePetBreed = props => {
               }
             />
           </View>
+
           <ScrollView
             onScroll={({nativeEvent}) => {
               if (isCloseToBottom(nativeEvent)) {
@@ -127,21 +116,17 @@ const ChoosePetBreed = props => {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}>
             <View style={styles.optionsContainer}>
-              {filteredOptions.slice(0, optionsCount).map((c, i) => (
-                <TouchableOpacity
-                  key={i}
-                  onPress={() => {
-                    onChoose(c?.name);
-                  }}>
+              {filteredOptions.slice(0, optionsCount).map((item, i) => (
+                <TouchableOpacity key={i} onPress={() => onChoose(item?.name)}>
                   <View style={styles.optionWrapper}>
                     <Option
-                      title={c[titleKey]}
-                      value={value.includes(c?.name)}
+                      title={item[titleKey]}
+                      selected={value.includes(item?.name)}
                     />
                     <Image
                       style={styles.optionImage}
                       source={
-                        value === c?.name
+                        value === item?.name
                           ? Images.Circle_Radio
                           : Images.Circle_Button
                       }
@@ -153,15 +138,14 @@ const ChoosePetBreed = props => {
             </View>
           </ScrollView>
 
-          <GButton
-            disabled={value?.length === 0}
-            onPress={() => {
-              continuePress();
-            }}
-            title={t('continue_string')}
-            style={styles.continueButton}
-            textStyle={styles.continueButtonText}
-          />
+          <View style={styles.btnView}>
+            <GButton
+              disabled={value.length === 0}
+              onPress={continuePress}
+              title={t('confirm_button_string')}
+              style={styles.continueButton}
+            />
+          </View>
         </KeyboardAvoidingView>
       </TouchableWithoutFeedback>
     </RBSheet>

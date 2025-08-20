@@ -24,17 +24,19 @@ import {
 } from '../../../../redux/store/storeUtils';
 import {get_pet_list} from '../../../../redux/slices/petSlice';
 import GImage from '../../../../components/GImage';
+import {get_appointment_list} from '../../../../redux/slices/appointmentSlice';
+import {transformAllAppointments} from '../../../../helpers/transformAppointments';
+import moment from 'moment';
 
 const Dashboard = ({navigation}) => {
   const {t} = useTranslation();
   const swiperRef = useRef();
-  const [selectPet, setSelectPet] = useState({});
+  const petList = useAppSelector(state => state.pets?.petLists);
+  const [selectPet, setSelectPet] = useState(petList[0]);
   const userData = useAppSelector(state => state.auth.user);
-  console.log('userData', userData);
+  const [upComingAppointmentsList, setUpComingAppointmentsList] = useState([]);
 
   const dispatch = useAppDispatch();
-  const getPetList = useAppSelector(state => state.pets?.petLists);
-  const petList = useAppSelector(state => state.pets?.petLists);
 
   useEffect(() => {
     dispatch(
@@ -43,37 +45,37 @@ const Dashboard = ({navigation}) => {
         limit: 10,
       }),
     );
+    dispatch(
+      get_appointment_list({
+        type: 'upcoming',
+        limit: 10,
+        offset: 0,
+      }),
+    ).then(res => {
+      if (get_appointment_list.fulfilled.match(res)) {
+        const transformed = transformAllAppointments(res?.payload);
+        setUpComingAppointmentsList(transformed?.upcoming);
+      }
+    });
   }, []);
 
   const [scrollIndex, setScrollIndex] = useState(0);
   const [visible, setVisible] = useState(false);
 
   const handlePetSelection = pet => {
-    if (selectPet?.id === pet?.resource?.id) {
+    if (selectPet?.id === pet?.id) {
       setSelectPet(null);
     } else {
-      setSelectPet(pet?.resource);
+      setSelectPet(pet);
     }
   };
 
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingRight: scaledValue(20),
-          }}>
+        <View style={styles.headerContainerRight}>
           <TouchableOpacity onPress={() => setVisible(true)}>
-            <Image
-              source={Images.Emergency}
-              style={{
-                width: scaledValue(24),
-                height: scaledValue(24),
-                marginRight: scaledValue(6),
-              }}
-            />
+            <Image source={Images.Emergency} style={styles.emergencyIcon} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerRight}
@@ -85,35 +87,21 @@ const Dashboard = ({navigation}) => {
         </View>
       ),
       headerLeft: () => (
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingLeft: scaledValue(20),
-          }}>
-          <Image
-            source={Images.User}
-            style={{
-              width: scaledValue(40),
-              height: scaledValue(40),
-              borderRadius: scaledValue(40),
-            }}
+        <View style={styles.headerContainerLeft}>
+          <GImage
+            image={userData?.profileImage[0]?.url}
+            style={styles.userImage}
           />
           <GText
             GrMedium
             componentProps={{numberOfLines: 1, ellipsizeMode: 'tail'}}
-            text={`Henlo, ${userData?.firstName}`}
+            text={`Hello, ${userData?.firstName}`}
             style={styles.greetingText}
           />
         </View>
       ),
     });
   }, [navigation]);
-
-  // const petList = [
-  //   {id: 1, name: 'Kizie', img: Images.Kizi},
-  //   {id: 2, name: 'Oscar', img: Images.CatImg},
-  // ];
 
   const modalData = [
     {
@@ -214,32 +202,29 @@ const Dashboard = ({navigation}) => {
   ];
 
   const renderPetItem = ({item}) => {
-    const petDetails = item?.resource?.extension?.reduce((acc, item) => {
-      acc[item.title] = item.valueString;
-      return acc;
-    }, {});
+    const isSelected = selectPet?.id === item?.id;
+
     return (
       <TouchableOpacity
+        style={styles.petItemContainer}
         onPress={() => handlePetSelection(item)}
-        style={{opacity: selectPet?.id === item?.resource?.id ? 0.4 : 1}}>
+        activeOpacity={0.7}>
         <GImage
-          image={petDetails?.petImage?.url}
-          style={styles.petImage}
+          image={item?.petImages}
+          style={styles.petImage(isSelected)}
           noImageSource={Images.Kizi}
         />
-        <GText
-          SatoshiBold
-          text={item?.resource?.name[0]?.text}
-          style={styles.petNameText}
-        />
+        <GText SatoshiBold text={item?.name} style={styles.petNameText} />
+        <View style={styles.petUnderline(isSelected)} />
       </TouchableOpacity>
     );
   };
+
   const renderQuickActionItem = ({item}) => (
     <TouchableOpacity
       onPress={() => navigation.navigate('StackScreens', {screen: item.screen})}
       style={styles.quickActionItem}
-      activeOpacity={0.5}>
+      activeOpacity={0.8}>
       <View style={styles.quickActionImageView}>
         <Image source={item.img} style={styles.quickActionImage} />
       </View>
@@ -251,11 +236,9 @@ const Dashboard = ({navigation}) => {
       <TouchableOpacity
         onPress={() => {
           setVisible(false);
-          // setTimeout(() => {
           navigation?.navigate('StackScreens', {
             screen: 'ContactVet',
           });
-          // }, 200);
         }}
         style={styles.modalFlatlistMain}>
         <View style={styles.imgView}>
@@ -263,8 +246,12 @@ const Dashboard = ({navigation}) => {
         </View>
 
         <View style={styles.textView}>
-          <Text style={styles.modalHeading}>{item.modalHeading}</Text>
-          <Text style={styles.modalText}>{item.modalText}</Text>
+          <GText
+            GrMedium
+            text={item.modalHeading}
+            style={styles.modalHeading}
+          />
+          <GText SatoshiMedium text={item.modalText} style={styles.modalText} />
         </View>
       </TouchableOpacity>
     );
@@ -272,14 +259,22 @@ const Dashboard = ({navigation}) => {
   const renderWellnessSummaryItem = ({item}) => (
     <View style={styles.wellnessSummaryItemView} activeOpacity={0.5}>
       <GText GrMedium text={item.title} style={styles.wellnessSummaryTitle} />
-      <HalfCircleProgress subTitle={item.subTitle} status={item.status} />
-      <View style={styles.statusView}>
-        <GText GrMedium style={styles.subTitleText} text={item.subTitle} />
-        <GText
-          SatoshiRegular
-          text={item.status}
-          style={styles.graphStatusText}
+      <View style={{marginBottom: scaledValue(30)}}>
+        <HalfCircleProgress
+          percent={70}
+          subTitle={item.subTitle}
+          status={item.status}
         />
+        <View style={styles.statusView}>
+          <GText GrMedium style={styles.subTitleText} text={item.subTitle} />
+          {item.status && (
+            <GText
+              SatoshiRegular
+              text={item.status}
+              style={styles.graphStatusText}
+            />
+          )}
+        </View>
       </View>
     </View>
   );
@@ -289,50 +284,40 @@ const Dashboard = ({navigation}) => {
       <ScrollView
         showsVerticalScrollIndicator={false}
         style={styles.scrollView}>
-        {petList?.entry?.length < 1 && (
+        <TouchableOpacity style={styles.searchTouchable}>
+          <GText
+            text={t('search_hos_doc_pms_string')}
+            style={styles.searchText}
+          />
+          <Image source={Images.Search} style={styles.solarWalledImage} />
+        </TouchableOpacity>
+        {/* {petList?.length < 1 && (
           <>
             <GText
               GrMedium
               text={'Welcome to your companions’s'}
-              style={{
-                textAlign: 'center',
-                fontSize: scaledValue(20),
-                letterSpacing: scaledValue(20 * -0.01),
-                color: colors.darkPurple,
-                lineHeight: scaledHeightValue(20 * 1.2),
-                marginTop: scaledValue(35),
-              }}
+              style={styles.welcomeTitle}
             />
             <GText
               GrMedium
               text={'new favorite place!'}
-              style={{
-                textAlign: 'center',
-                fontSize: scaledValue(20),
-                letterSpacing: scaledValue(20 * -0.01),
-                color: colors.appRed,
-                lineHeight: scaledHeightValue(20 * 1.2),
-              }}
+              style={styles.welcomeSubtitle}
             />
             <Image
               source={Images.DashboardWelcome}
-              style={{
-                width: Dimensions.get('window').width,
-                height: scaledValue(250),
-                marginTop: scaledValue(4),
-              }}
+              style={styles.welcomeImage}
             />
           </>
-        )}
+        )} */}
 
         <GText GrMedium text="Your Companions" style={styles.petsText} />
-        {petList?.entry?.length > 0 ? (
+        {petList?.length > 0 ? (
           <>
             <View style={styles.petListContainer}>
               <View>
                 <FlatList
                   showsHorizontalScrollIndicator={false}
-                  data={petList?.entry}
+                  data={petList}
                   horizontal
                   contentContainerStyle={styles.petList}
                   renderItem={renderPetItem}
@@ -342,105 +327,170 @@ const Dashboard = ({navigation}) => {
           </>
         ) : (
           <TouchableOpacity
+            onPress={() =>
+              navigation.navigate('StackScreens', {screen: 'ChooseYourPet'})
+            }
             activeOpacity={0.8}
-            style={{
-              width: scaledValue(159),
-              height: scaledValue(157),
-              backgroundColor: colors.appRed,
-              borderRadius: scaledValue(20),
-              marginHorizontal: scaledValue(19),
-              marginTop: scaledValue(12),
-            }}>
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
+            style={styles.addCompanionTouchable}>
+            <View style={styles.addCompanionImageContainer}>
               <Image
                 source={Images.solarCircle}
-                style={{
-                  width: scaledValue(32),
-                  height: scaledValue(32),
-                  left: scaledValue(15),
-                  top: scaledValue(20),
-                }}
+                style={styles.solarCircleImage}
               />
-              <Image
-                source={Images.PawImage}
-                style={{
-                  width: scaledValue(113.18),
-                  height: scaledValue(113.18),
-                  left: scaledValue(20),
-                }}
-              />
+              <Image source={Images.PawImage} style={styles.pawImage} />
             </View>
             <GText
               GrMedium
               text={'Add your First Companion'}
-              style={{
-                alignSelf: 'center',
-                color: colors.pearlWhite,
-                fontSize: scaledValue(18),
-                lineHeight: scaledHeightValue(18 * 1.2),
-                letterSpacing: scaledValue(18 * -0.01),
-                bottom: scaledValue(15),
-              }}
+              style={styles.addCompanionText}
             />
           </TouchableOpacity>
         )}
 
+        {upComingAppointmentsList?.length === 0 && (
+          <>
+            <GText
+              GrMedium
+              text={'Upcoming Appointments'}
+              style={styles.upcomingHeading}
+            />
+            <View style={styles.noUpcomingContainer}>
+              <GText
+                GrMedium
+                text={'No upcoming Appointments yet.'}
+                style={styles.noUpcomingText}
+              />
+              <GText
+                SatoshiRegular
+                text={'Add a companion to start\nmanaging their health.'}
+                style={styles.noUpcomingSubText}
+              />
+            </View>
+          </>
+        )}
+
         <GText
           GrMedium
-          text={'Upcoming Appointments'}
-          style={{
-            fontSize: scaledValue(20),
-            letterSpacing: scaledValue(20 * -0.01),
-            lineHeight: scaledHeightValue(20 * 1.2),
-            marginHorizontal: scaledValue(20),
-            marginTop: scaledValue(40),
-          }}
+          text={'Upcoming Assessments'}
+          style={styles.assessmentHeading}
         />
-        <View
-          style={{
-            width: Dimensions.get('window').width - 40,
-            backgroundColor: colors.offWhite,
-            alignSelf: 'center',
-            paddingVertical: scaledValue(20),
-            justifyContent: 'center',
-            alignItems: 'center',
-            borderRadius: scaledValue(20),
-            marginTop: scaledValue(12),
-            marginBottom: scaledValue(48),
-            shadowColor: '##47382726',
-            shadowOffset: {width: 10, height: 10},
-            shadowOpacity: 0.15,
-            shadowRadius: 20,
-            elevation: 20,
-          }}>
+        <View style={styles.noAssessmentContainer}>
           <GText
             GrMedium
-            text={'No upcoming appointments yet.'}
-            style={{
-              fontSize: scaledValue(18),
-              lineHeight: scaledHeightValue(18 * 1.2),
-              letterSpacing: scaledValue(18 * -0.01),
-              textAlign: 'center',
-            }}
+            text={'No upcoming Assessments yet.'}
+            style={styles.noAssessmentText}
           />
           <GText
             SatoshiRegular
-            text={'Add a companion to start\nmanaging their health.'}
-            style={{
-              fontSize: scaledValue(14),
-              lineHeight: scaledHeightValue(14 * 1.4),
-              marginTop: scaledValue(4),
-              textAlign: 'center',
-            }}
+            text={'Add a companion to start managing their health.'}
+            style={styles.noAssessmentSubText}
           />
         </View>
+        {upComingAppointmentsList?.length > 0 && (
+          <>
+            <View style={styles.headerView}>
+              <GText
+                GrMedium
+                text={`${t('upcoming_appointment_string')} `}
+                style={styles.teamText}
+              />
+              <GText
+                GrMedium
+                text={`(${upComingAppointmentsList?.length})`}
+                style={styles.countText}
+              />
+            </View>
 
-        {/* <View style={styles.yearlySummaryMainView}>
+            <Swiper
+              height={
+                upComingAppointmentsList?.length > 1
+                  ? scaledValue(359)
+                  : scaledValue(300)
+              }
+              ref={swiperRef}
+              loop={false}
+              // style={{backgroundColor: 'red'}}
+              bounces={false}
+              onIndexChanged={index => setScrollIndex(index)}
+              activeDotColor={colors.appRed}
+              dotColor={colors.appRed}
+              activeDotStyle={styles.activeDotStyle}
+              dotStyle={styles.dotStyle}
+              paginationStyle={styles.swiperPaginationStyle}>
+              {upComingAppointmentsList.map((item, index) => {
+                const combinedDate = `${item?.date} ${item?.time}`;
+                const formatted = moment(
+                  combinedDate,
+                  'YYYY-MM-DD h:mm A',
+                ).format('dddd, DD MMM - hh:mm A');
+                return (
+                  <View key={index}>
+                    <AppointmentCard
+                      key={index}
+                      petImage={item?.pet?.image}
+                      imageSource={item?.vet?.image}
+                      doctorName={item?.vet?.name}
+                      department={item?.vet?.specialization}
+                      qualifications={item?.vet?.qualification}
+                      hospitalName={item?.location}
+                      appointmentTime={formatted}
+                      navigation={navigation}
+                      confirmed
+                      dashBoard
+                      swiperCardStyle={styles.swiperCardStyle}
+                      doctorNameTextStyle={{color: colors.jetBlack}}
+                      departmentTextStyle={{color: colors.jetBlack}}
+                      buttonStyle={{
+                        backgroundColor: colors.jetBlack50,
+                        gap: scaledValue(6),
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                      buttonIconStyle={{tintColor: colors.jetBlack, opacity: 1}}
+                    />
+                  </View>
+                );
+              })}
+            </Swiper>
+          </>
+        )}
+
+        <View style={styles.vaccinationStatusMainView}>
+          <View style={styles.statusCardView1}>
+            <View style={styles.syringeBoldImageView}>
+              <Image
+                source={Images.syringe_bold}
+                style={styles.syringeBoldImage}
+              />
+            </View>
+            <View style={{flex: 1, marginLeft: scaledValue(7)}}>
+              <GText
+                GrMedium
+                text={'Vaccination'}
+                style={styles.vaccinationText}
+              />
+              <GText
+                GrMedium
+                text={'Status'}
+                style={styles.vaccinationStatusText}
+              />
+            </View>
+            <View style={styles.upToDateView}>
+              <Image
+                tintColor={colors.jetBlack}
+                source={Images.CircleCheck}
+                style={styles.circleCheckImage}
+              />
+              <GText
+                SatoshiBold
+                text={'Up-to-date'}
+                style={styles.upToDateText}
+              />
+            </View>
+          </View>
+        </View>
+        <View style={styles.yearlySummaryMainView}>
           <View style={styles.statusCardView2}>
             <View style={styles.statusCardImageView}>
               <Image
@@ -448,7 +498,7 @@ const Dashboard = ({navigation}) => {
                 style={styles.solarWalledImage}
               />
             </View>
-            <View style={{ marginLeft: scaledValue(12) }}>
+            <View style={{marginLeft: scaledValue(12)}}>
               <GText
                 SatoshiBold
                 text={'Yearly Spend Summary'}
@@ -467,116 +517,26 @@ const Dashboard = ({navigation}) => {
                 screen: 'YearlySpendScreen',
               });
             }}
-            style={styles.imageView}
-          >
-            <Image
-              style={{
-                height: scaledValue(20),
-                width: scaledValue(20),
-                marginRight: scaledValue(20),
-              }}
-              source={Images.Edit}
-            />
+            style={styles.imageView}>
+            <Image style={styles.editIconImage} source={Images.Edit} />
           </TouchableOpacity>
         </View>
-
-        <View style={styles.vaccinationStatusMainView}>
-          <View style={styles.statusCardView1}>
-            <View style={styles.syringeBoldImageView}>
-              <Image
-                source={Images.syringe_bold}
-                style={styles.syringeBoldImage}
-              />
-            </View>
-            <View style={{ marginLeft: scaledValue(12), flex: 1 }}>
-              <GText
-                GrMedium
-                text={'Vaccination'}
-                style={styles.vaccinationText}
-              />
-              <GText
-                GrMedium
-                text={'Status'}
-                style={styles.vaccinationStatusText}
-              />
-            </View>
-            <View style={styles.upToDateView}>
-              <Image
-                tintColor={colors.darkPurple}
-                source={Images.CircleCheck}
-                style={styles.circleCheckImage}
-              />
-              <GText
-                SatoshiBold
-                text={'Up-to-date'}
-                style={styles.upToDateText}
-              />
-            </View>
-          </View>
-        </View> */}
-        {/* <View style={styles.headerView}>
-          <GText
-            GrMedium
-            text={`${t('upcoming_appointment_string')} `}
-            style={styles.teamText}
-          />
-          <GText GrMedium text={'(2)'} style={styles.countText} />
-        </View> */}
-
-        {/* <Swiper
-          height={430}
-          ref={swiperRef}
-          loop={false}
-          bounces={false}
-          containerStyle={{
-            height: scaledValue(234),
-          }}
-          onIndexChanged={(index) => setScrollIndex(index)}
-          activeDotColor={colors.appRed}
-          dotColor={colors.appRed}
-          activeDotStyle={styles.activeDotStyle}
-          dotStyle={styles.dotStyle}
-          paginationStyle={{
-            bottom: 0,
-            marginBottom: 0,
-          }}
-        >
-          {[1, 2].map((page, index) => (
-            <View key={index}>
-              <AppointmentCard
-                key={index}
-                imageSource={Images.DoctorImg}
-                doctorName="Dr. Emily Johnson"
-                department="Cardiology"
-                qualifications="San Francisco Animal Medical Center"
-                appointmentTime="Thursday, 5 Sept - 11:00 AM"
-                navigation={navigation}
-                swiperCardStyle={styles.swiperCardStyle}
-                doctorNameTextStyle={{ color: colors.jetBlack }}
-                departmentTextStyle={{ color: colors.jetBlack }}
-                buttonStyle={{ backgroundColor: colors.lightCream }}
-                buttonTextStyle={{ color: colors.jetBlack }}
-                buttonIconStyle={{ tintColor: colors.jetBlack, opacity: 1 }}
-              />
-            </View>
-          ))}
-        </Swiper>
         <GText
           SatoshiBold
           text={t('wellness_summary_string')}
           style={styles.wellnessSummaryText}
-        /> */}
-        {/* <FlatList
+        />
+        <FlatList
           data={wellnessSummaryList}
           numColumns={2}
           columnWrapperStyle={styles.wellnessSummaryWrapper}
           contentContainerStyle={styles.wellnessSummaryList}
           renderItem={renderWellnessSummaryItem}
-        /> */}
+        />
 
         <FlatList
           data={
-            petList?.entry?.length > 0
+            petList?.length !== 0
               ? quickActions
               : [
                   {
@@ -588,6 +548,7 @@ const Dashboard = ({navigation}) => {
                 ]
           }
           numColumns={3}
+          style={{marginTop: scaledValue(-35)}}
           columnWrapperStyle={styles.quickActionsWrapper}
           contentContainerStyle={styles.quickActionsList}
           renderItem={renderQuickActionItem}
@@ -608,27 +569,33 @@ const Dashboard = ({navigation}) => {
           <View style={styles.modalContainer}>
             <View style={styles.modalInnerContainer}>
               <View style={styles.imageContainer}>
-                <Image style={styles.crossIcon} source={Images.crossIcon} />
-                <Image style={styles.dogImage} source={Images.petImage} />
+                <TouchableOpacity
+                  style={{
+                    alignSelf: 'flex-end',
+                    position: 'absolute',
+                    top: scaledValue(10),
+                    right: scaledValue(10),
+                  }}>
+                  <Image style={styles.crossIcon} source={Images.crossIcon} />
+                </TouchableOpacity>
+                <Image style={styles.dogImage} source={Images.noPet} />
               </View>
               <View style={styles.modalContentContainer}>
-                <Text style={styles.mainHeading}>
-                  Is this an{' '}
-                  <Text style={styles.emergencyText}>Emergency?</Text>
-                </Text>
-                {/* <GText
-                  text=
-                  style={styles.subHeading}
-                /> */}
-                <Text style={styles.Subheading}>
-                  {
-                    'Choose an option, and we’ll help you take the next steps for your pet.'
-                  }
-                </Text>
+                <GText
+                  GrMedium
+                  text={t('emergency_desc_string')}
+                  style={styles.mainHeading}
+                />
+
+                <GText
+                  text={t('choose_an_option_string')}
+                  style={styles.Subheading}
+                />
+
                 <FlatList
                   data={modalData}
                   renderItem={renderItem}
-                  contentContainerStyle={{gap: 12}}
+                  contentContainerStyle={styles.modalListContent}
                 />
               </View>
             </View>

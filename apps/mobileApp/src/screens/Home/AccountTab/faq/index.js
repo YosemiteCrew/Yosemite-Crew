@@ -1,15 +1,15 @@
-import {Image, ScrollView, TouchableOpacity, View} from 'react-native';
-import React, {useEffect, useState} from 'react';
-import {Images} from '../../../../utils';
-import {colors} from '../../../../../assets/colors';
-import {styles} from './styles';
-import {useTranslation} from 'react-i18next';
+import { Image, ScrollView, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Images } from '../../../../utils';
+import { colors } from '../../../../../assets/colors';
+import { styles } from './styles';
+import { useTranslation } from 'react-i18next';
 import GText from '../../../../components/GText/GText';
-import {scaledValue} from '../../../../utils/design.utils';
+import { scaledValue } from '../../../../utils/design.utils';
 import HeaderButton from '../../../../components/HeaderButton';
 
-const FAQ = ({navigation}) => {
-  const {t} = useTranslation();
+const FAQ = ({ navigation }) => {
+  const { t } = useTranslation();
   const [select, setSelect] = useState(t('all_string'));
 
   useEffect(() => {
@@ -21,14 +21,14 @@ const FAQ = ({navigation}) => {
       headerRight: () => (
         <HeaderButton
           icon={Images.email}
-          tintColor={colors.appRed}
-          onPress={() => {}}
+          tintColor={colors.jetBlack}
+          onPress={() => { }}
         />
       ),
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
-          tintColor={colors.darkPurple}
+          tintColor={colors.jetBlack}
           onPress={() => navigation.goBack()}
         />
       ),
@@ -122,7 +122,7 @@ const FAQ = ({navigation}) => {
                   {
                     borderWidth: select === item?.title ? 0 : scaledValue(1),
                     backgroundColor:
-                      select === item?.title ? colors.appRed : 'transparent',
+                      select === item?.title ? colors.jetBlack : 'transparent',
                   },
                 ]}>
                 <GText
@@ -132,7 +132,7 @@ const FAQ = ({navigation}) => {
                     styles.optionText,
                     {
                       color:
-                        select === item?.title ? colors.white : colors.appRed,
+                        select === item?.title ? colors.white : colors.jetBlack,
                     },
                   ]}
                 />

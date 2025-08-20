@@ -211,69 +211,69 @@ const InventoryControllers = {
     }
   },
 
-  AddProcedurePackage: async (
-    req: { query: QueryParams; body: unknown },
-    res: Response
-  ): Promise<void> => {
-    try {
-      const { bussinessId } = req.query;
+AddProcedurePackage: async (
+  req: { query: QueryParams; body: any },
+  res: Response
+): Promise<void> => {
+  try {
+    const { bussinessId } = req.query;
 
-      if (typeof bussinessId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(bussinessId)) {
-        res.status(400).json({
-          resourceType: "OperationOutcome",
-          issue: [
-            {
-              severity: "error",
-              code: "invalid",
-              details: { text: "Invalid hospitalId format" },
-            },
-          ],
-        });
-        return;
-      }
-
-
-      const fhirData = req.body as FHIRMedicalPackage;
-
-      const data: NormalMedicalPackage = convertFHIRPackageToNormal(fhirData);
-      const { packageName, category, description, packageItems } = data;
-
-
-      const procedurePackage = new ProcedurePackage({
-        bussinessId,
-        packageName,
-        category,
-        description,
-        packageItems,
-      } as ProcedurePackageType);
-
-      await procedurePackage.save();
-
-      res.status(200).json({
-        resourceType: "OperationOutcome",
-        issue: [
-          {
-            severity: "information",
-            code: "informational",
-            details: { text: "Procedure package added successfully" },
-          },
-        ],
-      });
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Unknown error";
-
-      res.status(500).json({
+    // 1. Validate businessId (adjust regex depending on your actual format)
+    if (typeof bussinessId !== "string" || bussinessId.trim() === "") {
+      res.status(400).json({
         resourceType: "OperationOutcome",
         issue: [
           {
             severity: "error",
-            code: "exception",
-            details: { text: message },
+            code: "invalid",
+            details: { text: "Invalid businessId format" },
           },
         ],
       });
+      return;
     }
-  },
+
+    // 2. Extract directly from frontend body
+    const { packageName, category, description, packageItems } = req.body;
+
+    // 3. Save to Mongo
+    const procedurePackage = new ProcedurePackage({
+      bussinessId,
+      packageName,
+      category,
+      description,
+      packageItems,
+    } as ProcedurePackageType);
+
+    await procedurePackage.save();
+
+    // 4. Send response
+    res.status(200).json({
+      resourceType: "OperationOutcome",
+      issue: [
+        {
+          severity: "information",
+          code: "informational",
+          details: { text: "Procedure package added successfully" },
+        },
+      ],
+    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+
+    res.status(500).json({
+      resourceType: "OperationOutcome",
+      issue: [
+        {
+          severity: "error",
+          code: "exception",
+          details: { text: message },
+        },
+      ],
+    });
+  }
+},
+
 
 
   // getToViewItemsDetaild: async (req: { query: QueryParams }, res: Response) => {

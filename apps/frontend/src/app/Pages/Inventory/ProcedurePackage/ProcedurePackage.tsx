@@ -1,99 +1,152 @@
-'use client';
-import React, {  useCallback,useState } from "react";
-import "./ProcedurePackage.css"
-import AddItemsTable from '@/app/Components/DataTable/AddItemsTable'
-import { Col, Container, Row } from 'react-bootstrap'
-import { FormInput } from '../../Sign/SignUp'
-import DynamicSelect from '@/app/Components/DynamicSelect/DynamicSelect'
+"use client";
+import React, { useCallback, useState } from "react";
+import "./ProcedurePackage.css";
+import AddItemsTable from "@/app/Components/DataTable/AddItemsTable";
+import { Button, Col, Container, Row } from "react-bootstrap";
+import { FormInput } from "../../Sign/SignUp";
+import DynamicSelect from "@/app/Components/DynamicSelect/DynamicSelect";
+import { postData } from "@/app/axios-services/services";
+import { useAuthStore } from "@/app/stores/authStore";
 
 function ProcedurePackage() {
+  const [packageName, setPackageName] = useState("");
+  const [category, setCategory] = useState<string>("");
+  const [description, setDescription] = useState("");
+  const [packageItems, setPackageItems] = useState<any[]>([]); // Items from AddItemsTable
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
-    const [name, setName] = useState({
-        barcode: "",
-    });
-    const handleBusinessInformation = useCallback((e: { target: { name: string; value: string; }; }) => {
-            const { name, value } = e.target;
-            setName((prevData) => ({
-              ...prevData,
-              [name]: value,
-            }));
-        }, []);
-    
-    const [country, setCountry] = useState<string>("");
+  const businessId = useAuthStore((state) => state.userId);
 
-    const [professionalBackground, setProfessionalBackground] = useState<{ biography: string }>({
-        biography: "",
-    });
+  // Handle package name
+  const handleBusinessInformation = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setPackageName(e.target.value);
+    },
+    []
+  );
 
-        type Option = {
-            value: string;
-            label: string;
-        };
-        const options: Option[] = [
-            { value: 'us', label: '🇺🇸 United States' },
-            { value: 'in', label: '🇮🇳 India' },
-            { value: 'uk', label: '🇬🇧 United Kingdom' },
-        ];
-    
+  type Option = { value: string; label: string };
+  const options: Option[] = [
+    { value: "General", label: "General" },
+    { value: "Special", label: "Special" },
+    { value: "Premium", label: "Premium" },
+  ];
 
+  // Validation
+  const validateForm = () => {
+    const newErrors: { [key: string]: string } = {};
+
+    if (!packageName.trim()) {
+      newErrors.packageName = "Package name is required.";
+    }
+
+    if (!category) {
+      newErrors.category = "Category is required.";
+    }
+
+    if (!description.trim()) {
+      newErrors.description = "Description is required.";
+    } else if (description.length < 10) {
+      newErrors.description = "Description must be at least 10 characters.";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Save package
+  const handleSavePackage = async () => {
+    if (!validateForm()) return; // Stop if validation fails
+
+    try {
+      const payload = {
+        bussinessId: businessId, // required in schema
+        packageName,
+        category,
+        description,
+        packageItems, // included but not validated here
+      };
+
+      const res = await postData(`/fhir/v1/AddProcedurePackage`, payload, {
+        withCredentials: true,
+      });
+
+      console.log(res.data, "hurra");
+      setErrors({});
+    } catch (error: any) {
+      console.error(error);
+      setErrors({ api: error.response?.data?.issue?.[0]?.details?.text || "Failed to save procedure package." });
+    }
+  };
 
   return (
-    <>
-        <section className='ProcedurePackageSec'>
-            <Container>
-                <div className="ProcedurePackageData">
-                    <h2>Add Procedure Package</h2>
-                    <div className="ProsPackageCard">
-                        
-                        <div className="PackageForm">
-                            <Row>
-                                <Col md={6}>
-                                    <FormInput intype="number" inname="barcode" value={name.barcode} inlabel="Package Name" onChange={handleBusinessInformation} />
-                                </Col>
-                                <Col md={6}>
-                                    <DynamicSelect options={options} value={country} onChange={setCountry} inname="Category" placeholder="Select Category"/>
-                                </Col>
-                            </Row>
-                            <Row>
-                                <Col md={12}>
-                                    <div className="form-floating ">
-                                        <textarea
-                                            className="form-control"
-                                            placeholder="Short description of the procedure."
-                                            id="floatingTextarea2"
-                                            value={professionalBackground.biography}
-                                            onChange={(e) =>
-                                            setProfessionalBackground({
-                                                ...professionalBackground,
-                                                biography: e.target.value,
-                                            })
-                                            }
+    <section className="ProcedurePackageSec">
+      <Container>
+        <div className="ProcedurePackageData">
+          <h2>Add Procedure Package</h2>
+          <div className="ProsPackageCard">
+            <div className="PackageForm">
+              <Row>
+                <Col md={6}>
+                  <FormInput
+                    intype="text"
+                    inname="packageName"
+                    value={packageName}
+                    inlabel="Package Name"
+                    onChange={handleBusinessInformation}
+                  />
+                  {errors.packageName && <p className="text-danger small">{errors.packageName}</p>}
+                </Col>
+                <Col md={6}>
+                  <DynamicSelect
+                    options={options}
+                    value={category}
+                    onChange={setCategory}
+                    inname="Category"
+                    placeholder="Select Category"
+                  />
+                  {errors.category && <p className="text-danger small">{errors.category}</p>}
+                </Col>
+              </Row>
+              <Row>
+                <Col md={12}>
+                  <div className="form-floating">
+                    <textarea
+                      className="form-control"
+                      placeholder="Short description of the procedure."
+                      id="floatingTextarea2"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                    ></textarea>
+                    <label htmlFor="floatingTextarea2">
+                      Short description of the procedure.
+                    </label>
+                  </div>
+                  {errors.description && <p className="text-danger small">{errors.description}</p>}
+                </Col>
+              </Row>
+            </div>
 
-                                        ></textarea>
-                                        <label htmlFor="floatingTextarea2">
-                                            Short description of the procedure.
-                                        </label>
-                                    </div>
-                                </Col>
-                            </Row>
-                        </div>
+            <hr />
 
+            <div className="ProcPackTble">
+              <h6>
+                Package Items <span>({packageItems.length})</span>
+              </h6>
+              {/* Pass callback to update state */}
+              <AddItemsTable />
+            </div>
 
-                        <hr />
+            {errors.api && <p className="text-danger small">{errors.api}</p>}
 
-                        <div className="ProcPackTble">
-                            <h6>Package Items <span>(6)</span></h6>
-                            <AddItemsTable />
-                        </div>
-
-                    </div>
-
-                </div>
-            </Container>
-        </section>
-      
-    </>
-  )
+            <Button className="btn btn-primary mt-3" onClick={handleSavePackage}>
+              Save Package
+            </Button>
+          </div>
+        </div>
+      </Container>
+    </section>
+  );
 }
 
-export default ProcedurePackage
+export default ProcedurePackage;

@@ -7,8 +7,17 @@ const medicalRecordFolderSchema = new mongoose.Schema({
     },
     folderUrl:{
         type: String,
+    },
+    petId:{
+        type: mongoose.Schema.Types.ObjectId
+    },
+    uploadedFiles:[ 
+        {
+        url: { type: String},
+        originalName: { type: String},
+        mimetype: { type: String}
     }
-    
+]
 }, {
     timestamps: true,
 });

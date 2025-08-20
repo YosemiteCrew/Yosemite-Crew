@@ -1,10 +1,10 @@
-import {Dimensions, StyleSheet} from 'react-native';
+import { Dimensions, StyleSheet } from 'react-native';
 import {
   scaledHeightValue,
   scaledValue,
 } from '../../../../../utils/design.utils';
-import {fonts} from '../../../../../utils/fonts';
-import {colors} from '../../../../../../assets/colors';
+import { fonts } from '../../../../../utils/fonts';
+import { colors } from '../../../../../../assets/colors';
 
 export const styles = StyleSheet.create({
   dashboardMainView: {
@@ -15,13 +15,12 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(18),
     lineHeight: scaledHeightValue(21.6),
     letterSpacing: scaledValue(18 * -0.01),
-    color: colors.appRed,
+    color: colors.jetBlack,
   },
   plansText: {
     fontSize: scaledValue(18),
     lineHeight: scaledHeightValue(21.6),
     letterSpacing: scaledValue(18 * -0.01),
-    color: colors.darkPurple,
   },
   headerContainer: {
     flexDirection: 'row',
@@ -32,7 +31,6 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(16),
     lineHeight: scaledHeightValue(19.2),
     letterSpacing: scaledValue(16 * -0.02),
-    color: colors.darkPurple,
     marginTop: scaledValue(4),
   },
   imgStyle: {
@@ -68,7 +66,6 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(16),
     lineHeight: scaledHeightValue(19.2),
     letterSpacing: scaledValue(16 * -0.02),
-    color: colors.darkPurple,
   },
   linearView: {
     borderRadius: scaledValue(28),
@@ -82,18 +79,18 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: scaledValue(14),
     borderWidth: selectReminder === item ? scaledValue(1) : scaledValue(0.5),
-    borderColor: selectReminder === item ? colors.appRed : '#312943',
+    borderColor: selectReminder === item ? colors.primaryBlue : colors.darkPurple2,
+    backgroundColor: selectReminder === item ? colors.paletteBlue : 'transparent',
   }),
   placeText: (selectReminder, item) => ({
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
     textAlign: 'center',
-    color: selectReminder === item ? colors.appRed : colors.darkPurple,
-    fontFamily:
-      selectReminder === item ? fonts.SATOSHI_BOLD : fonts.SATOSHI_REGULAR,
+    color: selectReminder === item ? colors.primaryBlue : colors.darkPurple2,
+    fontFamily: selectReminder === item ? fonts.SATOSHI_BOLD : fonts.SATOSHI_REGULAR,
   }),
   buttonStyle: {
-    backgroundColor: '#FDBD74',
+    backgroundColor:colors?.jetBlack,
     width: '100%',
     height: scaledValue(52),
     borderRadius: scaledValue(28),
@@ -108,10 +105,10 @@ export const styles = StyleSheet.create({
     lineHeight: scaledHeightValue(18),
     letterSpacing: scaledValue(16 * -0.01),
     fontFamily: fonts?.CLASH_GRO_MEDIUM,
-    color: colors.brown,
+    color: colors.white,
   },
-  scrollView: {paddingHorizontal: scaledValue(20)},
-  inputView: {paddingTop: scaledValue(32), gap: scaledValue(12)},
+  scrollView: { paddingHorizontal: scaledValue(20) },
+  inputView: { paddingTop: scaledValue(32), gap: scaledValue(12) },
   innerInputView: {
     flexDirection: 'row',
     gap: scaledValue(8),
@@ -127,7 +124,7 @@ export const styles = StyleSheet.create({
     // width: Dimensions.get('window').width / 2.3,
     letterSpacing: scaledValue(16 * -0.03),
   },
-  iconStyle: {width: scaledValue(20), height: scaledValue(20)},
+  iconStyle: { width: scaledValue(20), height: scaledValue(20) },
   reminderView: {
     marginTop: scaledValue(12),
     flexDirection: 'row',
@@ -143,7 +140,7 @@ export const styles = StyleSheet.create({
     marginTop: scaledValue(20),
     right: scaledValue(20),
   },
-  closeIcon: {width: scaledValue(22), height: scaledValue(22)},
+  closeIcon: { width: scaledValue(22), height: scaledValue(22) },
   modalTitle: {
     fontSize: scaledValue(20),
     lineHeight: scaledHeightValue(24),
@@ -151,14 +148,14 @@ export const styles = StyleSheet.create({
     color: '#1C1C1E',
     textAlign: 'center',
   },
-  listView: {marginTop: scaledValue(40), gap: scaledValue(46)},
+  listView: { marginTop: scaledValue(40), gap: scaledValue(46) },
   itemView: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: scaledValue(24),
   },
-  imgCalenderStyle: {width: scaledValue(24), height: scaledValue(24)},
+  imgCalenderStyle: { width: scaledValue(24), height: scaledValue(24) },
   titleStyle: {
     color: '#333333',
     fontSize: scaledValue(16),
@@ -167,7 +164,7 @@ export const styles = StyleSheet.create({
     marginLeft: scaledValue(8),
   },
   connectStyle: {
-    color: colors.appRed,
+    color: colors.jetBlack,
     fontSize: scaledValue(17),
     lineHeight: scaledHeightValue(22),
     letterSpacing: scaledValue(17 * -0.041),
@@ -179,11 +176,11 @@ export const styles = StyleSheet.create({
     marginBottom: scaledValue(30),
   },
   cancelText: {
-    color: colors.darkPurple,
     fontSize: scaledValue(16),
     lineHeight: scaledHeightValue(19.2),
     letterSpacing: scaledValue(16 * -0.02),
     fontFamily: fonts?.SATOSHI_BOLD,
+    color: colors.jetBlack,
   },
   cancelButtonStyle: {
     backgroundColor: '#37223C26',

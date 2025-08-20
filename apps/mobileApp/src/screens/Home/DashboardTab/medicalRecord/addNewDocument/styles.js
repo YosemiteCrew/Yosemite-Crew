@@ -16,13 +16,13 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(23),
     lineHeight: scaledHeightValue(27.6),
     letterSpacing: scaledValue(23 * -0.01),
-    color: colors.appRed,
+    color: colors.jetBlack,
   },
   plansText: {
     fontSize: scaledValue(23),
     lineHeight: scaledHeightValue(27.6),
     letterSpacing: scaledValue(23 * -0.01),
-    color: colors.darkPurple,
+
     textTransform: 'lowercase',
   },
   headerContainer: {
@@ -37,11 +37,14 @@ export const styles = StyleSheet.create({
   headerImageContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: scaledValue(4),
   },
   catImage: {
     width: scaledValue(40),
     height: scaledValue(40),
-    marginRight: scaledValue(3),
+    borderRadius: scaledValue(20),
+    borderWidth: 1,
+    borderColor: colors.primaryBlue,
   },
   arrowDownImage: {
     width: scaledValue(16),
@@ -49,7 +52,8 @@ export const styles = StyleSheet.create({
     marginLeft: scaledValue(1),
   },
   inputContainer: {
-    marginTop: scaledValue(20),
+    marginTop: scaledValue(32),
+    gap: scaledValue(16),
   },
   iconStyle: {
     width: scaledValue(20),
@@ -59,22 +63,19 @@ export const styles = StyleSheet.create({
     width: '100%',
     backgroundColor: 'transparent',
     fontSize: scaledValue(16),
-    // lineHeight: scaledValue(16),
-    marginTop: scaledValue(16),
+    marginTop: scaledValue(-6),
     paddingLeft: scaledValue(10),
   },
   dateRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: scaledValue(16),
     paddingHorizontal: scaledValue(12),
   },
   dateText: {
     fontSize: scaledValue(16),
     lineHeight: scaledHeightValue(19.2),
     letterSpacing: scaledValue(16 * -0.02),
-    color: colors.darkPurple,
   },
   uploadContainer: {
     width: scaledValue(335),
@@ -90,12 +91,13 @@ export const styles = StyleSheet.create({
     height: scaledValue(40),
     alignSelf: 'center',
     marginTop: scaledValue(16),
+    tintColor: colors.jetBlack,
   },
   uploadText: {
     fontSize: scaledValue(18),
     lineHeight: scaledHeightValue(21.6),
     letterSpacing: scaledValue(18 * -0.01),
-    color: colors.darkPurple,
+
     textAlign: 'center',
     paddingHorizontal: scaledValue(53),
     marginTop: scaledValue(10),
@@ -103,7 +105,7 @@ export const styles = StyleSheet.create({
   documentText: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    color: colors.darkPurple,
+
     textAlign: 'center',
     paddingHorizontal: scaledValue(53),
     opacity: 0.7,
@@ -114,11 +116,11 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(18),
     lineHeight: scaledHeightValue(18),
     letterSpacing: scaledValue(18 * -0.01),
-    color: colors.brown,
+    color: colors.white,
     fontFamily: fonts?.CLASH_GRO_MEDIUM,
   },
   buttonStyle: {
-    backgroundColor: '#FDBD74',
+    backgroundColor: colors.jetBlack,
     marginTop: scaledValue(40),
     marginBottom: scaledValue(62),
     height: scaledValue(52),
@@ -163,14 +165,12 @@ export const styles = StyleSheet.create({
   vaccineText: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    color: colors.darkPurple,
     opacity: 0.8,
     marginTop: scaledValue(24),
   },
   professionalButton: {
     borderWidth: scaledValue(0.5),
     height: scaledValue(48),
-    marginTop: scaledValue(20),
     borderRadius: scaledValue(24),
     paddingHorizontal: scaledValue(20),
     flexDirection: 'row',
@@ -179,13 +179,52 @@ export const styles = StyleSheet.create({
   },
   professionalText: {
     fontSize: scaledValue(16),
-    lineHeight: scaledHeightValue(16),
     letterSpacing: scaledValue(16 * -0.03),
-    color: '#312943',
+    textTransform: 'capitalize',
+    paddingLeft: scaledValue(20),
   },
-  catImage: {
-    width: scaledValue(40),
-    height: scaledValue(40),
-    borderRadius: scaledValue(20),
+
+  inputWrapper: {
+    position: 'relative',
+  },
+
+  inlineLabelWrapper: {
+    position: 'absolute',
+    top: scaledValue(-8),
+    left: scaledValue(20),
+    backgroundColor: colors.themeColor,
+    zIndex: 1,
+    paddingHorizontal: scaledValue(5),
+  },
+
+  inlineLabel: {
+    fontSize: scaledValue(12),
+  },
+  dropdown: value => ({
+    height: scaledValue(48),
+    borderColor: colors.jetBlack,
+    borderWidth: scaledValue(value ? 1 : 0.5),
+    borderRadius: scaledValue(24),
+    paddingHorizontal: scaledValue(20),
+  }),
+  itemContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  image: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginRight: 10,
+  },
+  itemText: {
+    fontSize: 16,
+  },
+  placeholderStyle: {
+    fontSize: scaledValue(16),
+    letterSpacing: scaledValue(16 * -0.03),
+    textTransform: 'capitalize',
+    opacity: 0.6,
   },
 });

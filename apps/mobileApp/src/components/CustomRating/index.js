@@ -35,6 +35,7 @@ const CustomRating = ({
         >
           <Image
             source={rating >= index + 1 ? filledStar : unfilledStar}
+            resizeMode='contain'
             style={[
               { width: scaledValue(size), height: scaledValue(size) },
               imageStyle,

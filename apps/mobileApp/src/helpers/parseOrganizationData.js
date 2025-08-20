@@ -48,23 +48,23 @@
 //   });
 // };
 
-export const parseOrganizations = (data) => {
+export const parseOrganizations = data => {
   if (!Array.isArray(data)) return [];
 
-  return data.map((entry) => {
+  return data.map(entry => {
     const org = entry.resource;
     const extensions = org.extension || [];
 
     // Flatten extensions into a map
     const extensionMap = {};
-    extensions.forEach((ext) => {
+    extensions.forEach(ext => {
       const key = ext.url.split('/').pop();
 
       if (key === 'selectedService') {
         if (!extensionMap.selectedServices) extensionMap.selectedServices = [];
         const val = ext.valueString;
         extensionMap.selectedServices.push(
-          typeof val === 'string' ? { display: val } : val
+          typeof val === 'string' ? {display: val} : val,
         );
       } else if (ext.valueDecimal !== undefined) {
         extensionMap[key] = ext.valueDecimal;
@@ -76,9 +76,9 @@ export const parseOrganizations = (data) => {
     });
 
     // Flatten healthcare services
-    const healthcareServices = (org.healthcareServices || []).map((service) => {
-      const doctorCountExt = (service.extension || []).find((ext) =>
-        ext.url.endsWith('doctorCount')
+    const healthcareServices = (org.healthcareServices || []).map(service => {
+      const doctorCountExt = (service.extension || []).find(ext =>
+        ext.url.endsWith('doctorCount'),
       );
       return {
         id: service.id,
@@ -90,6 +90,7 @@ export const parseOrganizations = (data) => {
     return {
       id: org.id,
       name: org.name,
+      logo: org?.image,
       type:
         org.type?.[0]?.coding?.[0]?.display ||
         org.type?.[0]?.coding?.[0]?.code ||

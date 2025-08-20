@@ -2,12 +2,13 @@ import {StyleSheet} from 'react-native';
 import {scaledHeightValue, scaledValue} from '../../../../utils/design.utils';
 import {fonts} from '../../../../utils/fonts';
 import {colors} from '../../../../../assets/colors';
+import {scan_image} from '../../../../utils/Images';
 
 export const styles = StyleSheet.create({
   dashboardMainView: {
-    paddingHorizontal: scaledValue(20),
+    // paddingHorizontal: scaledValue(20),
     flex: 1,
-    backgroundColor: colors.themeColor,
+    backgroundColor: colors.paletteWhite,
   },
   scrollView: {
     flex: 1,
@@ -32,7 +33,6 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(20),
     lineHeight: scaledHeightValue(24),
     letterSpacing: scaledValue(20 * -0.01),
-    color: colors.darkPurple,
   },
   userView: {
     flexDirection: 'row',
@@ -42,7 +42,7 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
     opacity: 0.6,
-    color: colors.darkPurple,
+
     marginTop: scaledValue(4),
   },
   nameView: {flexDirection: 'column', marginLeft: scaledValue(10)},
@@ -54,11 +54,11 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FEF8F4',
-    paddingHorizontal: scaledValue(12),
+    // backgroundColor: '#FEF8F4',
+    // paddingHorizontal: scaledValue(12),
     height: scaledValue(84),
     borderRadius: scaledValue(16),
-    marginTop: scaledValue(25),
+    // marginTop: scaledValue(25),
   },
   imgStyle: {
     width: scaledValue(40),
@@ -68,17 +68,17 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(18),
     lineHeight: scaledHeightValue(21.6),
     letterSpacing: scaledValue(18 * -0.01),
-    color: colors.darkPurple,
-    marginLeft: scaledValue(10),
   },
   optionView: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingVertical: scaledValue(8),
   },
   imgTitleView: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: scaledValue(10),
   },
   arrowImg: {
     width: scaledValue(20),
@@ -87,16 +87,16 @@ export const styles = StyleSheet.create({
   divider: {
     borderWidth: scaledValue(0.5),
     borderColor: 'rgba(55, 34, 60, 0.1)',
-    marginVertical: scaledValue(17),
+    marginVertical: scaledValue(4),
   },
   mapView: {
-    marginTop: scaledValue(32),
+    marginTop: scaledValue(20),
+    marginHorizontal: scaledValue(20),
   },
   currentTitleStyle: {
     fontSize: scaledValue(13),
     lineHeight: scaledHeightValue(15.6),
-    color: colors.darkPurple,
-    opacity: 0.7,
+    color: colors.jetBlack300,
   },
   versionView: {
     flexDirection: 'row',
@@ -105,12 +105,7 @@ export const styles = StyleSheet.create({
     marginTop: scaledValue(32),
   },
   buttonText: {
-    fontSize: scaledValue(20),
-    lineHeight: scaledHeightValue(24),
-    letterSpacing: scaledValue(20 * -0.01),
-    color: colors.appRed,
-    fontFamily: fonts.CLASH_GRO_MEDIUM,
-    marginLeft: scaledValue(4),
+    color: colors.jetBlack,
   },
   iconStyle: {
     width: scaledValue(20),
@@ -118,12 +113,13 @@ export const styles = StyleSheet.create({
     marginRight: scaledValue(4),
   },
   buttonStyle: {
-    borderWidth: scaledValue(1),
-    height: scaledValue(52),
-    borderRadius: scaledValue(28),
-    borderColor: colors.appRed,
     marginTop: scaledValue(45),
     marginBottom: scaledValue(151),
+    marginHorizontal: scaledValue(20),
+    backgroundColor: 'transparent',
+    borderColor: colors.jetBlack,
+    borderWidth: scaledValue(1),
+    gap: scaledValue(8),
   },
   deleteTitleStyle: {
     fontSize: scaledValue(18),
@@ -131,5 +127,86 @@ export const styles = StyleSheet.create({
     letterSpacing: scaledValue(18 * -0.01),
     color: colors.appRed,
     marginLeft: scaledValue(10),
+  },
+  profileView: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    // marginTop: scaledValue(20),
+  },
+  petName: {
+    fontSize: scaledValue(14),
+    lineHeight: scaledHeightValue(16.8),
+  },
+  petBreed: {
+    fontSize: scaledValue(14),
+    opacity: 0.6,
+    marginTop: scaledValue(4),
+  },
+  petGender: {
+    fontSize: scaledValue(14),
+    color: colors.jetBlack300,
+  },
+  petDetailView: {
+    flexDirection: 'row',
+    marginTop: scaledValue(4),
+    gap: scaledValue(6.5),
+  },
+  qrView: {
+    height: scaledHeightValue(56.54),
+    width: scaledValue(57),
+    borderRadius: scaledValue(10),
+    borderWidth: scaledValue(1),
+  },
+  qrImg: {
+    width: '100%',
+    height: '100%',
+    borderRadius: scaledValue(8),
+  },
+  imgView: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileData: {
+    marginLeft: scaledValue(10),
+  },
+  lineView: {
+    height: scaledValue(1),
+    backgroundColor: colors.jetBlack50,
+    marginHorizontal: scaledValue(15),
+    marginVertical: scaledValue(10),
+  },
+  accountsView: {
+    backgroundColor: colors.themeColor,
+    borderRadius: scaledValue(16),
+    borderColor: colors.paletteWhite,
+    shadowColor: '##47382714',
+    shadowOffset: {width: 6, height: 2},
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 4,
+    marginHorizontal: scaledValue(20),
+    padding: scaledValue(12),
+    marginTop: scaledValue(20),
+  },
+  deleteView: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: scaledValue(20),
+    gap: scaledValue(10),
+    marginTop: scaledValue(8),
+  },
+  petImageBorder: {
+    borderRadius: scaledValue(30),
+    borderWidth: scaledValue(1),
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderColor: colors.primaryBlue,
+  },
+  petImage: {
+    width: scaledValue(59),
+    height: scaledValue(59),
+    borderRadius: scaledValue(28.5),
   },
 });

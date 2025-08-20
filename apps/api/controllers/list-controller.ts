@@ -5,9 +5,10 @@ import mongoose from 'mongoose';
 import validator from 'validator';
 import { Request, Response } from 'express';
 import AddDoctors from '../models/AddDoctor';
-import { AddDoctorDoc, Department, Organization, WebAppointmentType } from '@yosemite-crew/types';
-import { WebUser } from '../models/WebUser';
+import { AddDoctorDoc, Department, IProfileData, IWebUser, Organization, WebAppointmentType } from '@yosemite-crew/types';
+import { ProfileData, WebUser } from '../models/WebUser';
 import { fetchDepartmentsAndRating } from '../utils/enrichmentHelper';
+import adminDepartments from '../models/admin-department';
 
 const baseUrl = process.env.BASE_URL;
 const listController = {
@@ -329,7 +330,6 @@ const listController = {
       const businessData: Record<string, unknown> = {};
 
       const fetchUsers = async (type: string) => {
-        console.log(type,'typppe');
         const matchStage = type ? { role: type } : {};
         const countQuery = matchStage;
         const [users, totalCount] = await Promise.all([
@@ -349,6 +349,15 @@ const listController = {
                 preserveNullAndEmptyArrays: true
               }
             },
+            {
+              $lookup:{
+                from:'adminDepartments',
+                localField:'department',
+                foreignField:'_id',
+                as:'adminDepartments'
+              }
+            },
+           
             {
               $lookup: {
                 from: 'departments',
@@ -441,6 +450,49 @@ const listController = {
       }
     }
   },
+    
+  getDoctorCountDepartmentWise: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { cognitoId } = req.query as { cognitoId: string };
+
+     if (!cognitoId || typeof cognitoId !== "string") {
+        res.status(200).json({ status: 0, message: "Cognito ID is required" });
+        return
+      }
+
+      const hospital: IWebUser | null = await WebUser.findOne({ cognitoId });
+      if (!hospital) {
+        res.json({ status: 0, error: "Hospital not found" });
+        return;
+      }
+
+      const result:IProfileData[] = await ProfileData.aggregate([
+        {
+          $match: {
+            userId: cognitoId,
+          }
+        },
+      ])
+
+      const departments = result[0].addDepartment
+      const departmentDetails = []
+      
+      for (const department of departments) {
+        const departmentId = new mongoose.Types.ObjectId(department);
+        const count = await WebUser.countDocuments({ department: departmentId, bussinessId: cognitoId });
+        const res = await adminDepartments.findOne({ _id: new mongoose.Types.ObjectId(department) })        
+        departmentDetails.push({ departmentName: res?.name, _id: res?._id, count })
+      }
+
+      res.json({ status: 1, data: departmentDetails });
+      return;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "An unexpected error occurred";
+      res.json({ status: 0, error: message });
+      return;
+    }
+  },
+
 
   searchOrganization: async (req: Request, res: Response): Promise<void> => {
     try {
