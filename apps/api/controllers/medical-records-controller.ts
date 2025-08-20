@@ -684,11 +684,24 @@ const medicalRecordsController = {
         });
         return;
       }
+      const safeCaseFolderName = String(caseFolderName || "").toLowerCase().trim();
+      const safePetId = petId ? new mongoose.Types.ObjectId(petId) : null;
 
-      const query = {
-        folderName: caseFolderName.toLowerCase(),
-        petId: petId || { $exists: false } // static folder check
+      const query :{folderName:string, petId: mongoose.Types.ObjectId | null | object} = {
+        folderName: safeCaseFolderName,
+        petId:null
       };
+
+      if (safePetId) {
+         query.petId = safePetId;
+      } else {
+        query.petId = { $exists: false };
+      }
+
+      // const query = {
+      //   folderName: caseFolderName.toLowerCase(),
+      //   petId: petId || { $exists: false } // static folder check
+      // };
       //  Check for duplicate folder     
      const existing = await MedicalRecordFolderModel.findOne(query);
       if (existing) {
