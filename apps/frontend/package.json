@@ -21,7 +21,7 @@
     "@yosemite-crew/fhir": "workspace:^",
     "@yosemite-crew/types": "workspace:^",
     "aos": "^2.3.4",
-    "axios": "^1.10.0",
+    "axios": "^1.11.0",
     "bootstrap": "^5.3.3",
     "chart.js": "^4.4.8",
     "classnames": "^2.5.1",
