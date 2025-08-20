@@ -15,9 +15,9 @@ class FHIRMedicalRecordService {
     throw new Error("Unsupported FHIR resourceType. Expected 'DocumentReference'.");
   }
 
-  if (!fhirData.type || !fhirData.type.text) {
-    throw new Error("Missing required FHIR field: type.text");
-  }
+  // if (!fhirData.type) {
+  //   throw new Error("Missing required FHIR field: type");
+  // }
 
   if (!fhirData.description) {
     throw new Error("Missing required FHIR field: description");
@@ -27,18 +27,21 @@ class FHIRMedicalRecordService {
     throw new Error("Missing or invalid FHIR field: subject.reference");
   }
 
-  const documentType = fhirData.type.text as string;
-  const title = fhirData.description as string;
-  const issueDate = fhirData.date as string;
+  const documentType = fhirData?.type.text ;
+  const documentTypeId =  fhirData.type?.reference ; // Extract ID if available
+  const title = fhirData?.description ;
+  const issueDate = fhirData?.date as string;
   const expiryDate = fhirData.context?.period?.end as string;
   const patientId = fhirData.subject.reference.split('/')[1] as string; // extract ID from "Patient/12345"
-
+  const createdByRole = fhirData?.author?.display as string;
   return {
     documentType,
     title,
     issueDate,
     expiryDate,
     patientId,
+    documentTypeId,
+    createdByRole
   };
 }
 
@@ -56,7 +59,7 @@ class FHIRMedicalRecordService {
     status: "current",
 
     type: {
-      text: record.documentType,
+      text: record.documentTypeId,
     },
 
     description: record.title,

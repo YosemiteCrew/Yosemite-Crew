@@ -1,5 +1,6 @@
 export interface TimeSlot {
   time: string;
+  _id?:string
 }
 
 export interface DoctorSlotDocument {

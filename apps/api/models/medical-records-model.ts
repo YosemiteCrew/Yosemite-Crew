@@ -15,9 +15,7 @@ const medicalRecordSchema : Schema<medicalRecord>= new mongoose.Schema({
         type: String, 
         required: true,
     },
-    documentType: {
-        type: String,
-    },
+     documentTypeId: { type: Schema.Types.ObjectId, ref: "MedicalRecordFolder" },
     title: {
         type: String,
     },
@@ -37,7 +35,10 @@ const medicalRecordSchema : Schema<medicalRecord>= new mongoose.Schema({
     },
     medicalDocs: [medicalDocSchema],
     isRead:{ type:Boolean, default: false },
-
+    createdByRole:{
+        type:String,
+        enum:['vet', 'petOwner']
+    }
 }, { timestamps: true});
 
 const medicalRecord : Model<medicalRecord> = mongoose.model<medicalRecord>('MedicalRecords',medicalRecordSchema);

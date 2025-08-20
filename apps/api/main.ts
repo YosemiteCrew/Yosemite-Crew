@@ -114,7 +114,7 @@ app.use('/fhir/admin', adminInventory);
 app.use('/fhir/v1', AdminApiRoutes);
 app.use('/fhir/v1', apiRoutes);
 app.use('/fhir/v1', doctorSlots);
-// app.use('/newsletter', newsletterRoutes);
+app.use('/newsletter', newsletterRoutes);
 app.use('/fhir/v1', BlogApiRoutes);
 app.use('/fhir/v1',inviteRoutes)
 app.use('/fhir/v1',emergencyAppointments)
