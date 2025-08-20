@@ -20,12 +20,16 @@ router.post("/Patient/addPet", verifyTokenAndRefresh,petController.addPet);
 router.put("/Patient/editPet", verifyTokenAndRefresh, petController.editPet);
 router.get("/Patient/getPets", verifyTokenAndRefresh,petController.getPet);
 router.delete("/Patient/deletepet", verifyTokenAndRefresh, petController.deletePet);
+
 router.post("/bookAppointment",verifyTokenAndRefresh, appointmentController.bookAppointment);
 router.get("/getAppointments", verifyTokenAndRefresh, appointmentController.getAppointment);
 router.put("/cancelAppointment", verifyTokenAndRefresh, appointmentController.cancelAppointment);
 router.put("/rescheduleAppointment",verifyTokenAndRefresh, appointmentController.rescheduleAppointment);
+
+
 router.get("/Slot/getTimeSlots", verifyTokenAndRefresh, slotController.getTimeSlots);
 router.get("/Slot/getTimeSlotsByMonth",verifyTokenAndRefresh,slotController.timeSlotsByMonth);
+
 router.post("/Observation/saveFeedBack",verifyTokenAndRefresh,feedbackController.addFeedBack);
 router.get("/Observation/getFeedBack",verifyTokenAndRefresh,feedbackController.getFeedback);
 router.put("/Observation/editFeedBack",verifyTokenAndRefresh,feedbackController.editFeedback);
@@ -39,9 +43,11 @@ router.post("/Organization/addPetBoarding",verifyTokenAndRefresh, detailsControl
  
  
 router.post("/sendquery", verifyTokenAndRefresh, contactController.contactUs);
+
 router.get("/Organization/getLists",verifyTokenAndRefresh, listController.getLists);
 router.get("/Organization/SeachOrganization",verifyTokenAndRefresh, listController.searchOrganization);
 router.get("/Practitioner/getDoctorsLists",verifyTokenAndRefresh,listController.getDoctorsList);
+router.get('/Practitioner/getDoctorCountByDepartmentWise', verifyTokenAndRefresh, listController.getDoctorCountDepartmentWise);
 router.get("/Practitioner/getDoctorsTeam",verifyTokenAndRefresh,listController.doctorsTeam);
 
 
@@ -67,15 +73,19 @@ router.put("/DocumentReference/editMedicalRecord", verifyTokenAndRefresh, medica
 router.delete("/DocumentReference/deleteMedicalRecord", verifyTokenAndRefresh, medicalRecordsController.deleteMedicalRecord);
 router.get("/DocumentReference/getFilesOfAllMedicalRecords", verifyTokenAndRefresh, medicalRecordsController.getFilesOfAllMedicalRecords);
 router.delete("/DocumentReference/deleteSpecificImageFromMedicalRecord", verifyTokenAndRefresh, medicalRecordsController.deleteSpecificImageFromMedicalRecord);
+router.get('/DocumentReference/getMedicalRecordByFolderId', verifyTokenAndRefresh, medicalRecordsController.getMedicalRecordByFolderId);
+router.put("/DocumentReference/placeFileInFolder", verifyTokenAndRefresh, medicalRecordsController.placeFileInFolder)
 
 
 router.post( "/Observation/saveDiabetesRecords",verifyTokenAndRefresh,diabetesController.diabetesRecords);
 router.get("/Observation/getDiabetesLogs", verifyTokenAndRefresh,diabetesController.getDiabetesLogs);
 router.delete("/Observation/deleteDiabetesLog", verifyTokenAndRefresh,diabetesController.deleteDiabetesLog);
+
 router.post("/RelatedPerson/savePetCoOwner",verifyTokenAndRefresh, SharedDutiesController.savePetCoOwner);
 router.delete("/RelatedPerson/deletePetCoOwner",verifyTokenAndRefresh, SharedDutiesController.deletePetCoOwner);
 router.post("/Observation/saveSharedDuties",verifyTokenAndRefresh, SharedDutiesController.saveSharedDuties);
 router.get("/Observation/getSharedDuties",verifyTokenAndRefresh, SharedDutiesController.getSharedDuties);
 router.put("/Observation/editSharedDuties",verifyTokenAndRefresh, SharedDutiesController.editSharedDuties);
 router.delete("/Observation/deleteSharedDuties",verifyTokenAndRefresh,SharedDutiesController.deleteSharedDuties);
+
 export default router;
