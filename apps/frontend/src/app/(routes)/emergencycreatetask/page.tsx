@@ -1,4 +1,4 @@
-import CreateTask from '@/app/Pages/Task/CreateTask'
+import CreateTask from '@/app/Pages/Emergency/CreateTask/CreateTask'
 import React from 'react'
 
 function page() {
