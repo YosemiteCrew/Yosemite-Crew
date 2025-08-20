@@ -7,28 +7,28 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import React, { useEffect, useRef, useState } from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import HeaderButton from '../../../../components/HeaderButton';
-import { Images } from '../../../../utils';
-import { colors } from '../../../../../assets/colors';
-import { styles } from './styles';
+import {Images} from '../../../../utils';
+import {colors} from '../../../../../assets/colors';
+import {styles} from './styles';
 import GText from '../../../../components/GText/GText';
 import Input from '../../../../components/Input';
 import GButton from '../../../../components/GButton';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {
   useAppDispatch,
   useAppSelector,
 } from '../../../../redux/store/storeUtils';
-import { useTranslation } from 'react-i18next';
+import {useTranslation} from 'react-i18next';
 import GMultipleOptions from '../../../../components/GMultipleOptions';
-import { scaledValue } from '../../../../utils/design.utils';
+import {scaledValue} from '../../../../utils/design.utils';
 
-const EditProfile = ({ navigation }) => {
+const EditProfile = ({navigation}) => {
   const dispatch = useAppDispatch();
-  const userData = useAppSelector((state) => state.auth.user);
+  const userData = useAppSelector(state => state.auth.user);
   const refRBSheet = useRef();
-  const { t } = useTranslation();
+  const {t} = useTranslation();
   const [selectProfessional, setSelectProfessional] = useState();
   useEffect(() => {
     configureHeader();
@@ -39,7 +39,7 @@ const EditProfile = ({ navigation }) => {
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
-          tintColor={colors.darkPurple}
+          tintColor={colors.jetBlack}
           onPress={() => navigation.goBack()}
         />
       ),
@@ -62,8 +62,7 @@ const EditProfile = ({ navigation }) => {
       <KeyboardAvoidingView
         style={styles.scrollView}
         behavior={Platform.OS === 'ios' ? 'padding' : ''}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-      >
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}>
         <ScrollView>
           <TouchableOpacity style={styles.profileButton}>
             <Image source={Images.importProfile} style={styles.profileImage} />
@@ -72,8 +71,8 @@ const EditProfile = ({ navigation }) => {
             <Input
               value={formValue.firstName}
               label={t('first_name_string')}
-              onChangeText={(value) =>
-                setFormValue({ ...formValue, firstName: value })
+              onChangeText={value =>
+                setFormValue({...formValue, firstName: value})
               }
               style={styles.input}
               keyboardType={'email-address'}
@@ -81,8 +80,8 @@ const EditProfile = ({ navigation }) => {
             <Input
               value={formValue.lastName}
               label={t('last_name_string')}
-              onChangeText={(value) =>
-                setFormValue({ ...formValue, lastName: value })
+              onChangeText={value =>
+                setFormValue({...formValue, lastName: value})
               }
               style={styles.input}
               keyboardType={'email-address'}
@@ -94,9 +93,7 @@ const EditProfile = ({ navigation }) => {
               countryCode={formValue?.countryCode}
               formValue={formValue}
               setCountryCode={setFormValue}
-              onChangeText={(value) =>
-                setFormValue({ ...formValue, phone: value })
-              }
+              onChangeText={value => setFormValue({...formValue, phone: value})}
               style={styles.phoneInput}
               keyboardType="phone-pad"
             />
@@ -104,8 +101,8 @@ const EditProfile = ({ navigation }) => {
               <Input
                 value={formValue.city}
                 label={t('city_string')}
-                onChangeText={(value) =>
-                  setFormValue({ ...formValue, city: value })
+                onChangeText={value =>
+                  setFormValue({...formValue, city: value})
                 }
                 style={styles.cityInput}
                 keyboardType={'email-address'}
@@ -113,9 +110,7 @@ const EditProfile = ({ navigation }) => {
               <Input
                 value={formValue.zip}
                 label={t('zip_code_string')}
-                onChangeText={(value) =>
-                  setFormValue({ ...formValue, zip: value })
-                }
+                onChangeText={value => setFormValue({...formValue, zip: value})}
                 style={styles.zipInput}
                 keyboardType="phone-pad"
               />
@@ -123,9 +118,7 @@ const EditProfile = ({ navigation }) => {
             <Input
               value={formValue.email}
               label={t('email_address_string')}
-              onChangeText={(value) =>
-                setFormValue({ ...formValue, email: value })
-              }
+              onChangeText={value => setFormValue({...formValue, email: value})}
               style={styles.input}
               keyboardType={'email-address'}
             />
@@ -133,8 +126,7 @@ const EditProfile = ({ navigation }) => {
               onPress={() => {
                 refRBSheet?.current?.open();
               }}
-              style={styles.professionalButton}
-            >
+              style={styles.professionalButton}>
               <GText
                 SatoshiRegular
                 text={t('are_you_pet_professional_string')}
@@ -148,8 +140,8 @@ const EditProfile = ({ navigation }) => {
               rightIcon={Images.Scan}
               iconStyle={styles.scanIcon}
               keyboardType="phone-pad"
-              onChangeText={(value) =>
-                setFormValue({ ...formValue, pimsCode: value })
+              onChangeText={value =>
+                setFormValue({...formValue, pimsCode: value})
               }
               style={styles.input}
             />
@@ -168,7 +160,7 @@ const EditProfile = ({ navigation }) => {
             search={false}
             value={selectProfessional}
             multiSelect={true}
-            onChoose={(val) => {
+            onChoose={val => {
               setSelectProfessional(val);
             }}
           />

@@ -33,7 +33,7 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(12),
     lineHeight: scaledValue(12),
     textAlign: 'center',
-    color: colors.appRed,
+    color: colors.jetBlack300,
   },
   eclipse: {
     width: scaledValue(335),
@@ -42,7 +42,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
   },
   containerView: {
-    backgroundColor: '#97C254',
+    backgroundColor: colors.primaryBlue,
     width: scaledValue(335),
     alignSelf: 'center',
     marginTop: scaledValue(40),
@@ -79,20 +79,14 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(16),
     ineHeight: scaledValue(22.4),
     textAlign: 'center',
-    color: colors.darkPurple,
     letterSpacing: scaledValue(16 * -0.02),
     marginTop: scaledValue(20),
     paddingHorizontal: scaledValue(25),
   },
   createButton: {
-    backgroundColor: '#FDBD74',
-    width: scaledValue(335),
-    height: scaledValue(52),
-    borderRadius: scaledValue(28),
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
     marginTop: scaledValue(68),
+    width: '100%',
+    gap: scaledValue(8),
   },
   buttonText: {
     fontSize: scaledValue(18),
@@ -102,13 +96,10 @@ export const styles = StyleSheet.create({
     color: colors.brown,
   },
   skipButton: {
-    fontSize: scaledValue(18),
-    lineHeight: scaledHeightValue(18),
-    letterSpacing: scaledValue(18 * -0.01),
-    color: colors.appRed,
-    fontFamily: fonts?.CLASH_GRO_MEDIUM,
-    textAlign: 'center',
-    marginTop: scaledValue(17),
+    backgroundColor: 'transparent',
+    marginTop: scaledValue(12),
+    borderWidth: scaledValue(1),
+    borderColor: colors.jetBlack,
   },
   buttonView: insets => ({
     position: 'absolute',
@@ -117,5 +108,7 @@ export const styles = StyleSheet.create({
         ? insets.bottom + scaledValue(47)
         : insets.bottom + scaledValue(15),
     alignSelf: 'center',
+    width: '100%',
+    paddingHorizontal: scaledValue(20),
   }),
 });

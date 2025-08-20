@@ -35,13 +35,16 @@ const ArticleDetail = () => {
           }
           style={styles.titleText}
         />
-        <TouchableOpacity style={styles.shareImgView}>
-          <Image
-            source={Images.Share}
-            tintColor={colors.appRed}
-            style={styles.shareImg}
-          />
-        </TouchableOpacity>
+        <View>
+          <TouchableOpacity style={styles.shareImgView}>
+            <Image
+              source={Images.Share}
+              tintColor={colors.primaryBlue}
+              style={styles.shareImg}
+            />
+          </TouchableOpacity>
+          <GText SatoshiBold text={'Share'} style={styles.shareText} />
+        </View>
       </View>
       <View style={styles.tagView}>
         <GText SatoshiBold text={'Cats'} style={styles.tagText} />

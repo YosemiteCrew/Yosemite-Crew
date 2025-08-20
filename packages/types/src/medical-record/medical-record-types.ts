@@ -1,17 +1,21 @@
 import { Request } from "express";
+import { Types } from "mongoose";
 
 export interface FHIRMedicalRecord {  
-      documentType : string,
+      documentType?: string;
+      documentTypeId? : string,
       title : string,
       issueDate? : string,
       expiryDate? : string,
       patientId : string,
+      createdByRole:string
 
 }
 export type FhirDocumentReference = {
   resourceType: string;
   type: {
     text: string;
+    reference?: string;
   };
   description: string;
   date?: string;

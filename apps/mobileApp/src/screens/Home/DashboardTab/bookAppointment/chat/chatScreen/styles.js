@@ -1,5 +1,5 @@
-import {StyleSheet} from 'react-native';
-import {colors} from '../../../../../../../assets/colors';
+import { StyleSheet } from 'react-native';
+import { colors } from '../../../../../../../assets/colors';
 import {
   scaledHeightValue,
   scaledValue,
@@ -24,7 +24,7 @@ export const styles = StyleSheet.create({
   ownerContent: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    color: colors.darkPurple,
+
   },
   anotherUser: {
     backgroundColor: '#FFFFFF',
@@ -37,7 +37,7 @@ export const styles = StyleSheet.create({
   },
   anotherContent: {
     fontSize: scaledValue(14),
-    color: colors.darkPurple,
+
     justifyContent: 'center',
     lineHeight: scaledHeightValue(16.8),
     opacity: 0.8,
@@ -52,7 +52,7 @@ export const styles = StyleSheet.create({
   timeText: {
     fontSize: scaledValue(11),
     lineHeight: scaledHeightValue(13.2),
-    color: colors.darkPurple,
+
     opacity: 0.5,
     marginTop: scaledValue(8),
     marginBottom: scaledValue(10),
@@ -69,7 +69,7 @@ export const styles = StyleSheet.create({
     height: scaledValue(80),
     paddingBottom: scaledValue(15),
   },
-  plusImgStyle: {width: scaledValue(24), height: scaledValue(24)},
+  plusImgStyle: { width: scaledValue(24), height: scaledValue(24) },
   input: {
     backgroundColor: '#F7F7FC',
     borderRadius: scaledValue(8),
@@ -77,5 +77,5 @@ export const styles = StyleSheet.create({
     width: scaledValue(263),
     paddingLeft: scaledValue(8),
   },
-  arrowStyle: {width: scaledValue(28), height: scaledValue(28)},
+  arrowStyle: { width: scaledValue(28), height: scaledValue(28) },
 });

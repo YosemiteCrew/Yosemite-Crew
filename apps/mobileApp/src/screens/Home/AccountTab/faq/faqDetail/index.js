@@ -1,13 +1,13 @@
-import {Image, TouchableOpacity, View} from 'react-native';
-import React, {useEffect} from 'react';
-import {Images} from '../../../../../utils';
-import {colors} from '../../../../../../assets/colors';
+import { Image, TouchableOpacity, View } from 'react-native';
+import React, { useEffect } from 'react';
+import { Images } from '../../../../../utils';
+import { colors } from '../../../../../../assets/colors';
 import GText from '../../../../../components/GText/GText';
 import GButton from '../../../../../components/GButton';
-import {styles} from './styles';
+import { styles } from './styles';
 import HeaderButton from '../../../../../components/HeaderButton';
 
-const FAQDetail = ({navigation}) => {
+const FAQDetail = ({ navigation }) => {
   useEffect(() => {
     configureHeader();
   }, []);
@@ -17,14 +17,14 @@ const FAQDetail = ({navigation}) => {
       headerRight: () => (
         <HeaderButton
           icon={Images.email}
-          tintColor={colors.appRed}
-          onPress={() => {}}
+          tintColor={colors.jetBlack}
+          onPress={() => { }}
         />
       ),
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
-          tintColor={colors.darkPurple}
+          tintColor={colors.jetBlack}
           onPress={() => navigation.goBack()}
         />
       ),

@@ -17,6 +17,8 @@ import GImage from '../../../../../components/GImage';
 import useDataFactory from '../../../../../components/UseDataFactory/useDataFactory';
 import {formatCompleteDateDMY} from '../../../../../utils/constants';
 import {transformImmunizations} from '../../../../../helpers/transformImmunizations';
+import {scaledValue} from '../../../../../utils/design.utils';
+import GButton from '../../../../../components/GButton';
 
 const VaccineManagementHome = ({navigation}) => {
   const {t} = useTranslation();
@@ -49,14 +51,13 @@ const VaccineManagementHome = ({navigation}) => {
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
-          tintColor={colors.darkPurple}
+          tintColor={colors.jetBlack}
           onPress={() => navigation.goBack()}
         />
       ),
       headerRight: () => (
         <HeaderButton
           icon={Images.bellBold}
-          tintColor={colors.appRed}
           onPress={() =>
             navigation.navigate('StackScreens', {screen: 'Notifications'})
           }
@@ -65,44 +66,27 @@ const VaccineManagementHome = ({navigation}) => {
     });
   }, [navigation]);
 
-  const quickAction = [
-    {
-      id: 1,
-      title: t('add_new_record_string'),
-      img: Images.Parasite,
-      onAction: () => {
-        navigation.navigate('StackScreens', {screen: 'AddVaccineRecord'});
-      },
-    },
-    {
-      id: 2,
-      title: t('vaccine_records_string'),
-      img: Images.Inj,
-      onAction: () => {
-        navigation.navigate('StackScreens', {screen: 'VaccineRecords'});
-      },
-    },
-  ];
-
   const RenderPetItem = ({item}) => {
-    const petDetails = item?.resource?.extension?.reduce((acc, item) => {
-      acc[item.title] = item.valueString;
-      return acc;
-    }, {});
-
     return (
-      <View style={styles.petItem}>
-        <GImage
-          image={petDetails?.petImage?.url}
-          style={styles.petImage}
-          noImageSource={Images.Kizi}
-        />
+      <TouchableOpacity
+        onPress={() => {
+          navigation.navigate('StackScreens', {screen: 'VaccineRecords'});
+        }}
+        style={styles.petItem}>
+        <View
+          style={{
+            borderWidth: scaledValue(1),
+            borderRadius: scaledValue(40),
+            borderColor: colors.primaryBlue,
+          }}>
+          <GImage
+            image={item?.petImages}
+            style={styles.petImage}
+            noImageSource={Images.Kizi}
+          />
+        </View>
 
-        <GText
-          SatoshiBold
-          text={item?.resource?.name[0]?.text}
-          style={styles.petNameText}
-        />
+        <GText SatoshiBold text={item?.name} style={styles.petNameText} />
         {item?.status === 'Up-to-date' ? (
           <View style={styles.healthyStatus}>
             <Image
@@ -110,15 +94,15 @@ const VaccineManagementHome = ({navigation}) => {
               source={Images.CircleCheck}
               style={styles.statusIcon}
             />
-            <GText SatoshiBold text={item?.status} style={styles.statusText} />
+            <GText SatoshiBold text={'Up-to-date'} style={styles.statusText} />
           </View>
         ) : (
           <View style={styles.riskStatus}>
             <Image source={Images.Risk} style={styles.statusIcon} />
-            <GText SatoshiBold text={item?.status} style={styles.statusText} />
+            <GText SatoshiBold text={'Upcoming'} style={styles.statusText} />
           </View>
         )}
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -137,7 +121,7 @@ const VaccineManagementHome = ({navigation}) => {
           }
           style={styles.optionView}>
           <View style={styles.imgTitleView}>
-            <Image source={item?.img} style={styles.imgStyle} />
+            <GImage image={item?.petImage} style={styles.imgStyle} />
             <View>
               <GText
                 GrMedium
@@ -163,35 +147,9 @@ const VaccineManagementHome = ({navigation}) => {
     );
   };
 
-  const quickActions = item => (
-    <TouchableOpacity
-      key={item.id}
-      onPress={item.onAction}
-      style={styles.quickActionItem}
-      activeOpacity={0.5}>
-      <Image source={item.img} style={styles.quickActionImage} />
-      <GText GrMedium text={item.title} style={styles.quickActionText} />
-    </TouchableOpacity>
-  );
-
   return (
     <View style={styles.dashboardMainView}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.headerContainer}>
-          <Image source={Images.Shield} style={styles.shieldImage} />
-          <View style={styles.upcomingVaccinationContainer}>
-            <GText
-              GrMedium
-              text={t('upcoming_vaccination_string')}
-              style={styles.upcomingVaccinationText}
-            />
-            <GText
-              SatoshiBold
-              text={t('due_on_string')}
-              style={styles.dueOnText}
-            />
-          </View>
-        </View>
         <GText
           GrMedium
           text={t('vaccination_status_string')}
@@ -199,30 +157,56 @@ const VaccineManagementHome = ({navigation}) => {
         />
         <View style={styles.petListContainer}>
           <FlatList
-            data={petList?.entry}
+            data={petList}
             horizontal
             contentContainerStyle={styles.petList}
             renderItem={({item}) => <RenderPetItem item={item} />}
             showsHorizontalScrollIndicator={false}
-            // keyExtractor={(item) => item.id.toString()}
+            keyExtractor={item => item.id.toString()}
           />
         </View>
-        <GText
-          SatoshiBold
-          text={t('quick_actions_string')}
-          style={styles.quickActionsText}
-        />
-        <View style={styles.quickActionsContainer}>
-          {quickAction.map(item => quickActions(item))}
-        </View>
-        <GText
-          SatoshiBold
-          text={t('recent_vaccinations_string')}
-          style={styles.quickActionsText}
-        />
+
+        {recentVaccinationList.length > 0 && (
+          <GText
+            SatoshiBold
+            text={t('quick_actions_string')}
+            style={styles.quickActionsText}
+          />
+        )}
+
         <View style={styles.recentVaccinationsContainer}>
           <FlatList
             data={recentVaccinationList}
+            ListEmptyComponent={() => {
+              return (
+                <View>
+                  <Image
+                    source={Images.noVaccination}
+                    style={styles.noDataImage}
+                  />
+                  <GText
+                    GrMedium
+                    text={t('no_vaccination_record_string')}
+                    style={styles.noDataText}
+                  />
+                  <GText
+                    text={t('no_vaccination_record_des_string')}
+                    style={styles.addVaccinationText}
+                  />
+                  <GButton
+                    onPress={() =>
+                      navigation.navigate('StackScreens', {
+                        screen: 'AddVaccineRecord',
+                      })
+                    }
+                    icon={Images.addImage}
+                    iconStyle={styles.addImage}
+                    title={t('add_vaccination_record_string')}
+                    style={{marginTop: scaledValue(40), gap: scaledValue(8)}}
+                  />
+                </View>
+              );
+            }}
             renderItem={({item}) => <RenderRecentVaccinationItem item={item} />}
             keyExtractor={item => item?.id.toString()}
           />

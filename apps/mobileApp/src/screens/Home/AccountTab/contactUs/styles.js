@@ -1,11 +1,11 @@
-import {StyleSheet} from 'react-native';
+import { StyleSheet } from 'react-native';
 import {
   getFontSize,
   scaledHeightValue,
   scaledValue,
 } from '../../../../utils/design.utils';
-import {fonts} from '../../../../utils/fonts';
-import {colors} from '../../../../../assets/colors';
+import { fonts } from '../../../../utils/fonts';
+import { colors } from '../../../../../assets/colors';
 
 export const styles = StyleSheet.create({
   dashboardMainView: {
@@ -28,19 +28,8 @@ export const styles = StyleSheet.create({
     width: scaledValue(28),
     height: scaledValue(28),
   },
-  buttonText: {
-    fontSize: scaledValue(18),
-    // lineHeight: scaledHeightValue(18),
-    letterSpacing: scaledValue(18 * -0.01),
-    color: colors.brown,
-    fontFamily: fonts.CLASH_GRO_MEDIUM,
-  },
-
   buttonStyle: {
-    height: scaledValue(52),
-    borderRadius: scaledValue(28),
     marginTop: scaledValue(90),
-    backgroundColor: '#FDBD74',
   },
   imageBackground: {
     width: scaledValue(375),
@@ -56,7 +45,7 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(18),
     lineHeight: scaledValue(21.6),
     letterSpacing: scaledValue(18 * -0.01),
-    color: colors.darkPurple,
+
   },
   helpTextContainer: {
     flexDirection: 'row',
@@ -75,7 +64,7 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(29),
     lineHeight: scaledValue(34.8),
     letterSpacing: scaledValue(29 * -0.01),
-    color: colors.darkPurple,
+
   },
   inputStyle: {
     width: '100%',
@@ -95,7 +84,7 @@ export const styles = StyleSheet.create({
     paddingTop: scaledValue(12),
     textAlignVertical: 'top',
     fontSize: scaledValue(16),
-    color: colors.darkPurple,
+
   },
   contactOptionMainView: {
     flexDirection: 'row',
@@ -132,8 +121,7 @@ export const styles = StyleSheet.create({
     marginRight: scaledValue(8),
   },
   submitRequestItemName: (selectedSubmitRequest, item) => ({
-    color:
-      selectedSubmitRequest == item?.id ? colors.appRed : colors.darkPurple,
+    color: colors.jetBlack,
     fontSize: getFontSize(16),
     lineHeight: scaledValue(19.2),
     fontFamily:

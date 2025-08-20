@@ -1,32 +1,30 @@
-import {StyleSheet} from 'react-native';
+import {Dimensions, StyleSheet} from 'react-native';
 import {scaledHeightValue, scaledValue} from '../../../utils/design.utils';
 import {fonts} from '../../../utils/fonts';
+import {colors} from '../../../../assets/colors';
 
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF2E3',
+    backgroundColor: colors.paletteWhite,
   },
   signupImage: {
     width: '100%',
-    height: scaledValue(332),
+    height: scaledValue(285),
   },
   headerContainer: {
     flexDirection: 'row',
-    marginTop: scaledValue(12),
+    marginTop: scaledValue(54),
     justifyContent: 'center',
   },
   tailWaggingText: {
-    color: '#D04122',
-    fontSize: scaledValue(29),
-    lineHeight: scaledHeightValue(34.8),
-    letterSpacing: scaledValue(29 * -0.01),
+    fontSize: scaledValue(26),
+    letterSpacing: scaledValue(26 * -0.01),
   },
   welcomeText: {
-    color: '#37223C',
-    fontSize: scaledValue(29),
-    lineHeight: scaledHeightValue(34.8),
-    letterSpacing: scaledValue(29 * -0.01),
+    color: colors.jetBlack300,
+    fontSize: scaledValue(26),
+    letterSpacing: scaledValue(26 * -0.01),
   },
   buttonContainer: {
     marginTop: scaledValue(12),
@@ -37,11 +35,11 @@ export const styles = StyleSheet.create({
     marginRight: scaledValue(6),
   },
   button: {
-    width: scaledValue(300),
     height: scaledValue(56),
     alignSelf: 'center',
     borderRadius: scaledValue(28),
     marginTop: scaledValue(12),
+    width: Dimensions.get('window').width - scaledValue(74),
   },
   googleButtonBorder: {
     borderWidth: 1,
@@ -62,14 +60,14 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(16),
     lineHeight: scaledHeightValue(19.2),
     letterSpacing: scaledValue(16 * -0.03),
-    color: '#312943',
+    color: colors.jetBlack300,
     marginHorizontal: scaledValue(5),
   },
   signInText: {
     fontSize: scaledValue(16),
     lineHeight: scaledHeightValue(19.2),
     letterSpacing: scaledValue(16 * -0.03),
-    color: '#D04122',
+    color: colors.black,
     fontFamily: fonts?.SATOSHI_BOLD,
   },
 });

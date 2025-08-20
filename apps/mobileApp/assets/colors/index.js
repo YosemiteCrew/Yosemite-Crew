@@ -4,7 +4,7 @@ export const colors = {
   fawn: '#FDBD74',
   titleColor: '#040415',
   borderColor: '#E9E9E9',
-  themeColor: '#FFF2E3',
+  themeColor: '#FFFEFE',
   white: '#ffffff',
   lightGray: '#F5F5F5',
   pureBlack: '#000000',
@@ -25,6 +25,7 @@ export const colors = {
   jetLightBlack: '#595958',
   jetBlack300: '#747473',
   jetBlack200: '#A09F9F',
+  jetBlack50: '#EAEAEA',
   lightCream: '#F5E1C9',
   cyanBlue: '#1FC5CF',
   blue: '#007AFF',
@@ -32,4 +33,9 @@ export const colors = {
   appRed: '#D04122', // rgb(232, 19, 19)
   richBlack: '#090A0A',
   paletteWhite: '#FFFEFE',
+  primaryBlue: '#247AED',
+  paletteBlue: '#E9F2FD',
+  errorRed: '#EA3729',
+  platteSuccess: '#008F5D',
+  primayBlue100: '#BBD6F9',
 };

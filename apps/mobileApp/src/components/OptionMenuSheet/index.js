@@ -12,7 +12,8 @@ const OptionMenuSheet = props => {
   const options = props.options || [];
   const onChoose = props.onChoose || null;
   const titleKey = props.titleKey || 'title';
-  const petImage = props.petImage || 'petImage';
+  const nameKey = props.nameKey || 'name';
+  const petImage = props.petImages || 'petImages';
   let optionsLength = options.length;
   const title = props?.title;
 
@@ -42,7 +43,7 @@ const OptionMenuSheet = props => {
         {title && (
           <View
             style={{
-              backgroundColor: '#FFF4EC',
+              backgroundColor: colors.white,
             }}>
             <Text
               style={{
@@ -82,7 +83,7 @@ const OptionMenuSheet = props => {
                     )}
 
                     <Text style={styles.menuTitle(c?.textColor)}>
-                      {c[titleKey]}
+                      {c[titleKey] || c[nameKey]}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -118,7 +119,7 @@ const OptionMenuSheet = props => {
                   )}
 
                   <Text style={styles.menuTitle(c?.textColor)}>
-                    {c[titleKey]}
+                    {c[titleKey] || c[nameKey]}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -156,14 +157,15 @@ export default OptionMenuSheet;
 const styles = StyleSheet.create({
   menuTitle: textColor => ({
     fontSize: getFontSize(18),
-    color: textColor ? textColor : colors.blue,
+    color: textColor ? textColor : colors.richBlack,
     fontFamily: fonts?.SUSE_MEDIUM,
     textAlign: 'center',
     lineHeight: scaledValue(21.48),
   }),
   menuView: {
     height: 60,
-    backgroundColor: '#FFF4EC',
+    // backgroundColor: '#FFF4EC',
+    backgroundColor: colors.white,
     justifyContent: 'center',
   },
 });

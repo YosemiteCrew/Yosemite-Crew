@@ -1,6 +1,7 @@
 import {StyleSheet, View} from 'react-native';
 import React from 'react';
 import {scaledValue} from '../../utils/design.utils';
+import {colors} from '../../../assets/colors';
 
 const CustomProgressBar = ({percentage, customWidth = 295}) => {
   // Calculate the filled and remaining width based on the percentage
@@ -28,12 +29,13 @@ const styles = StyleSheet.create({
   },
   filledBar: {
     height: '100%',
-    backgroundColor: 'red', // Red color for the filled part
+    backgroundColor: colors.primaryBlue, // Red color for the filled part
     borderRadius: scaledValue(8),
   },
   remainingBar: {
     height: '100%',
-    backgroundColor: '#aaa', // Blue color for the remaining part
+    backgroundColor: colors.jetBlack, // Blue color for the remaining part
     borderRadius: scaledValue(8),
+    opacity: 0.2,
   },
 });

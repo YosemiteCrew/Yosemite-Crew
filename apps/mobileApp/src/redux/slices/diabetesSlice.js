@@ -9,7 +9,6 @@ export const get_diabetes_list = createAsyncThunk(
   async (credentials, {rejectWithValue, dispatch}) => {
     try {
       dispatch(setLoading(true));
-      console.log('credentials=>>>', credentials);
 
       const response = await API({
         headers: {
@@ -20,17 +19,13 @@ export const get_diabetes_list = createAsyncThunk(
         method: 'GET',
       });
       dispatch(setLoading(false));
-      console.log(
-        'getDiabetesLogs_response=>>',
-        JSON.stringify(response?.data),
-      );
+
       if (response.status !== 200) {
         return rejectWithValue(response?.data);
       }
 
       return response?.data;
     } catch (error) {
-      console.log(error);
       return rejectWithValue(error);
     }
   },
@@ -41,7 +36,6 @@ export const add_diabetes_record_api = createAsyncThunk(
   async (credentials, {rejectWithValue, dispatch}) => {
     try {
       dispatch(setLoading(true));
-      console.log('credentials=>>>', credentials);
 
       const response = await API({
         headers: {
@@ -54,17 +48,13 @@ export const add_diabetes_record_api = createAsyncThunk(
       });
       dispatch(setLoading(false));
       showToast(response?.data?.status, response?.data?.message);
-      console.log(
-        'saveDiabetesRecords_response=>>',
-        JSON.stringify(response?.data),
-      );
+
       if (response.status !== 200) {
         return rejectWithValue(response?.data);
       }
 
       return response?.data;
     } catch (error) {
-      console.log(error);
       return rejectWithValue(error);
     }
   },

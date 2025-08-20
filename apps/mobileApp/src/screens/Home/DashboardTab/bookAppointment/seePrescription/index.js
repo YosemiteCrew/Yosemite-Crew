@@ -41,7 +41,6 @@ const SeePrescription = ({navigation, route}) => {
   const [feedBackDetail, setFeedBackDetail] = useState();
   const [showFeedback, setShowFeedBack] = useState(false);
   const [message, setMessage] = useState('');
-  console.log(feedBackDetail);
 
   useEffect(() => {
     configureHeader();
@@ -54,7 +53,7 @@ const SeePrescription = ({navigation, route}) => {
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
-          tintColor={colors.darkPurple}
+          tintColor={colors.jetBlack}
           onPress={() => navigation.goBack()}
         />
       ),
@@ -106,10 +105,7 @@ const SeePrescription = ({navigation, route}) => {
     });
   };
 
-  console.log('showFeedbacsk', showFeedback);
-
   const handleRatingChange = rating => {
-    console.log('Selected Rating:', rating);
     setRating(rating);
   };
 

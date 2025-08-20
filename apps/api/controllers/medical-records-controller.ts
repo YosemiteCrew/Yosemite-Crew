@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import  { Request, Response } from 'express';
 import medicalRecords from '../models/medical-records-model';
 import FHIRMedicalRecordService from '../services/fHIRMedicalRecordService';
 import mongoose from 'mongoose';
@@ -87,7 +87,7 @@ const medicalRecordsController = {
       const medicalData = FHIRMedicalRecordService.convertFhirToMedicalRecord(parsedData);
 
 
-      if (!medicalData.documentType || !medicalData.title) {
+      if (!medicalData.title) {
         res.status(200).json({
           status: 0,
           message: "Validation failed",
@@ -146,19 +146,34 @@ const medicalRecordsController = {
         });
         return;
       }
-
+      let id: mongoose.Types.ObjectId = medicalData.documentTypeId; 
+      id = medicalData.documentTypeId 
+      
+      const isRead= id ? true : medicalData.createdByRole === 'petOwner' ? true : false
       const newMedicalRecord = await medicalRecords.create({
         userId: req.user.username,
-        documentType: medicalData.documentType,
+        documentTypeId: id,
         title: medicalData.title,
         issueDate: medicalData.issueDate,
         expiryDate: medicalData.expiryDate,
         petId: medicalData.patientId,
         hasExpiryDate,
-        medicalDocs: updatedPetData
+        isRead: isRead,
+        medicalDocs: updatedPetData,
+        createdByRole:medicalData.createdByRole
       });
+      
+      const populatedMedicalRecord = await newMedicalRecord.populate({
+        path: 'documentTypeId',  // The field to populate
+        select: 'folderName',  // Only select the 'name' field
+      });
+      const formattedData = {
+        ...populatedMedicalRecord,
+        documentType: populatedMedicalRecord.documentTypeId?.folderName,
+        documentTypeId: populatedMedicalRecord.documentTypeId?._id
+      }
 
-      const fhirResponse = FHIRMedicalRecordService.convertMedicalRecordToFHIR(newMedicalRecord);
+      const fhirResponse = FHIRMedicalRecordService.convertMedicalRecordToFHIR(formattedData._doc);
 
       res.status(200).json({ status: 1, data: fhirResponse , message:'New record created successfully!'});
     } catch (error: unknown) {
@@ -202,9 +217,16 @@ const medicalRecordsController = {
       }
 
       const userId = req.user.username;
-      const records = await medicalRecords.aggregate([
+      const records :medicalRecord[] = await medicalRecords.aggregate([
         {
-          $match: { userId, isRead: true }
+          $match: {
+             userId:userId, 
+             isRead: true ,
+              $or: [
+                   { documentTypeId: { $exists: false } },  // field not present
+                   { documentTypeId: null }                 // field exists but null
+      ] 
+          }
         },
         {
           $lookup: {
@@ -519,6 +541,7 @@ const medicalRecordsController = {
       }
 
       const updatedData = {
+        documentTypeId: medicalData.documentTypeId,
         documentType: medicalData.documentType,
         title: medicalData.title,
         issueDate: medicalData.issueDate, // FHIR `date` typically used for issue
@@ -651,8 +674,8 @@ const medicalRecordsController = {
         return;
       }
 
-      const { caseFolderName } = req.body;
-      const files = req.files as Express.Multer.File[] | undefined;
+      const { caseFolderName , petId} = req.body as {caseFolderName:string, petId?:string}
+      const files = req.files?.files as Express.Multer.File[] | undefined;
 
       if (!caseFolderName) {
         res.status(200).json({
@@ -661,9 +684,26 @@ const medicalRecordsController = {
         });
         return;
       }
+      const safeCaseFolderName = String(caseFolderName || "").toLowerCase().trim();
+      const safePetId = petId ? new mongoose.Types.ObjectId(petId) : null;
 
-      //  Check for duplicate folder
-      const existing = await MedicalRecordFolderModel.findOne({ folderName: caseFolderName.toLowerCase() });
+      const query :{folderName:string, petId: mongoose.Types.ObjectId | null | object} = {
+        folderName: safeCaseFolderName,
+        petId:null
+      };
+
+      if (safePetId) {
+         query.petId = safePetId;
+      } else {
+        query.petId = { $exists: false };
+      }
+
+      // const query = {
+      //   folderName: caseFolderName.toLowerCase(),
+      //   petId: petId || { $exists: false } // static folder check
+      // };
+      //  Check for duplicate folder     
+     const existing = await MedicalRecordFolderModel.findOne(query);
       if (existing) {
         res.status(200).json({
           status: 0,
@@ -671,7 +711,8 @@ const medicalRecordsController = {
         });
         return;
       }
-      const folderKey = `medical-records/${caseFolderName}/`;
+      const sanitizedFolderName = caseFolderName.replace(/\s+/g, ''); 
+      const folderKey = `medical-records/${sanitizedFolderName}/`;
       // Upload an empty object to simulate folder creation in S3
       await s3.send(
         new PutObjectCommand({
@@ -682,7 +723,7 @@ const medicalRecordsController = {
       );
 
       const fileUploadPromises: Promise<unknown>[] = [];
-
+      const uploadedFiles: {url:string, originalName:string, mimetype:string}[]=[];
       if (files && files.length > 0) {
         for (const file of files) {
           const key = `${folderKey}-${file.originalname}`;
@@ -693,14 +734,21 @@ const medicalRecordsController = {
             ContentType: file.mimetype,
           });
           fileUploadPromises.push(s3.send(uploadCommand));
+          uploadedFiles.push({
+            url:key,
+            originalName:file.originalname,
+            mimetype:file.mimetype
+          })
         }
 
       };
       await Promise.all(fileUploadPromises);
-
+      
       const newFolder = new MedicalRecordFolderModel({
         folderName: caseFolderName.toLowerCase(),
         folderUrl: folderKey,
+        petId:petId,
+        uploadedFIles:uploadedFiles
       });
 
       await newFolder.save();
@@ -724,8 +772,42 @@ const medicalRecordsController = {
   },
   getMedicalRecordFolderList: async (req: Request, res: Response): Promise<void> => {
     try {
+      const { petId } = req.body as { petId?: string }
+      const list = await MedicalRecordFolderModel.aggregate([
+        {
+          $match: {
+            $or: [
+              { petId: new mongoose.Types.ObjectId(petId) },
+              { petId: null },
+            ]
+          }
+        },
+        {
+          $lookup: {
+            from: 'medicalrecords',
+            localField: '_id',
+            foreignField: 'documentTypeId',
+            as: 'files'
+          }
+        },
+        {
+          $addFields: {
+            fileCount: { $size: "$files" }
+          }
+        },
+        {
+          $project: {
+            _id: 1,
+            folderName: 1,
+            folderUrl: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            fileCount: 1,
+            petId: 1
+          }
+        }
+      ])
 
-      const list = await MedicalRecordFolderModel.find({})
       res.status(200).json({
         status: 1,
         data: list,
@@ -806,6 +888,128 @@ const medicalRecordsController = {
         message: message,
       });
       return; 
+    }
+  },
+  getMedicalRecordByFolderId: async(req:Request, res:Response):Promise<void>=>{
+    try {
+      const userId= getCognitoUserId(req);
+      if (!userId) {
+        res.status(200).json({
+          status: 0,
+          message: "Unauthorized",
+          error: "User ID not found in token",
+        });
+        return;
+      }
+      
+      
+      // Validate folderId
+      if (!req.query.folderId) {
+        res.status(200).json({
+          status: 0,
+          message: "Missing folder ID",
+        });
+        return;
+      }
+      const folderId = req.query.folderId as string;
+      if (!folderId || !mongoose.Types.ObjectId.isValid(folderId)) {
+        res.status(200).json({
+          status: 0,
+          message: "Invalid or missing folder ID",
+        });
+        return;
+      }
+
+  const records = await medicalRecords.aggregate([
+  { $match: { userId: userId, documentTypeId: new mongoose.Types.ObjectId(folderId) } },
+  {
+    $lookup: {
+      from: "pets",
+      localField: "petId",
+      foreignField: "_id",
+      as: "pet"
+    }
+  },
+  { $unwind: { path: "$pet", preserveNullAndEmptyArrays: true } },
+  {
+    $project: {
+      _id: 1,
+      userId: 1,
+      documentTypeId: 1,
+      title: 1,
+      issueDate: 1,
+      hasExpiryDate: 1,
+      petImage: "$pet.petImage",
+      petId:  "$pet._id",
+      expiryDate: 1,
+      medicalDocs: 1,
+      isRead: 1,
+      createdAt: 1,
+      updatedAt: 1,
+      __v: 1
+    }
+  }
+]);
+
+      
+      const fhirRecords = records.map(record =>
+        FHIRMedicalRecordService.convertMedicalRecordToFHIR(record)
+      );
+      res.status(200).json({
+        status: 1,
+        resourceType: "Bundle",
+        type: "searchset",
+        total: fhirRecords.length,
+        entry: fhirRecords.map(resource => ({ resource })),
+      });
+      return;
+    }
+    catch (error: unknown) {
+      console.error("getMedicalRecordByFolderId Error:", error);
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      res.status(200).json({
+        status: 0,
+        message: "Internal server error",
+        error: message,
+      });
+      return;
+    }
+  },
+  placeFileInFolder: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { documentType, recordId } = req.body as { documentType: string, recordId: string };
+      if (!documentType || !recordId) {
+        res.status(200).json({
+          status: 0,
+          message: "Missing required fields: documentType or recordId",
+        });
+        return;
+      }
+
+      if (!mongoose.Types.ObjectId.isValid(recordId)) {
+        res.status(200).json({
+          status: 0,
+          message: "Invalid recordId format",
+        });
+        return;
+      }
+      await medicalRecords.findByIdAndUpdate({
+        _id: recordId
+      },
+        { $set: { documentType: documentType } },
+        { new: true })
+        res.status(200).json({
+          status: 1,
+          message: "File placed in folder successfully",
+        });
+      return;
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Error placing file in folder';
+      res.status(200).json({
+        status: 0,
+        message: message,
+      });
+      return;
     }
   }
   

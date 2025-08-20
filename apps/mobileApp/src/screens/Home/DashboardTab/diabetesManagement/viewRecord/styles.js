@@ -1,10 +1,10 @@
-import {StyleSheet} from 'react-native';
-import {colors} from '../../../../../../assets/colors';
+import { StyleSheet } from 'react-native';
+import { colors } from '../../../../../../assets/colors';
 import {
   scaledHeightValue,
   scaledValue,
 } from '../../../../../utils/design.utils';
-import {fonts} from '../../../../../utils/fonts';
+import { fonts } from '../../../../../utils/fonts';
 
 export const styles = StyleSheet.create({
   dashboardMainView: {
@@ -15,7 +15,7 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(18),
     lineHeight: scaledHeightValue(21.6),
     letterSpacing: scaledValue(18 * -0.01),
-    color: colors.darkPurple,
+
     textAlign: 'center',
   },
   headerTitle: {
@@ -104,7 +104,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cameraIcon: {width: scaledValue(20), height: scaledValue(20)},
+  cameraIcon: { width: scaledValue(20), height: scaledValue(20) },
   bodyConditionRightIcon: {
     backgroundColor: colors.appRed,
     height: scaledValue(35),

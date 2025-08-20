@@ -37,7 +37,6 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(23),
     lineHeight: scaledHeightValue(27.6),
     letterSpacing: scaledValue(23 * -0.01),
-    color: colors.darkPurple,
   },
   headerContainer: {
     flexDirection: 'row',
@@ -48,48 +47,41 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(18),
     lineHeight: scaledHeightValue(21.6),
     letterSpacing: scaledValue(18 * -0.01),
-    color: colors.darkPurple,
   },
   petName: {
     fontSize: scaledValue(13),
     lineHeight: scaledHeightValue(15.6),
-    color: colors.darkPurple,
-    opacity: 0.5,
+    color: colors.jetBlack300,
   },
   percentageText: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    color: colors.appRed,
+    color: colors.primaryBlue,
   },
   completeText: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    color: colors.darkPurple,
     opacity: 0.7,
   },
   exerciseText: {
     fontSize: scaledValue(13),
     lineHeight: scaledHeightValue(15.6),
-    color: colors.darkPurple,
     letterSpacing: scaledValue(13 * -0.01),
     marginTop: scaledValue(20),
   },
   exerciseTitle: {
     fontSize: scaledValue(13),
     lineHeight: scaledHeightValue(15.6),
-    color: colors.darkPurple,
     opacity: 0.6,
   },
   dailyText: {
     fontSize: scaledValue(13),
     lineHeight: scaledHeightValue(15.6),
-    color: colors.darkPurple,
     opacity: 0.6,
   },
   exerciseTextStyle: {
     fontSize: scaledValue(13),
     lineHeight: scaledHeightValue(15.6),
-    color: colors.darkPurple,
     opacity: 0.7,
   },
   buttonTextStyle: {
@@ -102,11 +94,12 @@ export const styles = StyleSheet.create({
     marginLeft: scaledValue(3),
   },
   buttonStyle: {
-    backgroundColor: '#FDBD74',
     marginTop: scaledValue(61),
     height: scaledValue(48),
-    borderRadius: scaledValue(28),
     marginBottom: scaledValue(58),
+    gap: scaledValue(8),
+    width: '60%',
+    alignSelf: 'center',
   },
   iconStyle: {
     width: scaledValue(20),
@@ -114,7 +107,7 @@ export const styles = StyleSheet.create({
     marginRight: scaledValue(3),
   },
   cardStyle: {
-    backgroundColor: '#FFF6EB',
+    backgroundColor: colors.themeColor,
     borderRadius: scaledValue(20),
     paddingHorizontal: scaledValue(20),
     shadowColor: '#47382726',
@@ -123,6 +116,8 @@ export const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 8,
     marginTop: scaledValue(20),
+    borderWidth: scaledValue(1),
+    borderColor: colors.jetBlack50,
   },
   imgView: {
     flexDirection: 'row',
@@ -140,7 +135,7 @@ export const styles = StyleSheet.create({
     width: scaledValue(4),
     height: scaledValue(4),
     borderRadius: scaledValue(10),
-    backgroundColor: colors.appRed,
+    backgroundColor: colors.primaryBlue,
   },
   progressView: {marginTop: scaledValue(20)},
   percentageView: {
@@ -161,5 +156,43 @@ export const styles = StyleSheet.create({
   titleView: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  placeView: (selectReminder, item) => ({
+    borderRadius: scaledValue(28),
+    height: scaledValue(40),
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: scaledValue(14),
+    borderWidth: selectReminder === item ? scaledValue(1) : scaledValue(0.5),
+    borderColor:
+      selectReminder === item ? colors.primaryBlue : colors.darkPurple2,
+    backgroundColor:
+      selectReminder === item ? colors.paletteBlue : 'transparent',
+  }),
+  placeText: (selectReminder, item) => ({
+    fontSize: scaledValue(14),
+    lineHeight: scaledHeightValue(16.8),
+    textAlign: 'center',
+    color: selectReminder === item ? colors.primaryBlue : colors.darkPurple2,
+    fontFamily:
+      selectReminder === item ? fonts.SATOSHI_BOLD : fonts.SATOSHI_REGULAR,
+  }),
+  reminderView: {
+    marginTop: scaledValue(12),
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: scaledValue(8),
+  },
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: scaledValue(16),
+    paddingHorizontal: scaledValue(12),
+  },
+  dateText: {
+    fontSize: scaledValue(16),
+    lineHeight: scaledHeightValue(19.2),
+    letterSpacing: scaledValue(16 * -0.02),
   },
 });

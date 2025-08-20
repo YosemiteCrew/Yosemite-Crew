@@ -1,10 +1,10 @@
-import {StyleSheet} from 'react-native';
+import { StyleSheet } from 'react-native';
 import {
   scaledHeightValue,
   scaledValue,
 } from '../../../../../utils/design.utils';
-import {fonts} from '../../../../../utils/fonts';
-import {colors} from '../../../../../../assets/colors';
+import { fonts } from '../../../../../utils/fonts';
+import { colors } from '../../../../../../assets/colors';
 
 export const styles = StyleSheet.create({
   dashboardMainView: {
@@ -18,7 +18,7 @@ export const styles = StyleSheet.create({
   addressText: {
     fontSize: scaledValue(14),
     lineHeight: scaledValue(16.8),
-    color: colors.darkPurple,
+
     opacity: 0.7,
     marginLeft: scaledValue(8),
     width: '90%',
@@ -51,7 +51,7 @@ export const styles = StyleSheet.create({
   teamText: {
     fontSize: scaledValue(20),
     lineHeight: scaledHeightValue(24),
-    color: colors.darkPurple,
+
     letterSpacing: scaledValue(20 * -0.01),
   },
   countText: {
@@ -67,7 +67,7 @@ export const styles = StyleSheet.create({
   serviceText: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    color: colors.darkPurple,
+
     opacity: 0.8,
     marginLeft: scaledValue(8),
   },
@@ -88,19 +88,19 @@ export const styles = StyleSheet.create({
     paddingTop: scaledValue(12),
     paddingLeft: scaledValue(12),
   },
-  doctorImgView: {flexDirection: 'column', alignItems: 'center'},
+  doctorImgView: { flexDirection: 'column', alignItems: 'center' },
   starImgView: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: scaledValue(5),
   },
-  starImg: {width: scaledValue(16), height: scaledValue(16)},
+  starImg: { width: scaledValue(16), height: scaledValue(16) },
   experienceView: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: scaledValue(8),
   },
-  feesView: {flexDirection: 'row', marginTop: scaledValue(8)},
+  feesView: { flexDirection: 'row', marginTop: scaledValue(8) },
   doctorImg: {
     width: scaledValue(88),
     height: scaledValue(88),
@@ -110,7 +110,7 @@ export const styles = StyleSheet.create({
     width: scaledValue(335),
     borderRadius: scaledValue(20),
     shadowColor: '#47382726',
-    shadowOffset: {width: 1, height: 5},
+    shadowOffset: { width: 1, height: 5 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 8,
@@ -124,14 +124,14 @@ export const styles = StyleSheet.create({
   departmentText: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.7),
-    color: colors.darkPurple,
+
     opacity: 0.7,
     marginTop: scaledValue(2),
   },
   experienceText: {
     fontSize: scaledValue(12),
     lineHeight: scaledHeightValue(14.4),
-    color: colors.darkPurple,
+
   },
   experienceTextStyle: {
     fontSize: scaledValue(12),
@@ -178,7 +178,7 @@ export const styles = StyleSheet.create({
   subtitleText: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    color: colors.darkPurple,
+
     marginTop: scaledValue(2),
     opacity: 0.7,
   },

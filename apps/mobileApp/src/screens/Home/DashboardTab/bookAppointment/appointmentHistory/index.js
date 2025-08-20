@@ -37,8 +37,6 @@ const AppointmentHistory = ({navigation}) => {
       }),
     ).then(res => {
       if (get_appointment_list.fulfilled.match(res)) {
-        console.log('resdssss', JSON.stringify(res.payload));
-
         const transformed = transformAllAppointments(res?.payload);
         setUpComingAppointmentsList(transformed?.upcoming);
         setPendingAppointments(transformed?.pending);
@@ -67,7 +65,7 @@ const AppointmentHistory = ({navigation}) => {
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
-          tintColor={colors.darkPurple}
+          tintColor={colors.jetBlack}
           onPress={() => navigation.goBack()}
           style={{marginHorizontal: scaledValue(16)}}
         />
@@ -87,7 +85,7 @@ const AppointmentHistory = ({navigation}) => {
         {
           borderWidth: selectedOption === item.title ? 0 : scaledValue(1),
           backgroundColor:
-            selectedOption === item.title ? colors.appRed : 'transparent',
+            selectedOption === item.title ? colors.jetBlack : 'transparent',
         },
       ]}>
       <GText
@@ -96,7 +94,8 @@ const AppointmentHistory = ({navigation}) => {
         style={[
           styles.optionText,
           {
-            color: selectedOption === item.title ? colors.white : colors.appRed,
+            color:
+              selectedOption === item.title ? colors.white : colors.jetBlack,
           },
         ]}
       />
@@ -239,7 +238,6 @@ const AppointmentHistory = ({navigation}) => {
             contentContainerStyle={{gap: scaledValue(20)}}
             renderItem={({item, index}) => {
               const formatted = moment(item?.date).format('dddd, DD MMMM YYYY');
-              console.log('item0123', item);
 
               return (
                 <AppointmentCard
