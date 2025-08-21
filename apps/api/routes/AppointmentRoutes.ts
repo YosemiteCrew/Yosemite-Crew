@@ -13,4 +13,5 @@ router.get('/getDoctorsByDepartmentId', webAppointmentController.getDoctorsByDep
 router.get("/getDoctorSlots",verifyToken, webAppointmentController.getDoctorsSlotes)
 router.post("/appointment",verifyToken, webAppointmentController.createWebAppointment)
 router.get("/getAllAppointments",verifyToken, webAppointmentController.getAllAppointments)
+router.get("/getAllAppointmentsUpComming",verifyToken, webAppointmentController.getAllAppointmentsUpComming)
 export default router;
