@@ -11,7 +11,7 @@ import { FaCalendar } from "react-icons/fa6";
 import CalendarCard from "@/app/Components/CalendarCard/CalendarCard";
 import { getData } from "@/app/axios-services/services";
 import { useAuthStore } from "@/app/stores/authStore";
-import { convertAppointmentStatsFromFHIR, convertFhirAppointmentBundle, convertFromFHIRAppointments, fromFHIR } from "@yosemite-crew/fhir";
+import { convertAppointmentStatsFromFHIR, convertFromFHIRAppointments, fromFHIR } from "@yosemite-crew/fhir";
 import { FHIRAppointmentData, MyAppointmentData } from "@yosemite-crew/types";
 type AppointmentStatus = "In-progress" | "Checked-In" | "Pending";
 
