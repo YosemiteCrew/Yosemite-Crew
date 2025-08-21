@@ -1,12 +1,14 @@
-import CreateTask from '@/app/Pages/Task/CreateTask'
+import Task from '@/app/Pages/Task/Task'
 import React from 'react'
 
 function page() {
   return (
     <>
-        <CreateTask/>
+    <Task/>
+      
     </>
   )
 }
 
 export default page
+

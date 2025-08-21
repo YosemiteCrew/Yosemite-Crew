@@ -448,3 +448,65 @@
   border: none !important;
   line-height: 0px !important;
 }
+
+/* Task Table  */
+
+.removebtn{
+  background: transparent !important;
+  padding: 0 !important ;
+  line-height: 0px !important;
+  border: none !important;
+}
+.text-ellipsis{
+  white-space: nowrap; 
+  max-width: 115px; 
+  text-overflow: ellipsis;
+  overflow : hidden; 
+}
+.TaskStatusDiv{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.TaskStatus h6{
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  border-radius: 8px;
+  padding: 8px;
+  background: var(--checkbg);
+  color: var(--lightgreen);
+  font-family: var(--satoshi-font);
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 120%;
+  margin: 0;
+}
+.TaskStatus h6 span.dots {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.TaskStatus h6.on-complete {
+  background: var(--light-blue);
+  color: var(--black-text);
+}
+.TaskStatus h6.on-complete span.dots{
+  background: var(--blue-text);
+}
+.TaskStatus h6.on-progress {
+  background: var(--pendingbg);
+  color: var(--black-text);
+}
+.TaskStatus h6.on-progress span.dots{
+  background: var(--pendingtext);
+}
+.TaskStatus h6.on-pending {
+  background: var(--errorbg);
+  color: var(--black-text);
+}
+.TaskStatus h6.on-pending span.dots{
+  background: var(--delete);
+}
