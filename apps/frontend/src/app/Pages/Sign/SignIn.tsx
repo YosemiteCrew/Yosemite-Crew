@@ -2,14 +2,55 @@
 import Link from 'next/link';
 import React, { useState } from 'react'
 import { Form } from 'react-bootstrap';
-import { FormInput, FormInputPass, MainBtn } from './SignUp';
+import { FormInput, FormInputPass, MainBtn, ErrorTost } from './SignUp';
 import { GoCheckCircleFill } from 'react-icons/go';
-import Swal from 'sweetalert2';
+import { Icon } from "@iconify/react/dist/iconify.js";
 import { postData } from '@/app/axios-services/services';
 import { useRouter } from 'next/navigation';
 import { AxiosError } from 'axios';
 import { useAuthStore } from '../../stores/authStore';
 
+
+function useErrorTost() {
+  const [errorTost, setErrorTost] = useState<{
+    show: boolean;
+    message?: string;
+    errortext?: string;
+    iconElement?: React.ReactNode;
+    className?: string;
+  }>({ show: false });
+
+  const showErrorTost = (
+    {
+      message,
+      errortext,
+      iconElement,
+      className = "",
+      // duration = 2000
+    }: {
+      message: string;
+      errortext: string;
+      iconElement: React.ReactNode;
+      className?: string;
+      duration?: number;
+    }
+  ) => {
+    setErrorTost({ show: true, message, errortext, iconElement, className });
+    // setTimeout(() => setErrorTost({ show: false }), duration);
+  };
+
+  const ErrorTostPopup = errorTost.show ? (
+    <ErrorTost
+      className={errorTost.className || ""}
+      message={errorTost.message || ""}
+      errortext={errorTost.errortext || ""}
+      iconElement={errorTost.iconElement}
+      onClose={() => setErrorTost({ show: false })}
+    />
+  ) : null;
+
+  return { showErrorTost, ErrorTostPopup };
+}
 
 function SignIn() {
 
@@ -24,7 +65,8 @@ function SignIn() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [inputErrors, setInputErrors] = useState<{ email?: string; password?: string }>({});
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const setVerified = useAuthStore((state) => state.setVerified);
@@ -54,21 +96,24 @@ function SignIn() {
   };
 
 
+  const { showErrorTost, ErrorTostPopup } = useErrorTost();
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!email || !password) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Error',
-        text: 'Email and Password are required',
-      });
+    const errors: { email?: string; password?: string } = {};
+    if (!email) errors.email = "Email is required";
+    if (!password) errors.password = "Password is required";
+
+    setInputErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
       return;
     }
+
     const signInData = { email, password };
 
     try {
-
       const response = await postData<{ message: string; data?: { userId: string; email: string; userType: string } }>(
         `/api/auth/signin`,
         signInData, {
@@ -88,22 +133,23 @@ function SignIn() {
         const storeData = useAuthStore.getState();
         console.log("Saved in Zustand:", storeData);
 
-        Swal.fire({
-          icon: 'success',
-          title: 'Success',
-          text: response.data.message || 'Sign in successful',
+        showErrorTost({
+          message: response.data.message || 'Sign in successful',
+          errortext: 'Success',
+          iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#00C853" />,
+          className: "CongratsBg"
         });
 
-        router.push("/emptydashboard");
       }
+        router.push("/emptydashboard");
 
     } catch (error: unknown) {
       const axiosError = error as AxiosError<{ message: string }>;
-
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: `Sign in failed: ${axiosError.response?.data?.message || 'Unable to connect to the server.'}`,
+      showErrorTost({
+        message: `Sign in failed: ${axiosError.response?.data?.message || 'Unable to connect to the server.'}`,
+        errortext: 'Error',
+        iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />,
+        className: "errofoundbg"
       });
     }
   };
@@ -111,10 +157,11 @@ function SignIn() {
   const handleOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Error',
-        text: 'Email is required',
+      showErrorTost({
+        message: 'Email is required',
+        errortext: 'Error',
+        iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />,
+        className: "errofoundbg"
       });
       return;
     }
@@ -126,29 +173,22 @@ function SignIn() {
       );
 
       if (response.status === 200) {
-        Swal.fire({
-          icon: 'success',
-          title: 'Success',
-          text: 'OTP sent successfully',
+        showErrorTost({
+          message: 'OTP sent successfully',
+          errortext: 'Success',
+          iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#00C853" />,
+          className: "CongratsBg"
         });
         setShowVerifyCode(true);
       }
     } catch (error: unknown) {
       const axiosError = error as AxiosError<{ message: string }>;
-
-      if (axiosError.response?.data?.message) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: `OTP failed: ${axiosError.response.data.message}`,
-        });
-      } else {
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'OTP failed: Unable to connect to the server.',
-        });
-      }
+      showErrorTost({
+        message: `OTP failed: ${axiosError.response?.data?.message || 'Unable to connect to the server.'}`,
+        errortext: 'Error',
+        iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />,
+        className: "errofoundbg"
+      });
     }
   };
 
@@ -156,19 +196,21 @@ function SignIn() {
     e.preventDefault();
 
     if (otp.some((digit) => digit === '')) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Error',
-        text: 'Please enter the full OTP',
+      showErrorTost({
+        message: 'Please enter the full OTP',
+        errortext: 'Error',
+        iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />,
+        className: "errofoundbg"
       });
       return;
     }
 
     if (password !== confirmPassword) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Error',
-        text: 'Passwords do not match',
+      showErrorTost({
+        message: 'Passwords do not match',
+        errortext: 'Error',
+        iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />,
+        className: "errofoundbg"
       });
       return;
     }
@@ -186,41 +228,35 @@ function SignIn() {
       );
 
       if (response.status === 200) {
-        Swal.fire({
-          icon: 'success',
-          title: 'Success',
-          text: 'OTP verified successfully',
+        showErrorTost({
+          message: 'OTP verified successfully',
+          errortext: 'Success',
+          iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#00C853" />,
+          className: "CongratsBg"
         });
         setShowNewPassword(false);
         setShowVerifyCode(false);
         setShowForgotPassword(false);
       }
+      
     } catch (error: unknown) {
       const axiosError = error as AxiosError<{ message: string }>;
-
-      if (axiosError.response && axiosError.response.data?.message) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: `OTP verification failed: ${axiosError.response.data.message}`,
-        });
-      } else {
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'OTP verification failed: Unable to connect to the server.',
-        });
-      }
+      showErrorTost({
+        message: `OTP verification failed: ${axiosError.response?.data?.message || 'Unable to connect to the server.'}`,
+        errortext: 'Error',
+        iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />,
+        className: "errofoundbg"
+      });
     }
   };
   const redirectToDashboard = () => { 
-    if(userType === "Veterinary Business"){
+    if(userType === "veterinaryBusiness"){
       router.push("/emptydashboard");
-    } else if(userType === "Breeding Facility"){  
+    } else if(userType === "breedingFacility"){  
       router.push("/DoctorDashboard"); 
-    } else if(userType === "Pet Sitter"){  
+    } else if(userType === "petSitter"){  
       router.push("/DoctorDashboard");
-    }else if(userType === "Groomer Shop"){  
+    }else if(userType === "groomerShop"){  
       router.push("/DoctorDashboard");
     }    
    }
@@ -236,8 +272,10 @@ if(isVerified){
 
   return (
     <>
+     {ErrorTostPopup}
 
       <section className="SignInSec">
+        
         {/* <div className="leftSignIn" style={{"--background-image":`url(${process.env.VITE_BASE_IMAGE_URL}/SignInpic.png)`}} ></div> */}
         <div className="leftSignIn" ></div>
         <div className="RightSignIn">
@@ -247,9 +285,23 @@ if(isVerified){
             <div className="SignIninner">
               <Form>
                 <div className="TopSignInner">
-                  <h2>Sign in <span>to your account</span> </h2>
-                  <FormInput intype="email" inname="email" value={email} inlabel="Email Address" onChange={(e) => setEmail(e.target.value)} />
-                  <FormInputPass intype="password" inname="password" value={password} inlabel="Password" onChange={(e) => setPassword(e.target.value)} />
+                  <FormInput
+                    intype="email"
+                    inname="email"
+                    value={email}
+                    inlabel="Email Address"
+                    onChange={(e) => setEmail(e.target.value)}
+                    error={inputErrors.email}
+                  />
+                  
+                  <FormInputPass
+                    intype="password"
+                    inname="password"
+                    value={password}
+                    inlabel="Password"
+                    onChange={(e) => setPassword(e.target.value)}
+                    error={inputErrors.password}
+                  />
 
                   <div className="forgtbtn">
                     <Link href=""
@@ -333,125 +385,14 @@ if(isVerified){
         </div>
       </section>
 
-      <section className='CompleteSignUpSec'>
-        <div className="LeftCompleteSign" style={{ "--dynamic-bg-image": `url("/Images/doctorbg.png")` } as React.CSSProperties}></div>
-        <div className="RightCompleteSign">
+    
 
-          {!showForgotPassword && !showVerifyCode && !showNewPassword && (
-            <div className="ComplteSignInner">
-              <Form>
-
-
-
-                <div className="CompleteText">
-                  <h2><span>Welcome To</span> <br /> San Francisco Animal Medical Center. <br /> <span>Have a wonderful Day!</span> </h2>
-                </div>
-                <div className="CompletSignInpt">
-                  <h6>Complete Your Sign-In</h6>
-                  <div className="inputDiv">
-                    <FormInput intype="email" inname="email" value={email} inlabel="Email Address" onChange={(e) => setEmail(e.target.value)} />
-                    <FormInputPass intype="password" inname="password" value={password} inlabel="Password" onChange={(e) => setPassword(e.target.value)} />
-                    <div className="forgtbtn">
-                      <Link href=""
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setShowForgotPassword(true); // Show forgot password section
-                        }}
-                      >
-                        Forgot Password?
-                      </Link>
-                    </div>
-                  </div>
-                  <div className="Signbtn">
-                    <MainBtn btnicon={<GoCheckCircleFill />} btnname="Sign In" iconPosition="left" />
-                  </div>
-                </div>
-
-
-
-
-
-
-
-
-              </Form>
-
-            </div>
-          )}
-
-          {/* Forgot Password Page */}
-          {showForgotPassword && !showVerifyCode && !showNewPassword && (
-            <div className="SignIninner">
-              <div className="ForgetHead">
-                <h2>Forgot <span>password?</span> </h2>
-                <p> Enter your registered email, and we’ll send you a code to reset it.</p>
-              </div>
-              <Form>
-                <FormInput intype="email" inname="email" value={email} inlabel="Email Address" onChange={(e) => setEmail(e.target.value)} />
-                <MainBtn btnicon={<GoCheckCircleFill />} btnname="Send Code" onClick={(e) => {
-                  e.preventDefault();
-                  setShowVerifyCode(true); // Show forgot password section
-                }} />
-              </Form>
-            </div>
-          )}
-
-          {/* Verify Code Page */}
-          {showVerifyCode && !showNewPassword && (
-            <div className="ss">
-              <div className="SignIninner">
-                <div className="ForgetHead">
-                  <h2>Verify <span>Code</span> </h2>
-                  <p> Enter the code we just sent to your email to proceed with resetting your password.</p>
-                </div>
-
-                <Form>
-                  <div className="verifyInput">
-                    {otp.map((digit, index) => (
-                      <Form.Control
-                        key={index}
-                        type="text"
-                        value={digit}
-                        id={`otp-input-${index}`}
-                        onChange={(e) => handleChange(e, index)}
-                        onKeyDown={(e) => handleKeyDown(e, index)} // Handle backspace
-                        maxLength={1}
-                      />
-                    ))}
-                  </div>
-
-
-                </Form>
-              </div>
-
-              <div className="SignIninner">
-                <Form>
-                  <div className="TopSignInner">
-                    <h2>Set <span>new password</span> </h2>
-                    <FormInputPass intype="Enter New Password" inname="password" value={password} inlabel="Password" onChange={(e) => setPassword(e.target.value)} />
-                    <FormInputPass intype="Confirm Password" inname="password" value={password} inlabel="Password" onChange={(e) => setPassword(e.target.value)} />
-                  </div>
-                  <div className="Signbtn">
-                    <MainBtn btnicon={<GoCheckCircleFill />} btnname="Reset Password" iconPosition="left" />
-                    <h6> Didn’t receive the code? <Link href="#">Request New Code.</Link></h6>
-                  </div>
-                </Form>
-              </div>
-
-            </div>
-          )}
-
-
-        </div>
-
-      </section>
-
-
-
-
+     
 
     </>
   )
 }
 
 export default SignIn
+/* Removed unused setInputErrors function */
+

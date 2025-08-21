@@ -182,6 +182,7 @@ const columns = [
 ];
 
 function InventoryTable({data}:any) {
+  console.log("InventoryTable data:", data);
   return (
     <div className="table-wrapper">
       <GenericTable data={data} columns={columns} bordered={false} />

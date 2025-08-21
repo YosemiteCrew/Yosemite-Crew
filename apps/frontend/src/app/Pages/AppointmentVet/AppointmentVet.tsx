@@ -11,30 +11,38 @@ import { FaCalendar } from "react-icons/fa6";
 import CalendarCard from "@/app/Components/CalendarCard/CalendarCard";
 import { getData } from "@/app/axios-services/services";
 import { useAuthStore } from "@/app/stores/authStore";
-import { convertAppointmentStatsFromFHIR, convertFhirAppointmentBundle, convertFromFHIRAppointments } from "@yosemite-crew/fhir";
-// import { convertFhirAppointmentBundle } from "@/app/utils/common";
-// import { set } from 'mongoose';
+import { convertAppointmentStatsFromFHIR, convertFhirAppointmentBundle, convertFromFHIRAppointments, fromFHIR } from "@yosemite-crew/fhir";
+import { FHIRAppointmentData, MyAppointmentData } from "@yosemite-crew/types";
+type AppointmentStatus = "In-progress" | "Checked-In" | "Pending";
+
+export type TodayAppointmentItem = {
+  name: string;
+  owner: string;
+  image: string;
+  tokenNumber: string;
+  reason: string;
+  petType: string;
+  time: string;
+  date: string;
+  participants: { name: string };
+  specialization: string;
+  status: AppointmentStatus;
+};
+
 
 function AppointmentVet() {
   const [selectedDoctor, setSelectedDoctor] = useState("Appointment Status");
-  const [todayAppointmentsData, setTodayAppointmentsData] = useState([]);
+  const [todayAppointmentsData, setTodayAppointmentsData] = useState<TodayAppointmentItem[]>([]);
   const [overviewStats, setOverviewStats] = useState<any>([]);
-  const [upcomingAppointmentsData, setUpcomingAppointmentsData] = useState([]);
-  const [completedAppointmentsData, setCompletedAppointmentsData] = useState(
+  const [upcomingAppointmentsData, setUpcomingAppointmentsData] = useState<TodayAppointmentItem[]>([]);
+  const [completedAppointmentsData, setCompletedAppointmentsData] = useState<TodayAppointmentItem[]>(
     []
   );
+  console.log("todayAppointmentsData",todayAppointmentsData)
   const [myCalender, setMyCalender] = useState([]);
   const userId = useAuthStore((state: any) => state.userId);
 
-  useEffect(() => {
-    fetchTodayAppointments("AppointmentLists");
-  }, []);
-  useEffect(() => {
-    fetchTodayAppointments("UpComing");
-  }, []);
-  useEffect(() => {
-    fetchTodayAppointments("Completed");
-  }, []);
+  
   useEffect(() => {
     fetchCalenderAppointments("calenderaAppointment");
   }, []);
@@ -42,32 +50,7 @@ function AppointmentVet() {
     fetchOverviewStats();
   }, []);
 
-  const fetchTodayAppointments = async (type: any) => {
-    const response = await getData("/fhir/v1/Appointment", {
-      caseType: type,
-      organization: userId,
-    });
-    if (!response) {
-      throw new Error("Network response was not ok");
-    }
-    const data: any = await response.data;
-    // console.log(data, "DATAAAAAAAAAAAAAAAA");
-    const convertToJson: any = await convertFhirAppointmentBundle(
-      data.data.entry
-    );
-    if (type === "AppointmentLists") {
-      setTodayAppointmentsData(convertToJson);
-    }
-    if (type === "UpComing") {
-      setUpcomingAppointmentsData(convertToJson);
-    }
-    if (type === "Completed") {
-      setCompletedAppointmentsData(convertToJson);
-    }
-    // if (type === "calenderaAppointment") {
-    //   setMyCalender(convertToJson);
-    // }
-  };
+  
   const fetchCalenderAppointments = async (type: any) => {
     const response = await getData("/fhir/v1/Appointment", {
       caseType: type,
@@ -87,17 +70,66 @@ function AppointmentVet() {
       setMyCalender(json);
     }
   };
-  // const fetchUpcomingAppointments = async() => {
-  //     const response:any = await getData('/fhir/v1/Appointment',{caseType:":UpComing"});
-  //     setUpcomingAppointmentsData(response.data);
-  //  }
-  // const fetchCompletedAppointments = async() => {
-  //     const response:any = await getData('/fhir/v1/Appointment',{caseType:":Completed"});
-  //     setCompletedAppointmentsData(response.data);
-  //  }
-  // const fetchNewAppointments = async() => {
-  //     const response = await getData('/fhir/v1/Appointment',{caseType:":AppointmentLists"});
-  //  }
+useEffect(() => {
+    const getTodayAppointment = async (doctorId: string, status: string) => {
+      try {
+        const response = await getData(
+          `/api/appointments/getAllAppointments?doctorId=${doctorId}&userId=${userId}&status=${status}`
+        );
+        if (response.status === 200) {
+          const data: any = response.data;
+          setTodayAppointmentsData(normalizeAppointments(fromFHIR(data.data as FHIRAppointmentData[])));
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    if (userId) {
+      getTodayAppointment("", "");
+    }
+  }, [userId]);
+useEffect(() => {
+    const getUpCommingAppointment = async (doctorId: string, status: string) => {
+      try {
+        const response = await getData(
+          `/api/appointments/getAllAppointmentsUpComming?doctorId=${doctorId}&userId=${userId}&status=${status}`
+        );
+        if (response.status === 200) {
+          const data: any = response.data;
+          setUpcomingAppointmentsData(normalizeAppointments(fromFHIR(data.data as FHIRAppointmentData[])));
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    if (userId) {
+      getUpCommingAppointment("", "");
+    }
+  }, [userId]);
+
+
+  useEffect(() => {
+  const getCompletedAppointments = async (doctorId: string, status: string) => {
+    try {
+      const response = await getData(
+        `/api/appointments/getAllAppointmentsUpComming?doctorId=${doctorId}&userId=${userId}&status=fulfilled`
+      );
+      if (response.status === 200) {
+        const data: any = response.data;
+        setCompletedAppointmentsData(
+          normalizeAppointments(fromFHIR(data.data as FHIRAppointmentData[]))
+        );
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+  if (userId) {
+    getCompletedAppointments("", "fulfilled");
+  }
+}, [userId]);
+
+
 const fetchOverviewStats = async() => { 
   console.log("First Name");
   const response = await getData("/fhir/v1/AppointmentOverviewStats", {
@@ -113,7 +145,35 @@ setOverviewStats(data);
 
   
  }
-  console.log(overviewStats, "overviewStats");
+  const normalizeAppointments = (data: MyAppointmentData[]): TodayAppointmentItem[] => {
+  return data.map((item:any) => {
+    // map raw backend status → union type
+    let mappedStatus: AppointmentStatus = "Pending";
+    if (item.appointmentStatus.toLowerCase() === "in-progress") {
+      mappedStatus = "In-progress";
+    } else if (item.appointmentStatus.toLowerCase() === "checked-in") {
+      mappedStatus = "Checked-In";
+    }
+
+    return {
+      id: item._id,
+      name: item.petName,
+      owner: item.ownerName,
+      image: item.petImage,
+      tokenNumber: item.tokenNumber,
+      reason: item.purposeOfVisit,
+      petType: item.breed,
+      pet: item.pet,
+      time: item.appointmentTime,
+      date: item.appointmentDate,
+      participants: { name: item.doctorName },
+      specialization: item.departmentName,
+      status: mappedStatus,
+    };
+  });
+};
+
+
   return (
     <>
       <section className="AppointmentVetSection">

@@ -25,7 +25,7 @@ import {
 // import { response } from "express";
 import FeedBack from "../models/feedback";
 import { PipelineStage } from "mongoose";
-import { AggregatedAppointmentGraph, AppointmentStatusFHIRBundle, QueryParams } from "@yosemite-crew/types";
+import { AggregatedAppointmentGraph, AppointmentStatusFHIRBundle, FHIRtoJSONSpeacilityStats, QueryParams } from "@yosemite-crew/types";
 import { validateFHIR } from "../Fhirvalidator/FhirValidator";
 
 const s3 = new AWS.S3({
@@ -152,7 +152,7 @@ const HospitalController = {
   // }
   // ,
   AppointmentGraphs: async (
-    req: Request<{}, {}, {}, QueryParams>,
+    req: Request<QueryParams>,
     res: Response
   ) => {
 
@@ -161,85 +161,101 @@ const HospitalController = {
 
     switch (reportType) {
       case "specialityWiseAppointments":
-        if (req.method === "GET") {
-          try {
-            const { LastDays = '7', userId } = req.query;
-            const days = parseInt(LastDays, 10) || 7;
-            if (!userId) {
-              return res.status(400).json({ message: "Missing userId" });
-            }
-            const endDate = new Date();
-            const startDate = new Date();
-            startDate.setDate(endDate.getDate() - (days - 1));
+  if (req.method === "GET") {
+    try {
+      const { LastDays = '1', userId } = req.query as { LastDays?: string, userId?: string };
 
-            // Convert both to 'YYYY-MM-DD' strings for comparison
-            const startDateStr = startDate.toISOString().split("T")[0];
-            const endDateStr = endDate.toISOString().split("T")[0];
+      // Validate LastDays and convert months to days (approximate 30 days per month)
+      const months = parseInt(LastDays, 10);
+      if (isNaN(months) || months <= 0) {
+        return res.status(400).json({ message: "Invalid LastDays value, must be a positive number of months" });
+      }
+      const days = months * 30; // Convert months to approximate days
 
-            const departmentWiseAppointments = await webAppointments.aggregate([
-              {
-                $match: {
-                  appointmentDate: { $gte: startDateStr, $lte: endDateStr },
-                  hospitalId: userId,
-                },
-              },
-              {
-                $addFields: {
-                  departmentObjId: { $toObjectId: "$department" },
-                },
-              },
-              {
-                $group: {
-                  _id: "$departmentObjId",
-                  count: { $sum: 1 },
-                },
-              },
-              {
-                $lookup: {
-                  from: "departments",
-                  localField: "_id",
-                  foreignField: "_id",
-                  as: "departmentInfo",
-                },
-              },
-              {
-                $unwind: {
-                  path: "$departmentInfo",
-                  preserveNullAndEmptyArrays: true,
-                },
-              },
-              {
-                $project: {
-                  departmentName: {
-                    $ifNull: ["$departmentInfo.departmentName", "Unknown"],
-                  },
-                  count: 1,
-                },
-              },
-            ]);
+      if (!userId) {
+        return res.status(400).json({ message: "Missing userId" });
+      }
 
-            const data = convertSpecialityWiseAppointmentsToFHIR(departmentWiseAppointments);
-            const validateFhir = validateFHIR(data);
-            if (validateFhir) {
-              return res.status(200).json(data);
-            }
-            return res.status(400).json("validation fhir failed");
-          } catch (error: any) {
-            return res.status(500).json({
-              resourceType: "OperationOutcome",
-              issue: [
-                {
-                  severity: "error",
-                  code: "exception",
-                  details: {
-                    text: "Internal server error. Please try again later.",
-                  },
-                  diagnostics: error.message,
-                },
-              ],
-            });
-          }
-        }
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(endDate.getDate() - (days - 1));
+
+      // Convert both to 'YYYY-MM-DD' strings for comparison
+      const startDateStr = startDate.toISOString().split("T")[0];
+      const endDateStr = endDate.toISOString().split("T")[0];
+
+      const departmentWiseAppointments: FHIRtoJSONSpeacilityStats[] = await webAppointments.aggregate([
+        {
+          $match: {
+            appointmentDate: { $gte: startDateStr, $lte: endDateStr },
+            hospitalId: userId,
+          },
+        },
+        {
+          $addFields: {
+            departmentObjId: { $toObjectId: "$department" },
+          },
+        },
+        {
+          $group: {
+            _id: "$departmentObjId",
+            count: { $sum: 1 },
+          },
+        },
+        {
+          $lookup: {
+            from: "admindepartments",
+            localField: "_id",
+            foreignField: "_id",
+            as: "departmentInfo",
+          },
+        },
+        {
+          $unwind: {
+            path: "$departmentInfo",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $project: {
+            departmentName: {
+              $ifNull: ["$departmentInfo.name", "Unknown Department"],
+            },
+            count: 1,
+          },
+        },
+      ]);
+
+      const data = convertSpecialityWiseAppointmentsToFHIR(departmentWiseAppointments);
+      const validateFhir = validateFHIR(data);
+      if (validateFhir) {
+        return res.status(200).json(data);
+      }
+      return res.status(400).json({
+        resourceType: "OperationOutcome",
+        issue: [
+          {
+            severity: "error",
+            code: "invalid",
+            details: { text: "FHIR validation failed" },
+          },
+        ],
+      });
+    } catch (error) {
+      const errMessage = error instanceof Error ? error.message : "Unknown server error";
+      return res.status(500).json({
+        resourceType: "OperationOutcome",
+        issue: [
+          {
+            severity: "error",
+            code: "exception",
+            details: { text: "Internal server error. Please try again later." },
+            diagnostics: errMessage,
+          },
+        ],
+      });
+    }
+  }break;
       case "WeeklyAppointmentGraph":
         if (req.method === "GET") {
           try {
@@ -278,7 +294,7 @@ const HospitalController = {
                 },
               },
             ]);
-            const weekData:any = {
+            const weekData: any = {
               Monday: 0,
               Tuesday: 0,
               Wednesday: 0,
@@ -292,7 +308,7 @@ const HospitalController = {
               weekData[day] = count;
             });
 
-            const responseData:any = Object.entries(weekData).map(
+            const responseData: any = Object.entries(weekData).map(
               ([day, count]) => ({
                 day,
                 count,
@@ -436,22 +452,22 @@ const HospitalController = {
     }
   },
 
-   AppointmentOverviewStats: async (
+  AppointmentOverviewStats: async (
     req: Request,
     res: Response
   ): Promise<void> => {
     try {
       const { userId } = req.query;
-  
+
       if (!userId || typeof userId !== "string") {
         res.status(400).json({
           message: "Missing or invalid userId in query",
         });
         return;
       }
-  
+
       const today = new Date().toISOString().split("T")[0];
-  
+
       const [
         todaysAppointments,
         upcomingAppointments,
@@ -477,7 +493,7 @@ const HospitalController = {
           appointmentDate: { $gte: today },
         }),
       ]);
-  
+
       res.status(200).json(convertAppointmentStatsToFHIR({
         todaysAppointments,
         upcomingAppointments,
@@ -724,103 +740,103 @@ const HospitalController = {
 
   //     // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Appointment Management>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-      // case "AppointmentManagement":
-      //   if (req.method === "GET") {
-      //     try {
-      //       const { LastDays, userId } = req.query;
+  // case "AppointmentManagement":
+  //   if (req.method === "GET") {
+  //     try {
+  //       const { LastDays, userId } = req.query;
 
-      //       if (!LastDays) {
-      //         return res.status(400).json({
-      //           resourceType: "OperationOutcome",
-      //           issue: [
-      //             {
-      //               severity: "error",
-      //               code: "exception",
-      //               details: { text: "Missing required parameter: LastDays" },
-      //             },
-      //           ],
-      //         });
-      //       } else if (!userId) {
-      //         return res.status(400).json({
-      //           resourceType: "OperationOutcome",
-      //           issue: [
-      //             {
-      //               severity: "error",
-      //               code: "exception",
-      //               details: { text: "missing required parameter: userId" },
-      //             },
-      //           ],
-      //         });
-      //       }
-      //       const days = parseInt(LastDays, 10) || 7; // Default to 7 days if not provided
+  //       if (!LastDays) {
+  //         return res.status(400).json({
+  //           resourceType: "OperationOutcome",
+  //           issue: [
+  //             {
+  //               severity: "error",
+  //               code: "exception",
+  //               details: { text: "Missing required parameter: LastDays" },
+  //             },
+  //           ],
+  //         });
+  //       } else if (!userId) {
+  //         return res.status(400).json({
+  //           resourceType: "OperationOutcome",
+  //           issue: [
+  //             {
+  //               severity: "error",
+  //               code: "exception",
+  //               details: { text: "missing required parameter: userId" },
+  //             },
+  //           ],
+  //         });
+  //       }
+  //       const days = parseInt(LastDays, 10) || 7; // Default to 7 days if not provided
 
-      //       const endDate = new Date();
-      //       const startDate = new Date();
-      //       startDate.setDate(endDate.getDate() - (days - 1));
+  //       const endDate = new Date();
+  //       const startDate = new Date();
+  //       startDate.setDate(endDate.getDate() - (days - 1));
 
-      //       // const today = new Date().toISOString().split('T')[0]; // Today's date in "YYYY-MM-DD" format
+  //       // const today = new Date().toISOString().split('T')[0]; // Today's date in "YYYY-MM-DD" format
 
-      //       const appointments = await webAppointments.aggregate([
-      //         {
-      //           $addFields: {
-      //             appointmentDateObj: { $toDate: "$appointmentDate" }, // Convert string to Date
-      //           },
-      //         },
-      //         {
-      //           $match: {
-      //             appointmentDateObj: { $gte: startDate, $lte: endDate },
-      //             $or: [{ hospitalId: userId }, { veterinarian: userId }],
-      //           },
-      //         },
-      //         {
-      //           $group: {
-      //             _id: null,
-      //             newAppointments: {
-      //               $sum: { $cond: [{ $eq: ["$isCanceled", 0] }, 1, 0] },
-      //             },
-      //             upcomingAppointments: {
-      //               $sum: {
-      //                 $cond: [
-      //                   { $gt: ["$appointmentDateObj", new Date()] },
-      //                   1,
-      //                   0,
-      //                 ],
-      //               },
-      //             },
-      //             canceled: {
-      //               $sum: { $cond: [{ $eq: ["$isCanceled", 2] }, 1, 0] },
-      //             },
-      //             successful: {
-      //               $sum: { $cond: [{ $eq: ["$isCanceled", 3] }, 1, 0] },
-      //             },
-      //           },
-      //         },
-      //       ]);
+  //       const appointments = await webAppointments.aggregate([
+  //         {
+  //           $addFields: {
+  //             appointmentDateObj: { $toDate: "$appointmentDate" }, // Convert string to Date
+  //           },
+  //         },
+  //         {
+  //           $match: {
+  //             appointmentDateObj: { $gte: startDate, $lte: endDate },
+  //             $or: [{ hospitalId: userId }, { veterinarian: userId }],
+  //           },
+  //         },
+  //         {
+  //           $group: {
+  //             _id: null,
+  //             newAppointments: {
+  //               $sum: { $cond: [{ $eq: ["$isCanceled", 0] }, 1, 0] },
+  //             },
+  //             upcomingAppointments: {
+  //               $sum: {
+  //                 $cond: [
+  //                   { $gt: ["$appointmentDateObj", new Date()] },
+  //                   1,
+  //                   0,
+  //                 ],
+  //               },
+  //             },
+  //             canceled: {
+  //               $sum: { $cond: [{ $eq: ["$isCanceled", 2] }, 1, 0] },
+  //             },
+  //             successful: {
+  //               $sum: { $cond: [{ $eq: ["$isCanceled", 3] }, 1, 0] },
+  //             },
+  //           },
+  //         },
+  //       ]);
 
-      //       const result = appointments[0] || {
-      //         newAppointments: 0,
-      //         upcomingAppointments: 0,
-      //         canceled: 0,
-      //         successful: 0,
-      //       };
-      //       const data = new FHIRConverter(result).overviewConvertToFHIR();
-      //       return res.status(200).json({ data });
-      //     } catch (error:any) {
-      //       return res.status(500).json({
-      //         resourceType: "OperationOutcome",
-      //         issue: [
-      //           {
-      //             severity: "fatal",
-      //             code: "exception",
-      //             details: {
-      //               text: "An error occurred while fetching data.",
-      //             },
-      //             diagnostics: error.message,
-      //           },
-      //         ],
-      //       });
-      //     }
-      //   }
+  //       const result = appointments[0] || {
+  //         newAppointments: 0,
+  //         upcomingAppointments: 0,
+  //         canceled: 0,
+  //         successful: 0,
+  //       };
+  //       const data = new FHIRConverter(result).overviewConvertToFHIR();
+  //       return res.status(200).json({ data });
+  //     } catch (error:any) {
+  //       return res.status(500).json({
+  //         resourceType: "OperationOutcome",
+  //         issue: [
+  //           {
+  //             severity: "fatal",
+  //             code: "exception",
+  //             details: {
+  //               text: "An error occurred while fetching data.",
+  //             },
+  //             diagnostics: error.message,
+  //           },
+  //         ],
+  //       });
+  //     }
+  //   }
   //     case "DepartmentOverview":
   //       if (req.method === "GET") {
   //         try {
@@ -1881,8 +1897,8 @@ const HospitalController = {
             const formattedAppointments = confirmedAppointments.map(
               (appointment: AppointmentStatusFHIRBundle | any) => ({
                 ...appointment,
-                appointmentDate: appointment.appointmentDate 
-                  ? `${daysMap[new Date(appointment.appointmentDate).getDay() + 1]}, ${appointment.appointmentDate}` 
+                appointmentDate: appointment.appointmentDate
+                  ? `${daysMap[new Date(appointment.appointmentDate).getDay() + 1]}, ${appointment.appointmentDate}`
                   : "Invalid Date",
               })
             );
