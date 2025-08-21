@@ -173,10 +173,10 @@ export const contact_us = createAsyncThunk(
       dispatch(setLoading(false));
       console.log('contactUs_error==>', error?.message);
       if (error?.message === 'Network Error') {
-        showToast(0, validationError[error?.message]);
+        showToast(0, error?.message);
       }
 
-      showToast(0, validationError[error.response.data?.message]);
+      showToast(0, error.response.data?.message);
 
       return rejectWithValue(error.response.data);
     }

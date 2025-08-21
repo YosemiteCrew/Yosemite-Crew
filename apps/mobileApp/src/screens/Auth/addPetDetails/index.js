@@ -32,6 +32,7 @@ const AddPetDetails = ({navigation, route}) => {
   const {choosePetData, petDetails} = route?.params;
   // console.log('petDetails', petDetails);
   const authState = useAppSelector(state => state.auth);
+  const petState = useAppSelector(state => state.pet);
   const formatDate = dateString => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-GB');
@@ -261,9 +262,9 @@ const AddPetDetails = ({navigation, route}) => {
     dispatch(add_pet(api_credentials)).then(res => {
       if (add_pet.fulfilled.match(res)) {
         const updatedBundle = {
-          ...petList,
-          total: petList.total + 1,
-          entry: [res?.payload, ...petList.entry],
+          ...petState.petLists,
+          total: petState.petLists.total + 1,
+          entry: [res?.payload, ...petState.petLists.entry],
         };
         // dispatch(updatePetList(updatedBundle));
       }

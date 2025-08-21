@@ -9,6 +9,7 @@ export const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+    marginTop: scaledValue(20),
   },
   headerRight: {
     paddingRight: scaledValue(20),
@@ -21,9 +22,6 @@ export const styles = StyleSheet.create({
   headerIcon: {
     width: scaledValue(28),
     height: scaledValue(28),
-  },
-  scrollView: {
-    marginTop: scaledValue(20),
   },
   optionContainer: {
     flexDirection: 'row',

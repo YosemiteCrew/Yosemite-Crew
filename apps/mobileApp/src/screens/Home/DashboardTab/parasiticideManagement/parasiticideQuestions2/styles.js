@@ -70,6 +70,8 @@ export const styles = StyleSheet.create({
     borderWidth: scaledValue(0.5),
     borderColor: 'rgba(55, 34, 60, 0.1)',
     marginVertical: scaledValue(17),
+    height: 1,
+    backgroundColor: '#E0E0E0',
   },
   rightArrow: {
     width: scaledValue(20),
@@ -79,15 +81,12 @@ export const styles = StyleSheet.create({
   questionButton: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    marginVertical: scaledValue(8),
   },
   symptomsContainer: {
     marginTop: scaledValue(30.5),
     paddingHorizontal: scaledValue(20),
-  },
-  questionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: scaledValue(8),
   },
   symptomText: (selectedSymptoms, item) => ({
     fontSize: scaledValue(16),
@@ -102,15 +101,6 @@ export const styles = StyleSheet.create({
       ? fonts.SATOSHI_BOLD
       : fonts.SATOSHI_REGULAR,
   }),
-  rightArrow: {
-    width: scaledValue(20),
-    height: scaledValue(20),
-  },
-  separator: {
-    height: 1,
-    backgroundColor: '#E0E0E0',
-    marginVertical: scaledValue(10),
-  },
   buttonTextStyle: {
     fontFamily: fonts.CLASH_GRO_MEDIUM,
     fontSize: scaledValue(16),

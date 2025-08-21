@@ -25,9 +25,6 @@ export const styles = StyleSheet.create({
     width: scaledValue(28),
     height: scaledValue(28),
   },
-  scrollView: {
-    flex: 1,
-  },
   tabContainer: {
     flexDirection: 'row',
     width: scaledValue(187),

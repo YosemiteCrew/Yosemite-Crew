@@ -35,9 +35,6 @@ export const styles = StyleSheet.create({
     textAlign: 'center',
     color: colors.appRed,
   },
-  scrollView: {
-    flex: 1,
-  },
   cardContainer: {
     marginTop: scaledValue(28),
     backgroundColor: '#FFF6EB',

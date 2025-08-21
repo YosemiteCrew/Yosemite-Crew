@@ -138,28 +138,6 @@ export const styles = StyleSheet.create({
     lineHeight: scaledHeightValue(14.4),
     color: colors.appRed,
   },
-  buttonTextStyle: {
-    fontSize: scaledValue(14),
-    lineHeight: scaledValue(16),
-    color: colors.appRed,
-    marginLeft: scaledValue(2),
-    letterSpacing: scaledValue(14 * -0.01),
-    fontFamily: fonts.CLASH_GRO_MEDIUM,
-  },
-  buttonStyle: {
-    borderWidth: scaledValue(1),
-    borderColor: colors.appRed,
-    marginTop: scaledValue(20),
-    borderRadius: scaledValue(28),
-    height: scaledValue(44),
-    marginBottom: scaledValue(16),
-    marginHorizontal: scaledValue(12),
-  },
-  iconStyle: {
-    width: scaledValue(16),
-    height: scaledValue(16),
-    marginRight: scaledValue(2),
-  },
   scrollView: {
     paddingHorizontal: scaledValue(20),
     marginTop: scaledValue(10),

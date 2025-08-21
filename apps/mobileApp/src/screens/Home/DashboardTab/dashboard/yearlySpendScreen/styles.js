@@ -115,11 +115,6 @@ export const styles = StyleSheet.create({
     width: scaledValue(22),
    
   },
-  kiziImage: {
-    height: scaledValue(60),
-    width: scaledValue(60),
-    marginTop: scaledValue(30),
-  },
   addText: {
     fontFamily: fonts.CLASH_GRO_MEDIUM,
     color: colors.appRed,

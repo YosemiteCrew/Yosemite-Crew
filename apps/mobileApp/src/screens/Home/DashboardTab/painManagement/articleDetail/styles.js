@@ -46,13 +46,6 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.appRed,
     borderRadius: scaledValue(4),
   },
-  titleText: {
-    fontSize: scaledValue(20),
-    lineHeight: scaledHeightValue(24),
-    color: '#302F2E',
-    letterSpacing: scaledValue(20 * -0.01),
-    width: '70%',
-  },
   subTitleText: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(21),
