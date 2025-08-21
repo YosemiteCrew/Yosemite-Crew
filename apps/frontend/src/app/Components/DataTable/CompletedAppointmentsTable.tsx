@@ -26,9 +26,10 @@ type TodayAppointmentItem = {
   name: string;
   owner: string;
   image: string;
-  appointmentId: string;
+  tokenNumber: string;
   reason: string;
-  breed: string;
+  petType: string;
+  pet: string;
   time: string;
   date: string;
   doctor: string;
@@ -36,87 +37,6 @@ type TodayAppointmentItem = {
   status: AppointmentStatus;
 };
 
-// Sample Data
-const appointments: TodayAppointmentItem[] = [
-  {
-    name: "Kizie",
-    owner: "Sky B",
-    image: "/Images/pet3.png",
-    appointmentId: "DRO01-03-23-2024",
-    reason: "Annual Health Check-Up",
-    breed: "Beagle/Dog",
-    time: "11:30 AM",
-    date: "01 Sep 2024",
-    doctor: "Dr. Emily Johnson",
-    specialization: "Cardiology",
-    status: "In-progress",
-  },
-  {
-    name: "Oscar",
-    owner: "Pika K",
-    image: "/Images/pet3.png",
-    appointmentId: "DRO02-03-23-2024",
-    reason: "Vaccination Updates",
-    breed: "Egyptian/Cat",
-    time: "12:15 PM",
-    date: "01 Sep 2024",
-    doctor: "Dr. David Brown",
-    specialization: "Gastroenterology",
-    status: "Checked-In",
-  },
-  {
-    name: "King",
-    owner: "Henry C",
-    image: "/Images/pet3.png",
-    appointmentId: "DRO03-03-23-2024",
-    reason: "Deworming Treatment",
-    breed: "Paso Fino/Horse",
-    time: "01:13 PM",
-    date: "01 Sep 2024",
-    doctor: "Dr. Megan Clark",
-    specialization: "Endocrinology",
-    status: "Pending",
-  },
-  {
-    name: "Kizie",
-    owner: "Sky B",
-    image: "/Images/pet3.png",
-    appointmentId: "DRO01-03-23-2024",
-    reason: "Annual Health Check-Up",
-    breed: "Beagle/Dog",
-    time: "11:30 AM",
-    date: "01 Sep 2024",
-    doctor: "Dr. Emily Johnson",
-    specialization: "Cardiology",
-    status: "In-progress",
-  },
-  {
-    name: "Oscar",
-    owner: "Pika K",
-    image: "/Images/pet3.png",
-    appointmentId: "DRO02-03-23-2024",
-    reason: "Vaccination Updates",
-    breed: "Egyptian/Cat",
-    time: "12:15 PM",
-    date: "01 Sep 2024",
-    doctor: "Dr. David Brown",
-    specialization: "Gastroenterology",
-    status: "Checked-In",
-  },
-  {
-    name: "King",
-    owner: "Henry C",
-    image: "/Images/pet3.png",
-    appointmentId: "DRO03-03-23-2024",
-    reason: "Deworming Treatment",
-    breed: "Paso Fino/Horse",
-    time: "01:13 PM",
-    date: "01 Sep 2024",
-    doctor: "Dr. Megan Clark",
-    specialization: "Endocrinology",
-    status: "Pending",
-  },
-];
 
 // Columns for GenericTable
 const columns: Column<TodayAppointmentItem>[] = [
@@ -150,7 +70,7 @@ const columns: Column<TodayAppointmentItem>[] = [
   {
   label: "Appointment ID",
   key: "appointmentId",
-  render: (item: TodayAppointmentItem) => <p>{item.appointmentId}</p>,
+  render: (item: TodayAppointmentItem) => <p>{item.tokenNumber}</p>,
 },
 {
   label: "Reason for Appointment",
@@ -160,7 +80,7 @@ const columns: Column<TodayAppointmentItem>[] = [
 {
   label: "Breed/Pet",
   key: "breed",
-  render: (item: TodayAppointmentItem) => <p>{item.breed}</p>,
+  render: (item: TodayAppointmentItem) =>  <p>{item.petType}/{item.pet}</p>,
 },
   {
     label: "Date",
@@ -244,7 +164,7 @@ function CompletedAppointmentsTable(data:any) {
     <>
 
     <div className="table-wrapper">
-        <GenericTable data={data} columns={columns} bordered={false}  pageSize={3} />
+        <GenericTable data={data.data} columns={columns} bordered={false}  pageSize={3} />
         {/* <div className="table-footerBtn ">
             <Button>Sell All</Button>
         </div> */}
