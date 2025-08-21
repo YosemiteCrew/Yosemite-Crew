@@ -18,7 +18,7 @@ const VET_ROLES = [
   "receptionist",
 ];
 
-const publicRoutes = ["/signup", "/signin","/landingpage",'/homepage','/petowner'];
+const publicRoutes = ["/signup", "/signin","/landingpage",'/homepage','/petowner','/resources','/contact_us','/blogpage'];
 
 const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
   const setUser = useAuthStore((state) => state.setUser);
@@ -31,7 +31,7 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
   const isPublicRoute = publicRoutes.some(
     (route) =>
       pathname === route ||
-      (route.includes("[") && matchDynamicRoute(route, pathname))
+      (route.includes("") && matchDynamicRoute(route, pathname))
   );
 
   function matchDynamicRoute(pattern: string, path: string) {
