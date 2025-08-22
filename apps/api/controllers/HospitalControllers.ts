@@ -19,9 +19,9 @@ import { AppointmentsStatusFHIRConverter, convertAppointmentStatsToFHIR, convert
 
 // import { validateFHIR } from "../Fhirvalidator/FhirValidator";
 // import { json, text } from "body-parser";
-import {
-  DepartmentFromFHIRConverter,
-} from "../utils/DepartmentFhirHandler";
+// import {
+//   DepartmentFromFHIRConverter,
+// } from "../utils/DepartmentFhirHandler";
 // import { response } from "express";
 import FeedBack from "../models/feedback";
 import { PipelineStage } from "mongoose";
@@ -176,48 +176,48 @@ const HospitalController = {
             const startDateStr = startDate.toISOString().split("T")[0];
             const endDateStr = endDate.toISOString().split("T")[0];
 
-            const departmentWiseAppointments = await webAppointments.aggregate([
-              {
-                $match: {
-                  appointmentDate: { $gte: startDateStr, $lte: endDateStr },
-                  hospitalId: userId,
-                },
-              },
-              {
-                $addFields: {
-                  departmentObjId: { $toObjectId: "$department" },
-                },
-              },
-              {
-                $group: {
-                  _id: "$departmentObjId",
-                  count: { $sum: 1 },
-                },
-              },
-              {
-                $lookup: {
-                  from: "departments",
-                  localField: "_id",
-                  foreignField: "_id",
-                  as: "departmentInfo",
-                },
-              },
-              {
-                $unwind: {
-                  path: "$departmentInfo",
-                  preserveNullAndEmptyArrays: true,
-                },
-              },
-              {
-                $project: {
-                  departmentName: {
-                    $ifNull: ["$departmentInfo.departmentName", "Unknown"],
-                  },
-                  count: 1,
-                },
-              },
-            ]);
-
+            const departmentWiseAppointments = await  webAppointments.aggregate([
+  {
+    $match: {
+      appointmentDate: { $gte: startDateStr, $lte: endDateStr },
+      hospitalId: userId,
+    },
+  },
+  {
+    $addFields: {
+      departmentObjId: { $toObjectId: "$department" }, // convert string to ObjectId
+    },
+  },
+  {
+    $group: {
+      _id: "$departmentObjId",
+      count: { $sum: 1 },
+    },
+  },
+  {
+    $lookup: {
+      from: "admindepartments",      // ✅ correct collection
+      localField: "_id",
+      foreignField: "_id",
+      as: "departmentInfo",
+    },
+  },
+  {
+    $unwind: {
+      path: "$departmentInfo",
+      preserveNullAndEmptyArrays: true,
+    },
+  },
+  {
+    $project: {
+      departmentName: {
+        $ifNull: ["$departmentInfo.name", "Unknown"], // ✅ correct field
+      },
+      count: 1,
+    },
+  },
+]);
+            console.log(departmentWiseAppointments, "departmentWiseAppointments");
             const data = convertSpecialityWiseAppointmentsToFHIR(departmentWiseAppointments);
             const validateFhir = validateFHIR(data);
             if (validateFhir) {
@@ -240,85 +240,85 @@ const HospitalController = {
             });
           }
         }
-      case "WeeklyAppointmentGraph":
-        if (req.method === "GET") {
-          try {
-            const { userId } = req.query;
+        // case "WeeklyAppointmentGraph":
+        //   if (req.method === "GET") {
+        //     try {
+        //       const { userId } = req.query;
 
-            // Build ISO string range: from 7 days ago (start of day) to today (end of day)
-            const today = new Date();
-            const sevenDaysAgo = new Date();
-            sevenDaysAgo.setDate(today.getDate() - 6);
+        //       // Build ISO string range: from 7 days ago (start of day) to today (end of day)
+        //       const today = new Date();
+        //       const sevenDaysAgo = new Date();
+        //       sevenDaysAgo.setDate(today.getDate() - 6);
 
-            // Convert both to YYYY-MM-DD strings
-            const todayStr = today.toISOString().split("T")[0]; // e.g. "2025-05-05"
-            const sevenDaysAgoStr = sevenDaysAgo.toISOString().split("T")[0]; // e.g. "2025-04-29"
-            // Use string comparison in $match
-            const weeklyAppointments = await webAppointments.aggregate([
-              {
-                $match: {
-                  appointmentDate: {
-                    $gte: sevenDaysAgoStr,
-                    $lte: todayStr,
-                  },
-                  hospitalId: userId,
-                },
-              },
-              {
-                $group: {
-                  _id: "$day",
-                  count: { $sum: 1 },
-                },
-              },
-              {
-                $project: {
-                  _id: 0,
-                  day: "$_id",
-                  count: 1,
-                },
-              },
-            ]);
-            const weekData:any = {
-              Monday: 0,
-              Tuesday: 0,
-              Wednesday: 0,
-              Thursday: 0,
-              Friday: 0,
-              Saturday: 0,
-              Sunday: 0,
-            };
+        //       // Convert both to YYYY-MM-DD strings
+        //       const todayStr = today.toISOString().split("T")[0]; // e.g. "2025-05-05"
+        //       const sevenDaysAgoStr = sevenDaysAgo.toISOString().split("T")[0]; // e.g. "2025-04-29"
+        //       // Use string comparison in $match
+        //       const weeklyAppointments = await webAppointments.aggregate([
+        //         {
+        //           $match: {
+        //             appointmentDate: {
+        //               $gte: sevenDaysAgoStr,
+        //               $lte: todayStr,
+        //             },
+        //             hospitalId: userId,
+        //           },
+        //         },
+        //         {
+        //           $group: {
+        //             _id: "$day",
+        //             count: { $sum: 1 },
+        //           },
+        //         },
+        //         {
+        //           $project: {
+        //             _id: 0,
+        //             day: "$_id",
+        //             count: 1,
+        //           },
+        //         },
+        //       ]);
+        //       const weekData:any = {
+        //         Monday: 0,
+        //         Tuesday: 0,
+        //         Wednesday: 0,
+        //         Thursday: 0,
+        //         Friday: 0,
+        //         Saturday: 0,
+        //         Sunday: 0,
+        //       };
 
-            weeklyAppointments.forEach(({ day, count }) => {
-              weekData[day] = count;
-            });
+        //       weeklyAppointments.forEach(({ day, count }) => {
+        //         weekData[day] = count;
+        //       });
 
-            const responseData:any = Object.entries(weekData).map(
-              ([day, count]) => ({
-                day,
-                count,
-              })
-            );
+        //       const responseData:any = Object.entries(weekData).map(
+        //         ([day, count]) => ({
+        //           day,
+        //           count,
+        //         })
+        //       );
 
-            const data = new DepartmentFromFHIRConverter(
-              responseData
-            ).convertToFHIR();
+        //       const data = new DepartmentFromFHIRConverter(
+        //         responseData
+        //       ).convertToFHIR();
 
-            return res.status(200).json(data);
-          } catch (error) {
-            return res.status(500).json({
-              resourceType: "OperationOutcome",
-              issue: [
-                {
-                  severity: "error",
-                  code: "exception",
-                  details: {
-                    text: "An error occurred while retrieving dashboard data",
-                  },
-                },
-              ],
-            });
-          }
-        }
+        //       return res.status(200).json(data);
+        //     } catch (error) {
+        //       return res.status(500).json({
+        //         resourceType: "OperationOutcome",
+        //         issue: [
+        //           {
+        //             severity: "error",
+        //             code: "exception",
+        //             details: {
+        //               text: "An error occurred while retrieving dashboard data",
+        //             },
+        //           },
+        //         ],
+        //       });
+        //     }
+        //   }
         break;
     }
   },
@@ -327,7 +327,7 @@ const HospitalController = {
   AppointmentGraphOnMonthBase: async (
     req: Request<{}, {}, {}, QueryParams>,
     res: Response
-  ): Promise<Response> => {
+  ): Promise<void> => {
     const monthNames = [
       "January", "February", "March", "April", "May", "June",
       "July", "August", "September", "October", "November", "December",
@@ -338,7 +338,8 @@ const HospitalController = {
       const monthsToFetch = parseInt(days || "6", 10);
 
       if (!userId) {
-        return res.status(400).json({ message: "UserId is required" });
+        res.status(400).json({ message: "UserId is required" });
+        return;   // 👈 explicitly stop here
       }
 
       const endMonth = new Date();
@@ -349,44 +350,45 @@ const HospitalController = {
       const gt = new Date(startMonth.getFullYear(), startMonth.getMonth(), 1);
       const lt = new Date(endMonth.getFullYear(), endMonth.getMonth() + 1, 1);
 
-      const aggregatedAppointments: AggregatedAppointmentGraph[] = await webAppointments.aggregate([
-        {
-          $match: {
-            hospitalId: userId,
-            appointmentDate: {
-              $gte: gt.toISOString().split("T")[0],
-              $lt: lt.toISOString().split("T")[0],
-            },
-          },
-        },
-        {
-          $group: {
-            _id: { month: { $month: { $toDate: "$appointmentDate" } } },
-            totalAppointments: { $sum: 1 },
-            successful: {
-              $sum: {
-                $cond: [{ $eq: ["$appointmentStatus", "fulfilled"] }, 1, 0],
-              },
-            },
-            canceled: {
-              $sum: {
-                $cond: [{ $eq: ["$appointmentStatus", "cancelled"] }, 1, 0],
+      const aggregatedAppointments: AggregatedAppointmentGraph[] =
+        await webAppointments.aggregate([
+          {
+            $match: {
+              hospitalId: userId,
+              appointmentDate: {
+                $gte: gt.toISOString().split("T")[0],
+                $lt: lt.toISOString().split("T")[0],
               },
             },
           },
-        },
-        {
-          $project: {
-            _id: 0,
-            month: "$_id.month",
-            totalAppointments: 1,
-            successful: 1,
-            canceled: 1,
+          {
+            $group: {
+              _id: { month: { $month: { $toDate: "$appointmentDate" } } },
+              totalAppointments: { $sum: 1 },
+              successful: {
+                $sum: {
+                  $cond: [{ $eq: ["$appointmentStatus", "fulfilled"] }, 1, 0],
+                },
+              },
+              canceled: {
+                $sum: {
+                  $cond: [{ $eq: ["$appointmentStatus", "cancelled"] }, 1, 0],
+                },
+              },
+            },
           },
-        },
-      ]);
+          {
+            $project: {
+              _id: 0,
+              month: "$_id.month",
+              totalAppointments: 1,
+              successful: 1,
+              canceled: 1,
+            },
+          },
+        ]);
 
-      const results: AggregatedAppointmentGraph[] & { monthName: string }[] = [];
+      const results: (AggregatedAppointmentGraph & { monthName: string })[] = [];
       let currentDate = new Date(startMonth);
 
       while (currentDate <= endMonth) {
@@ -414,14 +416,15 @@ const HospitalController = {
 
       const data = convertGraphDataToFHIR(results);
 
-      return res.status(200).json({
+      res.status(200).json({
         message: "Appointment data for the last X months fetched successfully",
-        data: data
+        data: data,
       });
-
     } catch (error: unknown) {
-      const errMessage = error instanceof Error ? error.message : "Unknown server error";
-      return res.status(500).json({
+      const errMessage =
+        error instanceof Error ? error.message : "Unknown server error";
+
+      res.status(500).json({
         resourceType: "OperationOutcome",
         issue: [
           {
@@ -436,22 +439,23 @@ const HospitalController = {
     }
   },
 
-   AppointmentOverviewStats: async (
+
+  AppointmentOverviewStats: async (
     req: Request,
     res: Response
   ): Promise<void> => {
     try {
       const { userId } = req.query;
-  
+
       if (!userId || typeof userId !== "string") {
         res.status(400).json({
           message: "Missing or invalid userId in query",
         });
         return;
       }
-  
+
       const today = new Date().toISOString().split("T")[0];
-  
+
       const [
         todaysAppointments,
         upcomingAppointments,
@@ -477,7 +481,7 @@ const HospitalController = {
           appointmentDate: { $gte: today },
         }),
       ]);
-  
+
       res.status(200).json(convertAppointmentStatsToFHIR({
         todaysAppointments,
         upcomingAppointments,
@@ -724,103 +728,103 @@ const HospitalController = {
 
   //     // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Appointment Management>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-      // case "AppointmentManagement":
-      //   if (req.method === "GET") {
-      //     try {
-      //       const { LastDays, userId } = req.query;
+  // case "AppointmentManagement":
+  //   if (req.method === "GET") {
+  //     try {
+  //       const { LastDays, userId } = req.query;
 
-      //       if (!LastDays) {
-      //         return res.status(400).json({
-      //           resourceType: "OperationOutcome",
-      //           issue: [
-      //             {
-      //               severity: "error",
-      //               code: "exception",
-      //               details: { text: "Missing required parameter: LastDays" },
-      //             },
-      //           ],
-      //         });
-      //       } else if (!userId) {
-      //         return res.status(400).json({
-      //           resourceType: "OperationOutcome",
-      //           issue: [
-      //             {
-      //               severity: "error",
-      //               code: "exception",
-      //               details: { text: "missing required parameter: userId" },
-      //             },
-      //           ],
-      //         });
-      //       }
-      //       const days = parseInt(LastDays, 10) || 7; // Default to 7 days if not provided
+  //       if (!LastDays) {
+  //         return res.status(400).json({
+  //           resourceType: "OperationOutcome",
+  //           issue: [
+  //             {
+  //               severity: "error",
+  //               code: "exception",
+  //               details: { text: "Missing required parameter: LastDays" },
+  //             },
+  //           ],
+  //         });
+  //       } else if (!userId) {
+  //         return res.status(400).json({
+  //           resourceType: "OperationOutcome",
+  //           issue: [
+  //             {
+  //               severity: "error",
+  //               code: "exception",
+  //               details: { text: "missing required parameter: userId" },
+  //             },
+  //           ],
+  //         });
+  //       }
+  //       const days = parseInt(LastDays, 10) || 7; // Default to 7 days if not provided
 
-      //       const endDate = new Date();
-      //       const startDate = new Date();
-      //       startDate.setDate(endDate.getDate() - (days - 1));
+  //       const endDate = new Date();
+  //       const startDate = new Date();
+  //       startDate.setDate(endDate.getDate() - (days - 1));
 
-      //       // const today = new Date().toISOString().split('T')[0]; // Today's date in "YYYY-MM-DD" format
+  //       // const today = new Date().toISOString().split('T')[0]; // Today's date in "YYYY-MM-DD" format
 
-      //       const appointments = await webAppointments.aggregate([
-      //         {
-      //           $addFields: {
-      //             appointmentDateObj: { $toDate: "$appointmentDate" }, // Convert string to Date
-      //           },
-      //         },
-      //         {
-      //           $match: {
-      //             appointmentDateObj: { $gte: startDate, $lte: endDate },
-      //             $or: [{ hospitalId: userId }, { veterinarian: userId }],
-      //           },
-      //         },
-      //         {
-      //           $group: {
-      //             _id: null,
-      //             newAppointments: {
-      //               $sum: { $cond: [{ $eq: ["$isCanceled", 0] }, 1, 0] },
-      //             },
-      //             upcomingAppointments: {
-      //               $sum: {
-      //                 $cond: [
-      //                   { $gt: ["$appointmentDateObj", new Date()] },
-      //                   1,
-      //                   0,
-      //                 ],
-      //               },
-      //             },
-      //             canceled: {
-      //               $sum: { $cond: [{ $eq: ["$isCanceled", 2] }, 1, 0] },
-      //             },
-      //             successful: {
-      //               $sum: { $cond: [{ $eq: ["$isCanceled", 3] }, 1, 0] },
-      //             },
-      //           },
-      //         },
-      //       ]);
+  //       const appointments = await webAppointments.aggregate([
+  //         {
+  //           $addFields: {
+  //             appointmentDateObj: { $toDate: "$appointmentDate" }, // Convert string to Date
+  //           },
+  //         },
+  //         {
+  //           $match: {
+  //             appointmentDateObj: { $gte: startDate, $lte: endDate },
+  //             $or: [{ hospitalId: userId }, { veterinarian: userId }],
+  //           },
+  //         },
+  //         {
+  //           $group: {
+  //             _id: null,
+  //             newAppointments: {
+  //               $sum: { $cond: [{ $eq: ["$isCanceled", 0] }, 1, 0] },
+  //             },
+  //             upcomingAppointments: {
+  //               $sum: {
+  //                 $cond: [
+  //                   { $gt: ["$appointmentDateObj", new Date()] },
+  //                   1,
+  //                   0,
+  //                 ],
+  //               },
+  //             },
+  //             canceled: {
+  //               $sum: { $cond: [{ $eq: ["$isCanceled", 2] }, 1, 0] },
+  //             },
+  //             successful: {
+  //               $sum: { $cond: [{ $eq: ["$isCanceled", 3] }, 1, 0] },
+  //             },
+  //           },
+  //         },
+  //       ]);
 
-      //       const result = appointments[0] || {
-      //         newAppointments: 0,
-      //         upcomingAppointments: 0,
-      //         canceled: 0,
-      //         successful: 0,
-      //       };
-      //       const data = new FHIRConverter(result).overviewConvertToFHIR();
-      //       return res.status(200).json({ data });
-      //     } catch (error:any) {
-      //       return res.status(500).json({
-      //         resourceType: "OperationOutcome",
-      //         issue: [
-      //           {
-      //             severity: "fatal",
-      //             code: "exception",
-      //             details: {
-      //               text: "An error occurred while fetching data.",
-      //             },
-      //             diagnostics: error.message,
-      //           },
-      //         ],
-      //       });
-      //     }
-      //   }
+  //       const result = appointments[0] || {
+  //         newAppointments: 0,
+  //         upcomingAppointments: 0,
+  //         canceled: 0,
+  //         successful: 0,
+  //       };
+  //       const data = new FHIRConverter(result).overviewConvertToFHIR();
+  //       return res.status(200).json({ data });
+  //     } catch (error:any) {
+  //       return res.status(500).json({
+  //         resourceType: "OperationOutcome",
+  //         issue: [
+  //           {
+  //             severity: "fatal",
+  //             code: "exception",
+  //             details: {
+  //               text: "An error occurred while fetching data.",
+  //             },
+  //             diagnostics: error.message,
+  //           },
+  //         ],
+  //       });
+  //     }
+  //   }
   //     case "DepartmentOverview":
   //       if (req.method === "GET") {
   //         try {
@@ -1412,9 +1416,14 @@ const HospitalController = {
         if (req.method === "GET") {
           try {
             const { organization, offset = 0, limit = 10 } = req.query;
-            console.log("organization", organization)
-            if (typeof organization !== "string" || !/^[a-fA-F0-9-]{36}$/.test(organization)) {
-              res.status(400).json({
+            console.log("organization", organization);
+
+            // Validate organization (UUID or ObjectId allowed)
+            if (
+              typeof organization !== "string" ||
+              (!/^[a-fA-F0-9-]{36}$/.test(organization) && !/^[a-fA-F0-9]{24}$/.test(organization))
+            ) {
+              return res.status(400).json({
                 resourceType: "OperationOutcome",
                 issue: [
                   {
@@ -1424,12 +1433,8 @@ const HospitalController = {
                   },
                 ],
               });
-              return;
             }
 
-            // console.log(organization, "organization", offset, limit);
-
-            // const hospitalId = organization as string ;
             const hospitalId = Array.isArray(organization) ? organization[0] : organization;
             const parsedOffset = parseInt(offset as string, 10);
             const parsedLimit = parseInt(limit as string, 10);
@@ -1437,18 +1442,13 @@ const HospitalController = {
             const response = await webAppointments.aggregate([
               {
                 $match: {
-                  appointmentStatus: { $eq: "pending" },
-                  $or: [
-                    { hospitalId: hospitalId },
-                    { veterinarian: hospitalId },
-                  ],
+                  appointmentStatus: "pending",
+                  $or: [{ hospitalId: hospitalId }, { veterinarian: hospitalId }],
                 },
               },
               {
                 $addFields: {
                   departmentObjId: { $toObjectId: "$department" },
-                  purposeObjId: { $toObjectId: "$purposeOfVisit" },
-                  appointmentTypeObjId: { $toObjectId: "$appointmentType" },
                   breedObjId: { $toObjectId: "$breed" },
                 },
               },
@@ -1471,16 +1471,16 @@ const HospitalController = {
               {
                 $lookup: {
                   from: "purposeofvisits",
-                  localField: "purposeObjId",
-                  foreignField: "_id",
+                  localField: "purposeOfVisit", // plain string
+                  foreignField: "code",         // adjust field name if needed
                   as: "purposeInfo",
                 },
               },
               {
                 $lookup: {
                   from: "appointmenttypes",
-                  localField: "appointmentTypeObjId",
-                  foreignField: "_id",
+                  localField: "appointmentType", // plain string
+                  foreignField: "code",          // adjust field name if needed
                   as: "appointmentTypeInfo",
                 },
               },
@@ -1492,36 +1492,11 @@ const HospitalController = {
                   as: "breedInfo",
                 },
               },
-              {
-                $unwind: {
-                  path: "$doctorInfo",
-                  preserveNullAndEmptyArrays: true,
-                },
-              },
-              {
-                $unwind: {
-                  path: "$departmentInfo",
-                  preserveNullAndEmptyArrays: true,
-                },
-              },
-              {
-                $unwind: {
-                  path: "$purposeInfo",
-                  preserveNullAndEmptyArrays: true,
-                },
-              },
-              {
-                $unwind: {
-                  path: "$appointmentTypeInfo",
-                  preserveNullAndEmptyArrays: true,
-                },
-              },
-              {
-                $unwind: {
-                  path: "$breedInfo",
-                  preserveNullAndEmptyArrays: true,
-                },
-              },
+              { $unwind: { path: "$doctorInfo", preserveNullAndEmptyArrays: true } },
+              { $unwind: { path: "$departmentInfo", preserveNullAndEmptyArrays: true } },
+              { $unwind: { path: "$purposeInfo", preserveNullAndEmptyArrays: true } },
+              { $unwind: { path: "$appointmentTypeInfo", preserveNullAndEmptyArrays: true } },
+              { $unwind: { path: "$breedInfo", preserveNullAndEmptyArrays: true } },
               {
                 $facet: {
                   metadata: [{ $count: "total" }],
@@ -1568,11 +1543,9 @@ const HospitalController = {
               },
             ]);
 
-
-            console.log(response, "response");
             interface AggregatedAppointment {
               total: number;
-              Appointments: []; // You can strongly type this if desired
+              Appointments: [];
             }
 
             const typedResponse = response as AggregatedAppointment[];
@@ -1585,10 +1558,8 @@ const HospitalController = {
               });
             }
 
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             const data: object = AppointmentFHIRConverter.convertAppointments(firstResult);
             return res.status(200).json({ status: 1, data });
-
           } catch (error: unknown) {
             const err = error as Error;
             return res.status(500).json({
@@ -1779,7 +1750,7 @@ const HospitalController = {
               page?: string;
               limit?: string;
             };
-            console.log("hello", userId, page, limit);
+            // console.log("hello", userId, page, limit);
             const pageNumber: number = parseInt(page, 10);
             const limitNumber: number = parseInt(limit, 10);
             const skip: number = (pageNumber - 1) * limitNumber;
@@ -1881,8 +1852,8 @@ const HospitalController = {
             const formattedAppointments = confirmedAppointments.map(
               (appointment: AppointmentStatusFHIRBundle | any) => ({
                 ...appointment,
-                appointmentDate: appointment.appointmentDate 
-                  ? `${daysMap[new Date(appointment.appointmentDate).getDay() + 1]}, ${appointment.appointmentDate}` 
+                appointmentDate: appointment.appointmentDate
+                  ? `${daysMap[new Date(appointment.appointmentDate).getDay() + 1]}, ${appointment.appointmentDate}`
                   : "Invalid Date",
               })
             );

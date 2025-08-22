@@ -379,7 +379,7 @@ const SignUpDetails = () => {
   };
 
   const removeFile = (fileToRemove) => {
-    console.log("hello', fileToRemove", fileToRemove);
+    // console.log("hello', fileToRemove", fileToRemove);
     if (fileToRemove._id) {
       // API File: Ask confirmation before deleting
       Swal.fire({

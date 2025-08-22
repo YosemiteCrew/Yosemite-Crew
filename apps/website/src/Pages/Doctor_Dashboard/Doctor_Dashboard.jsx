@@ -203,7 +203,7 @@ const Doctor_Dashboard = () => {
           },
         }
       );
-      console.log("hello");
+      // console.log("hello");
       setTimeSlots(data.timeSlots);
     } catch (error) {
       console.error(
@@ -265,7 +265,7 @@ const Doctor_Dashboard = () => {
 
     console.log("Generated FHIR Slots Bundle:", slotsBundle);
     try {
-      console.log("hello");
+      // console.log("hello");
       const token = sessionStorage.getItem("token");
       const response = await axios.post(
         `${import.meta.env.VITE_BASE_URL}api/doctors/addDoctorsSlots/${userId}`,

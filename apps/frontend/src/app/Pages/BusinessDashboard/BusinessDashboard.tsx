@@ -169,43 +169,44 @@ function BusinessDashboard() {
       const convertToJson: any = await convertFhirAppointmentBundle(
         data.data.entry
       );
-      // console.log(convertToJson, "convertToJson");
+      console.log(convertToJson, "convertToJson");
       setAppointmentsData(convertToJson);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
     }
   };
-  const fetchInventoryDetails = async (searchCategory: any) => {
-    console.log(searchCategory, "searchCategory");
-    try {
-      if (!userId) {
-        throw new Error("userId is required");
-      }
-
-      const queryParams = new URLSearchParams({
-        userId,
-        searchCategory,
-      });
-
-      const response = await getData(
-        `/api/inventory/InventoryItem?${queryParams.toString()}`
-      );
-
-      if (!response) {
-        throw new Error("Network response was not ok");
-      }
-
-      const data: any = await response.data;
-      // console.log(data, "FHIR Inventory Data");
-
-      const convertToJson: any = convertFhirBundleToInventory(data);
-      console.log(convertToJson, "Converted Inventory JSON");
-
-      setInventoryData(convertToJson.data);
-    } catch (error) {
-      console.error("Error fetching inventory data:", error);
+const fetchInventoryDetails = async (searchCategory: any) => {
+  console.log(searchCategory, "searchCategory");
+  try {
+    if (!userId) {
+      throw new Error("userId is required");
     }
-  };
+
+    const queryParams = new URLSearchParams({
+      userId,
+      searchCategory,
+    });
+
+    const response = await getData(
+      `/api/inventory/InventoryItem?${queryParams.toString()}`
+    );
+
+    if (!response) {
+      throw new Error("Network response was not ok");
+    }
+
+    const data: any = await response.data;
+    console.log(data, "databackend");
+
+    const convertToJson: any = convertFhirBundleToInventory(data);
+    console.log(convertToJson, "Converted Inventory JSON");
+
+    setInventoryData(convertToJson.data);
+  } catch (error) {
+    console.error("Error fetching inventory data:", error);
+  }
+};
+
   const getInventoryCategory = useCallback(async () => {
     try {
       const response: any = await getData(
@@ -243,7 +244,7 @@ function BusinessDashboard() {
       if (response.status === 200) {
         // const res:any = response?.data
         const res: any = convertFHIRToGraphData(response?.data?.data);
-        console.log(res, "Res");
+        console.log(res, "ResOfMOnth");
         setInventoryandAssessmentGraph(res);
       }
     } catch (error) {
@@ -252,8 +253,8 @@ function BusinessDashboard() {
   }, [userId]);
 
   console.log(
-    specialityWiseAppointmentsGraph,
-    "specialityWiseAppointmentsGraph"
+    inventoryCategory,
+    "inventoryCategory"
   );
   return (
     <>

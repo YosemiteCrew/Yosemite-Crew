@@ -1,9 +1,9 @@
 import {  Types } from "mongoose";
 
 export type InventoryType = {
-  bussinessId?: string;
+  businessId?: string;
    barCode: string;
-  category: string;
+  category: string | Types.ObjectId;
   itemName: string;
   genericName?: string;
   department: string;
@@ -39,7 +39,7 @@ export type ProcedureItemType = {
 };
 
 export type ProcedurePackageType = {
-  bussinessId?: string;
+  businessId?: string;
   packageName?: string;
   category?: string;
   description?: string;

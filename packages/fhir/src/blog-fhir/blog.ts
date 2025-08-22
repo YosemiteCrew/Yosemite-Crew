@@ -1,3 +1,5 @@
+import { FHIRBlog, NormalBlog } from "@yosemite-crew/types";
+
 export function generateFHIRBlogResponse(savedBlog: any) {
     return {
       resourceType: 'DocumentReference',
@@ -39,4 +41,20 @@ export function generateFHIRBlogResponse(savedBlog: any) {
       ],
     };
   }
-  
+export function convertFHIRBlogToNormal(fhirBlog: FHIRBlog): NormalBlog {
+  return {
+    id: fhirBlog.id ?? "",
+    blogTitle: fhirBlog.type?.text ?? "",     
+    animalType: fhirBlog.category?.[0]?.text ?? "",
+    topic: fhirBlog.category?.[0]?.coding?.[0]?.display ?? "",
+    image: fhirBlog.content?.[0]?.attachment?.url ?? "",
+    description: fhirBlog.description ?? "",
+    createdAt: fhirBlog.date ?? "",
+    updatedAt: fhirBlog.date ?? ""  
+  };
+}
+
+// For arrays of blogs
+export function convertFHIRBlogsToNormal(fhirBlogs: FHIRBlog[]): NormalBlog[] {
+  return fhirBlogs.map(b => convertFHIRBlogToNormal(b));
+}
