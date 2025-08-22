@@ -220,11 +220,17 @@ const assessmentsController = {
           // get data from db
 
           const { status, id } = req.body as { status: string; id: string };
-
+          if (!mongoose.Types.ObjectId.isValid(id)) {
+            res.status(200).json({
+              status: 0,
+              message: "Invalid or missing folder ID",
+            });
+            return;
+          }
 
           const updateData = { "$set": { 'assessmentStatus': status } }
 
-          const updated = await YoshAssessments.findByIdAndUpdate(new mongoose.Types.ObjectId(id), updateData, { new: true }) as assessment | null;
+          const updated = await YoshAssessments.findByIdAndUpdate(id, updateData, { new: true }) as assessment | null;
 
           if (updated) {
             res.status(200).json({
@@ -325,25 +331,32 @@ const assessmentsController = {
     try {
       const { id, answers } = req.body;
       if (!id || !answers || !Array.isArray(answers)) {
-         res.status(400).json({
+        res.status(400).json({
           resourceType: "PainAssessment",
           issue: [{ severity: "error", code: "invalid", diagnostics: "Invalid input" }]
         });
         return
       }
-  
-      const docs = await YoshAssessments.findById(new mongoose.Types.ObjectId(id));
+      if(!mongoose.Types.ObjectId.isValid(id)) {
+        res.status(200).json({
+          status: 0,
+          message: "Invalid or missing folder ID",
+        });
+        return;
+      }
+
+      const docs = await YoshAssessments.findById(id);
       if (!docs) {
-         res.status(404).json({
+        res.status(404).json({
           resourceType: "PainAssessment",
           issue: [{ severity: "error", code: "not-found", diagnostics: "Assessment not found" }]
         });
         return
       }
-  
+
       const db = mongoose.connection.db;
       if (!db) {
-         res.status(500).json({
+        res.status(500).json({
           resourceType: "PainAssessment",
           issue: [{ severity: "error", code: "server-error", diagnostics: "Database not connected" }]
         });
@@ -359,36 +372,36 @@ const assessmentsController = {
         }
       ]).toArray();
       if (!adminDoc || adminDoc.length === 0) {
-         res.status(404).json({
+        res.status(404).json({
           resourceType: "PainAssessment",
           issue: [{ severity: "error", code: "not-found", diagnostics: "Admin assessment not found" }]
         });
         return
       }
-  
+
       const { questions, painScores } = adminDoc[0];
 
       const answeredQuestions = answers.map((answer) => {
         const question = questions.find((q: any) => q._id.toString() === answer.questionId);
         if (question) {
           const option = question.imageOptions.find((opt: any) => opt._id.toString() === answer.optionId);
-          return option ? { questionId: answer.questionId, questionText: question.question,answerLabel:option.label, answerDescription: option.description, score: option.score } : null;
+          return option ? { questionId: answer.questionId, questionText: question.question, answerLabel: option.label, answerDescription: option.description, score: option.score } : null;
         }
         return null;
       }).filter((ans: any) => ans !== null);
-  
+
       const totalScore = answeredQuestions.reduce((sum: number, ans: any) => sum + ans.score, 0);
-  
+
       const matchedRange = painScores.find((range: any) => range.selectedNumbers.includes(totalScore));
-  
+
       if (!matchedRange) {
-         res.status(400).json({
+        res.status(400).json({
           resourceType: "PainAssessment",
           issue: [{ severity: "error", code: "invalid", diagnostics: `Score ${totalScore} does not match any range` }]
         });
         return
       }
-  
+
       const fhirResponse = {
         resourceType: "PainAssessment",
         score: {
@@ -398,12 +411,12 @@ const assessmentsController = {
           colorCode: matchedRange.colorCode
         }
       };
-  
+
       await YoshAssessments.findOneAndUpdate(
         { _id: new mongoose.Types.ObjectId(id) },
         { $set: { score: totalScore, questions: answeredQuestions } }
       );
-  
+
       res.status(200).json(fhirResponse);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
