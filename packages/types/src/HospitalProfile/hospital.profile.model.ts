@@ -1,4 +1,4 @@
-import {Document} from "mongoose";
+import mongoose, {Document} from "mongoose";
 
 export interface IProfileData extends Document {
   userId?: string;
@@ -24,7 +24,8 @@ export interface IProfileData extends Document {
   addDepartment:string[];
   prescription_upload?: { name: string; url: string; }[];
   key?:string,
-  progress?:number
+  progress?:number;
+  _id:mongoose.Types.ObjectId
 }
 export interface IWebUser {
   cognitoId?: string;

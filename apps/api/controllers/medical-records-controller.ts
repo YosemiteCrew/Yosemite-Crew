@@ -674,7 +674,8 @@ const medicalRecordsController = {
         return;
       }
 
-      const { caseFolderName , petId} = req.body as {caseFolderName:string, petId?:string}
+      const { caseFolderName , petId, medicalRecords} = req.body as {caseFolderName:string, petId?:string, medicalRecords?:[]}
+      const parsedMedicalRecords = medicalRecords ?  medicalRecords.map((id: string) => new mongoose.Types.ObjectId(id) ):[];
       const files = req.files?.files as Express.Multer.File[] | undefined;
 
       if (!caseFolderName) {
@@ -697,12 +698,7 @@ const medicalRecordsController = {
       } else {
         query.petId = { $exists: false };
       }
-
-      // const query = {
-      //   folderName: caseFolderName.toLowerCase(),
-      //   petId: petId || { $exists: false } // static folder check
-      // };
-      //  Check for duplicate folder     
+ 
      const existing = await MedicalRecordFolderModel.findOne(query);
       if (existing) {
         res.status(200).json({
@@ -748,10 +744,11 @@ const medicalRecordsController = {
         folderName: caseFolderName.toLowerCase(),
         folderUrl: folderKey,
         petId:petId,
-        uploadedFIles:uploadedFiles
+        medicalRecords:parsedMedicalRecords
       });
 
-      await newFolder.save();
+    const savded =   await newFolder.save();
+    
 
       res.status(200).json({
         status: 1,
@@ -772,7 +769,8 @@ const medicalRecordsController = {
   },
   getMedicalRecordFolderList: async (req: Request, res: Response): Promise<void> => {
     try {
-      const { petId } = req.body as { petId?: string }
+      const { petId } = req.query as { petId?: string }
+      
       const list = await MedicalRecordFolderModel.aggregate([
         {
           $match: {
@@ -783,13 +781,21 @@ const medicalRecordsController = {
           }
         },
         {
-          $lookup: {
-            from: 'medicalrecords',
-            localField: '_id',
-            foreignField: 'documentTypeId',
-            as: 'files'
-          }
-        },
+    $lookup: {
+      from: "medicalrecords",            // collection name
+      localField: "medicalRecords",      // array of ObjectIds
+      foreignField: "_id",               // match MedicalRecords by _id
+      as: "files"
+    }
+  },
+        // {
+        //   $lookup: {
+        //     from: 'medicalrecords',
+        //     localField: '_id',
+        //     foreignField: 'documentTypeId',
+        //     as: 'files'
+        //   }
+        // },
         {
           $addFields: {
             fileCount: { $size: "$files" }
@@ -920,46 +926,15 @@ const medicalRecordsController = {
         return;
       }
 
-  const records = await medicalRecords.aggregate([
-  { $match: { userId: userId, documentTypeId: new mongoose.Types.ObjectId(folderId) } },
-  {
-    $lookup: {
-      from: "pets",
-      localField: "petId",
-      foreignField: "_id",
-      as: "pet"
-    }
-  },
-  { $unwind: { path: "$pet", preserveNullAndEmptyArrays: true } },
-  {
-    $project: {
-      _id: 1,
-      userId: 1,
-      documentTypeId: 1,
-      title: 1,
-      issueDate: 1,
-      hasExpiryDate: 1,
-      petImage: "$pet.petImage",
-      petId:  "$pet._id",
-      expiryDate: 1,
-      medicalDocs: 1,
-      isRead: 1,
-      createdAt: 1,
-      updatedAt: 1,
-      __v: 1
-    }
-  }
-]);
-
-      
-      const fhirRecords = records.map(record =>
+      const records = await MedicalRecordFolderModel.findById(folderId).populate('medicalRecords')
+      const fhirRecords = records?.medicalRecords.length ? records?.medicalRecords.map(record =>
         FHIRMedicalRecordService.convertMedicalRecordToFHIR(record)
-      );
+      ) :[];
       res.status(200).json({
         status: 1,
         resourceType: "Bundle",
         type: "searchset",
-        total: fhirRecords.length,
+        total: records?.medicalRecords.length,
         entry: fhirRecords.map(resource => ({ resource })),
       });
       return;
@@ -977,39 +952,54 @@ const medicalRecordsController = {
   },
   placeFileInFolder: async (req: Request, res: Response): Promise<void> => {
     try {
-      const { documentType, recordId } = req.body as { documentType: string, recordId: string };
-      if (!documentType || !recordId) {
+      const { folderId, recordIds } = req.body as { folderId: string, recordIds: [] }
+      if (!folderId || !recordIds) {
         res.status(200).json({
           status: 0,
-          message: "Missing required fields: documentType or recordId",
+          message: "Missing required fields: folderId or recordIds",
         });
         return;
       }
-
-      if (!mongoose.Types.ObjectId.isValid(recordId)) {
+      if (!mongoose.Types.ObjectId.isValid(folderId)) {
         res.status(200).json({
           status: 0,
-          message: "Invalid recordId format",
+          message: "Invalid folderId format",
         });
         return;
       }
-      await medicalRecords.findByIdAndUpdate({
-        _id: recordId
-      },
-        { $set: { documentType: documentType } },
-        { new: true })
-        res.status(200).json({
-          status: 1,
-          message: "File placed in folder successfully",
-        });
-      return;
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Error placing file in folder';
-      res.status(200).json({
-        status: 0,
-        message: message,
+      await MedicalRecordFolderModel.findByIdAndUpdate(folderId, {
+        $push: { medicalRecords: { $each: recordIds } },
       });
-      return;
+      res.status(200).json({ message: '', status: 1 })
+      return
+    } catch (error) {
+      const message = error instanceof Error ? error.message : ' An Internal server error occurred'
+      res.status(200).json({ status: 0, message: message })
+    }
+  },
+  searchMedicalRecordByName: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const name = req.query.name as string;
+      
+      if (!name) {
+        res.status(200).json({ status: 0, message: "Name is required" });
+        return;
+      }
+      const records = await medicalRecords.find({
+        title: { $regex: name, $options: "i" }  // "i" => case-insensitive
+      }).lean();
+      if (!records.length) {
+        res.status(200).json({ status: 0, message: "No records found" });
+        return;
+      }
+      res.status(200).json({
+        status: 1,
+        data: {entry:records},
+        message: "All records fetched successfully!"
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'An error occurred.'
+      res.status(200).json({ status: 0, message: message })
     }
   }
   
