@@ -9,7 +9,7 @@ export { AppointmentsStatusFHIRConverter, convertFromFhirPurposeOfVisit, convert
 export { convertToFhir, convertFhirToNormal } from "./feedback";
 export { convertExerciseToFHIR, convertPlanTypesToFHIR, convertExerciseTypeToFHIR } from "./exercises";
 export { convertPetToFHIR, convertFHIRToPet } from "./pets";
-export { convertFhirToJson, convertToFhirInventoryData, convertFromFHIRInventory, convertToFHIRInventory, convertFhirBundleToInventory, InventoryOverviewConvertToFHIR } from "./InventoryFhir/inventoryFhir";
+export { convertFhirToJson, convertToFhirInventoryData, convertFromFHIRInventory, convertToFHIRInventory, convertFhirBundleToInventory, InventoryOverviewConvertToFHIR,convertJsonToFhir } from "./InventoryFhir/inventoryFhir";
 
 export { convertProcedurePackagesToFHIRBundle, convertFHIRPackageToNormal, convertFhirToNormalToUpdateProcedurePackage } from "./ProcedurePackage/procedurePackage";
 export { parseDiabetesObservation, toFHIRObservation } from "./diabetes/diabetes-fhir";
@@ -18,7 +18,7 @@ export { validate } from "./immunization/immunization-fhir-validator";
 export { convertToFhirVetProfile, convertFromFhirVetProfile } from "./complete-vet-profile/complete-vet-profile";
 export { convertFhirAppointmentBundle, convertToFHIRMyCalender, convertFromFHIRAppointments ,parseAppointment} from "./appointment/appointment-fhir";
 export { BusinessFhirFormatter } from "./business-fhir/business-formatter-fhir";
-export { generateFHIRBlogResponse } from "./blog-fhir/blog";
+export { generateFHIRBlogResponse,convertFHIRBlogToNormal, convertFHIRBlogsToNormal} from "./blog-fhir/blog";
 export { convertGraphDataToFHIR, convertFHIRToGraphData, convertSpecialityWiseAppointmentsToFHIR, FHIRtoJSONSpeacilityStats, convertAppointmentStatsFromFHIR, convertAppointmentStatsToFHIR } from "./hospital-fhir/hospitalfhir";
 export { convertDepartmentFromFHIR, convertToFHIRDepartment, convertDepartmentsFromFHIR, convertDepartmentsToFHIR } from "./addSpecialities/specialities-fhir";
 export { fromFHIRInviteItem, fromFHIRInviteList, toFHIRInviteItem, toFHIRInviteList, fromFhirTeamOverview, toFhirTeamOverview, convertFromFhirTeamMembers, convertToFhirTeamMembers, convertFromFhirDepartment, convertToFhirDepartment } from './invites-teams/invites-teams'

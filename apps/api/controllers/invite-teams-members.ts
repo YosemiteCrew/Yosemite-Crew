@@ -273,7 +273,7 @@ export const inviteTeamsMembersController = {
             const isEmail = validator.isEmail(email);
             // Step 1: Check if the user was invited
             const invitedRecord = await inviteTeamsMembers.findOne({ isEmail });
-            console.log("hello", invitedRecord)
+            // console.log("hello", invitedRecord)
             if (!invitedRecord) {
                 res.status(403).json({ message: "This email was not invited." });
                 return

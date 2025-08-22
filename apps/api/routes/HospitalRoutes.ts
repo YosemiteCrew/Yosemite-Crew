@@ -16,7 +16,7 @@ const router = express.Router();
 //   HospitalController.getDataForWeeklyAppointmentChart
 // );
 router.get(
-  '/AppointmentGraphOnMonthBase',verifyToken,
+  '/AppointmentGraphOnMonthBase', verifyToken,
   HospitalController.AppointmentGraphOnMonthBase
 );
 
@@ -38,10 +38,10 @@ router.get(
 // router.get('/MeasureReport/hospitalDashboard',verifyTokenAndRefresh, HospitalController.hospitalDashboard);
 // router.get('/Appointment/summaryByDoctor',verifyTokenAndRefresh, HospitalController.getDoctorsTotalAppointments)
 
-router.all("/Appointment",verifyToken,HospitalController.getAppointmentsForHospitalDashboard)
-router.get("/AppointmentOverviewStats",verifyToken,HospitalController.AppointmentOverviewStats)
+router.all("/Appointment", verifyToken, HospitalController.getAppointmentsForHospitalDashboard)
+router.get("/AppointmentOverviewStats", verifyToken, HospitalController.AppointmentOverviewStats)
 // router.all('/MeasureReport',verifyTokenAndRefresh, HospitalController.WaitingRoomOverView);
-router.all('/List',verifyToken,HospitalController.AppointmentGraphs)
+router.all('/List', verifyToken, HospitalController.AppointmentGraphs)
 // router.get("/Rating", HospitalController.handleGetRating)
 
 // router.get('/getMessages',verifyTokenAndRefresh,HospitalController.getMessages)

@@ -12,7 +12,7 @@ import {
   AppointmentType,
 } from "../models/AppointmentOption";
 import ProductCategoryFHIRConverter from "../utils/InventoryFhirHandler";
-import { convertToFhirAppointmentTypes, convertToFhirPurposeOfVisit } from "@yosemite-crew/fhir";
+import { convertJsonToFhir, convertToFhirAppointmentTypes, convertToFhirPurposeOfVisit } from "@yosemite-crew/fhir";
 import { FhirHealthcareService, FhirPurposeOfVisit, MongoPurposeOfVisit } from "@yosemite-crew/types";
 import { validateFHIR } from "../Fhirvalidator/FhirValidator";
 // const { PurposeOfVisitFHIRConverter } = require("../utils/AdminFhirHandler");
@@ -200,7 +200,7 @@ const AdminController = {
 
   GetAddInventoryCategory: async (req: Request, res: Response): Promise<void> => {
     const { type } = req.query;
-    console.log("hello", req.query)
+    // console.log("hello", req.query)
     if (!type) {
       res.status(400).json({ message: "Missing type query params" });
       return;
@@ -223,10 +223,10 @@ const AdminController = {
                 .json({ message: "Invalid bussinessId format" });
               return;
             }
-            const getItem = await InventoryCategory.find({ bussinessId }).select('-__v');
+            const getItem: any = await InventoryCategory.find({ bussinessId }).select('-__v');
             if (getItem) {
-
-              res.status(200).json(getItem);
+              const convertToFHIR = convertJsonToFhir(getItem)
+              res.status(200).json(convertToFHIR);
               return;
             } else {
               res
@@ -431,7 +431,7 @@ const AdminController = {
         });
         return;
       }
-      console.log("hello", bussinessId);
+      // console.log("hello", bussinessId);
       // Check if bussinessId format is valid UUID
       if (
         typeof bussinessId !== "string" ||
@@ -812,94 +812,94 @@ const AdminController = {
   // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<AppointmentType Api's For Book Appointment>>>>>>>>>>>>>>>>>>>>>>>>>>
 
   AppointmentType: async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { HospitalId, name, category } = req.body as {HospitalId:string, name:string, category:string};
+    try {
+      const { HospitalId, name, category } = req.body as { HospitalId: string, name: string, category: string };
 
-    // ✅ Utility: Capitalize Each Word
-    const capitalizeWords = (str: string): string =>
-      str
-        .trim()
-        .split(" ")
-        .filter(Boolean)
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-        .join(" ");
+      // ✅ Utility: Capitalize Each Word
+      const capitalizeWords = (str: string): string =>
+        str
+          .trim()
+          .split(" ")
+          .filter(Boolean)
+          .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+          .join(" ");
 
-    // ✅ Validation Responses
-    const sendError = (message: string, severity: "error" | "information" | "fatal", code: string, statusCode: number): void => {
-      res.status(statusCode).json({
-        resourceType: "OperationOutcome",
-        issue: [
-          {
-            severity,
-            code,
-            details: { text: message },
-          },
-        ],
+      // ✅ Validation Responses
+      const sendError = (message: string, severity: "error" | "information" | "fatal", code: string, statusCode: number): void => {
+        res.status(statusCode).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity,
+              code,
+              details: { text: message },
+            },
+          ],
+        });
+      };
+
+      // ✅ Validations
+      if (!HospitalId) {
+        return sendError("Missing required parameter: HospitalId", "information", "informational", 400);
+      }
+      if (typeof HospitalId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(HospitalId)) {
+        return sendError("Invalid HospitalId format.", "error", "invalid", 400);
+      }
+      if (typeof category !== "string" || category.trim().length === 0 || category.length > 50) {
+        return sendError("Invalid or missing category.", "error", "invalid", 400);
+      }
+      if (typeof name !== "string" || name.trim().length === 0 || name.length > 50) {
+        return sendError("Invalid or missing name.", "error", "invalid", 400);
+      }
+
+      const sanitizedName = capitalizeWords(name);
+      const sanitizedCategory = capitalizeWords(category);
+
+      const existing = await AppointmentType.findOne({
+        HospitalId,
+        name: sanitizedName,
+        category: sanitizedCategory,
       });
-    };
 
-    // ✅ Validations
-    if (!HospitalId) {
-      return sendError("Missing required parameter: HospitalId", "information", "informational", 400);
-    }
-    if (typeof HospitalId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(HospitalId)) {
-      return sendError("Invalid HospitalId format.", "error", "invalid", 400);
-    }
-    if (typeof category !== "string" || category.trim().length === 0 || category.length > 50) {
-      return sendError("Invalid or missing category.", "error", "invalid", 400);
-    }
-    if (typeof name !== "string" || name.trim().length === 0 || name.length > 50) {
-      return sendError("Invalid or missing name.", "error", "invalid", 400);
-    }
+      if (existing) {
+        return sendError(`${existing.name} already exists`, "information", "informational", 200);
+      }
 
-    const sanitizedName = capitalizeWords(name);
-    const sanitizedCategory = capitalizeWords(category);
+      const newType = await AppointmentType.create({
+        HospitalId,
+        name: sanitizedName,
+        category: sanitizedCategory,
+      });
 
-    const existing = await AppointmentType.findOne({
-      HospitalId,
-      name: sanitizedName,
-      category: sanitizedCategory,
-    });
-
-    if (existing) {
-      return sendError(`${existing.name} already exists`, "information", "informational", 200);
-    }
-
-    const newType = await AppointmentType.create({
-      HospitalId,
-      name: sanitizedName,
-      category: sanitizedCategory,
-    });
-
-    if (newType) {
-      res.status(200).json({
+      if (newType) {
+        res.status(200).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "information",
+              code: "informational",
+              details: {
+                text: `${sanitizedName} saved successfully`,
+              },
+            },
+          ],
+        });
+      }
+    } catch (error) {
+      res.status(500).json({
         resourceType: "OperationOutcome",
         issue: [
           {
-            severity: "information",
-            code: "informational",
+            severity: "fatal",
+            code: "exception",
             details: {
-              text: `${sanitizedName} saved successfully`,
+              text: `${(error as Error).message} - network error`,
             },
           },
         ],
       });
     }
-  } catch (error) {
-    res.status(500).json({
-      resourceType: "OperationOutcome",
-      issue: [
-        {
-          severity: "fatal",
-          code: "exception",
-          details: {
-            text: `${(error as Error).message} - network error`,
-          },
-        },
-      ],
-    });
-  }
-},
+  },
 
   Appointments: async (req: Request, res: Response) => {
     try {

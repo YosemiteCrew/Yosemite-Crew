@@ -1,5 +1,5 @@
 
-import type {InventoryType, InventoryOverviewFHIRBundle, InventoryOverviewType, InventoryOverviewFHIRObservation, FHIRBundle, CategoryJson, InventoryTypes} from "@yosemite-crew/types";
+import type { InventoryType, InventoryOverviewFHIRBundle, InventoryOverviewType, InventoryOverviewFHIRObservation, FHIRBundle, CategoryJson, InventoryTypes } from "@yosemite-crew/types";
 
 
 
@@ -84,69 +84,106 @@ export const convertToFhirInventoryData = (data: InventoryType): any => {
 
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Convert to fhir inventory data >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-export const convertToFHIRInventory = (data: InventoryType) => {
-  return {
+export const convertToFHIRInventory = (
+  data: (InventoryType & { businessId?: string })[]
+) => {
+  return data.map((item) => ({
     resourceType: "Medication",
-    code: { text: data.itemName },
-    manufacturer: { display: data.manufacturer },
-    form: { text: data.strength },
-    amount: { value: data.quantity },
+    id: item.businessId,
+    code: { text: item.itemName },
+    manufacturer: { display: item.manufacturer },
+    form: { text: item.strength },
+    amount: { value: item.quantity },
     extension: [
-      { url: "http://example.com/fhir/inventory#barCode", valueString: data.barCode },
-      { url: "http://example.com/fhir/inventory#genericName", valueString: data.genericName },
-      { url: "http://example.com/fhir/inventory#sku", valueString: data.sku },
-      { url: "http://example.com/fhir/inventory#category", valueString: data.category },
-      { url: "http://example.com/fhir/inventory#itemCategory", valueString: data.itemCategory },
-      { url: "http://example.com/fhir/inventory#manufacturerPrice", valueDecimal: Number(data.manufacturerPrice) },
-      { url: "http://example.com/fhir/inventory#price", valueDecimal: Number(data.price) },
-      { url: "http://example.com/fhir/inventory#markup", valueDecimal: Number(data.markup) },
-      { url: "http://example.com/fhir/inventory#perQtyPrice", valueDecimal: Number(data.perQtyPrice) },
-      { url: "http://example.com/fhir/inventory#stockReorderLevel", valueInteger: Number(data.stockReorderLevel) },
-      { url: "http://example.com/fhir/inventory#department", valueString: data.department },
-      { url: "http://example.com/fhir/inventory#sexType", valueString: data.sexType },
-      { url: "http://example.com/fhir/inventory#speciesSpecific1", valueString: data.speciesSpecific1 },
-      { url: "http://example.com/fhir/inventory#speciesSpecific2", valueString: data.speciesSpecific2 },
-      { url: "http://example.com/fhir/inventory#onHand", valueString: data.onHand },
-      { url: "http://example.com/fhir/inventory#batchNumber", valueString: data.batchNumber },
-      { url: "http://example.com/fhir/inventory#upc", valueString: data.upc },
-      { url: "http://example.com/fhir/inventory#expiryDate", valueDate: data.expiryDate },
-    ]
-  };
+      { url: "http://example.com/fhir/inventory#barCode", valueString: item.barCode },
+      { url: "http://example.com/fhir/inventory#genericName", valueString: item.genericName },
+      { url: "http://example.com/fhir/inventory#sku", valueString: item.sku },
+      { url: "http://example.com/fhir/inventory#category", valueString: item.category },
+      { url: "http://example.com/fhir/inventory#itemCategory", valueString: item.itemCategory },
+      { url: "http://example.com/fhir/inventory#manufacturerPrice", valueDecimal: Number(item.manufacturerPrice) },
+      { url: "http://example.com/fhir/inventory#price", valueDecimal: Number(item.price) },
+      { url: "http://example.com/fhir/inventory#markup", valueDecimal: Number(item.markup) },
+      { url: "http://example.com/fhir/inventory#perQtyPrice", valueDecimal: Number(item.perQtyPrice) },
+      { url: "http://example.com/fhir/inventory#stockReorderLevel", valueInteger: Number(item.stockReorderLevel) },
+      { url: "http://example.com/fhir/inventory#department", valueString: item.department },
+      { url: "http://example.com/fhir/inventory#sexType", valueString: item.sexType },
+      { url: "http://example.com/fhir/inventory#speciesSpecific1", valueString: item.speciesSpecific1 },
+      { url: "http://example.com/fhir/inventory#speciesSpecific2", valueString: item.speciesSpecific2 },
+      { url: "http://example.com/fhir/inventory#onHand", valueString: item.onHand },
+      { url: "http://example.com/fhir/inventory#batchNumber", valueString: item.batchNumber },
+      { url: "http://example.com/fhir/inventory#upc", valueString: item.upc },
+      { url: "http://example.com/fhir/inventory#expiryDate", valueDate: item.expiryDate },
+    ],
+  }));
 };
 
-export const convertFhirBundleToInventory = (fhirBundle: any): InventoryTypes => {
-  const extractExtension = (extensions: any[], name: string) => {
-    return extensions?.find((ext) => ext.url.endsWith(`#${name}`));
-  };
 
-  const data = (fhirBundle.entry || []).map((entry: any) => {
-    const resource = entry.resource;
-    const extensions = resource.extension || [];
 
-    return {
-      bussinessId: resource.id,
-      itemName: resource.code?.text || "",
-      genericName: extractExtension(extensions, "genericName")?.valueString || "",
-      category: extractExtension(extensions, "category")?.valueString || "",
-      sku: extractExtension(extensions, "sku")?.valueString || "",
-      itemCategory: extractExtension(extensions, "itemCategory")?.valueString || "",
-      dosageAdministration: resource.form?.text || "",
-      manufacturer: resource.manufacturer?.display || "",
-      manufacturerPrice: extractExtension(extensions, "manufacturerPrice")?.valueDecimal || 0,
-      price: extractExtension(extensions, "price")?.valueDecimal || 0,
-      quantity: resource.amount?.value || 0,
-      manufacturingDate: extractExtension(extensions, "manufacturingDate")?.valueDate || "",
-      expiryDate: extractExtension(extensions, "expiryDate")?.valueDate || "",
-    };
+export function convertFhirBundleToInventory(fhirData: any) {
+  if (!fhirData || !Array.isArray(fhirData.fhirData)) {
+    return { data: [] }; // safeguard
+  }
+
+  const convertedData = fhirData.fhirData.map((item: any) =>
+    convertFHIRInventoryToNormal(item)
+  );
+
+  return { data: convertedData };
+}
+// Single FHIR → Normal Inventory converter
+export function convertFHIRInventoryToNormal(fhirData: any): InventoryType {
+  const extensionMap: Record<string, any> = {};
+  (fhirData.extension || []).forEach((ext: any) => {
+    if (ext.url.includes("#barCode")) extensionMap.barCode = ext.valueString;
+    if (ext.url.includes("#genericName")) extensionMap.genericName = ext.valueString;
+    if (ext.url.includes("#sku")) extensionMap.sku = ext.valueString;
+    if (ext.url.includes("#category")) extensionMap.category = ext.valueString;
+    if (ext.url.includes("#itemCategory")) extensionMap.itemCategory = ext.valueString;
+    if (ext.url.includes("#manufacturerPrice")) extensionMap.manufacturerPrice = ext.valueDecimal;
+    if (ext.url.includes("#price")) extensionMap.price = ext.valueDecimal;
+    if (ext.url.includes("#markup")) extensionMap.markup = ext.valueDecimal;
+    if (ext.url.includes("#perQtyPrice")) extensionMap.perQtyPrice = ext.valueDecimal;
+    if (ext.url.includes("#stockReorderLevel")) extensionMap.stockReorderLevel = ext.valueInteger;
+    if (ext.url.includes("#department")) extensionMap.department = ext.valueString;
+    if (ext.url.includes("#sexType")) extensionMap.sexType = ext.valueString;
+    if (ext.url.includes("#speciesSpecific1")) extensionMap.speciesSpecific1 = ext.valueString;
+    if (ext.url.includes("#speciesSpecific2")) extensionMap.speciesSpecific2 = ext.valueString;
+    if (ext.url.includes("#onHand")) extensionMap.onHand = ext.valueString;
+    if (ext.url.includes("#batchNumber")) extensionMap.batchNumber = ext.valueString;
+    if (ext.url.includes("#upc")) extensionMap.upc = ext.valueString;
+    if (ext.url.includes("#expiryDate")) extensionMap.expiryDate = ext.valueDate;
   });
 
   return {
-    totalItems: fhirBundle.total || data.length,
-    totalPages: fhirBundle.meta?.totalPages || 1,
-    currentPage: fhirBundle.meta?.currentPage || 1,
-    data,
+    barCode: extensionMap.barCode || "",
+    genericName: extensionMap.genericName || "",
+    sku: extensionMap.sku || "",
+    category: extensionMap.category || "",
+    itemCategory: extensionMap.itemCategory || "",
+    manufacturerPrice: extensionMap.manufacturerPrice || 0,
+    price: extensionMap.price || 0,
+    markup: extensionMap.markup || 0,
+    perQtyPrice: extensionMap.perQtyPrice || 0,
+    stockReorderLevel: extensionMap.stockReorderLevel || 0,
+    department: extensionMap.department || "",
+    sexType: extensionMap.sexType || "",
+    speciesSpecific1: extensionMap.speciesSpecific1 || "",
+    speciesSpecific2: extensionMap.speciesSpecific2 || "",
+    onHand: extensionMap.onHand || "",
+    batchNumber: extensionMap.batchNumber || "",
+    upc: extensionMap.upc || "",
+    expiryDate: extensionMap.expiryDate || "",
+
+    // from main FHIR fields
+    itemName: fhirData.code?.text || "",
+    strength: fhirData.form?.text || "",
+    manufacturer: fhirData.manufacturer?.display || "",
+    quantity: fhirData.amount?.value || 0,
   };
-};
+}
+
+
+
 export const convertFromFHIRInventory = (fhir: any): InventoryType => {
   const getExt = (key: string): string => {
     const ext = fhir.extension?.find((e: any) => e.url.endsWith(key));
@@ -160,6 +197,8 @@ export const convertFromFHIRInventory = (fhir: any): InventoryType => {
   };
 
   return {
+
+    businessId: fhir.id,
     barCode: getExt("barCode"),
     category: getExt("category"),
     itemName: fhir.code?.text || "",
@@ -192,7 +231,7 @@ export const convertFromFHIRInventory = (fhir: any): InventoryType => {
 
 
 export function InventoryOverviewConvertToFHIR(overview: InventoryOverviewType): InventoryOverviewFHIRBundle {
-  const bundle:InventoryOverviewFHIRBundle  = {
+  const bundle: InventoryOverviewFHIRBundle = {
     resourceType: "Bundle",
     type: "collection",
     entry: [],
@@ -251,14 +290,14 @@ export function convertFhirToJson(fhirBundle: FHIRBundle): CategoryJson[] {
   }
 
   return fhirBundle.entry.map((entry) => {
-    const resource:any = entry.resource;
+    const resource: any = entry.resource;
 
     const id = resource.id;
     const category = resource.code?.text || "";
 
     const businessId =
       resource.extension?.find(
-        (ext:any) =>
+        (ext: any) =>
           ext.url ===
           "http://example.org/fhir/StructureDefinition/business-id"
       )?.valueIdentifier?.value || "";
@@ -269,6 +308,52 @@ export function convertFhirToJson(fhirBundle: FHIRBundle): CategoryJson[] {
       businessId,
     };
   });
+}
+
+
+export function convertJsonToFhir(jsonArray: CategoryJson[]): FHIRBundle {
+  if (!Array.isArray(jsonArray)) {
+    throw new Error("Input must be an array of CategoryJson");
+  }
+
+  return {
+    resourceType: "Bundle",
+    type: "collection",
+    entry: jsonArray.map((item) => ({
+      resource: {
+        resourceType: "Immunization",
+        id: item._id,
+        status: "completed",
+        patient: {
+          reference: "Patient/example", // placeholder
+          petImageUrl: "",              // placeholder
+        },
+        vaccineCode: {
+          coding: [
+            {
+              system: "http://example.org/fhir/category",
+              code: item.category,
+              display: item.category,
+            },
+          ],
+          text: item.category,
+        },
+        // 👇 Added this so your convertFhirToJson can still read category
+        code: {
+          text: item.category,
+        },
+        occurrenceDateTime: new Date().toISOString(),
+        extension: [
+          {
+            url: "http://example.org/fhir/StructureDefinition/business-id",
+            valueIdentifier: {
+              value: item.businessId,
+            },
+          },
+        ],
+      } as any, // extend with code for compatibility
+    })),
+  };
 }
 
 
