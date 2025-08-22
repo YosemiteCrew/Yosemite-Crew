@@ -355,7 +355,6 @@ const detailsController = {
         });
         return
       }
-
       const result = await convertToFhirSummary(docs);
 
       res.status(200).json(result);
