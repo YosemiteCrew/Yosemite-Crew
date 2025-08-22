@@ -11,6 +11,7 @@ import SharedDutiesController from "../controllers/shared-duties-controller";
 import contactController  from "../controllers/contact-controller";
 import planController from '../controllers/plan-controller';
 import medicalRecordsController from '../controllers/medical-records-controller';
+import assessmentsController from "../controllers/assessmentsController";
 
 import { verifyTokenAndRefresh } from '../middlewares/authMiddleware';
   
@@ -35,12 +36,11 @@ router.get("/Observation/getFeedBack",verifyTokenAndRefresh,feedbackController.g
 router.put("/Observation/editFeedBack",verifyTokenAndRefresh,feedbackController.editFeedback);
 router.delete("/Observation/deleteFeedBack",verifyTokenAndRefresh,feedbackController.deleteFeedback);
  
- 
+router.get("/Organization/petSummary/:petId",verifyTokenAndRefresh, detailsController.petSummaryDetails);
 router.post("/Organization/addVetClinic", verifyTokenAndRefresh, detailsController.vetClinic);
 router.post("/Organization/addBreederDetails", verifyTokenAndRefresh,  detailsController.breeder);
 router.post("/Organization/addPetGroomer",verifyTokenAndRefresh, detailsController.petGroomer);
 router.post("/Organization/addPetBoarding",verifyTokenAndRefresh, detailsController.petBoarding);
- 
  
 router.post("/sendquery", verifyTokenAndRefresh, contactController.contactUs);
 
@@ -87,5 +87,8 @@ router.post("/Observation/saveSharedDuties",verifyTokenAndRefresh, SharedDutiesC
 router.get("/Observation/getSharedDuties",verifyTokenAndRefresh, SharedDutiesController.getSharedDuties);
 router.put("/Observation/editSharedDuties",verifyTokenAndRefresh, SharedDutiesController.editSharedDuties);
 router.delete("/Observation/deleteSharedDuties",verifyTokenAndRefresh,SharedDutiesController.deleteSharedDuties);
+
+router.get('/PainAssessments/:id',verifyTokenAndRefresh, assessmentsController.getPainAssessment);
+router.post('/PainAssessments/Submit',verifyTokenAndRefresh, assessmentsController.savePainAssessment);
 
 export default router;

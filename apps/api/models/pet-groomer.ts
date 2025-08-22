@@ -17,6 +17,7 @@ const petGroomerSchema: Schema<PetGroomer> = new mongoose.Schema({
     telephone: { type: String },
     emailAddress: { type: String },
     website: { type: String },
+    petId:{type:Schema.Types.ObjectId,ref: "pets",}
   },
   { timestamps: true }
 );

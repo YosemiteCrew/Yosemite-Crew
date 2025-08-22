@@ -2,7 +2,7 @@
 import { Types, Document } from 'mongoose'
 
 export type breeder =  Document &{
-  userId: Types.ObjectId;
+  userId: string;
   breederName?: string;
   breederAddress?: string;
   city?: string;
@@ -11,6 +11,7 @@ export type breeder =  Document &{
   telephone?: string;
   emailAddess?: string; // kept the same name as in your original schema
   website?: string;
+  petId?:Types.ObjectId;
 }
 
 
