@@ -27,6 +27,7 @@ type TodayAppointmentItem = {
   tokenNumber: string;
   reason: string;
   petType: string;
+  pet: string;
   time: string;
   date: string;
   participants: any;
@@ -34,50 +35,6 @@ type TodayAppointmentItem = {
   status: AppointmentStatus;
 };
 
-// Sample Data
-// const appointments: TodayAppointmentItem[] = [
-//   {
-//     name: "Kizie",
-//     owner: "Sky B",
-//     image: "/Images/pet3.png",
-//     appointmentId: "DRO01-03-23-2024",
-//     reason: "Annual Health Check-Up",
-//     breed: "Beagle/Dog",
-//     time: "11:30 AM",
-//     date: "01 Sep 2024",
-//     doctor: "Dr. Emily Johnson",
-//     specialization: "Cardiology",
-//     status: "In-progress",
-//   },
-//   {
-//     name: "Oscar",
-//     owner: "Pika K",
-//     image: "/Images/pet3.png",
-//     appointmentId: "DRO02-03-23-2024",
-//     reason: "Vaccination Updates",
-//     breed: "Egyptian/Cat",
-//     time: "12:15 PM",
-//     date: "01 Sep 2024",
-//     doctor: "Dr. David Brown",
-//     specialization: "Gastroenterology",
-//     status: "Checked-In",
-//   },
-//   {
-//     name: "King",
-//     owner: "Henry C",
-//     image: "/Images/pet3.png",
-//     appointmentId: "DRO03-03-23-2024",
-//     reason: "Deworming Treatment",
-//     breed: "Paso Fino/Horse",
-//     time: "01:13 PM",
-//     date: "01 Sep 2024",
-//     doctor: "Dr. Megan Clark",
-//     specialization: "Endocrinology",
-//     status: "Pending",
-//   },
-// ];
-
-// Columns for GenericTable
 const columns: Column<TodayAppointmentItem>[] = [
     {
         label: "",
@@ -119,7 +76,7 @@ const columns: Column<TodayAppointmentItem>[] = [
 {
   label: "Breed/Pet",
   key: "breed",
-  render: (item: TodayAppointmentItem) => <p>{item.petType}</p>,
+  render: (item: TodayAppointmentItem) =>  <p>{item.petType}/{item.pet}</p>,
 },
   {
     label: "Date",
@@ -136,7 +93,7 @@ const columns: Column<TodayAppointmentItem>[] = [
     key: "doctor",
     render: (item: TodayAppointmentItem) => (
       <div>
-        <p>{item?.participants[0]?.name}</p>
+        <p>{item?.participants?.name}</p>
         <span>{item.specialization}</span>
       </div>
     ),
