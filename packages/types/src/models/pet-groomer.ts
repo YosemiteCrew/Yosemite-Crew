@@ -1,3 +1,5 @@
+import mongoose, { Types } from "mongoose";
+
 export interface PetGroomer {
   _id?: string;
   userId: string;
@@ -11,4 +13,5 @@ export interface PetGroomer {
   website?: string;
   createdAt?: Date;
   updatedAt?: Date;
+  petId?: Types.ObjectId
 }
