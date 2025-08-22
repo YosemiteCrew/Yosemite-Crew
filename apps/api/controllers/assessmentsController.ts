@@ -224,7 +224,7 @@ const assessmentsController = {
 
           const updateData = { "$set": { 'assessmentStatus': status } }
 
-          const updated = await YoshAssessments.findByIdAndUpdate(id, updateData, { new: true }) as assessment | null;
+          const updated = await YoshAssessments.findByIdAndUpdate(new mongoose.Types.ObjectId(id), updateData, { new: true }) as assessment | null;
 
           if (updated) {
             res.status(200).json({
@@ -332,7 +332,7 @@ const assessmentsController = {
         return
       }
   
-      const docs = await YoshAssessments.findById(id);
+      const docs = await YoshAssessments.findById(new mongoose.Types.ObjectId(id));
       if (!docs) {
          res.status(404).json({
           resourceType: "PainAssessment",
