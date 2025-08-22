@@ -4,9 +4,7 @@ import type { breeder } from "@yosemite-crew/types";
 const breederSchema : Schema<breeder> = new mongoose.Schema({
 
     userId: {
-        type: Schema.Types.ObjectId,
-        required: true,
-        ref: "YoshUser"
+        type: String, required: true
     },
     breederName: {
         type: String,
@@ -31,8 +29,12 @@ const breederSchema : Schema<breeder> = new mongoose.Schema({
     },
     website: {
         type: String,
-    }
+    },
+    petId:{type:Schema.Types.ObjectId,ref: "pets",}
 
 }, { timestamps: true});
-const BreederDetails : Model<breeder>= mongoose.model<breeder>('BreederDetails',breederSchema);
-module.exports = BreederDetails;
+
+const BreederDetails: Model<breeder> = mongoose.model<breeder>('BreederDetails', breederSchema);
+
+export default BreederDetails;
+
