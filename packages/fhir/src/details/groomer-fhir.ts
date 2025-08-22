@@ -6,11 +6,14 @@ export function toFhirOrganizationGroomer(groomer: PetGroomer): FhirOrganization
     resourceType: "Organization",
     id: groomer._id?.toString() ?? '',
     name: groomer.groomerName ?? '', // ✅ fixed here
+    subject:{
+      reference:`patient/${groomer?.petId?.toString()}`|| "",
+    } ,
     telecom: [
         groomer.telephone ? { system: "phone" as const, value: groomer.telephone } : null,
         groomer.emailAddress ? { system: "email" as const, value: groomer.emailAddress } : null,
         groomer.website ? { system: "url" as const, value: groomer.website } : null
-        ].filter(Boolean) as { system: "phone" | "email" | "url"; value: string }[],
+        ].filter(Boolean) as { system: "phone"|  "email" | "url"; value: string }[],
     address: [
       {
         line: [groomer.groomerAddress ?? ''],

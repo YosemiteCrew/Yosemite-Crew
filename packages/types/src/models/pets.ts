@@ -7,6 +7,7 @@ export interface petImage extends Document {
   mimetype?: string;
 }
 
+
 export type pets = Document & {
   _id?:Types.ObjectId;
   cognitoUserId?: string;
@@ -29,6 +30,11 @@ export type pets = Document & {
   petFrom?: string;
   petImage?: petImage;
   updatedAt ?: string;
+  summary?: {
+    groomerId?: Types.ObjectId;
+    boardingId?: Types.ObjectId;
+    breederId?: Types.ObjectId;
+  };
 };
 
 

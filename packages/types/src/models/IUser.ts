@@ -19,6 +19,7 @@ export type IUser = Document & {
   area?:string;
   city?: string;
   zipcode?: string;
+  country?:string
   isProfessional?: string;
   isConfirmed?: boolean;
   professionType?: string[];
@@ -46,6 +47,7 @@ export interface SignupRequestBody {
   area:string;
   city: string;
   zipcode: string;
+  country:string;
   // professionType: string[] | string;
   // pimsCode?: string;
   confirmationCode?:string;

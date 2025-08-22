@@ -1,3 +1,5 @@
+import mongoose from "mongoose";
+
 // @yosemite-crew/types
 export interface IVetClinic {
   userId: string;
@@ -12,4 +14,6 @@ export interface IVetClinic {
   website?: string;
   createdAt?: Date;
   updatedAt?: Date;
+  requestAccepted?:Boolean;
+  petId?:mongoose.Types.ObjectId
 }
