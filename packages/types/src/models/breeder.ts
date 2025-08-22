@@ -1,7 +1,7 @@
 
 import { Types, Document } from 'mongoose'
 
-export type breeder =  Document &{
+export type breeder = Document & {
   userId: string;
   breederName?: string;
   breederAddress?: string;
@@ -11,7 +11,7 @@ export type breeder =  Document &{
   telephone?: string;
   emailAddess?: string; // kept the same name as in your original schema
   website?: string;
-  petId?:Types.ObjectId;
+  petId?: Types.ObjectId;
 }
 
 
