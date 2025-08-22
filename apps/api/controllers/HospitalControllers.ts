@@ -25,7 +25,7 @@ import { AppointmentsStatusFHIRConverter, convertAppointmentStatsToFHIR, convert
 // import { response } from "express";
 import FeedBack from "../models/feedback";
 import { PipelineStage } from "mongoose";
-import { AggregatedAppointmentGraph, AppointmentStatusFHIRBundle, QueryParams } from "@yosemite-crew/types";
+import { AggregatedAppointmentGraph, AppointmentStatusFHIRBundle, FHIRtoJSONSpeacilityStats, QueryParams } from "@yosemite-crew/types";
 import { validateFHIR } from "../Fhirvalidator/FhirValidator";
 
 const s3 = new AWS.S3({
@@ -152,7 +152,7 @@ const HospitalController = {
   // }
   // ,
   AppointmentGraphs: async (
-    req: Request<{}, {}, {}, QueryParams>,
+    req: Request<QueryParams>,
     res: Response
   ) => {
 
@@ -161,20 +161,16 @@ const HospitalController = {
 
     switch (reportType) {
       case "specialityWiseAppointments":
-        if (req.method === "GET") {
-          try {
-            const { LastDays = '7', userId } = req.query;
-            const days = parseInt(LastDays, 10) || 7;
-            if (!userId) {
-              return res.status(400).json({ message: "Missing userId" });
-            }
-            const endDate = new Date();
-            const startDate = new Date();
-            startDate.setDate(endDate.getDate() - (days - 1));
+  if (req.method === "GET") {
+    try {
+      const { LastDays = '1', userId } = req.query as { LastDays?: string, userId?: string };
 
-            // Convert both to 'YYYY-MM-DD' strings for comparison
-            const startDateStr = startDate.toISOString().split("T")[0];
-            const endDateStr = endDate.toISOString().split("T")[0];
+      // Validate LastDays and convert months to days (approximate 30 days per month)
+      const months = parseInt(LastDays, 10);
+      if (isNaN(months) || months <= 0) {
+        return res.status(400).json({ message: "Invalid LastDays value, must be a positive number of months" });
+      }
+      const days = months * 30; // Convert months to approximate days
 
             const departmentWiseAppointments = await  webAppointments.aggregate([
   {
@@ -438,7 +434,6 @@ const HospitalController = {
       });
     }
   },
-
 
   AppointmentOverviewStats: async (
     req: Request,

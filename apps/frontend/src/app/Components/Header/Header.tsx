@@ -30,9 +30,9 @@ const publicNavItems: NavItem[] = [
   { label: "About Us", href: "#" },
   { label: "PMS", href: "#" },
   { label: "Developers", href: "#" },
-  { label: "Resources", href: "#" },
-  { label: "Contact Us", href: "#" },
-  { label: "Blog", href: "#" },
+  { label: "Resources", href: "/resources" },
+  { label: "Contact Us", href: "/contact_us" },
+  { label: "Blog", href: "/blogpage" },
 ];
 
 const Header = () => {
@@ -287,7 +287,7 @@ const PublicHeader = () => {
           {publicNavItems.map((item) => (
             <li key={item.label}>
               <Link
-                href={item.href!}
+                href={item.href? item.href : "#"}
                 className={classNames({ active: pathname === item.href })}
               >
                 {item.label}
