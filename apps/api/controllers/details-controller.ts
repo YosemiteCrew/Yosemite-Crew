@@ -93,20 +93,31 @@ const detailsController = {
         return;
       }
 
-      // Typed usage
-      const organization: FhirOrganization = validatedData.data;
-      const clinicData: IVetClinic = {
-        userId,
-        clinicName: organization.name,
-        vetName: organization.contact?.[0]?.name?.text || '',
-        clinicAddress: organization.address?.[0]?.line?.[0] || '',
-        city: organization.address?.[0]?.city || '',
-        country: organization.address?.[0]?.country || '',
-        zipCode: organization.address?.[0]?.postalCode || '',
-        telephone: organization.telecom?.find((t) => t.system === 'phone')?.value || '',
-        emailAddess: organization.telecom?.find((t) => t.system === 'email')?.value || '',
-        website: organization.telecom?.find((t) => t.system === 'url')?.value || ''
-      };
+    // Typed usage
+    const organization: FhirOrganization = validatedData.data;
+    const clinicData: IVetClinic = {
+      userId,
+      petId:organization.petId,
+      clinicName: organization.name,
+      vetName: organization.contact?.[0]?.name?.text || '',
+      clinicAddress: organization.address?.[0]?.line?.[0] || '',
+      city: organization.address?.[0]?.city || '',
+      country: organization.address?.[0]?.country || '',
+      zipCode: organization.address?.[0]?.postalCode || '',
+      telephone: organization.telecom?.find((t) => t.system === 'phone')?.value || '',
+      emailAddess: organization.telecom?.find((t) => t.system === 'email')?.value || '',
+      website: organization.telecom?.find((t) => t.system === 'url')?.value || ''
+    };
+
+    const clinic = await VetClinic.create(clinicData);
+    if (!clinic) {
+      res.status(200).json({ status: 0, message: 'Failed to add veterinary clinic' });
+      return;
+    }
+// Assuming VetClinicService is imported and instantiated if needed
+// If VetClinicService is a class, instantiate it: const vetClinicService = new VetClinicService();
+// Otherwise, if it's static, call directly as below:
+  const fhirResponse = toFhirOrganization(clinic); // Fully typed FhirOrganization
 
       const clinic = await VetClinic.create(clinicData);
       if (!clinic) {
@@ -136,6 +147,32 @@ const detailsController = {
 
       res.status(200).json({ status: 0, message: 'Internal Server Error' });
     }
+  },
+  getVetClinicDetails: async (req :Request, res:Response):Promise<void> =>{
+    try {
+      const userId = getCognitoUserId(req)
+      if(!userId){
+        res.status(200).json({message :'User ID is missing', })
+        return
+      }
+      const petId = req.query.petId
+      const vetClinicsDetail :VetClinicDocument[] |null = await VetClinic.find({userId:userId, petId:petId})
+      if(!vetClinicsDetail.length){
+        res.status(200).json({message:'No Vet Founded'})
+      }
+      const entries = vetClinicsDetail.map((item)=>  toFhirOrganization(item))
+      res.status(200).json({
+        data:entries
+      })
+    }
+    catch(error){
+      const message = error instanceof Error ? error.message:'An Error occurred'
+      res.status(200).json({status:0, message:message})
+    }
+  },
+
+  searchVet: async (req:Request, res:Response):Promise<void> =>{
+
   },
 
   breeder: async (req: Request, res: Response): Promise<void> => {
