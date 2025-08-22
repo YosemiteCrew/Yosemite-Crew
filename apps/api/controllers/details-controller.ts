@@ -156,6 +156,14 @@ const detailsController = {
         return
       }
       const petId = req.query.petId
+
+      if (!mongoose.Types.ObjectId.isValid(petId)) {
+        res.status(200).json({
+          status: 0,
+          message: "Invalid or missing pet Id",
+        });
+        return;
+      }
       const vetClinicsDetail :VetClinicDocument[] |null = await VetClinic.find({userId:userId, petId:petId})
       if(!vetClinicsDetail.length){
         res.status(200).json({message:'No Vet Founded'})
