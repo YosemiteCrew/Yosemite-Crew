@@ -1,8 +1,9 @@
 // models/petBoarding.model.ts
 
-import  mongoose,{ Schema, Model } from 'mongoose';
+import  mongoose,{ Schema, Model, HydratedDocument } from 'mongoose';
 import type { PetBoarding } from '@yosemite-crew/types'; // adjust path if local
 
+export type PetBoardingDocument = HydratedDocument<PetBoarding>;
 
 const PetBoardingSchema: Schema<PetBoarding> = new mongoose.Schema({
     userId: {  },
