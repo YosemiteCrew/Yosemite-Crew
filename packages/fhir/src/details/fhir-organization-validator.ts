@@ -7,6 +7,10 @@ const telecomSchema = z.object({
   value: z.string()
 });
 
+const subject = z.object({
+  reference:z.string()
+});
+
 const addressSchema = z.object({
   line: z.array(z.string()).min(1),
   city: z.string(),
@@ -32,11 +36,12 @@ const contactSchema = z.object({
 
 export const fhirOrganizationSchema = z.object({
   resourceType: z.literal("Organization"),
-  id: z.string(),
+  id: z.string().optional(),
   name: z.string(),
   telecom: z.array(telecomSchema),
-  address: z.array(addressSchema),
-  contact: z.array(contactSchema).optional()
+  address: z.array(addressSchema).optional(),
+  contact: z.array(contactSchema).optional(),
+  subject:subject.optional()
 });
 
 // --- TypeScript Types ---
@@ -44,4 +49,5 @@ export const fhirOrganizationSchema = z.object({
 export type FhirTelecom = z.infer<typeof telecomSchema>;
 export type FhirAddress = z.infer<typeof addressSchema>;
 export type FhirContact = z.infer<typeof contactSchema>;
+export type Fhirsubject = z.infer<typeof subject>;
 export type FhirOrganization = z.infer<typeof fhirOrganizationSchema>;

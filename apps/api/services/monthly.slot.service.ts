@@ -1,6 +1,6 @@
 import moment from 'moment-timezone';
 import { v4 as uuidv4 } from 'uuid';
-import DoctorsTimeSlotes from '../models/doctors.slotes.model';
+import {DoctorsTimeSlotes} from '../models/doctors.slotes.model';
 import { webAppointments } from '../models/web-appointment';
 
 interface AvailableSlotPerDay {
@@ -41,12 +41,12 @@ const MonthlySlotService = {
     }).lean();
 
     const bookedSlotIds = new Set<string>(
-      bookedAppointments.map((app: any) => app.slotsId?.toString())
+      bookedAppointments.map((app) => app.slotsId?.toString())
     );
 
     const availableSlotsPerDay: AvailableSlotPerDay[] = calendar.map(date => {
       const dayOfWeek = date.format("dddd");
-      const daySchedule = weeklySchedule.find((schedule: any) => schedule.day === dayOfWeek);
+      const daySchedule = weeklySchedule.find((schedule) => schedule.day === dayOfWeek);
 
       let availableSlotsCount = 0;
 
@@ -124,6 +124,7 @@ const MonthlySlotService = {
             component: availableSlotsPerDay.map((slot) => ({
               code: {
                 text: `Available slots on ${slot.date} (${slot.day})`,
+                date:slot.date,
               },
               valueInteger: slot.availableSlotsCount,
             })),

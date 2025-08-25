@@ -28,6 +28,11 @@ const PetSchema: Schema<pets> = new mongoose.Schema(
         originalname: { type: String },
         mimetype: { type: String },
       },
+      summary: {
+        groomerId: { type: Schema.Types.ObjectId, ref: "PetGroomer" },
+        boardingId: { type: Schema.Types.ObjectId, ref: "PetBoardingDetails" },
+        breederId: { type: Schema.Types.ObjectId, ref: "BreederDetails" },
+      },
   },
   { timestamps: true }
 );
