@@ -99,7 +99,7 @@ const webAppointmentController = {
         res.status(200).json({ data: fhirData });
         return;
       }
-       const safeName = escapeRegex(names);
+      const safeName = escapeRegex(names);
       // Search by names (owner name or pet name)
       const appUser: IUser | null = await AppUser.findOne({
         $or: [
@@ -109,7 +109,7 @@ const webAppointmentController = {
       });
 
       if (appUser) {
-         if (typeof appUser.cognitoId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(appUser.cognitoId)) {
+        if (typeof appUser.cognitoId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(appUser.cognitoId)) {
           res.status(400).json({ message: "Invalid doctorId format" });
           return;
         }
@@ -307,10 +307,12 @@ const webAppointmentController = {
       const date = safeAppointmentDate.toISOString().split("T")[0]
       const existingAppointment = await webAppointments.findOne({
         veterinarian,
-        date,
+        appointmentDate: date,
         slotsId,
-        status: { $ne: 'cancelled' } // Only check non-cancelled appointments
       });
+
+      console.log("info", veterinarian, date, slotsId);
+      console.log("existingAppointment", existingAppointment);
 
       if (existingAppointment) {
         res.status(409).json({ // 409 Conflict
@@ -324,8 +326,11 @@ const webAppointmentController = {
             },
           }],
         });
-        return
+        return;
       }
+
+      // Proceed with appointment creation if no existing appointment found
+      // यहाँ आपका appointment create करने का code आएगा
       // Get the slot details
       const slot = await DoctorsTimeSlotes.findOne(
 
@@ -360,10 +365,10 @@ const webAppointmentController = {
         return;
       }
       const Appointmenttoken = await AppointmentsToken.findOneAndUpdate(
-        { hospitalId: hospital.userId, appointmentDate:date },
+        { hospitalId: hospital.userId, appointmentDate: date },
         {
           $inc: { tokenCounts: 1 },
-          $setOnInsert: { appointmentDate:date }, // Ensure appointmentDate is set in the new document
+          $setOnInsert: { appointmentDate: date }, // Ensure appointmentDate is set in the new document
         },
         { new: true, upsert: true, setDefaultsOnInsert: true }
       );
@@ -424,148 +429,148 @@ const webAppointmentController = {
     }
   },
   getDoctorsSlotes: async (req: Request, res: Response): Promise<void> => {
-  interface TimeSlot {
-    toObject(): unknown[];
-    _id: string;
-    time: string;
-    selected?: boolean;
-  }
-
-  interface ForBookingTimeSlot extends TimeSlot {
-    selected: boolean;
-  }
-
-  interface UnavailableSlotDocument {
-    userId: string;
-    date: string;
-    day: string;
-    slots: string[];
-  }
-
-  interface DoctorsTimeSlotesDocument {
-    userId: string;
-    day: string;
-    timeSlots: TimeSlot[];
-  }
-
-  interface WebAppointment {
-    veterinarian: string;
-    appointmentDate: string;
-    slotsId: string;
-  }
-
-  try {
-    const { userId, day, date } = req.query as {
-      userId?: string;
-      day?: string;
-      date?: string;
-    };
-
-    // ========= VALIDATION =========
-    if (!userId || !day || !date) {
-      const missingParams: string[] = [];
-      if (!userId) missingParams.push("userId");
-      if (!day) missingParams.push("day");
-      if (!date) missingParams.push("date");
-
-      res.status(400).json({
-        resourceType: "OperationOutcome",
-        issue: [
-          {
-            severity: "information",
-            code: "informational",
-            details: { text: `Missing required parameter(s): ${missingParams.join(", ")}` },
-          },
-        ],
-      });
-      return;
+    interface TimeSlot {
+      toObject(): unknown[];
+      _id: string;
+      time: string;
+      selected?: boolean;
     }
 
-    // UUID format validation
-    if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+    interface ForBookingTimeSlot extends TimeSlot {
+      selected: boolean;
+    }
+
+    interface UnavailableSlotDocument {
+      userId: string;
+      date: string;
+      day: string;
+      slots: string[];
+    }
+
+    interface DoctorsTimeSlotesDocument {
+      userId: string;
+      day: string;
+      timeSlots: TimeSlot[];
+    }
+
+    interface WebAppointment {
+      veterinarian: string;
+      appointmentDate: string;
+      slotsId: string;
+    }
+
+    try {
+      const { userId, day, date } = req.query as {
+        userId?: string;
+        day?: string;
+        date?: string;
+      };
+
+      // ========= VALIDATION =========
+      if (!userId || !day || !date) {
+        const missingParams: string[] = [];
+        if (!userId) missingParams.push("userId");
+        if (!day) missingParams.push("day");
+        if (!date) missingParams.push("date");
+
+        res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "information",
+              code: "informational",
+              details: { text: `Missing required parameter(s): ${missingParams.join(", ")}` },
+            },
+          ],
+        });
+        return;
+      }
+
+      // UUID format validation
+      if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
         res.status(400).json({ message: 'Invalid doctorId format' });
         return;
       }
 
-    const validDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-    if (!validDays.includes(day)) {
-      res.status(400).json({ message: "Invalid day value" });
-      return;
-    }
+      const validDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+      if (!validDays.includes(day)) {
+        res.status(400).json({ message: "Invalid day value" });
+        return;
+      }
 
-    if (!validator.isISO8601(date)) {
-      res.status(400).json({ message: "Invalid appointmentDate" });
-      return;
-    }
+      if (!validator.isISO8601(date)) {
+        res.status(400).json({ message: "Invalid appointmentDate" });
+        return;
+      }
 
-    const safeAppointmentDate = new Date(`${date}T00:00:00Z`);
-    const dates = safeAppointmentDate.toISOString().split("T")[0];
+      const safeAppointmentDate = new Date(`${date}T00:00:00Z`);
+      const dates = safeAppointmentDate.toISOString().split("T")[0];
 
-    // ========= STEP 1: FETCH UNAVAILABLE SLOTS =========
-    const unavailableRecord: UnavailableSlotDocument | null = await UnavailableSlot.findOne({
-      userId: userId,
-      date: dates,
-      day: validator.escape(day),
-    });
-    const unavailableTimes: string[] = unavailableRecord ? unavailableRecord.slots : [];
-
-    // ========= STEP 2: FETCH BOOKED SLOTS =========
-    const bookedSlots: WebAppointment[] = await webAppointments.find({
-      veterinarian: userId,
-      appointmentDate: dates,
-    });
-    const bookedSlotIds: string[] = bookedSlots.map((slot: WebAppointment) => slot.slotsId.toString());
-
-    // ========= STEP 3: FETCH DOCTOR'S SLOTS =========
-    const doctorTimeSlot: DoctorsTimeSlotesDocument | null = await DoctorsTimeSlotes.findOne(
-      { doctorId: validator.escape(userId), day: validator.escape(day) },
-      { "timeSlots.time24": 0 }
-    );
-    if (!doctorTimeSlot) {
-      res.status(200).json({
-        message: "No slots found for this doctor/day",
-        timeSlots: [],
+      // ========= STEP 1: FETCH UNAVAILABLE SLOTS =========
+      const unavailableRecord: UnavailableSlotDocument | null = await UnavailableSlot.findOne({
+        userId: userId,
+        date: dates,
+        day: validator.escape(day),
       });
-      return;
+      const unavailableTimes: string[] = unavailableRecord ? unavailableRecord.slots : [];
+
+      // ========= STEP 2: FETCH BOOKED SLOTS =========
+      const bookedSlots: WebAppointment[] = await webAppointments.find({
+        veterinarian: userId,
+        appointmentDate: dates,
+      });
+      const bookedSlotIds: string[] = bookedSlots.map((slot: WebAppointment) => slot.slotsId.toString());
+
+      // ========= STEP 3: FETCH DOCTOR'S SLOTS =========
+      const doctorTimeSlot: DoctorsTimeSlotesDocument | null = await DoctorsTimeSlotes.findOne(
+        { doctorId: validator.escape(userId), day: validator.escape(day) },
+        { "timeSlots.time24": 0 }
+      );
+      if (!doctorTimeSlot) {
+        res.status(200).json({
+          message: "No slots found for this doctor/day",
+          timeSlots: [],
+        });
+        return;
+      }
+
+      // ========= STEP 4: REMOVE UNAVAILABLE =========
+      const filteredSlots: TimeSlot[] = doctorTimeSlot.timeSlots.filter(
+        (slot: TimeSlot) => !unavailableTimes.includes(slot.time)
+      );
+
+      // ========= STEP 5: UPDATE selected IF BOOKED =========
+      const updatedTimeSlots: ForBookingTimeSlot[] | object = filteredSlots.map((slot: TimeSlot) => {
+        const isBooked = bookedSlotIds.includes(slot._id.toString());
+
+        return {
+          ...slot.toObject(),
+          selected: isBooked ? true : slot.selected || false,
+        };
+      }) as object;
+
+      const FhirData = convertTimeSlotsToFHIR(updatedTimeSlots as []);
+
+      // ========= STEP 6: RETURN =========
+      res.status(200).json({
+        message: "Data fetched successfully",
+        timeSlots: FhirData as FHIRSlotBundle,
+      });
+
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+      res.status(500).json({
+        resourceType: "OperationOutcome",
+        issue: [
+          {
+            severity: "error",
+            code: "exception",
+            details: { text: errorMessage },
+          },
+        ],
+      });
     }
-
-    // ========= STEP 4: REMOVE UNAVAILABLE =========
-    const filteredSlots: TimeSlot[] = doctorTimeSlot.timeSlots.filter(
-      (slot: TimeSlot) => !unavailableTimes.includes(slot.time)
-    );
-
-    // ========= STEP 5: UPDATE selected IF BOOKED =========
-    const updatedTimeSlots: ForBookingTimeSlot[] | object = filteredSlots.map((slot: TimeSlot) => {
-      const isBooked = bookedSlotIds.includes(slot._id.toString());
-
-      return {
-        ...slot.toObject(),
-        selected: isBooked ? true : slot.selected || false,
-      };
-    }) as object;
-
-    const FhirData = convertTimeSlotsToFHIR(updatedTimeSlots as []);
-
-    // ========= STEP 6: RETURN =========
-    res.status(200).json({
-      message: "Data fetched successfully",
-      timeSlots: FhirData as FHIRSlotBundle,
-    });
-
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
-    res.status(500).json({
-      resourceType: "OperationOutcome",
-      issue: [
-        {
-          severity: "error",
-          code: "exception",
-          details: { text: errorMessage },
-        },
-      ],
-    });
-  }
-},
+  },
 
   getAllAppointments: async (req: Request, res: Response): Promise<void> => {
     try {
@@ -1103,6 +1108,89 @@ const webAppointmentController = {
       });
     }
   },
+
+  updateAppointmentStatus: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const  appointmentId  = req.params.Id;
+      const { status } = req.body as { status: string };
+
+      // Validate appointmentId
+      if (!appointmentId || !mongoose.Types.ObjectId.isValid(appointmentId)) {
+        res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "invalid",
+              details: { text: "Invalid or missing appointmentId" },
+            },
+          ],
+        });
+        return;
+      }
+
+      // Validate status
+      const validStatuses = ["booked", "fulfilled", "cancelled", "accepted", "checked-in"];
+      if (!status || typeof status !== "string" || !validStatuses.includes(status)) {
+        res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "invalid",
+              details: { text: `Invalid or missing status. Valid statuses: ${validStatuses.join(", ")}` },
+            },
+          ],
+        });
+        return;
+      }
+
+      // Find and update the appointment
+      const updatedAppointment = await webAppointments.findByIdAndUpdate(
+        appointmentId,
+        { appointmentStatus: status },
+        { new: true }
+      );
+
+      if (!updatedAppointment) {
+        res.status(404).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "not-found",
+              details: { text: "Appointment not found" },
+            },
+          ],
+        });
+        return;
+      }
+
+      // Return FHIR OperationOutcome for success
+      res.status(200).json({
+        resourceType: "OperationOutcome",
+        issue: [
+          {
+            severity: "information",
+            code: "informational",
+            details: { text: "Appointment status updated successfully" },
+          },
+        ],
+      });
+    } catch (error) {
+      console.error("Error updating appointment status:", error);
+      res.status(500).json({
+        resourceType: "OperationOutcome",
+        issue: [
+          {
+            severity: "error",
+            code: "exception",
+            details: { text: "Internal server error" },
+          },
+        ],
+      });
+    }
+  }
 }
 
 export default webAppointmentController;

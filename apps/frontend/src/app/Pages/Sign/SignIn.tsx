@@ -373,7 +373,7 @@ if(isVerified){
                   </div>
                   <div className="Signbtn">
                     <MainBtn btnicon={<GoCheckCircleFill />} btnname="Reset Password" iconPosition="left" onClick={handleVerifyOtp} />
-                    <h6> Didn’t receive the code? <Link href="#">Request New Code.</Link></h6>
+                    <h6> Didn’t receive the code? <Link  onClick={handleOtp} href="#">Request New Code.</Link></h6>
                   </div>
                 </Form>
               </div>

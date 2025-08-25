@@ -62,3 +62,4 @@ export type {FHIRAppointmentAssessmentGraphBundle,QueryParams,AggregatedAppointm
 export type {FhirPetResource,NormalPetData,OperationOutcome,OperationOutcomeIssue,PetResponse,FHIRDoctorOption,NormalDoctorOption,ForBookingFHIRSlot,ForBookingTimeSlot,TimeSlotFHIRBundle,FHIRAppointmentBooking,NormalAppointmentData,FHIRAppointmentData,MyAppointmentData} from "./web-appointments-types/web-appointments"
 export type {FHIRMedicalRecord ,FhirDocumentReference, MedicalRecordRequestBody, MedicalRecordResponse, MedicalDoc, MedicalRecordFolderRequest} from "./medical-record/medical-record-types";
 export type {adminDepartment,AdminDepartmentItem,AdminFHIRHealthcareService} from './models/admin-department'
+export type {ITask,FormTaskData,UploadedFileForCreateTask} from './models/create-task';
