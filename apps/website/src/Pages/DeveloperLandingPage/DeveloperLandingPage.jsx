@@ -271,7 +271,7 @@ const DeveloperLandingPage = () => {
               </div>
             </div>
             <div className="RytBuild">
-              <img src={  `${import.meta.env.VITE_BASE_IMAGE_URL}/Devlperlanding/devlpbuild.png`} alt="devlpbuild" />
+              <img src={ `${import.meta.env.VITE_BASE_IMAGE_URL}/Devlperlanding/devlpbuild.png`} alt="devlpbuild" />
             </div>
           </div>
         </div>
