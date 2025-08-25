@@ -46,7 +46,10 @@ const AddDoctorsController = {
     try {
       const userId = req.query.userId as string;
       let rawData: string = "";
-
+          if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        res.status(400).json({ message: "Invalid doctorId format" });
+        return;
+      }
       if (
         req.body &&
         typeof req.body === "object" &&
@@ -145,6 +148,7 @@ const AddDoctorsController = {
       if (imageFile) {
         imageUrl = await uploadToS3(imageFile, "profilePictures");
       }
+      
       // 🟢 Get existing doctor data to preserve previous documents
       const existingDoctor = await AddDoctors.findOne({
         userId: userId,
