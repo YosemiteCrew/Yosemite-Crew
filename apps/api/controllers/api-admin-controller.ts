@@ -459,7 +459,6 @@ const AdminController = {
 
       if (getItems) {
         const data = new ProductCategoryFHIRConverter(getItems).toFHIRBundle();
-        console.log("mil gaya data", data);
         res.status(200).json({ data });
         return;
       }
