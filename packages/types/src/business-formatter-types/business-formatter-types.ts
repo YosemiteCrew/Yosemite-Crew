@@ -17,6 +17,9 @@ export interface ProfileData {
     selectedServices: Service[];
     logo?: string;
     image?:String;
+    latitude?: string;
+    longitude?: string;
+ 
 }
 export interface Organization {
     cognitoId: string;
