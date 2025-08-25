@@ -5,8 +5,10 @@ import GenericTable from '../GenericTable/GenericTable'
 import { Button, Dropdown } from 'react-bootstrap'
 import {  BsThreeDotsVertical } from 'react-icons/bs';
 import Image from 'next/image';
-import { FaUser } from 'react-icons/fa6';
-import { Icon } from '@iconify/react/dist/iconify.js';
+import { FaCircleCheck, FaEye, FaUser } from 'react-icons/fa6';
+
+
+
 
 
 // Define the Column type
@@ -35,6 +37,9 @@ type TodayAppointmentItem = {
   status: AppointmentStatus;
 };
 
+
+
+// Columns for GenericTable
 const columns: Column<TodayAppointmentItem>[] = [
     {
         label: "",
@@ -76,7 +81,7 @@ const columns: Column<TodayAppointmentItem>[] = [
 {
   label: "Breed/Pet",
   key: "breed",
-  render: (item: TodayAppointmentItem) =>  <p>{item.pet}/{item.petType}</p>,
+  render: (item: TodayAppointmentItem) =>  <p>{item.petType}/{item.pet}</p>,
 },
   {
     label: "Date",
@@ -93,8 +98,8 @@ const columns: Column<TodayAppointmentItem>[] = [
     key: "doctor",
     render: (item: TodayAppointmentItem) => (
       <div>
-        <p>{item?.participants?.name}</p>
-        <span>{item.specialization}</span>
+       <p>{item?.participants.name}</p>
+        <span>{item?.specialization}</span>
       </div>
     ),
   },
@@ -103,22 +108,15 @@ const columns: Column<TodayAppointmentItem>[] = [
   key: "actions",
   render: (item: TodayAppointmentItem) => (
     <div className="action-btn-col">
-      {item.status === "In-progress" ? (
-        <Button className="circle-btn done"
-          title="Done">
-            <Icon icon="carbon:checkmark-filled" width="24" height="24" />
-          
-        </Button>
-      ) : (
         <Button
           className="circle-btn view"
           title="View"
           
           onClick={() => console.log("View", item)}
         >
-          <Icon icon="solar:eye-bold" width="24" height="24" />
+            <FaEye size={20}/>
         </Button>
-      )}
+     
     </div>
   ),
 },
@@ -144,17 +142,19 @@ const columns: Column<TodayAppointmentItem>[] = [
 
 ];
 
-function AppointmentsTable({data}:any) {
+
+
+
+function TodayAppointments(data:any) {
   return (
     <>
 
-        <div className="table-wrapper">
-            <GenericTable data={data} columns={columns} bordered={false} pagination pageSize={6}/>
-            {/* <div className="table-footerBtn ">
-                <Button>Sell All</Button>
-            </div> */}
-        </div>
-
+    <div className="table-wrapper">
+        <GenericTable data={data.data} columns={columns} bordered={false}  pageSize={3}pagination />
+        {/* <div className="table-footerBtn ">
+            <Button>Sell All</Button>
+        </div> */}
+    </div>
 
 
 
@@ -163,4 +163,4 @@ function AppointmentsTable({data}:any) {
   )
 }
 
-export default AppointmentsTable
+export default TodayAppointments
