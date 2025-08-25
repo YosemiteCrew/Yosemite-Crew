@@ -116,6 +116,38 @@ export const convertToFHIRInventory = (
     ],
   }));
 };
+export const convertToFHIRInventoryWhileAdding = (
+ data: InventoryType & { businessId?: string }
+) => {
+ return {
+    resourceType: "Medication",
+    id: data.businessId,
+    code: { text: data.itemName },
+    manufacturer: { display: data.manufacturer },
+    form: { text: data.strength },
+    amount: { value: data.quantity },
+    extension: [
+      { url: "http://example.com/fhir/inventory#barCode", valueString: data.barCode },
+      { url: "http://example.com/fhir/inventory#genericName", valueString: data.genericName },
+      { url: "http://example.com/fhir/inventory#sku", valueString: data.sku },
+      { url: "http://example.com/fhir/inventory#category", valueString: data.category },
+      { url: "http://example.com/fhir/inventory#itemCategory", valueString: data.itemCategory },
+      { url: "http://example.com/fhir/inventory#manufacturerPrice", valueDecimal: Number(data.manufacturerPrice) },
+      { url: "http://example.com/fhir/inventory#price", valueDecimal: Number(data.price) },
+      { url: "http://example.com/fhir/inventory#markup", valueDecimal: Number(data.markup) },
+      { url: "http://example.com/fhir/inventory#perQtyPrice", valueDecimal: Number(data.perQtyPrice) },
+      { url: "http://example.com/fhir/inventory#stockReorderLevel", valueInteger: Number(data.stockReorderLevel) },
+      { url: "http://example.com/fhir/inventory#department", valueString: data.department },
+      { url: "http://example.com/fhir/inventory#sexType", valueString: data.sexType },
+      { url: "http://example.com/fhir/inventory#speciesSpecific1", valueString: data.speciesSpecific1 },
+      { url: "http://example.com/fhir/inventory#speciesSpecific2", valueString: data.speciesSpecific2 },
+      { url: "http://example.com/fhir/inventory#onHand", valueString: data.onHand },
+      { url: "http://example.com/fhir/inventory#batchNumber", valueString: data.batchNumber },
+      { url: "http://example.com/fhir/inventory#upc", valueString: data.upc },
+      { url: "http://example.com/fhir/inventory#expiryDate", valueDate: data.expiryDate },
+    ],
+  };
+};
 
 
 

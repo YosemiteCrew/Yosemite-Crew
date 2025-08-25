@@ -9,14 +9,14 @@ export { AppointmentsStatusFHIRConverter, convertFromFhirPurposeOfVisit, convert
 export { convertToFhir, convertFhirToNormal } from "./feedback";
 export { convertExerciseToFHIR, convertPlanTypesToFHIR, convertExerciseTypeToFHIR } from "./exercises";
 export { convertPetToFHIR, convertFHIRToPet } from "./pets";
-export { convertFhirToJson, convertToFhirInventoryData, convertFromFHIRInventory, convertToFHIRInventory, convertFhirBundleToInventory, InventoryOverviewConvertToFHIR,convertJsonToFhir } from "./InventoryFhir/inventoryFhir";
+export { convertFhirToJson, convertToFhirInventoryData, convertFromFHIRInventory, convertToFHIRInventory, convertFhirBundleToInventory, InventoryOverviewConvertToFHIR,convertJsonToFhir ,convertToFHIRInventoryWhileAdding} from "./InventoryFhir/inventoryFhir";
 
 export { convertProcedurePackagesToFHIRBundle, convertFHIRPackageToNormal, convertFhirToNormalToUpdateProcedurePackage } from "./ProcedurePackage/procedurePackage";
 export { parseDiabetesObservation, toFHIRObservation } from "./diabetes/diabetes-fhir";
 export { toFHIRBundleImmunization, VaccinationDoc } from "./immunization/immunization-fhir";
 export { validate } from "./immunization/immunization-fhir-validator";
 export { convertToFhirVetProfile, convertFromFhirVetProfile } from "./complete-vet-profile/complete-vet-profile";
-export { convertToFHIRMyCalender, convertFromFHIRAppointments ,parseAppointment} from "./appointment/appointment-fhir";
+export { convertToFHIRMyCalender, convertFromFHIRAppointments ,parseAppointment,convertFhirAppointmentBundle} from "./appointment/appointment-fhir";
 export { BusinessFhirFormatter } from "./business-fhir/business-formatter-fhir";
 export { generateFHIRBlogResponse,convertFHIRBlogToNormal, convertFHIRBlogsToNormal} from "./blog-fhir/blog";
 export { convertGraphDataToFHIR, convertFHIRToGraphData, convertSpecialityWiseAppointmentsToFHIR, FHIRtoJSONSpeacilityStats, convertAppointmentStatsFromFHIR, convertAppointmentStatsToFHIR } from "./hospital-fhir/hospitalfhir";
