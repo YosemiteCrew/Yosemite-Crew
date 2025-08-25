@@ -41,8 +41,11 @@ router.post("/Organization/addVetClinic", verifyTokenAndRefresh, detailsControll
 router.get('/Organization/getVetClinicDetails', verifyTokenAndRefresh, detailsController.getVetClinicDetails)
 router.get('/Organization/searchVet', verifyTokenAndRefresh, detailsController.searchVet)
 router.post("/Organization/addBreederDetails", verifyTokenAndRefresh,  detailsController.breeder);
+router.get('/Organization/getbreederDetails', verifyTokenAndRefresh, detailsController.getbreederDetails)
 router.post("/Organization/addPetGroomer",verifyTokenAndRefresh, detailsController.petGroomer);
+router.get('/Organization/getPetGroomerDetails', verifyTokenAndRefresh, detailsController.getPetGroomerDetails)
 router.post("/Organization/addPetBoarding",verifyTokenAndRefresh, detailsController.petBoarding);
+router.get('/Organization/getPetBoardingDetails', verifyTokenAndRefresh, detailsController.getPetBoardingDetails)
  
 router.post("/sendquery", verifyTokenAndRefresh, contactController.contactUs);
 

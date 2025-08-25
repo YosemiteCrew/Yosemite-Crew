@@ -14,23 +14,23 @@ export function convertToFhirSummary(docs: any) {
         },
         {
           title: "Veterinary Details",
-          status: docs.summary?.vetId ? "Complete" : "Pending"
+          status: docs.summary?.vetStatus
         },
         {
           title: "Medical Records",
-          status: docs.summary?.medicalRecordId ? "Complete" : "Pending"
+          status: docs.summary?.medicalStatus
         },
         {
           title: "Breeder Details",
-          status: docs.summary?.breederId ? "Complete" : "Pending"
+          status: docs.summary?.breederStatus
         },
         {
           title: "Groomer's Details",
-          status: docs.summary?.groomerId ? "Complete" : "Pending"
+          status: docs.summary?.groomerStatus
         },
         {
           title: "Pet Boarding Details",
-          status: docs.summary?.boardingId ? "Complete" : "Pending"
+          status: docs.summary?.boardingStatus
         }
       ]
     };
