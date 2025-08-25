@@ -371,13 +371,22 @@ export default HomePage;
 type ButtonProps = {
   icon: ReactNode;
   text: string;
-  href:string;
-  onClick?:(e:FormEvent<Element>) => void;
-}
+  href: string;
+  onClick?: (e: FormEvent<Element>) => void;
+};
 
-export function FillBtn({ icon, text ,onClick, href}: ButtonProps) {
+export function FillBtn({ icon, text, onClick, href }: ButtonProps) {
   return (
-    <Link className="Fillbtn" href={href} onClick={onClick}>
+    <Link
+      href={href}
+      className="Fillbtn"
+      onClick={(e) => {
+        if (onClick) {
+          e.preventDefault(); // ✅ stops immediate navigation
+          onClick(e);         // ✅ trigger your handler
+        }
+      }}
+    >
       {icon} {text}
     </Link>
   );
