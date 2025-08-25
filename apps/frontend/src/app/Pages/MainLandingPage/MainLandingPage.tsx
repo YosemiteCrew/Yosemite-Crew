@@ -1,15 +1,113 @@
 "use client"
-import React from 'react'
+import React, {useState} from 'react'
 import "./MainLandingPage.css"
-import { Button, Container } from 'react-bootstrap'
+import { Button, Carousel, Container } from 'react-bootstrap'
 import Footer from '@/app/Components/Footer/Footer'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Icon } from "@iconify/react";
+import { FillBtn, UnFillBtn } from '../HomePage/HomePage'
+
+
+
+
+// slidesData.ts (or keep inside your component)
+  const slidesData = [
+    {
+      id: 1,
+      image: "/Images/landingbg.png",
+      alt: "Vet 1",
+      text: "Empowering veterinary businesses to grow efficiently.",
+    },
+    {
+      id: 2,
+      image: "/Images/landingbg.png",
+      alt: "Vet 2",
+      text: "Streamlining your workflow for better care.",
+    },
+    {
+      id: 3,
+      image: "/Images/landingbg.png",
+      alt: "Vet 3",
+      text: "Innovative tools for modern veterinary practices.",
+    },
+  ];
+
+
+
+
 
 function MainLandingPage() {
+
+  const [index, setIndex] = useState(0);
+
+  const handleSelect = (selectedIndex: number) => {
+    setIndex(selectedIndex);
+  };
+
+
+
   return (
     <>
+
+    <section className='RedefiningSection'>
+      <Container>
+        <div className="RederfiningData">
+
+          <div className="leftRederfine">
+
+            <div className="RederfineTextInner">
+              <h2>Redefining <br /> Veterinary Care</h2>
+              <p>Manage everything from appointments to animal records, streamline operations, and improve pet health outcomes—all in one open-source platform designed for veterinarians, pet owners, and developers.</p>
+            </div>
+            <div className="RederfineInnerBtn">
+              <FillBtn icon={<Icon icon="solar:clock-circle-bold" width="24" height="24" />} text=" Book a Demo" href="https://cal.com/yosemitecrew/30min?overlayCalendar=true" />
+              <UnFillBtn href="#" icon={<Icon icon="solar:bill-check-bold" width="24" height="24" />}  text="Learn more" />
+              
+            </div>
+
+
+
+          </div>
+
+       
+
+          <div className="RightRederfine">
+            <Carousel  activeIndex={index} onSelect={handleSelect} controls={true} indicators={true}  
+            interval={3000}  
+            nextIcon={
+              <span className="custom-arrow">
+                <Icon icon="solar:round-alt-arrow-right-outline" width="48" height="48" />
+              </span>
+              }
+            prevIcon={
+              <span className="custom-arrow">
+                <Icon icon="solar:round-alt-arrow-left-outline" width="48" height="48" />
+              </span>
+              }
+             >
+              {slidesData.map((slide) => (
+                <Carousel.Item key={slide.id}>
+                  <div className="LandingCarouselDiv">
+                    <Image src={slide.image} alt={slide.alt} width={887} height={565}/>
+                    <div className="carousel-text">
+                      <h4>{slide.text}</h4>
+                    </div>
+                  </div>
+                </Carousel.Item>
+              ))}
+            </Carousel>
+          </div>
+
+
+         
+
+
+
+
+        </div>
+      </Container>
+    </section>
 
     {/* Vet Section  */}
       <section className='landingSection DarkLightBlueSec'>
@@ -73,7 +171,7 @@ function MainLandingPage() {
                   <h2>Pay as You Grow, No <br /> Strings Attached</h2>
                   <p>Choose what works best for you—host it yourself for free or opt for our pay-as-you-go model. With no hidden fees or long-term commitments, Yosemite Crew puts you in control.</p>
                 </div>
-                <Link href="#"> <Icon icon="solar:bill-check-bold" width="24" height="24" /> Learn more</Link>
+                <Link href="/pricing"> <Icon icon="solar:bill-check-bold" width="24" height="24" /> Learn more</Link>
               </div>
             </div>
             <div className="RightLanding">

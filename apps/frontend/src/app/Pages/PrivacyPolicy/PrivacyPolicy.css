@@ -1,0 +1,8 @@
+.PrivacyPolicySec{
+    padding: 80px 0px;
+}
+.PrivacyPolicySec .PrivacyPolicyData{
+    display: flex;
+    flex-direction: column;
+    gap: 56px;
+}

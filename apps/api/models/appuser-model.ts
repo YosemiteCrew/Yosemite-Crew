@@ -21,11 +21,10 @@ const userSchema = new Schema<IUser>(
     state: { type: String },
     area: { type: String },
     city: { type: String },
+    country:{Type:String},
     zipcode: { type: String },
     isProfessional: { type: String },
     isConfirmed: { type: Boolean, default: false },
-    // professionType: { type: [String] },
-    // pimsCode: { type: String },
     profileImage: [
       {
         url: { type: String },
