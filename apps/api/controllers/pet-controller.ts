@@ -153,22 +153,14 @@ const petController = {
       const updatedPetData: petType = convertFHIRToPet(parsedData) as petType;
       let imageUrls;
       // Handle file uploads (optional)
-      if (req.files && req.files.files) {
-        const files = Array.isArray(req.files.files)
-          ? req.files.files
-          : [req.files.files]; // wrap single file into array
+ 
+      const files = Array.isArray(req.files?.files) ? req?.files?.files : [req?.files?.files];
 
-        const imageFiles = files.filter(file => file.mimetype && file.mimetype.startsWith("image/"));
+      if (req.files) {
 
-        if (imageFiles.length > 0) {
-        
-           imageUrls = await handleMultipleFileUpload(imageFiles, 'Images');
-          // Assign only the array of URLs if petImage expects string[]
-       
-        }
-        // const imageUrls = await helpers.uploadFiles(req.files);
-
-        updatedPetData.petImage = {url: imageFiles[0].url, originalname: imageFiles[0].originalname, mimetype: imageFiles[0].mimetype};
+        const result = await helpers.uploadFiles(files);
+        imageUrls = { url: result[0].url, originalname: result[0].originalname, mimetype: result[0].mimetype };
+        updatedPetData.petImage = imageUrls
       }
 
       // Securely update the pet record
@@ -188,7 +180,7 @@ const petController = {
 
       const fhirFormattedResponse = convertPetToFHIR(editPetData, baseUrl);
 
-      res.json({ status: 1, data: fhirFormattedResponse });
+      res.json({ status: 1, data: fhirFormattedResponse, message:'Pet profile updated!' });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error occurred";
       res.status(500).json({

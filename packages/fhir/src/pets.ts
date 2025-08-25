@@ -36,7 +36,7 @@ export const convertPetToFHIR = (pet: pets, baseUrl: string) => {
         coding: [{
           system: "http://hl7.org/fhir/ValueSet/gender-status",
           code: pet.isNeutered?.toString().toLowerCase() === "yes" ? "neutered" : "intact",
-          display: pet.isNeutered === "Yes" ? "Neutered" : "Intact"
+          display: pet.isNeutered === "Yes" ? "Neutered" : "Non Neutered"
         }]
       }
     },
@@ -78,7 +78,7 @@ export const  convertFHIRToPet = (fhirPatient: any) => {
   // Animal Info
   pet.petType = fhirPatient.animal?.species?.coding?.[0]?.display || '';
   pet.petBreed = fhirPatient.animal?.breed?.text || '';
-  pet.isNeutered = fhirPatient.animal?.genderStatus?.coding?.[0]?.code === 'neutered' ? 'Yes' : 'No';
+  pet.isNeutered = fhirPatient.animal?.genderStatus?.coding?.[0]?.display === 'Neutered' ? 'Yes' : 'No';
 
   // FHIR Extensions
   if (Array.isArray(fhirPatient.extension)) {

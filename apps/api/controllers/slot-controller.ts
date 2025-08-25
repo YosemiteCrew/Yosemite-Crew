@@ -16,16 +16,15 @@ const SlotController = {
           typeof appointmentDate !== 'string' ||
           !validator.isISO8601(appointmentDate)
         ) {
-           res.status(400).json({ message: 'Invalid appointment date' });
+           res.status(200).json({status:0, message: 'Invalid appointment date' });
            return
         }
 
         if (
           !doctorId ||
-          typeof doctorId !== 'string' ||
-          !/^[a-f\d]{24}$/i.test(doctorId)
+          typeof doctorId !== 'string'
         ) {
-           res.status(400).json({ message: 'Invalid doctor ID' });
+           res.status(200).json({status:0, message: 'Invalid doctor ID' });
            return
         }
 
@@ -60,7 +59,7 @@ const SlotController = {
       }
 
       const result = await SlotService.getAvailableTimeSlots({ appointmentDate, doctorId });
-
+console.log(result,'resuly', appointmentDate, today, result?.entry);
       if (appointmentDate === today) {
         const now = new Date();
         result.entry = result.entry?.filter((slot) => {
@@ -69,7 +68,7 @@ const SlotController = {
         });
       }
 
-      const validationErrors  = FHIRSlotValidator.validateBundle(result) as Array<{ text: string }>;
+      const validationErrors  = FHIRSlotValidator.validateBundle(result)
       if (validationErrors.length > 0) {
          res.status(200).json({
           issue: validationErrors.map(msg => ({
@@ -112,22 +111,23 @@ const SlotController = {
        res.status(200).json({ status: 0, issue: issues });
        return
     }
-
     try {
+      
       const result = await MonthlySlotService.generateMonthlySlotSummary({ doctorId, slotMonth, slotYear });
-      const fhirIssues = FHIRSlotValidator.validateFHIRBundle(result);
+  
+      // const fhirIssues = FHIRSlotValidator.validateFHIRBundle(result);
 
-      if (fhirIssues.length > 0) {
-         res.status(200).json({ status: 0, issue: fhirIssues });
-         return
-      }
+      // if (fhirIssues.length > 0) {
+      //    res.status(200).json({ status: 0, issue: fhirIssues });
+      //    return
+      // }
 
        res.status(200).json({ status: 1, data: result });
        return
     } catch (error: unknown) {
       console.error("MonthlySlotController Error:", error);
       const message = error instanceof Error ? error.message : 'Internal Server Error';
-       res.status(500).json({ error: message });
+       res.status(200).json({ status:0,  error: message });
        return
     }
   }
