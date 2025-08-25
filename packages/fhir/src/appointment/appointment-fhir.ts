@@ -1,30 +1,30 @@
 import { AppointmentInput, AppointmentStatus, FHIRAppointment, FHIRAppointmentBundleParams, IFHIRAppointmentData, SimplifiedAppointment, WebAppointmentType, } from "@yosemite-crew/types";
-  
 
-import  {v4 as  uuidv4 }  from "uuid";
+
+import { v4 as uuidv4 } from "uuid";
 // class FHIRTransformer {
 //     constructor() {}
 //     static parseAppointment(fhirData:IFHIRAppointmentData) {
-        
+
 //       if (!fhirData || fhirData.resourceType !== "Appointment") {
 //         return {};
 //       }
-      
+
 //       const startDateObj = new Date(fhirData.start);
-     
+
 //       const appointmentDate = startDateObj.toISOString().split('T')[0];
 //       const timeslot = `${startDateObj.getHours() % 12 || 12}:${String(startDateObj.getMinutes()).padStart(2, '0')} ${startDateObj.getHours() >= 12 ? 'PM' : 'AM'}`;
 //       const purposeOfVisit = fhirData.reasonCode?.[0]?.text || '';
 //       const concernOfVisit = fhirData.description?.split(' - ')[1] || '';
-  
+
 //       const participants = fhirData.participant || [];
 //       const petId = participants.find(p => p.actor.reference.startsWith('Patient/'))?.actor.reference.split('/')[1];
 //       const doctorId = participants.find(p => p.actor.reference.startsWith('Practitioner/'))?.actor.reference.split('/')[1];
 //       const hospitalId = participants.find(p => p.actor.reference.startsWith('Location/'))?.actor.reference.split('/')[1];
-  
+
 //       const department = fhirData.serviceType?.[0]?.coding?.[0]?.code || '';
 //       const slotsId = fhirData.extension?.find(e => e.url.includes("slotsId"))?.valueString || '';
-  
+
 //       return {
 //         appointmentDate,
 //         timeslot,
@@ -54,7 +54,7 @@ import  {v4 as  uuidv4 }  from "uuid";
 // //     petName,             
 // //     document,
 // //   }) {
-  
+
 // //     return {
 // //       resourceType: "Appointment",
 // //       id: uuidv4(),
@@ -87,7 +87,7 @@ import  {v4 as  uuidv4 }  from "uuid";
 // //         : [],
 // //     };
 // //   }
-  
+
 
 
 // static toFHIR(appointment:WebAppointmentType,baseUrl:string) {
@@ -190,26 +190,26 @@ export function parseAppointment(fhirData: IFHIRAppointmentData): Partial<WebApp
             "http://example.org/fhir/StructureDefinition/slotsId"
         )?.valueString || "";
 
-      // Extract patientId, doctorId, and hospitalId from participants
-      let petId = "";
-      let doctorId = "";
-      let hospitalId = "";
+    // Extract patientId, doctorId, and hospitalId from participants
+    let petId = "";
+    let doctorId = "";
+    let hospitalId = "";
 
-      (fhirData.participant || []).forEach((p: any) => {
-        const ref = p.actor?.reference || "";
-        if (ref.startsWith("Patient/")) {
-          petId = ref.replace("Patient/", "");
-        } else if (ref.startsWith("Practitioner/")) {
-          doctorId = ref.replace("Practitioner/", "");
-        } else if (ref.startsWith("Location/")) {
-          hospitalId = ref.replace("Location/", "");
-        }
-      });
+    (fhirData.participant || []).forEach((p: any) => {
+      const ref = p.actor?.reference || "";
+      if (ref.startsWith("Patient/")) {
+        petId = ref.replace("Patient/", "");
+      } else if (ref.startsWith("Practitioner/")) {
+        doctorId = ref.replace("Practitioner/", "");
+      } else if (ref.startsWith("Location/")) {
+        hospitalId = ref.replace("Location/", "");
+      }
+    });
 
-      // Extract department info from serviceType
-      const department =
-        fhirData.serviceType?.[0]?.coding?.[0]?.code ||
-        "";
+    // Extract department info from serviceType
+    const department =
+      fhirData.serviceType?.[0]?.coding?.[0]?.code ||
+      "";
 
 
       // Optional: derive timeslot from appointment start
@@ -244,7 +244,7 @@ export function convertAppointmentsToFHIRBundle({
   appointments,
   totalCount,
 }: FHIRAppointmentBundleParams) {
-  const fhirAppointments = appointments.map((appt:any) =>
+  const fhirAppointments = appointments.map((appt: any) =>
     convertToFHIRMyCalender(appt)
   );
 
@@ -415,6 +415,61 @@ export function convertFromFHIRAppointments(fhirData: FHIRAppointment[]): Appoin
       appointmentDate: new Date(dateObj.setHours(0, 0, 0, 0)).toISOString(),
       department: fhir.serviceType[0]?.text || "",
       veterinarian,
+    };
+  });
+}
+
+export function convertFhirAppointmentBundle(bundle: any) {
+  if (!bundle || !Array.isArray(bundle)) {
+    console.error("Invalid FHIR response format");
+    return [];
+  }
+
+  return bundle.map((entry) => {
+    const resource = entry.resource;
+
+    const rawDate = resource.start ? new Date(resource.start) : null;
+
+    const formattedDate = rawDate
+      ? rawDate.toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        })
+      : null;
+
+    const formattedTime = rawDate
+      ? rawDate.toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        })
+      : null;
+
+    return {
+      id: resource.id || null,
+      status: resource.status || null,
+      serviceType: resource.serviceType?.[0]?.text || null,
+      start: resource.start || null,
+      date: formattedDate,
+      time: formattedTime,
+      participants:
+        resource.participant?.map((p:any) => ({
+          name: p.actor?.display || null,
+          status: p.status || null,
+        })) || [],
+      reason: resource.reasonCode?.[0]?.text || null,
+      description: resource.description || null,
+      petType: resource.petType || null,
+      specialty: resource.specialty?.[0]?.text || null,
+      slotRef: resource.slot?.[0]?.reference || null,
+      // appointmentId: resource?.slotsId || null,
+      tokenNumber:
+        (resource.extension || []).find(
+          (ext:any) =>
+            ext.url ===
+            "http://example.com/fhir/StructureDefinition/tokenNumber"
+        )?.valueString || null,
     };
   });
 }
