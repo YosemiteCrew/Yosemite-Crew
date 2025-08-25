@@ -1,10 +1,9 @@
 import express from 'express';
 import { verifyToken } from '../middlewares/authMiddleware';
 import HospitalController from '../controllers/HospitalControllers';
-import { verifyTokenAndRefresh } from '../middlewares/authMiddleware';
 const router = express.Router();
 
-// router.get('/getAllAppointments', verifyTokenAndRefresh,HospitalController.getAllAppointments);
+router.get('/getAllAppointmentsToAction', verifyToken,HospitalController.getAllAppointmentsToAction);
 
 // router.get('/departmentsOverView', verifyTokenAndRefresh,HospitalController.departmentsOverView);
 // router.get(
