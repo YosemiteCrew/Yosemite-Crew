@@ -764,7 +764,7 @@ export function FormInput({
           type={intype}
           name={inname}
           id={inname}
-          value={value}
+          value={value??""}
           onChange={onChange}
           autoComplete="off"
           readOnly={readonly}
@@ -818,7 +818,7 @@ export function FormInputPass({
         type={showPassword ? "text" : intype}
         name={inname}
         id={inname}
-        value={value}
+        value={value??""}
         autoComplete="new-password"
         onChange={onChange}
         required

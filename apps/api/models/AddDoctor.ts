@@ -1,34 +1,35 @@
 import mongoose, { Schema, Model } from 'mongoose';
 import { AddDoctorDoc } from "@yosemite-crew/types";
 
-const vetSchema: Schema<AddDoctorDoc> = new Schema(
+const vetSchema: Schema = new Schema(
   {
     userId: { type: String, required: true },
     status: { type: String, required: true, default: "On-Duty" },
 
-    registrationNumber: { type: String },
+    rcvsNumber: { type: String },
     firstName: { type: String },
     lastName: { type: String },
     email: { type: String },
     mobileNumber: {
       type: String,
       match:
-        /^\+?[0-9]{1,4}?[-.\\\s]?(\([0-9]{1,3}\)|[0-9]{1,4})?[-.\\\s]?[0-9]{1,4}[-.\\\s]?[0-9]{1,9}$/,
+        /^\+?[0-9]{1,4}?[-.\s]?(\([0-9]{1,3}\)|[0-9]{1,4})?[-.\s]?[0-9]{1,4}[-.\s]?[0-9]{1,9}$/,
     },
     gender: { type: String },
     dateOfBirth: { type: String },
     linkedin: { type: String },
     medicalLicenseNumber: { type: String },
     yearsOfExperience: { type: Number },
-    postalCode: { type: String }, // renamed from postalCode
+    postalCode: { type: String },
     addressLine1: { type: String },
     city: { type: String },
     stateProvince: { type: String },
     biography: { type: String },
-    duration: { type: String }, // newly added field
-    area: { type: String }, // from `area`
+    duration: { type: String },
+    area: { type: String },
     countrycode: { type: String, default: '+91' },
-
+    qualification:{type:String},
+    bussinessId:{type:String},
     specialization: {
       type: String,
       ref: 'Department',
@@ -69,6 +70,7 @@ const vetSchema: Schema<AddDoctorDoc> = new Schema(
       ],
       default: [],
     },
+    key:{type:String}
   },
   { timestamps: true }
 );
