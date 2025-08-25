@@ -317,7 +317,7 @@ export function Forminput({
         type={intype}
         name={inname}
         id={inname}
-        value={value}
+        value={value??""}
         onChange={onChange}
         readOnly={readOnly} // Add this line
         required
@@ -352,7 +352,7 @@ export function FormPassw({ paswlabel, intype, inname, value, onChange }) {
         type={showPassword ? 'text' : intype} // Toggle between 'text' and original input type
         name={inname}
         id={inname}
-        value={value}
+        value={value??""}
         onChange={onChange}
         required
       />
