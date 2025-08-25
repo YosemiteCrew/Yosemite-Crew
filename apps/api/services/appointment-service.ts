@@ -59,10 +59,10 @@ class AppointmentService {
 
     try {
 
-      const cognitoUserId: string = getCognitoUserId(req);
-      // const timezone: string = 'Asia/Kolkata'; // or 'UTC' if you prefer server independence
-      type CategoryKey = 'upcoming' | 'pending' | 'past' | 'cancel' | 'all';
-const timezone = 'Asia/Kolkata';
+     const cognitoUserId: string = getCognitoUserId(req);
+     // const timezone: string = 'Asia/Kolkata'; // or 'UTC' if you prefer server independence
+     type CategoryKey = 'upcoming' | 'pending' | 'past' | 'cancel' | 'all';
+     const timezone = 'Asia/Kolkata';
      const now: Moment = moment.tz(timezone) as Moment;
      const today: Moment = now.clone().startOf('day');
 

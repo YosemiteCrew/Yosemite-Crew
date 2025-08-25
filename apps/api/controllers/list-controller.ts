@@ -27,11 +27,13 @@ const listController = {
       interface DoctorWithDepartment extends AddDoctorDoc {
         departmentInfo?: Department
         rating?: number;
+        qualification?:unknown,
+        consultFee?: number 
       }
       const doctors: DoctorWithDepartment[] = await AddDoctors.aggregate([
         {
           $match: {
-            "professionalBackground.specialization": specializationId
+            "specialization": specializationId
           }
         },
         {
@@ -79,14 +81,15 @@ const listController = {
         },
         { $skip: parsedOffset || 0 },
         { $limit: parsedLimit || 10 }
-      ]);
+      ])
 
+      
         const fhirDoctors = doctors.map((doc) => {
         const firstName = doc.firstName || "";
         const lastName = doc.lastName || "";
         const fullName = `${firstName} ${lastName}`.trim();
         const departmentName = doc.departmentInfo?.departmentName || "Unknown";
-        const consultationFee :number | unknown= doc?.consultFee || 0;
+        const consultationFee :number = doc?.consultFee || 0;
         const experience = doc.yearsOfExperience || 0;
         const docImage = doc.image || "";
         const qualifications = Array.isArray(doc?.qualification)
@@ -303,154 +306,148 @@ const listController = {
       }
     }
   },
-
+ 
   getLists: async (req: Request, res: Response): Promise<void> => {
-    try {
-      let { type, offset = 0, limit = 10 } = req.query as { type?: string; offset?: string; limit?: string };
+  try {
+    let { type, offset = 0, limit = 10 } = req.query as { type?: string; offset?: string; limit?: string };
 
-      // Sanitize and validate query parameters
-      type = typeof type === 'string' ? validator.escape(type.trim()) : '';
-      offset = validator.isInt(offset.toString(), { min: 0 }) ? parseInt(String(offset), 10) : 0;
-      limit = validator.isInt(limit.toString(), { min: 1, max: 100 }) ? parseInt(String(limit), 10) : 10;
+    // ✅ Sanitize query params
+    type = typeof type === 'string' ? validator.escape(type.trim()) : '';
+    offset = validator.isInt(offset.toString(), { min: 0 }) ? parseInt(String(offset), 10) : 0;
+    limit = validator.isInt(limit.toString(), { min: 1, max: 100 }) ? parseInt(String(limit), 10) : 10;
 
-      let businessType ='';
-      if(type !=='hospital'){
-        businessType=type;
-      }
+    // ✅ Allowed business types
+    const allowedTypes: string[] = [ 'veterinaryBusiness', 'breedingFacility', 'petSitter', 'groomerShop', 'hospital', 'all'];
+    const businessType = type;
 
-      const allowedTypes: string[] = ['','veterinaryBusiness', 'breedingFacility', 'petSitter', 'groomerShop', 'all'];
-
-      // const businessType = type;
-
-      if (!allowedTypes.includes(businessType)) {
-        res.status(200).json({ status: 0, message: "Invalid Business Type" });
-        return;
-      }
-
-      const businessData: Record<string, unknown> = {};
-
-      const fetchUsers = async (type: string) => {
-        const matchStage = type ? { role: type } : {};
-        const countQuery = matchStage;
-        const [users, totalCount] = await Promise.all([
-          WebUser.aggregate([
-            { $match: matchStage },
-            {
-              $lookup: {
-                from: 'profiledatas',
-                localField: 'cognitoId',
-                foreignField: 'userId',
-                as: 'profileData',
-              }
-            },
-            {
-              $unwind: {
-                path: '$profileData',
-                preserveNullAndEmptyArrays: true
-              }
-            },
-            {
-              $lookup:{
-                from:'adminDepartments',
-                localField:'department',
-                foreignField:'_id',
-                as:'adminDepartments'
-              }
-            },
-           
-            {
-              $lookup: {
-                from: 'departments',
-                let: { userIdFromProfile: '$profileData.userId' },
-                pipeline: [
-                  {
-                    $match: {
-                      $expr: {
-                        $eq: ['$userId', '$$userIdFromProfile']
-                      }
-                    }
-                  },
-                  {
-                    $project: {
-                      departmentId: '$_id',
-                      _id: 0,
-                      departmentName: 1,
-                      userId: 1,
-
-                    }
-                  }
-                ],
-                as: 'departments'
-              }
-            },
-
-            { $skip: offset },
-            { $limit: limit },
-          ]),
-         WebUser.countDocuments(countQuery),
-        ]);
-
-        if (type === 'hospital') {
-          await fetchDepartmentsAndRating(users);
-        }
-
-        return { data: users, count: totalCount };
-      };
-
-      if (businessType === 'all') {
-
-        for (const type of allowedTypes.filter((t) => t !== 'all')) {
-          const key: string = formatKey(type);
-          businessData[key] = await fetchUsers(type);
-        }
-      } else {
-
-        const key = formatKey(businessType);
-        businessData[key] = await fetchUsers(businessType);
-      }
-
-      const fhirGroupedBundles: Record<string, unknown> = {};
-
-      for (const key in businessData) {
-        const group = (businessData[key] as { data: Organization[] }).data;
-        const nestedResources = [];
-
-        for (const org of group) {
-          const fhirOrg = BusinessFhirFormatter.toFhirOrganization(org) as Record<string, unknown>; 
-          const fhirDepts = BusinessFhirFormatter.toFhirHealthcareServices(org);
-
-          fhirOrg.healthcareServices = fhirDepts;
-          nestedResources.push(fhirOrg);
-        }
-
-        fhirGroupedBundles[key] = {
-          resourceType: "Bundle",
-          type: "collection",
-          total: nestedResources.length,
-          entry: nestedResources.map(resource => ({ resource }))
-        };
-      }
-
-      res.status(200).json({
-        status: 1,
-        data: fhirGroupedBundles
-      });
-      return
-
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        console.error(err.message);
-        res.status(500).json({ status: 0, error: err.message });
-        return
-      } else {
-        // Handle unexpected error types
-        console.error(err);
-        res.status(500).json({ status: 0, error: "An unexpected error occurred." });
-        return
-      }
+    if (!allowedTypes.includes(businessType)) {
+      res.status(200).json({ status: 0, message: "Invalid Business Type" });
+      return;
     }
-  },
-    
+
+    // ✅ Fetch Users Utility
+    const fetchUsers = async (roleType: string) => {
+      const matchStage = roleType ? { role: roleType } : {};
+      const [users, totalCount] = await Promise.all([
+        WebUser.aggregate([
+          { $match: matchStage },
+          {
+            $lookup: {
+              from: 'profiledatas',
+              localField: 'cognitoId',
+              foreignField: 'userId',
+              as: 'profileData',
+            }
+          },
+          { $unwind: { path: '$profileData', preserveNullAndEmptyArrays: true } },
+          {
+            $lookup: {
+              from: 'adminDepartments',
+              localField: 'department',
+              foreignField: '_id',
+              as: 'adminDepartments'
+            }
+          },
+          {
+            $lookup: {
+              from: 'departments',
+              let: { userIdFromProfile: '$profileData.userId' },
+              pipeline: [
+                { $match: { $expr: { $eq: ['$userId', '$$userIdFromProfile'] } } },
+                { $project: { departmentId: '$_id', _id: 0, departmentName: 1, userId: 1 } }
+              ],
+              as: 'departments'
+            }
+          },
+          { $skip: offset },
+          { $limit: limit },
+        ]),
+        WebUser.countDocuments(matchStage),
+      ]);
+
+      if (roleType === 'hospital') {
+        await fetchDepartmentsAndRating(users);
+      }
+
+      return { data: users, count: totalCount };
+    };
+
+    // ✅ Prepare Business Data
+    const businessData: Record<string, unknown> = {};
+
+    if (businessType === 'all') {
+      for (const t of allowedTypes.filter((x) => x && x !== 'all')) {
+        businessData[formatKey(t)] = await fetchUsers(t);
+      }
+    } else {
+      businessData[formatKey(businessType)] = await fetchUsers(businessType);
+    }
+
+    const typeMappings: Record<string, { code: string; display: string }> = {
+  veterinaryBusiness: { code: 'vet', display: 'Veterinary Hospital' },
+  breedingFacility: { code: 'breeder', display: 'Breeding Facility' },
+  groomerShop: { code: 'groom', display: 'Groomer Shop' },
+  petSitter: { code: 'sitter', display: 'Pet Sitting' },
+};
+    // ✅ Format FHIR Bundles
+    const fhirGroupedBundles: Record<string, unknown> = {};
+    for (const key in businessData) {
+      const group = (businessData[key] as { data: Organization[] }).data;
+      const nestedResources = group.map(org => {
+        const fhirOrg = BusinessFhirFormatter.toFhirOrganization(org) as Record<string, unknown>;
+        fhirOrg.healthcareServices = BusinessFhirFormatter.toFhirHealthcareServices(org);
+        return fhirOrg;
+      });
+
+      // fhirGroupedBundles[key] = {
+      //   resourceType: "Bundle",
+      //   type: "collection",
+      //   total: nestedResources.length,
+      //   entry: nestedResources.map(resource => ({ resource }))
+      // };
+
+fhirGroupedBundles[key] = {
+  total: nestedResources.length,
+  entry: nestedResources.map(org => ({
+    resource: {
+      resourceType: "Organization",
+      id: org.id,
+      name: org.name || "Unknown",
+      image: org.image || undefined,
+      type: [
+        {
+          coding: [
+            {
+              code: typeMappings[key]?.code || "unknown",
+              display: typeMappings[key]?.display || "Unknown"
+            }
+          ]
+        }
+      ],
+      address: org.address || [],
+      extension: org.extension || [],
+      healthcareServices: (org.healthcareServices || []).map((svc: any) => ({
+        id: svc.id,
+        name: svc.name || "",
+        extension: svc.extension || []
+      }))
+    }
+  }))
+};
+    }
+
+    // ✅ Final Response
+    res.status(200).json({ status: 1, data: fhirGroupedBundles });
+
+  } catch (err: unknown) {
+    console.error(err);
+    res.status(500).json({
+      status: 0,
+      error: err instanceof Error ? err.message : "An unexpected error occurred."
+    });
+  }
+},
+
   getDoctorCountDepartmentWise: async (req: Request, res: Response): Promise<void> => {
     try {
       const { cognitoId } = req.query as { cognitoId: string };
@@ -479,7 +476,7 @@ const listController = {
       
       for (const department of departments) {
         const departmentId = new mongoose.Types.ObjectId(department);
-        const count = await WebUser.countDocuments({ department: departmentId, bussinessId: cognitoId });
+        const count = await WebUser.countDocuments({ department: departmentId, bussinessId: cognitoId , role:'vet'});  // Role : vet (doctors of animal) 
         const res = await adminDepartments.findOne({ _id: new mongoose.Types.ObjectId(department) })        
         departmentDetails.push({ departmentName: res?.name, _id: res?._id, count })
       }
