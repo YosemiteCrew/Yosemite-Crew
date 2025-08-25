@@ -1,3 +1,141 @@
+/* .RedefiningSection{
+   min-height: 100vh;
+} */
+.RedefiningSection .RederfiningData{
+   display: grid;
+   grid-template-columns: 1fr 1fr;
+}
+.RedefiningSection .RederfiningData .leftRederfine{
+   height: 100%;
+   display: flex;
+   justify-content: center;
+   flex-direction: column;
+   gap: 40px;
+   max-width: 487px;
+}
+.RedefiningSection .RederfiningData .leftRederfine .RederfineTextInner h2{
+   font-weight: 500;
+   font-size: 57px;
+   font-family: var(--grotesk-font);
+   line-height: 120%;
+   margin: 0;
+   color: var(--black-text);
+}
+.RedefiningSection .RederfiningData .leftRederfine .RederfineTextInner p{
+   font-weight: 400;
+   font-size: 18px;
+   font-family: var(--satoshi-font);
+   line-height: 120%;
+   margin: 0;
+   color: var(--black-text);
+}
+.RedefiningSection .RederfiningData .leftRederfine .RederfineInnerBtn{
+   display: flex;
+   align-items: center;
+   gap: 12px;
+}
+.RedefiningSection .RederfiningData .RightRederfine {
+  max-width: 720px;
+  box-shadow: -16px 0px 40px 0px #9A8A784D;
+  /* background: var(--whitebg); */
+}
+.RedefiningSection .RederfiningData .RightRederfine .LandingCarouselDiv {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+.RedefiningSection .RederfiningData .RightRederfine .LandingCarouselDiv img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.RedefiningSection .RederfiningData .RightRederfine .LandingCarouselDiv .carousel-text {
+   padding: 20px;
+   min-height: 194px;
+   background: var(--whitebg);
+}
+.RedefiningSection .RederfiningData .RightRederfine .LandingCarouselDiv .carousel-text h4 {
+   font-weight: 500;
+   font-size: 24px;
+   font-family: var(--grotesk-font);
+   line-height: 120%;
+   margin: 0;
+   color: var(--black-text);
+}
+.RightRederfine .carousel .carousel-indicators {
+    position: absolute;
+    right: 0;
+    bottom: 50px;
+    left: 18px !important;
+    display: flex;
+    justify-content: left;
+    margin: 0 !important;
+    width: fit-content !important;
+}
+.RightRederfine .carousel .carousel-control-next, .RightRederfine .carousel .carousel-control-prev {
+    position: absolute;
+    top: inherit;
+    bottom: 50px !important;
+    right: 0px !important;
+    left: inherit !important;
+    background: var(--whitebg) !important;
+    border-radius: 50% !important;
+    width: 48px !important;
+    height: 48px !important;
+}
+.RightRederfine .carousel .carousel-control-prev {
+    right: 100px !important;
+}
+.RightRederfine .carousel .carousel-control-next{
+    right: 50px !important;
+}
+.RightRederfine .carousel .custom-arrow svg {
+  color: var(--greyborder); 
+}
+
+.carousel-img {
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.carousel-text {
+  text-align: left;
+  font-size: 16px;
+  font-weight: 500;
+  color: #1A2130;
+  padding: 15px 10px 10px 0;
+}
+
+/* move caption BELOW the image */
+.carousel-caption {
+  position: static !important;
+  padding: 0 !important;
+  text-align: left !important;
+}
+
+/* pagination dots */
+.carousel-indicators [data-bs-target] {
+  background-color: #1A2130;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* arrows */
+.carousel-control-prev-icon,
+.carousel-control-next-icon {
+  filter: invert(1);
+}
+
+
+
+
+
+
+
+
+
+
 .landingSection{
     min-height: 100vh;
     padding: 80px 0px;
