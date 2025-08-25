@@ -18,24 +18,24 @@ const footerLinks = [
   {
     title: "Community",
     links: [
-      { label: "Case Studies", href: "#" },
+      // { label: "Case Studies", href: "#" },
       { label: "Discord", href: "#" },
-      { label: "Storybook", href: "#" },
+      // { label: "Storybook", href: "#" },
       { label: "GitHub", href: "#" },
-      { label: "Contributing", href: "#" }
+      // { label: "Contributing", href: "#" }
     ]
   },
   {
     title: "Company",
     links: [
-      { label: "About us", href: "#" },
-      { label: "Security", href: "#" },
+      { label: "About us", href: "/about_us" },
+      // { label: "Security", href: "#" },
       { label: "Terms of Service", href: "#" },
-      { label: "Privacy Policy", href: "#" },
-      { label: "Pricing", href: "#" },
-      { label: "Enterprise", href: "#" },
-      { label: "Careers", href: "#" },
-      { label: "Blog", href: "#" }
+      { label: "Privacy Policy", href: "/privacypolicy" },
+      { label: "Pricing", href: "/pricing" },
+      // { label: "Enterprise", href: "#" },
+      // { label: "Careers", href: "#" },
+      { label: "Blog", href: "/blogpage" }
     ]
   }
 ];
@@ -111,10 +111,10 @@ function Footer() {
               <h4>Copyright &copy; 2025 DuneXploration</h4>
               <p>
                 DuneXploration UG (haftungsbeschränkt), Am Finther Weg 7, 55127 Mainz<br />
-                email: <a href="mailto:support@dunexploration.com">support@dunexploration.com</a>, phone: <a href="tel:+4915227763275">+49 152 277 63275</a>
+                email: <a href="mailto:support@yosemitecrew.com">support@yosemitecrew.com</a>, phone: <a href="tel:+4915227763275">+49 152 277 63275</a>
               </p>
               <p>
-                Geschäftsführer: Ankit Upadhyay, Amtsgericht Mainz unter HRB 52778, VAT: DE367920596
+                Geschaftsfuhrer: Ankit Upadhyay Amtsgerichts Mainz unter HRB 52778, VAT: DE367920596
               </p>
             </div>
           </div>
