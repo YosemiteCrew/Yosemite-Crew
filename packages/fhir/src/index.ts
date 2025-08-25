@@ -15,7 +15,7 @@ export { convertProcedurePackagesToFHIRBundle, convertFHIRPackageToNormal, conve
 export { parseDiabetesObservation, toFHIRObservation } from "./diabetes/diabetes-fhir";
 export { toFHIRBundleImmunization, VaccinationDoc } from "./immunization/immunization-fhir";
 export { validate } from "./immunization/immunization-fhir-validator";
-export { convertToFhirVetProfile, convertFromFhirVetProfile } from "./complete-vet-profile/complete-vet-profile";
+export { convertToFhirVetProfile, convertFromFhirVetProfile,convertFromFhirPractitionerPersonalDetails,convertToFhirPractitionerPersonalDetails,convertToFhirPractitionerProfessionalDetails,convertFromFhirPractitionerProfessionalDetails,convertRelatedDoctorsToFhir,convertRelatedFhirToDoctors } from "./complete-vet-profile/complete-vet-profile";
 export { convertToFHIRMyCalender, convertFromFHIRAppointments ,parseAppointment} from "./appointment/appointment-fhir";
 export { BusinessFhirFormatter } from "./business-fhir/business-formatter-fhir";
 export { generateFHIRBlogResponse } from "./blog-fhir/blog";

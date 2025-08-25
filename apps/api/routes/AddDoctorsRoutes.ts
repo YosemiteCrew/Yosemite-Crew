@@ -6,23 +6,25 @@ import { verifyTokenAndRefresh } from '../middlewares/authMiddleware';
 
 // Define the route to add doctors
 router.post('/Practitioner', verifyToken, AddDoctorsControllers.addDoctor);
+router.post('/Practitioner/:userId', verifyToken, AddDoctorsControllers.editPractitionerPersonalDetails)
+router.get('/Practitioner/related/:userId',verifyToken,AddDoctorsControllers.getRelatedDoctorsByUserId)
 router.get(
   '/getDoctorsBySpecilizationId/:id',
   AddDoctorsControllers.getDoctorsBySpecilizationId
 );
 // router.get('/getForAppDoctorsBySpecilizationId', verifyTokenAndRefresh, AddDoctorsControllers.getForAppDoctorsBySpecilizationId);
 // router.get('/MeasureReport', AddDoctorsControllers.getOverview);
-router.get(
-  '/Practitioner',
-  verifyTokenAndRefresh,
-  AddDoctorsControllers.searchDoctorsByName
-);
+// router.get(
+//   '/Practitioner',
+//   verifyTokenAndRefresh,
+//   AddDoctorsControllers.searchDoctorsByName
+// );
 router.get('/getDoctors', AddDoctorsControllers.getDoctors);
-router.put('/updateprofile/:id', verifyTokenAndRefresh, AddDoctorsControllers.updateDoctorProfile);
-router.delete(
-  '/:userId/documents/:docId',
-  AddDoctorsControllers.deleteDocumentsToUpdate
-);
+// router.put('/updateprofile/:id', verifyTokenAndRefresh, AddDoctorsControllers.updateDoctorProfile);
+// router.delete(
+//   '/:userId/documents/:docId',
+//   AddDoctorsControllers.deleteDocumentsToUpdate
+// );
 router.get('/getDoctorsSlotes', verifyTokenAndRefresh, AddDoctorsControllers.getDoctorsSlotes);
 router.get(
   '/getAppointmentForDoctorDashboard', verifyTokenAndRefresh,
