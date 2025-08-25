@@ -38,6 +38,8 @@ router.delete("/Observation/deleteFeedBack",verifyTokenAndRefresh,feedbackContro
  
 router.get("/Organization/petSummary/:petId",verifyTokenAndRefresh, detailsController.petSummaryDetails);
 router.post("/Organization/addVetClinic", verifyTokenAndRefresh, detailsController.vetClinic);
+router.get('/Organization/getVetClinicDetails', verifyTokenAndRefresh, detailsController.getVetClinicDetails)
+router.get('/Organization/searchVet', verifyTokenAndRefresh, detailsController.searchVet)
 router.post("/Organization/addBreederDetails", verifyTokenAndRefresh,  detailsController.breeder);
 router.post("/Organization/addPetGroomer",verifyTokenAndRefresh, detailsController.petGroomer);
 router.post("/Organization/addPetBoarding",verifyTokenAndRefresh, detailsController.petBoarding);
@@ -63,7 +65,7 @@ router.post("/savepainjournal",verifyTokenAndRefresh, planController.addPainJour
 router.get("/getpainjournal/:userId",verifyTokenAndRefresh, planController.getPainJournal);
 
 router.post('/DocumentReference/saveMedicalFolder', verifyTokenAndRefresh,  medicalRecordsController.saveMedicalRecordFolder);
-router.get('/DocumentReference/getMedicalFolderList', verifyTokenAndRefresh, medicalRecordsController.getMedicalRecordFolderList);
+router.get('/DocumentReference/getMedicalFolderList',  medicalRecordsController.getMedicalRecordFolderList);
 router.delete('/DocumentReference/deleteMedicalFolder', verifyTokenAndRefresh, medicalRecordsController.deleteMedicalRecordFolder)
 router.post("/DocumentReference/saveMedicalRecord", verifyTokenAndRefresh,medicalRecordsController.saveMedicalRecord);
 router.get("/DocumentReference/getMedicalRecordList",verifyTokenAndRefresh, medicalRecordsController.medicalRecordList);
@@ -75,7 +77,7 @@ router.get("/DocumentReference/getFilesOfAllMedicalRecords", verifyTokenAndRefre
 router.delete("/DocumentReference/deleteSpecificImageFromMedicalRecord", verifyTokenAndRefresh, medicalRecordsController.deleteSpecificImageFromMedicalRecord);
 router.get('/DocumentReference/getMedicalRecordByFolderId', verifyTokenAndRefresh, medicalRecordsController.getMedicalRecordByFolderId);
 router.put("/DocumentReference/placeFileInFolder", verifyTokenAndRefresh, medicalRecordsController.placeFileInFolder)
-
+router.get("/DocumentReference/searchMedicalRecordByName",  medicalRecordsController.searchMedicalRecordByName)
 
 router.post( "/Observation/saveDiabetesRecords",verifyTokenAndRefresh,diabetesController.diabetesRecords);
 router.get("/Observation/getDiabetesLogs", verifyTokenAndRefresh,diabetesController.getDiabetesLogs);

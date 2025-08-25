@@ -32,4 +32,4 @@ export { FHIRSlotValidator, MonthlySlotValidator } from "./slots-fhir";
 export { convertToPainAssessmentFhir } from "./assessment/pain-assessment-fhir";
 export { convertFhirToNormalPetData, convertPetDataToFhir, convertFromFHIRDoctorOptions, convertToFHIRDoctorOptions, convertFHIRToTimeSlots, convertTimeSlotsToFHIR, convertAppointmentToFHIR, convertFHIRToAppointment, fromFHIR, toFHIR, convertDoctorsFromFHIR, convertDoctorsToFHIR, convertEmergencyAppointmentFromFHIR, convertEmergencyAppointmentToFHIR, convertEmergencyAppointmentFromFHIRForTable, convertEmergencyAppointmentToFHIRForTable } from "./WebAppointments/web-appointments"
 export { convertAdminDepartmentsToFHIR, convertFHIRToAdminDepartments } from "./admin-departments/admin-departments"
-
+export { fromFhirUser, toFhirUser} from "./profile/profile-data-fhir"

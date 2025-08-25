@@ -175,9 +175,9 @@ export function parseAppointment(fhirData: IFHIRAppointmentData): Partial<WebApp
   if (!fhirData || fhirData.resourceType !== "Appointment") {
     return null;
   }
-  const startDateObj = new Date(fhirData.start);
+      const startDateObj = new Date(fhirData.start);
  
-  const appointmentDate :number|string|null = fhirData.start || "";
+      const appointmentDate :number|string|null = fhirData.start || "";
       const purposeOfVisit = fhirData.description || "";
        
       const concernOfVisit = fhirData.reasonCode[0]?.text || "";
@@ -214,11 +214,14 @@ export function parseAppointment(fhirData: IFHIRAppointmentData): Partial<WebApp
 
       // Optional: derive timeslot from appointment start
       let timeslot = "";
-      if (appointmentDate) {
-        const dateObj = new Date(appointmentDate);
-        timeslot = dateObj.toTimeString().split(" ")[0]; // HH:MM:SS
+      // if (appointmentDate) {
+      //   const dateObj = new Date(appointmentDate);
+      //   timeslot = dateObj.toTimeString().split(" ")[0]; // HH:MM:SS
+      // }
+      if(startDateObj){
+          const dateObj = new Date(startDateObj);
+          timeslot = dateObj.toTimeString().split(" ")[0]; // HH:MM:SS
       }
-
       return {
         appointmentDate : appointmentDate as string,
         purposeOfVisit,
@@ -227,7 +230,7 @@ export function parseAppointment(fhirData: IFHIRAppointmentData): Partial<WebApp
         petId,
         slotsId,
         veterinarian:doctorId,
-        // timeslot
+        appointmentTime : timeslot
       };
     } catch (err) {
       console.error("Error parsing FHIR Appointment:", err);

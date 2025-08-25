@@ -27,9 +27,9 @@ interface NavItem {
 
 const publicNavItems: NavItem[] = [
   { label: "Home", href: "/" },
-  { label: "About Us", href: "#" },
-  { label: "PMS", href: "#" },
-  { label: "Developers", href: "#" },
+  { label: "About Us", href: "/about_us" },
+  { label: "PMS", href: "/homepage" },
+  { label: "Developers", href: "/developerlanding" },
   { label: "Resources", href: "/resources" },
   { label: "Contact Us", href: "/contact_us" },
   { label: "Blog", href: "/blogpage" },

@@ -1,7 +1,6 @@
 import mongoose from "mongoose";
 
 const medicalRecordFolderSchema = new mongoose.Schema({
-
     folderName: {
         type: String,
     },
@@ -9,17 +8,17 @@ const medicalRecordFolderSchema = new mongoose.Schema({
         type: String,
     },
     petId:{
-        type: mongoose.Schema.Types.ObjectId
+        type: mongoose.Schema.Types.ObjectId,
+        ref:'pets'
     },
-    uploadedFiles:[ 
-        {
-        url: { type: String},
-        originalName: { type: String},
-        mimetype: { type: String}
-    }
-]
+    medicalRecords: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "MedicalRecords",
+      },
+    ],
 }, {
     timestamps: true,
 });
-const MedicalRecordFolderModel = mongoose.model("MedicalRecordFolder", medicalRecordFolderSchema);
+const  MedicalRecordFolderModel = mongoose.model("MedicalRecordFolder", medicalRecordFolderSchema);
 export default MedicalRecordFolderModel;
