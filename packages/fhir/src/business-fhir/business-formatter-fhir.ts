@@ -3,6 +3,7 @@ import { Department, Organization } from "@yosemite-crew/types";
 
 class BusinessFhirFormatter {
   static toFhirOrganization(org:Organization) {
+    console.log(org, "ORG");
     const selectedServicesExtension = (org.profileData?.selectedServices || []).map((service ) => ({
       url: "http://example.org/fhir/StructureDefinition/selectedService",
       valueString: service
@@ -36,7 +37,22 @@ class BusinessFhirFormatter {
         }]
       }],
       address: [{
-        text: org.profileData?.address?.addressLine1 || ""
+        text: org.profileData?.address?.addressLine1 || "",
+        extension: [
+          {
+            url: "http://hl7.org/fhir/StructureDefinition/geolocation",
+            extension: [
+              {
+                url: "latitude",
+                valueDecimal: org?.profileData?.latitude
+              },
+              {
+                url: "longitude",
+                valueDecimal: org?.profileData?.longitude
+              }
+            ]
+          }
+        ]
       }],
       image:org.profileData?.image,
       extension: extensions
@@ -44,7 +60,7 @@ class BusinessFhirFormatter {
   }
   
     static toFhirHealthcareServices(org:Organization) {
-      console.log(org,'departmentsdepartments');
+      
       return (org.departments || []).map((dept :Department) => ({
         resourceType: "HealthcareService",
         id: `${dept.departmentId}`,
