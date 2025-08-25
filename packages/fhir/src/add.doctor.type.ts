@@ -36,7 +36,7 @@ interface ProfessionalBackground {
   phone: string;
   gender: string;
   dateOfBirth: string;
-  qualification: string;
+  qualification?: string;
   medicalLicenseNumber: string;
   languagesSpoken: string;
   biography: string;
@@ -62,7 +62,7 @@ interface TimeDuration {
 export interface Document {
   name: string;
   type: string;
-  date: Date;
+  date?: Date;
 }
 
 export interface ParsedData {

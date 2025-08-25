@@ -64,7 +64,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     }
   },
 
-  fetchVetAndTeamsProfile: async (userId: string) => {
+  fetchVetAndTeamsProfile: async (userId: string) => { 
     set({ loading: true, error: null });
     try {
       if (!userId) throw new Error("User ID not found");

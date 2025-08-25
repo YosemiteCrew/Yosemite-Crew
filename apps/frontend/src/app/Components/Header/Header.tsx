@@ -50,7 +50,7 @@ export default Header;
 // ✅ LOGGED IN HEADER
 // -------------------------
 const LoggedInHeader = () => {
-  const { profile, vetAndTeamsProfile, userType } = useAuthStore();
+  const { profile, vetAndTeamsProfile, userType } = useAuthStore(); 
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -248,7 +248,7 @@ const LoggedInHeader = () => {
 
               <div className="profileUl">
                 <div className='ProfDiv'>
-                  <Link href="#"><FaUser /> My Profile</Link>
+                  <Link href="/"><FaUser /> My Profile</Link>
                   <Link href="#"><RiAccountBoxFill /> Account Settings</Link>
                   <Link href="#"><IoIosHelpCircleOutline /> Need Help?</Link>
                   <Link href='#' onClick={() => handleLogout()}><FaSignInAlt /> Sign Out</Link>

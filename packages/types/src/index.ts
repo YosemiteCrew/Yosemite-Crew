@@ -54,7 +54,7 @@ export type {  PetCoOwnerInput,FileUrl } from "./pet-duties/pet-co-owner-types";
 export type { IVetClinic } from "./models/vet-clinic";
 export type { PetGroomer } from "./models/pet-groomer";
 export type { PetBoarding } from "./models/pet-boarding";
-export type {ConvertToFhirVetProfileParams,OperatingHourType,VetNameType} from './complete-vet-profile/complete-vet-profile'
+export type {ConvertToFhirVetProfileParams,OperatingHourType,VetNameType,FhirPractitionerPersonalDetails,PersonalDetails ,FhirPractitionerProfessional,ProfessionalDetails,RelatedDoctorData,RelatedFhirPractitioner} from './complete-vet-profile/complete-vet-profile'
 export type {TeamInviteMember,InvitePayload,InviteCard,InviteItem,FhirTeamOverview,TeamOverview,DoctorType,WebUserType,AvailabilityDay,AvailabilityTime,DocumentItem,TeamMember,DepartmentsForInvite} from "./InviteTeamsMembers/invite-teams-members"
 export type { IBookAppointmentRequestBody , IParsedAppointmentDetails, IAppointmentData , IFHIRAppointmentData ,AppointmentInput, FHIRAppointmentBundleParams,SimplifiedAppointment,FHIRAppointment,FHIRPractitioner,NormalDoctor,FHIREmergencyAppointment,NormalEmergencyAppointment,FHIREmergencyAppointmentForTable,NormalEmergencyAppointmentForTable} from "./appointment/appointment-types";
 export type { Department , Organization } from "./business-formatter-types/business-formatter-types";
@@ -63,3 +63,4 @@ export type {FhirPetResource,NormalPetData,OperationOutcome,OperationOutcomeIssu
 export type {FHIRMedicalRecord ,FhirDocumentReference, MedicalRecordRequestBody, MedicalRecordResponse, MedicalDoc, MedicalRecordFolderRequest} from "./medical-record/medical-record-types";
 export type {adminDepartment,AdminDepartmentItem,AdminFHIRHealthcareService} from './models/admin-department'
 export type {NormalBlog,FHIRBlog} from './Blog/BlogTypes'
+export type {ITask,FormTaskData,UploadedFileForCreateTask} from './models/create-task';
