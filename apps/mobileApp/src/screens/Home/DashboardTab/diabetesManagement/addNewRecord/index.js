@@ -1,4 +1,4 @@
-import {FlatList, Image, TouchableOpacity, View} from 'react-native';
+import {FlatList, Image, TouchableOpacity, View ,Text} from 'react-native';
 import React, {useEffect, useState} from 'react';
 import {useTranslation} from 'react-i18next';
 import HeaderButton from '../../../../../components/HeaderButton';
@@ -46,7 +46,7 @@ const AddNewRecord = ({navigation}) => {
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
-          tintColor={colors.darkPurple}
+          tintColor={colors.jetBlack}
           onPress={() => navigation.goBack()}
         />
       ),

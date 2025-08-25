@@ -1,10 +1,10 @@
-import {StyleSheet} from 'react-native';
+import { StyleSheet } from 'react-native';
 import {
   scaledHeightValue,
   scaledValue,
 } from '../../../../../utils/design.utils';
-import {fonts} from '../../../../../utils/fonts';
-import {colors} from '../../../../../../assets/colors';
+import { fonts } from '../../../../../utils/fonts';
+import { colors } from '../../../../../../assets/colors';
 
 export const styles = StyleSheet.create({
   dashboardMainView: {
@@ -34,7 +34,7 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(23),
     lineHeight: scaledHeightValue(27.6),
     letterSpacing: scaledValue(23 * -0.01),
-    color: colors.darkPurple,
+
   },
   headerContainer: {
     flexDirection: 'row',
@@ -45,7 +45,7 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(16),
     lineHeight: scaledHeightValue(19.2),
     letterSpacing: scaledValue(16 * -0.02),
-    color: colors.darkPurple,
+
     marginTop: scaledValue(4),
   },
   imgStyle: {
@@ -60,7 +60,7 @@ export const styles = StyleSheet.create({
     marginTop: scaledValue(16),
     gap: scaledValue(12),
   },
-  buttonView: {marginTop: scaledValue(4)},
+  buttonView: { marginTop: scaledValue(4) },
   buttonText: {
     fontFamily: fonts?.CLASH_GRO_MEDIUM,
     fontSize: scaledValue(18),

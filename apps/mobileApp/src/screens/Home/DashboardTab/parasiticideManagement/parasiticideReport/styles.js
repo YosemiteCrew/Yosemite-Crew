@@ -1,10 +1,10 @@
-import {StyleSheet} from 'react-native';
+import { StyleSheet } from 'react-native';
 import {
   scaledHeightValue,
   scaledValue,
 } from '../../../../../utils/design.utils';
-import {fonts} from '../../../../../utils/fonts';
-import {colors} from '../../../../../../assets/colors';
+import { fonts } from '../../../../../utils/fonts';
+import { colors } from '../../../../../../assets/colors';
 
 export const styles = StyleSheet.create({
   dashboardMainView: {
@@ -57,7 +57,6 @@ export const styles = StyleSheet.create({
     lineHeight: scaledHeightValue(21.6),
     letterSpacing: scaledValue(18 * -0.01),
     width: '50%',
-    color: colors.darkPurple,
   },
   riskBadge: {
     flexDirection: 'row',
@@ -85,13 +84,12 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(16),
     lineHeight: scaledHeightValue(19.2),
     paddingHorizontal: scaledValue(20),
-    color: colors.darkPurple,
     opacity: 0.8,
     marginTop: scaledValue(40),
   },
   divider: {
     borderWidth: 1,
-    borderColor: colors.darkPurple,
+    borderColor: colors.jetBlack,
     opacity: 0.2,
     marginHorizontal: scaledValue(20),
     marginTop: scaledValue(8),

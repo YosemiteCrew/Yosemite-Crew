@@ -1,7 +1,7 @@
-import {StyleSheet} from 'react-native';
-import {scaledHeightValue, scaledValue} from '../../../utils/design.utils';
-import {fonts} from '../../../utils/fonts';
-import {colors} from '../../../../assets/colors';
+import { StyleSheet } from 'react-native';
+import { scaledHeightValue, scaledValue } from '../../../utils/design.utils';
+import { fonts } from '../../../utils/fonts';
+import { colors } from '../../../../assets/colors';
 
 export const styles = StyleSheet.create({
   container: {
@@ -14,7 +14,7 @@ export const styles = StyleSheet.create({
     letterSpacing: scaledValue(26 * -0.01),
     textAlign: 'center',
     marginTop: scaledValue(18),
-    color: colors.darkPurple,
+
   },
   subtitle: {
     fontSize: scaledValue(16),
@@ -22,7 +22,7 @@ export const styles = StyleSheet.create({
     letterSpacing: scaledValue(16 * -0.01),
     textAlign: 'center',
     marginTop: scaledValue(8),
-    color: colors.darkPurple,
+
     paddingHorizontal: scaledValue(65),
   },
   petListContainer: {
@@ -38,10 +38,10 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(20),
     lineHeight: scaledHeightValue(24),
     letterSpacing: scaledValue(20 * -0.01),
-    color: colors.darkPurple,
+
   },
   button: {
-    backgroundColor: '#FDBD74',
+    backgroundColor: colors.jetBlack,
     width: '90%',
     height: scaledValue(52),
     borderRadius: scaledValue(28),
@@ -57,6 +57,6 @@ export const styles = StyleSheet.create({
     lineHeight: scaledHeightValue(18),
     letterSpacing: scaledValue(18 * -0.01),
     fontFamily: fonts?.CLASH_GRO_MEDIUM,
-    color: colors.brown,
+    color: colors.paletteWhite,
   },
 });

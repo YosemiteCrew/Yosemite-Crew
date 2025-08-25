@@ -56,7 +56,8 @@ function BulkInviteModal({
         department:
           departmentOptions.find(
             (opt) =>
-              opt.label.toLowerCase() === (record.department || "").toLowerCase()
+              opt.label.toLowerCase() ===
+              (record.department || "").toLowerCase()
           )?.value || "", // Map department label to ID
         invitedBy: "",
       };
@@ -98,7 +99,11 @@ function BulkInviteModal({
                   <p>Add your team data as shown in the format</p>
                 </div>
                 <div className="RytDoct">
-                  <a href="/InviteMembers.csv" download className="DownloadIcon">
+                  <a
+                    href="/dummy_users_header.csv" // place header file in your public folder
+                    download="InviteMembers.csv"
+                    className="DownloadIcon"
+                  >
                     <HiDocumentArrowDown size={32} />
                   </a>
                 </div>
@@ -140,15 +145,16 @@ function BulkInviteModal({
   );
 }
 
-
 function InviteTeamMembers() {
   const { userId } = useAuthStore();
   const [modalShow, setModalShow] = useState(false);
-  const [errors, setErrors] = useState<Record<number, Partial<Record<keyof typeof members[0], string>>>>({});
-  const [departmentOptions, setDepartmentOptions] = useState<{ value: string; label: string }[]>([]);
+  const [errors, setErrors] = useState<
+    Record<number, Partial<Record<keyof (typeof members)[0], string>>>
+  >({});
+  const [departmentOptions, setDepartmentOptions] = useState<
+    { value: string; label: string }[]
+  >([]);
 
-
- 
   const validateMembers = () => {
     const newErrors: typeof errors = {};
 
@@ -156,7 +162,8 @@ function InviteTeamMembers() {
       const memberErrors: Partial<Record<keyof typeof member, string>> = {};
 
       if (!member.name.trim()) memberErrors.name = "Name is required.";
-      if (!member.department) memberErrors.department = "Department is required.";
+      if (!member.department)
+        memberErrors.department = "Department is required.";
       if (!member.role) memberErrors.role = "Role is required.";
       if (!member.email.trim()) {
         memberErrors.email = "Email is required.";
@@ -174,18 +181,34 @@ function InviteTeamMembers() {
   };
 
   const [members, setMembers] = useState([
-    { department: "", role: "", email: "", invitedBy: "", name: "" }
+    { department: "", role: "", email: "", invitedBy: "", name: "" },
   ]);
- console.log("InviteTeamMembers rendered with userId:", members);
+  console.log("InviteTeamMembers rendered with userId:", members);
 
-  const handleMemberChange = useCallback((index: number, field: "department" | "role" | "email" | "name", value: string) => {
-    setMembers((prev) =>
-      prev.map((m, i) => (i === index ? { ...m, [field]: value } : m))
-    );
-  }, []);
+  const handleMemberChange = useCallback(
+    (
+      index: number,
+      field: "department" | "role" | "email" | "name",
+      value: string
+    ) => {
+      setMembers((prev) =>
+        prev.map((m, i) => (i === index ? { ...m, [field]: value } : m))
+      );
+    },
+    []
+  );
 
   const addMember = () => {
-    setMembers((prev) => [...prev, { department: "", role: "", email: "", invitedBy: userId || "", name: "" }]);
+    setMembers((prev) => [
+      ...prev,
+      {
+        department: "",
+        role: "",
+        email: "",
+        invitedBy: userId || "",
+        name: "",
+      },
+    ]);
   };
 
   const removeMember = (idx: number) => {
@@ -197,17 +220,29 @@ function InviteTeamMembers() {
       return;
     }
 
-    const membersWithInviter = members.map(member => ({
+    const membersWithInviter = members.map((member) => ({
       ...member,
-      invitedBy: member.invitedBy || userId || ""
+      invitedBy: member.invitedBy || userId || "",
     }));
 
     try {
       const response = await postData("/fhir/v1/invite", membersWithInviter);
       if (response.status === 200) {
         const data = response.data as { message?: string };
-        Swal.fire({ icon: "success", title: "Success", text: data.message || "Invitations sent successfully!" });
-        setMembers([{ department: "", role: "", email: "", name: "", invitedBy: userId || "" }]);
+        Swal.fire({
+          icon: "success",
+          title: "Success",
+          text: data.message || "Invitations sent successfully!",
+        });
+        setMembers([
+          {
+            department: "",
+            role: "",
+            email: "",
+            name: "",
+            invitedBy: userId || "",
+          },
+        ]);
         setErrors({}); // reset errors
       }
     } catch (error: unknown) {
@@ -220,34 +255,40 @@ function InviteTeamMembers() {
     }
   };
 
-
   useEffect(() => {
     const getDepartmentForInvite = async () => {
-    try {
-      const response = await getData(`/fhir/v1/getDepartmentForInvite?userId=${userId}`,);
-      if (response.status === 200) {
-        const data = response.data as { data: any[] };
-        // console.log("Fetched departments:", data.data);
-        const departments = convertFromFhirDepartment(data.data).map((dept: any) => ({
-          value: dept._id,
-          label: dept.name
-        }));
-        setDepartmentOptions(departments);
-      } else {
-        Swal.fire({ icon: "error", title: "Error", text: "Failed to fetch departments." });
+      try {
+        const response = await getData(
+          `/fhir/v1/getDepartmentForInvite?userId=${userId}`
+        );
+        if (response.status === 200) {
+          const data = response.data as { data: any[] };
+          // console.log("Fetched departments:", data.data);
+          const departments = convertFromFhirDepartment(data.data).map(
+            (dept: any) => ({
+              value: dept._id,
+              label: dept.name,
+            })
+          );
+          setDepartmentOptions(departments);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: "Failed to fetch departments.",
+          });
+        }
+      } catch (error) {
+        let errorMessage = "Failed to fetch departments.";
+        if (error && typeof error === "object" && "response" in error) {
+          const res = (error as any).response;
+          errorMessage = res?.data?.message || errorMessage;
+        }
+        Swal.fire({ icon: "error", title: "Error", text: errorMessage });
       }
-    } catch (error) {
-      let errorMessage = "Failed to fetch departments.";
-      if (error && typeof error === "object" && "response" in error) {
-        const res = (error as any).response;
-        errorMessage = res?.data?.message || errorMessage;
-      }
-      Swal.fire({ icon: "error", title: "Error", text: errorMessage });
-    }
-  };
+    };
     getDepartmentForInvite();
   }, [userId]);
-
 
   const roleOptions = [
     { value: "vet", label: "Vet" },
@@ -264,33 +305,53 @@ function InviteTeamMembers() {
           <div className="PracticeTeamData">
             <div className="InviteContainer">
               <div className="InviteHeader">
-                <h4>Invite <span>team member</span></h4>
-                <Button className="ImportBtn" onClick={() => setModalShow(true)}>
+                <h4>
+                  Invite <span>team member</span>
+                </h4>
+                <Button
+                  className="ImportBtn"
+                  onClick={() => setModalShow(true)}
+                >
                   <PiFileArrowDownFill /> Bulk Invite
                 </Button>
               </div>
 
               <BulkInviteModal
-              show={modalShow}
-              onHide={() => setModalShow(false)}
-              departmentOptions={departmentOptions}
-              onDataParsed={(parsed) => {
-                const withUser = parsed.map((p) => ({
-                  ...p,
-                  invitedBy: userId || "",
-                }));
-                setMembers(withUser);
-              }}
-            />
+                show={modalShow}
+                onHide={() => setModalShow(false)}
+                departmentOptions={departmentOptions}
+                onDataParsed={(parsed) => {
+                  const withUser = parsed.map((p) => ({
+                    ...p,
+                    invitedBy: userId || "",
+                  }));
+                  setMembers(withUser);
+                }}
+              />
 
               <div className="InviteCard">
                 <div className="InviteTeamData">
                   {members.map((member, idx) => (
                     <div key={idx} className="MemberFormBlock">
                       <div className="InviteTitleTrash">
-                        <h2>{members.length > 1 ? (<><span className="member-number">{(idx + 1).toString().padStart(2, "0")}</span>. Add Member Details</>) : "Add Details"}</h2>
+                        <h2>
+                          {members.length > 1 ? (
+                            <>
+                              <span className="member-number">
+                                {(idx + 1).toString().padStart(2, "0")}
+                              </span>
+                              . Add Member Details
+                            </>
+                          ) : (
+                            "Add Details"
+                          )}
+                        </h2>
                         {members.length > 1 && (
-                          <Button variant="link" className="RemoveBtn" onClick={() => removeMember(idx)}>
+                          <Button
+                            variant="link"
+                            className="RemoveBtn"
+                            onClick={() => removeMember(idx)}
+                          >
                             <MdDeleteForever />
                           </Button>
                         )}
@@ -301,14 +362,18 @@ function InviteTeamMembers() {
                           inname="name"
                           value={member.name}
                           inlabel="Name"
-                          onChange={(e) => handleMemberChange(idx, "name", e.target.value)}
+                          onChange={(e) =>
+                            handleMemberChange(idx, "name", e.target.value)
+                          }
                           error={errors[idx]?.name}
                         />
                       </div>
                       <DynamicSelect
                         options={departmentOptions}
                         value={member.department}
-                        onChange={(val: string) => handleMemberChange(idx, "department", val)}
+                        onChange={(val: string) =>
+                          handleMemberChange(idx, "department", val)
+                        }
                         inname="department"
                         placeholder="Department"
                         error={errors[idx]?.department}
@@ -316,7 +381,9 @@ function InviteTeamMembers() {
                       <DynamicSelect
                         options={roleOptions}
                         value={member.role}
-                        onChange={(val: string) => handleMemberChange(idx, "role", val)}
+                        onChange={(val: string) =>
+                          handleMemberChange(idx, "role", val)
+                        }
                         inname="role"
                         placeholder="Select Role"
                         error={errors[idx]?.role}
@@ -327,20 +394,33 @@ function InviteTeamMembers() {
                           inname="email"
                           value={member.email}
                           inlabel="Email Address"
-                          onChange={(e) => handleMemberChange(idx, "email", e.target.value)}
+                          onChange={(e) =>
+                            handleMemberChange(idx, "email", e.target.value)
+                          }
                           error={errors[idx]?.email}
                         />
                       </div>
                     </div>
                   ))}
                   <div className="AddMemberDiv">
-                    <Button onClick={addMember}><IoAddCircle /> Add More Members</Button>
-                    {members.length > 1 && <p>Inviting more than 10 members? <span>Use the Bulk Invite Option.</span></p>}
+                    <Button onClick={addMember}>
+                      <IoAddCircle /> Add More Members
+                    </Button>
+                    {members.length > 1 && (
+                      <p>
+                        Inviting more than 10 members?{" "}
+                        <span>Use the Bulk Invite Option.</span>
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="InviteFooter">
-                  <Button className="BackBtn"><IoIosArrowDropleft /> Back</Button>
-                  <Button className="SendBtn" onClick={handleSendInvite}><FaCircleCheck /> Send Invite</Button>
+                  <Button className="BackBtn">
+                    <IoIosArrowDropleft /> Back
+                  </Button>
+                  <Button className="SendBtn" onClick={handleSendInvite}>
+                    <FaCircleCheck /> Send Invite
+                  </Button>
                 </div>
               </div>
             </div>

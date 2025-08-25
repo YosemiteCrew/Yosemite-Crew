@@ -1,8 +1,8 @@
-import {Image, StyleSheet, TouchableOpacity, View} from 'react-native';
+import { Image, StyleSheet, TouchableOpacity, View } from 'react-native';
 import React from 'react';
 import GText from '../GText/GText';
-import {scaledValue} from '../../utils/design.utils';
-import {colors} from '../../../assets/colors';
+import { scaledValue } from '../../utils/design.utils';
+import { colors } from '../../../assets/colors';
 
 const PetRecordCard = ({
   image,
@@ -22,7 +22,7 @@ const PetRecordCard = ({
   return (
     <View style={[styles.cardContainer, containerStyle]}>
       {image && <Image source={image} style={styles.image} />}
-      <View style={{flex: 1}}>
+      <View style={{ flex: 1 }}>
         <GText
           GrMedium
           text={title}
@@ -70,17 +70,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   }),
-  labelTouchable: {flexDirection: 'row', alignItems: 'center'},
+  labelTouchable: { flexDirection: 'row', alignItems: 'center' },
   titleText: {
     fontSize: scaledValue(18),
     lineHeight: scaledValue(21.6),
     letterSpacing: scaledValue(18 * -0.01),
-    color: colors.darkPurple,
+
   },
   subTitleText: {
     fontSize: scaledValue(13),
     lineHeight: scaledValue(15.6),
-    color: colors.darkPurple,
+
     opacity: 0.6,
   },
   labelText: labelTextColor => ({

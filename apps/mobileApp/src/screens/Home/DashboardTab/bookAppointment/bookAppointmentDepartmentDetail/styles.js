@@ -1,10 +1,10 @@
-import {StyleSheet} from 'react-native';
+import { StyleSheet } from 'react-native';
 import {
   scaledHeightValue,
   scaledValue,
 } from '../../../../../utils/design.utils';
-import {fonts} from '../../../../../utils/fonts';
-import {colors} from '../../../../../../assets/colors';
+import { fonts } from '../../../../../utils/fonts';
+import { colors } from '../../../../../../assets/colors';
 
 export const styles = StyleSheet.create({
   dashboardMainView: {
@@ -14,13 +14,13 @@ export const styles = StyleSheet.create({
   headerTitle: {
     fontSize: scaledValue(12),
     lineHeight: scaledHeightValue(12),
-    color: colors.appRed,
+    color: colors.jetBlack,
     textAlign: 'center',
   },
   teamText: {
     fontSize: scaledValue(20),
     lineHeight: scaledHeightValue(24),
-    color: colors.darkPurple,
+
     letterSpacing: scaledValue(20 * -0.01),
   },
   countText: {
@@ -35,14 +35,15 @@ export const styles = StyleSheet.create({
     borderRadius: scaledValue(12),
   },
   card: {
-    backgroundColor: '#FFF6EB',
+    backgroundColor: colors.white,
     width: scaledValue(335),
     borderRadius: scaledValue(20),
-    shadowColor: '#47382726',
-    shadowOffset: {width: 1, height: 5},
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 8,
+    borderColor: colors.paletteWhite,
+   shadowColor: '##47382714',
+    shadowOffset: { width: 6, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 4,
   },
   doctorName: {
     fontSize: scaledValue(18),
@@ -53,31 +54,31 @@ export const styles = StyleSheet.create({
   departmentText: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.7),
-    color: colors.darkPurple,
+
     opacity: 0.7,
     marginTop: scaledValue(2),
   },
   experienceText: {
     fontSize: scaledValue(12),
     lineHeight: scaledHeightValue(14.4),
-    color: colors.darkPurple,
+
   },
   experienceTextStyle: {
     fontSize: scaledValue(12),
     lineHeight: scaledHeightValue(14.4),
-    color: colors.appRed,
+    color: colors.jetBlack,
   },
   buttonTextStyle: {
     fontSize: scaledValue(14),
     lineHeight: scaledValue(16),
-    color: colors.appRed,
+    color: colors.jetBlack,
     marginLeft: scaledValue(2),
     letterSpacing: scaledValue(14 * -0.01),
     fontFamily: fonts.CLASH_GRO_MEDIUM,
   },
   buttonStyle: {
     borderWidth: scaledValue(1),
-    borderColor: colors.appRed,
+    borderColor: colors.jetBlack,
     marginTop: scaledValue(20),
     borderRadius: scaledValue(28),
     height: scaledValue(44),
@@ -104,17 +105,17 @@ export const styles = StyleSheet.create({
     paddingTop: scaledValue(12),
     paddingLeft: scaledValue(12),
   },
-  doctorImgView: {flexDirection: 'column', alignItems: 'center'},
+  doctorImgView: { flexDirection: 'column', alignItems: 'center' },
   starImgView: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: scaledValue(5),
   },
-  starImg: {width: scaledValue(16), height: scaledValue(16)},
+  starImg: { width: scaledValue(16), height: scaledValue(16) },
   experienceView: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: scaledValue(8),
   },
-  feesView: {flexDirection: 'row', marginTop: scaledValue(8)},
+  feesView: { flexDirection: 'row', marginTop: scaledValue(8) },
 });

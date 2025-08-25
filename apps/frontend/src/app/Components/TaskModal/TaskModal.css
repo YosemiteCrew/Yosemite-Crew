@@ -1,0 +1,335 @@
+
+
+
+.CreateTaskModal form{
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+.CreateTaskModal form .TaskDetailDiv{
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  border: 1px solid #EAEAEA;
+  padding: 16px 17px;
+  border-radius: 24px;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* TaskModal Component Styles */
+.task-modal .modal-content {
+  border-radius: 12px;
+  border: none;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.task-modal .modal-header {
+  border-bottom: 1px solid #e9ecef;
+  padding: 20px 25px 15px;
+  background-color: #f8f9fa;
+  border-radius: 12px 12px 0 0;
+}
+
+.modal-tabs {
+  flex: 1;
+}
+
+.custom-tabs .nav-tabs {
+  border-bottom: none;
+}
+
+.custom-tabs .nav-link {
+  border: none;
+  background: transparent;
+  color: #666;
+  font-weight: 500;
+  padding: 8px 16px;
+  margin-right: 20px;
+  border-radius: 0;
+  position: relative;
+}
+
+.custom-tabs .nav-link.active {
+  color: #007bff;
+  background: transparent;
+  border-bottom: 2px solid #007bff;
+}
+
+.custom-tabs .nav-link:hover {
+  border-color: transparent;
+  color: #007bff;
+}
+
+.close-btn {
+  color: #666;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.close-btn:hover {
+  color: #333;
+}
+
+.task-modal .modal-body {
+  padding: 25px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.form-section {
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.form-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.section-title {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 15px;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.form-label {
+  font-weight: 500;
+  color: #555;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.form-control,
+.form-select {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 14px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.form-control::placeholder {
+  color: #999;
+}
+
+.date-input-wrapper {
+  position: relative;
+}
+
+.date-input-wrapper::after {
+  content: '📅';
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  font-size: 14px;
+}
+
+.text-muted {
+  font-size: 12px;
+  color: #666;
+  margin-top: 5px;
+}
+
+/* Toggle Button Group */
+.toggle-group {
+  width: 100%;
+}
+
+.toggle-group .btn {
+  flex: 1;
+  border: 1px solid #ddd;
+  background-color: white;
+  color: #666;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.toggle-group .btn:first-child {
+  border-radius: 6px 0 0 6px;
+}
+
+.toggle-group .btn:last-child {
+  border-radius: 0 6px 6px 0;
+}
+
+.toggle-group .btn.active {
+  background-color: #007bff;
+  border-color: #007bff;
+  color: white;
+}
+
+.toggle-group .btn:hover:not(.active) {
+  background-color: #f8f9fa;
+  border-color: #007bff;
+  color: #007bff;
+}
+
+/* Search Input */
+.search-wrapper {
+  position: relative;
+}
+
+.search-input {
+  position: relative;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #999;
+  font-size: 14px;
+  z-index: 2;
+}
+
+.search-input .form-control {
+  padding-left: 40px;
+}
+
+/* Upload Area */
+.upload-area {
+  border: 2px dashed #ddd;
+  border-radius: 8px;
+  padding: 40px 20px;
+  text-align: center;
+  background-color: #f8f9fa;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+  cursor: pointer;
+}
+
+.upload-area:hover {
+  border-color: #007bff;
+  background-color: #f0f8ff;
+}
+
+.upload-icon {
+  font-size: 48px;
+  color: #007bff;
+  margin-bottom: 15px;
+}
+
+.upload-text {
+  color: #666;
+  font-size: 14px;
+  margin: 0;
+}
+
+/* Modal Footer */
+.task-modal .modal-footer {
+  border-top: 1px solid #e9ecef;
+  padding: 20px 25px;
+  background-color: #f8f9fa;
+  border-radius: 0 0 12px 12px;
+}
+
+.create-btn {
+  background-color: #333;
+  border-color: #333;
+  color: white;
+  padding: 12px 30px;
+  font-weight: 500;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.create-btn:hover {
+  background-color: #555;
+  border-color: #555;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .task-modal .modal-header {
+    padding: 15px 20px 10px;
+  }
+  
+  .task-modal .modal-body {
+    padding: 20px;
+  }
+  
+  .task-modal .modal-footer {
+    padding: 15px 20px;
+  }
+  
+  .custom-tabs .nav-link {
+    padding: 6px 12px;
+    margin-right: 10px;
+    font-size: 13px;
+  }
+  
+  .form-section {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+  }
+  
+  .upload-area {
+    padding: 30px 15px;
+  }
+  
+  .upload-icon {
+    font-size: 36px;
+  }
+}
+
+/* Scrollbar Styling */
+.task-modal .modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.task-modal .modal-body::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.task-modal .modal-body::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.task-modal .modal-body::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}

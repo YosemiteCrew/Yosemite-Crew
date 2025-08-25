@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { handleLogout } from "../utils/LogoutApi";
 import HomePage from "../Pages/HomePage/HomePage";
 import Header from "./Header/Header";
+import MainLandingPage from "../Pages/MainLandingPage/MainLandingPage";
 
 // ✅ Define roles outside to avoid re-declaring them on every render
 const VET_ROLES = [
@@ -17,7 +18,7 @@ const VET_ROLES = [
   "receptionist",
 ];
 
-const publicRoutes = ["/signup", "/signin"];
+const publicRoutes = ["/signup", "/signin","/landingpage",'/homepage','/petowner','/resources','/contact_us','/blogpage','/developerlanding','/about_us' ];
 
 const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
   const setUser = useAuthStore((state) => state.setUser);
@@ -30,7 +31,7 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
   const isPublicRoute = publicRoutes.some(
     (route) =>
       pathname === route ||
-      (route.includes("[") && matchDynamicRoute(route, pathname))
+      (route.includes("") && matchDynamicRoute(route, pathname))
   );
 
   function matchDynamicRoute(pattern: string, path: string) {
@@ -75,7 +76,7 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
     return (
       <>
         <Header />
-        <HomePage />
+        <MainLandingPage />
       </>
     );
   }

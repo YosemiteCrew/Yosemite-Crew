@@ -1,9 +1,9 @@
-import {StyleSheet} from 'react-native';
+import { StyleSheet } from 'react-native';
 import {
   scaledHeightValue,
   scaledValue,
 } from '../../../../../utils/design.utils';
-import {colors} from '../../../../../../assets/colors';
+import { colors } from '../../../../../../assets/colors';
 
 export const styles = StyleSheet.create({
   dashboardMainView: {
@@ -32,7 +32,6 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(14),
     lineHeight: scaledValue(16.8),
     opacity: 0.6,
-    color: colors.darkPurple,
   },
   innerView: {
     paddingHorizontal: scaledValue(20),

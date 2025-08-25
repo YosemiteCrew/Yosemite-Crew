@@ -14,7 +14,7 @@ const DynamicSelect = ({ options, placeholder, value, onChange, inname }) => {
       <Form.Select
         aria-label="Dynamic select menu"
         name={inname}
-        value={value} // Bind the value to the state
+        value={value??""} // Bind the value to the state
         onChange={(e) => onChange(e.target.value)} // Pass the selected value back to the parent
       >
         <option value="">{placeholder}</option>

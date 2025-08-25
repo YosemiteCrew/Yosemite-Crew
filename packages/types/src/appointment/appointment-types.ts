@@ -6,7 +6,7 @@ export interface IParsedAppointmentDetails {
     purposeOfVisit?: string;
     hospitalId: string;
     department: string;
-    doctorId: string;
+    veterinarian: string;
     petId: string;
     slotsId: string;
     timeslot: string;
@@ -60,8 +60,6 @@ export interface IFHIRAppointmentData {
     }>;
 }
 // --- Types ---
-type AppointmentStatus = "confirmed" | "cancelled" | "completed" | "pending" | string;
-
 export interface AppointmentInput {
     _id: string;
     ownerName: string;
@@ -100,3 +98,87 @@ export interface SimplifiedAppointment {
       valueString: string;
     }[];
   };
+
+
+
+  //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Emergency Section>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+export  type NormalDoctor = {
+  cognitoId: string;
+  department: string;
+  fullName: string;
+};
+
+export type FHIRPractitioner = {
+  resourceType: "Practitioner";
+  id: string;
+  name: { text: string }[];
+  extension?: { url: string; valueString: string }[]; // for department
+};
+
+
+export type NormalEmergencyAppointment = {
+  email?: string;
+  ownerName?: string;
+  petName?: string;
+  petBreed?: string;
+  petType?: string;
+  countryCode?: string;
+  department?: string;
+  gender?: string;
+  phoneNumber?: string;
+  userId?: string|null;
+  veterinarian?: string;
+  
+};
+
+export type FHIREmergencyAppointment = {
+  resourceType?: "Appointment";
+  id?: string;
+  participant?: {
+    actor: { reference: string; display?: string };
+    status: string;
+  }[];
+  extension?: { url: string; valueString: string }[];
+};
+
+
+
+
+
+// Normal data format
+export type NormalEmergencyAppointmentForTable = {
+  _id: string;
+  userId: string;
+  hospitalId: string;
+  tokenNumber: string;
+  ownerName: string;
+  petName: string;
+  appointmentStatus: string;
+  petType: string;
+  petBreed: string;
+  gender: string;
+  phoneNumber: number;
+  email: string;
+  veterinarian: string; // Doctor Name
+  departmentName: string;
+  appointmentTime: string; // e.g., "11:00 AM"
+};
+
+// FHIR Appointment format
+export type FHIREmergencyAppointmentForTable = {
+  resourceType: "Appointment";
+  id: string;
+  identifier: { system: string; value: string }[];
+  status: string;
+  participant: {
+    actor: {
+      reference: string;
+      display: string;
+    };
+    status: string;
+  }[];
+  description?: string;
+  supportingInformation?: { reference: string; display: string }[];
+  extension?: { url: string; valueString: string }[];
+};

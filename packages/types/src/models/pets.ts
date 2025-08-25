@@ -7,6 +7,7 @@ export interface petImage extends Document {
   mimetype?: string;
 }
 
+
 export type pets = Document & {
   _id?:Types.ObjectId;
   cognitoUserId?: string;
@@ -27,8 +28,15 @@ export type pets = Document & {
   policyNumber?: string;
   passportNumber?: string;
   petFrom?: string;
-  petImage?: petImage[];
+  petImage?: petImage;
   updatedAt ?: string;
+  summary?: {
+    groomerStatus?: "pending" | "completed";
+    boardingStatus?: "pending" | "completed";
+    breederStatus?: "pending" | "completed";
+    vetStatus?: "pending" | "completed";
+    medicalStatus?: "pending" | "completed";
+  };
 };
 
 

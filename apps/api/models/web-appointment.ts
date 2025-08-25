@@ -15,12 +15,22 @@ const UploadRecordSchema = new Schema(
   },
   { _id: false }
 );
+const UploadRecordSchema2 = new Schema(
+  {
+    originalname: { type: String, required: true },
+    mimetype: { type: String, required: true },
+    url: { type: String, required: true },
+    uploadedAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+)
 
 const WebAppointmentSchema = new Schema<WebAppointmentType>(
   {
     hospitalId: String,
     userId: String,
     petId: String,
+    ownerId:String,
     tokenNumber: String,
     ownerName: String,
     petName: String,
@@ -41,7 +51,7 @@ const WebAppointmentSchema = new Schema<WebAppointmentType>(
     appointmentStatus: { type: String, default: "pending" },
     isCanceled: { type: String, default: "0" },
     cancelledBy: String,
-    uploadRecords: [UploadRecordSchema],
+    uploadRecords: [UploadRecordSchema || UploadRecordSchema2],
   },
   { timestamps: true }
 );

@@ -17,8 +17,13 @@ import StackScreens from './src/navigations/StackScreens';
 import SplashScreen from 'react-native-splash-screen';
 import FlashMessage from 'react-native-flash-message';
 import Spinner from 'react-native-loading-spinner-overlay';
-import {useAppSelector} from './src/redux/store/storeUtils';
+import {useAppDispatch, useAppSelector} from './src/redux/store/storeUtils';
 import AddPetStack from './src/navigations/AddPetStack';
+import {setOnBoarding} from './src/redux/slices/authSlice';
+import {MenuProvider} from 'react-native-popup-menu';
+import {KeyboardProvider} from 'react-native-keyboard-controller';
+import {CongratulationsScreen} from './src/navigations/screens';
+import {get_medical_folders} from './src/redux/slices/medicalRecordSlice';
 
 export const navigationContainerRef = createNavigationContainerRef();
 
@@ -30,15 +35,19 @@ const App = () => {
   }, []);
   return (
     <Provider store={store}>
-      <PersistGate loading={null} persistor={persistor}>
-        <SafeAreaProvider>
-          <StatusBar
-            backgroundColor={colors.themeColor}
-            barStyle="dark-content"
-          />
-          <AppNavigation />
-        </SafeAreaProvider>
-      </PersistGate>
+      <MenuProvider>
+        <PersistGate loading={null} persistor={persistor}>
+          <SafeAreaProvider>
+            <StatusBar
+              backgroundColor={colors.themeColor}
+              barStyle="dark-content"
+            />
+            <KeyboardProvider navigationBarTranslucent statusBarTranslucent>
+              <AppNavigation />
+            </KeyboardProvider>
+          </SafeAreaProvider>
+        </PersistGate>
+      </MenuProvider>
     </Provider>
   );
 };
@@ -49,6 +58,7 @@ const AppNavigation = () => {
   const authState = useAppSelector(state => state.auth);
   const loading = useAppSelector(state => state.loading);
   const RootStack = createNativeStackNavigator();
+  const petList = useAppSelector(state => state.pets?.petLists);
 
   return (
     <>
@@ -64,19 +74,29 @@ const AppNavigation = () => {
               options={{headerShown: false}}
             />
           ) : !authState?.user ? (
-            <RootStack.Screen
-              name="AuthStack"
-              component={AuthStack}
-              options={{headerShown: false}}
-            />
-          ) : authState?.user?.isSkip === 0 ? (
-            <RootStack.Screen
-              name="AddPetStack"
-              component={AddPetStack}
-              options={{headerShown: false}}
-            />
+            <>
+              {petList?.length === 0 && !authState?.showWelcome && (
+                <RootStack.Screen
+                  name="CongratulationsScreen"
+                  component={CongratulationsScreen}
+                  options={{headerShown: false}}
+                />
+              )}
+              <RootStack.Screen
+                name="AuthStack"
+                component={AuthStack}
+                options={{headerShown: false}}
+              />
+            </>
           ) : (
             <>
+              {petList?.length === 0 && !authState?.showWelcome && (
+                <RootStack.Screen
+                  name="CongratulationsScreen"
+                  component={CongratulationsScreen}
+                  options={{headerShown: false}}
+                />
+              )}
               <RootStack.Screen
                 name="TabBar"
                 component={TabBar}

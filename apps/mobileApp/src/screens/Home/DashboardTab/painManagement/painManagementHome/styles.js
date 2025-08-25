@@ -28,9 +28,8 @@ export const styles = StyleSheet.create({
   },
   quickActionsText: {
     fontSize: scaledValue(14),
-    lineHeight: scaledHeightValue(16.8),
     marginTop: scaledValue(25),
-    opacity: 0.6,
+    color: colors.jetBlack300,
   },
   quickActionsWrapper: {
     justifyContent: 'space-between',
@@ -40,9 +39,7 @@ export const styles = StyleSheet.create({
     marginTop: scaledValue(12),
   },
   quickActionItem: {
-    backgroundColor: '#FFF6EB',
-    width: Dimensions.get('window').width / 2 - scaledValue(30),
-    // height: scaledValue(157),
+    backgroundColor: colors.paletteWhite,
     paddingHorizontal: scaledValue(16),
     borderRadius: scaledValue(20),
     shadowColor: '#47382726',
@@ -50,17 +47,25 @@ export const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 8,
-    paddingBottom: scaledValue(20),
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: scaledValue(15),
+    borderWidth: scaledValue(1),
+    borderColor: colors.jetBlack50,
+    justifyContent: 'space-between',
   },
   quickActionImage: {
     width: scaledValue(40),
     height: scaledValue(40),
-    marginTop: scaledValue(39),
   },
   quickActionText: {
     fontSize: scaledValue(18),
     lineHeight: scaledHeightValue(21.6),
-    marginTop: scaledValue(14),
     letterSpacing: scaledValue(18 * -0.01),
+  },
+  quickActionSubText: {
+    fontSize: scaledValue(14),
+    lineHeight: scaledHeightValue(14 * 1.2),
+    opacity: 0.7,
   },
 });

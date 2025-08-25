@@ -41,11 +41,11 @@ const ProcedurePackageSchema = new Schema<ProcedurePackageType>(
     description: String,
     packageItems: [
       {
-        name: { type: String, required: true },
-        itemType: { type: String, required: true },
-        quantity: { type: Number, required: true },
-        unitPrice: { type: Number, required: true },
-        subtotal: { type: Number, required: true },
+        name: { type: String },
+        itemType: { type: String },
+        quantity: { type: Number },
+        unitPrice: { type: Number },
+        subtotal: { type: Number },
         notes: String,
       },
     ],

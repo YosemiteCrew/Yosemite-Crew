@@ -1,7 +1,7 @@
-import {StyleSheet} from 'react-native';
-import {scaledHeightValue, scaledValue} from '../../../utils/design.utils';
-import {fonts} from '../../../utils/fonts';
-import {colors} from '../../../../assets/colors';
+import { StyleSheet } from 'react-native';
+import { scaledHeightValue, scaledValue } from '../../../utils/design.utils';
+import { fonts } from '../../../utils/fonts';
+import { colors } from '../../../../assets/colors';
 
 export const styles = StyleSheet.create({
   container: {
@@ -17,7 +17,7 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(26),
     lineHeight: scaledHeightValue(31.2),
     letterSpacing: scaledValue(26 * -0.01),
-    color: colors.darkPurple,
+
     textAlign: 'center',
     marginTop: scaledValue(24),
   },
@@ -25,7 +25,7 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(16),
     lineHeight: scaledHeightValue(19.2),
     letterSpacing: scaledValue(16 * -0.02),
-    color: colors.darkPurple,
+
     textAlign: 'center',
     marginTop: scaledValue(8),
     paddingHorizontal: scaledValue(44),
@@ -46,7 +46,7 @@ export const styles = StyleSheet.create({
   itemText: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    color: colors.darkPurple,
+
     width: '70%',
     marginLeft: scaledValue(12),
   },

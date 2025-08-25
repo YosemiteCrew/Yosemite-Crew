@@ -1,5 +1,7 @@
 import React from 'react';
 import {Text} from 'react-native';
+import {colors} from '../../../assets/colors';
+import {scaledValue} from '../../utils/design.utils';
 
 const GText = props => {
   const {text, style, componentProps} = props;
@@ -29,7 +31,7 @@ const fontSize = props => {
   } else if (props.g4) {
     return 11;
   }
-  return 15;
+  return scaledValue(18);
 };
 
 const fontFamily = props => {
@@ -66,7 +68,7 @@ const fontFamily = props => {
   if (props.SatoshiRegular) {
     return 'Satoshi-Regular';
   }
-  return 'ClashDisplay-Regular';
+  return 'Satoshi-Regular';
 };
 
 const italic = props => {
@@ -80,7 +82,7 @@ const color = props => {
   if (props.light) {
     return '#999';
   }
-  return '#222';
+  return colors.jetBlack;
 };
 
 export default GText;

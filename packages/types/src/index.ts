@@ -35,7 +35,7 @@ export type { feedback ,feedbackData} from "./models/feedback";
 export type { AddDoctorDoc } from "./AddDoctor/add.doctor.types";
 export type { IAppointmentType, IBreed, IPurposeOfVisit } from "./models/appointment.options.types";
 export { AnimalCategory } from "./models/appointment.options.types";
-export type { AppointmentsTokenType, WebAppointmentType, NormalizedAppointment,IUnavailableSlot} from "./models/appointments.model";
+export type { AppointmentsTokenType, WebAppointmentType, NormalizedAppointment,IUnavailableSlot,EmergencyAppointmentModel} from "./models/appointments.model";
 export type { AppointmentStatus, AppointmentStatusFHIRBundle, AppointmentStatusFHIRBundleEntry,FhirPurposeOfVisit,MongoPurposeOfVisit,AppointmentType,FhirHealthcareService } from "./AppointmentStatus/appointmentStatusTypes";
 export type { InventoryType, InputData, AggregationResult, InventoryOverviewType, InventoryOverviewFHIRBundle, InventoryOverviewFHIRObservation, ProcedureItemType, ProcedurePackageType,SupplyItem,FhirBundle,CategoryJson,InventoryTypes } from "./Inventory/InventoryType";
 export type { ProcedureFHIRBundle, PackageItem, ProcedurePackage,FHIRMedicalPackage, FHIRPackageItem, NormalMedicalPackage, NormalPackageItem  } from "./Procedure/procedureType";
@@ -54,11 +54,12 @@ export type {  PetCoOwnerInput,FileUrl } from "./pet-duties/pet-co-owner-types";
 export type { IVetClinic } from "./models/vet-clinic";
 export type { PetGroomer } from "./models/pet-groomer";
 export type { PetBoarding } from "./models/pet-boarding";
-export type {ConvertToFhirVetProfileParams,OperatingHourType,VetNameType} from './complete-vet-profile/complete-vet-profile'
+export type {ConvertToFhirVetProfileParams,OperatingHourType,VetNameType,FhirPractitionerPersonalDetails,PersonalDetails ,FhirPractitionerProfessional,ProfessionalDetails,RelatedDoctorData,RelatedFhirPractitioner} from './complete-vet-profile/complete-vet-profile'
 export type {TeamInviteMember,InvitePayload,InviteCard,InviteItem,FhirTeamOverview,TeamOverview,DoctorType,WebUserType,AvailabilityDay,AvailabilityTime,DocumentItem,TeamMember,DepartmentsForInvite} from "./InviteTeamsMembers/invite-teams-members"
-export type { IBookAppointmentRequestBody , IParsedAppointmentDetails, IAppointmentData , IFHIRAppointmentData ,AppointmentInput, FHIRAppointmentBundleParams,SimplifiedAppointment,FHIRAppointment} from "./appointment/appointment-types";
+export type { IBookAppointmentRequestBody , IParsedAppointmentDetails, IAppointmentData , IFHIRAppointmentData ,AppointmentInput, FHIRAppointmentBundleParams,SimplifiedAppointment,FHIRAppointment,FHIRPractitioner,NormalDoctor,FHIREmergencyAppointment,NormalEmergencyAppointment,FHIREmergencyAppointmentForTable,NormalEmergencyAppointmentForTable} from "./appointment/appointment-types";
 export type { Department , Organization } from "./business-formatter-types/business-formatter-types";
 export type {FHIRAppointmentAssessmentGraphBundle,QueryParams,AggregatedAppointmentGraph,DataItem,FHIRBundleGraph,FHIRBundleGraphForSpecialitywiseAppointments,FHIRtoJSONSpeacilityStats} from "./hospital-type/hospitalTypes";
-export type {FHIRMedicalRecord , MedicalRecordRequestBody, MedicalRecordResponse, MedicalDoc, MedicalRecordFolderRequest} from "./medical-record/medical-record-types";
-export type {FhirPetResource,NormalPetData,OperationOutcome,OperationOutcomeIssue,PetResponse,FHIRDoctorOption,NormalDoctorOption,ForBookingFHIRSlot,ForBookingTimeSlot,TimeSlotFHIRBundle,FHIRAppointmentBooking,NormalAppointmentData,} from "./web-appointments-types/web-appointments"
+export type {FhirPetResource,NormalPetData,OperationOutcome,OperationOutcomeIssue,PetResponse,FHIRDoctorOption,NormalDoctorOption,ForBookingFHIRSlot,ForBookingTimeSlot,TimeSlotFHIRBundle,FHIRAppointmentBooking,NormalAppointmentData,FHIRAppointmentData,MyAppointmentData} from "./web-appointments-types/web-appointments"
+export type {FHIRMedicalRecord ,FhirDocumentReference, MedicalRecordRequestBody, MedicalRecordResponse, MedicalDoc, MedicalRecordFolderRequest} from "./medical-record/medical-record-types";
 export type {adminDepartment,AdminDepartmentItem,AdminFHIRHealthcareService} from './models/admin-department'
+export type {ITask,FormTaskData,UploadedFileForCreateTask} from './models/create-task';

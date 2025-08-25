@@ -1,8 +1,8 @@
-import {StyleSheet, TextInput, View} from 'react-native';
+import { StyleSheet, TextInput, View } from 'react-native';
 import React from 'react';
-import {scaledValue} from '../../../../../utils/design.utils';
+import { scaledValue } from '../../../../../utils/design.utils';
 import GText from '../../../../../components/GText/GText';
-import {colors} from '../../../../../../assets/colors';
+import { colors } from '../../../../../../assets/colors';
 import Input from '../../../../../components/Input';
 
 const OptionalEntriesCard = ({
@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
     fontSize: scaledValue(16),
     lineHeight: scaledValue(19.2),
     letterSpacing: scaledValue(18 * -0.02),
-    color: colors.darkPurple,
+
   },
   rightIconText: {
     fontSize: scaledValue(12),
@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
     marginRight: scaledValue(4),
   },
-  viewPetMgDetail: {flexDirection: 'row', alignItems: 'center'},
+  viewPetMgDetail: { flexDirection: 'row', alignItems: 'center' },
   labelText: {
     color: colors.jetBlack,
     fontSize: scaledValue(12),

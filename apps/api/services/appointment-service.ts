@@ -6,7 +6,7 @@ import { Moment } from 'moment';
 import { webAppointments, AppointmentsToken } from '../models/web-appointment';
 import appUsers from '../models/appuser-model';
 import { AddDoctorDoc, DoctorSlotDocument, IProfileData, IUser, pets,  WebAppointmentType } from '@yosemite-crew/types';
-import doctorsTimeSlots from '../models/doctors.slotes.model';
+import { DoctorsTimeSlotes as doctorsTimeSlots } from '../models/doctors.slotes.model';
 import addDoctors from '../models/AddDoctor';
 import { getCognitoUserId } from '../utils/jwtUtils';
 import FHIRService from './FHIRService';
@@ -59,10 +59,10 @@ class AppointmentService {
 
     try {
 
-      const cognitoUserId: string = getCognitoUserId(req);
-      // const timezone: string = 'Asia/Kolkata'; // or 'UTC' if you prefer server independence
-      type CategoryKey = 'upcoming' | 'pending' | 'past' | 'cancel' | 'all';
-const timezone = 'Asia/Kolkata';
+     const cognitoUserId: string = getCognitoUserId(req);
+     // const timezone: string = 'Asia/Kolkata'; // or 'UTC' if you prefer server independence
+     type CategoryKey = 'upcoming' | 'pending' | 'past' | 'cancel' | 'all';
+     const timezone = 'Asia/Kolkata';
      const now: Moment = moment.tz(timezone) as Moment;
      const today: Moment = now.clone().startOf('day');
 

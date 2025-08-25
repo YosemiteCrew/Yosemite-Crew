@@ -7,25 +7,57 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1B1ACF9F5DE34F04A92BC8F1 /* ClashDisplay-Medium.otf in Resources */ = {isa = PBXBuildFile; fileRef = 74F0E62E0BC040DC97926D88 /* ClashDisplay-Medium.otf */; };
+		21E23029200D4809B44FA284 /* ClashGrotesk-Medium.otf in Resources */ = {isa = PBXBuildFile; fileRef = 13DED61CC8864183A8659FA1 /* ClashGrotesk-Medium.otf */; };
 		2837BEC22DAE2C090021DD88 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2837BEC12DAE2C090021DD88 /* Images.xcassets */; };
 		38EBD5E81677A6611201C1E1 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
+		4E3628422C914B2A8A2030AF /* ClashDisplay-Extralight.otf in Resources */ = {isa = PBXBuildFile; fileRef = 0AFF564B16FE40B5A8E874CA /* ClashDisplay-Extralight.otf */; };
+		6A42BDAAFD7242A2911370EE /* Satoshi-Medium.otf in Resources */ = {isa = PBXBuildFile; fileRef = 8C0CFB67681944D2BF1E3B33 /* Satoshi-Medium.otf */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
+		79C20DA8D9BC4D5C84F334FB /* ClashDisplay-Light.otf in Resources */ = {isa = PBXBuildFile; fileRef = 6E98F404D23D415DAC2E745A /* ClashDisplay-Light.otf */; };
 		7E377C81C91769B0E7CDD8B2 /* libPods-YosemiteCrewMobile.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BCF028B39BD60EC32F4ADF00 /* libPods-YosemiteCrewMobile.a */; };
+		7E50A9E7BC0040AEB065673A /* ClashDisplay-Semibold.otf in Resources */ = {isa = PBXBuildFile; fileRef = 476FBFBD910F4C8A88C45865 /* ClashDisplay-Semibold.otf */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
+		81FFC98AA15C430B8A3B6CA3 /* ClashDisplay-Regular.otf in Resources */ = {isa = PBXBuildFile; fileRef = C5211640B6E34EF18CC3DADB /* ClashDisplay-Regular.otf */; };
+		865FDF52C1C24BDB879DC1B9 /* Satoshi-Black.otf in Resources */ = {isa = PBXBuildFile; fileRef = 54FFE6C996C348DD9B9623B1 /* Satoshi-Black.otf */; };
+		93FEB454C61D4956883E69B9 /* ClashDisplay-Bold.otf in Resources */ = {isa = PBXBuildFile; fileRef = 59AC037721584D63AF7F536B /* ClashDisplay-Bold.otf */; };
+		9D07607852534A7F9B7CFA7B /* Satoshi-Light.otf in Resources */ = {isa = PBXBuildFile; fileRef = BB5C2B7003A844A69C2168D0 /* Satoshi-Light.otf */; };
+		AD44C92B787E4B23B35228D6 /* SFProText-regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 39E44F579203412CA3A5FC65 /* SFProText-regular.ttf */; };
+		AD84CE1B4AD04CE1B7361110 /* SFProText-semibold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 6CA15D0B4947432B9F456A70 /* SFProText-semibold.ttf */; };
+		C2AE9226E2CE4E37BB76CF3F /* ClashDisplay-Variable.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 532F6DE374914D7A8C05F5E9 /* ClashDisplay-Variable.ttf */; };
+		CD902A982E435B6300A8184A /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = CD902A972E435B6300A8184A /* GoogleService-Info.plist */; };
+		D9DE2760023247F1975E9613 /* Satoshi-Bold.otf in Resources */ = {isa = PBXBuildFile; fileRef = 1EC3C5C01C624E7E810E6B2B /* Satoshi-Bold.otf */; };
+		F2A425D1B75D400D870FE445 /* Satoshi-Regular.otf in Resources */ = {isa = PBXBuildFile; fileRef = 187D77C293194F34B67F7BA1 /* Satoshi-Regular.otf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		0AFF564B16FE40B5A8E874CA /* ClashDisplay-Extralight.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "ClashDisplay-Extralight.otf"; path = "../assets/fonts/ClashDisplay-Extralight.otf"; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* YosemiteCrewMobile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = YosemiteCrewMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = YosemiteCrewMobile/Info.plist; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = YosemiteCrewMobile/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		13DED61CC8864183A8659FA1 /* ClashGrotesk-Medium.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "ClashGrotesk-Medium.otf"; path = "../assets/fonts/ClashGrotesk-Medium.otf"; sourceTree = "<group>"; };
+		187D77C293194F34B67F7BA1 /* Satoshi-Regular.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Satoshi-Regular.otf"; path = "../assets/fonts/Satoshi-Regular.otf"; sourceTree = "<group>"; };
+		1EC3C5C01C624E7E810E6B2B /* Satoshi-Bold.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Satoshi-Bold.otf"; path = "../assets/fonts/Satoshi-Bold.otf"; sourceTree = "<group>"; };
 		2837BEC12DAE2C090021DD88 /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = YosemiteCrewMobile/Images.xcassets; sourceTree = "<group>"; };
 		28B4E1692DB271AC0070EA17 /* YosemiteCrewMobile-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "YosemiteCrewMobile-Bridging-Header.h"; sourceTree = "<group>"; };
+		39E44F579203412CA3A5FC65 /* SFProText-regular.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "SFProText-regular.ttf"; path = "../assets/fonts/SFProText-regular.ttf"; sourceTree = "<group>"; };
 		3B4392A12AC88292D35C810B /* Pods-YosemiteCrewMobile.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-YosemiteCrewMobile.debug.xcconfig"; path = "Target Support Files/Pods-YosemiteCrewMobile/Pods-YosemiteCrewMobile.debug.xcconfig"; sourceTree = "<group>"; };
+		476FBFBD910F4C8A88C45865 /* ClashDisplay-Semibold.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "ClashDisplay-Semibold.otf"; path = "../assets/fonts/ClashDisplay-Semibold.otf"; sourceTree = "<group>"; };
+		532F6DE374914D7A8C05F5E9 /* ClashDisplay-Variable.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "ClashDisplay-Variable.ttf"; path = "../assets/fonts/ClashDisplay-Variable.ttf"; sourceTree = "<group>"; };
+		54FFE6C996C348DD9B9623B1 /* Satoshi-Black.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Satoshi-Black.otf"; path = "../assets/fonts/Satoshi-Black.otf"; sourceTree = "<group>"; };
 		5709B34CF0A7D63546082F79 /* Pods-YosemiteCrewMobile.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-YosemiteCrewMobile.release.xcconfig"; path = "Target Support Files/Pods-YosemiteCrewMobile/Pods-YosemiteCrewMobile.release.xcconfig"; sourceTree = "<group>"; };
+		59AC037721584D63AF7F536B /* ClashDisplay-Bold.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "ClashDisplay-Bold.otf"; path = "../assets/fonts/ClashDisplay-Bold.otf"; sourceTree = "<group>"; };
+		6CA15D0B4947432B9F456A70 /* SFProText-semibold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "SFProText-semibold.ttf"; path = "../assets/fonts/SFProText-semibold.ttf"; sourceTree = "<group>"; };
+		6E98F404D23D415DAC2E745A /* ClashDisplay-Light.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "ClashDisplay-Light.otf"; path = "../assets/fonts/ClashDisplay-Light.otf"; sourceTree = "<group>"; };
+		74F0E62E0BC040DC97926D88 /* ClashDisplay-Medium.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "ClashDisplay-Medium.otf"; path = "../assets/fonts/ClashDisplay-Medium.otf"; sourceTree = "<group>"; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = YosemiteCrewMobile/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = YosemiteCrewMobile/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		8C042910711666B760D07228 /* Pods-YosemiteCrewMobile.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-YosemiteCrewMobile.debug.xcconfig"; path = "Target Support Files/Pods-YosemiteCrewMobile/Pods-YosemiteCrewMobile.debug.xcconfig"; sourceTree = "<group>"; };
+		8C0CFB67681944D2BF1E3B33 /* Satoshi-Medium.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Satoshi-Medium.otf"; path = "../assets/fonts/Satoshi-Medium.otf"; sourceTree = "<group>"; };
+		BB5C2B7003A844A69C2168D0 /* Satoshi-Light.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Satoshi-Light.otf"; path = "../assets/fonts/Satoshi-Light.otf"; sourceTree = "<group>"; };
 		BCF028B39BD60EC32F4ADF00 /* libPods-YosemiteCrewMobile.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-YosemiteCrewMobile.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		C5211640B6E34EF18CC3DADB /* ClashDisplay-Regular.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "ClashDisplay-Regular.otf"; path = "../assets/fonts/ClashDisplay-Regular.otf"; sourceTree = "<group>"; };
+		CD902A972E435B6300A8184A /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		D956FF4C0DE00B6879730EF5 /* Pods-YosemiteCrewMobile.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-YosemiteCrewMobile.release.xcconfig"; path = "Target Support Files/Pods-YosemiteCrewMobile/Pods-YosemiteCrewMobile.release.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
@@ -45,6 +77,7 @@
 		13B07FAE1A68108700A75B9A /* YosemiteCrewMobile */ = {
 			isa = PBXGroup;
 			children = (
+				CD902A972E435B6300A8184A /* GoogleService-Info.plist */,
 				28B4E1692DB271AC0070EA17 /* YosemiteCrewMobile-Bridging-Header.h */,
 				2837BEC12DAE2C090021DD88 /* Images.xcassets */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
@@ -64,6 +97,28 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+		823266718DE04369803D3A48 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				13DED61CC8864183A8659FA1 /* ClashGrotesk-Medium.otf */,
+				54FFE6C996C348DD9B9623B1 /* Satoshi-Black.otf */,
+				1EC3C5C01C624E7E810E6B2B /* Satoshi-Bold.otf */,
+				BB5C2B7003A844A69C2168D0 /* Satoshi-Light.otf */,
+				8C0CFB67681944D2BF1E3B33 /* Satoshi-Medium.otf */,
+				187D77C293194F34B67F7BA1 /* Satoshi-Regular.otf */,
+				532F6DE374914D7A8C05F5E9 /* ClashDisplay-Variable.ttf */,
+				39E44F579203412CA3A5FC65 /* SFProText-regular.ttf */,
+				6CA15D0B4947432B9F456A70 /* SFProText-semibold.ttf */,
+				59AC037721584D63AF7F536B /* ClashDisplay-Bold.otf */,
+				0AFF564B16FE40B5A8E874CA /* ClashDisplay-Extralight.otf */,
+				6E98F404D23D415DAC2E745A /* ClashDisplay-Light.otf */,
+				74F0E62E0BC040DC97926D88 /* ClashDisplay-Medium.otf */,
+				C5211640B6E34EF18CC3DADB /* ClashDisplay-Regular.otf */,
+				476FBFBD910F4C8A88C45865 /* ClashDisplay-Semibold.otf */,
+			);
+			name = Resources;
+			sourceTree = "<group>";
+		};
 		832341AE1AAA6A7D00B99B32 /* Libraries */ = {
 			isa = PBXGroup;
 			children = (
@@ -79,6 +134,7 @@
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
 				BBD78D7AC51CEA395F1C20DB /* Pods */,
+				823266718DE04369803D3A48 /* Resources */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -167,6 +223,22 @@
 				2837BEC22DAE2C090021DD88 /* Images.xcassets in Resources */,
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
 				38EBD5E81677A6611201C1E1 /* PrivacyInfo.xcprivacy in Resources */,
+				21E23029200D4809B44FA284 /* ClashGrotesk-Medium.otf in Resources */,
+				865FDF52C1C24BDB879DC1B9 /* Satoshi-Black.otf in Resources */,
+				D9DE2760023247F1975E9613 /* Satoshi-Bold.otf in Resources */,
+				9D07607852534A7F9B7CFA7B /* Satoshi-Light.otf in Resources */,
+				6A42BDAAFD7242A2911370EE /* Satoshi-Medium.otf in Resources */,
+				F2A425D1B75D400D870FE445 /* Satoshi-Regular.otf in Resources */,
+				C2AE9226E2CE4E37BB76CF3F /* ClashDisplay-Variable.ttf in Resources */,
+				AD44C92B787E4B23B35228D6 /* SFProText-regular.ttf in Resources */,
+				CD902A982E435B6300A8184A /* GoogleService-Info.plist in Resources */,
+				AD84CE1B4AD04CE1B7361110 /* SFProText-semibold.ttf in Resources */,
+				93FEB454C61D4956883E69B9 /* ClashDisplay-Bold.otf in Resources */,
+				4E3628422C914B2A8A2030AF /* ClashDisplay-Extralight.otf in Resources */,
+				79C20DA8D9BC4D5C84F334FB /* ClashDisplay-Light.otf in Resources */,
+				1B1ACF9F5DE34F04A92BC8F1 /* ClashDisplay-Medium.otf in Resources */,
+				81FFC98AA15C430B8A3B6CA3 /* ClashDisplay-Regular.otf in Resources */,
+				7E50A9E7BC0040AEB065673A /* ClashDisplay-Semibold.otf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

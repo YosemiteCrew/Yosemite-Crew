@@ -1,11 +1,11 @@
-import {StyleSheet} from 'react-native';
+import { StyleSheet } from 'react-native';
 import {
   getFontSize,
   scaledHeightValue,
   scaledValue,
 } from '../../../../../utils/design.utils';
-import {fonts} from '../../../../../utils/fonts';
-import {colors} from '../../../../../../assets/colors';
+import { fonts } from '../../../../../utils/fonts';
+import { colors } from '../../../../../../assets/colors';
 
 export const styles = StyleSheet.create({
   dashboardMainView: {
@@ -36,12 +36,10 @@ export const styles = StyleSheet.create({
     fontFamily: fonts.CLASH_GRO_MEDIUM,
   },
 
-  buttonStyle: {
-    height: scaledValue(52),
-    borderRadius: scaledValue(28),
-    marginTop: scaledValue(31),
-    backgroundColor: '#FDBD74',
-  },
+  buttonStyle: insets => ({
+    marginBottom: insets + scaledValue(20),
+    marginTop: scaledValue(24),
+  }),
   imageBackground: {
     width: scaledValue(375),
     height: scaledValue(353.75),
@@ -56,26 +54,16 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(18),
     lineHeight: scaledValue(21.6),
     letterSpacing: scaledValue(18 * -0.01),
-    color: colors.darkPurple,
+
   },
-  helpTextContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'center',
-    marginTop: scaledValue(5),
-  },
+
   happyText: {
     fontSize: scaledValue(23),
-    lineHeight: scaledValue(34.8),
-    letterSpacing: scaledValue(29 * -0.01),
-    color: colors.appRed,
+    letterSpacing: scaledValue(23 * -0.01),
+    marginTop: scaledValue(22),
+    textAlign: 'center',
   },
-  helpText: {
-    fontSize: scaledValue(23),
-    lineHeight: scaledValue(34.8),
-    letterSpacing: scaledValue(29 * -0.01),
-    color: colors.darkPurple,
-  },
+
   inputStyle: {
     width: '100%',
     backgroundColor: 'transparent',
@@ -89,12 +77,12 @@ export const styles = StyleSheet.create({
     height: scaledValue(114),
     marginTop: scaledValue(20),
     borderRadius: scaledValue(16),
-    borderColor: '#312943',
+    borderColor: colors.jetBlack300,
     paddingHorizontal: scaledValue(18),
     paddingTop: scaledValue(12),
     textAlignVertical: 'top',
     fontSize: scaledValue(16),
-    color: colors.darkPurple,
+
   },
   contactOptionMainView: {
     flexDirection: 'row',
@@ -169,15 +157,16 @@ export const styles = StyleSheet.create({
     marginTop: scaledValue(36),
   },
   petImage: {
-    width: scaledValue(60),
-    height: scaledValue(60),
+    width: scaledValue(59),
+    height: scaledValue(59),
+    borderRadius: scaledValue(30),
   },
   petNameText: {
     fontSize: scaledValue(16),
     lineHeight: scaledHeightValue(19.2),
     marginTop: scaledValue(4),
     letterSpacing: scaledValue(16 * -0.02),
-    color: colors.darkPurple,
+
     textAlign: 'center',
   },
   petList: {
@@ -185,11 +174,8 @@ export const styles = StyleSheet.create({
   },
   petsText: {
     fontSize: scaledValue(20),
-    lineHeight: scaledHeightValue(24),
-    marginTop: scaledValue(23),
+    marginTop: scaledValue(24),
     letterSpacing: scaledValue(20 * -0.01),
-    color: colors.darkPurple,
-    marginBottom: scaledValue(10),
   },
   uploadImageView: {
     paddingHorizontal: scaledValue(24),
@@ -198,7 +184,7 @@ export const styles = StyleSheet.create({
     borderRadius: scaledValue(20),
     borderStyle: 'dashed',
     borderColor: '#37223C4D',
-    borderWidth:scaledValue(1),
+    borderWidth: scaledValue(1),
   },
   uploadImage: {
     height: scaledValue(40),
@@ -208,17 +194,31 @@ export const styles = StyleSheet.create({
   uploadText: {
     marginTop: scaledValue(10),
     fontSize: scaledValue(18),
-    lineHeight: scaledValue(21.6),
     letterSpacing: scaledValue(18 * -0.01),
     textAlign: 'center',
-    color: colors.darkPurple,
+    color: colors.jetBlack,
   },
   maxSize: {
     textAlign: 'center',
     fontSize: scaledValue(14),
-    lineHeight: 16.8,
     marginTop: scaledValue(10),
-    color: colors.darkPurple,
-    opacity: scaledValue(0.5),
+    color: colors.jetBlack300,
+  },
+  petImageBorder: isSelected => ({
+    borderRadius: scaledValue(30),
+    borderWidth: scaledValue(1),
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderColor: isSelected ? colors.primaryBlue : colors.jetBlack,
+  }),
+  petUnderline: isSelected => ({
+    width: scaledValue(80),
+    height: scaledValue(1),
+    backgroundColor: isSelected ? '#247AED' : 'transparent',
+    marginTop: scaledValue(5),
+  }),
+  petItemContainer: {
+    flexDirection: 'column',
+    alignItems: 'center',
   },
 });
