@@ -1,5 +1,7 @@
-import mongoose, {Schema, Model} from 'mongoose';
+import mongoose, {Schema, Model, HydratedDocument} from 'mongoose';
 import type { breeder } from "@yosemite-crew/types";
+
+export type BreederDocument = HydratedDocument<breeder>;
 
 const breederSchema : Schema<breeder> = new mongoose.Schema({
 
@@ -24,7 +26,7 @@ const breederSchema : Schema<breeder> = new mongoose.Schema({
     telephone: {
         type: String,
     },
-    emailAddess: {
+    emailAddress: {
         type: String,
     },
     website: {

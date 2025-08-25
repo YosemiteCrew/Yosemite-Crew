@@ -51,8 +51,7 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
               fontSize: 22,
               display: "inline-block",
             }}
-          >
-            {selectedCountry.flag}
+          > 
           </span>
           <select
             value={countryCode}

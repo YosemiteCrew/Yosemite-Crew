@@ -185,7 +185,11 @@
 
 
 /* Todays Appointemnt started  */
-
+.displx{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .action-btn-col button.circle-btn{
   padding: 0;
   background: transparent ;
@@ -210,6 +214,13 @@
 .action-btn-col button.circle-btn.view svg{
   color: var(--black-bg);
 }
+.action-btn-col button.circle-btn.cancel{
+  background: var(--errorbg);
+}
+.action-btn-col button.circle-btn.cancel svg{
+  color: var(--delete);
+}
+
 /* Todays Appointemnt Ended */
 
 /* Cardiolgy Started  */
@@ -509,4 +520,12 @@
 }
 .TaskStatus h6.on-pending span.dots{
   background: var(--delete);
+}
+
+
+
+.apointment-actions{
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }

@@ -15,7 +15,7 @@ export { convertProcedurePackagesToFHIRBundle, convertFHIRPackageToNormal, conve
 export { parseDiabetesObservation, toFHIRObservation } from "./diabetes/diabetes-fhir";
 export { toFHIRBundleImmunization, VaccinationDoc } from "./immunization/immunization-fhir";
 export { validate } from "./immunization/immunization-fhir-validator";
-export { convertToFhirVetProfile, convertFromFhirVetProfile } from "./complete-vet-profile/complete-vet-profile";
+export { convertToFhirVetProfile, convertFromFhirVetProfile,convertFromFhirPractitionerPersonalDetails,convertToFhirPractitionerPersonalDetails,convertToFhirPractitionerProfessionalDetails,convertFromFhirPractitionerProfessionalDetails,convertRelatedDoctorsToFhir,convertRelatedFhirToDoctors } from "./complete-vet-profile/complete-vet-profile";
 export { convertToFHIRMyCalender, convertFromFHIRAppointments ,parseAppointment} from "./appointment/appointment-fhir";
 export { BusinessFhirFormatter } from "./business-fhir/business-formatter-fhir";
 export { generateFHIRBlogResponse } from "./blog-fhir/blog";
@@ -33,3 +33,4 @@ export { convertToPainAssessmentFhir } from "./assessment/pain-assessment-fhir";
 export { convertFhirToNormalPetData, convertPetDataToFhir, convertFromFHIRDoctorOptions, convertToFHIRDoctorOptions, convertFHIRToTimeSlots, convertTimeSlotsToFHIR, convertAppointmentToFHIR, convertFHIRToAppointment, fromFHIR, toFHIR, convertDoctorsFromFHIR, convertDoctorsToFHIR, convertEmergencyAppointmentFromFHIR, convertEmergencyAppointmentToFHIR, convertEmergencyAppointmentFromFHIRForTable, convertEmergencyAppointmentToFHIRForTable } from "./WebAppointments/web-appointments"
 export { convertAdminDepartmentsToFHIR, convertFHIRToAdminDepartments } from "./admin-departments/admin-departments"
 export { fromFhirUser, toFhirUser} from "./profile/profile-data-fhir"
+export { convertTaskToFHIR, convertTaskFromFHIR } from "./create-task/create-task";
