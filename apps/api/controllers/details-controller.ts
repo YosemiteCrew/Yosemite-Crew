@@ -114,16 +114,6 @@ const detailsController = {
       res.status(200).json({ status: 0, message: 'Failed to add veterinary clinic' });
       return;
     }
-// Assuming VetClinicService is imported and instantiated if needed
-// If VetClinicService is a class, instantiate it: const vetClinicService = new VetClinicService();
-// Otherwise, if it's static, call directly as below:
-  const fhirResponse = toFhirOrganization(clinic); // Fully typed FhirOrganization
-
-      const clinic = await VetClinic.create(clinicData);
-      if (!clinic) {
-        res.status(200).json({ status: 0, message: 'Failed to add veterinary clinic' });
-        return;
-      }
       // Assuming VetClinicService is imported and instantiated if needed
       // If VetClinicService is a class, instantiate it: const vetClinicService = new VetClinicService();
       // Otherwise, if it's static, call directly as below:
@@ -160,7 +150,7 @@ const detailsController = {
       if (!mongoose.Types.ObjectId.isValid(petId)) {
         res.status(200).json({
           status: 0,
-          message: "Invalid or missing pet Id",
+          message: "Invalid or missing pet Id+",
         });
         return;
       }
@@ -179,9 +169,38 @@ const detailsController = {
     }
   },
 
-  searchVet: async (req:Request, res:Response):Promise<void> =>{
+ searchVet: async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { search } = req.query as { search: string };
 
-  },
+    if (!search) {
+      res.status(200).json({ status: 0, message: 'Search term is required' });
+      return;
+    }
+
+    const vets = await VetClinic.find({
+      $or: [
+        { vetName: { $regex: search, $options: 'i' } },   // case-insensitive partial match
+        { emailAddess: { $regex: search, $options: 'i' } }
+      ]
+    });
+
+    if (!vets.length) {
+      res.status(200).json({ status: 0, message: 'No vet clinic found' });
+      return;
+    }
+
+    res.status(200).json({
+      status: 1,
+      data: vets,
+      message: 'Vet clinic(s) found successfully'
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'An internal server error occurred';
+    res.status(200).json({ status: 0, message });
+  }
+},
+
 
   breeder: async (req: Request, res: Response): Promise<void> => {
     try {

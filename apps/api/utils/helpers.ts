@@ -109,7 +109,37 @@ calculateAge: (date: string | Date): number => {
     return password
       .sort(() => 0.5 - Math.random())
       .join('');
-  }
+  },
+  formatAppointmentDateTime(rawDateTime: string) {
+  // Use the given string as-is, respecting the +05:30 offset
+  const dateObj = new Date(rawDateTime);
+
+  // Extract YYYY-MM-DD (with local offset from the input string)
+  const [datePart] = rawDateTime.split("T");
+  const appointmentDate = datePart;
+
+  // Format 12h (AM/PM) in the same timezone
+  const options12: Intl.DateTimeFormatOptions = {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Kolkata", // because offset is +05:30
+  };
+  const appointmentTime = dateObj.toLocaleTimeString("en-US", options12);
+
+  // Format 24h (HH:mm) in the same timezone
+  const options24: Intl.DateTimeFormatOptions = {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Kolkata",
+  };
+  const appointmentTime24 = dateObj.toLocaleTimeString("en-GB", options24);
+
+  return { appointmentDate, appointmentTime, appointmentTime24 };
+}
+
+
 }
 
 export default helpers;
