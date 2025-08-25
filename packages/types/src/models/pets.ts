@@ -31,9 +31,11 @@ export type pets = Document & {
   petImage?: petImage;
   updatedAt ?: string;
   summary?: {
-    groomerId?: Types.ObjectId;
-    boardingId?: Types.ObjectId;
-    breederId?: Types.ObjectId;
+    groomerStatus?: "pending" | "completed";
+    boardingStatus?: "pending" | "completed";
+    breederStatus?: "pending" | "completed";
+    vetStatus?: "pending" | "completed";
+    medicalStatus?: "pending" | "completed";
   };
 };
 

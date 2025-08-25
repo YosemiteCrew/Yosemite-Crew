@@ -5,10 +5,10 @@ import { FhirOrganization, fhirOrganizationSchema, toFhirOrganizationBreeder, to
 import { getCognitoUserId } from '../middlewares/authMiddleware';
 
 import VetClinic, { VetClinicDocument } from '../models/vet-clinic';
-import BreederDetails from '../models/breeder-details';
-import PetGroomerModel from '../models/pet-groomer';
-import PetBoardingModel from '../models/pet-boarding';
-import { IVetClinic, PetBoarding } from '@yosemite-crew/types';
+import BreederDetails, { BreederDocument } from '../models/breeder-details';
+import PetGroomerModel, { PetGroomerDocument } from '../models/pet-groomer';
+import PetBoardingModel, { PetBoardingDocument } from '../models/pet-boarding';
+import { IVetClinic, PetBoarding, PetGroomer, breeder } from '@yosemite-crew/types';
 import mongoose from 'mongoose';
 import pets from '../models/pet.model';
 
@@ -93,30 +93,36 @@ const detailsController = {
         return;
       }
 
-    // Typed usage
-    const organization: FhirOrganization = validatedData.data;
-    const clinicData: IVetClinic = {
-      userId,
-      petId:organization.petId,
-      clinicName: organization.name,
-      vetName: organization.contact?.[0]?.name?.text || '',
-      clinicAddress: organization.address?.[0]?.line?.[0] || '',
-      city: organization.address?.[0]?.city || '',
-      country: organization.address?.[0]?.country || '',
-      zipCode: organization.address?.[0]?.postalCode || '',
-      telephone: organization.telecom?.find((t) => t.system === 'phone')?.value || '',
-      emailAddess: organization.telecom?.find((t) => t.system === 'email')?.value || '',
-      website: organization.telecom?.find((t) => t.system === 'url')?.value || ''
-    };
+      // Typed usage
+      const organization: FhirOrganization = validatedData.data;
+      const clinicData: IVetClinic = {
+        userId,
+        petId: organization.petId,
+        clinicName: organization.name,
+        vetName: organization.contact?.[0]?.name?.text || '',
+        clinicAddress: organization.address?.[0]?.line?.[0] || '',
+        city: organization.address?.[0]?.city || '',
+        country: organization.address?.[0]?.country || '',
+        zipCode: organization.address?.[0]?.postalCode || '',
+        telephone: organization.telecom?.find((t) => t.system === 'phone')?.value || '',
+        emailAddess: organization.telecom?.find((t) => t.system === 'email')?.value || '',
+        website: organization.telecom?.find((t) => t.system === 'url')?.value || ''
+      };
 
-    const clinic = await VetClinic.create(clinicData);
-    if (!clinic) {
-      res.status(200).json({ status: 0, message: 'Failed to add veterinary clinic' });
-      return;
-    }
+      const clinic = await VetClinic.create(clinicData);
+      if (!clinic) {
+        res.status(200).json({ status: 0, message: 'Failed to add veterinary clinic' });
+        return;
+      }
       // Assuming VetClinicService is imported and instantiated if needed
       // If VetClinicService is a class, instantiate it: const vetClinicService = new VetClinicService();
       // Otherwise, if it's static, call directly as below:
+
+      await pets.findOneAndUpdate(
+        { _id: clinic.petId },
+        { $set: { "summary.vetStatus": "completed" } },
+      );
+
       const fhirResponse = toFhirOrganization(clinic); // Fully typed FhirOrganization
 
       res.status(201).json({
@@ -138,69 +144,70 @@ const detailsController = {
       res.status(200).json({ status: 0, message: 'Internal Server Error' });
     }
   },
-  getVetClinicDetails: async (req :Request, res:Response):Promise<void> =>{
+
+  getVetClinicDetails: async (req: Request, res: Response): Promise<void> => {
     try {
       const userId = getCognitoUserId(req)
-      if(!userId){
-        res.status(200).json({message :'User ID is missing', })
+      if (!userId) {
+        res.status(200).json({ message: 'User ID is missing', })
         return
       }
-      const petId = req.query.petId
+      const petId = req.query.petId;
 
-      if (!mongoose.Types.ObjectId.isValid(petId)) {
+      if (typeof petId !== "string" || !mongoose.Types.ObjectId.isValid(petId)) {
         res.status(200).json({
           status: 0,
-          message: "Invalid or missing pet Id+",
+          message: "Invalid or missing pet Id",
         });
         return;
       }
-      const vetClinicsDetail :VetClinicDocument[] |null = await VetClinic.find({userId:userId, petId:petId})
-      if(!vetClinicsDetail.length){
-        res.status(200).json({message:'No Vet Founded'})
+      
+      const vetClinicsDetail: VetClinicDocument[] | null = await VetClinic.find({ userId: userId, petId: petId })
+      if (!vetClinicsDetail.length) {
+        res.status(200).json({ message: 'No Vet Founded' })
       }
-      const entries = vetClinicsDetail.map((item)=>  toFhirOrganization(item))
+      const entries = vetClinicsDetail.map((item) => toFhirOrganization(item))
       res.status(200).json({
-        data:entries
+        data: entries
       })
     }
-    catch(error){
-      const message = error instanceof Error ? error.message:'An Error occurred'
-      res.status(200).json({status:0, message:message})
+    catch (error) {
+      const message = error instanceof Error ? error.message : 'An Error occurred'
+      res.status(200).json({ status: 0, message: message })
     }
   },
 
- searchVet: async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { search } = req.query as { search: string };
+  searchVet: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { search } = req.query as { search: string };
 
-    if (!search) {
-      res.status(200).json({ status: 0, message: 'Search term is required' });
-      return;
+      if (!search) {
+        res.status(200).json({ status: 0, message: 'Search term is required' });
+        return;
+      }
+
+      const vets = await VetClinic.find({
+        $or: [
+          { vetName: { $regex: search, $options: 'i' } },   // case-insensitive partial match
+          { emailAddess: { $regex: search, $options: 'i' } }
+        ]
+      });
+
+      if (!vets.length) {
+        res.status(200).json({ status: 0, message: 'No vet clinic found' });
+        return;
+      }
+
+      res.status(200).json({
+        status: 1,
+        data: vets,
+        message: 'Vet clinic(s) found successfully'
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'An internal server error occurred';
+      res.status(200).json({ status: 0, message });
     }
-
-    const vets = await VetClinic.find({
-      $or: [
-        { vetName: { $regex: search, $options: 'i' } },   // case-insensitive partial match
-        { emailAddess: { $regex: search, $options: 'i' } }
-      ]
-    });
-
-    if (!vets.length) {
-      res.status(200).json({ status: 0, message: 'No vet clinic found' });
-      return;
-    }
-
-    res.status(200).json({
-      status: 1,
-      data: vets,
-      message: 'Vet clinic(s) found successfully'
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'An internal server error occurred';
-    res.status(200).json({ status: 0, message });
-  }
-},
-
+  },
 
   breeder: async (req: Request, res: Response): Promise<void> => {
     try {
@@ -231,7 +238,7 @@ const detailsController = {
         return;
       }
 
-      const breederData = {
+      const breederData: breeder = {
         userId: userId,
         breederName: validatedData.data.name,
         breederAddress: validatedData.data.address?.[0]?.line?.[0] || '',
@@ -244,10 +251,10 @@ const detailsController = {
         petId: new mongoose.Types.ObjectId(validatedData?.data.subject?.reference.split('/')[1]),
       };
 
-      const result = await BreederDetails.create(breederData);
+      const result: breeder = await BreederDetails.create(breederData);
       await pets.findOneAndUpdate(
         { _id: result.petId },
-        { $set: { "summary.breederId": result._id } },
+        { $set: { "summary.breederStatus": "completed" } },
       );
       const fhirResponse = toFhirOrganizationBreeder(result);
 
@@ -269,6 +276,37 @@ const detailsController = {
         return;
       }
       res.status(200).json({ status: 0, message: 'Internal Server Error' });
+    }
+  },
+
+  getbreederDetails: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const userId = getCognitoUserId(req)
+      if (!userId) {
+        res.status(200).json({ message: 'User ID is missing', })
+        return
+      }
+      const petId = req.query.petId;
+
+      if (typeof petId !== "string" || !mongoose.Types.ObjectId.isValid(petId)) {
+        res.status(200).json({
+          status: 0,
+          message: "Invalid or missing pet Id",
+        });
+        return;
+      }
+      const breederDetail: BreederDocument[] | null = await BreederDetails.find({ userId: userId, petId: petId })
+      if (!breederDetail.length) {
+        res.status(200).json({ message: 'No Vet Founded' })
+      }
+      const entries = breederDetail.map((item) => toFhirOrganizationBreeder(item))
+      res.status(200).json({
+        data: entries
+      })
+    }
+    catch (error) {
+      const message = error instanceof Error ? error.message : 'An Error occurred'
+      res.status(200).json({ status: 0, message: message })
     }
   },
 
@@ -301,7 +339,7 @@ const detailsController = {
         return;
       }
 
-      const groomerData = {
+      const groomerData: PetGroomer = {
         userId: userId,
         groomerName: validatedData.data.name,
         groomerAddress: validatedData.data.address?.[0]?.line?.[0] || '',
@@ -314,10 +352,10 @@ const detailsController = {
         petId: new mongoose.Types.ObjectId(validatedData?.data.subject?.reference.split('/')[1]),
       };
 
-      const result = await PetGroomerModel.create(groomerData);
+      const result: PetGroomer = await PetGroomerModel.create(groomerData);
       await pets.findOneAndUpdate(
         { _id: result.petId },
-        { $set: { "summary.groomerId": result._id } },
+        { $set: { "summary.groomerStatus": "completed" } },
       );
 
       const fhirResponse = toFhirOrganizationGroomer(result);
@@ -339,6 +377,38 @@ const detailsController = {
         return;
       }
       res.status(200).json({ status: 0, message: 'Internal Server Error' });
+    }
+  },
+
+  getPetGroomerDetails: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const userId = getCognitoUserId(req)
+      if (!userId) {
+        res.status(200).json({ message: 'User ID is missing', })
+        return
+      }
+      const petId = req.query.petId;
+
+      if (typeof petId !== "string" || !mongoose.Types.ObjectId.isValid(petId)) {
+        res.status(200).json({
+          status: 0,
+          message: "Invalid or missing pet Id",
+        });
+        return;
+      }
+
+      const petGroomersDetail: PetGroomerDocument[] | null = await PetGroomerModel.find({ userId: userId, petId: petId })
+      if (!petGroomersDetail.length) {
+        res.status(200).json({ message: 'No Vet Founded' })
+      }
+      const entries = petGroomersDetail.map((item) => toFhirOrganizationGroomer(item))
+      res.status(200).json({
+        data: entries
+      })
+    }
+    catch (error) {
+      const message = error instanceof Error ? error.message : 'An Error occurred'
+      res.status(200).json({ status: 0, message: message })
     }
   },
 
@@ -386,7 +456,7 @@ const detailsController = {
       const result: PetBoarding = await PetBoardingModel.create(petboardingData);
       await pets.findOneAndUpdate(
         { _id: result.petId },
-        { $set: { "summary.boardingId": result._id } },
+        { $set: { "summary.boardingStatus": "completed" } },
       );
       const fhirResponse = toFhirOrganizationBoarding(result);
 
@@ -408,6 +478,39 @@ const detailsController = {
       res.status(200).json({ status: 0, message: 'Internal Server Error' });
     }
   },
+
+  getPetBoardingDetails: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const userId = getCognitoUserId(req)
+      if (!userId) {
+        res.status(200).json({ message: 'User ID is missing', })
+        return
+      }
+      const petId = req.query.petId;
+
+      if (typeof petId !== "string" || !mongoose.Types.ObjectId.isValid(petId)) {
+        res.status(200).json({
+          status: 0,
+          message: "Invalid or missing pet Id",
+        });
+        return;
+      }
+
+      const petBoardingsDetail: PetBoardingDocument[] | null = await PetBoardingModel.find({ userId: userId, petId: petId })
+      if (!petBoardingsDetail.length) {
+        res.status(200).json({ message: 'No Vet Founded' })
+      }
+      const entries = petBoardingsDetail.map((item) => toFhirOrganizationBoarding(item))
+      res.status(200).json({
+        data: entries
+      })
+    }
+    catch (error) {
+      const message = error instanceof Error ? error.message : 'An Error occurred'
+      res.status(200).json({ status: 0, message: message })
+    }
+  },
+
   petSummaryDetails: async (req: Request, res: Response): Promise<void> => {
     try {
       const { petId } = req.params;
