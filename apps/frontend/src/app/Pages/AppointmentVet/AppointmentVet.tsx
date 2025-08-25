@@ -68,7 +68,7 @@ function AppointmentVet() {
       );
       
       if (response.status === 200) {
-        const data: ApiResponse = response.data;
+        const data: any = response.data;
         
         // Update overview stats
         setOverviewStats(prev => ({
