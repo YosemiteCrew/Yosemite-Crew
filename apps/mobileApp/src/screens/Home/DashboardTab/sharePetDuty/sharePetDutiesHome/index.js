@@ -1,4 +1,4 @@
-import {FlatList, Image, TouchableOpacity, View} from 'react-native';
+import {FlatList, Image, ScrollView, TouchableOpacity, View} from 'react-native';
 import React, {useEffect, useRef, useState} from 'react';
 import {useTranslation} from 'react-i18next';
 import HeaderButton from '../../../../../components/HeaderButton';
@@ -10,11 +10,12 @@ import OptionMenuSheet from '../../../../../components/OptionMenuSheet';
 import Modal from 'react-native-modal';
 import GButton from '../../../../../components/GButton';
 import {scaledValue} from '../../../../../utils/design.utils';
+import GTextButton from '../../../../../components/GTextButton/GTextButton';
 
 const SharePetDutiesHome = ({navigation}) => {
   const refRBTaskStatusSheet = useRef();
   const {t} = useTranslation();
-  const [visible, setVisible] = useState('false');
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     configureHeader();
@@ -25,14 +26,14 @@ const SharePetDutiesHome = ({navigation}) => {
       headerRight: () => (
         <HeaderButton
           icon={Images.PlusBold}
-          tintColor={colors.appRed}
+          tintColor={colors.jetBlack}
           onPress={() => {}}
         />
       ),
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
-          tintColor={colors.darkPurple}
+          tintColor={colors.jetBlack}
           onPress={() => navigation.goBack()}
         />
       ),
@@ -125,7 +126,7 @@ const SharePetDutiesHome = ({navigation}) => {
       title: 'Edit Task',
       subTitle: '',
       textColor: '#007AFF',
-      height: 56,
+      height: 56, 
       fontSize: 17,
       action: () => {},
     },
@@ -134,12 +135,13 @@ const SharePetDutiesHome = ({navigation}) => {
   return (
     <>
       <View style={styles.dashboardMainView}>
+        <ScrollView showsVerticalScrollIndicator={false} style={{flex: 1}}>
         <View style={styles.userListContainer}>
           <View>
             <FlatList
               data={userList}
               horizontal
-              contentContainerStyle={styles.userListContentContainer}
+              contentContainerStyle={styles.userListContentContainerProfile}
               renderItem={({item, index}) => {
                 return (
                   <View style={styles.userItem}>
@@ -242,7 +244,9 @@ const SharePetDutiesHome = ({navigation}) => {
                         </View>
                       </View>
                     </View>
+                    
                   </View>
+                  
                   <TouchableOpacity
                     onPress={() => refRBTaskStatusSheet.current.open()}
                     hitSlop={styles.hitSlop}>
@@ -255,6 +259,12 @@ const SharePetDutiesHome = ({navigation}) => {
               </TouchableOpacity>
             );
           }}
+        />
+        <GButton
+          onPress={() => {}}
+          title={t('add_task_string')}
+          style={styles.buttonStyle}
+          textStyle={styles.buttonText}
         />
         <Modal isVisible={visible} onBackdropPress={() => setVisible(false)}>
           <View style={styles.modalContainer}>
@@ -272,13 +282,14 @@ const SharePetDutiesHome = ({navigation}) => {
             <View style={styles.buttonView}>
               <GButton
                 title={t('not_yet_string')}
-                textStyle={{color: colors.appRed}}
+                textStyle={{color: colors.jetBlack}}
                 style={{
                   paddingHorizontal: scaledValue(40.25),
                   height: '100%',
                   borderWidth: 1,
-                  borderColor: colors.appRed,
+                  borderColor: colors.jetBlack,
                   borderRadius: scaledValue(28),
+                  backgroundColor:"transparent",
                 }}
               />
               <GButton
@@ -288,14 +299,18 @@ const SharePetDutiesHome = ({navigation}) => {
                   height: '100%',
 
                   borderRadius: scaledValue(28),
-                  backgroundColor: colors.appRed,
+                  backgroundColor: colors.jetBlack,
                 }}
               />
             </View>
           </View>
         </Modal>
+        
+
+       
+        </ScrollView>
       </View>
-      <OptionMenuSheet
+      {/* <OptionMenuSheet
         refRBSheet={refRBTaskStatusSheet}
         options={taskStatusList}
         height={taskStatusList.reduce((a, c) => a + c?.height + 1, 0) + 18 + 56}
@@ -304,9 +319,10 @@ const SharePetDutiesHome = ({navigation}) => {
           refRBTaskStatusSheet.current.close();
         }}
         onPressCancel={() => refRBTaskStatusSheet.current.close()}
-      />
+      /> */}
     </>
   );
 };
 
 export default SharePetDutiesHome;
+

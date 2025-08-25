@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {styles} from './styles';
 import {useTranslation} from 'react-i18next';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -19,12 +19,27 @@ import GButton from '../../../components/GButton';
 import GTextButton from '../../../components/GTextButton/GTextButton';
 import {setUserData} from '../../../redux/slices/authSlice';
 import {useDispatch} from 'react-redux';
+import HeaderButton from '../../../components/HeaderButton';
+import GImage from '../../../components/GImage';
 
-const AddBreederDetails = ({navigation}) => {
+const AddBreederDetails = ({navigation, route}) => {
+  const {petDetails} = route?.params;
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
   const statusBarHeight = insets.top;
   const {t} = useTranslation();
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerLeft: () => (
+        <HeaderButton
+          icon={Images.arrowLeftOutline}
+          tintColor={colors.jetBlack}
+          onPress={() => navigation.goBack()}
+        />
+      ),
+    });
+  }, [navigation, t]);
   const [visible, setVisible] = useState(false);
   const [formValue, setFormValue] = useState({
     clinic_name: '',
@@ -43,41 +58,12 @@ const AddBreederDetails = ({navigation}) => {
       behavior={Platform.OS === 'ios' ? 'padding' : ''}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        <View
-          style={[
-            styles.headerContainer,
-            {marginTop: statusBarHeight + scaledValue(20)},
-          ]}>
-          <TouchableOpacity
-            onPress={() => {
-              navigation?.goBack();
-            }}
-            style={styles.backButton}>
-            <Image
-              source={Images.Left_Circle_Arrow}
-              style={styles.backButtonImage}
-            />
-          </TouchableOpacity>
-          <View style={styles.headerTextContainer}>
-            <GText
-              GrMedium
-              text={t('breeder_string')}
-              style={styles.headerText}
-            />
-            <GText
-              GrMedium
-              text={` ${t('details_string')}`}
-              style={[
-                styles.headerText,
-                {
-                  color: colors.darkPurple,
-                },
-              ]}
-            />
-          </View>
-        </View>
-        <View style={styles.petProfileContainer}>
-          <Image source={Images.Kizi} style={styles.petImg} />
+        <View style={styles.petImageWrapper}>
+          <GImage
+            image={petDetails?.petImage?.url}
+            style={styles.petImg}
+            noImageSource={Images.Kizi}
+          />
         </View>
         <GText GrMedium text={'Kizie'} style={styles.petName} />
         <GText SatoshiMedium text={'Beagle'} style={styles.breed} />
@@ -98,24 +84,7 @@ const AddBreederDetails = ({navigation}) => {
             style={styles.inputStyle}
             keyboardType={'email-address'}
           />
-          <View style={styles.cityMainView}>
-            <TouchableOpacity style={styles.cityView}>
-              <GText
-                SatoshiRegular
-                text={t('city_string')}
-                style={styles.cityText}
-              />
-              <Image source={Images.ArrowDown} style={styles.arrowIcon} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.cityView}>
-              <GText
-                SatoshiRegular
-                text={t('country_string')}
-                style={styles.cityText}
-              />
-              <Image source={Images.ArrowDown} style={styles.arrowIcon} />
-            </TouchableOpacity>
-          </View>
+
           <Input
             value={formValue.zip}
             label={t('zip_code_string')}
@@ -137,21 +106,8 @@ const AddBreederDetails = ({navigation}) => {
             style={styles.inputStyle}
             keyboardType={'email-address'}
           />
-          <Input
-            value={formValue.website}
-            label={t('website_string')}
-            onChangeText={value => setFormValue({...formValue, website: value})}
-            style={styles.inputStyle}
-            keyboardType={'email-address'}
-          />
         </View>
-        <GTextButton
-          onPress={() => {
-            setVisible(true);
-          }}
-          title={t('skip_for_now_string')}
-          titleStyle={styles.textButton}
-        />
+
         <GButton
           onPress={() => {
             dispatch(
@@ -162,7 +118,6 @@ const AddBreederDetails = ({navigation}) => {
           }}
           title={t('save_details_string')}
           style={styles.buttonStyle}
-          textStyle={styles.buttonText}
         />
       </ScrollView>
     </KeyboardAvoidingView>

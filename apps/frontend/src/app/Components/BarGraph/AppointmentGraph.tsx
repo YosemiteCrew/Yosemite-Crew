@@ -49,9 +49,8 @@ const AppointmentGraph = ({data}:any) => {
     }
   };
 
-  console.log(data,"inventoryandAssessmentGraph")
   const appointmentData: DataItem[] =  data?.map((res:any)=>{
-    return { name: res.monthname, completed: res.successful, cancelled: res.cancelled }
+    return { name: res.monthname, completed: res.completed, cancelled: res.cancelled }
     })
     
   return (

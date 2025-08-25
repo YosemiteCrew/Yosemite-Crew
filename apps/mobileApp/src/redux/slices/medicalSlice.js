@@ -9,7 +9,6 @@ export const add_medical_records = createAsyncThunk(
   async (credentials, {rejectWithValue, dispatch}) => {
     try {
       dispatch(setLoading(true));
-      console.log('credentials=>>>', credentials);
 
       const response = await API({
         headers: {
@@ -20,17 +19,13 @@ export const add_medical_records = createAsyncThunk(
         method: 'POST',
       });
       dispatch(setLoading(false));
-      console.log(
-        'saveMedicalRecord_response=>>',
-        JSON.stringify(response?.data),
-      );
+
       if (response.status !== 200) {
         return rejectWithValue(response?.data);
       }
 
       return response?.data;
     } catch (error) {
-      console.log(error);
       return rejectWithValue(error);
     }
   },

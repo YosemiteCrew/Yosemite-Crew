@@ -169,61 +169,75 @@ import  {v4 as  uuidv4 }  from "uuid";
 
 // }
 
+export function parseAppointment(fhirData: IFHIRAppointmentData): Partial<WebAppointmentType> | null {
 
-export function convertFhirAppointmentBundle(bundle: any) {
-  if (!bundle || !Array.isArray(bundle)) {
-    console.error("Invalid FHIR response format");
-    return [];
+  try{
+  if (!fhirData || fhirData.resourceType !== "Appointment") {
+    return null;
+  }
+      const startDateObj = new Date(fhirData.start);
+ 
+      const appointmentDate :number|string|null = fhirData.start || "";
+      const purposeOfVisit = fhirData.description || "";
+       
+      const concernOfVisit = fhirData.reasonCode[0]?.text || "";
+  
+      // Extract slotId from extensions
+      const slotsId =
+        fhirData.extension?.find(
+          (ext: any) =>
+            ext.url ===
+            "http://example.org/fhir/StructureDefinition/slotsId"
+        )?.valueString || "";
+
+      // Extract patientId, doctorId, and hospitalId from participants
+      let petId = "";
+      let doctorId = "";
+      let hospitalId = "";
+
+      (fhirData.participant || []).forEach((p: any) => {
+        const ref = p.actor?.reference || "";
+        if (ref.startsWith("Patient/")) {
+          petId = ref.replace("Patient/", "");
+        } else if (ref.startsWith("Practitioner/")) {
+          doctorId = ref.replace("Practitioner/", "");
+        } else if (ref.startsWith("Location/")) {
+          hospitalId = ref.replace("Location/", "");
+        }
+      });
+
+      // Extract department info from serviceType
+      const department =
+        fhirData.serviceType?.[0]?.coding?.[0]?.code ||
+        "";
+
+
+      // Optional: derive timeslot from appointment start
+      let timeslot = "";
+      // if (appointmentDate) {
+      //   const dateObj = new Date(appointmentDate);
+      //   timeslot = dateObj.toTimeString().split(" ")[0]; // HH:MM:SS
+      // }
+      if(startDateObj){
+          const dateObj = new Date(startDateObj);
+          timeslot = dateObj.toTimeString().split(" ")[0]; // HH:MM:SS
+      }
+      return {
+        appointmentDate : appointmentDate as string,
+        purposeOfVisit,
+        hospitalId,
+        department,
+        petId,
+        slotsId,
+        veterinarian:doctorId,
+        appointmentTime : timeslot
+      };
+    } catch (err) {
+      console.error("Error parsing FHIR Appointment:", err);
+      return null;
+    }
   }
 
-  return bundle.map((entry) => {
-    const resource = entry.resource;
-
-    const rawDate = resource.start ? new Date(resource.start) : null;
-
-    const formattedDate = rawDate
-      ? rawDate.toLocaleDateString("en-GB", {
-          day: "2-digit",
-          month: "short",
-          year: "numeric",
-        })
-      : null;
-
-    const formattedTime = rawDate
-      ? rawDate.toLocaleTimeString("en-US", {
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: true,
-        })
-      : null;
-
-    return {
-      id: resource.id || null,
-      status: resource.status || null,
-      serviceType: resource.serviceType?.[0]?.text || null,
-      start: resource.start || null,
-      date: formattedDate,
-      time: formattedTime,
-      participants:
-        resource.participant?.map((p:any) => ({
-          name: p.actor?.display || null,
-          status: p.status || null,
-        })) || [],
-      reason: resource.reasonCode?.[0]?.text || null,
-      description: resource.description || null,
-      petType: resource.petType || null,
-      specialty: resource.specialty?.[0]?.text || null,
-      slotRef: resource.slot?.[0]?.reference || null,
-      // appointmentId: resource?.slotsId || null,
-      tokenNumber:
-        (resource.extension || []).find(
-          (ext:any) =>
-            ext.url ===
-            "http://example.com/fhir/StructureDefinition/tokenNumber"
-        )?.valueString || null,
-    };
-  });
-}
 
 export function convertAppointmentsToFHIRBundle({
   status = "Calendar",

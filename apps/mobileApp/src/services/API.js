@@ -1,6 +1,6 @@
 import axios from 'axios';
-// import Axios from './Axios';
-import {API_BASE_URL} from '../constants';
+import Axios from './Axios';
+import {API_BASE_URL, FHIR_API_BASE_URL} from '../constants';
 import store from '../redux/store';
 import {Alert} from 'react-native';
 
@@ -8,6 +8,20 @@ export default async function API(props) {
   //SET URL
   let path = API_BASE_URL;
   let route = props.route;
+  // console.log('routeroute', route);
+  if (
+    route === 'auth/signup' ||
+    route === 'auth/sendOtp' ||
+    route === 'auth/login' ||
+    route === 'auth/confirmSignup' ||
+    route === 'auth/resendConfirmationCode' ||
+    route === 'auth/logout' ||
+    route === 'auth/social-login'
+  ) {
+    path = API_BASE_URL;
+  } else {
+    path = FHIR_API_BASE_URL;
+  }
   let url = props?.path ? props?.path : path + route;
 
   if (props.url) {
@@ -32,7 +46,7 @@ export default async function API(props) {
     formData.append('data', JSON.stringify(body?.data));
     if (Array.isArray(body?.files)) {
       for (let i = 0; i < body?.files.length; i++) {
-        console.log('Post Image into append', body?.files[i]);
+        // console.log('Post Image into append', body?.files[i]);
         formData.append('files', body?.files[i]);
       }
     }
@@ -48,9 +62,9 @@ export default async function API(props) {
   };
   if (props.headers) {
     headers = {...headers, ...props.headers};
-    console.log('TempHeaders2=>>', headers);
+    // console.log('TempHeaders2=>>', headers);
   }
-  console.log(url);
+  // console.log(url);
   //SET REQUEST
   const request = {
     method: method,
@@ -59,25 +73,25 @@ export default async function API(props) {
   };
   if (method != 'GET') {
     // request.data = multiPartData ? formData : body;
-    console.log('formDataValue', JSON.stringify(formData));
+    // console.log('formDataValue', JSON.stringify(formData));
 
     request.data = multiPartData ? formData : body;
   }
 
-  console.log('request', request);
+  // console.log('request', request);
 
   //CALL API
   try {
     let response = await axios(request);
-    console.log('response=>>>>', JSON.stringify(response));
-    console.log('response=>>>>', JSON.stringify(response?.data));
+    // console.log('response=>>>>', JSON.stringify(response));
+    // console.log('response=>>>>', JSON.stringify(response?.data));
 
     return response;
   } catch (error) {
-    console.log('errors0012555', error);
+    // console.log('errors0012555', error);
     // Alert.alert(error?.code, error?.message);
-    console.log('errors', error?.code);
-    console.log('errors0012', error?.message);
+    // console.log('errors', error?.code);
+    // console.log('errors0012', error?.message);
     if (error?.code == 'ERR_NETWORK' && !global.networkError) {
       global.networkError = true;
       Alert.alert(

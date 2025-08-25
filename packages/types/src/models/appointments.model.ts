@@ -1,14 +1,18 @@
 type UploadRecord = {
-  fileName: string;
-  fileType: string;
-  fileUrl: string;
-  uploadedAt: Date;
+  // fileName: string;
+  // fileType: string;
+  // fileUrl: string;
+  // uploadedAt: Date;
+  url: string;
+  originalname: string;
+  mimetype: string;
 };
 
 export type WebAppointmentType = Document & {
   userId?: string;
   tokenNumber?: string;
   ownerName?: string;
+  ownerId?:string;
   petId?: string;
   petName?: string;
   purposeOfVisit: string;
@@ -80,3 +84,25 @@ export type NormalizedAppointment = {
   day: string;         // e.g., "Wednesday"
   slots: string[];     // e.g., ["5:00 PM", "4:30 PM", ...]
 }
+
+export type EmergencyAppointmentModel = Document & {
+  userId?: string;
+  tokenNumber?: string;
+  ownerName?: string;
+  petName?: string;
+  department?: string;
+  veterinarian?: string;
+  hospitalId?: string;
+  cancelReason?: string;
+  appointmentStatus?: string;
+  isCanceled?: string;
+  cancelledBy?: string;
+  petType?:string;
+  petBreed?:string;
+  gender?:string;
+  phoneNumber?:number;
+  email?:string;
+  countryCode?:string;
+  appointmentTime?: string;
+  appointmentDate?: string;
+};

@@ -27,12 +27,12 @@ interface NavItem {
 
 const publicNavItems: NavItem[] = [
   { label: "Home", href: "/" },
-  { label: "About Us", href: "#" },
-  { label: "PMS", href: "#" },
-  { label: "Developers", href: "#" },
-  { label: "Resources", href: "#" },
-  { label: "Contact Us", href: "#" },
-  { label: "Blog", href: "#" },
+  { label: "About Us", href: "/about_us" },
+  { label: "PMS", href: "/homepage" },
+  { label: "Developers", href: "/developerlanding" },
+  { label: "Resources", href: "/resources" },
+  { label: "Contact Us", href: "/contact_us" },
+  { label: "Blog", href: "/blogpage" },
 ];
 
 const Header = () => {
@@ -50,7 +50,7 @@ export default Header;
 // ✅ LOGGED IN HEADER
 // -------------------------
 const LoggedInHeader = () => {
-  const { profile, vetAndTeamsProfile, userType } = useAuthStore();
+  const { profile, vetAndTeamsProfile, userType } = useAuthStore(); 
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -248,7 +248,7 @@ const LoggedInHeader = () => {
 
               <div className="profileUl">
                 <div className='ProfDiv'>
-                  <Link href="#"><FaUser /> My Profile</Link>
+                  <Link href="/"><FaUser /> My Profile</Link>
                   <Link href="#"><RiAccountBoxFill /> Account Settings</Link>
                   <Link href="#"><IoIosHelpCircleOutline /> Need Help?</Link>
                   <Link href='#' onClick={() => handleLogout()}><FaSignInAlt /> Sign Out</Link>
@@ -287,7 +287,7 @@ const PublicHeader = () => {
           {publicNavItems.map((item) => (
             <li key={item.label}>
               <Link
-                href={item.href!}
+                href={item.href? item.href : "#"}
                 className={classNames({ active: pathname === item.href })}
               >
                 {item.label}

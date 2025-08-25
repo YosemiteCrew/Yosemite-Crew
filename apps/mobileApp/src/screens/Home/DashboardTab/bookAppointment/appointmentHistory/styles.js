@@ -1,10 +1,10 @@
-import {StyleSheet} from 'react-native';
+import { StyleSheet } from 'react-native';
 import {
   scaledHeightValue,
   scaledValue,
 } from '../../../../../utils/design.utils';
-import {fonts} from '../../../../../utils/fonts';
-import {colors} from '../../../../../../assets/colors';
+import { fonts } from '../../../../../utils/fonts';
+import { colors } from '../../../../../../assets/colors';
 
 export const styles = StyleSheet.create({
   dashboardMainView: {
@@ -24,7 +24,7 @@ export const styles = StyleSheet.create({
     borderRadius: scaledValue(24),
     justifyContent: 'center',
     paddingHorizontal: scaledValue(14),
-    borderColor: colors.appRed,
+    borderColor: colors.jetBlack,
   },
   optionText: {
     fontSize: scaledValue(16),
@@ -40,13 +40,13 @@ export const styles = StyleSheet.create({
   teamText: {
     fontSize: scaledValue(18),
     lineHeight: scaledHeightValue(21.6),
-    color: colors.darkPurple,
+
     letterSpacing: scaledValue(18 * -0.01),
   },
   countText: {
     fontSize: scaledValue(18),
     lineHeight: scaledHeightValue(21.6),
-    color: colors.appRed,
+    color: colors.jetBlack,
     letterSpacing: scaledValue(18 * -0.01),
   },
   doctorImgStyle: {
@@ -61,7 +61,7 @@ export const styles = StyleSheet.create({
     borderRadius: scaledValue(20),
     // paddingTop: scaledValue(12),
     shadowColor: '#47382726',
-    shadowOffset: {width: 1, height: 5},
+    shadowOffset: { width: 1, height: 5 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 8,
@@ -94,14 +94,12 @@ export const styles = StyleSheet.create({
   },
   buttonText: {
     fontSize: scaledValue(16),
-    lineHeight: scaledHeightValue(19.2),
-    letterSpacing: scaledValue(18 * -0.01),
-    color: colors.white,
+    letterSpacing: scaledValue(16 * -0.01),
+    color: colors.jetLightBlack,
     fontFamily: fonts?.CLASH_GRO_MEDIUM,
     marginLeft: scaledValue(3),
   },
   buttonStyle: {
-    backgroundColor: '#FFFEFE4D',
     marginBottom: scaledValue(16),
     height: scaledValue(51),
     borderRadius: scaledValue(12),
@@ -111,7 +109,7 @@ export const styles = StyleSheet.create({
   iconStyle: {
     width: scaledValue(16),
     height: scaledValue(16),
-    marginRight: scaledValue(3),
+    // marginRight: scaledValue(3),
   },
   buttonView: {
     flexDirection: 'row',
@@ -154,7 +152,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: scaledValue(1),
-    borderColor: colors.appRed,
+    borderColor: colors.jetBlack,
     borderRadius: scaledValue(12),
     paddingHorizontal: scaledValue(20),
     marginHorizontal: scaledValue(12),

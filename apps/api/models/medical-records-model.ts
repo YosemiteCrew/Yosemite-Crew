@@ -1,4 +1,4 @@
-import mongoose, {Schema, Model} from 'mongoose';
+import mongoose, {Schema, Model, Types} from 'mongoose';
 import type { medicalDoc, medicalRecord } from "@yosemite-crew/types";
 
 
@@ -15,9 +15,7 @@ const medicalRecordSchema : Schema<medicalRecord>= new mongoose.Schema({
         type: String, 
         required: true,
     },
-    documentType: {
-        type: String,
-    },
+     documentTypeId: { type: Schema.Types.ObjectId, ref: "MedicalRecordFolder" },
     title: {
         type: String,
     },
@@ -29,13 +27,18 @@ const medicalRecordSchema : Schema<medicalRecord>= new mongoose.Schema({
         default: false,
     },
     petId: {
-        type: String,
+        type: Types.ObjectId,
+        ref:'pets'
     },
     expiryDate: {
         type: String,
     },
     medicalDocs: [medicalDocSchema],
-
+    isRead:{ type:Boolean, default: false },
+    createdByRole:{
+        type:String,
+        enum:['vet', 'petOwner']
+    }
 }, { timestamps: true});
 
 const medicalRecord : Model<medicalRecord> = mongoose.model<medicalRecord>('MedicalRecords',medicalRecordSchema);

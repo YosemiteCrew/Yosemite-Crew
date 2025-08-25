@@ -23,13 +23,28 @@ const PetSchema: Schema<pets> = new mongoose.Schema(
     policyNumber: { type: String },
     passportNumber: { type: String },
     petFrom: { type: String },
-    petImage: [
-      {
-        url: { type: String },
-        originalname: { type: String },
-        mimetype: { type: String },
+    petImage: {
+      url: { type: String },
+      originalname: { type: String },
+      mimetype: { type: String },
+    },
+    summary: {
+      groomerStatus: {
+        type: String, enum: ["pending", "completed"], default: "pending"
       },
-    ],
+      boardingStatus: {
+        type: String, enum: ["pending", "completed"], default: "pending"
+      },
+      breederStatus: {
+        type: String, enum: ["pending", "completed"], default: "pending"
+      },
+      vetStatus: {
+        type: String, enum: ["pending", "completed"], default: "pending"
+      },
+      medicalStatus: {
+        type: String, enum: ["pending", "completed"], default: "pending"
+      }
+    },
   },
   { timestamps: true }
 );

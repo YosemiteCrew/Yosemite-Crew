@@ -18,7 +18,7 @@ const PainManagementHome = ({navigation}) => {
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
-          tintColor={colors.darkPurple}
+          tintColor={colors.jetBlack}
           onPress={() => {
             navigation?.goBack();
           }}
@@ -27,7 +27,7 @@ const PainManagementHome = ({navigation}) => {
       headerRight: () => (
         <HeaderButton
           icon={Images.bellBold}
-          tintColor={colors.appRed}
+          tintColor={colors.jetBlack}
           onPress={() => {
             navigation?.navigate('StackScreens', {
               screen: 'Notifications',
@@ -42,20 +42,11 @@ const PainManagementHome = ({navigation}) => {
     {
       id: 1,
       title: t('exercise_plans_string'),
+      subTitle: 'Plans for 5 days',
       img: Images.DogExercise,
       onAction: () => {
         navigation?.navigate('StackScreens', {
-          screen: 'ExercisePlans',
-        });
-      },
-    },
-    {
-      id: 2,
-      title: t('pain_journal_string'),
-      img: Images.DogPain,
-      onAction: () => {
-        navigation?.navigate('StackScreens', {
-          screen: 'PainJournal',
+          screen: 'NewExercisePlan',
         });
       },
     },
@@ -69,19 +60,28 @@ const PainManagementHome = ({navigation}) => {
         });
       },
     },
+    {
+      id: 2,
+      title: t('pain_journal_string'),
+      img: Images.DogPain,
+      subTitle: 'Total 5 Steps',
+      onAction: () => {
+        navigation?.navigate('StackScreens', {
+          screen: 'PainJournal',
+        });
+      },
+    },
   ];
 
   return (
     <View style={styles.dashboardMainView}>
       <GText
         SatoshiBold
-        text={t('quick_actions_string')}
+        text={t('plans_designed_string')}
         style={styles.quickActionsText}
       />
       <FlatList
         data={quickAction}
-        numColumns={2}
-        columnWrapperStyle={styles.quickActionsWrapper}
         contentContainerStyle={styles.quickActionsList}
         renderItem={({item, index}) => {
           return (
@@ -90,11 +90,22 @@ const PainManagementHome = ({navigation}) => {
               activeOpacity={0.5}
               key={item?.id}
               style={styles.quickActionItem}>
-              <Image source={item?.img} style={styles.quickActionImage} />
-              <GText
-                GrMedium
-                text={item?.title}
-                style={styles.quickActionText}
+              <View>
+                <GText
+                  GrMedium
+                  text={item?.title}
+                  style={styles.quickActionText}
+                />
+                <GText
+                  SatoshiMedium
+                  text={item?.subTitle}
+                  style={styles.quickActionSubText}
+                />
+              </View>
+              <Image
+                source={item?.img}
+                style={styles.quickActionImage}
+                tintColor={colors.jetBlack}
               />
             </TouchableOpacity>
           );

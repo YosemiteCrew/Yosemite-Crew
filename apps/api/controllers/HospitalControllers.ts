@@ -1,158 +1,326 @@
+import dotenv from "dotenv";
+dotenv.config();
 import { Request, Response } from "express";
+import dayjs from "dayjs";
 
 import { webAppointments } from "../models/web-appointment";
-// import Department from "../models/AddDepartment";
-// import AddDoctors from "../models/AddDoctor";
-// import { ProfileData } from "../models/WebUser";
-// const YoshPet = require('../models/YoshPet');
-// const YoshUser = require('../models/YoshUser');
 
-const S3_BASE_URL = `https://${process.env.AWS_S3_BUCKET_NAME}.s3.amazonaws.com/`;
-import AWS from "aws-sdk";
-// import ProfileVisibility from "../models/profileVisibility";
-// import Message from "../models/ChatModel";
-import FHIRConverter from "../utils/DoctorsHandler";
-// import { GraphDataToFHIR } from "../utils/HospitalFhirHandler";
 import { AppointmentFHIRConverter } from "../utils/WebAppointmentHandler";
-// import { AppointmentsFHIRConverter } from "../utils/HospitalProfileHandler";
 import { AppointmentsStatusFHIRConverter, convertAppointmentStatsToFHIR, convertGraphDataToFHIR, convertSpecialityWiseAppointmentsToFHIR, convertToFHIRMyCalender } from "@yosemite-crew/fhir";
 
-// import { validateFHIR } from "../Fhirvalidator/FhirValidator";
-// import { json, text } from "body-parser";
 import {
   DepartmentFromFHIRConverter,
 } from "../utils/DepartmentFhirHandler";
-// import { response } from "express";
-import FeedBack from "../models/feedback";
-import { PipelineStage } from "mongoose";
-import { AggregatedAppointmentGraph, AppointmentStatusFHIRBundle, QueryParams } from "@yosemite-crew/types";
+// import FeedBack from "../models/feedback";
+import mongoose, { PipelineStage } from "mongoose";
+import { AggregatedAppointmentGraph, AppointmentStatusFHIRBundle, FHIRtoJSONSpeacilityStats, QueryParams } from "@yosemite-crew/types";
 import { validateFHIR } from "../Fhirvalidator/FhirValidator";
+import { WebUser } from "../models/WebUser";
 
-const s3 = new AWS.S3({
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  region: process.env.AWS_REGION,
-}); // Replace with your CloudFront domain if applicable
+// const s3 = new AWS.S3({
+//   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+//   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+//   region: process.env.AWS_REGION,
+// }); // Replace with your CloudFront domain if applicable
+
+
+
+export type DoctorInfo = {
+  personalInfo: {
+    firstName: string;
+    lastName: string;
+  };
+}
+
+export type DepartmentInfo = {
+  departmentName: string;
+}
+
+export type Appointment = {
+  _id: mongoose.Types.ObjectId;
+  tokenNumber: string;
+  petName: string;
+  ownerName: string;
+  slotsId: string;
+  petType: string;
+  breed: string;
+  purposeOfVisit: string;
+  appointmentDate: string; // formatted
+  appointmentTime: string;
+  appointmentStatus: string;
+  department?: string;
+  veterinarian?: string;
+}
 
 const HospitalController = {
-  // getAllAppointments: async (req, res) => {
-  //   try {
-  //     const { offset = 0, limit = 5, userId } = req.query;
-  //     const today = new Date().toISOString().split("T")[0]; // Today's date in "YYYY-MM-DD" format
 
-  //     const parsedOffset = parseInt(offset, 10);
-  //     const parsedLimit = parseInt(limit, 10);
+  // Types for aggregation response
 
-  //     const response = await webAppointments.aggregate([
-  //       {
-  //         $match: {
-  //           isCanceled: { $ne: 2 },
-  //           $or: [{ hospitalId: userId }, { veterinarian: userId }],
-  //           appointmentDate: today,
-  //         },
-  //       },
-  //       {
-  //         $addFields: {
-  //           departmentObjId: { $toObjectId: "$department" },
-  //         },
-  //       },
-  //       {
-  //         $lookup: {
-  //           from: "adddoctors",
-  //           localField: "veterinarian",
-  //           foreignField: "userId",
-  //           as: "doctorInfo",
-  //         },
-  //       },
-  //       {
-  //         $lookup: {
-  //           from: "departments",
-  //           localField: "departmentObjId",
-  //           foreignField: "_id",
-  //           as: "departmentInfo",
-  //         },
-  //       },
-  //       {
-  //         $unwind: {
-  //           path: "$doctorInfo",
-  //           preserveNullAndEmptyArrays: true,
-  //         },
-  //       },
-  //       {
-  //         $unwind: {
-  //           path: "$departmentInfo",
-  //           preserveNullAndEmptyArrays: true,
-  //         },
-  //       },
-  //       {
-  //         $facet: {
-  //           metadata: [{ $count: "total" }],
-  //           data: [{ $skip: parsedOffset }, { $limit: parsedLimit }],
-  //         },
-  //       },
-  //       {
-  //         $project: {
-  //           total: { $arrayElemAt: ["$metadata.total", 0] },
-  //           Appointments: {
-  //             $map: {
-  //               input: "$data",
-  //               as: "appointment",
-  //               in: {
-  //                 _id: "$$appointment._id",
-  //                 tokenNumber: "$$appointment.tokenNumber",
-  //                 petName: "$$appointment.petName",
-  //                 ownerName: "$$appointment.ownerName",
-  //                 slotsId: "$$appointment.slotsId",
-  //                 petType: "$$appointment.petType",
-  //                 breed: "$$appointment.breed",
-  //                 purposeOfVisit: "$$appointment.purposeOfVisit",
-  //                 appointmentDate: {
-  //                   $dateToString: {
-  //                     format: "%d %b %Y",
-  //                     date: { $toDate: "$$appointment.appointmentDate" },
-  //                   },
-  //                 },
-  //                 appointmentTime: "$$appointment.appointmentTime",
-  //                 appointmentStatus: "$$appointment.appointmentStatus",
-  //                 department: "$$appointment.departmentInfo.departmentName",
-  //                 veterinarian: {
-  //                   $concat: [
-  //                     "$$appointment.doctorInfo.personalInfo.firstName",
-  //                     " ",
-  //                     "$$appointment.doctorInfo.personalInfo.lastName",
-  //                   ],
-  //                 },
-  //               },
-  //             },
-  //           },
-  //         },
-  //       },
-  //     ]);
+  getAllAppointmentsToAction: async (
+    req: Request,
+    res: Response
+  ): Promise<void> => {
+    try {
+      const { offset = "0", limit = "5", userId, type } = req.query as {
+        offset?: string;
+        limit?: string;
+        userId: string;
+        type?: "today" | "upcoming" | "completed" | "new";
+      };
 
-  //     if (!response.length || !response[0].Appointments.length) {
-  //       return res
-  //         .status(404)
-  //         .json({ message: "No slots found for the doctor." });
-  //     }
+      if (!userId || typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        res.status(400).json({ message: "Invalid or missing userId" });
+        return;
+      }
 
-  //     return res.status(200).json({
-  //       message: "Data fetched successfully",
-  //       totalAppointments: response[0].total || 0,
-  //       Appointments: response[0].Appointments,
-  //     });
-  //   } catch (error) {
-  //     return res.status(500).json({
-  //       message: "An error occurred while fetching slots.",
-  //       error: error.message,
-  //     });
-  //   }
-  // },
+      const parsedOffset = Math.max(0, parseInt(offset, 10));
+      const parsedLimit = Math.min(50, Math.max(1, parseInt(limit, 10)));
+
+      const today = dayjs().format("YYYY-MM-DD");
+
+      // 🔍 Build matchQuery with user role check
+      const webuser = await WebUser.findOne({ cognitoId: userId }).lean();
+      if (!webuser) {
+        res.status(404).json({ message: "User not found" });
+        return;
+      }
+
+      const matchQuery: Record<string, unknown> = {};
+
+      if (webuser.role === "vet") {
+        matchQuery.veterinarian = userId;
+      } else if (webuser.role === "veterinaryBusiness") {
+        matchQuery.hospitalId = userId;
+      } else if (webuser.bussinessId) {
+        matchQuery.hospitalId = webuser.bussinessId;
+      } else {
+        res.status(400).json({ message: "User has no associated business" });
+        return;
+      }
+
+      // 🔍 Apply type-based filtering
+      switch (type) {
+        case "today":
+          matchQuery.appointmentDate = today;
+          matchQuery.appointmentStatus = "accepted"; // केवल accepted appointments आज की date की
+          break;
+        case "upcoming":
+          matchQuery.appointmentDate = { $gt: today }; // today = "2025-08-25" 
+          matchQuery.appointmentStatus = { $in: ["accepted"] }; // आने वाली accepted और pending
+          break;
+        case "completed":
+          matchQuery.appointmentStatus = "fulfilled"; // केवल completed
+          break;
+        case "new":
+          matchQuery.appointmentStatus = "pending"; // सभी future की pending appointments
+          matchQuery.appointmentDate = { $gte: today }; // आज या future की dates
+          break;
+        default:
+          // No additional filtering for all appointments
+          break;
+      }
+
+      const pipeline: PipelineStage[] = [
+        { $match: matchQuery },
+
+        // Lookup doctor info first (more efficient)
+        {
+          $lookup: {
+            from: "adddoctors",
+            localField: "veterinarian",
+            foreignField: "userId",
+            as: "doctor",
+            pipeline: [
+              { $project: { firstName: 1, lastName: 1, _id: 0 } }
+            ],
+          },
+        },
+        { $unwind: { path: "$doctor", preserveNullAndEmptyArrays: true } },
+        {
+          $addFields: {
+            departmentID: { $toObjectId: "$department" },
+          },
+        },
+        // Lookup department info
+        {
+          $lookup: {
+            from: "admindepartments",
+            localField: "departmentID",
+            foreignField: "_id",
+            as: "departmentInfo",
+            pipeline: [
+              { $project: { name: 1, _id: 0 } }
+            ],
+          },
+        },
+        { $unwind: { path: "$departmentInfo", preserveNullAndEmptyArrays: true } },
+
+        // Lookup pet info
+        {
+          $addFields: {
+            petID: { $toObjectId: "$petId" },
+          },
+        },
+        {
+          $lookup: {
+            from: "pets",
+            localField: "petID",
+            foreignField: "_id",
+            as: "petInfo",
+            pipeline: [
+              {
+                $project: {
+                  petImage: 1,
+                  petType: 1,
+                  petBreed: 1,
+                  _id: 0,
+                },
+              },
+            ],
+          },
+        },
+        { $unwind: { path: "$petInfo", preserveNullAndEmptyArrays: true } },
+
+        // Sort by date and time for better pagination
+        {
+          $sort: {
+            appointmentDate: 1,
+            appointmentTime: 1,
+          },
+        },
+
+        // Pagination + total count
+        {
+          $facet: {
+            metadata: [{ $count: "total" }],
+            data: [
+              { $skip: parsedOffset },
+              { $limit: parsedLimit }
+            ],
+          },
+        },
+
+        // Format output
+        {
+          $project: {
+            total: { $arrayElemAt: ["$metadata.total", 0] },
+            Appointments: {
+              $map: {
+                input: "$data",
+                as: "appointment",
+                in: {
+                  _id: "$$appointment._id",
+                  tokenNumber: "$$appointment.tokenNumber",
+                  petName: "$$appointment.petName",
+                  ownerName: "$$appointment.ownerName",
+                  slotsId: "$$appointment.slotsId",
+                  pet: "$$appointment.petInfo.petType",
+                  breed: "$$appointment.petInfo.petBreed",
+                  petImage: {
+                    $cond: {
+                      if: {
+                        $and: [
+                          { $ifNull: ["$$appointment.petInfo.petImage.url", false] },
+                          { $ne: ["$$appointment.petInfo.petImage.url", ""] }
+                        ]
+                      },
+                      then: {
+                        $concat: [
+                          process.env.CLOUD_FRONT_URI || "",
+                          "/",
+                          "$$appointment.petInfo.petImage.url"
+                        ]
+                      },
+                      else: null
+                    }
+                  },
+                  departmentName: {
+                    $ifNull: [
+                      "$$appointment.departmentInfo.name",
+                      "No Department"
+                    ]
+                  },
+                  purposeOfVisit: "$$appointment.purposeOfVisit",
+                  appointmentDate: {
+                    $dateToString: {
+                      format: "%d %b %Y",
+                      date: { $toDate: "$$appointment.appointmentDate" },
+                    },
+                  },
+                  appointmentTime: "$$appointment.appointmentTime",
+                  appointmentStatus: "$$appointment.appointmentStatus",
+                  doctorName: {
+                    $cond: {
+                      if: {
+                        $and: [
+                          { $ifNull: ["$$appointment.doctor.firstName", false] },
+                          { $ifNull: ["$$appointment.doctor.lastName", false] }
+                        ]
+                      },
+                      then: {
+                        $concat: [
+                          "$$appointment.doctor.firstName",
+                          " ",
+                          "$$appointment.doctor.lastName"
+                        ]
+                      },
+                      else: {
+                        $ifNull: [
+                          "$$appointment.doctor.firstName",
+                          "Unknown Doctor"
+                        ]
+                      }
+                    }
+                  },
+                },
+              },
+            },
+          },
+        },
+      ];
+
+      const response = await webAppointments.aggregate(pipeline);
+
+      if (!response.length || !response[0]?.Appointments?.length) {
+        res.status(200).json({
+          message: "No appointments found",
+          totalAppointments: 0,
+          Appointments: [],
+          pagination: {
+            offset: parsedOffset,
+            limit: parsedLimit,
+            hasMore: false,
+          },
+        });
+        return;
+      }
+
+      res.status(200).json({
+        message: "Data fetched successfully",
+        totalAppointments: response[0].total || 0,
+        Appointments: response[0].Appointments,
+        pagination: {
+          offset: parsedOffset,
+          limit: parsedLimit,
+          hasMore: (response[0].total || 0) > parsedOffset + parsedLimit,
+        },
+      });
+    } catch (error) {
+      const err = error as Error;
+      console.error("Error fetching appointments:", err);
+      res.status(500).json({
+        message: "An error occurred while fetching appointments.",
+        error: process.env.NODE_ENV === "development" ? err.message : "Internal server error",
+      });
+    }
+  },
+
   // departmentsOverView: async (req, res) => {
 
   // }
   // ,
   AppointmentGraphs: async (
-    req: Request<{}, {}, {}, QueryParams>,
+    req: Request<QueryParams>,
     res: Response
   ) => {
 
@@ -163,11 +331,19 @@ const HospitalController = {
       case "specialityWiseAppointments":
         if (req.method === "GET") {
           try {
-            const { LastDays = '7', userId } = req.query;
-            const days = parseInt(LastDays, 10) || 7;
+            const { LastDays = '1', userId } = req.query as { LastDays?: string, userId?: string };
+
+            // Validate LastDays and convert months to days (approximate 30 days per month)
+            const months = parseInt(LastDays, 10);
+            if (isNaN(months) || months <= 0) {
+              return res.status(400).json({ message: "Invalid LastDays value, must be a positive number of months" });
+            }
+            const days = months * 30; // Convert months to approximate days
+
             if (!userId) {
               return res.status(400).json({ message: "Missing userId" });
             }
+
             const endDate = new Date();
             const startDate = new Date();
             startDate.setDate(endDate.getDate() - (days - 1));
@@ -176,7 +352,7 @@ const HospitalController = {
             const startDateStr = startDate.toISOString().split("T")[0];
             const endDateStr = endDate.toISOString().split("T")[0];
 
-            const departmentWiseAppointments = await webAppointments.aggregate([
+            const departmentWiseAppointments: FHIRtoJSONSpeacilityStats[] = await webAppointments.aggregate([
               {
                 $match: {
                   appointmentDate: { $gte: startDateStr, $lte: endDateStr },
@@ -196,7 +372,7 @@ const HospitalController = {
               },
               {
                 $lookup: {
-                  from: "departments",
+                  from: "admindepartments",
                   localField: "_id",
                   foreignField: "_id",
                   as: "departmentInfo",
@@ -211,7 +387,7 @@ const HospitalController = {
               {
                 $project: {
                   departmentName: {
-                    $ifNull: ["$departmentInfo.departmentName", "Unknown"],
+                    $ifNull: ["$departmentInfo.name", "Unknown Department"],
                   },
                   count: 1,
                 },
@@ -223,23 +399,31 @@ const HospitalController = {
             if (validateFhir) {
               return res.status(200).json(data);
             }
-            return res.status(400).json("validation fhir failed");
-          } catch (error: any) {
+            return res.status(400).json({
+              resourceType: "OperationOutcome",
+              issue: [
+                {
+                  severity: "error",
+                  code: "invalid",
+                  details: { text: "FHIR validation failed" },
+                },
+              ],
+            });
+          } catch (error) {
+            const errMessage = error instanceof Error ? error.message : "Unknown server error";
             return res.status(500).json({
               resourceType: "OperationOutcome",
               issue: [
                 {
                   severity: "error",
                   code: "exception",
-                  details: {
-                    text: "Internal server error. Please try again later.",
-                  },
-                  diagnostics: error.message,
+                  details: { text: "Internal server error. Please try again later." },
+                  diagnostics: errMessage,
                 },
               ],
             });
           }
-        }
+        } break;
       case "WeeklyAppointmentGraph":
         if (req.method === "GET") {
           try {
@@ -278,7 +462,7 @@ const HospitalController = {
                 },
               },
             ]);
-            const weekData:any = {
+            const weekData: any = {
               Monday: 0,
               Tuesday: 0,
               Wednesday: 0,
@@ -292,7 +476,7 @@ const HospitalController = {
               weekData[day] = count;
             });
 
-            const responseData:any = Object.entries(weekData).map(
+            const responseData: any = Object.entries(weekData).map(
               ([day, count]) => ({
                 day,
                 count,
@@ -436,22 +620,22 @@ const HospitalController = {
     }
   },
 
-   AppointmentOverviewStats: async (
+  AppointmentOverviewStats: async (
     req: Request,
     res: Response
   ): Promise<void> => {
     try {
       const { userId } = req.query;
-  
+
       if (!userId || typeof userId !== "string") {
         res.status(400).json({
           message: "Missing or invalid userId in query",
         });
         return;
       }
-  
+
       const today = new Date().toISOString().split("T")[0];
-  
+
       const [
         todaysAppointments,
         upcomingAppointments,
@@ -477,7 +661,7 @@ const HospitalController = {
           appointmentDate: { $gte: today },
         }),
       ]);
-  
+
       res.status(200).json(convertAppointmentStatsToFHIR({
         todaysAppointments,
         upcomingAppointments,
@@ -724,103 +908,103 @@ const HospitalController = {
 
   //     // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Appointment Management>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-      // case "AppointmentManagement":
-      //   if (req.method === "GET") {
-      //     try {
-      //       const { LastDays, userId } = req.query;
+  // case "AppointmentManagement":
+  //   if (req.method === "GET") {
+  //     try {
+  //       const { LastDays, userId } = req.query;
 
-      //       if (!LastDays) {
-      //         return res.status(400).json({
-      //           resourceType: "OperationOutcome",
-      //           issue: [
-      //             {
-      //               severity: "error",
-      //               code: "exception",
-      //               details: { text: "Missing required parameter: LastDays" },
-      //             },
-      //           ],
-      //         });
-      //       } else if (!userId) {
-      //         return res.status(400).json({
-      //           resourceType: "OperationOutcome",
-      //           issue: [
-      //             {
-      //               severity: "error",
-      //               code: "exception",
-      //               details: { text: "missing required parameter: userId" },
-      //             },
-      //           ],
-      //         });
-      //       }
-      //       const days = parseInt(LastDays, 10) || 7; // Default to 7 days if not provided
+  //       if (!LastDays) {
+  //         return res.status(400).json({
+  //           resourceType: "OperationOutcome",
+  //           issue: [
+  //             {
+  //               severity: "error",
+  //               code: "exception",
+  //               details: { text: "Missing required parameter: LastDays" },
+  //             },
+  //           ],
+  //         });
+  //       } else if (!userId) {
+  //         return res.status(400).json({
+  //           resourceType: "OperationOutcome",
+  //           issue: [
+  //             {
+  //               severity: "error",
+  //               code: "exception",
+  //               details: { text: "missing required parameter: userId" },
+  //             },
+  //           ],
+  //         });
+  //       }
+  //       const days = parseInt(LastDays, 10) || 7; // Default to 7 days if not provided
 
-      //       const endDate = new Date();
-      //       const startDate = new Date();
-      //       startDate.setDate(endDate.getDate() - (days - 1));
+  //       const endDate = new Date();
+  //       const startDate = new Date();
+  //       startDate.setDate(endDate.getDate() - (days - 1));
 
-      //       // const today = new Date().toISOString().split('T')[0]; // Today's date in "YYYY-MM-DD" format
+  //       // const today = new Date().toISOString().split('T')[0]; // Today's date in "YYYY-MM-DD" format
 
-      //       const appointments = await webAppointments.aggregate([
-      //         {
-      //           $addFields: {
-      //             appointmentDateObj: { $toDate: "$appointmentDate" }, // Convert string to Date
-      //           },
-      //         },
-      //         {
-      //           $match: {
-      //             appointmentDateObj: { $gte: startDate, $lte: endDate },
-      //             $or: [{ hospitalId: userId }, { veterinarian: userId }],
-      //           },
-      //         },
-      //         {
-      //           $group: {
-      //             _id: null,
-      //             newAppointments: {
-      //               $sum: { $cond: [{ $eq: ["$isCanceled", 0] }, 1, 0] },
-      //             },
-      //             upcomingAppointments: {
-      //               $sum: {
-      //                 $cond: [
-      //                   { $gt: ["$appointmentDateObj", new Date()] },
-      //                   1,
-      //                   0,
-      //                 ],
-      //               },
-      //             },
-      //             canceled: {
-      //               $sum: { $cond: [{ $eq: ["$isCanceled", 2] }, 1, 0] },
-      //             },
-      //             successful: {
-      //               $sum: { $cond: [{ $eq: ["$isCanceled", 3] }, 1, 0] },
-      //             },
-      //           },
-      //         },
-      //       ]);
+  //       const appointments = await webAppointments.aggregate([
+  //         {
+  //           $addFields: {
+  //             appointmentDateObj: { $toDate: "$appointmentDate" }, // Convert string to Date
+  //           },
+  //         },
+  //         {
+  //           $match: {
+  //             appointmentDateObj: { $gte: startDate, $lte: endDate },
+  //             $or: [{ hospitalId: userId }, { veterinarian: userId }],
+  //           },
+  //         },
+  //         {
+  //           $group: {
+  //             _id: null,
+  //             newAppointments: {
+  //               $sum: { $cond: [{ $eq: ["$isCanceled", 0] }, 1, 0] },
+  //             },
+  //             upcomingAppointments: {
+  //               $sum: {
+  //                 $cond: [
+  //                   { $gt: ["$appointmentDateObj", new Date()] },
+  //                   1,
+  //                   0,
+  //                 ],
+  //               },
+  //             },
+  //             canceled: {
+  //               $sum: { $cond: [{ $eq: ["$isCanceled", 2] }, 1, 0] },
+  //             },
+  //             successful: {
+  //               $sum: { $cond: [{ $eq: ["$isCanceled", 3] }, 1, 0] },
+  //             },
+  //           },
+  //         },
+  //       ]);
 
-      //       const result = appointments[0] || {
-      //         newAppointments: 0,
-      //         upcomingAppointments: 0,
-      //         canceled: 0,
-      //         successful: 0,
-      //       };
-      //       const data = new FHIRConverter(result).overviewConvertToFHIR();
-      //       return res.status(200).json({ data });
-      //     } catch (error:any) {
-      //       return res.status(500).json({
-      //         resourceType: "OperationOutcome",
-      //         issue: [
-      //           {
-      //             severity: "fatal",
-      //             code: "exception",
-      //             details: {
-      //               text: "An error occurred while fetching data.",
-      //             },
-      //             diagnostics: error.message,
-      //           },
-      //         ],
-      //       });
-      //     }
-      //   }
+  //       const result = appointments[0] || {
+  //         newAppointments: 0,
+  //         upcomingAppointments: 0,
+  //         canceled: 0,
+  //         successful: 0,
+  //       };
+  //       const data = new FHIRConverter(result).overviewConvertToFHIR();
+  //       return res.status(200).json({ data });
+  //     } catch (error:any) {
+  //       return res.status(500).json({
+  //         resourceType: "OperationOutcome",
+  //         issue: [
+  //           {
+  //             severity: "fatal",
+  //             code: "exception",
+  //             details: {
+  //               text: "An error occurred while fetching data.",
+  //             },
+  //             diagnostics: error.message,
+  //           },
+  //         ],
+  //       });
+  //     }
+  //   }
   //     case "DepartmentOverview":
   //       if (req.method === "GET") {
   //         try {
@@ -1881,8 +2065,8 @@ const HospitalController = {
             const formattedAppointments = confirmedAppointments.map(
               (appointment: AppointmentStatusFHIRBundle | any) => ({
                 ...appointment,
-                appointmentDate: appointment.appointmentDate 
-                  ? `${daysMap[new Date(appointment.appointmentDate).getDay() + 1]}, ${appointment.appointmentDate}` 
+                appointmentDate: appointment.appointmentDate
+                  ? `${daysMap[new Date(appointment.appointmentDate).getDay() + 1]}, ${appointment.appointmentDate}`
                   : "Invalid Date",
               })
             );

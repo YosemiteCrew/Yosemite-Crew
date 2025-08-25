@@ -13,8 +13,46 @@ import { useAuthStore } from "@/app/stores/authStore";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import { useStore } from "zustand";
 
+function useErrorTost() {
+  const [errorTost, setErrorTost] = useState<{
+    show: boolean;
+    message?: string;
+    errortext?: string;
+    iconElement?: React.ReactNode;
+    className?: string;
+  }>({ show: false });
 
+  const showErrorTost = (
+    {
+      message,
+      errortext,
+      iconElement,
+      className = "",
+      // duration = 2000
+    }: {
+      message: string;
+      errortext: string;
+      iconElement: React.ReactNode;
+      className?: string;
+      duration?: number;
+    }
+  ) => {
+    setErrorTost({ show: true, message, errortext, iconElement, className });
+    // setTimeout(() => setErrorTost({ show: false }), duration);
+  };
 
+  const ErrorTostPopup = errorTost.show ? (
+    <ErrorTost
+      className={errorTost.className || ""}
+      message={errorTost.message || ""}
+      errortext={errorTost.errortext || ""}
+      iconElement={errorTost.iconElement}
+      onClose={() => setErrorTost({ show: false })}
+    />
+  ) : null;
+
+  return { showErrorTost, ErrorTostPopup };
+}
 
 // Error Tost Started 
 
@@ -26,7 +64,7 @@ type ErrorTostProps = {
   onClose?: () => void;
 };
 
-const ErrorTost: React.FC<ErrorTostProps> = ({
+export const ErrorTost: React.FC<ErrorTostProps> = ({
   message,
   iconElement,
   errortext,
@@ -90,6 +128,9 @@ function SignUp({ inviteCode }: SignUpProps) {
     otpRefs.current[idx] = el;
   };
  const setVerified = useAuthStore((state) => state.setVerified);
+  const [inputErrors, setInputErrors] = useState<{
+    confirmPassword?: string; email?: string; password?: string 
+}>({});
 
   const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>, idx: number) => {
     const val = e.target.value.replace(/[^0-9]/g, "");
@@ -124,10 +165,11 @@ function SignUp({ inviteCode }: SignUpProps) {
 
   const handleVerify = async (): Promise<void> => {
     if (code.includes('')) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Error',
-        text: 'Please enter the full OTP',
+      showErrorTost({
+        message: 'Please enter the full OTP',
+        errortext: 'Error',
+        iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />,
+        className: "errofoundbg"
       });
       return;
     }
@@ -157,10 +199,11 @@ function SignUp({ inviteCode }: SignUpProps) {
         // 👇 Double-check if it's saved
         // const storeData = useAuthStore.getState();
         // console.log("Saved in Zustand:", storeData);
-        Swal.fire({
-          icon: 'success',
-          title: 'Success',
-          text: response.data.message,
+        showErrorTost({
+          message: response.data.message,
+          errortext: "Success",
+          iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#00C853" />,
+          className: "CongratsBg"
         });
         setVerified(true);
         setCode(Array(6).fill(""));
@@ -170,11 +213,11 @@ function SignUp({ inviteCode }: SignUpProps) {
       }
 
     } catch (error: any) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: `OTP verification failed: ${error.response?.data?.message || 'Unable to connect to the server.'
-          }`,
+      showErrorTost({
+        message: `OTP verification failed: ${error.response?.data?.message || 'Unable to connect to the server.'}`,
+        errortext: "Error",
+        iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />,
+        className: "errofoundbg"
       });
     }
   };
@@ -194,10 +237,11 @@ function SignUp({ inviteCode }: SignUpProps) {
       );
 
       if (response.status === 200) {
-        Swal.fire({
-          icon: 'info',
-          title: 'Code Resent',
-          text: 'A new verification code has been sent to your email.',
+        showErrorTost({
+          message: 'A new verification code has been sent to your email.',
+          errortext: 'Code Resent',
+          iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#00C853" />,
+          className: "CongratsBg"
         });
       }
     } catch (error: unknown) {
@@ -208,20 +252,39 @@ function SignUp({ inviteCode }: SignUpProps) {
         message = axiosError.response?.data?.message || message;
       }
 
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: message,
+      showErrorTost({
+        message,
+        errortext: "Error",
+        iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />,
+        className: "errofoundbg"
       });
     }
   };
+  const { showErrorTost, ErrorTostPopup } = useErrorTost();
+
   const handleSignUp = useCallback(async () => {
+    // Input validation
+    const errors: { email?: string; password?: string; confirmPassword?: string; selectedType?: string } = {};
+    if (!email) errors.email = "Email is required";
+    if (!password) errors.password = "Password is required";
+    if (!confirmPassword) errors.confirmPassword = "Confirm Password is required";
+    if (!inviteCode && !selectedType) errors.selectedType = "Business Type is required";
+
+    // Remove selectedType before setting input errors
+    const { selectedType: _selectedType, ...inputErrorFields } = errors;
+    setInputErrors(inputErrorFields);
+
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
+
     // Always validate passwords
     if (password !== confirmPassword) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Password Mismatch',
-        text: 'Password and Confirm Password do not match.',
+      showErrorTost({
+        message: 'Password and Confirm Password do not match.',
+        errortext: 'Password Mismatch',
+        iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />,
+        className: "errofoundbg"
       });
       return;
     }
@@ -229,28 +292,31 @@ function SignUp({ inviteCode }: SignUpProps) {
     // Only validate these if user is not invited (i.e., role is not provided)
     if (!inviteCode) {
       if (!selectedType) {
-        Swal.fire({
-          icon: 'warning',
-          title: 'Business Type Not Selected',
-          text: 'Please select your business type.',
+        showErrorTost({
+          message: 'Please select your business type.',
+          errortext: 'Business Type Not Selected',
+          iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />,
+          className: "errofoundbg"
         });
         return;
       }
 
       if (!subscribe) {
-        Swal.fire({
-          icon: 'warning',
-          title: 'Newsletter Not Checked',
-          text: 'Please check the Newsletter and Promotional emails box.',
+        showErrorTost({
+          message: 'Please check the Newsletter and Promotional emails box.',
+          errortext: 'Newsletter Not Checked',
+          iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#F68523" />,
+          className: "oppsbg"
         });
         return;
       }
 
       if (!agree) {
-        Swal.fire({
-          icon: 'warning',
-          title: 'Terms Not Agreed',
-          text: 'Please check the "I agree to Terms and Conditions" box.',
+        showErrorTost({
+          message: 'Please check the "I agree to Terms and Conditions" box.',
+          errortext: 'Terms Not Agreed',
+          iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />,
+          className: "errofoundbg"
         });
         return;
       }
@@ -272,11 +338,15 @@ function SignUp({ inviteCode }: SignUpProps) {
       const data = await postData<{ message: string }>(url, formData);
 
       if (data?.status === 200) {
-        console.log("Signup successful", data)
+        showErrorTost({
+          message: "You have successfully created your profile",
+          errortext: "🎉 Congratulations!",
+          iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#00C853" />,
+          className: "CongratsBg"
+        });
         setShowVerifyModal(true); // Show modal after signup
       }
     } catch (error: unknown) {
-      ;
       let status: number | undefined;
       let message: string = 'Something went wrong.';
 
@@ -292,24 +362,16 @@ function SignUp({ inviteCode }: SignUpProps) {
         message = errResp.data?.message || message;
       }
 
-      if (status === 409) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Already Registered',
-          text: message,
-        });
-      } else {
-        Swal.fire({
-          icon: 'error',
-          title: 'Signup Error',
-          text: message,
-        });
-      }
+      showErrorTost({
+        message,
+        errortext: status === 409 ? "Already Registered" : "Signup Error",
+        iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />,
+        className: status === 409 ? "errofoundbg" : "oppsbg"
+      });
 
-      // For testing only: remove this if not needed
       setShowVerifyModal(false);
     }
-  }, [email, password, selectedType, confirmPassword, subscribe, agree, department, invitedBy, inviteCode]);
+  }, [email, password, selectedType, confirmPassword, subscribe, agree, department, invitedBy, inviteCode, showErrorTost]);
 
 
 
@@ -338,16 +400,17 @@ const businessTypes = [
             setInvitedBy(data.data.invitedBy);
           }
         } catch (error) {
-          Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: `${error instanceof Error ? error.message : 'Unable to fetch invite details.'}`,
-          })
+          showErrorTost({
+            message: `${error instanceof Error ? error.message : 'Unable to fetch invite details.'}`,
+            errortext: "Error",
+            iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />,
+            className: "errofoundbg"
+          });
         }
       }
     }
     response();
-  }, [inviteCode]);
+  }, [inviteCode, showErrorTost]);
 
 
 if(isVerified){
@@ -430,6 +493,7 @@ if(isVerified){
                         value={email}
                         inlabel="Enter Email Address"
                         onChange={(e) => setEmail(e.target.value)}
+                        error={inputErrors.email}
                       />
                       <FormInputPass
                         intype="password"
@@ -437,6 +501,7 @@ if(isVerified){
                         value={password}
                         inlabel="Set up Password"
                         onChange={(e) => setPassword(e.target.value)}
+                        error={inputErrors.password}
                       />
                       <FormInputPass
                         intype="password"
@@ -444,6 +509,7 @@ if(isVerified){
                         value={confirmPassword}
                         inlabel="Confirm Password"
                         onChange={(e) => setConfirmPassword(e.target.value)}
+                        error={inputErrors.confirmPassword}
                       />
                     </div>
 
@@ -498,24 +564,8 @@ if(isVerified){
             </Col>
           </Row>
         </Container>
+      {ErrorTostPopup}
 
-        <ErrorTost
-          className="errofoundbg"
-          message="Seems like You did not enter your Email or Password. Enter email and password to create your profile."
-          errortext="Error Found!"
-          iconElement={<Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />}/>
-
-        <ErrorTost
-          className="oppsbg"
-          message="Something went wrong. We will inform you shortly"
-          errortext="Opps"
-          iconElement={<Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#F68523" />}/>
-
-        <ErrorTost
-          className="CongratsBg"
-          message="You have successfully created your profile"
-          errortext="🎉 Congratulations!"/>
-        
 
       </section> :
 
@@ -714,19 +764,24 @@ export function FormInput({
           type={intype}
           name={inname}
           id={inname}
-          value={value}
+          value={value??""}
           onChange={onChange}
           autoComplete="off"
           readOnly={readonly}
           required
-          placeholder=" " // <-- Add a single space as placeholder
+          placeholder=" "
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           className={error ? 'is-invalid' : ''}
         />
         <label htmlFor={inname}>{inlabel}</label>
       </div>
-      {error && <Form.Text className="text-danger">{error}</Form.Text>}
+      {/* Show error as bottom red text only for input validation */}
+      {error && (
+        <div style={{ color: "#EA3729", fontSize: "14px", marginTop: "4px" }}>
+          {error}
+        </div>
+      )}
     </div>
   );
 }
@@ -746,7 +801,8 @@ export function FormInputPass({
   inlabel,
   value,
   onChange,
-}: FormInputPassProps) {
+  error,
+}: FormInputPassProps & { error?: string }) {
   const [showPassword, setShowPassword] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
 
@@ -762,13 +818,14 @@ export function FormInputPass({
         type={showPassword ? "text" : intype}
         name={inname}
         id={inname}
-        value={value}
+        value={value??""}
         autoComplete="new-password"
         onChange={onChange}
         required
-        placeholder=" " // <-- Add a single space as placeholder
+        placeholder=" "
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
+        className={error ? 'is-invalid' : ''}
       />
       <label htmlFor={inname}>{inlabel}</label>
       <Button type="button" onClick={togglePasswordVisibility} tabIndex={-1}>
@@ -780,6 +837,12 @@ export function FormInputPass({
           height={24}
         />
       </Button>
+      {/* Show error as bottom red text only for input validation */}
+      {error && (
+        <div style={{ color: "#EA3729", fontSize: "14px", marginTop: "4px" }}>
+          {error}
+        </div>
+      )}
     </div>
   );
 }

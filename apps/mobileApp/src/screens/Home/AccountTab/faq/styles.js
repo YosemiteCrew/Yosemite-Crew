@@ -1,6 +1,6 @@
-import {StyleSheet} from 'react-native';
-import {scaledHeightValue, scaledValue} from '../../../../utils/design.utils';
-import {colors} from '../../../../../assets/colors';
+import { StyleSheet } from 'react-native';
+import { scaledHeightValue, scaledValue } from '../../../../utils/design.utils';
+import { colors } from '../../../../../assets/colors';
 
 export const styles = StyleSheet.create({
   dashboardMainView: {
@@ -35,7 +35,7 @@ export const styles = StyleSheet.create({
     borderRadius: scaledValue(24),
     justifyContent: 'center',
     paddingHorizontal: scaledValue(18),
-    borderColor: colors.appRed,
+    borderColor: colors.jetBlack,
   },
   optionText: {
     fontSize: scaledValue(16),
@@ -54,7 +54,6 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(16),
     lineHeight: scaledHeightValue(19.2),
     letterSpacing: scaledValue(16 * -0.02),
-    color: colors.darkPurple,
     marginLeft: scaledValue(8),
     width: '90%',
   },

@@ -6,7 +6,7 @@ import {colors} from '../../../../assets/colors';
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF2E3',
+    backgroundColor: colors.paletteWhite,
   },
   image: {
     width: '100%',
@@ -20,16 +20,15 @@ export const styles = StyleSheet.create({
     marginTop: scaledValue(32),
   },
   gTextRed: {
-    fontSize: scaledValue(29),
-    lineHeight: scaledHeightValue(34.8),
-    letterSpacing: scaledValue(29 * -0.01),
-    color: colors.appRed,
+    fontSize: scaledValue(26),
+    lineHeight: scaledHeightValue(26 * 1.2),
+    letterSpacing: scaledValue(26 * -0.01),
   },
   gTextPurple: {
-    fontSize: scaledValue(29),
-    lineHeight: scaledHeightValue(34.8),
-    letterSpacing: scaledValue(29 * -0.01),
-    color: colors.darkPurple,
+    fontSize: scaledValue(26),
+    lineHeight: scaledHeightValue(26 * 1.2),
+    letterSpacing: scaledValue(26 * -0.01),
+    color: colors.jetBlack300,
     left: scaledValue(5),
   },
   inputContainer: {
@@ -44,7 +43,7 @@ export const styles = StyleSheet.create({
     paddingLeft: scaledValue(10),
   },
   button: {
-    backgroundColor: '#FDBD74',
+    backgroundColor: colors.jetBlack,
     width: '100%',
     height: scaledValue(56),
     borderRadius: scaledValue(28),
@@ -55,10 +54,9 @@ export const styles = StyleSheet.create({
   },
   buttonText: {
     fontSize: scaledValue(18),
-    lineHeight: scaledHeightValue(18),
     letterSpacing: scaledValue(16 * -0.01),
     fontFamily: fonts?.CLASH_GRO_MEDIUM,
-    color: '#4E3F2F',
+    color: colors.paletteWhite,
   },
   notMemberContainer: {
     flexDirection: 'row',
@@ -69,26 +67,26 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
     letterSpacing: scaledValue(14 * -0.03),
-    color: '#000000',
+    color: colors.jetBlack300,
     marginHorizontal: scaledValue(5),
   },
   signUpText: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
     letterSpacing: scaledValue(14 * -0.03),
-    color: '#D04122',
+    color: colors.black,
     fontFamily: fonts?.SATOSHI_BOLD,
   },
   loginViaContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: scaledValue(40),
+    marginTop: scaledValue(95),
     justifyContent: 'center',
   },
   divider: {
     borderWidth: scaledValue(0.5),
     width: scaledValue(80),
-    borderColor: colors.darkPurple,
+    border: colors.jetBlack,
   },
   loginViaText: {
     fontSize: scaledValue(16),
@@ -97,25 +95,30 @@ export const styles = StyleSheet.create({
     marginHorizontal: scaledValue(5),
     marginLeft: scaledValue(16),
     marginRight: scaledValue(16),
-    color: colors.darkPurple,
+
     opacity: 0.5,
   },
   socialButtonContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    // justifyContent: 'space-between',
     marginTop: scaledValue(24),
     marginBottom: scaledValue(25),
     gap: scaledValue(12),
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   iconStyle: {
     width: scaledValue(24),
     height: scaledValue(24),
   },
   socialButton: {
-    height: scaledValue(48),
+    // height: scaledValue(48),
     alignSelf: 'center',
     borderRadius: scaledValue(28),
-    paddingHorizontal: scaledValue(40),
+    paddingHorizontal: scaledValue(38),
+    paddingVertical: scaledValue(12),
+    alignItems: 'center',
+    justifyContent: 'center',
     // paddingHorizontal: 45,
   },
   borderButton: {

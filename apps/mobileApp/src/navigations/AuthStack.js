@@ -1,5 +1,5 @@
 import React from 'react';
-import { createStackNavigator } from '@react-navigation/stack';
+import {createStackNavigator} from '@react-navigation/stack';
 import {
   SignupOptions,
   CreateAccount,
@@ -15,12 +15,19 @@ import {
   PetBoardingDetails,
   VeterinaryDetails,
   ConfirmSignUp,
+  VerifyOtp,
+  CongratulationsScreen,
+  AddAddress,
+  Terms,
+  Privacy,
 } from './screens';
 import getScreenOptions from '../helpers/screenOptions';
+import {useTranslation} from 'react-i18next';
 
 const Stack = createStackNavigator();
 
 const AuthStack = () => {
+  const {t} = useTranslation();
   const screens = [
     {
       name: 'SignupOptions',
@@ -39,6 +46,11 @@ const AuthStack = () => {
       component: SignIn,
       title: 'Sign In',
       headerShown: false,
+    },
+    {
+      name: 'VerifyOtp',
+      component: VerifyOtp,
+      title: 'Sign In',
     },
     {
       name: 'CreatePetProfile',
@@ -105,19 +117,41 @@ const AuthStack = () => {
       title: 'Verify Account',
       headerShown: false,
     },
+    {
+      name: 'CongratulationsScreen',
+      component: CongratulationsScreen,
+      title: 'CongratulationsScreen',
+      headerShown: false,
+    },
+    {
+      name: 'AddAddress',
+      component: AddAddress,
+      title: 'Create an account',
+      headerShown: false,
+    },
+    {
+      name: 'Terms',
+      component: Terms,
+      titleKey: 'terms_cond_string',
+    },
+    {
+      name: 'Privacy',
+      component: Privacy,
+      titleKey: 'privacy_policy_string',
+    },
   ];
   return (
     <Stack.Navigator>
-      {screens.map(({ name, component, title, headerShown }) => (
+      {screens.map(({name, component, title, headerShown, titleKey}) => (
         <Stack.Screen
           key={name}
           name={name}
           component={component}
           // options={{headerShown: false}}
-          options={(props) =>
+          options={props =>
             getScreenOptions({
               ...props,
-              title: title || '',
+              title: titleKey ? t(titleKey) : title || '',
               headerShown: headerShown !== undefined ? headerShown : true,
             })
           }

@@ -1,27 +1,29 @@
 
 import { Types, Document } from 'mongoose'
 
-export type breeder =  Document &{
-  userId: Types.ObjectId;
+export interface breeder {
+  _id?: string;
+  userId: string;
   breederName?: string;
   breederAddress?: string;
   city?: string;
   country?: string;
   zipCode?: string;
   telephone?: string;
-  emailAddess?: string; // kept the same name as in your original schema
+  emailAddress?: string; // kept the same name as in your original schema
   website?: string;
+  petId?: Types.ObjectId;
 }
 
 
 export type breederData = {
   userId: Types.ObjectId;
   breederName?: string;
-  breederAddress?: string;
+  breederAddess?: string;
   city?: string;
   country?: string;
   zipCode?: string;
   telephone?: string;
-  emailAddess?: string; // kept the same name as in your original schema
+  emailAddress?: string; // kept the same name as in your original schema
   website?: string;
 }

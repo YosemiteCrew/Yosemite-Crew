@@ -12,20 +12,26 @@ export type medicalDoc = Document &{
 
 export type medicalRecord = Document &{
   userId: string;
-  documentType?: string;
+  documentTypeId?: string; // Reference to MedicalRecordFolder
   title?: string;
   issueDate?: string;
   hasExpiryDate?: string;
   petId?: string;
   expiryDate?: string;
   medicalDocs?: medicalDoc[];
+  isRead?: boolean;
+  createdAt?: Date;
+  petImage?:medicalDoc;
+  createdByRole:string
 }
 export interface FHIRMedicalRecord {
-  documentType: string;
+  documentTypeId? : string,
+  documentType?: string;
   title: string;
   issueDate?: string;
   expiryDate?: string;
   patientId: string;
+  createdByRole:string;
 }
 
 export interface MedicalRecordRequestBody {
@@ -72,7 +78,7 @@ export interface InternalMedicalRecord {
 export interface MedicalRecord {
   _id?: mongoose.Types.ObjectId | string;
   id?: string;
-  documentType: string;
+  documentTypeId?: Types.ObjectId;
   title: string;
   issueDate: string;
   expiryDate?: string;

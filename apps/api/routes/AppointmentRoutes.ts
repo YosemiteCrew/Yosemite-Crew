@@ -12,4 +12,7 @@ router.get('/pets', webAppointmentController.searchPetsForBookAppointment)
 router.get('/getDoctorsByDepartmentId', webAppointmentController.getDoctorsByDepartmentId)
 router.get("/getDoctorSlots",verifyToken, webAppointmentController.getDoctorsSlotes)
 router.post("/appointment",verifyToken, webAppointmentController.createWebAppointment)
+router.get("/getAllAppointments",verifyToken, webAppointmentController.getAllAppointments)
+router.get("/getAllAppointmentsUpComming",verifyToken, webAppointmentController.getAllAppointmentsUpComming)
+router.put("/updateAppointmentStatus/:Id",verifyToken, webAppointmentController.updateAppointmentStatus)
 export default router;

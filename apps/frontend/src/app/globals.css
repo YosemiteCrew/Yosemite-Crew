@@ -165,6 +165,7 @@ body {
 a{
   text-decoration: none !important;
 }
+
 p{
   font-family: var(--satoshi-font);
 }
@@ -296,6 +297,22 @@ input[type=number] {
 }
 .Headingtext h3 span{
   color: var(--black-grey);
+}
+
+
+.floating{
+  animation: floating 3s ease-in-out infinite;
+}
+@keyframes floating {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 /* .Profile Tabs Started  */

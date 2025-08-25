@@ -25,22 +25,20 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   headerText: {
-    fontSize: scaledValue(20),
-    lineHeight: scaledHeightValue(24),
-    letterSpacing: scaledValue(20 * -0.01),
-    color: colors.darkPurple,
+    // fontSize: scaledValue(23),
+    // letterSpacing: scaledValue(23 * -0.01),
   },
   petProfileContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: scaledValue(28),
+    marginTop: scaledValue(18),
     paddingHorizontal: scaledValue(20),
     justifyContent: 'center',
   },
   petImg: {
-    width: scaledValue(100),
-    height: scaledValue(100),
-    top: -5,
+    width: scaledValue(95),
+    height: scaledValue(95),
+    borderRadius: scaledValue(47.5),
   },
   cameraView: {
     width: scaledValue(32),
@@ -64,18 +62,15 @@ export const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: scaledValue(8),
     fontSize: scaledValue(23),
-    lineHeight: scaledHeightValue(27.6),
     letterSpacing: scaledValue(23 * -0.01),
-    color: colors.darkPurple,
   },
   breed: {
     textAlign: 'center',
     fontSize: scaledValue(14),
-    lineHeight: scaledHeightValue(16.8),
-    color: colors.darkPurple,
     marginTop: scaledValue(2),
+    opacity: 0.7,
   },
-  flatListView: {marginTop: scaledValue(56)},
+  flatListView: {marginTop: scaledValue(40)},
   tileView: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -84,15 +79,13 @@ export const styles = StyleSheet.create({
   },
   summaryText: {
     fontSize: scaledValue(16),
-    lineHeight: scaledHeightValue(19.2),
     letterSpacing: scaledValue(16 * -0.02),
-    color: colors.darkPurple,
   },
-  statusText: {
+  statusText: val => ({
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    color: '#ffffff',
-  },
+    color: val == 'Pending' ? '#F89D4F' : '#54B492',
+  }),
   arrowImg: {
     width: scaledValue(16),
     height: scaledValue(16),
@@ -103,10 +96,21 @@ export const styles = StyleSheet.create({
     borderColor: 'rgba(55, 34, 60, 0.1)',
     marginVertical: scaledValue(17),
   },
-  statusView: {
+  statusView: val => ({
     height: scaledValue(25),
     borderRadius: scaledValue(28),
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: val == 'Pending' ? '#FEF3E9' : '#E6F4EF',
+    paddingHorizontal: val == 'Pending' ? scaledValue(16) : scaledValue(11),
+  }),
+  petImageWrapper: {
+    width: scaledValue(100),
+    height: scaledValue(100),
+    borderRadius: scaledValue(50),
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primaryBlue,
   },
+  statusMainView: {flexDirection: 'row', alignItems: 'center'},
 });

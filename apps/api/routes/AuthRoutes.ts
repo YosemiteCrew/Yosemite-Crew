@@ -3,7 +3,7 @@ import authController from '../controllers/auth-controller';
 import WebController from '../controllers/WebController';
 import AddDepartmentController from '../controllers/add-department-controller';
 
-import { verifyToken } from'../middlewares/authMiddleware';
+import { verifyToken, verifyTokenAndRefresh } from'../middlewares/authMiddleware';
 const router = Router();
 
 router.post('/signup', authController.signUp);
@@ -32,7 +32,7 @@ router.post('/refreshToken', WebController.refreshToken);
 
 router.post('/HealthcareService', verifyToken,AddDepartmentController.addDepartment);
 router.get('/getAddDepartment', verifyToken,AddDepartmentController.getAddDepartment);
-router.post('/google-login', authController.googleLogin)
+router.post('/social-login', authController.socialLogin)
 // router.get('/getAddDepartment', verifyToken,AddDepartmentController.getAddDepartment);
 router.get('/getDepartments',verifyToken,AddDepartmentController.getDepartmets)
 router.get('/getDepartmentAllData',verifyToken,AddDepartmentController.getDepartmentById)
@@ -40,4 +40,7 @@ router.get('/getDepartmentAllData',verifyToken,AddDepartmentController.getDepart
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Google Map>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 router.get('/getDepartmentsList',WebController.getDepartmentsList); 
 
+//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Profile >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+router.get('/getProfileDetail',verifyTokenAndRefresh, authController.getProfileDetail)
+router.put('/updateProfileDetail', verifyTokenAndRefresh, authController.updateProfileDetail)
 export default router;

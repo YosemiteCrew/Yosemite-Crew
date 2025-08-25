@@ -25,10 +25,8 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   headerText: {
-    fontSize: scaledValue(20),
-    lineHeight: scaledHeightValue(24),
-    letterSpacing: scaledValue(20 * -0.01),
-    color: colors.darkPurple,
+    fontSize: scaledValue(23),
+    letterSpacing: scaledValue(23 * -0.01),
   },
   headerTextHighlighted: {
     fontSize: scaledValue(20),
@@ -40,14 +38,13 @@ export const styles = StyleSheet.create({
   petProfileContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: scaledValue(41),
+    marginTop: scaledValue(17),
     paddingHorizontal: scaledValue(20),
   },
   petImg: {
-    width: scaledValue(100),
-    height: scaledValue(100),
-    top: -5,
-    borderRadius: scaledValue(50),
+    width: scaledValue(95),
+    height: scaledValue(95),
+    borderRadius: scaledValue(47.5),
   },
   cameraView: {
     width: scaledValue(32),
@@ -71,12 +68,11 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(23),
     lineHeight: scaledHeightValue(27.6),
     letterSpacing: scaledValue(23 * -0.01),
-    color: colors.darkPurple,
   },
   breed: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    color: colors.darkPurple,
+    color: colors.jetBlack300,
   },
   otherInfoView: {
     flexDirection: 'row',
@@ -85,8 +81,7 @@ export const styles = StyleSheet.create({
   },
   gender: {
     fontSize: scaledValue(14),
-    lineHeight: scaledHeightValue(16.8),
-    color: colors.darkPurple,
+    color: colors.jetBlack300,
   },
   pointer: {
     width: scaledValue(4),
@@ -95,39 +90,42 @@ export const styles = StyleSheet.create({
     borderRadius: scaledValue(4),
   },
   inputView: {
-    marginTop: scaledValue(13),
+    marginTop: scaledValue(24),
     paddingHorizontal: scaledValue(20),
+    gap: scaledValue(16),
   },
   inputStyle: {
     width: '100%',
     backgroundColor: 'transparent',
     fontSize: scaledValue(16),
-    // lineHeight: scaledValue(16),
-    marginTop: scaledValue(16),
+    marginTop: scaledValue(-6),
     paddingLeft: scaledValue(10),
   },
   insuredView: {
-    marginTop: scaledValue(16),
     flexDirection: 'row',
     gap: scaledValue(8),
   },
   linear: {borderRadius: scaledValue(28)},
-  tile: {
+  tile: (val, item) => ({
     borderRadius: scaledValue(28),
     height: scaledValue(48),
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: scaledValue(25),
-  },
-  insuredText: {
+    backgroundColor: val === item ? colors.paletteBlue : 'transparent',
+    borderWidth: val === item ? scaledValue(1) : scaledValue(0.5),
+    borderColor: val === item ? colors.primaryBlue : colors.jetBlack,
+  }),
+  insuredText: (val, item) => ({
     fontSize: scaledValue(16),
     lineHeight: scaledHeightValue(19.2),
     letterSpacing: scaledValue(16 * -0.02),
-  },
+    color: val === item ? colors.primaryBlue : colors.jetBlack,
+    fontFamily: val === item ? fonts.SATOSHI_BOLD : fonts.SATOSHI_REGULAR,
+  }),
   companyTile: {
     borderWidth: scaledValue(0.5),
     height: scaledValue(48),
-    marginTop: scaledValue(16),
     borderRadius: scaledValue(24),
     paddingHorizontal: scaledValue(20),
     flexDirection: 'row',
@@ -135,12 +133,11 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     borderColor: '#312943',
   },
-  companyText: {
+  companyText: val => ({
     fontSize: scaledValue(16),
-    lineHeight: scaledHeightValue(16),
     letterSpacing: scaledValue(16 * -0.03),
-    color: '#312943',
-  },
+    opacity: val ? 0.8 : 0.6,
+  }),
   titleText: {
     fontSize: scaledValue(16),
     lineHeight: scaledHeightValue(19.2),
@@ -154,17 +151,24 @@ export const styles = StyleSheet.create({
     marginTop: scaledValue(12),
     marginHorizontal: scaledValue(4),
   },
-  placeView: {
+  placeView: (val, item) => ({
     borderRadius: scaledValue(28),
     height: scaledValue(40),
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: scaledValue(20),
-  },
-  placeText: {
+    marginTop: scaledValue(12),
+    marginHorizontal: scaledValue(4),
+    backgroundColor: val === item ? colors.paletteBlue : 'transparent',
+    borderWidth: val === item ? scaledValue(1) : scaledValue(0.5),
+    borderColor: val === item ? colors.primaryBlue : colors.jetBlack,
+  }),
+  placeText: (val, item) => ({
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-  },
+    color: val === item ? colors.primaryBlue : colors.jetBlack,
+    fontFamily: val === item ? fonts.SATOSHI_BOLD : fonts.SATOSHI_REGULAR,
+  }),
   textButton: {
     fontSize: scaledValue(18),
     lineHeight: scaledHeightValue(18),
@@ -174,22 +178,22 @@ export const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: scaledValue(40),
   },
-  buttonStyle: {
-    backgroundColor: '#FDBD74',
-    width: '90%',
-    height: scaledValue(52),
-    borderRadius: scaledValue(28),
+
+  btnView: {
+    paddingHorizontal: scaledValue(20),
+    marginBottom: scaledValue(48),
+    marginTop: scaledValue(28),
+  },
+  petImageContainer: {
+    width: scaledValue(100),
+    height: scaledValue(100),
+    backgroundColor: colors.primaryBlue,
+    borderRadius: scaledValue(50),
     alignItems: 'center',
     justifyContent: 'center',
-    alignSelf: 'center',
-    marginBottom: scaledValue(48),
-    marginTop: scaledValue(17),
   },
-  buttonText: {
-    fontSize: scaledValue(18),
-    lineHeight: scaledHeightValue(18),
-    letterSpacing: scaledValue(16 * -0.01),
-    fontFamily: fonts?.CLASH_GRO_MEDIUM,
-    color: colors.brown,
+  countrySelectView: {
+    marginTop: scaledValue(16),
+    paddingHorizontal: scaledValue(20),
   },
 });

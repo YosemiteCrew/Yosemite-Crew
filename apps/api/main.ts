@@ -22,9 +22,11 @@ import AdminApiRoutes from './routes/InventoryRoutes';
 import adminInventory from './routes/admin-api-routes';
 import apiRoutes from './routes/apiRoutes';
 import BlogApiRoutes from './routes/BlogApiRoutes';
-import NewsletterRoutes from './routes/NewsletterRoutes';
+import newsletterRoutes from './routes/news-letter-routes';
+import emergencyAppointments from './routes/emergency-appointment-routes'
 import addDiscountCodeRoutes from './routes/addDiscountCodeRoutes'
 import doctorSlots from './routes/doctor.slots'
+import createTask from './routes/create-task';
 import cors from 'cors';
 
 import type { S3File } from '@yosemite-crew/types'
@@ -113,9 +115,11 @@ app.use('/fhir/admin', adminInventory);
 app.use('/fhir/v1', AdminApiRoutes);
 app.use('/fhir/v1', apiRoutes);
 app.use('/fhir/v1', doctorSlots);
-// app.use('/newsletter', NewsletterRoutes);
+app.use('/newsletter', newsletterRoutes);
 app.use('/fhir/v1', BlogApiRoutes);
 app.use('/fhir/v1',inviteRoutes)
+app.use('/fhir/v1',emergencyAppointments)
+app.use('/fhir/v1', createTask);
 // Global error handler
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Error:', err.message);

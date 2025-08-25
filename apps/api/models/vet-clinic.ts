@@ -14,6 +14,7 @@ const vetClinicSchema = new Schema<IVetClinic>({
   telephone: { type: String },
   emailAddess: { type: String },
   website: { type: String },
+  requestAccepted:{ type: Boolean, default:false}
 }, { timestamps: true });
 
 const VetClinic = mongoose.model<IVetClinic>('VetClinic', vetClinicSchema);

@@ -15,6 +15,7 @@ import Swiper from 'react-native-swiper';
 import GButton from '../../../../../components/GButton';
 import GTextButton from '../../../../../components/GTextButton/GTextButton';
 import HeaderButton from '../../../../../components/HeaderButton';
+import {fonts} from '../../../../../utils/fonts';
 
 const PainAssessment = ({navigation}) => {
   const {t} = useTranslation();
@@ -30,7 +31,6 @@ const PainAssessment = ({navigation}) => {
       headerRight: () => (
         <HeaderButton
           icon={Images.bellBold}
-          tintColor={colors.appRed}
           onPress={() => {
             navigation?.navigate('StackScreens', {
               screen: 'Notifications',
@@ -41,7 +41,7 @@ const PainAssessment = ({navigation}) => {
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
-          tintColor={colors.darkPurple}
+          tintColor={colors.jetBlack}
           onPress={() => {
             onPressBackButton();
           }}
@@ -63,9 +63,6 @@ const PainAssessment = ({navigation}) => {
   const onPressBackButton = () => {
     // Get the current index directly from the Swiper instance
     const currentSwiperIndex = swiperRef.current?.state.index;
-
-    // Log the current swiper index for debugging
-    console.log('currentSwiperIndex:', currentSwiperIndex);
 
     if (currentSwiperIndex > 0) {
       // Scroll back by one screen
@@ -190,11 +187,18 @@ const PainAssessment = ({navigation}) => {
       />
       <View style={styles.cardContainer}>
         <Image source={Images.Kizi} style={styles.petImg} />
-        <GText SatoshiBold text={item?.screenTitle} style={styles.titleText} />
+        <GText SatoshiBlack text={item?.screenTitle} style={styles.titleText} />
         <GText
-          SatoshiRegular
           text={item?.description}
-          style={styles.subTitleText}
+          style={[
+            styles.subTitleText,
+            {
+              fontFamily:
+                item?.lastPage == true
+                  ? fonts?.SATOSHI_REGULAR
+                  : fonts?.SATOSHI_BOLD,
+            },
+          ]}
         />
         {item?.options &&
           item?.options?.map((i, index) => (
@@ -287,7 +291,6 @@ const PainAssessment = ({navigation}) => {
           }}
           title={item?.nextButton}
           style={styles.createButton}
-          textStyle={styles.buttonText}
         />
         {item?.secondButton && (
           <GTextButton

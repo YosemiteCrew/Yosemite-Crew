@@ -60,7 +60,7 @@ const Input = props => {
               width: scaledValue(117),
               borderRadius: scaledValue(24),
               justifyContent: 'center',
-              borderColor: focus || props.value ? '#DF9C51' : '#312943',
+              borderColor: focus || props.value ? '#312943' : '#312943',
               marginTop: scaledValue(5),
             }}>
             <GText
@@ -116,14 +116,18 @@ const Input = props => {
               text={props?.label}
               style={{
                 fontSize:
-                  isFocused || props.value ? scaledValue(14) : scaledValue(16),
+                  isFocused || props.value ? scaledValue(15) : scaledValue(16),
                 fontFamily:
                   isFocused || props.value
                     ? fonts?.SATOSHI_BOLD
                     : fonts?.SATOSHI_REGULAR,
                 // lineHeight: scaledHeightValue(16),
                 letterSpacing: scaledValue(16 * -0.03),
-                color: isFocused || props.value ? '#DF9C51' : '#312943',
+                color:
+                  isFocused || props.value
+                    ? colors.jetBlack
+                    : colors.darkPurple2,
+                opacity: isFocused || props.value ? 1 : 0.6,
               }}
             />
           }
@@ -145,7 +149,7 @@ const Input = props => {
           secureTextEntry={props.secureTextEntry}
           outlineColor={
             props?.outlineColor || props.value || isFocused
-              ? colors.primary
+              ? colors.jetBlack
               : '#312943'
           }
           // onLayout={handleLayout1}
@@ -166,7 +170,7 @@ const Input = props => {
                 ? '#34C759'
                 : props.errorEmail
                 ? '#FF3B30'
-                : colors.primary,
+                : colors.jetBlack,
             },
             fonts: {
               medium: {
@@ -353,22 +357,18 @@ export default Input;
 const styles = StyleSheet.create({
   inputField: {
     backgroundColor: 'white',
-    // height: scaledValue(48),
     fontFamily: fonts?.SATOSHI_MEDIUM,
   },
   contentStyle: {
     fontSize: scaledValue(16),
     letterSpacing: scaledValue(16 * -0.03),
     fontFamily: fonts?.SATOSHI_MEDIUM,
-    color: colors.darkPurple2,
-    // lineHeight: scaledHeightValue(20),
+    color: colors.jetBlack,
+    opacity: 0.8,
+    height: scaledValue(48),
+    // lineHeight: scaledHeightValue(24),
   },
   helperTextStyle: {
-    // marginTop: scaledValue(-24),
-    // marginBottom: scaledValue(22),
-    // fontFamily: fonts.SF_PRO_TEXT_REGULAR,
     fontSize: getFontSize(12),
-    // lineHeight: scaledValue(16),
-    // backgroundColor: 'green',
   },
 });

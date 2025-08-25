@@ -8,7 +8,10 @@ import jwt, { SignOptions } from 'jsonwebtoken';
 import userModel from '../models/appuser-model';
 import helpers from "../utils/helpers";
 import { IUser, SignupRequestBody } from "@yosemite-crew/types";
-import { OAuth2Client } from 'google-auth-library';
+import { verifySocialToken } from '../utils/verifySocialToken';
+import { getCognitoUserId } from '../middlewares/authMiddleware';
+import {  fromFhirUser, toFhirUser } from '@yosemite-crew/fhir';
+import AppUser from '../models/appuser-model';
 
 const region = process.env.AWS_REGION!;
 const SES = new AWS.SES({ region });
@@ -22,28 +25,6 @@ const secretKey = crypto.createHash('sha256')
 interface IEncryptedPassword {
   encryptedData: string;
   iv: string;
-}
-
-// Helper: Secret hash for Cognito
-function getSecretHash(username: string): string {
-  const clientId = process.env.COGNITO_CLIENT_ID!;
-  const clientSecret = process.env.COGNITO_CLIENT_SECRET!;
-  return crypto.createHmac('SHA256', clientSecret)
-    .update(username + clientId)
-    .digest('base64');
-}
-
-// Helper: Password generator
-function generatePassword(length: number): string {
-  const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+[]{}|;:,.<>?";
-  const password: string[] = [];
-  while (password.length < length) {
-    const value = crypto.randomBytes(1)[0];
-    if (value < Math.floor(256 / charset.length) * charset.length) {
-      password.push(charset[value % charset.length]);
-    }
-  }
-  return password.join('');
 }
 
 // Encrypt password
@@ -69,6 +50,7 @@ const authController = {
     res: Response
   ): Promise<void> => {
     const body: SignupRequestBody = req.body;
+    
     try {
       const {
         email,
@@ -79,16 +61,14 @@ const authController = {
         addressLine1,
         state,
         area,
-        city, zipcode,
-        // professionType,
-        // pimsCode,
+        city,
+         zipcode,
+         country,
         dateOfBirth
-      } = JSON.parse(body.data);
+      }  = JSON.parse(body.data) as  {email :string, firstName:string, lastName :string, mobilePhone:string, countryCode:string, addressLine1:string, state?:string, area?:string, city?: string, zipcode?:string, country?:string, dateOfBirth?:Date }
 
 
-      const password = generatePassword(12);
-
-
+      const password = helpers.generatePassword(12);
 
       // const isProfessional =
       //   Array.isArray(professionType) && professionType.length > 0 ? 'yes' : 'no';
@@ -102,11 +82,11 @@ const authController = {
         return;
       }
       if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
-        
+
         res.status(200).json({ status: 0, message: 'Invalid email address' });
         return
       }
-      const secretHash = getSecretHash(email);
+      const secretHash = helpers.getSecretHash(email);
 
       const params: AWS.CognitoIdentityServiceProvider.SignUpRequest = {
         ClientId: process.env.COGNITO_CLIENT_ID,
@@ -116,15 +96,19 @@ const authController = {
         UserAttributes: [
           { Name: 'email', Value: email },
           { Name: 'phone_number', Value: `${countryCode}${mobilePhone}` },
-          { Name: 'address', Value: `${addressLine1} ${area} ${state} ${city} ${zipcode}` },
+          { Name: 'address', Value: `${addressLine1} ${area} ${state} ${city} ${zipcode} ${country}` },
           { Name: 'name', Value: `${firstName} ${lastName}` },
         ],
       };
 
-  
-      const files = Array.isArray(req.files.files) ? req.files.files : [req.files.files]
-  
-      const imageUrls = await helpers.uploadFiles(files);
+
+      const files = Array.isArray(req?.files?.files) ? req?.files?.files : [req?.files?.files]
+      
+      let imageUrls ;
+      if (req.files && files.length) {
+        imageUrls = await helpers.uploadFiles(files);
+      }
+
       if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
         res.status(200).json({ status: 0, message: 'Invalid email address' });
         return
@@ -137,6 +121,9 @@ const authController = {
         res.status(200).json({ status: 0, message: 'Email already exists', data: userData });
         return;
       }
+      const dobString = dateOfBirth; // DD/MM/YYYY
+      const [day, month, year] = dobString.split("/");
+      const dob = new Date(`${year}-${month}-${day}`);
 
       const data = await cognito.signUp(params).promise();
       const encryptedPassword = encryptPassword(password);
@@ -145,17 +132,17 @@ const authController = {
         cognitoId: data.UserSub,
         email,
         password: [encryptedPassword],
-        firstName:firstName as string,
-        lastName: lastName as string,
-        mobilePhone : mobilePhone as string,
-        countryCode : countryCode as string,
-        address: addressLine1 as string,
-        state: state as string,
-        area : area as string,
-        city: city as string,
-        zipcode: zipcode as string,
+        firstName: firstName,
+        lastName: lastName,
+        mobilePhone: mobilePhone,
+        countryCode: countryCode,
+        address: addressLine1,
+        state: state,
+        area: area,
+        city: city,
+        zipcode: zipcode,
         profileImage: imageUrls,
-        dateOfBirth: typeof dateOfBirth === 'string' ? dateOfBirth : '',
+        dateOfBirth: typeof dob === 'string' ? dob : '',
       });
 
       res.status(200).json({
@@ -170,8 +157,8 @@ const authController = {
   },
 
   confirmSignup: async (req: Request, res: Response): Promise<void> => {
-    const { email, confirmationCode } = req.body as { email:string, confirmationCode:string};
-  
+    const { email, confirmationCode } = req.body as { email: string, confirmationCode: string };
+
     try {
 
       if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
@@ -200,7 +187,7 @@ const authController = {
         res.status(200).json({ status: 0, message: 'Cognito configuration missing' });
         return
       }
-      const secretHash = getSecretHash(email);
+      const secretHash = helpers.getSecretHash(email);
 
       await cognito.confirmSignUp({
         ClientId: process.env.COGNITO_CLIENT_ID,
@@ -258,7 +245,7 @@ const authController = {
   },
 
   sendOtp: async (req: Request, res: Response): Promise<void> => {
-    const { email } = req.body as {email:string};
+    const { email } = req.body as { email: string };
 
     try {
       if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
@@ -303,8 +290,8 @@ const authController = {
     }
   },
 
-  deleteUser: async (req: Request, res: Response):Promise<void> => {
-    const { email } = req.body as {email:string};
+  deleteUser: async (req: Request, res: Response): Promise<void> => {
+    const { email } = req.body as { email: string };
 
     try {
       if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
@@ -321,8 +308,8 @@ const authController = {
         return
       }
       if (!process.env.COGNITO_USER_POOL_ID) {
-         res.status(500).json({ status: 0, message: 'Cognito User Pool ID missing' });
-         return
+        res.status(500).json({ status: 0, message: 'Cognito User Pool ID missing' });
+        return
       }
       await cognito.adminDeleteUser({
         UserPoolId: process.env.COGNITO_USER_POOL_ID,
@@ -338,7 +325,7 @@ const authController = {
   },
 
   login: async (req: Request, res: Response): Promise<void> => {
-    const { email, otp } = req.body as {email:string, otp:string};
+    const { email, otp } = req.body as { email: string, otp: string };
 
     try {
       if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
@@ -382,7 +369,7 @@ const authController = {
         res.status(200).json({ status: 0, message: 'Cognito configuration missing' });
         return
       }
-      const secretHash = getSecretHash(email);
+      const secretHash = helpers.getSecretHash(email);
 
       const authData = await cognito.initiateAuth({
         AuthFlow: 'USER_PASSWORD_AUTH',
@@ -425,7 +412,7 @@ const authController = {
   },
 
   resendConfirmationCode: async (req: Request, res: Response): Promise<void> => {
-    const { email } = req.body as {email:string};
+    const { email } = req.body as { email: string };
 
     try {
       if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
@@ -463,52 +450,170 @@ const authController = {
         httpOnly: true,               // Recommended: prevent JS access
         secure: isProduction,         // Only send over HTTPS in production
         sameSite: "strict",
-        expires: new Date(0), // Set expiration to past
+        // expires: new Date(0), // Set expiration to past
       });
 
       res.clearCookie("refreshToken", {
         httpOnly: true,               // Recommended: prevent JS access
         secure: isProduction,
         sameSite: "strict",
-          expires: new Date(0), // Set expiration to past
+        // expires: new Date(0), // Set expiration to past
       });
 
       res.status(200).json({ status: 1, message: "Logout successful" });
       return
-    } catch (error:unknown) {
-      const message = error instanceof Error ? error.message :'Unknown error';
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
       console.error("Error during sign-out:", error);
-      res.status(200).json({ status: 0, message:message });
+      res.status(200).json({ status: 0, message: message });
     }
   },
-  googleLogin: async (req: Request, res: Response): Promise<void> => {
+  socialLogin: async (req: Request, res: Response): Promise<void> => {
     try {
-      const { id_token } = req.body as { id_token: string };
-    
-      const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-      if (!GOOGLE_CLIENT_ID) {
-        throw new Error("Missing GOOGLE_CLIENT_ID in environment variables.");
-      }
-      const client = new OAuth2Client(GOOGLE_CLIENT_ID);
-      if (!id_token) {
-        res.status(400).json({ error: "Token missing" });
-        return
-      }
-      console.log(GOOGLE_CLIENT_ID,'process.env.GOOGLE_CLIENT_ID');
-      const ticket = await client.verifyIdToken({
-        idToken: id_token,
-        audience: GOOGLE_CLIENT_ID,
-      });
-      const payload = ticket.getPayload();
+      const { token_id, type } = req.body as { token_id: string, type: string };
+      const payload = await verifySocialToken(type, token_id)
 
-      res.status(200).json({ message: 1, data: payload })
+      res.status(200).json({ status: 1, message: 1, data: payload })
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       console.error("Google Login Error:", error);
-      if(error instanceof Error)
-      res.status(200).json({message:0, error:message });
+      if (error instanceof Error)
+        res.status(200).json({ message: 0, error: message });
     }
+  },
+  getProfileDetail: async(req:Request, res:Response):Promise<void> =>{
+    try {
+      const userId = getCognitoUserId(req)
+      if(!userId){
+        res.status(200).json({ status:0,message:'User ID is missing.'})
+        return
+      }
+      
+      const profielDetail=  await AppUser.findOne({cognitoId:userId}).lean();
+      if(!profielDetail){
+        res.status(200).json({ status:0, message:'No profile found with this details'})
+        return;
+      }
+      const entry : unknown = toFhirUser(profielDetail) 
+      res.status(200).json({ status:1, message:'Profle Details fetched successfully!', data: entry });
+
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+       res.status(200).json({ message: 0, error: message });
+    }
+  },
+  updateProfileDetail: async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = getCognitoUserId(req);
+    if (!userId) {
+      res.status(200).json({ status: 0, message: 'User ID is missing.' });
+      return;
+    }
+
+    // File upload handling
+    const files = Array.isArray(req?.files?.files)
+      ? req?.files?.files
+      : req?.files?.files
+      ? [req?.files?.files]
+      : [];
+
+    let imageUrls;
+    if (files.length) {
+      imageUrls = await helpers.uploadFiles(files);
+    }
+
+    // Same payload as signup
+    const {
+      email,
+      firstName,
+      lastName,
+      mobilePhone,
+      countryCode,
+      addressLine1,
+      state,
+      area,
+      city,
+      zipcode,
+      country,
+      dateOfBirth,
+    } = JSON.parse(req.body.data) as {
+      email: string;
+      firstName: string;
+      lastName: string;
+      mobilePhone: string;
+      countryCode: string;
+      addressLine1: string;
+      state?: string;
+      area?: string;
+      city?: string;
+      zipcode?: string;
+      country?: string;
+      dateOfBirth?: string; // DD/MM/YYYY
+    };
+
+    // Convert DOB (if provided)
+    let dob: Date | undefined;
+    if (dateOfBirth) {
+      const [day, month, year] = dateOfBirth.split('/');
+      dob = new Date(`${year}-${month}-${day}`);
+    }
+
+    // Build update object
+    const updateData: Partial<IUser> = {
+      email: email?.trim().toLowerCase(),
+      firstName,
+      lastName,
+      mobilePhone,
+      countryCode,
+      address: addressLine1,
+      state,
+      area,
+      city,
+      zipcode,
+      country,
+      dateOfBirth: dob,
+    };
+
+    // if(updateData.email){
+    //   res.status(200).json({message:'Email cannot be update', status:0})
+    //   return
+    // }
+    delete updateData.email;
+    // Remove undefined fields
+    Object.keys(updateData).forEach((key) => {
+      if (updateData[key as keyof typeof updateData] === undefined) {
+        delete updateData[key as keyof typeof updateData];
+      }
+    });
+
+    // Attach uploaded image(s)
+    if (imageUrls && imageUrls.length) {
+      updateData.profileImage = imageUrls;
+    }
+
+    const profileDetail = await AppUser.findOneAndUpdate(
+      { cognitoId: userId },
+      { $set: updateData },
+      { new: true }
+    );
+
+    if (!profileDetail) {
+      res.status(200).json({ status: 0, message: 'User not found' });
+      return;
+    }
+
+    res.status(200).json({
+      status: 1,
+      message: 'Profile detail updated successfully',
+      data: profileDetail,
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An error occurred';
+    res.status(200).json({ status: 0, message });
   }
+},
+
 };
 
 export default authController;

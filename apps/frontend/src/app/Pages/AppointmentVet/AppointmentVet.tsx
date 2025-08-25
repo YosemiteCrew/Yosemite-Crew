@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Col, Container, Dropdown, Row } from "react-bootstrap";
 import StatCard from "@/app/Components/StatCard/StatCard";
 import TableTopBar from "@/app/Components/TableTopBar/TableTopBar";
@@ -11,109 +11,160 @@ import { FaCalendar } from "react-icons/fa6";
 import CalendarCard from "@/app/Components/CalendarCard/CalendarCard";
 import { getData } from "@/app/axios-services/services";
 import { useAuthStore } from "@/app/stores/authStore";
-import { convertAppointmentStatsFromFHIR, convertFhirAppointmentBundle, convertFromFHIRAppointments } from "@yosemite-crew/fhir";
-// import { convertFhirAppointmentBundle } from "@/app/utils/common";
-// import { set } from 'mongoose';
+import TodayAppointments from "@/app/Components/DataTable/TodayAppointments";
+import UpCommingAppointments from "@/app/Components/DataTable/UpCommingAppointments";
+import NewAppointments from "@/app/Components/DataTable/NewAppointments";
+
+type AppointmentStatus = "In-progress" | "Checked-In" | "Pending" | "accepted" | "fulfilled";
+
+export type TodayAppointmentItem = {
+  id: string;
+  name: string;
+  owner: string;
+  image: string;
+  tokenNumber: string;
+  reason: string;
+  petType: string;
+  pet: string;
+  time: string;
+  date: string;
+  participants: { name: string };
+  specialization: string;
+  status: AppointmentStatus;
+};
+
+interface ApiResponse {
+  message: string;
+  totalAppointments: number;
+  Appointments: any[];
+  pagination: {
+    offset: number;
+    limit: number;
+    hasMore: boolean;
+  };
+}
 
 function AppointmentVet() {
   const [selectedDoctor, setSelectedDoctor] = useState("Appointment Status");
-  const [todayAppointmentsData, setTodayAppointmentsData] = useState([]);
-  const [overviewStats, setOverviewStats] = useState<any>([]);
-  const [upcomingAppointmentsData, setUpcomingAppointmentsData] = useState([]);
-  const [completedAppointmentsData, setCompletedAppointmentsData] = useState(
-    []
-  );
+  const [todayAppointmentsData, setTodayAppointmentsData] = useState<TodayAppointmentItem[]>([]);
+  const [upcomingAppointmentsData, setUpcomingAppointmentsData] = useState<TodayAppointmentItem[]>([]);
+  const [completedAppointmentsData, setCompletedAppointmentsData] = useState<TodayAppointmentItem[]>([]);
+  const [newAppointmentsData, setNewAppointmentsData] = useState<TodayAppointmentItem[]>([]);
+  const [overviewStats, setOverviewStats] = useState({
+    todaysAppointments: 0,
+    upcomingAppointments: 0,
+    completedAppointments: 0,
+    newAppointments: 0
+  });
   const [myCalender, setMyCalender] = useState([]);
+  const [refreshCounter, setRefreshCounter] = useState(0);
   const userId = useAuthStore((state: any) => state.userId);
 
-  useEffect(() => {
-    fetchTodayAppointments("AppointmentLists");
-  }, []);
-  useEffect(() => {
-    fetchTodayAppointments("UpComing");
-  }, []);
-  useEffect(() => {
-    fetchTodayAppointments("Completed");
-  }, []);
-  useEffect(() => {
-    fetchCalenderAppointments("calenderaAppointment");
-  }, []);
-  useEffect(() => {
-    fetchOverviewStats();
-  }, []);
+  // Fetch all appointment data
+  const fetchAppointments = useCallback(async (type: "today" | "upcoming" | "completed" | "new") => {
+    try {
+      const response = await getData(
+        `/fhir/v1/getAllAppointmentsToAction?userId=${userId}&type=${type}&limit=1000`
+      );
+      
+      if (response.status === 200) {
+        const data: any = response.data;
+        
+        // Update overview stats
+        setOverviewStats(prev => ({
+          ...prev,
+          [`${type}Appointments`]: data.totalAppointments
+        }));
 
-  const fetchTodayAppointments = async (type: any) => {
-    const response = await getData("/fhir/v1/Appointment", {
-      caseType: type,
-      organization: userId,
+        // Normalize and set the data
+        const normalizedData = normalizeAppointments(data.Appointments);
+        
+        switch (type) {
+          case "today":
+            setTodayAppointmentsData(normalizedData);
+            break;
+          case "upcoming":
+            setUpcomingAppointmentsData(normalizedData);
+            break;
+          case "completed":
+            setCompletedAppointmentsData(normalizedData);
+            break;
+          case "new":
+            setNewAppointmentsData(normalizedData);
+            break;
+        }
+
+        return data.totalAppointments;
+      }
+    } catch (error) {
+      console.error(`Error fetching ${type} appointments:`, error);
+      return 0;
+    }
+  }, [userId]);
+
+  // Fetch all appointment types
+  const fetchAllAppointments = useCallback(async () => {
+    if (!userId) return;
+
+    try {
+      const [todayCount, upcomingCount, completedCount, newCount] = await Promise.all([
+        fetchAppointments("today"),
+        fetchAppointments("upcoming"),
+        fetchAppointments("completed"),
+        fetchAppointments("new")
+      ]);
+
+      // Update overview stats with all counts
+      setOverviewStats({
+        todaysAppointments: todayCount || 0,
+        upcomingAppointments: upcomingCount || 0,
+        completedAppointments: completedCount || 0,
+        newAppointments: newCount || 0
+      });
+    } catch (error) {
+      console.error("Error fetching all appointments:", error);
+    }
+  }, [fetchAppointments, userId]);
+
+  const handleAppointmentUpdate = useCallback(() => {
+    // Refresh all appointments to reflect the status changes
+    fetchAllAppointments();
+  }, [fetchAllAppointments]);
+
+  useEffect(() => {
+    fetchAllAppointments();
+  }, [fetchAllAppointments, refreshCounter]);
+
+  const normalizeAppointments = (appointments: any[]): TodayAppointmentItem[] => {
+    return appointments.map((item: any) => {
+      // Map backend status to frontend status
+      let mappedStatus: AppointmentStatus = "Pending";
+      if (item.appointmentStatus === "accepted") {
+        mappedStatus = "Checked-In";
+      } else if (item.appointmentStatus === "fulfilled") {
+        mappedStatus = "In-progress";
+      } else if (item.appointmentStatus === "pending") {
+        mappedStatus = "Pending";
+      }
+
+      return {
+        id: item._id,
+        name: item.petName,
+        owner: item.ownerName,
+        image: item.petImage || "/default-pet.png",
+        tokenNumber: item.tokenNumber,
+        reason: item.purposeOfVisit,
+        petType: item.pet,
+        pet: item.breed,
+        time: item.appointmentTime,
+        date: item.appointmentDate,
+        participants: { name: item.doctorName || "Unknown Doctor" },
+        specialization: item.departmentName,
+        status: mappedStatus,
+      };
     });
-    if (!response) {
-      throw new Error("Network response was not ok");
-    }
-    const data: any = await response.data;
-    // console.log(data, "DATAAAAAAAAAAAAAAAA");
-    const convertToJson: any = await convertFhirAppointmentBundle(
-      data.data.entry
-    );
-    if (type === "AppointmentLists") {
-      setTodayAppointmentsData(convertToJson);
-    }
-    if (type === "UpComing") {
-      setUpcomingAppointmentsData(convertToJson);
-    }
-    if (type === "Completed") {
-      setCompletedAppointmentsData(convertToJson);
-    }
-    // if (type === "calenderaAppointment") {
-    //   setMyCalender(convertToJson);
-    // }
   };
-  const fetchCalenderAppointments = async (type: any) => {
-    const response = await getData("/fhir/v1/Appointment", {
-      caseType: type,
-      organization: userId,
-    });
-    if (!response) {
-      throw new Error("Network response was not ok");
-    }
-    const data: any = await response.data;
-    // console.log(data, "DATAAAAAAAAAAAAAAAA");
-    // const convertToJson: any = await convertFhirAppointmentBundle(
-    //   data.data.entry
-    // );
 
-    if (type === "calenderaAppointment") {
-       const json:any = convertFromFHIRAppointments(data)
-      setMyCalender(json);
-    }
-  };
-  // const fetchUpcomingAppointments = async() => {
-  //     const response:any = await getData('/fhir/v1/Appointment',{caseType:":UpComing"});
-  //     setUpcomingAppointmentsData(response.data);
-  //  }
-  // const fetchCompletedAppointments = async() => {
-  //     const response:any = await getData('/fhir/v1/Appointment',{caseType:":Completed"});
-  //     setCompletedAppointmentsData(response.data);
-  //  }
-  // const fetchNewAppointments = async() => {
-  //     const response = await getData('/fhir/v1/Appointment',{caseType:":AppointmentLists"});
-  //  }
-const fetchOverviewStats = async() => { 
-  console.log("First Name");
-  const response = await getData("/fhir/v1/AppointmentOverviewStats", {
-    userId: userId,
-  });
-  if (!response) {
-    throw new Error("Network response was not ok");
-  }
-  const data: any = await convertAppointmentStatsFromFHIR
-  (response.data)
- console.log(data,"Overview Stats Data");
-setOverviewStats(data);
-
-  
- }
-  console.log(overviewStats, "overviewStats");
   return (
     <>
       <section className="AppointmentVetSection">
@@ -129,28 +180,28 @@ setOverviewStats(data);
                 <Row>
                   <Col md={3}>
                     <StatCard
-                      icon="/Images/stact1.png"
+                      icon="solar:document-medicine-bold"
                       title="Appointments (Today)"
-                      value={overviewStats.todaysAppointments || 0}
+                      value={overviewStats.todaysAppointments}
                     />
                   </Col>
                   <Col md={3}>
                     <StatCard
-                      icon="/Images/stact2.png"
+                      icon="solar:calendar-add-bold"
                       title="Upcoming"
                       value={overviewStats.upcomingAppointments}
                     />
                   </Col>
                   <Col md={3}>
                     <StatCard
-                      icon="/Images/stact3.png"
+                      icon="carbon:checkmark-filled"
                       title="Completed"
                       value={overviewStats.completedAppointments}
                     />
                   </Col>
                   <Col md={3}>
                     <StatCard
-                      icon="/Images/stact4.png"
+                      icon="solar:star-bold"
                       title="New Appointments"
                       value={overviewStats.newAppointments}
                     />
@@ -161,15 +212,21 @@ setOverviewStats(data);
 
             <Row>
               <div className="TableRowDiv">
-                <TableTopBar TbleHName="Today’s Assessments" TbleHNumb="03" />
-                <AppointmentsTable data={todayAppointmentsData} />
+                <TableTopBar 
+                  TbleHName="Today's Appointments" 
+                  TbleHNumb={todayAppointmentsData.length.toString()} 
+                />
+                <TodayAppointments data={todayAppointmentsData} onAppointmentUpdate={handleAppointmentUpdate} />
               </div>
             </Row>
 
             <Row>
               <div className="TableRowDiv">
-                <TableTopBar TbleHName="Upcoming Appointments" TbleHNumb="03" />
-                <UpComingAppointmentsTable data={upcomingAppointmentsData} />
+                <TableTopBar 
+                  TbleHName="Upcoming Appointments" 
+                  TbleHNumb={upcomingAppointmentsData.length.toString()} 
+                />
+                <UpCommingAppointments data={upcomingAppointmentsData} onAppointmentUpdate={handleAppointmentUpdate} />
               </div>
             </Row>
 
@@ -177,42 +234,48 @@ setOverviewStats(data);
               <div className="TableRowDiv">
                 <TableTopBar
                   TbleHName="Completed Appointments"
-                  TbleHNumb="03"
+                  TbleHNumb={completedAppointmentsData.length.toString()}
                 />
-                <CompletedAppointmentsTable data={completedAppointmentsData} />
+                <CompletedAppointmentsTable data={completedAppointmentsData} onAppointmentUpdate={handleAppointmentUpdate} />
               </div>
             </Row>
+
+            <Row>
+              <div className="TableRowDiv">
+                <TableTopBar
+                  TbleHName="New Appointments"
+                  TbleHNumb={newAppointmentsData.length.toString()}
+                />
+                <NewAppointments 
+                  data={newAppointmentsData} 
+                  onAppointmentUpdate={handleAppointmentUpdate}
+                />
+              </div>
+            </Row>
+
             <Row>
               <div className="DoctorClender">
                 <div className="TopClendr">
                   <div className="lftclndr">
                     <h3>
-                      My Calendar <span>(14)</span>
+                      My Calendar <span>({myCalender.length})</span>
                     </h3>
                   </div>
                   <div className="Rytclndr">
                     <div className="clnderSlect">
                       <Dropdown
                         onSelect={(val: any) =>
-                          setSelectedDoctor(val || "Doctor")
+                          setSelectedDoctor(val || "Appointment Status")
                         }
                       >
                         <Dropdown.Toggle id="doctor-dropdown">
                           {selectedDoctor}
                         </Dropdown.Toggle>
                         <Dropdown.Menu>
-                          <Dropdown.Item eventKey="Active">
-                            Active
-                          </Dropdown.Item>
-                          <Dropdown.Item eventKey="Cancel">
-                            Cancel
-                          </Dropdown.Item>
-                          <Dropdown.Item eventKey="Complete">
-                            Complete
-                          </Dropdown.Item>
-                          <Dropdown.Item eventKey="Pending">
-                            Pending
-                          </Dropdown.Item>
+                          <Dropdown.Item eventKey="Active">Active</Dropdown.Item>
+                          <Dropdown.Item eventKey="Cancel">Cancel</Dropdown.Item>
+                          <Dropdown.Item eventKey="Complete">Complete</Dropdown.Item>
+                          <Dropdown.Item eventKey="Pending">Pending</Dropdown.Item>
                         </Dropdown.Menu>
                       </Dropdown>
                     </div>
@@ -226,7 +289,7 @@ setOverviewStats(data);
                 </div>
                 <CalendarCard data={myCalender}/>
               </div>
-            </Row>I
+            </Row>
           </div>
         </Container>
       </section>

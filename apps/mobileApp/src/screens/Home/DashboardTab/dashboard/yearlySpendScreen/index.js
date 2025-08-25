@@ -1,93 +1,48 @@
 import {
   FlatList,
   Image,
-  StyleSheet,
   Text,
   View,
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
 import React, {useEffect, useRef, useState} from 'react';
-
 import HeaderButton from '../../../../../components/HeaderButton';
 import {useTranslation} from 'react-i18next';
 import {Images} from '../../../../../utils';
 import {colors} from '../../../../../../assets/colors';
-import {scaledValue} from '../../../../../utils/design.utils';
 import GText from '../../../../../components/GText/GText';
 import {styles} from './styles';
 import Modal from 'react-native-modal';
 import LinearGradient from 'react-native-linear-gradient';
-import RBSheet from 'react-native-raw-bottom-sheet';
 import Input from '../../../../../components/Input';
-import GTextButton from '../../../../../components/GTextButton/GTextButton';
 import GButton from '../../../../../components/GButton';
-import OptionMenuSheet from '../../../../../components/OptionMenuSheet';
+import {
+  Menu,
+  MenuOptions,
+  MenuOption,
+  MenuTrigger,
+} from 'react-native-popup-menu';
+import {recentData} from '../../../../../utils/constants';
+import {scaledValue} from '../../../../../utils/design.utils';
 
 const YearlySpendScreen = ({navigation}) => {
   const refRBSheet = useRef();
   const [visible, setVisible] = useState(false);
   const [visibleModal, setVisibleModal] = useState(false);
   const [expenseName, setExpenseName] = useState('');
-  const [category, setCategory] = useState('');
-  const [expenseDate, setExpenseDate] = useState('');
   const [amount, setAmount] = useState('');
   const {t} = useTranslation();
   useEffect(() => {
     configureHeader();
   }, []);
 
-  const recentData = [
-    {
-      task: 'Monthly Food Supply',
-      price: '$30',
-      date: '20 Nov 2024',
-    },
-    {
-      task: 'Annual Vaccination',
-      price: '$15',
-      date: '12 Nov 2024',
-    },
-    {
-      task: 'Grooming Session',
-      price: '$30',
-      date: '20 Nov 2024',
-    },
-    {
-      task: 'Pet Insurance Premium',
-      price: '$30',
-      date: '20 Nov 2024',
-    },
-    {
-      task: 'New Collar and Leash',
-      price: '$30',
-      date: '20 Nov 2024',
-    },
-  ];
-  const settingsList = [
-    {
-      id: 1,
-      title: t('edit_expense_string'),
-      subTitle: '',
-      textColor: '#007AFF',
-      action: () => setVisibleModal(true),
-    },
-
-    {
-      id: 2,
-      title: t('del_expense_string'),
-      subTitle: '',
-      textColor: '#F42626',
-      action: () => {},
-    },
-  ];
-
   const configureHeader = () => {
     navigation.setOptions({
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
-          tintColor={colors.darkPurple}
+          tintColor={colors.jetBlack}
           onPress={() => navigation.goBack()}
         />
       ),
@@ -97,22 +52,86 @@ const YearlySpendScreen = ({navigation}) => {
   const renderItem = ({item}) => {
     return (
       <View style={styles.flatlistMain}>
-        <View style={styles.taskView}>
-          <GText GrMedium style={styles.taskText} text={item.task} />
-          <GText SatoshiBold style={styles.dateText} text={item.date} />
-        </View>
-        <View style={styles.priceView}>
-          <GText GrMedium style={styles.priceText} text={item.price} />
-          <TouchableOpacity
-            hitSlop={styles.hitSlop}
-            onPress={() => refRBSheet.current.open()}>
-            <Image
-              tintColor={'#A09F9F'}
-              style={styles.threeDots}
-              source={Images.ThreeDots}
+        <Menu style={styles.menuView}>
+          <MenuTrigger style={styles.menuTriggerView}>
+            <View style={styles.dotView}>
+              <Image
+                tintColor={colors.jetBlack}
+                style={styles.threeDots}
+                source={Images.ThreeDots}
+              />
+            </View>
+          </MenuTrigger>
+          <MenuOptions
+            customStyles={{
+              optionsWrapper: styles.optionsWrapper,
+              optionsContainer: styles.optionsContainer,
+            }}>
+            <MenuOption
+              style={styles.menuOption}
+              onSelect={() => {
+                setVisibleModal(true);
+              }}>
+              <Image source={Images.penBold} style={styles.editImg} />
+              <GText
+                GrMedium
+                style={styles.editText}
+                text={t('edit_expense_string')}
+              />
+            </MenuOption>
+            <View style={styles.menuDivider} />
+            <MenuOption style={styles.menuOption} onSelect={() => {}}>
+              <Image source={Images.deleteBold} style={styles.editImg} />
+              <GText
+                GrMedium
+                style={styles.editText}
+                text={t('del_expense_string')}
+              />
+            </MenuOption>
+          </MenuOptions>
+        </Menu>
+
+        <View style={styles.tileContainer}>
+          <View style={styles.innerTileContainer}>
+            <GText
+              componentProps={{
+                numberOfLines: 1,
+                ellipsizeMode: 'tail',
+              }}
+              GrMedium
+              style={styles.taskText}
+              text={item.task}
             />
-          </TouchableOpacity>
+            <GText SatoshiBold style={styles.billText} text={item.billId} />
+            <GText
+              componentProps={{}}
+              SatoshiBold
+              style={styles.businessText}
+              text={item.businessName}
+            />
+          </View>
+
+          <View>
+            <View style={styles.priceTile(item?.status)}>
+              <GText GrMedium style={styles.priceText} text={item.price} />
+              <GText
+                SatoshiBold
+                style={[styles.statusText]}
+                text={item.status}
+              />
+            </View>
+            <GText SatoshiBold style={styles.dateText} text={item.date} />
+          </View>
         </View>
+        {item?.status != 'Paid' && (
+          <GButton
+            icon={Images.money}
+            iconStyle={styles.threeDots}
+            title={`Pay $${item?.price}`}
+            style={styles.payBtnView}
+            textStyle={styles.payTxtStyle}
+          />
+        )}
       </View>
     );
   };
@@ -121,11 +140,13 @@ const YearlySpendScreen = ({navigation}) => {
     <View style={styles.container}>
       <ScrollView>
         <LinearGradient
-          colors={['#D04122', '#FDBD74']}
+          colors={['#141413', '#595958']}
           start={{x: 0, y: 1}}
-          end={{x: 1, y: 1}}
+          end={{x: 1.5, y: 1}}
           style={styles.yearlySpendView}>
-          <Image style={styles.kiziImage} source={Images.Kizi} />
+          <View style={styles.petView}>
+            <Image style={styles.kiziImage} source={Images.Kizi} />
+          </View>
           <GText
             GrMedium
             style={styles.subHeading}
@@ -133,21 +154,26 @@ const YearlySpendScreen = ({navigation}) => {
           />
           <GText GrMedium style={styles.price} text="$ 2,487" />
         </LinearGradient>
+        <GButton
+          onPress={() => setVisible(true)}
+          icon={Images.addImage}
+          iconStyle={styles.addImage}
+          title={t('add_expense_string')}
+          style={styles.expenseBtn}
+        />
         <View style={styles.recentView}>
-          <Text style={styles.recentText}>{t('recent_string')}</Text>
-          <TouchableOpacity
-            onPress={() => setVisible(true)}
-            style={styles.addView}>
-            <Image style={styles.addImage} source={Images.addImage} />
-            <Text style={styles.addExpenseText}>{t('add_expense_string')}</Text>
-          </TouchableOpacity>
+          <GText GrMedium text={t('recent_string')} style={styles.recentText} />
+          <View>
+            <GText GrMedium text={'$603.71'} style={styles.outstandAmt} />
+            <GText
+              SatoshiBold
+              text={'Outstanding Amount'}
+              style={styles.outstandTxt}
+            />
+          </View>
         </View>
         <FlatList
-          contentContainerStyle={{
-            marginTop: scaledValue(16),
-            gap: scaledValue(12),
-            marginBottom: scaledValue(28),
-          }}
+          contentContainerStyle={styles.flatListContainer}
           renderItem={renderItem}
           data={recentData}
           showsVerticalScrollIndicator={false}
@@ -159,37 +185,42 @@ const YearlySpendScreen = ({navigation}) => {
           <View style={styles.modalContainer}>
             <TouchableOpacity
               onPress={() => setVisible(false)}
-              style={{
-                alignSelf: 'flex-end',
-                position: 'absolute',
-                top: scaledValue(19.5),
-                right: scaledValue(20),
-              }}>
-              <Image style={styles.crossIcon} source={Images.Close} />
+              style={styles.crossIconStyle}>
+              <Image style={styles.crossIcon} source={Images.crossIcon} />
             </TouchableOpacity>
-            <Image source={Images.Kizi} style={styles.kiziImage} />
-            <Text style={styles.addText}>
-              {t('add_string')}
-              <Text style={styles.expenseText}>
-                {'  '}
-                {t('expense_string')}
-              </Text>
-            </Text>
+            <View
+              style={[
+                styles.petView,
+                {marginTop: scaledValue(30), borderColor: colors.jetLightBlack},
+              ]}>
+              <Image source={Images.Kizi} style={[styles.kiziImage]} />
+            </View>
+            <GText
+              GrMedium
+              text={t('add_expense_small_string')}
+              style={styles.addText}
+            />
+            <TouchableOpacity style={{marginTop: scaledValue(40)}}>
+              <Image
+                source={Images.scan_image}
+                style={{
+                  width: scaledValue(100),
+                  height: scaledValue(100),
+                }}
+              />
+            </TouchableOpacity>
+            <GText
+              GrMedium
+              text={t('scan_bill_string')}
+              style={styles.scanText}
+            />
             <Input
               value={expenseName}
               label={t('expense_name_string')}
               onChangeText={value => setExpenseName(value)} //
               style={styles.input}
             />
-            {/* <Input
-              value={category}
-              label={'Category'}
-              onChangeText={value => setCategory(value)} //
-              style={styles.input}
-              rightIcon={Images.ArrowDown}
-              iconStyle={styles.iconStyle}
-              rightIconPress={() => refRBSheet.current.open()}
-            /> */}
+
             <View style={styles.categoryView}>
               <Text style={styles.categoryText}>{t('category_string')}</Text>
               <TouchableOpacity onPress={() => refRBSheet.current.open()}>
@@ -197,14 +228,6 @@ const YearlySpendScreen = ({navigation}) => {
               </TouchableOpacity>
             </View>
 
-            {/* <Input
-              value={expenseDate}
-              label={'Expense Date'}
-              onChangeText={value => setExpenseDate(value)} //
-              style={styles.input}
-              rightIcon={Images.Calender}
-              iconStyle={styles.iconStyle}
-            /> */}
             <View style={styles.calendarView}>
               <Text style={styles.expenseDateText}>{t('category_string')}</Text>
               <TouchableOpacity onPress={() => refRBSheet.current.open()}>
@@ -227,25 +250,7 @@ const YearlySpendScreen = ({navigation}) => {
             />
           </View>
         </Modal>
-        <RBSheet
-          ref={refRBSheet}
-          // useNativeDriver={true}
-          // customStyles={{
-          //   wrapper: {
-          //     backgroundColor: 'transparent',
-          //   },
-          //   draggableIcon: {
-          //     backgroundColor: '#000',
-          //   },
-          // }}
-          // customModalProps={{
-          //   animationType: 'slide',
-          //   statusBarTranslucent: true,
-          // }}
-          // customAvoidingViewProps={{
-          //   enabled: false,
-          // }}
-        ></RBSheet>
+
         <Modal
           statusBarTranslucent={true}
           onBackdropPress={() => setVisibleModal(false)}
@@ -253,18 +258,21 @@ const YearlySpendScreen = ({navigation}) => {
           <View style={styles.modalContainer}>
             <TouchableOpacity
               onPress={() => setVisibleModal(false)}
-              style={{
-                alignSelf: 'flex-end',
-                position: 'absolute',
-                top: scaledValue(19.5),
-                right: scaledValue(20),
-              }}>
+              style={styles.crossIconView}>
               <Image style={styles.crossIcon} source={Images.Close} />
             </TouchableOpacity>
-            <Image source={Images.Kizi} style={styles.kiziImage} />
-            <Text style={styles.addText}>
-              Edit <Text style={styles.expenseText}> expense</Text>
-            </Text>
+            <View
+              style={[
+                styles.petView,
+                {marginTop: scaledValue(30), borderColor: colors.jetLightBlack},
+              ]}>
+              <Image source={Images.Kizi} style={[styles.kiziImage]} />
+            </View>
+            <GText
+              GrMedium
+              text={t('edit_expense_small_string')}
+              style={styles.addText}
+            />
             <Input
               value={expenseName}
               label={'Expense Name'}
@@ -304,15 +312,6 @@ const YearlySpendScreen = ({navigation}) => {
             />
           </View>
         </Modal>
-        <OptionMenuSheet
-          refRBSheet={refRBSheet}
-          options={settingsList}
-          onChoose={val => {
-            val.action();
-            refRBSheet.current.close();
-          }}
-          onPressCancel={() => refRBSheet.current.close()}
-        />
       </ScrollView>
     </View>
   );

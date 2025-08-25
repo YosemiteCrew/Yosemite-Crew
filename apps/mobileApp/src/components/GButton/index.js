@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import GText from '../GText/GText';
 import {colors} from '../../../assets/colors';
+import {scaledValue} from '../../utils/design.utils';
 
 const GButton = props => {
   const {
@@ -25,25 +26,42 @@ const GButton = props => {
   return (
     <TouchableOpacity
       key={key}
-      activeOpacity={0.5}
+      activeOpacity={0.9}
       disabled={disabled}
       style={[
         {
           padding: 10,
-          borderRadius: 12,
-          backgroundColor: disabled || loading ? '#ccc' : colors.themeColor,
+          height: scaledValue(52),
+          borderRadius: scaledValue(28),
+          backgroundColor: colors.jetBlack,
           alignContent: 'center',
           alignItems: 'center',
           justifyContent: 'center',
           flexDirection: icon ? 'row' : 'column',
-          opacity: disabled ? 0.5 : 1,
+          opacity: disabled ? 0.4 : 1,
         },
         style,
       ]}
       onPress={disabled || loading ? null : onPress}>
       <View />
-      {icon && <Image source={icon} style={iconStyle} />}
-      <GText Medium style={[{color: 'white'}, textStyle]} text={title} />
+      {icon && (
+        <Image
+          source={icon}
+          style={[{width: scaledValue(20), height: scaledValue(20)}, iconStyle]}
+        />
+      )}
+      <GText
+        GrMedium
+        style={[
+          {
+            color: colors.paletteWhite,
+            fontSize: scaledValue(18),
+            letterSpacing: scaledValue(18 * -0.01),
+          },
+          textStyle,
+        ]}
+        text={title}
+      />
       {loading && (
         <ActivityIndicator
           color="#fff"
