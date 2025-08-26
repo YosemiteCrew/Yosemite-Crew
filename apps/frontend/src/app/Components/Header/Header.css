@@ -13,6 +13,7 @@
 
 .header .logo img {
   width: 100%;
+  height: auto;
 }
 
 /* ========================== */
@@ -276,7 +277,7 @@
 
   .navmenu a,
   .navmenu a:focus {
-    font-family: var(--grotesk-font);
+    /* font-family: var(--grotesk-font); */
     color: var(--notibg);
     padding: 18px 15px;
     font-size: 16px;
