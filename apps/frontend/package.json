@@ -10,6 +10,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@calcom/embed-react": "^1.5.3",
     "@editorjs/checklist": "^1.6.0",
     "@editorjs/editorjs": "^2.30.8",
     "@editorjs/header": "^2.8.8",
@@ -44,6 +45,7 @@
     "react-slick": "^0.30.3",
     "recharts": "^2.15.1",
     "slick-carousel": "^1.8.1",
+    "socket.io-client": "^4.8.1",
     "sweetalert2": "^11.4.8",
     "zustand": "^5.0.6"
   },

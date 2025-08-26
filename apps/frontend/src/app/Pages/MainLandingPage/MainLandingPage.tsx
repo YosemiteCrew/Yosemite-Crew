@@ -61,7 +61,7 @@ function MainLandingPage() {
               <p>Manage everything from appointments to animal records, streamline operations, and improve pet health outcomes—all in one open-source platform designed for veterinarians, pet owners, and developers.</p>
             </div>
             <div className="RederfineInnerBtn">
-              <FillBtn icon={<Icon icon="solar:clock-circle-bold" width="24" height="24" />} text=" Book a Demo" href="https://cal.com/yosemitecrew/30min?overlayCalendar=true" />
+              <FillBtn icon={<Icon icon="solar:clock-circle-bold" width="24" height="24" />} text=" Book a Demo" href="/bookDemo" />
               <UnFillBtn href="#" icon={<Icon icon="solar:bill-check-bold" width="24" height="24" />}  text="Learn more" />
               
             </div>
