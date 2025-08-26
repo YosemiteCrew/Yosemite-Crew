@@ -1,5 +1,18 @@
 .pricingSection{
     padding: 80px 0px;
+    position: relative;
+    z-index: 1;
+}
+.pricingSection::after{
+    content: " ";
+    position: absolute;
+    right: 0;
+    top: 0;
+    background: url(/Images/pricingafter.png) no-repeat;
+    background-size: cover;
+    width: 100%;
+    height: 1440px;
+    z-index: -1;
 }
 .pricingSection .PricingData{
     display: flex;
@@ -13,6 +26,16 @@
     flex-direction: column;
     align-items: center;
     gap: 80px;
+}
+.PricingPage-header .PriceBackdiv{
+    display: flex;
+    align-items: flex-start;
+    gap: 40px;
+}
+.PricingPage-header .PriceBackdiv a{
+    position: relative;
+    top: 10px;
+    color: var(--black-bg);
 }
 .PricingPage-header .PricinhHeadquote{
     display: flex;
@@ -44,7 +67,7 @@
 
 .PricingCardDiv{
     display: flex;
-    gap: 20px;
+    gap: 40px;
     justify-content: center;
 }
 .PricingCardDiv .PricingcardItem .pricing-card{
@@ -60,6 +83,16 @@
     flex-direction: column;
     gap: 32px;
     justify-content: center;
+}
+.PricingCardDiv .PricingcardItem .pricing-card .card-body .pricingbtndiv{
+    max-width: 169px;
+    margin: 0 auto;
+}
+.PricingCardDiv .PricingcardItem .pricing-card .card-body .pricingbtndiv a{
+    padding: 14px 0px;
+    font-size: 19px;
+    white-space: nowrap;
+    min-width: 169px;
 }
 
 .PricingCardDiv .PricingcardItem .pricing-card .card-body :is(.pricing-top, .pricing-bottom){
@@ -121,6 +154,9 @@
     max-width: 658px;
     margin: 0 auto;
     text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 .HostingHead h2{
     margin: 0;
@@ -205,13 +241,18 @@
 
 /* Pricing Key Feature Started  */
 
+.PricingKeyFeature{
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    max-width: 846px;
+    margin: 0 auto;
+}
 .FeatureData{
     display: flex;
     flex-direction: column;
-    gap: 30px;
-    padding: 80px 0px;
-    max-width: 846px;
-    margin: 0 auto;
+    gap: 12px;
+    width: 100%;
 }
 .fethed {
     height: 60px;
@@ -225,8 +266,7 @@
     font-family: var(--satoshi-font);
     font-size: 18px;
     font-weight: 700;
-    line-height: 21.6px;
-    letter-spacing: -0.02em;
+    line-height: 120%;
     color: var(--black-text);
     margin: 0;
 }
@@ -240,8 +280,7 @@
     padding: 12px 24px;
     font-size: 15px;
     font-weight: 700;
-    line-height: 18px;
-    letter-spacing: -0.02em;
+    line-height: 120%;
     color: var(--black-text);
     height: 60px;
 }
@@ -428,6 +467,62 @@
     }
 
 }
+
+
+
+
+
+.styled-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 5px;
+  background: linear-gradient(
+    to right,
+    #007bff 0%,
+    #007bff var(--progress),
+    #ddd var(--progress),
+    #ddd 100%
+  ) !important;
+  outline: none;
+  border: none;
+}
+
+/* Track reset */
+.styled-range::-webkit-slider-runnable-track {
+  background: transparent; /* remove default grey */
+  height: 6px;
+  border-radius: 5px;
+}
+.styled-range::-moz-range-track {
+  background: transparent; /* remove default grey */
+  height: 6px;
+  border-radius: 5px;
+}
+
+/* Thumb */
+.styled-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 16px;
+  width: 16px;
+  border-radius: 50%;
+  background: #007bff !important;
+  cursor: pointer;
+  border: none;
+  margin-top: -5px; /* align with track */
+}
+.styled-range::-moz-range-thumb {
+  height: 16px;
+  width: 16px;
+  border-radius: 50%;
+  background: #007bff !important;
+  cursor: pointer;
+  border: none;
+}
+
+
 
 /* .Pricing Calculator Ended */
 
