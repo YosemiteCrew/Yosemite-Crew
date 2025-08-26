@@ -293,6 +293,9 @@ importers:
       slick-carousel:
         specifier: ^1.8.1
         version: 1.8.1(jquery@3.7.1)
+      socket.io-client:
+        specifier: ^4.8.1
+        version: 4.8.1
       sweetalert2:
         specifier: ^11.4.8
         version: 11.22.0
