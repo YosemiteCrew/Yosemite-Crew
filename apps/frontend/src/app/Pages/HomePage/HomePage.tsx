@@ -81,6 +81,7 @@ function HomePage() {
                 <UnFillBtn href="#"
                   icon={<MdOutlineAccessTimeFilled />}
                   text="Book a Demo"
+                  href="/bookDemo"
                 />
               </div>
             </div>
