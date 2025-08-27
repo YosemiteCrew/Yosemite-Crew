@@ -822,7 +822,7 @@ const WebController = {
 
   getHospitalProfileFHIR: async (req: Request, res: Response): Promise<void> => {
     try {
-      console.log("Fetching hospital profile for userId:", req.query.userId);
+      // console.log("Fetching hospital profile for userId:", req.query.userId);
       const { userId } = req.query as { userId: string };
       if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
         res.status(400).json({ message: "Invalid doctorId format" });
@@ -873,8 +873,8 @@ const WebController = {
       };
 
       const fhirBundle = toFHIRBusinessProfile(formattedInput as BusinessProfile);
-      console.log("Converted FHIR Bundle:", JSON.stringify(fhirBundle, null, 2));
-      console.log("Converted FHIR Bundle:", fromFHIRBusinessProfile(fhirBundle));
+      // console.log("Converted FHIR Bundle:", JSON.stringify(fhirBundle, null, 2));
+      // console.log("Converted FHIR Bundle:", fromFHIRBusinessProfile(fhirBundle));
       res.status(200).json(fhirBundle);
     } catch (error) {
       console.error("Error fetching hospital profile:", error);

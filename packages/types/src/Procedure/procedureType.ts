@@ -59,7 +59,7 @@ export type FHIRMedicalPackage = {
 // ✅ Normal Internal Types
 export type NormalPackageItem = {
   id?: string;
-   _id?: string;
+  _id?: string;
   name: string;
   itemType: string;
   quantity: number;
@@ -117,3 +117,63 @@ export type ProcedureFHIRBundle = {
   };
   entry: FHIRBundleEntry[];
 };
+
+export interface ProcedurePackageJSON {
+  _id: { $oid: string };
+  bussinessId: string;
+  packageName: string;
+  category: string;
+  description: string;
+  creatorName?: string;
+  packageItems: ProcedurePackageItem[];
+  createdAt:   string; 
+  updatedAt:  string ;
+  __v: number;
+}
+
+export interface ProcedurePackageItem {
+  name?: string;
+  itemType?: string;
+  quantity?: string;
+  unitPrice?: number;
+  subtotal?: number;
+  notes?: string;
+}
+
+// Minimal FHIR PlanDefinition for Procedure Package
+export interface FHIRIdentifier {
+  system: string;
+  value: string;
+}
+
+export interface FHIRCoding {
+  system: string;
+  code: string;
+  display: string;
+}
+
+export interface FHIRType {
+  coding: FHIRCoding[];
+}
+
+export interface FHIRAction {
+  name?: string;
+  itemType?: string;
+  quantity?: string;
+  unitPrice?: number;
+  subtotal?: number;
+  notes?: string;
+}
+
+export interface FHIRProcedurePackage {
+  resourceType: "PlanDefinition";
+  id?: string;
+  identifier?: FHIRIdentifier[];
+  title?: string;
+  type?: FHIRType;
+  description?: string;
+  creatorName?: string;
+  action?: FHIRAction[];
+  createdAt?: string;
+  updatedAt?: string;
+}
