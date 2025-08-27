@@ -27,8 +27,11 @@ const listController = {
       interface DoctorWithDepartment extends AddDoctorDoc {
         departmentInfo?: Department
         rating?: number;
-        qualification?:unknown,
-        consultFee?: number 
+        // qualification:string,
+        consultFee?: number ,
+        adminDepartmentInfo:{
+          name:string
+        }
       }
       const doctors: DoctorWithDepartment[] = await AddDoctors.aggregate([
         {
@@ -55,6 +58,20 @@ const listController = {
             preserveNullAndEmptyArrays: true
           }
         },
+         {
+          $lookup: {
+            from: "admindepartments",
+            localField: "departmentObjId",
+            foreignField: "_id",
+            as: "adminDepartmentInfo"
+          }
+        },
+        {
+          $unwind: {
+            path: "$adminDepartmentInfo",
+            preserveNullAndEmptyArrays: true
+          }
+        },
         {
           $lookup: {
             from: "feedbacks",
@@ -76,19 +93,20 @@ const listController = {
         },
         {
           $project: {
-            ratings: 0
+            ratings: 0,
           }
         },
         { $skip: parsedOffset || 0 },
         { $limit: parsedLimit || 10 }
       ])
 
-      
+      console.log(doctors,'doc');
         const fhirDoctors = doctors.map((doc) => {
         const firstName = doc.firstName || "";
         const lastName = doc.lastName || "";
         const fullName = `${firstName} ${lastName}`.trim();
-        const departmentName = doc.departmentInfo?.departmentName || "Unknown";
+        const departmentName = doc.adminDepartmentInfo?.name || "Unknown";
+        console.log(departmentName,'departmentName');
         const consultationFee :number = doc?.consultFee || 0;
         const experience = doc.yearsOfExperience || 0;
         const docImage = doc.image || "";
@@ -327,7 +345,7 @@ const listController = {
 
     // ✅ Fetch Users Utility
     const fetchUsers = async (roleType: string) => {
-      const matchStage = roleType ? { role: roleType } : {};
+      const matchStage = roleType ? { role: roleType, isVerified:1 } : {};
       const [users, totalCount] = await Promise.all([
         WebUser.aggregate([
           { $match: matchStage },

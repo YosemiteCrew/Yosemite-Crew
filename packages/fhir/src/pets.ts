@@ -7,6 +7,18 @@ import type { pets} from "@yosemite-crew/types";
 const capitalizeFirstLetter = (string: string ) => {
    return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
 }
+function calculatePetProfileCompletion(docs: any): number {
+  let completedCount = 0;
+  const totalFields = 5;
+ 
+  if (docs._id) completedCount++;
+  if (docs.cognitoUserId) completedCount++;
+  if (docs.summary?.groomerStatus === "completed") completedCount++;
+  if (docs.summary?.boardingStatus === "completed") completedCount++;
+  if (docs.summary?.breederStatus === "completed") completedCount++;
+ 
+  return Math.round((completedCount / totalFields) * 100);
+}
 
 export const convertPetToFHIR = (pet: pets, baseUrl: string) => {
 
@@ -17,6 +29,7 @@ export const convertPetToFHIR = (pet: pets, baseUrl: string) => {
     name: [{ use: "official", text: pet.petName }],
     gender: pet.petGender?.toLowerCase() ?? "unknown",
     birthDate: pet.petdateofBirth ? new Date(pet.petdateofBirth).toISOString().split("T")[0] : undefined,
+    profileCompletion:calculatePetProfileCompletion(pet),
     animal: {
       species: {
         coding: [{

@@ -12,7 +12,7 @@ import { getCognitoUserId } from '../utils/jwtUtils';
 import FHIRService from './FHIRService';
 import yosepets from '../models/pet.model';
 import { ProfileData } from '../models/WebUser';
-import departments from '../models/AddDepartment';
+import adminDepartments from '../models/admin-department';
 
 
 class AppointmentService {
@@ -59,12 +59,12 @@ class AppointmentService {
 
     try {
 
-     const cognitoUserId: string = getCognitoUserId(req);
-     // const timezone: string = 'Asia/Kolkata'; // or 'UTC' if you prefer server independence
-     type CategoryKey = 'upcoming' | 'pending' | 'past' | 'cancel' | 'all';
-     const timezone = 'Asia/Kolkata';
-     const now: Moment = moment.tz(timezone) as Moment;
-     const today: Moment = now.clone().startOf('day');
+      const cognitoUserId: string = getCognitoUserId(req);
+      // const timezone: string = 'Asia/Kolkata'; // or 'UTC' if you prefer server independence
+      type CategoryKey = 'upcoming' | 'pending' | 'past' | 'cancel' | 'all';
+      const timezone = 'Asia/Kolkata';
+      const now: Moment = moment.tz(timezone) as Moment;
+      const today: Moment = now.clone().startOf('day');
 
 
       //const filter = req.query.type || "all";
@@ -118,6 +118,15 @@ class AppointmentService {
         } else if (appointmentStatus === 'pending') {
           if (appointmentDate.isSameOrAfter(today) && fullDateTime.isSameOrAfter(now)) {
             categories.pending.push(app);
+          } else {
+            categories.cancel.push(app)
+            const updateData = {
+              appointmentStatus: "cancelled",
+              isCanceled: 1,
+            };
+            console.log(app, 'appp');
+            await webAppointments.findByIdAndUpdate(app?._id, updateData, { new: true });
+
           }
         } else if (appointmentStatus === 'booked') {
           if (appointmentDate.isAfter(today)) {
@@ -136,6 +145,7 @@ class AppointmentService {
         if (app.veterinarian) vetIds.add(app.veterinarian);
         if (app.petId) petIds.add(app.petId);
         if (app.hospitalId) hospitalIds.add(app.hospitalId);
+        
       }
 
       const toObjectIdSafe = (id: string) => {
@@ -151,7 +161,7 @@ class AppointmentService {
       const [vets, pets, hospitals]: [AddDoctorDoc[], pets[], Partial<IProfileData>[]] = await Promise.all([
         vetIds.size
           ? addDoctors.find({ userId: { $in: Array.from(vetIds) } })
-            .select("userId personalInfo professionalBackground")
+            // .select("userId personalInfo professionalBackground")
             .lean()
           : [],
         objectPetIds.length
@@ -171,30 +181,33 @@ class AppointmentService {
         .filter(Boolean)
         .map((id) => id?.toString());
 
-      const specializationMap: Record<string, string> = specializationIds.length
-        ? Object.fromEntries(
-          (await departments
-            .find({ _id: { $in: specializationIds.filter((id): id is string => !!id).map(toObjectIdSafe).filter(Boolean) } })
-            .select("_id departmentName")
-            .lean()
-          ).map((spec) => [String(!spec._id), spec.departmentName])
-        )
-        : {};
+      const specializationDocs = specializationIds.length
+        ? await adminDepartments
+          .find({ _id: { $in: specializationIds.map(toObjectIdSafe).filter(Boolean) } })
+          .select("_id name")
+          .lean()
+        : [];
+
+      const specializationMap: Record<string, string> = Object.fromEntries(
+        specializationDocs.map(doc => [doc._id.toString(), doc.name])
+      );
 
       const vetMap = Object.fromEntries(
         vets.map((v) => {
           const specializationKey = v.specialization !== undefined
             ? v.specialization.toString()
             : undefined;
+
           return [
             v.userId,
             {
               name: `${v.firstName || ""} ${v.lastName || ""}`.trim(),
               image: v.image || null,
-              // qualification: v?.qualification || null,
+              qualification: v?.qualification || null,
               specialization: specializationKey && specializationMap[specializationKey]
                 ? specializationMap[specializationKey]
-                : "Unknown"
+                : "Unknown",
+                departmentId: specializationKey
             }
           ];
         })
@@ -204,10 +217,11 @@ class AppointmentService {
         pets.map((p) => [p._id!.toString(), { petName: p.petName, petImage: p.petImage }])
       );
 
-      const hospitalMap = Object.fromEntries(
+      const hospitalMap = 
+      Object.fromEntries(
         hospitals.map((h) => [h.userId!.toString(), { name: h.businessName, latitude: h.latitude, longitude: h.longitude }])
       );
-     
+
       const toFHIR = (app: WebAppointmentType) => FHIRService.convertAppointmentToFHIR(app, vetMap, petMap, hospitalMap);
 
       if (filter === 'all') {
@@ -254,7 +268,7 @@ class AppointmentService {
 
   static async cancelAppointment(id: string): Promise<WebAppointmentType> {
     const appointmentId = id;
-     if (typeof appointmentId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(appointmentId)) {
+     if (typeof appointmentId !== "string" || !mongoose.Types.ObjectId.isValid(id)) {
        throw new Error("Invalid appointmentId format.");
       }
     const updateData = {
@@ -282,7 +296,7 @@ class AppointmentService {
     const { appointmentDate, appointmentTime, appointmentTime24 } = data;
 
       
-     if (typeof appointmentId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(appointmentId)) {
+     if (typeof appointmentId !== "string" || !mongoose.Types.ObjectId.isValid(appointmentId)) {
        throw new Error("Invalid appointmentId format.");
       }
       
