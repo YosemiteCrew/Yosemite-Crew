@@ -7,7 +7,6 @@ import { verifyToken, verifyTokenAndRefresh } from'../middlewares/authMiddleware
 const router = Router();
 
 router.post('/signup', authController.signUp);
-router.post("/signupp", authController.signUppp)
  router.post('/login', authController.login);
  router.post('/sendOtp', authController.sendOtp);
 router.post('/deleteUser', authController.deleteUser);

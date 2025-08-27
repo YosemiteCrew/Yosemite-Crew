@@ -191,7 +191,7 @@ class AppointmentService {
       const specializationMap: Record<string, string> = Object.fromEntries(
         specializationDocs.map(doc => [doc._id.toString(), doc.name])
       );
-
+console.log(vets,'vetsvets');
       const vetMap = Object.fromEntries(
         vets.map((v) => {
           const specializationKey = v.specialization !== undefined
