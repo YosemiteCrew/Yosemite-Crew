@@ -51,20 +51,20 @@ function PetOwner() {
                         <PetDownBtn />
 
                     </div>
-                    <div className="downlodeReview">
-                    <div className="reviewItems">
-                        <h6>{formatCount(happyOwners, 10000)}</h6>
-                        <p>Happy Pet Owners</p>
-                    </div>
-                    <div className="reviewItems">
-                        <h6>{formatCount(appointments, 5000)}</h6>
-                        <p>Appointments Scheduled</p>
-                    </div>
-                    <div className="reviewItems" >
-                        <h6>{formatCount(petsAdded, 8000)}</h6>
-                        <p>Pets Added</p>
-                    </div>
-                    </div>
+                    {/* <div className="downlodeReview">
+                      <div className="reviewItems">
+                          <h6>{formatCount(happyOwners, 10000)}</h6>
+                          <p>Happy Pet Owners</p>
+                      </div>
+                      <div className="reviewItems">
+                          <h6>{formatCount(appointments, 5000)}</h6>
+                          <p>Appointments Scheduled</p>
+                      </div>
+                      <div className="reviewItems" >
+                          <h6>{formatCount(petsAdded, 8000)}</h6>
+                          <p>Pets Added</p>
+                      </div>
+                    </div> */}
 
                 </div>
 
@@ -115,13 +115,13 @@ function PetOwner() {
           </div>
           <div className="PawsPrasData">
             <div className="BrownDiv">
-              <Image aria-hidden src="/Images/Paws1.png"  alt="Paws1"  width={1516} height={267} />
+              <Image aria-hidden src="/Images/Paws1.png"  alt="Paws1"  width={1516} height={294} />
             </div>
             <div className="PurpleDiv">
-              <Image aria-hidden src="/Images/Paws2.png"  alt="Paws2"  width={1516} height={233} />
+              <Image aria-hidden src="/Images/Paws2.png"  alt="Paws2"  width={1516} height={234} />
             </div>
             <div className="GreenDiv">
-              <Image aria-hidden src="/Images/Paws3.png"  alt="Paws3"  width={1516} height={207} />
+              <Image aria-hidden src="/Images/Paws3.png"  alt="Paws3"  width={1516} height={246} />
             </div>
           </div>
         </section>

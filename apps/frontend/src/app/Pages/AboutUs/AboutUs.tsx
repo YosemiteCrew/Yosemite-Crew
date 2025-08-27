@@ -23,7 +23,7 @@ function AboutUs() {
                         <div className="abtherocard">
                             <div className="AbtCardItem">
                                 <div className="head">
-                                    <h6>Why Do We exixst?</h6>
+                                    <h6>Why Do We exist?</h6>
                                 </div>
                                 <div className="body">
                                     <p>Because, let’s face it—the veterinary world is chaotic. Juggling appointments, patient records, billing, and communication shouldn’t be a daily struggle. The PMS industry is cluttered, complicated, and outdated. That’s where we come in.</p>

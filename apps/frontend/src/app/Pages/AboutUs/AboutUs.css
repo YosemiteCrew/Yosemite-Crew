@@ -53,6 +53,8 @@
     display: flex;
     flex-direction: column;
     gap: 24px;
+    width: fit-content;
+    margin: 0 auto;
 }
 .AbutheroBtm h2{
     margin: 0;
