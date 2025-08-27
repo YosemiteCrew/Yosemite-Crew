@@ -127,7 +127,7 @@ const appointmentController = {
         }
         ],
       };
-      console.log(documentFiles[0],'documentFiles[0]');
+      
 
       const fhirAppointment = await appointmentService.bookAppointment(appointmentData);
 
@@ -201,7 +201,7 @@ const appointmentController = {
          res.status(400).json({ status: 0, message: "Invalid Appointment ID format" });
         return;
       }
-      console.log(appointmentIdRaw,'appointments',  req.body);
+      
       
       const normalData :Partial<WebAppointmentType> = {
         appointmentDate: req.body.appointmentDate,
