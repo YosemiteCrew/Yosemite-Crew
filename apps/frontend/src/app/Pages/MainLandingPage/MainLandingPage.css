@@ -8,10 +8,10 @@
 .RedefiningSection .RederfiningData .leftRederfine{
    height: 100%;
    display: flex;
-   justify-content: center;
    flex-direction: column;
    gap: 40px;
    max-width: 487px;
+   padding-top: 150px;
 }
 .RedefiningSection .RederfiningData .leftRederfine .RederfineTextInner h2{
    font-weight: 500;
@@ -51,7 +51,7 @@
 }
 .RedefiningSection .RederfiningData .RightRederfine .LandingCarouselDiv .carousel-text {
    padding: 20px;
-   min-height: 194px;
+   min-height: 170px;
    background: var(--whitebg);
 }
 .RedefiningSection .RederfiningData .RightRederfine .LandingCarouselDiv .carousel-text h4 {
@@ -65,12 +65,26 @@
 .RightRederfine .carousel .carousel-indicators {
     position: absolute;
     right: 0;
-    bottom: 50px;
-    left: 18px !important;
+    bottom: 68px;
+    left: 20px !important;
     display: flex;
     justify-content: left;
     margin: 0 !important;
     width: fit-content !important;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.RightRederfine .carousel .carousel-indicators button {
+    width: 8px !important;
+    height: 8px !important;
+    border-radius: 50% !important;
+    background: var(--lightgrey) !important;
+    border: none !important;
+    margin: 0 !important;
+}
+.RightRederfine .carousel .carousel-indicators button.active {
+    background: var(--black-bg) !important;
 }
 .RightRederfine .carousel .carousel-control-next, .RightRederfine .carousel .carousel-control-prev {
     position: absolute;
@@ -139,6 +153,9 @@
 .landingSection{
     min-height: 100vh;
     padding: 80px 0px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 .landingSection .LandingData{
     display: flex;
@@ -186,7 +203,7 @@
     background: var(--black-bg);
     color: var(--white-text);
     width: fit-content;
-    border-radius: 28px;
+    border-radius: 50px;
     min-width: 160px;
     font-size: 23px;
     font-weight: 500;
