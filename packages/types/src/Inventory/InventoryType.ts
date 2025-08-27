@@ -44,6 +44,7 @@ export type ProcedurePackageType = {
   category?: string;
   description?: string;
   packageItems?: ProcedureItemType[];
+  creatorRole?: string;
 };
 
 export type InputData = {

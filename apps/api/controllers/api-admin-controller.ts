@@ -12,9 +12,10 @@ import {
   AppointmentType,
 } from "../models/AppointmentOption";
 import ProductCategoryFHIRConverter from "../utils/InventoryFhirHandler";
-import { convertJsonToFhir, convertToFhirAppointmentTypes, convertToFhirPurposeOfVisit } from "@yosemite-crew/fhir";
-import { FhirHealthcareService, FhirPurposeOfVisit, MongoPurposeOfVisit } from "@yosemite-crew/types";
+import { convertJsonToFhir, convertProcedurePackagesToFHIR, convertToFhirAppointmentTypes, convertToFhirPurposeOfVisit } from "@yosemite-crew/fhir";
+import { FhirHealthcareService, FhirPurposeOfVisit, MongoPurposeOfVisit, ProcedurePackageJSON } from "@yosemite-crew/types";
 import { validateFHIR } from "../Fhirvalidator/FhirValidator";
+import { ProcedurePackage } from "../models/Inventory";
 // const { PurposeOfVisitFHIRConverter } = require("../utils/AdminFhirHandler");
 
 const AdminController = {
@@ -479,6 +480,7 @@ const AdminController = {
       return;
     }
   },
+ 
 
   // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Appointments Api's>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 

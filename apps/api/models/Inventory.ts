@@ -38,7 +38,7 @@ const ProcedurePackageSchema = new Schema<ProcedurePackageType>(
     businessId: { type: String, required: true },
     packageName: { type: String, required: true },
     category: { type: String, required: true },
-    description: String,
+    description : String,
     packageItems: [
       {
         name: { type: String },
@@ -49,6 +49,7 @@ const ProcedurePackageSchema = new Schema<ProcedurePackageType>(
         notes: String,
       },
     ],
+    creatorRole: { type: String },
   },
   { timestamps: true }
 );

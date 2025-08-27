@@ -38,7 +38,7 @@ export { AnimalCategory } from "./models/appointment.options.types";
 export type { AppointmentsTokenType, WebAppointmentType, NormalizedAppointment,IUnavailableSlot,EmergencyAppointmentModel} from "./models/appointments.model";
 export type { AppointmentStatus, AppointmentStatusFHIRBundle, AppointmentStatusFHIRBundleEntry,FhirPurposeOfVisit,MongoPurposeOfVisit,AppointmentType,FhirHealthcareService } from "./AppointmentStatus/appointmentStatusTypes";
 export type { InventoryType, InputData, AggregationResult, InventoryOverviewType, InventoryOverviewFHIRBundle, InventoryOverviewFHIRObservation, ProcedureItemType, ProcedurePackageType,SupplyItem,FhirBundle,CategoryJson,InventoryTypes } from "./Inventory/InventoryType";
-export type { ProcedureFHIRBundle, PackageItem, ProcedurePackage,FHIRMedicalPackage, FHIRPackageItem, NormalMedicalPackage, NormalPackageItem  } from "./Procedure/procedureType";
+export type { ProcedureFHIRBundle, PackageItem, ProcedurePackage,FHIRMedicalPackage, FHIRPackageItem, NormalMedicalPackage, NormalPackageItem,ProcedurePackageJSON,FHIRProcedurePackage  } from "./Procedure/procedureType";
 
 export type {FhirCarePlan} from "./ExercisePlan/exercisePlanTypes"
 export type { IUser, SignupRequestBody } from "./models/IUser";

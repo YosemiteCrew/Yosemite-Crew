@@ -176,7 +176,7 @@ function BusinessDashboard() {
     }
   };
 const fetchInventoryDetails = async (searchCategory: any) => {
-  console.log(searchCategory, "searchCategory");
+  // console.log(searchCategory, "searchCategory");
   try {
     if (!userId) {
       throw new Error("userId is required");

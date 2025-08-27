@@ -94,7 +94,7 @@ export const verifyToken = async (
   if (refreshToken) {
     try {
       const decodedRefresh = jwt.verify(refreshToken, REFRESH_SECRET) as JwtPayload;
-      console.log("Decoded Refresh Token:", decodedRefresh);
+      // console.log("Decoded Refresh Token:", decodedRefresh);
       const newPayload = {
         userId: decodedRefresh.userId,
         email: decodedRefresh.email,
