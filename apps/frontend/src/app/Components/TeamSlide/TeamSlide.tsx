@@ -37,12 +37,14 @@ function TeamSlide() {
             <Slider {...settings}>
                 {teamImages.map((member, index) => (
                 <div key={index} className="team-slide-item">
-                    <Image src={member.src} alt={member.alt} width={216} height={311}/>
+                    <div className="TeamSlideImg">
+                        <Image src={member.src} alt={member.alt} width={216} height={311}/>
+                    </div>
+                    
                 </div>
                 ))}
             </Slider>
         </div>
-      
     </>
   )
 }
