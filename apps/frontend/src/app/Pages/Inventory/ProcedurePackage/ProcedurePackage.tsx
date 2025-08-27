@@ -16,6 +16,7 @@ function ProcedurePackage() {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   const businessId = useAuthStore((state) => state.userId);
+  const userType = useAuthStore((state) => state.userType);
 
   // Handle package name
   const handleBusinessInformation = useCallback(
@@ -64,7 +65,8 @@ function ProcedurePackage() {
         packageName,
         category,
         description,
-        packageItems, // included but not validated here
+        packageItems,
+        creatorRole:userType // included but not validated here
       };
 
       const res = await postData(`/fhir/v1/AddProcedurePackage`, payload, {
