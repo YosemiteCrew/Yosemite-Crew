@@ -8,9 +8,9 @@ import { webAppointments } from "../models/web-appointment";
 import { AppointmentFHIRConverter } from "../utils/WebAppointmentHandler";
 import { AppointmentsStatusFHIRConverter, convertAppointmentStatsToFHIR, convertGraphDataToFHIR, convertSpecialityWiseAppointmentsToFHIR, convertToFHIRMyCalender } from "@yosemite-crew/fhir";
 
-import {
-  DepartmentFromFHIRConverter,
-} from "../utils/DepartmentFhirHandler";
+// import {
+//   DepartmentFromFHIRConverter,
+// } from "../utils/DepartmentFhirHandler";
 // import FeedBack from "../models/feedback";
 import mongoose, { PipelineStage } from "mongoose";
 import { AggregatedAppointmentGraph, AppointmentStatusFHIRBundle, FHIRtoJSONSpeacilityStats, QueryParams } from "@yosemite-crew/types";
@@ -483,11 +483,11 @@ const HospitalController = {
               })
             );
 
-            const data = new DepartmentFromFHIRConverter(
-              responseData
-            ).convertToFHIR();
+            // const data = new DepartmentFromFHIRConverter(
+            //   responseData
+            // ).convertToFHIR();
 
-            return res.status(200).json(data);
+            return res.status(200).json({data:''});
           } catch (error) {
             return res.status(500).json({
               resourceType: "OperationOutcome",

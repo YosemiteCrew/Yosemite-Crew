@@ -8,18 +8,18 @@ import { AppointmentsTokenType, WebAppointmentType } from "@yosemite-crew/types"
 
 const UploadRecordSchema = new Schema(
   {
-    fileName: { type: String, required: true },
-    fileType: { type: String, required: true },
-    fileUrl: { type: String, required: true },
+    fileName: { type: String },
+    fileType: { type: String },
+    fileUrl: { type: String },
     uploadedAt: { type: Date, default: Date.now },
   },
   { _id: false }
 );
 const UploadRecordSchema2 = new Schema(
   {
-    originalname: { type: String, required: true },
-    mimetype: { type: String, required: true },
-    url: { type: String, required: true },
+    originalname: { type: String, },
+    mimetype: { type: String, },
+    url: { type: String, },
     uploadedAt: { type: Date, default: Date.now },
   },
   { _id: false }

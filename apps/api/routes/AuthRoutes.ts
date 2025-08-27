@@ -7,6 +7,7 @@ import { verifyToken, verifyTokenAndRefresh } from'../middlewares/authMiddleware
 const router = Router();
 
 router.post('/signup', authController.signUp);
+router.post("/signupp", authController.signUppp)
  router.post('/login', authController.login);
  router.post('/sendOtp', authController.sendOtp);
 router.post('/deleteUser', authController.deleteUser);
@@ -27,7 +28,7 @@ router.post('/signOut', WebController.signOut);
 //   '/:userId/deleteDocumentsToUpdate/:docId',
 //   WebController.deleteDocumentsToUpdate
 // );
-router.post('/refreshToken', WebController.refreshToken);
+router.post('/refreshToken', authController.refreshToken);
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Add Department >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 router.post('/HealthcareService', verifyToken,AddDepartmentController.addDepartment);
@@ -43,4 +44,5 @@ router.get('/getDepartmentsList',WebController.getDepartmentsList);
 //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Profile >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 router.get('/getProfileDetail',verifyTokenAndRefresh, authController.getProfileDetail)
 router.put('/updateProfileDetail', verifyTokenAndRefresh, authController.updateProfileDetail)
+router.post('/deleteAccountWithToken', authController.deleteUserAccountUsingToken)
 export default router;

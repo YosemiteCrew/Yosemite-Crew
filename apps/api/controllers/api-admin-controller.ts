@@ -11,10 +11,10 @@ import {
   PurposeOfVisits,
   AppointmentType,
 } from "../models/AppointmentOption";
-import ProductCategoryFHIRConverter from "../utils/InventoryFhirHandler";
+// import ProductCategoryFHIRConverter from "../utils/InventoryFhirHandler";
 import { convertToFhirAppointmentTypes, convertToFhirPurposeOfVisit } from "@yosemite-crew/fhir";
 import { FhirHealthcareService, FhirPurposeOfVisit, MongoPurposeOfVisit } from "@yosemite-crew/types";
-import { validateFHIR } from "../Fhirvalidator/FhirValidator";
+// import { validateFHIR } from "../Fhirvalidator/FhirValidator";
 // const { PurposeOfVisitFHIRConverter } = require("../utils/AdminFhirHandler");
 
 const AdminController = {
@@ -458,8 +458,9 @@ const AdminController = {
 
 
       if (getItems) {
-        const data = new ProductCategoryFHIRConverter(getItems).toFHIRBundle();
-        res.status(200).json({ data });
+        // const data = new ProductCategoryFHIRConverter(getItems).toFHIRBundle();
+
+        res.status(200).json({ data :""});
         return;
       }
 
