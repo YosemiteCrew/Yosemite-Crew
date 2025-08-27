@@ -30,9 +30,12 @@ function PricingPage() {
             <div className="PricingData">
 
                 <div className="PricingPage-header">
-                    <div className="PricinhHeadquote">
-                        <h2><Icon icon="solar:round-arrow-left-bold" width="24" height="24" /> Transparent pricing, <span className="highlight">no hidden fees</span></h2>
-                        <p>Choose a pricing plan that fits your preferred hosting option—whether you go for our fully managed cloud  hosting or take control with self-hosting.</p>
+                    <div className="PriceBackdiv">
+                        <Link href="/"><Icon icon="solar:round-arrow-left-bold" width="24" height="24" /></Link>
+                        <div className="PricinhHeadquote">
+                            <h2> Transparent pricing, <span className="highlight">no hidden fees</span></h2>
+                            <p>Choose a pricing plan that fits your preferred hosting option—whether you go for our fully managed cloud  hosting or take control with self-hosting.</p>
+                        </div>
                     </div>
                     <div className="PricingCardDiv">
                         {pricingPlans.map((plan) => (
@@ -48,7 +51,10 @@ function PricingPage() {
                                         <h3>{plan.price}</h3>
                                         {plan.subText}
                                     </div>
-                                    <FillBtn icon={<Icon icon="solar:bolt-bold" width="20" height="20" />} text="Get Started" href="#" />
+                                    <div className="pricingbtndiv">
+                                        <FillBtn icon={<Icon icon="solar:bolt-bold" width="20" height="20" />} text="Get Started" href="#" />
+                                    </div>
+                                    
                                 </Card.Body>
                             </Card>
                         </div>
@@ -102,8 +108,8 @@ function PricingPage() {
                                     <Image
                                     src={`${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/ftcheck.png`}
                                     alt="ftcheck"
-                                    width={32}
-                                    height={32}
+                                    width={24}
+                                    height={24}
                                     />
                                 </p>
                                 ))}
@@ -147,7 +153,8 @@ function PricingPage() {
                                         <h5>{item.label}</h5>
                                         <span>{item.value}</span>
                                     </div>
-                                    <Form.Range min={item.min} max={item.max} value={item.value} onChange={(e) => item.setter(Number(e.target.value))} />
+                                    {/* <Form.Range className="styled-range" min={item.min} max={item.max} value={item.value} onChange={(e) => item.setter(Number(e.target.value))} /> */}
+                                    <Form.Range min={item.min} max={item.max} value={item.value}onChange={(e) => {const newValue = Number(e.target.value); item.setter(newValue);const percentage = ((newValue - item.min) / (item.max - item.min)) * 100;e.target.style.setProperty("--progress", `${percentage}%`); }}  className="styled-range"/>
                                 </div>
                             ))}
                         </div>
@@ -176,17 +183,7 @@ function PricingPage() {
                 <FAQ/>
 
                 {/* NeedHelpDiv */}
-                <div className="NeedHelpDiv">
-                    <div className="Needhelpitem" >
-                        <div className="helpText">
-                            <h3>Need Help? We’re All Ears!</h3>
-                            <p>Got questions or need assistance? Just reach out! Our team is here to help.</p>
-                        </div>
-                        <div className="helpbtn">
-                            <Link href="#"><Icon icon="solar:chat-round-like-bold" width="18" height="18" /> Get in Touch</Link>
-                        </div>
-                    </div>
-                </div>
+                <NeedHealp/>
 
 
 
@@ -204,3 +201,17 @@ function PricingPage() {
 }
 
 export default PricingPage
+
+ export function NeedHealp() {
+    return <div className="NeedHelpDiv">
+        <div className="Needhelpitem">
+            <div className="helpText">
+                <h3>Need Help? We’re All Ears!</h3>
+                <p>Got questions or need assistance? Just reach out! Our team is here to help.</p>
+            </div>
+            <div className="helpbtn">
+                <Link href="#"><Icon icon="solar:chat-round-like-bold" width="18" height="18" /> Get in Touch</Link>
+            </div>
+        </div>
+    </div>;
+}

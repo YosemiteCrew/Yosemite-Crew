@@ -7,10 +7,11 @@ import { Inventory, ProcedurePackage } from "../models/Inventory";
 // } from "../utils/InventoryFhirHandler";
 import { Request, Response } from "express";
 
-import { FHIRMedicalPackage, InventoryType, NormalMedicalPackage, ProcedurePackageType, } from "@yosemite-crew/types";
-import { convertFHIRPackageToNormal, convertProcedurePackagesToFHIRBundle, convertFromFHIRInventory, convertFhirToNormalToUpdateProcedurePackage, InventoryOverviewConvertToFHIR, convertToFHIRInventory, convertFhirBundleToInventory } from "@yosemite-crew/fhir";
+import { FHIRMedicalPackage, InventoryType, NormalMedicalPackage, ProcedurePackageJSON, ProcedurePackageType, } from "@yosemite-crew/types";
+import { convertFHIRPackageToNormal, convertProcedurePackagesToFHIRBundle, convertFromFHIRInventory, convertFhirToNormalToUpdateProcedurePackage, InventoryOverviewConvertToFHIR, convertToFHIRInventory, convertFhirBundleToInventory, convertProcedurePackagesToFHIR } from "@yosemite-crew/fhir";
 // import { convertFhirBundleToInventory, convertToFHIRInventory, convertToNormalFromFhirInventoryData } from "@yosemite-crew/fhir/dist/InventoryFhir/inventoryFhir";
 import { inventorySchema, validateInventoryData } from "../validators/inventoryValidator";
+import AddDoctors from "../models/AddDoctor";
 
 
 interface QueryParams {
@@ -89,7 +90,7 @@ const InventoryControllers = {
         userId,
       } = req.query;
 
-      console.log(searchCategory,"SearchCategory")
+      // console.log(searchCategory,"SearchCategory")
       if (!userId) {
         res.status(400).json({
           resourceType: "OperationOutcome",
@@ -107,7 +108,7 @@ const InventoryControllers = {
       const sortBy = "expiryDate";
       const sortOrder = 1;
 
-      const matchStage: Record<string, unknown> = { businessId: userId };
+      const matchStage: Record<string, unknown> = { };
       const searchConditions: Record<string, unknown>[] = [];
 
       // 🔍 Handle search filters
@@ -203,7 +204,7 @@ const InventoryControllers = {
       ]);
 
       const inventoryDocs = inventory[0]?.data || [];
-      console.log(inventoryDocs, "inventoryDocs");
+      // console.log(inventoryDocs, "inventoryDocs");
       // ✅ Pass JSON directly to FHIR converter
       const fhirData = convertToFHIRInventory(inventoryDocs);
       // console.log(fhirData, "fhirdata");
@@ -248,7 +249,7 @@ const InventoryControllers = {
       }
 
       // 2. Extract directly from frontend body
-      const { packageName, category, description, packageItems } = req.body;
+      const { packageName, category, description, packageItems, creatorRole } = req.body;
 
       // 3. Save to Mongo
       const procedurePackage = new ProcedurePackage({
@@ -257,6 +258,7 @@ const InventoryControllers = {
         category,
         description,
         packageItems,
+        creatorRole
       } as ProcedurePackageType);
 
       await procedurePackage.save();
@@ -509,7 +511,65 @@ const InventoryControllers = {
       res.status(400).json({ message: error.message });
     }
   },
+  getAllProcedurePackage: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const getItems = await ProcedurePackage.find();
 
+      if (!getItems || getItems.length === 0) {
+        res.status(404).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "information",
+              code: "not-found",
+              details: { text: `No packages found for category` },
+            },
+          ],
+        });
+        return;
+      }
+
+      // Enrich items with creatorName
+      const enrichedItems = await Promise.all(
+        getItems.map(async (pkg: any) => {
+          let creatorName = "";
+
+          if (pkg.creatorRole === "vet") {
+            // Find doctor by businessId
+            const doctor = await AddDoctors.findOne({ businessId: pkg.bussinessId }).select("name");
+            creatorName = doctor ? doctor.firstName : "Unknown Vet";
+          } else if (pkg.creatorRole === "veterinaryBusiness") {
+            creatorName = "Veterinary Business";
+          }
+
+          return {
+            ...pkg.toObject(),
+            creatorName,
+          };
+        })
+      );
+      // convert to FHIR format
+      const data = convertProcedurePackagesToFHIR(enrichedItems);
+
+      res.status(200).json({ data });
+      return;
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({
+        resourceType: "OperationOutcome",
+        issue: [
+          {
+            severity: "error",
+            code: "exception",
+            details: {
+              text: "An internal server error occurred.",
+            },
+          }
+        ],
+      });
+      return;
+    }
+  },
   GetProcedurePackageByid: async (req: { query: QueryParams }, res: Response) => {
     try {
       const { userId, id } = req.query;

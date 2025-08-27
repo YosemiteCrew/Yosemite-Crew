@@ -15,21 +15,21 @@ import { FillBtn, UnFillBtn } from '../HomePage/HomePage'
   const slidesData = [
     {
       id: 1,
-      image: "/Images/landingbg.png",
+      image: "/Images/landingbg1.png",
       alt: "Vet 1",
       text: "Empowering veterinary businesses to grow efficiently.",
     },
     {
       id: 2,
-      image: "/Images/landingbg.png",
+      image: "/Images/landingbg2.png",
       alt: "Vet 2",
-      text: "Streamlining your workflow for better care.",
+      text: "Simplifying pet health management for owners.",
     },
     {
       id: 3,
-      image: "/Images/landingbg.png",
+      image: "/Images/landingbg3.png",
       alt: "Vet 3",
-      text: "Innovative tools for modern veterinary practices.",
+      text: "Creating opportunities for developers to innovate.",
     },
   ];
 
@@ -55,22 +55,15 @@ function MainLandingPage() {
         <div className="RederfiningData">
 
           <div className="leftRederfine">
-
             <div className="RederfineTextInner">
               <h2>Redefining <br /> Veterinary Care</h2>
               <p>Manage everything from appointments to animal records, streamline operations, and improve pet health outcomes—all in one open-source platform designed for veterinarians, pet owners, and developers.</p>
             </div>
             <div className="RederfineInnerBtn">
-              <FillBtn icon={<Icon icon="solar:clock-circle-bold" width="24" height="24" />} text=" Book a Demo" href="https://cal.com/yosemitecrew/30min?overlayCalendar=true" />
+              <FillBtn icon={<Icon icon="solar:clock-circle-bold" width="24" height="24" />} text=" Book a Demo" href="/bookDemo" />
               <UnFillBtn href="#" icon={<Icon icon="solar:bill-check-bold" width="24" height="24" />}  text="Learn more" />
-              
             </div>
-
-
-
           </div>
-
-       
 
           <div className="RightRederfine">
             <Carousel  activeIndex={index} onSelect={handleSelect} controls={true} indicators={true}  
@@ -98,12 +91,6 @@ function MainLandingPage() {
               ))}
             </Carousel>
           </div>
-
-
-         
-
-
-
 
         </div>
       </Container>
