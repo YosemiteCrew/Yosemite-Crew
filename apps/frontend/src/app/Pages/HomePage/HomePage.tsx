@@ -78,7 +78,7 @@ function HomePage() {
 
               <div className="HeroBtn">
                 <FillBtn icon={<IoIosFlash />} text=" Get Started" href='/signup' />
-                <UnFillBtn href="#"
+                <UnFillBtn href="/bookDemo"
                   icon={<MdOutlineAccessTimeFilled />}
                   text="Book a Demo"
                 />
