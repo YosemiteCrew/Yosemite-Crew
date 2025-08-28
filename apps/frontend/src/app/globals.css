@@ -790,8 +790,14 @@ input[type=number] {
 
 
 
-
 /* GenericTable Ended  */
+
+
+.InventroyDashtabl{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
 
 
 

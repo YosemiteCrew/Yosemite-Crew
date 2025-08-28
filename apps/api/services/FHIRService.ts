@@ -33,7 +33,7 @@ class FHIRService {
     const vet = vetMap[app.veterinarian] || {};
     const pet = petMap[app.petId] || {};
     const hospital = hospitalMap[app.hospitalId] || {};
-
+    console.log(app,'apppppppp');
     return {
       resourceType: "Appointment",
       id: app._id.toString(),
@@ -44,6 +44,14 @@ class FHIRService {
         {
           url: "http://example.org/fhir/StructureDefinition/appointment-time-slot",
           valueString: app.appointmentTime
+        },
+        {
+          url:"http://example.org/fhir/StructureDefinition/slot-id",
+          valueString:app.slotsId
+        },
+        {
+          url:'http://example.org/fhir/StructureDefinition/reasontext',
+          valueString:app.purposeOfVisit
         }
       ],
       participant: [

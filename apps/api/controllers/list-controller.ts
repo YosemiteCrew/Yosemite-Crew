@@ -100,13 +100,11 @@ const listController = {
         { $limit: parsedLimit || 10 }
       ])
 
-      console.log(doctors,'doc');
         const fhirDoctors = doctors.map((doc) => {
         const firstName = doc.firstName || "";
         const lastName = doc.lastName || "";
         const fullName = `${firstName} ${lastName}`.trim();
         const departmentName = doc.adminDepartmentInfo?.name || "Unknown";
-        console.log(departmentName,'departmentName');
         const consultationFee :number = doc?.consultFee || 0;
         const experience = doc.yearsOfExperience || 0;
         const docImage = doc.image || "";
@@ -194,7 +192,7 @@ const listController = {
         futureAppointments: WebAppointmentType[];
         hasUpcomingAppointment: boolean;
       };
-
+console.log(today, currentTime);
       const fhirDoctors: FutureAppointments[] = await AddDoctors.aggregate([
         { $match: { bussinessId: businessId } },
         {
@@ -255,7 +253,7 @@ const listController = {
           }
         }
       ]);
-
+console.log(fhirDoctors,'fhirDoctors');
       const fhirPractitioners = fhirDoctors.map((doc) => {
         const practitioner = {
           resourceType: "Practitioner",
