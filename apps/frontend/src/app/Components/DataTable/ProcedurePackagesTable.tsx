@@ -6,6 +6,7 @@ import { Button } from "react-bootstrap";
 import { FaEye } from "react-icons/fa6";
 import { RiDeleteBin5Fill } from "react-icons/ri";
 import { ProcedurePackageJSON } from "@yosemite-crew/types";
+import { Icon } from "@iconify/react/dist/iconify.js";
 
 type ProcedureItem = {
   status: "in-stock" | "low-stock";
@@ -116,7 +117,7 @@ const columns = [
     key: "avatar",
     width: "20px",
     render: (item: ProcedureItem) => (
-      <span className={`inv-status-dot ${item.packageName}`} />
+      <span className={`inv-status-dot in-stock ${item.packageName}`} />
     ),
   },
   {
@@ -160,14 +161,12 @@ const columns = [
     key: "actions",
     width: "60px",
     render: () => (
-      <div className="Cardiologybtn">
-        <Button>
-          {" "}
-          <FaEye size={24} />{" "}
+      <div className="action-btn-col displx">
+        <Button className="circle-btn view">
+          <Icon icon="solar:pen-bold" width="20" height="20" />
         </Button>
-        <Button className="red">
-          {" "}
-          <RiDeleteBin5Fill size={24} />{" "}
+        <Button className="circle-btn view">
+          <Icon icon="solar:trash-bin-trash-bold" width="20" height="20" />
         </Button>
       </div>
     ),

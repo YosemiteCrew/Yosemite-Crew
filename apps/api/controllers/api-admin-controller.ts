@@ -11,7 +11,7 @@ import {
   PurposeOfVisits,
   AppointmentType,
 } from "../models/AppointmentOption";
-import { convertToFhirAppointmentTypes, convertToFhirPurposeOfVisit } from "@yosemite-crew/fhir";
+import { convertJsonToFhir, convertToFhirAppointmentTypes, convertToFhirPurposeOfVisit } from "@yosemite-crew/fhir";
 import { FhirHealthcareService, FhirPurposeOfVisit, MongoPurposeOfVisit } from "@yosemite-crew/types";
 
 const AdminController = {

@@ -267,15 +267,17 @@ function AdminDashboardEmpty() {
               </Row>
             </div>
 
-          </div>
-
-          {!linkClicked && (
+            {!linkClicked && (
             <ExploringCard
               Headtitle="Haven’t Set Up Everything Yet? —"
               Headtitlespan="Start Exploring Instead."
               Headpara="Get familiar with Yosemite Crew while you complete your setup at your own pace."
             />
           )}
+
+          </div>
+
+          
 
 
 
