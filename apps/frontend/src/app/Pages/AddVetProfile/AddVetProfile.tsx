@@ -119,7 +119,7 @@ function AddVetProfile() {
     if (vetAndTeamsProfile?.key == "ProfDetails") {
       setProgress(66);
     }
-  }, [vetAndTeamsProfile]);
+  }, [vetAndTeamsProfile,vetAndTeamsProfile?.OperatingHour]);
 
   const handleBusinessInformation = (
     e: React.ChangeEvent<HTMLInputElement>
@@ -152,10 +152,6 @@ function AddVetProfile() {
     }
   };
 
-  const formData = new FormData();
-  if (image) {
-    formData.append("profilePicture", image);
-  }
 
   useEffect(() => {
     if (image) {

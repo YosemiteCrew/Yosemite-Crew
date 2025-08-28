@@ -93,6 +93,7 @@ function CompletedAppointmentsTable({ userId, onAppointmentUpdate, onCountUpdate
         onCountUpdate(backToNormal.totalAppointments || 0);
       }
     } catch (error) {
+      setData([]);
       console.error("Error fetching completed appointments:", error);
       onCountUpdate(0);
     }

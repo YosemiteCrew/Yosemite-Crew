@@ -1,8 +1,4 @@
-import Department from "../models/AddDepartment";
 import AddDoctors from "../models/AddDoctor";
-
-import FHIRConverter from "../utils/DoctorsHandler";
-import { validateFHIR } from "../Fhirvalidator/FhirValidator";
 // import { equal } from 'assert';
 import AWS from "aws-sdk";
 
@@ -17,15 +13,8 @@ import {
   convertRelatedDoctorsToFhir,
   convertToFhirVetProfile,
 } from "@yosemite-crew/fhir";
-import {
-  AddDoctorDoc,
-  ConvertToFhirVetProfileParams,
-  TimeSlot,
-} from "@yosemite-crew/types";
+import { ConvertToFhirVetProfileParams, TimeSlot } from "@yosemite-crew/types";
 import { WebUser } from "../models/WebUser";
-
-import mongoose from "mongoose";
-Request;
 
 const s3 = new AWS.S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -33,7 +22,7 @@ const s3 = new AWS.S3({
   region: process.env.AWS_REGION,
 });
 
-function convertTo12HourFormat(dateObj: Date): string {
+export function convertTo12HourFormat(dateObj: Date): string {
   let hours: number = dateObj.getHours();
   const minutes: string = dateObj.getMinutes().toString().padStart(2, "0");
   const period: string = hours >= 12 ? "PM" : "AM";
@@ -46,7 +35,7 @@ const AddDoctorsController = {
     try {
       const userId = req.query.userId as string;
       let rawData: string = "";
-          if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+      if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
         res.status(400).json({ message: "Invalid doctorId format" });
         return;
       }
@@ -64,7 +53,7 @@ const AddDoctorsController = {
         return;
       }
 
-      const fhirData = JSON.parse(rawData); 
+      const fhirData = JSON.parse(rawData) as ConvertToFhirVetProfileParams;
       if (typeof fhirData !== "object" || fhirData === null) {
         res.status(400).json({ message: "Invalid FHIR data format." });
         return;
@@ -85,6 +74,7 @@ const AddDoctorsController = {
         data: Buffer;
         mimetype: string;
       }
+
       type AnyUploadFile = Express.Multer.File | UploadedFile;
 
       const uploadToS3 = (
@@ -103,12 +93,8 @@ const AddDoctorsController = {
           // Normalize Multer vs express-fileupload
           const fileName =
             "originalname" in file ? file.originalname : file.name;
-          const fileMime =
-            "mimetype" in file
-              ? file.mimetype
-              : (file as UploadedFile).mimetype;
-          const fileBody =
-            "buffer" in file ? file.buffer : (file as UploadedFile).data;
+          const fileMime = file.mimetype;
+          const fileBody = "buffer" in file ? file.buffer : file.data;
 
           const params: AWS.S3.PutObjectRequest = {
             Bucket: process.env.AWS_S3_BUCKET_NAME,
@@ -124,31 +110,32 @@ const AddDoctorsController = {
                 console.error("S3 Upload Error:", err);
                 return reject(err);
               }
-              resolve(data.Key); // return public URL
+              resolve(data.Key); // return public URL instead of Key
             }
           );
         });
       };
 
       let imageUrl: string | null = null;
-      let imageFile: Express.Multer.File | undefined;
+      let imageFile: AnyUploadFile | undefined;
 
-      if (
-        req.files &&
-        !Array.isArray(req.files) &&
-        typeof req.files === "object" &&
-        "image" in req.files
-      ) {
-        const files = req.files as {
-          [fieldname: string]: Express.Multer.File[];
-        };
-        imageFile = files["image"][0]; // first uploaded file
+      // Handle both Multer & express-fileupload
+      if (req.files && typeof req.files === "object" && "image" in req.files) {
+        const file = req.files["image"];
+
+        if (Array.isArray(file)) {
+          // Multer (array of files)
+          imageFile = file[0];
+        } else {
+          // express-fileupload (single object)
+          imageFile = file as UploadedFile;
+        }
       }
 
       if (imageFile) {
         imageUrl = await uploadToS3(imageFile, "profilePictures");
       }
-      
+
       // 🟢 Get existing doctor data to preserve previous documents
       const existingDoctor = await AddDoctors.findOne({
         userId: userId,
@@ -177,7 +164,7 @@ const AddDoctorsController = {
 
       const webUser = await WebUser.findOne({ cognitoId: userId })
         .select("bussinessId") // only fetch businessId
-        .lean(); // return plain object instead of Mongoose doc  
+        .lean(); // return plain object instead of Mongoose doc
       const bussinessId = webUser?.bussinessId ?? "";
       const newDoctor = {
         ...name,
@@ -188,7 +175,7 @@ const AddDoctorsController = {
         countryCode,
         availability: OperatingHour,
         duration,
-        bussinessId:bussinessId,
+        bussinessId: bussinessId,
         image: imageUrl || existingDoctor?.image || null,
         documents,
       };
@@ -198,7 +185,7 @@ const AddDoctorsController = {
           ([_, v]) => v !== undefined && v !== null
         )
       );
-      const updatedDoctor = await AddDoctors.findOneAndUpdate(
+      await AddDoctors.findOneAndUpdate(
         { userId: userId },
         { $set: updatePayload },
         { new: true, upsert: true }
@@ -213,8 +200,10 @@ const AddDoctorsController = {
         message: "Doctor profile created successfully.",
         data: { updated: true },
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error("❌ Error creating doctor profile:", error);
+      const message =
+        error instanceof Error ? error.message : "Unknown error occurred";
       res.status(500).json({
         resourceType: "OperationOutcome",
         issue: [
@@ -222,7 +211,7 @@ const AddDoctorsController = {
             severity: "error",
             code: "exception",
             details: {
-              text: error.message,
+              text: message,
             },
           },
         ],
@@ -244,10 +233,10 @@ const AddDoctorsController = {
       let normalData;
       if (whichSection === "personal") {
         normalData = convertFromFhirPractitionerPersonalDetails(req.body);
-      } else if (whichSection === "professional") { 
+      } else if (whichSection === "professional") {
         normalData = convertFromFhirPractitionerProfessionalDetails(req.body);
       }
- 
+
       if (normalData) {
         await AddDoctors.findOneAndUpdate(
           { userId },
@@ -608,7 +597,7 @@ const AddDoctorsController = {
   // },
 
   getDoctors: async (req: Request, res: Response) => {
-    try { 
+    try {
       const { userId } = req.query;
       if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
         return res.status(400).json({ message: "Invalid User ID format" });
@@ -1037,7 +1026,7 @@ const AddDoctorsController = {
       });
       // console.log('bookedSlots', bookedSlots);
 
-      const response = await DoctorsTimeSlotes.findOne({ doctorId, day }); 
+      const response = await DoctorsTimeSlotes.findOne({ doctorId, day });
 
       if (response) {
         const bookedSlotIds = bookedSlots.map((slot) => slot.slotsId);

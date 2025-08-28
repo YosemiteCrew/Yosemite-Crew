@@ -185,30 +185,30 @@ useEffect(() => {
                 <Row>
                   <Col md={3}>
                     <StatCard
-                      icon="/Images/stact1.png"
-                      title="Appointments (Today)"
-                      value={158}
+                      icon="solar:box-bold"
+                      title="Total Inventory Items"
+                      value={5250}
                     />
                   </Col>
                   <Col md={3}>
                     <StatCard
-                      icon="/Images/stact2.png"
-                      title="Staff on-duty"
-                      value={122}
+                      icon="ph:money-wavy-fill"
+                      title="Stock Value"
+                      value="$15,089"
                     />
                   </Col>
                   <Col md={3}>
                     <StatCard
-                      icon="/Images/stact3.png"
-                      title="Inventory Out-of-Stock"
+                      icon="solar:round-arrow-down-bold"
+                      title="Items Low on Stock"
+                      value={320}
+                    />
+                  </Col>
+                  <Col md={3}>
+                    <StatCard
+                      icon="solar:danger-triangle-bold"
+                      title="Out-of-Stock Items"
                       value={45}
-                    />
-                  </Col>
-                  <Col md={3}>
-                    <StatCard
-                      icon="/Images/stact4.png"
-                      title="Revenue (Today)"
-                      value="$7,298"
                     />
                   </Col>
                 </Row>
@@ -246,10 +246,11 @@ useEffect(() => {
                 onTabClick={fetchInventoryDetails}
                 showStatusSelect
               />
-              <div className="ProcedurePackage">
-                <h4>Procedure Packages</h4>
-                <ProcedurePackagesTable data={procedurePackageData} />
-              </div>
+            </div>
+
+            <div className="ProcedurePackage">
+              <h4>Procedure Packages</h4>
+              <ProcedurePackagesTable data={procedurePackageData} />
             </div>
           </div>
         </Container>
