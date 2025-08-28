@@ -15,7 +15,7 @@ const appointmentController = {
 
       // Parse FHIR data if provided
       const data  = req.body.data;
-      
+      console.log(data,'dataaaa');
       let appointmentDetails;
       if (data) {
         const parseData = JSON.parse(req.body.data) as IFHIRAppointmentData
@@ -198,15 +198,20 @@ const appointmentController = {
     
        const appointmentIdRaw = req.query.appointmentID;
       if (typeof appointmentIdRaw !== "string" || !mongoose.Types.ObjectId.isValid(appointmentIdRaw)) {
-         res.status(400).json({ status: 0, message: "Invalid Appointment ID format" });
+         res.status(200).json({ status: 0, message: "Invalid Appointment ID format" });
         return;
       }
-      
-      
+      const {appointmentDate, timeslot}=  JSON.parse(req.body.data);
+      if(!appointmentDate || !timeslot){
+        console.log(req.body,'reschdule appointment',);
+        res.status(200).json({message:"Appointment Date and timeslot are missing", status:0})
+        return
+      }
+      console.log(req.body,'reschdule appointment');
       const normalData :Partial<WebAppointmentType> = {
-        appointmentDate: req.body.appointmentDate,
-        appointmentTime: req.body.timeslot,
-        appointmentTime24: helpers.convertTo24Hour(req.body.timeslot),
+        appointmentDate: appointmentDate,
+        appointmentTime: timeslot,
+        appointmentTime24: helpers.convertTo24Hour(timeslot),
       };
       const result = await appointmentService.rescheduleAppointment(normalData, appointmentIdRaw);
 
