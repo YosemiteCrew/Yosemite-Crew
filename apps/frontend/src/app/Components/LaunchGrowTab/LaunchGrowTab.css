@@ -30,7 +30,13 @@
     justify-content: space-between;
     width: 88px;
     padding: 30px 15px;
-    text-align: center;
+    align-items: center;
+}
+.LaunchTabDiv.active:first-child :is(.BuildText h6,.BuildText h3){
+    color: var(--white-text);
+}
+.LaunchTabDiv:first-child :is(.BuildText h6,.BuildText h3){
+    color: var(--white-text);
 }
 .BuildText h6{
     font-family: var(--grotesk-font);
@@ -38,15 +44,16 @@
     font-weight: 500;
     line-height: 120%;
     color: var(--black-text);
+    margin: 0;
 }
 .BuildText h3{
     font-family: var(--grotesk-font);
     font-size: 22px;
     font-weight: 500;
     line-height: 120%;
-    color: #f86c0f;
     writing-mode: sideways-lr;
     color: var(--black-text);
+    margin: 0;
 }
 .GrowTab_Content{
     position: absolute;
@@ -60,8 +67,9 @@
     height: 100%;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
     display: grid;
-    grid-template-columns: 100px auto;
+    grid-template-columns: 85px auto;
 }
+
 .GrowTabInner{
     display: flex;
     flex-direction: column;
@@ -94,6 +102,7 @@
     font-weight: 500;
     line-height: 120%;
     color: var(--black-text);
+    margin: 0;
 }
 .GrowTabInner .BottomText .Texted ul{
     padding: 0;
@@ -105,7 +114,7 @@
 .GrowTabInner .BottomText .Texted ul li{
     padding: 0;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 8px;
     font-family: var(--satoshi-font);
     font-size: 20px;
