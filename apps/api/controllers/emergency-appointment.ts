@@ -5,6 +5,7 @@ import { FHIREmergencyAppointment, FHIRPractitioner, NormalDoctor, NormalEmergen
 import { ProfileData, WebUser } from "../models/WebUser";
 import { convertDoctorsToFHIR, convertEmergencyAppointmentFromFHIR, convertEmergencyAppointmentToFHIRForTable } from "@yosemite-crew/fhir";
 import { AppointmentsToken } from "../models/web-appointment";
+import mongoose from "mongoose";
 const getCurrentDate = (): string => {
   const now = new Date();
   const year = now.getFullYear();
@@ -176,7 +177,24 @@ export const emergencyAppointments = {
 
   getEmergencyAppointment: async (req: Request, res: Response): Promise<void> => {
     try {
-      const { userId } = req.query as { userId?: string };
+      const { userId, page = '1', limit = '10' } = req.query as { 
+        userId?: string; 
+        page?: string; 
+        limit?: string;
+      };
+
+      // Validate and parse pagination parameters
+      const pageNum = parseInt(page, 10);
+      const limitNum = parseInt(limit, 10);
+      
+      if (pageNum < 1 || limitNum < 1 || limitNum > 100) {
+        res.status(400).json({ 
+          message: "Invalid pagination parameters. Page must be >= 1, limit must be between 1 and 100" 
+        });
+        return;
+      }
+
+      const skip = (pageNum - 1) * limitNum;
       const matchQuery: { [key: string]: unknown } = {};
 
       // Build UTC date filter
@@ -211,7 +229,11 @@ export const emergencyAppointments = {
         return;
       }
 
-      // Aggregation with lookups
+      // Get total count for pagination metadata
+      const totalCount = await emergencyAppointment.countDocuments(matchQuery);
+      const totalPages = Math.ceil(totalCount / limitNum);
+
+      // Aggregation with lookups and pagination
       const appointments = await emergencyAppointment.aggregate([
         { $match: matchQuery },
 
@@ -252,6 +274,13 @@ export const emergencyAppointments = {
         { $unwind: { path: "$departmentInfo", preserveNullAndEmptyArrays: true } },
         { $unwind: { path: "$doctorInfo", preserveNullAndEmptyArrays: true } },
 
+        // Sort by creation date (newest first)
+        { $sort: { createdAt: -1 } },
+
+        // Add pagination stages
+        { $skip: skip },
+        { $limit: limitNum },
+
         // Shape final output
         {
           $project: {
@@ -271,8 +300,8 @@ export const emergencyAppointments = {
                   ]
                 }
               }
-            }, // adjust field name
-            departmentName: "$departmentInfo.name", // adjust field name
+            },
+            departmentName: "$departmentInfo.name",
             appointmentStatus: 1,
             petType: 1,
             petBreed: 1,
@@ -280,21 +309,42 @@ export const emergencyAppointments = {
             phoneNumber: 1,
             email: 1,
             appointmentTime: 1,
+            createdAt: 1
           }
         }
       ]);
 
       if (!appointments || appointments.length === 0) {
-        res.status(404).json({ message: "No appointments found" });
+        res.status(200).json({ 
+          message: "No appointments found",
+          data: [],
+          pagination: {
+            currentPage: pageNum,
+            totalPages: 0,
+            totalItems: 0,
+            itemsPerPage: limitNum,
+            hasNext: false,
+            hasPrev: false
+          }
+        });
         return;
       }
-      const fhirAppointments = appointments.map((appt:NormalEmergencyAppointmentForTable) =>
-         
+
+      const fhirAppointments = appointments.map((appt: NormalEmergencyAppointmentForTable) =>
         convertEmergencyAppointmentToFHIRForTable(appt)
       );
+
       res.status(200).json({
         message: "Emergency appointments retrieved successfully",
         data: fhirAppointments,
+        pagination: {
+          currentPage: pageNum,
+          totalPages,
+          totalItems: totalCount,
+          itemsPerPage: limitNum,
+          hasNext: pageNum < totalPages,
+          hasPrev: pageNum > 1
+        }
       });
 
     } catch (error) {
@@ -304,6 +354,87 @@ export const emergencyAppointments = {
         error: (error as Error).message,
       });
     }
-  }
-
+  },
+   updateEmergencyAppointmentStatus: async (req: Request, res: Response): Promise<void> => {
+      try {
+        const  appointmentId  = req.params.Id;
+        const { status } = req.body as { status: string };
+  
+        // Validate appointmentId
+        if (!appointmentId || !mongoose.Types.ObjectId.isValid(appointmentId)) {
+          res.status(400).json({
+            resourceType: "OperationOutcome",
+            issue: [
+              {
+                severity: "error",
+                code: "invalid",
+                details: { text: "Invalid or missing appointmentId" },
+              },
+            ],
+          });
+          return;
+        }
+  
+        // Validate status
+        const validStatuses = ["booked", "fulfilled", "cancelled", "accepted", "inProgress", "checkedIn", "noshow"];
+        if (!status || typeof status !== "string" || !validStatuses.includes(status)) {
+          res.status(400).json({
+            resourceType: "OperationOutcome",
+            issue: [
+              {
+                severity: "error",
+                code: "invalid",
+                details: { text: `Invalid or missing status. Valid statuses: ${validStatuses.join(", ")}` },
+              },
+            ],
+          });
+          return;
+        }
+  
+        // Find and update the appointment
+        const updatedAppointment = await emergencyAppointment.findByIdAndUpdate(
+          appointmentId,
+          { appointmentStatus: status },
+          { new: true }
+        );
+  
+        if (!updatedAppointment) {
+          res.status(404).json({
+            resourceType: "OperationOutcome",
+            issue: [
+              {
+                severity: "error",
+                code: "not-found",
+                details: { text: "Appointment not found" },
+              },
+            ],
+          });
+          return;
+        }
+  
+        // Return FHIR OperationOutcome for success
+        res.status(200).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "information",
+              code: "informational",
+              details: { text: "Appointment status updated successfully" },
+            },
+          ],
+        });
+      } catch (error) {
+        console.error("Error updating appointment status:", error);
+        res.status(500).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "exception",
+              details: { text: "Internal server error" },
+            },
+          ],
+        });
+      }
+    },
 };

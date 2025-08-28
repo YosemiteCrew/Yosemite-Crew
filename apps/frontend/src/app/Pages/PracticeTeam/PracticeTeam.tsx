@@ -13,12 +13,19 @@ import { getData } from "@/app/axios-services/services";
 import { useAuthStore } from "@/app/stores/authStore";
 import { convertFromFhirTeamMembers, fromFhirTeamOverview } from "@yosemite-crew/fhir";
 import { TeamMember, TeamOverview } from "@yosemite-crew/types";
-import { Icon } from "@iconify/react/dist/iconify.js";
+import { Button, Form } from "react-bootstrap";
+import { LuSearch } from "react-icons/lu";
+
+function toTitleCase(str: string): string {
+  return str
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 function PracticeTeam() {
   const { userId } = useAuthStore();
 
-  const [departmentWiseTeam, setDepartmentWiseTeam] = useState<TeamMember | [] | any>([]);
+  const [departmentWiseTeam, setDepartmentWiseTeam] = useState<Record<string, TeamMember[]> >({});
 
   const [Overview, setOverView] = useState<TeamOverview>({
     departmentCount: 0,
@@ -48,14 +55,12 @@ function PracticeTeam() {
     getOverView();
   }, [userId]);
 
-
   useEffect(() => {
     const getPracticeTeamsList = async () => {
       try {
         const response = await getData(`/fhir/v1/practiceTeamsList?userId=${userId}`);
         if (response.status === 200) {
-
-          const result: any = response.data
+          const result: any = response.data;
           const { practitioners, roles }: any = result.response;
           const teamMembers = convertFromFhirTeamMembers(practitioners, roles);
 
@@ -73,40 +78,62 @@ function PracticeTeam() {
         }
       } catch (error) {
         console.error("Error fetching practice team list:", error);
+        setDepartmentWiseTeam({}); // Reset to empty object on error
       }
     };
 
     getPracticeTeamsList();
   }, [userId]);
 
+  const DepartmentTeam = ({ departmentName, teamList }: { departmentName: string; teamList: TeamMember[] }) => {
+    const [localSearch, setLocalSearch] = useState("");
 
-  // useEffect(() => {
-  //   const departmentRoleMap: Record<string, Record<string, TeamMember[]>> = {};
+    // Filter by name only, ignoring role, with fallback to original list if empty
+    const filteredMembers = teamList && teamList.length > 0
+      ? teamList.filter((member) =>
+          `${member.firstName} ${member.lastName}`.toLowerCase().includes(localSearch.toLowerCase())
+        )
+      : [];
 
-  //   Object.entries(departmentWiseTeam).forEach(([department, members]) => {
-  //     departmentRoleMap[department] = {};
+    // Ensure uniqueRoles is handled safely
+    const uniqueRoles = filteredMembers.length > 0
+      ? [...new Set(filteredMembers.map((item) => item.role))]
+      : [];
 
-  //     members.forEach((member) => {
-  //       const role = member.role || "Other";
-  //       if (!departmentRoleMap[department][role]) {
-  //         departmentRoleMap[department][role] = [];
-  //       }
-  //       departmentRoleMap[department][role].push(member);
-  //     });
-  //   });
+    const generateCardiologyTabs = (tabItems: any) => {
+      if (!tabItems || tabItems.length === 0) {
+        return [{ eventKey: "no-data", title: "No Data", content: <p>No members found</p> }];
+      }
+      return uniqueRoles.map((role: any) => ({
+        eventKey: role,
+        title: toTitleCase(role),
+        content: <CardiologyTable data={tabItems.filter((item: any) => item.role === role)} />,
+      }));
+    };
 
-  //   setRolesByDepartment(departmentRoleMap);
-  // }, [departmentWiseTeam]);
-
-
-  const generateCardiologyTabs = (tabItems: any) => {
-    return tabItems.map((item: any) => ({
-      eventKey: item.role,
-      title: item.role,
-      content: <CardiologyTable data={tabItems} />,
-    }));
+    return (
+      <Row key={departmentName}>
+        <div className="TableItemsRow">
+          <HeadingDiv Headname={toTitleCase(departmentName)} Headspan={teamList.length} />
+          <div className="RightTopTbl">
+            <Form className="Tblserchdiv" onSubmit={(e) => e.preventDefault()}>
+              <input
+                type="search"
+                placeholder="Search Team Member"
+                value={localSearch}
+                onChange={(e) => setLocalSearch(e.target.value)}
+              />
+              <Button type="submit">
+                <LuSearch size={20} />
+              </Button>
+            </Form>
+          </div>
+          <RoundCommonTabs tabs={generateCardiologyTabs(filteredMembers)} showSearch={false} />
+        </div>
+      </Row>
+    );
   };
-  console.log(departmentWiseTeam, "departmentWiseTeam")
+
   return (
     <>
       <section className="PracticeTeamSec">
@@ -161,22 +188,11 @@ function PracticeTeam() {
                   </Col>
                 </Row>
               </div>
-              {departmentWiseTeam &&
-                Object.entries(departmentWiseTeam).map(([departmentName, teamList]: any, i) => {
-                  return (
-                    <Row key={i}>
-                      <div className="TableItemsRow">
-                        <HeadingDiv Headname={departmentName} Headspan={teamList.length} />
-                        <RoundCommonTabs
-                          tabs={generateCardiologyTabs(
-                            teamList
-                          )}
-                          showSearch
-                        />
-                      </div>
-                    </Row>
-                  );
-                })}
+              {departmentWiseTeam && Object.keys(departmentWiseTeam).length > 0
+                ? Object.entries(departmentWiseTeam).map(([departmentName, teamList]: any) => (
+                    <DepartmentTeam key={departmentName} departmentName={departmentName} teamList={teamList} />
+                  ))
+                : <p>No departments available</p>}
             </div>
           ) : (
             <div className="ManageInvitesDiv">
@@ -184,9 +200,10 @@ function PracticeTeam() {
                 <h2>
                   Manage <span>Invites</span>
                 </h2>
-                <Link href="#">Manage Practice Teams</Link>
+                <Link href="#" onClick={() => setManageInvites(false)}>
+                  Manage Practice Teams
+                </Link>
               </div>
-
               <div className="MangeInviteTableDiv">
                 <ManageInviteTable />
               </div>
