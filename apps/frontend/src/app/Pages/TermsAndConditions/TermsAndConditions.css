@@ -1,0 +1,443 @@
+.main_content {
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+  flex-direction: column;
+  justify-content: center; /* horizontal center */
+  align-items: center;
+}
+
+.terms-header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 0;
+  gap: 159px;
+  width: 842px;
+  height: 96px;
+}
+
+.terms-header__icon {
+  width: 24px;
+  height: 24px;  
+  position: relative;
+}
+ 
+
+.terms-header__title {
+  width: 478px;
+  height: 96px;
+  font-family: "Clash Grotesk", sans-serif;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 40px;
+  line-height: 120%; /* 48px */
+  display: flex;
+  align-items: center;
+  text-align: center;
+  letter-spacing: -0.02em;
+  color: #302f2e; /* Jet-500 */
+}
+
+/* Container */
+.definitions {
+  width: 842px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  color: #302f2e;
+  font-family: "Satoshi", sans-serif;
+}
+
+/* Title */
+.definitions__title {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 120%;
+  letter-spacing: -0.02em;
+  margin-bottom: 12px;
+}
+
+/* Intro paragraph */
+.definitions__text {
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 140%;
+  margin-bottom: 12px;
+}
+
+/* List */
+.definitions__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* List items */
+.definitions__list li {
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 140%;
+  letter-spacing: -0.02em;
+}
+
+.definitions__list li strong {
+  font-weight: 700;
+}
+
+/* Wrapper box */
+.doc-box {
+  width: 842px; /* match definitions + header */
+  margin: 40px auto;
+  padding: 20px;
+  background: #fff;
+  font-family: "Satoshi", sans-serif;
+  color: #302f2e;
+  line-height: 1.6;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Small subtitle (EXHIBIT A) */
+.doc-subtitle {
+  text-align: center;
+  font-size: 18px;
+  font-weight: 600;
+  font-family: "Clash Grotesk", sans-serif;
+  text-transform: uppercase;
+  color: #302f2e;
+  margin-bottom: 8px;
+}
+
+/* Main title */
+.doc-title {
+  text-align: center;
+  font-size: 22px;
+  font-weight: 700;
+  font-family: "Clash Grotesk", sans-serif;
+  line-height: 120%;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  color: #302f2e;
+  margin-bottom: 20px;
+}
+
+/* Section heading (e.g., 1. DEFINITIONS) */
+.doc-section-title {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 120%;
+  font-family: "Satoshi", sans-serif;
+  letter-spacing: -0.02em;
+  margin-bottom: 12px;
+  color: #302f2e;
+}
+
+/* Paragraph text */
+.doc-box p {
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 140%;
+  letter-spacing: -0.02em;
+  margin-bottom: 12px;
+  text-align: justify;
+}
+
+/* Clause number (1.1., 1.2., etc.) */
+.doc-clause {
+  font-weight: 700;
+  color: #302f2e;
+}
+
+/* Inline strong (Technical Support Center, etc.) */
+.doc-box strong {
+  font-weight: 600;
+  color: #302f2e;
+}
+
+/* Links */
+.doc-link {
+  color: #0073e6;
+  text-decoration: underline;
+  font-weight: 400;
+}
+.doc-link:hover {
+  text-decoration: none;
+}
+
+.doc-section-title {
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 12px;
+}
+.doc-section-title-orange {
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 12px;
+  color: #f58220; /* Orange heading */
+}
+.doc-table-wrapper {
+  border: 1px solid #f58220;
+  border-radius: 10px;
+  overflow: hidden; /* keeps corners rounded */
+}
+
+.doc-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 14px;
+}
+.doc-table {
+  border-collapse: collapse;
+  width: 100%;
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+.doc-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f58220;
+  color: #f58220;
+}
+
+.doc-table tr:last-child td {
+  border-bottom: none;
+}
+
+.doc-table-label {
+  font-weight: 600;
+  color: #f58220;
+  width: 30%;
+}
+
+.doc-link {
+  color: #f58220;
+  text-decoration: none;
+}
+.doc-link:hover {
+  text-decoration: underline;
+}
+
+/* Error Response Table */
+.error-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.error-table th {
+  background: #fdf3ec;
+  color: #302f2e;
+  font-weight: 600;
+  text-align: left;
+  padding: 12px 16px;
+  border-bottom: 2px solid #f58220;
+}
+
+.error-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f58220;
+  vertical-align: top;
+  line-height: 1.5;
+  color: #302f2e;
+}
+
+.error-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Severity colors */
+.error-critical {
+  font-weight: 600;
+  color: #d93025; /* red */
+}
+
+.error-serious {
+  font-weight: 600;
+  color: #e67e22; /* orange */
+}
+
+.error-moderate {
+  font-weight: 600;
+  color: #f1c40f; /* yellow/gold */
+}
+
+.error-low {
+  font-weight: 600;
+  color: #2ecc71; /* green */
+}
+
+.dpa-container {
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 30px; 
+  border-radius: 12px;
+  font-family: "Georgia", serif;
+  line-height: 1.6;
+  color: #222;
+}
+
+.dpa-container h2 {
+  text-align: center;
+  font-size: 22px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.dpa-container h3 {
+  text-align: center;
+  font-size: 20px;
+  margin-bottom: 20px; 
+}
+
+.dpa-container h4 {
+  margin-top: 25px;
+  font-size: 18px;
+  color: #333; 
+  padding-bottom: 5px;
+}
+
+.dpa-container p {
+  margin: 12px 0;
+  text-align: justify;
+}
+
+.dpa-container ol {
+  padding-left: 25px;
+  margin: 12px 0;
+}
+
+.dpa-container li {
+  margin-bottom: 8px;
+}
+
+ol {
+  list-style: none; /* Remove default numbers */
+  counter-reset: custom-counter; /* Reset counter */
+  padding-left: 20px;
+}
+
+ol li {
+  counter-increment: custom-counter; /* Increment counter */
+  margin-bottom: 8px;
+  position: relative;
+}
+
+ol li::before {
+  content: counter(custom-counter) ". "; /* Add custom number */
+  font-weight: bold; /* Make number bold */
+  position: absolute;
+  left: -20px; /* Adjust position */
+}
+
+/* Container */
+.doc-section {
+  width: 842px;                  /* match header/definitions */
+  margin: 40px auto;             /* center horizontally with top/bottom spacing */
+  padding: 24px;
+  background: #fff; 
+  border-radius: 12px;           /* optional: keep consistent with .doc-box */
+  font-family: "Inter", Arial, sans-serif;
+  font-size: 14px;
+  color: #333;
+  line-height: 1.6;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Main title */
+.doc-title {
+  font-size: 20px;
+  font-weight: 700; 
+  margin-bottom: 8px;
+  text-transform: uppercase; 
+  padding-bottom: 4px;
+}
+
+/* Sub title */
+.doc-subtitle {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  color: #555;
+  text-transform: uppercase;
+}
+
+/* Clauses */
+.clause {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 20px 0 10px;
+  color: #222;
+}
+
+/* Paragraphs */
+.doc-section p {
+  margin: 8px 0;
+}
+
+/* Ordered list styling */
+.doc-section ol {
+  list-style: none;
+  counter-reset: doc-counter;
+  padding-left: 24px;
+  margin: 12px 0 20px;
+}
+
+.doc-section ol li {
+  counter-increment: doc-counter;
+  margin-bottom: 8px;
+  position: relative;
+  padding-left: 24px;
+}
+
+.doc-section ol li::before {
+  content: counter(doc-counter) ".";
+  font-weight: bold;
+  position: absolute;
+  left: 0; 
+}
+
+/* Strong elements inside text */
+.doc-section strong {
+  font-weight: 600;
+  color: #000;
+}
+
+ 
+.dataMatrix {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.moduleHeader, .dataCategoryHeader, .subjectHeader, .purposeHeader {
+  background-color: #f9f9f9;
+  font-weight: bold;
+  padding: 12px;
+}
+
+.moduleCell, .dataCell, .subjectCell, .purposeCell {
+  padding: 10px;
+  border-bottom: 1px solid #ddd;
+  vertical-align: top; /* Ensure top alignment */
+}
+
+.dataMatrix tr .moduleCell,
+.dataMatrix tr .dataCell,
+.dataMatrix tr .subjectCell,
+.dataMatrix tr .purposeCell {
+  border: 1px solid;
+}
+
+/* FIX: Remove vertical-align: middle override for rowspan cells */
+.moduleCell[rowspan], .subjectCell[rowspan], .purposeCell[rowspan] {
+  /* Remove or explicitly set to top */
+  vertical-align: top;
+}
