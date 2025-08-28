@@ -1,11 +1,10 @@
 "use client";
-import React, { useEffect, useState } from "react";
+
+import React, { use, useEffect, useState } from "react";
 import "./EmergencyAppointment.css";
 import { Col, Container, Form, Row } from "react-bootstrap";
 import StatCard from "@/app/Components/StatCard/StatCard";
 import { OverviewDisp } from "../../Departments/DepartmentsDashboard";
-import AllAppointmentsTable from "@/app/Components/DataTable/AllAppointmentsTable";
-import NewEmergency from "@/app/Components/DataTable/NewEmergencyTable";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import { FormInput } from "../../Sign/SignUp";
 import { UnFillBtn } from "../../HomePage/HomePage";
@@ -19,6 +18,7 @@ import catBreedList from "./catBreedList.json";
 import dogBreedList from "./dogBreedList.json";
 import horseBreedList from "./horseBreedList.json";
 import { NormalEmergencyAppointment } from "@yosemite-crew/types";
+import MainEmergencyTable from "@/app/Components/DataTable/MainEmergencyTable";
 
 interface NameData {
   gender: string;
@@ -51,7 +51,7 @@ interface AppointmentData {
 }
 
 function EmergencyAppointment() {
-  const { userId } = useAuthStore();
+  const { userId, userType} = useAuthStore();
   const [email, setEmail] = useState("");
   const [patientName, setPatientName] = useState("");
   const [parentName, setParentName] = useState("");
@@ -76,6 +76,7 @@ function EmergencyAppointment() {
     mobileNumber?: string;
     veterinarian?: string;
   }>({});
+  const [appointmentCount, setAppointmentCount] = useState(0);
 
   useEffect(() => {
     if (veterinarian) {
@@ -201,60 +202,60 @@ function EmergencyAppointment() {
 
   // Form submit
   const handleFormSubmit = async (e: React.FormEvent) => {
-      e.preventDefault();
-  
-      if (!validateForm()) {
-        return;
-      }
-  
-      const allData:NormalEmergencyAppointment = {
-        email,
-        ownerName: parentName,
-        petName: patientName,
-        petBreed: breed,
-        petType: petType,
-        gender: name.gender,
-        phoneNumber: name.mobileNumber,
-        department: departmentId,
-        veterinarian,
-        userId: userId,
-        countryCode,
-      };
-         const data =convertEmergencyAppointmentToFHIR(allData)
-      try {
-        const response = await postData(`/fhir/v1/createappointment`, { data });
-  
-        if (response.status === 201 || response.status === 200) {
-          Swal.fire({
-            icon: "success",
-            title: "Success",
-            text: "Emergency appointment form submitted successfully.",
-            timer: 2000,
-            showConfirmButton: false,
-          });
-  
-          // Reset form
-          setEmail("");
-          setPatientName("");
-          setParentName("");
-          setBreed("");
-          setPetType("");
-          setVeterinarian("");
-          setName({ gender: "", mobileNumber: "" });
-          setCountryCode("+91");
-          setErrors({});
-        }
-      } catch (error) {
-        console.error("Error submitting emergency appointment:", error);
+    e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
+
+    const allData: NormalEmergencyAppointment = {
+      email,
+      ownerName: parentName,
+      petName: patientName,
+      petBreed: breed,
+      petType: petType,
+      gender: name.gender,
+      phoneNumber: name.mobileNumber,
+      department: departmentId,
+      veterinarian,
+      userId: userId!,
+      countryCode,
+    };
+    const data = convertEmergencyAppointmentToFHIR(allData);
+    try {
+      const response = await postData(`/fhir/v1/createappointment`, { data });
+
+      if (response.status === 201 || response.status === 200) {
         Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: "Failed to submit emergency appointment.",
+          icon: "success",
+          title: "Success",
+          text: "Emergency appointment form submitted successfully.",
           timer: 2000,
           showConfirmButton: false,
         });
+
+        // Reset form
+        setEmail("");
+        setPatientName("");
+        setParentName("");
+        setBreed("");
+        setPetType("");
+        setVeterinarian("");
+        setName({ gender: "", mobileNumber: "" });
+        setCountryCode("+91");
+        setErrors({});
       }
-    };
+    } catch (error) {
+      console.error("Error submitting emergency appointment:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to submit emergency appointment.",
+        timer: 2000,
+        showConfirmButton: false,
+      });
+    }
+  };
 
   return (
     <section className="EmergencyAppoitSec">
@@ -263,7 +264,7 @@ function EmergencyAppointment() {
           <div className="TopEmergencyVet">
             <div className="EmergencyHeading">
               <h2>Emergency Appointment</h2>
-              <span>Total: {appointmentData.length}</span>
+              <span>Total: {appointmentCount}</span>
             </div>
             <div className="Emergencyoverview">
               <OverviewDisp hideTitle={false} showDropdown={false} titleText="Overview" />
@@ -272,22 +273,21 @@ function EmergencyAppointment() {
                   <StatCard
                     icon="solar:document-medicine-bold"
                     title="Total Appointments"
-                    value={appointmentData.length.toString()}
+                    value={appointmentCount.toString()}
                   />
                 </Col>
-                <Col md={3}>
+                {/* <Col md={3}>
                   <StatCard
                     icon="solar:star-bold"
                     title="New Appointments"
                     value={appointmentData.filter((item) => item.status === "new").length.toString()}
                   />
-                </Col>
+                </Col> */}
               </Row>
             </div>
-            {/* <AllAppointmentsTable data={appointmentData} /> */}
+            <MainEmergencyTable onCountUpdate={setAppointmentCount} />
           </div>
-          {/* <NewEmergency data={appointmentData.filter((item) => item.status === "new")} /> */}
-          <EmergencyAppointForm
+          {userType === "receptionist" && (<EmergencyAppointForm
             email={email}
             setEmail={(value) => {
               setEmail(value);
@@ -334,7 +334,7 @@ function EmergencyAppointment() {
             }}
             onSubmit={handleFormSubmit}
             errors={errors}
-          />
+          />)}
         </div>
       </Container>
     </section>
