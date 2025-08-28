@@ -17,7 +17,6 @@
 .ProcedurePackageData .ProsPackageCard{
     border-radius: 28px;
     padding: 40px;
-    background: #FEEEDC1A;
     border: 1px solid var(--profileborder);
     display: flex;
     flex-direction: column;
@@ -35,9 +34,33 @@
     font-size: 23px;
     font-family: var(--grotesk-font);
 }
-
 .ProsPackageCard .PackageForm{
     display: flex;
     flex-direction: column;
     gap: 36px;
+}
+.AddPackageBtn{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.AddPackageBtn button{
+    background: var(--black-bg);
+    color: var(--white-text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px 32px;
+    border-radius: 36px;
+    min-width: 400px;
+    font-family: var(--grotesk-font);
+    font-weight: 500;
+    font-size: 21px;
+    line-height: 120%;
+    border: 1px solid var(--black-bg) !important;
+    &:hover{
+        background: transparent;
+        color: var(--black-text);
+    }
 }
