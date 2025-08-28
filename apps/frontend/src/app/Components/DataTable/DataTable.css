@@ -375,10 +375,15 @@
 /* AddItemsTable Ended */
 
 
-
+.add-items-table-wrapper{
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+}
 .add-items-table-wrapper .action-buttons {
   display: flex;
   gap: 10px;
+  align-items: center;
 }
 
 .add-items-table-wrapper .action-btn {
@@ -409,10 +414,10 @@
 }
 
 .add-items-table-wrapper .form-control {
-    width: 100%;
-    padding: 8px;
-    border-radius: 4px;
-    border: 1px solid #ccc;
+  width: 100%;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
 }
 
 .add-item-form {
@@ -426,9 +431,66 @@
 }
 
 .table-footerBtn {
-    margin-top: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.table-footerBtn button{
+  background: var(--black-bg);
+  color: var(--white-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 32px;
+  border-radius: 36px;
+  min-width: 160px;
+  font-family: var(--grotesk-font);
+  font-weight: 500;
+  font-size: 21px;
+  line-height: 120%;
+  border: 1px solid var(--black-bg) !important;
+  &:hover{
+      background: transparent;
+      color: var(--black-text);
+  }
 }
 
+.Procedureselect button{
+  width: 100%;
+  border: 1px solid #37223CB2;
+  min-height: 48px;
+  border-radius: 12px;
+  outline: none;
+  background: transparent !important;
+  color: var(--black-text) !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.Procedureselect button h6{
+  font-family: var(--grotesk-font);
+  font-weight: 400;
+  font-size: 15px;
+  line-height: 120%;
+  white-space: nowrap; 
+  max-width: 180px; 
+  text-overflow: ellipsis;
+  overflow : hidden; 
+}
+.prcedureInput{
+  border: 1px solid #37223CB2 !important;
+  min-height: 48px !important;
+  border-radius: 12px !important;
+  outline: none !important;
+  background: transparent !important;
+  color: var(--black-text) !important;
+  font-family: var(--grotesk-font);
+  font-weight: 400 !important;
+  font-size: 15px !important;
+  line-height: 120% !important;
+  text-align: center;
+}
 
 /* All Apointment table Started  */
 
