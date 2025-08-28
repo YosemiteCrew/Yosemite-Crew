@@ -34,3 +34,4 @@ export { convertFhirToNormalPetData, convertPetDataToFhir, convertFromFHIRDoctor
 export { convertAdminDepartmentsToFHIR, convertFHIRToAdminDepartments } from "./admin-departments/admin-departments"
 export { fromFhirUser, toFhirUser} from "./profile/profile-data-fhir"
 export { convertTaskToFHIR, convertTaskFromFHIR } from "./create-task/create-task";
+export {toFhirSupportTicket,fromFhirSupportTicket} from "./support/support-data-fhir"

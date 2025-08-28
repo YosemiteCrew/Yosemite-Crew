@@ -739,7 +739,7 @@ const medicalRecordsController = {
 
       };
       await Promise.all(fileUploadPromises);
-      
+      console.log(medicalRecords);
       const newFolder = new MedicalRecordFolderModel({
         folderName: caseFolderName.toLowerCase(),
         folderUrl: folderKey,

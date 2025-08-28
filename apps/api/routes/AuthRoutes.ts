@@ -27,7 +27,8 @@ router.post('/signOut', WebController.signOut);
 //   '/:userId/deleteDocumentsToUpdate/:docId',
 //   WebController.deleteDocumentsToUpdate
 // );
-router.post('/refreshToken', authController.refreshToken);
+router.post('/refreshToken', WebController.refreshToken);
+
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Add Department >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 router.post('/HealthcareService', verifyToken,AddDepartmentController.addDepartment);
@@ -43,5 +44,6 @@ router.get('/getDepartmentsList',WebController.getDepartmentsList);
 //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Profile >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 router.get('/getProfileDetail',verifyTokenAndRefresh, authController.getProfileDetail)
 router.put('/updateProfileDetail', verifyTokenAndRefresh, authController.updateProfileDetail)
-router.post('/deleteAccountWithToken', authController.deleteUserAccountUsingToken)
+router.post('/deleteAccountWithToken',verifyTokenAndRefresh, authController.deleteUserAccountUsingToken)
+router.post('/app-refreshToken', authController.refreshToken)
 export default router;

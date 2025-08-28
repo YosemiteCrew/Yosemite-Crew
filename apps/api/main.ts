@@ -23,6 +23,7 @@ import adminInventory from './routes/admin-api-routes';
 import apiRoutes from './routes/apiRoutes';
 import BlogApiRoutes from './routes/BlogApiRoutes';
 import newsletterRoutes from './routes/news-letter-routes';
+import supportRoutes from './routes/support-router';
 import emergencyAppointments from './routes/emergency-appointment-routes'
 import addDiscountCodeRoutes from './routes/addDiscountCodeRoutes'
 import doctorSlots from './routes/doctor.slots'
@@ -116,6 +117,7 @@ app.use('/fhir/v1', AdminApiRoutes);
 app.use('/fhir/v1', apiRoutes);
 app.use('/fhir/v1', doctorSlots);
 app.use('/newsletter', newsletterRoutes);
+app.use("/fhir/v1/support",supportRoutes)
 app.use('/fhir/v1', BlogApiRoutes);
 app.use('/fhir/v1',inviteRoutes)
 app.use('/fhir/v1',emergencyAppointments)
