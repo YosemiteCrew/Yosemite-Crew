@@ -44,6 +44,10 @@ function decryptPassword(encryptedData: string, ivHex: string): string {
   return decrypted;
 }
 
+const REFRESH_SECRET = process.env.JWT_SECRET as string;
+const ACCESS_SECRET = process.env.JWT_SECRET as string;
+const ACCESS_EXPIRY = process.env.EXPIRE_IN ?? "15m"; // short-lived
+const REFRESH_EXPIRY = process.env.EXPIRE_IN_REFRESH; // longer-lived
 const authController = {
   signUp: async (
     req: Request,
@@ -187,6 +191,7 @@ const authController = {
       }).promise();
 
       const accessToken = authData.AuthenticationResult!.AccessToken!;
+      const refreshToken = authData.AuthenticationResult!.RefreshToken!;
       const decoded = jwt.decode(accessToken) as { sub: string };
 
       const payload = {
@@ -205,8 +210,9 @@ const authController = {
 
       const token = jwt.sign(payload, secret, signOptions);
 
-      const userData = result.toObject() as IUser & { token?: string };
+      const userData = result.toObject() as IUser & { token?: string, refreshToken?:string };
       userData.token = token;
+      userData.refreshToken =refreshToken
       delete userData.password;
 
         res.status(200).json({ message: 'User created successfully!', status:1, userData: userData})
@@ -453,14 +459,18 @@ const authController = {
       };
 
       const secret = process.env.JWT_SECRET;
+    
       if (!secret) throw new Error('JWT_SECRET is not defined');
 
       const expiresInEnv = parseInt(process.env.JWT_EXPIRE_TIME ?? '3600', 10); // seconds   
+      
       const signOptions: SignOptions = {
         expiresIn: expiresInEnv,
       };
+      
 
       const token = jwt.sign(payload, secret, signOptions);
+      
 
       const userData = result.toObject() as IUser & { token?: string, refreshToken?:string };
       userData.token = token;
@@ -775,29 +785,77 @@ const authController = {
       res.status(200).json({ message: message, status: 0 })
     }
   },
-  refreshToken:async(req:Request, res:Response):Promise<void> =>{
-     try {
-    const { refreshToken } = req.body as {refreshToken:string};
-    if(!refreshToken){
-      res.status(200).json({status:0, message:'Refresh token required'})
+  // refreshToken:async(req:Request, res:Response):Promise<void> =>{
+  //    try {
+  //     // const userID= getCognitoUserId(req);
+  //   const { refreshToken , username} = req.body as {refreshToken:string, username:string};
+  //   if(!refreshToken){
+  //     res.status(200).json({status:0, message:'Refresh token required'})
+  //   }
+    
+  //     const secretHash = helpers.getSecretHash(username);
+  //   const params = {
+  //     AuthFlow: "REFRESH_TOKEN_AUTH",
+  //     ClientId: process.env.COGNITO_CLIENT_ID!,
+  //     AuthParameters: {
+  //        REFRESH_TOKEN: refreshToken,   
+  //        SECRET_HASH: secretHash,
+  //        USERNAME:username
+  //       }
+  //   };
+
+  //   const response = await cognito.initiateAuth(params).promise();
+
+  //   res.status(200).json({
+  //     accessToken: response.AuthenticationResult?.AccessToken,
+  //     idToken: response.AuthenticationResult?.IdToken
+  //   });
+  // } catch (err: unknown) {
+  //   const message = err instanceof Error ? err.message :'An internal server error occurred'
+  //   res.status(200).json({ error: message });
+  // }
+  // }
+  refreshToken: (req: Request, res: Response) => {
+    try {
+      const {refreshToken} = req.body as {refreshToken:string}
+
+      if (!refreshToken) {
+        res.status(401).json({ message: "No refresh token provided" });
+
+      }
+
+      // ✅ Verify refresh token
+      const decoded = jwt.verify(refreshToken, REFRESH_SECRET) as {
+        username: string;
+        email: string;
+        userType: string;
+      };
+
+      // ✅ Create new access token
+      if (!ACCESS_SECRET) {
+        res.status(500).json({ message: "JWT access secret not configured." });
+      }
+      const newAccessToken = jwt.sign(
+        {
+          userId: decoded.username,
+          email: decoded.email,
+          userType: decoded.userType,
+        },
+        ACCESS_SECRET,
+        { expiresIn: ACCESS_EXPIRY } as jwt.SignOptions
+      );
+
+      res.status(200).json({
+         accessToken:newAccessToken,
+          message: "Access token refreshed",
+        status:1
+      });
+
+    } catch (error) {
+      console.error("Refresh error:", error);
+      res.status(200).json({ message: "Invalid or expired refresh token" });
+
     }
-
-    const params = {
-      AuthFlow: "REFRESH_TOKEN_AUTH",
-      ClientId: process.env.COGNITO_CLIENT_ID!,
-      AuthParameters: { REFRESH_TOKEN: refreshToken }
-    };
-
-    const response = await cognito.initiateAuth(params).promise();
-
-    res.status(200).json({
-      accessToken: response.AuthenticationResult?.AccessToken,
-      idToken: response.AuthenticationResult?.IdToken
-    });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message :'An internal server error occurred'
-    res.status(200).json({ error: message });
-  }
   }
 
 };
