@@ -128,7 +128,7 @@ class AppointmentService {
             await webAppointments.findByIdAndUpdate(app?._id, updateData, { new: true });
 
           }
-        } else if (appointmentStatus === 'booked') {
+        } else if (appointmentStatus === 'accepted') {
           if (appointmentDate.isAfter(today)) {
             categories.upcoming.push(app);
           } else if (appointmentDate.isSame(today)) {
@@ -336,7 +336,7 @@ console.log(vets,'vetsvets');
         statusCode: number;
       };
       error.code = "invalid";
-      error.statusCode = 400;
+      error.statusCode = 200;
       throw error;
     }
 
@@ -347,7 +347,7 @@ console.log(vets,'vetsvets');
         statusCode: number;
       };
       error.code = "invalid";
-      error.statusCode = 400;
+      error.statusCode = 200;
       throw error;
     }
   
@@ -376,7 +376,7 @@ console.log(vets,'vetsvets');
         statusCode: number;
       };
       error.code = "processing";
-      error.statusCode = 500;
+      error.statusCode = 200;
       throw error;
     }
 
