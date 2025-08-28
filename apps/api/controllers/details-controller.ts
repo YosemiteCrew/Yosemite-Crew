@@ -144,6 +144,32 @@ const detailsController = {
       res.status(200).json({ status: 0, message: 'Internal Server Error' });
     }
   },
+  getVetClinicDetails: async (req :Request, res:Response):Promise<void> =>{
+    try {
+      const userId = getCognitoUserId(req)
+      if(!userId){
+        res.status(200).json({message :'User ID is missing', })
+        return
+      }
+      const petId = req.query.petId
+      const vetClinicsDetail :VetClinicDocument[] |null = await VetClinic.find({userId:userId, petId:petId})
+      if(!vetClinicsDetail.length){
+        res.status(200).json({message:'No Vet Founded'})
+      }
+      const entries = vetClinicsDetail.map((item)=>  toFhirOrganization(item))
+      res.status(200).json({
+        data:entries
+      })
+    }
+    catch(error){
+      const message = error instanceof Error ? error.message:'An Error occurred'
+      res.status(200).json({status:0, message:message})
+    }
+  },
+
+  searchVet: async (req:Request, res:Response):Promise<void> =>{
+
+  },
 
   getVetClinicDetails: async (req: Request, res: Response): Promise<void> => {
     try {
