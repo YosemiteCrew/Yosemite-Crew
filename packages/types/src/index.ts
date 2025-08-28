@@ -39,7 +39,9 @@ export type { AppointmentsTokenType, WebAppointmentType, NormalizedAppointment,I
 export type { AppointmentStatus, AppointmentStatusFHIRBundle, AppointmentStatusFHIRBundleEntry,FhirPurposeOfVisit,MongoPurposeOfVisit,AppointmentType,FhirHealthcareService } from "./AppointmentStatus/appointmentStatusTypes";
 export type { InventoryType, InputData, AggregationResult, InventoryOverviewType, InventoryOverviewFHIRBundle, InventoryOverviewFHIRObservation, ProcedureItemType, ProcedurePackageType,SupplyItem,FhirBundle,CategoryJson,InventoryTypes } from "./Inventory/InventoryType";
 export type { ProcedureFHIRBundle, PackageItem, ProcedurePackage,FHIRMedicalPackage, FHIRPackageItem, NormalMedicalPackage, NormalPackageItem,ProcedurePackageJSON,FHIRProcedurePackage  } from "./Procedure/procedureType";
-
+ 
+export type {TicketStatus,TicketCategory,TicketPlatform,UserType,UserStatus,FhirSupportTicket ,ISupportTicket,CreateSupportTicket} from "./support/support-types"
+ 
 export type {FhirCarePlan} from "./ExercisePlan/exercisePlanTypes"
 export type { IUser, SignupRequestBody } from "./models/IUser";
 export type { FHIRCodingDiabetes,FHIRAttachmentDiabetes,DiabetesRecord,FHIRCodeDiabetes,FHIRComponentDiabetes,FHIRObservationDiabetes,FHIRValueQuantityDiabetes,ParsedDiabetesObservation } from "./diabetes/diabetes-types";
