@@ -99,10 +99,10 @@ export const inviteTeamsMembersController = {
                const isEmail = validator.isEmail(email);
 
 
-                const existing = await inviteTeamsMembers.findOne({ isEmail });
+                const existing = await inviteTeamsMembers.findOne({ email:isEmail??email });
 
                 if (existing) {
-                    const result = await inviteTeamsMembers.deleteOne({ isEmail });
+                    const result = await inviteTeamsMembers.deleteOne({ email:isEmail??email });
                     if (result.deletedCount === 0) {
                         res.status(500).json({ message: "Failed to delete previous invite" });
                         return;
@@ -271,9 +271,9 @@ export const inviteTeamsMembersController = {
                 return
             }
             const isEmail = validator.isEmail(email);
+            // console.log(isEmail)
             // Step 1: Check if the user was invited
-            const invitedRecord = await inviteTeamsMembers.findOne({ isEmail });
-            // console.log("hello", invitedRecord)
+            const invitedRecord = await inviteTeamsMembers.findOne({email: isEmail??email });
             if (!invitedRecord) {
                 res.status(403).json({ message: "This email was not invited." });
                 return
