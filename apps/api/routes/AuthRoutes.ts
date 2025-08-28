@@ -27,6 +27,7 @@ router.post('/signOut', WebController.signOut);
 //   '/:userId/deleteDocumentsToUpdate/:docId',
 //   WebController.deleteDocumentsToUpdate
 // );
+router.post('/refreshToken', WebController.refreshToken);
 router.post('/refreshToken', authController.refreshToken);
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Add Department >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
