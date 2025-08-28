@@ -95,7 +95,7 @@ function BusinessDashboard() {
       );
       if (response.status === 200) {
         const res: any = response?.data;
-        setInventoryCategory(res);
+        setInventoryCategory([]);
       }
     } catch (error) {
       console.error(error);
@@ -243,7 +243,7 @@ function BusinessDashboard() {
     },
   ];
 
-  const inventoryTabs = inventoryCategory.map((cat: any) => ({
+  const inventoryTabs = inventoryCategory?.map((cat: any) => ({
     eventKey: cat._id,
     title: cat.category,
     content: <InventoryTable categoryId={cat._id} data={inventoryData} />,
