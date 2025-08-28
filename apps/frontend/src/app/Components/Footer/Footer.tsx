@@ -105,7 +105,7 @@ function Footer() {
               ))}
             </motion.nav>
           </div>
-          <hr className="footer-divider" aria-hidden="true" />
+          {/* <hr className="footer-divider" aria-hidden="true" /> */}
           <div className="Footer_Bottom">
             <div className="Bootom_Foot">
               <h4>Copyright &copy; 2025 DuneXploration</h4>

@@ -9,8 +9,9 @@ import { FormInput } from "../../Sign/SignUp";
 import DynamicSelect from "@/app/Components/DynamicSelect/DynamicSelect";
 import DynamicDatePicker from "@/app/Components/DynamicDatePicker/DynamicDatePicker";
 import axios from "axios";
-import { postData } from "@/app/axios-services/services";
-import { convertToFHIRInventory } from "@yosemite-crew/fhir";
+import { getData, postData } from "@/app/axios-services/services";
+import { convertFhirToJson, convertToFHIRInventoryWhileAdding } from "@yosemite-crew/fhir";
+import { useAuthStore } from "@/app/stores/authStore";
 
 interface InventoryFormData {
   barCode: string;
@@ -65,7 +66,28 @@ function AddInventory(): React.JSX.Element {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [successMessage, setSuccessMessage] = useState<string>("");
+  const [inventoryCategory, setInventoryCategory] = useState([]);
 
+  const userId = useAuthStore((state: any) => state.userId);
+
+  React.useEffect(() => {
+    getInventoryCategory();
+  }, []);
+
+  const getInventoryCategory = useCallback(async () => {
+    try {
+      const response: any = await getData(
+        `fhir/admin/GetAddInventoryCategory?bussinessId=${userId}&type=category`
+      );
+      if (response.status === 200) {
+        console.log(response.data, "response");
+        const res: any = convertFhirToJson(response?.data);
+        setInventoryCategory(res);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }, [userId]);
   const validate = (data: InventoryFormData): Record<string, string> => {
     const err: Record<string, string> = {};
 
@@ -81,7 +103,7 @@ function AddInventory(): React.JSX.Element {
         message: "Barcode must be 6–20 digit number",
       },
       category: {
-        regex: /^[A-Za-z\s]{2,50}$/,
+        regex: /^[A-Za-z0-9\s]{2,100}$/,
         message: "Category must contain only letters & spaces",
       },
       itemName: {
@@ -213,6 +235,7 @@ function AddInventory(): React.JSX.Element {
     try {
       const payload = {
         ...formData,
+        businessId: userId,
         quantity: Number(formData.quantity),
         price: Number(formData.price),
         perQtyPrice: Number(formData.perQtyPrice),
@@ -220,33 +243,33 @@ function AddInventory(): React.JSX.Element {
         markup: Number(formData.markup),
         stockReorderLevel: Number(formData.stockReorderLevel),
       };
-      const fhir = convertToFHIRInventory(payload);
+      const fhir = convertToFHIRInventoryWhileAdding(payload);
       await postData("/api/inventory/addInventory", fhir);
       setSuccessMessage("Inventory added successfully.");
-      setFormData({
-        barCode: "",
-        category: "",
-        itemName: "",
-        genericName: "",
-        department: "",
-        sexType: "",
-        manufacturer: "",
-        itemCategory: "",
-        speciesSpecific1: "",
-        speciesSpecific2: "",
-        onHand: "",
-        perQtyPrice: "",
-        batchNumber: "",
-        sku: "",
-        strength: "",
-        quantity: 0,
-        manufacturerPrice: "",
-        markup: "",
-        upc: "",
-        price: "",
-        stockReorderLevel: "",
-        expiryDate: "",
-      });
+      // setFormData({
+      //   barCode: "",
+      //   category: "",
+      //   itemName: "",
+      //   genericName: "",
+      //   department: "",
+      //   sexType: "",
+      //   manufacturer: "",
+      //   itemCategory: "",
+      //   speciesSpecific1: "",
+      //   speciesSpecific2: "",
+      //   onHand: "",
+      //   perQtyPrice: "",
+      //   batchNumber: "",
+      //   sku: "",
+      //   strength: "",
+      //   quantity: 0,
+      //   manufacturerPrice: "",
+      //   markup: "",
+      //   upc: "",
+      //   price: "",
+      //   stockReorderLevel: "",
+      //   expiryDate: "",
+      // });
     } catch (error: any) {
       setErrors({ api: error.response?.data?.message || error.message });
     }
@@ -264,7 +287,7 @@ function AddInventory(): React.JSX.Element {
     { value: "uk", label: "🇬🇧 United Kingdom" },
   ];
 
-  console.log(errors);
+  console.log(inventoryCategory,"inventoryCategory");
   return (
     <section className="AddInventorySec">
       <Container>
@@ -283,7 +306,10 @@ function AddInventory(): React.JSX.Element {
                     value={formData.barCode}
                     inlabel="Bar Code"
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                      setFormData((prev) => ({ ...prev, barCode: e.target.value }))
+                      setFormData((prev) => ({
+                        ...prev,
+                        barCode: e.target.value,
+                      }))
                     }
                   />
                   {errors.barCode && (
@@ -292,7 +318,10 @@ function AddInventory(): React.JSX.Element {
                 </Col>
                 <Col md={6}>
                   <DynamicSelect
-                    options={[{ value: "option", label: "option 1" }]}
+                    options={inventoryCategory.map((cat: any) => ({
+                      value: cat._id,
+                      label: cat.category,
+                    }))}
                     value={formData.category}
                     onChange={(value: string) =>
                       setFormData((prev) => ({ ...prev, category: value }))
@@ -315,7 +344,10 @@ function AddInventory(): React.JSX.Element {
                     value={formData.itemName}
                     inlabel="Item Name"
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                      setFormData((prev) => ({ ...prev, itemName: e.target.value }))
+                      setFormData((prev) => ({
+                        ...prev,
+                        itemName: e.target.value,
+                      }))
                     }
                   />
                   {errors.itemName && (
@@ -360,7 +392,11 @@ function AddInventory(): React.JSX.Element {
                 </Col>
                 <Col md={6}>
                   <DynamicSelect
-                    options={[{value: "Male", label: "Male"}, {value:"Female", label:"Female"}, {value:"Unisex", label:"Unisex"}]}
+                    options={[
+                      { value: "Male", label: "Male" },
+                      { value: "Female", label: "Female" },
+                      { value: "Unisex", label: "Unisex" },
+                    ]}
                     value={formData.sexType}
                     onChange={(value: string) =>
                       setFormData((prev) => ({ ...prev, sexType: value }))
@@ -403,7 +439,11 @@ function AddInventory(): React.JSX.Element {
                 </Col>
                 <Col md={6}>
                   <DynamicSelect
-                    options={[{value: "Tablet", label: "Tablet"}, {value:"Syrup", label:"Syrup"}, {value:"injection", label:"Injection"}]}
+                    options={[
+                      { value: "Tablet", label: "Tablet" },
+                      { value: "Syrup", label: "Syrup" },
+                      { value: "injection", label: "Injection" },
+                    ]}
                     value={formData.itemCategory}
                     onChange={(value: string) =>
                       setFormData((prev) => ({ ...prev, itemCategory: value }))
