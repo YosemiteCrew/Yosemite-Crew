@@ -19,12 +19,18 @@ export interface ProfileData {
     image?:String;
     latitude?: string;
     longitude?: string;
+    addressLine1?: string;
+    street?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+    country?:string;
  
 }
 export interface Organization {
     cognitoId: string;
     departments?: Department[];
-    profileData: Partial<ProfileData>;
+    profileData: Partial<ProfileData >;
     businessType: string;
     businessName: string;
     rating?: number;

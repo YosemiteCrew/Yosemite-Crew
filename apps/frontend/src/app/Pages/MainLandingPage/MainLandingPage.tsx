@@ -61,13 +61,14 @@ function MainLandingPage() {
             </div>
             <div className="RederfineInnerBtn">
               <FillBtn icon={<Icon icon="solar:clock-circle-bold" width="24" height="24" />} text=" Book a Demo" href="/bookDemo" />
-              <UnFillBtn href="#" icon={<Icon icon="solar:bill-check-bold" width="24" height="24" />}  text="Learn more" />
+              <UnFillBtn href="/homepage" icon={<Icon icon="solar:bill-check-bold" width="24" height="24" />}  text="Learn more" />
             </div>
           </div>
 
           <div className="RightRederfine">
             <Carousel  activeIndex={index} onSelect={handleSelect} controls={true} indicators={true}  
-            interval={3000}  
+            // interval={3000} 
+            
             nextIcon={
               <span className="custom-arrow">
                 <Icon icon="solar:round-alt-arrow-right-outline" width="48" height="48" />

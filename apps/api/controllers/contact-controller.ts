@@ -1,6 +1,9 @@
-import { ContactUsBody, TypedRequestBody } from '@yosemite-crew/types';
+import { ContactUsBody, IWebUser, TypedRequestBody } from '@yosemite-crew/types';
 import { Response } from 'express';
 import AWS from 'aws-sdk';
+import { getCognitoUserId } from '../middlewares/authMiddleware';
+import { WebUser } from '../models/WebUser';
+import mongoose from 'mongoose';
 
 const contactController = {
  contactUs: async (req: TypedRequestBody<ContactUsBody>, res: Response): Promise<void> => {
@@ -21,7 +24,15 @@ const contactController = {
       } else {
         requestDetails = 'No request details provided.';
       }
-
+      const userId = getCognitoUserId(req);
+      if(!userId){
+            res.status(200).json({status:0, message:'User ID is missing'})
+            return;
+      }
+      const userDetails : {email:string, firstName:string, lastName:string} |null= await WebUser.findOne({cognitoId:userId})
+      if(!userDetails){
+        res.status(200).json({message:'user detail not found.'})
+      }
       const mailparams = {
         Source: process.env.MAIL_DRIVER!,
         Destination: {
@@ -31,11 +42,27 @@ const contactController = {
           Subject: { Data: querytype },
           Body: {
             Text: {
-              Data: `${message}\n\nRequest Details:\n${requestDetails}`,
+              Data: `${message}\n\nRequest Details:\n${requestDetails}\n\nFull Name`,
             },
           },
         },
       };
+      //fulname, email, category, message need to save in DB
+      
+      const ContactUs = mongoose.connection.db?.collection('supporttickets');
+      if(!ContactUs){
+        res.status(200).json({message:'No Contact us form founded'})
+        return
+      }
+                       await ContactUs.insertOne({
+                                fullName: `${userDetails?.firstName} ${userDetails?.lastName}`,
+                                email: userDetails?.email,
+                                userType: "Registered",
+                                createdBy: "User",
+                                userStatus: "Active",
+                                platform: "Phone",
+                                createdAt: new Date()
+                        });
       const ses = new AWS.SES({ region: process.env.AWS_REGION }); // e.g., 'us-east-1'
       await ses.sendEmail(mailparams).promise();
 
