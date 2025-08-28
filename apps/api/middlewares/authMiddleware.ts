@@ -65,8 +65,8 @@ export const verifyToken = async (
 ) => {
   const accessToken = req.cookies?.accessToken;
   const refreshToken = req.cookies?.refreshToken;
-     console.log("Access Token:", accessToken);
-  console.log("Refresh Token:", refreshToken);
+    //  console.log("Access Token:", accessToken);
+  // console.log("Refresh Token:", refreshToken);
   // 1️⃣ If neither token is present
   if (!accessToken && !refreshToken) {
      res.status(401).json({ message: 'No tokens provided' });
@@ -77,7 +77,7 @@ export const verifyToken = async (
   if (accessToken) {
     try {
       const decoded = jwt.verify(accessToken, ACCESS_SECRET) as JwtPayload;
-      console.log("Decoded Access Token:", decoded);
+      // console.log("Decoded Access Token:", decoded);
       req.user = decoded;
        next(); // ✅ Access token is valid
        return
@@ -94,7 +94,7 @@ export const verifyToken = async (
   if (refreshToken) {
     try {
       const decodedRefresh = jwt.verify(refreshToken, REFRESH_SECRET) as JwtPayload;
-      console.log("Decoded Refresh Token:", decodedRefresh);
+      // console.log("Decoded Refresh Token:", decodedRefresh);
       const newPayload = {
         userId: decodedRefresh.userId,
         email: decodedRefresh.email,

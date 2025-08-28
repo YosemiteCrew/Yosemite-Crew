@@ -7,10 +7,11 @@ import { Inventory, ProcedurePackage } from "../models/Inventory";
 // } from "../utils/InventoryFhirHandler";
 import { Request, Response } from "express";
 
-import { FHIRMedicalPackage, InventoryType, NormalMedicalPackage, ProcedurePackageType, } from "@yosemite-crew/types";
-import { convertFHIRPackageToNormal, convertProcedurePackagesToFHIRBundle, convertFromFHIRInventory,convertFhirToNormalToUpdateProcedurePackage, InventoryOverviewConvertToFHIR,convertToFHIRInventory ,convertFhirBundleToInventory} from "@yosemite-crew/fhir";
+import { FHIRMedicalPackage, InventoryType, NormalMedicalPackage, ProcedurePackageJSON, ProcedurePackageType, } from "@yosemite-crew/types";
+import { convertFHIRPackageToNormal, convertProcedurePackagesToFHIRBundle, convertFromFHIRInventory, convertFhirToNormalToUpdateProcedurePackage, InventoryOverviewConvertToFHIR, convertToFHIRInventory, convertFhirBundleToInventory, convertProcedurePackagesToFHIR } from "@yosemite-crew/fhir";
 // import { convertFhirBundleToInventory, convertToFHIRInventory, convertToNormalFromFhirInventoryData } from "@yosemite-crew/fhir/dist/InventoryFhir/inventoryFhir";
 import { inventorySchema, validateInventoryData } from "../validators/inventoryValidator";
+import AddDoctors from "../models/AddDoctor";
 
 
 interface QueryParams {
@@ -38,43 +39,43 @@ interface FHIRResponse {
 
 
 const InventoryControllers = {
-  AddInventory:async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { userId } = req.query;
-    const data:InventoryType = convertFromFHIRInventory(req.body);
+  AddInventory: async (req: Request, res: Response): Promise<void> => {
+    try {
+      // const { businessId } =await req.body;
+      const data: InventoryType = convertFromFHIRInventory(req.body);
 
-    // Step 1: Validate input
-    const validationError = validateInventoryData(data);
-    if (validationError) {
-      res.status(400).json({ message: validationError });
-      return;
+      // Step 1: Validate input
+      const validationError = validateInventoryData(data);
+      if (validationError) {
+        res.status(400).json({ message: validationError });
+        return;
+      }
+
+      // Step 2: Check SKU uniqueness
+      const existing = await Inventory.findOne({ sku: data.sku });
+      if (existing) {
+        res.status(400).json({ message: `SKU ${data.sku} already exists.` });
+        return;
+      }
+      // console.log(data, "DAATA")
+      // Step 3: Convert expiryDate to Date object
+      const expiryDate = data.expiryDate ? new Date(data.expiryDate) : null;
+
+      // Step 4: Save inventory
+      const newInventory = new Inventory({
+        ...data,
+        // businessId: businessId,
+        expiryDate,
+      });
+
+      await newInventory.save();
+      res.status(200).json({ message: 'Inventory Added Successfully' });
+
+    } catch (error) {
+      console.error('AddInventory Error:', error);
+      res.status(500).json({ message: 'Server Error', error });
     }
-
-    // Step 2: Check SKU uniqueness
-    const existing = await Inventory.findOne({ sku: data.sku });
-    if (existing) {
-      res.status(400).json({ message: `SKU ${data.sku} already exists.` });
-      return;
-    }
-
-    // Step 3: Convert expiryDate to Date object
-    const expiryDate = data.expiryDate ? new Date(data.expiryDate) : null;
-
-    // Step 4: Save inventory
-    const newInventory = new Inventory({
-      ...data,
-      bussinessId: userId,
-      expiryDate,
-    });
-
-    await newInventory.save();
-    res.status(200).json({ message: 'Inventory Added Successfully' });
-
-  } catch (error) {
-    console.error('AddInventory Error:', error);
-    res.status(500).json({ message: 'Server Error', error });
-  }
-},
+  },
   getInventory: async (
     req: { query: QueryParams },
     res: Response
@@ -88,7 +89,8 @@ const InventoryControllers = {
         searchCategory = "",
         userId,
       } = req.query;
-      console.log("getInventory called with params:", req.query);
+
+      // console.log(searchCategory,"SearchCategory")
       if (!userId) {
         res.status(400).json({
           resourceType: "OperationOutcome",
@@ -106,14 +108,13 @@ const InventoryControllers = {
       const sortBy = "expiryDate";
       const sortOrder = 1;
 
-      const matchStage: Record<string, unknown> = {
-        bussinessId: userId,
-      };
-
+      const matchStage: Record<string, unknown> = { };
       const searchConditions: Record<string, unknown>[] = [];
 
+      // 🔍 Handle search filters
       if (searchItem) {
         const searchNumber = Number(searchItem);
+
         if (!isNaN(searchNumber)) {
           searchConditions.push(
             { stockReorderLevel: searchNumber },
@@ -124,22 +125,31 @@ const InventoryControllers = {
 
         searchConditions.push(
           { itemName: { $regex: searchItem, $options: "i" } },
-          { genericName: { $regex: searchItem, $options: "i" } }
+          { genericName: { $regex: searchItem, $options: "i" } },
+          { sku: { $regex: searchItem, $options: "i" } }
         );
 
         matchStage.$or = searchConditions;
       }
 
+      // 🔍 Case-insensitive category filter
       if (searchCategory) {
-        matchStage.itemCategory = searchCategory;
+        try {
+          matchStage.category = new mongoose.Types.ObjectId(searchCategory);
+        } catch (err) {
+          console.error("Invalid category ObjectId:", searchCategory);
+        }
       }
 
-
-
+      // 🔍 Expiry date filter
       if (expiryDate) {
-        matchStage.expiryDate = { $gte: expiryDate };
+        const parsedDate = new Date(expiryDate);
+        if (!isNaN(parsedDate.getTime())) {
+          matchStage.expiryDate = { $gte: parsedDate };
+        }
       }
 
+      // 🔍 Aggregation pipeline
       const inventory = await Inventory.aggregate([
         { $match: matchStage },
         { $sort: { [sortBy]: sortOrder } },
@@ -150,14 +160,9 @@ const InventoryControllers = {
               { $skip: parseInt(skip, 10) },
               { $limit: parseInt(limit, 10) },
               {
-                $addFields: {
-                  categoryObjId: { $toObjectId: "$itemCategory" },
-                },
-              },
-              {
                 $lookup: {
                   from: "inventorycategories",
-                  localField: "categoryObjId",
+                  localField: "category",
                   foreignField: "_id",
                   as: "itemCategoryData",
                 },
@@ -198,81 +203,92 @@ const InventoryControllers = {
         },
       ]);
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      const fhirData = convertToFHIRInventory(inventory[0]);
+      const inventoryDocs = inventory[0]?.data || [];
+      // console.log(inventoryDocs, "inventoryDocs");
+      // ✅ Pass JSON directly to FHIR converter
+      const fhirData = convertToFHIRInventory(inventoryDocs);
+      // console.log(fhirData, "fhirdata");
+
+      // ✅ Convert FHIR back to normal inventory (if needed)
       const inventoryData = convertFhirBundleToInventory(fhirData);
 
-      console.log("Converted Inventory JSON:", inventoryData);
-
-      res.status(200).json(fhirData);
+      res.status(200).json({
+        success: true,
+        totalItems: inventory[0]?.totalItems || 0,
+        totalPages: inventory[0]?.totalPages || 0,
+        fhirData,
+        inventoryData,
+      });
     } catch (error) {
       console.error("Error fetching inventory:", error);
       res.status(500).json({ message: "Server error", error });
     }
   },
 
-AddProcedurePackage: async (
-  req: { query: QueryParams; body: any },
-  res: Response
-): Promise<void> => {
-  try {
-    const { bussinessId } = req.query;
 
-    // 1. Validate businessId (adjust regex depending on your actual format)
-    if (typeof bussinessId !== "string" || bussinessId.trim() === "") {
-      res.status(400).json({
+  AddProcedurePackage: async (
+    req: { query: QueryParams; body: any },
+    res: Response
+  ): Promise<void> => {
+    try {
+      const { bussinessId } = req.query;
+
+      // 1. Validate businessId (adjust regex depending on your actual format)
+      if (typeof bussinessId !== "string" || bussinessId.trim() === "") {
+        res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "invalid",
+              details: { text: "Invalid businessId format" },
+            },
+          ],
+        });
+        return;
+      }
+
+      // 2. Extract directly from frontend body
+      const { packageName, category, description, packageItems, creatorRole } = req.body;
+
+      // 3. Save to Mongo
+      const procedurePackage = new ProcedurePackage({
+        bussinessId,
+        packageName,
+        category,
+        description,
+        packageItems,
+        creatorRole
+      } as ProcedurePackageType);
+
+      await procedurePackage.save();
+
+      // 4. Send response
+      res.status(200).json({
+        resourceType: "OperationOutcome",
+        issue: [
+          {
+            severity: "information",
+            code: "informational",
+            details: { text: "Procedure package added successfully" },
+          },
+        ],
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+
+      res.status(500).json({
         resourceType: "OperationOutcome",
         issue: [
           {
             severity: "error",
-            code: "invalid",
-            details: { text: "Invalid businessId format" },
+            code: "exception",
+            details: { text: message },
           },
         ],
       });
-      return;
     }
-
-    // 2. Extract directly from frontend body
-    const { packageName, category, description, packageItems } = req.body;
-
-    // 3. Save to Mongo
-    const procedurePackage = new ProcedurePackage({
-      bussinessId,
-      packageName,
-      category,
-      description,
-      packageItems,
-    } as ProcedurePackageType);
-
-    await procedurePackage.save();
-
-    // 4. Send response
-    res.status(200).json({
-      resourceType: "OperationOutcome",
-      issue: [
-        {
-          severity: "information",
-          code: "informational",
-          details: { text: "Procedure package added successfully" },
-        },
-      ],
-    });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-
-    res.status(500).json({
-      resourceType: "OperationOutcome",
-      issue: [
-        {
-          severity: "error",
-          code: "exception",
-          details: { text: message },
-        },
-      ],
-    });
-  }
-},
+  },
 
 
 
@@ -495,7 +511,65 @@ AddProcedurePackage: async (
       res.status(400).json({ message: error.message });
     }
   },
+  getAllProcedurePackage: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const getItems = await ProcedurePackage.find();
 
+      if (!getItems || getItems.length === 0) {
+        res.status(404).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "information",
+              code: "not-found",
+              details: { text: `No packages found for category` },
+            },
+          ],
+        });
+        return;
+      }
+
+      // Enrich items with creatorName
+      const enrichedItems = await Promise.all(
+        getItems.map(async (pkg: any) => {
+          let creatorName = "";
+
+          if (pkg.creatorRole === "vet") {
+            // Find doctor by businessId
+            const doctor = await AddDoctors.findOne({ businessId: pkg.bussinessId }).select("name");
+            creatorName = doctor ? doctor.firstName : "Unknown Vet";
+          } else if (pkg.creatorRole === "veterinaryBusiness") {
+            creatorName = "Veterinary Business";
+          }
+
+          return {
+            ...pkg.toObject(),
+            creatorName,
+          };
+        })
+      );
+      // convert to FHIR format
+      const data = convertProcedurePackagesToFHIR(enrichedItems);
+
+      res.status(200).json({ data });
+      return;
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({
+        resourceType: "OperationOutcome",
+        issue: [
+          {
+            severity: "error",
+            code: "exception",
+            details: {
+              text: "An internal server error occurred.",
+            },
+          }
+        ],
+      });
+      return;
+    }
+  },
   GetProcedurePackageByid: async (req: { query: QueryParams }, res: Response) => {
     try {
       const { userId, id } = req.query;
@@ -554,13 +628,13 @@ AddProcedurePackage: async (
       }
 
       const fhirData = req.body as FHIRMedicalPackage;
-      console.log("fhirData", JSON.stringify(fhirData, null, 2));
+      // console.log("fhirData", JSON.stringify(fhirData, null, 2));
 
 
       const data: NormalMedicalPackage = convertFhirToNormalToUpdateProcedurePackage(fhirData);
       const { packageName, category, description, packageItems } = data;
 
-      console.log("sanitizedItems", data)
+      // console.log("sanitizedItems", data)
       // Update the procedure package
       const procedurePackagee = await ProcedurePackage.findOneAndUpdate(
         { _id: new mongoose.Types.ObjectId(id), bussinessId: hospitalId },

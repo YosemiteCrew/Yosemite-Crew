@@ -6,6 +6,7 @@ import "./BlogPage.css";
 import axios from "axios";
 import EditorJSRenderer from "@/app/Components/EditorJs/EditorJs";
 import edjsHTML from "editorjs-html";
+import { useAuthStore } from "@/app/stores/authStore";
 
 const communityOptions = [
   { label: "Facebook", icon: <FaFacebookF />, value: "facebook" },
@@ -40,7 +41,7 @@ function CreateBlog() {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [loading, setLoading] = useState(false);
   const [editorData, setEditorData] = useState<any>({ blocks: [] });
-
+  const businessId = useAuthStore((state: any) => state.userId);
   const edjsParser: any = edjsHTML();
 
   const handleInputChange = (
@@ -104,6 +105,7 @@ function CreateBlog() {
     try {
       // Send final blog payload
       const form = new FormData();
+      form.append("businessId", businessId);
       form.append("blogTitle", formData.title);
       form.append("animalType", formData.animalType);
       form.append("topic", formData.topic);
@@ -130,7 +132,7 @@ function CreateBlog() {
     const htmlString = edjsParser.parse(data);
     setFormData((prev) => ({ ...prev, description: htmlString }));
   };
-  // console.log(formData, "formData");
+  console.log(image, "image");
   return (
     <section className="CreateBlogSec">
       <Container>
@@ -169,9 +171,9 @@ function CreateBlog() {
                       value={formData.animalType}
                       onChange={handleInputChange}
                     />
-                  {errors.animalType && (
-                    <div className="text-danger">{errors.animalType}</div>
-                  )}
+                    {errors.animalType && (
+                      <div className="text-danger">{errors.animalType}</div>
+                    )}
                   </Form.Group>
                   {/* Topic */}
                   <Form.Group className="mb-2">
