@@ -1,6 +1,7 @@
 "use client";
 import { ProcedurePackageJSON } from "@yosemite-crew/types";
 import React, { useState } from "react";
+import "./Generictable.css";
 import { Button, Table } from "react-bootstrap";
 import { FiArrowLeft, FiArrowRight } from "react-icons/fi";
 
@@ -35,8 +36,9 @@ function GenericTable<T extends object>({
 
   const handlePrev = () => setCurrentPage((p) => Math.max(1, p - 1));
   const handleNext = () => setCurrentPage((p) => Math.min(totalPages, p + 1));
-    console.log("Current Page:", columns);
-    console.log("data", data);
+    // console.log("Current Page:", columns);
+    // console.log("data", data);
+   
   return (
     <>
       <Table hover responsive bordered={bordered} className="TableDiv mb-3">

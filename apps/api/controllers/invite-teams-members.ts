@@ -124,7 +124,7 @@ export const inviteTeamsMembersController = {
                     res.status(400).json({ message: 'Invalid or missing departmentId format' });
                     return;
                 }
-                const baseUrl = "http://localhost:3000"; // Use ENV for prod
+                const baseUrl = process.env.FRONTEND_PORT; // Use ENV for prod
                 const inviteLink = `${baseUrl}/signup?inviteCode=${inviteCode}`;
                 const departmentInfo = await adminDepartments.findOne({ _id: department }, { name: 1 });
                 const departmentName = departmentInfo?.name || "Unknown Department";

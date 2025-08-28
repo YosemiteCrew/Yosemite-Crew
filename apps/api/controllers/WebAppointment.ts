@@ -330,7 +330,7 @@ const webAppointmentController = {
       }
 
       // Proceed with appointment creation if no existing appointment found
-      // यहाँ आपका appointment create करने का code आएगा
+    
       // Get the slot details
       const slot = await DoctorsTimeSlotes.findOne(
 
@@ -1130,7 +1130,7 @@ const webAppointmentController = {
       }
 
       // Validate status
-      const validStatuses = ["booked", "fulfilled", "cancelled", "accepted", "checked-in"];
+      const validStatuses = ["booked", "fulfilled", "cancelled", "accepted", "inProgress", "checkedIn", "noshow"];
       if (!status || typeof status !== "string" || !validStatuses.includes(status)) {
         res.status(400).json({
           resourceType: "OperationOutcome",
@@ -1190,7 +1190,57 @@ const webAppointmentController = {
         ],
       });
     }
+  },
+getDoctorsList:async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { userId } = req.query as { userId: string };
+
+    if (!userId) {
+      res.status(400).json({ message: "userId is required" });
+      return;
+    }
+
+    // Step 1: find the logged-in user (by cognitoId)
+    const currentUser = await WebUser.findOne({ cognitoId: userId });
+    if (!currentUser) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    let businessId: string | undefined;
+
+    // Step 2: determine businessId depending on role
+    if (currentUser.role !== "veterinaryBusiness") {
+      // If not a veterinaryBusiness, take department field as businessId
+      businessId = currentUser.bussinessId;
+    } else {
+      // If role is veterinaryBusiness, use its own _id
+      businessId = currentUser.cognitoId;
+    }
+
+    // Step 3: get all vets under this business
+    const vets = await WebUser.find({ bussinessId: businessId, role: "vet" });
+
+    // Step 4: fetch doctor profile info for each vet
+    const vetProfiles = await Promise.all(
+      vets.map(async (vet) => {
+        const profile = await AddDoctors.findOne({ userId: vet.cognitoId });
+        return {
+          id: vet.cognitoId,
+          name: profile ? `${profile.firstName} ${profile.lastName}` : "Unknown",
+        };
+      })
+    );
+
+    res.status(200).json({
+      message: "Doctors fetched successfully",
+      data: vetProfiles,
+    });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+    res.status(500).json({ message: "Internal server error", error: errorMessage});
   }
+}
 }
 
 export default webAppointmentController;
