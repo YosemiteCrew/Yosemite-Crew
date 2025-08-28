@@ -152,10 +152,6 @@ function AddVetProfile() {
     }
   };
 
-  const formData = new FormData();
-  if (image) {
-    formData.append("profilePicture", image);
-  }
 
   useEffect(() => {
     if (image) {
