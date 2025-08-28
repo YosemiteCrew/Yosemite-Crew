@@ -68,7 +68,7 @@
 a.Fillbtn{
     background: var(--black-bg);
     border: 1px solid var(--black-bg);
-    border-radius: 28px;
+    border-radius: 50px;
     padding: 16px 32px;
     display: flex;
     align-items: center;
@@ -80,6 +80,7 @@ a.Fillbtn{
     font-weight: 500;
     line-height: 120%;
     font-family: var(--grotesk-font);
+    min-height: 60px;
 }
 a.Fillbtn:hover{
     background: var(---whitebg);

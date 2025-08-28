@@ -33,7 +33,10 @@ const userSchema = new Schema<IUser>(
       },
     ],
     dateOfBirth: { type: Date },
+    signupType:{ type:String, enum:['email', 'google','facebook','apple']},
+    flag:{type:String}
   },
+
   { timestamps: true }
 );
 

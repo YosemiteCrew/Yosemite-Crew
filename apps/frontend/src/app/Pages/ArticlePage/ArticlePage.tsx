@@ -163,7 +163,7 @@ const ArticlePage = () => {
             <div className="explorTopic">
               <h4>Explore Topics</h4>
 
-              <ExploreType/>
+              {/* <ExploreType /> */}
 
             </div>
 
@@ -192,39 +192,83 @@ const ArticlePage = () => {
 export default ArticlePage
 
 
-
-
-export function ExploreType() {
-  return <div className="explorDiv">
-    <div className="bltype">
-      <div className="typtext">
-        <Image aria-hidden src="/Images/petfoot.png" alt="petfoot" width={24} height={24} />
-        <h6>Animal Type</h6>
-      </div>
-      <div className="typeinfo">
-        <Link href="#">Cats</Link>
-        <Link href="#">Dogs</Link>
-        <Link href="#">Horses</Link>
-      </div>
-    </div>
-    <div className="bltype">
-      <div className="typtext">
-        <Image aria-hidden src="/Images/blueLiabry.png" alt="blueLiabry" width={24} height={24} />
-        <h6>Topics</h6>
-      </div>
-      <div className="typeinfo">
-        <Link href="#">Nutrition</Link>
-        <Link href="#">Medication</Link>
-        <Link href="#">Fleas and Ticks</Link>
-        <Link href="#">Pet Anxiety</Link>
-        <Link href="#">Mental Health</Link>
-        <Link href="#">Allergies</Link>
-        <Link href="#">Socialization</Link>
-        <Link href="#">Skin Care</Link>
-        <Link href="#">Limping</Link>
-        <Link href="#">Wellness</Link>
-        <Link href="#">Insurance</Link>
-      </div>
-    </div>
-  </div>
+interface ExploreTypeProps {
+  onFilterChange: (filters: { animalType?: string; topic?: string }) => void;
 }
+
+export function ExploreType({ onFilterChange,clearFilter}: {onFilterChange:({ animalType, topic }: { animalType?: string; topic?: string })=>void;clearFilter: () => void}) {
+ const [selectedAnimal, setSelectedAnimal] = useState<string | null>(null);
+  const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+
+  const handleAnimalClick = (animal: string) => {
+    const newAnimal = selectedAnimal === animal ? null : animal;
+    setSelectedAnimal(newAnimal);
+    onFilterChange({ animalType: newAnimal || undefined, topic: selectedTopic || undefined });
+  };
+
+  const handleTopicClick = (topic: string) => {
+    const newTopic = selectedTopic === topic ? null : topic;
+    setSelectedTopic(newTopic);
+    onFilterChange({ animalType: selectedAnimal || undefined, topic: newTopic || undefined });
+  };
+  return (
+    <div className="explorDiv">
+      <div className="bltype">
+        <div className="typtext">
+          <Image aria-hidden src="/Images/petfoot.png" alt="petfoot" width={24} height={24} />
+          <h6>Animal Type</h6>
+           <div style={{color:"blue",cursor:"pointer"}} onClick={clearFilter}>Clear Filter</div>
+        </div>
+        <div className="typeinfo">
+          {["Cats", "Dogs", "Horses"].map((animal) => (
+            <Link
+              href="#"
+              key={animal}
+              onClick={(e) => {
+                e.preventDefault();
+                handleAnimalClick(animal);
+              }}
+              className={selectedAnimal === animal ? "active" : ""}
+            >
+              {animal}
+            </Link>
+          ))}
+        </div>
+      </div>
+      <div className="bltype">
+        <div className="typtext">
+          <Image aria-hidden src="/Images/blueLiabry.png" alt="blueLiabry" width={24} height={24} />
+          <h6>Topics</h6>
+        </div>
+        <div className="typeinfo">
+          {[
+            "Nutrition",
+            "Medication",
+            "Fleas and Ticks",
+            "Pet Anxiety",
+            "Mental Health",
+            "Allergies",
+            "Socialization",
+            "Skin Care",
+            "Limping",
+            "Wellness",
+            "Insurance",
+          ].map((topic) => (
+            <Link
+              href="#"
+              key={topic}
+              onClick={(e) => {
+                e.preventDefault();
+                handleTopicClick(topic);
+              }}
+              className={selectedTopic === topic ? "active" : ""}
+            >
+              {topic}
+            </Link>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+

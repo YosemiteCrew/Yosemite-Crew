@@ -1,23 +1,24 @@
 import { Request, Response } from 'express';
 import { getCognitoUserId } from '../middlewares/authMiddleware';
 import appointmentService from '../services/appointment-service'
-import {fhirAppointmentFormatter, parseAppointment} from '@yosemite-crew/fhir'
+import { parseAppointment} from '@yosemite-crew/fhir'
 import helpers from '../utils/helpers';
-import { IFHIRAppointmentData, IParsedAppointmentDetails, IProfileData, WebAppointmentType } from '@yosemite-crew/types';
+import { IFHIRAppointmentData,  IParsedAppointmentDetails,  IProfileData, WebAppointmentType } from '@yosemite-crew/types';
+import mongoose from 'mongoose';
 
 
 const appointmentController = {
 
-  bookAppointment: async (req: Request<unknown, unknown, {data:IFHIRAppointmentData}>, res: Response): Promise<void> => {
+  bookAppointment: async (req: Request<unknown, unknown, {data:string}>, res: Response): Promise<void> => {
     try {
       const userId = getCognitoUserId(req as Request);
 
       // Parse FHIR data if provided
       const data  = req.body.data;
       
-      let appointmentDetails: IParsedAppointmentDetails | null = null;
+      let appointmentDetails;
       if (data) {
-        const parseData = JSON.parse(req.body.data)
+        const parseData = JSON.parse(req.body.data) as IFHIRAppointmentData
         appointmentDetails =  parseAppointment(parseData);
       }
       
@@ -38,11 +39,11 @@ const appointmentController = {
         veterinarian,
         petId,
         slotsId,
-      } = appointmentDetails;
+      } : Partial<IParsedAppointmentDetails>= appointmentDetails;
 
-         const formattedDateTime = helpers.formatAppointmentDateTime(appointmentDate)
+         const formattedDateTime = helpers.formatAppointmentDateTime(appointmentDate as string)
       // Compute day of the week
-      const dayOfWeek = new Date(appointmentDate).toLocaleDateString('en-US', { weekday: 'long' });
+      const dayOfWeek = new Date(appointmentDate as string).toLocaleDateString('en-US', { weekday: 'long' });
       // Check slot availability
       if(veterinarian === undefined || null || veterinarian === '') {
         res.status(200).json({
@@ -69,7 +70,7 @@ const appointmentController = {
           : [];
       const [ documentFiles, { petDetails, petOwner }] = await Promise.all([
         uploadedFilesForHelper.length > 0 ? helpers.uploadFiles(uploadedFilesForHelper ) : [],
-        appointmentService.getPetAndOwner(petId, userId),
+        appointmentService.getPetAndOwner(petId as string, userId),
       ]);
       if(!petDetails || !petOwner) {
         res.status(400).json({
@@ -78,7 +79,7 @@ const appointmentController = {
         });
         return;
       }
-      const hospitalNameResult = await appointmentService.getHospitalName(hospitalId);
+      const hospitalNameResult = await appointmentService.getHospitalName(hospitalId as string );
       if (!hospitalNameResult) {
         res.status(400).json({
           status: 0,
@@ -93,9 +94,10 @@ const appointmentController = {
           .join('')
         : 'XX';
 
-      const appointmentToken = await appointmentService.updateToken(hospitalId, appointmentDate);
+      const appointmentToken = await appointmentService.updateToken(hospitalId as string, appointmentDate as string);
 
-      const tokenNumber = `${initials}00${appointmentToken.tokenCounts}-${new Date(appointmentDate).toISOString()}`;
+      const date = helpers.formatAppointmentDateTime(appointmentDate as string)
+      const tokenNumber = `${initials}00${appointmentToken.tokenCounts}-${date.appointmentDate}`;
 
       const appointmentData :Partial<WebAppointmentType>= {
         userId,
@@ -119,12 +121,13 @@ const appointmentController = {
         // concernOfVisit,
         appointmentSource: "App",
         uploadRecords: [{
-          fileUrl: documentFiles[0].url,
-          fileName: documentFiles[0].originalname,
-          fileType: documentFiles[0].mimetype,
+          fileUrl: documentFiles[0]?.url,
+          fileName: documentFiles[0]?.originalname,
+          fileType: documentFiles[0]?.mimetype,
         }
         ],
       };
+      
 
       const fhirAppointment = await appointmentService.bookAppointment(appointmentData);
 
@@ -165,16 +168,14 @@ const appointmentController = {
     }
   },
 
-  cancelAppointment: async (req: Request<{appointmentId?:string}, unknown , unknown>, res: Response): Promise<void> => {
+  cancelAppointment: async (req: Request<{appointmentId:string}, unknown , unknown>, res: Response): Promise<void> => {
     try {
-      const appointmentIdRaw = req.query.appointmentId;
-      if (typeof appointmentIdRaw !== "string" || !/^[a-fA-F0-9-]{36}$/.test(appointmentIdRaw)) {
-         res.status(400).json({ status: 0, message: "Invalid Appointment ID format" });
-        return;
+      const appointmentIdRaw = req.query.appointmentID;
+
+      if(typeof appointmentIdRaw !== 'string' ||!appointmentIdRaw){
+        res.status(200).json({message:'No appointment id provided'})
       }
-      // const appointmentId = typeof appointmentIdRaw === 'string' ? appointmentIdRaw : Array.isArray(appointmentIdRaw) ? appointmentIdRaw[0] : undefined;
-      // Validate MongoDB ObjectId
-     
+
       const result = await appointmentService.cancelAppointment(appointmentIdRaw);
 
       if (!result) {
@@ -182,9 +183,7 @@ const appointmentController = {
         return
       }
 
-      const fhirData = fhirAppointmentFormatter.toFHIR(result, process.env.BASE_URL as string);
-
-      res.status(200).json({ status: 1, message: "Appointment cancelled successfully", data: fhirData });
+      res.status(200).json({ status: 1, message: "Appointment cancelled successfully",});
   
       
     } catch (error) {
@@ -194,26 +193,20 @@ const appointmentController = {
     }
   },
 
-  rescheduleAppointment: async (req: Request<{appointmentId:string}, unknown, {timeslot:string,appointmentDate:string,  data :WebAppointmentType}>, res: Response): Promise<void> => {
+  rescheduleAppointment: async (req: Request<{appointmentID:string}, unknown, {timeslot:string,appointmentDate:string}>, res: Response): Promise<void> => {
     try {
     
-       const appointmentIdRaw = req.query.appointmentId;
-      if (typeof appointmentIdRaw !== "string" || !/^[a-fA-F0-9-]{36}$/.test(appointmentIdRaw)) {
+       const appointmentIdRaw = req.query.appointmentID;
+      if (typeof appointmentIdRaw !== "string" || !mongoose.Types.ObjectId.isValid(appointmentIdRaw)) {
          res.status(400).json({ status: 0, message: "Invalid Appointment ID format" });
         return;
       }
-      // const normalData = FHIRConverter.fromFHIRAppointment(req);
+      
+      
       const normalData :Partial<WebAppointmentType> = {
         appointmentDate: req.body.appointmentDate,
         appointmentTime: req.body.timeslot,
         appointmentTime24: helpers.convertTo24Hour(req.body.timeslot),
-        document: req.body.data.document,
-        purposeOfVisit: req.body.data.purposeOfVisit,
-        concernOfVisit: req.body.data.concernOfVisit,
-        petId: req.body.data.petId,
-        veterinarian: req.body.data.veterinarian,
-        department: req.body.data.department,
-        slotsId: req.body.data.slotsId,
       };
       const result = await appointmentService.rescheduleAppointment(normalData, appointmentIdRaw);
 
