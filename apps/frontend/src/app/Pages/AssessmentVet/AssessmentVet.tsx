@@ -54,7 +54,7 @@ function AssessmentVet() {
                 <Row>
                     <div className="TableRowDiv">
                         <TableTopBar TbleHName="Completed Appointments" TbleHNumb="03"/>
-                        <CompletedAppointmentsTable/>
+                        {/* <CompletedAppointmentsTable/> */}
                     </div>
                 </Row>
                 <Row>

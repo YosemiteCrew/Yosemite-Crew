@@ -6,14 +6,14 @@ import dayjs from "dayjs";
 import { webAppointments } from "../models/web-appointment";
 
 import { AppointmentFHIRConverter } from "../utils/WebAppointmentHandler";
-import { AppointmentsStatusFHIRConverter, convertAppointmentStatsToFHIR, convertGraphDataToFHIR, convertSpecialityWiseAppointmentsToFHIR, convertToFHIRMyCalender } from "@yosemite-crew/fhir";
+import { AppointmentsStatusFHIRConverter, convertAppointmentStatsToFHIR, convertGraphDataToFHIR, convertSpecialityWiseAppointmentsToFHIR, convertToFHIRMyCalender, fhirToNormalForTable, normalToFHIRForTable } from "@yosemite-crew/fhir";
 
 // import {
 //   DepartmentFromFHIRConverter,
 // } from "../utils/DepartmentFhirHandler";
 // import FeedBack from "../models/feedback";
 import mongoose, { PipelineStage } from "mongoose";
-import { AggregatedAppointmentGraph, AppointmentStatusFHIRBundle, FHIRtoJSONSpeacilityStats, QueryParams } from "@yosemite-crew/types";
+import { AggregatedAppointmentGraph, AppointmentForTable, AppointmentStatusFHIRBundle, FHIRtoJSONSpeacilityStats, NormalResponseForTable, QueryParams } from "@yosemite-crew/types";
 import { validateFHIR } from "../Fhirvalidator/FhirValidator";
 import { WebUser } from "../models/WebUser";
 
@@ -61,11 +61,20 @@ const HospitalController = {
     res: Response
   ): Promise<void> => {
     try {
-      const { offset = "0", limit = "5", userId, type } = req.query as {
+      const {
+        offset = "0",
+        limit = "5",
+        userId,
+        type,
+        search, // New search parameter
+        status // New status filter parameter
+      } = req.query as {
         offset?: string;
         limit?: string;
         userId: string;
         type?: "today" | "upcoming" | "completed" | "new";
+        search?: string; // Search query
+        status?: string; // Status filter
       };
 
       if (!userId || typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
@@ -102,7 +111,7 @@ const HospitalController = {
       switch (type) {
         case "today":
           matchQuery.appointmentDate = today;
-          matchQuery.appointmentStatus = "accepted"; // केवल accepted appointments आज की date की
+          matchQuery.appointmentStatus = { $in: ["accepted", "inProgress", "checkedIn"] }; // केवल accepted appointments आज की date की
           break;
         case "upcoming":
           matchQuery.appointmentDate = { $gt: today }; // today = "2025-08-25" 
@@ -120,8 +129,34 @@ const HospitalController = {
           break;
       }
 
+      // 🔍 Apply status filter if provided
+      if (status) {
+        matchQuery.appointmentStatus = status;
+      }
+
+      // Build search query if provided
+      let searchQuery = {};
+      if (search && search.trim() !== "") {
+        const searchRegex = new RegExp(search.trim(), "i");
+
+        // Search in multiple fields: petName, ownerName, appointmentTime
+        searchQuery = {
+          $or: [
+            { petName: { $regex: searchRegex } },
+            { ownerName: { $regex: searchRegex } },
+            { appointmentTime: { $regex: searchRegex } }
+          ]
+        };
+      }
+
+      // Combine matchQuery with searchQuery
+      const finalMatchQuery = {
+        ...matchQuery,
+        ...searchQuery
+      };
+
       const pipeline: PipelineStage[] = [
-        { $match: matchQuery },
+        { $match: finalMatchQuery },
 
         // Lookup doctor info first (more efficient)
         {
@@ -180,6 +215,53 @@ const HospitalController = {
           },
         },
         { $unwind: { path: "$petInfo", preserveNullAndEmptyArrays: true } },
+
+        // Additional lookup for veterinarian search
+        {
+          $lookup: {
+            from: "adddoctors",
+            localField: "veterinarian",
+            foreignField: "userId",
+            as: "vetDetails",
+          },
+        },
+        { $unwind: { path: "$vetDetails", preserveNullAndEmptyArrays: true } },
+
+        // Add veterinarian name to document for searching
+        {
+          $addFields: {
+            vetName: {
+              $cond: {
+                if: {
+                  $and: [
+                    { $ifNull: ["$vetDetails.firstName", false] },
+                    { $ifNull: ["$vetDetails.lastName", false] }
+                  ]
+                },
+                then: {
+                  $concat: [
+                    "$vetDetails.firstName",
+                    " ",
+                    "$vetDetails.lastName"
+                  ]
+                },
+                else: "Unknown Veterinarian"
+              }
+            }
+          }
+        },
+
+        // Apply search on veterinarian name if search query exists
+        ...(search && search.trim() !== "" ? [{
+          $match: {
+            $or: [
+              { petName: { $regex: new RegExp(search.trim(), "i") } },
+              { ownerName: { $regex: new RegExp(search.trim(), "i") } },
+              { appointmentTime: { $regex: new RegExp(search.trim(), "i") } },
+              { vetName: { $regex: new RegExp(search.trim(), "i") } }
+            ]
+          }
+        }] : []),
 
         // Sort by date and time for better pagination
         {
@@ -241,6 +323,7 @@ const HospitalController = {
                     ]
                   },
                   purposeOfVisit: "$$appointment.purposeOfVisit",
+                  appointmentType: "$$appointment.appointmentType",
                   appointmentDate: {
                     $dateToString: {
                       format: "%d %b %Y",
@@ -279,31 +362,42 @@ const HospitalController = {
         },
       ];
 
-      const response = await webAppointments.aggregate(pipeline);
-
+      const response: { total?: number; Appointments?: unknown[] }[] = await webAppointments.aggregate(pipeline);
+      const normalDataErr: NormalResponseForTable = {
+        message: "No appointments found",
+        totalAppointments: 0,
+        Appointments: [],
+        pagination: {
+          offset: parsedOffset,
+          limit: parsedLimit,
+          hasMore: false,
+        },
+      };
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+      const fhirDataErr: unknown = normalToFHIRForTable(normalDataErr);
       if (!response.length || !response[0]?.Appointments?.length) {
         res.status(200).json({
           message: "No appointments found",
-          totalAppointments: 0,
-          Appointments: [],
-          pagination: {
-            offset: parsedOffset,
-            limit: parsedLimit,
-            hasMore: false,
-          },
+          fhirDataErr
         });
         return;
       }
-
-      res.status(200).json({
+      const normalData: NormalResponseForTable = {
         message: "Data fetched successfully",
         totalAppointments: response[0].total || 0,
-        Appointments: response[0].Appointments,
+        Appointments: response[0].Appointments as AppointmentForTable[],
         pagination: {
           offset: parsedOffset,
           limit: parsedLimit,
           hasMore: (response[0].total || 0) > parsedOffset + parsedLimit,
         },
+      };
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+      const fhirData: unknown = normalToFHIRForTable(normalData);
+      console.log("FHIR:", fhirData);
+      res.status(200).json({
+        message: "Data fetched successfully",
+        fhirData,
       });
     } catch (error) {
       const err = error as Error;
