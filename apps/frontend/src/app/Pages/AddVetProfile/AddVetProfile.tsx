@@ -119,7 +119,7 @@ function AddVetProfile() {
     if (vetAndTeamsProfile?.key == "ProfDetails") {
       setProgress(66);
     }
-  }, [vetAndTeamsProfile]);
+  }, [vetAndTeamsProfile,vetAndTeamsProfile?.OperatingHour]);
 
   const handleBusinessInformation = (
     e: React.ChangeEvent<HTMLInputElement>
