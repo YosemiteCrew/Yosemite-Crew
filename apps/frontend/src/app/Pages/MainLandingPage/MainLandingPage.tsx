@@ -15,19 +15,19 @@ import { FillBtn, UnFillBtn } from '../HomePage/HomePage'
   const slidesData = [
     {
       id: 1,
-      image: "/Images/landingbg1.png",
+      image: "/Images/landingbg1.jpg",
       alt: "Vet 1",
       text: "Empowering veterinary businesses to grow efficiently.",
     },
     {
       id: 2,
-      image: "/Images/landingbg2.png",
+      image: "/Images/landingbg2.jpg",
       alt: "Vet 2",
       text: "Simplifying pet health management for owners.",
     },
     {
       id: 3,
-      image: "/Images/landingbg3.png",
+      image: "/Images/landingbg3.jpg",
       alt: "Vet 3",
       text: "Creating opportunities for developers to innovate.",
     },

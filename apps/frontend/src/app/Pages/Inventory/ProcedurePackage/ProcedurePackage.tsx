@@ -7,6 +7,8 @@ import { FormInput } from "../../Sign/SignUp";
 import DynamicSelect from "@/app/Components/DynamicSelect/DynamicSelect";
 import { postData } from "@/app/axios-services/services";
 import { useAuthStore } from "@/app/stores/authStore";
+import { BackBtn } from "../../AddVetProfile/AddProileDetails";
+import { Icon } from "@iconify/react/dist/iconify.js";
 
 function ProcedurePackage() {
   const [packageName, setPackageName] = useState("");
@@ -85,8 +87,13 @@ function ProcedurePackage() {
     <section className="ProcedurePackageSec">
       <Container>
         <div className="ProcedurePackageData">
+
+          <BackBtn href="/inventorydashboard" icon="solar:round-alt-arrow-left-outline" backtext="Back" />
+
           <h2>Add Procedure Package</h2>
+
           <div className="ProsPackageCard">
+
             <div className="PackageForm">
               <Row>
                 <Col md={6}>
@@ -140,11 +147,12 @@ function ProcedurePackage() {
             </div>
 
             {errors.api && <p className="text-danger small">{errors.api}</p>}
-
-            <Button className="btn btn-primary mt-3" onClick={handleSavePackage}>
-              Save Package
-            </Button>
           </div>
+
+          <div className="AddPackageBtn">
+            <Button onClick={handleSavePackage}> <Icon icon="carbon:checkmark-filled" width="22" height="22" /> Add Package </Button>
+          </div>
+          
         </div>
       </Container>
     </section>
