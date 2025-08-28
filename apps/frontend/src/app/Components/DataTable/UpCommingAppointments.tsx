@@ -93,6 +93,7 @@ function UpCommingAppointments({ userId, onAppointmentUpdate, onCountUpdate, onR
         onCountUpdate(backToNormal.totalAppointments || 0);
       }
     } catch (error) {
+      setData([]);
       console.error("Error fetching upcoming appointments:", error);
       onCountUpdate(0);
     }

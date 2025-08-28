@@ -96,6 +96,7 @@ function TodayAppointments({ userId, onAppointmentUpdate, onCountUpdate, onRefre
         onCountUpdate(backToNormal.totalAppointments || 0);
       }
     } catch (error) {
+      setData([]);
       console.error("Error fetching today appointments:", error);
       onCountUpdate(0);
     }
