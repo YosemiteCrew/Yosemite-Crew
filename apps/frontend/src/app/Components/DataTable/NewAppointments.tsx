@@ -94,6 +94,7 @@ function NewAppointments({ userId, onAppointmentUpdate, onCountUpdate, onRefresh
         onCountUpdate(backToNormal.totalAppointments || 0);
       }
     } catch (error) {
+      setData([]);
       console.error("Error fetching new appointments:", error);
       onCountUpdate(0);
     }
