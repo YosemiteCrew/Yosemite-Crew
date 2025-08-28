@@ -6,11 +6,11 @@ export function convertToFhirSummary(docs: any) {
       section: [
         {
           title: "Basic Information",
-          status: docs._id ? "Complete" : "Pending"
+          status: docs._id ? "complete" : "pending"
         },
         {
           title: "Parent Information",
-          status: docs.cognitoUserId ? "Complete" : "Pending"
+          status: docs.cognitoUserId ? "complete" : "pending"
         },
         {
           title: "Veterinary Details",

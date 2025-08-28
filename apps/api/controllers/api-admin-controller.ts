@@ -1,4 +1,4 @@
-import { Request, response, Response } from "express";
+import { Request,  Response } from "express";
 
 import {
   InventoryCategory,
@@ -11,12 +11,8 @@ import {
   PurposeOfVisits,
   AppointmentType,
 } from "../models/AppointmentOption";
-import ProductCategoryFHIRConverter from "../utils/InventoryFhirHandler";
-import { convertJsonToFhir, convertProcedurePackagesToFHIR, convertToFhirAppointmentTypes, convertToFhirPurposeOfVisit } from "@yosemite-crew/fhir";
-import { FhirHealthcareService, FhirPurposeOfVisit, MongoPurposeOfVisit, ProcedurePackageJSON } from "@yosemite-crew/types";
-import { validateFHIR } from "../Fhirvalidator/FhirValidator";
-import { ProcedurePackage } from "../models/Inventory";
-// const { PurposeOfVisitFHIRConverter } = require("../utils/AdminFhirHandler");
+import { convertToFhirAppointmentTypes, convertToFhirPurposeOfVisit } from "@yosemite-crew/fhir";
+import { FhirHealthcareService, FhirPurposeOfVisit, MongoPurposeOfVisit } from "@yosemite-crew/types";
 
 const AdminController = {
   AddInventoryCategory: async (req: Request, res: Response): Promise<void> => {
@@ -311,9 +307,9 @@ const AdminController = {
           //       return;
           //     }
         }
-      default:
-        res.status(400).json({ message: "Invalid type query params" });
-        return;
+      // default:
+      //   res.status(400).json({ message: "Invalid type query params" });
+      //   return;
     }
   },
 
@@ -459,8 +455,9 @@ const AdminController = {
 
 
       if (getItems) {
-        const data = new ProductCategoryFHIRConverter(getItems).toFHIRBundle();
-        res.status(200).json({ data });
+        // const data = new ProductCategoryFHIRConverter(getItems).toFHIRBundle();
+
+        res.status(200).json({ data :""});
         return;
       }
 
