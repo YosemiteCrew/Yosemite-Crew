@@ -14,7 +14,7 @@ const BlogController = {
 
   AddBlog: async (req: Request, res: Response): Promise<void> => {
     try {
-      const { blogTitle, description, animalType, topic } = req.body;
+      const { blogTitle, description, animalType, topic,businessId } = req.body;
       if (!blogTitle || blogTitle.trim().length < 5) {
         res.status(400).json({ message: 'Blog title must be at least 5 characters long.' });
         return;
@@ -45,6 +45,7 @@ const BlogController = {
       const uploadedFile = await handleFileUpload(file, 'blogs');
 
       const newBlog = new Blog({
+        businessId: businessId,
         blogTitle: blogTitle.trim(),
         description: description.trim(),
         animalType: animalType.trim(),
@@ -62,18 +63,32 @@ const BlogController = {
     }
   },
 
+
   GetBlogs: async (req: Request, res: Response): Promise<void> => {
     try {
-      const blogs: IBlog[] = await Blog.find().sort({ createdAt: -1 });
+      const { animalType, topic } = req.query;
 
+      let filter: any = {};
 
-      const data = generateFHIRBlogResponse(blogs)
+      // only check one filter at a time
+      if (animalType && animalType !== "undefined") {
+        filter.animalType = animalType;
+      } else if (topic && topic !== "undefined") {
+        filter.topic = topic;
+      }
+
+      console.log(filter, "FILTER")
+      const blogs: IBlog[] = await Blog.find(filter).sort({ createdAt: -1 });
+
+      const data = blogs.map(blog => generateFHIRBlogResponse(blog));
       res.status(200).json(data);
     } catch (error: any) {
-      console.error('GetBlogs error:', error);
-      res.status(500).json({ message: 'Failed to fetch blogs', error: error.message });
+      console.error("GetBlogs error:", error);
+      res.status(500).json({ message: "Failed to fetch blogs", error: error.message });
     }
   },
+
+
   uploadDescriptionImg: async (req: Request, res: Response): Promise<void> => {
     try {
 
