@@ -72,6 +72,8 @@ function SignIn() {
   const setVerified = useAuthStore((state) => state.setVerified);
   const isVerified = useAuthStore((state) => state.isVerified);
   const userType = useAuthStore((state) => state.userType);
+
+  console.log(isVerified," isVerified in SignIn");
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, index: number) => {
     const value = e.target.value;
 

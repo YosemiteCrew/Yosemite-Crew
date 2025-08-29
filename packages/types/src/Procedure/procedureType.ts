@@ -77,13 +77,15 @@ export type NormalMedicalPackage = {
 
 // ✅ MongoDB / Stored Structure
 export type PackageItem = {
-  _id: string;
+  id: string;
   name: string;
   itemType: string;
   quantity: number;
   unitPrice: number;
   subtotal: number;
   notes?: string;
+  tax?: number;
+  discount?: number;
 };
 
 export type ProcedurePackage = {
@@ -91,7 +93,7 @@ export type ProcedurePackage = {
   packageName: string;
   category: string;
   description: string;
-  bussinessId: string;
+  businessId: string;
   createdAt: string;
   updatedAt: string;
   formattedUpdatedAt: string;
@@ -120,7 +122,7 @@ export type ProcedureFHIRBundle = {
 
 export interface ProcedurePackageJSON {
   _id: { $oid: string };
-  bussinessId: string;
+  businessId: string;
   packageName: string;
   category: string;
   description: string;
@@ -132,12 +134,15 @@ export interface ProcedurePackageJSON {
 }
 
 export interface ProcedurePackageItem {
+  id:number;
   name?: string;
   itemType?: string;
   quantity?: string;
   unitPrice?: number;
   subtotal?: number;
   notes?: string;
+  discount?: number;
+  tax?: number;
 }
 
 // Minimal FHIR PlanDefinition for Procedure Package
@@ -157,12 +162,15 @@ export interface FHIRType {
 }
 
 export interface FHIRAction {
+  id:number;
   name?: string;
   itemType?: string;
   quantity?: string;
   unitPrice?: number;
   subtotal?: number;
   notes?: string;
+  tax?: number;
+  discount?: number;
 }
 
 export interface FHIRProcedurePackage {
