@@ -33,7 +33,7 @@ const Cookies = () => {
       <div className="CookieSec">
         <div className="CookieInner">
           <div className="TopCokieInner">
-            Yosemite Crew doesn't use third party cookies Only a single in-house
+            Yosemite Crew doesn&apos;t use third party cookies Only a single in-house
             cookie.
           </div>
           <div className="BottomCokieInner">
