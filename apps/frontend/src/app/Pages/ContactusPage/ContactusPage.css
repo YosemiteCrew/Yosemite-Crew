@@ -109,7 +109,8 @@
     line-height: 120%;
 }
 .ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted label{
-    display: flex;
+    display: grid;
+    grid-template-columns: auto 1fr;
     gap: 6px;
     font-size: 15px;
     font-weight: 400;
@@ -202,12 +203,12 @@
     flex-direction: column;
     gap: 18px;
 }
-.ContactInfoDetail .LeftDetails .detailTexed h6{
+.ContactInfoDetail .LeftDetails .detailTexed a{
     font-size: 18px;
     font-weight: 700;
     line-height: 120%;
     font-family: var(--satoshi-font);
-    color: var(--black-text);
+    color: var(--blue-text);
     margin: 0;
 }
 .ContactInfoDetail .LeftDetails .detailTexed p{

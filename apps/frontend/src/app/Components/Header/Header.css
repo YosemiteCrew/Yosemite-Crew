@@ -1,12 +1,12 @@
 .header {
-    padding: 10px 0px;
-    transition: all 0.5s;
-    background: var(--whitebg);
-    z-index: 997;
-    border-bottom: 2px solid;
-    border-image-source: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, #7D7D7D 50%, rgba(255, 255, 255, 0) 100%);
-    border-image-slice: 1;
-    min-height: 100px;
+  padding: 10px 0px;
+  transition: all 0.5s;
+  background: var(--whitebg);
+  z-index: 997;
+  border-bottom: 2px solid;
+  border-image-source: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, #7D7D7D 50%, rgba(255, 255, 255, 0) 100%);
+  border-image-slice: 1;
+  max-height: 100px;
 }
 .header .logo {
   padding: 0px;
