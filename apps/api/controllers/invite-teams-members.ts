@@ -96,13 +96,18 @@ export const inviteTeamsMembersController = {
                 }
                 const inviteCode = Math.random().toString(36).substring(2, 10);
 
-               const isEmail = validator.isEmail(email);
+                const isEmailValid = validator.isEmail(email);
 
+                // Step 1: Check if the email is valid
+                if (!isEmailValid) {
+                    res.status(400).json({ message: "Invalid email address." });
+                    return;
+                }
 
-                const existing = await inviteTeamsMembers.findOne({ email:isEmail??email });
+                const existing = await inviteTeamsMembers.findOne({  email });
 
                 if (existing) {
-                    const result = await inviteTeamsMembers.deleteOne({ email:isEmail??email });
+                    const result = await inviteTeamsMembers.deleteOne({ email });
                     if (result.deletedCount === 0) {
                         res.status(500).json({ message: "Failed to delete previous invite" });
                         return;
@@ -270,10 +275,16 @@ export const inviteTeamsMembersController = {
                 res.status(400).json({ message: "Missing required fields." });
                 return
             }
-            const isEmail = validator.isEmail(email);
-            // console.log(isEmail)
+            const isEmailValid = validator.isEmail(email);
+
+            // Step 1: Check if the email is valid
+            if (!isEmailValid) {
+                res.status(400).json({ message: "Invalid email address." });
+                return;
+            }
             // Step 1: Check if the user was invited
-            const invitedRecord = await inviteTeamsMembers.findOne({email: isEmail??email });
+            const invitedRecord = await inviteTeamsMembers.findOne({ email });
+            console.log("Invited Record:", invitedRecord)
             if (!invitedRecord) {
                 res.status(403).json({ message: "This email was not invited." });
                 return
