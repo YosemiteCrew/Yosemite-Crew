@@ -50,6 +50,8 @@ function AddProileDetails() {
     area: "Queens Road",
     city: "London",
     StateProvince: "London",
+    image:"",
+    self:false
   });
 
   // professionalDetails
@@ -121,7 +123,7 @@ function AddProileDetails() {
         yearsOfExperience = 0,
         biography = "",
       } = data?.name || {};
-      const { specialization = "", qualification = "" } = data || {};
+      const { image,specialization = "", qualification = "" } = data || {};
       setPersonalDetails({
         firstName: firstName,
         lastName: lastName,
@@ -135,6 +137,8 @@ function AddProileDetails() {
         area: area,
         city: city,
         StateProvince: stateProvince,
+        image,
+        self:email===vetAndTeamsProfile?.name?.email
       });
 
       setProfessionalDetails({
@@ -279,14 +283,14 @@ function AddProileDetails() {
             <div className="ProfileDetails">
               <div className="LeftProp">
                 <Image
-                  src={getProfileImage(vetAndTeamsProfile?.image ?? "")}
+                  src={getProfileImage(personalDetails?.image ?? "")}
                   alt="Preview"
                   width={80}
                   height={80}
                 />
                 <div className="proptext">
                   <h4>{`${personalDetails.firstName} ${personalDetails.lastName}`}</h4>
-                  <p>{userType}</p>
+                  <p>{personalDetails.self&&userType}</p>
                 </div>
               </div>
               <div className="RytProp">
@@ -336,7 +340,7 @@ function AddProileDetails() {
                           <h6>{key.replace(/([A-Z])/g, " $1")}: </h6>
                           {editMode === "personal" ? (
                             <Form.Control
-                              value={value}
+                              value={value as string}
                               onChange={(e) =>
                                 handleChange("personal", key, e.target.value)
                               }
