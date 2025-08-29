@@ -15,6 +15,7 @@ import {
 } from "@yosemite-crew/types";
 import { postData } from "@/app/axios-services/services";
 import { useAuthStore } from "@/app/stores/authStore";
+import Link from "next/link";
 
 function ContactusPage() {
   //emails
@@ -360,8 +361,8 @@ function ContactusPage() {
                   <h4>Email Address</h4>
                 </div>
                 <div className="detailTexed">
-                  <h6>help@yosemitecrew.com</h6>
-                  <p>Assistance hours: Monday - Friday 6 am to 8 pm EST</p>
+                  <Link href="mailto:support@yosemitecrew.com">support@yosemitecrew.com</Link>
+                  <p>Assistance hours: Monday - Friday 9 am to 5 pm EST</p>
                 </div>
               </div>
 
@@ -370,8 +371,8 @@ function ContactusPage() {
                   <h4>Phone</h4>
                 </div>
                 <div className="detailTexed">
-                  <h6>(808) 998-34256</h6>
-                  <p>Assistance hours: Monday - Friday 6 am to 8 pm EST</p>
+                  <Link href="tel:+49 152 277 63275">+49 152 277 63275</Link>
+                  <p>Assistance hours: Monday - Friday 9 am to 5 pm EST</p>
                 </div>
               </div>
             </div>
