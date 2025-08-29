@@ -13,7 +13,6 @@ import AppointmentGraph from "@/app/Components/BarGraph/AppointmentGraph";
 import CommonTabs from "@/app/Components/CommonTabs/CommonTabs";
 import BusinessdashBoardTable from "@/app/Components/DataTable/BusinessdashBoardTable";
 import ChartCard from "@/app/Components/BarGraph/ChartCard";
-import PracticeTeamTable from "@/app/Components/DataTable/PracticeTeamTable";
 import InventoryTable from "@/app/Components/DataTable/InventoryTable";
 import { getData } from "@/app/axios-services/services";
 import { useAuthStore } from "@/app/stores/authStore";
@@ -29,6 +28,7 @@ import {
 import { Icon } from "@iconify/react/dist/iconify.js";
 import { FHIRAppointmentData, MyAppointmentData } from "@yosemite-crew/types";
 import CommonTabForBusinessDashboard from "@/app/Components/CommonTabs/CommonTabForBusinessDashboard";
+import CommonTabForPractitioners from "@/app/Components/CommonTabs/CommonTabForPractitioners";
 
 type AppointmentStatus = "In-Progress" | "Checked-In" | "Pending" | "accepted" | "cancelled" | "fulfilled";
 
@@ -59,10 +59,7 @@ function BusinessDashboard() {
   const [inventoryandAssessmentGraph, setInventoryandAssessmentGraph] = useState([]);
   const [specialityWiseAppointmentsGraph, setSpecialityWiseAppointmentsGraph] = useState([]);
   const [data, setData] = useState<DepartmentData[]>([]);
-  const [departments, setDepartments] = useState([{
-    eventKey: "",
-    title: "",
-  }]);
+  const [departments, setDepartments] = useState([{ eventKey: "", title: "" }]);
   const userId = useAuthStore((state: any) => state.userId);
 
   const fetchInventoryDetails = useCallback(
@@ -79,7 +76,6 @@ function BusinessDashboard() {
         console.log(response, "Converted Inventory JSON");
         const data: any = await response.data;
         const convertToJson: any = convertFhirBundleToInventory(data);
-       
         setInventoryData(convertToJson.data);
       } catch (error) {
         console.error("Error fetching inventory data:", error);
@@ -101,24 +97,23 @@ function BusinessDashboard() {
       console.error(error);
     }
   }, [userId]);
-  
+
   const fetchDepartments = useCallback(async () => {
     try {
       const response: any = await getData(
-        `api/auth/getDepartmentsList?userId=${userId}`
+        `api/auth/getDepartmentsOfBusiness?userId=${userId}`
       );
       if (response.status === 200) {
         const res: any = response?.data;
         setDepartments(convertFHIRToAdminDepartments(res.data).map((item: any) => ({
           eventKey: item._id,
-          title: item.name 
+          title: item.name
         })));
       }
     } catch (error) {
       console.error(error);
     }
   }, [userId]);
-  
 
   useEffect(() => {
     if (userId) {
@@ -183,7 +178,7 @@ function BusinessDashboard() {
     getAppointmentGraph,
     getSpecialityWiseAppointment,
   ]);
-  
+
   useEffect(() => {
     if (userId) {
       getSpecialityWiseAppointment(specialityWiseSelectedRange);
@@ -213,34 +208,6 @@ function BusinessDashboard() {
     //   title: "Assessments",
     //   content: <ScheduleTable data={assessmentData} />,
     // },
-  ];
-
-  const practiceTabs = [
-    {
-      eventKey: "Cardiology",
-      title: "Cardiology",
-      content: <PracticeTeamTable />,
-    },
-    {
-      eventKey: "Dermatology",
-      title: "Dermatology",
-      content: <PracticeTeamTable />,
-    },
-    {
-      eventKey: "Emergency and Critical Care",
-      title: "Emergency and Critical Care",
-      content: <PracticeTeamTable />,
-    },
-    {
-      eventKey: "Dentistry",
-      title: "Dentistry",
-      content: <PracticeTeamTable />,
-    },
-    {
-      eventKey: "Marketing",
-      title: "Marketing",
-      content: <PracticeTeamTable />,
-    },
   ];
 
   const inventoryTabs = inventoryCategory?.map((cat: any) => ({
@@ -315,7 +282,6 @@ function BusinessDashboard() {
           </Row>
 
           <Row>
-            
             <Col md={6}>
               <GraphSelected
                 title="Department-wise Income"
@@ -384,7 +350,7 @@ function BusinessDashboard() {
           <Row>
             <div className="TableItemsRow">
               <HeadingDiv Headname="Practice Team" Headspan="74" />
-              <CommonTabs onTabClick={fetchDepartments} tabs={departments} showStatusSelect />
+              <CommonTabForPractitioners tabs={departments} showStatusSelect headname="Practice Team" defaultActiveKey={departments[0]?.eventKey} />
             </div>
           </Row>
 

@@ -11,5 +11,6 @@ router.delete('/removeInvites',verifyToken, inviteTeamsMembersController.removeI
 router.get('/practiceTeamOverView',inviteTeamsMembersController.practiceTeamOverView)
 router.get('/practiceTeamsList', inviteTeamsMembersController.practiceTeamsList)
 router.get('/getDepartmentForInvite', verifyToken, inviteTeamsMembersController.getDepartmentForInvite)
+router.get('/getpractionarList', verifyToken, inviteTeamsMembersController.getPractitioners)
 
 export default router
