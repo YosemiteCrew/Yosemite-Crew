@@ -41,12 +41,15 @@ const ProcedurePackageSchema = new Schema<ProcedurePackageType>(
     description : String,
     packageItems: [
       {
+        id: { type: Number },
         name: { type: String },
         itemType: { type: String },
         quantity: { type: Number },
         unitPrice: { type: Number },
-        subtotal: { type: Number },
         notes: String,
+        tax: { type: Number },
+        discount: { type: Number },
+        subtotal: { type: Number },
       },
     ],
     creatorRole: { type: String },

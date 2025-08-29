@@ -18,7 +18,7 @@ const VET_ROLES = [
   "receptionist",
 ];
 
-const publicRoutes = ["/signup", "/signin","/landingpage",'/homepage','/petowner','/resources','/contact_us','/blogpage','/developerlanding','/about_us','/bookDemo' ];
+const publicRoutes = ["/signup", "/signin","/landingpage",'/homepage','/petowner','/resources','/contact_us','/blogpage','/developerlanding','/about_us','/bookDemo','/privacypolicy','/pricing','/termsandconditions','' ];
 
 const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
   const setUser = useAuthStore((state) => state.setUser);
