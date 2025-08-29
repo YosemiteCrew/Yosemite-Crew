@@ -198,6 +198,7 @@ function DeveloperLanding() {
                                 <h4>Ready to Build?</h4>
                                 <p> Join a growing community of developers creating transformative solutions for the veterinary world.</p>
                             </div>
+                            <FillBtn icon={<Icon icon="solar:bolt-bold" width="24" height="24" />} text="Sign Up as a Developer" href="#" />
                         </div>
                     </div>
                     <div className="RytBuild">
