@@ -823,7 +823,10 @@ const authController = {
       const data = req.body?.data as string;
 
       const { email } = JSON.parse(data) as { email: string }
-
+      if(!email){
+        res.status(200).json({message:'Email is required', status:0})
+        return
+      }
       const params = {
         UserPoolId: process.env.COGNITO_USER_POOL_ID!,
         Username: userID,
