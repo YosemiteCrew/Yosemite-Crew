@@ -46,4 +46,5 @@ router.get('/getProfileDetail',verifyTokenAndRefresh, authController.getProfileD
 router.put('/updateProfileDetail', verifyTokenAndRefresh, authController.updateProfileDetail)
 router.post('/deleteAccountWithToken',verifyTokenAndRefresh, authController.deleteUserAccountUsingToken)
 router.post('/app-refreshToken', authController.refreshToken)
+router.post('/withdrawRequestForm',verifyTokenAndRefresh, authController.withdrawRequestForm)
 export default router;
