@@ -1089,7 +1089,6 @@ const webAppointmentController = {
 
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const appointments: MyAppointmentData[] = await webAppointments.aggregate(pipeline).allowDiskUse(true);
-      console.log(appointments)
       if (appointments.length === 0) {
         res.status(404).json({ message: "No appointments found", data: [] });
         return;
