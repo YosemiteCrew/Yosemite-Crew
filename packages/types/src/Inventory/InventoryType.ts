@@ -29,13 +29,15 @@ export type InventoryType = {
 
 
 export type ProcedureItemType = {
-    _id?: string;
+  id?: number;
   name?: string;
   itemType?: string;
   quantity?: number;
   unitPrice?: number;
   subtotal?: number;
   notes?: string;
+  tax?: number;
+  discount?: number;
 };
 
 export type ProcedurePackageType = {
