@@ -3,7 +3,6 @@ import { Department, Organization } from "@yosemite-crew/types";
 
 class BusinessFhirFormatter {
   static toFhirOrganization(org:Organization) {
-    console.log(org, "ORG");
     const selectedServicesExtension = (org.profileData?.selectedServices || []).map((service ) => ({
       url: "http://example.org/fhir/StructureDefinition/selectedService",
       valueString: service
@@ -37,7 +36,7 @@ class BusinessFhirFormatter {
         }]
       }],
       address: [{
-        text: org.profileData?.address?.addressLine1 || "",
+        text: `${org.profileData?.addressLine1} ${org?.profileData?.city ? org?.profileData?.city :''} ${org?.profileData?.state ? org?.profileData?.state  :''} ${org?.profileData?.country}`  || "",
         extension: [
           {
             url: "http://hl7.org/fhir/StructureDefinition/geolocation",

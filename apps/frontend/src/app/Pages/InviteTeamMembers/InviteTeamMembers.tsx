@@ -100,7 +100,7 @@ function BulkInviteModal({
                 </div>
                 <div className="RytDoct">
                   <a
-                    href="/dummy_users_header.csv" // place header file in your public folder
+                    href="/static/bulk_invite_users_header.csv" // place header file in your public folder
                     download="InviteMembers.csv"
                     className="DownloadIcon"
                   >

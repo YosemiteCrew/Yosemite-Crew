@@ -1,21 +1,29 @@
 "use client";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import "./ProcedurePackage.css";
 import AddItemsTable from "@/app/Components/DataTable/AddItemsTable";
 import { Button, Col, Container, Row } from "react-bootstrap";
 import { FormInput } from "../../Sign/SignUp";
 import DynamicSelect from "@/app/Components/DynamicSelect/DynamicSelect";
-import { postData } from "@/app/axios-services/services";
+import { getData, postData } from "@/app/axios-services/services";
 import { useAuthStore } from "@/app/stores/authStore";
+import { BackBtn } from "../../AddVetProfile/AddProileDetails";
+import { Icon } from "@iconify/react/dist/iconify.js";
+import { convertFhirBundleToInventory } from "@yosemite-crew/fhir";
 
 function ProcedurePackage() {
   const [packageName, setPackageName] = useState("");
   const [category, setCategory] = useState<string>("");
   const [description, setDescription] = useState("");
-  const [packageItems, setPackageItems] = useState<any[]>([]); // Items from AddItemsTable
+  const [inventoryData, setInventoryData] = useState([]);
+  const [packageItems, setPackageItems] = useState<any[]>([]); // ✅ lifted up state
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   const businessId = useAuthStore((state) => state.userId);
+  const userType = useAuthStore((state) => state.userType);
+  useEffect(() => {
+    fetchInventoryDetails();
+  }, []);
 
   // Handle package name
   const handleBusinessInformation = useCallback(
@@ -50,21 +58,26 @@ function ProcedurePackage() {
       newErrors.description = "Description must be at least 10 characters.";
     }
 
+    if (packageItems.length === 0) {
+      newErrors.packageItems = "At least one package item is required.";
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   // Save package
   const handleSavePackage = async () => {
-    if (!validateForm()) return; // Stop if validation fails
+    if (!validateForm()) return;
 
     try {
       const payload = {
-        bussinessId: businessId, // required in schema
+        businessId: businessId,
         packageName,
         category,
         description,
-        packageItems, // included but not validated here
+        packageItems,
+        creatorRole: userType,
       };
 
       const res = await postData(`/fhir/v1/AddProcedurePackage`, payload, {
@@ -73,17 +86,58 @@ function ProcedurePackage() {
 
       console.log(res.data, "hurra");
       setErrors({});
+      // Reset form
+      setPackageName("");
+      setCategory("");
+      setDescription("");
+      setPackageItems([]);
     } catch (error: any) {
       console.error(error);
-      setErrors({ api: error.response?.data?.issue?.[0]?.details?.text || "Failed to save procedure package." });
+      setErrors({
+        api:
+          error.response?.data?.issue?.[0]?.details?.text ||
+          "Failed to save procedure package.",
+      });
     }
   };
+  const fetchInventoryDetails = async (searchCategory?: any) => {
+    // console.log(searchCategory, "searchCategory");
+    try {
+      const queryParams = new URLSearchParams({
+        searchCategory,
+      });
 
+      const response = await getData(
+        `/api/inventory/getInventoryDataForProcedureItems`
+      );
+
+      if (!response) {
+        throw new Error("Network response was not ok");
+      }
+
+      const data: any = await response.data;
+      // console.log(data, "FHIR Inventory Data");
+
+      const convertToJson: any = convertFhirBundleToInventory(data);
+      console.log(convertToJson, "Converted Inventory JSON");
+
+      setInventoryData(convertToJson.data);
+    } catch (error) {
+      console.error("Error fetching inventory data:", error);
+    }
+  };
   return (
     <section className="ProcedurePackageSec">
       <Container>
         <div className="ProcedurePackageData">
+          <BackBtn
+            href="/inventorydashboard"
+            icon="solar:round-alt-arrow-left-outline"
+            backtext="Back"
+          />
+
           <h2>Add Procedure Package</h2>
+
           <div className="ProsPackageCard">
             <div className="PackageForm">
               <Row>
@@ -95,7 +149,9 @@ function ProcedurePackage() {
                     inlabel="Package Name"
                     onChange={handleBusinessInformation}
                   />
-                  {errors.packageName && <p className="text-danger small">{errors.packageName}</p>}
+                  {errors.packageName && (
+                    <p className="text-danger small">{errors.packageName}</p>
+                  )}
                 </Col>
                 <Col md={6}>
                   <DynamicSelect
@@ -105,7 +161,9 @@ function ProcedurePackage() {
                     inname="Category"
                     placeholder="Select Category"
                   />
-                  {errors.category && <p className="text-danger small">{errors.category}</p>}
+                  {errors.category && (
+                    <p className="text-danger small">{errors.category}</p>
+                  )}
                 </Col>
               </Row>
               <Row>
@@ -122,7 +180,9 @@ function ProcedurePackage() {
                       Short description of the procedure.
                     </label>
                   </div>
-                  {errors.description && <p className="text-danger small">{errors.description}</p>}
+                  {errors.description && (
+                    <p className="text-danger small">{errors.description}</p>
+                  )}
                 </Col>
               </Row>
             </div>
@@ -133,14 +193,23 @@ function ProcedurePackage() {
               <h6>
                 Package Items <span>({packageItems.length})</span>
               </h6>
-              {/* Pass callback to update state */}
-              <AddItemsTable />
+              <AddItemsTable
+                items={packageItems}
+                setItems={setPackageItems}
+                categoryItem={inventoryData} // ✅ pass control to parent
+              />
+              {errors.packageItems && (
+                <p className="text-danger small">{errors.packageItems}</p>
+              )}
             </div>
 
             {errors.api && <p className="text-danger small">{errors.api}</p>}
+          </div>
 
-            <Button className="btn btn-primary mt-3" onClick={handleSavePackage}>
-              Save Package
+          <div className="AddPackageBtn">
+            <Button onClick={handleSavePackage}>
+              <Icon icon="carbon:checkmark-filled" width="22" height="22" /> Add
+              Package
             </Button>
           </div>
         </div>

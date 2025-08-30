@@ -15,19 +15,19 @@ import { FillBtn, UnFillBtn } from '../HomePage/HomePage'
   const slidesData = [
     {
       id: 1,
-      image: "/Images/landingbg1.png",
+      image: "/Images/landingbg1.jpg",
       alt: "Vet 1",
       text: "Empowering veterinary businesses to grow efficiently.",
     },
     {
       id: 2,
-      image: "/Images/landingbg2.png",
+      image: "/Images/landingbg2.jpg",
       alt: "Vet 2",
       text: "Simplifying pet health management for owners.",
     },
     {
       id: 3,
-      image: "/Images/landingbg3.png",
+      image: "/Images/landingbg3.jpg",
       alt: "Vet 3",
       text: "Creating opportunities for developers to innovate.",
     },
@@ -61,13 +61,14 @@ function MainLandingPage() {
             </div>
             <div className="RederfineInnerBtn">
               <FillBtn icon={<Icon icon="solar:clock-circle-bold" width="24" height="24" />} text=" Book a Demo" href="/bookDemo" />
-              <UnFillBtn href="#" icon={<Icon icon="solar:bill-check-bold" width="24" height="24" />}  text="Learn more" />
+              <UnFillBtn href="/homepage" icon={<Icon icon="solar:bill-check-bold" width="24" height="24" />}  text="Learn more" />
             </div>
           </div>
 
           <div className="RightRederfine">
             <Carousel  activeIndex={index} onSelect={handleSelect} controls={true} indicators={true}  
-            interval={3000}  
+            // interval={3000} 
+            
             nextIcon={
               <span className="custom-arrow">
                 <Icon icon="solar:round-alt-arrow-right-outline" width="48" height="48" />

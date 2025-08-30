@@ -10,6 +10,12 @@ import { convertFromFhirDepartment, fromFHIRInviteList } from "@yosemite-crew/fh
 import { InviteCard } from "@yosemite-crew/types";
 import { LuSearch } from "react-icons/lu";
 
+function toTitleCase(str: string): string {
+  return str
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 type ManageInviteItems = {
   name: string;
   email: string;
@@ -25,19 +31,20 @@ type ManageInviteItems = {
 
 function ManageInviteTable() {
   const { userId } = useAuthStore();
-  const [Cardiolgy, setCardiology] = useState<ManageInviteItems[]>([]);
+  const [cardiology, setCardiology] = useState<ManageInviteItems[]>([]);
+  const [fullInvites, setFullInvites] = useState<ManageInviteItems[]>([]);
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
   const [department, setDepartment] = useState(""); // id
   const [selectedDepartmentName, setSelectedDepartmentName] = useState("Specialization"); // label
 
-const [departmentOptions, setDepartmentOptions] = useState<{ value: string; label: string }[]>([
+  const [departmentOptions, setDepartmentOptions] = useState<{ value: string; label: string }[]>([
     { value: "", label: "All" },
   ]);
   // ✅ Fetch invites (reusable)
   const getInvites = async (): Promise<void> => {
     try {
-      const response = await getData(`/fhir/v1/getinvites?userId=${userId}&status=${status}&department=${department}&search=${search}`);
+      const response = await getData(`/fhir/v1/getinvites?userId=${userId}&status=${status}&department=${department}`);
       if (response.status === 200) {
         const data: any = response.data;
         const invitesBack = fromFHIRInviteList(data.invite);
@@ -45,8 +52,8 @@ const [departmentOptions, setDepartmentOptions] = useState<{ value: string; labe
         const mappedInvites: InviteCard[] = invitesBack.map((v) => ({
           name: v.name,
           email: v.email,
-          role: v.role,
-          specialize: v.department,
+          role: toTitleCase(v.role),
+          specialize: toTitleCase(v.department),
           specializeId: v.departmentId,
           inviteon: v.invitedAtFormatted,
           inviteby: v.invitedByName,
@@ -54,7 +61,7 @@ const [departmentOptions, setDepartmentOptions] = useState<{ value: string; labe
           status: v.status,
           action: v.status,
         }));
-        setCardiology(mappedInvites as ManageInviteItems[]);
+        setFullInvites(mappedInvites as ManageInviteItems[]);
       }
     } catch (error) {
       console.log("Failed to fetch invites:", error);
@@ -64,7 +71,15 @@ const [departmentOptions, setDepartmentOptions] = useState<{ value: string; labe
   useEffect(() => {
     if (userId) getInvites();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, department, search, status]);
+  }, [userId, department, status]);
+
+  useEffect(() => {
+    setCardiology(
+      fullInvites.filter((item) =>
+        item.name.toLowerCase().includes(search.toLowerCase())
+      )
+    );
+  }, [fullInvites, search]);
 
   // ✅ Resend Invite
   const handleSendInvite = async (item: ManageInviteItems) => {
@@ -144,7 +159,7 @@ const [departmentOptions, setDepartmentOptions] = useState<{ value: string; labe
           // console.log("Fetched departments:", data.data);
           const departments = convertFromFhirDepartment(data.data).map((dept: any) => ({
             value: dept._id,
-            label: dept.name
+            label: toTitleCase(dept.name)
           }));
           setDepartmentOptions([{ value: "", label: "All" }, ...departments]);
         } else {
@@ -219,23 +234,18 @@ const [departmentOptions, setDepartmentOptions] = useState<{ value: string; labe
     }
   ];
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Already triggers re-fetch via `search` dependency in useEffect
-  };
-
   return (
     <>
       <div className="hh">
         <div className="RightTopTbl">
-          <Form className="Tblserchdiv" onSubmit={handleSearch}>
+          <Form className="Tblserchdiv">
             <input
               type="search"
-              placeholder="Search anything"
+              placeholder="Search Team Member"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-            <Button type="submit"><LuSearch size={20} /></Button>
+            <Button type="button"><LuSearch size={20} /></Button>
           </Form>
 
           <div className="DoctSlect">
@@ -262,13 +272,13 @@ const [departmentOptions, setDepartmentOptions] = useState<{ value: string; labe
           <div className="StatusSlect">
             <Dropdown onSelect={(val) => setStatus(val || "")}>
               <Dropdown.Toggle id="status-dropdown" style={{ borderRadius: '25px', border: '1px solid #D9D9D9', background: '#fff', color: '#222', minWidth: '100px', fontWeight: 400 }}>
-                {status || "Status"}
+                {status ? toTitleCase(status) : "Status"}
               </Dropdown.Toggle>
               <Dropdown.Menu>
                 <Dropdown.Item eventKey="">All</Dropdown.Item>
                 <Dropdown.Item eventKey="pending">Pending</Dropdown.Item>
                 <Dropdown.Item eventKey="accepted">Accepted</Dropdown.Item>
-                <Dropdown.Item eventKey="expired">Expire</Dropdown.Item>
+                <Dropdown.Item eventKey="expired">Expired</Dropdown.Item>
               </Dropdown.Menu>
             </Dropdown>
           </div>
@@ -276,7 +286,7 @@ const [departmentOptions, setDepartmentOptions] = useState<{ value: string; labe
       </div>
 
       <div className="table-wrapper">
-        <GenericTable data={Cardiolgy} columns={columns} bordered={false} />
+        <GenericTable data={cardiology} columns={columns} bordered={false} />
       </div>
     </>
   );

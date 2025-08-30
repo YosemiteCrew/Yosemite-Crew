@@ -26,7 +26,7 @@ const AddDepartmentController = {
   getDepartmets:async (req: Request, res: Response): Promise<void> => {
   try {
     const { userId } = req.query;
-    console.log("hello")
+    // console.log("hello")
 
     if (!userId) {
       res.status(400).json({ message: "Missing userId" });

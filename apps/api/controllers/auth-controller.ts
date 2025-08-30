@@ -7,10 +7,10 @@ import crypto from 'crypto';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import userModel from '../models/appuser-model';
 import helpers from "../utils/helpers";
-import { IUser, SignupRequestBody } from "@yosemite-crew/types";
+import { IUser } from "@yosemite-crew/types";
 import { verifySocialToken } from '../utils/verifySocialToken';
 import { getCognitoUserId } from '../middlewares/authMiddleware';
-import {  fromFhirUser, toFhirUser } from '@yosemite-crew/fhir';
+import { toFhirUser } from '@yosemite-crew/fhir';
 import AppUser from '../models/appuser-model';
 
 const region = process.env.AWS_REGION!;
@@ -44,13 +44,14 @@ function decryptPassword(encryptedData: string, ivHex: string): string {
   return decrypted;
 }
 
+
 const authController = {
   signUp: async (
-    req: Request<Record<string, never>, unknown, SignupRequestBody>,
+    req: Request,
     res: Response
   ): Promise<void> => {
-    const body: SignupRequestBody = req.body;
-    
+    const body = req.body?.data as string;
+
     try {
       const {
         email,
@@ -62,10 +63,12 @@ const authController = {
         state,
         area,
         city,
-         zipcode,
-         country,
-        dateOfBirth
-      }  = JSON.parse(body.data) as  {email :string, firstName:string, lastName :string, mobilePhone:string, countryCode:string, addressLine1:string, state?:string, area?:string, city?: string, zipcode?:string, country?:string, dateOfBirth?:Date }
+        zipcode,
+        country,
+        dateOfBirth,
+        type,
+        flag
+      } = JSON.parse(body) as { email: string, firstName: string, lastName: string, mobilePhone: string, countryCode: string, addressLine1: string, state?: string, area?: string, city?: string, zipcode?: string, country?: string, dateOfBirth?: Date, type?: string, flag?: string }
 
 
       const password = helpers.generatePassword(12);
@@ -103,8 +106,8 @@ const authController = {
 
 
       const files = Array.isArray(req?.files?.files) ? req?.files?.files : [req?.files?.files]
-      
-      let imageUrls ;
+
+      let imageUrls;
       if (req.files && files.length) {
         imageUrls = await helpers.uploadFiles(files);
       }
@@ -125,10 +128,17 @@ const authController = {
       const [day, month, year] = dobString.split("/");
       const dob = new Date(`${year}-${month}-${day}`);
 
-      const data = await cognito.signUp(params).promise();
+      // const data = await cognito.signUp(params).promise();
+      let data;
+      if (type === 'email') {
+        data = await cognito.signUp(params).promise();
+      } else {
+        let parReq = { ...params, UserPoolId: process.env.COGNITO_USER_POOL_ID!, }
+        data = await cognito.adminCreateUser(parReq).promise();
+      }
       const encryptedPassword = encryptPassword(password);
 
-      await userModel.create({
+      const result = await userModel.create({
         cognitoId: data.UserSub,
         email,
         password: [encryptedPassword],
@@ -143,19 +153,74 @@ const authController = {
         zipcode: zipcode,
         profileImage: imageUrls,
         dateOfBirth: typeof dob === 'string' ? dob : '',
+        signupType: type,
+        flag: flag
       });
 
-      res.status(200).json({
-        status: 1,
-        message: 'User created successfully, please verify your email',
-      });
+      if (type === 'email') {
+        res.status(200).json({
+          status: 1,
+          message: 'User created successfully, please verify your email',
+        });
+        return
+      }
+      else {
+        await cognito.adminConfirmSignUp({
+          UserPoolId: process.env.COGNITO_USER_POOL_ID!,
+          Username: email,
+        }).promise();
+
+        const passwordData = result.password?.[0];
+        if (!passwordData?.encryptedData || !passwordData.iv) {
+          res.status(200).json({ status: 0, message: 'Invalid password data' });
+          return
+        }
+        const decryptedPassword = decryptPassword(passwordData.encryptedData, passwordData.iv);
+
+        const authData = await cognito.initiateAuth({
+          AuthFlow: 'USER_PASSWORD_AUTH',
+          ClientId: process.env.COGNITO_CLIENT_ID,
+          AuthParameters: {
+            USERNAME: email,
+            PASSWORD: decryptedPassword,
+            SECRET_HASH: secretHash,
+          },
+        }).promise();
+
+        const accessToken = authData.AuthenticationResult!.AccessToken!;
+        const refreshToken = authData.AuthenticationResult!.RefreshToken!;
+        const decoded = jwt.decode(accessToken) as { sub: string };
+
+        const payload = {
+          username: decoded.sub,
+          accessToken,
+        };
+
+        const secret = process.env.JWT_SECRET;
+        if (!secret) throw new Error('JWT_SECRET is not defined');
+
+        const expiresInEnv = parseInt(process.env.JWT_EXPIRE_TIME ?? '3600', 10); // seconds
+
+        const signOptions: SignOptions = {
+          expiresIn: expiresInEnv,
+        };
+
+        const token = jwt.sign(payload, secret, signOptions);
+
+        const userData = result.toObject() as IUser & { token?: string, refreshToken?: string };
+        userData.token = token;
+        userData.refreshToken = refreshToken
+        delete userData.password;
+
+        res.status(200).json({ message: 'User created successfully!', status: 1, userData: userData })
+      }
+
       return
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'An unknown error occurred';
       res.status(200).json({ status: 0, message });
     }
   },
-
   confirmSignup: async (req: Request, res: Response): Promise<void> => {
     const { email, confirmationCode } = req.body as { email: string, confirmationCode: string };
 
@@ -382,6 +447,7 @@ const authController = {
       }).promise();
 
       const accessToken = authData.AuthenticationResult!.AccessToken!;
+      const refreshToken = authData.AuthenticationResult!.RefreshToken!;
       const decoded = jwt.decode(accessToken) as { sub: string };
 
       const payload = {
@@ -390,17 +456,22 @@ const authController = {
       };
 
       const secret = process.env.JWT_SECRET;
+
       if (!secret) throw new Error('JWT_SECRET is not defined');
 
       const expiresInEnv = parseInt(process.env.JWT_EXPIRE_TIME ?? '3600', 10); // seconds   
+
       const signOptions: SignOptions = {
         expiresIn: expiresInEnv,
       };
 
+
       const token = jwt.sign(payload, secret, signOptions);
 
-      const userData = result.toObject() as IUser & { token?: string };
+
+      const userData = result.toObject() as IUser & { token?: string, refreshToken?: string };
       userData.token = token;
+      userData.refreshToken = refreshToken;
       delete userData.password;
 
       res.status(200).json({ status: 1, message: 'User logged in successfully', userdata: userData });
@@ -470,10 +541,76 @@ const authController = {
   },
   socialLogin: async (req: Request, res: Response): Promise<void> => {
     try {
-      const { token_id, type } = req.body as { token_id: string, type: string };
-      const payload = await verifySocialToken(type, token_id)
+      const { type, token } = req.body as { type: string, token: string };
 
-      res.status(200).json({ status: 1, message: 1, data: payload })
+
+      if (!token) {
+        res.status(200).json({ status: 0, message: 'Invalid Token' });
+        return
+      }
+      const allowedTypes = ['google', 'facebook', 'apple'];
+
+      if (!type || typeof type !== 'string' || !allowedTypes.includes(type)) {
+        res.status(200).json({ status: 0, message: 'Invalid login type' });
+        return;
+      }
+
+      const details: { email: string } | null = verifySocialToken(token, type)
+      const { email } = details
+      if (!details || !email) {
+        res.status(200).json({ message: 'User not found', status: 0 })
+      }
+      const result = await AppUser.findOne({ email: email, type: type });
+
+
+
+      const passwordData = result.password?.[0];
+      if (!passwordData?.encryptedData || !passwordData.iv) {
+        res.status(200).json({ status: 0, message: 'Invalid password data' });
+        return
+      }
+
+      const decryptedPassword = decryptPassword(passwordData.encryptedData, passwordData.iv);
+
+      if (!process.env.COGNITO_CLIENT_ID) {
+        res.status(200).json({ status: 0, message: 'Cognito configuration missing' });
+        return
+      }
+      const secretHash = helpers.getSecretHash(email);
+
+      const authData = await cognito.initiateAuth({
+        AuthFlow: 'USER_PASSWORD_AUTH',
+        ClientId: process.env.COGNITO_CLIENT_ID,
+        AuthParameters: {
+          USERNAME: email,
+          PASSWORD: decryptedPassword,
+          SECRET_HASH: secretHash,
+        },
+      }).promise();
+
+      const accessToken = authData.AuthenticationResult!.AccessToken!;
+      const decoded = jwt.decode(accessToken) as { sub: string };
+
+      const payload = {
+        username: decoded.sub,
+        accessToken,
+      };
+
+      const secret = process.env.JWT_SECRET;
+      if (!secret) throw new Error('JWT_SECRET is not defined');
+
+      const expiresInEnv = parseInt(process.env.JWT_EXPIRE_TIME ?? '3600', 10); // seconds   
+      const signOptions: SignOptions = {
+        expiresIn: expiresInEnv,
+      };
+
+      const jwt_token = jwt.sign(payload, secret, signOptions);
+
+      const userData = result.toObject() as IUser & { token?: string };
+      userData.token = jwt_token;
+      delete userData.password;
+
+      res.status(200).json({ status: 1, message: 'User logged in successfully', userdata: userData })
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       console.error("Google Login Error:", error);
@@ -481,138 +618,229 @@ const authController = {
         res.status(200).json({ message: 0, error: message });
     }
   },
-  getProfileDetail: async(req:Request, res:Response):Promise<void> =>{
+  getProfileDetail: async (req: Request, res: Response): Promise<void> => {
     try {
       const userId = getCognitoUserId(req)
-      if(!userId){
-        res.status(200).json({ status:0,message:'User ID is missing.'})
+      if (!userId) {
+        res.status(200).json({ status: 0, message: 'User ID is missing.' })
         return
       }
-      
-      const profielDetail=  await AppUser.findOne({cognitoId:userId}).lean();
-      if(!profielDetail){
-        res.status(200).json({ status:0, message:'No profile found with this details'})
+
+      const profielDetail = await AppUser.findOne({ cognitoId: userId }).lean();
+      if (!profielDetail) {
+        res.status(200).json({ status: 0, message: 'No profile found with this details' })
         return;
       }
-      const entry : unknown = toFhirUser(profielDetail) 
-      res.status(200).json({ status:1, message:'Profle Details fetched successfully!', data: entry });
+      const entry: unknown = toFhirUser(profielDetail)
+      res.status(200).json({ status: 1, message: 'Profle Details fetched successfully!', data: entry });
 
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-       res.status(200).json({ message: 0, error: message });
+      res.status(200).json({ message: 0, error: message });
     }
   },
   updateProfileDetail: async (req: Request, res: Response): Promise<void> => {
-  try {
-    const userId = getCognitoUserId(req);
-    if (!userId) {
-      res.status(200).json({ status: 0, message: 'User ID is missing.' });
-      return;
-    }
+    try {
 
-    // File upload handling
-    const files = Array.isArray(req?.files?.files)
-      ? req?.files?.files
-      : req?.files?.files
-      ? [req?.files?.files]
-      : [];
-
-    let imageUrls;
-    if (files.length) {
-      imageUrls = await helpers.uploadFiles(files);
-    }
-
-    // Same payload as signup
-    const {
-      email,
-      firstName,
-      lastName,
-      mobilePhone,
-      countryCode,
-      addressLine1,
-      state,
-      area,
-      city,
-      zipcode,
-      country,
-      dateOfBirth,
-    } = JSON.parse(req.body.data) as {
-      email: string;
-      firstName: string;
-      lastName: string;
-      mobilePhone: string;
-      countryCode: string;
-      addressLine1: string;
-      state?: string;
-      area?: string;
-      city?: string;
-      zipcode?: string;
-      country?: string;
-      dateOfBirth?: string; // DD/MM/YYYY
-    };
-
-    // Convert DOB (if provided)
-    let dob: Date | undefined;
-    if (dateOfBirth) {
-      const [day, month, year] = dateOfBirth.split('/');
-      dob = new Date(`${year}-${month}-${day}`);
-    }
-
-    // Build update object
-    const updateData: Partial<IUser> = {
-      email: email?.trim().toLowerCase(),
-      firstName,
-      lastName,
-      mobilePhone,
-      countryCode,
-      address: addressLine1,
-      state,
-      area,
-      city,
-      zipcode,
-      country,
-      dateOfBirth: dob,
-    };
-
-    // if(updateData.email){
-    //   res.status(200).json({message:'Email cannot be update', status:0})
-    //   return
-    // }
-    delete updateData.email;
-    // Remove undefined fields
-    Object.keys(updateData).forEach((key) => {
-      if (updateData[key as keyof typeof updateData] === undefined) {
-        delete updateData[key as keyof typeof updateData];
+      const userId = getCognitoUserId(req);
+      if (!userId) {
+        res.status(200).json({ status: 0, message: 'User ID is missing.' });
+        return;
       }
-    });
 
-    // Attach uploaded image(s)
-    if (imageUrls && imageUrls.length) {
-      updateData.profileImage = imageUrls;
+      // File upload handling
+      const files = Array.isArray(req?.files?.files)
+        ? req?.files?.files
+        : req?.files?.files
+          ? [req?.files?.files]
+          : [];
+
+      let imageUrls;
+      if (files.length) {
+        imageUrls = await helpers.uploadFiles(files);
+      }
+
+      // Same payload as signup
+      const {
+        email,
+        firstName,
+        lastName,
+        mobilePhone,
+        countryCode,
+        addressLine1,
+        state,
+        area,
+        city,
+        zipcode,
+        country,
+        dateOfBirth,
+      } = JSON.parse(req.body.data) as {
+        email: string;
+        firstName: string;
+        lastName: string;
+        mobilePhone: string;
+        countryCode: string;
+        addressLine1: string;
+        state?: string;
+        area?: string;
+        city?: string;
+        zipcode?: string;
+        country?: string;
+        dateOfBirth?: string; // DD/MM/YYYY
+      };
+
+      // Convert DOB (if provided)
+      let dob: Date | undefined;
+      if (dateOfBirth) {
+        const [day, month, year] = dateOfBirth.split('/');
+        dob = new Date(`${year}-${month}-${day}`);
+      }
+
+      // Build update object
+      const updateData: Partial<IUser> = {
+        email: email?.trim().toLowerCase(),
+        firstName,
+        lastName,
+        mobilePhone,
+        countryCode,
+        address: addressLine1,
+        state,
+        area,
+        city,
+        zipcode,
+        country,
+        dateOfBirth: dob,
+      };
+
+      // if(updateData.email){
+      //   res.status(200).json({message:'Email cannot be update', status:0})
+      //   return
+      // }
+      delete updateData.email;
+      // Remove undefined fields
+      Object.keys(updateData).forEach((key) => {
+        if (updateData[key as keyof typeof updateData] === undefined) {
+          delete updateData[key as keyof typeof updateData];
+        }
+      });
+
+      // Attach uploaded image(s)
+      if (imageUrls && imageUrls.length) {
+        updateData.profileImage = imageUrls;
+      }
+
+      const profileDetail = await AppUser.findOneAndUpdate(
+        { cognitoId: userId },
+        { $set: updateData },
+        { new: true }
+      );
+
+      if (!profileDetail) {
+        res.status(200).json({ status: 0, message: 'User not found' });
+        return;
+      }
+
+      res.status(200).json({
+        status: 1,
+        message: 'Profile detail updated successfully',
+        data: profileDetail,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'An error occurred';
+      res.status(200).json({ status: 0, message });
     }
+  },
+  deleteUserAccountUsingToken: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const userId = getCognitoUserId(req)
+      if (!userId) {
+        res.status(200).json({ message: 'User id required', status: 0 })
+        return
+      }
 
-    const profileDetail = await AppUser.findOneAndUpdate(
-      { cognitoId: userId },
-      { $set: updateData },
-      { new: true }
-    );
+      const user = await AppUser.findOne({ cognitoId: userId })
+      if (!user) {
+        res.status(200).json({ message: 'Account not deleted', status: 0 })
+        return
+      }
 
-    if (!profileDetail) {
-      res.status(200).json({ status: 0, message: 'User not found' });
-      return;
+      if (!process.env.COGNITO_USER_POOL_ID) {
+        res.status(500).json({ status: 0, message: 'Cognito User Pool ID missing' });
+        return
+      }
+      await cognito.adminDeleteUser({
+        UserPoolId: process.env.COGNITO_USER_POOL_ID,
+        Username: user.email!,
+      }).promise();
+      await AppUser.deleteOne({ cognitoId: userId })
+
+      res.status(200).json({ message: 'Account deleted successfully', status: 1 })
+
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'An internal server occurred'
+      res.status(200).json({ message: message, status: 0 })
     }
+  },
+  refreshToken: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const userID = getCognitoUserId(req);
 
-    res.status(200).json({
-      status: 1,
-      message: 'Profile detail updated successfully',
-      data: profileDetail,
-    });
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'An error occurred';
-    res.status(200).json({ status: 0, message });
+      const { refreshToken } = req.body as { refreshToken: string };
+      if (!refreshToken) {
+        res.status(200).json({ status: 0, message: 'Refresh token required' })
+      }
+
+      const secretHash = helpers.getSecretHash(userID);
+      const params = {
+        AuthFlow: "REFRESH_TOKEN_AUTH",
+        ClientId: process.env.COGNITO_CLIENT_ID!,
+        AuthParameters: {
+          REFRESH_TOKEN: refreshToken,
+          SECRET_HASH: secretHash,
+          USERNAME: userID
+        }
+      };
+
+      const response = await cognito.initiateAuth(params).promise();
+
+      res.status(200).json({
+        accessToken: response.AuthenticationResult?.AccessToken,
+        message: "Access token refreshed",
+        status: 1
+      });
+      return
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'An internal server error occurred'
+      res.status(200).json({ error: message });
+    }
+  },
+
+  withdrawRequestForm: async (req: Request<unknown, unknown, { data?: string }>, res: Response): Promise<void> => {
+    try {
+      const userID = getCognitoUserId(req);
+
+      const data = req.body?.data as string;
+
+      const { email } = JSON.parse(data) as { email: string }
+      if(!email){
+        res.status(200).json({message:'Email is required', status:0})
+        return
+      }
+      const params = {
+        UserPoolId: process.env.COGNITO_USER_POOL_ID!,
+        Username: userID,
+      };
+
+      const response = await cognito.adminDeleteUser(params).promise();
+
+      await AppUser.findByIdAndDelete({ email: email })
+      res.status(200).json({ status: 1, message: "form submitted successfully!", response })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'An internal server occurred!'
+      res.status(200).json({ error: message, status: 0 })
+    }
   }
-},
 
 };
 

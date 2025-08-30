@@ -501,6 +501,7 @@ function CreateAppointment() {
                                             placeholder="Appointment Date"
                                             value={selectedDate}
                                             onDateChange={handleDateChange}
+                                            minDate={dayjs().toDate()}
                                         />
                                         {errors.appointmentDate && <p className="error-message">{errors.appointmentDate}</p>}
                                     </Col>
