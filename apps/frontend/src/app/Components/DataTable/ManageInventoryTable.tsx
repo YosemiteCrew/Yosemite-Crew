@@ -16,6 +16,7 @@ type ManageInventryItem = {
   category: string;
   species: string;
   department: string;
+  sexType: string;
   manufacturer: string;
   price: string;
   manufacturerPrice: string;
@@ -70,7 +71,7 @@ const columns = [
   {
     label: "Species/Sex",
     key: "species",
-    render: (item: ManageInventryItem) => <p>{item.species}</p>,
+    render: (item: ManageInventryItem) => <p>{item.sexType}</p>,
   },
   {
     label: "Department",

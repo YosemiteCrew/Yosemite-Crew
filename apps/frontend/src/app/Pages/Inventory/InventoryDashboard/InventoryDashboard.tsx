@@ -117,9 +117,7 @@ useEffect(() => {
         throw new Error("userId is required");
       }
 
-      const response: any = await postData("/fhir/v1/getAllProcedurePackage", {
-        userId: userId,
-      });
+      const response: any = await getData(`/fhir/v1/getAllProcedurePackage?businessId=${userId}`);
 
       if (!response) {
         throw new Error("Network response was not ok");

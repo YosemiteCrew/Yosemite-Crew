@@ -644,10 +644,10 @@ const WebController = {
       } = name;
       // console.log("Parsed business profile:", businessProfile);
       // console.log("Parsed parsedPayload:", parsedPayload);
-        if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
-          res.status(400).json({ message: "Invalid userId format" });
-          return;
-        }else {
+      if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        res.status(400).json({ message: "Invalid userId format" });
+        return;
+      } else {
         // Step 3: Handle Image Upload if Exists
         const img = req.files as { image?: UploadedFile };
         const imageFile = img?.image
@@ -706,35 +706,86 @@ const WebController = {
   },
 
 
-  getDepartmentsList:async (req: Request, res: Response) => {
-  try {
-    const departments = await adminDepartments.find();
-    
-    if (departments && departments.length > 0) {
-      res.status(200).json({
-        success: true,
-         
-        data: convertAdminDepartmentsToFHIR(departments)
-      });
-    } else {
-      res.status(404).json({
-        success: false,
-        message: "No departments available"
-      });
+  getDepartmentsList: async (req: Request, res: Response) => {
+    try {
+      const departments = await adminDepartments.find();
+
+      if (departments && departments.length > 0) {
+        res.status(200).json({
+          success: true,
+
+          data: convertAdminDepartmentsToFHIR(departments)
+        });
+      } else {
+        res.status(404).json({
+          success: false,
+          message: "No departments available"
+        });
+      }
+    } catch (err) {
+      const error = err as Error;
+      console.error("get departments error:", error.message);
+
+      if (!res.headersSent) {
+        res.status(500).json({
+          success: false,
+          message: "Internal Server Error",
+          error: error.message
+        });
+      }
     }
-  } catch (err) {
-    const error = err as Error;
-    console.error("get departments error:", error.message);
-    
-    if (!res.headersSent) {
-      res.status(500).json({
-        success: false,
-        message: "Internal Server Error",
-        error: error.message
+  },
+  getDepartmentsOfBusiness: async (req: Request, res: Response) => {
+    try {
+      const { userId } = req.query as { userId: string };
+      if (typeof userId !== 'string' || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+        res.status(400).json({ message: 'Invalid userId format' });
+        return;
+      }
+
+      // First get the profile data to extract department IDs
+      const profileData = await ProfileData.findOne({ userId }).lean();
+
+      if (!profileData || !profileData.addDepartment || profileData.addDepartment.length === 0) {
+        res.status(404).json({
+          success: false,
+          message: "No departments available in profile data"
+        });
+        return
+      }
+
+      // Extract department IDs from profile data
+      const departmentIds = profileData.addDepartment;
+
+      // Find departments in adminDepartments that match the IDs from profile data
+      const departments = await adminDepartments.find({
+        _id: { $in: departmentIds }
       });
+
+      if (departments && departments.length > 0) {
+        res.status(200).json({
+          success: true,
+          data: convertAdminDepartmentsToFHIR(departments)
+        });
+      } else {
+        res.status(404).json({
+          success: false,
+          message: "No departments found matching the profile data"
+        });
+      }
+    } catch (err) {
+      const error = err as Error;
+      console.error("get departments error:", error.message);
+
+      if (!res.headersSent) {
+        res.status(500).json({
+          success: false,
+          message: "Internal Server Error",
+          error: error.message
+        });
+      }
     }
-  }
-},
+  },
   // deleteDocumentsToUpdate: async (req: Request, res: Response) => {
   //   const { userId, docId } = req.params;
   //   console.log("User ID:", userId);
@@ -868,8 +919,8 @@ const WebController = {
         selectedServices: profile.selectedServices,
         addDepartment: profile.addDepartment,
         image, // Assuming logo is the image URL
-        key:profile.key,
-        progress:profile.progress
+        key: profile.key,
+        progress: profile.progress
       };
 
       const fhirBundle = toFHIRBusinessProfile(formattedInput as BusinessProfile);
