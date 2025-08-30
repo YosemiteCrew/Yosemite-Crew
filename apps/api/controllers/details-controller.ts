@@ -144,7 +144,7 @@ const detailsController = {
       res.status(200).json({ status: 0, message: 'Internal Server Error' });
     }
   },
-
+  
   getVetClinicDetails: async (req: Request, res: Response): Promise<void> => {
     try {
       const userId = getCognitoUserId(req)

@@ -47,7 +47,7 @@ function DeveloperLanding() {
                         businesses, adapting to any need.
                         </p>
                     </div>
-                    <Image src="/Images/devchose1.png" alt="devchose1"  width={154}  height={132} />
+                    <Image src="/Images/devchose1.png" alt="devchose1"  width={174}  height={152} />
                     </div>
                     <div className="DevCrewBox crewbox2">
                         <Image src="/Images/devchose2.png" alt="devchose2"  width={120}  height={120} />
@@ -80,7 +80,7 @@ function DeveloperLanding() {
                     </div>
                     </div>
                     <div className="DevCrewBox crewbox5">
-                        <Image src="/Images/devchose5.png" alt="devchose5"  width={72}  height={72} />
+                        <Image src="/Images/devchose5.png" alt="devchose5"  width={92}  height={92} />
                     <div className="crewText">
                         <h3>Comprehensive Tools</h3>
                         <p>
@@ -198,6 +198,7 @@ function DeveloperLanding() {
                                 <h4>Ready to Build?</h4>
                                 <p> Join a growing community of developers creating transformative solutions for the veterinary world.</p>
                             </div>
+                            <FillBtn icon={<Icon icon="solar:bolt-bold" width="24" height="24" />} text="Sign Up as a Developer" href="#" />
                         </div>
                     </div>
                     <div className="RytBuild">

@@ -106,25 +106,25 @@ function CalendarCard(data: any) {
         {[
           {
             status: "Confirmed",
-            count: 4,
+            count: 0,
             key: "confirmed",
             color: "#247AED",
           },
           {
             status: "Upcoming",
-            count: 3,
+            count: 0,
             key: "upcoming",
             color: "#247AED",
           },
           {
             status: "Completed",
-            count: 3,
+            count: 0,
             key: "completed",
             color: "#247AED",
           },
           {
             status: "Cancelled",
-            count: 4,
+            count: 0,
             key: "cancelled",
             color: "#247AED",
           },

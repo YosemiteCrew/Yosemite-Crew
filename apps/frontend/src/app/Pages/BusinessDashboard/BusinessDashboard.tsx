@@ -11,9 +11,8 @@ import Link from "next/link";
 import { IoNotifications } from "react-icons/io5";
 import AppointmentGraph from "@/app/Components/BarGraph/AppointmentGraph";
 import CommonTabs from "@/app/Components/CommonTabs/CommonTabs";
-import ScheduleTable from "@/app/Components/DataTable/ScheduleTable";
+import BusinessdashBoardTable from "@/app/Components/DataTable/BusinessdashBoardTable";
 import ChartCard from "@/app/Components/BarGraph/ChartCard";
-import PracticeTeamTable from "@/app/Components/DataTable/PracticeTeamTable";
 import InventoryTable from "@/app/Components/DataTable/InventoryTable";
 import { getData } from "@/app/axios-services/services";
 import { useAuthStore } from "@/app/stores/authStore";
@@ -28,10 +27,10 @@ import {
 } from "@yosemite-crew/fhir";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import { FHIRAppointmentData, MyAppointmentData } from "@yosemite-crew/types";
+import CommonTabForBusinessDashboard from "@/app/Components/CommonTabs/CommonTabForBusinessDashboard";
+import CommonTabForPractitioners from "@/app/Components/CommonTabs/CommonTabForPractitioners";
 
-
-
-type AppointmentStatus = "In-progress" | "Checked-In" | "Pending" | "Confirmed";
+type AppointmentStatus = "In-Progress" | "Checked-In" | "Pending" | "accepted" | "cancelled" | "fulfilled";
 
 export type TodayAppointmentItem = {
   id: string;
@@ -53,63 +52,15 @@ function BusinessDashboard() {
   const [selectedRange, setSelectedRange] = useState("Last 30 Days");
   const [specialityWiseSelectedRange, setSpecialityWiseSelectedRange] = useState("Last 3 Months");
   const [revenueSelectedRange, setRevenueSelectedRange] = useState("Last 30 Days");
-  const [todayAppointmentsData, setTodayAppointmentsData] = useState<TodayAppointmentItem[]>([]);
   const [assessmentData, setAccessmentData] = useState<TodayAppointmentItem[]>([]);
   const [inventoryData, setInventoryData] = useState([]);
   const [inventoryCategory, setInventoryCategory] = useState([]);
-  const [appointmentFilter, setAppointmentFilter] = useState("Confirmed");
+  const [appointmentFilter, setAppointmentFilter] = useState("accepted");
   const [inventoryandAssessmentGraph, setInventoryandAssessmentGraph] = useState([]);
   const [specialityWiseAppointmentsGraph, setSpecialityWiseAppointmentsGraph] = useState([]);
   const [data, setData] = useState<DepartmentData[]>([]);
-  const [departments, setDepartments] = useState([{
-    eventKey: "",
-    title: "",
-  }]);
+  const [departments, setDepartments] = useState([{ eventKey: "", title: "" }]);
   const userId = useAuthStore((state: any) => state.userId);
-
-  const normalizeAppointments = (data: MyAppointmentData[]): TodayAppointmentItem[] => {
-    return data.map((item: any) => {
-      let mappedStatus: AppointmentStatus = "Pending";
-      const status = item.appointmentStatus?.toLowerCase();
-
-      if (status === "in-progress") mappedStatus = "In-progress";
-      else if (status === "checked-in") mappedStatus = "Checked-In";
-      else if (status === "confirmed") mappedStatus = "Confirmed";
-
-      return {
-        id: item._id,
-        name: item.petName,
-        owner: item.ownerName,
-        image: item.petImage,
-        tokenNumber: item.tokenNumber,
-        reason: item.purposeOfVisit,
-        petType: item.breed,
-        pet: item.pet,
-        time: item.appointmentTime,
-        date: item.appointmentDate,
-        doctorName: item.doctorName,
-        specialization: item.departmentName,
-        status: mappedStatus,
-      };
-    });
-  };
-
-  const getTodayAppointment = useCallback(
-    async (doctorId: string = "", status: string = "") => {
-      try {
-        const response = await getData(
-          `/api/appointments/getAllAppointments?doctorId=${doctorId}&userId=${userId}&status=${status.toLowerCase()}`
-        );
-        if (response.status === 200) {
-          const data: any = response.data;
-          setTodayAppointmentsData(normalizeAppointments(fromFHIR(data.data as FHIRAppointmentData[])));
-        }
-      } catch (error) {
-        console.error("Error fetching today's appointments:", error);
-      }
-    },
-    [userId]
-  );
 
   const fetchInventoryDetails = useCallback(
     async (searchCategory: string = "") => {
@@ -122,10 +73,9 @@ function BusinessDashboard() {
         if (!response) {
           throw new Error("Network response was not ok");
         }
-         console.log(response, "Converted Inventory JSON");
+        console.log(response, "Converted Inventory JSON");
         const data: any = await response.data;
         const convertToJson: any = convertFhirBundleToInventory(data);
-       
         setInventoryData(convertToJson.data);
       } catch (error) {
         console.error("Error fetching inventory data:", error);
@@ -141,31 +91,31 @@ function BusinessDashboard() {
       );
       if (response.status === 200) {
         const res: any = response?.data;
-        setInventoryCategory(res);
+        setInventoryCategory([]);
       }
     } catch (error) {
       console.error(error);
     }
   }, [userId]);
+
   const fetchDepartments = useCallback(async () => {
     try {
       const response: any = await getData(
-        `api/auth/getDepartmentsList?userId=${userId}`
+        `api/auth/getDepartmentsOfBusiness?userId=${userId}`
       );
       if (response.status === 200) {
         const res: any = response?.data;
         setDepartments(convertFHIRToAdminDepartments(res.data).map((item: any) => ({
           eventKey: item._id,
-          title: item.name 
+          title: item.name
         })));
       }
     } catch (error) {
       console.error(error);
     }
   }, [userId]);
-  
 
-useEffect(() => {
+  useEffect(() => {
     if (userId) {
       fetchDepartments();
     }
@@ -208,7 +158,7 @@ useEffect(() => {
       );
       if (response.status === 200) {
         const data: any = response.data;
-        setAccessmentData(normalizeAppointments(fromFHIR(data.data as FHIRAppointmentData[])));
+        setAccessmentData(data.data);
       }
     } catch (error) {
       console.error("Error fetching assessments:", error);
@@ -217,96 +167,54 @@ useEffect(() => {
 
   useEffect(() => {
     if (userId) {
-      getTodayAppointment("", appointmentFilter.toLowerCase());
       fetchInventoryDetails("");
       getInventoryCategory();
       getAppointmentGraph();
-     
     }
   }, [
     userId,
-    appointmentFilter,
-    getTodayAppointment,
     fetchInventoryDetails,
     getInventoryCategory,
     getAppointmentGraph,
     getSpecialityWiseAppointment,
   ]);
-useEffect(() => {
+
+  useEffect(() => {
     if (userId) {
       getSpecialityWiseAppointment(specialityWiseSelectedRange);
     }
   }, [userId, specialityWiseSelectedRange, getSpecialityWiseAppointment]);
+
   const handleScheduleTabClick = useCallback(
     (eventKey?: string, status?: string) => {
       if (status) {
         setAppointmentFilter(status);
-        getTodayAppointment("", status);
       }
-      if (eventKey === "Appointments") {
-        getTodayAppointment("", ""); // Use getAllAppointments without status filter
-      } else if (eventKey === "Assessments") {
+      if (eventKey === "Assessments") {
         getAssessments();
       }
     },
-    [getTodayAppointment, getAssessments]
+    [getAssessments]
   );
-
-
 
   const scheduleTabs = [
     {
       eventKey: "Appointments",
       title: "Appointments",
-      count: todayAppointmentsData.length,
-      content: <ScheduleTable data={todayAppointmentsData} />,
+      content: <BusinessdashBoardTable status={appointmentFilter} />,
     },
-    {
-      eventKey: "Assessments",
-      title: "Assessments",
-      count: todayAppointmentsData.length,
-      content: <ScheduleTable data={todayAppointmentsData} />,
-    },
+    // {
+    //   eventKey: "Assessments",
+    //   title: "Assessments",
+    //   content: <ScheduleTable data={assessmentData} />,
+    // },
   ];
 
-  const practiceTabs = [
-    {
-      eventKey: "Cardiology",
-      title: "Cardiology",
-      content: <PracticeTeamTable />,
-    },
-    {
-      eventKey: "Dermatology",
-      title: "Dermatology",
-      content: <PracticeTeamTable />,
-    },
-    {
-      eventKey: "Emergency and Critical Care",
-      title: "Emergency and Critical Care",
-      content: <PracticeTeamTable />,
-    },
-    {
-      eventKey: "Dentistry",
-      title: "Dentistry",
-      content: <PracticeTeamTable />,
-    },
-    {
-      eventKey: "Marketing",
-      title: "Marketing",
-      content: <PracticeTeamTable />,
-    },
-  ];
-
-  const inventoryTabs = inventoryCategory.map((cat: any) => ({
+  const inventoryTabs = inventoryCategory?.map((cat: any) => ({
     eventKey: cat._id,
     title: cat.category,
     content: <InventoryTable categoryId={cat._id} data={inventoryData} />,
   }));
-
-  // const handleTodayAppointmentTabClick = (status: string) => {
-  //   setAppointmentFilter(status);
-  //   getTodayAppointment("", status);
-  // };
 
   return (
     <section className="BusinessDashboardSec">
@@ -374,7 +282,6 @@ useEffect(() => {
           </Row>
 
           <Row>
-            
             <Col md={6}>
               <GraphSelected
                 title="Department-wise Income"
@@ -436,14 +343,14 @@ useEffect(() => {
 
           <Row>
             <div className="TableItemsRow">
-              <HeadingDiv Headname="Today’s Schedule" Headspan={todayAppointmentsData.length + assessmentData.length} />
-              <CommonTabs onTabClick={handleScheduleTabClick} tabs={scheduleTabs} showStatusSelect />
+              <HeadingDiv Headname="Today’s Schedule" />
+              <CommonTabForBusinessDashboard onTabClick={handleScheduleTabClick} tabs={scheduleTabs} showStatusSelect />
             </div>
           </Row>
           <Row>
             <div className="TableItemsRow">
               <HeadingDiv Headname="Practice Team" Headspan="74" />
-              <CommonTabs onTabClick={fetchDepartments} tabs={departments} showStatusSelect />
+              <CommonTabForPractitioners tabs={departments} showStatusSelect headname="Practice Team" defaultActiveKey={departments[0]?.eventKey} />
             </div>
           </Row>
 

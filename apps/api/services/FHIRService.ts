@@ -1,10 +1,39 @@
+import { WebAppointmentType } from "@yosemite-crew/types";
+
+interface FhirExtension {
+  url: string;
+  valueString?: string;
+  valueDecimal?: number;
+  valueArray?: { valueString: string }[];
+}
+
+interface FhirActor {
+  reference: string;
+  display: string;
+  extension?: FhirExtension[];
+}
+
+interface FhirParticipant {
+  actor: FhirActor;
+  required: "required" | "optional";
+  status: "accepted" | "declined" | "tentative";
+}
+
+interface FhirAppointment {
+  resourceType: "Appointment";
+  id: string;
+  status: string; // "pending" | "booked" | "cancelled" | etc.
+  start: string; // ISO datetime string
+  reasonCode: { text: string }[];
+  extension: FhirExtension[];
+  participant: FhirParticipant[];
+}
 class FHIRService {
-  static convertAppointmentToFHIR(app : any, vetMap :any, petMap :any, hospitalMap :any) {
+  static convertAppointmentToFHIR(app : WebAppointmentType, vetMap :unknown, petMap :any, hospitalMap :any):FhirAppointment {
     const vet = vetMap[app.veterinarian] || {};
     const pet = petMap[app.petId] || {};
     const hospital = hospitalMap[app.hospitalId] || {};
-
-  
+    console.log(app,'apppppppp');
     return {
       resourceType: "Appointment",
       id: app._id.toString(),
@@ -15,6 +44,14 @@ class FHIRService {
         {
           url: "http://example.org/fhir/StructureDefinition/appointment-time-slot",
           valueString: app.appointmentTime
+        },
+        {
+          url:"http://example.org/fhir/StructureDefinition/slot-id",
+          valueString:app.slotsId
+        },
+        {
+          url:'http://example.org/fhir/StructureDefinition/reasontext',
+          valueString:app.purposeOfVisit
         }
       ],
       participant: [
@@ -34,6 +71,10 @@ class FHIRService {
               {
                 url: "http://example.org/fhir/StructureDefinition/vet-specialization",
                 valueString: vet.specialization || ""
+              },
+              {
+                url:'http://example.org/fhir/StructureDefinition/vet-department-id',
+                valueString:vet.departmentId || ''
               }
             ]
           },
@@ -49,7 +90,7 @@ class FHIRService {
                 url: "http://example.org/fhir/StructureDefinition/pet-images",
                 valueArray: Array.isArray(pet.petImage)
                   ? pet.petImage.map((img:string)=> ({ valueString: img }))
-                  : [{ valueString: pet.petImage || "" }]
+                  : [{ valueString: pet.petImage?.url || "" }]
               }
             ]
           },

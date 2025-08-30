@@ -33,6 +33,8 @@ export type IUser = Document & {
   createdAt?: Date;
   updatedAt?: Date;
   lastLogin?: Date ,
+  signupType?: string;
+  flag?:string
 }
 
 export interface SignupRequestBody {

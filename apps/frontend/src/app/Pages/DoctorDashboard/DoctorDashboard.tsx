@@ -1,21 +1,20 @@
 "use client";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import "./DoctorDashboard.css";
 import { Col, Container, Row } from "react-bootstrap";
 import Image from "next/image";
 import Link from "next/link";
 import StatCard from "@/app/Components/StatCard/StatCard";
 import { HeadingDiv } from "../BusinessDashboard/BusinessDashboard";
-import EmergencyAppointmentsTable from "@/app/Components/DataTable/EmergencyAppointmentsTable";
-import { FaCalendar } from "react-icons/fa6";
-import CalendarCard from "@/app/Components/CalendarCard/CalendarCard";
+import DashboardTodayAppointmentsTable from "@/app/Components/DataTable/DashboardTodayAppointmentsTable";
+// import { FaCalendar } from "react-icons/fa6";
+// import CalendarCard from "@/app/Components/CalendarCard/CalendarCard";
 import { useAuthStore } from "@/app/stores/authStore";
-import { getData, postData, putData } from "@/app/axios-services/services";
+import { getData, putData } from "@/app/axios-services/services";
 import Swal from "sweetalert2";
 import { EmergencyAppointForm } from "../Emergency/EmergencyAppointment/EmergencyAppointment";
 import DoctorSlots from "./DoctorSlots";
-import { convertDoctorsFromFHIR, convertEmergencyAppointmentFromFHIRForTable, convertEmergencyAppointmentToFHIR, fromFHIR } from "@yosemite-crew/fhir";
-import { MyAppointmentData, NormalEmergencyAppointment } from "@yosemite-crew/types";
+import { convertDoctorsFromFHIR } from "@yosemite-crew/fhir";
 import catBreedList from "../Emergency/EmergencyAppointment/catBreedList.json";
 import dogBreedList from "../Emergency/EmergencyAppointment/dogBreedList.json";
 import horseBreedList from "../Emergency/EmergencyAppointment/horseBreedList.json";
@@ -41,8 +40,9 @@ function DoctorDashboard() {
   const { vetAndTeamsProfile, userId, fetchVetAndTeamsProfile, userType } = useAuthStore();
   const [available, setAvailable] = useState(true);
   const [addNewLead, setAddNewLead] = useState(false);
-  const [appointmentData, setAppointmentData] = useState<MyAppointmentData[]>([]);
   const [options, setOptions] = useState<doctors[]>([{ value: "", label: "", dep: "" }]);
+  const [todayAppointmentsCount, setTodayAppointmentsCount] = useState(0);
+  const [emergencyAppointmentsCount, setEmergencyAppointmentsCount] = useState(0);
 
   // State for EmergencyAppointForm
   const [email, setEmail] = useState("");
@@ -58,8 +58,6 @@ function DoctorDashboard() {
     gender: "",
     mobileNumber: "",
   });
-  const [emergencyAppointmentData, setEmergencyAppointmentData] = useState<NormalEmergencyAppointment[]>([]);
-  console.log("Emergency Appointment Data:", emergencyAppointmentData);
   const [errors, setErrors] = useState<{
     email?: string;
     patientName?: string;
@@ -69,7 +67,7 @@ function DoctorDashboard() {
     gender?: string;
     mobileNumber?: string;
     veterinarian?: string;
-  }>({}); // Initialize errors state
+  }>({});
 
   useEffect(() => {
     if (veterinarian) {
@@ -164,9 +162,6 @@ function DoctorDashboard() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Handle form submission
-
-
   useEffect(() => {
     setAvailable(vetAndTeamsProfile?.name.status === "On-Duty" ? true : false);
   }, [vetAndTeamsProfile]);
@@ -192,134 +187,6 @@ function DoctorDashboard() {
     }
   };
 
-  useEffect(() => {
-    const getTodayAppointment = async (doctorId: string, status: string) => {
-      try {
-        const response = await getData(
-          `/api/appointments/getAllAppointments?doctorId=${doctorId}&userId=${userId}&status=${status}`
-        );
-        if (response.status === 200) {
-          const data: any = response.data;
-          setAppointmentData(fromFHIR(data.data));
-        }
-      } catch (error) {
-        console.error(error);
-      }
-    };
-    if (userId) {
-      getTodayAppointment("", "");
-    }
-  }, [userId]);
-
-  // Helper function to render your sections
-  const mappedAppointments = appointmentData.map((item: any) => ({
-    name: item.petName,
-    owner: item.ownerName,
-    image: item.petImage || "/Images/default-pet.png",
-    appointmentId: item.tokenNumber,
-    reason: item.purposeOfVisit,
-    breed: item.breed || "-",
-    pet: item.pet,
-    time: item.appointmentTime,
-    date: item.appointmentDate,
-    doctor: item.doctorName,
-    specialization: item.departmentName,
-    status: item.appointmentStatus,
-  }));
-
-  const renderAppointmentSections = () => {
-    const sections = [
-      {
-        title: "Today’s Appointments",
-        count: appointmentData.length,
-        text: userType === "receptionist" ? `Create Appointment` : "",
-        secicon: "solar:calendar-mark-bold",
-        href: "/createappointment",
-      },
-    ];
-
-    return sections.map((section, index) => (
-      <Row key={index}>
-        <div className="TableItemsRow">
-          <HeadingDiv
-            Headname={section.title}
-            Headspan={section.count}
-            btntext={section.text}
-            icon={section.secicon}
-            href={section.href}
-          />
-          <EmergencyAppointmentsTable data={mappedAppointments} />
-        </div>
-      </Row>
-    ));
-  };
-
-  //emergency appointment 
-  const fetchEmergencyAppointments = useCallback(async () => {
-  try {
-    const response = await getData(`/fhir/v1/getEmergencyAppointment?userId=${userId}`);
-    if (response.status === 200) {
-      const data: any = response.data;
-      const appointments: NormalEmergencyAppointment[] = data.data.map((appt: any) =>
-        convertEmergencyAppointmentFromFHIRForTable(appt)
-      );
-      setEmergencyAppointmentData(appointments);
-    }
-  } catch (error) {
-    console.error("Error fetching emergency appointments:", error);
-  }
-}, [userId]);
-
-useEffect(() => {
-  if (userId) {
-    fetchEmergencyAppointments();
-  }
-}, [fetchEmergencyAppointments, userId]);
-
-const mappedEmergencyAppointments = emergencyAppointmentData.map((item: any) => ({
-    name: item.petName,
-    owner: item.ownerName,
-    appointmentId: item.tokenNumber,
-    breed: item.petBreed || "-",
-    pet: item.petType,
-    time: item.appointmentTime,
-    doctor: item.veterinarian,
-    specialization: item.departmentName,
-    status: item.appointmentStatus,
-    gender: item.gender
-    
-  }));
-
-
-
-    const renderEmergencyAppointmentSections = () => {
-    const sections = [
-      {
-        title: "Emergency Appointments",
-        count: emergencyAppointmentData.length,
-        // text: userType === "receptionist" ? `Create Appointment` : "",
-        // secicon: "solar:calendar-mark-bold",
-        // href: "/createappointment",
-      },
-    ];
-
-    return sections.map((section, index) => (
-      <Row key={index}>
-        <div className="TableItemsRow">
-          <HeadingDiv
-            Headname={section.title}
-            Headspan={section.count}
-            // btntext={section.text}
-            // icon={section.secicon}
-            // href={section.href}
-          />
-          <EmergencyDataTable data={mappedEmergencyAppointments} />
-        </div>
-      </Row>
-    ));
-  };
-
-
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -327,45 +194,27 @@ const mappedEmergencyAppointments = emergencyAppointmentData.map((item: any) => 
       return;
     }
 
-    const allData:NormalEmergencyAppointment = {
-      email,
-      ownerName: parentName,
-      petName: patientName,
-      petBreed: breed,
-      petType: petType,
-      gender: name.gender,
-      phoneNumber: name.mobileNumber,
-      department: departmentId,
-      veterinarian,
-      userId: userId,
-      countryCode,
-    };
-       const data =convertEmergencyAppointmentToFHIR(allData)
     try {
-      const response = await postData(`/fhir/v1/createappointment`, { data });
+      // Your form submission logic here
+      // After successful submission, you might want to show a success message
+      Swal.fire({
+        icon: "success",
+        title: "Success",
+        text: "Emergency appointment form submitted successfully.",
+        timer: 2000,
+        showConfirmButton: false,
+      });
 
-      if (response.status === 201 || response.status === 200) {
-        Swal.fire({
-          icon: "success",
-          title: "Success",
-          text: "Emergency appointment form submitted successfully.",
-          timer: 2000,
-          showConfirmButton: false,
-        });
-
-        // Reset form
-        setEmail("");
-        setPatientName("");
-        setParentName("");
-        setBreed("");
-        setPetType("");
-        setVeterinarian("");
-        setName({ gender: "", mobileNumber: "" });
-        setCountryCode("+91");
-        setErrors({});
-      }
-      fetchEmergencyAppointments()
-      
+      // Reset form
+      setEmail("");
+      setPatientName("");
+      setParentName("");
+      setBreed("");
+      setPetType("");
+      setVeterinarian("");
+      setName({ gender: "", mobileNumber: "" });
+      setCountryCode("+91");
+      setErrors({});
     } catch (error) {
       console.error("Error submitting emergency appointment:", error);
       Swal.fire({
@@ -377,9 +226,6 @@ const mappedEmergencyAppointments = emergencyAppointmentData.map((item: any) => 
       });
     }
   };
-
-
-
 
   const image: any =
     vetAndTeamsProfile?.image ||
@@ -438,17 +284,17 @@ const mappedEmergencyAppointments = emergencyAppointmentData.map((item: any) => 
                 <StatCard
                   icon="solar:calendar-mark-bold"
                   title="Emergency Appointment"
-                  value={158}
+                  value={emergencyAppointmentsCount}
                 />
               </Col>
               <Col md={3}>
                 <StatCard
                   icon="solar:document-medicine-bold"
-                  title="Today’s Appointment"
-                  value={122}
+                  title="Today's Appointment"
+                  value={todayAppointmentsCount}
                 />
               </Col>
-              <Col md={3}>
+              {/* <Col md={3}>
                 <StatCard
                   icon="solar:clipboard-check-bold"
                   title="Assessments"
@@ -461,9 +307,20 @@ const mappedEmergencyAppointments = emergencyAppointmentData.map((item: any) => 
                   title="Calender View"
                   value="$7,298"
                 />
-              </Col>
+              </Col> */}
             </Row>
-            {renderEmergencyAppointmentSections()}
+
+            {/* Emergency Appointments Section */}
+            <Row>
+              <div className="TableItemsRow">
+                <HeadingDiv
+                  Headname="Emergency Appointments"
+                  Headspan={emergencyAppointmentsCount}
+                />
+                <EmergencyDataTable onCountUpdate={setEmergencyAppointmentsCount} />
+              </div>
+            </Row>
+
             {userType === "receptionist" ? (
               <EmergencyAppointForm
                 email={email}
@@ -511,14 +368,30 @@ const mappedEmergencyAppointments = emergencyAppointmentData.map((item: any) => 
                   setErrors((prev) => ({ ...prev, mobileNumber: undefined }));
                 }}
                 onSubmit={handleFormSubmit}
-                errors={errors} // Pass errors state
+                errors={errors}
               />
             ) : (
               ""
             )}
-            
-            {renderAppointmentSections()}
-            <div className="DoctorClender">
+
+            {/* Today's Appointments Section */}
+            <Row>
+              <div className="TableItemsRow">
+                <HeadingDiv
+                  Headname="Today's Appointments"
+                  Headspan={todayAppointmentsCount}
+                  btntext={userType === "receptionist" ? "Create Appointment" : ""}
+                  icon="solar:calendar-mark-bold"
+                  href="/createappointment"
+                />
+                <DashboardTodayAppointmentsTable
+                  onAppointmentUpdate={0}
+                  onCountUpdate={(count) => setTodayAppointmentsCount(count)}
+                />
+              </div>
+            </Row>
+
+            {/* <div className="DoctorClender">
               <div className="TopClendr">
                 <div className="lftclndr">
                   <h3>
@@ -534,7 +407,7 @@ const mappedEmergencyAppointments = emergencyAppointmentData.map((item: any) => 
                 </div>
               </div>
               <CalendarCard />
-            </div>
+            </div> */}
           </div>
         ) : (
           <DoctorSlots />

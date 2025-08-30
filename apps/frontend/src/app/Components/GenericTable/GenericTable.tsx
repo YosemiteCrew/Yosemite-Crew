@@ -1,5 +1,7 @@
 "use client";
+import { ProcedurePackageJSON } from "@yosemite-crew/types";
 import React, { useState } from "react";
+import "./Generictable.css";
 import { Button, Table } from "react-bootstrap";
 import { FiArrowLeft, FiArrowRight } from "react-icons/fi";
 
@@ -11,7 +13,7 @@ interface Column<T> {
 }
 
 interface GenericTableProps<T extends object> {
-  data: T[];
+  data: ProcedurePackageJSON[] | T[];
   columns: Column<T>[];
   bordered?: boolean;
   pagination?: boolean;
@@ -34,8 +36,9 @@ function GenericTable<T extends object>({
 
   const handlePrev = () => setCurrentPage((p) => Math.max(1, p - 1));
   const handleNext = () => setCurrentPage((p) => Math.min(totalPages, p + 1));
-    console.log("Current Page:", columns);
-    console.log("Data:", data);
+    // console.log("Current Page:", columns);
+    // console.log("data", data);
+   
   return (
     <>
       <Table hover responsive bordered={bordered} className="TableDiv mb-3">
@@ -52,7 +55,7 @@ function GenericTable<T extends object>({
           </tr>
         </thead>
         <tbody>
-          {paginatedData.length>0 && paginatedData?.map((row, index) => (
+          {paginatedData.length>0 && paginatedData?.map((row:any, index:any) => (
             <tr key={index}>
               {columns.map((col) => (
                 <td
@@ -63,8 +66,8 @@ function GenericTable<T extends object>({
                     {col.render
                       ? col.render(row, index)
                       : (typeof col.key === "string"
-                          ? (row[col.key as keyof T] as React.ReactNode)
-                          : (row[col.key] as React.ReactNode))}
+                          ? (row[col.key ] as any )
+                          : (row[col.key] as any))}
                   </div>
                 </td>
               ))}

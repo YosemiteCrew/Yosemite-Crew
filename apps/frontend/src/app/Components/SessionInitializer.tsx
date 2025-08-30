@@ -8,6 +8,8 @@ import { handleLogout } from "../utils/LogoutApi";
 import HomePage from "../Pages/HomePage/HomePage";
 import Header from "./Header/Header";
 import MainLandingPage from "../Pages/MainLandingPage/MainLandingPage";
+import Cookies from "./Cookies/Cookies";
+import Github from "./Github/Github";
 
 // ✅ Define roles outside to avoid re-declaring them on every render
 const VET_ROLES = [
@@ -18,14 +20,17 @@ const VET_ROLES = [
   "receptionist",
 ];
 
-const publicRoutes = ["/signup", "/signin","/landingpage",'/homepage','/petowner','/resources','/contact_us','/blogpage','/developerlanding','/about_us','/bookDemo' ];
+const publicRoutes = ["/signup", "/signin","/landingpage",'/homepage','/petowner','/resources','/contact_us','/blogpage','/developerlanding','/about_us','/bookDemo','/privacypolicy','/pricing','/termsandconditions','' ];
 
 const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
   const setUser = useAuthStore((state) => state.setUser);
   const setVerified = useAuthStore((state) => state.setVerified);
   const isVerified = useAuthStore((state) => state.isVerified);
-  const { fetchBusinessProfile, fetchVetAndTeamsProfile } = useAuthStore((state) => state);
+  const { fetchBusinessProfile, fetchVetAndTeamsProfile } = useAuthStore(
+    (state) => state
+  );
   const [loading, setLoading] = useState(true);
+  const [showGithub, setShowGithub] = useState(true);
   const pathname = usePathname();
 
   const isPublicRoute = publicRoutes.some(
@@ -68,7 +73,13 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
     };
 
     fetchUser();
-  }, [fetchBusinessProfile, fetchVetAndTeamsProfile, isVerified, setUser, setVerified]);
+  }, [
+    fetchBusinessProfile,
+    fetchVetAndTeamsProfile,
+    isVerified,
+    setUser,
+    setVerified,
+  ]);
 
   if (loading) return null;
 
@@ -76,6 +87,8 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
     return (
       <>
         <Header />
+        <Cookies />
+        <Github isOpen={showGithub} onClose={() => setShowGithub(false)} />
         <MainLandingPage />
       </>
     );
@@ -84,6 +97,8 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
   return (
     <>
       <Header />
+      <Cookies />
+      <Github isOpen={showGithub} onClose={() => setShowGithub(false)} />
       {children}
     </>
   );

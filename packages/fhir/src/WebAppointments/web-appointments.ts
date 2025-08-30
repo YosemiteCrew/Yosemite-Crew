@@ -1,4 +1,4 @@
-import { FHIRAppointmentBooking, FHIRAppointmentData, FHIRDoctorOption, FHIREmergencyAppointment, FHIREmergencyAppointmentForTable, FhirPetResource, FHIRPractitioner, ForBookingFHIRSlot, ForBookingTimeSlot, MyAppointmentData, NormalAppointmentData, NormalDoctor, NormalDoctorOption, NormalEmergencyAppointment, NormalEmergencyAppointmentForTable, NormalPetData, TimeSlotFHIRBundle } from "@yosemite-crew/types";
+import { AppointmentForTable, FHIRAppointmentBooking, FHIRAppointmentData, FHIRDoctorOption, FHIREmergencyAppointment, FHIREmergencyAppointmentForTable, FhirPetResource, FHIRPractitioner, ForBookingFHIRSlot, ForBookingTimeSlot, MyAppointmentData, NormalAppointmentData, NormalDoctor, NormalDoctorOption, NormalEmergencyAppointment, NormalEmergencyAppointmentForTable, NormalPetData, NormalResponseForTable, TimeSlotFHIRBundle } from "@yosemite-crew/types";
 
 export function convertPetDataToFhir(input: NormalPetData | NormalPetData[]): FhirPetResource[] {
   const pets = Array.isArray(input) ? input : [input];
@@ -447,5 +447,123 @@ export function convertEmergencyAppointmentFromFHIRForTable(
     appointmentTime:
       fhir.extension?.find((e) => e.url.includes("appointmentTime"))
         ?.valueString || "",
+  };
+}
+
+
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< FHIR Appointment For Table >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 
+
+
+// appointmentConverter.ts
+
+
+export function normalToFHIRForTable(normal: NormalResponseForTable): any {
+  return {
+    resourceType: "Bundle",
+    type: "collection",
+    total: normal.totalAppointments,
+    entry: normal.Appointments.map((appt) => ({
+      resource: {
+        resourceType: "Appointment",
+        id: appt._id,
+        identifier: [{ system: "Hospital/TokenNumber", value: appt.tokenNumber }],
+        status: appt.appointmentStatus,
+        description: appt.purposeOfVisit,
+        reasonCode: [{ text: appt.purposeOfVisit }],
+        serviceType: [{ text: appt.departmentName }],
+        start: `${appt.appointmentDate}T${appt.appointmentTime}`,
+        participant: [
+          { actor: { display: `Doctor: ${appt.doctorName}` }, status: "accepted" },
+          { actor: { display: `Owner: ${appt.ownerName}` }, status: "accepted" },
+          {
+            actor: {
+              display: `Pet: ${appt.petName} (${appt.pet}, ${appt.breed})`,
+            },
+            status: "accepted",
+          },
+        ],
+        supportingInformation: [{ display: appt.slotsId }],
+        extension: [
+          { url: "petImage", valueString: appt.petImage },
+          { url: "appointmentType", valueString: appt.appointmentType },
+        ],
+      },
+    })),
+    extension: [
+      {
+        url: "http://example.org/pagination",
+        extension: [
+          { url: "offset", valueInteger: normal.pagination.offset },
+          { url: "limit", valueInteger: normal.pagination.limit },
+          { url: "hasMore", valueBoolean: normal.pagination.hasMore },
+        ],
+      },
+    ],
+  };
+}
+
+export function fhirToNormalForTable(bundle: any): NormalResponseForTable {
+  const appointments: AppointmentForTable[] = (bundle.entry || []).map(
+    (entry: any) => {
+      const resource = entry.resource;
+      return {
+        _id: resource.id,
+        tokenNumber: resource.identifier?.[0]?.value || "",
+        petName:
+          resource.participant.find((p: any) =>
+            p.actor.display.startsWith("Pet:")
+          )?.actor.display.split(": ")[1].split(" (")[0] || "",
+        ownerName:
+          resource.participant.find((p: any) =>
+            p.actor.display.startsWith("Owner:")
+          )?.actor.display.replace("Owner: ", "") || "",
+        slotsId: resource.supportingInformation?.[0]?.display || "",
+        pet:
+          resource.participant
+            .find((p: any) => p.actor.display.startsWith("Pet:"))
+            ?.actor.display.split("(")[1]
+            ?.split(",")[0] || "",
+        breed:
+          resource.participant
+            .find((p: any) => p.actor.display.startsWith("Pet:"))
+            ?.actor.display.split(",")[1]
+            ?.replace(")", "")
+            .trim() || "",
+        petImage:
+          resource.extension?.find((e: any) => e.url === "petImage")
+            ?.valueString || "",
+        departmentName: resource.serviceType?.[0]?.text || "",
+        purposeOfVisit: resource.description || "",
+        appointmentType:
+          resource.extension?.find((e: any) => e.url === "appointmentType")
+            ?.valueString || "",
+        appointmentDate: resource.start.split("T")[0],
+        appointmentTime: resource.start.split("T")[1],
+        appointmentStatus: resource.status,
+        doctorName: resource.participant
+          .find((p: any) => p.actor.display.startsWith("Doctor:"))
+          ?.actor.display.replace("Doctor: ", ""),
+      };
+    }
+  );
+
+  const paginationExt =
+    bundle.extension?.find(
+      (e: any) => e.url === "http://example.org/pagination"
+    )?.extension || [];
+
+  return {
+    message: "Data fetched successfully",
+    totalAppointments: bundle.total || 0,
+    Appointments: appointments,
+    pagination: {
+      offset:
+        paginationExt.find((e: any) => e.url === "offset")?.valueInteger || 0,
+      limit:
+        paginationExt.find((e: any) => e.url === "limit")?.valueInteger || 0,
+      hasMore:
+        paginationExt.find((e: any) => e.url === "hasMore")?.valueBoolean ||
+        false,
+    },
   };
 }

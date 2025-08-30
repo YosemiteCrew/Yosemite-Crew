@@ -31,7 +31,7 @@ export const inventorySchema = z.object({
 export const validateInventoryData = (data: any): string | null => {
   const regexRules = {
     barCode: /^[0-9]{6,20}$/, // numeric, 6-20 digits
-    category: /^[A-Za-z\s]{2,50}$/, // letters & spaces only
+    category: /^[A-Za-z0-9\s]{2,100}$/, // alphanum
     itemName: /^[A-Za-z0-9\s]{2,100}$/, // alphanum + space
     genericName: /^[A-Za-z\s]{2,100}$/,
     department: /^[A-Za-z\s]{2,50}$/,

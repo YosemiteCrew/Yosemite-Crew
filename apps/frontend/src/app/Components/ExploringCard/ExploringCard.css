@@ -85,8 +85,8 @@
 /* Pulsating Play Button
 ------------------------------*/
 .pulsating-play-btn {
-  width: 94px;
-  height: 94px;
+  width: 74px;
+  height: 74px;
   background: radial-gradient(var(--whitebg) 50%, color-mix(in srgb, var(--whitebg), transparent 75%) 52%);
   border-radius: 50%;
   display: block;
@@ -97,8 +97,8 @@
 .pulsating-play-btn:before {
   content: "";
   position: absolute;
-  width: 120px;
-  height: 120px;
+  width: 100px;
+  height: 100px;
   animation-delay: 0s;
   animation: pulsate-play-btn 2s;
   animation-direction: forwards;

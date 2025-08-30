@@ -434,7 +434,7 @@ if(isVerified){
           <Row>
             <Col md={6}>
               <div className="BuildEveryone">
-                <div className="BuildText">
+                <div className="SignBuildText">
                   <h2>Built for Everyone, from Day One.</h2>
                 </div>
 
@@ -534,7 +534,18 @@ if(isVerified){
                   <div className="Sign_check">
                     <Form.Check
                       type="checkbox"
-                      label="I agree to Yosemite Crew’s Terms and Conditions and Privacy Policy"
+                      label={
+                        <>
+                          I agree to Yosemite Crew’s{" "}
+                          <Link className="policylink" href="/termsandconditions">
+                            Terms and Conditions
+                          </Link>{" "}
+                          and{" "}
+                          <Link className="policylink" href="/privacypolicy">
+                            Privacy Policy
+                          </Link>
+                        </>
+                      }
                       onChange={(e) => setIagree(e.target.checked)}
                     />
 

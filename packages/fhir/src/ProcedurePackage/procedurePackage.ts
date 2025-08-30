@@ -1,4 +1,4 @@
-import type {ProcedureFHIRBundle,ProcedurePackage,PackageItem, FHIRPackageItem, NormalPackageItem, NormalMedicalPackage, FHIRMedicalPackage} from "@yosemite-crew/types"
+import type { ProcedureFHIRBundle, ProcedurePackage, PackageItem, FHIRPackageItem, NormalPackageItem, NormalMedicalPackage, FHIRMedicalPackage, ProcedurePackageJSON, FHIRProcedurePackage } from "@yosemite-crew/types"
 
 
 export function convertProcedurePackagesToFHIRBundle(apiResponse: {
@@ -58,7 +58,7 @@ export function createFHIRProcedurePackage(pkg: ProcedurePackage): any {
     description: pkg.description,
     subject: {
       identifier: {
-        value: pkg.bussinessId,
+        value: pkg.businessId,
       },
     },
     created: pkg.createdAt,
@@ -77,7 +77,7 @@ export function createFHIRProcedurePackage(pkg: ProcedurePackage): any {
     ],
     activity: pkg.packageItems.map((item) => ({
       reference: {
-        reference: `SupplyDelivery/${item._id}`,
+        reference: `SupplyDelivery/${item.id}`,
         display: item.name,
       },
     })),
@@ -88,8 +88,8 @@ export function createFHIRProcedurePackage(pkg: ProcedurePackage): any {
 export function createFHIRProcedurePackageItem(item: PackageItem): any {
   return {
     resourceType: "SupplyDelivery",
-    id: item._id,
-    identifier: [{ use: "official", value: item._id }],
+    id: item.id,
+    identifier: [{ use: "official", value: item.id }],
     suppliedItem: {
       quantity: {
         value: item.quantity,
@@ -110,11 +110,11 @@ export function createFHIRProcedurePackageItem(item: PackageItem): any {
       },
       ...(item.notes
         ? [
-            {
-              url: "http://example.org/fhir/StructureDefinition/notes",
-              valueString: item.notes,
-            },
-          ]
+          {
+            url: "http://example.org/fhir/StructureDefinition/notes",
+            valueString: item.notes,
+          },
+        ]
         : []),
     ],
   };
@@ -129,26 +129,26 @@ export function createFHIRProcedurePackageItem(item: PackageItem): any {
 
 
 export function convertFHIRItemToNormal(fhirItem: FHIRPackageItem): NormalPackageItem {
-    const code = fhirItem.medicationCodeableConcept?.coding?.[0]?.code || "";
+  const code = fhirItem.medicationCodeableConcept?.coding?.[0]?.code || "";
 
-    return {
-        id: code,
-        name: code,
-        itemType: fhirItem.itemType || "", // Default to empty string if itemType is undefined
-        quantity: fhirItem.quantity?.value || 0, // Default to 0 if quantity is undefined
-        unitPrice: fhirItem.unitPrice || 0, // Default to 0 if unitPrice is undefined
-        subtotal: fhirItem.subtotal || 0, // Default to 0 if subtotal is undefined
-        notes: fhirItem.notes || "", // Default to empty string if notes is undefined
-    };
+  return {
+    id: code,
+    name: code,
+    itemType: fhirItem.itemType || "", // Default to empty string if itemType is undefined
+    quantity: fhirItem.quantity?.value || 0, // Default to 0 if quantity is undefined
+    unitPrice: fhirItem.unitPrice || 0, // Default to 0 if unitPrice is undefined
+    subtotal: fhirItem.subtotal || 0, // Default to 0 if subtotal is undefined
+    notes: fhirItem.notes || "", // Default to empty string if notes is undefined
+  };
 }
 
 export function convertFHIRPackageToNormal(fhirData: FHIRMedicalPackage): NormalMedicalPackage {
-    return {
-        packageName: fhirData.id || "", // Default to empty string if id is undefined
-        category: fhirData.category?.coding?.[0]?.code || "", // Default to empty string if category is undefined
-        description: fhirData.description || "", // Default to empty string if description is undefined
-        packageItems: Array.isArray(fhirData.item) ? fhirData.item.map(convertFHIRItemToNormal) : [], // Default to empty array if item is not an array
-    };
+  return {
+    packageName: fhirData.id || "", // Default to empty string if id is undefined
+    category: fhirData.category?.coding?.[0]?.code || "", // Default to empty string if category is undefined
+    description: fhirData.description || "", // Default to empty string if description is undefined
+    packageItems: Array.isArray(fhirData.item) ? fhirData.item.map(convertFHIRItemToNormal) : [], // Default to empty array if item is not an array
+  };
 }
 export function convertFhirToNormalToUpdateProcedurePackage(
   fhirData: FHIRMedicalPackage
@@ -207,3 +207,73 @@ export function convertFhirToNormalToUpdateProcedurePackage(
   };
 }
 
+export function convertProcedurePackagesToFHIR(
+  packages: ProcedurePackageJSON[]
+): FHIRProcedurePackage[] {
+  return packages.map((pkg) => ({
+    resourceType: "PlanDefinition",
+    id: pkg._id?.$oid,
+    identifier: [
+      {
+        system: "http://example.org/businessId",
+        value: pkg.businessId,
+      },
+    ],
+    title: pkg.packageName,
+    type: {
+      coding: [
+        {
+          system: "http://example.org/package-category",
+          code: pkg.category,
+          display: pkg.category,
+        },
+      ],
+    },
+    description: pkg.description,
+    creatorName: pkg.creatorName,
+    action: pkg.packageItems.map((item) => ({
+
+      id: item.id || 0,
+      name: item.name || "",
+      itemType: item.itemType || "",
+      quantity: item.quantity || "",
+      unitPrice: item.unitPrice ?? 0,
+      subtotal: item.subtotal ?? 0,
+      notes: item.notes || "",
+      tax: item.tax || 0,
+      discount: item.discount || 0,
+    })),
+    updatedAt: pkg.updatedAt,
+    createdAt: pkg.createdAt,
+  }));
+}
+
+
+export function convertProcedurePackagesFromFHIR(
+  fhirPackages: FHIRProcedurePackage[]
+): ProcedurePackageJSON[] {
+  return fhirPackages.map((fhir) => ({
+    _id: { $oid: fhir.id || "" },
+    businessId:
+      fhir.identifier?.find((id) => id.system === "http://example.org/businessId")
+        ?.value || "",
+    packageName: fhir.title || "",
+    category: fhir.type?.coding?.[0]?.code || "",
+    description: fhir.description || "",
+    creatorName: fhir.creatorName || "",
+    packageItems: (fhir.action || []).map((act: any) => ({
+      id: act.id || 0,
+      name: act.name || "",
+      itemType: act.itemType || "",
+      quantity: act.quantity || "",
+      unitPrice: typeof act.unitPrice === "number" ? act.unitPrice : undefined,
+      subtotal: typeof act.subtotal === "number" ? act.subtotal : undefined,
+      notes: act.notes || "",
+      tax: act.tax || 0,
+      discount: act.discount || 0,
+    })),
+    createdAt: fhir.createdAt || "",
+    updatedAt: fhir.updatedAt || "",
+    __v: 0,
+  }));
+}

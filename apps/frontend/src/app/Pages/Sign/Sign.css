@@ -9,7 +9,7 @@
     align-items: center;
     justify-content: center;
     position: relative;
-    padding: 150px 0px 100px 0px;
+    padding: 100px 0px 100px 0px;
 }
 
 .BuildEveryone{
@@ -18,8 +18,9 @@
     display: flex;
     flex-direction: column;
     gap: 40px;
+    padding-top: 80px;
 }
-.BuildEveryone .BuildText h2{
+.BuildEveryone .SignBuildText h2{
     font-family: var(--grotesk-font);
     color: var(--black-text);
     font-weight: 500;
@@ -177,7 +178,7 @@
 .SignUpFormDiv form .Sign_check{
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 16px;
 }
 .SignUpFormDiv form .Sign_check .form-check{
     display: flex;
@@ -189,6 +190,10 @@
     font-weight: 700;
     font-size: 18px;
     font-weight: 120%;
+    color: var(--black-text);
+}
+.SignUpFormDiv form .Sign_check .form-check label .policylink{
+    color: var(--blue-text);
 }
 
 .Signbtn{
