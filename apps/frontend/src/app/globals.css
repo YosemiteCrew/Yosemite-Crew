@@ -212,13 +212,13 @@ input[type=checkbox] {
   -webkit-appearance: none;
   appearance: none;
   border-radius: 5px;
-  border: 1.2px solid var(--black-text) !important;
+  border: 1px solid var(--blue-text) !important;
   background-color: transparent;
   cursor: pointer;
   position: relative;
 }
 input[type=checkbox]:checked {
-  background-color: var(--black-text);
+  background-color: var(--blue-text);
 }
 input[type=checkbox]:checked::after {
   content: '';
@@ -227,7 +227,7 @@ input[type=checkbox]:checked::after {
   top: 45%;
   width: 5px;
   height: 10px;
-  /* border: solid var(--whitebg); */
+  border: solid var(--whitebg);
   border-width: 0 3px 3px 0;
   transform: translate(-50%, -50%) rotate(45deg);
 }

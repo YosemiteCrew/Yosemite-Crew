@@ -51,11 +51,11 @@ console.log(blogs,"Filters")
           <div className="TopBlogDetail">
             <div className="PawnDiv">
               <h2>Paws & Insights</h2>
-              <MBTN
+              {/* <MBTN
                 BICON={<GoCheckCircleFill />}
                 BNAME="Add Blog"
                 BtHerf="CreateBlog"
-              />
+              /> */}
             </div>
 
             {/* ---- Featured Blogs ---- */}

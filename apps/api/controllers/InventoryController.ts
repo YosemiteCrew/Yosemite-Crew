@@ -15,6 +15,7 @@ import AddDoctors from "../models/AddDoctor";
 
 
 interface QueryParams {
+  businessId?: string;
   searchItem?: string;
   skip?: string;
   limit?: string;
@@ -24,7 +25,6 @@ interface QueryParams {
   itemId?: string;
   id?: string;
   hospitalId?: string;
-  bussinessId: string;
 }
 
 interface FHIRResponse {
@@ -108,7 +108,7 @@ const InventoryControllers = {
       const sortBy = "expiryDate";
       const sortOrder = 1;
 
-      const matchStage: Record<string, unknown> = { };
+      const matchStage: Record<string, unknown> = {};
       const searchConditions: Record<string, unknown>[] = [];
 
       // 🔍 Handle search filters
@@ -139,6 +139,9 @@ const InventoryControllers = {
         } catch (err) {
           console.error("Invalid category ObjectId:", searchCategory);
         }
+      } else {
+        res.status(400).json({ message: "Category is required" });
+        return;
       }
 
       // 🔍 Expiry date filter
@@ -210,14 +213,14 @@ const InventoryControllers = {
       // console.log(fhirData, "fhirdata");
 
       // ✅ Convert FHIR back to normal inventory (if needed)
-      const inventoryData = convertFhirBundleToInventory(fhirData);
+      // const inventoryData = convertFhirBundleToInventory(fhirData);
 
       res.status(200).json({
         success: true,
         totalItems: inventory[0]?.totalItems || 0,
         totalPages: inventory[0]?.totalPages || 0,
         fhirData,
-        inventoryData,
+        // inventoryData,
       });
     } catch (error) {
       console.error("Error fetching inventory:", error);
@@ -227,14 +230,14 @@ const InventoryControllers = {
 
 
   AddProcedurePackage: async (
-    req: { query: QueryParams; body: any },
+    req: Request,
     res: Response
   ): Promise<void> => {
     try {
-      const { bussinessId } = req.query;
-
+      const { businessId } = req.body;
+      console.log(businessId, "bussinessId")
       // 1. Validate businessId (adjust regex depending on your actual format)
-      if (typeof bussinessId !== "string" || bussinessId.trim() === "") {
+      if (typeof businessId !== "string" || businessId.trim() === "") {
         res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
@@ -253,7 +256,7 @@ const InventoryControllers = {
 
       // 3. Save to Mongo
       const procedurePackage = new ProcedurePackage({
-        bussinessId,
+        businessId,
         packageName,
         category,
         description,
@@ -511,9 +514,26 @@ const InventoryControllers = {
       res.status(400).json({ message: error.message });
     }
   },
-  getAllProcedurePackage: async (req: Request, res: Response): Promise<void> => {
+  getAllProcedurePackage: async (req: Request , res: Response) => {
     try {
-      const getItems = await ProcedurePackage.find();
+      const { businessId } = req.query;
+console.log(businessId,"businessId in getAllProcedurePackage")
+      if (!businessId || typeof businessId !== "string") {
+        res.status(400).json({
+          resourceType: "OperationOutcome",
+          issue: [
+            {
+              severity: "error",
+              code: "invalid",
+              details: { text: "businessId is required and must be a string" },
+            },
+          ],
+        });
+        return;
+      }
+
+      // Fetch only by businessId
+      const getItems = await ProcedurePackage.find({ businessId: businessId });
 
       if (!getItems || getItems.length === 0) {
         res.status(404).json({
@@ -522,7 +542,7 @@ const InventoryControllers = {
             {
               severity: "information",
               code: "not-found",
-              details: { text: `No packages found for category` },
+              details: { text: `No packages found for businessId: ${businessId}` },
             },
           ],
         });
@@ -535,8 +555,7 @@ const InventoryControllers = {
           let creatorName = "";
 
           if (pkg.creatorRole === "vet") {
-            // Find doctor by businessId
-            const doctor = await AddDoctors.findOne({ businessId: pkg.bussinessId }).select("name");
+            const doctor = await AddDoctors.findOne({ businessId: pkg.bussinessId }).select("firstName");
             creatorName = doctor ? doctor.firstName : "Unknown Vet";
           } else if (pkg.creatorRole === "veterinaryBusiness") {
             creatorName = "Veterinary Business";
@@ -548,11 +567,11 @@ const InventoryControllers = {
           };
         })
       );
+
       // convert to FHIR format
       const data = convertProcedurePackagesToFHIR(enrichedItems);
 
       res.status(200).json({ data });
-      return;
     } catch (error) {
       console.error(error);
       res.status(500).json({
@@ -561,15 +580,13 @@ const InventoryControllers = {
           {
             severity: "error",
             code: "exception",
-            details: {
-              text: "An internal server error occurred.",
-            },
-          }
+            details: { text: "An internal server error occurred." },
+          },
         ],
       });
-      return;
     }
   },
+
   GetProcedurePackageByid: async (req: { query: QueryParams }, res: Response) => {
     try {
       const { userId, id } = req.query;
@@ -955,6 +972,26 @@ const InventoryControllers = {
     } catch (error: any) {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       res.status(400).json({ message: error.message });
+    }
+  },
+
+  getInventoryDataForProcedureItems: async (
+    req: Request,
+    res: Response
+  ): Promise<void> => {
+    try {
+      const invemtoryItems = await Inventory.find().lean().exec();
+      const fhirData = convertToFHIRInventory(invemtoryItems);
+      // const inventoryData = convertFhirBundleToInventory(fhirData);
+
+      res.status(200).json({
+        success: true,
+        fhirData,
+        // inventoryData,
+      });
+    } catch (error) {
+      console.error("Error fetching inventory:", error);
+      res.status(500).json({ message: "Server error", error });
     }
   },
 };

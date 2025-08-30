@@ -405,8 +405,9 @@
 .ReadyBuildData{
     display: grid;
     grid-template-columns: 1fr 1fr;
-    background: #FEF8F4;
+    background: var(--whitebg);
     box-shadow: 0px 0px 18px -5px #5541341F;
+    border: 1px solid var(--lightgrey);
     border-radius: 38px;
     width: 100%;
     max-width: 1064px;
@@ -417,7 +418,7 @@
 .ReadyBuildData::after{
     content: " ";
     position: absolute;
-    background: var(--background-lftbuildafter)no-repeat;
+    background: url(/Images/leftbuild.png)no-repeat;
     background-size: 100% 100%;
     width: 386px;
     left: -190px;
@@ -428,7 +429,7 @@
 .ReadyBuildData::before{
     content: " ";
     position: absolute;
-    background: var(--background-rgtbuildafter)no-repeat;
+    background: url(/Images/rightbuild.png)no-repeat;
     background-size: 100% 100%;
     width: 386px;
     right: -190px;
@@ -438,7 +439,7 @@
 }
 .leftBuild{
     border-radius: 38px 0px 0px 38px;
-    background: #FEF8F4;
+    background: var(--whitebg);
 }
 .leftBuilinner{
     display: flex;
@@ -451,19 +452,21 @@
     gap: 28px;
 }
 .leftBuild h4{
-    font-size: 36px;
+    margin: 0;
+    font-size: 48px;
     font-weight: 500;
-    line-height: 38.6px;
-    letter-spacing: -0.02em;
+    line-height: 120%;
     font-family: var(--grotesk-font);
-    color: var(--chilli-red);
+    color: var(--black-text);
 }
 .leftBuild p{
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 400;
-    line-height: 21.6px;
-    letter-spacing: -0.02em;
+    line-height: 120%;
     color: var(--black-text);
+    font-family: var(--satoshi-font);
+    margin: 0;
+    max-width: 422px;
 }
 .RytBuild {
     border-radius: 0px 38px 38px 0px;

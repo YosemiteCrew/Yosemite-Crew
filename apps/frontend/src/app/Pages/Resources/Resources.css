@@ -15,7 +15,6 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    max-width: 587px;
 }
 .ResourcesData .ResourcesHead .ResourceTexed span{
     margin: 0;

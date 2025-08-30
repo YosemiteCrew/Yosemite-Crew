@@ -40,10 +40,12 @@ router.get('/getDepartmentAllData',verifyToken,AddDepartmentController.getDepart
 
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Google Map>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 router.get('/getDepartmentsList',WebController.getDepartmentsList); 
+router.get('/getDepartmentsOfBusiness',WebController.getDepartmentsOfBusiness); 
 
 //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Profile >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 router.get('/getProfileDetail',verifyTokenAndRefresh, authController.getProfileDetail)
 router.put('/updateProfileDetail', verifyTokenAndRefresh, authController.updateProfileDetail)
 router.post('/deleteAccountWithToken',verifyTokenAndRefresh, authController.deleteUserAccountUsingToken)
 router.post('/app-refreshToken', authController.refreshToken)
+router.post('/withdrawRequestForm',verifyTokenAndRefresh, authController.withdrawRequestForm)
 export default router;

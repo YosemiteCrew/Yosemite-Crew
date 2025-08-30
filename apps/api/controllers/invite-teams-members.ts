@@ -7,7 +7,7 @@ import { DepartmentsForInvite, DoctorType, invitedTeamMembersInterface, InviteIt
 import crypto from "crypto";
 import { ProfileData, WebUser } from "../models/WebUser";
 import AddDoctors from "../models/AddDoctor";
-import { convertToFhirDepartment, convertToFhirTeamMembers, toFHIRInviteList, toFhirTeamOverview } from "@yosemite-crew/fhir";
+import { convertToFhirDepartment, convertToFhirTeamMembers, PractitionerDatatoFHIR, toFHIRInviteList, toFhirTeamOverview } from "@yosemite-crew/fhir";
 import adminDepartments from "../models/admin-department";
 import mongoose from "mongoose";
 const region = process.env.AWS_REGION || "eu-central-1";
@@ -838,8 +838,215 @@ export const inviteTeamsMembersController = {
             res.status(500).json({ message: "Internal Server Error" });
             return
         }
+    },
+   getPractitioners: async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { userId, departmentId, role } = req.query as {
+      departmentId: string;
+      userId: string;
+      role?: string;
+    };
+
+    // ✅ Validate departmentId
+    if (!mongoose.Types.ObjectId.isValid(departmentId)) {
+      res.status(400).json({ message: "Invalid departmentId format" });
+      return;
     }
 
+    // ✅ Validate userId (Cognito ID format)
+    if (typeof userId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(userId)) {
+      res.status(400).json({ message: "Invalid userId format" });
+      return;
+    }
+
+    // ✅ Role filter
+    let roleFilter:unknown = { $in: ["vet", "nurse", "vetTechnician", "vetAssistant","receptionist"] };
+    if (role) {
+      const validRoles = ["vet",  "nurse", "vetTechnician", "vetAssistant","receptionist"];
+      if (!validRoles.includes(role)) {
+        res.status(400).json({ message: `Invalid role. Valid roles are: ${validRoles.join(", ")}` });
+        return;
+      }
+      roleFilter = role;
+    }
+
+    // ✅ Aggregation pipeline
+    const practitioners = await WebUser.aggregate([
+      {
+        $match: {
+          bussinessId: userId,
+          department:departmentId,
+          role: roleFilter as string | string[],
+        },
+      },
+      {
+        $lookup: {
+          from: "adddoctors",
+          localField: "cognitoId",
+          foreignField: "userId",
+          as: "doctor",
+        },
+      },
+      { $unwind: { path: "$doctor", preserveNullAndEmptyArrays: false } },
+      {
+        $addFields: { 
+          department: { 
+            $cond: [
+              { $eq: [{ $type: "$department" }, "string"] },
+              { $toObjectId: "$department" },
+              "$department"
+            ]
+          } 
+        }
+      },
+      {
+        $lookup: {
+          from: "admindepartments",
+          localField: "department",
+          foreignField: "_id",
+          as: "departmentInfo",
+        },
+      },
+      { $unwind: { path: "$departmentInfo", preserveNullAndEmptyArrays: true } },
+      {
+        $addFields: {
+          fullName: { 
+            $cond: [
+              { $and: ["$doctor.firstName", "$doctor.lastName"] },
+              { $concat: ["$doctor.firstName", " ", "$doctor.lastName"] },
+              "Unknown Name"
+            ]
+          },
+          // Calculate working hours within the aggregation
+          weekWorkingHours: {
+            $reduce: {
+              input: "$doctor.availability",
+              initialValue: 0,
+              in: {
+                $add: [
+                  "$$value",
+                  {
+                    $reduce: {
+                      input: "$$this.times",
+                      initialValue: 0,
+                      in: {
+                        $add: [
+                          "$$value",
+                          {
+                            $cond: [
+                              {
+                                $and: [
+                                  "$$this.from",
+                                  "$$this.to",
+                                  { $isNumber: { $toInt: "$$this.from.hour" } },
+                                  { $isNumber: { $toInt: "$$this.to.hour" } }
+                                ]
+                              },
+                              {
+                                $let: {
+                                  vars: {
+                                    fromHour: {
+                                      $add: [
+                                        { $toInt: "$$this.from.hour" },
+                                        {
+                                          $cond: [
+                                            {
+                                              $and: [
+                                                { $eq: ["$$this.from.period", "PM"] },
+                                                { $ne: ["$$this.from.hour", "12"] }
+                                              ]
+                                            },
+                                            12,
+                                            0
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    toHour: {
+                                      $add: [
+                                        { $toInt: "$$this.to.hour" },
+                                        {
+                                          $cond: [
+                                            {
+                                              $and: [
+                                                { $eq: ["$$this.to.period", "PM"] },
+                                                { $ne: ["$$this.to.hour", "12"] }
+                                              ]
+                                            },
+                                            12,
+                                            0
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    fromMinute: { $toInt: "$$this.from.minute" },
+                                    toMinute: { $toInt: "$$this.to.minute" }
+                                  },
+                                  in: {
+                                    $max: [
+                                      0,
+                                      {
+                                        $add: [
+                                          { $subtract: ["$$toHour", "$$fromHour"] },
+                                          { $divide: [{ $subtract: ["$$toMinute", "$$fromMinute"] }, 60] }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              0
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+      },
+      {
+        $project: {
+            _id: 0,
+            cognitoId: "$cognitoId",
+          name: "$fullName",
+          departmentName: { $ifNull: ["$departmentInfo.name", "Unknown Department"] },
+          image: {
+            $cond: [
+              { $and: ["$doctor.image", { $ne: ["$doctor.image", ""] }] },
+              { $concat: [process.env.CLOUD_FRONT_URI || "", "/", "$doctor.image"] },
+              null,
+            ],
+          },
+          status: { $ifNull: ["$doctor.status", "Off-Duty"] },
+          weekWorkingHours: { $round: ["$weekWorkingHours", 0] },
+          specialization: "$doctor.specialization",
+          yearsOfExperience: "$doctor.yearsOfExperience",
+          email: "$doctor.email",
+          mobileNumber: "$doctor.mobileNumber"
+        },
+      },
+    ]);
+
+    if (practitioners.length === 0) {
+      res.status(404).json({ message: "No practitioners found for the specified department and role filter." });
+      return;
+    }
+// eslint-disable-next-line @typescript-eslint/no-unsafe-call
+const data:unknown  = PractitionerDatatoFHIR(practitioners)
+    res.status(200).json({
+      message: "Practitioners fetched successfully",
+      data: data as object,
+    });
+
+  } catch (error) {
+    console.error("Error fetching practitioners:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+},
 }
 function getSecretHash(email: string,) {
     const clientId = process.env.COGNITO_CLIENT_ID_WEB;

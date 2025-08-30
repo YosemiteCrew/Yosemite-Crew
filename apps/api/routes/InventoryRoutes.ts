@@ -20,5 +20,6 @@ router.delete(
 router.delete('/ProcedurePackage/:id',verifyTokenAndRefresh, InventoryControllers.deleteProcedurePackage);
 // router.get('/getApproachngExpiryGraphs',verifyTokenAndRefresh,InventoryControllers.getApproachngExpiryGraphs)
 router.get('/InventoryReports',verifyTokenAndRefresh,InventoryControllers.inventoryOverView)
-router.post('/getAllProcedurePackage',verifyToken, InventoryControllers.getAllProcedurePackage);
+router.get('/getAllProcedurePackage',verifyToken, InventoryControllers.getAllProcedurePackage);
+router.get('/getInventoryDataForProcedureItems',verifyToken,InventoryControllers.getInventoryDataForProcedureItems)
 export default router;
