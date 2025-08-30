@@ -21,7 +21,7 @@ export { BusinessFhirFormatter } from "./business-fhir/business-formatter-fhir";
 export { generateFHIRBlogResponse,convertFHIRBlogToNormal, convertFHIRBlogsToNormal} from "./blog-fhir/blog";
 export { convertGraphDataToFHIR, convertFHIRToGraphData, convertSpecialityWiseAppointmentsToFHIR, FHIRtoJSONSpeacilityStats, convertAppointmentStatsFromFHIR, convertAppointmentStatsToFHIR } from "./hospital-fhir/hospitalfhir";
 export { convertDepartmentFromFHIR, convertToFHIRDepartment, convertDepartmentsFromFHIR, convertDepartmentsToFHIR } from "./addSpecialities/specialities-fhir";
-export { fromFHIRInviteItem, fromFHIRInviteList, toFHIRInviteItem, toFHIRInviteList, fromFhirTeamOverview, toFhirTeamOverview, convertFromFhirTeamMembers, convertToFhirTeamMembers, convertFromFhirDepartment, convertToFhirDepartment } from './invites-teams/invites-teams'
+export { fromFHIRInviteItem, fromFHIRInviteList, toFHIRInviteItem, toFHIRInviteList, fromFhirTeamOverview, toFhirTeamOverview, convertFromFhirTeamMembers, convertToFhirTeamMembers, convertFromFhirDepartment, convertToFhirDepartment,PractitionerDatafromFHIR,PractitionerDatatoFHIR } from './invites-teams/invites-teams'
 export { convertFromFhirSlotBundle, convertToFhirSlotResource, convertFromFhirSlots, convertToFhirSlotResources } from "./doctor-slots/doctor-slots"
 export { toFhirOrganizationBreeder } from "./details/breeder-fhir";
 export { toFhirOrganizationGroomer } from "./details/groomer-fhir";

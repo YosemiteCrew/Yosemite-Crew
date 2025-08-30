@@ -1,4 +1,4 @@
-import { DepartmentsForInvite, FhirTeamOverview, InviteItem, TeamMember, TeamOverview } from "@yosemite-crew/types";
+import { DepartmentsForInvite, FhirTeamOverview, InviteItem, PractitionerData, TeamMember, TeamOverview } from "@yosemite-crew/types";
 
 export function toFHIRInviteItem(invite: InviteItem): any {
   return {
@@ -366,5 +366,60 @@ export function convertFromFhirDepartment(fhirBundle: any): DepartmentsForInvite
 }
 
 
+// fhirConverter.ts
+
+
+export const PractitionerDatatoFHIR = (data: PractitionerData[]) => {
+  return {
+    resourceType: "Bundle",
+    type: "collection",
+    entry: data.map((doc) => ({
+      resource: {
+        resourceType: "Practitioner",
+        id: doc.cognitoId,
+        name: [{ text: doc.name }],
+        telecom: [
+          { system: "email", value: doc.email },
+          { system: "phone", value: doc.mobileNumber }
+        ],
+        extension: [
+          { url: "departmentName", valueString: doc.departmentName },
+          { url: "status", valueString: doc.status },
+          { url: "weekWorkingHours", valueInteger: doc.weekWorkingHours },
+          { url: "specialization", valueString: doc.specialization },
+          { url: "yearsOfExperience", valueInteger: doc.yearsOfExperience },
+          { url: "image", valueUrl: doc.image }
+        ]
+      }
+    }))
+  };
+};
+
+export const PractitionerDatafromFHIR = (bundle: any): PractitionerData[] => {
+  if (!bundle.entry) return [];
+
+  return bundle.entry.map((entry: any) => {
+    const resource = entry.resource;
+    const extensions = resource.extension || [];
+
+    const getExt = (url: string) => {
+      const found = extensions.find((ext: any) => ext.url === url);
+      return found?.valueString ?? found?.valueInteger ?? found?.valueUrl ?? null;
+    };
+
+    return {
+      cognitoId: resource.id,
+      name: resource.name?.[0]?.text || "",
+      email: resource.telecom?.find((t: any) => t.system === "email")?.value || "",
+      mobileNumber: resource.telecom?.find((t: any) => t.system === "phone")?.value || "",
+      departmentName: getExt("departmentName") || "",
+      status: getExt("status") || "",
+      weekWorkingHours: getExt("weekWorkingHours") || 0,
+      specialization: getExt("specialization") || "",
+      yearsOfExperience: getExt("yearsOfExperience") || 0,
+      image: getExt("image") || ""
+    };
+  });
+};
 
 

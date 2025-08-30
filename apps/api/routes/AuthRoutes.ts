@@ -40,6 +40,7 @@ router.get('/getDepartmentAllData',verifyToken,AddDepartmentController.getDepart
 
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Google Map>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 router.get('/getDepartmentsList',WebController.getDepartmentsList); 
+router.get('/getDepartmentsOfBusiness',WebController.getDepartmentsOfBusiness); 
 
 //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Profile >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 router.get('/getProfileDetail',verifyTokenAndRefresh, authController.getProfileDetail)

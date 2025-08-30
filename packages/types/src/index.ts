@@ -57,7 +57,7 @@ export type { IVetClinic } from "./models/vet-clinic";
 export type { PetGroomer } from "./models/pet-groomer";
 export type { PetBoarding } from "./models/pet-boarding";
 export type {ConvertToFhirVetProfileParams,OperatingHourType,VetNameType,FhirPractitionerPersonalDetails,PersonalDetails ,FhirPractitionerProfessional,ProfessionalDetails,RelatedDoctorData,RelatedFhirPractitioner} from './complete-vet-profile/complete-vet-profile'
-export type {TeamInviteMember,InvitePayload,InviteCard,InviteItem,FhirTeamOverview,TeamOverview,DoctorType,WebUserType,AvailabilityDay,AvailabilityTime,DocumentItem,TeamMember,DepartmentsForInvite} from "./InviteTeamsMembers/invite-teams-members"
+export type {TeamInviteMember,InvitePayload,InviteCard,InviteItem,FhirTeamOverview,TeamOverview,DoctorType,WebUserType,AvailabilityDay,AvailabilityTime,DocumentItem,TeamMember,DepartmentsForInvite,PractitionerData} from "./InviteTeamsMembers/invite-teams-members"
 export type { IBookAppointmentRequestBody , IParsedAppointmentDetails, IAppointmentData , IFHIRAppointmentData ,AppointmentInput, FHIRAppointmentBundleParams,SimplifiedAppointment,FHIRAppointment,FHIRPractitioner,NormalDoctor,FHIREmergencyAppointment,NormalEmergencyAppointment,FHIREmergencyAppointmentForTable,NormalEmergencyAppointmentForTable} from "./appointment/appointment-types";
 export type { Department , Organization } from "./business-formatter-types/business-formatter-types";
 export type {FHIRAppointmentAssessmentGraphBundle,QueryParams,AggregatedAppointmentGraph,DataItem,FHIRBundleGraph,FHIRBundleGraphForSpecialitywiseAppointments,FHIRtoJSONSpeacilityStats} from "./hospital-type/hospitalTypes";
