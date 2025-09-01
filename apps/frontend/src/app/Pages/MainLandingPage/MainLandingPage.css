@@ -13,6 +13,11 @@
    max-width: 487px;
    padding-top: 150px;
 }
+.RedefiningSection .RederfiningData .leftRederfine .RederfineTextInner {
+   display: flex;
+   flex-direction: column;
+   gap: 12px;
+}
 .RedefiningSection .RederfiningData .leftRederfine .RederfineTextInner h2{
    font-weight: 500;
    font-size: 57px;
