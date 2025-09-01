@@ -56,8 +56,8 @@ function MainLandingPage() {
 
           <div className="leftRederfine">
             <div className="RederfineTextInner">
-              <h2>Redefining <br /> Veterinary Care</h2>
-              <p>Manage everything from appointments to animal records, streamline operations, and improve pet health outcomes—all in one open-source platform designed for veterinarians, pet owners, and developers.</p>
+              <h2>Open Source Operating System for Animal Health</h2>
+              <p>An open-source platform to manage appointments, medical records, and clinic operations with ease. Designed for veterinarians, pet owners, and developers to collaborate in improving animal care. Streamline workflows while enhancing health outcomes, all in one unified system</p>
             </div>
             <div className="RederfineInnerBtn">
               <FillBtn icon={<Icon icon="solar:clock-circle-bold" width="24" height="24" />} text=" Book a Demo" href="/bookDemo" />
