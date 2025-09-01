@@ -70,11 +70,14 @@
     margin: 0;
 }
 .PrivacyPolicySec .PrivacyPolicyData .PolicyItems :is(p span.warningtext , .policyul p span.warningtext , .policyul li  span.warningtext , p span.warningtext a  )  {
-    color: var(--pendingtext) ;
+    color: var(--black-text);
+}
+.PrivacyPolicySec .PrivacyPolicyData .PolicyItems :is( p span.warningtext a  ):hover  {
+    color: var(--blue-text);
 }
 .PrivacyPolicySec .PrivacyPolicyData .PolicyItems :is( p span.spanlink , p a) {
     text-decoration: underline !important;
 }
-.PrivacyPolicySec .PrivacyPolicyData .PolicyItems p a:hover{
+.PrivacyPolicySec .PrivacyPolicyData .PolicyItems p a:hover {
     color: var(--blue-text);
 }

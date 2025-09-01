@@ -20,6 +20,19 @@ function PricingPage() {
     const [seats, setSeats] = useState(2);
     const planConfig = getPlanConfig({ appointments, setAppointments, assessments, setAssessments, seats, setSeats });
     const currentPlan = planConfig[plan];
+
+// Add this useEffect to set initial progress values
+React.useEffect(() => {
+    const sliders = document.querySelectorAll('.styled-range');
+    sliders.forEach((el) => {
+        const input = el as HTMLInputElement;
+        const min = Number(input.min) || 0;
+        const max = Number(input.max) || 100;
+        const value = Number(input.value) || 0;
+        const pct = ((value - min) / (max - min)) * 100;
+        input.style.setProperty('--progress', `${pct}%`);
+    });
+}, [plan, appointments, assessments, seats]);
 // Pricing Calculator Ended 
 
   return (
@@ -154,7 +167,18 @@ function PricingPage() {
                                         <span>{item.value}</span>
                                     </div>
                                     {/* <Form.Range className="styled-range" min={item.min} max={item.max} value={item.value} onChange={(e) => item.setter(Number(e.target.value))} /> */}
-                                    <Form.Range min={item.min} max={item.max} value={item.value}onChange={(e) => {const newValue = Number(e.target.value); item.setter(newValue);const percentage = ((newValue - item.min) / (item.max - item.min)) * 100;e.target.style.setProperty("--progress", `${percentage}%`); }}  className="styled-range"/>
+                                    <Form.Range 
+                                        min={item.min} 
+                                        max={item.max} 
+                                        value={item.value}
+                                        onChange={(e) => {
+                                            const newValue = Number(e.target.value);
+                                            item.setter(newValue);
+                                            const percentage = ((newValue - item.min) / (item.max - item.min)) * 100;
+                                            e.target.style.setProperty("--progress", `${percentage}%`);
+                                        }}  
+                                        className="styled-range"
+                                    />
                                 </div>
                             ))}
                         </div>
