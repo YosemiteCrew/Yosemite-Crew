@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 import React, { useEffect, useState } from "react";
 import "./Cookies.css";
 import { IoIosCloseCircle, IoIosCheckmarkCircle } from "react-icons/io";
