@@ -26,7 +26,7 @@ function useErrorTost() {
       errortext,
       iconElement,
       className = "",
-      // duration = 2000
+      duration = 2000
     }: {
       message: string;
       errortext: string;
@@ -36,7 +36,7 @@ function useErrorTost() {
     }
   ) => {
     setErrorTost({ show: true, message, errortext, iconElement, className });
-    // setTimeout(() => setErrorTost({ show: false }), duration);
+    setTimeout(() => setErrorTost({ show: false }), duration);
   };
 
   const ErrorTostPopup = errorTost.show ? (
@@ -297,6 +297,7 @@ if(isVerified){
                   />
                   
                   <FormInputPass
+                    inPlaceHolder='Enter your password'
                     intype="password"
                     inname="password"
                     value={password}
@@ -370,8 +371,8 @@ if(isVerified){
                 <Form>
                   <div className="TopSignInner">
                     <h2>Set <span>new password</span> </h2>
-                    <FormInputPass intype="Enter New Password" inname="password" value={password} inlabel="Password" onChange={(e) => setPassword(e.target.value)} />
-                    <FormInputPass intype="Confirm Password" inname="confirmPassword" value={confirmPassword} inlabel="Password" onChange={(e) => setConfirmPassword(e.target.value)} />
+                    <FormInputPass  intype="password" inPlaceHolder="Enter New Password" inname="password" value={password} inlabel="Enter New Password" onChange={(e) => setPassword(e.target.value)} />
+                    <FormInputPass  intype="password" inPlaceHolder="Confirm Password" inname="confirmPassword" value={confirmPassword} inlabel="Confirm Password" onChange={(e) => setConfirmPassword(e.target.value)} />
                   </div>
                   <div className="Signbtn">
                     <MainBtn btnicon={<GoCheckCircleFill />} btnname="Reset Password" iconPosition="left" onClick={handleVerifyOtp} />
