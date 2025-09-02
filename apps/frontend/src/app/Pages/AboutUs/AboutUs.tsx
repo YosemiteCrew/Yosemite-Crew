@@ -58,7 +58,7 @@ function AboutUs() {
             <Container>
                 <div className="StoryData">
 
-                    <Image src="/Images/aboutstory.png" alt="aboutstory" width={606} height={515}/>
+                    <Image src="/Images/aboutstory.png" alt="aboutstory" width={605} height={515}/>
 
                     <div className="storyTexted">
                         <h2>Our Story</h2>

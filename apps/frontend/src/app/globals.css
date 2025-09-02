@@ -194,6 +194,7 @@ p{
   font-weight: 500 !important;
   font-size: 23px !important;
   line-height: 120% !important;
+  font-family: var(--grotesk-font) !important;
 }
 .BlackButton:hover{
   background:transparent !important;
@@ -220,7 +221,7 @@ input[type=checkbox] {
 input[type=checkbox]:checked {
   background-color: var(--blue-text);
 }
-input[type=checkbox]:checked::after {
+/* input[type=checkbox]:checked::after {
   content: '';
   position: absolute;
   left: 50%;
@@ -230,11 +231,12 @@ input[type=checkbox]:checked::after {
   border: solid var(--whitebg);
   border-width: 0 3px 3px 0;
   transform: translate(-50%, -50%) rotate(45deg);
-}
+} */
 
 
 .form-check-input:focus {
   box-shadow: none !important;
+  border-color: var(--blue-text) !important;
 }
 .form-check-label {
   color: var(--black-text);

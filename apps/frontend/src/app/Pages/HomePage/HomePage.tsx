@@ -312,7 +312,7 @@ function HomePage() {
                 />
                 <Image
                   aria-hidden
-                  src="/Images/cllog2.png"
+                  src="/Images/ftlog2-2.png"
                   alt="cllog2"
                   width={115}
                   height={114}
