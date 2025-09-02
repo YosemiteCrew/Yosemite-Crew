@@ -768,9 +768,7 @@ export function FormInput({
 
   return (
     <div className='w-100'>
-      <div
-        className={`SignInput floating-input ${isFocused || value ? "focused" : ""}`}
-      >
+      <div className={`SignInput floating-input ${isFocused || value ? "focused" : ""}`}>
         <input
           type={intype}
           name={inname}
@@ -822,39 +820,46 @@ export function FormInputPass({
   };
 
   return (
-    <div
-      className={`SignPassInput floating-input ${isFocused || value ? "focused" : ""}`}
-    >
-      <input
-        type={showPassword ? "text" : intype}
-        name={inname}
-        id={inname}
-        value={value??""}
-        autoComplete="new-password"
-        onChange={onChange}
-        required
-        placeholder=" "
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
-        className={error ? 'is-invalid' : ''}
-      />
-      <label htmlFor={inname}>{inlabel}</label>
-      <Button type="button" onClick={togglePasswordVisibility} tabIndex={-1}>
-        <Image
-          aria-hidden
-          src="/Images/eyes.png"
-          alt="eyes"
-          width={24}
-          height={24}
+    <>
+      <div className='w-100'>
+        
+      <div className={`SignPassInput floating-input ${isFocused || value ? "focused" : ""}`}>
+        <input
+          type={showPassword ? "text" : intype}
+          name={inname}
+          id={inname}
+          value={value??""}
+          autoComplete="new-password"
+          onChange={onChange}
+          required
+          placeholder=" "
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          className={error ? 'is-invalid' : ''}
         />
-      </Button>
+        <label htmlFor={inname}>{inlabel}</label>
+        <Button type="button" onClick={togglePasswordVisibility} tabIndex={-1}>
+          <Image
+            aria-hidden
+            src="/Images/eyes.png"
+            alt="eyes"
+            width={24}
+            height={24}
+          />
+        </Button>
+        
+      </div>
+
       {/* Show error as bottom red text only for input validation */}
       {error && (
         <div style={{ color: "#EA3729", fontSize: "14px", marginTop: "4px" }}>
           {error}
         </div>
       )}
-    </div>
+
+
+     </div>
+    </>
   );
 }
 // FormInputPassProps Ended

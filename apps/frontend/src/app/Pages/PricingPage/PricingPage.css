@@ -476,14 +476,14 @@
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 6px;
-  border-radius: 5px;
+  height: 8px; /* Slightly thicker track */
+  border-radius: 4px;
   background: linear-gradient(
     to right,
-    #007bff 0%,
-    #007bff var(--progress),
-    #ddd var(--progress),
-    #ddd 100%
+    var(--blue-text) 0%,
+    var(--blue-text) var(--progress, 50%),
+    #302f2e2f var(--progress, 50%), /* Light gray for unfilled part */
+    #302f2e2f 100%
   ) !important;
   outline: none;
   border: none;
@@ -491,35 +491,38 @@
 
 /* Track reset */
 .styled-range::-webkit-slider-runnable-track {
-  background: transparent; /* remove default grey */
-  height: 6px;
-  border-radius: 5px;
+  background: transparent;
+  height: 8px;
+  border-radius: 4px;
 }
 .styled-range::-moz-range-track {
-  background: transparent; /* remove default grey */
-  height: 6px;
-  border-radius: 5px;
+  background: transparent;
+  height: 8px;
+  border-radius: 4px;
 }
 
-/* Thumb */
+/* Thumb - White with blue border */
 .styled-range::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  height: 16px;
-  width: 16px;
+  height: 20px;
+  width: 20px;
   border-radius: 50%;
-  background: #007bff !important;
+  background: var(--whitebg) !important; /* White background */
+  border: 3px solid var(--blue-text) !important; /* Blue border */
   cursor: pointer;
-  border: none;
-  margin-top: -5px; /* align with track */
+  margin-top: -6px; /* Center on track */
+  box-shadow: 4px 4px 18px -5px #55413433 !important;
+
 }
 .styled-range::-moz-range-thumb {
-  height: 16px;
-  width: 16px;
+  height: 20px;
+  width: 20px;
   border-radius: 50%;
-  background: #007bff !important;
+  background: var(--whitebg) !important; /* White background */
+  border: 2px solid var(--blue-text) !important; /* Blue border */
   cursor: pointer;
-  border: none;
+  box-shadow: 4px 4px 18px -5px #55413433 !important;
 }
 
 
