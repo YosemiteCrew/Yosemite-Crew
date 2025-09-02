@@ -328,7 +328,7 @@ const authController = {
       }
 
       const otp = Math.floor(100000 + Math.random() * 900000);
-      const otpExpiry = new Date(Date.now() + 5 * 60 * 1000);
+      const otpExpiry = new Date(Date.now() + 3 * 60 * 1000);
 
       await userModel.updateOne({ email: safeEmail }, { $set: { otp, otpExpiry } });
 
@@ -342,7 +342,7 @@ const authController = {
         Destination: { ToAddresses: [email] },
         Message: {
           Subject: { Data: 'Your OTP Code' },
-          Body: { Text: { Data: `Your OTP is: ${otp}. It is valid for 5 minutes.` } },
+          Body: { Text: { Data: `Your OTP is: ${otp}. It is valid for 3 minutes.` } },
         },
       }).promise();
 
@@ -784,9 +784,9 @@ const authController = {
   },
   refreshToken: async (req: Request, res: Response): Promise<void> => {
     try {
-      const userID = getCognitoUserId(req);
+      // const userID = getCognitoUserId(req);
 
-      const { refreshToken } = req.body as { refreshToken: string };
+      const { refreshToken, userID } = req.body as { refreshToken: string, userID:string };
       if (!refreshToken) {
         res.status(200).json({ status: 0, message: 'Refresh token required' })
       }
@@ -804,8 +804,31 @@ const authController = {
 
       const response = await cognito.initiateAuth(params).promise();
 
+      const accessToken = response.AuthenticationResult!.AccessToken!;
+      const decoded = jwt.decode(accessToken) as { sub: string };
+      console.log(decoded,'decoded');
+
+      const payload = {
+        username: decoded.sub,
+        accessToken,
+      };
+
+      const secret = process.env.JWT_SECRET;
+
+      if (!secret) throw new Error('JWT_SECRET is not defined');
+
+      const expiresInEnv = parseInt(process.env.JWT_EXPIRE_TIME ?? '3600', 10); // seconds   
+
+      const signOptions: SignOptions = {
+        expiresIn: expiresInEnv,
+      };
+
+
+      const token = jwt.sign(payload, secret, signOptions);
+
+
       res.status(200).json({
-        accessToken: response.AuthenticationResult?.AccessToken,
+        accessToken: token,
         message: "Access token refreshed",
         status: 1
       });

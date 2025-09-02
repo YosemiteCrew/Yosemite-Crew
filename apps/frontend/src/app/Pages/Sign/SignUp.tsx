@@ -28,7 +28,7 @@ function useErrorTost() {
       errortext,
       iconElement,
       className = "",
-      // duration = 2000
+      duration = 2000
     }: {
       message: string;
       errortext: string;
@@ -38,7 +38,7 @@ function useErrorTost() {
     }
   ) => {
     setErrorTost({ show: true, message, errortext, iconElement, className });
-    // setTimeout(() => setErrorTost({ show: false }), duration);
+    setTimeout(() => setErrorTost({ show: false }), duration);
   };
 
   const ErrorTostPopup = errorTost.show ? (
@@ -423,6 +423,7 @@ if(isVerified){
 }
 
 
+
   return (
     <>
       
@@ -650,18 +651,15 @@ if(isVerified){
         </section>}
 
       {/* Verification Modal */}
-      <Modal
-        show={showVerifyModal}
-        onHide={() => setShowVerifyModal(false)}
-        centered
-        contentClassName="verify-modal"
-      >
+      <Modal show={showVerifyModal} onHide={() => setShowVerifyModal(false)} centered contentClassName="VerifyModalSec">
         <Modal.Body>
-          <div style={{ textAlign: "center", padding: "24px 12px" }}>
-            <h2 style={{ fontWeight: 600, fontSize: 28, marginBottom: 8 }}>Verify <span style={{ color: "#888" }}>code</span></h2>
-            <p style={{ color: "#888", marginBottom: 24 }}>
-              Enter the code we just sent to your email to proceed with resetting your password.
-            </p>
+
+          <div className="VerifyModalTopInner">
+            <div className="VerifyTexted">
+              <h2>Verify Email Address</h2>
+              <h6>A Verification code has been sent to <br /> <span>johndeo@gmail.com</span></h6>
+              <p>Please check your inbox and enter the verification code below to verify your email address. The Code will expire soon.</p>
+            </div>
             <div className="verifyInput" style={{ marginBottom: 24 }}>
               {code.map((digit, idx) => (
                 <input
@@ -673,43 +671,22 @@ if(isVerified){
                   autoFocus={activeInput === idx}
                   onChange={e => handleCodeChange(e, idx)}
                   onKeyDown={e => handleCodeKeyDown(e, idx)}
-                  style={{
-                    width: 56,
-                    height: 64,
-                    fontSize: 32,
-                    border: "1px solid #ccc",
-                    borderRadius: 8,
-                    textAlign: "center",
-                    marginRight: idx < 5 ? 8 : 0,
-                  }}
                 />
               ))}
             </div>
-            <Button
-              style={{
-                width: "100%",
-                borderRadius: 24,
-                background: "#222",
-                border: "none",
-                fontSize: 20,
-                padding: "12px 0",
-                marginBottom: 16,
-              }}
-              onClick={handleVerify}
-            >
-              Verify Code
-            </Button>
-            <div>
-              <span style={{ color: "#888" }}>Didn&apos;t receive the code?</span>{" "}
-              <Button
-                variant="link"
-                style={{ color: "#007bff", padding: 0, fontWeight: 500, textDecoration: "underline" }}
-                onClick={handleResend}
-              >
-                Request New Code.
-              </Button>
+          </div>
+
+          <div className="VerifyModalBottomInner">
+            <div className="VerifyBtnDiv">
+              <Button onClick={handleVerify}>Verify Code</Button>
+              <span>00:59 sec</span>
+            </div>
+            <div className="VerifyResent">
+              <Link href="" onClick={handleResend}><span>Request New Code</span></Link>
+              <Link href="/signup">. Change Email</Link>
             </div>
           </div>
+
         </Modal.Body>
       </Modal>
     </>
@@ -803,6 +780,7 @@ type FormInputPassProps = {
   value: string;
   inlabel: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  inPlaceHolder?:string
 };
 export function FormInputPass({
   intype,
@@ -811,6 +789,7 @@ export function FormInputPass({
   value,
   onChange,
   error,
+  inPlaceHolder
 }: FormInputPassProps & { error?: string }) {
   const [showPassword, setShowPassword] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -832,7 +811,7 @@ export function FormInputPass({
           autoComplete="new-password"
           onChange={onChange}
           required
-          placeholder=" "
+          placeholder={isFocused ? inPlaceHolder :''}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           className={error ? 'is-invalid' : ''}

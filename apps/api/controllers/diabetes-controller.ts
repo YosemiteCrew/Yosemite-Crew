@@ -100,6 +100,7 @@ const diabetesController = {
   
       if (records.length === 0) {
          res.status(200).json({status: 1, entry: [], message: "No Diabetes logs found" });
+         return
       }
   
       const fhirObservations = records.map(record =>
@@ -109,6 +110,8 @@ const diabetesController = {
       );
 
       const bundle = {
+        message:"Diabetes logs found successfully!",
+        status:1,
         resourceType: "Bundle",
         type: "collection",
         entry: fhirObservations.map((obs: Record<string, unknown>) => ({ resource: obs }))
