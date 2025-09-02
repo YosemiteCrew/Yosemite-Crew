@@ -28,7 +28,7 @@ function useErrorTost() {
       errortext,
       iconElement,
       className = "",
-      // duration = 2000
+      duration = 2000
     }: {
       message: string;
       errortext: string;
@@ -38,7 +38,7 @@ function useErrorTost() {
     }
   ) => {
     setErrorTost({ show: true, message, errortext, iconElement, className });
-    // setTimeout(() => setErrorTost({ show: false }), duration);
+    setTimeout(() => setErrorTost({ show: false }), duration);
   };
 
   const ErrorTostPopup = errorTost.show ? (
@@ -780,6 +780,7 @@ type FormInputPassProps = {
   value: string;
   inlabel: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  inPlaceHolder?:string
 };
 export function FormInputPass({
   intype,
@@ -788,6 +789,7 @@ export function FormInputPass({
   value,
   onChange,
   error,
+  inPlaceHolder
 }: FormInputPassProps & { error?: string }) {
   const [showPassword, setShowPassword] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -809,7 +811,7 @@ export function FormInputPass({
           autoComplete="new-password"
           onChange={onChange}
           required
-          placeholder=" "
+          placeholder={isFocused ? inPlaceHolder :''}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           className={error ? 'is-invalid' : ''}
