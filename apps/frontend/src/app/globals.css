@@ -194,6 +194,7 @@ p{
   font-weight: 500 !important;
   font-size: 23px !important;
   line-height: 120% !important;
+  font-family: var(--grotesk-font) !important;
 }
 .BlackButton:hover{
   background:transparent !important;

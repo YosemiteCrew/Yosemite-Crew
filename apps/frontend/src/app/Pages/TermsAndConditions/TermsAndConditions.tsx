@@ -1,20 +1,35 @@
 import React from "react";
 import "./TermsAndConditions.css";
-import { FaArrowCircleLeft } from "react-icons/fa";
 import { NeedHealp } from "../PricingPage/PricingPage";
-function TermsAndConditions() {
-  return (
-    <div className="main_content">
-      {/* 1 */}
-      <div className="terms-header">
-        <div className="terms-header__icon">
-          <FaArrowCircleLeft />
-        </div>
+import { Container } from "react-bootstrap";
 
-        <h2 className="terms-header__title">
-          Yosemite Crew License and Subscription Terms (SaaS)
-        </h2>
-      </div>
+function TermsAndConditions() {
+
+  return (
+
+    <>
+
+    <section className='PrivacyPolicySec'>
+      <Container>
+        <div className="PrivacyPolicyData mb-5">
+
+          <div className="privacyHead">
+            <div className="privacyhead">
+              <h2>Yosemite Crew License and <br /> Subscription Terms (SaaS)</h2>
+            </div>
+          </div>
+
+
+
+
+
+
+
+
+    
+    
+   
+      
       {/* 2 */}
       <div className="definitions">
         <h3 className="definitions__title">1. DEFINITIONS</h3>
@@ -33,7 +48,7 @@ function TermsAndConditions() {
           <li>
             <strong>1.2. Agreement</strong> means the contract concluded with
             the Customer under these
-            <span style={{ color: "#F68523", margin: "0px 5px" }}>
+            <span style={{  margin: "0px 5px" }}>
               Yosemite Crew
             </span>
             License and Subscription Terms and its Appendices.
@@ -134,7 +149,7 @@ function TermsAndConditions() {
           </li>{" "}
           <li>
             <strong>1.21. These Terms</strong> means these{" "}
-            <span style={{ color: "#F68523", margin: "0px 5px" }}>
+            <span style={{  margin: "0px 5px" }}>
               Yosemite Crew
             </span>{" "}
             License and Subscription Terms.
@@ -279,10 +294,10 @@ function TermsAndConditions() {
               <li>
                 <strong>5.1.5.</strong> Role and permission management
               </li>
-              <li style={{ color: "#F68523" }}>
+              <li >
                 <strong>5.1.6.</strong> Inventory and procedure management
               </li>
-              <li style={{ color: "#F68523" }}>
+              <li >
                 <strong>5.1.7.</strong> Billing and invoicing
               </li>
             </ul>
@@ -406,7 +421,7 @@ function TermsAndConditions() {
               match with search terms). These parameters are considered to
               ensure relevant, (where applicable) localized, and easily
               identifiable results for Pet Owners.
-              <li style={{ color: "#F68523" }}>
+              <li >
                 Pet Owners have at the moment the following filters to modify
                 their search for services:
                 <ul>
@@ -421,7 +436,7 @@ function TermsAndConditions() {
             Among the above parameters, (if relevant) location is typically
             given higher weight than name, as geographic preference plays a more
             significant role for Pet Owner.{" "}
-            <span style={{ color: "#F68523" }}>
+            <span >
               If location is not relevant the service hours are the most
               relevant factor.
             </span>
@@ -710,7 +725,7 @@ function TermsAndConditions() {
       {/* 13 */}
       <div className="definitions">
         <h3 className="definitions__title">13. FEES</h3>
-        <ul className="definitions__list" style={{ color: "#F68523" }}>
+        <ul className="definitions__list">
           <li>
             <strong>13.1.</strong> The Customer shall pay DuneXploration a fee
             for rendering the Services. The calculation depends on several
@@ -1146,7 +1161,7 @@ function TermsAndConditions() {
         <p>
           <span className="doc-clause">
             1.5. Monthly Availability Percentage
-          </span>{" "}
+          </span>
           means the percentage of time over the course of each calendar month
           during the Subscription Term, excluding Excused Downtime, that the
           SaaS Service is available for use by Customer.
@@ -1438,9 +1453,8 @@ function TermsAndConditions() {
         </p>
 
         <p>
-          <span className="doc-clause">
-            1.5. Monthly Availability Percentage
-          </span>{" "}
+          <span className="doc-clause">1.5. Monthly Availability Percentage </span>
+          
           means the percentage of time over the course of each calendar month
           during the Subscription Term, excluding Excused Downtime, that the
           SaaS Service is available for use by Customer.
@@ -1879,7 +1893,7 @@ function TermsAndConditions() {
             processor may redact the text of the agreement prior to sharing the
             copy.
           </p>
-          <p style={{ color: "#f58220" }}>
+          <p >
             d. The processor shall remain fully responsible to the controller
             for the performance of the sub-processor’s obligations in accordance
             with its contract with the processor. The processor shall notify the
@@ -2556,7 +2570,7 @@ function TermsAndConditions() {
               <td className="dataCell">Pet Owner</td>
             </tr>
             <tr>
-              <td className="dataCell">Pet Owner’s Name</td>{" "}
+              <td className="dataCell">Pet Owner’s Name</td>
             </tr>
             <tr>
               <td className="dataCell">Phone number</td>
@@ -3146,7 +3160,7 @@ function TermsAndConditions() {
                 changes. All team members complete mandatory cyber security and
                 privacy training during onboarding and annually thereafter.
               </li>
-              <li className="measuresItem" style={{ color: "#f58220" }}>
+              <li className="measuresItem" >
                 <b className="measuresBold">
                   Measures for certification/assurance of processes and products
                 </b>
@@ -3671,7 +3685,7 @@ function TermsAndConditions() {
               subject. Any onward transfer is subject to compliance by the data
               importer with all the other safeguards under these Clauses, in
               particular purpose limitation.
-              <p style={{ color: "#f58220" }}>
+              <p >
                 <br />
                 <b>  8.8 Processing under the authority of the data importer</b>
                 <br />
@@ -4886,7 +4900,7 @@ function TermsAndConditions() {
                 MODULE THREE: Transfer processor to processor
               </strong>
               <br />
-              <p style={{ color: "#f58220" }}>
+              <p >
                 [OPTION 1: These Clauses shall be governed by the law of one of
                 the EU Member States, provided such law allows for third-party
                 beneficiary rights. The Parties agree that this shall be the law
@@ -4899,11 +4913,11 @@ function TermsAndConditions() {
                 of Germany.]
               </p>
               <br />
-              <strong style={{ color: "#f58220" }} className="subClauseTitle">
+              <strong  className="subClauseTitle">
                 MODULE FOUR: Transfer processor to controller
               </strong>
               <br />
-              <p style={{ color: "#f58220" }}>
+              <p >
                 {" "}
                 These Clauses shall be governed by the law of a country allowing
                 for third-party beneficiary rights. The Parties agree that this
@@ -5065,10 +5079,21 @@ function TermsAndConditions() {
         </div>
       </div>
 
-      <div className="doc-section">
-        <NeedHealp />
-      </div>
-    </div>
+
+
+        </div>
+        <NeedHealp/>
+      </Container>
+      
+    </section>
+
+      
+   
+
+    </>
+
+
+
   );
 }
 
