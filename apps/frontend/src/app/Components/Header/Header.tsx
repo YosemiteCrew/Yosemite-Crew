@@ -275,7 +275,7 @@ const PublicHeader = () => {
   useEffect(() => {
     document.body.classList.toggle("mobile-nav-active", mobileOpen);
   }, [mobileOpen]);
-
+console.log(pathname,'pathnamepathnamepathname');
   return (
     <div className="container-fluid container-xl d-flex align-items-center justify-content-between">
       <Link href="/" className="logo d-flex align-items-center me-auto me-lg-0">
@@ -303,9 +303,9 @@ const PublicHeader = () => {
         </button>
       </nav>
 
-      <Link href="/signup" className="HeaderSign">
+      { (pathname !== '/signup' && pathname !== '/signin') && <Link href="/signup" className="HeaderSign">
         <Icon icon="carbon:checkmark-filled" width="20" height="20" /> Sign Up
-      </Link>
+      </Link> }
     </div>
   );
 };

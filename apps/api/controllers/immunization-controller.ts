@@ -344,10 +344,12 @@ const immunizationController =  {
 
 
       if (results.length === 0) {
-         res.status(200).json({ status: 0, message: 'No vaccination record found for this user' });
+        //  res.status(200).json({ status: 0, message: 'No vaccination record found for this user' });
+
+        res.status(200).json({status: 1,data: { entry: [] } })
          return;
       }
-     
+     console.log(results,'resultsresults');
         
       const transformed: VaccinationDoc[] = results.map((doc) => ({
         _id: doc._id,
@@ -369,13 +371,14 @@ const immunizationController =  {
           : '',
         reminder: doc.reminder ?? false,
         vaccineImage: doc.vaccineImage || [],
-        petImageUrl: doc.petImageUrl[0].url
+        petImageUrl: doc?.vaccineImage[0]?.url
       }));
       const fhirBundle = toFHIRBundleImmunization(transformed);
        res.status(200).json({ status: 1, data: fhirBundle });
     } catch (err: unknown) {
       console.error(err);
-       res.status(500).json({ status: 0, message: 'Internal Server Error' });
+      const message = err instanceof Error ? err.message :'Internal Server Error'
+       res.status(200).json({ status: 0, message:message  });
     }
   }
 }
