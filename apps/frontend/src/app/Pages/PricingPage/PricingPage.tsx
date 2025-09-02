@@ -234,7 +234,7 @@ export default PricingPage
                 <p>Got questions or need assistance? Just reach out! Our team is here to help.</p>
             </div>
             <div className="helpbtn">
-                <Link href="#"><Icon icon="solar:chat-round-like-bold" width="18" height="18" /> Get in Touch</Link>
+                <Link href="/contact_us"><Icon icon="solar:chat-round-like-bold" width="18" height="18" /> Get in Touch</Link>
             </div>
         </div>
     </div>;
