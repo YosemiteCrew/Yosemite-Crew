@@ -23,7 +23,7 @@
     "@react-navigation/stack": "^7.2.3",
     "@reduxjs/toolkit": "^2.6.1",
     "aws-sdk": "2.1692.0",
-    "axios": "^1.8.4",
+    "axios": "^1.11.0",
     "i18next": "^24.2.3",
     "lodash": "^4.17.21",
     "moment": "2.30.1",
