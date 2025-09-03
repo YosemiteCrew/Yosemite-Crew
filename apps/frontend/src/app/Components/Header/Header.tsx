@@ -33,6 +33,7 @@ const publicNavItems: NavItem[] = [
   { label: "Resources", href: "/resources" },
   { label: "Contact Us", href: "/contact_us" },
   { label: "Blog", href: "/blogpage" },
+  { label: "Pricing", href: "/pricing" },
 ];
 
 const Header = () => {

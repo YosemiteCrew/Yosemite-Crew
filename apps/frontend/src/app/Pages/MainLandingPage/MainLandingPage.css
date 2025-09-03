@@ -172,7 +172,7 @@
     flex-direction: column;
     gap: 120px;
 }
-.landingSection .LandingData .LeftLanding .landingTop button{
+.landingSection .LandingData .LeftLanding .landingTop span{
     display: flex;
     align-items: center;
     justify-content: center;
@@ -186,12 +186,8 @@
     font-weight: 500;
     font-family: var(--grotesk-font);
     line-height: 120%;
-    transition: 0.3s;
 }
-.landingSection .LandingData .LeftLanding .landingTop button:hover{
-    background: var(--black-bg);
-    color: var(--white-text);
-}
+
 .landingSection .LandingData .LeftLanding .landingTexed{
    display: flex;
    flex-direction: column;
