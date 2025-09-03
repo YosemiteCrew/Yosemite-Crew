@@ -1,43 +1,92 @@
-.main_content {
-  margin-top: 10px;
-  display: flex;
-  gap: 10px;
-  flex-direction: column;
-  justify-content: center; /* horizontal center */
-  align-items: center;
+.PrivacyPolicySec{
+    padding: 80px 0px;
+}
+.PrivacyPolicySec .PrivacyPolicyData{
+    display: flex;
+    flex-direction: column;
+    gap: 56px;
+    max-width: 842px;
+    margin: 0 auto;
+}
+.PrivacyPolicySec .PrivacyPolicyData .privacyHead{
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+.PrivacyPolicySec .PrivacyPolicyData .privacyHead .privacyhead{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.PrivacyPolicySec .PrivacyPolicyData .privacyHead .privacyhead h2{
+    font-family: var(--grotesk-font);
+    font-weight: 500;
+    font-size: 40px;
+    line-height: 120%;
+    color: var(--black-text);
+    margin: 0;
+}
+.PrivacyPolicySec .PrivacyPolicyData .privacyHead  p{
+    font-family: var(--satoshi-font);
+    font-weight: 400;
+    font-size: 18px;
+    line-height: 120%;
+    color: var(--black-text);
+    margin: 0;
+    text-align: center;
+}
+.PrivacyPolicySec .PrivacyPolicyData .PolicyItems{
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+}
+.PrivacyPolicySec .PrivacyPolicyData .PolicyNumbdetail{
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+.PrivacyPolicySec .PrivacyPolicyData .PolicyItems h4{
+    font-family: var(--satoshi-font);
+    font-weight: 700;
+    font-size: 18px;
+    line-height: 120%;
+    color: var(--black-text);
+    margin: 0;
+}
+.PrivacyPolicySec .PrivacyPolicyData .PolicyItems :is(p, .policyul p , .policyul li , a)  {
+    font-family: var(--satoshi-font);
+    font-weight: 400;
+    font-size: 18px;
+    line-height: 120%;
+    color: var(--black-text);
+    margin: 0;
+}
+.PrivacyPolicySec .PrivacyPolicyData .PolicyItems .policyul {
+   display: flex;
+   flex-direction: column;
+   gap: 6px;
+}
+.PrivacyPolicySec .PrivacyPolicyData .PolicyItems .policyul ul {
+    margin: 0;
+}
+.PrivacyPolicySec .PrivacyPolicyData .PolicyItems :is(p span.warningtext , .policyul p span.warningtext , .policyul li  span.warningtext , p span.warningtext a  )  {
+    color: var(--black-text);
+}
+.PrivacyPolicySec .PrivacyPolicyData .PolicyItems :is( p span.warningtext a  ):hover  {
+    color: var(--blue-text);
+}
+.PrivacyPolicySec .PrivacyPolicyData .PolicyItems :is( p span.spanlink , p a) {
+    text-decoration: underline !important;
+}
+.PrivacyPolicySec .PrivacyPolicyData .PolicyItems p a:hover {
+    color: var(--blue-text);
 }
 
-.terms-header {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  padding: 0;
-  gap: 159px;
-  width: 842px;
-  height: 96px;
-}
 
-.terms-header__icon {
-  width: 24px;
-  height: 24px;  
-  position: relative;
-}
- 
 
-.terms-header__title {
-  width: 478px;
-  height: 96px;
-  font-family: "Clash Grotesk", sans-serif;
-  font-style: normal;
-  font-weight: 500;
-  font-size: 40px;
-  line-height: 120%; /* 48px */
-  display: flex;
-  align-items: center;
-  text-align: center;
-  letter-spacing: -0.02em;
-  color: #302f2e; /* Jet-500 */
-}
+
+
+
 
 /* Container */
 .definitions {
@@ -179,10 +228,10 @@
   font-size: 16px;
   font-weight: bold;
   margin-bottom: 12px;
-  color: #f58220; /* Orange heading */
+  color: #302F2E; /* Orange heading */
 }
 .doc-table-wrapper {
-  border: 1px solid #f58220;
+  border: 1px solid #302F2E;
   border-radius: 10px;
   overflow: hidden; /* keeps corners rounded */
 }
@@ -201,8 +250,8 @@
 
 .doc-table td {
   padding: 12px 16px;
-  border-bottom: 1px solid #f58220;
-  color: #f58220;
+  border-bottom: 1px solid #302F2E;
+  color: #302F2E;
 }
 
 .doc-table tr:last-child td {
@@ -211,12 +260,12 @@
 
 .doc-table-label {
   font-weight: 600;
-  color: #f58220;
+  color: #302F2E;
   width: 30%;
 }
 
 .doc-link {
-  color: #f58220;
+  color: #302F2E;
   text-decoration: none;
 }
 .doc-link:hover {
@@ -236,12 +285,12 @@
   font-weight: 600;
   text-align: left;
   padding: 12px 16px;
-  border-bottom: 2px solid #f58220;
+  border-bottom: 2px solid #302F2E;
 }
 
 .error-table td {
   padding: 12px 16px;
-  border-bottom: 1px solid #f58220;
+  border-bottom: 1px solid #302F2E;
   vertical-align: top;
   line-height: 1.5;
   color: #302f2e;
@@ -259,7 +308,7 @@
 
 .error-serious {
   font-weight: 600;
-  color: #e67e22; /* orange */
+  color: #302F2E; /* orange */
 }
 
 .error-moderate {

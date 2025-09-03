@@ -312,7 +312,7 @@ function HomePage() {
                 />
                 <Image
                   aria-hidden
-                  src="/Images/cllog2.png"
+                  src="/Images/ftlog2.png"
                   alt="cllog2"
                   width={115}
                   height={114}
@@ -374,9 +374,10 @@ type ButtonProps = {
   text: string;
   href: string;
   onClick?: (e: FormEvent<Element>) => void;
+  style?: React.CSSProperties;
 };
 
-export function FillBtn({ icon, text, onClick, href }: ButtonProps) {
+export function FillBtn({ icon, text, onClick, href, style }: ButtonProps) {
   return (
     <Link
       href={href}
@@ -387,14 +388,15 @@ export function FillBtn({ icon, text, onClick, href }: ButtonProps) {
           onClick(e);         // ✅ trigger your handler
         }
       }}
+      style={style}
     >
       {icon} {text}
     </Link>
   );
 }
-export function UnFillBtn({ icon, text,href,onClick }: ButtonProps) {
+export function UnFillBtn({ icon, text,href,onClick, style }: ButtonProps) {
   return (
-    <Link className="UnFillbtn" href={href} onClick={onClick}>
+    <Link className="UnFillbtn" href={href} onClick={onClick} style={style}>
       {icon} {text}
     </Link>
   );

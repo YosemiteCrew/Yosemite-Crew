@@ -30,7 +30,7 @@ const footerLinks = [
     links: [
       { label: "About us", href: "/about_us" },
       // { label: "Security", href: "#" },
-      { label: "Terms of Service", href: "#" },
+      { label: "Terms of Service", href: "/termsandconditions" },
       { label: "Privacy Policy", href: "/privacypolicy" },
       { label: "Pricing", href: "/pricing" },
       // { label: "Enterprise", href: "#" },
