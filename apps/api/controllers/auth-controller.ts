@@ -140,7 +140,7 @@ const authController = {
 
       const result = await userModel.create({
         cognitoId: data.UserSub,
-        email,
+        email: email.toLowerCase(),
         password: [encryptedPassword],
         firstName: firstName,
         lastName: lastName,
@@ -560,7 +560,7 @@ const authController = {
       if (!details || !email) {
         res.status(200).json({ message: 'User not found', status: 0 })
       }
-      const result = await AppUser.findOne({ email: email, type: type });
+      const result = await userModel.findOne({ email: email, type: type });
 
 
 

@@ -103,7 +103,7 @@ function MainLandingPage() {
           <div className="LandingData">
             <div className="LeftLanding">
               <div className="landingTop">
-                <Button>Best for Veterinary Practices</Button>
+                <span>Best for Veterinary Practices</span>
               </div>
               <div className="landingTexed">
                 <div className="landinginnerTexed">
@@ -127,7 +127,7 @@ function MainLandingPage() {
           <div className="LandingData">
             <div className="LeftLanding">
               <div className="landingTop">
-                <Button>Perfect for Pet Owners</Button>
+                <span>Perfect for Pet Owners</span>
               </div>
               <div className="landingTexed">
                 <div className="landinginnerTexed">
@@ -152,7 +152,7 @@ function MainLandingPage() {
           <div className="LandingData">
             <div className="LeftLanding">
               <div className="landingTop">
-                <Button>Flexible and Transparent Pricing</Button>
+                <span>Flexible and Transparent Pricing</span>
               </div>
               <div className="landingTexed">
                 <div className="landinginnerTexed">
@@ -177,7 +177,7 @@ function MainLandingPage() {
           <div className="LandingData">
             <div className="LeftLanding">
               <div className="landingTop">
-                <Button>Developer-Friendly Platform</Button>
+                <span>Developer-Friendly Platform</span>
               </div>
               <div className="landingTexed">
                 <div className="landinginnerTexed">
