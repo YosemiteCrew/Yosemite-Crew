@@ -276,7 +276,7 @@ const PublicHeader = () => {
   useEffect(() => {
     document.body.classList.toggle("mobile-nav-active", mobileOpen);
   }, [mobileOpen]);
-console.log(pathname,'pathnamepathnamepathname');
+
   return (
     <div className="container-fluid container-xl d-flex align-items-center justify-content-between">
       <Link href="/" className="logo d-flex align-items-center me-auto me-lg-0">
