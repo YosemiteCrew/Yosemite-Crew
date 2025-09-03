@@ -1035,7 +1035,8 @@ export const inviteTeamsMembersController = {
       res.status(404).json({ message: "No practitioners found for the specified department and role filter." });
       return;
     }
-// eslint-disable-next-line @typescript-eslint/no-unsafe-call
+ 
+// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
 const data:unknown  = PractitionerDatatoFHIR(practitioners)
     res.status(200).json({
       message: "Practitioners fetched successfully",
