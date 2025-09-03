@@ -60,7 +60,7 @@ type ErrorTostProps = {
   message?: string;
   iconElement?: React.ReactNode;
   errortext: string;
-  className?: string; 
+  className?: string;
   onClose?: () => void;
 };
 
@@ -102,7 +102,6 @@ type SignUpProps = {
   inviteCode?: string
 };
 function SignUp({ inviteCode }: SignUpProps) {
-  console.log("inviteCode",inviteCode)
   const router = useRouter();
   //role
   const [selectedType, setSelectedType] = useState("");
@@ -122,15 +121,47 @@ function SignUp({ inviteCode }: SignUpProps) {
   const [agree, setIagree] = useState(false)
   const [subscribe, setSubscribe] = useState(false)
   const isVerified = useStore(useAuthStore, (state) => state.isVerified);
-  console.log("agree", agree)
+  const [invalidOtp, setInvalidOtp] = useState(false);
   // Stable ref callback to avoid React warning
   const setOtpRef = (el: HTMLInputElement | null, idx: number) => {
     otpRefs.current[idx] = el;
   };
- const setVerified = useAuthStore((state) => state.setVerified);
+  const setVerified = useAuthStore((state) => state.setVerified);
   const [inputErrors, setInputErrors] = useState<{
-    confirmPassword?: string; email?: string; password?: string 
-}>({});
+    confirmPassword?: string;
+    email?: string;
+    password?: string;
+    selectedType?: string;
+    subscribe?: string;
+    agree?: string;
+  }>({});
+  const [timer, setTimer] = useState(180); // 5 minutes in seconds
+  const [timerActive, setTimerActive] = useState(false);
+
+  // Timer effect for OTP modal
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (showVerifyModal && timerActive && timer > 0) {
+      interval = setInterval(() => {
+        setTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    if (timer === 0 && interval) {
+      clearInterval(interval);
+      setTimerActive(false);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [showVerifyModal, timerActive, timer]);
+
+  // Reset timer when modal opens
+  useEffect(() => {
+    if (showVerifyModal) {
+      setTimer(300);
+      setTimerActive(true);
+    }
+  }, [showVerifyModal]);
 
   const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>, idx: number) => {
     const val = e.target.value.replace(/[^0-9]/g, "");
@@ -195,10 +226,6 @@ function SignUp({ inviteCode }: SignUpProps) {
 
         // 👇 Save to Zustand
         useAuthStore.getState().setUser({ userId, email, userType });
-
-        // 👇 Double-check if it's saved
-        // const storeData = useAuthStore.getState();
-        // console.log("Saved in Zustand:", storeData);
         showErrorTost({
           message: response.data.message,
           errortext: "Success",
@@ -213,12 +240,7 @@ function SignUp({ inviteCode }: SignUpProps) {
       }
 
     } catch (error: any) {
-      showErrorTost({
-        message: `OTP verification failed: ${error.response?.data?.message || 'Unable to connect to the server.'}`,
-        errortext: "Error",
-        iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />,
-        className: "errofoundbg"
-      });
+      setInvalidOtp(true);
     }
   };
 
@@ -243,6 +265,10 @@ function SignUp({ inviteCode }: SignUpProps) {
           iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#00C853" />,
           className: "CongratsBg"
         });
+        setCode(Array(6).fill("")); // Clear OTP fields on resend
+        setActiveInput(0); // Focus first input
+        setTimer(300);
+        setTimerActive(true);
       }
     } catch (error: unknown) {
       let message = 'Something went wrong.';
@@ -264,15 +290,34 @@ function SignUp({ inviteCode }: SignUpProps) {
 
   const handleSignUp = useCallback(async () => {
     // Input validation
-    const errors: { email?: string; password?: string; confirmPassword?: string; selectedType?: string } = {};
+    const errors: {
+      email?: string;
+      password?: string;
+      confirmPassword?: string;
+      selectedType?: string;
+      subscribe?: string;
+      agree?: string;
+    } = {};
     if (!email) errors.email = "Email is required";
-    if (!password) errors.password = "Password is required";
-    if (!confirmPassword) errors.confirmPassword = "Confirm Password is required";
-    if (!inviteCode && !selectedType) errors.selectedType = "Business Type is required";
+    if (!password) {
+      errors.password = "Password is required";
+    } else {
+      // Regex for strong password
+      const strongPasswordRegex =
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 
-    // Remove selectedType before setting input errors
-    const { selectedType: _selectedType, ...inputErrorFields } = errors;
-    setInputErrors(inputErrorFields);
+      if (!strongPasswordRegex.test(password)) {
+        errors.password =
+          "Password must be at least 8 characters long, include uppercase, lowercase, number, and special character";
+      }
+    } if (!confirmPassword) errors.confirmPassword = "Confirm Password is required";
+    if (!inviteCode && !selectedType) errors.selectedType = "Please select your business type";
+    if (!inviteCode && !subscribe) errors.subscribe = "Please check the Newsletter and Promotional emails box";
+    if (!inviteCode && !agree) errors.agree = "Please check the Terms and Conditions box";
+    if (password !== confirmPassword) errors.confirmPassword = "Passwords do not match";
+
+    // Remove selectedType before setting input errors (if you don't want to show it in input fields)
+    setInputErrors(errors);
 
     if (Object.keys(errors).length > 0) {
       return;
@@ -290,37 +335,37 @@ function SignUp({ inviteCode }: SignUpProps) {
     }
 
     // Only validate these if user is not invited (i.e., role is not provided)
-    if (!inviteCode) {
-      if (!selectedType) {
-        showErrorTost({
-          message: 'Please select your business type.',
-          errortext: 'Business Type Not Selected',
-          iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />,
-          className: "errofoundbg"
-        });
-        return;
-      }
+    // if (!inviteCode) {
+    //   if (!selectedType) {
+    //     showErrorTost({
+    //       message: 'Please select your business type.',
+    //       errortext: 'Business Type Not Selected',
+    //       iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />,
+    //       className: "errofoundbg"
+    //     });
+    //     return;
+    //   }
 
-      if (!subscribe) {
-        showErrorTost({
-          message: 'Please check the Newsletter and Promotional emails box.',
-          errortext: 'Newsletter Not Checked',
-          iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#F68523" />,
-          className: "oppsbg"
-        });
-        return;
-      }
+    //   if (!subscribe) {
+    //     showErrorTost({
+    //       message: 'Please check the Newsletter and Promotional emails box.',
+    //       errortext: 'Newsletter Not Checked',
+    //       iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#F68523" />,
+    //       className: "oppsbg"
+    //     });
+    //     return;
+    //   }
 
-      if (!agree) {
-        showErrorTost({
-          message: 'Please check the "I agree to Terms and Conditions" box.',
-          errortext: 'Terms Not Agreed',
-          iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />,
-          className: "errofoundbg"
-        });
-        return;
-      }
-    }
+    //   if (!agree) {
+    //     showErrorTost({
+    //       message: 'Please check the "I agree to Terms and Conditions" box.',
+    //       errortext: 'Terms Not Agreed',
+    //       iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />,
+    //       className: "errofoundbg"
+    //     });
+    //     return;
+    //   }
+    // }
 
     const formData = {
       email,
@@ -338,13 +383,15 @@ function SignUp({ inviteCode }: SignUpProps) {
       const data = await postData<{ message: string }>(url, formData);
 
       if (data?.status === 200) {
-        showErrorTost({
-          message: "You have successfully created your profile",
-          errortext: "🎉 Congratulations!",
-          iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#00C853" />,
-          className: "CongratsBg"
-        });
+        // showErrorTost({
+        //   message: "You have successfully created your profile",
+        //   errortext: "🎉 Congratulations!",
+        //   iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#00C853" />,
+        //   className: "CongratsBg"
+        // });
         setShowVerifyModal(true); // Show modal after signup
+        setTimer(300); // Reset timer to 5 min
+        setTimerActive(true);
       }
     } catch (error: unknown) {
       let status: number | undefined;
@@ -375,12 +422,12 @@ function SignUp({ inviteCode }: SignUpProps) {
 
 
 
-const businessTypes = [
-  { key: "veterinaryBusiness", value: "Veterinary Business" },
-  { key: "breedingFacility", value: "Breeding Facility" },
-  { key: "petSitter", value: "Pet Sitter" },
-  { key: "groomerShop", value: "Groomer Shop" },
-];
+  const businessTypes = [
+    { key: "veterinaryBusiness", value: "Veterinary Business" },
+    { key: "breedingFacility", value: "Breeding Facility" },
+    { key: "petSitter", value: "Pet Sitter" },
+    { key: "groomerShop", value: "Groomer Shop" },
+  ];
 
   const handleSelectType = (type: React.SetStateAction<string>) => {
     setSelectedType(type);
@@ -413,20 +460,20 @@ const businessTypes = [
   }, [inviteCode, showErrorTost]);
 
 
-if(isVerified){
-  return (
-    <div className="alreadySignedIn">
-      <h2>You are already signed in!</h2>
-      <p>Please log out to sign in with a different account.</p>
-      <MainBtn btnname="Go to Dashboard" onClick={() => router.push("/")} />
-    </div>     )   
-}
+  if (isVerified) {
+    return (
+      <div className="alreadySignedIn">
+        <h2>You are already signed in!</h2>
+        <p>Please log out to sign in with a different account.</p>
+        <MainBtn btnname="Go to Dashboard" onClick={() => router.push("/")} />
+      </div>)
+  }
 
 
 
   return (
     <>
-      
+
 
 
 
@@ -513,12 +560,11 @@ if(isVerified){
                         error={inputErrors.confirmPassword}
                       />
                     </div>
-
                     <div className="business-type-container">
                       <p>Select Your Business Type</p>
                       <div className="button-group">
                         <ul>
-                          {businessTypes.map(({key,value}) => (
+                          {businessTypes.map(({ key, value }) => (
                             <li
                               key={key}
                               className={`business-button ${selectedType === key ? "selected" : ""}`}
@@ -528,6 +574,13 @@ if(isVerified){
                             </li>
                           ))}
                         </ul>
+                        {/* Show error for business type */}
+                        {inputErrors.selectedType && (
+                          <div className="Errors" >
+                            <Icon icon="mdi:error" width="16" height="16" />
+                            {inputErrors.selectedType}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -549,12 +602,26 @@ if(isVerified){
                       }
                       onChange={(e) => setIagree(e.target.checked)}
                     />
-
+                    {/* Show error for terms */}
+                    {inputErrors.agree && (
+                      <div className="Errors" >
+                        <Icon icon="mdi:error" width="16" height="16" />
+                        {inputErrors.agree}
+                      </div>
+                    )}
                     <Form.Check
                       type="checkbox"
                       label="Sign me up for Newsletter and Promotional emails"
                       onChange={(e) => setSubscribe(e.target.checked)}
                     />
+                    {/* Show error for newsletter */}
+                    {inputErrors.subscribe && (
+                      <div className="Errors"  >
+                        <Icon icon="mdi:error" width="16" height="16" />
+                        {inputErrors.subscribe}
+                      </div>
+                     
+                    )}
                   </div>
 
                   <div className="Signbtn">
@@ -576,7 +643,7 @@ if(isVerified){
             </Col>
           </Row>
         </Container>
-      {ErrorTostPopup}
+        {ErrorTostPopup}
 
 
       </section> :
@@ -653,40 +720,56 @@ if(isVerified){
       {/* Verification Modal */}
       <Modal show={showVerifyModal} onHide={() => setShowVerifyModal(false)} centered contentClassName="VerifyModalSec">
         <Modal.Body>
-
           <div className="VerifyModalTopInner">
             <div className="VerifyTexted">
               <h2>Verify Email Address</h2>
-              <h6>A Verification code has been sent to <br /> <span>johndeo@gmail.com</span></h6>
+              <h6>A Verification code has been sent to <br /> <span>{email}</span></h6>
               <p>Please check your inbox and enter the verification code below to verify your email address. The Code will expire soon.</p>
             </div>
-            <div className="verifyInput" style={{ marginBottom: 24 }}>
-              {code.map((digit, idx) => (
-                <input
-                  key={idx}
-                  ref={el => setOtpRef(el, idx)}
-                  type="text"
-                  maxLength={1}
-                  value={digit}
-                  autoFocus={activeInput === idx}
-                  onChange={e => handleCodeChange(e, idx)}
-                  onKeyDown={e => handleCodeKeyDown(e, idx)}
-                />
-              ))}
-            </div>
+            <div className="verifyInputDiv">
+              <div className="verifyInput" style={{ marginBottom: 24 }}>
+                {code.map((digit, idx) => (
+                  <input
+                    key={idx}
+                    ref={el => setOtpRef(el, idx)}
+                    type="text"
+                    maxLength={1}
+                    value={digit}
+                    autoFocus={activeInput === idx}
+                    onChange={e => handleCodeChange(e, idx)}
+                    onKeyDown={e => handleCodeKeyDown(e, idx)}
+                  />
+                ))}
+              </div>
+              {invalidOtp?<p><Icon icon="solar:danger-circle-bold" width="18" height="18" /> Invalid OTP</p> : ""} </div>
           </div>
-
           <div className="VerifyModalBottomInner">
             <div className="VerifyBtnDiv">
-              <Button onClick={handleVerify}>Verify Code</Button>
-              <span>00:59 sec</span>
+              <Button
+                onClick={handleVerify}
+                disabled={timer === 0 || code.some((digit) => digit === "")}
+              >
+                Verify Code
+              </Button>
+              <span>
+                {timer > 0
+                  ? `${String(Math.floor(timer / 60)).padStart(2, "0")}:${String(timer % 60).padStart(2, "0")} sec`
+                  : "Code expired"}
+              </span>
             </div>
             <div className="VerifyResent">
-              <Link href="" onClick={handleResend}><span>Request New Code</span></Link>
+              <Link
+                href=""
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleResend();
+                }}
+              >
+                <span>Request New Code</span>
+              </Link>
               <Link href="/signup">. Change Email</Link>
             </div>
           </div>
-
         </Modal.Body>
       </Modal>
     </>
@@ -728,7 +811,7 @@ type FormInputProps = {
   inlabel: string;
   readonly?: boolean;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onBlur?:(e: React.ChangeEvent<HTMLInputElement>) => void;
+  onBlur?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   error?: string;
 };
 export function FormInput({
@@ -750,7 +833,7 @@ export function FormInput({
           type={intype}
           name={inname}
           id={inname}
-          value={value??""}
+          value={value ?? ""}
           onChange={onChange}
           autoComplete="off"
           readOnly={readonly}
@@ -764,7 +847,8 @@ export function FormInput({
       </div>
       {/* Show error as bottom red text only for input validation */}
       {error && (
-        <div style={{ color: "#EA3729", fontSize: "14px", marginTop: "4px" }}>
+        <div className="Errors" >
+           <Icon icon="mdi:error" width="16" height="16" />
           {error}
         </div>
       )}
@@ -829,15 +913,16 @@ export function FormInputPass({
         
       </div>
 
-      {/* Show error as bottom red text only for input validation */}
-      {error && (
-        <div style={{ color: "#EA3729", fontSize: "14px", marginTop: "4px" }}>
-          {error}
-        </div>
-      )}
+        {/* Show error as bottom red text only for input validation */}
+        {error && (
+          <div  className="Errors" >
+            <Icon icon="mdi:error" width="16" height="16" />
+            {error}
+          </div>
+        )}
 
 
-     </div>
+      </div>
     </>
   );
 }
