@@ -26,7 +26,7 @@ function AboutUs() {
                                     <h6>Why Do We exist?</h6>
                                 </div>
                                 <div className="body">
-                                    <p>Because, let’s face it—the veterinary world is chaotic. Juggling appointments, patient records, billing, and communication shouldn’t be a daily struggle. The PMS industry is cluttered, complicated, and outdated. That’s where we come in.</p>
+                                    <p>Because, let’s face it, the veterinary world is chaotic. Juggling appointments, patient records, billing, and communication shouldn’t be a daily struggle. The PMS industry is cluttered, complicated, and outdated. That’s where we come in.</p>
                                 </div>
                             </div>
 
@@ -35,7 +35,7 @@ function AboutUs() {
                                     <h6>Our Mission</h6>
                                 </div>
                                 <div className="body">
-                                    <p>Empower the veterinary ecosystem with a platform that actually works.We’ve got your back—whether you’re a solo vet, a clinic manager, or a tech-savvy developer ready to build tools that matter.</p>
+                                    <p>Empower the veterinary ecosystem with a platform that actually works.We’ve got your back whether you’re a solo vet, a clinic manager, or a tech-savvy developer ready to build tools that matter.</p>
                                 </div>
                             </div>
 
