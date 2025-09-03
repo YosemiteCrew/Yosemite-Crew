@@ -285,7 +285,7 @@ if(isVerified){
           {/* SignIn Page */}
           {!showForgotPassword && !showVerifyCode && !showNewPassword && (
             <div className="SignIninner">
-              <Form>
+              <Form onSubmit={handleSignIn}>
                 <div className="TopSignInner">
                   <FormInput
                     intype="email"

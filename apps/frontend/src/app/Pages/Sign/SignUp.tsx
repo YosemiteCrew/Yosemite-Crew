@@ -711,7 +711,7 @@ export function MainBtn({
   onClick,
 }: MainBtnProps) {
   return (
-    <Button className="BlackButton" type="button" onClick={onClick}>
+    <Button className="BlackButton" type="submit" onClick={onClick}>
       {iconPosition === "left" && btnicon && <span>{btnicon}</span>}
       <span className="mx-1">{btnname}</span>
       {iconPosition === "right" && btnicon && <span>{btnicon}</span>}

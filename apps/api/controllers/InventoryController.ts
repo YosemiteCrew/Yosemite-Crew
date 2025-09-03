@@ -514,23 +514,29 @@ const InventoryControllers = {
       res.status(400).json({ message: error.message });
     }
   },
-  getAllProcedurePackage: async (req: Request , res: Response) => {
+  getAllProcedurePackage: async (req: Request, res: Response) => {
     try {
       const { businessId } = req.query;
-console.log(businessId,"businessId in getAllProcedurePackage")
-      if (!businessId || typeof businessId !== "string") {
-        res.status(400).json({
+      console.log(businessId, "businessId in getAllProcedurePackage")
+      if (
+        !businessId ||
+        typeof businessId !== "string" ||
+        businessId.trim() === ""
+      ) {
+        return res.status(400).json({
           resourceType: "OperationOutcome",
           issue: [
             {
               severity: "error",
               code: "invalid",
-              details: { text: "businessId is required and must be a string" },
+              details: {
+                text: "businessId is required and must be a non-empty string",
+              },
             },
           ],
         });
-        return;
       }
+
 
       // Fetch only by businessId
       const getItems = await ProcedurePackage.find({ businessId: businessId });
