@@ -44,7 +44,7 @@ React.useEffect(() => {
 
                 <div className="PricingPage-header">
                     <div className="PriceBackdiv">
-                        <Link href="/"><Icon icon="solar:round-arrow-left-bold" width="24" height="24" /></Link>
+                        {/* <Link href="/"><Icon icon="solar:round-arrow-left-bold" width="24" height="24" /></Link> */}
                         <div className="PricinhHeadquote">
                             <h2> Transparent pricing, <span className="highlight">no hidden fees</span></h2>
                             <p>Choose a pricing plan that fits your preferred hosting option—whether you go for our fully managed cloud  hosting or take control with self-hosting.</p>
