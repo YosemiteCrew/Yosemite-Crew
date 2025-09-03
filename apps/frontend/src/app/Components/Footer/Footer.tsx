@@ -75,7 +75,7 @@ function Footer() {
               <Image aria-hidden src="/Images/Ftlogo.png" alt="Yosemite Crew Logo" width={96} height={96} />
               <div className="ClientLogo" aria-label="Certifications">
                 <Image aria-hidden src="/Images/ftlog1.png" alt="GDPR" width={55} height={56} />
-                <Image aria-hidden src="/Images/ftlog2.png" alt="SOC2" width={56} height={56} />
+                <Image aria-hidden src="/Images/ftlog2-2.png" alt="SOC2" width={56} height={56} />
                 <Image aria-hidden src="/Images/ftlog3.png" alt="HL7 FHIR" width={54} height={60} />
                 <Image aria-hidden src="/Images/ftlog4.png" alt="ISO 27001" width={117} height={28} />
               </div>
