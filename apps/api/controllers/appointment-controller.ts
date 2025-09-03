@@ -15,7 +15,7 @@ const appointmentController = {
 
       // Parse FHIR data if provided
       const data  = req.body.data;
-      console.log(data,'dataaaa');
+      
       let appointmentDetails;
       if (data) {
         const parseData = JSON.parse(req.body.data) as IFHIRAppointmentData
@@ -203,11 +203,11 @@ const appointmentController = {
       }
       const {appointmentDate, timeslot}=  JSON.parse(req.body.data);
       if(!appointmentDate || !timeslot){
-        console.log(req.body,'reschdule appointment',);
+        
         res.status(200).json({message:"Appointment Date and timeslot are missing", status:0})
         return
       }
-      console.log(req.body,'reschdule appointment');
+      
       const normalData :Partial<WebAppointmentType> = {
         appointmentDate: appointmentDate,
         appointmentTime: timeslot,

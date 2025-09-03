@@ -253,7 +253,6 @@ console.log(today, currentTime);
           }
         }
       ]);
-console.log(fhirDoctors,'fhirDoctors');
       const fhirPractitioners = fhirDoctors.map((doc) => {
         const practitioner = {
           resourceType: "Practitioner",
