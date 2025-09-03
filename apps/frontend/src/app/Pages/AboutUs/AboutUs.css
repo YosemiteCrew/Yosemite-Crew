@@ -110,7 +110,7 @@
 .AbutheroBtm .abtherocard .AbtCardItem .body p{
     font-family: var(--satoshi-font);
     font-weight: 400;
-    font-size: 18px;
+    font-size: 17px;
     line-height: 120%;
     color: var(--notibg);
     margin: 0;
@@ -145,7 +145,7 @@
 .OurStorySec .StoryData{
     display: grid;
     grid-template-columns: 1fr 1fr;
-    grid-gap: 51px;
+    grid-gap: 20px;
 }
 .OurStorySec .StoryData .storyTexted , .OurStorySec .StoryData .storyTexted .ourstorypara{
     display: flex;
@@ -163,7 +163,7 @@
 .OurStorySec .StoryData .storyTexted .ourstorypara h6{
     color: var(--notibg);
     font-weight: 500;
-    font-size: 19px;
+    font-size: 18px;
     line-height: 120%;
     font-family: var(--grotesk-font);
     margin: 0;

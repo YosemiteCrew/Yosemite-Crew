@@ -12,7 +12,7 @@
     "@types/node": "^22.15.21",
     "express": "4.21.2",
     "mongoose": "8.12.2",
-    "multer": "1.4.5-lts.2",
+    "multer": "2.0.2",
     "typescript": "5.0.4"
   }
 }
