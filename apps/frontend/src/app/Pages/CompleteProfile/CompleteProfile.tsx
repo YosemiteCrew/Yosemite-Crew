@@ -74,7 +74,7 @@ function CompleteProfile() {
   });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [showValidation, setShowValidation] = useState(false);
-  // console.log("name", name)
+
   useEffect(() => {
     if (userId && name.userId !== userId) {
       setName(prev => ({ ...prev, userId }));
@@ -101,9 +101,10 @@ getDpartments()
 },[])
 
   useEffect(() => {
+    
     if (profile) {
       setName({
-        userId: "",
+        userId: profile?.name?.userId as string,
         businessName: profile?.name?.businessName || "",
         website: profile?.name?.website || "",
         registrationNumber: profile?.name?.registrationNumber || "",
