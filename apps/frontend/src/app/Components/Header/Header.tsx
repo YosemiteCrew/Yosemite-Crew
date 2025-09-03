@@ -30,6 +30,7 @@ const publicNavItems: NavItem[] = [
   { label: "About Us", href: "/about_us" },
   { label: "PMS", href: "/homepage" },
   { label: "Developers", href: "/developerlanding" },
+  { label: "Pricing", href: "/pricing" },
   { label: "Resources", href: "/resources" },
   { label: "Contact Us", href: "/contact_us" },
   { label: "Blog", href: "/blogpage" },
@@ -95,6 +96,7 @@ const LoggedInHeader = () => {
         { label: "Coupons", href: "#" },
         { label: "Payment Methods", href: "#" },
         { label: "Procedure Estimates", href: "/ProcedureEstimate" },
+        { label: "Pricing Page", href: "/pricing" },
       ],
     },
     {
@@ -275,7 +277,7 @@ const PublicHeader = () => {
   useEffect(() => {
     document.body.classList.toggle("mobile-nav-active", mobileOpen);
   }, [mobileOpen]);
-console.log(pathname,'pathnamepathnamepathname');
+
   return (
     <div className="container-fluid container-xl d-flex align-items-center justify-content-between">
       <Link href="/" className="logo d-flex align-items-center me-auto me-lg-0">
