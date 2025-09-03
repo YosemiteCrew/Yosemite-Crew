@@ -274,9 +274,11 @@ if(isVerified){
 
   return (
     <>
-     {ErrorTostPopup}
+     
 
       <section className="SignInSec">
+
+        {ErrorTostPopup}
         
         {/* <div className="leftSignIn" style={{"--background-image":`url(${process.env.VITE_BASE_IMAGE_URL}/SignInpic.png)`}} ></div> */}
         <div className="leftSignIn" ></div>
@@ -287,6 +289,7 @@ if(isVerified){
             <div className="SignIninner">
               <Form onSubmit={handleSignIn}>
                 <div className="TopSignInner">
+                  <h2>Sign in <span>to your account</span> </h2>
                   <FormInput
                     intype="email"
                     inname="email"
