@@ -103,7 +103,7 @@
     height: 48px !important;
 }
 .RightRederfine .carousel .carousel-control-prev {
-    right: 100px !important;
+    right: 110px !important;
 }
 .RightRederfine .carousel .carousel-control-next{
     right: 50px !important;
@@ -212,11 +212,11 @@
     line-height: 120%;
     transition: 0.3s;
     border: 1px solid var(--black-bg);
+    &:hover{
+        background: var(--black-hover);
+    }
 }
-.landingSection .LandingData .LeftLanding .landingTexed a:hover{
-    background: transparent;
-    color: var(--black-text);
-}
+
 .landingSection .LandingData .LeftLanding .landingTexed .landinginnerTexed{
     display: flex;
     flex-direction: column;

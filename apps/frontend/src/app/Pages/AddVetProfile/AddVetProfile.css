@@ -82,24 +82,23 @@
     gap: 40px;
 }
 .BackBtn{
-    background: transparent;
+    background: var(--black-bg);
     width: fit-content;
-    border: 2px solid var(--black-bg);
-    padding: 0px 20px;
+    border: 1px solid var(--black-bg);
+    padding: 14px 24px;
     min-height: 48px;
-    border-radius: 28px;
+    border-radius: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
     font-weight: 500;
-    font-size: 23px;
+    font-size: 19px;
     line-height: 120%;
     font-family: var(--grotesk-font);
-    color: var(--black-text);
+    color: var(--white-text);
     &:hover{
-        background: var(--black-bg);
-        color: var(--white-text);
+        background: var(--black-hover);
     }
 }
 .AddProfileDetailSec .AddProfileDetailData .ProfileDetails{
