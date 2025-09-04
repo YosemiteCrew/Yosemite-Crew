@@ -483,8 +483,8 @@ const authController = {
   },
 
   resendConfirmationCode: async (req: Request, res: Response): Promise<void> => {
-    const { email } = req.body as { email: string };
-
+    let { email } = req.body as { email: string };
+    email = email?.trim().toLowerCase();
     try {
       if (!email || typeof email !== 'string' || !validator.isEmail(email)) {
         res.status(200).json({ status: 0, message: 'Invalid email address' });
@@ -786,7 +786,7 @@ const authController = {
     try {
       // const userID = getCognitoUserId(req);
 
-      const { refreshToken, userID } = req.body as { refreshToken: string, userID:string };
+      const { refreshToken, userID } = req.body as { refreshToken: string, userID: string };
       if (!refreshToken) {
         res.status(200).json({ status: 0, message: 'Refresh token required' })
       }
@@ -806,7 +806,7 @@ const authController = {
 
       const accessToken = response.AuthenticationResult!.AccessToken!;
       const decoded = jwt.decode(accessToken) as { sub: string };
-      console.log(decoded,'decoded');
+      console.log(decoded, 'decoded');
 
       const payload = {
         username: decoded.sub,
@@ -846,8 +846,8 @@ const authController = {
       const data = req.body?.data as string;
 
       const { email } = JSON.parse(data) as { email: string }
-      if(!email){
-        res.status(200).json({message:'Email is required', status:0})
+      if (!email) {
+        res.status(200).json({ message: 'Email is required', status: 0 })
         return
       }
       const params = {

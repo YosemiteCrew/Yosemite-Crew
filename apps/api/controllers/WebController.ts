@@ -39,7 +39,9 @@ const WebController = {
   ): Promise<void> => {
     try {
 
-      const { email, password, role, subscribe } = req.body as register;
+      // eslint-disable-next-line prefer-const
+      let { email, password, role, subscribe } = req.body as register;
+          email = email?.trim().toLowerCase();
 
       if (!email || !password) {
         res

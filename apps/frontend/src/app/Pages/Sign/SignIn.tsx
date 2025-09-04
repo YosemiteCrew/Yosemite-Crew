@@ -124,28 +124,24 @@ function SignIn() {
       );
 
       if (response.status === 200 && response.data?.data) {
+        if (typeof window !== "undefined") {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
         const { userId, email, userType } = response.data.data;
-
-        console.log("User Data:", userId, email, userType);
-
-        // 👇 Save to Zustand
         useAuthStore.getState().setUser({ userId, email, userType });
-        setVerified(true); 
-        // 👇 Double-check if it's saved
-        const storeData = useAuthStore.getState();
-        console.log("Saved in Zustand:", storeData);
-
+        setVerified(true);
         showErrorTost({
           message: response.data.message || 'Sign in successful',
           errortext: 'Success',
           iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#00C853" />,
           className: "CongratsBg"
         });
-
-      }
         router.push("/emptydashboard");
-
+      }
     } catch (error: unknown) {
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
       const axiosError = error as AxiosError<{ message: string }>;
       showErrorTost({
         message: `Sign in failed: ${axiosError.response?.data?.message || 'Unable to connect to the server.'}`,
@@ -159,6 +155,9 @@ function SignIn() {
   const handleOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) {
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
       showErrorTost({
         message: 'Email is required',
         errortext: 'Error',
@@ -175,6 +174,9 @@ function SignIn() {
       );
 
       if (response.status === 200) {
+        if (typeof window !== "undefined") {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
         showErrorTost({
           message: 'OTP sent successfully',
           errortext: 'Success',
@@ -184,6 +186,9 @@ function SignIn() {
         setShowVerifyCode(true);
       }
     } catch (error: unknown) {
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
       const axiosError = error as AxiosError<{ message: string }>;
       showErrorTost({
         message: `OTP failed: ${axiosError.response?.data?.message || 'Unable to connect to the server.'}`,
@@ -198,6 +203,9 @@ function SignIn() {
     e.preventDefault();
 
     if (otp.some((digit) => digit === '')) {
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
       showErrorTost({
         message: 'Please enter the full OTP',
         errortext: 'Error',
@@ -208,6 +216,9 @@ function SignIn() {
     }
 
     if (password !== confirmPassword) {
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
       showErrorTost({
         message: 'Passwords do not match',
         errortext: 'Error',
@@ -230,6 +241,9 @@ function SignIn() {
       );
 
       if (response.status === 200) {
+        if (typeof window !== "undefined") {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
         showErrorTost({
           message: 'OTP verified successfully',
           errortext: 'Success',
@@ -240,8 +254,10 @@ function SignIn() {
         setShowVerifyCode(false);
         setShowForgotPassword(false);
       }
-      
     } catch (error: unknown) {
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
       const axiosError = error as AxiosError<{ message: string }>;
       showErrorTost({
         message: `OTP verification failed: ${axiosError.response?.data?.message || 'Unable to connect to the server.'}`,
