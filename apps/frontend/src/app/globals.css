@@ -100,6 +100,7 @@
 
   --black-text: #302F2E;
   --black-bg: #302F2E;
+  --black-hover: #1D1C1B;
   --darkblackbg:#141413;
   --blck:#333333;
   --lightblack:#312943;
@@ -217,11 +218,13 @@ input[type=checkbox] {
   background-color: transparent;
   cursor: pointer;
   position: relative;
+  font-weight: 500;
+  font-family: var(--grotesk-font);
 }
 input[type=checkbox]:checked {
   background-color: var(--blue-text);
 }
-/* input[type=checkbox]:checked::after {
+input[type=checkbox]:checked::after {
   content: '';
   position: absolute;
   left: 50%;
@@ -231,7 +234,36 @@ input[type=checkbox]:checked {
   border: solid var(--whitebg);
   border-width: 0 3px 3px 0;
   transform: translate(-50%, -50%) rotate(45deg);
-} */
+}
+input[type=radio] {
+  width: 16px;
+  height: 16px;
+  -moz-appearance: none;
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: 50%;
+  border: 1px solid var(--black-text) !important;
+  background-color: transparent;
+  cursor: pointer;
+  position: relative;
+  font-weight: 500;
+  font-family: var(--grotesk-font);
+}
+input[type=radio]:checked {
+  background-color: var(--blue-text) !important;
+  border: 1px solid var(--blue-text) !important;
+}
+input[type=radio]:checked::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--whitebg);
+  transform: translate(-50%, -50%);
+}
 
 
 .form-check-input:focus {

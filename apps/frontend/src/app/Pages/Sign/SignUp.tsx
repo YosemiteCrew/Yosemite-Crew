@@ -135,7 +135,7 @@ function SignUp({ inviteCode }: SignUpProps) {
     subscribe?: string;
     agree?: string;
   }>({});
-  const [timer, setTimer] = useState(180); // 5 minutes in seconds
+  const [timer, setTimer] = useState(150); // 2.30 minutes in seconds
   const [timerActive, setTimerActive] = useState(false);
 
   // Timer effect for OTP modal
@@ -158,7 +158,7 @@ function SignUp({ inviteCode }: SignUpProps) {
   // Reset timer when modal opens
   useEffect(() => {
     if (showVerifyModal) {
-      setTimer(300);
+      setTimer(150);
       setTimerActive(true);
     }
   }, [showVerifyModal]);
@@ -206,7 +206,7 @@ function SignUp({ inviteCode }: SignUpProps) {
     }
 
     try {
-      const response = await postData<
+      const response:any = await postData<
         { message: string; data?: { userId: string; email: string; userType: string } }
       >(
         '/api/auth/verifyUser ',
@@ -220,19 +220,22 @@ function SignUp({ inviteCode }: SignUpProps) {
       );
 
       if (response.status === 200 && response.data?.data) {
-        const { userId, email, userType } = response.data.data;
+        if (typeof window !== "undefined") {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+        const { userId, email, userType,isVerified } = response.data.data;
 
         console.log("User Data:", userId, email, userType);
 
         // 👇 Save to Zustand
-        useAuthStore.getState().setUser({ userId, email, userType });
+        useAuthStore.getState().setUser({ userId, email, userType,isVerified });
         showErrorTost({
           message: response.data.message,
           errortext: "Success",
           iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#00C853" />,
           className: "CongratsBg"
         });
-        setVerified(true);
+        setVerified(isVerified);
         setCode(Array(6).fill(""));
         setShowVerifyModal(false);
         // sessionStorage.setItem('token', response.data.token);
@@ -240,6 +243,9 @@ function SignUp({ inviteCode }: SignUpProps) {
       }
 
     } catch (error: any) {
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
       setInvalidOtp(true);
     }
   };
@@ -259,6 +265,9 @@ function SignUp({ inviteCode }: SignUpProps) {
       );
 
       if (response.status === 200) {
+        if (typeof window !== "undefined") {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
         showErrorTost({
           message: 'A new verification code has been sent to your email.',
           errortext: 'Code Resent',
@@ -267,10 +276,13 @@ function SignUp({ inviteCode }: SignUpProps) {
         });
         setCode(Array(6).fill("")); // Clear OTP fields on resend
         setActiveInput(0); // Focus first input
-        setTimer(300);
+        setTimer(150);
         setTimerActive(true);
       }
     } catch (error: unknown) {
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
       let message = 'Something went wrong.';
 
       if (error && typeof error === 'object' && 'isAxiosError' in error) {
@@ -288,8 +300,8 @@ function SignUp({ inviteCode }: SignUpProps) {
   };
   const { showErrorTost, ErrorTostPopup } = useErrorTost();
 
-  const handleSignUp = useCallback(async () => {
-    // Input validation
+  const handleSignUp = useCallback(async (e: { preventDefault: () => void; }) => {
+    e.preventDefault();
     const errors: {
       email?: string;
       password?: string;
@@ -383,17 +395,24 @@ function SignUp({ inviteCode }: SignUpProps) {
       const data = await postData<{ message: string }>(url, formData);
 
       if (data?.status === 200) {
+        if (typeof window !== "undefined") {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
         // showErrorTost({
         //   message: "You have successfully created your profile",
         //   errortext: "🎉 Congratulations!",
         //   iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#00C853" />,
         //   className: "CongratsBg"
         // });
-        setShowVerifyModal(true); // Show modal after signup
-        setTimer(300); // Reset timer to 5 min
+        setShowVerifyModal(true);
+        setTimer(150);
         setTimerActive(true);
       }
     } catch (error: unknown) {
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      // Scroll to top on API error to show alert
       let status: number | undefined;
       let message: string = 'Something went wrong.';
 
@@ -412,15 +431,12 @@ function SignUp({ inviteCode }: SignUpProps) {
       showErrorTost({
         message,
         errortext: status === 409 ? "Already Registered" : "Signup Error",
-        iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#EA3729" />,
+        iconElement: <Icon icon="mdi:error" width="20" height="20" color="#EA3729" />,
         className: status === 409 ? "errofoundbg" : "oppsbg"
       });
-
       setShowVerifyModal(false);
     }
   }, [email, password, selectedType, confirmPassword, subscribe, agree, department, invitedBy, inviteCode, showErrorTost]);
-
-
 
   const businessTypes = [
     { key: "veterinaryBusiness", value: "Veterinary Business" },
@@ -528,7 +544,7 @@ function SignUp({ inviteCode }: SignUpProps) {
 
             <Col md={6}>
               <div className="SignUpFormDiv">
-                <Form>
+                <Form onSubmit={handleSignUp} method="post">
                   <div className="TopSignUp">
                     <div className="Headingtext">
                       <h2>Sign up for Cloud </h2>
@@ -620,7 +636,7 @@ function SignUp({ inviteCode }: SignUpProps) {
                         <Icon icon="mdi:error" width="16" height="16" />
                         {inputErrors.subscribe}
                       </div>
-                     
+
                     )}
                   </div>
 
@@ -650,16 +666,10 @@ function SignUp({ inviteCode }: SignUpProps) {
 
         <section className="CompleteSignUpSec">
           <div
-            className="LeftCompleteSign"
-            style={
-              {
-                "--dynamic-bg-image": `url("/Images/doctorbg.png")`,
-              } as React.CSSProperties
-            }
-          ></div>
+            className="LeftCompleteSign" ></div>
           <div className="RightCompleteSign">
             <div className="ComplteSignInner">
-              <Form>
+              <Form >
                 <div className="CompleteText">
                   <h2>
                     San Francisco Animal Medical Center{" "}
@@ -741,7 +751,7 @@ function SignUp({ inviteCode }: SignUpProps) {
                   />
                 ))}
               </div>
-              {invalidOtp?<p><Icon icon="solar:danger-circle-bold" width="18" height="18" /> Invalid OTP</p> : ""} </div>
+              {invalidOtp ? <p><Icon icon="solar:danger-circle-bold" width="18" height="18" /> Invalid OTP</p> : ""} </div>
           </div>
           <div className="VerifyModalBottomInner">
             <div className="VerifyBtnDiv">
@@ -767,7 +777,8 @@ function SignUp({ inviteCode }: SignUpProps) {
               >
                 <span>Request New Code</span>
               </Link>
-              <Link href="/signup">. Change Email</Link>
+              <Link href="#" onClick={() => setShowVerifyModal(false)
+              }>. Change Email</Link>
             </div>
           </div>
         </Modal.Body>
@@ -848,7 +859,7 @@ export function FormInput({
       {/* Show error as bottom red text only for input validation */}
       {error && (
         <div className="Errors" >
-           <Icon icon="mdi:error" width="16" height="16" />
+          <Icon icon="mdi:error" width="16" height="16" />
           {error}
         </div>
       )}
@@ -864,7 +875,7 @@ type FormInputPassProps = {
   value: string;
   inlabel: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  inPlaceHolder?:string
+  inPlaceHolder?: string
 };
 export function FormInputPass({
   intype,
@@ -885,37 +896,37 @@ export function FormInputPass({
   return (
     <>
       <div className='w-100'>
-        
-      <div className={`SignPassInput floating-input ${isFocused || value ? "focused" : ""}`}>
-        <input
-          type={showPassword ? "text" : intype}
-          name={inname}
-          id={inname}
-          value={value??""}
-          autoComplete="new-password"
-          onChange={onChange}
-          required
-          placeholder={isFocused ? inPlaceHolder :''}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          className={error ? 'is-invalid' : ''}
-        />
-        <label htmlFor={inname}>{inlabel}</label>
-        <Button type="button" onClick={togglePasswordVisibility} tabIndex={-1}>
-          <Image
-            aria-hidden
-            src="/Images/eyes.png"
-            alt="eyes"
-            width={24}
-            height={24}
+
+        <div className={`SignPassInput floating-input ${isFocused || value ? "focused" : ""}`}>
+          <input
+            type={showPassword ? "text" : intype}
+            name={inname}
+            id={inname}
+            value={value ?? ""}
+            autoComplete="new-password"
+            onChange={onChange}
+            required
+            placeholder={isFocused ? inPlaceHolder : ''}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            className={error ? 'is-invalid' : ''}
           />
-        </Button>
-        
-      </div>
+          <label htmlFor={inname}>{inlabel}</label>
+          <Button type="button" onClick={togglePasswordVisibility} tabIndex={-1}>
+            <Image
+              aria-hidden
+              src="/Images/eyes.png"
+              alt="eyes"
+              width={24}
+              height={24}
+            />
+          </Button>
+
+        </div>
 
         {/* Show error as bottom red text only for input validation */}
         {error && (
-          <div  className="Errors" >
+          <div className="Errors" >
             <Icon icon="mdi:error" width="16" height="16" />
             {error}
           </div>

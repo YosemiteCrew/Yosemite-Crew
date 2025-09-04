@@ -22,7 +22,7 @@ import { useAuthStore } from "../../stores/authStore";
 
 function AdminDashboardEmpty() {
 
-   const { userId, email, userType } = useAuthStore();
+   const { userId, email, userType,isVerified } = useAuthStore();
   
     useEffect(() => {
       console.log("user", userId, email, userType);
@@ -61,7 +61,7 @@ function AdminDashboardEmpty() {
   return (
     <section>
       {/* SubscribePopup */}
-      <div className="SubscribePopup">
+      {/* <div className="SubscribePopup">
         <Container>
           <div className="SubsPopInner">
             <h4>📮 Stay in the Loop with Yosemite Crew</h4>
@@ -71,7 +71,7 @@ function AdminDashboardEmpty() {
             </p>
           </div>
         </Container>
-      </div>
+      </div> */}
 
       <Container>
         <div className="EmptyDashboardData">
@@ -83,18 +83,18 @@ function AdminDashboardEmpty() {
               <div className="wlcdash">
                 <h2>Your Dashboard</h2>
                 {/* Conditional Rendering */}
-                {status === "appointment" && (
+                {/* {status === "appointment" && (
                   <div className="Apoitpopup">
                     <FaBellSlash /> No New Appointments
                   </div>
-                )}
+                )} */}
 
-                {status === "warning" && (
+                {isVerified === 0 && (
                   <div className="Wrningpopup">
                     <PiWarningOctagonFill /> Verification in Progress — Limited Access Enabled
                   </div>
                 )}
-                {status === "verify" && (
+                {isVerified === 1 && (
                   <div className="Verifypopup">
                     🎉 Your profile is verified and good to go — no new appointments.
                   </div>

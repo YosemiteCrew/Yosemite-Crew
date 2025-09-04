@@ -8,10 +8,10 @@ type AuthStore = {
   userId: string | null;
   email: string | null;
   userType: UserType | null;
-  isVerified: boolean;
-  setUser: (user: { userId: string; email: string; userType: UserType }) => void;
+  isVerified:  number|null;
+  setUser: (user: { userId: string; email: string; userType: UserType,isVerified:number }) => void;
   logout: () => void;
-  setVerified: (value?: boolean) => void;
+  setVerified: (value?: number) => void;
   profile: BusinessProfile | null;
   vetAndTeamsProfile: ConvertToFhirVetProfileParams | null;
   loading: boolean;
@@ -24,14 +24,14 @@ export const useAuthStore = create<AuthStore>((set) => ({
   userId: null,
   email: null,
   userType: null,
-  isVerified: false,
+  isVerified: null,
   profile: null,
   vetAndTeamsProfile: null,
   loading: false,
   error: null,
 
-  setUser: ({ userId, email, userType }) => {
-    set({ userId, email, userType });
+  setUser: ({ userId, email, userType,isVerified }) => {
+    set({ userId, email, userType,isVerified });
   },
 
   logout: () => {
@@ -39,7 +39,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
       userId: null,
       email: null,
       userType: null,
-      isVerified: false,
+      isVerified: null,
       profile: null,
       vetAndTeamsProfile: null,
       loading: false,
@@ -47,7 +47,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     });
   },
 
-  setVerified: (value: boolean = true) => {
+  setVerified: (value: number = 0) => {
     set({ isVerified: value });
   },
 
