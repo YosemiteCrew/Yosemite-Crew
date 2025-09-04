@@ -264,6 +264,7 @@ const WebController = {
         userId: cognitoId,
         email,
         userType: user.role,
+        isVerified:user.isVerified
       };
 
       if (!ACCESS_SECRET || !REFRESH_SECRET) {
@@ -369,6 +370,7 @@ const WebController = {
         userId: cognitoId,
         email,
         userType: user.role,
+        isVerified: user.isVerified
       };
 
       // ✅ Create tokens
@@ -412,6 +414,7 @@ const WebController = {
           userId: cognitoId,
           email,
           userType: user.role,
+          isVerified: user.isVerified
         }, message: "Logged in successfully"
       });
 
@@ -943,7 +946,7 @@ const WebController = {
       });
     }
   },
-  refreshToken: (req: Request, res: Response) => {
+  refreshToken: async(req: Request, res: Response) => {
     try {
       const refreshToken: string = req.cookies.refreshToken;
 
@@ -957,6 +960,7 @@ const WebController = {
         userId: string;
         email: string;
         userType: string;
+        // isVerified: number;
       };
 
       // ✅ Create new access token
@@ -968,6 +972,7 @@ const WebController = {
           userId: decoded.userId,
           email: decoded.email,
           userType: decoded.userType,
+          // isVerified: decoded.isVerified
         },
         ACCESS_SECRET,
         { expiresIn: ACCESS_EXPIRY } as jwt.SignOptions
@@ -981,11 +986,13 @@ const WebController = {
         maxAge: 1000 * 60 * 15, // 15 minutes
       });
 
+      const user:any = await WebUser.findOne({ cognitoId: decoded.userId });
       res.status(200).json({
         data: {
           userId: decoded.userId,
           email: decoded.email,
-          userType: decoded.userType
+          userType: decoded.userType,
+          isVerified: user.isVerified
         }, message: "Access token refreshed"
       });
 
