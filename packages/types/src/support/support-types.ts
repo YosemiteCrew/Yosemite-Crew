@@ -9,10 +9,11 @@ export type TicketStatus =
 
 // Ticket Category
 export type TicketCategory =
-  | "General"
+  | "General Enquiry"
   | "Technical"
   | "Billing"
-  | "DSAR"
+  | "Data Service Access Request"
+  | "Complaint"
   | "Feature Request";
 
 // Ticket Platform
