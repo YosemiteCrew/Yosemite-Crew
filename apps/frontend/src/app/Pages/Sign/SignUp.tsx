@@ -666,13 +666,7 @@ function SignUp({ inviteCode }: SignUpProps) {
 
         <section className="CompleteSignUpSec">
           <div
-            className="LeftCompleteSign"
-            style={
-              {
-                "--dynamic-bg-image": `url("/Images/doctorbg.png")`,
-              } as React.CSSProperties
-            }
-          ></div>
+            className="LeftCompleteSign" ></div>
           <div className="RightCompleteSign">
             <div className="ComplteSignInner">
               <Form>
