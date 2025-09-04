@@ -6,6 +6,7 @@ import { FaFacebookF , FaLinkedinIn } from "react-icons/fa";
 import { RiTwitterXFill } from "react-icons/ri";
 import Link from 'next/link';
 import Image from 'next/image';
+import { Icon } from '@iconify/react/dist/iconify.js';
 
 
 const ArticlePage = () => {
@@ -217,7 +218,7 @@ export function ExploreType({ onFilterChange,clearFilter}: {onFilterChange:({ an
         <div className="typtext">
           <Image aria-hidden src="/Images/petfoot.png" alt="petfoot" width={24} height={24} />
           <h6>Animal Type</h6>
-           <div style={{color:"blue",cursor:"pointer"}} onClick={clearFilter}>Clear Filter</div>
+           {/* <div style={{color:"blue",cursor:"pointer"}} onClick={clearFilter}>Clear Filter</div> */}
         </div>
         <div className="typeinfo">
           {["Cats", "Dogs", "Horses"].map((animal) => (
@@ -237,7 +238,8 @@ export function ExploreType({ onFilterChange,clearFilter}: {onFilterChange:({ an
       </div>
       <div className="bltype">
         <div className="typtext">
-          <Image aria-hidden src="/Images/blueLiabry.png" alt="blueLiabry" width={24} height={24} />
+          {/* <Image aria-hidden src="/Images/blueLiabry.png" alt="blueLiabry" width={24} height={24} /> */}
+          <Icon icon="solar:library-bold" width="24" height="24" />
           <h6>Topics</h6>
         </div>
         <div className="typeinfo">

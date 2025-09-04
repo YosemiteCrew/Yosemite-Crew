@@ -225,7 +225,7 @@
     min-height: 100vh;
 }
 .LeftCompleteSign {
-  background-image: var(--dynamic-bg-image);
+  background-image: url(/Images/SignInBg.png);
   background-size: 100% 100%;
   object-position: center;
   min-height: 100vh;
