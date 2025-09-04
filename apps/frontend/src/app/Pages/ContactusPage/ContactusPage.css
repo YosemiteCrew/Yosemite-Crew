@@ -7,12 +7,33 @@
     align-items: flex-start;
     justify-content: space-between;
 }
-.ContactUsData .LeftContactUs h2{
+.ContactUsData .LeftContactUs{
+    display: flex;
+    flex-direction: column;
+    gap: 60px;
+    min-width: 522px;
+}
+.ContactUsData .LeftContactUs .conttexted{
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.ContactUsData .LeftContactUs .conttexted span{
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 120%;
+    margin: 0;
+    color: var(--blue-text);
+    font-family: var(--satoshi-font);
+}
+.ContactUsData .LeftContactUs .conttexted h2{
     font-size: 57px;
     font-weight: 500;
     line-height: 120%;
     margin: 0;
     font-family: var(--grotesk-font);
+    margin: 0;
 }
 .ContactUsData .RightContactUs{
     box-shadow: 0px 0px 8px 0px #47382714;
@@ -54,6 +75,7 @@
     font-size: 19px;
     font-weight: 500;
     color: var(--black-text);
+    font-family: var(--grotesk-font);
 }
 .ContactUsData .RightContactUs .QueryDetailsFields{
     display: flex;
@@ -70,6 +92,7 @@
     font-weight: 500;
     color: var(--black-text);
     line-height: 120%;
+    font-family: var(--grotesk-font);
 }
 .ContactUsData .RightContactUs .QueryDetailsFields textarea{
     border: 1px solid var(--pinkborder) !important;       
@@ -111,7 +134,7 @@
 .ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted label{
     display: grid;
     grid-template-columns: auto 1fr;
-    gap: 6px;
+    grid-gap: 10px;
     font-size: 15px;
     font-weight: 400;
     line-height: 120%;
@@ -121,6 +144,33 @@
 .ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted label:has(input:checked) {
   font-weight: 700;
 
+}
+
+/* Upload styles for complaint image */
+.ContactUsData .RightContactUs .DataServiceAccessFields .UploadBox{
+    position: relative;
+    border: 1px dashed var(--pinkborder);
+    border-radius: 16px;
+    padding: 18px;
+}
+.ContactUsData .RightContactUs .DataServiceAccessFields .UploadBox input[type="file"]{
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+.ContactUsData .RightContactUs .DataServiceAccessFields .UploadBox .UploadInner{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 80px;
+    border-radius: 12px;
+    background: var(--whitebg);
+}
+.ContactUsData .RightContactUs .DataServiceAccessFields .UploadBox .UploadInner .UploadText{
+    font-size: 15px;
+    color: var(--black-text);
+    opacity: 0.6;
 }
 
 
@@ -221,6 +271,25 @@
     margin: 0;
 }
 
-
+.SendBtn{
+    min-height: 60px;
+    border-radius: 36px;
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 160px;
+    background-color: var(--black-bg) !important;
+    border: 1px solid var(--black-bg) !important;
+    font-family: var(--grotesk-font);
+    font-weight: 500;
+    font-size: 23px;
+    line-height: 120%;
+    opacity: 50%;
+    &:hover{
+        background-color: var(--black-hover) !important;
+    }
+    
+}
 
 /* ContactInfoSec Ended  */

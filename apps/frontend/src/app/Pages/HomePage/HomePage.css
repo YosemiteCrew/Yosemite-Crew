@@ -81,10 +81,9 @@ a.Fillbtn{
     line-height: 120%;
     font-family: var(--grotesk-font);
     min-height: 60px;
-}
-a.Fillbtn:hover{
-    background: var(---whitebg);
-    color: var(--black-text);
+    &:hover{
+        background: var(--black-hover);
+    }
 }
 a.UnFillbtn{
     background: var(---whitebg);
@@ -101,11 +100,12 @@ a.UnFillbtn{
     font-weight: 500;
     line-height: 120%;
     font-family: var(--grotesk-font);
+    &:hover{
+        box-shadow: 0px 2px 70px 6px #00000029;
+
+    }
 }
-a.UnFillbtn:hover{
-    background: var(--black-bg);
-    color: var(--white-text);
-}
+
 
 /* HomeHeroSection Ended  */
 
