@@ -9,8 +9,8 @@ function FAQ() {
     const items = [
         {
             id: 'collapseOne',
-            title: 'What is the difference between the managed service and self hosting?',
-            content: 'The same features are available in both options. In self hosted, you can use the open source features of SuperTokens for free at any scale and pay only for the paid features mentioned in “Scale”. With the managed service, SuperTokens handles on demand scalability, reliability and updates - essentially reducing your devops workload. With the self hosted version, everything is managed within your infrastructure.',
+            title: 'What are the benefits of open-source in animal health?',
+            content: 'Open-source models encourage collaboration among researchers, veterinarians, and public health officials by providing a common platform for sharing data and insights.',
         },
         {
             id: 'collapseTwo',
