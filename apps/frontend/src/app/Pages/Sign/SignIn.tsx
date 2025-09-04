@@ -73,7 +73,7 @@ function SignIn() {
   const isVerified = useAuthStore((state) => state.isVerified);
   const userType = useAuthStore((state) => state.userType);
 
-  console.log(isVerified," isVerified in SignIn");
+  console.log(isVerified,"isVerified in SignIn");
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, index: number) => {
     const value = e.target.value;
 
@@ -116,7 +116,7 @@ function SignIn() {
     const signInData = { email, password };
 
     try {
-      const response = await postData<{ message: string; data?: { userId: string; email: string; userType: string } }>(
+      const response:any = await postData<{ message: string; data?: { userId: string; email: string; userType: string } }>(
         `/api/auth/signin`,
         signInData, {
         withCredentials: true,
@@ -124,12 +124,13 @@ function SignIn() {
       );
 
       if (response.status === 200 && response.data?.data) {
+        console.log('Sign in successful:', response.data);
         if (typeof window !== "undefined") {
           window.scrollTo({ top: 0, behavior: "smooth" });
         }
-        const { userId, email, userType } = response.data.data;
-        useAuthStore.getState().setUser({ userId, email, userType });
-        setVerified(true);
+        const { userId, email, userType,isVerified } = response.data.data;
+        useAuthStore.getState().setUser({ userId, email, userType,isVerified });
+        // setVerified(true);
         showErrorTost({
           message: response.data.message || 'Sign in successful',
           errortext: 'Success',
@@ -151,7 +152,7 @@ function SignIn() {
       });
     }
   };
-
+  // console.log(isVerified," isVerified in SignIn");
   const handleOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) {
@@ -278,7 +279,7 @@ function SignIn() {
       router.push("/DoctorDashboard");
     }    
    }
-if(isVerified){
+if(isVerified===1){
   return (
     <div className="alreadySignedIn">
       <h2>You are already signed in!</h2>
@@ -286,7 +287,7 @@ if(isVerified){
       <MainBtn btnname="Go to Dashboard" onClick={() => redirectToDashboard()} />
     </div>     )   
 }
-  
+
 
   return (
     <>

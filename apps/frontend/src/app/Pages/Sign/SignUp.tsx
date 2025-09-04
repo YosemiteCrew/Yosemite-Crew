@@ -206,7 +206,7 @@ function SignUp({ inviteCode }: SignUpProps) {
     }
 
     try {
-      const response = await postData<
+      const response:any = await postData<
         { message: string; data?: { userId: string; email: string; userType: string } }
       >(
         '/api/auth/verifyUser ',
@@ -223,19 +223,19 @@ function SignUp({ inviteCode }: SignUpProps) {
         if (typeof window !== "undefined") {
           window.scrollTo({ top: 0, behavior: "smooth" });
         }
-        const { userId, email, userType } = response.data.data;
+        const { userId, email, userType,isVerified } = response.data.data;
 
         console.log("User Data:", userId, email, userType);
 
         // 👇 Save to Zustand
-        useAuthStore.getState().setUser({ userId, email, userType });
+        useAuthStore.getState().setUser({ userId, email, userType,isVerified });
         showErrorTost({
           message: response.data.message,
           errortext: "Success",
           iconElement: <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="#00C853" />,
           className: "CongratsBg"
         });
-        setVerified(true);
+        setVerified(isVerified);
         setCode(Array(6).fill(""));
         setShowVerifyModal(false);
         // sessionStorage.setItem('token', response.data.token);
@@ -544,7 +544,7 @@ function SignUp({ inviteCode }: SignUpProps) {
 
             <Col md={6}>
               <div className="SignUpFormDiv">
-                <Form>
+                <Form onSubmit={handleSignUp} method="post">
                   <div className="TopSignUp">
                     <div className="Headingtext">
                       <h2>Sign up for Cloud </h2>
@@ -669,7 +669,7 @@ function SignUp({ inviteCode }: SignUpProps) {
             className="LeftCompleteSign" ></div>
           <div className="RightCompleteSign">
             <div className="ComplteSignInner">
-              <Form>
+              <Form >
                 <div className="CompleteText">
                   <h2>
                     San Francisco Animal Medical Center{" "}
