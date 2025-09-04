@@ -137,6 +137,7 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
       </>
     );
   }
+  return null;
 };
 
 export default SessionInitializer;
