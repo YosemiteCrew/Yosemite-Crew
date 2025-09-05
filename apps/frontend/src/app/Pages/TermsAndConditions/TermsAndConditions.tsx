@@ -163,7 +163,7 @@ function TermsAndConditions() {
       </div>
       <div className="definitions">
         <h3 className="definitions__title">2. SCOPE </h3>
-        <p className="definitions__text"> </p>
+        {/* <p className="definitions__text"> </p> */}
 
         <ul className="definitions__list">
           <li>
