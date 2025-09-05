@@ -14,6 +14,7 @@ export const transformPets = rawData => {
       species: resource?.animal?.species?.coding?.[0]?.display || '',
       breed: resource?.animal?.breed?.coding?.[0]?.display || '',
       genderStatus: resource?.animal?.genderStatus?.coding?.[0]?.display || '',
+      percentage: resource?.profileCompletion || 0,
     };
 
     resource.extension?.forEach(ext => {

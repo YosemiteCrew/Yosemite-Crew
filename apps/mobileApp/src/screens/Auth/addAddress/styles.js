@@ -175,4 +175,24 @@ export const styles = StyleSheet.create({
     paddingLeft: scaledValue(20),
     marginTop: scaledValue(40),
   },
+  rightIcon: {
+    width: scaledValue(20),
+    height: scaledValue(20),
+  },
+  inputWrapper: {
+    position: 'relative',
+  },
+
+  inlineLabelWrapper: {
+    position: 'absolute',
+    top: scaledValue(-7),
+    left: scaledValue(20),
+    backgroundColor: colors.themeColor,
+    zIndex: 1,
+    paddingHorizontal: scaledValue(5),
+  },
+
+  inlineLabel: {
+    fontSize: scaledValue(12),
+  },
 });

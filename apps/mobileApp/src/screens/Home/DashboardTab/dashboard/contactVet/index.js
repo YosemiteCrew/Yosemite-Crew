@@ -124,7 +124,7 @@ const ContactVet = ({navigation}) => {
         />
 
         <FlatList
-          data={petList?.entry}
+          data={petList}
           style={{marginTop: scaledValue(15)}}
           horizontal
           contentContainerStyle={styles.petList}

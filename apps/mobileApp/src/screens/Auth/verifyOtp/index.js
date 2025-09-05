@@ -47,8 +47,10 @@ const VerifyOtp = ({navigation, route}) => {
   });
 
   useEffect(() => {
-    configureHeader();
-  }, []);
+    if (!success) {
+      configureHeader();
+    }
+  }, [success]);
 
   const configureHeader = () => {
     navigation.setOptions({
@@ -88,7 +90,7 @@ const VerifyOtp = ({navigation, route}) => {
           setModalVisible(true);
           setTimeout(() => {
             dispatch(setUserData(res?.payload?.userdata));
-          }, 5000);
+          }, 3000);
         }
       }
     });
@@ -203,7 +205,7 @@ const VerifyOtp = ({navigation, route}) => {
       )}
 
       <Modal
-        onBackdropPress={() => setModalVisible(false)}
+        // onBackdropPress={() => setModalVisible(false)}
         isVisible={isModalVisible}>
         <View style={styles.modalView}>
           <TouchableOpacity

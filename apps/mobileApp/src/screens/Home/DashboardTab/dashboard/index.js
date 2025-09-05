@@ -24,7 +24,10 @@ import {
 } from '../../../../redux/store/storeUtils';
 import {get_pet_list} from '../../../../redux/slices/petSlice';
 import GImage from '../../../../components/GImage';
-import {get_appointment_list} from '../../../../redux/slices/appointmentSlice';
+import {
+  cancel_appointment,
+  get_appointment_list,
+} from '../../../../redux/slices/appointmentSlice';
 import {transformAllAppointments} from '../../../../helpers/transformAppointments';
 import moment from 'moment';
 
@@ -37,14 +40,7 @@ const Dashboard = ({navigation}) => {
   const [upComingAppointmentsList, setUpComingAppointmentsList] = useState([]);
 
   const dispatch = useAppDispatch();
-
-  useEffect(() => {
-    dispatch(
-      get_pet_list({
-        offset: 0,
-        limit: 10,
-      }),
-    );
+  const getAppointments = () => {
     dispatch(
       get_appointment_list({
         type: 'upcoming',
@@ -57,7 +53,21 @@ const Dashboard = ({navigation}) => {
         setUpComingAppointmentsList(transformed?.upcoming);
       }
     });
+  };
+
+  useEffect(() => {
+    dispatch(
+      get_pet_list({
+        offset: 0,
+        limit: 10,
+      }),
+    );
+    getAppointments();
   }, []);
+
+  useEffect(() => {
+    setSelectPet(petList[0]);
+  }, [petList]);
 
   const [scrollIndex, setScrollIndex] = useState(0);
   const [visible, setVisible] = useState(false);
@@ -74,15 +84,16 @@ const Dashboard = ({navigation}) => {
     navigation.setOptions({
       headerRight: () => (
         <View style={styles.headerContainerRight}>
-          <TouchableOpacity onPress={() => setVisible(true)}>
+          {/* <TouchableOpacity onPress={() => setVisible(true)}>
             <Image source={Images.Emergency} style={styles.emergencyIcon} />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
           <TouchableOpacity
             style={styles.headerRight}
-            onPress={() =>
-              navigation.navigate('StackScreens', {screen: 'Notifications'})
-            }>
-            <Image source={Images.bellBold} style={styles.headerIcon} />
+            // onPress={() =>
+            //   navigation.navigate('StackScreens', {screen: 'Notifications'})
+            // }
+          >
+            {/* <Image source={Images.bellBold} style={styles.headerIcon} /> */}
           </TouchableOpacity>
         </View>
       ),
@@ -94,14 +105,14 @@ const Dashboard = ({navigation}) => {
           />
           <GText
             GrMedium
-            componentProps={{numberOfLines: 1, ellipsizeMode: 'tail'}}
+            // componentProps={{numberOfLines: 1, ellipsizeMode: 'tail'}}
             text={`Hello, ${userData?.firstName}`}
             style={styles.greetingText}
           />
         </View>
       ),
     });
-  }, [navigation]);
+  }, [navigation, userData]);
 
   const modalData = [
     {
@@ -279,18 +290,32 @@ const Dashboard = ({navigation}) => {
     </View>
   );
 
+  const cancelAppointment = id => {
+    const input = {
+      appointmentId: id,
+    };
+
+    dispatch(cancel_appointment(input)).then(res => {
+      if (cancel_appointment.fulfilled.match(res)) {
+        if (res.payload?.status === 1) {
+          getAppointments();
+        }
+      }
+    });
+  };
+
   return (
     <View style={styles.dashboardMainView}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         style={styles.scrollView}>
-        <TouchableOpacity style={styles.searchTouchable}>
+        {/* <TouchableOpacity style={styles.searchTouchable}>
           <GText
             text={t('search_hos_doc_pms_string')}
             style={styles.searchText}
           />
           <Image source={Images.Search} style={styles.solarWalledImage} />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
         {/* {petList?.length < 1 && (
           <>
             <GText
@@ -369,7 +394,7 @@ const Dashboard = ({navigation}) => {
           </>
         )}
 
-        <GText
+        {/* <GText
           GrMedium
           text={'Upcoming Assessments'}
           style={styles.assessmentHeading}
@@ -385,7 +410,7 @@ const Dashboard = ({navigation}) => {
             text={'Add a companion to start managing their health.'}
             style={styles.noAssessmentSubText}
           />
-        </View>
+        </View> */}
         {upComingAppointmentsList?.length > 0 && (
           <>
             <View style={styles.headerView}>
@@ -401,7 +426,75 @@ const Dashboard = ({navigation}) => {
               />
             </View>
 
-            <Swiper
+            <FlatList
+              data={upComingAppointmentsList} // Add real data here for confirmed appointments
+              contentContainerStyle={{
+                gap: scaledValue(20),
+                marginBottom: scaledValue(5),
+              }}
+              renderItem={({item, index}) => {
+                const combinedDate = `${item?.date} ${item?.time}`;
+                const formatted = moment(
+                  combinedDate,
+                  'YYYY-MM-DD h:mm A',
+                ).format('dddd, DD MMM - hh:mm A');
+                return (
+                  <View key={index}>
+                    <AppointmentCard
+                      key={index}
+                      petImage={item?.pet?.image}
+                      imageSource={item?.vet?.image}
+                      doctorName={item?.vet?.name}
+                      department={item?.vet?.specialization}
+                      qualifications={item?.vet?.qualification}
+                      hospitalName={item?.location}
+                      appointmentTime={formatted}
+                      navigation={navigation}
+                      confirmed
+                      dashBoard
+                      dashBoardCancelOnPress={() => {
+                        cancelAppointment(item?.id);
+                      }}
+                      dashBoardRescheduleOnPress={() => {
+                        navigation?.navigate('StackScreens', {
+                          screen: 'BookAppointment',
+                          params: {
+                            doctorDetail: {
+                              id: item?.vetId,
+                              doctorImage: item?.vet?.image,
+                              name: item?.vet?.name,
+                              qualification: item?.vet?.qualification,
+                              specialization: item?.vet?.specialization,
+                            },
+                            departmentDetail: {
+                              _id: item?.vet?.departmentId,
+                              departmentName: item?.vet?.specialization,
+                            },
+                            businessDetails: {id: item?.businessId},
+                            screen: 'dashboard',
+                            item: item,
+                            getAppointments,
+                          },
+                        });
+                      }}
+                      swiperCardStyle={styles.swiperCardStyle}
+                      doctorNameTextStyle={{color: colors.jetBlack}}
+                      departmentTextStyle={{color: colors.jetBlack}}
+                      buttonStyle={{
+                        backgroundColor: colors.jetBlack50,
+                        gap: scaledValue(6),
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                      buttonIconStyle={{tintColor: colors.jetBlack, opacity: 1}}
+                    />
+                  </View>
+                );
+              }}
+            />
+
+            {/* <Swiper
               height={
                 upComingAppointmentsList?.length > 1
                   ? scaledValue(359)
@@ -452,11 +545,11 @@ const Dashboard = ({navigation}) => {
                   </View>
                 );
               })}
-            </Swiper>
+            </Swiper> */}
           </>
         )}
 
-        <View style={styles.vaccinationStatusMainView}>
+        {/* <View style={styles.vaccinationStatusMainView}>
           <View style={styles.statusCardView1}>
             <View style={styles.syringeBoldImageView}>
               <Image
@@ -489,8 +582,8 @@ const Dashboard = ({navigation}) => {
               />
             </View>
           </View>
-        </View>
-        <View style={styles.yearlySummaryMainView}>
+        </View> */}
+        {/* <View style={styles.yearlySummaryMainView}>
           <View style={styles.statusCardView2}>
             <View style={styles.statusCardImageView}>
               <Image
@@ -520,8 +613,8 @@ const Dashboard = ({navigation}) => {
             style={styles.imageView}>
             <Image style={styles.editIconImage} source={Images.Edit} />
           </TouchableOpacity>
-        </View>
-        <GText
+        </View> */}
+        {/* <GText
           SatoshiBold
           text={t('wellness_summary_string')}
           style={styles.wellnessSummaryText}
@@ -532,36 +625,27 @@ const Dashboard = ({navigation}) => {
           columnWrapperStyle={styles.wellnessSummaryWrapper}
           contentContainerStyle={styles.wellnessSummaryList}
           renderItem={renderWellnessSummaryItem}
-        />
+        /> */}
+        {petList?.length > 0 && (
+          <FlatList
+            data={quickActions}
+            numColumns={3}
+            style={{marginTop: scaledValue(15)}}
+            columnWrapperStyle={styles.quickActionsWrapper}
+            contentContainerStyle={styles.quickActionsList}
+            renderItem={renderQuickActionItem}
+            ListHeaderComponent={() => {
+              return (
+                <GText
+                  GrMedium
+                  text={t('quick_actions_string')}
+                  style={styles.quickAcitonTitleText}
+                />
+              );
+            }}
+          />
+        )}
 
-        <FlatList
-          data={
-            petList?.length !== 0
-              ? quickActions
-              : [
-                  {
-                    id: 8,
-                    title: t('blog_string'),
-                    img: Images.bookMinimalistic,
-                    screen: 'BlogListing',
-                  },
-                ]
-          }
-          numColumns={3}
-          style={{marginTop: scaledValue(-35)}}
-          columnWrapperStyle={styles.quickActionsWrapper}
-          contentContainerStyle={styles.quickActionsList}
-          renderItem={renderQuickActionItem}
-          ListHeaderComponent={() => {
-            return (
-              <GText
-                GrMedium
-                text={t('quick_actions_string')}
-                style={styles.quickAcitonTitleText}
-              />
-            );
-          }}
-        />
         <Modal
           isVisible={visible}
           statusBarTranslucent={true}

@@ -28,6 +28,9 @@ export const styles = StyleSheet.create({
   userImg: {
     width: scaledValue(60),
     height: scaledValue(60),
+    borderWidth: scaledValue(1),
+    borderColor: colors.primaryBlue,
+    borderRadius: scaledValue(30),
   },
   userName: {
     fontSize: scaledValue(20),

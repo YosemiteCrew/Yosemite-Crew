@@ -57,33 +57,33 @@ const BookAppointmentHome = ({navigation}) => {
           ),
           hospitalCount: res.payload?.data?.veterinaryBusiness?.total,
         });
-        setBreederData({
-          breederList: parseOrganizations(
-            res.payload?.data?.breedingFacility?.entry,
-          ),
-          breederCount: res.payload?.data?.breedingFacility?.total,
-        });
-        setGroomerData({
-          groomerList: parseOrganizations(
-            res.payload?.data?.groomerShop?.entry,
-          ),
-          groomerCount: res.payload?.data?.groomerShop?.total,
-        });
-        setPetSitterData({
-          petSitterList: parseOrganizations(res.payload.data?.petSitter?.entry),
-          petSitterCount: res.payload.data?.petSitter?.total,
-        });
+        // setBreederData({
+        //   breederList: parseOrganizations(
+        //     res.payload?.data?.breedingFacility?.entry,
+        //   ),
+        //   breederCount: res.payload?.data?.breedingFacility?.total,
+        // });
+        // setGroomerData({
+        //   groomerList: parseOrganizations(
+        //     res.payload?.data?.groomerShop?.entry,
+        //   ),
+        //   groomerCount: res.payload?.data?.groomerShop?.total,
+        // });
+        // setPetSitterData({
+        //   petSitterList: parseOrganizations(res.payload.data?.petSitter?.entry),
+        //   petSitterCount: res.payload.data?.petSitter?.total,
+        // });
       }
     });
   };
 
   const options = [
     {id: 1, title: t('all_string'), value: 'all'},
-    {id: 2, title: t('hospitals_string'), value: 'Hospital'},
-    {id: 3, title: t('breeders_string'), value: 'Breeding Facility'},
-    {id: 4, title: t('groomers_string'), value: 'Groomer Shop'},
-    {id: 5, title: t('pet_centers_string'), value: 'Clinic'},
-    {id: 6, title: t('pet_sitter_string'), value: 'Pet Sitter'},
+    {id: 2, title: t('hospitals_string'), value: 'veterinaryBusiness'},
+    {id: 3, title: t('breeders_string'), value: 'breedingFacility'},
+    {id: 4, title: t('groomers_string'), value: 'groomerShop'},
+    {id: 5, title: t('pet_sitter_string'), value: 'petSitter'},
+    // {id: 6, title: t('pet_sitter_string'), value: 'Pet Sitter'},
   ];
 
   useEffect(() => {
@@ -92,16 +92,16 @@ const BookAppointmentHome = ({navigation}) => {
 
   const configureHeader = () => {
     navigation.setOptions({
-      headerRight: () => (
-        <HeaderButton
-          icon={Images.bellBold}
-          onPress={() => {
-            navigation?.navigate('StackScreens', {
-              screen: 'Notifications',
-            });
-          }}
-        />
-      ),
+      // headerRight: () => (
+      //   <HeaderButton
+      //     icon={Images.bellBold}
+      //     onPress={() => {
+      //       navigation?.navigate('StackScreens', {
+      //         screen: 'Notifications',
+      //       });
+      //     }}
+      //   />
+      // ),
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
@@ -170,15 +170,15 @@ const BookAppointmentHome = ({navigation}) => {
         contentContainerStyle={{
           paddingBottom: insets.bottom,
         }}>
-        <SearchBar />
-        <ScrollView
+        {/* <SearchBar /> */}
+        {/* <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.scrollView}>
           <View style={styles.optionContainer}>
             {options.map(renderOption)}
           </View>
-        </ScrollView>
+        </ScrollView> */}
         {/* Render different category lists */}
         {/* <BusinessListShimmer /> */}
         {hospitalData?.hospitalList?.length > 0 && (

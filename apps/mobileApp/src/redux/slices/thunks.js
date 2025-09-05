@@ -13,25 +13,40 @@ export const makeThunk = (
     formUrl = false,
     showToastMessage = true,
     method = 'POST',
+    onSuccess, // callback
+    transformBody,
+    headers, // allow custom headers
   } = {},
 ) =>
   createAsyncThunk(type, async (data, {dispatch, rejectWithValue}) => {
+    console.log('petDataKK', JSON.stringify(data));
+
     try {
       dispatch(setLoading(true));
 
-      // 👇 support route as string OR function
       const resolvedRoute = typeof route === 'function' ? route(data) : route;
+      const requestBody =
+        method === 'GET'
+          ? {}
+          : transformBody
+          ? transformBody(data) // e.g. only api_credentials
+          : data;
+
+      // 👇 decide headers: either use passed headers or default ones
+      const finalHeaders = headers
+        ? headers
+        : {
+            'Content-Type': formUrl
+              ? 'application/x-www-form-urlencoded'
+              : 'multipart/form-data',
+          };
 
       const response = await API({
         route: resolvedRoute,
         method,
-        body: method === 'GET' ? {} : data, // 👈 ensure empty body for GET
+        body: requestBody,
         multiPart,
-        headers: {
-          'Content-Type': formUrl
-            ? 'application/x-www-form-urlencoded'
-            : 'multipart/form-data',
-        },
+        headers: finalHeaders,
       });
 
       dispatch(setLoading(false));
@@ -48,6 +63,11 @@ export const makeThunk = (
       if (resolvedRoute === 'auth/logout' && response?.data?.status === 1) {
         dispatch(logout());
         dispatch(updatePetList([]));
+      }
+
+      // 👇 call onSuccess if provided
+      if (typeof onSuccess === 'function') {
+        onSuccess(response?.data, dispatch);
       }
 
       return response?.data;

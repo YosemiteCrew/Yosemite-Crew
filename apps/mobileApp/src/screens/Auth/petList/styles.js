@@ -41,9 +41,11 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
   },
   petImg: {
-    width: scaledValue(95),
-    height: scaledValue(95),
+    width: scaledValue(100),
+    height: scaledValue(100),
     borderRadius: scaledValue(50),
+    borderWidth: scaledValue(2),
+    borderColor: colors.primaryBlue,
   },
   infoView: {marginLeft: scaledValue(12), gap: scaledValue(4)},
   petName: {
@@ -184,10 +186,8 @@ export const styles = StyleSheet.create({
     marginVertical: scaledValue(8),
   },
   btnView: insets => ({
-    position: 'absolute',
-    bottom: insets + scaledValue(80),
-    alignSelf: 'center',
-    width: '100%',
+    marginTop: 'auto',
+    marginBottom: insets + scaledValue(105),
   }),
   contentStyle: {
     paddingBottom: Dimensions.get('window').height / 3,
