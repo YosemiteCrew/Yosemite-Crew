@@ -276,6 +276,7 @@
 
   .navmenu li {
     position: relative;
+    font-family: var(--grotesk-font);
   }
 
   .navmenu a,

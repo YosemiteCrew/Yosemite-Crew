@@ -4,7 +4,7 @@
 .PrivacyPolicySec .PrivacyPolicyData{
     display: flex;
     flex-direction: column;
-    gap: 56px;
+    gap: 8px;
     max-width: 842px;
     margin: 0 auto;
 }
@@ -141,7 +141,7 @@
 /* Wrapper box */
 .doc-box {
   width: 842px; /* match definitions + header */
-  margin: 40px auto;
+  margin: 0px auto;
   padding: 20px;
   background: #fff;
   font-family: "Satoshi", sans-serif;
@@ -280,7 +280,7 @@
 }
 
 .error-table th {
-  background: #fdf3ec;
+  background: #fff;
   color: #302f2e;
   font-weight: 600;
   text-align: left;
@@ -387,11 +387,12 @@ ol li::before {
 /* Container */
 .doc-section {
   width: 842px;                  /* match header/definitions */
-  margin: 40px auto;             /* center horizontally with top/bottom spacing */
+  margin: 0px auto;             /* center horizontally with top/bottom spacing */
   padding: 24px;
   background: #fff; 
   border-radius: 12px;           /* optional: keep consistent with .doc-box */
-  font-family: "Inter", Arial, sans-serif;
+  /* font-family: "Inter", Arial, sans-serif; */
+  font-family: "Satoshi", sans-serif;
   font-size: 14px;
   color: #333;
   line-height: 1.6;

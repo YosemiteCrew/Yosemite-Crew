@@ -76,8 +76,8 @@
     content: " ";
     background: url(/Images/devcoseafter.png);
     background-size: 100% 100%;
-    height: 155px;
-    width: 155px;
+    height: 200px;
+    width: 200px;
     top: 55%;
     left: 50%;
     transform: translate(-50% , -55%);
@@ -170,7 +170,7 @@
 .crewbox6 img{
     position: absolute;
     right: 0;
-    bottom: -32px;
+    bottom: 0px;
 }
 
 /* DevlpToolSec */
@@ -348,10 +348,10 @@
     position: absolute;
     background: url(/Images/fits1.png) no-repeat;
     background-size: 100% 100%;
-    width: 174px;
-    left: -8px;
-    top: 30px;
-    height: 174px;
+    width: 160px;
+    left: 0px;
+    top: 0px;
+    height: 200px;
     filter: drop-shadow(8px 8px 20px  #00000018);
 }
 .DevPricBox .devpboxtext{
@@ -379,18 +379,18 @@
 .DevPricBox:nth-of-type(2)::after{
     background: url(/Images/fits2.png) no-repeat;
     background-size: 100% 100%;
-    width: 174px;
+    width: 160px;
     left: 0px;
-    top: 32px;
-    height: 174px;
+    top: 0px;
+    height: 200px;
 }
 .DevPricBox:nth-of-type(3)::after{
     background: url(/Images/fits3.png) no-repeat;
     background-size: 100% 100%;
-    width: 174px;
+    width: 160px;
     left: 0px;
-    top: 32px;
-    height: 174px;
+    top: 0px;
+    height: 200px;
 }
 
 
@@ -419,6 +419,7 @@
     content: " ";
     position: absolute;
     background: url(/Images/leftbuild.png)no-repeat;
+    transform: rotate(180deg);
     background-size: 100% 100%;
     width: 386px;
     left: -190px;
@@ -430,6 +431,7 @@
     content: " ";
     position: absolute;
     background: url(/Images/rightbuild.png)no-repeat;
+    transform: rotate(180deg);
     background-size: 100% 100%;
     width: 386px;
     right: -190px;
