@@ -1,4 +1,10 @@
-import {Image, ImageBackground, StatusBar, View} from 'react-native';
+import {
+  Dimensions,
+  Image,
+  ImageBackground,
+  StatusBar,
+  View,
+} from 'react-native';
 import React from 'react';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import GText from '../../../components/GText/GText';
@@ -26,21 +32,14 @@ const ThirdSwipe = () => {
         />
       </View>
       <Image source={Images.third_indicator} style={styles.indicator} />
-
-      <View style={styles.thirdScreenEclipseImageView}>
-        <ImageBackground
-          source={Images.fifth_screen_eclipse}
-          style={styles.thirdScreenBgEclipse}>
-          <ImageBackground
-            source={Images.sixth_screen_eclipse}
-            style={styles.thirdScreenSecondBgEclipse}>
-            <Image
-              source={Images.third_screen_img}
-              style={styles.thirdScreenBgImage(insets)}
-            />
-          </ImageBackground>
-        </ImageBackground>
-      </View>
+      <Image
+        source={Images.ThirdOnBoarding}
+        style={{
+          width: Dimensions.get('window').width, // take full width of screen
+          height: Dimensions.get('window').width * 1.265,
+          marginTop: 'auto',
+        }}
+      />
     </View>
   );
 };

@@ -51,7 +51,9 @@ import {
   ChooseVet,
   ChooseYourPet,
   AddPetDetails,
+  EditPetDetails,
   MorePetDetails,
+  EditMorePetDetails,
   BlogListing,
   BlogDetail,
   ContactVet,
@@ -70,6 +72,9 @@ import {
   PetProfileList,
   ViewRecordFiles,
   FolderFilesList,
+  PetBasicInfo,
+  ParentInfo,
+  ScanQR,
 } from './screens';
 
 const screens = [
@@ -228,6 +233,11 @@ const screens = [
     titleKey: 'your_companions_string',
   },
   {
+    name: 'ScanQR',
+    component: ScanQR,
+    titleKey: 'scan_qr_code_string',
+  },
+  {
     name: 'DocumentListScreen',
     component: DocumentListScreen,
     title: 'Invoices',
@@ -250,10 +260,31 @@ const screens = [
     titleKey: 'add_pet_details_string',
   },
   {
+    name: 'EditPetDetails',
+    component: EditPetDetails,
+    titleKey: 'edit_pet_details_string',
+  },
+  {
     name: 'MorePetDetails',
     component: MorePetDetails,
     title: 'More Pet Details',
   },
+  {
+    name: 'EditMorePetDetails',
+    component: EditMorePetDetails,
+    title: 'More Pet Details',
+  },
+  {
+    name: 'PetBasicInfo',
+    component: PetBasicInfo,
+    title: 'Basic Information',
+  },
+  {
+    name: 'ParentInfo',
+    component: ParentInfo,
+    title: 'Parent Information',
+  },
+
   {name: 'BlogListing', component: BlogListing, title: 'Paws & Insights'},
   {name: 'BlogDetail', component: BlogDetail, title: '', headerShown: false},
   {name: 'ContactVet', component: ContactVet, headerShown: false},

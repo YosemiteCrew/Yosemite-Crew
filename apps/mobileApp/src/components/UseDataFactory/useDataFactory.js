@@ -42,6 +42,12 @@ const useDataFactory = (
     get_diabetes_list: 'Observation/getDiabetesLogs',
     get_medical_reccords: 'DocumentReference/getMedicalRecordList',
     get_unread_medical_reccords: 'DocumentReference/getMedicalUnreadRecords',
+    get_medical_recordBy_folder_id:
+      'DocumentReference/getMedicalRecordByFolderId',
+    searchMedicalRecordByName: 'DocumentReference/searchMedicalRecordByName',
+    getbreederDetails: 'Organization/getbreederDetails',
+    getPetGroomerDetails: 'Organization/getPetGroomerDetails',
+    getPetBoardingDetails: 'Organization/getPetBoardingDetails',
   };
 
   const Loader = () => (
@@ -67,7 +73,7 @@ const useDataFactory = (
         body: {...body, ...{offset: pagination.current_page}},
         method: method,
       }).then(response => {
-        // console.log('responseresponses', response?.data);
+        // console.log('responseresponses', JSON.stringify(response?.data));
 
         if (response.status === 26) {
           setInternetFailed(true);

@@ -1,4 +1,10 @@
-import {Image, ImageBackground, StatusBar, View} from 'react-native';
+import {
+  Dimensions,
+  Image,
+  ImageBackground,
+  StatusBar,
+  View,
+} from 'react-native';
 import React from 'react';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import GText from '../../../components/GText/GText';
@@ -26,24 +32,14 @@ const SecondSwipe = () => {
         />
       </View>
       <Image source={Images.second_indicator} style={styles.indicator} />
-      <Image source={Images.plus} style={styles.secondScreenFirstPlusImage} />
-
-      <Image source={Images.plus} style={styles.secondScreenSecondPlusImage} />
-
-      <View style={styles.secondScreenEclipseImageView}>
-        <ImageBackground
-          source={Images.third_screen_eclipse}
-          style={styles.secondScreenBgEclipse}>
-          <ImageBackground
-            source={Images.forth_screen_eclipse}
-            style={styles.secondScreenSecondBgEclipse}>
-            <Image
-              source={Images.second_screen_img}
-              style={styles.secondScreenBgImage(insets)}
-            />
-          </ImageBackground>
-        </ImageBackground>
-      </View>
+      <Image
+        source={Images.SecondOnBoarding}
+        style={{
+          width: Dimensions.get('window').width, // take full width of screen
+          height: Dimensions.get('window').width * 1.265,
+          marginTop: 'auto',
+        }}
+      />
     </View>
   );
 };

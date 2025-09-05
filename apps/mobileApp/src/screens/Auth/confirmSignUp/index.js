@@ -1,4 +1,4 @@
-import {Image, Text, View} from 'react-native';
+import {Image, Text, TouchableOpacity, View} from 'react-native';
 import React, {useEffect, useState} from 'react';
 import GText from '../../../components/GText/GText';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -7,6 +7,8 @@ import {useTranslation} from 'react-i18next';
 import {scaledHeightValue, scaledValue} from '../../../utils/design.utils';
 import {styles} from './styles';
 import {colors} from '../../../../assets/colors';
+import Modal from 'react-native-modal';
+
 import {
   CodeField,
   Cursor,
@@ -15,7 +17,11 @@ import {
 } from 'react-native-confirmation-code-field';
 import GButton from '../../../components/GButton';
 import {Images} from '../../../utils';
-import {confirm_signup, resend_otp} from '../../../redux/slices/authSlice';
+import {
+  confirm_signup,
+  resend_otp,
+  setUserData,
+} from '../../../redux/slices/authSlice';
 import {KeyboardAwareScrollView} from 'react-native-keyboard-controller';
 import {fonts} from '../../../utils/fonts';
 import GTextButton from '../../../components/GTextButton/GTextButton';
@@ -30,6 +36,9 @@ const ConfirmSignUp = ({navigation, route}) => {
   const dispatch = useAppDispatch();
   const {t} = useTranslation();
   const [value, setValue] = useState('');
+  const [isModalVisible, setModalVisible] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [data, setData] = useState({});
   const ref = useBlurOnFulfill({value, cellCount: CELL_COUNT});
   const [props, getCellOnLayoutHandler] = useClearByFocusCell({
     value,
@@ -56,7 +65,17 @@ const ConfirmSignUp = ({navigation, route}) => {
       email: email,
       confirmationCode: value,
     };
-    dispatch(confirm_signup(input));
+    dispatch(confirm_signup(input)).then(res => {
+      if (confirm_signup.fulfilled.match(res)) {
+        if (res.payload?.status === 1) {
+          setSuccess(true);
+          setModalVisible(true);
+          setTimeout(() => {
+            dispatch(setUserData(res?.payload?.userdata));
+          }, 3000);
+        }
+      }
+    });
   };
 
   const resendOtp = () => {
@@ -161,6 +180,35 @@ const ConfirmSignUp = ({navigation, route}) => {
         />
         <GTextButton onPress={resendOtp} title={'Resend email'} />
       </View>
+
+      <Modal isVisible={isModalVisible}>
+        <View style={styles.modalView}>
+          <TouchableOpacity
+            style={{
+              position: 'absolute',
+              top: 20,
+              right: 20,
+              resizeMode: 'contain',
+            }}
+            onPress={() => dispatch(setUserData(data))}>
+            <Image style={styles.greyCrossIcon} source={Images.greyCrossIcon} />
+          </TouchableOpacity>
+          <Image
+            style={styles.verificationModal}
+            source={Images.verification_modal}
+          />
+          <GText
+            GrMedium
+            text={'Congratulation 🎉 \n Code Verified '}
+            style={styles.modalHeader}
+          />
+          <Text style={styles.modalContent}>
+            The Code Sent to your email {'\n'}
+            <Text style={styles.emailText}> {email} </Text> has been
+            {'\n'}successfully verified
+          </Text>
+        </View>
+      </Modal>
     </KeyboardAwareScrollView>
   );
 };

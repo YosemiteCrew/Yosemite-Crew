@@ -1,6 +1,6 @@
 import {StyleSheet} from 'react-native';
 import {colors} from '../../../../../assets/colors';
-import {scaledValue} from '../../../../utils/design.utils';
+import {scaledHeightValue, scaledValue} from '../../../../utils/design.utils';
 import {fonts} from '../../../../utils/fonts';
 
 const styles = StyleSheet.create({
@@ -10,7 +10,7 @@ const styles = StyleSheet.create({
   },
   sectionHeader: {
     // marginTop: 20,
-    marginBottom: 10,
+    marginBottom: scaledValue(10),
     color: colors.jetBlack,
   },
   heading: {
@@ -21,14 +21,14 @@ const styles = StyleSheet.create({
   },
 
   itemContainer: {
-    marginBottom: 10,
+    marginBottom: scaledValue(10),
   },
   subItem: {
-    marginBottom: 10,
+    marginBottom: scaledValue(10),
     color: colors.jetBlack,
   },
   item: {
-    fontSize: 14,
+    fontSize: scaledValue(14),
     color: colors.jetBlack,
     lineHeight: scaledValue(14 * 1.2),
     marginTop: scaledValue(20),
@@ -38,18 +38,18 @@ const styles = StyleSheet.create({
   },
 
   bulletList: {
-    marginTop: 6,
-    paddingLeft: 16,
+    marginTop: scaledValue(6),
+    paddingLeft: scaledValue(16),
   },
   bulletItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 4,
+    marginBottom: scaledValue(4),
   },
   bulletDot: {
-    fontSize: 14,
-    marginRight: 6,
-    lineHeight: 20,
+    fontSize: scaledValue(14),
+    marginRight: scaledValue(6),
+    lineHeight: scaledValue(20),
   },
   bulletText: {
     fontSize: scaledValue(14),
@@ -75,9 +75,10 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: scaledValue(14),
-    lineHeight: scaledValue(14 * 1.2),
+    lineHeight: scaledHeightValue(14 * 1.2),
     color: colors.jetBlack,
     marginTop: scaledValue(20),
+    fontFamily: fonts.SATOSHI_REGULAR,
   },
   labelDescription: {
     fontSize: scaledValue(14),

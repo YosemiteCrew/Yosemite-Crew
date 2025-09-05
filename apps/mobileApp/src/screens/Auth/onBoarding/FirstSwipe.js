@@ -1,6 +1,14 @@
-import {Image, ImageBackground, StatusBar, Text, View} from 'react-native';
+import {
+  Dimensions,
+  Image,
+  ImageBackground,
+  Platform,
+  StatusBar,
+  Text,
+  View,
+} from 'react-native';
 import React from 'react';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import GText from '../../../components/GText/GText';
 import {Images} from '../../../utils';
 import {useTranslation} from 'react-i18next';
@@ -11,7 +19,7 @@ const FirstSwipe = () => {
   const statusBarHeight = insets.top;
   const {t} = useTranslation();
   return (
-    <View style={styles.onboardingMainContainer}>
+    <SafeAreaView style={styles.onboardingMainContainer}>
       <StatusBar backgroundColor={'#FFF2E3'} barStyle="dark-content" />
       <View style={styles.firstScreenTitleView(statusBarHeight)}>
         <GText
@@ -22,20 +30,16 @@ const FirstSwipe = () => {
         <GText text={t('simplified_string')} style={styles.simplifiedText} />
       </View>
       <Image source={Images.first_indicator} style={styles.indicator} />
-      <Image source={Images.plus} style={styles.firstScreenFirstPlusImage} />
-      <Image source={Images.plus} style={styles.firstScreenSecondPlusImage} />
-      <ImageBackground
-        source={Images.first_screen_eclipse}
-        style={styles.firstScreenBgEclipse}>
-        <ImageBackground
-          source={Images.second_screen_eclipse}
-          style={styles.firstScreenSecondBgEclipse}>
-          <ImageBackground
-            source={Images.first_screen_img}
-            style={styles.firstScreenBgImage(insets)}></ImageBackground>
-        </ImageBackground>
-      </ImageBackground>
-    </View>
+
+      <Image
+        source={Images.FirstOnBoarding}
+        style={{
+          width: Dimensions.get('window').width, // take full width of screen
+          height: Dimensions.get('window').width * 1.265,
+          marginTop: 'auto',
+        }}
+      />
+    </SafeAreaView>
   );
 };
 

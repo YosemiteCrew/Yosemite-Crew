@@ -11,7 +11,7 @@ import android.os.Bundle;
 class MainActivity : ReactActivity() {
   //react-native-screens override
   override fun onCreate(savedInstanceState: Bundle?) {
-    SplashScreen.show(this);
+    SplashScreen.show(this, R.style.SplashTheme, true);
     super.onCreate(null);
   }
 

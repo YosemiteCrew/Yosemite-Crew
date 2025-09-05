@@ -230,3 +230,7 @@ export const info = require('../../assets/images/info.png');
 export const exercise_frame = require('../../assets/images/exercise_frame.png');
 export const verify_code = require('../../assets/images/verify_code.png');
 export const attachmentFill = require('../../assets/images/attachment-fill.png');
+export const appLogo = require('../../assets/images/appLogo.png');
+export const noAppointment = require('../../assets/images/no-appointment.png');
+export const defaultImage = require('../../assets/images/appLogo.png');
+export const onBoardingHorse = require('../../assets/images/onBoardingHorse.png');

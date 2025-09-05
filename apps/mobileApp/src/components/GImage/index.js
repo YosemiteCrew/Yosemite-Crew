@@ -1,6 +1,6 @@
 import React from 'react';
 import {ImageBackground, StyleSheet} from 'react-native';
-import FastImage from 'react-native-fast-image';
+import FastImage from '@d11/react-native-fast-image';
 import {IMAGE_CLOUD_URL} from '../../constants';
 import {scaledValue} from '../../utils/design.utils';
 import {defaultImage} from '../../utils/Images';
@@ -37,7 +37,6 @@ const GImage = ({
       ) : (
         <FastImage
           source={imageSource}
-          defaultSource={defaultImage}
           resizeMode={resizeMode || FastImage.resizeMode.cover}
           style={[styles.imageStyle, style]}
         />

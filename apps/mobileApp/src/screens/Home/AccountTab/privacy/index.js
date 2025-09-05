@@ -6,6 +6,7 @@ import {
   StyleSheet,
   SafeAreaView,
   ScrollView,
+  Linking,
 } from 'react-native';
 import GText from '../../../../components/GText/GText';
 import styles from './styles';
@@ -13,11 +14,12 @@ import HeaderButton from '../../../../components/HeaderButton';
 import {Images} from '../../../../utils';
 import {colors} from '../../../../../assets/colors';
 import {scaledValue} from '../../../../utils/design.utils';
+import Hyperlink from 'react-native-hyperlink';
 
 const TERMS_DATA = [
   {
     title: '1. Controller and Data Protection Officer',
-    description: `The Controller is:\nDuneXploration UG((haftungsbeschränkt))\nAm Finther Weg 7\n55127 Mainz \nsecurity@yosemitecrew.com\n\nOur Data Protection Officer can be contacted at:\nEmail: security@yosemitecrew.com`,
+    description: `The Controller is:\nDuneXploration UG (haftungsbeschränkt)\nAm Finther Weg 7\n55127 Mainz \n security@yosemitecrew.com \n\nOur Data Protection Officer can be contacted at:\nEmail: security@yosemitecrew.com`,
     data: [],
   },
   {
@@ -433,7 +435,7 @@ const TERMS_DATA = [
         itemsLabel: 'GitHub',
         paragraphs: [
           {
-            ParaDes: `Our website can be accessed at: https://github.com/YosemiteCrew/Yosemite-Crew The network is operated by:  GitHub B.V Prins Bernhardplein 200, Amsterdam 1097JB, Netherlands. Privacy policy of the network: https://docs.github.com/de/site-policy/privacy-policies/github-general-privacy-statement `,
+            ParaDes: `Our website can be accessed at: https://github.com/YosemiteCrew/Yosemite-Crew \n\nThe network is operated by:  GitHub B.V Prins Bernhardplein 200, Amsterdam 1097JB, Netherlands\n\n Privacy policy of the network: https://docs.github.com/de/site-policy/privacy-policies/github-general-privacy-statement `,
           },
         ],
       },
@@ -567,9 +569,7 @@ const Privacy = ({navigation}) => {
         style={{
           flex: 1,
           paddingHorizontal: scaledValue(20),
-          marginTop: scaledValue(10),
         }}>
-        <GText GrMedium text="Privacy Policy" style={styles.header} />
         <GText
           GrRegular
           style={styles.headerText}
@@ -582,8 +582,13 @@ const Privacy = ({navigation}) => {
           renderSectionHeader={({section}) => (
             <View style={styles.sectionHeader}>
               <GText SatoshiBold text={section.title} style={styles.heading} />
+
               {section.description && (
-                <GText text={section.description} style={styles.description} />
+                <Hyperlink
+                  linkStyle={{textDecorationLine: 'underline'}}
+                  onPress={(url, text) => Linking.openURL(url)}>
+                  <Text style={styles.description}>{section.description}</Text>
+                </Hyperlink>
               )}
             </View>
           )}
@@ -685,11 +690,11 @@ const Privacy = ({navigation}) => {
                         />
                       )}
                       {para.ParaDes && (
-                        <GText
-                          SatoshiRegular
-                          text={para.ParaDes}
-                          style={styles.paraText}
-                        />
+                        <Hyperlink
+                          linkStyle={{textDecorationLine: 'underline'}}
+                          onPress={(url, text) => Linking.openURL(url)}>
+                          <Text style={styles.paraText}>{para.ParaDes}</Text>
+                        </Hyperlink>
                       )}
                     </View>
                   ))}

@@ -1,5 +1,5 @@
 // CategoryList.js
-import React from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   FlatList,
   Image,
@@ -15,6 +15,7 @@ import {styles} from './styles';
 import {useTranslation} from 'react-i18next';
 import GImage from '../../../../../components/GImage';
 import {scaledValue} from '../../../../../utils/design.utils';
+import Geolocation from '@react-native-community/geolocation';
 
 const CategoryList = ({
   data,
@@ -27,16 +28,47 @@ const CategoryList = ({
 }) => {
   const {t} = useTranslation();
 
+  const getDistanceFromLatLonInMiles = (lat1, lon1, lat2, lon2) => {
+    const toRad = value => (value * Math.PI) / 180;
+
+    const R = 3958.8; // Earth radius in miles
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat1)) *
+        Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c;
+  };
+  const [userLocation, setUserLocation] = useState(null);
+
+  useEffect(() => {
+    Geolocation.getCurrentPosition(
+      position => {
+        const {latitude, longitude} = position.coords;
+        setUserLocation({lat: latitude, lng: longitude});
+      },
+      error => console.log(error),
+      {enableHighAccuracy: true, timeout: 15000, maximumAge: 10000},
+    );
+  }, []);
+
   return (
     <View>
       <View style={styles.titleView}>
         <GText GrMedium text={categoryTitle} style={styles.titleText} />
         <TouchableOpacity>
-          <GText
+          {/* <GText
             SatoshiBold
             text={`${total_count} ${nearYouText}`}
             style={styles.nearText}
-          />
+          /> */}
         </TouchableOpacity>
       </View>
       <View style={styles.flatListView}>
@@ -44,11 +76,16 @@ const CategoryList = ({
           data={data?.slice(0, 5)}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.containerStyle}
-          horizontal
+          // horizontal
           renderItem={({item}) => {
-            const lat = item?.profileData?.address?.latitude;
-            const lng = item?.profileData?.address?.longitude;
-
+            const lat = item?.latitude;
+            const lng = item?.longitude;
+            const distance = getDistanceFromLatLonInMiles(
+              userLocation?.lat,
+              userLocation?.lng,
+              item?.latitude,
+              item?.longitude,
+            ).toFixed(1);
             return (
               <>
                 <TouchableOpacity
@@ -58,6 +95,7 @@ const CategoryList = ({
                       params: {
                         businessDetails: item,
                         type: type,
+                        distance: distance,
                       },
                     });
                   }}
@@ -72,7 +110,7 @@ const CategoryList = ({
                     text={item?.name}
                     style={styles.nameText}
                   />
-                  <GText SatoshiBold text={item.time} style={styles.timeText} />
+                  {/* <GText SatoshiBold text={item.time} style={styles.timeText} /> */}
                   <GText
                     SatoshiRegular
                     componentProps={{
@@ -92,7 +130,7 @@ const CategoryList = ({
                       />
                       <GText
                         GrMedium
-                        text={item.distance}
+                        text={`${distance}mi`}
                         style={styles.distanceText}
                       />
                     </View>
