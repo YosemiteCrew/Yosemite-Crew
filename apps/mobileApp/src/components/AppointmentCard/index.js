@@ -11,6 +11,7 @@ import GImage from '../GImage';
 import LinearGradient from 'react-native-linear-gradient';
 
 const AppointmentCard = ({
+  item,
   imageSource,
   doctorName,
   department,
@@ -33,8 +34,13 @@ const AppointmentCard = ({
   buttonTextStyle,
   buttonIconStyle,
   pending,
+  pendingOnPress,
   petImage,
   dashBoard,
+  dashBoardCancelOnPress,
+  dashBoardRescheduleOnPress,
+  appointmentDirection,
+  appointmentRescheduleOnPress,
 }) => {
   const {t} = useTranslation();
 
@@ -43,7 +49,8 @@ const AppointmentCard = ({
       style={[
         styles.swiperCard,
         {
-          backgroundColor: confirmed || monthly ? colors.white : colors.appRed,
+          backgroundColor:
+            confirmed || monthly ? colors.themeColor : colors.jetBlack,
         },
         swiperCardStyle,
       ]}>
@@ -102,26 +109,27 @@ const AppointmentCard = ({
           />
         </View>
       </View>
-      {monthly && (
+      {/* {monthly && (
         <TouchableOpacity onPress={onPress} style={styles.customButton}>
           <GText GrMedium text={t('see_prescription_string')} />
           <Image source={Images.RightArrow} style={styles.arrowStyle} />
         </TouchableOpacity>
-      )}
+      )} */}
       {!monthly && (
         <>
           <View
             style={[
               styles.buttonStyle,
-              {backgroundColor: '#F5E1C94D'},
+              {backgroundColor: colors.jetBlack50},
               buttonStyle,
             ]}>
             <Image
               source={Images.Calender}
+              // tintColor={confirmed ? colors.jetBlack : colors.white}
               style={[
                 styles.iconStyle,
                 {
-                  tintColor: confirmed ? colors.jetBlack : colors.white,
+                  // tintColor: confirmed ? colors.jetBlack : colors.white,
                   opacity: 0.7,
                 },
                 buttonIconStyle,
@@ -144,14 +152,18 @@ const AppointmentCard = ({
             styles.buttonView,
             confirmed && {paddingBottom: scaledValue(8)},
           ]}>
-          <GButton
+          {/* <GButton
+            onPress={appointmentDirection}
             icon={buttonImg || Images.Direction}
             iconStyle={[
               styles.iconStyle,
               {tintColor: confirmed ? colors.appRed : colors.white},
             ]}
             title={buttonText}
-            textStyle={[styles.buttonText, confirmed && {color: colors.appRed}]}
+            textStyle={[
+              styles.buttonText,
+              {color: confirmed ? colors.appRed : colors.white},
+            ]}
             style={[
               styles.buttonDirectionStyle,
               confirmed && {
@@ -159,22 +171,33 @@ const AppointmentCard = ({
                 borderColor: colors.appRed,
               },
             ]}
+          /> */}
+          <GButton
+            onPress={pendingOnPress}
+            icon={Images.CircleClose}
+            iconStyle={[styles.iconStyle, {tintColor: colors.white}]}
+            title={t('cancel_string')}
+            textStyle={[styles.buttonText, {color: colors.white}]}
+            style={[
+              styles.buttonDirectionStyle,
+              {
+                borderWidth: scaledValue(1),
+                // borderColor: colors.appRed,
+                gap: scaledValue(6),
+              },
+            ]}
           />
           <GButton
-            onPress={() => {
-              navigation?.navigate('StackScreens', {
-                screen: 'ChatScreen',
-              });
-            }}
-            icon={Images.Chat}
+            onPress={appointmentRescheduleOnPress}
+            icon={Images.rechedule}
             iconStyle={[
               styles.iconStyle,
-              {tintColor: confirmed ? colors.white : colors.appRed},
+              {tintColor: confirmed ? colors.white : colors.jetBlack},
             ]}
-            title={'Chat'}
+            title={'Reschedule'}
             textStyle={[
               styles.buttonText,
-              {color: confirmed ? colors.white : colors.appRed},
+              {color: confirmed ? colors.white : colors.jetBlack},
             ]}
             style={[
               styles.buttonChatStyle,
@@ -186,20 +209,19 @@ const AppointmentCard = ({
 
       {pending && (
         <GButton
-          onPress={() => {
-            if (monthly) {
-              navigation?.navigate('StackScreens', {
-                screen: 'BookAppointment',
-              });
-            }
-          }}
+          onPress={pendingOnPress}
           icon={Images.CircleClose}
           iconStyle={styles.iconStyle}
           title={`  ${appointmentTitle}`}
           textStyle={[styles.buttonText, pending && {color: colors.appRed}]}
           style={[
             styles.buttonStyle,
-            {backgroundColor: 'transparent', marginBottom: scaledValue(1)},
+            {
+              backgroundColor: 'transparent',
+              marginBottom: scaledValue(1),
+              borderWidth: scaledValue(0.4),
+              borderColor: colors.inputPlaceholder,
+            },
           ]}
         />
       )}
@@ -210,13 +232,40 @@ const AppointmentCard = ({
             if (monthly) {
               navigation?.navigate('StackScreens', {
                 screen: 'BookAppointment',
+                params: {
+                  doctorDetail: {
+                    id: item?.vetId,
+                    doctorImage: item?.vet?.image,
+                    name: item?.vet?.name,
+                    qualification: item?.vet?.qualification,
+                    specialization: item?.vet?.specialization,
+                  },
+                  departmentDetail: {
+                    _id: item?.vet?.departmentId,
+                    departmentName: item?.vet?.specialization,
+                  },
+                  businessDetails: {id: item?.businessId},
+                  screen: '',
+                  item: {},
+                  getAppointments: () => {},
+                },
               });
+            } else {
+              pendingOnPress();
             }
           }}
           icon={monthly ? Images.Calender : Images.CircleClose}
-          iconStyle={styles.iconStyle}
+          iconStyle={[
+            styles.iconStyle,
+            {
+              tintColor: monthly ? colors.jetBlack : colors.white,
+            },
+          ]}
           title={appointmentTitle}
-          textStyle={[styles.buttonText, monthly && {color: colors.jetBlack}]}
+          textStyle={[
+            styles.buttonText,
+            {color: monthly ? colors.jetBlack : colors.white},
+          ]}
           style={[
             styles.buttonStyle,
             {
@@ -237,7 +286,7 @@ const AppointmentCard = ({
             gap: scaledValue(8),
           }}>
           <GButton
-            onPress={() => {}}
+            onPress={dashBoardCancelOnPress}
             icon={Images.CircleClose}
             iconStyle={styles.iconStyle}
             title={t('cancel_string')}
@@ -254,13 +303,7 @@ const AppointmentCard = ({
             ]}
           />
           <GButton
-            onPress={() => {
-              if (monthly) {
-                navigation?.navigate('StackScreens', {
-                  screen: 'BookAppointment',
-                });
-              }
-            }}
+            onPress={dashBoardRescheduleOnPress}
             icon={Images.rechedule}
             iconStyle={styles.iconStyle}
             title={t('reschedule_string')}
@@ -292,7 +335,7 @@ const AppointmentCard = ({
           height: scaledValue(32),
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor:colors.blue,
+          backgroundColor: colors.blue,
         }}>
         <GImage
           image={petImage}

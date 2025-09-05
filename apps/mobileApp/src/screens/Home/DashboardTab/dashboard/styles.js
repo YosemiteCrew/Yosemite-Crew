@@ -228,14 +228,14 @@ export const styles = StyleSheet.create({
   },
 
   wellnessSummaryItemView: {
-    backgroundColor: colors.paletteWhite,
+    backgroundColor: colors.themeColor,
     width: Dimensions.get('window').width / 2 - scaledValue(30),
     // height: scaledHeightValue(175),
     borderRadius: scaledValue(20),
-    shadowColor: '#47382726',
-    shadowOffset: {width: 1, height: scaledValue(2)},
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
+    shadowColor: '##47382714',
+    shadowOffset: {width: -0, height: -0.5},
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
     elevation: 8,
     paddingTop: scaledValue(20),
     alignItems: 'center',
@@ -315,6 +315,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: scaledValue(20),
     flexDirection: 'row',
     alignItems: 'center',
+    marginTop: scaledValue(15),
   },
   teamText: {
     fontSize: scaledValue(18),

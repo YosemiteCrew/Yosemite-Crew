@@ -16,7 +16,7 @@ export const get_pet_list = makeThunk(
 export const add_pet = makeThunk('Patient/addPet', 'Patient/addPet', {
   multiPart: true,
   onSuccess: res => {
-    if (res?.status === 200) {
+    if (res?.status === 1) {
       navigationContainerRef?.navigate('StackScreens', {
         screen: 'PetProfileList',
       });
@@ -38,25 +38,82 @@ export const delete_pet_api = makeThunk(
 
 export const edit_pet_api = makeThunk(
   'Patient/editPet',
-  d => `Patient/editPet/${d?.petId}`,
+  d => `Patient/editPet?Petid=${d?.petId}`,
   {
     method: 'PUT',
     multiPart: true,
+    transformBody: d => d.api_credentials,
+  },
+);
+
+export const get_pet_summary = makeThunk(
+  'Organization/petSummary',
+  d => `Organization/petSummary/${d?.petId}`,
+  {method: 'GET', headers: {}, showToastMessage: false},
+);
+
+export const contact_us = makeThunk('User/sendquery', 'sendquery', {
+  multiPart: true,
+});
+
+export const add_pet_breeder_details = makeThunk(
+  'Organization/addBreederDetails',
+  'Organization/addBreederDetails',
+  {
+    multiPart: true,
     onSuccess: res => {
-      if (res?.data?.issue?.[0]?.status === 1)
-        showToast(1, res?.data?.issue[0]?.diagnostics);
+      if (res?.status === 1) {
+        // navigationContainerRef?.navigate('StackScreens', {
+        //   screen: 'PetProfileList',
+        // });
+      }
     },
   },
 );
 
-export const contact_us = makeThunk('User/sendquery', 'sendquery', {
-  headers: {'Content-Type': 'application/json'},
-  multiPart: true,
-  onSuccess: res => {
-    showToast(res?.data?.status, res?.data?.message);
-    if (res?.data?.status === 1) navigationContainerRef?.goBack();
+export const add_pet_groomer_details = makeThunk(
+  'Organization/addPetGroomer',
+  'Organization/addPetGroomer',
+  {
+    multiPart: true,
+    onSuccess: res => {
+      if (res?.status === 1) {
+      }
+    },
   },
-});
+);
+
+export const add_pet_boarding_details = makeThunk(
+  'Organization/addPetBoarding',
+  'Organization/addPetBoarding',
+  {
+    multiPart: true,
+    onSuccess: res => {
+      if (res?.status === 1) {
+      }
+    },
+  },
+);
+
+export const add_pet_vet_details = makeThunk(
+  'Organization/addVetClinic',
+  'Organization/addVetClinic',
+  {
+    multiPart: true,
+    onSuccess: res => {
+      if (res?.status === 1) {
+      }
+    },
+  },
+);
+
+export const withdrawRequest = makeThunk(
+  'auth/withdrawRequestForm',
+  'auth/withdrawRequestForm',
+  {
+    multiPart: true,
+  },
+);
 
 const petsSlice = createSlice({
   name: 'pets',
@@ -88,11 +145,8 @@ const petsSlice = createSlice({
         (s, a) => {
           s.loading = false;
           if (a.type.startsWith('Patient/addPet')) {
-            s.petLists = {
-              ...s.petLists,
-              total: (s.petLists.total || 0) + 1,
-              entry: [...(s.petLists.entry || []), {resource: a.payload}],
-            };
+            const newPet = transformPets([{resource: a.payload.data}]);
+            s.petLists = [...(s.petLists || []), ...newPet];
           }
           if (a.type.startsWith('Patient/getPets')) {
             s.petLists = transformPets(a.payload.entry);

@@ -1,5 +1,5 @@
-import {Image, ScrollView, TouchableOpacity, View} from 'react-native';
-import React, {useEffect} from 'react';
+import {Image, Linking, ScrollView, TouchableOpacity, View} from 'react-native';
+import React, {useEffect, useState} from 'react';
 import {useTranslation} from 'react-i18next';
 import HeaderButton from '../../../../../components/HeaderButton';
 import {Images} from '../../../../../utils';
@@ -10,28 +10,47 @@ import {scaledValue} from '../../../../../utils/design.utils';
 import GButton from '../../../../../components/GButton';
 import {formatUrl, getDomainName} from '../../../../../utils/constants';
 import GImage from '../../../../../components/GImage';
+import {useAppDispatch} from '../../../../../redux/store/storeUtils';
+import {get_doctor_count_by_department} from '../../../../../redux/slices/appointmentSlice';
 
 const BookAppointmentDetail = ({navigation, route}) => {
-  const {businessDetails} = route?.params;
+  const {businessDetails, distance} = route?.params;
+  const dispatch = useAppDispatch();
+  const [departmentData, setDepartmentData] = useState([]);
+
+  const lat = businessDetails?.latitude;
+  const lng = businessDetails?.longitude;
 
   const {t} = useTranslation();
   useEffect(() => {
     configureHeader();
-  }, []);
+    dispatch(
+      get_doctor_count_by_department({
+        businessId: businessDetails?.id,
+      }),
+    ).then(res => {
+      if (get_doctor_count_by_department?.fulfilled.match(res)) {
+        const response = res.payload;
+        if (response?.status === 1) {
+          setDepartmentData(response?.data);
+        }
+      }
+    });
+  }, [businessDetails?.id]);
 
   const configureHeader = () => {
     navigation.setOptions({
-      headerRight: () => (
-        <HeaderButton
-          icon={Images.bellBold}
-          tintColor={colors.jetBlack}
-          onPress={() => {
-            navigation?.navigate('StackScreens', {
-              screen: 'Notifications',
-            });
-          }}
-        />
-      ),
+      // headerRight: () => (
+      //   <HeaderButton
+      //     icon={Images.bellBold}
+      //     tintColor={colors.jetBlack}
+      //     onPress={() => {
+      //       navigation?.navigate('StackScreens', {
+      //         screen: 'Notifications',
+      //       });
+      //     }}
+      //   />
+      // ),
       headerLeft: () => (
         <HeaderButton
           icon={Images.arrowLeftOutline}
@@ -58,7 +77,11 @@ const BookAppointmentDetail = ({navigation, route}) => {
           <View style={styles.textView}>
             <View style={styles.innerView}>
               <Image source={Images.Location} style={styles.locationImg} />
-              <GText GrMedium text={'2.5mi'} style={styles.distanceText} />
+              <GText
+                GrMedium
+                text={`${distance}mi`}
+                style={styles.distanceText}
+              />
             </View>
             <View
               style={[
@@ -94,18 +117,24 @@ const BookAppointmentDetail = ({navigation, route}) => {
             <Image source={Images.HomeAdd} style={styles.locationImg} />
             <GText
               GrMedium
-              text={`${businessDetails?.healthcareServices?.length} Departments`}
+              text={`${departmentData?.length || 0} Departments`}
               style={[styles.addressText, {color: colors.jetLightBlack}]}
             />
           </View>
           <GButton
+            onPress={() => {
+              if (lat && lng) {
+                const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+                Linking.openURL(url);
+              }
+            }}
             icon={Images.Direction}
             iconStyle={styles.iconStyle}
             title={t('get_directions_string')}
             style={styles.buttonStyle}
             textStyle={styles.buttonTextStyle}
           />
-          <TouchableOpacity
+          {/* <TouchableOpacity
             onPress={() => {
               navigation?.navigate('BusinessReview', {
                 businessDetails,
@@ -133,54 +162,58 @@ const BookAppointmentDetail = ({navigation, route}) => {
                 color: colors.jetBlack,
               }}
             />
-          </TouchableOpacity>
-          {businessDetails?.healthcareServices?.length > 0 && (
-            <>
-              <GText
-                GrMedium
-                text={t('departments_string')}
-                style={styles.departmentText}
-              />
-              <View style={styles.questionsContainer}>
-                {businessDetails?.healthcareServices?.map((item, index) => (
-                  <>
-                    <TouchableOpacity
-                      onPress={() => {
-                        navigation?.navigate('StackScreens', {
-                          screen: 'BookAppointmentDepartmentDetail',
-                          params: {
-                            departmentDetail: item,
-                            businessDetails: businessDetails,
-                          },
-                        });
-                      }}
-                      key={item?.id}
-                      style={styles.questionButton}>
-                      <GText
-                        SatoshiBold
-                        text={item?.name}
-                        style={styles.departmentTextStyle}
-                      />
-                      <View style={{flexDirection: 'row'}}>
+          </TouchableOpacity> */}
+          {/* {businessDetails?.healthcareServices?.length > 0 && ( */}
+          <>
+            <GText
+              GrMedium
+              text={t('departments_string')}
+              style={styles.departmentText}
+            />
+            <View style={styles.questionsContainer}>
+              {departmentData?.map((item, index) => (
+                <>
+                  {item?.departmentName && (
+                    <>
+                      <TouchableOpacity
+                        onPress={() => {
+                          navigation?.navigate('StackScreens', {
+                            screen: 'BookAppointmentDepartmentDetail',
+                            params: {
+                              departmentDetail: item,
+                              businessDetails: businessDetails,
+                            },
+                          });
+                        }}
+                        key={item?.id}
+                        style={styles.questionButton}>
                         <GText
                           SatoshiBold
-                          text={`${item?.doctorCount} Doctors`}
-                          style={styles.questionText}
+                          text={item?.departmentName}
+                          style={styles.departmentTextStyle}
                         />
-                        <Image
-                          source={Images.RightArrow}
-                          style={styles.rightArrow}
-                        />
-                      </View>
-                    </TouchableOpacity>
-                    <View style={styles.separator} />
-                  </>
-                ))}
-              </View>
-            </>
-          )}
+                        <View style={{flexDirection: 'row'}}>
+                          <GText
+                            SatoshiBold
+                            text={`${item?.count} Doctors`}
+                            style={styles.questionText}
+                          />
+                          <Image
+                            source={Images.RightArrow}
+                            style={styles.rightArrow}
+                          />
+                        </View>
+                      </TouchableOpacity>
+                      <View style={styles.separator} />
+                    </>
+                  )}
+                </>
+              ))}
+            </View>
+          </>
+          {/* )} */}
 
-          {businessDetails?.selectedServices?.length > 0 && (
+          {/* {businessDetails?.selectedServices?.length > 0 && (
             <>
               <GText
                 GrMedium
@@ -203,7 +236,7 @@ const BookAppointmentDetail = ({navigation, route}) => {
                 ))}
               </View>
             </>
-          )}
+          )} */}
         </View>
       </ScrollView>
     </View>

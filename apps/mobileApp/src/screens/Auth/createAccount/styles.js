@@ -127,4 +127,21 @@ export const styles = StyleSheet.create({
     color: colors.jetBlack,
     fontFamily: fonts?.SATOSHI_BOLD,
   },
+
+  inputWrapper: {
+    position: 'relative',
+  },
+
+  inlineLabelWrapper: {
+    position: 'absolute',
+    top: scaledValue(-7),
+    left: scaledValue(20),
+    backgroundColor: colors.themeColor,
+    zIndex: 1,
+    paddingHorizontal: scaledValue(5),
+  },
+
+  inlineLabel: {
+    fontSize: scaledValue(12),
+  },
 });

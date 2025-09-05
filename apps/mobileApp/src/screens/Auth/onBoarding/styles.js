@@ -1,11 +1,11 @@
-import { Dimensions, Platform, StyleSheet } from 'react-native';
-import { scaledHeightValue, scaledValue } from '../../../utils/design.utils';
-import { colors } from '../../../../assets/colors';
-import { fonts } from '../../../utils/fonts';
+import {Dimensions, Platform, StyleSheet} from 'react-native';
+import {scaledHeightValue, scaledValue} from '../../../utils/design.utils';
+import {colors} from '../../../../assets/colors';
+import {fonts} from '../../../utils/fonts';
 
 export const styles = StyleSheet.create({
   //--------- Common Styles ---------//
-  onboardingMainContainer: { backgroundColor: '#FFFEFE', width: '100%' },
+  onboardingMainContainer: {backgroundColor: '#FFFEFE', flex: 1},
   onboardingTitleView: statusBarHeight => ({
     marginTop: statusBarHeight + scaledValue(90),
   }),
@@ -14,7 +14,6 @@ export const styles = StyleSheet.create({
     lineHeight: scaledHeightValue(43.2),
     letterSpacing: scaledValue(36 * -0.02),
     textAlign: 'center',
-
   },
   onboardingSecondTitleStyle: color => ({
     fontSize: scaledValue(36),
@@ -41,7 +40,6 @@ export const styles = StyleSheet.create({
     lineHeight: scaledHeightValue(36),
     letterSpacing: scaledValue(36 * -0.02),
     textAlign: 'center',
-
   },
   simplifiedText: {
     fontSize: scaledValue(36),
@@ -80,10 +78,10 @@ export const styles = StyleSheet.create({
     width: scaledValue(360),
     height: scaledValue(355),
     alignSelf: 'center',
-    bottom:
-      Platform.OS == 'android'
-        ? scaledValue(insets.bottom + 25)
-        : scaledValue(insets.bottom - 10),
+    // bottom:
+    //   Platform.OS == 'android'
+    //     ? scaledValue(insets.bottom + 25)
+    //     : scaledValue(insets.bottom - 10),
   }),
 
   //--------- Second Onboarding Styles ---------//
@@ -103,7 +101,7 @@ export const styles = StyleSheet.create({
     marginBottom: scaledValue(10),
   },
 
-  secondScreenEclipseImageView: { marginTop: scaledValue(-10) },
+  secondScreenEclipseImageView: {marginTop: scaledValue(-10)},
 
   secondScreenBgEclipse: {
     width: '100%',
@@ -120,14 +118,14 @@ export const styles = StyleSheet.create({
     width: '100%',
     height: scaledValue(420.51),
     alignSelf: 'center',
-    bottom:
-      Platform.OS == 'android'
-        ? scaledValue(insets.bottom + 100)
-        : scaledValue(insets.bottom + 65),
+    // bottom:
+    //   Platform.OS == 'android'
+    //     ? scaledValue(insets.bottom + 100)
+    //     : scaledValue(insets.bottom + 65),
   }),
 
   //--------- Third Onboarding Styles ---------//
-  thirdScreenEclipseImageView: { marginTop: scaledValue(150) },
+  thirdScreenEclipseImageView: {marginTop: scaledValue(150)},
   thirdScreenBgEclipse: {
     width: '100%',
     height: scaledValue(370.51),
@@ -143,10 +141,6 @@ export const styles = StyleSheet.create({
     width: '100%',
     height: scaledValue(380),
     alignSelf: 'center',
-    bottom:
-      Platform.OS == 'android'
-        ? scaledValue(insets.bottom + 68)
-        : scaledValue(insets.bottom + 35),
   }),
 
   //--------- Forth Onboarding Styles ---------//
@@ -172,7 +166,7 @@ export const styles = StyleSheet.create({
     fontFamily: fonts.CLASH_GRO_MEDIUM,
   },
   forthScreenEclipseImageView: {
-    marginTop: Platform.OS == 'android' ? scaledValue(48) : scaledValue(70),
+    marginTop: Platform.OS == 'android' ? scaledValue(90) : scaledValue(70),
   },
   forthScreenBgEclipse: {
     width: '100%',

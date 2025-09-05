@@ -77,9 +77,9 @@ export const formatToLocalISO = (dateStr, timeStr) => {
   return localMoment.format(); // returns ISO string with local offset
 };
 
-export const formatDate = isoString => {
+export const formatDate = (isoString, month) => {
   const date = new Date(isoString);
-  const options = {day: '2-digit', month: 'short', year: 'numeric'};
+  const options = {day: '2-digit', month: month || 'short', year: 'numeric'};
   return date.toLocaleDateString('en-GB', options); // DD MMM YYYY
 };
 
