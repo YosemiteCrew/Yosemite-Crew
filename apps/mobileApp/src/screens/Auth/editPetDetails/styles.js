@@ -1,0 +1,195 @@
+import {StyleSheet} from 'react-native';
+import {scaledHeightValue, scaledValue} from '../../../utils/design.utils';
+import {fonts} from '../../../utils/fonts';
+import {colors} from '../../../../assets/colors';
+
+export const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.themeColor,
+    paddingHorizontal: scaledValue(20),
+  },
+  headerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backButton: {
+    position: 'absolute',
+    left: 0,
+  },
+  backButtonImage: {
+    width: scaledValue(28),
+    height: scaledValue(28),
+  },
+  headerTextContainer: {
+    flexDirection: 'row',
+    width: '60%',
+  },
+  headerText: {
+    fontSize: scaledValue(20),
+    letterSpacing: scaledValue(20 * -0.01),
+  },
+  headerTextHighlighted: {
+    fontSize: scaledValue(20),
+    letterSpacing: scaledValue(20 * -0.01),
+    left: scaledValue(2),
+    color: colors.appRed,
+    width: '50%',
+  },
+  profileImageContainer: image => ({
+    alignItems: 'center',
+    marginTop: scaledValue(28),
+    alignSelf: 'center',
+    borderColor: colors.primaryBlue,
+    borderRadius: scaledValue(50),
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: image && scaledValue(1),
+  }),
+  profileImage: {
+    width: scaledValue(95),
+    height: scaledValue(95),
+    borderRadius: scaledValue(47.5),
+  },
+  formContainer: {
+    marginTop: scaledValue(29),
+    gap: scaledValue(16),
+  },
+  input: {
+    width: '100%',
+    backgroundColor: 'transparent',
+    fontSize: scaledValue(14),
+    marginTop: scaledValue(-6),
+    paddingLeft: scaledValue(10),
+  },
+  datePickerContainer: val => ({
+    borderWidth: scaledValue(0.5),
+    height: scaledValue(48),
+    // marginTop: scaledValue(16),
+    borderRadius: scaledValue(24),
+    paddingHorizontal: scaledValue(20),
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: val ? scaledValue(1) : scaledValue(0.5),
+    borderColor: colors.jetBlack,
+  }),
+  dateText: val => ({
+    fontSize: scaledValue(16),
+    letterSpacing: scaledValue(16 * -0.03),
+    color: colors.jetBlack,
+    fontFamily: val ? fonts.SATOSHI_MEDIUM : fonts.SATOSHI_REGULAR,
+    opacity: val ? 0.8 : 0.6,
+  }),
+  dateIcon: {
+    width: scaledValue(20),
+    height: scaledValue(20),
+  },
+  genderContainer: {
+    // marginTop: scaledValue(16),
+    flexDirection: 'row',
+    gap: scaledValue(8),
+  },
+  genderItem: {
+    borderRadius: scaledValue(28),
+  },
+  genderButton: (val, item) => ({
+    width: scaledValue(100),
+    borderRadius: scaledValue(28),
+    height: scaledValue(48),
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: scaledValue(28),
+    borderWidth: val === item ? scaledValue(1) : scaledValue(0.5),
+    borderColor: val === item ? colors.primaryBlue : colors.darkPurple2,
+    backgroundColor: val === item ? colors.paletteBlue : 'transparent',
+  }),
+  genderText: (val, item) => ({
+    fontSize: scaledValue(16),
+    letterSpacing: scaledValue(16 * -0.02),
+    color: val === item ? colors.primaryBlue : colors.darkPurple2,
+    fontFamily: val === item ? fonts.SATOSHI_BOLD : fonts.SATOSHI_REGULAR,
+  }),
+  weightContainer: {
+    borderWidth: scaledValue(0.5),
+    height: scaledValue(48),
+    marginTop: scaledValue(16),
+    borderRadius: scaledValue(24),
+    paddingHorizontal: scaledValue(20),
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderColor: '#312943',
+  },
+  weightText: {
+    fontSize: scaledValue(16),
+    letterSpacing: scaledValue(16 * -0.03),
+    color: '#312943',
+  },
+  weightIconContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  weightUnitText: {
+    fontSize: scaledValue(16),
+    letterSpacing: scaledValue(16 * -0.03),
+    color: colors.appRed,
+  },
+  weightIcon: {
+    width: scaledValue(20),
+    height: scaledValue(20),
+  },
+  bloodGroupContainer: val => ({
+    borderWidth: scaledValue(0.5),
+    height: scaledValue(48),
+    // marginTop: scaledValue(16),
+    borderRadius: scaledValue(24),
+    paddingHorizontal: scaledValue(20),
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: val ? scaledValue(1) : scaledValue(0.5),
+    borderColor: colors.jetBlack,
+  }),
+  bloodGroupText: val => ({
+    fontSize: scaledValue(16),
+    letterSpacing: scaledValue(16 * -0.03),
+    color: colors.jetBlack,
+    opacity: val ? 0.8 : 0.6,
+    fontFamily: val ? fonts.SATOSHI_MEDIUM : fonts.SATOSHI_REGULAR,
+  }),
+  bloodGroupIcon: {
+    width: scaledValue(20),
+    height: scaledValue(20),
+  },
+  neuteredContainer: {
+    // marginTop: scaledValue(16),
+    flexDirection: 'row',
+    gap: scaledValue(8),
+  },
+  neuteredItem: {
+    borderRadius: scaledValue(28),
+  },
+  neuteredButton: (val, item) => ({
+    borderRadius: scaledValue(28),
+    height: scaledValue(48),
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: scaledValue(25),
+    borderRadius: scaledValue(28),
+    borderWidth: val === item ? scaledValue(1) : scaledValue(0.5),
+    borderColor: val === item ? colors.primaryBlue : colors.darkPurple2,
+    backgroundColor: val === item ? colors.paletteBlue : 'transparent',
+  }),
+  neuteredText: (val, item) => ({
+    fontSize: scaledValue(16),
+    letterSpacing: scaledValue(16 * -0.02),
+    color: val === item ? colors.primaryBlue : colors.darkPurple2,
+    fontFamily: val === item ? fonts.SATOSHI_BOLD : fonts.SATOSHI_REGULAR,
+  }),
+  createButton: {
+    marginTop: scaledValue(40),
+    marginBottom: scaledValue(40),
+  },
+});

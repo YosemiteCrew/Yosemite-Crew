@@ -8,7 +8,6 @@ export default async function API(props) {
   //SET URL
   let path = API_BASE_URL;
   let route = props.route;
-  // console.log('routeroute', route);
   if (
     route === 'auth/signup' ||
     route === 'auth/sendOtp' ||
@@ -16,7 +15,10 @@ export default async function API(props) {
     route === 'auth/confirmSignup' ||
     route === 'auth/resendConfirmationCode' ||
     route === 'auth/logout' ||
-    route === 'auth/social-login'
+    route === 'auth/social-login' ||
+    route === 'auth/updateProfileDetail' ||
+    route === 'auth/deleteAccountWithToken' ||
+    route === 'auth/withdrawRequestForm'
   ) {
     path = API_BASE_URL;
   } else {
@@ -62,9 +64,7 @@ export default async function API(props) {
   };
   if (props.headers) {
     headers = {...headers, ...props.headers};
-    // console.log('TempHeaders2=>>', headers);
   }
-  // console.log(url);
   //SET REQUEST
   const request = {
     method: method,
@@ -73,26 +73,19 @@ export default async function API(props) {
   };
   if (method != 'GET') {
     // request.data = multiPartData ? formData : body;
-    // console.log('formDataValue', JSON.stringify(formData));
 
     request.data = multiPartData ? formData : body;
   }
 
-  // console.log('request', request);
-
   //CALL API
   try {
     let response = await axios(request);
-    // console.log('response=>>>>', JSON.stringify(response));
-    // console.log('response=>>>>', JSON.stringify(response?.data));
 
     return response;
   } catch (error) {
-    // console.log('errors0012555', error);
     // Alert.alert(error?.code, error?.message);
     // console.log('errors', error?.code);
-    // console.log('errors0012', error?.message);
-    if (error?.code == 'ERR_NETWORK' && !global.networkError) {
+    if (error.request) {
       global.networkError = true;
       Alert.alert(
         'Network Error',

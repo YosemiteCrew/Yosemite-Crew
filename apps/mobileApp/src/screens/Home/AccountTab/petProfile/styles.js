@@ -40,6 +40,8 @@ export const styles = StyleSheet.create({
     height: scaledValue(64),
     borderRadius: scaledValue(32),
     resizeMode: 'cover',
+    borderWidth: scaledValue(0.8),
+    borderColor: colors.primaryBlue,
   },
   petName: {
     fontSize: scaledValue(20),
@@ -69,7 +71,7 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(15),
     color: colors.jetBlack,
     textTransform: 'capitalize',
-    maxWidth: '60%',
+    maxWidth: '50%',
     textAlign: 'right',
   },
 });

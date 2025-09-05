@@ -68,13 +68,13 @@ const AddNewDocument = ({navigation}) => {
     navigation.setOptions({
       headerRight: () => (
         <HeaderButton
-          icon={Images.bellBold}
+          // icon={Images.bellBold}
           tintColor={colors.jetBlack}
-          onPress={() => {
-            navigation?.navigate('StackScreens', {
-              screen: 'Notifications',
-            });
-          }}
+          // onPress={() => {
+          //   navigation?.navigate('StackScreens', {
+          //     screen: 'Notifications',
+          //   });
+          // }}
         />
       ),
       headerLeft: () => (
@@ -151,7 +151,9 @@ const AddNewDocument = ({navigation}) => {
       typeText: value?.folderName,
       description: formValue?.title,
       date: convertDateFormat(formValue?.date_of_isssue),
-      contextPeriodEnd: convertDateFormat(formValue?.expiryDate),
+      contextPeriodEnd: formValue?.expiryDate
+        ? convertDateFormat(formValue?.expiryDate)
+        : '',
       patientId: selectedPet?.id,
       folderId: value?._id,
     };

@@ -22,17 +22,17 @@ import HeaderButton from '../../../components/HeaderButton';
 import GImage from '../../../components/GImage';
 
 const VeterinaryDetails = ({navigation, route}) => {
-  const {petDetails} = route?.params;
+  const {petData} = route?.params;
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
   const {t} = useTranslation();
   const [formValue, setFormValue] = useState({
     clinic_name: '',
     vet_name: '',
-    address: '',
-    city: '',
-    country: '',
-    zip: '',
+    // address: '',
+    // city: '',
+    // country: '',
+    // zip: '',
     phone: '',
     email: '',
     website: '',
@@ -55,147 +55,158 @@ const VeterinaryDetails = ({navigation, route}) => {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : ''}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <>
-          <Input
-            // value={}
-            label={t('search_hospital_clinic_string')}
-            onChangeText={value => setFormValue({...formValue, weight: value})}
-            style={styles.input}
-            rightIcon={Images.Search}
-            iconStyle={{width: scaledValue(20), height: scaledValue(20)}}
-          />
+      {/* <GImage
+        image={petData?.petImages}
+        style={styles.petImg}
+        noImageSource={Images.Kizi}
+      />
+      <GText GrMedium text={petData?.name} style={styles.petName} />
+      <GText SatoshiMedium text={petData?.breed} style={styles.breed} /> */}
+      <>
+        <Input
+          // value={}
+          label={t('search_hospital_clinic_string')}
+          onChangeText={value => setFormValue({...formValue, weight: value})}
+          style={styles.input}
+          rightIcon={Images.Search}
+          iconStyle={{width: scaledValue(20), height: scaledValue(20)}}
+        />
+        <Image
+          source={Images.add_vet}
+          style={{
+            width: scaledValue(188.71),
+            height: scaledValue(201.25),
+            alignSelf: 'center',
+            marginTop: scaledValue(16),
+          }}
+        />
+        <TouchableOpacity
+          onPress={() =>
+            navigation.navigate('ScanQR', {
+              onGoBack: code => {
+                console.log('PMS Code from QR:', code);
+              },
+            })
+          }
+          activeOpacity={0.7}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: scaledValue(8),
+            borderWidth: scaledValue(1),
+            paddingHorizontal: scaledValue(28),
+            paddingVertical: scaledValue(17),
+            borderRadius: scaledValue(28),
+            width: scaledValue(208),
+            alignSelf: 'center',
+          }}>
           <Image
-            source={Images.add_vet}
+            source={Images.Scan}
+            style={{width: scaledValue(20), height: scaledValue(20)}}
+          />
+          <GText GrMedium text={t('scan_pms_string')} />
+        </TouchableOpacity>
+        <View
+          style={{
+            flexDirection: 'row',
+            width: '100%',
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginTop: scaledValue(30),
+            gap: scaledValue(18),
+          }}>
+          <View
             style={{
-              width: scaledValue(188.71),
-              height: scaledValue(201.25),
-              alignSelf: 'center',
-              marginTop: scaledValue(16),
+              height: scaledValue(1),
+              backgroundColor: colors.black,
+              flex: 1,
             }}
           />
-          <TouchableOpacity
-            activeOpacity={0.7}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: scaledValue(8),
-              borderWidth: scaledValue(1),
-              paddingHorizontal: scaledValue(28),
-              paddingVertical: scaledValue(17),
-              borderRadius: scaledValue(28),
-              width: scaledValue(208),
-              alignSelf: 'center',
-            }}>
-            <Image
-              source={Images.Scan}
-              style={{width: scaledValue(20), height: scaledValue(20)}}
-            />
-            <GText GrMedium text={t('scan_pms_string')} />
-          </TouchableOpacity>
+          <GText
+            GrMedium
+            text={t('send_or_invite_string')}
+            style={styles.sendText}
+          />
           <View
             style={{
-              flexDirection: 'row',
-              width: '100%',
-              justifyContent: 'center',
-              alignItems: 'center',
-              marginTop: scaledValue(30),
-              gap: scaledValue(18),
-            }}>
-            <View
-              style={{
-                height: scaledValue(1),
-                backgroundColor: colors.black,
-                flex: 1,
-              }}
-            />
-            <GText
-              GrMedium
-              text={t('send_or_invite_string')}
-              style={styles.sendText}
-            />
-            <View
-              style={{
-                height: scaledValue(1),
-                backgroundColor: colors.black,
-                flex: 1,
-              }}
-            />
-          </View>
-          <View style={styles.inputView}>
-            <Input
-              value={formValue.clinic_name}
-              label={t('clinic_name_string')}
-              onChangeText={value =>
-                setFormValue({...formValue, clinic_name: value})
-              }
-              style={styles.inputStyle}
-              keyboardType={'email-address'}
-            />
-            <Input
-              value={formValue.vet_name}
-              label={t('vet_name_string')}
-              onChangeText={value =>
-                setFormValue({...formValue, vet_name: value})
-              }
-              style={styles.inputStyle}
-              keyboardType={'email-address'}
-            />
-            <Input
-              value={formValue.address}
-              label={t('clinic_address_string')}
-              onChangeText={value =>
-                setFormValue({...formValue, address: value})
-              }
-              style={styles.inputStyle}
-              keyboardType={'email-address'}
-            />
+              height: scaledValue(1),
+              backgroundColor: colors.black,
+              flex: 1,
+            }}
+          />
+        </View>
+        <View style={styles.inputView}>
+          <Input
+            value={formValue.clinic_name}
+            label={t('clinic_name_string')}
+            onChangeText={value =>
+              setFormValue({...formValue, clinic_name: value})
+            }
+            style={styles.inputStyle}
+            keyboardType={'email-address'}
+          />
+          <Input
+            value={formValue.vet_name}
+            label={t('vet_name_string')}
+            onChangeText={value =>
+              setFormValue({...formValue, vet_name: value})
+            }
+            style={styles.inputStyle}
+            keyboardType={'email-address'}
+          />
+          <Input
+            value={formValue.email}
+            label={t('email_address_string')}
+            onChangeText={value => setFormValue({...formValue, email: value})}
+            style={styles.inputStyle}
+            keyboardType={'email-address'}
+          />
 
-            <Input
-              value={formValue.zip}
-              label={t('zip_code_string')}
-              onChangeText={value => setFormValue({...formValue, zip: value})}
-              style={styles.inputStyle}
-              keyboardType={'email-address'}
-            />
-            <Input
-              value={formValue.phone}
-              label={t('telephone_string')}
-              onChangeText={value => setFormValue({...formValue, phone: value})}
-              style={styles.inputStyle}
-              keyboardType="number-pad"
-            />
-            <Input
-              value={formValue.email}
-              label={t('email_address_string')}
-              onChangeText={value => setFormValue({...formValue, email: value})}
-              style={styles.inputStyle}
-              keyboardType={'email-address'}
-            />
-          </View>
-          <View
-            style={{
-              marginBottom: insets.bottom + scaledValue(40),
-              alignSelf: 'center',
-              width: '100%',
-              marginTop: scaledValue(44),
-            }}>
-            <GButton
-              onPress={() =>
-                navigation.navigate('StackScreens', {
-                  screen: authState?.user ? 'ChooseYourPet' : 'PetSummary',
-                })
-              }
-              title={t('add_new_pet_string')}
-              icon={Images?.tickImage}
-              iconStyle={styles.iconStyle}
-              style={styles.buttonStyle}
-            />
-          </View>
-        </>
-        <View style={styles.petImageWrapper}>
+          {/* <Input
+            value={formValue.zip}
+            label={t('zip_code_string')}
+            onChangeText={value => setFormValue({...formValue, zip: value})}
+            style={styles.inputStyle}
+            keyboardType={'email-address'}
+          /> */}
+          <Input
+            value={formValue.phone}
+            label={t('telephone_string')}
+            onChangeText={value => setFormValue({...formValue, phone: value})}
+            style={styles.inputStyle}
+            keyboardType="number-pad"
+          />
+          <Input
+            value={formValue.website}
+            label={t('website_string')}
+            onChangeText={value => setFormValue({...formValue, email: value})}
+            style={styles.inputStyle}
+            keyboardType={'email-address'}
+          />
+        </View>
+        <View
+          style={{
+            marginBottom: insets.bottom + scaledValue(40),
+            alignSelf: 'center',
+            width: '100%',
+            marginTop: scaledValue(44),
+          }}>
+          <GButton
+            onPress={() =>
+              navigation.navigate('StackScreens', {
+                screen: authState?.user ? 'ChooseYourPet' : 'PetSummary',
+              })
+            }
+            title={t('send_invite_string')}
+            icon={Images?.tickImage}
+            iconStyle={styles.iconStyle}
+            style={styles.buttonStyle}
+          />
+        </View>
+      </>
+      {/* <View style={styles.petImageWrapper}>
           <GImage
-            image={petDetails?.petImage?.url}
+            image={petData?.petImage?.url}
             style={styles.petImg}
             noImageSource={Images.Kizi}
           />
@@ -221,7 +232,7 @@ const VeterinaryDetails = ({navigation, route}) => {
                 }}>
                 <View style={{flexDirection: 'row', gap: scaledValue(8)}}>
                   <GImage
-                    image={petDetails?.petImage?.url}
+                    image={petData?.petImage?.url}
                     style={{
                       width: scaledValue(88),
                       height: scaledValue(88),
@@ -327,23 +338,22 @@ const VeterinaryDetails = ({navigation, route}) => {
               </View>
             );
           }}
-        />
-        <GButton
-          onPress={() =>
-            navigation.navigate('StackScreens', {
-              screen: authState?.user ? 'ChooseYourPet' : 'PetSummary',
-            })
-          }
-          title={t('add_pet_string')}
-          icon={Images?.PlusIcon}
-          iconStyle={[styles.iconStyle]}
-          style={{
-            gap: scaledValue(8),
-            marginTop: scaledValue(24),
-            marginBottom: scaledValue(47),
-          }}
-        />
-      </ScrollView>
+        /> */}
+      {/* <GButton
+        onPress={() =>
+          navigation.navigate('StackScreens', {
+            screen: authState?.user ? 'ChooseYourPet' : 'PetSummary',
+          })
+        }
+        title={t('add_pet_string')}
+        icon={Images?.PlusIcon}
+        iconStyle={[styles.iconStyle]}
+        style={{
+          gap: scaledValue(8),
+          marginTop: scaledValue(24),
+          marginBottom: scaledValue(47),
+        }}
+      /> */}
     </KeyboardAvoidingView>
   );
 };

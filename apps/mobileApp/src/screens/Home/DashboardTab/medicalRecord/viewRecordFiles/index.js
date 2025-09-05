@@ -14,7 +14,7 @@ import {
 } from '../../../../../redux/slices/medicalRecordSlice';
 
 const ViewRecordFiles = ({navigation, route}) => {
-  const {recordDetail} = route?.params;
+  const {recordDetail, screen} = route?.params;
   const [selectedItems, setSelectedItems] = useState([]);
   const [selectedRecord, setSelectRecord] = useState({});
   const dispatch = useAppDispatch();
@@ -57,11 +57,13 @@ const ViewRecordFiles = ({navigation, route}) => {
   };
 
   useEffect(() => {
-    dispatch(
-      get_medical_record_by_id({
-        id: recordDetail?.id,
-      }),
-    );
+    if (screen !== 'FolderFilesList') {
+      dispatch(
+        get_medical_record_by_id({
+          id: recordDetail?.id,
+        }),
+      );
+    }
   }, []);
 
   const deleteMedicalRecord = () => {

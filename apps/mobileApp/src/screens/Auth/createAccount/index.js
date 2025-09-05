@@ -26,7 +26,7 @@ import {KeyboardAwareScrollView} from 'react-native-keyboard-controller';
 import ImagePicker from 'react-native-image-crop-picker';
 import {openSettings, PERMISSIONS, request} from 'react-native-permissions';
 import {fonts} from '../../../utils/fonts';
-import FastImage from 'react-native-fast-image';
+import {showToast} from '../../../components/Toast';
 
 const CreateAccount = ({navigation, route}) => {
   const {userDetails} = route?.params;
@@ -40,12 +40,13 @@ const CreateAccount = ({navigation, route}) => {
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState('');
   const [formValue, setFormValue] = useState({
-    firstName: userDetails?.name?.split(' ')[0],
-    lastName: userDetails?.name?.split(' ')[1] || '',
+    firstName: userDetails?.firstName || '',
+    lastName: userDetails?.lastName || '',
     countryCode: '+1',
     phone: '',
     email: userDetails?.email,
     dob: '',
+    flag: '🇺🇸',
   });
 
   const formatDate = dateString => {
@@ -57,6 +58,7 @@ const CreateAccount = ({navigation, route}) => {
       const status = await PermissionsAndroid.request(
         'android.permission.READ_MEDIA_IMAGES',
       );
+      console.log('statusstatusstatus', JSON.stringify(status));
 
       if (
         status === 'granted' ||
@@ -212,7 +214,7 @@ const CreateAccount = ({navigation, route}) => {
             value={formValue.phone}
             isShowPhone={true}
             label={t('mobile_number_string')}
-            countryCode={formValue?.countryCode}
+            countryCode={formValue?.flag + ' ' + formValue?.countryCode}
             formValue={formValue}
             setCountryCode={setFormValue}
             onChangeText={value => setFormValue({...formValue, phone: value})}
@@ -222,40 +224,64 @@ const CreateAccount = ({navigation, route}) => {
 
           <Input
             value={formValue.email}
+            disabled={userDetails?.email && true}
             label={t('email_address_string')}
             onChangeText={value => setFormValue({...formValue, email: value})}
             style={styles.input}
             keyboardType={'email-address'}
           />
-          <TouchableOpacity
-            onPress={() => setOpen(true)}
-            activeOpacity={0.7}
-            style={{
-              flexDirection: 'row',
-              borderWidth: scaledValue(0.5),
-              paddingVertical: scaledValue(16),
-              borderRadius: scaledValue(24),
-              borderColor: colors.jetBlack,
-              paddingHorizontal: scaledValue(20),
-              justifyContent: 'space-between',
-            }}>
-            <GText
-              text={date ? formatDate(date) : t('dob_string')}
+          <View style={styles.inputWrapper}>
+            {date && (
+              <View style={styles.inlineLabelWrapper}>
+                <GText
+                  SatoshiBold
+                  text={t('dob_string')}
+                  style={styles.inlineLabel}
+                />
+              </View>
+            )}
+            <TouchableOpacity
+              onPress={() => setOpen(true)}
+              activeOpacity={0.7}
               style={{
-                fontSize: scaledValue(16),
-                opacity: date ? 0.8 : 0.6,
-                color: colors.jetBlack,
-                fontFamily: fonts.SATOSHI_MEDIUM,
-              }}
-            />
-            <Image source={Images.Calender} style={styles.scanIcon} />
-          </TouchableOpacity>
+                flexDirection: 'row',
+                borderWidth: date ? scaledValue(1) : scaledValue(0.5),
+                height: scaledValue(48),
+                borderRadius: scaledValue(24),
+                borderColor: colors.jetBlack,
+                paddingHorizontal: scaledValue(20),
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}>
+              <GText
+                text={date ? formatDate(date) : t('dob_string')}
+                style={{
+                  fontSize: scaledValue(16),
+                  opacity: date ? 0.8 : 0.6,
+                  color: colors.jetBlack,
+                  fontFamily: fonts.SATOSHI_MEDIUM,
+                }}
+              />
+              <Image source={Images.Calender} style={styles.scanIcon} />
+            </TouchableOpacity>
+          </View>
           <GButton
             onPress={() => {
-              navigation?.navigate('AddAddress', {
-                userDetails: formValue,
-                apiCallImage: apiCallImage,
-              });
+              if (
+                !formValue?.firstName ||
+                !formValue?.lastName ||
+                !formValue?.phone ||
+                !formValue?.email ||
+                !formValue?.dob
+              ) {
+                showToast(0, 'Please fill all the details!');
+              } else {
+                navigation?.navigate('AddAddress', {
+                  userDetails: formValue,
+                  apiCallImage: apiCallImage,
+                  type: userDetails?.type,
+                });
+              }
             }}
             title={t('add_address_string')}
             style={styles.createAccountButton}

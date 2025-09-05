@@ -1,12 +1,5 @@
-import {
-  Image,
-  Keyboard,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import React, {useRef, useState} from 'react';
+import {FlatList, Image, Text, TouchableOpacity, View} from 'react-native';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {scaledValue} from '../../../utils/design.utils';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useTranslation} from 'react-i18next';
@@ -17,18 +10,37 @@ import GButton from '../../../components/GButton';
 import GTextButton from '../../../components/GTextButton/GTextButton';
 import {styles} from './styles';
 import {useAppDispatch} from '../../../redux/store/storeUtils';
-import {sign_up} from '../../../redux/slices/authSlice';
+import {setUserData, sign_up} from '../../../redux/slices/authSlice';
 import {KeyboardAwareScrollView} from 'react-native-keyboard-controller';
-import {GooglePlacesAutocomplete} from 'react-native-google-places-autocomplete';
-import {GOOGLE_API_KEY} from '../../../constants';
 import {colors} from '../../../../assets/colors';
+import {showToast} from '../../../components/Toast';
+import countriescities from '../../../../assets/countriescities.json';
+import GOptions from '../../../components/GOptions';
+import {fonts} from '../../../utils/fonts';
+import GooglePlacesInput from '../../../components/GooglePlacesInput';
+import HeaderButton from '../../../components/HeaderButton';
 
 const AddAddress = ({navigation, route}) => {
-  const {userDetails, apiCallImage} = route?.params;
+  const {userDetails, apiCallImage, type} = route?.params;
+
   const insets = useSafeAreaInsets();
   const statusBarHeight = insets.top;
   const dispatch = useAppDispatch();
   const {t} = useTranslation();
+  const refRBSheetCountry = useRef();
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerLeft: () => (
+        <HeaderButton
+          icon={Images.arrowLeftOutline}
+          tintColor={colors.jetBlack}
+          style={{marginLeft: scaledValue(20)}}
+          onPress={() => navigation.goBack()}
+        />
+      ),
+    });
+  }, [navigation]);
 
   const [formValue, setFormValue] = useState({
     city: '',
@@ -36,6 +48,7 @@ const AddAddress = ({navigation, route}) => {
     postal_code: '',
     addressLine1: '',
     state: '',
+    country: '',
   });
 
   const [isChecked, setIsChecked] = useState(false);
@@ -57,18 +70,26 @@ const AddAddress = ({navigation, route}) => {
       city: formValue?.city?.trim(),
       zipcode: formValue?.postal_code?.trim(),
       dateOfBirth: userDetails?.dob,
+      type: type ? type : 'email',
+      flag: userDetails?.flag,
     };
     const api_credentials = {
       data: input,
       files: [apiCallImage],
     };
 
+    console.log('api_credentials', JSON.stringify(api_credentials));
+
     dispatch(sign_up(api_credentials)).then(res => {
       if (sign_up.fulfilled.match(res)) {
         if (res?.payload?.status === 1) {
-          navigation?.navigate('ConfirmSignUp', {
-            email: userDetails?.email,
-          });
+          if (type === 'email') {
+            navigation?.navigate('ConfirmSignUp', {
+              email: userDetails?.email,
+            });
+          } else {
+            dispatch(setUserData(res?.payload?.data));
+          }
         }
       }
     });
@@ -76,27 +97,70 @@ const AddAddress = ({navigation, route}) => {
 
   return (
     <KeyboardAwareScrollView bottomOffset={20} style={styles.scrollView}>
-      <GText
-        GrMedium
-        text={t('create_an_account_string')}
-        style={[
-          styles.createAccountText,
-          {marginTop: scaledValue(statusBarHeight + scaledValue(17))},
-        ]}
-      />
       <View style={styles.profileButton}>
-        <Image source={{uri: apiCallImage?.uri}} style={styles.profileImage} />
+        <Image
+          source={apiCallImage?.uri ? {uri: apiCallImage?.uri} : Images.appLogo}
+          style={styles.profileImage}
+        />
       </View>
-      <GText GrMedium style={styles.headerText} text="Add Address" />
+      <GText GrMedium style={styles.headerText} text="Address Details" />
       <View style={styles.formContainer}>
-        <Input
-          value={formValue.addressLine1}
+        <View style={styles.inputWrapper}>
+          {formValue?.country && (
+            <View style={styles.inlineLabelWrapper}>
+              <GText
+                SatoshiBold
+                text={t('country_string')}
+                style={styles.inlineLabel}
+              />
+            </View>
+          )}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => {
+              refRBSheetCountry?.current?.open();
+            }}
+            style={{
+              flexDirection: 'row',
+              borderWidth: formValue?.country
+                ? scaledValue(1)
+                : scaledValue(0.5),
+              height: scaledValue(48),
+              alignItems: 'center',
+              borderRadius: scaledValue(24),
+              borderColor: colors.jetBlack,
+              paddingHorizontal: scaledValue(20),
+              justifyContent: 'space-between',
+            }}>
+            <GText
+              componentProps={{numberOfLines: 1, ellipsizeMode: 'tail'}}
+              text={formValue?.country || 'Choose Country'}
+              style={{
+                fontSize: scaledValue(16),
+                opacity: formValue?.country ? 0.8 : 0.6,
+                color: colors.jetBlack,
+                fontFamily: fonts.SATOSHI_MEDIUM,
+              }}
+            />
+            <Image source={Images.ArrowDown} style={styles.rightIcon} />
+          </TouchableOpacity>
+        </View>
+        <GooglePlacesInput
           label={t('address_first_string')}
-          onChangeText={value =>
-            setFormValue({...formValue, addressLine1: value})
+          value={formValue.addressLine1}
+          onChangeText={text =>
+            setFormValue({...formValue, addressLine1: text})
           }
-          style={styles.input}
-          keyboardType={'email-address'}
+          onSelect={details => {
+            setFormValue({
+              ...formValue,
+              addressLine1: details.full_address,
+              city: details.city,
+              state: details.state,
+              postal_code: details.postal_code,
+              area: details.area,
+            });
+          }}
         />
 
         <View style={styles.cityZipContainer}>
@@ -117,6 +181,7 @@ const AddAddress = ({navigation, route}) => {
         <View style={styles.cityZipContainer}>
           <Input
             value={formValue.city}
+            multiline={false}
             label={t('city_string')}
             onChangeText={value => setFormValue({...formValue, city: value})}
             style={styles.cityInput}
@@ -157,7 +222,19 @@ const AddAddress = ({navigation, route}) => {
         </View>
         <GButton
           onPress={() => {
-            sign_up_hit();
+            if (
+              !formValue?.area ||
+              !formValue?.city ||
+              !formValue?.postal_code ||
+              !formValue?.state ||
+              !formValue?.addressLine1
+            ) {
+              showToast(0, 'Please fill all the address.');
+            } else if (!isChecked) {
+              showToast(0, 'You must accept the terms and conditions.');
+            } else {
+              sign_up_hit();
+            }
           }}
           title={t('create_account_button')}
           style={styles.createAccountButton}
@@ -176,6 +253,16 @@ const AddAddress = ({navigation, route}) => {
           />
         </View>
       </View>
+      <GOptions
+        refRBSheet={refRBSheetCountry}
+        title="Select Country"
+        options={countriescities}
+        search={true}
+        onChoose={val => {
+          setFormValue({...formValue, country: val?.name, city: ''});
+          refRBSheetCountry?.current?.close();
+        }}
+      />
     </KeyboardAwareScrollView>
   );
 };

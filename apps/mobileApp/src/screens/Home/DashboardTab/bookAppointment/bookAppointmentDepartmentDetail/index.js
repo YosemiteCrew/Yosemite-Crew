@@ -10,9 +10,15 @@ import {scaledValue} from '../../../../../utils/design.utils';
 import GButton from '../../../../../components/GButton';
 import useDataFactory from '../../../../../components/UseDataFactory/useDataFactory';
 import GImage from '../../../../../components/GImage';
+import {parsePractitioners} from '../../../../../helpers/parsePractitioner';
 
 const BookAppointmentDepartmentDetail = ({navigation, route}) => {
   const {departmentDetail, businessDetails} = route?.params;
+  console.log(
+    'departmentDetaildepartmentDetail',
+    JSON.stringify(departmentDetail),
+  );
+
   const {t} = useTranslation();
   useEffect(() => {
     configureHeader();
@@ -20,20 +26,20 @@ const BookAppointmentDepartmentDetail = ({navigation, route}) => {
 
   const configureHeader = () => {
     navigation.setOptions({
-      headerRight: () => (
-        <HeaderButton
-          icon={Images.bellBold}
-          onPress={() => {
-            navigation?.navigate('StackScreens', {
-              screen: 'Notifications',
-            });
-          }}
-        />
-      ),
+      // headerRight: () => (
+      //   <HeaderButton
+      //     icon={Images.bellBold}
+      //     onPress={() => {
+      //       navigation?.navigate('StackScreens', {
+      //         screen: 'Notifications',
+      //       });
+      //     }}
+      //   />
+      // ),
       headerTitle: () => (
         <GText
           GrMedium
-          text={departmentDetail?.name}
+          text={departmentDetail?.departmentName}
           style={{
             fontSize: scaledValue(18),
             letterSpacing: scaledValue(18 * -0.01),
@@ -67,7 +73,7 @@ const BookAppointmentDepartmentDetail = ({navigation, route}) => {
     'getDoctorsLists',
     false,
     {
-      departmentId: departmentDetail?.id,
+      departmentId: departmentDetail?._id,
     },
     'GET',
   );
@@ -89,38 +95,20 @@ const BookAppointmentDepartmentDetail = ({navigation, route}) => {
       </View>
       <View style={{}}>
         <FlatList
-          data={data?.data?.entry}
+          data={parsePractitioners(data?.data?.entry)}
           style={{marginBottom: scaledValue(100)}}
           contentContainerStyle={{
             gap: scaledValue(24),
             marginVertical: scaledValue(11),
           }}
           renderItem={({item, index}) => {
-            const docDetails = item?.resource?.extension?.reduce(
-              (acc, item) => {
-                const value =
-                  item.valueString ?? item.valueDecimal ?? item.valueInteger;
-
-                if (value !== undefined) {
-                  acc[item.title] = value;
-                }
-
-                return acc;
-              },
-              {},
-            );
-
-            const qualification =
-              item?.resource.qualification?.[0]?.code?.text || 'N/A';
-            const department =
-              item?.resource.department?.[0]?.code?.text || 'N/A';
             return (
               <View style={styles.cardView}>
                 <View style={styles.card}>
                   <View style={styles.cardInnerView}>
                     <View style={styles.doctorImgView}>
                       <GImage
-                        image={docDetails?.doctorImage}
+                        image={item?.doctorImage}
                         style={styles.doctorImg}
                       />
 
@@ -128,7 +116,7 @@ const BookAppointmentDepartmentDetail = ({navigation, route}) => {
                         <Image source={Images.Star} style={styles.starImg} />
                         <GText
                           SatoshiBold
-                          text={docDetails?.averageRating}
+                          text={item?.averageRating}
                           style={[
                             styles.experienceTextStyle,
                             {
@@ -141,12 +129,12 @@ const BookAppointmentDepartmentDetail = ({navigation, route}) => {
                     <View style={{marginLeft: scaledValue(8)}}>
                       <GText
                         GrMedium
-                        text={`Dr. ${item?.resource?.name[0]?.text}`}
+                        text={`Dr. ${item?.name}`}
                         style={styles.doctorName}
                       />
                       <GText
                         SatoshiBold
-                        text={department}
+                        text={item?.specialization}
                         style={[
                           styles.departmentText,
                           {textTransform: 'capitalize'},
@@ -154,7 +142,7 @@ const BookAppointmentDepartmentDetail = ({navigation, route}) => {
                       />
                       <GText
                         SatoshiBold
-                        text={qualification}
+                        text={item?.qualification}
                         style={styles.departmentText}
                       />
                       <View style={styles.experienceView}>
@@ -165,7 +153,7 @@ const BookAppointmentDepartmentDetail = ({navigation, route}) => {
                         />
                         <GText
                           SatoshiBold
-                          text={`${docDetails?.experienceYears} Years`}
+                          text={`${item?.experienceYears} Years`}
                           style={styles.experienceTextStyle}
                         />
                       </View>
@@ -177,7 +165,7 @@ const BookAppointmentDepartmentDetail = ({navigation, route}) => {
                         />
                         <GText
                           SatoshiBold
-                          text={`$${docDetails?.consultationFee}`}
+                          text={`$${item?.consultationFee}`}
                           style={styles.experienceTextStyle}
                         />
                       </View>
@@ -191,6 +179,9 @@ const BookAppointmentDepartmentDetail = ({navigation, route}) => {
                           doctorDetail: item,
                           departmentDetail: departmentDetail,
                           businessDetails: businessDetails,
+                          screen: '',
+                          item: {},
+                          getAppointments: () => {},
                         },
                       });
                     }}

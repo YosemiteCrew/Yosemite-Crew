@@ -13,6 +13,7 @@ import {
   GoogleSignin,
   statusCodes,
 } from '@react-native-google-signin/google-signin';
+import {appleAuth} from '@invertase/react-native-apple-authentication';
 import {WEB_CLIENT_ID} from '../../../constants';
 import {social_login} from '../../../redux/slices/authSlice';
 import {useAppDispatch} from '../../../redux/store/storeUtils';
@@ -33,8 +34,20 @@ const SignupOptions = ({navigation}) => {
       await GoogleSignin.hasPlayServices();
       await GoogleSignin.signIn().then(async result => {
         GoogleSignin.signOut();
+        console.log('result=>>>', JSON.stringify(result?.data));
 
-        socialLogin(result?.data?.idToken, 'google');
+        if (result?.data) {
+          navigation?.navigate('CreateAccount', {
+            userDetails: {
+              picture: result?.data?.user?.photo,
+              email: result?.data?.user?.email,
+              firstName: result?.data?.user?.givenName,
+              lastName: result?.data?.user?.familyName,
+              type: 'google',
+            },
+          });
+        }
+        // socialLogin(result?.data?.idToken, 'google');
       });
     } catch (error) {
       if (error.code === statusCodes.SIGN_IN_CANCELLED || error.code === '-1') {
@@ -51,6 +64,31 @@ const SignupOptions = ({navigation}) => {
       }
     }
   };
+
+  const handleAppleSignIn = async () => {
+    try {
+      const res = await appleAuth.performRequest({
+        requestedOperation: appleAuth.Operation.LOGIN,
+        requestedScopes: [appleAuth.Scope.EMAIL, appleAuth.Scope.FULL_NAME],
+      });
+      console.log('handleAppleSignIn =>', JSON.stringify(res));
+
+      // navigation?.navigate('CreateAccount', {
+      //   userDetails: {
+      //     picture: result?.data?.user?.photo,
+      //     email: result?.data?.user?.email,
+      //     firstName: result?.data?.user?.givenName,
+      //     lastName: result?.data?.user?.familyName,
+      //   },
+      // });
+      // login_apple(res);
+      console.log('handleAppleSignIn =>', JSON.stringify(res));
+    } catch (error) {
+      showToast(0, error?.message || 'Unknown Error Occured.');
+      console.log(JSON.stringify(error));
+    }
+  };
+
   const buttonList = [
     {
       id: 1,
@@ -60,41 +98,43 @@ const SignupOptions = ({navigation}) => {
       textColor: colors.paletteWhite,
       action: () => {
         navigation?.navigate('CreateAccount', {
-          userDetails: {},
+          userDetails: {
+            type: 'email',
+          },
           apiCallImage: '',
         });
       },
     },
-    {
-      id: 2,
-      title: t('sign_up_google_string'),
-      icon: Images.google,
-      backgroundColor: '#FFFFFF',
-      textColor: '#344054',
-      action: () => {
-        GoogleSingUp();
-      },
-    },
-    {
-      id: 3,
-      title: t('sign_up_fb_string'),
-      icon: Images.fb,
-      backgroundColor: '#1877F2',
-      textColor: '#FFFEFE',
-      action: () => {
-        navigation?.navigate('CreateAccount');
-      },
-    },
-    {
-      id: 4,
-      title: t('sign_up_apple_string'),
-      icon: Images.apple,
-      backgroundColor: colors.jetBlack,
-      textColor: '#FFFEFE',
-      action: () => {
-        navigation?.navigate('CreateAccount');
-      },
-    },
+    // {
+    //   id: 2,
+    //   title: t('sign_up_google_string'),
+    //   icon: Images.google,
+    //   backgroundColor: '#FFFFFF',
+    //   textColor: '#344054',
+    //   action: () => {
+    //     GoogleSingUp();
+    //   },
+    // },
+    // {
+    //   id: 3,
+    //   title: t('sign_up_fb_string'),
+    //   icon: Images.fb,
+    //   backgroundColor: '#1877F2',
+    //   textColor: '#FFFEFE',
+    //   action: () => {
+    //     handleAppleSignIn();
+    //   },
+    // },
+    // {
+    //   id: 4,
+    //   title: t('sign_up_apple_string'),
+    //   icon: Images.apple,
+    //   backgroundColor: colors.jetBlack,
+    //   textColor: '#FFFEFE',
+    //   action: () => {
+    //     handleAppleSignIn();
+    //   },
+    // },
   ];
 
   const socialLogin = (token, type) => {

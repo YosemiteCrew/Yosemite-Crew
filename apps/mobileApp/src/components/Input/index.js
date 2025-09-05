@@ -63,7 +63,7 @@ const Input = props => {
               borderColor: focus || props.value ? '#312943' : '#312943',
               marginTop: scaledValue(5),
             }}>
-            <GText
+            {/* <GText
               text={countryFlag}
               style={{
                 color: '#312943',
@@ -71,7 +71,7 @@ const Input = props => {
                 // lineHeight: scaledHeightValue(21.79),
                 letterSpacing: scaledValue(16 * 0.01),
               }}
-            />
+            /> */}
             <GText
               SatoshiBold
               text={countryDialCode}
@@ -105,8 +105,8 @@ const Input = props => {
           returnKeyType={props?.returnKeyType}
           maxLength={props.maxLength}
           disabled={props.disabled}
-          numberOfLines={props.numberOfLines}
-          multiline={props.multiline}
+          numberOfLines={1}
+          multiline={false}
           editable={props.editable}
           mode={props.mode ? props.mode : 'outlined'}
           keyboardType={props.keyboardType}
@@ -339,11 +339,14 @@ const Input = props => {
           countryName: {
             color: colors.black,
           },
+          flag: {
+            fontSize: 30,
+          },
         }}
         pickerButtonOnPress={item => {
           setCountryFlag(item?.flag);
           setFocus(true);
-          setCountryDialCode(item.dial_code);
+          setCountryDialCode(item?.flag + ' ' + item.dial_code);
           setCountryCode({...formValue, countryCode: item?.dial_code});
           setShowCountry(false);
         }}
@@ -358,6 +361,7 @@ const styles = StyleSheet.create({
   inputField: {
     backgroundColor: 'white',
     fontFamily: fonts?.SATOSHI_MEDIUM,
+    height: scaledValue(48),
   },
   contentStyle: {
     fontSize: scaledValue(16),

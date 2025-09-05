@@ -1,4 +1,11 @@
-import {Image, ImageBackground, StatusBar, View} from 'react-native';
+import {
+  Dimensions,
+  Image,
+  ImageBackground,
+  Platform,
+  StatusBar,
+  View,
+} from 'react-native';
 import React from 'react';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import GText from '../../../components/GText/GText';
@@ -9,6 +16,7 @@ import {styles} from './styles';
 import {colors} from '../../../../assets/colors';
 import {useDispatch} from 'react-redux';
 import {setOnBoarding} from '../../../redux/slices/authSlice';
+import {scaledValue} from '../../../utils/design.utils';
 
 const ForthSwipe = () => {
   const insets = useSafeAreaInsets();
@@ -30,29 +38,26 @@ const ForthSwipe = () => {
         />
       </View>
       <Image source={Images.forth_indicator} style={styles.indicator} />
-      <Image source={Images.plus} style={styles.forthScreenFirstPlusImage} />
+      {/* <Image source={Images.plus} style={styles.forthScreenFirstPlusImage} /> */}
       <GButton
         onPress={() => {
           dispatch(setOnBoarding(true));
         }}
         title={t('get_started_string')}
-        style={styles.getStartedBtn}
+        style={[
+          styles.getStartedBtn,
+          {top: scaledValue(Platform.OS == 'android' ? 120 : 90)},
+        ]}
         textStyle={styles.getStartedTextBtn}
       />
-
-      <View style={styles.forthScreenEclipseImageView}>
-        <ImageBackground
-          source={Images.seventh_screen_eclipse}
-          style={styles.forthScreenBgEclipse}>
-          <Image
-            source={Images.eighth_screen_eclipse}
-            style={styles.forthScreenSecondEclipse}></Image>
-          <Image
-            source={Images.forth_screen_img}
-            style={styles.forthScreenBgImage}
-          />
-        </ImageBackground>
-      </View>
+      <Image
+        source={Images.ForthOnBoarding}
+        style={{
+          width: Dimensions.get('window').width, // take full width of screen
+          height: Dimensions.get('window').width * 1.265,
+          marginTop: 'auto',
+        }}
+      />
     </View>
   );
 };
