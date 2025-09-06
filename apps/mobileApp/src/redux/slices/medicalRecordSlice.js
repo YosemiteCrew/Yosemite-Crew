@@ -23,11 +23,11 @@ export const add_medical_record = makeThunk(
 export const get_medical_record_by_id = makeThunk(
   'Observation/getMedicalRecordById',
   d => `DocumentReference/getMedicalRecordById?recordId=${d?.id}`,
-  {method: 'GET', headers: {}},
+  {method: 'GET', headers: {}, showToastMessage: false},
 );
 export const delete_medical_record_api = makeThunk(
   'DocumentReference/deleteMedicalRecord',
-  d => `DocumentReference/deleteMedicalRecord?recordId=${d?.recordId}`,
+  d => `DocumentReference/deleteMedicalRecord`,
   {
     method: 'DELETE',
     multiPart: true,
@@ -41,6 +41,46 @@ export const get_medical_folders = makeThunk(
   'Observation/getMedicalFolderList',
   d => `DocumentReference/getMedicalFolderList?petId=${d?.petId}`,
   {method: 'GET', headers: {}, showToastMessage: false},
+);
+export const create_medical_folders = makeThunk(
+  'Observation/saveMedicalFolder',
+  d => `DocumentReference/saveMedicalFolder`,
+  {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    showToastMessage: false,
+  },
+);
+
+export const get_medical_folders_by_name = makeThunk(
+  'Observation/searchMedicalRecordByName',
+  d => `DocumentReference/searchMedicalRecordByName?name=${d?.petId}`,
+  {method: 'GET', headers: {}, showToastMessage: false},
+);
+
+export const delete_medical_folder_by_id = makeThunk(
+  'DocumentReference/deleteMedicalFolder',
+  d => `DocumentReference/deleteMedicalFolder`,
+  {
+    method: 'DELETE',
+    multiPart: true,
+    onSuccess: res => {
+      if (res?.data?.status === 1)
+        showToast(res?.data?.status, res?.data?.message);
+    },
+  },
+);
+export const place_record_to_folder = makeThunk(
+  'DocumentReference/placeFileInFolder',
+  d => `DocumentReference/placeFileInFolder/${d?.petId}`,
+  {
+    method: 'PUT',
+    multiPart: true,
+    onSuccess: res => {
+      if (res?.data?.status === 1)
+        showToast(1, 'Record successfully move to folder!');
+    },
+  },
 );
 
 // ✅ Slice

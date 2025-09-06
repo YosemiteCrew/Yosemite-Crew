@@ -1,7 +1,7 @@
-import { StyleSheet } from 'react-native';
-import { scaledHeightValue, scaledValue } from '../../../utils/design.utils';
-import { fonts } from '../../../utils/fonts';
-import { colors } from '../../../../assets/colors';
+import {StyleSheet} from 'react-native';
+import {scaledHeightValue, scaledValue} from '../../../utils/design.utils';
+import {fonts} from '../../../utils/fonts';
+import {colors} from '../../../../assets/colors';
 
 export const styles = StyleSheet.create({
   container: {
@@ -9,6 +9,7 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.themeColor,
     paddingHorizontal: scaledValue(20),
   },
+
   headerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -49,7 +50,6 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(23),
     lineHeight: scaledHeightValue(27.6),
     letterSpacing: scaledValue(23 * -0.01),
-
   },
   breed: {
     textAlign: 'center',
@@ -60,14 +60,13 @@ export const styles = StyleSheet.create({
     opacity: 0.7,
   },
   inputView: {
-    marginTop: scaledValue(8),
+    marginTop: scaledValue(24),
+    gap: scaledValue(16),
   },
   inputStyle: {
     width: '100%',
     backgroundColor: 'transparent',
-    fontSize: scaledValue(16),
-    // lineHeight: scaledValue(16),
-    marginTop: scaledValue(16),
+    marginTop: scaledValue(-6),
     paddingLeft: scaledValue(10),
   },
   arrowIcon: {
@@ -95,7 +94,7 @@ export const styles = StyleSheet.create({
     marginTop: scaledValue(41),
   },
   buttonStyle: {
-    marginTop: scaledValue(50),
+    marginVertical: scaledValue(50),
   },
   buttonText: {
     fontSize: scaledValue(18),
@@ -104,7 +103,7 @@ export const styles = StyleSheet.create({
     fontFamily: fonts?.CLASH_GRO_MEDIUM,
     color: colors.brown,
   },
-  cityMainView: { flexDirection: 'row', gap: scaledValue(16) },
+  cityMainView: {flexDirection: 'row', gap: scaledValue(16)},
   cityText: {
     fontSize: scaledValue(16),
     lineHeight: scaledHeightValue(16),
@@ -188,7 +187,7 @@ export const styles = StyleSheet.create({
   lineSeparator: {
     width: scaledValue(32),
     borderWidth: scaledValue(0.5),
-    border,
+    borderColor: colors.jetBlack,
   },
   orText: {
     fontSize: scaledValue(16),
@@ -246,8 +245,51 @@ export const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   petImg: {
-    width: scaledValue(95),
-    height: scaledValue(95),
-    borderRadius: scaledValue(47.5),
+    width: scaledValue(100),
+    height: scaledValue(100),
+    borderRadius: scaledValue(50),
+    borderWidth: scaledValue(1),
+    borderColor: colors.primaryBlue,
+    alignSelf: 'center',
+  },
+  cityZipContainer: val => ({
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    opacity: val ? 1 : 0.4,
+  }),
+  cityInput: {
+    width: scaledValue(163.5),
+    backgroundColor: 'transparent',
+    paddingLeft: scaledValue(10),
+    marginTop: scaledValue(-6),
+  },
+  zipInput: {
+    width: scaledValue(163.5),
+    backgroundColor: 'transparent',
+    paddingLeft: scaledValue(10),
+    marginTop: scaledValue(-6),
+  },
+  row: showDivider => ({
+    paddingVertical: scaledValue(14),
+    flexDirection: 'row',
+    alignItems: 'center',
+  }),
+  label: {
+    fontSize: scaledValue(15),
+    color: colors.jetBlack300,
+    width: scaledValue(150),
+  },
+  value: {
+    fontSize: scaledValue(15),
+    color: colors.jetBlack,
+    maxWidth: '60%',
+  },
+  card: {
+    borderWidth: scaledValue(1),
+    borderColor: colors.jetBlack50,
+    borderRadius: scaledValue(24),
+    paddingHorizontal: scaledValue(20),
+    paddingVertical: scaledValue(14),
+    marginTop: scaledValue(27),
   },
 });

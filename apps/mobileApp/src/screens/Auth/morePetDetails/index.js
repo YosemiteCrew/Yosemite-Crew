@@ -27,7 +27,7 @@ import ImagePicker from 'react-native-image-crop-picker';
 import {KeyboardAwareScrollView} from 'react-native-keyboard-controller';
 
 const MorePetDetails = ({navigation, route}) => {
-  const {choosePetDetail, petDetails} = route?.params;
+  const {choosePetDetail} = route?.params;
 
   const {t} = useTranslation();
   const authState = useAppSelector(state => state.auth);
@@ -35,19 +35,14 @@ const MorePetDetails = ({navigation, route}) => {
   const [selectedId, setSelectedId] = useState(null);
   const [selectPlace, setSelectPlace] = useState(null);
 
-  const userPetDetails = petDetails?.extension?.reduce((acc, item) => {
-    acc[item.title] = item.valueString;
-    return acc;
-  }, {});
-
   const [formValue, setFormValue] = useState({
-    age: userPetDetails?.ageWhenNeutered || '',
-    microchip_number: userPetDetails?.microChipNumber || '',
+    age: '',
+    microchip_number: '',
     insured: '',
     company: '',
-    policy_number: userPetDetails?.policyNumber || '',
-    passport_number: userPetDetails?.passportNumber || '',
-    pet_comes_from: userPetDetails?.petFrom || '',
+    policy_number: '',
+    passport_number: '',
+    pet_comes_from: '',
     country: '',
     pet_image: choosePetDetail?.petImage || '',
   });
@@ -113,13 +108,7 @@ const MorePetDetails = ({navigation, route}) => {
     const fhirPayload = buildPetFHIRResource(petData);
     const apiData = {data: fhirPayload, files: [choosePetDetail?.apiCallImage]};
 
-    if (petDetails?.id) {
-      dispatch(
-        edit_pet_api({petId: petDetails?.id, api_credentials: fhirPayload}),
-      );
-    } else {
-      dispatch(add_pet(apiData));
-    }
+    dispatch(add_pet(apiData));
   };
 
   const handleImagePicker = async () => {
@@ -186,6 +175,7 @@ const MorePetDetails = ({navigation, route}) => {
             }
             style={styles.petImg}
           />
+
           <TouchableOpacity
             onPress={handleImagePicker}
             style={styles.cameraView}>

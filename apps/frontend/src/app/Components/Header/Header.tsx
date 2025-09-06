@@ -40,7 +40,7 @@ const Header = () => {
   const isVerified = useAuthStore((state) => state.isVerified);
   return (
     <header className="header">
-      {isVerified == 1 ? (
+      {isVerified ? (
         <LoggedInHeader />
       ) : (
         <PublicHeader isVerified={isVerified} />

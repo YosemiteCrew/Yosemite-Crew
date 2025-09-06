@@ -6,23 +6,23 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import React, { useEffect, useState } from 'react';
-import { Images } from '../../../../../utils';
+import React, {useEffect, useState} from 'react';
+import {Images} from '../../../../../utils';
 import HeaderButton from '../../../../../components/HeaderButton';
-import { colors } from '../../../../../../assets/colors';
-import { styles } from './styles';
+import {colors} from '../../../../../../assets/colors';
+import {styles} from './styles';
 import GImage from '../../../../../components/GImage';
-import { scaledValue } from '../../../../../utils/design.utils';
+import {scaledValue} from '../../../../../utils/design.utils';
 import GText from '../../../../../components/GText/GText';
 import CustomRating from '../../../../../components/CustomRating';
-import { useTranslation } from 'react-i18next';
+import {useTranslation} from 'react-i18next';
 import GButton from '../../../../../components/GButton';
 
-const BusinessReview = ({ navigation, route }) => {
-  const { businessDetails } = route?.params;
+const BusinessReview = ({navigation, route}) => {
+  const {businessDetails} = route?.params;
   const [rating, setRating] = useState(businessDetails?.rating);
   const [review, setReview] = useState('');
-  const { t } = useTranslation();
+  const {t} = useTranslation();
 
   useEffect(() => {
     configureHeader();
@@ -32,13 +32,13 @@ const BusinessReview = ({ navigation, route }) => {
     navigation.setOptions({
       headerRight: () => (
         <HeaderButton
-          icon={Images.bellBold}
+          // icon={Images.bellBold}
           tintColor={colors.jetBlack}
-          onPress={() => {
-            navigation?.navigate('StackScreens', {
-              screen: 'Notifications',
-            });
-          }}
+          // onPress={() => {
+          //   navigation?.navigate('StackScreens', {
+          //     screen: 'Notifications',
+          //   });
+          // }}
         />
       ),
       headerLeft: () => (
@@ -72,9 +72,9 @@ const BusinessReview = ({ navigation, route }) => {
               backgroundColor: colors.black,
             }}
           />
-          <View style={{ marginLeft: scaledValue(8), width: '65%' }}>
+          <View style={{marginLeft: scaledValue(8), width: '65%'}}>
             <GText
-              componentProps={{ numberOfLines: 2 }}
+              componentProps={{numberOfLines: 2}}
               GrMedium
               text={businessDetails?.name}
               style={{
@@ -105,7 +105,6 @@ const BusinessReview = ({ navigation, route }) => {
             style={{
               fontSize: scaledValue(18),
               letterSpacing: scaledValue(18 * -0.01),
-
             }}
           />
           <CustomRating
@@ -144,7 +143,7 @@ const BusinessReview = ({ navigation, route }) => {
         </View>
       </ScrollView>
       <GButton
-        onPress={() => { }}
+        onPress={() => {}}
         title={t('submit_review_string')}
         style={styles.buttonStyle1}
       />

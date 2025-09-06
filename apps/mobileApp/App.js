@@ -18,12 +18,9 @@ import SplashScreen from 'react-native-splash-screen';
 import FlashMessage from 'react-native-flash-message';
 import Spinner from 'react-native-loading-spinner-overlay';
 import {useAppDispatch, useAppSelector} from './src/redux/store/storeUtils';
-import AddPetStack from './src/navigations/AddPetStack';
-import {setOnBoarding} from './src/redux/slices/authSlice';
 import {MenuProvider} from 'react-native-popup-menu';
 import {KeyboardProvider} from 'react-native-keyboard-controller';
-import {CongratulationsScreen} from './src/navigations/screens';
-import {get_medical_folders} from './src/redux/slices/medicalRecordSlice';
+import {setLoading} from './src/redux/slices/loadingSlice';
 
 export const navigationContainerRef = createNavigationContainerRef();
 
@@ -58,15 +55,14 @@ const AppNavigation = () => {
   const authState = useAppSelector(state => state.auth);
   const loading = useAppSelector(state => state.loading);
   const RootStack = createNativeStackNavigator();
-  const petList = useAppSelector(state => state.pets?.petLists);
-
+  const dispatch = useAppDispatch();
+  useEffect(() => {
+    dispatch(setLoading(false));
+  }, []);
   return (
     <>
       <NavigationContainer ref={navigationContainerRef}>
-        <RootStack.Navigator
-          screenOptions={{
-            gestureEnabled: false,
-          }}>
+        <RootStack.Navigator screenOptions={{gestureEnabled: false}}>
           {!authState?.onBoarding ? (
             <RootStack.Screen
               name="OnBoardingStack"
@@ -74,29 +70,13 @@ const AppNavigation = () => {
               options={{headerShown: false}}
             />
           ) : !authState?.user ? (
-            <>
-              {petList?.length === 0 && !authState?.showWelcome && (
-                <RootStack.Screen
-                  name="CongratulationsScreen"
-                  component={CongratulationsScreen}
-                  options={{headerShown: false}}
-                />
-              )}
-              <RootStack.Screen
-                name="AuthStack"
-                component={AuthStack}
-                options={{headerShown: false}}
-              />
-            </>
+            <RootStack.Screen
+              name="AuthStack"
+              component={AuthStack}
+              options={{headerShown: false}}
+            />
           ) : (
             <>
-              {petList?.length === 0 && !authState?.showWelcome && (
-                <RootStack.Screen
-                  name="CongratulationsScreen"
-                  component={CongratulationsScreen}
-                  options={{headerShown: false}}
-                />
-              )}
               <RootStack.Screen
                 name="TabBar"
                 component={TabBar}

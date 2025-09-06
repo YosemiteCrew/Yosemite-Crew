@@ -27,12 +27,12 @@ const BlogListing = ({navigation}) => {
     navigation.setOptions({
       headerRight: () => (
         <HeaderButton
-          icon={Images.bellBold}
-          onPress={() => {
-            navigation?.navigate('StackScreens', {
-              screen: 'Notifications',
-            });
-          }}
+        // icon={Images.bellBold}
+        // onPress={() => {
+        //   navigation?.navigate('StackScreens', {
+        //     screen: 'Notifications',
+        //   });
+        // }}
         />
       ),
       headerLeft: () => (

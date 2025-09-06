@@ -4,7 +4,7 @@
 .PrivacyPolicySec .PrivacyPolicyData{
     display: flex;
     flex-direction: column;
-    gap: 56px;
+    gap: 8px;
     max-width: 842px;
     margin: 0 auto;
 }
@@ -83,7 +83,9 @@
 }
 
 
-
+.clauseContainer {
+  margin: 30px 0px;
+}
 
 
 
@@ -141,7 +143,7 @@
 /* Wrapper box */
 .doc-box {
   width: 842px; /* match definitions + header */
-  margin: 40px auto;
+  margin: 0px auto;
   padding: 20px;
   background: #fff;
   font-family: "Satoshi", sans-serif;
@@ -211,7 +213,7 @@
 
 /* Links */
 .doc-link {
-  color: #0073e6;
+  color: #0073e6 !important;
   text-decoration: underline;
   font-weight: 400;
 }
@@ -231,7 +233,7 @@
   color: #302F2E; /* Orange heading */
 }
 .doc-table-wrapper {
-  border: 1px solid #302F2E;
+  border: 1px solid #eaeaea;
   border-radius: 10px;
   overflow: hidden; /* keeps corners rounded */
 }
@@ -250,7 +252,7 @@
 
 .doc-table td {
   padding: 12px 16px;
-  border-bottom: 1px solid #302F2E;
+  border-bottom: 1px solid #eaeaea;
   color: #302F2E;
 }
 
@@ -280,17 +282,17 @@
 }
 
 .error-table th {
-  background: #fdf3ec;
+  background: #fff;
   color: #302f2e;
   font-weight: 600;
   text-align: left;
   padding: 12px 16px;
-  border-bottom: 2px solid #302F2E;
+  border-bottom: 2px solid #eaeaea;
 }
 
 .error-table td {
   padding: 12px 16px;
-  border-bottom: 1px solid #302F2E;
+  border-bottom: 1px solid #eaeaea;
   vertical-align: top;
   line-height: 1.5;
   color: #302f2e;
@@ -387,11 +389,12 @@ ol li::before {
 /* Container */
 .doc-section {
   width: 842px;                  /* match header/definitions */
-  margin: 40px auto;             /* center horizontally with top/bottom spacing */
+  margin: 0px auto;             /* center horizontally with top/bottom spacing */
   padding: 24px;
   background: #fff; 
   border-radius: 12px;           /* optional: keep consistent with .doc-box */
-  font-family: "Inter", Arial, sans-serif;
+  /* font-family: "Inter", Arial, sans-serif; */
+  font-family: "Satoshi", sans-serif;
   font-size: 14px;
   color: #333;
   line-height: 1.6;
@@ -467,14 +470,15 @@ ol li::before {
 }
 
 .moduleHeader, .dataCategoryHeader, .subjectHeader, .purposeHeader {
-  background-color: #f9f9f9;
+  background-color: #fff;
   font-weight: bold;
   padding: 12px;
+  border: 1px solid #eaeaea;
 }
 
 .moduleCell, .dataCell, .subjectCell, .purposeCell {
   padding: 10px;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid #eaeaea;
   vertical-align: top; /* Ensure top alignment */
 }
 
@@ -482,7 +486,7 @@ ol li::before {
 .dataMatrix tr .dataCell,
 .dataMatrix tr .subjectCell,
 .dataMatrix tr .purposeCell {
-  border: 1px solid;
+  border: 1px solid #eaeaea;
 }
 
 /* FIX: Remove vertical-align: middle override for rowspan cells */
