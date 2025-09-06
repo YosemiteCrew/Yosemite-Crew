@@ -2155,7 +2155,7 @@ function TermsAndConditions() {
           </p>
           <p>
             <strong>Data Protection Officer of Processor:</strong> Anna
-            Upadhyay. She can be reached at security@yosemitecrew.com.
+            Upadhyay. She can be reached at <span className="doc-link">security@yosemitecrew.com</span>.
           </p>
         </div>
       </div>
