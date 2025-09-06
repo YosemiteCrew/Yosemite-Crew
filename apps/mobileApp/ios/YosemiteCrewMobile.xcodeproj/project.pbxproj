@@ -25,7 +25,7 @@
 		AD44C92B787E4B23B35228D6 /* SFProText-regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 39E44F579203412CA3A5FC65 /* SFProText-regular.ttf */; };
 		AD84CE1B4AD04CE1B7361110 /* SFProText-semibold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 6CA15D0B4947432B9F456A70 /* SFProText-semibold.ttf */; };
 		C2AE9226E2CE4E37BB76CF3F /* ClashDisplay-Variable.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 532F6DE374914D7A8C05F5E9 /* ClashDisplay-Variable.ttf */; };
-		CD902A982E435B6300A8184A /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = CD902A972E435B6300A8184A /* GoogleService-Info.plist */; };
+		CDE9241E2E54A01900451919 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = CDE9241D2E54A01900451919 /* GoogleService-Info.plist */; };
 		D9DE2760023247F1975E9613 /* Satoshi-Bold.otf in Resources */ = {isa = PBXBuildFile; fileRef = 1EC3C5C01C624E7E810E6B2B /* Satoshi-Bold.otf */; };
 		F2A425D1B75D400D870FE445 /* Satoshi-Regular.otf in Resources */ = {isa = PBXBuildFile; fileRef = 187D77C293194F34B67F7BA1 /* Satoshi-Regular.otf */; };
 /* End PBXBuildFile section */
@@ -57,7 +57,7 @@
 		BB5C2B7003A844A69C2168D0 /* Satoshi-Light.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Satoshi-Light.otf"; path = "../assets/fonts/Satoshi-Light.otf"; sourceTree = "<group>"; };
 		BCF028B39BD60EC32F4ADF00 /* libPods-YosemiteCrewMobile.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-YosemiteCrewMobile.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		C5211640B6E34EF18CC3DADB /* ClashDisplay-Regular.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "ClashDisplay-Regular.otf"; path = "../assets/fonts/ClashDisplay-Regular.otf"; sourceTree = "<group>"; };
-		CD902A972E435B6300A8184A /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		CDE9241D2E54A01900451919 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		D956FF4C0DE00B6879730EF5 /* Pods-YosemiteCrewMobile.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-YosemiteCrewMobile.release.xcconfig"; path = "Target Support Files/Pods-YosemiteCrewMobile/Pods-YosemiteCrewMobile.release.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
@@ -77,7 +77,7 @@
 		13B07FAE1A68108700A75B9A /* YosemiteCrewMobile */ = {
 			isa = PBXGroup;
 			children = (
-				CD902A972E435B6300A8184A /* GoogleService-Info.plist */,
+				CDE9241D2E54A01900451919 /* GoogleService-Info.plist */,
 				28B4E1692DB271AC0070EA17 /* YosemiteCrewMobile-Bridging-Header.h */,
 				2837BEC12DAE2C090021DD88 /* Images.xcassets */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
@@ -231,7 +231,7 @@
 				F2A425D1B75D400D870FE445 /* Satoshi-Regular.otf in Resources */,
 				C2AE9226E2CE4E37BB76CF3F /* ClashDisplay-Variable.ttf in Resources */,
 				AD44C92B787E4B23B35228D6 /* SFProText-regular.ttf in Resources */,
-				CD902A982E435B6300A8184A /* GoogleService-Info.plist in Resources */,
+				CDE9241E2E54A01900451919 /* GoogleService-Info.plist in Resources */,
 				AD84CE1B4AD04CE1B7361110 /* SFProText-semibold.ttf in Resources */,
 				93FEB454C61D4956883E69B9 /* ClashDisplay-Bold.otf in Resources */,
 				4E3628422C914B2A8A2030AF /* ClashDisplay-Extralight.otf in Resources */,
@@ -247,7 +247,7 @@
 /* Begin PBXShellScriptBuildPhase section */
 		00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */ = {
 			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
+			buildActionMask = 12;
 			files = (
 			);
 			inputPaths = (
@@ -263,7 +263,7 @@
 		};
 		00EEFC60759A1932668264C0 /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
+			buildActionMask = 12;
 			files = (
 			);
 			inputFileListPaths = (
@@ -302,7 +302,7 @@
 		};
 		E235C05ADACE081382539298 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
+			buildActionMask = 12;
 			files = (
 			);
 			inputFileListPaths = (

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import classNames from "classnames";
 
 import "./Header.css";
@@ -13,17 +13,17 @@ import { IoNotifications } from "react-icons/io5";
 import { RiAccountBoxFill } from "react-icons/ri";
 import { FaSignInAlt } from "react-icons/fa";
 
-import { useAuthStore } from '@/app/stores/authStore';
-import { handleLogout } from '@/app/utils/LogoutApi';
-import { Icon } from '@iconify/react/dist/iconify.js';
+import { useAuthStore } from "@/app/stores/authStore";
+import { handleLogout } from "@/app/utils/LogoutApi";
+import { Icon } from "@iconify/react/dist/iconify.js";
+import { postData } from "@/app/axios-services/services";
+import { routeModule } from "next/dist/build/templates/pages";
 
 interface NavItem {
   label: string;
   href?: string;
   children?: NavItem[];
 }
-
-
 
 const publicNavItems: NavItem[] = [
   { label: "Home", href: "/" },
@@ -40,7 +40,11 @@ const Header = () => {
   const isVerified = useAuthStore((state) => state.isVerified);
   return (
     <header className="header">
-      {isVerified ? <LoggedInHeader /> : <PublicHeader />}
+      {isVerified ? (
+        <LoggedInHeader />
+      ) : (
+        <PublicHeader isVerified={isVerified} />
+      )}
     </header>
   );
 };
@@ -51,17 +55,13 @@ export default Header;
 // ✅ LOGGED IN HEADER
 // -------------------------
 const LoggedInHeader = () => {
-  const { profile, vetAndTeamsProfile, userType } = useAuthStore(); 
+  const { profile, vetAndTeamsProfile, userType } = useAuthStore();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-
+  const router = useRouter();
   const roles = useMemo(
-    () => ["vet",
-      "vetTechnician",
-      "nurse",
-      "vetAssistant",
-      "receptionist",],
+    () => ["vet", "vetTechnician", "nurse", "vetAssistant", "receptionist"],
     []
   );
   const clinicNavItems: NavItem[] = [
@@ -93,10 +93,16 @@ const LoggedInHeader = () => {
         { label: "Revenue Reporting", href: "/RevenueManagement" },
         { label: "Billing", href: "#" },
         { label: "Client Statements", href: "#" },
-        { label: "Coupons", href: "#" },
-        { label: "Payment Methods", href: "#" },
-        { label: "Procedure Estimates", href: "/ProcedureEstimate" },
-        { label: "Pricing Page", href: "/pricing" },
+
+        // 👇 Conditional items
+        ...(userType === "veterinaryBusiness"
+          ? [
+              { label: "Coupons", href: "#" },
+              { label: "Payment Methods", href: "#" },
+              { label: "Procedure Estimates", href: "/ProcedureEstimate" },
+              { label: "Pricing Page", href: "/pricing" },
+            ]
+          : []),
       ],
     },
     {
@@ -118,7 +124,19 @@ const LoggedInHeader = () => {
     if (input instanceof File) return URL.createObjectURL(input);
     return logoUrl;
   }
+  const handleLogout = async () => {
+    const logout = useAuthStore.getState().logout;
 
+    try {
+      await postData("/api/auth/signOut", {}, { withCredentials: true });
+
+      console.log("✅ Logout API called");
+    } catch (error) {
+      console.error("⚠️ Logout API error:", error);
+    }
+    router.push("/");
+    logout(); // clear Zustand state
+  };
   function getDashboardRoute() {
     switch (userType) {
       case "veterinaryBusiness":
@@ -239,9 +257,7 @@ const LoggedInHeader = () => {
                 </div>
                 <div className="userHostDiv">
                   <div className="userName">
-                    <p>
-                      {getDisplayName()}
-                    </p>
+                    <p>{getDisplayName()}</p>
                     <FaCaretDown />
                   </div>
                   <p className="Tier">Free tier - Cloud hosted</p>
@@ -249,11 +265,19 @@ const LoggedInHeader = () => {
               </span>
 
               <div className="profileUl">
-                <div className='ProfDiv'>
-                  <Link href="/"><FaUser /> My Profile</Link>
-                  <Link href="#"><RiAccountBoxFill /> Account Settings</Link>
-                  <Link href="#"><IoIosHelpCircleOutline /> Need Help?</Link>
-                  <Link href='#' onClick={() => handleLogout()}><FaSignInAlt /> Sign Out</Link>
+                <div className="ProfDiv">
+                  <Link href="/">
+                    <FaUser /> My Profile
+                  </Link>
+                  <Link href="#">
+                    <RiAccountBoxFill /> Account Settings
+                  </Link>
+                  <Link href="#">
+                    <IoIosHelpCircleOutline /> Need Help?
+                  </Link>
+                  <Link href="#" onClick={() => handleLogout()}>
+                    <FaSignInAlt /> Sign Out
+                  </Link>
                 </div>
               </div>
             </li>
@@ -263,11 +287,13 @@ const LoggedInHeader = () => {
     </div>
   );
 };
-
+interface PublicHeaderProps {
+  isVerified: number | null;
+}
 // -------------------------
 // ✅ PUBLIC HEADER
 // -------------------------
-const PublicHeader = () => {
+const PublicHeader: React.FC<PublicHeaderProps> = ({ isVerified }) => {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const logoUrl = process.env.NEXT_PUBLIC_BASE_IMAGE_URL
@@ -289,7 +315,7 @@ const PublicHeader = () => {
           {publicNavItems.map((item) => (
             <li key={item.label}>
               <Link
-                href={item.href? item.href : "#"}
+                href={item.href ? item.href : "#"}
                 className={classNames({ active: pathname === item.href })}
               >
                 {item.label}
@@ -305,9 +331,15 @@ const PublicHeader = () => {
         </button>
       </nav>
 
-      { (pathname !== '/signup' && pathname !== '/signin') && <Link href="/signup" className="HeaderSign">
-        <Icon icon="carbon:checkmark-filled" width="20" height="20" /> Sign Up
-      </Link> }
+      {pathname !== "/signup" &&
+        pathname !== "/emptydashboard" &&
+        pathname !== "/signin" &&
+        isVerified == null && (
+          <Link href="/signup" className="HeaderSign">
+            <Icon icon="carbon:checkmark-filled" width="20" height="20" /> Sign
+            Up
+          </Link>
+        )}
     </div>
   );
 };

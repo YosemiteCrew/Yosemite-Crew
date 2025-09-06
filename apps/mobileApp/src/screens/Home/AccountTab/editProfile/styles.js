@@ -1,7 +1,7 @@
-import { StyleSheet } from 'react-native';
-import { scaledHeightValue, scaledValue } from '../../../../utils/design.utils';
-import { colors } from '../../../../../assets/colors';
-import { fonts } from '../../../../utils/fonts';
+import {StyleSheet} from 'react-native';
+import {scaledHeightValue, scaledValue} from '../../../../utils/design.utils';
+import {colors} from '../../../../../assets/colors';
+import {fonts} from '../../../../utils/fonts';
 
 export const styles = StyleSheet.create({
   dashboardMainView: {
@@ -12,45 +12,40 @@ export const styles = StyleSheet.create({
   profileButton: {
     alignItems: 'center',
     marginTop: scaledValue(24),
-    width: scaledValue(100),
-    height: scaledValue(100),
     alignSelf: 'center',
   },
   profileImage: {
     width: scaledValue(100),
     height: scaledValue(100),
+    borderRadius: scaledValue(50),
+    borderWidth: scaledValue(1),
+    borderColor: colors.primaryBlue,
   },
   formContainer: {
     paddingHorizontal: scaledValue(20),
-    marginTop: scaledValue(12),
-    gap: scaledValue(20),
+    marginTop: scaledValue(30),
+    gap: scaledValue(16),
   },
   input: {
     width: '100%',
     backgroundColor: 'transparent',
     fontSize: scaledValue(16),
-    // lineHeight: scaledValue(16),
-    // marginTop: scaledValue(20),
     paddingLeft: scaledValue(10),
   },
   phoneInput: {
     width: scaledValue(210),
     backgroundColor: 'transparent',
     fontSize: scaledValue(16),
-    lineHeight: scaledValue(16),
     // marginTop: scaledValue(20),
     paddingLeft: scaledValue(10),
   },
   cityZipContainer: {
     flexDirection: 'row',
-    // marginTop: scaledValue(20),
     justifyContent: 'space-between',
   },
   cityInput: {
     width: scaledValue(163.5),
     backgroundColor: 'transparent',
-    fontSize: scaledValue(16),
-    // lineHeight: scaledValue(16),
     paddingLeft: scaledValue(10),
   },
   zipInput: {
@@ -70,12 +65,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  professionalText: {
-    fontSize: scaledValue(16),
-    lineHeight: scaledHeightValue(16),
-    letterSpacing: scaledValue(16 * -0.03),
-    color: '#312943',
-  },
+
   pimsButton: {
     borderWidth: scaledValue(0.5),
     height: scaledValue(48),
@@ -86,12 +76,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  pimsText: {
-    fontSize: scaledValue(16),
-    lineHeight: scaledHeightValue(16),
-    letterSpacing: scaledValue(16 * -0.03),
-    color: '#312943',
-  },
+
   arrowIcon: {
     width: scaledValue(20),
     height: scaledValue(20),
@@ -118,7 +103,6 @@ export const styles = StyleSheet.create({
   },
   text: {
     fontSize: scaledValue(16),
-    lineHeight: scaledHeightValue(19.2),
     letterSpacing: scaledValue(16 * -0.02),
     color: '#37223C',
     flexShrink: 1,
@@ -127,27 +111,35 @@ export const styles = StyleSheet.create({
   },
   link: {
     fontSize: scaledValue(16),
-    lineHeight: scaledHeightValue(19.2),
     letterSpacing: scaledValue(16 * -0.02),
     color: '#D04122',
     flexShrink: 1,
     fontFamily: fonts?.SATOSHI_MEDIUM,
   },
   createAccountButton: {
-    backgroundColor: '#FDBD74',
     width: '100%',
-    height: scaledValue(52),
-    borderRadius: scaledValue(28),
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
-    marginVertical: scaledValue(27),
+    marginVertical: scaledValue(30),
   },
-  createAccountButtonText: {
-    fontSize: scaledValue(18),
-    lineHeight: scaledHeightValue(18),
-    letterSpacing: scaledValue(18 * -0.01),
-    fontFamily: fonts?.CLASH_GRO_MEDIUM,
-    color: '#4E3F2F',
+
+  inputWrapper: {
+    position: 'relative',
   },
+
+  inlineLabelWrapper: {
+    position: 'absolute',
+    top: scaledValue(-7),
+    left: scaledValue(20),
+    backgroundColor: colors.themeColor,
+    zIndex: 1,
+    paddingHorizontal: scaledValue(5),
+  },
+
+  inlineLabel: {
+    fontSize: scaledValue(12),
+  },
+  dateText: val => ({
+    fontSize: scaledValue(16),
+    letterSpacing: scaledValue(16 * -0.03),
+    fontFamily: val ? fonts.SATOSHI_MEDIUM : fonts.SATOSHI_REGULAR,
+  }),
 });

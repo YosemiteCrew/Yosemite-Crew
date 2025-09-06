@@ -20,7 +20,23 @@ const VET_ROLES = [
   "receptionist",
 ];
 
-const publicRoutes = ["/signup", "/signin","/landingpage",'/homepage','/petowner','/resources','/contact_us','/blogpage','/developerlanding','/about_us','/bookDemo','/privacypolicy','/pricing','/termsandconditions','' ];
+const publicRoutes = [
+  "/signup",
+  "/signin",
+  "/landingpage",
+  "/homepage",
+  "/petowner",
+  "/resources",
+  "/contact_us",
+  "/blogpage",
+  "/developerlanding",
+  "/about_us",
+  "/bookDemo",
+  "/privacypolicy",
+  "/pricing",
+  "/termsandconditions",
+  "",
+];
 
 const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
   const setUser = useAuthStore((state) => state.setUser);
@@ -45,7 +61,7 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
     );
     return patternRegex.test(path);
   }
-
+  console.log(isVerified, "isVerified in SessionInitializer", isPublicRoute);
   useEffect(() => {
     const fetchUser = async () => {
       try {
@@ -54,9 +70,9 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
           {},
           { withCredentials: true }
         );
-        const { userId, email, userType } = response.data.data;
-        setUser({ userId, email, userType });
-        setVerified(true);
+        const { userId, email, userType, isVerified } = response.data.data;
+        setUser({ userId, email, userType, isVerified });
+        setVerified(isVerified);
         console.log("✅ User restored:", { userId, email, userType });
 
         if (userType && isVerified && !VET_ROLES.includes(userType)) {
@@ -66,7 +82,6 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
         }
       } catch (err) {
         await handleLogout();
-        setVerified(false);
       } finally {
         setLoading(false);
       }
@@ -76,14 +91,25 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
   }, [
     fetchBusinessProfile,
     fetchVetAndTeamsProfile,
-    isVerified,
+    // isVerified,
     setUser,
-    setVerified,
+    // setVerified,
   ]);
 
   if (loading) return null;
-
-  if (!isVerified && !isPublicRoute) {
+  if (isVerified === 0 && (pathname == "/emptydashboard" || isPublicRoute)) {
+    return (
+      <>
+        <Header />
+        <Cookies />
+        <Github isOpen={showGithub} onClose={() => setShowGithub(false)} />
+        {children}
+      </>
+    );
+  } else if (
+    (isVerified === -1 || isVerified === 0 || isVerified == null) &&
+    !isPublicRoute
+  ) {
     return (
       <>
         <Header />
@@ -92,16 +118,26 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
         <MainLandingPage />
       </>
     );
+  } else if (isVerified == null && isPublicRoute) {
+    return (
+      <>
+        <Header />
+        <Cookies />
+        <Github isOpen={showGithub} onClose={() => setShowGithub(false)} />
+        {children}
+      </>
+    );
+  } else if (isVerified === 1) {
+    return (
+      <>
+        <Header />
+        <Cookies />
+        <Github isOpen={showGithub} onClose={() => setShowGithub(false)} />
+        {children}
+      </>
+    );
   }
-
-  return (
-    <>
-      <Header />
-      <Cookies />
-      <Github isOpen={showGithub} onClose={() => setShowGithub(false)} />
-      {children}
-    </>
-  );
+  return null;
 };
 
 export default SessionInitializer;

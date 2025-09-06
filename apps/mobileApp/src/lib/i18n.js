@@ -481,7 +481,7 @@ const resources = {
       your_companion_string: 'your companion',
       write_review_string: 'Write a Review',
       submit_review_string: 'Submit Review',
-      check_email_string: 'Check you email',
+      check_email_string: 'Check your email',
       not_get_email_string: 'Haven’t got the email yet?',
       resend_email_string: 'Resend email',
       congratulations_verified_string: 'Congratulations 🎉\nCode Verified',
@@ -499,6 +499,7 @@ const resources = {
       edit_profile_string: 'Edit Profile',
       delete_profile_string: 'Delete Profile',
       add_pet_details_string: 'Add Pet Details',
+      edit_pet_details_string: 'Edit Pet Details',
       add_vet_details_string: 'Add Your Vet',
       search_hospital_clinic_string:
         'Search Hospital, Clinic, Vets or Email ID',
@@ -571,6 +572,8 @@ const resources = {
       edit_folder_string: 'Edit folder',
       delete_folder_string: 'Delete folder',
       terms_cond_string: 'Terms & Conditions',
+      book_your_first_appointment_string: 'Book Your First Appointment',
+      scan_qr_code_string: 'Scan QR Code',
     },
   },
   es: {

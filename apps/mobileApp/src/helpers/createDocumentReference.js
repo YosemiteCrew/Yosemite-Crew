@@ -9,7 +9,10 @@ export const createDocumentReference = ({
 }) => {
   return {
     resourceType,
-    type: {text: typeText, reference: folderId},
+    type: {text: typeText || '', reference: folderId},
+    author: {
+      display: 'petOwner',
+    },
     description,
     date,
     context: {

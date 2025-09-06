@@ -1,11 +1,11 @@
-import { StyleSheet } from 'react-native';
+import {StyleSheet} from 'react-native';
 import {
   getFontSize,
   scaledHeightValue,
   scaledValue,
 } from '../../../../utils/design.utils';
-import { fonts } from '../../../../utils/fonts';
-import { colors } from '../../../../../assets/colors';
+import {fonts} from '../../../../utils/fonts';
+import {colors} from '../../../../../assets/colors';
 
 export const styles = StyleSheet.create({
   dashboardMainView: {
@@ -39,13 +39,14 @@ export const styles = StyleSheet.create({
   },
   headerView: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    // justifyContent: 'space-between',
+    alignItems: 'center',
   },
   contactText: {
     fontSize: scaledValue(18),
     lineHeight: scaledValue(21.6),
     letterSpacing: scaledValue(18 * -0.01),
-
+    marginLeft: '30%',
   },
   helpTextContainer: {
     flexDirection: 'row',
@@ -64,7 +65,6 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(29),
     lineHeight: scaledValue(34.8),
     letterSpacing: scaledValue(29 * -0.01),
-
   },
   inputStyle: {
     width: '100%',
@@ -84,7 +84,6 @@ export const styles = StyleSheet.create({
     paddingTop: scaledValue(12),
     textAlignVertical: 'top',
     fontSize: scaledValue(16),
-
   },
   contactOptionMainView: {
     flexDirection: 'row',

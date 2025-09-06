@@ -263,7 +263,9 @@ export const inviteTeamsMembersController = {
         res: Response
     ): Promise<void> => {
         try {
-            const { email, password, role, department, invitedBy, inviteCode } = req.body as invitedTeamMembersInterface;
+            // eslint-disable-next-line prefer-const
+            let { email, password, role, department, invitedBy, inviteCode } = req.body as invitedTeamMembersInterface;
+                  email = email?.trim().toLowerCase();
 
             if (typeof invitedBy !== "string" || !/^[a-fA-F0-9-]{36}$/.test(invitedBy)) {
                 res.status(400).json({ message: "Invalid invitedBy format" });

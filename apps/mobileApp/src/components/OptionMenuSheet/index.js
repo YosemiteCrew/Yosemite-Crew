@@ -156,7 +156,7 @@ export default OptionMenuSheet;
 
 const styles = StyleSheet.create({
   menuTitle: textColor => ({
-    fontSize: getFontSize(18),
+    // fontSize: getFontSize(16),
     color: textColor ? textColor : colors.richBlack,
     fontFamily: fonts?.SUSE_MEDIUM,
     textAlign: 'center',

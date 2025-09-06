@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import "./ContactusPage.css";
 import Footer from "@/app/Components/Footer/Footer";
-import { Container } from "react-bootstrap";
+import { Button, Container } from "react-bootstrap";
 import { FormInput } from "../Sign/SignUp";
 import DynamicSelect from "@/app/Components/DynamicSelect/DynamicSelect";
 import { toFhirSupportTicket } from "@yosemite-crew/fhir";
@@ -16,6 +16,8 @@ import {
 import { postData } from "@/app/axios-services/services";
 import { useAuthStore } from "@/app/stores/authStore";
 import Link from "next/link";
+import { Icon } from "@iconify/react/dist/iconify.js";
+import { BackBtn } from "../AddVetProfile/AddProileDetails";
 
 function ContactusPage() {
   //emails
@@ -28,8 +30,8 @@ function ContactusPage() {
   // Query Type
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [selectedQueryType, setSelectedQueryType] =
-    useState<TicketCategory>("General");
-  const queryTypes: TicketCategory[] = ["General", "DSAR", "Feature Request"];
+    useState<TicketCategory>("General Enquiry");
+  const queryTypes: TicketCategory[] = ["General Enquiry",  "Feature Request" ,"Data Service Access Request" , "Complaint"];
   // Subrequest options for Data Service Access Request
   const [subselectedRequest, setSubSelectedRequest] = useState("");
   const subrequestOptions = [
@@ -68,13 +70,21 @@ function ContactusPage() {
     { value: "coastal", label: "Coastal Area" },
   ];
 
-  // Subrequest options for Data Service Access Request
-  const [ConfselectedRequest, setConfSelectedRequest] = useState("");
+  // Confirm checklist (multiple selections)
+  const [confirmSelections, setConfirmSelections] = useState<string[]>([]);
+  // Complaint specific fields
+  const [complaintLink, setComplaintLink] = useState<string>("");
+  const [complaintImage, setComplaintImage] = useState<File | null>(null);
   const confirmOptions = [
     "Under penalty of perjury, I declare all the above information to be true and accurate.",
     "I understand that the deletion or restriction of my personal data is irreversible and may result in the termination of services with Yosemite Crew.",
     "I understand that I will be required to validate my request my email, and I may be contacted in order to complete the request.",
   ];
+  const toggleConfirmOption = (option: string) => {
+    setConfirmSelections((prev) =>
+      prev.includes(option) ? prev.filter((o) => o !== option) : [...prev, option]
+    );
+  };
   const isValidEmail = (email: string): boolean => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return regex.test(email);
@@ -138,8 +148,9 @@ function ContactusPage() {
     message,
     selectedQueryType,
     area,
-    ConfselectedRequest,
     selectedRequest,
+    userType,
+    isVerified,
   ]);
   useEffect(() => {
     setEmail(activeEmail ?? "");
@@ -150,10 +161,11 @@ function ContactusPage() {
         <Container>
           <div className="ContactUsData">
             <div className="LeftContactUs">
-              <span>Contact us</span>
-              <h2>
-                Need Help? <br /> We’re All Ears!
-              </h2>
+              <BackBtn href="" icon="solar:round-alt-arrow-left-outline" backtext="Back to Dashboard"/>
+              <div className="conttexted">
+                <span>Contact us</span>
+                <h2>Need Help? <br /> We’re All Ears!</h2>
+              </div>
             </div>
 
             <div className="RightContactUs">
@@ -206,42 +218,8 @@ function ContactusPage() {
                 ))}
               </div>
 
-              {/* Conditional rendering based on query type */}
-              {selectedQueryType !== "DSAR" ? (
-                <>
-                  <div className="QueryDetailsFields">
-                    <label>Please leave details regarding your request</label>
-                    <textarea
-                      rows={3}
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      placeholder="Your Message"
-                    ></textarea>
-
-                    {errors?.message && (
-                      <div style={{ color: "#EA3729", fontSize: "14px", marginTop: "4px" }}>
-                        {errors?.message ?? ""}
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    onClick={handleContectSubmit}
-                    style={{
-                      width: "100%",
-                      padding: "12px",
-                      borderRadius: "24px",
-                      background: "#bdbdbd",
-                      color: "#fff",
-                      fontWeight: 500,
-                      border: "none",
-                      marginTop: "12px",
-                    }}
-                    disabled={submitting}
-                  >
-                    {submitting ? "submitting..." : "Send Message"}
-                  </button>
-                </>
-              ) : (
+              {/* One clear block per query type */}
+              {selectedQueryType === "Data Service Access Request" && (
                 <div className="DataServiceAccessFields">
                   <div className="SetSubmitted">
                     <p>You are submitting this request as</p>
@@ -249,7 +227,7 @@ function ContactusPage() {
                       <label key={index}>
                         <input
                           type="radio"
-                          name="requestType"
+                          name="dsarSubmitAs"
                           value={option}
                           checked={subselectedRequest === option}
                           onChange={() => setSubSelectedRequest(option)}
@@ -260,9 +238,7 @@ function ContactusPage() {
                   </div>
 
                   <div className="SetSubmitted">
-                    <p>
-                      Under the rights of which law are you making this request?
-                    </p>
+                    <p>Under the rights of which law are you making this request?</p>
                     <DynamicSelect
                       options={areaOptions}
                       value={area}
@@ -278,7 +254,7 @@ function ContactusPage() {
                       <label key={index}>
                         <input
                           type="radio"
-                          name="requestType"
+                          name="dsarRequestTo"
                           value={option}
                           checked={selectedRequest === option}
                           onChange={() => setSelectedRequest(option)}
@@ -289,22 +265,15 @@ function ContactusPage() {
                   </div>
 
                   <div className="QueryDetailsFields">
-                    <label>
-                      Please leave details regarding your action request or
-                      question
-
-                    </label>
+                    <label>Please leave details regarding your action request or question</label>
                     <textarea
                       rows={3}
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
                       placeholder="Your Message"
                     ></textarea>
-
                     {errors?.message && (
-                      <div style={{ color: "#EA3729", fontSize: "14px", marginTop: "4px" }}>
-                        {errors?.message ?? ""}
-                      </div>
+                      <div style={{ color: "#EA3729", fontSize: "14px", marginTop: "4px" }}>{errors?.message ?? ""}</div>
                     )}
                   </div>
 
@@ -314,33 +283,138 @@ function ContactusPage() {
                       <label key={index}>
                         <input
                           type="checkbox"
-                          name="ConfType"
+                          name="confirmDsar"
                           value={option}
-                          checked={ConfselectedRequest === option}
-                          onChange={() => setConfSelectedRequest(option)}
+                          checked={confirmSelections.includes(option)}
+                          onChange={() => toggleConfirmOption(option)}
                         />
                         {option}
                       </label>
                     ))}
                   </div>
 
-                  <button
-                    style={{
-                      width: "100%",
-                      padding: "12px",
-                      borderRadius: "24px",
-                      background: "#bdbdbd",
-                      color: "#fff",
-                      fontWeight: 500,
-                      border: "none",
-                      marginTop: "12px",
-                    }}
+                  <Button
+                    className="SendBtn"
                     onClick={handleContectSubmit}
                     disabled={submitting}
                   >
-                    {submitting ? "submitting..." : "Send Message"}   </button>
+                    {submitting ? "submitting..." : "Send Message"}
+                  </Button>
                 </div>
               )}
+
+              {selectedQueryType === "Complaint" && (
+                <div className="DataServiceAccessFields">
+                  <div className="SetSubmitted">
+                    <p>You are submitting this complaint as</p>
+                    {subrequestOptions.map((option, index) => (
+                      <label key={index}>
+                        <input
+                          type="radio"
+                          name="complaintSubmitAs"
+                          value={option}
+                          checked={subselectedRequest === option}
+                          onChange={() => setSubSelectedRequest(option)}
+                        />
+                        {option}
+                      </label>
+                    ))}
+                  </div>
+
+                  <div className="QueryDetailsFields">
+                    <label>Please leave details regarding your complaint.</label>
+                    <textarea
+                      rows={3}
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      placeholder="Your Message"
+                    ></textarea>
+                    {errors?.message && (
+                      <div style={{ color: "#EA3729", fontSize: "14px", marginTop: "4px" }}>{errors?.message ?? ""}</div>
+                    )}
+                  </div>
+
+                  <div className="SetSubmitted">
+                    <p>Please add link regarding your complaint (optional)</p>
+                    <FormInput
+                      intype="text"
+                      inname="complaintLink"
+                      value={complaintLink}
+                      inlabel="Paste link (optional)"
+                      onChange={(e) => setComplaintLink(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="SetSubmitted">
+                    <p>Please add image regarding your complaint (optional)</p>
+                    <div className="UploadBox">
+                      <input
+                        id="complaintImage"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setComplaintImage(e.target.files?.[0] || null)}
+                      />
+                      <label htmlFor="complaintImage" className="UploadInner">
+                        <span className="UploadText">{complaintImage ? complaintImage.name : "Upload Image"}</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="SetSubmitted">
+                    <p>I confirm that</p>
+                    {confirmOptions.map((option, index) => (
+                      <label key={index}>
+                        <input
+                          type="checkbox"
+                          name="confirmComplaint"
+                          value={option}
+                          checked={confirmSelections.includes(option)}
+                          onChange={() => toggleConfirmOption(option)}
+                        />
+                        {option}
+                      </label>
+                    ))}
+                  </div>
+
+                  <Button
+                    className="SendBtn"
+                    onClick={handleContectSubmit}
+                    disabled={submitting}
+                  >
+                    {submitting ? "submitting..." : "Send Message"}
+                  </Button>
+                </div>
+              )}
+
+              {(selectedQueryType === "General Enquiry" || selectedQueryType === "Feature Request") && (
+                <>
+                  <div className="QueryDetailsFields">
+                    <label>Please leave details regarding your request</label>
+                    <textarea
+                      rows={3}
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      placeholder="Your Message"
+                    ></textarea>
+                    {errors?.message && (
+                      <div style={{ color: "#EA3729", fontSize: "14px", marginTop: "4px" }}>{errors?.message ?? ""}</div>
+                    )}
+                  </div>
+                  <Button
+                    className="SendBtn"
+                    onClick={handleContectSubmit}
+                    disabled={submitting}
+                  >
+                    {submitting ? "submitting..." : "Send Message"}
+                  </Button>
+                </>
+              )}
+
+
+
+
+
+
             </div>
           </div>
         </Container>

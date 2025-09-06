@@ -42,9 +42,11 @@ export const styles = StyleSheet.create({
     paddingHorizontal: scaledValue(20),
   },
   petImg: {
-    width: scaledValue(95),
-    height: scaledValue(95),
-    borderRadius: scaledValue(47.5),
+    width: scaledValue(100),
+    height: scaledValue(100),
+    borderRadius: scaledValue(50),
+    borderWidth: scaledValue(2),
+    borderColor: colors.primaryBlue,
   },
   cameraView: {
     width: scaledValue(32),
@@ -185,10 +187,6 @@ export const styles = StyleSheet.create({
     marginTop: scaledValue(28),
   },
   petImageContainer: {
-    width: scaledValue(100),
-    height: scaledValue(100),
-    backgroundColor: colors.primaryBlue,
-    borderRadius: scaledValue(50),
     alignItems: 'center',
     justifyContent: 'center',
   },
