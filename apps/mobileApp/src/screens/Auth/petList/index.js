@@ -31,9 +31,9 @@ const PetProfileList = ({navigation}) => {
     navigation.setOptions({
       headerLeft: () => (
         <HeaderButton
-          icon={Images.arrowLeftOutline}
+          // icon={Images.arrowLeftOutline}
           tintColor={colors.jetBlack}
-          onPress={() => navigation.goBack()}
+          // onPress={() => navigation.goBack()}
           style={styles.headerLeftBtn}
         />
       ),
@@ -86,18 +86,16 @@ const PetProfileList = ({navigation}) => {
             navigation.navigate('StackScreens', {
               screen: 'PetSummary',
               params: {
-                petDetails: petDetails,
+                petDetails: item,
                 item: item,
               },
             })
           }>
-          <View style={styles.petImageWrapper}>
-            <GImage
-              image={item?.petImages}
-              style={styles.petImg}
-              noImageSource={Images.Kizi}
-            />
-          </View>
+          <GImage
+            image={item?.petImages}
+            style={styles.petImg}
+            noImageSource={Images.Kizi}
+          />
           <View style={styles.infoView}>
             <GText GrMedium text={item?.name} style={styles.petName} />
             <GText SatoshiMedium text={item?.breed} style={styles.breed} />
@@ -126,9 +124,13 @@ const PetProfileList = ({navigation}) => {
                 ]}
               />
             </View>
-            <CustomProgressBar percentage={10} />
+            <CustomProgressBar percentage={item?.percentage} />
             <View style={{flexDirection: 'row'}}>
-              <GText SatoshiBold text="10%" style={styles.percentageText} />
+              <GText
+                SatoshiBold
+                text={`${item?.percentage}%`}
+                style={styles.percentageText}
+              />
               <GText
                 SatoshiMedium
                 text={' Profile Complete'}
@@ -154,8 +156,22 @@ const PetProfileList = ({navigation}) => {
               onSelect={() => {
                 setSelectedPet(item);
                 navigation.navigate('StackScreens', {
-                  screen: 'AddPetDetails',
-                  params: {petDetails: item},
+                  screen: 'EditPetDetails',
+                  params: {
+                    petDetails: item,
+                    choosePetData: {
+                      petType: {
+                        id: 2,
+                        value:
+                          item?.species === 'Dog'
+                            ? 'Dog'
+                            : item?.species === 'Cat'
+                            ? 'Cat'
+                            : 'Horse',
+                        title: 'Dog',
+                      },
+                    },
+                  },
                 });
               }}>
               <Image source={Images.penBold} style={styles.editImg} />

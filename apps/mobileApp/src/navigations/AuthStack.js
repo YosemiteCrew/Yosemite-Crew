@@ -127,7 +127,6 @@ const AuthStack = () => {
       name: 'AddAddress',
       component: AddAddress,
       title: 'Create an account',
-      headerShown: false,
     },
     {
       name: 'Terms',

@@ -101,6 +101,7 @@ export const styles = StyleSheet.create({
     height: scaledValue(40),
     alignSelf: 'center',
     marginTop: scaledValue(16),
+    tintColor: colors.jetBlack,
   },
   uploadText: {
     fontSize: scaledValue(18),

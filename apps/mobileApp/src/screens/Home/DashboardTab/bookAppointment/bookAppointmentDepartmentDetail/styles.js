@@ -1,10 +1,10 @@
-import { StyleSheet } from 'react-native';
+import {StyleSheet} from 'react-native';
 import {
   scaledHeightValue,
   scaledValue,
 } from '../../../../../utils/design.utils';
-import { fonts } from '../../../../../utils/fonts';
-import { colors } from '../../../../../../assets/colors';
+import {fonts} from '../../../../../utils/fonts';
+import {colors} from '../../../../../../assets/colors';
 
 export const styles = StyleSheet.create({
   dashboardMainView: {
@@ -39,11 +39,11 @@ export const styles = StyleSheet.create({
     width: scaledValue(335),
     borderRadius: scaledValue(20),
     borderColor: colors.paletteWhite,
-   shadowColor: '##47382714',
-    shadowOffset: { width: 6, height: 2 },
+    shadowColor: '##47382714',
+    shadowOffset: {width: -0, height: -0.5},
     shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 4,
+    shadowRadius: 3,
+    elevation: 8,
   },
   doctorName: {
     fontSize: scaledValue(18),
@@ -61,7 +61,6 @@ export const styles = StyleSheet.create({
   experienceText: {
     fontSize: scaledValue(12),
     lineHeight: scaledHeightValue(14.4),
-
   },
   experienceTextStyle: {
     fontSize: scaledValue(12),
@@ -105,17 +104,17 @@ export const styles = StyleSheet.create({
     paddingTop: scaledValue(12),
     paddingLeft: scaledValue(12),
   },
-  doctorImgView: { flexDirection: 'column', alignItems: 'center' },
+  doctorImgView: {flexDirection: 'column', alignItems: 'center'},
   starImgView: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: scaledValue(5),
   },
-  starImg: { width: scaledValue(16), height: scaledValue(16) },
+  starImg: {width: scaledValue(16), height: scaledValue(16)},
   experienceView: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: scaledValue(8),
   },
-  feesView: { flexDirection: 'row', marginTop: scaledValue(8) },
+  feesView: {flexDirection: 'row', marginTop: scaledValue(8)},
 });

@@ -12,6 +12,7 @@ import {
 import {scaledValue} from '../utils/design.utils';
 // import {HorizontalLine} from '../utils/images.utils';
 import {getFocusedRouteNameFromRoute} from '@react-navigation/native';
+import {colors} from '../../assets/colors';
 
 const AnimatedBottomTabBar = ({state, descriptors, navigation, route}) => {
   const translateX = new Animated.Value(0);
@@ -172,17 +173,16 @@ const style = StyleSheet.create({
     height: scaledValue(72),
     borderRadius: scaledValue(48),
     backgroundColor: '#FFF',
-    shadowColor: '#2E3E461A',
-    shadowOffset: {
-      width: 5,
-      height: 5,
-    },
-    shadowOpacity: 0.27,
-    shadowRadius: 4.65,
-    elevation: 6,
+    shadowColor: '##47382714',
+    shadowOffset: {width: -0, height: -0.5},
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 5,
     paddingBottom: 0,
     justifyContent: 'center',
     alignSelf: 'center',
+    borderWidth: scaledValue(1),
+    borderColor: colors.jetBlack50,
   },
   slider: {
     position: 'absolute',

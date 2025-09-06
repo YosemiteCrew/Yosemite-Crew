@@ -1,4 +1,4 @@
-import React, {useEffect} from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   SectionList,
   Text,
@@ -7,6 +7,8 @@ import {
   StyleSheet,
   SafeAreaView,
   ScrollView,
+  TextInput,
+  TouchableOpacity,
 } from 'react-native';
 import GText from '../../../../components/GText/GText';
 import styles from './styles';
@@ -16,7 +18,15 @@ import {Images} from '../../../../utils';
 import GButton from '../../../../components/GButton';
 import HeaderButton from '../../../../components/HeaderButton';
 import {colors} from '../../../../../assets/colors';
-import {scaledValue} from '../../../../utils/design.utils';
+import {scaledHeightValue, scaledValue} from '../../../../utils/design.utils';
+import {
+  useAppDispatch,
+  useAppSelector,
+} from '../../../../redux/store/storeUtils';
+import {withdrawRequest} from '../../../../redux/slices/petSlice';
+import {showToast} from '../../../../components/Toast';
+import {KeyboardAwareScrollView} from 'react-native-keyboard-controller';
+import Modal from 'react-native-modal';
 
 const TERMS_DATA = [
   {
@@ -667,20 +677,43 @@ const Terms = ({navigation}) => {
   }, []);
 
   const {t} = useTranslation();
+  const [userName, setUserName] = useState('');
+  const [email, setEmail] = useState('');
+  const [userEmail, setUserEmail] = useState('');
+  const [address, setAddress] = useState('');
+  const [signature, setSignature] = useState('');
+  const [check, setCheck] = useState(false);
+  const [visible, setVisible] = useState(false);
+  const [successVisible, setSuccessVisible] = useState(false);
+  const userData = useAppSelector(state => state.auth.user);
+  const dispatch = useAppDispatch();
+
+  const withDrawalForm = () => {
+    setVisible(false);
+    const input = {
+      userName: userName,
+      email: email,
+      address: address,
+      signature: signature,
+    };
+    dispatch(withdrawRequest({data: input})).then(res => {
+      if (withdrawRequest.fulfilled.match(res)) {
+        setSuccessVisible(true);
+
+        navigation?.goBack();
+      }
+    });
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView
+      <KeyboardAwareScrollView
+        bottomOffset={50}
         showsVerticalScrollIndicator={false}
         style={{
-          marginTop: scaledValue(25),
           flex: 1,
           paddingHorizontal: scaledValue(20),
         }}>
-        <GText
-          GrMedium
-          style={styles.title}
-          text="Terms of Use for the Yosemite Crew Mobile Applica tion"
-        />
         <SectionList
           sections={TERMS_DATA}
           keyExtractor={(item, index) => item.key + index}
@@ -789,19 +822,72 @@ const Terms = ({navigation}) => {
           style={styles.withdrawalformSubHeader}
           text="Fill the form for Withdrawal"
         />
-        <Input label="User Full Name" style={styles.input} />
-        <Input label="Email Address" style={styles.input} />
-        <Input label="User Address" style={styles.input} />
-        <Input label="Signature" style={styles.desBox} />
+        <Input
+          value={userName}
+          onChangeText={val => setUserName(val)}
+          label="User Full Name"
+          style={styles.input}
+        />
+        <Input
+          value={email}
+          onChangeText={val => setEmail(val)}
+          keyboardType="email-address"
+          label="Email Address"
+          style={styles.input}
+        />
+        <Input
+          value={address}
+          onChangeText={val => setAddress(val)}
+          label="User Address"
+          style={styles.input}
+        />
+        <TextInput
+          multiline={true}
+          placeholderTextColor={'#aaa'}
+          placeholder="Signature"
+          value={signature}
+          onChangeText={val => setSignature(val)}
+          style={{
+            borderWidth: scaledValue(0.5),
+            height: scaledValue(114),
+            marginTop: scaledValue(5),
+            borderRadius: scaledValue(16),
+            borderColor: '#312943',
+            paddingHorizontal: scaledValue(20),
+            paddingTop: scaledValue(12),
+            textAlignVertical: 'top',
+            fontSize: scaledValue(16),
+          }}
+        />
+
         <View style={styles.checkButtonView}>
-          <Image source={Images.uncheckButton} style={styles.uncheckButton} />
+          <TouchableOpacity
+            onPress={() => {
+              setCheck(!check);
+            }}>
+            <Image
+              source={check ? Images.Check_fill : Images.UnCheck}
+              style={styles.uncheckButton}
+            />
+          </TouchableOpacity>
           <GText
             SatoshiRegular
             style={styles.checkButtonText}
             text={`I/We hereby withdraw the contract concluded \nby me/us (*) for the purchase of the following\ngoods (*)/the provision of the following service (*)`}
           />
         </View>
-        <GButton title="Submit Form" />
+        <GButton
+          onPress={() => {
+            if (!check) {
+              showToast(0, 'Please accept the conditions');
+            } else if (!userName || !email || !address || !signature) {
+              showToast(0, 'Please fill all the fields');
+            } else {
+              setVisible(true);
+            }
+          }}
+          title="Submit Form"
+        />
         <Text style={styles.formSubmissionDetails}>
           Form will be submitted to{' '}
           <Text style={styles.address}>
@@ -810,7 +896,197 @@ const Terms = ({navigation}) => {
           </Text>
           security@yosemitecrew.com
         </Text>
-      </ScrollView>
+      </KeyboardAwareScrollView>
+      <Modal
+        isVisible={visible}
+        statusBarTranslucent={true}
+        onBackdropPress={() => setVisible(false)}>
+        <View
+          style={{
+            backgroundColor: colors.white,
+            borderRadius: scaledValue(24),
+            paddingVertical: scaledValue(24),
+            paddingHorizontal: scaledValue(24),
+          }}>
+          <View style={{alignItems: 'center'}}>
+            <GText
+              GrMedium
+              style={{
+                fontSize: scaledValue(23),
+                lineHeight: scaledHeightValue(23 * 1.2),
+                letterSpacing: scaledValue(23 * -0.02),
+              }}
+              text={'Withdrawal Confirmation'}
+            />
+            <GText
+              SatoshiBold
+              text={'Are you sure you want to withdraw contract with us?'}
+              style={{
+                fontSize: scaledValue(18),
+                lineHeight: scaledHeightValue(18 * 1.2),
+                letterSpacing: scaledValue(18 * -0.02),
+                marginTop: scaledValue(16),
+              }}
+            />
+            <GText
+              SatoshiBold
+              text={
+                'Withdrawal from the Terms and Conditions will result in the deletion of your account and associated history'
+              }
+              style={{
+                fontSize: scaledValue(14),
+                lineHeight: scaledHeightValue(14 * 1.2),
+                marginTop: scaledValue(16),
+              }}
+            />
+
+            <View
+              style={{
+                // flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: scaledValue(16),
+                marginTop: scaledValue(16),
+                width: '100%',
+              }}>
+              <GButton
+                onPress={() => {
+                  withDrawalForm();
+                }}
+                title={'Withdraw and Delete account '}
+                style={{
+                  gap: scaledValue(6),
+                  width: '100%',
+                  height: scaledValue(48),
+                }}
+              />
+              <GButton
+                onPress={() => {
+                  setVisible(false);
+                }}
+                title={'Do not delete account'}
+                textStyle={{color: colors.jetBlack}}
+                style={{
+                  gap: scaledValue(6),
+                  backgroundColor: 'transparent',
+                  borderWidth: scaledValue(1.5),
+                  borderColor: colors.jetBlack,
+                  paddingHorizontal: scaledValue(42),
+                  height: scaledValue(48),
+                  width: '100%',
+                }}
+              />
+            </View>
+            <GText
+              SatoshiBold
+              text={'Note: Deletion of account will take 7 days.'}
+              style={{
+                fontSize: scaledValue(14),
+                lineHeight: scaledHeightValue(14 * 1.2),
+                marginTop: scaledValue(16),
+              }}
+            />
+            <GText
+              text={
+                'Your withdrawal form will be submitted to DuneXploration UG (haftungsbeschränkt), Am Finther Weg 7, 55127 Mainz, Germany, email: security@yosemitecrew.com'
+              }
+              style={{
+                fontSize: scaledValue(14),
+                lineHeight: scaledHeightValue(14 * 1.2),
+                letterSpacing: scaledValue(14 * -0.02),
+                marginTop: scaledValue(24),
+                textAlign: 'center',
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        isVisible={successVisible}
+        statusBarTranslucent={true}
+        onBackdropPress={() => setSuccessVisible(false)}>
+        <View
+          style={{
+            backgroundColor: colors.white,
+            borderRadius: scaledValue(24),
+            paddingVertical: scaledValue(24),
+            paddingHorizontal: scaledValue(24),
+          }}>
+          <View style={{alignItems: 'center'}}>
+            <GText
+              GrMedium
+              style={{
+                fontSize: scaledValue(23),
+                lineHeight: scaledHeightValue(23 * 1.2),
+                letterSpacing: scaledValue(23 * -0.02),
+              }}
+              text={'Its Sad to Inform You'}
+            />
+            <GText
+              SatoshiBold
+              text={'You have successfully deleted your account.'}
+              style={{
+                fontSize: scaledValue(18),
+                lineHeight: scaledHeightValue(18 * 1.2),
+                letterSpacing: scaledValue(18 * -0.02),
+                marginTop: scaledValue(16),
+              }}
+            />
+            <GText
+              SatoshiBold
+              text={'Note: Deletion of Account may take 7 days.'}
+              style={{
+                fontSize: scaledValue(14),
+                lineHeight: scaledHeightValue(14 * 1.2),
+                marginTop: scaledValue(16),
+              }}
+            />
+
+            <View
+              style={{
+                // flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: scaledValue(8),
+                marginTop: scaledValue(16),
+                width: '100%',
+              }}>
+              <GButton
+                icon={Images.tickImage}
+                iconStyle={{width: scaledValue(20), height: scaledValue(20)}}
+                title={'Sign In Again'}
+                style={{
+                  gap: scaledValue(6),
+                  width: '100%',
+                  height: scaledValue(48),
+                }}
+              />
+              <GButton
+                onPress={() => {
+                  setVisible(false);
+                }}
+                icon={Images.tickImage}
+                iconStyle={{
+                  tintColor: colors.jetBlack,
+                  width: scaledValue(18),
+                  height: scaledValue(18),
+                }}
+                title={'Okay'}
+                textStyle={{color: colors.jetBlack}}
+                style={{
+                  gap: scaledValue(6),
+                  backgroundColor: 'transparent',
+                  borderWidth: scaledValue(1.5),
+                  borderColor: colors.jetBlack,
+                  paddingHorizontal: scaledValue(42),
+                  height: scaledValue(48),
+                  width: '100%',
+                }}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };

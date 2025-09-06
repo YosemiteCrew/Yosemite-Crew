@@ -123,7 +123,7 @@ const SignIn = ({navigation}) => {
               titleStyle={styles.signUpText}
             />
           </View>
-          <View style={styles.loginViaContainer}>
+          {/* <View style={styles.loginViaContainer}>
             <View style={styles.divider} />
             <GText
               GrMedium
@@ -131,8 +131,8 @@ const SignIn = ({navigation}) => {
               style={styles.loginViaText}
             />
             <View style={styles.divider} />
-          </View>
-          <View style={styles.socialButtonContainer}>
+          </View> */}
+          {/* <View style={styles.socialButtonContainer}>
             {buttonList?.map(item => (
               <GButton
                 key={item?.id}
@@ -148,7 +148,7 @@ const SignIn = ({navigation}) => {
                 textStyle={[styles.socialButtonText, {color: item?.textColor}]}
               />
             ))}
-          </View>
+          </View> */}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

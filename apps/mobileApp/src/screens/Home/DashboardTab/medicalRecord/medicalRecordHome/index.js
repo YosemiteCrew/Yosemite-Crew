@@ -31,8 +31,10 @@ import GImage from '../../../../../components/GImage';
 import Spinner from 'react-native-loading-spinner-overlay';
 import {opacity} from 'react-native-reanimated/lib/typescript/Colors';
 import {
+  delete_medical_folder_by_id,
   delete_medical_record_api,
   get_medical_folders,
+  setFolderList,
 } from '../../../../../redux/slices/medicalRecordSlice';
 import OptionMenuSheet from '../../../../../components/OptionMenuSheet';
 
@@ -42,6 +44,8 @@ const MedicalRecordHome = ({navigation}) => {
   const petList = useAppSelector(state => state.pets?.petLists);
   const [selectedPet, setSelectedPet] = useState(petList[0]);
   const folderList = useAppSelector(state => state.medicalRecord.folderList);
+  console.log('folderListfolderList', JSON.stringify(folderList));
+
   const refRBSheet = useRef();
 
   const [selectedRecord, setSelectRecord] = useState({});
@@ -50,10 +54,10 @@ const MedicalRecordHome = ({navigation}) => {
   useEffect(() => {
     dispatch(
       get_medical_folders({
-        petId: petList[0]?.id,
+        petId: selectedPet?.id,
       }),
     );
-  }, [dispatch]);
+  }, [selectedPet]);
 
   useEffect(() => {
     navigation.setOptions({
@@ -62,7 +66,7 @@ const MedicalRecordHome = ({navigation}) => {
           icon={Images.Folder}
           tintColor={colors.jetBlack}
           onPress={() =>
-            navigation?.navigate('StackScreens', {screen: 'Notifications'})
+            navigation?.navigate('StackScreens', {screen: 'CreateFolder'})
           }
         />
       ),
@@ -107,13 +111,18 @@ const MedicalRecordHome = ({navigation}) => {
     });
   };
 
-  useEffect(() => {
-    dispatch(
-      get_medical_folders({
-        petId: petList[0]?.id,
-      }),
-    );
-  }, [petList]);
+  const deleteMedicalFolder = id => {
+    dispatch(delete_medical_folder_by_id({folderId: id})).then(res => {
+      if (delete_medical_folder_by_id.fulfilled.match(res)) {
+        const filteredEntries = folderList?.data?.filter(
+          item => item?._id !== id,
+        );
+        if (res.payload.status === 1) {
+          dispatch(setFolderList(filteredEntries));
+        }
+      }
+    });
+  };
 
   const RecordItem = ({item}) => {
     const containerWidth = scaledValue(311);
@@ -318,6 +327,78 @@ const MedicalRecordHome = ({navigation}) => {
     );
   };
 
+  const FileItem = ({item}) => {
+    return (
+      <TouchableOpacity
+        onPress={() => {
+          navigation?.navigate('StackScreens', {
+            screen: 'FolderFilesList',
+            params: {
+              recordList: item,
+              folderName: item?.folderName,
+            },
+          });
+        }}
+        activeOpacity={0.7}
+        style={styles.fileItemContainer}>
+        <View
+          style={{
+            marginLeft: scaledValue(16),
+          }}>
+          <Image
+            source={getImageForFolder(item?.folderName)}
+            style={styles.fileItemImage}
+          />
+        </View>
+        {item?.petId && (
+          <Menu
+            style={[
+              styles.menuView,
+              {position: 'absolute', right: 0, top: scaledValue(5)},
+            ]}>
+            <MenuTrigger style={styles.menuTriggerView}>
+              <View style={styles.dotView}>
+                <Image source={Images.ThreeDots} style={styles.threeDot} />
+              </View>
+            </MenuTrigger>
+            <MenuOptions
+              customStyles={{
+                optionsWrapper: styles.optionsWrapper,
+                optionsContainer: styles.optionsContainer,
+              }}>
+              <MenuOption
+                style={styles.menuOption}
+                onSelect={() => {
+                  deleteMedicalFolder(item?._id);
+                }}>
+                <Image source={Images.deleteBold} style={styles.editImg} />
+                <GText
+                  GrMedium
+                  style={styles.editText}
+                  text={t('delete_folder_string')}
+                />
+              </MenuOption>
+            </MenuOptions>
+          </Menu>
+        )}
+        <View style={styles.fileItemTextContainer}>
+          <GText
+            GrMedium
+            text={item?.folderName}
+            style={styles.fileItemTitle}
+          />
+          <GText
+            SatoshiBold
+            text={`${item?.fileCount || 0} ${
+              item?.fileCount > 1 ? 'files' : 'file'
+            }`}
+            style={styles.fileItemSubtitle}
+          />
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <View style={styles.dashboardMainView}>
       <SearchBar t={t} />
@@ -339,16 +420,11 @@ const MedicalRecordHome = ({navigation}) => {
       <ScrollView>
         <View style={styles.fileListContainer}>
           <FlatList
-            data={
-              // activeTab === 'Unread Records'
-              //   ? unRead
-              //   :
-              transformDocuments(data?.entry)
-            }
+            data={transformDocuments(data?.entry)}
             ListEmptyComponent={() => {
               return (
                 <>
-                  {activeTab === 'Unread Records' && (
+                  {!loading && activeTab === 'Unread Records' && (
                     <View style={styles.emptyContainer}>
                       <Image
                         source={Images.noRecords}
@@ -421,27 +497,21 @@ const MedicalRecordHome = ({navigation}) => {
                 </>
               );
             }}
-            renderItem={
-              ({item}) => (
-                // activeTab === 'Unread Records' ? (
-                <RecordItem item={item} />
-              )
-              // ) : (
-              //   <FileItem item={item} />
-              // )
-            }
+            renderItem={({item}) => <RecordItem item={item} />}
           />
         </View>
-        <GButton
-          onPress={() =>
-            navigation?.navigate('StackScreens', {screen: 'AddNewDocument'})
-          }
-          icon={Images.PlusIcon}
-          iconStyle={styles.buttonIcon}
-          title={t('add_new_record_string')}
-          textStyle={styles.buttonText}
-          style={styles.button}
-        />
+        {!loading && (
+          <GButton
+            onPress={() =>
+              navigation?.navigate('StackScreens', {screen: 'AddNewDocument'})
+            }
+            icon={Images.PlusIcon}
+            iconStyle={styles.buttonIcon}
+            title={t('add_new_record_string')}
+            textStyle={styles.buttonText}
+            style={styles.button}
+          />
+        )}
       </ScrollView>
       <OptionMenuSheet
         refRBSheet={refRBSheet}
@@ -499,32 +569,6 @@ const getImageForFolder = folderName => {
     f => f?.title?.toLowerCase() === folderName?.toLowerCase(),
   );
   return match?.img || Images.Others; // fallback to "Others"
-};
-
-const FileItem = ({item}) => {
-  return (
-    <TouchableOpacity activeOpacity={0.7} style={styles.fileItemContainer}>
-      <View
-        style={{
-          marginLeft: scaledValue(16),
-        }}>
-        <Image
-          source={getImageForFolder(item?.folderName)}
-          style={styles.fileItemImage}
-        />
-      </View>
-      <View style={styles.fileItemTextContainer}>
-        <GText GrMedium text={item?.folderName} style={styles.fileItemTitle} />
-        <GText
-          SatoshiBold
-          text={`${item?.fileCount || 0} ${
-            item?.fileCount > 1 ? 'files' : 'file'
-          }`}
-          style={styles.fileItemSubtitle}
-        />
-      </View>
-    </TouchableOpacity>
-  );
 };
 
 export default MedicalRecordHome;

@@ -36,9 +36,11 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   petImg: {
-    width: scaledValue(95),
-    height: scaledValue(95),
-    borderRadius: scaledValue(47.5),
+    width: scaledValue(100),
+    height: scaledValue(100),
+    borderRadius: scaledValue(50),
+    borderWidth: scaledValue(1),
+    borderColor: colors.primaryBlue,
   },
   cameraView: {
     width: scaledValue(32),
@@ -84,7 +86,8 @@ export const styles = StyleSheet.create({
   statusText: val => ({
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    color: val == 'Pending' ? '#F89D4F' : '#54B492',
+    color: val == 'pending' ? '#F89D4F' : '#54B492',
+    textTransform: 'capitalize',
   }),
   arrowImg: {
     width: scaledValue(16),
@@ -101,8 +104,8 @@ export const styles = StyleSheet.create({
     borderRadius: scaledValue(28),
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: val == 'Pending' ? '#FEF3E9' : '#E6F4EF',
-    paddingHorizontal: val == 'Pending' ? scaledValue(16) : scaledValue(11),
+    backgroundColor: val == 'pending' ? '#FEF3E9' : '#E6F4EF',
+    paddingHorizontal: val == 'pending' ? scaledValue(16) : scaledValue(11),
   }),
   petImageWrapper: {
     width: scaledValue(100),
@@ -113,4 +116,14 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.primaryBlue,
   },
   statusMainView: {flexDirection: 'row', alignItems: 'center'},
+  iconStyle: {width: scaledValue(16), height: scaledValue(16)},
+  buttonStyle: {
+    gap: scaledValue(6),
+    marginTop: scaledValue(26),
+    paddingHorizontal: scaledValue(20),
+  },
+  btnView: insets => ({
+    marginTop: 'auto',
+    marginBottom: insets + scaledValue(10),
+  }),
 });

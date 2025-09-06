@@ -114,7 +114,7 @@ function MainLandingPage() {
               </div>
             </div>
             <div className="RightLanding">
-              <Image aria-hidden src="/Images/vetscreen.png" alt="vetscreen" width={887} height={565} />
+              <Image aria-hidden src="/Images/landingimg1.png" alt="landingimg1" width={884} height={600} />
             </div>
           </div>
         </Container>
@@ -138,7 +138,7 @@ function MainLandingPage() {
               </div>
             </div>
             <div className="RightLanding">
-              <Image aria-hidden src="/Images/petowner.png" alt="petowner" width={742} height={542} />
+              <Image aria-hidden src="/Images/landingimg2.png" alt="landingimg2" width={884} height={600} />
             </div>
           </div>
         </Container>
@@ -163,7 +163,7 @@ function MainLandingPage() {
               </div>
             </div>
             <div className="RightLanding">
-              <Image aria-hidden src="/Images/pricing.png" alt="pricing" width={884} height={600} />
+              <Image aria-hidden src="/Images/landingimg3.png" alt="landingimg3" width={884} height={600} />
             </div>
           </div>
         </Container>
@@ -188,7 +188,7 @@ function MainLandingPage() {
               </div>
             </div>
             <div className="RightLanding">
-              <Image aria-hidden src="/Images/developer.png" alt="developer" width={884} height={600} />
+              <Image aria-hidden src="/Images/landingimg4.png" alt="landingimg4" width={884} height={600} />
             </div>
           </div>
         </Container>

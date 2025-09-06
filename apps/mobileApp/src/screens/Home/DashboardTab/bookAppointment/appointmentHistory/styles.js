@@ -1,10 +1,10 @@
-import { StyleSheet } from 'react-native';
+import {StyleSheet} from 'react-native';
 import {
   scaledHeightValue,
   scaledValue,
 } from '../../../../../utils/design.utils';
-import { fonts } from '../../../../../utils/fonts';
-import { colors } from '../../../../../../assets/colors';
+import {fonts} from '../../../../../utils/fonts';
+import {colors} from '../../../../../../assets/colors';
 
 export const styles = StyleSheet.create({
   dashboardMainView: {
@@ -17,7 +17,8 @@ export const styles = StyleSheet.create({
     paddingLeft: scaledValue(20),
   },
   scrollView: {
-    marginTop: scaledValue(20),
+    paddingVertical: scaledValue(20),
+    maxHeight: scaledValue(70),
   },
   optionButton: {
     height: scaledValue(35),
@@ -35,7 +36,6 @@ export const styles = StyleSheet.create({
     paddingHorizontal: scaledValue(20),
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: scaledValue(32),
   },
   teamText: {
     fontSize: scaledValue(18),
@@ -60,13 +60,15 @@ export const styles = StyleSheet.create({
     alignSelf: 'center',
     borderRadius: scaledValue(20),
     // paddingTop: scaledValue(12),
-    shadowColor: '#47382726',
-    shadowOffset: { width: 1, height: 5 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+    shadowColor: '##47382714',
+    shadowOffset: {width: -0, height: -0.5},
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
     elevation: 8,
     paddingVertical: scaledValue(16),
-    marginTop: scaledValue(16),
+    // marginTop: scaledValue(16),
+
+    marginTop: scaledValue(18),
   },
   cardInnerView: {
     flexDirection: 'row',
@@ -105,6 +107,9 @@ export const styles = StyleSheet.create({
     borderRadius: scaledValue(12),
     marginHorizontal: scaledValue(12),
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: scaledValue(6),
   },
   iconStyle: {
     width: scaledValue(16),

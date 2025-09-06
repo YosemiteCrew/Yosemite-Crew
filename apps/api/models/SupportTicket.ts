@@ -24,7 +24,7 @@ const SupportTicketSchema = new Schema<ISupportTicket & Document>(
     },
     category: {
       type: String,
-      enum: ["General", "Technical", "Billing", "DSAR", "Feature Request", "Complaint"],
+      enum: ["General Enquiry", "Technical", "Billing", "Data Service Access Request", "Feature Request", "Complaint"],
       required: true,
     },
     platform: {

@@ -1,10 +1,10 @@
-import { StyleSheet } from 'react-native';
+import {StyleSheet} from 'react-native';
 import {
   scaledHeightValue,
   scaledValue,
 } from '../../../../../utils/design.utils';
-import { fonts } from '../../../../../utils/fonts';
-import { colors } from '../../../../../../assets/colors';
+import {fonts} from '../../../../../utils/fonts';
+import {colors} from '../../../../../../assets/colors';
 
 export const styles = StyleSheet.create({
   dashboardMainView: {
@@ -18,8 +18,7 @@ export const styles = StyleSheet.create({
   searchText: {
     fontSize: scaledValue(14),
     lineHeight: scaledHeightValue(16.8),
-    color: colors.jetLightBlack
-
+    color: colors.jetLightBlack,
   },
   searchIcon: {
     width: scaledValue(24),
@@ -64,7 +63,6 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(20),
     lineHeight: scaledValue(24),
     letterSpacing: scaledValue(20 * -0.01),
-
   },
   nearText: {
     fontSize: scaledValue(12),
@@ -74,9 +72,13 @@ export const styles = StyleSheet.create({
     opacity: 0.7,
   },
   imgStyle: {
-    width: scaledValue(200),
+    // width: scaledValue(200),
+    width: '100%',
     height: scaledValue(133.33),
     borderRadius: scaledValue(12),
+    borderWidth: scaledValue(0.2),
+    borderColor: colors.inputPlaceholder,
+    resizeMode: 'stretch',
   },
   nameText: {
     fontSize: scaledValue(16),
@@ -94,7 +96,6 @@ export const styles = StyleSheet.create({
   descriptionText: {
     fontSize: scaledValue(12),
     lineHeight: scaledValue(15.6),
-
     marginTop: scaledValue(6),
     opacity: 0.8,
   },
@@ -106,7 +107,6 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(16),
     lineHeight: scaledValue(18),
     color: '#090A0A',
-    marginLeft: scaledValue(4),
   },
   buttonTextStyle: {
     fontSize: scaledValue(14),
@@ -121,45 +121,41 @@ export const styles = StyleSheet.create({
     borderColor: colors.jetBlack,
     borderRadius: scaledValue(28),
     height: scaledValue(38),
-    position: 'absolute',
-    bottom: 0,
+    // position: 'absolute',
+    // bottom: 0,
     width: '92%',
     marginHorizontal: scaledValue(20),
     backgroundColor: 'transparent',
-    gap: scaledValue(4)
+    gap: scaledValue(4),
+    marginTop: scaledValue(15),
   },
   iconStyle: {
     width: scaledValue(14),
     height: scaledValue(14),
-    color: colors.jetBlack
+    color: colors.jetBlack,
   },
   innerView: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: scaledValue(4),
   },
   textView: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingTop: scaledValue(12),
-    position: 'absolute',
-    bottom: scaledValue(50),
     width: '100%',
   },
   flatListUnderView: {
-    // flexDirection: 'column',
-    width: scaledValue(200),
-    marginLeft: scaledValue(20),
+    paddingHorizontal: scaledValue(20),
   },
   containerStyle: {
-    // gap: scaledValue(20),
-    // marginLeft: scaledValue(20),
+    gap: scaledValue(30),
   },
   flatListView: {
     marginTop: scaledValue(12),
-    height: scaledValue(312),
   },
   titleView: {
-    marginTop: scaledValue(40),
+    marginTop: scaledValue(20),
     paddingHorizontal: scaledValue(20),
     flexDirection: 'row',
     alignItems: 'center',

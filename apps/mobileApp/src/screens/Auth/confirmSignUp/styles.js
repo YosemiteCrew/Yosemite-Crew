@@ -55,4 +55,37 @@ export const styles = StyleSheet.create({
     width: scaledValue(28),
     height: scaledValue(28),
   },
+  modalView: {
+    backgroundColor: colors.white,
+    paddingVertical: scaledValue(20),
+    borderRadius: scaledValue(24),
+  },
+  modalHeader: {
+    textAlign: 'center',
+    fontSize: scaledValue(23),
+    color: colors.black,
+    letterSpacing: scaledValue(23 * -0.01),
+    lineHeight: scaledValue(23 * 1.2),
+  },
+  modalContent: {
+    fontSize: scaledValue(16),
+    fontFamily: fonts.SATOSHI_REGULAR,
+    textAlign: 'center',
+    letterSpacing: scaledValue(16 * -0.02),
+    lineHeight: scaledValue(16 * 1.4),
+    marginTop: scaledValue(8),
+    paddingBottom: scaledValue(10),
+  },
+  emailText: {
+    fontFamily: fonts.SATOSHI_BOLD,
+  },
+  verificationModal: {
+    height: scaledValue(199),
+    width: scaledValue(192),
+    alignSelf: 'center',
+  },
+  greyCrossIcon: {
+    height: scaledValue(22),
+    width: scaledValue(22),
+  },
 });
