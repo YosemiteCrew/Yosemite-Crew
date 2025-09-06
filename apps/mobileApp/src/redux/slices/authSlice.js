@@ -1,28 +1,31 @@
 import {createSlice} from '@reduxjs/toolkit';
 import {makeThunk} from './thunks';
+import {updatePetList} from './petSlice';
 
 const initialState = {
   user: null,
   error: null,
   defaultLang: 'en',
   showWelcome: true,
+  onBoarding: false,
 };
 
 export const sign_up = makeThunk('auth/signup', 'auth/signup', {
   method: 'POST',
   multiPart: true,
-  onSuccess: res => showToast(res?.data?.status, res?.data?.message),
+  showToastMessage: true,
 });
 
 export const send_otp_sign_in = makeThunk('auth/sendOtp', 'auth/sendOtp', {
   method: 'POST',
   formUrl: true,
-  onSuccess: res => showToast(res?.data?.status, res?.data?.message),
+  // onSuccess: res => showToast(res?.data?.status, res?.data?.message),
 });
 
 export const sign_in = makeThunk('auth/login', 'auth/login', {
   method: 'POST',
-  onSuccess: res => showToast(res?.data?.status, res?.data?.message),
+  showToastMessage: true,
+  // onSuccess: res => showToast(res?.data?.status, res?.data?.message),
 });
 
 export const confirm_signup = makeThunk(
@@ -30,7 +33,6 @@ export const confirm_signup = makeThunk(
   'auth/confirmSignup',
   {
     method: 'POST',
-    onSuccess: res => showToast(res?.data?.status, res?.data?.message),
   },
 );
 
@@ -45,6 +47,7 @@ export const resend_otp = makeThunk(
 
 export const logout_user = makeThunk('auth/logout', 'auth/logout', {
   method: 'POST',
+  showToastMessage: false,
   onSuccess: (res, {dispatch}) => {
     if (res?.data?.status === 1) {
       dispatch(logout());
@@ -56,6 +59,23 @@ export const logout_user = makeThunk('auth/logout', 'auth/logout', {
 export const social_login = makeThunk(
   'auth/social-login',
   'auth/social-login',
+  {
+    method: 'POST',
+  },
+);
+export const edi_user_profile = makeThunk(
+  'auth/updateProfileDetail',
+  'auth/updateProfileDetail',
+  {
+    method: 'PUT',
+    multiPart: true,
+    // headers: {'Content-Type': 'application/json'},
+  },
+);
+
+export const delete_user_account = makeThunk(
+  'auth/deleteAccountWithToken',
+  'auth/deleteAccountWithToken',
   {
     method: 'POST',
   },

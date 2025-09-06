@@ -86,7 +86,7 @@ export const buildPetFHIRResource = ({
       valueString: passportNumber,
     },
     {
-      url: 'http://yourdomain.com/fhir/StructureDefinition/pet-origin',
+      url: 'http://yourdomain.com/fhir/StructureDefinition/pet-from',
       valueString: origin,
     },
     {

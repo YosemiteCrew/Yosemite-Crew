@@ -163,7 +163,7 @@ function TermsAndConditions() {
       </div>
       <div className="definitions">
         <h3 className="definitions__title">2. SCOPE </h3>
-        <p className="definitions__text"> </p>
+        {/* <p className="definitions__text"> </p> */}
 
         <ul className="definitions__list">
           <li>
@@ -2155,7 +2155,7 @@ function TermsAndConditions() {
           </p>
           <p>
             <strong>Data Protection Officer of Processor:</strong> Anna
-            Upadhyay. She can be reached at security@yosemitecrew.com.
+            Upadhyay. She can be reached at <span className="doc-link">security@yosemitecrew.com</span>.
           </p>
         </div>
       </div>

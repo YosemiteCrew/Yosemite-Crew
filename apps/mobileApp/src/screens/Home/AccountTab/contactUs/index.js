@@ -23,7 +23,8 @@ import {contact_us} from '../../../../redux/slices/petSlice';
 import {showToast} from '../../../../components/Toast';
 import {useAppDispatch} from '../../../../redux/store/storeUtils';
 import OptionMenuSheet from '../../../../components/OptionMenuSheet';
-import {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scroll-view';
+import {KeyboardAwareScrollView} from 'react-native-keyboard-controller';
+import {fonts} from '../../../../utils/fonts';
 
 const ContactUs = ({navigation}) => {
   const {t} = useTranslation();
@@ -31,8 +32,9 @@ const ContactUs = ({navigation}) => {
   const insets = useSafeAreaInsets();
   const statusBarHeight = insets.top;
   const [subject, setSubject] = useState('');
+  const [website, setWebsite] = useState('');
   const [contactOption, setContactOption] = useState('general');
-  const [selectTitle, setSelectTitle] = useState('General Enquiry');
+  const [selectTitle, setSelectTitle] = useState('General');
   const [selectedSubmitRequest, setSelectedSubmitRequest] = useState('');
   const [selectedSubmitRequestTo, setSelectedSubmitRequestTo] = useState('');
   // const [selectedConfirmTerm, setSelectedConfirmTerm] = useState('');
@@ -50,13 +52,13 @@ const ContactUs = ({navigation}) => {
   const dispatch = useAppDispatch();
 
   const options = [
-    {type: 'general', title: 'General Enquiry'},
-    {type: 'feature', title: 'Feature Request'},
-    {type: 'dsar', title: 'Data Subject Access Request'},
-    {type: 'complaint', title: 'Complaint'},
+    {type: 'general', title: 'General Enquiry', value: 'General'},
+    {type: 'feature', title: 'Feature Request', value: 'Feature Request'},
+    {type: 'dsar', title: 'Data Subject Access Request', value: 'DSAR'},
+    {type: 'complaint', title: 'Complaint', value: 'Complaint'},
   ];
 
-  const renderContactOption = (optionType, title) => (
+  const renderContactOption = (optionType, title, value) => (
     <ContactOption
       icon={
         contactOption === optionType
@@ -66,7 +68,7 @@ const ContactUs = ({navigation}) => {
       title={title}
       onPress={() => {
         setContactOption(optionType);
-        setSelectTitle(title);
+        setSelectTitle(value);
         setMessage('');
         setSubject('');
       }}
@@ -118,278 +120,324 @@ const ContactUs = ({navigation}) => {
           'Please select submitting request as/submitting request to/select one law',
         );
       } else {
-        dispatch(contact_us(contactOption == 'dsar' ? DSARinput : input)).then(
-          res => {
-            if (contact_us.fulfilled.match(res)) {
+        dispatch(
+          contact_us(
+            contactOption == 'dsar' ? {data: DSARinput} : {data: input},
+          ),
+        ).then(res => {
+          if (contact_us.fulfilled.match(res)) {
+            if (res.payload.status === 1) {
               setSubject('');
               setMessage('');
               setSelectedSubmitRequest({});
               setSelectedSubmitRequestTo({});
+              setSelectedConfirmTerms([]);
             }
-          },
-        );
+          }
+        });
       }
+    } else if (contactOption === 'complaint') {
+      const requests = [
+        {
+          question: 'You are submitting this complaint as',
+          answer: selectedSubmitRequest?.name,
+          type: 'requestAs',
+        },
+      ];
+      const input = {
+        type: selectTitle,
+        message: message,
+        requests: JSON.stringify(requests),
+        website: website,
+      };
+      dispatch(contact_us({data: input})).then(res => {
+        if (contact_us.fulfilled.match(res)) {
+          if (res.payload.status === 1) {
+            setSubject('');
+            setMessage('');
+            setSelectedSubmitRequest({});
+            setSelectedSubmitRequestTo({});
+            setSelectedConfirmTerms([]);
+            setWebsite('');
+          }
+        }
+      });
     } else {
-      dispatch(contact_us(contactOption == 'dsar' ? DSARinput : input)).then(
-        res => {
-          if (contact_us.fulfilled.match(res)) {
+      dispatch(
+        contact_us(contactOption == 'dsar' ? {data: DSARinput} : {data: input}),
+      ).then(res => {
+        if (contact_us.fulfilled.match(res)) {
+          if (res.payload.status === 1) {
             setSubject('');
             setMessage('');
             setSelectedSubmitRequest({});
             setSelectedSubmitRequestTo({});
           }
-        },
-      );
+        }
+      });
     }
   };
 
   return (
-    <KeyboardAwareScrollView
-      style={styles.dashboardMainView}
-      behavior={Platform.OS === 'ios' ? 'padding' : ''}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}>
+    <KeyboardAwareScrollView bottomOffset={50} style={styles.dashboardMainView}>
       {/* <View style={styles.dashboardMainView}> */}
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <ImageBackground
-          source={Images.ContactImg}
+      <ImageBackground
+        source={Images.ContactImg}
+        style={[
+          styles.imageBackground,
+          {
+            marginTop:
+              Platform.OS == 'android' ? scaledValue(-20) : scaledValue(14),
+          },
+        ]}>
+        <View
           style={[
-            styles.imageBackground,
+            styles.headerView,
             {
               marginTop:
-                Platform.OS == 'android' ? scaledValue(-20) : scaledValue(14),
+                Platform.OS == 'android'
+                  ? statusBarHeight + scaledValue(50)
+                  : statusBarHeight,
             },
           ]}>
-          <View
+          <TouchableOpacity
+            style={styles.headerLeft}
+            onPress={() => {
+              navigation?.goBack();
+            }}>
+            <Image
+              source={Images.arrowLeftOutline}
+              style={styles.headerIcon}
+              tintColor={colors.jetBlack}
+            />
+          </TouchableOpacity>
+          <GText GrMedium text="Contact us" style={styles.contactText} />
+          {/* <TouchableOpacity style={styles.headerRight} onPress={() => {}}>
+              <Image source={Images.bellBold} style={styles.headerIcon} />
+            </TouchableOpacity> */}
+        </View>
+      </ImageBackground>
+      <View style={styles.helpTextContainer}>
+        <GText GrMedium text="We’re happ to help" style={styles.helpText} />
+      </View>
+      <View style={styles.contactOptionMainView}>
+        {options.map(option =>
+          renderContactOption(option.type, option.title, option.value),
+        )}
+      </View>
+      {['general', 'feature']?.includes(contactOption) && (
+        <>
+          <Input
+            value={subject}
+            label={t('subject_string')}
+            onChangeText={value => setSubject(value)}
+            style={styles.inputStyle}
+          />
+          <TextInput
+            multiline={true}
+            value={message}
+            onChangeText={text => setMessage(text)}
+            placeholder={t('your_message_string')}
+            placeholderTextColor={'#aaa'}
+            style={styles.textInputStyle}
+          />
+          <GButton
+            onPress={contactUs}
+            title={'Send Message'}
             style={[
-              styles.headerView,
-              {
-                marginTop:
-                  Platform.OS == 'android'
-                    ? statusBarHeight + scaledValue(50)
-                    : statusBarHeight,
-              },
-            ]}>
+              styles.buttonStyle,
+              {marginBottom: insets.bottom || scaledValue(20)},
+            ]}
+            textStyle={styles.buttonText}
+          />
+        </>
+      )}
+      {['dsar', 'complaint']?.includes(contactOption) && (
+        <>
+          <GText
+            GrMedium
+            text="You are submitting this request as"
+            style={styles.optionTitleText}
+          />
+
+          {submitRequestList?.map((item, index) => (
             <TouchableOpacity
-              style={styles.headerLeft}
-              onPress={() => {
-                navigation?.goBack();
-              }}>
+              key={item?.id}
+              style={styles.submitRequestView(index, submitRequestList)}
+              onPress={() => setSelectedSubmitRequest(item)}>
               <Image
-                source={Images.arrowLeftOutline}
-                style={styles.headerIcon}
-                tintColor={colors.jetBlack}
+                source={
+                  selectedSubmitRequest?.id == item?.id
+                    ? Images.Circle_Radio
+                    : Images.Circle_Button
+                }
+                style={styles.radioButton}
+              />
+              <GText
+                text={item?.name}
+                style={styles.submitRequestItemName(
+                  selectedSubmitRequest?.id,
+                  item,
+                )}
               />
             </TouchableOpacity>
-            <GText GrMedium text="Contact us" style={styles.contactText} />
-            <TouchableOpacity style={styles.headerRight} onPress={() => {}}>
-              <Image source={Images.bellBold} style={styles.headerIcon} />
-            </TouchableOpacity>
-          </View>
-        </ImageBackground>
-        <View style={styles.helpTextContainer}>
-          <GText GrMedium text="We’re happ to help" style={styles.helpText} />
-        </View>
-        <View style={styles.contactOptionMainView}>
-          {options.map(option =>
-            renderContactOption(option.type, option.title),
-          )}
-        </View>
-        {['general', 'feature']?.includes(contactOption) && (
-          <>
-            <Input
-              value={subject}
-              label={t('subject_string')}
-              onChangeText={value => setSubject(value)}
-              style={styles.inputStyle}
-            />
-            <TextInput
-              multiline={true}
-              value={message}
-              onChangeText={text => setMessage(text)}
-              placeholder={t('your_message_string')}
-              placeholderTextColor={'#aaa'}
-              style={styles.textInputStyle}
-            />
-            <GButton
-              onPress={contactUs}
-              title={'Send Message'}
-              style={[
-                styles.buttonStyle,
-                {marginBottom: insets.bottom || scaledValue(20)},
-              ]}
-              textStyle={styles.buttonText}
-            />
-          </>
-        )}
-        {['dsar', 'complaint']?.includes(contactOption) && (
-          <>
-            <GText
-              GrMedium
-              text="You are submitting this request as"
-              style={styles.optionTitleText}
-            />
-
-            {submitRequestList?.map((item, index) => (
+          ))}
+          {contactOption !== 'complaint' && (
+            <>
+              <GText
+                GrMedium
+                text="Under the rights of which law are you making this request?"
+                style={styles.underRightText}
+              />
               <TouchableOpacity
-                key={item?.id}
-                style={styles.submitRequestView(index, submitRequestList)}
-                onPress={() => setSelectedSubmitRequest(item)}>
-                <Image
-                  source={
-                    selectedSubmitRequest?.id == item?.id
-                      ? Images.Circle_Radio
-                      : Images.Circle_Button
-                  }
-                  style={styles.radioButton}
-                />
+                onPress={() => {
+                  refRBSheet?.current?.open();
+                }}
+                style={styles.professionalButton}>
                 <GText
-                  text={item?.name}
-                  style={styles.submitRequestItemName(
-                    selectedSubmitRequest?.id,
-                    item,
-                  )}
+                  SatoshiRegular
+                  text={selectLaw?.title || t('select_one_string')}
+                  style={styles.professionalText}
                 />
+                <Image source={Images.ArrowDown} style={styles.arrowIcon} />
               </TouchableOpacity>
-            ))}
-            {contactOption !== 'complaint' && (
-              <>
-                <GText
-                  GrMedium
-                  text="Under the rights of which law are you making this request?"
-                  style={styles.underRightText}
-                />
+              <GText
+                GrMedium
+                text="You are submitting this request to"
+                style={styles.submittingRequestToText}
+              />
+
+              {submitRequestToList?.map((item, index) => (
                 <TouchableOpacity
-                  onPress={() => {
-                    refRBSheet?.current?.open();
-                  }}
-                  style={styles.professionalButton}>
-                  <GText
-                    SatoshiRegular
-                    text={selectLaw?.title || t('select_one_string')}
-                    style={styles.professionalText}
+                  key={item?.id}
+                  style={styles.submitRequestView(index, submitRequestToList)}
+                  onPress={() => setSelectedSubmitRequestTo(item)}>
+                  <Image
+                    source={
+                      selectedSubmitRequestTo?.id == item?.id
+                        ? Images.Circle_Radio
+                        : Images.Circle_Button
+                    }
+                    style={styles.radioButton}
                   />
-                  <Image source={Images.ArrowDown} style={styles.arrowIcon} />
+                  <GText
+                    text={item?.name}
+                    style={styles.submitRequestItemName(
+                      selectedSubmitRequestTo?.id,
+                      item,
+                    )}
+                  />
                 </TouchableOpacity>
-                <GText
-                  GrMedium
-                  text="You are submitting this request to"
-                  style={styles.submittingRequestToText}
-                />
+              ))}
+            </>
+          )}
 
-                {submitRequestToList?.map((item, index) => (
-                  <TouchableOpacity
-                    key={item?.id}
-                    style={styles.submitRequestView(index, submitRequestToList)}
-                    onPress={() => setSelectedSubmitRequestTo(item)}>
-                    <Image
-                      source={
-                        selectedSubmitRequestTo?.id == item?.id
-                          ? Images.Circle_Radio
-                          : Images.Circle_Button
-                      }
-                      style={styles.radioButton}
-                    />
-                    <GText
-                      text={item?.name}
-                      style={styles.submitRequestItemName(
-                        selectedSubmitRequestTo?.id,
-                        item,
-                      )}
-                    />
-                  </TouchableOpacity>
-                ))}
-              </>
-            )}
-
-            <GText
-              GrMedium
-              text={
-                contactOption !== 'complaint'
-                  ? 'Please leave details regarding your action request or question'
-                  : 'Please leave details regarding your complaint.'
-              }
-              style={styles.leaveDetailsText}
-            />
-            <TextInput
-              multiline={true}
-              value={message}
-              onChangeText={text => setMessage(text)}
-              placeholder={t('your_message_string')}
-              placeholderTextColor={'#aaa'}
-              style={[
-                styles.textInputStyle,
-                {marginTop: scaledValue(8), marginBottom: scaledValue(36)},
-              ]}
-            />
-            <GText
-              GrMedium
-              text={'Please add link regarding your complaint (optional)'}
-              style={[styles.leaveDetailsText, {marginTop: 0}]}
-            />
-            <TextInput
-              value={message}
-              onChangeText={text => setMessage(text)}
-              placeholder={t('your_message_string')}
-              placeholderTextColor={'#aaa'}
-              style={[
-                styles.textInputStyle,
-                {
-                  marginTop: scaledValue(8),
-                  marginBottom: scaledValue(36),
-                  height: scaledValue(43),
-                  paddingTop: scaledValue(0),
-                },
-              ]}
-            />
-            <GText
-              GrMedium
-              text="I Confirm that"
-              style={[
-                styles.leaveDetailsText,
-                {marginTop: 0, marginBottom: scaledValue(16)},
-              ]}
-            />
-            {confirmList?.map((item, index) => (
-              <TouchableOpacity
-                key={item?.id}
-                style={styles.submitRequestView(index, confirmList)}
-                onPress={() => toggleSelection(item.id)}>
-                <Image
-                  source={
-                    selectedConfirmTerms.includes(item.id)
-                      ? Images.Check_fill
-                      : Images.UnCheck
-                  }
-                  style={styles.radioButton}
-                />
-                <GText
-                  text={item?.name}
-                  style={styles.submitRequestItemName(
+          <GText
+            GrMedium
+            text={
+              contactOption !== 'complaint'
+                ? 'Please leave details regarding your action request or question'
+                : 'Please leave details regarding your complaint.'
+            }
+            style={styles.leaveDetailsText}
+          />
+          <TextInput
+            multiline={true}
+            value={message}
+            onChangeText={text => setMessage(text)}
+            placeholder={t('your_message_string')}
+            placeholderTextColor={'#aaa'}
+            style={[
+              styles.textInputStyle,
+              {marginTop: scaledValue(8), marginBottom: scaledValue(36)},
+            ]}
+          />
+          {contactOption === 'complaint' && (
+            <>
+              <GText
+                GrMedium
+                text={'Please add link regarding your complaint (optional)'}
+                style={[styles.leaveDetailsText, {marginTop: 0}]}
+              />
+              <Input
+                value={website}
+                label={'link'}
+                onChangeText={value => setWebsite(value)}
+                style={[styles.inputStyle, {marginBottom: scaledValue(36)}]}
+              />
+            </>
+          )}
+          {/* <TextInput
+            value={message}
+            onChangeText={text => setMessage(text)}
+            placeholder={t('your_message_string')}
+            placeholderTextColor={'#aaa'}
+            style={[
+              styles.textInputStyle,
+              {
+                marginTop: scaledValue(8),
+                marginBottom: scaledValue(36),
+                height: scaledValue(43),
+                paddingTop: scaledValue(0),
+              },
+            ]}
+          /> */}
+          <GText
+            GrMedium
+            text="I Confirm that"
+            style={[
+              styles.leaveDetailsText,
+              {marginTop: 0, marginBottom: scaledValue(16)},
+            ]}
+          />
+          {confirmList?.map((item, index) => (
+            <TouchableOpacity
+              key={item?.id}
+              style={styles.submitRequestView(index, confirmList)}
+              onPress={() => toggleSelection(item.id)}>
+              <Image
+                source={
+                  selectedConfirmTerms.includes(item.id)
+                    ? Images.Check_fill
+                    : Images.UnCheck
+                }
+                style={styles.radioButton}
+              />
+              <GText
+                text={item?.name}
+                style={[
+                  styles.submitRequestItemName(
                     selectedConfirmTerms.includes(item.id),
                     item,
-                  )}
-                />
-              </TouchableOpacity>
-            ))}
-            <GButton
-              disabled={selectedConfirmTerms?.length < 3}
-              onPress={contactUs}
-              title={
-                contactOption === 'complaint'
-                  ? 'Sumbit Complaint'
-                  : 'Submit Request'
-              }
-              style={[
-                styles.buttonStyle,
-                {
-                  marginTop: scaledValue(42),
-                  marginBottom: insets.bottom || scaledValue(20),
-                },
-              ]}
-            />
-          </>
-        )}
-      </ScrollView>
+                  ),
+                  {
+                    fontFamily: selectedConfirmTerms.includes(item?.id)
+                      ? fonts.SATOSHI_BOLD
+                      : fonts.SATOSHI_REGULAR,
+                  },
+                ]}
+              />
+            </TouchableOpacity>
+          ))}
+          <GButton
+            disabled={selectedConfirmTerms?.length < 3}
+            onPress={contactUs}
+            title={
+              contactOption === 'complaint'
+                ? 'Sumbit Complaint'
+                : 'Submit Request'
+            }
+            style={[
+              styles.buttonStyle,
+              {
+                marginTop: scaledValue(42),
+                marginBottom: insets.bottom || scaledValue(20),
+              },
+            ]}
+          />
+        </>
+      )}
+
       <OptionMenuSheet
         refRBSheet={refRBSheet}
         title={'Select Law'}
@@ -472,12 +520,42 @@ const confirmList = [
 const lawsList = [
   {
     id: 0,
-    title: 'Personal laws',
+    title: 'Brazil’s General Data Protection Law (LGPD)',
     textColor: '#3E3E3E',
   },
   {
     id: 1,
-    title: 'Labour',
+    title: 'California Consumer Privacy Act (CCPA)',
+    textColor: '#3E3E3E',
+  },
+  {
+    id: 2,
+    title: 'Colorado Privacy Act (CPA)',
+    textColor: '#3E3E3E',
+  },
+  {
+    id: 3,
+    title: 'Connecticut Data Privacy Act (CTDPA)',
+    textColor: '#3E3E3E',
+  },
+  {
+    id: 4,
+    title: 'Oregon Consumer Privacy Act (OCPA)',
+    textColor: '#3E3E3E',
+  },
+  {
+    id: 5,
+    title: 'South Africa’s Protection of Personal Information Act (POPIA)',
+    textColor: '#3E3E3E',
+  },
+  {
+    id: 6,
+    title: 'Utah Consumer Privacy Act (UCPA)',
+    textColor: '#3E3E3E',
+  },
+  {
+    id: 7,
+    title: 'Virginia Consumer Data Protection Act (VCDPA)',
     textColor: '#3E3E3E',
   },
 ];

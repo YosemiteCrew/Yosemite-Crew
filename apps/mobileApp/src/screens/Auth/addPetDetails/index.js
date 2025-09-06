@@ -26,30 +26,30 @@ import dogBreedList from '../../../../assets/dogBreedList.json';
 import ChoosePetBreed from '../../../components/PetBreed';
 import {KeyboardAwareScrollView} from 'react-native-keyboard-controller';
 import GImage from '../../../components/GImage';
+import {showToast} from '../../../components/Toast';
 
 const AddPetDetails = ({navigation, route}) => {
   const {t} = useTranslation();
-  const {choosePetData, petDetails} = route?.params;
+  const {choosePetData} = route?.params;
+  console.log('choosePetDatachoosePetData', JSON.stringify(choosePetData));
 
   const refRBSheet = useRef();
   const [formValue, setFormValue] = useState({
-    name: petDetails?.name,
-    dob: petDetails?.birthDate,
-    gender: petDetails?.gender,
-    weight: petDetails?.petCurrentWeight,
-    color: petDetails?.petColor,
-    pet_breed: petDetails?.breed,
-    neutered: petDetails?.isNeutered === true ? 'Neutered' : 'No Neutered',
-    neutered_age: petDetails?.ageWhenNeutered,
+    name: '',
+    dob: '',
+    gender: '',
+    weight: '',
+    color: '',
+    pet_breed: '',
+    neutered: 'No Neutered',
+    neutered_age: '',
   });
   const [date, setDate] = useState('');
   const [image, setImage] = useState();
   const [apiCallImage, setApiCallImage] = useState();
   const [open, setOpen] = useState(false);
-  const [selectedId, setSelectedId] = useState(petDetails?.gender);
-  const [select, setSelect] = useState(
-    petDetails?.isNeutered === true ? 'Yes' : 'No',
-  );
+  const [selectedId, setSelectedId] = useState('');
+  const [select, setSelect] = useState();
   const [selectPetBreed, setSelectPetBreed] = useState('');
 
   useEffect(() => {
@@ -144,24 +144,7 @@ const AddPetDetails = ({navigation, route}) => {
     <KeyboardAwareScrollView bottomOffset={20} style={styles.container}>
       <TouchableOpacity
         onPress={handleImagePicker}
-        style={styles.profileImageContainer(image || petDetails?.petImages)}>
-        {/* <GImage
-          image={
-            petDetails?.petImages
-              ? petDetails?.petImages
-              : image
-              ? {uri: image}
-              : Images.importProfile
-          }
-          directUrl={image && true}
-          style={styles.profileImage}
-        /> */}
-        {/* <GImage
-          directUrl={image && true}
-          defaultImage={Images.importProfile}
-          image={petDetails?.petImages ?? {uri: image} ?? Images.importProfile}
-          style={styles.profileImage}
-        /> */}
+        style={styles.profileImageContainer(image)}>
         <Image
           source={image ? {uri: image} : Images.importProfile}
           style={styles.profileImage}
@@ -188,16 +171,10 @@ const AddPetDetails = ({navigation, route}) => {
 
         <TouchableOpacity
           onPress={() => setOpen(true)}
-          style={[styles.datePickerContainer(date || petDetails?.birthDate)]}>
+          style={[styles.datePickerContainer(date)]}>
           <GText
-            text={
-              petDetails?.birthDate
-                ? petDetails?.birthDate
-                : date
-                ? formatDate(date)
-                : t('dob_string')
-            }
-            style={[styles.dateText(date || petDetails?.birthDate)]}
+            text={date ? formatDate(date) : t('dob_string')}
+            style={[styles.dateText(date)]}
           />
           <Image source={Images.Calender} style={styles.dateIcon} />
         </TouchableOpacity>
@@ -265,7 +242,22 @@ const AddPetDetails = ({navigation, route}) => {
         )}
 
         <GButton
-          onPress={handleConfirm}
+          onPress={() => {
+            if (
+              !formValue?.name ||
+              !formValue?.pet_breed ||
+              !formValue?.dob ||
+              !formValue?.gender ||
+              !formValue?.weight ||
+              !formValue?.color
+            ) {
+              showToast(0, 'Please fill all the details.');
+            } else if (!apiCallImage) {
+              showToast(0, 'Please select an image for your companion.');
+            } else {
+              handleConfirm();
+            }
+          }}
           title={t('confirm_button_string')}
           style={styles.createButton}
         />

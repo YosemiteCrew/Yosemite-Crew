@@ -1,7 +1,7 @@
-import { StyleSheet } from 'react-native';
-import { scaledHeightValue, scaledValue } from '../../../utils/design.utils';
-import { fonts } from '../../../utils/fonts';
-import { colors } from '../../../../assets/colors';
+import {StyleSheet} from 'react-native';
+import {scaledHeightValue, scaledValue} from '../../../utils/design.utils';
+import {fonts} from '../../../utils/fonts';
+import {colors} from '../../../../assets/colors';
 
 export const styles = StyleSheet.create({
   container: {
@@ -44,7 +44,6 @@ export const styles = StyleSheet.create({
     fontSize: scaledValue(23),
     lineHeight: scaledHeightValue(27.6),
     letterSpacing: scaledValue(23 * -0.01),
-
   },
   breed: {
     textAlign: 'center',
@@ -91,7 +90,7 @@ export const styles = StyleSheet.create({
     marginTop: scaledValue(41),
   },
 
-  cityMainView: { flexDirection: 'row', gap: scaledValue(16) },
+  cityMainView: {flexDirection: 'row', gap: scaledValue(16)},
   cityText: {
     fontSize: scaledValue(16),
     lineHeight: scaledHeightValue(16),
@@ -175,7 +174,7 @@ export const styles = StyleSheet.create({
   lineSeparator: {
     width: scaledValue(32),
     borderWidth: scaledValue(0.5),
-    border,
+    borderColor: colors.darkPurple,
   },
   orText: {
     fontSize: scaledValue(16),
@@ -232,11 +231,11 @@ export const styles = StyleSheet.create({
     marginTop: scaledValue(18),
     alignSelf: 'center',
   },
-  petImg: {
-    width: scaledValue(95),
-    height: scaledValue(95),
-    borderRadius: scaledValue(47.5),
-  },
+  // petImg: {
+  //   width: scaledValue(95),
+  //   height: scaledValue(95),
+  //   borderRadius: scaledValue(47.5),
+  // },
   input: {
     width: '100%',
     backgroundColor: 'transparent',
@@ -253,5 +252,28 @@ export const styles = StyleSheet.create({
   },
   buttonStyle: {
     gap: scaledValue(8),
+  },
+  petImg: {
+    width: scaledValue(100),
+    height: scaledValue(100),
+    borderRadius: scaledValue(50),
+    borderWidth: scaledValue(1),
+    borderColor: colors.primaryBlue,
+    alignSelf: 'center',
+  },
+  petName: {
+    textAlign: 'center',
+    marginTop: scaledValue(8),
+    fontSize: scaledValue(23),
+    lineHeight: scaledHeightValue(27.6),
+    letterSpacing: scaledValue(23 * -0.01),
+  },
+  breed: {
+    textAlign: 'center',
+    fontSize: scaledValue(14),
+    lineHeight: scaledHeightValue(16.8),
+
+    marginTop: scaledValue(2),
+    opacity: 0.7,
   },
 });
