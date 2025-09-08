@@ -38,9 +38,11 @@ const publicNavItems: NavItem[] = [
 
 const Header = () => {
   const isVerified = useAuthStore((state) => state.isVerified);
+  const isLoggedIn = isVerified !== null;
+
   return (
     <header className="header">
-      {isVerified ? (
+      {isLoggedIn ? (
         <LoggedInHeader />
       ) : (
         <PublicHeader isVerified={isVerified} />
