@@ -1,5 +1,5 @@
 "use client";
-import React, {useState, ReactNode, FormEvent } from "react";
+import React, { useState, ReactNode, FormEvent } from "react";
 import Footer from "@/app/Components/Footer/Footer";
 import "./HomePage.css";
 import { Container } from "react-bootstrap";
@@ -10,10 +10,9 @@ import { MdOutlineAccessTimeFilled } from "react-icons/md";
 import Header from "@/app/Components/Header/Header";
 
 function HomePage() {
-   const [isLoggedIn] = useState(false);
+  const [isLoggedIn] = useState(false);
   return (
     <>
-     
       <section className="HomeHeroSection">
         <Container>
           <div className="HeroData">
@@ -30,10 +29,11 @@ function HomePage() {
                   <p>
                     <Image
                       aria-hidden
-                      src="/Images/petfoot.png"
+                      src="/Images/petfootblue.png"
                       alt="petfoot"
                       width={20}
                       height={20}
+                      color=""
                     />{" "}
                     Open source, cloud-based system
                   </p>
@@ -42,7 +42,7 @@ function HomePage() {
                   <p>
                     <Image
                       aria-hidden
-                      src="/Images/petfoot.png"
+                      src="/Images/petfootblue.png"
                       alt="petfoot"
                       width={20}
                       height={20}
@@ -54,7 +54,7 @@ function HomePage() {
                   <p>
                     <Image
                       aria-hidden
-                      src="/Images/petfoot.png"
+                      src="/Images/petfootblue.png"
                       alt="petfoot"
                       width={20}
                       height={20}
@@ -66,7 +66,7 @@ function HomePage() {
                   <p>
                     <Image
                       aria-hidden
-                      src="/Images/petfoot.png"
+                      src="/Images/petfootblue.png"
                       alt="petfoot"
                       width={20}
                       height={20}
@@ -77,7 +77,11 @@ function HomePage() {
               </div>
 
               <div className="HeroBtn">
-                <FillBtn icon={<IoIosFlash />} text=" Get Started" href='/signup' />
+                <FillBtn
+                  icon={<IoIosFlash />}
+                  text=" Get Started"
+                  href="/signup"
+                />
                 <UnFillBtn
                   icon={<MdOutlineAccessTimeFilled />}
                   text="Book a Demo"
@@ -129,7 +133,7 @@ function HomePage() {
                 Bpimg="/Images/pract4.png"
                 BpTxt1="Billing &"
                 BpTxt2="Payments"
-                BpPara=""
+                BpPara="Generate invoices, process payments, and track financials with ease."
               />
               <BoxPract
                 Bpimg="/Images/pract5.png"
@@ -180,7 +184,7 @@ function HomePage() {
               <FocusCard
                 Focimg="/Images/focus2.png"
                 focname="Own Your Software"
-                focpara="With Yosemite Crew’s GPL license, you own the software—SaaS simplicity with Open Source freedom and no vendor lock-in."
+                focpara="With Yosemite Crew’s GPL license, you own the software, SaaS simplicity with Open Source freedom and no vendor lock-in."
               />
               <FocusCard
                 Focimg="/Images/focus3.png"
@@ -195,14 +199,14 @@ function HomePage() {
               <FocusCard
                 Focimg="/Images/focus5.png"
                 focname="Scalable"
-                focpara="Grow with confidence – whether you're a small clinic or a multi-location practice, our software evolves with your needs."
+                focpara="Grow with confidence, whether you're a small clinic or a multi-location practice, our software evolves with your needs."
               />
             </div>
           </div>
         </Container>
       </section>
 
-      <section className="TrustExpertSec">
+      {/* <section className="TrustExpertSec">
         <Container>
           <div className="ExptMaindata">
             <div className="ExprtTexted">
@@ -285,7 +289,7 @@ function HomePage() {
             </div>
           </div>
         </Container>
-      </section>
+      </section> */}
 
       <section className="WhoCareSection">
         <Container>
@@ -317,7 +321,7 @@ function HomePage() {
                   width={115}
                   height={114}
                 />
-                
+
                 <Image
                   aria-hidden
                   src="/Images/cllog3.png"
@@ -344,7 +348,9 @@ function HomePage() {
             <div className="lftbetter">
               <div className="betInner">
                 <div className="careText">
-                  <h2>Better Care is just a <br /> click away</h2>
+                  <h2>
+                    Better Care is just a <br /> click away
+                  </h2>
                   <p>
                     Join hundreds of veterinary clinics already enhancing
                     patient care and streamlining their workflow.
@@ -354,7 +360,13 @@ function HomePage() {
               </div>
             </div>
             <div className="lftbetter">
-              <Image aria-hidden src={`${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/Homepage/betterimg.png`} alt="betterimg" width={507} height={433} />
+              <Image
+                aria-hidden
+                src={`${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/Homepage/betterimg.png`}
+                alt="betterimg"
+                width={507}
+                height={433}
+              />
             </div>
           </div>
         </Container>
@@ -385,7 +397,7 @@ export function FillBtn({ icon, text, onClick, href, style }: ButtonProps) {
       onClick={(e) => {
         if (onClick) {
           e.preventDefault(); // ✅ stops immediate navigation
-          onClick(e);         // ✅ trigger your handler
+          onClick(e); // ✅ trigger your handler
         }
       }}
       style={style}
@@ -394,7 +406,7 @@ export function FillBtn({ icon, text, onClick, href, style }: ButtonProps) {
     </Link>
   );
 }
-export function UnFillBtn({ icon, text,href,onClick, style }: ButtonProps) {
+export function UnFillBtn({ icon, text, href, onClick, style }: ButtonProps) {
   return (
     <Link className="UnFillbtn" href={href} onClick={onClick} style={style}>
       {icon} {text}
