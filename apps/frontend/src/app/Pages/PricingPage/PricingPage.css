@@ -214,7 +214,7 @@
     border-bottom: 1px solid transparent;  
 }
 .hosting-table-wrapper .hosting-table tbody tr td{
-    height: 50px;
+    height: 70px;
     font-family: var(--satoshi-font);
     color: var(--black-text);
     font-weight: 700;
@@ -342,6 +342,9 @@
 .CalculatorTabDiv .PricingPlan .planbtn.active{
     border: 2px solid var(--blue-text);
 }
+.CalculatorTabDiv .PricingPlan input[type="radio"] {
+  display: none;
+}
 .CalculatorTabDiv .PricingPlan .planbtn .planText{
     display: flex;
     align-items: center;
@@ -377,6 +380,7 @@
     display: flex;
     flex-direction: column;
     gap: 37px;
+    justify-content: space-between;
     padding: 10px 0px;
 }
 .PricingInfoDiv .leftPriceInfo .pricingscrolldiv{
