@@ -27,11 +27,11 @@ interface NavItem {
 
 const publicNavItems: NavItem[] = [
   { label: "Home", href: "/" },
-  { label: "About Us", href: "/about_us" },
   { label: "PMS", href: "/homepage" },
   { label: "Developers", href: "/developerlanding" },
-  { label: "Pricing", href: "/pricing" },
   { label: "Resources", href: "/resources" },
+  { label: "About Us", href: "/about_us" },
+  { label: "Pricing", href: "/pricing" },
   { label: "Contact Us", href: "/contact_us" },
   { label: "Blog", href: "/blogpage" },
 ];
@@ -43,9 +43,9 @@ const Header = () => {
   return (
     <header className="header">
       {isLoggedIn ? (
-        <LoggedInHeader />
+        <LoggedInHeader isVerified={isVerified} />
       ) : (
-        <PublicHeader isVerified={isVerified} />
+        <PublicHeader />
       )}
     </header>
   );
@@ -56,7 +56,10 @@ export default Header;
 // -------------------------
 // ✅ LOGGED IN HEADER
 // -------------------------
-const LoggedInHeader = () => {
+interface PrivateHeaderProps {
+  isVerified: number | null;
+}
+const LoggedInHeader: React.FC<PrivateHeaderProps> = ({ isVerified }) => {
   const { profile, vetAndTeamsProfile, userType } = useAuthStore();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -67,7 +70,7 @@ const LoggedInHeader = () => {
     []
   );
   const clinicNavItems: NavItem[] = [
-    { label: "Home", href: "/" },
+    // { label: "Home", href: "/" },
     { label: "Dashboard", href: getDashboardRoute() },
     {
       label: "Clinic",
@@ -95,16 +98,19 @@ const LoggedInHeader = () => {
         { label: "Revenue Reporting", href: "/RevenueManagement" },
         { label: "Billing", href: "#" },
         { label: "Client Statements", href: "#" },
+        { label: "Coupons", href: "#" },
+        { label: "Payment Methods", href: "#" },
+        { label: "Procedure Estimates", href: "/ProcedureEstimate" },
 
         // 👇 Conditional items
-        ...(userType === "veterinaryBusiness"
-          ? [
-              { label: "Coupons", href: "#" },
-              { label: "Payment Methods", href: "#" },
-              { label: "Procedure Estimates", href: "/ProcedureEstimate" },
-              { label: "Pricing Page", href: "/pricing" },
-            ]
-          : []),
+        // ...(userType === "veterinaryBusiness"
+        //   ? [
+        //       { label: "Coupons", href: "#" },
+        //       { label: "Payment Methods", href: "#" },
+        //       { label: "Procedure Estimates", href: "/ProcedureEstimate" },
+        //       { label: "Pricing Page", href: "/pricing" },
+        //     ]
+        //   : []),
       ],
     },
     {
@@ -236,7 +242,7 @@ const LoggedInHeader = () => {
       </Link>
 
       <nav className={classNames("navmenu", { open: mobileOpen })}>
-        {renderNavItems(clinicNavItems)}
+        {isVerified && renderNavItems(clinicNavItems)}
         <button
           className="mobile-nav-toggle d-xl-none"
           onClick={() => setMobileOpen(!mobileOpen)}
@@ -289,13 +295,10 @@ const LoggedInHeader = () => {
     </div>
   );
 };
-interface PublicHeaderProps {
-  isVerified: number | null;
-}
 // -------------------------
 // ✅ PUBLIC HEADER
 // -------------------------
-const PublicHeader: React.FC<PublicHeaderProps> = ({ isVerified }) => {
+const PublicHeader = () => {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const logoUrl = process.env.NEXT_PUBLIC_BASE_IMAGE_URL
@@ -333,15 +336,11 @@ const PublicHeader: React.FC<PublicHeaderProps> = ({ isVerified }) => {
         </button>
       </nav>
 
-      {pathname !== "/signup" &&
-        pathname !== "/emptydashboard" &&
-        pathname !== "/signin" &&
-        isVerified == null && (
-          <Link href="/signup" className="HeaderSign">
-            <Icon icon="carbon:checkmark-filled" width="20" height="20" /> Sign
-            Up
-          </Link>
-        )}
+      {pathname !== "/signup" && pathname !== "/signin" && (
+        <Link href="/signup" className="HeaderSign">
+          <Icon icon="carbon:checkmark-filled" width="20" height="20" /> Sign Up
+        </Link>
+      )}
     </div>
   );
 };
