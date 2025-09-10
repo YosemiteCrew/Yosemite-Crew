@@ -281,7 +281,7 @@ a.UnFillbtn {
 .TrustExpertData::after {
   position: absolute;
   content: " ";
-  background: url(/Images/TrustAfter.png);
+  background: url("https://d2il6osz49gpup.cloudfront.net/Images/TrustAfter.png");
   background-size: 100% 100%;
   height: 300px;
   width: 300px;

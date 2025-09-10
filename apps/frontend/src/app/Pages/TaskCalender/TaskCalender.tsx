@@ -295,7 +295,7 @@ const TaskCalendar: React.FC = () => {
                               >
                                 <Card.Body className="TeamCardDiv">
                                   <div className="member-avatar">
-                                    <Image src="/Images/Explr3.jpg" alt='dr' width={40} height={40}/>
+                                    <Image src="https://d2il6osz49gpup.cloudfront.net/Images/Explr3.jpg" alt='dr' width={40} height={40}/>
                                   </div>
                                   <div className="member-info">
                                     <h6 className="member-name">{member.name}</h6>

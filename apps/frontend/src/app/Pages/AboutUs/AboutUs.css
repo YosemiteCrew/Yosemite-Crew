@@ -2,7 +2,7 @@
 
 .AboutHeroSec{
     padding: 80px 0px;
-    background: url(/Images/aboutbg.png)no-repeat;
+    background: url("https://d2il6osz49gpup.cloudfront.net/Images/aboutbg.png")no-repeat;
     background-size: 100% 100%;
     min-height: 100vh;
 }
@@ -138,7 +138,7 @@
     right: 0;
     width: 414px;
     height: 414px;
-    background: url(/Images/storybefore.png) no-repeat;
+    background: url("https://d2il6osz49gpup.cloudfront.net/Images/storybefore.png") no-repeat;
     background-size: 100% 100%;
     z-index: -1;
 }
