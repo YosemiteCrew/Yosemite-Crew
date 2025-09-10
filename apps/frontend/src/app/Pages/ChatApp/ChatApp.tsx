@@ -30,14 +30,14 @@ const petUnread: ChatUser[] = [
   {
     name: "Emily Foster",
     preview: "Can I reschedule Oscar’s vaccination to next week?",
-    avatar: "/Images/user1.png",
+    avatar: "https://d2il6osz49gpup.cloudfront.net/Images/user1.png",
     time: "10m",
     unread: true,
   },
   {
     name: "Henry Scott",
     preview: "I think my cat might have a fever. What should I do?",
-    avatar: "/Images/user2.png",
+    avatar: "https://d2il6osz49gpup.cloudfront.net/Images/user2.png",
     time: "30m",
     unread: true,
   },
@@ -47,13 +47,13 @@ const petOld: ChatUser[] = [
   {
     name: "Sky B",
     preview: "No injuries, but we did go on a couple of long hikes...",
-    avatar: "/Images/user3.png",
+    avatar: "https://d2il6osz49gpup.cloudfront.net/Images/user3.png",
     time: "6h",
   },
   {
     name: "Adam Price",
     preview: "Could you please share the medical report for Bruno?",
-    avatar: "/Images/user4.png",
+    avatar: "https://d2il6osz49gpup.cloudfront.net/Images/user4.png",
     time: "1d",
   },
 ];
@@ -62,14 +62,14 @@ const teamUnread: ChatUser[] = [
   {
     name: "Dr. Emily Foster",
     preview: "Please confirm the schedule for the surgeries tomorrow.",
-    avatar: "/Images/doc1.png",
+    avatar: "https://d2il6osz49gpup.cloudfront.net/Images/doc1.png",
     time: "10m",
     unread: true,
   },
   {
     name: "Dr. Henry Scott",
     preview: "Can you check if the test results for Max’s bloodwork...",
-    avatar: "/Images/doc2.png",
+    avatar: "https://d2il6osz49gpup.cloudfront.net/Images/doc2.png",
     time: "30m",
     unread: true,
   },
@@ -79,19 +79,19 @@ const teamOld: ChatUser[] = [
   {
     name: "Dr. Patrick Henry",
     preview: "The X-ray machine in Room 3 is malfunctioning again...",
-    avatar: "/Images/doc3.png",
+    avatar: "https://d2il6osz49gpup.cloudfront.net/Images/doc3.png",
     time: "6h",
   },
   {
     name: "Dr. Adam Price",
     preview: "The supply of anesthetics is running low...",
-    avatar: "/Images/doc4.png",
+    avatar: "https://d2il6osz49gpup.cloudfront.net/Images/doc4.png",
     time: "1d",
   },
   {
     name: "Dr. Sarah Thompson",
     preview: "Just a heads-up: I’ll be late for the 2...",
-    avatar: "/Images/doc5.png",
+    avatar: "https://d2il6osz49gpup.cloudfront.net/Images/doc5.png",
     time: "2d",
   },
 ];
@@ -203,7 +203,7 @@ const ChatApp: React.FC = () => {
             <Col md={9} className="chat-window">
               <div className="chat-header-top d-flex justify-content-between align-items-center">
                 <div className="d-flex align-items-center">
-                  <Image alt="Test" src="/Images/doctor.png" className="avatar" width={150} height={150} />
+                  <Image alt="Test" src="https://d2il6osz49gpup.cloudfront.net/Images/doctor.png" className="avatar" width={150} height={150} />
                   <strong className="ms-2">
                     {isTeamChat ? "Dr. Patrick Henry" : "Sky B"}
                   </strong>

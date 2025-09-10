@@ -173,7 +173,7 @@ function PricingPage() {
                         <p key={i}>
                           {item}{" "}
                           <Image
-                            src={`${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/ftcheck.png`}
+                            src={`https://d2il6osz49gpup.cloudfront.net/ftcheck.png`}
                             alt="ftcheck"
                             width={24}
                             height={24}

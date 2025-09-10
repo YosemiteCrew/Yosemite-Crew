@@ -45,7 +45,7 @@ const notifications = [
   {
     type: "Assessments",
     icon: <FaUserMd />,
-    avatar: "/Images/doc1.png",
+    avatar: "https://d2il6osz49gpup.cloudfront.net/Images/doc1.png",
     title: "Send Assessment",
     desc: "Dr. A R Williams has assigned Feline grimace scale to Patient id #12389056",
     time: "02 mins ago",
@@ -53,7 +53,7 @@ const notifications = [
   },
   {
     type: "Appointment",
-    avatar: "/Images/pet.jpg",
+    avatar: "https://d2il6osz49gpup.cloudfront.net/Images/pet.jpg",
     title: "Appointment Booked",
     desc: "Kizie's parents has booked an Appointment for 24th May 2025",
     time: "08 mins ago",
@@ -62,7 +62,7 @@ const notifications = [
   {
     type: "Chat",
     icon: <FaComments />,
-    avatar: "/Images/pet.jpg",
+    avatar: "https://d2il6osz49gpup.cloudfront.net/Images/pet.jpg",
     title: "New Chat Request",
     desc: "Oscar's parents wants to connect on chat",
     time: "12 mins ago",
@@ -70,7 +70,7 @@ const notifications = [
   },
   {
     type: "Assessments",
-    avatar: "/Images/pet.jpg",
+    avatar: "https://d2il6osz49gpup.cloudfront.net/Images/pet.jpg",
     title: "Assistance Requested",
     desc: "Dr. A S Williams has assigned you for Pre assessment of Patient ID: DB3952R42",
     time: "12 mins ago",
@@ -79,7 +79,7 @@ const notifications = [
   {
     type: "Alert",
     icon: <FaBell />,
-    avatar: "/Images/doc1.png",
+    avatar: "https://d2il6osz49gpup.cloudfront.net/Images/doc1.png",
     title: "Send Report",
     desc: "Send Assessment Report to Dr. William Smith",
     time: "25 mins ago",

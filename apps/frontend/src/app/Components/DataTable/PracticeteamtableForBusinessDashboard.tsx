@@ -29,7 +29,7 @@ const columns = [
     width: "60px",
     render: (item: Practitioner) => (
       <Image
-        src={item.image || "/Images/default-avatar.png"}
+        src={item.image || "https://d2il6osz49gpup.cloudfront.net/Images/default-avatar.png"}
         alt={item.name}
         width={40}
         height={40}

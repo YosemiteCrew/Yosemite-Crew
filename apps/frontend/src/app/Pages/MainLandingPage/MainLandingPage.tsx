@@ -15,19 +15,19 @@ import { FillBtn, UnFillBtn } from '../HomePage/HomePage'
   const slidesData = [
     {
       id: 1,
-      image: "/Images/landingbg1.jpg",
+      image: "https://d2il6osz49gpup.cloudfront.net/Images/landingbg1.jpg",
       alt: "Vet 1",
       text: "Empowering veterinary businesses to grow efficiently.",
     },
     {
       id: 2,
-      image: "/Images/landingbg2.jpg",
+      image: "https://d2il6osz49gpup.cloudfront.net/Images/landingbg2.jpg",
       alt: "Vet 2",
       text: "Simplifying pet health management for owners.",
     },
     {
       id: 3,
-      image: "/Images/landingbg3.jpg",
+      image: "https://d2il6osz49gpup.cloudfront.net/Images/landingbg3.jpg",
       alt: "Vet 3",
       text: "Creating opportunities for developers to innovate.",
     },
@@ -114,7 +114,7 @@ function MainLandingPage() {
               </div>
             </div>
             <div className="RightLanding">
-              <Image aria-hidden src="/Images/landingimg1.png" alt="landingimg1" width={884} height={600} />
+              <Image aria-hidden src="https://d2il6osz49gpup.cloudfront.net/Images/landingimg1.png" alt="landingimg1" width={884} height={600} />
             </div>
           </div>
         </Container>
@@ -138,7 +138,7 @@ function MainLandingPage() {
               </div>
             </div>
             <div className="RightLanding">
-              <Image aria-hidden src="/Images/landingimg2.png" alt="landingimg2" width={884} height={600} />
+              <Image aria-hidden src="https://d2il6osz49gpup.cloudfront.net/Images/landingimg2.png" alt="landingimg2" width={884} height={600} />
             </div>
           </div>
         </Container>
@@ -163,7 +163,7 @@ function MainLandingPage() {
               </div>
             </div>
             <div className="RightLanding">
-              <Image aria-hidden src="/Images/landingimg3.png" alt="landingimg3" width={884} height={600} />
+              <Image aria-hidden src="https://d2il6osz49gpup.cloudfront.net/Images/landingimg3.png" alt="landingimg3" width={884} height={600} />
             </div>
           </div>
         </Container>
@@ -188,7 +188,7 @@ function MainLandingPage() {
               </div>
             </div>
             <div className="RightLanding">
-              <Image aria-hidden src="/Images/landingimg4.png" alt="landingimg4" width={884} height={600} />
+              <Image aria-hidden src="https://d2il6osz49gpup.cloudfront.net/Images/landingimg4.png" alt="landingimg4" width={884} height={600} />
             </div>
           </div>
         </Container>

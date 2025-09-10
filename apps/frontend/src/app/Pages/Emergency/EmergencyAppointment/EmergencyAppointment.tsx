@@ -140,7 +140,7 @@ function EmergencyAppointment() {
     {
       name: "Buddy",
       owner: "John Doe",
-      image: "/Images/default-pet.png",
+      image: "https://d2il6osz49gpup.cloudfront.net/Images/default-pet.png",
       reason: "Injury",
       breed: "Golden Retriever",
       pet: "Dog",
@@ -153,7 +153,7 @@ function EmergencyAppointment() {
     {
       name: "Luna",
       owner: "Jane Smith",
-      image: "/Images/default-pet.png",
+      image: "https://d2il6osz49gpup.cloudfront.net/Images/default-pet.png",
       reason: "Seizure",
       breed: "Persian",
       pet: "Cat",
