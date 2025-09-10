@@ -8,11 +8,11 @@ import Image from 'next/image';
 function TeamSlide() {
 
     const teamImages = [
-        { src: "/Images/team1.png", alt: "Surbhi" },
-        { src: "/Images/team2.png", alt: "Ankit" },
-        { src: "/Images/team3.png", alt: "Panvi" },
-        { src: "/Images/team4.png", alt: "Anna" },
-        { src: "/Images/team5.png", alt: "Suryansh" },
+        { src: "https://d2il6osz49gpup.cloudfront.net/Images/team1.png", alt: "Surbhi" },
+        { src: "https://d2il6osz49gpup.cloudfront.net/Images/team2.png", alt: "Ankit" },
+        { src: "https://d2il6osz49gpup.cloudfront.net/Images/team3.png", alt: "Panvi" },
+        { src: "https://d2il6osz49gpup.cloudfront.net/Images/team4.png", alt: "Anna" },
+        { src: "https://d2il6osz49gpup.cloudfront.net/Images/team5.png", alt: "Suryansh" },
     ];
 
     const settings = {

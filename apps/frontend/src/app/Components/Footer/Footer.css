@@ -7,7 +7,7 @@
     position: absolute;
     content: " ";
     /* background: var(--background-image)no-repeat; */
-    background:url(/Images/ftafter.png) no-repeat;
+    background:url("https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png") no-repeat;
     background-size: 100% 100%;
     width: 80px;
     height: 80px;

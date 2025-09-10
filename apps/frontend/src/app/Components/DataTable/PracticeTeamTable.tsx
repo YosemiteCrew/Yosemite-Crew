@@ -22,7 +22,7 @@ type Appointment = {
 
 const data: Appointment[] = [
   {
-    avatar: "/Images/pet1.png",
+    avatar: "https://d2il6osz49gpup.cloudfront.net/Images/pet1.png",
     name: "Kizie",
     subName: "Sky B",
     appointmentId: "DRO01-03-23-2024",
@@ -35,7 +35,7 @@ const data: Appointment[] = [
     doctorDept: "Cardiology",
   },
   {
-    avatar: "/Images/pet2.png",
+    avatar: "https://d2il6osz49gpup.cloudfront.net/Images/pet2.png",
     name: "Oscar",
     subName: "Pika K",
     appointmentId: "DRO02-03-23-2024",
@@ -48,7 +48,7 @@ const data: Appointment[] = [
     doctorDept: "Gastroenterology",
   },
   {
-    avatar: "/Images/pet3.png",
+    avatar: "https://d2il6osz49gpup.cloudfront.net/Images/pet3.png",
     name: "King",
     subName: "Henry C",
     appointmentId: "DRO03-03-23-2024",

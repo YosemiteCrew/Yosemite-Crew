@@ -141,10 +141,10 @@ function AdminDashboardEmpty() {
 
             <div>
               <Row>
-                <Col md={3}><StatCard icon="/Images/stact2.png" title="Staff on-duty" value={122} /></Col>
-                <Col md={3}><StatCard icon="/Images/stact1.png" title="Appointments (Today)" value={158} /></Col>
-                <Col md={3}><StatCard icon="/Images/stact3.png" title="Inventory Out-of-Stock" value={45} /></Col>
-                <Col md={3}><StatCard icon="/Images/stact4.png" title="Revenue (Today)" value="$7,298" /></Col>
+                <Col md={3}><StatCard icon="https://d2il6osz49gpup.cloudfront.net/Images/stact2.png" title="Staff on-duty" value={122} /></Col>
+                <Col md={3}><StatCard icon="https://d2il6osz49gpup.cloudfront.net/Images/stact1.png" title="Appointments (Today)" value={158} /></Col>
+                <Col md={3}><StatCard icon="https://d2il6osz49gpup.cloudfront.net/Images/stact3.png" title="Inventory Out-of-Stock" value={45} /></Col>
+                <Col md={3}><StatCard icon="https://d2il6osz49gpup.cloudfront.net/Images/stact4.png" title="Revenue (Today)" value="$7,298" /></Col>
               </Row>
             </div>
 
@@ -260,8 +260,8 @@ function AdminDashboardEmpty() {
                 </Col>
                 <Col md={4}>
                   <div className="WorkCard">
-                    <StatCard icon="/Images/stact2.png" title="Week based Appointments" value="0000" />
-                    <StatCard icon="/Images/stact2.png" title="Invoice Amount" value="$7,298" />
+                    <StatCard icon="https://d2il6osz49gpup.cloudfront.net/Images/stact2.png" title="Week based Appointments" value="0000" />
+                    <StatCard icon="https://d2il6osz49gpup.cloudfront.net/Images/stact2.png" title="Invoice Amount" value="$7,298" />
                   </div>
                 </Col>
               </Row>

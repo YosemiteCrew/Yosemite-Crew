@@ -3,10 +3,6 @@ import React from 'react'
 import "./RelatesArticle.css"
 import Slider from "react-slick";
 import Image from 'next/image';
-// import Rls1 from "../../../../public/Images/ArticlePage/Rls1.png"
-// import Rls2 from "../../../../public/Images/ArticlePage/Rls2.png"
-// import Rls3 from "../../../../public/Images/ArticlePage/Rls3.png"
-// import Rls4 from "../../../../public/Images/ArticlePage/Rls4.png"
 
 const RelatesArticle = () => {
 

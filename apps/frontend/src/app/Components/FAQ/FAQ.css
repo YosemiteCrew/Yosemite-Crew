@@ -65,13 +65,13 @@
 }
 
 .accordion-button::after {
-    background: url(/Images/rightfaq.png) !important;
+    background: url("https://d2il6osz49gpup.cloudfront.net/Images/rightfaq.png") !important;
     background-size: 100% 100% !important;
     width: 50px !important;
     height: 50px !important;
 }
 .accordion-button:not(.collapsed)::after {
-    background: url(/Images/downfaq.png) !important;
+    background: url("https://d2il6osz49gpup.cloudfront.net/Images/downfaq.png") !important;
     background-size: 100% 100% !important;
     width: 32px !important;
     height: 32px !important;

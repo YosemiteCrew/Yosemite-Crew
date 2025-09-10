@@ -70,21 +70,21 @@ function SettingsPage() {
   const [deletedItems, setDeletedItems] = useState<DeletedItem[]>([
     {
       id: 1,
-      userImg: '/Images/pet.jpg',
+      userImg: 'https://d2il6osz49gpup.cloudfront.net/Images/pet.jpg',
       title: 'Max',
       author: 'David Martin',
       type: 'Share Assessment Report',
       date: '15 Aug 2024 11:30 AM',
-      thumbnail: '/Images/report.png', 
+      thumbnail: 'https://d2il6osz49gpup.cloudfront.net/Images/report.png', 
     },
     {
       id: 2,
-      userImg: '/Images/pet.jpg',
+      userImg: 'https://d2il6osz49gpup.cloudfront.net/Images/pet.jpg',
       title: 'Bold',
       author: 'David Martin',
       type: 'Share Assessment Report',
       date: '15 Aug 2024 11:30 AM',
-      thumbnail: '/Images/report.png',
+      thumbnail: 'https://d2il6osz49gpup.cloudfront.net/Images/report.png',
     },
   ]);
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
@@ -122,7 +122,7 @@ function SettingsPage() {
       id: 1,
       user: 'Sky B',
       pet: 'Kizie',
-      avatar: '/Images/feedback1.png',
+      avatar: 'https://d2il6osz49gpup.cloudfront.net/Images/feedback1.png',
       date: '25 August 2024',
       rating: 5.0,
       content:
@@ -133,7 +133,7 @@ function SettingsPage() {
       id: 2,
       user: 'Pika',
       pet: 'Oscar',
-      avatar: '/Images/feedback2.png',
+      avatar: 'https://d2il6osz49gpup.cloudfront.net/Images/feedback2.png',
       date: '24 August 2024',
       rating: 4.7,
       content:
@@ -189,7 +189,7 @@ function SettingsPage() {
 
                 <div className="SettingInnerprofile">
                   <div className="SetProfile">
-                    <Image aria-hidden src="/Images/settingimg.png" alt="settingimg" width={150} height={150}/>
+                    <Image aria-hidden src="https://d2il6osz49gpup.cloudfront.net/Images/settingimg.png" alt="settingimg" width={150} height={150}/>
                   </div>
                   <h3>San Francisco Animal Medical Center</h3>
                   <Button><Icon icon="solar:pen-bold" width="20" height="20" /> Edit Profile</Button>
@@ -234,7 +234,7 @@ function SettingsPage() {
                         {teamMembers.map((member, idx) => (
                           <div key={idx} className='Practicinginner'>
                             <div className="PractInfo">
-                              <Image src="/Images/settingimg.png" alt="team-member" width={40} height={40} />
+                              <Image src="https://d2il6osz49gpup.cloudfront.net/Images/settingimg.png" alt="team-member" width={40} height={40} />
                               <div>
                                 <h6>{member.name}</h6>
                                 <p>{member.role}</p>
@@ -348,7 +348,7 @@ function SettingsPage() {
                               <Image src={f.avatar} alt='' width={60} height={60} />
                               <div className='feedbackhead'>
                                 <h4>{f.user}</h4>
-                                <p><Image src="/Images/paws.png" alt='paws' width={16} height={16} /> {f.pet}</p>
+                                <p><Image src="https://d2il6osz49gpup.cloudfront.net/Images/paws.png" alt='paws' width={16} height={16} /> {f.pet}</p>
                               </div>
                             </div>
                             <Button onClick={addFeedback}><Icon icon="solar:add-circle-bold" width={24} height={24}/> </Button>
