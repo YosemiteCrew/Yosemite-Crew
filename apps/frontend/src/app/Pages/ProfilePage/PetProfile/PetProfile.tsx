@@ -59,7 +59,7 @@ function PetProfile() {
                         <div className="PetBasicDiv">
                             <div className="BasicProfile">
                                 <div className="ProfilePic">
-                                    <Image src="/Images/pet.jpg" alt="profile" width={100} height={100} />
+                                    <Image src="https://d2il6osz49gpup.cloudfront.net/Images/pet.jpg" alt="profile" width={100} height={100} />
                                     <div className="pfname">
                                         <h2>Kizie</h2>
                                         <h6>Beagle</h6>
@@ -67,14 +67,14 @@ function PetProfile() {
                                 </div>
                                 <div className="ProfTeams">
                                     <div className="ProfilePic">
-                                        <Image src="/Images/pet.jpg" alt="profile" width={40} height={40} />
+                                        <Image src="https://d2il6osz49gpup.cloudfront.net/Images/pet.jpg" alt="profile" width={40} height={40} />
                                         <div className="pfname">
                                             <h4>Sky Bown </h4>
                                             <p>skybrown@gamil.com</p>
                                         </div>
                                     </div>
                                     <div className="ProfilePic">
-                                        <Image src="/Images/pet.jpg" alt="profile" width={40} height={40} />
+                                        <Image src="https://d2il6osz49gpup.cloudfront.net/Images/pet.jpg" alt="profile" width={40} height={40} />
                                         <div className="pfname">
                                             <h4>Laily Bown </h4>
                                             <p>laIlybrown@gamil.com</p>

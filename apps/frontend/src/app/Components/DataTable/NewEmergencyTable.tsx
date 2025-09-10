@@ -40,7 +40,7 @@ const appointments: AppointmentItem[] = [
   {
     name: "Kizie",
     owner: "Sky B",
-    image: "/Images/pet.jpg",
+    image: "https://d2il6osz49gpup.cloudfront.net/Images/pet.jpg",
     appointmentId: "DRO01-03-23-2024",
     reason: "Annual Health Check-Up",
     breed: "Beagle/Dog",
@@ -53,7 +53,7 @@ const appointments: AppointmentItem[] = [
   {
     name: "Oscar",
     owner: "Pika K",
-    image: "/Images/pet.jpg",
+    image: "https://d2il6osz49gpup.cloudfront.net/Images/pet.jpg",
     appointmentId: "DRO02-03-23-2024",
     reason: "Vaccination Updates",
     breed: "Egyptian/Cat",
@@ -66,7 +66,7 @@ const appointments: AppointmentItem[] = [
   {
     name: "King",
     owner: "Henry C",
-    image: "/Images/pet.jpg",
+    image: "https://d2il6osz49gpup.cloudfront.net/Images/pet.jpg",
     appointmentId: "DRO03-03-23-2024",
     reason: "Deworming Treatment",
     breed: "Paso Fino/Horse",

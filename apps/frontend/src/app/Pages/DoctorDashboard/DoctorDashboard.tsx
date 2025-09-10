@@ -267,7 +267,7 @@ function DoctorDashboard() {
                 {userType === "vet" ? (
                   <Link href="#" onClick={() => setAddNewLead(true)}>
                     <Image
-                      src="/Images/stact1.png"
+                      src="https://d2il6osz49gpup.cloudfront.net/Images/stact1.png"
                       alt="stact1"
                       width={24}
                       height={24}

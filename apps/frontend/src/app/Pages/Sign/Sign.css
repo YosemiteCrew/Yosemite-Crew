@@ -1,7 +1,7 @@
 /* Sign Up Page Started */
 
 .MainSignUpSec{
-    background: url(/Images/SignUpBg.png)no-repeat;
+    background: url('https://d2il6osz49gpup.cloudfront.net/Images/SignUpBg.png')no-repeat;
     background-size: cover;
     background-position: center;
     min-height: 100vh;
@@ -225,7 +225,7 @@
     min-height: 100vh;
 }
 .LeftCompleteSign {
-  background-image: url(/Images/SignInBg.png);
+  background-image: url('https://d2il6osz49gpup.cloudfront.net/Images/SignInBg.png');
   background-size: 100% 100%;
   object-position: center;
   min-height: 100vh;
@@ -470,7 +470,7 @@
     position: relative;
 }
 .leftSignIn{
-    background: url(/Images/SignInBg.png)no-repeat;
+    background: url('https://d2il6osz49gpup.cloudfront.net/Images/SignInBg.png')no-repeat;
     background-size: cover;
     height: 100%;
     width: 100%;

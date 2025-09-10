@@ -9,18 +9,18 @@ import { RxCrossCircled } from 'react-icons/rx';
 
 const ImageGallery = () => {
   const initialImages = [
-    { id: 1, src: `${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/gallery1.png`, alt: 'Placeholder Image 1' },
-    { id: 2, src: `${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/gallery2.png`, alt: 'Placeholder Image 2' },
-    { id: 3, src: `${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/gallery3.png`, alt: 'Placeholder Image 3' },
-    { id: 4, src: `${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/gallery4.png`, alt: 'Placeholder Image 4' },
-    { id: 5, src: `${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/gallery5.png`, alt: 'Placeholder Image 5' },
-    { id: 6, src: `${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/gallery6.png`, alt: 'Placeholder Image 6' },
-    { id: 7, src: `${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/gallery7.png`, alt: 'Placeholder Image 7' },
-    { id: 8, src: `${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/gallery8.png`, alt: 'Placeholder Image 8' },
-    { id: 9, src: `${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/gallery9.png`, alt: 'Placeholder Image 9' },
-    { id: 10, src: `${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/gallery1.png`, alt: 'Placeholder Image 10' },
-    { id: 11, src: `${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/gallery2.png`, alt: 'Placeholder Image 11' },
-    { id: 12, src: `${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/gallery3.png`, alt: 'Placeholder Image 12' },
+    { id: 1, src: `https://d2il6osz49gpup.cloudfront.net/gallery1.png`, alt: 'Placeholder Image 1' },
+    { id: 2, src: `https://d2il6osz49gpup.cloudfront.net/gallery2.png`, alt: 'Placeholder Image 2' },
+    { id: 3, src: `https://d2il6osz49gpup.cloudfront.net/gallery3.png`, alt: 'Placeholder Image 3' },
+    { id: 4, src: `https://d2il6osz49gpup.cloudfront.net/gallery4.png`, alt: 'Placeholder Image 4' },
+    { id: 5, src: `https://d2il6osz49gpup.cloudfront.net/gallery5.png`, alt: 'Placeholder Image 5' },
+    { id: 6, src: `https://d2il6osz49gpup.cloudfront.net/gallery6.png`, alt: 'Placeholder Image 6' },
+    { id: 7, src: `https://d2il6osz49gpup.cloudfront.net/gallery7.png`, alt: 'Placeholder Image 7' },
+    { id: 8, src: `https://d2il6osz49gpup.cloudfront.net/gallery8.png`, alt: 'Placeholder Image 8' },
+    { id: 9, src: `https://d2il6osz49gpup.cloudfront.net/gallery9.png`, alt: 'Placeholder Image 9' },
+    { id: 10, src: `https://d2il6osz49gpup.cloudfront.net/gallery1.png`, alt: 'Placeholder Image 10' },
+    { id: 11, src: `https://d2il6osz49gpup.cloudfront.net/gallery2.png`, alt: 'Placeholder Image 11' },
+    { id: 12, src: `https://d2il6osz49gpup.cloudfront.net/gallery3.png`, alt: 'Placeholder Image 12' },
   ];
   
 

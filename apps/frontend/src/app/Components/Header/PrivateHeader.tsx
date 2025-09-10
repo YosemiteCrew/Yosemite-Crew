@@ -66,9 +66,7 @@ const PrivateHeader = () => {
       ],
     },
   ];
-  const logoUrl = process.env.NEXT_PUBLIC_BASE_IMAGE_URL
-    ? `${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/Logo.png`
-    : "/Logo.png";
+  const logoUrl = `https://d2il6osz49gpup.cloudfront.net/Logo.png`
 
   function getImageUrl(input: unknown): string {
     if (typeof input === "string") return input;
