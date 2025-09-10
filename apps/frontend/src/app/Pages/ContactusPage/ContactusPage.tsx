@@ -31,7 +31,12 @@ function ContactusPage() {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [selectedQueryType, setSelectedQueryType] =
     useState<TicketCategory>("General Enquiry");
-  const queryTypes: TicketCategory[] = ["General Enquiry",  "Feature Request" ,"Data Service Access Request" , "Complaint"];
+  const queryTypes: TicketCategory[] = [
+    "General Enquiry",
+    "Feature Request",
+    "Data Service Access Request",
+    "Complaint",
+  ];
   // Subrequest options for Data Service Access Request
   const [subselectedRequest, setSubSelectedRequest] = useState("");
   const subrequestOptions = [
@@ -80,9 +85,27 @@ function ContactusPage() {
     "I understand that the deletion or restriction of my personal data is irreversible and may result in the termination of services with Yosemite Crew.",
     "I understand that I will be required to validate my request my email, and I may be contacted in order to complete the request.",
   ];
+  const isComplaintValid =
+    fullName &&
+    email &&
+    message &&
+    subselectedRequest &&
+    confirmSelections.length === confirmOptions.length;
+  const isGeneralValid = fullName && email && message;
+  const isDSARValid =
+    fullName &&
+    email &&
+    message &&
+    subselectedRequest &&
+    area &&
+    selectedRequest &&
+    confirmSelections.length === confirmOptions.length;
+
   const toggleConfirmOption = (option: string) => {
     setConfirmSelections((prev) =>
-      prev.includes(option) ? prev.filter((o) => o !== option) : [...prev, option]
+      prev.includes(option)
+        ? prev.filter((o) => o !== option)
+        : [...prev, option]
     );
   };
   const isValidEmail = (email: string): boolean => {
@@ -94,7 +117,8 @@ function ContactusPage() {
     const newErrors: { [key: string]: string } = {};
     if (!fullName.trim()) {
       newErrors.fullName = "Full name is required";
-    } if (!message.trim()) {
+    }
+    if (!message.trim()) {
       newErrors.message = "Message is required";
     }
 
@@ -105,7 +129,7 @@ function ContactusPage() {
     }
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) return;
-    
+
     /**
      * 
      * 
@@ -130,16 +154,16 @@ function ContactusPage() {
       createdBy: "Professional",
     };
     const fhirData = toFhirSupportTicket(obj);
-    setSubmitting(true)
+    setSubmitting(true);
     try {
       const response = await postData(
         "/fhir/v1/support/request-support",
         fhirData
       );
     } catch (error) {
-      console.log(error)
+      console.log(error);
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
   }, [
     email,
@@ -161,10 +185,12 @@ function ContactusPage() {
         <Container>
           <div className="ContactUsData">
             <div className="LeftContactUs">
-              <BackBtn href="" icon="solar:round-alt-arrow-left-outline" backtext="Back to Dashboard"/>
+              {/* <BackBtn href="" icon="solar:round-alt-arrow-left-outline" backtext="Back to Dashboard"/> */}
               <div className="conttexted">
                 <span>Contact us</span>
-                <h2>Need Help? <br /> We’re All Ears!</h2>
+                <h2>
+                  Need Help? <br /> We’re All Ears!
+                </h2>
               </div>
             </div>
 
@@ -238,7 +264,9 @@ function ContactusPage() {
                   </div>
 
                   <div className="SetSubmitted">
-                    <p>Under the rights of which law are you making this request?</p>
+                    <p>
+                      Under the rights of which law are you making this request?
+                    </p>
                     <DynamicSelect
                       options={areaOptions}
                       value={area}
@@ -265,7 +293,10 @@ function ContactusPage() {
                   </div>
 
                   <div className="QueryDetailsFields">
-                    <label>Please leave details regarding your action request or question</label>
+                    <label>
+                      Please leave details regarding your action request or
+                      question
+                    </label>
                     <textarea
                       rows={3}
                       value={message}
@@ -273,7 +304,15 @@ function ContactusPage() {
                       placeholder="Your Message"
                     ></textarea>
                     {errors?.message && (
-                      <div style={{ color: "#EA3729", fontSize: "14px", marginTop: "4px" }}>{errors?.message ?? ""}</div>
+                      <div
+                        style={{
+                          color: "#EA3729",
+                          fontSize: "14px",
+                          marginTop: "4px",
+                        }}
+                      >
+                        {errors?.message ?? ""}
+                      </div>
                     )}
                   </div>
 
@@ -296,7 +335,11 @@ function ContactusPage() {
                   <Button
                     className="SendBtn"
                     onClick={handleContectSubmit}
-                    disabled={submitting}
+                    disabled={submitting || !isDSARValid}
+                    style={{
+                      opacity: isDSARValid ? 1 : 0.5,
+                      pointerEvents: isDSARValid ? "auto" : "none",
+                    }}
                   >
                     {submitting ? "submitting..." : "Send Message"}
                   </Button>
@@ -322,7 +365,9 @@ function ContactusPage() {
                   </div>
 
                   <div className="QueryDetailsFields">
-                    <label>Please leave details regarding your complaint.</label>
+                    <label>
+                      Please leave details regarding your complaint.
+                    </label>
                     <textarea
                       rows={3}
                       value={message}
@@ -330,7 +375,15 @@ function ContactusPage() {
                       placeholder="Your Message"
                     ></textarea>
                     {errors?.message && (
-                      <div style={{ color: "#EA3729", fontSize: "14px", marginTop: "4px" }}>{errors?.message ?? ""}</div>
+                      <div
+                        style={{
+                          color: "#EA3729",
+                          fontSize: "14px",
+                          marginTop: "4px",
+                        }}
+                      >
+                        {errors?.message ?? ""}
+                      </div>
                     )}
                   </div>
 
@@ -352,10 +405,16 @@ function ContactusPage() {
                         id="complaintImage"
                         type="file"
                         accept="image/*"
-                        onChange={(e) => setComplaintImage(e.target.files?.[0] || null)}
+                        onChange={(e) =>
+                          setComplaintImage(e.target.files?.[0] || null)
+                        }
                       />
                       <label htmlFor="complaintImage" className="UploadInner">
-                        <span className="UploadText">{complaintImage ? complaintImage.name : "Upload Image"}</span>
+                        <span className="UploadText">
+                          {complaintImage
+                            ? complaintImage.name
+                            : "Upload Image"}
+                        </span>
                       </label>
                     </div>
                   </div>
@@ -379,14 +438,19 @@ function ContactusPage() {
                   <Button
                     className="SendBtn"
                     onClick={handleContectSubmit}
-                    disabled={submitting}
+                    disabled={submitting || !isComplaintValid}
+                    style={{
+                      opacity: isComplaintValid ? 1 : 0.5,
+                      pointerEvents: isComplaintValid ? "auto" : "none",
+                    }}
                   >
                     {submitting ? "submitting..." : "Send Message"}
                   </Button>
                 </div>
               )}
 
-              {(selectedQueryType === "General Enquiry" || selectedQueryType === "Feature Request") && (
+              {(selectedQueryType === "General Enquiry" ||
+                selectedQueryType === "Feature Request") && (
                 <>
                   <div className="QueryDetailsFields">
                     <label>Please leave details regarding your request</label>
@@ -397,24 +461,30 @@ function ContactusPage() {
                       placeholder="Your Message"
                     ></textarea>
                     {errors?.message && (
-                      <div style={{ color: "#EA3729", fontSize: "14px", marginTop: "4px" }}>{errors?.message ?? ""}</div>
+                      <div
+                        style={{
+                          color: "#EA3729",
+                          fontSize: "14px",
+                          marginTop: "4px",
+                        }}
+                      >
+                        {errors?.message ?? ""}
+                      </div>
                     )}
                   </div>
                   <Button
                     className="SendBtn"
                     onClick={handleContectSubmit}
-                    disabled={submitting}
+                    disabled={submitting || !isGeneralValid}
+                    style={{
+                      opacity: isGeneralValid ? 1 : 0.5,
+                      pointerEvents: isGeneralValid ? "auto" : "none",
+                    }}
                   >
                     {submitting ? "submitting..." : "Send Message"}
                   </Button>
                 </>
               )}
-
-
-
-
-
-
             </div>
           </div>
         </Container>
@@ -435,7 +505,9 @@ function ContactusPage() {
                   <h4>Email Address</h4>
                 </div>
                 <div className="detailTexed">
-                  <Link href="mailto:support@yosemitecrew.com">support@yosemitecrew.com</Link>
+                  <Link href="mailto:support@yosemitecrew.com">
+                    support@yosemitecrew.com
+                  </Link>
                   <p>Assistance hours: Monday - Friday 9 am to 5 pm EST</p>
                 </div>
               </div>
