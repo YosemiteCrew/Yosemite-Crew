@@ -24,7 +24,7 @@ const PublicHeader = () => {
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
-  const logoUrl = `${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/Logo.png`;
+  const logoUrl = `https://d2il6osz49gpup.cloudfront.net/Logo.png`;
 
   const toggleMenu = () => setMenuOpen((prev) => !prev);
 

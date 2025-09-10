@@ -8,7 +8,7 @@
     position: absolute;
     right: 0;
     top: 0;
-    background: url(/Images/pricingafter.png) no-repeat;
+    background: url('https://d2il6osz49gpup.cloudfront.net/Images/pricingafter.png') no-repeat;
     background-size: cover;
     width: 100%;
     height: 1440px;
@@ -577,7 +577,7 @@
 .Needhelpitem::after{
     position: absolute;
     content: " ";
-    background: url(/Images/doghelp.png)no-repeat;
+    background: url('https://d2il6osz49gpup.cloudfront.net/Images/doghelp.png')no-repeat;
     background-size: 100% 100%;
     right: 0;
     bottom: 0;
