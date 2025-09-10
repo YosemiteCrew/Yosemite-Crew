@@ -4,7 +4,12 @@
   background: var(--whitebg);
   z-index: 997;
   border-bottom: 2px solid;
-  border-image-source: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, #7D7D7D 50%, rgba(255, 255, 255, 0) 100%);
+  border-image-source: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    #7d7d7d 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
   border-image-slice: 1;
   max-height: 100px;
 }
@@ -23,32 +28,32 @@
 /* === PROFILE DROPDOWN === */
 /* ========================== */
 
-.UserInfoHeader{
-    display: flex;
-    align-items: center;
-    gap: 24px;
+.UserInfoHeader {
+  display: flex;
+  align-items: center;
+  gap: 24px;
 }
-.UserInfoHeader .Notify{
-    width: 24px;
-    height: 24px;
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.UserInfoHeader .Notify {
+  width: 24px;
+  height: 24px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.UserInfoHeader .Notify svg{
-    font-size: 18px;
-    color: var(--notibg);
+.UserInfoHeader .Notify svg {
+  font-size: 18px;
+  color: var(--notibg);
 }
-.UserInfoHeader .Notify .count{
-    position: absolute;
-    top: 0;
-    right: 2px;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    border: 2px solid var(--whitebg);
-    background: var(--notibg);
+.UserInfoHeader .Notify .count {
+  position: absolute;
+  top: 0;
+  right: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--whitebg);
+  background: var(--notibg);
 }
 
 .HeaderProfDiv {
@@ -90,12 +95,12 @@
   flex-direction: column;
   gap: 8px;
 }
-.NavUL .nav-profile .userHostDiv .userName{
+.NavUL .nav-profile .userHostDiv .userName {
   display: flex;
   align-items: flex-start;
   gap: 8px;
 }
-.NavUL .nav-profile .userHostDiv .userName p{
+.NavUL .nav-profile .userHostDiv .userName p {
   color: var(--black-text);
   font-family: var(--satoshi-font);
   font-size: 13px;
@@ -104,7 +109,7 @@
   margin: 0;
   max-width: 142px;
 }
-.NavUL .nav-profile .userHostDiv .Tier{
+.NavUL .nav-profile .userHostDiv .Tier {
   color: var(--blue-text);
   font-family: var(--satoshi-font);
   font-size: 13px;
@@ -119,29 +124,29 @@
 }
 
 .profileUl {
-    display: block;
-    opacity: 0;
-    visibility: hidden;
-    position: absolute;
-    top: 100%;
-    left: 0;
-    min-width: 200px !important;
-    padding: 16px 0;
-    background: var(--whitebg);
-    border: 1px solid var(--lightgrey);
-    border-radius: 0px 0px 20px 20px;
-    box-shadow: 0px 0px 8px 0px #00000014;
-    transform: translateY(20px);
-    transition: all 0.3s ease;
-    z-index: 999;
-    list-style-type: none;
+  display: block;
+  opacity: 0;
+  visibility: hidden;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 200px !important;
+  padding: 16px 0;
+  background: var(--whitebg);
+  border: 1px solid var(--lightgrey);
+  border-radius: 0px 0px 20px 20px;
+  box-shadow: 0px 0px 8px 0px #00000014;
+  transform: translateY(20px);
+  transition: all 0.3s ease;
+  z-index: 999;
+  list-style-type: none;
 }
 .profileUl .ProfDiv {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
-.profileUl .ProfDiv a{
+.profileUl .ProfDiv a {
   min-height: 40px;
   display: grid;
   align-items: center;
@@ -154,24 +159,23 @@
   font-size: 14px;
   line-height: 120%;
 }
-.profileUl .ProfDiv a svg{
+.profileUl .ProfDiv a svg {
   font-size: 21px;
 }
-.profileUl .ProfDiv a:hover{
+.profileUl .ProfDiv a:hover {
   background: var(--lightblue);
-  color: var( --blue-text);
+  color: var(--blue-text);
 }
 
 .NavUL .nav-item:hover > .profileUl {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(5px);
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(5px);
 }
 
 .dropdown-menu-arrow {
   position: relative;
 }
-
 
 .profileUl li:last-child a:hover {
   border-radius: 0px 0px 12px 12px;
@@ -230,12 +234,10 @@
 
 .profileUl .dropdown-item:hover span,
 .profileUl .dropdown-item:hover i {
-  color: #FFFFFF;
+  color: #ffffff;
 }
 
-
-
-.HeaderSign{
+.HeaderSign {
   padding: 14px 24px;
   display: flex;
   align-items: center;
@@ -252,9 +254,10 @@
   line-height: 120%;
   transition: 0.5s ease;
 }
-.HeaderSign:hover{
-  color: var(--black-text);
-  background: transparent;
+.HeaderSign:hover {
+  background: var(--black-hover);
+  /* color: var(--black-text); */
+  /* background: transparent; */
 }
 
 /* ========================== */
@@ -352,8 +355,6 @@
     display: block;
   }
 
-
-  
   .navmenu li ul.dropdown {
     display: block;
     opacity: 0;
@@ -413,15 +414,9 @@
     visibility: visible;
     transform: translateY(0);
   }
-
-
-
 }
 
-
-
 @media (max-width: 1199px) {
-
   .mobile-nav-toggle {
     color: var(--black-text);
     font-size: 28px;
@@ -526,13 +521,8 @@
   }
 }
 
-
-
 @media (max-width: 991px) {
   .header .btn-getstarted {
     margin-right: 50px;
   }
 }
-
-
-

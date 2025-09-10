@@ -106,7 +106,7 @@ function LaunchGrowTab() {
                                                 {growtab.details &&
                                                     growtab.details.map((detail, index) => (
                                                         <li key={index}>
-                                                            <Icon icon="solar:verified-check-bold" width="24" height="24" style={{ color: growtab.color }} />
+                                                            <Icon icon="solar:verified-check-bold" width="24" height="24" style={{ color: "#247AED" }} />
                                                             {detail}
                                                         </li>
                                                     ))}
