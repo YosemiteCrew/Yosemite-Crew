@@ -103,7 +103,7 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
         <Header />
         <Cookies />
         <Github isOpen={showGithub} onClose={() => setShowGithub(false)} />
-        {children}
+        <div className="bodywrapper">{children}</div>
       </>
     );
   } else if (
@@ -115,7 +115,9 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
         <Header />
         <Cookies />
         <Github isOpen={showGithub} onClose={() => setShowGithub(false)} />
-        <MainLandingPage />
+        <div className="bodywrapper">
+          <MainLandingPage />
+        </div>
       </>
     );
   } else if (isVerified == null && isPublicRoute) {
@@ -124,7 +126,7 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
         <Header />
         <Cookies />
         <Github isOpen={showGithub} onClose={() => setShowGithub(false)} />
-        {children}
+        <div className="bodywrapper">{children}</div>
       </>
     );
   } else if (isVerified === 1) {
@@ -133,7 +135,7 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
         <Header />
         <Cookies />
         <Github isOpen={showGithub} onClose={() => setShowGithub(false)} />
-        {children}
+        <div className="bodywrapper">{children}</div>
       </>
     );
   }
