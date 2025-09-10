@@ -193,7 +193,7 @@ const columns: Column<ManageBillingItem>[] = [
     render: (item: ManageBillingItem) => 
     <div>
         <p>{item.name}</p>
-        <span className="owner"><Image aria-hidden src="/Images/paws.png" alt="paws" width={14} height={14} /> {item.petname}</span>
+        <span className="owner"><Image aria-hidden src="https://d2il6osz49gpup.cloudfront.net/Images/paws.png" alt="paws" width={14} height={14} /> {item.petname}</span>
     </div>,
   },
   {

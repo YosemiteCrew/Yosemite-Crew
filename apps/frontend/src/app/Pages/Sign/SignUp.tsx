@@ -915,7 +915,7 @@ export function FormInputPass({
           <Button type="button" onClick={togglePasswordVisibility} tabIndex={-1}>
             <Image
               aria-hidden
-              src="/Images/eyes.png"
+              src="https://d2il6osz49gpup.cloudfront.net/Images/eyes.png"
               alt="eyes"
               width={24}
               height={24}

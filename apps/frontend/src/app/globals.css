@@ -163,6 +163,14 @@ body {
 body {
   background-color: var(--whitebg) !important;
 }
+.bodywrapper{
+  padding-top: 100px;
+}
+@media screen and (min-width: 1024px) {
+  .bodywrapper{
+    padding-top: 0px;
+  }
+}
 a{
   text-decoration: none !important;
 }

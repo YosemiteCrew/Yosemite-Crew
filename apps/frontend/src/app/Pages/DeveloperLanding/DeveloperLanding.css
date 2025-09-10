@@ -74,7 +74,7 @@
 .DevYousmiteBoxed::after{
     position: absolute;
     content: " ";
-    background: url(/Images/devcoseafter.png);
+    background: url('https://d2il6osz49gpup.cloudfront.net/Images/devcoseafter.png');
     background-size: 100% 100%;
     height: 200px;
     width: 200px;
@@ -305,7 +305,7 @@
 .DevlpPricingSec::after{
     content: " ";
     position: absolute;
-    background: url(/Images/devlins.png) no-repeat;
+    background: url('https://d2il6osz49gpup.cloudfront.net/Images/devlins.png') no-repeat;
     background-size: 100% 100%;
     width: 744px;
     left: -150px;
@@ -346,7 +346,7 @@
 .DevPricBox::after{
     content: " ";
     position: absolute;
-    background: url(/Images/fits1.png) no-repeat;
+    background: url('https://d2il6osz49gpup.cloudfront.net/Images/fits1.png') no-repeat;
     background-size: 100% 100%;
     width: 160px;
     left: 0px;
@@ -377,7 +377,7 @@
     margin: 0;
 }
 .DevPricBox:nth-of-type(2)::after{
-    background: url(/Images/fits2.png) no-repeat;
+    background: url('https://d2il6osz49gpup.cloudfront.net/Images/fits2.png') no-repeat;
     background-size: 100% 100%;
     width: 160px;
     left: 0px;
@@ -385,7 +385,7 @@
     height: 200px;
 }
 .DevPricBox:nth-of-type(3)::after{
-    background: url(/Images/fits3.png) no-repeat;
+    background: url('https://d2il6osz49gpup.cloudfront.net/Images/fits3.png') no-repeat;
     background-size: 100% 100%;
     width: 160px;
     left: 0px;
@@ -418,7 +418,7 @@
 .ReadyBuildData::after{
     content: " ";
     position: absolute;
-    background: url(/Images/leftbuild.png)no-repeat;
+    background: url('https://d2il6osz49gpup.cloudfront.net/Images/leftbuild.png')no-repeat;
     transform: rotate(180deg);
     background-size: 100% 100%;
     width: 386px;
@@ -430,7 +430,7 @@
 .ReadyBuildData::before{
     content: " ";
     position: absolute;
-    background: url(/Images/rightbuild.png)no-repeat;
+    background: url('https://d2il6osz49gpup.cloudfront.net/Images/rightbuild.png')no-repeat;
     transform: rotate(180deg);
     background-size: 100% 100%;
     width: 386px;

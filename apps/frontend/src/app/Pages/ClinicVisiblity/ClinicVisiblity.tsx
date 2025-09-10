@@ -44,7 +44,7 @@ function ClinicVisiblity() {
                         <div className="TopVisibleItems">
 
                             <div className="clicprofdiv">
-                                <Image aria-hidden  src={`${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/pft.png`} alt="eyes" width={150} height={150} />
+                                <Image aria-hidden  src={`https://d2il6osz49gpup.cloudfront.net/pft.png`} alt="eyes" width={150} height={150} />
                                 <div className="ClVDiv">
                                     <div className="clpfname">
                                         <div className="texted">

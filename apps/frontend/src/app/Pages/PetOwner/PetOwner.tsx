@@ -115,13 +115,13 @@ function PetOwner() {
           </div>
           <div className="PawsPrasData">
             <div className="BrownDiv">
-              <Image aria-hidden src="/Images/Paws1.png"  alt="Paws1"  width={1516} height={294} />
+              <Image aria-hidden src="https://d2il6osz49gpup.cloudfront.net/Images/Paws1.png"  alt="Paws1"  width={1516} height={294} />
             </div>
             <div className="PurpleDiv">
-              <Image aria-hidden src="/Images/Paws2.png"  alt="Paws2"  width={1516} height={234} />
+              <Image aria-hidden src="https://d2il6osz49gpup.cloudfront.net/Images/Paws2.png"  alt="Paws2"  width={1516} height={234} />
             </div>
             <div className="GreenDiv">
-              <Image aria-hidden src="/Images/Paws3.png"  alt="Paws3"  width={1516} height={246} />
+              <Image aria-hidden src="https://d2il6osz49gpup.cloudfront.net/Images/Paws3.png"  alt="Paws3"  width={1516} height={246} />
             </div>
           </div>
         </section>
@@ -134,7 +134,7 @@ function PetOwner() {
                 <h2>A Glimpse of Paw-sibilities</h2>
               </div>
               <div className="GlimpsImage">
-                <Image aria-hidden src="/Images/glimpsimg.png"  alt="glimpsimg"  width={1291} height={917} />
+                <Image aria-hidden src="https://d2il6osz49gpup.cloudfront.net/Images/glimpsimg.png"  alt="glimpsimg"  width={1291} height={917} />
               </div>
             </div>
           </Container>
@@ -157,7 +157,7 @@ function PetOwner() {
                 <PetDownBtn />
               </div>
               <div className="RytpetApp">
-                <Image aria-hidden src="/Images/petapppic.png"  alt="petapppic"  width={569} height={569} />
+                <Image aria-hidden src="https://d2il6osz49gpup.cloudfront.net/Images/petapppic.png"  alt="petapppic"  width={569} height={569} />
               </div>
             </div>
           </Container>

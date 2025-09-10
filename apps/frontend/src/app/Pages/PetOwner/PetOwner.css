@@ -11,7 +11,7 @@
 .DownlodeSec::after{
     content: " ";
     position: absolute;
-    background: url(/Images/Petownerbg.png) no-repeat;
+    background: url('https://d2il6osz49gpup.cloudfront.net/Images/Petownerbg.png') no-repeat;
     background-size: 100% 100%;
     width: 800px;
     height: 1016px;
@@ -135,7 +135,7 @@
 .BrownDiv::after{
     position: absolute;
     content: " ";
-    background: url(/Images/Paws1after.png) no-repeat;
+    background: url('https://d2il6osz49gpup.cloudfront.net/Images/Paws1after.png') no-repeat;
     background-size: 100% 100%;
     left: 185px;
     top: -25px;
@@ -146,7 +146,7 @@
 .PurpleDiv::after{
     position: absolute;
     content: " ";
-    background: url(/Images/Paws2after.png) no-repeat;
+    background: url('https://d2il6osz49gpup.cloudfront.net/Images/Paws2after.png') no-repeat;
     background-size: 100% 100%;
     top: -10px;
     right: 155px;
@@ -157,7 +157,7 @@
 .GreenDiv::after{
     position: absolute;
     content: " ";
-    background: url(/Images/Paws3after.png) no-repeat;
+    background: url('https://d2il6osz49gpup.cloudfront.net/Images/Paws3after.png') no-repeat;
     background-size: 100% 100%;
     left: 160px;
     bottom: -22px;
@@ -177,7 +177,7 @@
 /* GlimpseSec Started */
 
 .GlimpseSec{
-    background: url(/Images/glimpsbg.png) no-repeat;
+    background: url('https://d2il6osz49gpup.cloudfront.net/Images/glimpsbg.png') no-repeat;
     min-height: 100vh;
     background-size: 100% 100%;
 }
@@ -214,7 +214,7 @@
 .PetAppSec::after{
     position: absolute;
     content: " ";
-    background: url(/Images/LINES.png)no-repeat;
+    background: url('https://d2il6osz49gpup.cloudfront.net/Images/LINES.png')no-repeat;
     background-size: 100% 100%;
     top: 150px;
     left: 0;

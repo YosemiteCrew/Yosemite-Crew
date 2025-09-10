@@ -190,7 +190,7 @@
 
 /* ContactInfoSec Started  */
 .ContactInfoSec{
-    background: url(/Images/ContactInfoBG.png) no-repeat;
+    background: url("https://d2il6osz49gpup.cloudfront.net/Images/ContactInfoBG.png") no-repeat;
     background-size: 100% 100%;
     min-height: 337px;
     display: flex;
