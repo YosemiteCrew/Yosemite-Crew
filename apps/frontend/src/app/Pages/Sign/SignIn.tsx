@@ -2,7 +2,8 @@
 import Link from 'next/link';
 import React, { useState } from 'react'
 import { Form } from 'react-bootstrap';
-import { FormInput, FormInputPass, MainBtn, ErrorTost } from './SignUp';
+import { FormInput, FormInputPass, MainBtn } from './SignUp';
+import { ErrorTost } from "@/app/Components/Toast"
 import { GoCheckCircleFill } from 'react-icons/go';
 import { Icon } from "@iconify/react/dist/iconify.js";
 import { postData } from '@/app/axios-services/services';
