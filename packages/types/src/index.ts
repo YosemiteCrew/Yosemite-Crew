@@ -66,3 +66,4 @@ export type {FHIRMedicalRecord ,FhirDocumentReference, MedicalRecordRequestBody,
 export type {adminDepartment,AdminDepartmentItem,AdminFHIRHealthcareService} from './models/admin-department'
 export type {NormalBlog,FHIRBlog} from './Blog/BlogTypes'
 export type {ITask,FormTaskData,UploadedFileForCreateTask} from './models/create-task';
+export type {IRole} from './models/role'
