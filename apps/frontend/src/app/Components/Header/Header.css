@@ -1,7 +1,9 @@
 .header {
-  padding: 0px 0px;
-  transition: all 0.5s;
+  padding: 10px 0px;
+  /* transition: all 0.5s; */
   background: var(--whitebg);
+  position: fixed;
+  width: 100%;
   z-index: 997;
   border-bottom: 2px solid;
   border-image-source: linear-gradient(
@@ -24,20 +26,6 @@
   height: auto;
 }
 
-.public-header {
-  padding: 10px 0px;
-  position: fixed;
-  background: var(--whitebg);
-  z-index: 997;
-  border-bottom: 2px solid;
-  border-image-source: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0) 0%,
-    #7d7d7d 50%,
-    rgba(255, 255, 255, 0) 100%
-  );
-  border-image-slice: 1;
-}
 .public-header-mobile-menu {
   background: #fff;
   z-index: 999;
@@ -50,6 +38,7 @@
   width: 100vw;
   overflow: hidden;
   padding: 30px 48px;
+  overflow: auto;
 }
 .mobile-menu-item a {
   color: var(--notibg);
@@ -75,8 +64,76 @@
   margin-top: 17px;
 }
 
+.private-header-mobile-menu{
+  background: #fff;
+  z-index: 999;
+  display: flex;
+  gap: 24px;
+  flex-direction: column;
+  position: fixed;
+  top: 100%;
+  left: 0;
+  width: 100vw;
+  overflow: hidden;
+  padding: 30px 48px;
+  overflow: auto;
+}
+.verified-mobile-menu-item-label{
+  color: var(--notibg);
+  font-family: var(--grotesk-font);
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 100%;
+  letter-spacing: -0.32px;
+}
+.verified-mobile-submenu{
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0px;
+  margin-top: 8px;
+  border-radius: 8px;
+  background: var(--yc-updated-white, #FFF);
+  box-shadow: 0 0 8px 0 rgba(0, 0, 0, 0.08);
+}
+.verified-mobile-submenu-item a{
+  color: var(--notibg);
+  font-family: var(--grotesk-font);
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 120%;
+  letter-spacing: -0.32px;
+  padding: 0px 20px;
+}
+.verified-mobile-menu-item .active,
+.verified-mobile-menu-item .active:focus {
+  color: var(--blue-text);
+  transition: 0.3s;
+}
+.verified-mobile-menu-item-sperator{
+  height: 1px;
+  background: var(--lightgrey);
+  opacity: 0.4;
+  border-radius: 200px;
+  width: 100%;
+  margin-top: 4px;
+}
+.verified-profile-mobile-section{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.verified-profile-mobile-section .title{
+  color: var(--black-bg);
+  max-width: 180px;
+}
+.verified-mobile-submenu .danger a{
+  color: var(--error-color) !important;
+}
 @media screen and (min-width: 1024px) {
-  .public-header {
+  .header {
     position: relative;
   }
 }
@@ -89,6 +146,11 @@
   display: flex;
   align-items: center;
   gap: 24px;
+}
+@media screen and (max-width: 1024px) {
+  .UserInfoHeader {
+    gap: 12px;
+  }
 }
 .UserInfoHeader .Notify {
   width: 24px;
@@ -181,12 +243,6 @@
 }
 
 .profileUl {
-  display: block;
-  opacity: 0;
-  visibility: hidden;
-  position: absolute;
-  top: 100%;
-  left: 0;
   min-width: 200px !important;
   padding: 16px 0;
   background: var(--whitebg);
@@ -197,6 +253,42 @@
   transition: all 0.3s ease;
   z-index: 999;
   list-style-type: none;
+}
+.verified-profile-desktop{
+  display: block;
+  opacity: 0;
+  visibility: hidden;
+  position: absolute;
+  top: 140%;
+  left: 0px;
+}
+.unverified-profile-mobile {
+  position: absolute;
+  top: 125%;
+  left: -150px;
+}
+.unverified-profile-desktop {
+  display: block;
+  opacity: 0;
+  visibility: hidden;
+  position: absolute;
+  top: 165%;
+  left: -100px;
+  transform: translateY(20px);
+  transition: all 0.3s ease;
+}
+@media screen and (max-width: 1024px) {
+  .unverified-profile-desktop {
+    display: none;
+  }
+  .verified-userinfo {
+    display: none;
+  }
+}
+@media screen and (min-width: 1024px) {
+  .unverified-profile-mobile {
+    display: none;
+  }
 }
 .profileUl .ProfDiv {
   display: flex;
@@ -224,7 +316,13 @@
   color: var(--blue-text);
 }
 
-.NavUL .nav-item:hover > .profileUl {
+.NavUL .nav-item:hover > .unverified-profile-desktop {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(5px);
+}
+
+.NavUL .nav-item:hover > .verified-profile-desktop {
   opacity: 1;
   visibility: visible;
   transform: translateY(5px);
