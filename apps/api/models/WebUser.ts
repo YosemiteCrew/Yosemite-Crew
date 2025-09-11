@@ -14,8 +14,8 @@ const WebUserSchema = new Schema<IWebUser>({
   subscribe:{type:Boolean},
   department:{type:String},
   lastLogin: { type: Date },
-  isVerified:{type:Number, default:0} // 0 unverified 1 verified
-  
+  isVerified:{type:Number, default:0}, // 0 unverified 1 verified
+  extraPermissions: { type: Map, of: [String], default: {} }
 },{
   timestamps: true,});
 
