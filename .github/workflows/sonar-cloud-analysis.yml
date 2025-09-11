@@ -7,10 +7,34 @@ on:
   schedule:
     - cron: '0 4 * * *'
   pull_request:
+    branches:
+      - main
+      - dev
     types: [opened, synchronize, reopened]
+
 permissions: read-all
+
 jobs:
-  sonarqube:
+
+  #job for analysing Frontend
+  sonarqube-frontend:
+    name: SonarQube
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v5
+        with:
+          projectBaseDir: apps/frontend
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed to get PR information, if any
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_FRONTEND }}
+  
+  #job for analysing APIs
+  sonarqube-api:
     name: SonarQube
     runs-on: ubuntu-latest
     steps:
@@ -19,6 +43,24 @@ jobs:
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v5
+        with:
+          projectBaseDir: apps/api
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed to get PR information, if any
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_API }}
+
+  #job for analysing MobileApp
+  sonarqube-mobile:
+    name: SonarQube
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v5
+        with:
+          projectBaseDir: apps/mobileApp
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed to get PR information, if any
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_MOBILE }}
