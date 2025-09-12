@@ -4,7 +4,7 @@ import GenericTable from "../GenericTable/GenericTable";
 import "./DataTable.css";
 import { Button, Dropdown, Form } from "react-bootstrap";
 import { deleteData, getData, postData } from "@/app/axios-services/services";
-import { useAuthStore } from "@/app/stores/authStore";
+import { useOldAuthStore } from "@/app/stores/oldAuthStore";
 import Swal from "sweetalert2";
 import { convertFromFhirDepartment, fromFHIRInviteList } from "@yosemite-crew/fhir";
 import { InviteCard } from "@yosemite-crew/types";
@@ -30,7 +30,7 @@ type ManageInviteItems = {
 };
 
 function ManageInviteTable() {
-  const { userId } = useAuthStore();
+  const { userId } = useOldAuthStore();
   const [cardiology, setCardiology] = useState<ManageInviteItems[]>([]);
   const [fullInvites, setFullInvites] = useState<ManageInviteItems[]>([]);
   const [status, setStatus] = useState("");

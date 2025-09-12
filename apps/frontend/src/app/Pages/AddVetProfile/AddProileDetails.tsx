@@ -5,7 +5,7 @@ import { Button, Col, Container, Dropdown, Form, Row } from "react-bootstrap";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import Image from "next/image";
 import Link from "next/link";
-import { useAuthStore } from "@/app/stores/authStore";
+import { useOldAuthStore } from "@/app/stores/oldAuthStore";
 import {
   RelatedDoctorData,
   RelatedFhirPractitioner,
@@ -35,7 +35,7 @@ function AddProileDetails() {
     userType,
     fetchVetAndTeamsProfile,
     ...rest
-  } = useAuthStore();
+  } = useOldAuthStore();
   // personalDetails
   const [personalDetails, setPersonalDetails] = useState({
     firstName: "Adam",

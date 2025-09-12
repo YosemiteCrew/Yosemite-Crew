@@ -14,14 +14,14 @@ import {
   UserType,
 } from "@yosemite-crew/types";
 import { postData } from "@/app/axios-services/services";
-import { useAuthStore } from "@/app/stores/authStore";
+import { useOldAuthStore } from "@/app/stores/oldAuthStore";
 import Link from "next/link";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import { BackBtn } from "../AddVetProfile/AddProileDetails";
 
 function ContactusPage() {
   //emails
-  const { email: activeEmail, userType, isVerified } = useAuthStore();
+  const { email: activeEmail, userType, isVerified } = useOldAuthStore();
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState<string>("");
   const [phone, setPhone] = useState<string>("");
