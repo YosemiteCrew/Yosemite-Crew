@@ -11,7 +11,7 @@ import DynamicDatePicker from "@/app/Components/DynamicDatePicker/DynamicDatePic
 import axios from "axios";
 import { getData, postData } from "@/app/axios-services/services";
 import { convertFhirToJson, convertToFHIRInventoryWhileAdding } from "@yosemite-crew/fhir";
-import { useAuthStore } from "@/app/stores/authStore";
+import { useOldAuthStore } from "@/app/stores/oldAuthStore";
 
 interface InventoryFormData {
   barCode: string;
@@ -68,7 +68,7 @@ function AddInventory(): React.JSX.Element {
   const [successMessage, setSuccessMessage] = useState<string>("");
   const [inventoryCategory, setInventoryCategory] = useState([]);
 
-  const userId = useAuthStore((state: any) => state.userId);
+  const userId = useOldAuthStore((state: any) => state.userId);
 
   React.useEffect(() => {
     getInventoryCategory();
