@@ -2,7 +2,7 @@
 
 .AboutHeroSec{
     padding: 80px 0px;
-    background: url("https://d2il6osz49gpup.cloudfront.net/Images/aboutbg.png")no-repeat;
+    background: url(/Images/aboutbg.png) no-repeat;
     background-size: 100% 100%;
     min-height: 100vh;
 }
@@ -116,12 +116,7 @@
     margin: 0;
 }
 
-
-
-
-
-
-/* AboutHeroSec started  */
+/* AboutHeroSec ended  */
 
 
 
@@ -146,6 +141,13 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     grid-gap: 20px;
+    align-items: center;
+}
+.OurStorySec .StoryData img {
+    width: 100%;
+    height: auto;
+    max-width: 605px;
+    object-fit: cover;
 }
 .OurStorySec .StoryData .storyTexted , .OurStorySec .StoryData .storyTexted .ourstorypara{
     display: flex;
@@ -236,3 +238,392 @@
 }
 
 /* AbtTeamSec Ended  */
+
+
+
+
+/* ================================ */
+/* === RESPONSIVE MEDIA QUERIES === */
+/* ================================ */
+
+/* Large Desktop (1200px and above) - Default styles already defined */
+
+/* Medium Desktop and Laptop (992px to 1199px) */
+@media (max-width: 1199px) {
+    .AboutHeroSec {
+        padding: 60px 0px;
+    }
+    
+    .AboutHeroSec .AbtHeroData .abttopHero h2 {
+        font-size: clamp(36px, 4vw, 48px);
+        max-width: 90%;
+    }
+    
+    .AboutHeroSec .AbtHeroData .abttopHero h4 {
+        font-size: clamp(20px, 2.5vw, 26px);
+        max-width: 90%;
+    }
+    
+    .AbutheroBtm .abtherocard {
+        gap: 24px;
+    }
+    
+    .AbutheroBtm .abtherocard .AbtCardItem {
+        max-width: 280px;
+    }
+    
+    .OurStorySec .StoryData {
+        grid-gap: 32px;
+    }
+    
+    .OurStorySec .StoryData .storyTexted h2 {
+        font-size: clamp(36px, 4vw, 48px);
+    }
+    
+    .AbtTeamSec .AbtTeamdata .AbtTeamHead h2 {
+        font-size: clamp(36px, 4vw, 48px);
+    }
+}
+
+/* Tablet and Small Desktop (768px to 991px) */
+@media (max-width: 991px) {
+    .AboutHeroSec {
+        padding: 50px 0px;
+        min-height: auto;
+    }
+    
+    .AboutHeroSec .AbtHeroData {
+        gap: 120px;
+    }
+    
+    .AboutHeroSec .AbtHeroData .abttopHero {
+        max-width: 95%;
+        min-height: 300px;
+        padding: 24px;
+        gap: 20px;
+    }
+    
+    .AboutHeroSec .AbtHeroData .abttopHero h2 {
+        font-size: clamp(28px, 5vw, 36px);
+        line-height: 130%;
+    }
+    
+    .AboutHeroSec .AbtHeroData .abttopHero h4 {
+        font-size: clamp(18px, 3vw, 22px);
+        line-height: 130%;
+    }
+    
+    .AbutheroBtm .abtherocard {
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+    }
+    
+    .AbutheroBtm .abtherocard .AbtCardItem {
+        max-width: 100%;
+        width: 100%;
+        max-width: 400px;
+    }
+    
+    .OurStorySec {
+        padding: 60px 0px;
+    }
+    
+    .OurStorySec .StoryData {
+        grid-template-columns: 1fr;
+        gap: 40px;
+        text-align: center;
+    }
+    
+    .OurStorySec .StoryData .storyTexted {
+        order: 1;
+    }
+    
+    .OurStorySec .StoryData img {
+        order: 2;
+        width: 100%;
+        height: auto;
+        max-width: 500px;
+        margin: 0 auto;
+    }
+    
+    .AbtTeamSec {
+        padding: 60px 0px;
+    }
+    
+    .AbtTeamSec .AbtTeamdata .AbtTeamHead h2 {
+        font-size: clamp(28px, 5vw, 36px);
+    }
+    
+    .AbtTeamSec .AbtTeamdata .AbtTeamHead h4 {
+        font-size: clamp(20px, 3vw, 24px);
+    }
+}
+
+/* Large Mobile (576px to 767px) */
+@media (max-width: 767px) {
+    .AboutHeroSec {
+        padding: 40px 0px;
+        background-size: cover;
+        background-position: center;
+    }
+    
+    .AboutHeroSec .AbtHeroData {
+        gap: 80px;
+    }
+    
+    .AboutHeroSec .AbtHeroData .abttopHero {
+        max-width: 100%;
+        min-height: 250px;
+        padding: 20px;
+        gap: 16px;
+        border-radius: 16px;
+    }
+    
+    .AboutHeroSec .AbtHeroData .abttopHero h2 {
+        font-size: clamp(24px, 6vw, 32px);
+        line-height: 140%;
+    }
+    
+    .AboutHeroSec .AbtHeroData .abttopHero h4 {
+        font-size: clamp(16px, 4vw, 20px);
+        line-height: 140%;
+    }
+    
+    .AbutheroBtm h2 {
+        font-size: clamp(28px, 6vw, 36px);
+        text-align: center;
+    }
+    
+    .AbutheroBtm .abtherocard .AbtCardItem {
+        min-height: 280px;
+    }
+    
+    .AbutheroBtm .abtherocard .AbtCardItem .body {
+        min-height: 180px;
+    }
+    
+    .AbutheroBtm .abtherocard .AbtCardItem .body p {
+        font-size: 16px;
+        line-height: 140%;
+    }
+    
+    .OurStorySec {
+        padding: 50px 0px;
+    }
+    
+    .OurStorySec .StoryData {
+        gap: 30px;
+    }
+    
+    .OurStorySec .StoryData .storyTexted h2 {
+        font-size: clamp(28px, 6vw, 36px);
+    }
+    
+    .OurStorySec .StoryData .storyTexted .ourstorypara h6 {
+        font-size: 16px;
+        line-height: 140%;
+    }
+    
+    .AbtTeamSec {
+        padding: 50px 0px;
+    }
+    
+    .AbtTeamSec .AbtTeamdata {
+        gap: 40px;
+    }
+    
+    .AbtTeamSec .AbtTeamdata .AbtTeamHead {
+        gap: 16px;
+    }
+    
+    .AbtTeamSec .AbtTeamdata .AbtTeamHead h2 {
+        font-size: clamp(24px, 6vw, 32px);
+    }
+    
+    .AbtTeamSec .AbtTeamdata .AbtTeamHead h4 {
+        font-size: clamp(18px, 4vw, 22px);
+    }
+    
+    .AbtTeamSec .AbtTeamdata .AbtTeamHead .para h6 {
+        font-size: 16px;
+        line-height: 140%;
+    }
+    
+    .AbtTeamSec .AbtTeamdata .AbtTeambtm p {
+        font-size: 16px;
+        line-height: 140%;
+    }
+}
+
+/* Small Mobile (320px to 575px) */
+@media (max-width: 575px) {
+    .AboutHeroSec {
+        padding: 30px 0px;
+    }
+    
+    .AboutHeroSec .container,
+    .OurStorySec .container,
+    .AbtTeamSec .container {
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+    
+    .AboutHeroSec .AbtHeroData {
+        gap: 60px;
+    }
+    
+    .AboutHeroSec .AbtHeroData .abttopHero {
+        min-height: 200px;
+        padding: 16px;
+        gap: 12px;
+        border-radius: 12px;
+    }
+    
+    .AboutHeroSec .AbtHeroData .abttopHero h2 {
+        font-size: clamp(20px, 7vw, 28px);
+        line-height: 150%;
+    }
+    
+    .AboutHeroSec .AbtHeroData .abttopHero h4 {
+        font-size: clamp(14px, 5vw, 18px);
+        line-height: 150%;
+    }
+    
+    .AbutheroBtm h2 {
+        font-size: clamp(24px, 7vw, 32px);
+    }
+    
+    .AbutheroBtm .abtherocard .AbtCardItem {
+        min-height: 260px;
+        border-radius: 16px 16px 0px 0px;
+    }
+    
+    .AbutheroBtm .abtherocard .AbtCardItem .head {
+        border-radius: 16px 16px 0px 0px;
+        min-height: 50px;
+        padding: 0px 12px;
+    }
+    
+    .AbutheroBtm .abtherocard .AbtCardItem .head h6 {
+        font-size: 14px;
+    }
+    
+    .AbutheroBtm .abtherocard .AbtCardItem .body {
+        padding: 12px;
+        min-height: 160px;
+    }
+    
+    .AbutheroBtm .abtherocard .AbtCardItem .body p {
+        font-size: 15px;
+        line-height: 150%;
+    }
+    
+    .OurStorySec {
+        padding: 40px 0px;
+    }
+    
+    .OurStorySec::after {
+        width: 300px;
+        height: 300px;
+        bottom: 30px;
+    }
+    
+    .OurStorySec .StoryData .storyTexted h2 {
+        font-size: clamp(24px, 7vw, 32px);
+    }
+    
+    .OurStorySec .StoryData .storyTexted .ourstorypara {
+        gap: 16px;
+    }
+    
+    .OurStorySec .StoryData .storyTexted .ourstorypara h6 {
+        font-size: 15px;
+        line-height: 150%;
+    }
+    
+    .AbtTeamSec {
+        padding: 40px 0px;
+    }
+    
+    .AbtTeamSec .AbtTeamdata {
+        gap: 32px;
+    }
+    
+    .AbtTeamSec .AbtTeamdata .AbtTeamHead h2 {
+        font-size: clamp(20px, 7vw, 28px);
+    }
+    
+    .AbtTeamSec .AbtTeamdata .AbtTeamHead h4 {
+        font-size: clamp(16px, 5vw, 20px);
+    }
+    
+    .AbtTeamSec .AbtTeamdata .AbtTeamHead .para h6 {
+        font-size: 15px;
+    }
+    
+    .AbtTeamSec .AbtTeamdata .AbtTeambtm p {
+        font-size: 15px;
+    }
+}
+
+/* Extra Small Mobile (320px and below) */
+@media (max-width: 319px) {
+    .AboutHeroSec {
+        padding: 20px 0px;
+    }
+    
+    .AboutHeroSec .container,
+    .OurStorySec .container,
+    .AbtTeamSec .container {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+    
+    .AboutHeroSec .AbtHeroData .abttopHero {
+        padding: 12px;
+        min-height: 180px;
+    }
+    
+    .AboutHeroSec .AbtHeroData .abttopHero h2 {
+        font-size: 18px;
+    }
+    
+    .AboutHeroSec .AbtHeroData .abttopHero h4 {
+        font-size: 14px;
+    }
+    
+    .AbutheroBtm h2 {
+        font-size: 22px;
+    }
+    
+    .OurStorySec {
+        padding: 30px 0px;
+    }
+    
+    .OurStorySec::after {
+        width: 250px;
+        height: 250px;
+        bottom: 20px;
+    }
+    
+    .AbtTeamSec {
+        padding: 30px 0px;
+    }
+}
+
+/* Orientation adjustments for landscape mobile */
+@media (max-height: 500px) and (orientation: landscape) {
+    .AboutHeroSec {
+        min-height: auto;
+        padding: 30px 0px;
+    }
+    
+    .AboutHeroSec .AbtHeroData {
+        gap: 50px;
+    }
+    
+    .AboutHeroSec .AbtHeroData .abttopHero {
+        min-height: 200px;
+    }
+}
