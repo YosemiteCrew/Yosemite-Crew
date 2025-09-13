@@ -14,7 +14,11 @@ const poolData: ICognitoUserPoolData = {
   ClientId: process.env.NEXT_PUBLIC_COGNITO_CLIENTID || "",
 };
 
-const userPool = new CognitoUserPool(poolData);
+let userPool: CognitoUserPool | undefined = undefined;
+
+if (poolData.UserPoolId && poolData.ClientId) {
+  userPool = new CognitoUserPool(poolData);
+}
 
 type AuthStore = {
   user: CognitoUser | null;
@@ -60,6 +64,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   role: null,
 
   signUp: async (email, password, businessType) => {
+    if (!userPool) {
+      throw new Error("UserPool is not initialized");
+    }
     const attributeList = [
       new CognitoUserAttribute({ Name: "email", Value: email }),
       new CognitoUserAttribute({
@@ -78,8 +85,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       });
     });
   },
-
   confirmSignUp: async (email, code) => {
+    if (!userPool) {
+      throw new Error("UserPool is not initialized");
+    }
     const userData = {
       Username: email,
       Pool: userPool,
@@ -95,8 +104,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       });
     });
   },
-
   resendCode: async (email) => {
+    if (!userPool) {
+      throw new Error("UserPool is not initialized");
+    }
     const userData = {
       Username: email,
       Pool: userPool,
@@ -112,8 +123,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       });
     });
   },
-
   signIn: async (email, password) => {
+    if (!userPool) {
+      throw new Error("UserPool is not initialized");
+    }
     set({ loading: true, error: null });
     const authenticationDetails = new AuthenticationDetails({
       Username: email,
@@ -152,8 +165,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       });
     });
   },
-
   checkSession: async () => {
+    if (!userPool) {
+      throw new Error("UserPool is not initialized");
+    }
     set({ loading: true, error: null });
 
     return new Promise((resolve, reject) => {
@@ -191,7 +206,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       );
     });
   },
-
   signout: () => {
     const user = get().user;
     if (user) {
@@ -215,8 +229,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       set({ user: null, session: null });
     }
   },
-
   forgotPassword: async (email: string) => {
+    if (!userPool) {
+      throw new Error("UserPool is not initialized");
+    }
     return new Promise((resolve, reject) => {
       const userData = {
         Username: email,
@@ -225,15 +241,17 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       const cognitoUser = new CognitoUser(userData);
       cognitoUser.forgotPassword({
         onSuccess: (data) => {
-          console.log(data)
-          resolve(data)
+          console.log(data);
+          resolve(data);
         },
         onFailure: (err) => reject(err),
       });
     });
   },
-
   resetPassword: async (email: string, code: string, newPassword: string) => {
+    if (!userPool) {
+      throw new Error("UserPool is not initialized");
+    }
     return new Promise((resolve, reject) => {
       const userData = {
         Username: email,
