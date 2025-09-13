@@ -12,7 +12,7 @@ import { PhoneInput } from "@/app/Components/PhoneInput/PhoneInput";
 import DynamicSelect from "@/app/Components/DynamicSelect/DynamicSelect";
 import Swal from "sweetalert2";
 import { getData, postData } from "@/app/axios-services/services";
-import { useAuthStore } from "@/app/stores/authStore";
+import { useOldAuthStore } from "@/app/stores/oldAuthStore";
 import { convertDoctorsFromFHIR, convertEmergencyAppointmentToFHIR } from "@yosemite-crew/fhir";
 import catBreedList from "./catBreedList.json";
 import dogBreedList from "./dogBreedList.json";
@@ -51,7 +51,7 @@ interface AppointmentData {
 }
 
 function EmergencyAppointment() {
-  const { userId, userType} = useAuthStore();
+  const { userId, userType} = useOldAuthStore();
   const [email, setEmail] = useState("");
   const [patientName, setPatientName] = useState("");
   const [parentName, setParentName] = useState("");

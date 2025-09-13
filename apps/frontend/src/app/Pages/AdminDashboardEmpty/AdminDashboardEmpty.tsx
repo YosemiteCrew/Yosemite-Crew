@@ -11,7 +11,7 @@ import { AiFillPlusCircle } from "react-icons/ai";
 import StatCard from "@/app/Components/StatCard/StatCard";
 import DynamicChartCard from "@/app/Components/BarGraph/DynamicChartCard";
 import BlankDonutCard from "@/app/Components/BarGraph/BlankDonutCard";
-import { useAuthStore } from "../../stores/authStore";
+import { useOldAuthStore } from "../../stores/oldAuthStore";
 
 
 
@@ -22,7 +22,7 @@ import { useAuthStore } from "../../stores/authStore";
 
 function AdminDashboardEmpty() {
 
-   const { userId, email, userType,isVerified } = useAuthStore();
+   const { userId, email, userType,isVerified } = useOldAuthStore();
   
     useEffect(() => {
       console.log("user", userId, email, userType);

@@ -8,16 +8,11 @@ import PrivateHeader from "./PrivateHeader";
 import "./Header.css";
 
 const Header = () => {
-  const isVerified = useAuthStore((state) => state.isVerified);
-  const isLoggedIn = isVerified !== null;
+  const { user } = useAuthStore();
 
   return (
     <header className="header">
-      {isLoggedIn ? (
-        <PrivateHeader/>
-      ) : (
-        <PublicHeader />
-      )}
+      {user ? <PrivateHeader /> : <PublicHeader />}
     </header>
   );
 };

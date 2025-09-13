@@ -4,7 +4,7 @@ import "./MobChatApp.css";
 import { Socket, io } from "socket.io-client";
 import axios from "axios";
 import { useRouter } from "next/navigation";
-import { useAuthStore } from "@/app/stores/authStore";
+import { useOldAuthStore } from "@/app/stores/oldAuthStore";
 
 // Initialize socket instance
 const socket: Socket = io(process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000");
@@ -25,7 +25,7 @@ interface Message {
 }
 
 const MobChatApp: React.FC = () => {
-  const { userId } = useAuthStore();
+  const { userId } = useOldAuthStore();
   const router = useRouter();
 
   const receiver: string =
