@@ -9,7 +9,7 @@ import { FaEye, FaUser } from "react-icons/fa6";
 import { getData, putData } from "@/app/axios-services/services";
 import { convertEmergencyAppointmentFromFHIRForTable } from "@yosemite-crew/fhir";
 import { NormalEmergencyAppointment } from "@yosemite-crew/types";
-import { useAuthStore } from "@/app/stores/authStore";
+import { useOldAuthStore } from "@/app/stores/oldAuthStore";
 import { useRouter } from "next/navigation";
 import GenericTablePagination from "../GenericTable/GenericTablePagination";
 
@@ -157,7 +157,7 @@ async function changeStatus(item: AppointmentItem, status: string, refreshCallba
 }
 
 function MainEmergencyTable({ onCountUpdate }: EmergencyDataTableProps) {
-    const { userId } = useAuthStore();
+    const { userId } = useOldAuthStore();
     const router = useRouter();
     const [data, setData] = useState<AppointmentItem[]>([]);
     const [count, setCount] = useState(0);

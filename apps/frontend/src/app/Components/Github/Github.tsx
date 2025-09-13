@@ -1,16 +1,16 @@
 "use client";
 import React, { useState } from "react";
-import "./Github.css";
 import { IoCloseSharp } from "react-icons/io5";
-import { FaGithub } from "react-icons/fa6";
 import { Icon } from "@iconify/react/dist/iconify.js";
 
-interface GithubProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
+import "./Github.css";
 
-const Github = ({isOpen, onClose}: GithubProps) => {
+const Github = () => {
+  const [isOpen, setIsOpen] = useState(true);
+
+  const onClose = () => {
+    setIsOpen(false);
+  };
 
   if (!isOpen) return null;
 

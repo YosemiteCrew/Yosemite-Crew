@@ -12,10 +12,10 @@ import { LuSearch } from "react-icons/lu";
 import UploadImage from "@/app/Components/UploadImage/UploadImage";
 import { getData, postData } from "@/app/axios-services/services";
 import { convertFromFhirDepartment, convertFromFHIRDoctorOptions, convertTaskToFHIR } from "@yosemite-crew/fhir";
-import { useAuthStore } from "@/app/stores/authStore";
+import { useOldAuthStore } from "@/app/stores/oldAuthStore";
 
 function CreateTask() {
-  const { userId } = useAuthStore()
+  const { userId } = useOldAuthStore()
   const [formData, setFormData] = useState({
     taskTitle: "",
     taskCategory: "",

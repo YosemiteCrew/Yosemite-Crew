@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import classNames from "classnames";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence, easeInOut } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 import { NavItem } from "./HeaderInterfaces";
 
@@ -36,7 +36,7 @@ const PublicHeader = () => {
   };
 
   return (
-    <div className="container-fluid container-xl d-flex align-items-center justify-content-between public-header">
+    <div className="container-fluid container-xl d-flex align-items-center justify-content-between">
       <Link href="/" className="logo d-flex align-items-center me-auto me-lg-0">
         <Image src={logoUrl} alt="Logo" width={80} height={80} priority />
       </Link>
@@ -71,7 +71,7 @@ const PublicHeader = () => {
               transition: { duration: 0.3, ease: [0.42, 0, 0.58, 1] },
             }}
             style={{
-              top: "102px",
+              top: "100px",
             }}
             className="public-header-mobile-menu"
           >

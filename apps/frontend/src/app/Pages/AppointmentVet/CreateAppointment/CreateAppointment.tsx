@@ -11,7 +11,7 @@ import { getData, postData } from "@/app/axios-services/services";
 import { convertAppointmentToFHIR, convertFhirToNormalPetData, convertFHIRToTimeSlots, convertFromFhirDepartment, convertFromFHIRDoctorOptions } from "@yosemite-crew/fhir";
 import { NormalPetData } from "@yosemite-crew/types";
 import Image from "next/image";
-import { useAuthStore } from "@/app/stores/authStore";
+import { useOldAuthStore } from "@/app/stores/oldAuthStore";
 import Swal from "sweetalert2";
 import dayjs from "dayjs";
 import weekday from "dayjs/plugin/weekday";
@@ -42,7 +42,7 @@ interface TimeSlot {
 }
 
 function CreateAppointment() {
-    const { userId } = useAuthStore();
+    const { userId } = useOldAuthStore();
     const [petDetails, setPetDetails] = useState<PetDetails>({
         petName: "",
         ownerName: "",
