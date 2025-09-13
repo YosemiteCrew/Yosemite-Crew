@@ -15,7 +15,7 @@ import BusinessdashBoardTable from "@/app/Components/DataTable/BusinessdashBoard
 import ChartCard from "@/app/Components/BarGraph/ChartCard";
 import InventoryTable from "@/app/Components/DataTable/InventoryTable";
 import { getData } from "@/app/axios-services/services";
-import { useAuthStore } from "@/app/stores/authStore";
+import { useOldAuthStore } from "@/app/stores/oldAuthStore";
 import {
   convertFhirBundleToInventory,
   convertFHIRToAdminDepartments,
@@ -60,7 +60,7 @@ function BusinessDashboard() {
   const [specialityWiseAppointmentsGraph, setSpecialityWiseAppointmentsGraph] = useState([]);
   const [data, setData] = useState<DepartmentData[]>([]);
   const [departments, setDepartments] = useState([{ eventKey: "", title: "" }]);
-  const userId = useAuthStore((state: any) => state.userId);
+  const userId = useOldAuthStore((state: any) => state.userId);
 
   const fetchInventoryDetails = useCallback(
     async (searchCategory: string = "") => {

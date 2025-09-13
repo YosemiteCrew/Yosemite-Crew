@@ -28,7 +28,7 @@ import OperatingHours, {
 import { convertToFhirVetProfile } from "@yosemite-crew/fhir";
 import { postData } from "@/app/axios-services/services";
 import Swal from "sweetalert2";
-import { useAuthStore } from "@/app/stores/authStore";
+import { useOldAuthStore } from "@/app/stores/oldAuthStore";
 import { useRouter } from "next/navigation";
 
 function AddVetProfile() {
@@ -39,7 +39,7 @@ function AddVetProfile() {
     userType,
     vetAndTeamsProfile,
     fetchVetAndTeamsProfile,
-  } = useAuthStore();
+  } = useOldAuthStore();
 
   const [area, setArea] = useState<string>("");
   const [progress, setProgress] = useState(33);

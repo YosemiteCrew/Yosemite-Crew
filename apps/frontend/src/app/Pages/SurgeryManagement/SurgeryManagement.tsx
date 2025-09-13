@@ -37,14 +37,14 @@ function SurgeryManagement() {
                 <Row>
                     <div className="TableRowDiv">
                         <TableTopBar TbleHName="Today’s Surgeries" TbleHNumb="03"/>
-                        <AppointmentsTable/>
+                        {/* <AppointmentsTable/> */}
                     </div>
                 </Row>
 
                 <Row>
                     <div className="TableRowDiv">
                         <TableTopBar TbleHName="Upcoming Appointments" TbleHNumb="03"/>
-                        <UpComingAppointmentsTable/>
+                        {/* <UpComingAppointmentsTable/> */}
                     </div>
                 </Row>
 
