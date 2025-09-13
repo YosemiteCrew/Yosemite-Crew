@@ -6,7 +6,7 @@ import "./BlogPage.css";
 import axios from "axios";
 import EditorJSRenderer from "@/app/Components/EditorJs/EditorJs";
 import edjsHTML from "editorjs-html";
-import { useAuthStore } from "@/app/stores/authStore";
+import { useOldAuthStore } from "@/app/stores/oldAuthStore";
 
 const communityOptions = [
   { label: "Facebook", icon: <FaFacebookF />, value: "facebook" },
@@ -41,7 +41,7 @@ function CreateBlog() {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [loading, setLoading] = useState(false);
   const [editorData, setEditorData] = useState<any>({ blocks: [] });
-  const businessId = useAuthStore((state: any) => state.userId);
+  const businessId = useOldAuthStore((state: any) => state.userId);
   const edjsParser: any = edjsHTML();
 
   const handleInputChange = (

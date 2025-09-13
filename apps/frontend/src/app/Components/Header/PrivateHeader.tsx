@@ -6,19 +6,19 @@ import classNames from "classnames";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { useAuthStore } from "@/app/stores/authStore";
-import { postData } from "@/app/axios-services/services";
 import { NavItem } from "./HeaderInterfaces";
 import VerifiedProfile from "./VerifiedProfile";
 import UnverifiedProfile from "./UnverifiedProfile";
 
 const PrivateHeader = () => {
-  const { profile, vetAndTeamsProfile, userType, isVerified } = useAuthStore();
+  const isVerified = false
+  const { signout } = useAuthStore();
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const roles = useMemo(
-    () => ["vet", "vetTechnician", "nurse", "vetAssistant", "receptionist"],
+    () => ["owner", "vet", "technician", "nurse", "assistant", "receptionist"],
     []
   );
   const [menuOpen, setMenuOpen] = useState(false);
@@ -26,31 +26,8 @@ const PrivateHeader = () => {
 
   const toggleMenu = () => setMenuOpen((prev) => !prev);
 
-  const getDashboardRoute = () => {
-    switch (userType) {
-      case "veterinaryBusiness":
-        return "/emptydashboard";
-      case "breedingFacility":
-      case "petSitter":
-      case "groomerShop":
-        return "/DoctorDashboard";
-      case "vet":
-        return "/DoctorDashboard";
-      case "vetTechnician":
-        return "/DoctorDashboard";
-      case "nurse":
-        return "/DoctorDashboard";
-      case "vetAssistant":
-        return "/DoctorDashboard";
-      case "receptionist":
-        return "/DoctorDashboard";
-      default:
-        return "/businessDashboard";
-    }
-  };
-
   const clinicNavItems: NavItem[] = [
-    { label: "Dashboard", href: getDashboardRoute() },
+    { label: "Dashboard", href: "/emptydashboard" },
     {
       label: "Clinic",
       children: [
@@ -142,19 +119,6 @@ const PrivateHeader = () => {
     </ul>
   );
 
-  const getImageUrl = (input: unknown): string => {
-    if (typeof input === "string") return input;
-    if (Array.isArray(input)) return input[0] || logoUrl;
-    if (input instanceof File) return URL.createObjectURL(input);
-    return logoUrl;
-  };
-
-  const imageSrc = getImageUrl(
-    roles.includes(userType as string)
-      ? vetAndTeamsProfile?.image
-      : profile?.image
-  );
-
   const renderMobileNavItems = (items: NavItem[]) => (
     <>
       {items.map((item) => {
@@ -216,16 +180,13 @@ const PrivateHeader = () => {
   );
 
   const handleLogout = async () => {
-    const logout = useAuthStore.getState().logout;
     try {
-      await postData("/api/auth/signOut", {}, { withCredentials: true });
-
-      console.log("✅ Logout API called");
+      await signout();
+      console.log("✅ Signed out using Cognito signout");
     } catch (error) {
-      console.error("⚠️ Logout API error:", error);
+      console.error("⚠️ Cognito signout error:", error);
     }
-    router.push("/");
-    logout();
+    // router.push("/");
   };
 
   return (
@@ -235,8 +196,7 @@ const PrivateHeader = () => {
       </Link>
 
       <nav className={classNames("navmenu", { open: mobileOpen })}>
-        {/* {isVerified && renderNavItems(clinicNavItems)} */}
-        {renderNavItems(clinicNavItems)}
+        {isVerified && renderNavItems(clinicNavItems)}
       </nav>
 
       <AnimatePresence>
@@ -299,13 +259,9 @@ const PrivateHeader = () => {
       </div>
 
       {isVerified ? (
-        <VerifiedProfile
-          roles={roles}
-          handleLogout={handleLogout}
-          imageSrc={imageSrc}
-        />
+        <VerifiedProfile roles={roles} handleLogout={handleLogout} />
       ) : (
-        <UnverifiedProfile imageSrc={imageSrc} handleLogout={handleLogout} />
+        <UnverifiedProfile handleLogout={handleLogout} />
       )}
     </div>
   );

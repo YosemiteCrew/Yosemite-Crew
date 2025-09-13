@@ -6,7 +6,7 @@ import TableTopBar from "@/app/Components/TableTopBar/TableTopBar";
 // import Link from "next/link";
 // import { FaCalendar } from "react-icons/fa6";
 // import CalendarCard from "@/app/Components/CalendarCard/CalendarCard";
-import { useAuthStore } from "@/app/stores/authStore";
+import { useOldAuthStore } from "@/app/stores/oldAuthStore";
 import TodayAppointments from "@/app/Components/DataTable/TodayAppointments";
 import UpCommingAppointments from "@/app/Components/DataTable/UpCommingAppointments";
 import CompletedAppointmentsTable from "@/app/Components/DataTable/CompletedAppointmentsTable";
@@ -31,7 +31,7 @@ export type TodayAppointmentItem = {
 function AppointmentVet() {
   const [selectedDoctor, setSelectedDoctor] = useState("Appointment Status");
   const [myCalender, setMyCalender] = useState([]);
-  const userId = useAuthStore((state: any) => state.userId);
+  const userId = useOldAuthStore((state: any) => state.userId);
 
   // State to store counts from each table
   const [todayCount, setTodayCount] = useState(0);

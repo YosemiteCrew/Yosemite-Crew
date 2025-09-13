@@ -8,7 +8,7 @@ import { RiAccountBoxFill } from "react-icons/ri";
 import { FaSignInAlt } from "react-icons/fa";
 import { AnimatePresence, motion } from "framer-motion";
 
-const UnverifiedProfile = ({ imageSrc, handleLogout }: any) => {
+const UnverifiedProfile = ({ handleLogout }: any) => {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -25,7 +25,7 @@ const UnverifiedProfile = ({ imageSrc, handleLogout }: any) => {
               onClick={() => setMenuOpen((prev) => !prev)}
             >
               <div className="user">
-                <Image src={imageSrc} alt="Profile" width={40} height={40} />
+                <Image src={"https://d2il6osz49gpup.cloudfront.net/Logo.png"} alt="Profile" width={40} height={40} />
               </div>
             </span>
             <AnimatePresence>
