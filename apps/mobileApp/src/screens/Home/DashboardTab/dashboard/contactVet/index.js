@@ -51,7 +51,6 @@ const ContactVet = ({navigation}) => {
         onPress={() => handlePetSelection(item)}
         style={styles.petItemContainer}
         activeOpacity={0.7}>
-        >
         <View style={styles.petImageBorder(isSelected)}>
           <GImage
             image={petDetails?.petImage?.url}
