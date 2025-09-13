@@ -173,6 +173,21 @@
     opacity: 0.6;
 }
 
+/* Additional responsive styles for upload box */
+@media (max-width: 575px) {
+    .ContactUsData .RightContactUs .DataServiceAccessFields .UploadBox {
+        padding: 12px;
+    }
+    
+    .ContactUsData .RightContactUs .DataServiceAccessFields .UploadBox .UploadInner {
+        min-height: 60px;
+    }
+    
+    .ContactUsData .RightContactUs .DataServiceAccessFields .UploadBox .UploadInner .UploadText {
+        font-size: 13px;
+    }
+}
+
 
 
 
@@ -191,7 +206,8 @@
 /* ContactInfoSec Started  */
 .ContactInfoSec{
     background: url("https://d2il6osz49gpup.cloudfront.net/Images/ContactInfoBG.png") no-repeat;
-    background-size: 100% 100%;
+    background-size: cover;
+    background-position: center;
     min-height: 337px;
     display: flex;
     align-items: center;
@@ -293,3 +309,395 @@
 }
 
 /* ContactInfoSec Ended  */
+
+/* Responsive Styles */
+
+/* Large Desktop (1200px and up) */
+@media (min-width: 1200px) {
+    .ContactUsData .LeftContactUs {
+        min-width: 600px;
+    }
+    
+    .ContactUsData .RightContactUs {
+        max-width: 700px;
+    }
+}
+
+/* Medium Desktop/Laptop (992px to 1199px) */
+@media (max-width: 1199px) and (min-width: 992px) {
+    .ContactUsData .LeftContactUs {
+        min-width: 450px;
+    }
+    
+    .ContactUsData .LeftContactUs .conttexted h2 {
+        font-size: 48px;
+    }
+    
+    .ContactUsData .RightContactUs {
+        max-width: 550px;
+        padding: 48px 32px;
+    }
+    
+    .ContactInfoData .LeftContInfo h2 {
+        font-size: 40px;
+    }
+    
+    .ContactInfoDetail {
+        gap: 60px;
+    }
+}
+
+/* Tablet (768px to 991px) */
+@media (max-width: 991px) and (min-width: 768px) {
+    .ContactUsPageSec {
+        padding: 60px 0px;
+    }
+    
+    .ContactUsData {
+        flex-direction: column;
+        gap: 40px;
+        align-items: center;
+    }
+    
+    .ContactUsData .LeftContactUs {
+        min-width: unset;
+        width: 100%;
+        max-width: 600px;
+        gap: 40px;
+        text-align: center;
+    }
+    
+    .ContactUsData .LeftContactUs .conttexted h2 {
+        font-size: 42px;
+    }
+    
+    .ContactUsData .RightContactUs {
+        max-width: 600px;
+        width: 100%;
+        padding: 40px 32px;
+        gap: 28px;
+    }
+    
+    .ContactUsData .RightContactUs .QueryText h3 {
+        font-size: 28px;
+    }
+    
+    .ContactInfoSec {
+        min-height: 280px;
+        background-size: cover;
+        background-position: center;
+    }
+    
+    .ContactInfoData {
+        flex-direction: column;
+        gap: 30px;
+        text-align: center;
+    }
+    
+    .ContactInfoData .LeftContInfo h2 {
+        font-size: 36px;
+    }
+    
+    .ContactInfoDetail {
+        flex-direction: column;
+        gap: 30px;
+        align-items: center;
+    }
+    
+    .ContactInfoDetail .LeftDetails {
+        text-align: center;
+        max-width: 300px;
+    }
+}
+
+/* Mobile Large (576px to 767px) */
+@media (max-width: 767px) and (min-width: 576px) {
+    .ContactUsPageSec {
+        padding: 40px 0px;
+    }
+    
+    .ContactUsData {
+        flex-direction: column;
+        gap: 32px;
+        align-items: center;
+    }
+    
+    .ContactUsData .LeftContactUs {
+        min-width: unset;
+        width: 100%;
+        gap: 32px;
+        text-align: center;
+    }
+    
+    .ContactUsData .LeftContactUs .conttexted h2 {
+        font-size: 36px;
+        line-height: 110%;
+    }
+    
+    .ContactUsData .LeftContactUs .conttexted span {
+        font-size: 16px;
+    }
+    
+    .ContactUsData .RightContactUs {
+        max-width: 100%;
+        width: 100%;
+        padding: 32px 24px;
+        gap: 24px;
+        border-radius: 20px;
+    }
+    
+    .ContactUsData .RightContactUs .QueryText h3 {
+        font-size: 24px;
+    }
+    
+    .ContactUsData .RightContactUs .QueryTypeRadioGroup {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .ContactUsData .RightContactUs .QueryTypeRadioGroup label {
+        font-size: 16px;
+        justify-content: flex-start;
+    }
+    
+    .ContactUsData .RightContactUs .QueryDetailsFields label,
+    .ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted p {
+        font-size: 16px;
+    }
+    
+    .ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted label {
+        font-size: 14px;
+        grid-gap: 8px;
+    }
+    
+    .ContactInfoSec {
+        min-height: 250px;
+        background-size: cover;
+        background-position: center;
+    }
+    
+    .ContactInfoData {
+        flex-direction: column;
+        gap: 24px;
+        text-align: center;
+    }
+    
+    .ContactInfoData .LeftContInfo h2 {
+        font-size: 32px;
+    }
+    
+    .ContactInfoData .LeftContInfo span {
+        font-size: 16px;
+    }
+    
+    .ContactInfoDetail {
+        flex-direction: column;
+        gap: 24px;
+        align-items: center;
+    }
+    
+    .ContactInfoDetail .LeftDetails {
+        text-align: center;
+        max-width: 280px;
+    }
+    
+    .ContactInfoDetail .LeftDetails .detailitem h4 {
+        font-size: 16px;
+    }
+    
+    .ContactInfoDetail .LeftDetails .detailTexed a,
+    .ContactInfoDetail .LeftDetails .detailTexed p {
+        font-size: 16px;
+    }
+}
+
+/* Mobile Small (up to 575px) */
+@media (max-width: 575px) {
+    .ContactUsPageSec {
+        padding: 32px 0px;
+    }
+    
+    .ContactUsData {
+        flex-direction: column;
+        gap: 24px;
+    }
+    
+    .ContactUsData .LeftContactUs {
+        min-width: unset;
+        width: 100%;
+        gap: 24px;
+        text-align: center;
+    }
+    
+    .ContactUsData .LeftContactUs .conttexted h2 {
+        font-size: 28px;
+        line-height: 110%;
+    }
+    
+    .ContactUsData .LeftContactUs .conttexted span {
+        font-size: 14px;
+    }
+    
+    .ContactUsData .RightContactUs {
+        max-width: 100%;
+        width: 100%;
+        padding: 24px 16px;
+        gap: 20px;
+        border-radius: 16px;
+    }
+    
+    .ContactUsData .RightContactUs .QueryText h3 {
+        font-size: 20px;
+    }
+    
+    .ContactUsData .RightContactUs .QueryTypeRadioGroup {
+        flex-direction: column;
+        gap: 6px;
+    }
+    
+    .ContactUsData .RightContactUs .QueryTypeRadioGroup label {
+        font-size: 14px;
+        justify-content: flex-start;
+    }
+    
+    .ContactUsData .RightContactUs .QueryDetailsFields label,
+    .ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted p {
+        font-size: 14px;
+    }
+    
+    .ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted label {
+        font-size: 13px;
+        grid-gap: 6px;
+        line-height: 140%;
+    }
+    
+    .ContactUsData .RightContactUs .QueryDetailsFields textarea {
+        min-height: 100px !important;
+        padding: 10px 8px !important;
+        font-size: 14px;
+    }
+    
+    .ContactUsData .RightContactUs .QueryDetailsFields textarea::placeholder {
+        font-size: 14px;
+    }
+    
+    .SendBtn {
+        min-height: 50px;
+        font-size: 18px;
+        padding: 12px 24px;
+        border-radius: 25px;
+    }
+    
+    .ContactInfoSec {
+        min-height: 200px;
+        background-size: cover;
+        background-position: center;
+    }
+    
+    .ContactInfoData {
+        flex-direction: column;
+        gap: 20px;
+        text-align: center;
+    }
+    
+    .ContactInfoData .LeftContInfo h2 {
+        font-size: 24px;
+    }
+    
+    .ContactInfoData .LeftContInfo span {
+        font-size: 14px;
+    }
+    
+    .ContactInfoDetail {
+        flex-direction: column;
+        gap: 20px;
+        align-items: center;
+    }
+    
+    .ContactInfoDetail .LeftDetails {
+        text-align: center;
+        max-width: 260px;
+    }
+    
+    .ContactInfoDetail .LeftDetails .detailitem h4 {
+        font-size: 14px;
+        min-height: 35px;
+    }
+    
+    .ContactInfoDetail .LeftDetails .detailTexed a,
+    .ContactInfoDetail .LeftDetails .detailTexed p {
+        font-size: 14px;
+    }
+    
+    .ContactInfoDetail .LeftDetails .detailTexed p {
+        max-width: 100%;
+    }
+}
+
+/* Extra Small Mobile (up to 375px) */
+@media (max-width: 375px) {
+    .ContactUsPageSec {
+        padding: 24px 0px;
+    }
+    
+    .ContactUsData .LeftContactUs .conttexted h2 {
+        font-size: 24px;
+    }
+    
+    .ContactUsData .RightContactUs {
+        padding: 20px 12px;
+        gap: 16px;
+    }
+    
+    .ContactUsData .RightContactUs .QueryText h3 {
+        font-size: 18px;
+    }
+    
+    .SendBtn {
+        min-height: 45px;
+        font-size: 16px;
+        padding: 10px 20px;
+    }
+    
+    .ContactInfoData .LeftContInfo h2 {
+        font-size: 20px;
+    }
+    
+    .ContactInfoDetail .LeftDetails {
+        max-width: 240px;
+    }
+}
+
+/* Container responsive padding adjustments */
+@media (max-width: 767px) {
+    .ContactUsPageSec .container,
+    .ContactInfoSec .container {
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+}
+
+@media (max-width: 575px) {
+    .ContactUsPageSec .container,
+    .ContactInfoSec .container {
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+}
+
+/* Ensure proper stacking and spacing for form elements */
+@media (max-width: 991px) {
+    .ContactUsData .RightContactUs .DataServiceAccessFields {
+        gap: 24px;
+    }
+}
+
+@media (max-width: 575px) {
+    .ContactUsData .RightContactUs .DataServiceAccessFields {
+        gap: 16px;
+    }
+    
+    .ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted {
+        gap: 12px;
+    }
+}
