@@ -1,8 +1,8 @@
 import { postData } from "../axios-services/services";
-import { useAuthStore } from "../stores/authStore";
+import { useOldAuthStore } from "../stores/oldAuthStore";
 
 export const handleLogout = async () => {
-    const logout = useAuthStore.getState().logout;
+    const logout = useOldAuthStore.getState().logout;
   
     try {
       await postData("/api/auth/signOut", {}, { withCredentials: true });

@@ -1,10 +1,10 @@
 'use client';
 import React from "react";
 import BusinessDashboard from "@/app/Pages/BusinessDashboard/BusinessDashboard";
-import { useAuthStore } from "@/app/stores/authStore";
+import { useOldAuthStore } from "@/app/stores/oldAuthStore";
 
 function Page() {
-  const userType = useAuthStore((state) => state.userType);
+  const userType = useOldAuthStore((state) => state.userType);
   return (
     <>
       {userType === "veterinaryBusiness" ? (
