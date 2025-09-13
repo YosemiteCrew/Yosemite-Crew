@@ -42,6 +42,9 @@ jobs:
             # - name: Linting
             #   run: pnpm run lint --filter frontend
             - name: Build Website
+              env:
+                NEXT_PUBLIC_COGNITO_USERPOOLID: ${{ secrets.NEXT_PUBLIC_COGNITO_USERPOOLID }}
+                NEXT_PUBLIC_COGNITO_CLIENTID: ${{ secrets.NEXT_PUBLIC_COGNITO_CLIENTID }}
               run: pnpm run build --filter frontend
     ci-website-status-check:
         if: always() && !cancelled()

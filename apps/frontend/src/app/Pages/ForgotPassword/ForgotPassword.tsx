@@ -1,19 +1,22 @@
 "use client";
-import Link from "next/link";
 import React, { useState } from "react";
-import { Form } from "react-bootstrap";
-import { FormInput, FormInputPass, MainBtn } from "../Sign/SignUp";
-import { useErrorTost } from "@/app/Components/Toast";
-import { GoCheckCircleFill } from "react-icons/go";
-import { Icon } from "@iconify/react/dist/iconify.js";
-import { postData } from "@/app/axios-services/services";
-import { useRouter } from "next/navigation";
 import { AxiosError } from "axios";
-import { useOldAuthStore } from "../../stores/oldAuthStore";
+import { Form } from "react-bootstrap";
+import { GoCheckCircleFill } from "react-icons/go";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Icon } from "@iconify/react/dist/iconify.js";
+
+import { useErrorTost } from "@/app/Components/Toast";
+import { useAuthStore } from "@/app/stores/authStore";
+import { FormInput, FormInputPass, MainBtn } from "@/app/Pages/Sign/SignUp";
+
+import "../Sign/Sign.css";
 
 const ForgotPassword = () => {
   const router = useRouter();
   const { showErrorTost, ErrorTostPopup } = useErrorTost();
+  const { forgotPassword, resetPassword } = useAuthStore();
 
   const [showVerifyCode, setShowVerifyCode] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -22,6 +25,7 @@ const ForgotPassword = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
     index: number
@@ -40,7 +44,6 @@ const ForgotPassword = () => {
     }
   };
 
-  // Handle OTP input key down (to handle backspace)
   const handleKeyDown = (
     e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>,
     index: number
@@ -50,6 +53,7 @@ const ForgotPassword = () => {
       if (prevInput) prevInput.focus();
     }
   };
+
   const handleOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) {
@@ -73,17 +77,14 @@ const ForgotPassword = () => {
     }
 
     try {
-      const response = await postData<{ message: string }>(
-        `/api/auth/forgotPassword`,
-        { email }
-      );
-
-      if (response.status === 200) {
+      const data = await forgotPassword(email);
+      if (data) {
         if (typeof window !== "undefined") {
           window.scrollTo({ top: 0, behavior: "smooth" });
         }
         showErrorTost({
-          message: "OTP sent successfully",
+          message:
+            "If an account with this email exists, a reset code has been sent",
           errortext: "Success",
           iconElement: (
             <Icon
@@ -141,6 +142,33 @@ const ForgotPassword = () => {
       return;
     }
 
+    setShowNewPassword(true);
+    setShowVerifyCode(false);
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!password || !confirmPassword) {
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      showErrorTost({
+        message: "Both Passwords are required",
+        errortext: "Error",
+        iconElement: (
+          <Icon
+            icon="solar:danger-triangle-bold"
+            width="20"
+            height="20"
+            color="#EA3729"
+          />
+        ),
+        className: "errofoundbg",
+      });
+      return;
+    }
+
     if (password !== confirmPassword) {
       if (typeof window !== "undefined") {
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -161,24 +189,11 @@ const ForgotPassword = () => {
       return;
     }
 
-    const data = {
-      email,
-      otp: otp.join(""),
-      password,
-    };
-
     try {
-      const response = await postData<{ message: string }>(
-        `/api/auth/verifyotp`,
-        data
-      );
-
-      if (response.status === 200) {
-        if (typeof window !== "undefined") {
-          window.scrollTo({ top: 0, behavior: "smooth" });
-        }
+      const success = await resetPassword(email, otp.join(""), password);
+      if (success) {
         showErrorTost({
-          message: "OTP verified successfully",
+          message: "Password Changed successfully",
           errortext: "Success",
           iconElement: (
             <Icon
@@ -190,59 +205,94 @@ const ForgotPassword = () => {
           ),
           className: "CongratsBg",
         });
-        setShowNewPassword(false);
-        setShowVerifyCode(false);
+        setTimeout(() => {
+          router.push("/signin");
+        }, 3000);
+        setTimeout(() => {
+          setShowNewPassword(false);
+          setShowVerifyCode(false);
+          setPassword("");
+          setConfirmPassword("");
+          setOtp(["", "", "", "", "", ""]);
+        }, 5000);
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (typeof window !== "undefined") {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
-      const axiosError = error as AxiosError<{ message: string }>;
-      showErrorTost({
-        message: `OTP verification failed: ${axiosError.response?.data?.message || "Unable to connect to the server."}`,
-        errortext: "Error",
-        iconElement: (
-          <Icon
-            icon="solar:danger-triangle-bold"
-            width="20"
-            height="20"
-            color="#EA3729"
-          />
-        ),
-        className: "errofoundbg",
-      });
+      if (error?.code === "CodeMismatchException") {
+        setShowVerifyCode(true);
+        showErrorTost({
+          message: "Code Mismatch",
+          errortext: "Error",
+          iconElement: (
+            <Icon
+              icon="solar:danger-triangle-bold"
+              width="20"
+              height="20"
+              color="#EA3729"
+            />
+          ),
+          className: "errofoundbg",
+        });
+      } else {
+        setShowVerifyCode(false);
+        showErrorTost({
+          message: "Something went wrong",
+          errortext: "Error",
+          iconElement: (
+            <Icon
+              icon="solar:danger-triangle-bold"
+              width="20"
+              height="20"
+              color="#EA3729"
+            />
+          ),
+          className: "errofoundbg",
+        });
+      }
+      setShowNewPassword(false);
+      setPassword("");
+      setConfirmPassword("");
+      setOtp(["", "", "", "", "", ""]);
     }
   };
-  return (
-    <div>
-      <div className="SignIninner">
-        <div className="ForgetHead">
-          <h2>
-            Forgot <span>password?</span>{" "}
-          </h2>
-          <p>
-            {" "}
-            Enter your registered email, and we’ll send you a code to reset it.
-          </p>
-        </div>
-        <Form>
-          <FormInput
-            intype="email"
-            inname="email"
-            value={email}
-            inlabel="Email Address"
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <MainBtn
-            btnicon={<GoCheckCircleFill />}
-            btnname="Send Code"
-            onClick={handleOtp}
-          />
-        </Form>
-      </div>
 
-      {showVerifyCode && !showNewPassword && (
-        <div className="ss">
+  return (
+    <section className="SignInSec">
+      {ErrorTostPopup}
+      <div className="leftSignIn"></div>
+      <div className="RightSignIn">
+        {!showVerifyCode && !showNewPassword && (
+          <div className="SignIninner">
+            <div className="ForgetHead">
+              <h2>
+                Forgot <span>password?</span>{" "}
+              </h2>
+              <p>
+                {" "}
+                Enter your registered email, and we’ll send you a code to reset
+                it.
+              </p>
+            </div>
+            <Form>
+              <FormInput
+                intype="email"
+                inname="email"
+                value={email}
+                inlabel="Email Address"
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <MainBtn
+                btnicon={<GoCheckCircleFill />}
+                btnname="Send Code"
+                onClick={handleOtp}
+              />
+            </Form>
+          </div>
+        )}
+
+        {showVerifyCode && (
           <div className="SignIninner">
             <div className="ForgetHead">
               <h2>
@@ -255,7 +305,7 @@ const ForgotPassword = () => {
               </p>
             </div>
 
-            <Form>
+            <Form style={{ marginBottom: "40px" }}>
               <div className="verifyInput">
                 {otp.map((digit, index) => (
                   <Form.Control
@@ -270,8 +320,26 @@ const ForgotPassword = () => {
                 ))}
               </div>
             </Form>
-          </div>
 
+            <div className="Signbtn">
+              <MainBtn
+                btnicon={<GoCheckCircleFill />}
+                btnname="Change Password"
+                iconPosition="left"
+                onClick={handleVerifyOtp}
+              />
+              <h6>
+                {" "}
+                Didn’t receive the code?{" "}
+                <Link onClick={handleOtp} href="#">
+                  Request New Code.
+                </Link>
+              </h6>
+            </div>
+          </div>
+        )}
+
+        {showNewPassword && (
           <div className="SignIninner">
             <Form>
               <div className="TopSignInner">
@@ -300,22 +368,15 @@ const ForgotPassword = () => {
                   btnicon={<GoCheckCircleFill />}
                   btnname="Reset Password"
                   iconPosition="left"
-                  onClick={handleVerifyOtp}
+                  onClick={handlePasswordChange}
                 />
-                <h6>
-                  {" "}
-                  Didn’t receive the code?{" "}
-                  <Link onClick={handleOtp} href="#">
-                    Request New Code.
-                  </Link>
-                </h6>
               </div>
             </Form>
           </div>
-        </div>
-      )}
+        )}
+      </div>
       {ErrorTostPopup}
-    </div>
+    </section>
   );
 };
 

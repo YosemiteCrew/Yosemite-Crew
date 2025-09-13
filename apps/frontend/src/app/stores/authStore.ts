@@ -38,6 +38,18 @@ type AuthStore = {
   ) => Promise<CognitoUserSession | null>;
   checkSession: () => Promise<CognitoUserSession | null>;
   signout: () => void;
+  forgotPassword: (email: string) => Promise<{
+    CodeDeliveryDetails: {
+      AttributeName: string;
+      DeliveryMedium: string;
+      Destination: string;
+    };
+  } | null>;
+  resetPassword: (
+    email: string,
+    code: string,
+    password: string
+  ) => Promise<string | null>;
 };
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
@@ -202,5 +214,36 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     } else {
       set({ user: null, session: null });
     }
+  },
+
+  forgotPassword: async (email: string) => {
+    return new Promise((resolve, reject) => {
+      const userData = {
+        Username: email,
+        Pool: userPool,
+      };
+      const cognitoUser = new CognitoUser(userData);
+      cognitoUser.forgotPassword({
+        onSuccess: (data) => {
+          console.log(data)
+          resolve(data)
+        },
+        onFailure: (err) => reject(err),
+      });
+    });
+  },
+
+  resetPassword: async (email: string, code: string, newPassword: string) => {
+    return new Promise((resolve, reject) => {
+      const userData = {
+        Username: email,
+        Pool: userPool,
+      };
+      const cognitoUser = new CognitoUser(userData);
+      cognitoUser.confirmPassword(code, newPassword, {
+        onSuccess: () => resolve("success"),
+        onFailure: (err) => reject(err),
+      });
+    });
   },
 }));
