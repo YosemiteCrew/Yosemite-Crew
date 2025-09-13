@@ -15,13 +15,13 @@ import {
   convertFhirToJson,
   convertProcedurePackagesFromFHIR,
 } from "@yosemite-crew/fhir";
-import { useAuthStore } from "@/app/stores/authStore";
+import { useOldAuthStore } from "@/app/stores/oldAuthStore";
 import { HeadText } from "../../CompleteProfile/CompleteProfile";
 import { OverviewDisp } from "../../Departments/DepartmentsDashboard";
 import { GraphSelected } from "../../AdminDashboardEmpty/AdminDashboardEmpty";
 
 function InventoryDashboard() {
-  const { userId } = useAuthStore();
+  const { userId } = useOldAuthStore();
   const [selectedDoctor, setSelectedDoctor] = useState("Last 30 Days");
   const [selectedRange, setSelectedRange] = useState("Last 3 Months"); // graphSelected
   const [inventoryCategory, setInventoryCategory] = useState<any[]>([]);

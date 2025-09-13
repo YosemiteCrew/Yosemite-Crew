@@ -7,7 +7,7 @@ import { IoMdArrowDropdown, IoMdArrowDropup } from 'react-icons/io';
 import { IoSearchOutline } from 'react-icons/io5';
 import { getData } from '@/app/axios-services/services';
 import { convertFromFhirTeamMembers } from '@yosemite-crew/fhir';
-import { useAuthStore } from '@/app/stores/authStore';
+import { useOldAuthStore } from '@/app/stores/oldAuthStore';
 import { TeamMember } from '@yosemite-crew/types';
 
 interface DepartmentHead {
@@ -37,7 +37,7 @@ interface Props {
 
 const DepartmentHeadSelector: React.FC<Props> = ({ onSelectHead, Head }) => {
 
-  const { userId } = useAuthStore()
+  const { userId } = useOldAuthStore()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedHead, setSelectedHead] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");

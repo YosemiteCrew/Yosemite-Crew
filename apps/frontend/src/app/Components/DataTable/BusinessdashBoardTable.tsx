@@ -6,7 +6,7 @@ import "./DataTable.css";
 import { Button } from "react-bootstrap";
 import { FaEye, FaUser } from "react-icons/fa6";
 import { getData } from "@/app/axios-services/services";
-import { useAuthStore } from "@/app/stores/authStore";
+import { useOldAuthStore } from "@/app/stores/oldAuthStore";
 import { fromFHIR } from "@yosemite-crew/fhir";
 import { FHIRAppointmentData, MyAppointmentData } from "@yosemite-crew/types";
 import { useRouter } from "next/navigation";
@@ -110,7 +110,7 @@ function BusinessdashBoardTable({ status }: { status?: string }) {
     router.push('/AppointmentVet')
   }
   const [appointmentsData, setAppointmentsData] = useState<TodayAppointmentItem[]>([]);
-  const userId = useAuthStore((state: any) => state.userId);
+  const userId = useOldAuthStore((state: any) => state.userId);
 
   const normalizeAppointments = (data: MyAppointmentData[]): TodayAppointmentItem[] => {
     return data.map((item: any) => {

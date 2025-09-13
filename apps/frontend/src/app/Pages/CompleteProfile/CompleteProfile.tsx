@@ -13,7 +13,7 @@ import Image from "next/image";
 
 import { getData, postData } from "@/app/axios-services/services";
 import { convertFHIRToAdminDepartments, toFHIRBusinessProfile } from "@yosemite-crew/fhir"
-import { useAuthStore } from "@/app/stores/authStore";
+import { useOldAuthStore } from "@/app/stores/oldAuthStore";
 import { useRouter } from "next/navigation";
 import { LoadScript, Autocomplete } from "@react-google-maps/api";
 
@@ -40,7 +40,7 @@ const servicesList = [
 
 
 function CompleteProfile() {
-  const { userId, profile } = useAuthStore();
+  const { userId, profile } = useOldAuthStore();
   const autoCompleteRef: any = useRef("");
   const router = useRouter();
   //  console.log(profile,222222)

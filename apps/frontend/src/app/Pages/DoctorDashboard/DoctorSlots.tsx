@@ -5,7 +5,7 @@ import { FaCircleCheck } from "react-icons/fa6";
 import "./DoctorDashboard.css";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
-import { useAuthStore } from "@/app/stores/authStore";
+import { useOldAuthStore } from "@/app/stores/oldAuthStore";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import { getData, postData } from "@/app/axios-services/services";
 import { convertFromFhirSlotBundle, convertToFhirSlotResource } from "@yosemite-crew/fhir";
@@ -36,7 +36,7 @@ export function getUpcomingDayRangeFromToday(availableDays: string[], maxDates: 
 }
 
 function DoctorSlots() {
-  const { userId, vetAndTeamsProfile } = useAuthStore();
+  const { userId, vetAndTeamsProfile } = useOldAuthStore();
   const days = vetAndTeamsProfile?.OperatingHour.map(d => d.day) ?? [];
   const range = getUpcomingDayRangeFromToday(days, days.length);
 
