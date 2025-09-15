@@ -1,9 +1,15 @@
+// src/helpers/updateObservation.ts
+import {
+  type UpdateObservationDetails,
+  type FHIRObservationUpdate,
+} from '@/types/api';
+
 export const updateObservation = ({
   patientId,
   feedback,
   rating,
   date = new Date().toISOString(),
-}) => {
+}: UpdateObservationDetails): FHIRObservationUpdate => {
   return {
     resourceType: 'Observation',
     status: 'final',
