@@ -118,3 +118,39 @@ export interface FHIRAppointment {
     status: 'accepted';
   }[];
 }
+
+// Add these to src/types/api.ts
+
+// Describes the input for the buildOrganizationFHIR function. All are optional.
+export interface OrganizationDetails {
+  id?: string;
+  name?: string;
+  email?: string;
+  website?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  postalCode?: string;
+  subjectReference?: string;
+}
+
+// Describes the FHIR Organization object that is returned
+export interface FHIROrganization {
+  resourceType: 'Organization';
+  id: string;
+  name: string;
+  subject?: {
+    reference: string;
+  };
+  telecom: {
+    system: 'phone' | 'email' | 'url';
+    value: string;
+  }[];
+  address: {
+    line?: string[];
+    city?: string;
+    postalCode?: string;
+    country?: string;
+  }[];
+}
