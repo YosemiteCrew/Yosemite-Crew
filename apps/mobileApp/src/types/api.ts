@@ -154,3 +154,72 @@ export interface FHIROrganization {
     country?: string;
   }[];
 }
+
+// Add these to src/types/api.ts
+
+// Create a specific type for all the possible component keys
+export type FHIRComponentKey =
+  | 'activityLevel' | 'glucose' | 'weight' | 'insulinIntake'
+  | 'hba1c' | 'mealInfo' | 'stressLevel' | 'sleepHours'
+  | 'bloodPressureSystolic' | 'bloodPressureDiastolic' | 'notes';
+
+// Describes the input for the buildDiabetesObservation function
+export interface DiabetesObservationDetails {
+  patientId: string;
+  encounterId: string;
+  componentsData: {
+    key: FHIRComponentKey;
+    value: string | number | boolean;
+  }[];
+}
+
+// Describes the structure of a single component in the FHIR Observation
+interface FHIRObservationComponent {
+  code: {
+    coding: {
+      system: string;
+      code: string;
+      display: string;
+    }[];
+    text: string;
+  };
+  valueString?: string;
+  valueBoolean?: boolean;
+  valueInteger?: number;
+  valueQuantity?: {
+    value: number;
+    unit: string;
+    system: string;
+    code: string;
+  };
+}
+
+// Describes the final FHIR Observation object
+export interface FHIRObservation {
+  resourceType: 'Observation';
+  id: string;
+  status: 'final';
+  category: {
+    coding: {
+      system: string;
+      code: string;
+      display: string;
+    }[];
+  }[];
+  code: {
+    coding: {
+      system: string;
+      code: string;
+      display: string;
+    }[];
+    text: string;
+  };
+  subject: {
+    reference: string;
+  };
+  encounter: {
+    reference: string;
+  };
+  effectiveDateTime: string;
+  component: FHIRObservationComponent[];
+}

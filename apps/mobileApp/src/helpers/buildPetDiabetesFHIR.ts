@@ -1,4 +1,22 @@
-const FHIR_COMPONENTS = {
+// src/helpers/buildPetDiabetesFHIR.ts
+import {
+  type DiabetesObservationDetails,
+  type FHIRObservation,
+  type FHIRComponentKey,
+} from '@/types/api';
+
+// Define the type for a single component's configuration
+type FHIRComponentConfig = {
+  system: string;
+  code: string;
+  display: string;
+  text: string;
+  valueType: 'string' | 'quantity' | 'boolean' | 'integer';
+  unit?: string;
+};
+
+// The entire FHIR_COMPONENTS object is now included
+const FHIR_COMPONENTS: Record<FHIRComponentKey, FHIRComponentConfig> = {
   activityLevel: {
     system: 'http://loinc.org',
     code: '8867-4',
@@ -89,7 +107,7 @@ export const buildDiabetesObservation = ({
   patientId,
   encounterId,
   componentsData,
-}) => ({
+}: DiabetesObservationDetails): FHIRObservation => ({
   resourceType: 'Observation',
   id: `diabetes-record-${new Date().toISOString().split('T')[0]}`,
   status: 'final',
@@ -128,7 +146,7 @@ export const buildDiabetesObservation = ({
       throw new Error(`Unknown FHIR component key: ${key}`);
     }
 
-    const base = {
+    const base: any = {
       code: {
         coding: [
           {
@@ -146,14 +164,14 @@ export const buildDiabetesObservation = ({
         base.valueString = value;
         break;
       case 'boolean':
-        base.valueBoolean = value;
+        base.valueBoolean = value as boolean;
         break;
       case 'integer':
-        base.valueInteger = value;
+        base.valueInteger = value as number;
         break;
       case 'quantity':
         base.valueQuantity = {
-          value,
+          value: value as number,
           unit: config.unit,
           system: 'http://unitsofmeasure.org',
           code: config.unit,
