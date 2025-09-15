@@ -44,3 +44,47 @@ export interface FHIRPatient {
   };
   extension: any[];
 }
+
+// Add these to src/types/api.ts
+
+// Describes the input for the buildImmunization function
+export interface ImmunizationDetails {
+  manufacturer: string;
+  vaccineName: string;
+  batchNumber: string;
+  expiryDate: string;      // e.g., "2025-12-31"
+  vaccinationDate: string; // e.g., "2024-09-15"
+  businessName: string;
+  nextDueOn: string;
+  patientId: string;
+}
+
+// Describes the FHIR Immunization object that is returned
+export interface FHIRImmunization {
+  resourceType: 'Immunization';
+  status: 'completed';
+  vaccineCode: {
+    coding: {
+      system: string;
+      code: string;
+      display: string;
+    }[];
+    text: string;
+  };
+  patient: {
+    reference: string;
+  };
+  occurrenceDateTime: string;
+  primarySource: boolean;
+  manufacturer: { display: string };
+  lotNumber: string;
+  expirationDate: string;
+  performer: {
+    actor: {
+      display: string;
+    };
+  }[];
+  note: {
+    text: string;
+  }[];
+}

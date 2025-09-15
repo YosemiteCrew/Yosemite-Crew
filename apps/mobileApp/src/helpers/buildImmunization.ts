@@ -1,3 +1,6 @@
+// src/helpers/buildImmunization.ts
+import { type ImmunizationDetails, type FHIRImmunization } from '@/types/api';
+
 export const buildImmunization = ({
   manufacturer,
   vaccineName,
@@ -7,7 +10,7 @@ export const buildImmunization = ({
   businessName,
   nextDueOn,
   patientId,
-}) => ({
+}: ImmunizationDetails): FHIRImmunization => ({
   resourceType: 'Immunization',
   status: 'completed',
   vaccineCode: {
@@ -31,7 +34,7 @@ export const buildImmunization = ({
   performer: [
     {
       actor: {
-        display: businessName, // Assuming the hospital name is used here for the performer
+        display: businessName,
       },
     },
   ],
