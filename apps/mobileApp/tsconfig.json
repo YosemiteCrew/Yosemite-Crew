@@ -4,6 +4,10 @@
     "allowJs": true,
     "strict": false,
     "skipLibCheck": true,
-    "types": ["react", "react-native", "jest"]
+    "types": ["react", "react-native", "jest"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
   }
 }
