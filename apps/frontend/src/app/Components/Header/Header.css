@@ -1,6 +1,5 @@
 .header {
   padding: 10px 0px;
-  /* transition: all 0.5s; */
   background: var(--whitebg);
   position: fixed;
   width: 100%;
