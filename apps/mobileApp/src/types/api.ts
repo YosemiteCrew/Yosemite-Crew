@@ -223,3 +223,39 @@ export interface FHIRObservation {
   effectiveDateTime: string;
   component: FHIRObservationComponent[];
 }
+
+// Add these to src/types/api.ts
+
+// Describes the input for the createDocumentReference function
+export interface DocumentReferenceDetails {
+  resourceType?: 'DocumentReference';
+  typeText?: string;
+  description: string;
+  date: string; // e.g., "2025-09-15T12:00:00Z"
+  contextPeriodEnd: string;
+  patientId: string;
+  folderId: string;
+}
+
+// Describes the FHIR DocumentReference object that is returned
+export interface FHIRDocumentReference {
+  resourceType: 'DocumentReference';
+  type: {
+    text: string;
+    reference: string;
+  };
+  author: {
+    display: 'petOwner';
+  };
+  description: string;
+  date: string;
+  context: {
+    period: {
+      end: string;
+    };
+  };
+  subject: {
+    reference: string;
+  };
+}
+
