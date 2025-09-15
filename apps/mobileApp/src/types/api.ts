@@ -259,3 +259,61 @@ export interface FHIRDocumentReference {
   };
 }
 
+// Add these to src/types/api.ts
+
+// Describes the input for the createObservation function
+export interface ObservationDetails {
+  appointmentId: string;
+  patientId: string;
+  practitionerId: string;
+  valueString: string; // The feedback text
+  rating: number;      // The star rating
+}
+
+// Describes the FHIR Observation object that is returned
+export interface FHIRObservationFeedback {
+  resourceType: 'Observation';
+  status: 'final';
+  category: {
+    coding: {
+      system: string;
+      code: string;
+      display: string;
+    }[];
+  }[];
+  code: {
+    coding: {
+      system: string;
+      code: string;
+      display: string;
+    }[];
+    text: string;
+  };
+  subject: {
+    reference: string;
+  };
+  performer: {
+    reference: string;
+  }[];
+  basedOn: {
+    reference: string;
+  }[];
+  effectiveDateTime: string;
+  valueString: string;
+  component: {
+    code: {
+      coding: {
+        system: string;
+        code: string;
+        display: string;
+      }[];
+    };
+    valueQuantity: {
+      value: number;
+      unit: string;
+      system: string;
+      code: string;
+    };
+  }[];
+}
+
