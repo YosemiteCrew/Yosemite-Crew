@@ -35,7 +35,7 @@ function SignIn() {
     }
 
     try {
-      const session = await signIn(email, password);
+      await signIn(email, password);
     } catch (error: any) {
       if (error?.code === "UserNotConfirmedException") {
         try {

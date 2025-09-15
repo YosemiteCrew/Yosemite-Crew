@@ -3,12 +3,9 @@ import React, { useState } from "react";
 import "./PricingPage.css";
 import Footer from "@/app/Components/Footer/Footer";
 import {
-  Button,
   Card,
-  Col,
   Container,
   Form,
-  Row,
   Table,
   ToggleButton,
   ToggleButtonGroup,
@@ -105,8 +102,14 @@ function PricingPage() {
                                 height="20"
                               />
                             }
+                            onClick={() => {
+                              setPlan(plan.label as "self" | "custom");
+                              const el =
+                                document.getElementById("pricing-info-div");
+                              if (el) el.scrollIntoView({ behavior: "smooth" });
+                            }}
                             text="Get Started"
-                            href="#"
+                            href="#pricing-info-div"
                           />
                         </div>
                       </Card.Body>
@@ -186,7 +189,7 @@ function PricingPage() {
               </div>
             </div>
 
-            <div className="PricingCalculatorDiv">
+            <div className="PricingCalculatorDiv" id="pricing-info-div">
               <div className="pricingHeading">
                 <h2>Pricing Calculator</h2>
               </div>
@@ -274,7 +277,9 @@ function PricingPage() {
                       <h2>${currentPlan.calculatePrice()}</h2>
                       <h5>Estimated Billing</h5>
                     </div>
-                    <Link href="">
+                    <Link
+                      href={plan === "self" ? "/developerslanding" : "/signup"}
+                    >
                       <Icon icon="solar:bolt-bold" width="20" height="20" /> Get
                       Started
                     </Link>
