@@ -493,3 +493,4 @@ export interface FHIRObservationUpdate {
     valueInteger: number;
   }[];
 }
+
