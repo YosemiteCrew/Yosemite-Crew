@@ -88,3 +88,33 @@ export interface FHIRImmunization {
     text: string;
   }[];
 }
+
+// Add these to src/types/api.ts
+
+// Describes the input for the buildMonthlySlotFHIRResource function
+export interface MonthlySlotDetails {
+  startDate: string; // e.g., "2025-09-01T10:00:00Z"
+  month: number;     // e.g., 9
+  year: number;      // e.g., 2025
+  practitionerId: string;
+  status?: 'proposed' | 'pending' | 'booked'; // Optional, as it has a default
+  description?: string; // Optional, as it has a default
+}
+
+// Describes the FHIR Appointment object that is returned
+export interface FHIRAppointment {
+  resourceType: 'Appointment';
+  status: string;
+  description: string;
+  start: string;
+  extension: {
+    url: string;
+    valueInteger: number;
+  }[];
+  participant: {
+    actor: {
+      reference: string;
+    };
+    status: 'accepted';
+  }[];
+}
