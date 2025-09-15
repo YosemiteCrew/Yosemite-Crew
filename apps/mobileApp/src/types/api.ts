@@ -275,3 +275,31 @@ export interface ParsedOrganization {
   healthcareServices: { id: string; name: string; doctorCount: number; }[];
   [key: string]: any;
 }
+
+// Add these to src/types/api.ts
+
+// Describes the raw FHIR Practitioner resource from the API
+export interface FHIRPractitionerResource {
+  id: string;
+  name?: { text: string }[];
+  department?: { code?: { text: string } }[];
+  qualification?: { code?: { text: string } }[];
+  extension?: {
+    title: 'averageRating' | 'consultationFee' | 'experienceYears' | 'doctorImage';
+    valueDecimal?: number;
+    valueInteger?: number;
+    valueString?: string;
+  }[];
+}
+
+// Describes the final, simplified practitioner object
+export interface ParsedPractitioner {
+  id: string;
+  name: string;
+  specialization: string;
+  qualification: string;
+  averageRating?: number;
+  consultationFee?: number;
+  experienceYears?: number;
+  doctorImage?: string;
+}
