@@ -360,3 +360,54 @@ export interface FHIRPetAppointment {
   }[];
 }
 
+// Add these to src/types/api.ts
+
+// Describes a single extension within a FHIR resource
+interface FHIRExtension {
+  title: string;
+  valueString?: string;
+  valueInteger?: number;
+  valueBoolean?: boolean;
+  // Special case for petImage which is an object
+  valueAttachment?: {
+    url: string;
+    originalname: string;
+    mimetype: string;
+    _id: string;
+  };
+}
+
+// Describes the FHIR Patient resource as it exists in your bundle
+interface FHIRPatientWithExtensions {
+  id: string;
+  name?: { text: string }[];
+  gender?: 'male' | 'female' | 'other' | 'unknown';
+  birthDate?: string;
+  animal?: {
+    species?: { coding?: { display: string }[] };
+    breed?: { coding?: { display: string }[] };
+    genderStatus?: { coding?: { display: string }[] };
+  };
+  extension: FHIRExtension[];
+}
+
+// Describes the top-level FHIR Bundle structure
+export interface FHIRBundle {
+  entry: {
+    resource: FHIRPatientWithExtensions;
+  }[];
+}
+
+// Describes the final, simplified Pet object that the function returns
+export interface ExtractedPet {
+  id: string;
+  name: string;
+  gender?: 'male' | 'female' | 'other' | 'unknown';
+  birthDate?: string;
+  species: string;
+  breed: string;
+  genderStatus: string;
+  // Allows for any other properties extracted from extensions
+  [key: string]: any;
+}
+
