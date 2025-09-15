@@ -89,7 +89,7 @@ const OtpModal = ({
         setCode(Array(6).fill(""));
         setShowVerifyModal(false);
         try {
-          const session = await signIn(email, password);
+          await signIn(email, password);
         } catch (error) {
           showErrorTost({
             message: `Sign in failed`,

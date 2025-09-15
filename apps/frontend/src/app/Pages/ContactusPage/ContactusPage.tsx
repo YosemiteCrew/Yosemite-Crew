@@ -17,7 +17,6 @@ import { postData } from "@/app/axios-services/services";
 import { useOldAuthStore } from "@/app/stores/oldAuthStore";
 import Link from "next/link";
 import { Icon } from "@iconify/react/dist/iconify.js";
-import { BackBtn } from "../AddVetProfile/AddProileDetails";
 
 function ContactusPage() {
   //emails
@@ -293,12 +292,13 @@ function ContactusPage() {
                   </div>
 
                   <div className="QueryDetailsFields">
-                    <label>
+                    <label htmlFor="dsar-message">
                       Please leave details regarding your action request or
                       question
                     </label>
                     <textarea
                       rows={3}
+                      id="dsar-message"
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
                       placeholder="Your Message"
@@ -365,11 +365,12 @@ function ContactusPage() {
                   </div>
 
                   <div className="QueryDetailsFields">
-                    <label>
+                    <label htmlFor="complaint-message">
                       Please leave details regarding your complaint.
                     </label>
                     <textarea
                       rows={3}
+                      id="complaint-message"
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
                       placeholder="Your Message"

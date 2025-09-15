@@ -15,11 +15,7 @@ function Page() {
     }
   }, [user, router]);
 
-  return (
-    <>
-      <SignUp />
-    </>
-  );
+  return <SignUp />;
 }
 
 export default Page;
