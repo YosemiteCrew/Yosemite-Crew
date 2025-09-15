@@ -82,13 +82,15 @@ function Footer() {
         <div className="FooterData">
           <div className="FootTopData">
             <div className="leftFooter">
-              <Image
-                aria-hidden
-                src="https://d2il6osz49gpup.cloudfront.net/Images/Ftlogo.png"
-                alt="Yosemite Crew Logo"
-                width={96}
-                height={96}
-              />
+              <Link href={"/"}>
+                <Image
+                  aria-hidden
+                  src="https://d2il6osz49gpup.cloudfront.net/Images/Ftlogo.png"
+                  alt="Yosemite Crew Logo"
+                  width={96}
+                  height={96}
+                />
+              </Link>
               <div className="ClientLogo" aria-label="Certifications">
                 <Image
                   aria-hidden
