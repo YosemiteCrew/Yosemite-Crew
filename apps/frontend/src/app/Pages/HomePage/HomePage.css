@@ -74,7 +74,7 @@
 a.Fillbtn {
   background: var(--black-bg);
   border: 1px solid var(--black-bg);
-  border-radius: 50px;
+  border-radius: 28px;
   padding: 16px 32px;
   display: flex;
   align-items: center;
@@ -108,6 +108,15 @@ a.UnFillbtn {
   font-family: var(--grotesk-font);
   &:hover {
     box-shadow: 0px 2px 70px 6px #00000029;
+  }
+}
+
+@media screen and (max-width: 640px) {
+  a.Fillbtn {
+    padding: 14px 24px;
+  }
+  a.UnFillbtn {
+    padding: 16px 28px;
   }
 }
 

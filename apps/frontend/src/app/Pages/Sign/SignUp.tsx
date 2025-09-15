@@ -20,7 +20,7 @@ const SignUp = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [agree, setIagree] = useState(false);
+  const [agree, setAgree] = useState(false);
   const [subscribe, setSubscribe] = useState(false);
 
   const [showVerifyModal, setShowVerifyModal] = useState(false);
@@ -268,7 +268,7 @@ const SignUp = () => {
                           </Link>
                         </>
                       }
-                      onChange={(e) => setIagree(e.target.checked)}
+                      onChange={(e) => setAgree(e.target.checked)}
                     />
                     {/* Show error for terms */}
                     {inputErrors.agree && (

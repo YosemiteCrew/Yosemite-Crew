@@ -309,7 +309,7 @@ const ForgotPassword = () => {
               <div className="verifyInput">
                 {otp.map((digit, index) => (
                   <Form.Control
-                    key={index}
+                    key={`${digit}-${index}`}
                     type="text"
                     value={digit}
                     id={`otp-input-${index}`}

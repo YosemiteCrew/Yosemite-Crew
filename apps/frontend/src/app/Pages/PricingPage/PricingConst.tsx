@@ -1,3 +1,5 @@
+import { label } from "framer-motion/client";
+
 // PricingPage-header
 export const pricingPlans = [
   {
@@ -17,6 +19,7 @@ export const pricingPlans = [
       </p>
     ),
     highlight: false,
+    label: "self"
   },
   {
     id: 2,
@@ -31,6 +34,7 @@ export const pricingPlans = [
       </p>
     ),
     highlight: true,
+    label: "custom"
   },
 ];
 
