@@ -317,3 +317,46 @@ export interface FHIRObservationFeedback {
   }[];
 }
 
+// Add these to src/types/api.ts
+
+// Describes the input for the createPetAppointmentFHIRResource function
+export interface PetAppointmentDetails {
+  petId: string;
+  doctorId: string;
+  businessId: string;
+  startDateTime: string; // e.g., "2025-09-15T11:00:00+05:30"
+  description: string;
+  reasonText: string;
+  departmentId: string;
+  departmentName: string;
+  slotId: string;
+}
+
+// Describes the FHIR Appointment object that is returned
+export interface FHIRPetAppointment {
+  resourceType: 'Appointment';
+  status: 'booked';
+  start: string;
+  description: string;
+  participant: {
+    actor: {
+      reference: string;
+    };
+    status: 'accepted';
+  }[];
+  reasonCode: {
+    text: string;
+  }[];
+  serviceType: {
+    coding: {
+      system: string;
+      code: string;
+      display: string;
+    }[];
+  }[];
+  extension: {
+    url: string;
+    valueString: string;
+  }[];
+}
+
