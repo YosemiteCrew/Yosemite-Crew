@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import classNames from "classnames";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -11,10 +11,9 @@ import VerifiedProfile from "./VerifiedProfile";
 import UnverifiedProfile from "./UnverifiedProfile";
 
 const PrivateHeader = () => {
-  const isVerified = false
+  const isVerified = false;
   const { signout } = useAuthStore();
   const pathname = usePathname();
-  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const roles = useMemo(
@@ -76,7 +75,7 @@ const PrivateHeader = () => {
   const renderNavItems = (items: NavItem[], isSubmenu = false) => (
     <ul className={classNames({ dropdown: isSubmenu })}>
       {items.map((item) => {
-        const hasChildren = item.children?.length ?? 0 > 0;
+        const hasChildren = (item.children?.length ?? 0) > 0;
         const isActive = pathname === item.href;
         const isOpen = activeDropdown === item.label;
 
@@ -122,7 +121,7 @@ const PrivateHeader = () => {
   const renderMobileNavItems = (items: NavItem[]) => (
     <>
       {items.map((item) => {
-        const hasChildren = item.children?.length ?? 0 > 0;
+        const hasChildren = (item.children?.length ?? 0) > 0;
         const isActive = pathname === item.href;
 
         return (
@@ -158,20 +157,18 @@ const PrivateHeader = () => {
                 </div>
               </>
             ) : (
-              <>
-                <Link
-                  href={item.href!}
-                  className={classNames("verified-mobile-menu-item-label", {
-                    active: isActive,
-                  })}
-                  onClick={() => {
-                    setMobileOpen(false);
-                    setMenuOpen(false);
-                  }}
-                >
-                  {item.label}
-                </Link>
-              </>
+              <Link
+                href={item.href!}
+                className={classNames("verified-mobile-menu-item-label", {
+                  active: isActive,
+                })}
+                onClick={() => {
+                  setMobileOpen(false);
+                  setMenuOpen(false);
+                }}
+              >
+                {item.label}
+              </Link>
             )}
           </div>
         );
@@ -186,7 +183,6 @@ const PrivateHeader = () => {
     } catch (error) {
       console.error("⚠️ Cognito signout error:", error);
     }
-    // router.push("/");
   };
 
   return (
