@@ -594,3 +594,26 @@ export interface TransformedObservation {
   feedBackId?: string;
 }
 
+// These types should already be in src/types/api.ts
+
+export interface FHIRPatientForList {
+  id: string;
+  name?: { text?: string }[];
+  gender?: 'male' | 'female' | 'other' | 'unknown';
+  birthDate?: string;
+  animal?: {
+    species?: { coding?: { display: string }[] };
+    breed?: { coding?: { display: string }[] };
+    genderStatus?: { coding?: { display: string }[] };
+  };
+  profileCompletion?: number;
+  extension?: {
+    url?: string;
+    valueString?: string | { url?: string };
+    valueInteger?: number;
+    valueBoolean?: boolean;
+  }[];
+}
+
+// This reuses the ExtractedPet interface we created earlier
+
