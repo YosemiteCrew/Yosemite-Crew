@@ -2,6 +2,9 @@
     background-color: var(--lightblue);
     padding: 0px 50px 25px 50px;
     position: relative;
+    box-sizing: border-box;
+    width: 100%;
+    overflow-x: hidden;
 }
 .Footersec::after{
     position: absolute;
@@ -20,13 +23,20 @@
     display: flex;
     flex-direction: column;
     gap: 13px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
 }
+
 .FootTopData{
     display: grid;
     grid-template-columns: 1fr 1fr;
     padding: 70px 0px 20px 0px;
     gap: 32px;
+    width: 100%;
+    box-sizing: border-box;
 }
+
 .leftFooter{
     max-width: 354px;
     padding: 12px;
@@ -35,7 +45,19 @@
     flex-direction: column;
     justify-content: space-between;
     align-items: flex-start;
+    box-sizing: border-box;
+    width: 100%;
 }
+
+.RytFooter {
+    display: flex;
+    justify-content: flex-end;
+    gap: 100px;
+    flex-wrap: wrap;
+    width: 100%;
+    box-sizing: border-box;
+}
+
 .leftFooter .ClientLogo{
    display: flex;
    align-items: center;
@@ -43,11 +65,11 @@
    gap: 12px;
    flex-wrap: wrap;
 }
-.RytFooter {
-    display: flex;
-    justify-content: flex-end;
-    gap: 100px;
-    flex-wrap: wrap;
+
+.leftFooter .ClientLogo img {
+    max-width: 100%;
+    height: auto;
+    object-fit: contain;
 }
 
 .FtDiv{
@@ -61,6 +83,40 @@
     font-size: 23px;
     font-weight: 500;
     line-height: 120%;
+}
+
+.FtLinks a {
+    padding: 0;
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 120%;
+    font-family: var(--satoshi-font);
+    color: var(--black-text);
+    position: relative;
+    display: inline-block;
+    text-decoration: none;
+    transition: color 0.3s cubic-bezier(0.4,0,0.2,1), transform 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+
+.Bootom_Foot h4{
+    font-family: var(--satoshi-font);
+    color: var(--black-text);
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 18px;
+    letter-spacing: -0.02em;
+    margin: 0;
+}
+
+.Bootom_Foot p{
+    font-family: var(--satoshi-font);
+    color: var(--black-text);
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 18.6px;
+    letter-spacing: -0.03em;
+    margin: 0;
+    text-align: center;
 }
 .footer-divider {
     border: none;
@@ -121,13 +177,19 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: auto;
 }
 .Bootom_Foot {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 2px;
-
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    text-align: center;
 }
 .Bootom_Foot h4{
     font-family: var(--satoshi-font);
@@ -150,6 +212,27 @@
     text-align: center;
 }
 
+@media (max-width: 1200px) {
+    .Footersec {
+        padding: 0px 30px 25px 30px;
+    }
+    .RytFooter {
+        gap: 60px;
+    }
+}
+
+@media (max-width: 1024px) {
+    .Footersec {
+        padding: 0px 25px 25px 25px;
+    }
+    .FootTopData {
+        padding: 50px 0px 20px 0px;
+    }
+    .RytFooter {
+        gap: 40px;
+    }
+}
+
 @media (max-width: 900px) {
     .FootTopData {
         grid-template-columns: 1fr;
@@ -163,21 +246,45 @@
     .leftFooter {
         min-height: unset;
         align-items: flex-start;
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 768px) {
+    .Footersec {
+        padding: 0px 20px 20px 20px;
+    }
+    .FootTopData {
+        padding: 40px 0px 16px 0px;
+        gap: 24px;
+    }
+    .RytFooter {
+        gap: 32px;
+    }
+    .FtDiv h5 {
+        font-size: 20px;
+    }
+    .FtLinks a {
+        font-size: 14px;
     }
 }
 
 @media (max-width: 600px) {
     .Footersec {
-        padding: 0 10px 20px 10px;
+        padding: 0 15px 15px 15px;
+    }
+    .FootTopData {
+        padding: 30px 0px 12px 0px;
     }
     .RytFooter {
         flex-direction: column;
         gap: 24px;
         width: 100%;
-        overflow-x: auto;
+        overflow-x: hidden;
     }
     .FtDiv {
         min-width: 180px;
+        width: 100%;
     }
     .footer-divider {
         margin: 24px 0 16px 0;
@@ -185,14 +292,88 @@
     .leftFooter .ClientLogo {
         gap: 8px;
         flex-wrap: wrap;
+        justify-content: flex-start;
     }
 }
 
-@media (max-width: 400px) {
+@media (max-width: 480px) {
+    .Footersec {
+        padding: 0 12px 12px 12px;
+    }
+    .Footersec::after {
+        width: 60px;
+        height: 60px;
+        top: -25px;
+    }
+    .FootTopData {
+        padding: 25px 0px 10px 0px;
+        gap: 20px;
+    }
     .FtDiv {
         min-width: 140px;
+        width: 100%;
+    }
+    .FtDiv h5 {
+        font-size: 18px;
+    }
+    .FtLinks a {
+        font-size: 13px;
     }
     .leftFooter {
-        padding: 6px;
+        padding: 4px;
+    }
+    .leftFooter .ClientLogo {
+        gap: 6px;
+        justify-content: center;
+    }
+    .Bootom_Foot h4 {
+        font-size: 13px;
+    }
+    .Bootom_Foot p {
+        font-size: 11px;
+        line-height: 16px;
+    }
+}
+
+@media (max-width: 350px) {
+    .Footersec {
+        padding: 0 8px 8px 8px;
+    }
+    .Footersec::after {
+        width: 50px;
+        height: 50px;
+        top: -20px;
+    }
+    .FootTopData {
+        padding: 20px 0px 8px 0px;
+        gap: 16px;
+    }
+    .FtDiv h5 {
+        font-size: 16px;
+    }
+    .FtLinks a {
+        font-size: 12px;
+    }
+    .leftFooter {
+        padding: 2px;
+    }
+    .leftFooter .ClientLogo {
+        gap: 4px;
+        justify-content: center;
+        flex-direction: column;
+        align-items: center;
+    }
+    .Bootom_Foot h4 {
+        font-size: 12px;
+    }
+    .Bootom_Foot p {
+        font-size: 10px;
+        line-height: 14px;
+    }
+    .RytFooter {
+        gap: 16px;
+    }
+    .FtDiv {
+        gap: 12px;
     }
 }

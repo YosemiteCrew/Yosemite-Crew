@@ -12,16 +12,24 @@
   );
   border-image-slice: 1;
   max-height: 100px;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 .header .logo {
   padding: 0px;
   width: 80px;
   height: 80px;
+  min-width: 50px;
+  min-height: 50px;
+  box-sizing: border-box;
 }
 
 .header .logo img {
   width: 100%;
   height: auto;
+  max-width: 100%;
+  object-fit: contain;
 }
 
 .public-header {
@@ -37,6 +45,11 @@
     rgba(255, 255, 255, 0) 100%
   );
   border-image-slice: 1;
+  width: 100%;
+  box-sizing: border-box;
+  top: 0;
+  left: 0;
+  right: 0;
 }
 .public-header-mobile-menu {
   background: #fff;
@@ -50,6 +63,9 @@
   width: 100vw;
   overflow: hidden;
   padding: 30px 48px;
+  box-sizing: border-box;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
 }
 .mobile-menu-item a {
   color: var(--notibg);
@@ -89,7 +105,10 @@
   display: flex;
   align-items: center;
   gap: 24px;
+  flex-shrink: 0;
+  min-width: 0;
 }
+
 .UserInfoHeader .Notify {
   width: 24px;
   height: 24px;
@@ -97,11 +116,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
+
 .UserInfoHeader .Notify svg {
   font-size: 18px;
   color: var(--notibg);
 }
+
 .UserInfoHeader .Notify .count {
   position: absolute;
   top: 0;
@@ -117,6 +139,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
+  flex-shrink: 0;
 }
 
 .NavUL {
@@ -165,6 +189,9 @@
   line-height: 120%;
   margin: 0;
   max-width: 142px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .NavUL .nav-profile .userHostDiv .Tier {
   color: var(--blue-text);
@@ -188,6 +215,7 @@
   top: 100%;
   left: 0;
   min-width: 200px !important;
+  max-width: 300px;
   padding: 16px 0;
   background: var(--whitebg);
   border: 1px solid var(--lightgrey);
@@ -197,6 +225,7 @@
   transition: all 0.3s ease;
   z-index: 999;
   list-style-type: none;
+  box-sizing: border-box;
 }
 .profileUl .ProfDiv {
   display: flex;
@@ -310,7 +339,10 @@
   font-size: 19px;
   line-height: 120%;
   transition: 0.5s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
+
 .HeaderSign:hover {
   background: var(--black-hover);
 }
@@ -332,6 +364,8 @@
   line-height: 120%;
   margin-top: 23px;
   transition: 0.5s ease;
+  width: 100%;
+  box-sizing: border-box;
 }
 .HeaderSign-mobile:hover {
   background: var(--black-hover);
@@ -374,6 +408,7 @@
 
 .navmenu {
   padding: 0;
+  overflow: hidden;
 }
 
 .navmenu ul {
@@ -382,6 +417,14 @@
   display: flex;
   list-style: none;
   align-items: center;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.navmenu ul::-webkit-scrollbar {
+  display: none;
 }
 
 .navmenu li {
@@ -470,6 +513,7 @@
   top: 100%;
   left: 0;
   min-width: 200px;
+  max-width: 300px;
   padding: 10px 0;
   background: var(--whitebg);
   border: 1px solid var(--lightgrey);
@@ -478,6 +522,7 @@
   transform: translateY(10px);
   transition: all 0.3s ease;
   z-index: 999;
+  box-sizing: border-box;
 }
 
 .navmenu li:hover > ul.dropdown {
@@ -528,5 +573,223 @@
   }
   .HeaderSign {
     display: none;
+  }
+}
+
+/* Tablet responsiveness */
+@media (max-width: 768px) {
+  .header {
+    max-height: 80px;
+  }
+  
+  .header .logo {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .public-header {
+    padding: 8px 0px;
+  }
+  
+  .public-header-mobile-menu {
+    padding: 20px 24px;
+    gap: 15px;
+  }
+  
+  .UserInfoHeader {
+    gap: 16px;
+  }
+  
+  .nav-profile .user {
+    width: 35px;
+    height: 35px;
+  }
+  
+  .NavUL .nav-profile .userHostDiv .userName p {
+    font-size: 12px;
+    max-width: 120px;
+  }
+  
+  .NavUL .nav-profile .userHostDiv .Tier {
+    font-size: 11px;
+    padding: 3px 6px;
+  }
+  
+  .menu-toggle {
+    height: 35px;
+    width: 35px;
+  }
+  
+  .hamburger-icon span {
+    width: 12px;
+  }
+}
+
+/* Mobile responsiveness */
+@media (max-width: 480px) {
+  .header {
+    max-height: 70px;
+  }
+  
+  .header .logo {
+    width: 50px;
+    height: 50px;
+  }
+  
+  .public-header {
+    padding: 6px 0px;
+  }
+  
+  .public-header-mobile-menu {
+    padding: 15px 16px;
+    gap: 12px;
+  }
+  
+  .mobile-menu-item a {
+    font-size: 14px;
+  }
+  
+  .UserInfoHeader {
+    gap: 12px;
+  }
+  
+  .UserInfoHeader .Notify {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .UserInfoHeader .Notify svg {
+    font-size: 16px;
+  }
+  
+  .nav-profile .user {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .NavUL .nav-profile .userHostDiv .userName p {
+    font-size: 11px;
+    max-width: 100px;
+  }
+  
+  .NavUL .nav-profile .userHostDiv .Tier {
+    font-size: 10px;
+    padding: 2px 4px;
+  }
+  
+  .menu-toggle {
+    height: 32px;
+    width: 32px;
+  }
+  
+  .hamburger-icon {
+    gap: 2px;
+  }
+  
+  .hamburger-icon span {
+    width: 10px;
+    height: 1.5px;
+  }
+  
+  .profileUl {
+    min-width: 180px !important;
+    right: 0;
+    left: auto;
+  }
+  
+  .navmenu li ul.dropdown {
+    min-width: 180px;
+    right: 0;
+    left: auto;
+  }
+}
+
+/* Small mobile responsiveness */
+@media (max-width: 375px) {
+  .header {
+    max-height: 60px;
+  }
+  
+  .header .logo {
+    width: 45px;
+    height: 45px;
+  }
+  
+  .public-header {
+    padding: 5px 0px;
+  }
+  
+  .public-header-mobile-menu {
+    padding: 12px 12px;
+    gap: 10px;
+  }
+  
+  .mobile-menu-item a {
+    font-size: 13px;
+  }
+  
+  .UserInfoHeader {
+    gap: 8px;
+  }
+  
+  .nav-profile .user {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .NavUL .nav-profile .userHostDiv {
+    display: none;
+  }
+  
+  .menu-toggle {
+    height: 28px;
+    width: 28px;
+  }
+  
+  .hamburger-icon span {
+    width: 8px;
+    height: 1px;
+  }
+  
+  .profileUl {
+    min-width: 160px !important;
+  }
+  
+  .navmenu li ul.dropdown {
+    min-width: 160px;
+  }
+}
+
+/* Extra small mobile responsiveness */
+@media (max-width: 320px) {
+  .header .logo {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .public-header-mobile-menu {
+    padding: 10px 8px;
+  }
+  
+  .UserInfoHeader {
+    gap: 6px;
+  }
+  
+  .nav-profile .user {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .menu-toggle {
+    height: 24px;
+    width: 24px;
+  }
+  
+  .profileUl {
+    min-width: 140px !important;
+  }
+  
+  .navmenu li ul.dropdown {
+    min-width: 140px;
   }
 }
