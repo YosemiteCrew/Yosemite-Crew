@@ -10,6 +10,7 @@ dist-ssr
 .cache
 server/dist
 public/dist
+.vscode
 
 # Google-Services File
 #
@@ -100,3 +101,4 @@ yarn-error.log
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+*/.scannerwork
