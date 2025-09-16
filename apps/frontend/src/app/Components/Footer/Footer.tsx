@@ -45,7 +45,7 @@ const footerLinks = [
       { label: "Pricing", href: "/pricing" },
       // { label: "Enterprise", href: "#" },
       // { label: "Careers", href: "#" },
-      { label: "Blog", href: "/blogpage" },
+      // { label: "Blog", href: "/blogpage" },
     ],
   },
 ];
