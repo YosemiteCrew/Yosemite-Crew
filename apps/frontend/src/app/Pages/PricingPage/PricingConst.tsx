@@ -1,5 +1,3 @@
-import { label } from "framer-motion/client";
-
 // PricingPage-header
 export const pricingPlans = [
   {

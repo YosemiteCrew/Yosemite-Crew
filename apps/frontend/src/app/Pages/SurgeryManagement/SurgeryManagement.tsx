@@ -3,9 +3,6 @@ import React, { useState } from 'react'
 import { Col, Container, Dropdown, Row } from 'react-bootstrap'
 import StatCard from '@/app/Components/StatCard/StatCard'
 import TableTopBar from '@/app/Components/TableTopBar/TableTopBar'
-import AppointmentsTable from '@/app/Components/DataTable/AppointmentsTable'
-import UpComingAppointmentsTable from '@/app/Components/DataTable/UpComingAppointmentsTable';
-import CompletedAppointmentsTable from '@/app/Components/DataTable/CompletedAppointmentsTable';
 import Link from 'next/link';
 import { FaCalendar } from 'react-icons/fa6';
 import CalendarCard from '@/app/Components/CalendarCard/CalendarCard';
@@ -13,8 +10,6 @@ import CalendarCard from '@/app/Components/CalendarCard/CalendarCard';
 function SurgeryManagement() {
      const [selectedDoctor, setSelectedDoctor] = useState("Appointment Status");
   return (
-    <>
-
      <section className='AppointmentVetSection'>
         <Container>
             <div className="AppointmentVetData">
@@ -86,34 +81,10 @@ function SurgeryManagement() {
                     </div>
                 </Row>
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
             </div>
 
         </Container>
         </section>
-
-
-
-    </>
   )
 }
 

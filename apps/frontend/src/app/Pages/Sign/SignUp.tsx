@@ -132,193 +132,188 @@ const SignUp = () => {
   };
 
   return (
-    <>
-      <section className="MainSignUpSec">
-        <Container>
-          <Row>
-            <Col md={6}>
-              <div className="BuildEveryone">
-                <div className="SignBuildText">
-                  <h2>Built for Everyone, from Day One.</h2>
+    <section className="MainSignUpSec">
+      <Container>
+        <Row>
+          <Col md={6}>
+            <div className="BuildEveryone">
+              <div className="SignBuildText">
+                <h2>Built for Everyone, from Day One.</h2>
+              </div>
+
+              <div className="BuildCloud">
+                <div className="CloudItems">
+                  <div className="CloudIcon">
+                    <span>
+                      <GoCheckCircleFill />
+                    </span>
+                  </div>
+                  <div className="CloudText">
+                    <h4>Enjoy Cloud Hosting with us!</h4>
+                    <p>
+                      Website are hosted on a network of servers, offering
+                      greater, scalability, reliability, and flexibility.
+                    </p>
+                  </div>
                 </div>
 
-                <div className="BuildCloud">
-                  <div className="CloudItems">
-                    <div className="CloudIcon">
-                      <span>
-                        <GoCheckCircleFill />
-                      </span>
-                    </div>
-                    <div className="CloudText">
-                      <h4>Enjoy Cloud Hosting with us!</h4>
-                      <p>
-                        Website are hosted on a network of servers, offering
-                        greater, scalability, reliability, and flexibility.
-                      </p>
-                    </div>
+                <div className="CloudItems">
+                  <div className="CloudIcon">
+                    <span>
+                      <GoCheckCircleFill />
+                    </span>
                   </div>
-
-                  <div className="CloudItems">
-                    <div className="CloudIcon">
-                      <span>
-                        <GoCheckCircleFill />
-                      </span>
-                    </div>
-                    <div className="CloudText">
-                      <h4>Start Free. Pay as You Grow.</h4>
-                      <p>
-                        Enjoy generous free usage on cloud hosting. Upgrade only
-                        when you need more power.
-                      </p>
-                    </div>
+                  <div className="CloudText">
+                    <h4>Start Free. Pay as You Grow.</h4>
+                    <p>
+                      Enjoy generous free usage on cloud hosting. Upgrade only
+                      when you need more power.
+                    </p>
                   </div>
+                </div>
 
-                  <div className="CloudItems">
-                    <div className="CloudIcon">
-                      <span>
-                        <GoCheckCircleFill />
-                      </span>
-                    </div>
-                    <div className="CloudText">
-                      <h4>GDPR-Ready, EU-Based Servers.</h4>
-                      <p>
-                        All cloud data is securely hosted in the EU with full
-                        GDPR compliance.
-                      </p>
-                    </div>
+                <div className="CloudItems">
+                  <div className="CloudIcon">
+                    <span>
+                      <GoCheckCircleFill />
+                    </span>
+                  </div>
+                  <div className="CloudText">
+                    <h4>GDPR-Ready, EU-Based Servers.</h4>
+                    <p>
+                      All cloud data is securely hosted in the EU with full GDPR
+                      compliance.
+                    </p>
                   </div>
                 </div>
               </div>
-            </Col>
+            </div>
+          </Col>
 
-            <Col md={6}>
-              <div className="SignUpFormDiv">
-                <Form onSubmit={handleSignUp} method="post">
-                  <div className="TopSignUp">
-                    <div className="Headingtext">
-                      <h2>Sign up for Cloud </h2>
-                    </div>
-
-                    <div className="SignFormItems">
-                      <FormInput
-                        intype="email"
-                        inname="email"
-                        value={email}
-                        inlabel="Enter Email Address"
-                        onChange={(e) => setEmail(e.target.value)}
-                        error={inputErrors.email}
-                      />
-                      <FormInputPass
-                        intype="password"
-                        inname="password"
-                        value={password}
-                        inlabel="Set up Password"
-                        onChange={(e) => setPassword(e.target.value)}
-                        error={inputErrors.password}
-                      />
-                      <FormInputPass
-                        intype="password"
-                        inname="password"
-                        value={confirmPassword}
-                        inlabel="Confirm Password"
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        error={inputErrors.confirmPassword}
-                      />
-                    </div>
-                    <div className="business-type-container">
-                      <p>Select Your Business Type</p>
-                      <div className="button-group">
-                        <ul>
-                          {businessTypes.map(({ key, value }) => (
-                            <li
-                              key={key}
-                              className={`business-button ${selectedType === key ? "selected" : ""}`}
-                              onClick={() => handleSelectType(key)}
-                            >
-                              {value}
-                            </li>
-                          ))}
-                        </ul>
-                        {/* Show error for business type */}
-                        {inputErrors.selectedType && (
-                          <div className="Errors">
-                            <Icon icon="mdi:error" width="16" height="16" />
-                            {inputErrors.selectedType}
-                          </div>
-                        )}
-                      </div>
-                    </div>
+          <Col md={6}>
+            <div className="SignUpFormDiv">
+              <Form onSubmit={handleSignUp} method="post">
+                <div className="TopSignUp">
+                  <div className="Headingtext">
+                    <h2>Sign up for Cloud </h2>
                   </div>
 
-                  <div className="Sign_check">
-                    <Form.Check
-                      type="checkbox"
-                      label={
-                        <>
-                          I agree to Yosemite Crew’s{" "}
-                          <Link
-                            className="policylink"
-                            href="/termsandconditions"
+                  <div className="SignFormItems">
+                    <FormInput
+                      intype="email"
+                      inname="email"
+                      value={email}
+                      inlabel="Enter Email Address"
+                      onChange={(e) => setEmail(e.target.value)}
+                      error={inputErrors.email}
+                    />
+                    <FormInputPass
+                      intype="password"
+                      inname="password"
+                      value={password}
+                      inlabel="Set up Password"
+                      onChange={(e) => setPassword(e.target.value)}
+                      error={inputErrors.password}
+                    />
+                    <FormInputPass
+                      intype="password"
+                      inname="password"
+                      value={confirmPassword}
+                      inlabel="Confirm Password"
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      error={inputErrors.confirmPassword}
+                    />
+                  </div>
+                  <div className="business-type-container">
+                    <p>Select Your Business Type</p>
+                    <div className="button-group">
+                      <ul>
+                        {businessTypes.map(({ key, value }) => (
+                          <li
+                            key={key}
+                            className={`business-button ${selectedType === key ? "selected" : ""}`}
+                            onClick={() => handleSelectType(key)}
                           >
-                            Terms and Conditions
-                          </Link>{" "}
-                          and{" "}
-                          <Link className="policylink" href="/privacypolicy">
-                            Privacy Policy
-                          </Link>
-                        </>
-                      }
-                      onChange={(e) => setAgree(e.target.checked)}
-                    />
-                    {/* Show error for terms */}
-                    {inputErrors.agree && (
-                      <div className="Errors">
-                        <Icon icon="mdi:error" width="16" height="16" />
-                        {inputErrors.agree}
-                      </div>
-                    )}
-                    <Form.Check
-                      type="checkbox"
-                      label="Sign me up for Newsletter and Promotional emails"
-                      onChange={(e) => setSubscribe(e.target.checked)}
-                    />
-                    {/* Show error for newsletter */}
-                    {inputErrors.subscribe && (
-                      <div className="Errors">
-                        <Icon icon="mdi:error" width="16" height="16" />
-                        {inputErrors.subscribe}
-                      </div>
-                    )}
+                            {value}
+                          </li>
+                        ))}
+                      </ul>
+                      {/* Show error for business type */}
+                      {inputErrors.selectedType && (
+                        <div className="Errors">
+                          <Icon icon="mdi:error" width="16" height="16" />
+                          {inputErrors.selectedType}
+                        </div>
+                      )}
+                    </div>
                   </div>
+                </div>
 
-                  <div className="Signbtn">
-                    <MainBtn
-                      btnicon={<GoCheckCircleFill />}
-                      btnname="Sign up"
-                      iconPosition="left"
-                      onClick={handleSignUp}
-                    />
-                    {/* <MainBtn btnname="Sign up" btnicon={<GoCheckCircleFill />} iconPosition="left" /> */}
-                    <h6>
-                      {" "}
-                      Already have an account? <Link href="/signin">Login</Link>
-                    </h6>
-                  </div>
-                </Form>
-              </div>
-            </Col>
-          </Row>
-        </Container>
-        <OtpModal
-          email={email}
-          password={password}
-          showErrorTost={showErrorTost}
-          showVerifyModal={showVerifyModal}
-          setShowVerifyModal={setShowVerifyModal}
-        />
-        {ErrorTostPopup}
-      </section>
-    </>
+                <div className="Sign_check">
+                  <Form.Check
+                    type="checkbox"
+                    label={
+                      <>
+                        I agree to Yosemite Crew’s{" "}
+                        <Link className="policylink" href="/termsandconditions">
+                          Terms and Conditions
+                        </Link>{" "}
+                        and{" "}
+                        <Link className="policylink" href="/privacypolicy">
+                          Privacy Policy
+                        </Link>
+                      </>
+                    }
+                    onChange={(e) => setAgree(e.target.checked)}
+                  />
+                  {/* Show error for terms */}
+                  {inputErrors.agree && (
+                    <div className="Errors">
+                      <Icon icon="mdi:error" width="16" height="16" />
+                      {inputErrors.agree}
+                    </div>
+                  )}
+                  <Form.Check
+                    type="checkbox"
+                    label="Sign me up for Newsletter and Promotional emails"
+                    onChange={(e) => setSubscribe(e.target.checked)}
+                  />
+                  {/* Show error for newsletter */}
+                  {inputErrors.subscribe && (
+                    <div className="Errors">
+                      <Icon icon="mdi:error" width="16" height="16" />
+                      {inputErrors.subscribe}
+                    </div>
+                  )}
+                </div>
+
+                <div className="Signbtn">
+                  <MainBtn
+                    btnicon={<GoCheckCircleFill />}
+                    btnname="Sign up"
+                    iconPosition="left"
+                    onClick={handleSignUp}
+                  />
+                  {/* <MainBtn btnname="Sign up" btnicon={<GoCheckCircleFill />} iconPosition="left" /> */}
+                  <h6>
+                    {" "}
+                    Already have an account? <Link href="/signin">Login</Link>
+                  </h6>
+                </div>
+              </Form>
+            </div>
+          </Col>
+        </Row>
+      </Container>
+      <OtpModal
+        email={email}
+        password={password}
+        showErrorTost={showErrorTost}
+        showVerifyModal={showVerifyModal}
+        setShowVerifyModal={setShowVerifyModal}
+      />
+      {ErrorTostPopup}
+    </section>
   );
 };
 
@@ -336,7 +331,7 @@ export function MainBtn({
   btnicon,
   iconPosition,
   onClick,
-}: MainBtnProps) {
+}: Readonly<MainBtnProps>) {
   return (
     <Button className="BlackButton" type="submit" onClick={onClick}>
       {iconPosition === "left" && btnicon && <span>{btnicon}</span>}
@@ -367,7 +362,7 @@ export function FormInput({
   onBlur,
   readonly,
   error,
-}: FormInputProps) {
+}: Readonly<FormInputProps>) {
   const [isFocused, setIsFocused] = useState(false);
 
   return (

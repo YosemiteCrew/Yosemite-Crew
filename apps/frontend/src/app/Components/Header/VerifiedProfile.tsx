@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 
 import Link from "next/link";
 import Image from "next/image";
@@ -10,8 +10,6 @@ import { RiAccountBoxFill } from "react-icons/ri";
 import { FaSignInAlt } from "react-icons/fa";
 
 const VerifiedProfile = ({ handleLogout }: any) => {
-  const [menuOpen, setMenuOpen] = useState(false);
-
   return (
     <div className="UserInfoHeader verified-userinfo">
       <div className="Notify">
@@ -21,12 +19,14 @@ const VerifiedProfile = ({ handleLogout }: any) => {
       <div className="HeaderProfDiv">
         <ul className="NavUL">
           <li className="nav-item dropdown">
-            <span
-              className="nav-profile"
-              onClick={() => setMenuOpen((prev) => !prev)}
-            >
+            <span className="nav-profile">
               <div className="user">
-                <Image src={"https://d2il6osz49gpup.cloudfront.net/Logo.png"} alt="Profile" width={40} height={40} />
+                <Image
+                  src={"https://d2il6osz49gpup.cloudfront.net/Logo.png"}
+                  alt="Profile"
+                  width={40}
+                  height={40}
+                />
               </div>
               <div className="userHostDiv">
                 <div className="userName">
