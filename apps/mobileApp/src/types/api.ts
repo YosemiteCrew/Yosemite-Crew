@@ -617,3 +617,21 @@ export interface FHIRPatientForList {
 
 // This reuses the ExtractedPet interface we created earlier
 
+// These types should already be in src/types/api.ts
+
+export interface FHIRPatientForPetList {
+  id: string;
+  name?: { text?: string }[];
+  extension?: {
+    url?: string; // Correctly using url for FHIR standard
+    title?: string; // Keeping for compatibility with original JS
+    valueString?: string | { url?: string };
+  }[];
+}
+
+export interface TransformedPet {
+  id: string | number;
+  title: string;
+  textColor: string;
+  petImage: string | null;
+}
