@@ -16,11 +16,6 @@
     flex-direction: column;
     gap: 50px;
 }
-.VerifyModalSec .modal-body .VerifyModalTopInner{
-    display: flex;
-    flex-direction: column;
-    gap: 50px;
-}
 .VerifyModalSec .modal-body .VerifyModalTopInner .VerifyTexted{
     display: flex;
     flex-direction: column;

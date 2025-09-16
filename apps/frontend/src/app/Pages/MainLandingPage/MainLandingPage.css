@@ -238,7 +238,6 @@
     justify-content: left;
     margin: 0 !important;
     width: fit-content !important;
-    display: flex;
     align-items: center;
     gap: 8px;
   }
