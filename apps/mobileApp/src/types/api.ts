@@ -494,3 +494,32 @@ export interface FHIRObservationUpdate {
   }[];
 }
 
+// Add these to src/types/api.ts
+
+// Describes the raw FHIR Organization resource this function expects as input
+export interface FHIROrganizationResource {
+  id: string;
+  name: string;
+  telecom?: {
+    system: 'phone' | 'email' | 'url';
+    value: string;
+  }[];
+  address?: {
+    line?: string[];
+    city?: string;
+    postalCode?: string;
+    country?: string;
+  }[];
+}
+
+// Describes the simplified object this function returns
+export interface SimpleOrganization {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  url: string;
+  address: string;
+  city: string;
+}
+
