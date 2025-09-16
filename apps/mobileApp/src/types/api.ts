@@ -462,7 +462,6 @@ export interface TransformedPet {
   petImage: string | null;
 }
 
-// New types for updateObservation.js
 export interface UpdateObservationDetails {
   patientId: string;
   feedback: string;
@@ -494,9 +493,6 @@ export interface FHIRObservationUpdate {
   }[];
 }
 
-// Add these to src/types/api.ts
-
-// Describes the raw FHIR Organization resource this function expects as input
 export interface FHIROrganizationResource {
   id: string;
   name: string;
@@ -512,7 +508,6 @@ export interface FHIROrganizationResource {
   }[];
 }
 
-// Describes the simplified object this function returns
 export interface SimpleOrganization {
   id: string;
   name: string;
@@ -522,4 +517,3 @@ export interface SimpleOrganization {
   address: string;
   city: string;
 }
-
