@@ -1,10 +1,9 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import classNames from "classnames";
-import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { NavItem } from "./HeaderInterfaces";
@@ -13,11 +12,11 @@ const publicNavItems: NavItem[] = [
   { label: "Home", href: "/" },
   { label: "PMS", href: "/homepage" },
   { label: "Developers", href: "/developerlanding" },
-  { label: "Resources", href: "/resources" },
+  // { label: "Resources", href: "/resources" },
   { label: "About Us", href: "/about_us" },
   { label: "Pricing", href: "/pricing" },
   { label: "Contact Us", href: "/contact_us" },
-  { label: "Blog", href: "/blogpage" },
+  // { label: "Blog", href: "/blogpage" },
 ];
 
 const PublicHeader = () => {

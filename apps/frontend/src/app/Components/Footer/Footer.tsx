@@ -45,7 +45,7 @@ const footerLinks = [
       { label: "Pricing", href: "/pricing" },
       // { label: "Enterprise", href: "#" },
       // { label: "Careers", href: "#" },
-      { label: "Blog", href: "/blogpage" },
+      // { label: "Blog", href: "/blogpage" },
     ],
   },
 ];
@@ -72,7 +72,6 @@ function Footer() {
     <motion.footer
       ref={footerRef}
       className="Footersec"
-      role="contentinfo"
       aria-label="Site Footer"
       initial={{ opacity: 0, y: 40 }}
       animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
@@ -85,9 +84,9 @@ function Footer() {
               <Link href={"/"}>
                 <Image
                   aria-hidden
-                  src="https://d2il6osz49gpup.cloudfront.net/Images/Ftlogo.png"
+                  src="https://d2il6osz49gpup.cloudfront.net/Logo.png"
                   alt="Yosemite Crew Logo"
-                  width={96}
+                  width={105}
                   height={96}
                 />
               </Link>
@@ -98,6 +97,7 @@ function Footer() {
                   alt="GDPR"
                   width={55}
                   height={56}
+                  className="gdpr-footer"
                 />
                 <Image
                   aria-hidden
@@ -105,6 +105,7 @@ function Footer() {
                   alt="SOC2"
                   width={56}
                   height={56}
+                  className="soc-footer"
                 />
                 <Image
                   aria-hidden
@@ -112,6 +113,7 @@ function Footer() {
                   alt="HL7 FHIR"
                   width={54}
                   height={60}
+                  className="iso-footer"
                 />
                 <Image
                   aria-hidden
@@ -119,6 +121,7 @@ function Footer() {
                   alt="ISO 27001"
                   width={117}
                   height={28}
+                  className="fhir-footer"
                 />
               </div>
             </div>
@@ -136,7 +139,7 @@ function Footer() {
                   variants={ftDivVariants}
                 >
                   <h5>{section.title}</h5>
-                  <ul className="FtLinks" role="list">
+                  <ul className="FtLinks">
                     {section.links.map((link) => (
                       <li key={link.label}>
                         <Link
@@ -164,7 +167,8 @@ function Footer() {
                 <a href="mailto:support@yosemitecrew.com">
                   support@yosemitecrew.com
                 </a>
-                , phone: <a href="tel:+4915227763275">+49 152 277 63275</a>
+                , phone:{" "}
+                <a href="tel:+4915227763275">+49 152 277 63275</a>
               </p>
               <p>
                 Geschaftsfuhrer: Ankit Upadhyay Amtsgerichts Mainz unter HRB
