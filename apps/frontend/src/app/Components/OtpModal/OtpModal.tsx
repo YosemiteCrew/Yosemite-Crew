@@ -91,6 +91,7 @@ const OtpModal = ({
         try {
           await signIn(email, password);
         } catch (error) {
+          console.log(error);
           showErrorTost({
             message: `Sign in failed`,
             errortext: "Error",
@@ -110,6 +111,7 @@ const OtpModal = ({
       if (typeof window !== "undefined") {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
+      console.log(error);
       setInvalidOtp(true);
     }
   };
@@ -205,7 +207,7 @@ const OtpModal = ({
             <div className="verifyInput" style={{ marginBottom: 24 }}>
               {code.map((digit, idx) => (
                 <input
-                  key={idx}
+                  key={`${digit}-${idx}`}
                   ref={(el) => setOtpRef(el, idx)}
                   type="text"
                   maxLength={1}

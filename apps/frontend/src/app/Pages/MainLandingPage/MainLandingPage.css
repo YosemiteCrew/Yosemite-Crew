@@ -218,6 +218,10 @@
   #customContainer {
     padding: 0px 0px !important;
   }
+  .RedefiningSection .RederfiningData .leftRederfine {
+    padding: 0px 20px;
+    padding-bottom: 60px;
+  }
   .RedefiningSection .RederfiningData .leftRederfine .RederfineInnerBtn {
     flex-direction: column;
   }
@@ -238,7 +242,6 @@
     justify-content: left;
     margin: 0 !important;
     width: fit-content !important;
-    display: flex;
     align-items: center;
     gap: 8px;
   }

@@ -46,11 +46,9 @@ function MainLandingPage() {
               <div className="RederfineTextInner">
                 <h2>Open Source Operating System for Animal Health</h2>
                 <p>
-                  An open-source platform to manage appointments, medical
-                  records, and clinic operations with ease. Designed for
-                  veterinarians, pet owners, and developers to collaborate in
-                  improving animal care. Streamline workflows while enhancing
-                  health outcomes, all in one unified system
+                  Designed for veterinarians, pet owners, and developers to
+                  collaborate in improving animal care. Streamline workflows
+                  while enhancing health outcomes, all in one unified system
                 </p>
               </div>
               <div className="RederfineInnerBtn">
