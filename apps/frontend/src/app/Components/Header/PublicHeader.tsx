@@ -12,11 +12,11 @@ const publicNavItems: NavItem[] = [
   { label: "Home", href: "/" },
   { label: "PMS", href: "/homepage" },
   { label: "Developers", href: "/developerlanding" },
-  { label: "Resources", href: "/resources" },
+  // { label: "Resources", href: "/resources" },
   { label: "About Us", href: "/about_us" },
   { label: "Pricing", href: "/pricing" },
   { label: "Contact Us", href: "/contact_us" },
-  { label: "Blog", href: "/blogpage" },
+  // { label: "Blog", href: "/blogpage" },
 ];
 
 const PublicHeader = () => {
