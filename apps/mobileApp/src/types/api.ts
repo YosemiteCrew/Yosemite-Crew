@@ -563,3 +563,34 @@ export interface TransformedImmunization {
   }[];
 }
 
+// These types should already be in src/types/api.ts
+
+export interface FHIRRawObservationFeedback {
+  id?: string;
+  extension?: {
+    url: string;
+    valueString?: string;
+  }[];
+  performer?: { reference?: string }[];
+  subject?: { reference?: string };
+  valueInteger?: number;
+  note?: { text: string }[];
+  effectiveDateTime?: string;
+}
+
+export interface TransformedObservation {
+  appointmentId: string;
+  vetId: string;
+  petId: string;
+  feedbackText: string;
+  rating: number | null;
+  date: string;
+  vet: {
+    name: string;
+    qualification: string;
+    specialization: string;
+    image: string;
+  };
+  feedBackId?: string;
+}
+
