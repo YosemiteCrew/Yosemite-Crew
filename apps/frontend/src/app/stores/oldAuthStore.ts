@@ -1,15 +1,29 @@
-import { create } from 'zustand';
-import ProfileApi from '../utils/Api/profileApi';
-import { BusinessProfile, ConvertToFhirVetProfileParams } from '@yosemite-crew/types';
+import { create } from "zustand";
+import ProfileApi from "../utils/Api/profileApi";
+import {
+  BusinessProfile,
+  ConvertToFhirVetProfileParams,
+} from "@yosemite-crew/types";
 
-type UserType = 'Doctor' | 'Hospital' | 'Groomer Shop' | string;
+type UserType =
+  | "Doctor"
+  | "Hospital"
+  | "Groomer Shop"
+  | "receptionist"
+  | "vet"
+  | "veterinaryBusiness";
 
 type OldAuthStore = {
   userId: string | null;
   email: string | null;
   userType: UserType | null;
-  isVerified:  number|null;
-  setUser: (user: { userId: string; email: string; userType: UserType,isVerified:number }) => void;
+  isVerified: number | null;
+  setUser: (user: {
+    userId: string;
+    email: string;
+    userType: UserType;
+    isVerified: number;
+  }) => void;
   logout: () => void;
   setVerified: (value?: number) => void;
   profile: BusinessProfile | null;
@@ -30,8 +44,8 @@ export const useOldAuthStore = create<OldAuthStore>((set) => ({
   loading: false,
   error: null,
 
-  setUser: ({ userId, email, userType,isVerified }) => {
-    set({ userId, email, userType,isVerified });
+  setUser: ({ userId, email, userType, isVerified }) => {
+    set({ userId, email, userType, isVerified });
   },
 
   logout: () => {
@@ -64,7 +78,7 @@ export const useOldAuthStore = create<OldAuthStore>((set) => ({
     }
   },
 
-  fetchVetAndTeamsProfile: async (userId: string) => { 
+  fetchVetAndTeamsProfile: async (userId: string) => {
     set({ loading: true, error: null });
     try {
       if (!userId) throw new Error("User ID not found");
@@ -73,5 +87,5 @@ export const useOldAuthStore = create<OldAuthStore>((set) => ({
     } catch (err: any) {
       set({ error: err.message, loading: false });
     }
-  }
+  },
 }));
