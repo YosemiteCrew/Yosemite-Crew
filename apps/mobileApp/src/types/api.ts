@@ -517,3 +517,49 @@ export interface SimpleOrganization {
   address: string;
   city: string;
 }
+
+// These types should already be in src/types/api.ts
+
+export interface FHIRRawImmunization {
+  id: string;
+  vaccineCode?: { text: string };
+  status?: string;
+  occurrenceDateTime?: string;
+  manufacturer?: { display: string };
+  lotNumber?: string;
+  location?: { display: string };
+  patient?: {
+    petImageUrl?: string;
+    reference?: string;
+  };
+  note?: { text: string }[];
+  contained?: {
+    content?: {
+      attachment: {
+        contentType?: string;
+        title?: string;
+        url?: string;
+      };
+    }[];
+  }[];
+}
+
+export interface TransformedImmunization {
+  id: string | number;
+  status: string;
+  vaccine: string;
+  date: string | null;
+  manufacturer: string | null;
+  lotNumber: string | null;
+  location: string | null;
+  nextDue: string | null;
+  expiryDate: string | null;
+  petImage: string | null;
+  petId: string | null;
+  attachments: {
+    title: string;
+    url: string;
+    type: 'image' | 'pdf' | 'other';
+  }[];
+}
+
