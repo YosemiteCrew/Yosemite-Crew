@@ -74,31 +74,37 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 48px;
+    gap: 32px;
     justify-content: center;
      background: var(--whitebg);
     box-shadow: 0px 0px 28px 0px #00000014;
+    padding: 20px;
+    max-width: 100%;
+    overflow: hidden;
 
 }
 .GrowTabInner .IconPic {
-    width: 831px;
+    width: 100%;
+    max-width: 600px;
     display: flex;
+    justify-content: center;
 }
 .GrowTabInner .BottomText{
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 64px;
-    width: 831px;
+    gap: 32px;
+    width: 100%;
+    max-width: 600px;
 }
 .GrowTabInner .BottomText .Texted{
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 28px;
+    gap: 20px;
 }
 .GrowTabInner .BottomText .Texted h2{
-    font-size: 33px;
+    font-size: 26px;
     font-weight: 500;
     line-height: 120%;
     color: var(--black-text);
@@ -109,7 +115,7 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 24px;
+    gap: 16px;
 }
 .GrowTabInner .BottomText .Texted ul li{
     padding: 0;
@@ -117,11 +123,331 @@
     align-items: flex-start;
     gap: 8px;
     font-family: var(--satoshi-font);
-    font-size: 20px;
+    font-size: 16px;
     font-weight: 400;
-    line-height: 120%;
+    line-height: 140%;
     color: var(--notibg);
     text-align: left;
 }
 
+/* Responsive Styles */
 
+/* Mobile Styles (max-width: 768px) */
+@media screen and (max-width: 768px) {
+    .BuildLaunchTabSec {
+        height: auto;
+        min-height: 500px;
+        flex-direction: column;
+        background: var(--whitebg);
+        border-radius: 20px;
+        padding: 0;
+        position: relative;
+    }
+    
+    /* Content area - show only active tab content */
+    .LaunchTabDiv {
+        width: 100%;
+        display: none;
+    }
+    
+    .LaunchTabDiv.active {
+        display: block;
+        flex: 1;
+        position: relative;
+        background: var(--whitebg);
+    }
+    
+    .LaunchTabDiv.active > .BuildText {
+        display: none;
+    }
+    
+    .GrowTab_Content {
+        position: relative;
+        top: auto;
+        left: auto;
+        transform: none;
+        height: auto;
+        display: block;
+        background: var(--whitebg);
+        box-shadow: none;
+        padding: 0;
+        margin-bottom: 80px;
+    }
+    
+    .GrowTab_Content > .BuildText {
+        display: none;
+    }
+    
+    .GrowTabInner {
+        gap: 20px;
+        padding: 20px;
+        box-shadow: none;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: flex-start;
+        background: var(--whitebg);
+    }
+    
+    .GrowTabInner .IconPic {
+        width: auto;
+        justify-content: flex-start;
+    }
+    
+    .GrowTabInner .BottomText {
+        width: 100%;
+        gap: 20px;
+    }
+    
+    .GrowTabInner .BottomText .Texted h2 {
+        font-size: 22px;
+        font-family: var(--grotesk-font);
+    }
+    
+    .GrowTabInner .BottomText .Texted ul {
+        gap: 12px;
+    }
+    
+    .GrowTabInner .BottomText .Texted ul li {
+        font-size: 14px;
+        line-height: 1.4;
+    }
+    
+    /* Remove the ::after pseudo element */
+    .BuildLaunchTabSec::after {
+        display: none;
+    }
+}
+
+/* Add mobile tab buttons - this will need to be handled in the component */
+@media screen and (max-width: 768px) {
+    .mobile-tab-nav {
+        position: absolute;
+        bottom: 15px;
+        left: 15px;
+        right: 15px;
+        height: 50px;
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 25px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        z-index: 10;
+        box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 5px;
+    }
+    
+    .mobile-tab-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 40px;
+        padding: 0 12px;
+        border-radius: 20px;
+        font-family: var(--grotesk-font);
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: none;
+        background: transparent;
+        color: #666;
+        white-space: nowrap;
+        min-width: auto;
+        flex: none;
+    }
+    
+    .mobile-tab-button.active {
+        background: #247AED;
+        color: white;
+        box-shadow: 0px 2px 8px rgba(36, 122, 237, 0.3);
+        flex: 1;
+        max-width: none;
+    }
+    
+    .mobile-tab-button:not(.active) {
+        flex: 0 0 auto;
+        padding: 0 8px;
+        font-size: 12px;
+    }
+    
+    .mobile-tab-button:not(.active):hover {
+        background: rgba(36, 122, 237, 0.1);
+        color: #247AED;
+    }
+}
+
+/* Hide mobile tab navigation on screens larger than 768px */
+@media screen and (min-width: 769px) {
+    .mobile-tab-nav {
+        display: none !important;
+    }
+    
+    /* Ensure desktop layout is properly restored */
+    .BuildLaunchTabSec {
+        display: flex;
+        align-items: stretch;
+        height: 720px;
+        background: #FFF2E3;
+        border-radius: 24px;
+        overflow: hidden;
+        flex-direction: row;
+    }
+    
+    .LaunchTabDiv {
+        width: 88px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: var(--white-text);
+        transition: flex-grow 0.3s ease, background-color 0.3s ease;
+        overflow: hidden;
+        position: relative;
+    }
+    
+    .LaunchTabDiv.active {
+        flex-grow: 3;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        transition: flex-grow 0.3s ease, box-shadow 0.3s ease;
+        display: flex;
+    }
+    
+    .GrowTab_Content {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        color: #333;
+        background: var(--whitebg);
+        width: 100%;
+        height: 100%;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        display: grid;
+        grid-template-columns: 85px auto;
+    }
+    
+    .GrowTabInner {
+        padding: 25px;
+        gap: 25px;
+        max-width: 100%;
+        overflow: hidden;
+    }
+    
+    .GrowTabInner .IconPic {
+        max-width: 500px;
+    }
+    
+    .GrowTabInner .BottomText {
+        max-width: 500px;
+        gap: 25px;
+    }
+    
+    .GrowTabInner .BottomText .Texted {
+        gap: 18px;
+    }
+    
+    .GrowTabInner .BottomText .Texted h2 {
+        font-size: 24px;
+        line-height: 130%;
+    }
+    
+    .GrowTabInner .BottomText .Texted ul {
+        gap: 14px;
+    }
+    
+    .GrowTabInner .BottomText .Texted ul li {
+        font-size: 15px;
+        line-height: 150%;
+    }
+}
+
+/* Small Mobile Styles (max-width: 375px) */
+@media screen and (max-width: 375px) {
+    .BuildLaunchTabSec {
+        min-height: 450px;
+    }
+    
+    .GrowTabInner {
+        padding: 15px;
+        gap: 15px;
+    }
+    
+    .GrowTab_Content {
+        margin-bottom: 75px;
+    }
+    
+    .GrowTabInner .BottomText .Texted h2 {
+        font-size: 20px;
+    }
+    
+    .GrowTabInner .BottomText .Texted ul li {
+        font-size: 13px;
+    }
+    
+    .mobile-tab-nav {
+        bottom: 12px;
+        left: 12px;
+        right: 12px;
+        height: 45px;
+        padding: 4px;
+    }
+    
+    .mobile-tab-button {
+        font-size: 12px;
+        height: 36px;
+        padding: 0 10px;
+    }
+    
+    .mobile-tab-button:not(.active) {
+        padding: 0 6px;
+        font-size: 11px;
+    }
+}
+
+/* Extra Small Mobile (max-width: 320px) */
+@media screen and (max-width: 320px) {
+    .BuildLaunchTabSec {
+        min-height: 400px;
+    }
+    
+    .GrowTabInner {
+        padding: 12px;
+        gap: 12px;
+    }
+    
+    .GrowTab_Content {
+        margin-bottom: 70px;
+    }
+    
+    .GrowTabInner .BottomText .Texted h2 {
+        font-size: 18px;
+    }
+    
+    .GrowTabInner .BottomText .Texted ul li {
+        font-size: 12px;
+    }
+    
+    .mobile-tab-nav {
+        height: 42px;
+        bottom: 10px;
+        left: 10px;
+        right: 10px;
+        padding: 3px;
+    }
+    
+    .mobile-tab-button {
+        font-size: 11px;
+        height: 32px;
+        padding: 0 8px;
+    }
+    
+    .mobile-tab-button:not(.active) {
+        padding: 0 4px;
+        font-size: 10px;
+    }
+}

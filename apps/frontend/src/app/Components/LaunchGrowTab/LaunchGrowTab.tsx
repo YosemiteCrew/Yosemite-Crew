@@ -121,6 +121,22 @@ function LaunchGrowTab() {
                         )}
                     </div>
                 ))}
+                
+                {/* Mobile Tab Navigation */}
+                <div className="mobile-tab-nav">
+                    {Launchtabs.map((tab) => (
+                        <button
+                            key={tab.id}
+                            className={`mobile-tab-button ${activeTab === tab.id ? "active" : ""}`}
+                            onClick={() => setActiveTab(tab.id)}
+                        >
+                            {activeTab === tab.id 
+                                ? `${tab.id.toString().padStart(2, "0")} ${tab.title}`
+                                : tab.id.toString().padStart(2, "0")
+                            }
+                        </button>
+                    ))}
+                </div>
             </div>
         </>
     )
