@@ -4,3 +4,24 @@
     align-items: center;
     justify-content: center;
 }
+
+.team-slide-item .TeamSlideImg img {
+    width: 100%;
+    height: auto;
+    max-width: 216px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+/* Responsive TeamSlide styles */
+@media (max-width: 767px) {
+    .team-slide-item .TeamSlideImg img {
+        max-width: 180px;
+    }
+}
+
+@media (max-width: 575px) {
+    .team-slide-item .TeamSlideImg img {
+        max-width: 250px;
+    }
+}
