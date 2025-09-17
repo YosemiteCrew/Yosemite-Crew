@@ -843,7 +843,7 @@ packages:
       '@smithy/invalid-dependency': 4.1.1
       '@smithy/middleware-content-length': 4.1.1
       '@smithy/middleware-endpoint': 4.2.2
-      '@smithy/middleware-retry': 4.2.2
+      '@smithy/middleware-retry': 4.2.3
       '@smithy/middleware-serde': 4.1.1
       '@smithy/middleware-stack': 4.1.1
       '@smithy/node-config-provider': 4.2.2
@@ -859,7 +859,7 @@ packages:
       '@smithy/util-defaults-mode-node': 4.1.2
       '@smithy/util-endpoints': 3.1.2
       '@smithy/util-middleware': 4.1.1
-      '@smithy/util-retry': 4.1.1
+      '@smithy/util-retry': 4.1.2
       '@smithy/util-utf8': 4.1.0
       tslib: 2.8.1
     transitivePeerDependencies:
@@ -890,7 +890,7 @@ packages:
       '@smithy/invalid-dependency': 4.1.1
       '@smithy/middleware-content-length': 4.1.1
       '@smithy/middleware-endpoint': 4.2.2
-      '@smithy/middleware-retry': 4.2.2
+      '@smithy/middleware-retry': 4.2.3
       '@smithy/middleware-serde': 4.1.1
       '@smithy/middleware-stack': 4.1.1
       '@smithy/node-config-provider': 4.2.2
@@ -906,7 +906,7 @@ packages:
       '@smithy/util-defaults-mode-node': 4.1.2
       '@smithy/util-endpoints': 3.1.2
       '@smithy/util-middleware': 4.1.1
-      '@smithy/util-retry': 4.1.1
+      '@smithy/util-retry': 4.1.2
       '@smithy/util-utf8': 4.1.0
       tslib: 2.8.1
     transitivePeerDependencies:
@@ -952,7 +952,7 @@ packages:
       '@smithy/md5-js': 4.1.1
       '@smithy/middleware-content-length': 4.1.1
       '@smithy/middleware-endpoint': 4.2.2
-      '@smithy/middleware-retry': 4.2.2
+      '@smithy/middleware-retry': 4.2.3
       '@smithy/middleware-serde': 4.1.1
       '@smithy/middleware-stack': 4.1.1
       '@smithy/node-config-provider': 4.2.2
@@ -968,7 +968,7 @@ packages:
       '@smithy/util-defaults-mode-node': 4.1.2
       '@smithy/util-endpoints': 3.1.2
       '@smithy/util-middleware': 4.1.1
-      '@smithy/util-retry': 4.1.1
+      '@smithy/util-retry': 4.1.2
       '@smithy/util-stream': 4.3.1
       '@smithy/util-utf8': 4.1.0
       '@smithy/util-waiter': 4.1.1
@@ -1003,7 +1003,7 @@ packages:
       '@smithy/invalid-dependency': 4.1.1
       '@smithy/middleware-content-length': 4.1.1
       '@smithy/middleware-endpoint': 4.2.2
-      '@smithy/middleware-retry': 4.2.2
+      '@smithy/middleware-retry': 4.2.3
       '@smithy/middleware-serde': 4.1.1
       '@smithy/middleware-stack': 4.1.1
       '@smithy/node-config-provider': 4.2.2
@@ -1019,7 +1019,7 @@ packages:
       '@smithy/util-defaults-mode-node': 4.1.2
       '@smithy/util-endpoints': 3.1.2
       '@smithy/util-middleware': 4.1.1
-      '@smithy/util-retry': 4.1.1
+      '@smithy/util-retry': 4.1.2
       '@smithy/util-utf8': 4.1.0
       '@smithy/util-waiter': 4.1.1
       tslib: 2.8.1
@@ -1050,7 +1050,7 @@ packages:
       '@smithy/invalid-dependency': 4.1.1
       '@smithy/middleware-content-length': 4.1.1
       '@smithy/middleware-endpoint': 4.2.2
-      '@smithy/middleware-retry': 4.2.2
+      '@smithy/middleware-retry': 4.2.3
       '@smithy/middleware-serde': 4.1.1
       '@smithy/middleware-stack': 4.1.1
       '@smithy/node-config-provider': 4.2.2
@@ -1066,7 +1066,7 @@ packages:
       '@smithy/util-defaults-mode-node': 4.1.2
       '@smithy/util-endpoints': 3.1.2
       '@smithy/util-middleware': 4.1.1
-      '@smithy/util-retry': 4.1.1
+      '@smithy/util-retry': 4.1.2
       '@smithy/util-utf8': 4.1.0
       tslib: 2.8.1
     transitivePeerDependencies:
@@ -1096,7 +1096,7 @@ packages:
       '@smithy/invalid-dependency': 4.1.1
       '@smithy/middleware-content-length': 4.1.1
       '@smithy/middleware-endpoint': 4.2.2
-      '@smithy/middleware-retry': 4.2.2
+      '@smithy/middleware-retry': 4.2.3
       '@smithy/middleware-serde': 4.1.1
       '@smithy/middleware-stack': 4.1.1
       '@smithy/node-config-provider': 4.2.2
@@ -1112,7 +1112,7 @@ packages:
       '@smithy/util-defaults-mode-node': 4.1.2
       '@smithy/util-endpoints': 3.1.2
       '@smithy/util-middleware': 4.1.1
-      '@smithy/util-retry': 4.1.1
+      '@smithy/util-retry': 4.1.2
       '@smithy/util-utf8': 4.1.0
       tslib: 2.8.1
     transitivePeerDependencies:
@@ -1566,7 +1566,7 @@ packages:
       '@smithy/invalid-dependency': 4.1.1
       '@smithy/middleware-content-length': 4.1.1
       '@smithy/middleware-endpoint': 4.2.2
-      '@smithy/middleware-retry': 4.2.2
+      '@smithy/middleware-retry': 4.2.3
       '@smithy/middleware-serde': 4.1.1
       '@smithy/middleware-stack': 4.1.1
       '@smithy/node-config-provider': 4.2.2
@@ -1582,7 +1582,7 @@ packages:
       '@smithy/util-defaults-mode-node': 4.1.2
       '@smithy/util-endpoints': 3.1.2
       '@smithy/util-middleware': 4.1.1
-      '@smithy/util-retry': 4.1.1
+      '@smithy/util-retry': 4.1.2
       '@smithy/util-utf8': 4.1.0
       tslib: 2.8.1
     transitivePeerDependencies:
@@ -1612,7 +1612,7 @@ packages:
       '@smithy/invalid-dependency': 4.1.1
       '@smithy/middleware-content-length': 4.1.1
       '@smithy/middleware-endpoint': 4.2.2
-      '@smithy/middleware-retry': 4.2.2
+      '@smithy/middleware-retry': 4.2.3
       '@smithy/middleware-serde': 4.1.1
       '@smithy/middleware-stack': 4.1.1
       '@smithy/node-config-provider': 4.2.2
@@ -1628,7 +1628,7 @@ packages:
       '@smithy/util-defaults-mode-node': 4.1.2
       '@smithy/util-endpoints': 3.1.2
       '@smithy/util-middleware': 4.1.1
-      '@smithy/util-retry': 4.1.1
+      '@smithy/util-retry': 4.1.2
       '@smithy/util-utf8': 4.1.0
       tslib: 2.8.1
     transitivePeerDependencies:
@@ -5470,17 +5470,17 @@ packages:
       tslib: 2.8.1
     dev: false
 
-  /@smithy/middleware-retry@4.2.2:
-    resolution: {integrity: sha512-KZJueEOO+PWqflv2oGx9jICpHdBYXwCI19j7e2V3IMwKgFcXc9D9q/dsTf4B+uCnYxjNoS1jpyv6pGNGRsKOXA==}
+  /@smithy/middleware-retry@4.2.3:
+    resolution: {integrity: sha512-am6wR0kKGCuQfaGc0f3UKdl9AmbSe3DacScw8It5aHDFNXwgXSHNbAoFrf37qZn4Br6Ap7+LI6lWaBT3LJtv7g==}
     engines: {node: '>=18.0.0'}
     dependencies:
       '@smithy/node-config-provider': 4.2.2
       '@smithy/protocol-http': 5.2.1
-      '@smithy/service-error-classification': 4.1.1
+      '@smithy/service-error-classification': 4.1.2
       '@smithy/smithy-client': 4.6.2
       '@smithy/types': 4.5.0
       '@smithy/util-middleware': 4.1.1
-      '@smithy/util-retry': 4.1.1
+      '@smithy/util-retry': 4.1.2
       '@types/uuid': 9.0.8
       tslib: 2.8.1
       uuid: 9.0.1
@@ -5557,8 +5557,8 @@ packages:
       tslib: 2.8.1
     dev: false
 
-  /@smithy/service-error-classification@4.1.1:
-    resolution: {integrity: sha512-Iam75b/JNXyDE41UvrlM6n8DNOa/r1ylFyvgruTUx7h2Uk7vDNV9AAwP1vfL1fOL8ls0xArwEGVcGZVd7IO/Cw==}
+  /@smithy/service-error-classification@4.1.2:
+    resolution: {integrity: sha512-Kqd8wyfmBWHZNppZSMfrQFpc3M9Y/kjyN8n8P4DqJJtuwgK1H914R471HTw7+RL+T7+kI1f1gOnL7Vb5z9+NgQ==}
     engines: {node: '>=18.0.0'}
     dependencies:
       '@smithy/types': 4.5.0
@@ -5709,11 +5709,11 @@ packages:
       tslib: 2.8.1
     dev: false
 
-  /@smithy/util-retry@4.1.1:
-    resolution: {integrity: sha512-jGeybqEZ/LIordPLMh5bnmnoIgsqnp4IEimmUp5c5voZ8yx+5kAlN5+juyr7p+f7AtZTgvhmInQk4Q0UVbrZ0Q==}
+  /@smithy/util-retry@4.1.2:
+    resolution: {integrity: sha512-NCgr1d0/EdeP6U5PSZ9Uv5SMR5XRRYoVr1kRVtKZxWL3tixEL3UatrPIMFZSKwHlCcp2zPLDvMubVDULRqeunA==}
     engines: {node: '>=18.0.0'}
     dependencies:
-      '@smithy/service-error-classification': 4.1.1
+      '@smithy/service-error-classification': 4.1.2
       '@smithy/types': 4.5.0
       tslib: 2.8.1
     dev: false
@@ -7763,8 +7763,8 @@ packages:
     resolution: {integrity: sha512-lGe34o6EHj9y3Kts9R4ZYs/Gr+6N7MCaMlIFA3F1R2O5/m7K06AxfSeO5530PEERE6/WyEg3lsuyw4GHlPZHog==}
     engines: {node: ^4.5.0 || >= 5.9}
 
-  /baseline-browser-mapping@2.8.4:
-    resolution: {integrity: sha512-L+YvJwGAgwJBV1p6ffpSTa2KRc69EeeYGYjRVWKs0GKrK+LON0GC0gV+rKSNtALEDvMDqkvCFq9r1r94/Gjwxw==}
+  /baseline-browser-mapping@2.8.5:
+    resolution: {integrity: sha512-TiU4qUT9jdCuh4aVOG7H1QozyeI2sZRqoRPdqBIaslfNt4WUSanRBueAwl2x5jt4rXBMim3lIN2x6yT8PDi24Q==}
     hasBin: true
 
   /bcrypt@5.1.1:
@@ -7860,7 +7860,7 @@ packages:
     engines: {node: ^6 || ^7 || ^8 || ^9 || ^10 || ^11 || ^12 || >=13.7}
     hasBin: true
     dependencies:
-      baseline-browser-mapping: 2.8.4
+      baseline-browser-mapping: 2.8.5
       caniuse-lite: 1.0.30001743
       electron-to-chromium: 1.5.220
       node-releases: 2.0.21
