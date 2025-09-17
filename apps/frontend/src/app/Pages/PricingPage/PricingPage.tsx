@@ -84,6 +84,7 @@ function PricingPage() {
                             width="60"
                             height="60"
                             color="#247AED"
+                            className="pricing-card-icon"
                           />
                           <h4>{plan.title}</h4>
                           <p>{plan.description}</p>
@@ -230,7 +231,6 @@ function PricingPage() {
 
               <div className="PricingInfoDiv">
                 <div className="leftPriceInfo">
-                  {/* Dynamic Sliders */}
                   {currentPlan.ranges.map(
                     (
                       item: {
@@ -247,7 +247,6 @@ function PricingPage() {
                           <h5>{item.label}</h5>
                           <span>{item.value}</span>
                         </div>
-                        {/* <Form.Range className="styled-range" min={item.min} max={item.max} value={item.value} onChange={(e) => item.setter(Number(e.target.value))} /> */}
                         <Form.Range
                           min={item.min}
                           max={item.max}
@@ -271,7 +270,6 @@ function PricingPage() {
                 </div>
 
                 <div className="RytPriceInfo">
-                  {/* Price Box */}
                   <div className="pricebox">
                     <div className="pricetext">
                       <h2>${currentPlan.calculatePrice()}</h2>
@@ -324,6 +322,15 @@ export function NeedHealp() {
             <Icon icon="solar:chat-round-like-bold" width="18" height="18" />{" "}
             Get in Touch
           </Link>
+        </div>
+        <div className="need-help-mobile-dog-wrapper">
+          <Image
+            className="need-help-mobile-dog"
+            src="https://d2il6osz49gpup.cloudfront.net/Images/doghelp.png"
+            alt="Dog"
+            height={300}
+            width={450}
+          />
         </div>
       </div>
     </div>

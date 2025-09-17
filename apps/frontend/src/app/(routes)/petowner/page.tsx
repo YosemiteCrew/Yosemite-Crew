@@ -1,12 +1,8 @@
-import PetOwner from '@/app/Pages/PetOwner/PetOwner'
-import React from 'react'
+import PetOwner from "@/app/Pages/PetOwner/PetOwner";
+import React from "react";
 
 function page() {
-  return (
-    <>
-        <PetOwner/>
-    </>
-  )
+  return <PetOwner />;
 }
 
-export default page
+export default page;

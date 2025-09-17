@@ -1,304 +1,335 @@
-.DownlodeBody{
-    background: linear-gradient(355.06deg, #FFFFFF 64.22%, #EAEEF6 95.67%);
+.DownlodeBody {
+  background: linear-gradient(355.06deg, #ffffff 64.22%, #eaeef6 95.67%);
 }
-.DownlodeSec{
-    padding: 100px 0px;
-    position: relative;
-    min-height: 100vh;
-    z-index: 1;
-    display: flex;
+.DownlodeSec {
+  padding: 100px 0px;
+  position: relative;
+  min-height: 100vh;
+  z-index: 1;
+  display: flex;
 }
-.DownlodeSec::after{
-    content: " ";
-    position: absolute;
-    background: url('https://d2il6osz49gpup.cloudfront.net/Images/Petownerbg.png') no-repeat;
-    background-size: 100% 100%;
-    width: 800px;
-    height: 1016px;
-    right: 0;
-    top: 60px;
-    z-index: -1;
+.DownlodeSec::after {
+  content: " ";
+  position: absolute;
+  background: url("https://d2il6osz49gpup.cloudfront.net/Images/Petownerbg.png")
+    no-repeat;
+  background-size: 100% 100%;
+  width: 800px;
+  height: 1016px;
+  right: 0;
+  top: 60px;
+  z-index: -1;
 }
 
-.Downlode_Data{
-    display: flex;
-    flex-direction: column;
-    gap: 50px;
-    height: 100%;
-    padding-top: 80px;
+.Downlode_Data {
+  display: flex;
+  flex-direction: column;
+  gap: 50px;
+  height: 100%;
+  padding-top: 80px;
 }
 .downlodetext {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
-.downlodetext h1{
-    font-family: var(--grotesk-font);
-    font-size: 54px;
-    font-weight: 500;
-    line-height: 58.4px;
-    letter-spacing: -0.02em;
-    color: var(--black-text);
+.downlodetext h1 {
+  font-family: var(--grotesk-font);
+  font-size: 54px;
+  font-weight: 500;
+  line-height: 58.4px;
+  letter-spacing: -0.02em;
+  color: var(--black-text);
 }
-/* .downlodetext h1 span{
-    color: var(--blue-text);
-} */
-.downlodetext p{
-    font-size: 18px;
-    font-weight: 400;
-    line-height: 23.6px;
-    letter-spacing: -0.02em;
-    color: #000000;
-    max-width: 407px;
+.downlodetext p {
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 23.6px;
+  letter-spacing: -0.02em;
+  color: #000000;
+  max-width: 407px;
 }
 .downlodeReview {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
-.reviewItems{
-    display: flex;
-    position: relative;
-    flex-direction: column;
+.reviewItems {
+  display: flex;
+  position: relative;
+  flex-direction: column;
 }
-.reviewItems h6{
-    font-family: var(--grotesk-font);
-    font-size: 36px;
-    font-weight: 500;
-    line-height: 32px;
-    letter-spacing: -0.02em;
-    color: var(--blue-text);
-    margin: 0;
+.reviewItems h6 {
+  font-family: var(--grotesk-font);
+  font-size: 36px;
+  font-weight: 500;
+  line-height: 32px;
+  letter-spacing: -0.02em;
+  color: var(--blue-text);
+  margin: 0;
 }
-.reviewItems p{
-    font-family: var(--grotesk-font);
-    font-size: 18px;
-    font-weight: 500;
-    line-height: 24.6px;
-    letter-spacing: -0.02em;
-    color: #595958;
-    margin: 0;
+.reviewItems p {
+  font-family: var(--grotesk-font);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 24.6px;
+  letter-spacing: -0.02em;
+  color: #595958;
+  margin: 0;
 }
 
 /* PetToolkitSec  */
 
-.PetToolkitSec{
-    padding: 300px 0px 100px 0px;
+.PetToolkitSec {
+  padding: 300px 0px 100px 0px;
 }
-.ToolkitCard{
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
+.ToolkitCard {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
 }
-.ToolkitData{
-    display: flex;
-    flex-direction: column;
-    gap: 40px;
+.ToolkitData {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
 }
-.CardToolItem{
-    min-height: 235px;
-    min-width: 235px;
-    border-radius: 24px;
-    background: var(--blue-text);
-    padding: 12px;
+.CardToolItem {
+  min-height: 235px;
+  min-width: 235px;
+  border-radius: 24px;
+  background: var(--blue-text);
+  padding: 12px;
 }
-.CardToolItem svg{
-    color: var(--skytext);
-    position: relative;
-    top: -15px;
-    right: -90px;
+.CardToolItem svg {
+  color: var(--skytext);
+  position: relative;
+  top: -15px;
+  right: -90px;
 }
-.CardToolItem h6{
-    max-width: 221px;
-    text-align: center;
-    font-weight: 700;
-    font-size: 24px;
-    line-height: 120%;
-    color: var(--white-text);
-    margin: 0;
+.CardToolItem h6 {
+  max-width: 221px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 24px;
+  line-height: 120%;
+  color: var(--white-text);
+  margin: 0;
 }
 
 /* PawsPraisesSec */
 
-.PawsPraisesSec{
-    padding: 100px 0px 50px 0px;
+.PawsPraisesSec {
+  padding: 100px 0px 50px 0px;
 }
-.PawsPrasData{
-    padding: 50px 0px;
+.PawsPrasData {
+  padding: 50px 0px;
 }
-.BrownDiv img , .PurpleDiv img , .GreenDiv img{
-    width: 100%;
+.BrownDiv img,
+.PurpleDiv img,
+.GreenDiv img {
+  width: 100%;
 }
-.BrownDiv, .PurpleDiv  , .GreenDiv {
-    position: relative;
+.BrownDiv,
+.PurpleDiv,
+.GreenDiv {
+  position: relative;
 }
-.BrownDiv::after{
-    position: absolute;
-    content: " ";
-    background: url('https://d2il6osz49gpup.cloudfront.net/Images/Paws1after.png') no-repeat;
-    background-size: 100% 100%;
-    left: 185px;
-    top: -25px;
-    width: 137px;
-    height: 132px;
-    animation: rotate-image 10s linear infinite;
+.BrownDiv::after {
+  position: absolute;
+  content: " ";
+  background: url("https://d2il6osz49gpup.cloudfront.net/Images/Paws1after.png")
+    no-repeat;
+  background-size: 100% 100%;
+  left: 185px;
+  top: -25px;
+  width: 137px;
+  height: 132px;
+  animation: rotate-image 10s linear infinite;
 }
-.PurpleDiv::after{
-    position: absolute;
-    content: " ";
-    background: url('https://d2il6osz49gpup.cloudfront.net/Images/Paws2after.png') no-repeat;
-    background-size: 100% 100%;
-    top: -10px;
-    right: 155px;
-    width: 107px;
-    height: 107px;
-    animation: rotate-image 10s linear infinite;
+.PurpleDiv::after {
+  position: absolute;
+  content: " ";
+  background: url("https://d2il6osz49gpup.cloudfront.net/Images/Paws2after.png")
+    no-repeat;
+  background-size: 100% 100%;
+  top: -10px;
+  right: 155px;
+  width: 107px;
+  height: 107px;
+  animation: rotate-image 10s linear infinite;
 }
-.GreenDiv::after{
-    position: absolute;
-    content: " ";
-    background: url('https://d2il6osz49gpup.cloudfront.net/Images/Paws3after.png') no-repeat;
-    background-size: 100% 100%;
-    left: 160px;
-    bottom: -22px;
-    width: 108px;
-    height: 108px;
-    animation: rotate-image 10s linear infinite;
+.GreenDiv::after {
+  position: absolute;
+  content: " ";
+  background: url("https://d2il6osz49gpup.cloudfront.net/Images/Paws3after.png")
+    no-repeat;
+  background-size: 100% 100%;
+  left: 160px;
+  bottom: -22px;
+  width: 108px;
+  height: 108px;
+  animation: rotate-image 10s linear infinite;
 }
 @keyframes rotate-image {
-    0% {
-        transform: rotate(0deg)
-    }
-    to {
-        transform: rotate(180deg)
-    }
+  0% {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(180deg);
+  }
 }
 
 /* GlimpseSec Started */
 
-.GlimpseSec{
-    background: url('https://d2il6osz49gpup.cloudfront.net/Images/glimpsbg.png') no-repeat;
-    min-height: 100vh;
-    background-size: 100% 100%;
+.GlimpseSec {
+  background: url("https://d2il6osz49gpup.cloudfront.net/Images/glimpsbg.png")
+    no-repeat;
+  min-height: 100vh;
+  background-size: 100% 100%;
 }
-.GlimsData{
-    display: flex;
-    flex-direction: column;
-    gap: 40px;
-    position: relative;
-    top: 125px;
+.GlimsData {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  position: relative;
+  top: 125px;
 }
-.GlimsData .GlimpsHead , .PawsHead{
-    text-align: center;
+.GlimsData .GlimpsHead,
+.PawsHead {
+  text-align: center;
 }
-.GlimsData .GlimpsHead h2 , .PawsHead h2 , .ToolkitHead h2{
-    font-size: 48px;
-    font-weight: 500;
-    line-height: 120%;
-    font-family: var(--grotesk-font);
-    color: var(--pureblack);
-    margin: 0;
+.GlimsData .GlimpsHead h2,
+.PawsHead h2,
+.ToolkitHead h2 {
+  font-size: 48px;
+  font-weight: 500;
+  line-height: 120%;
+  font-family: var(--grotesk-font);
+  color: var(--pureblack);
+  margin: 0;
 }
-
 
 /* GlimpseSec Ended */
 
-
-
 /* PetAppSec */
 
-.PetAppSec{
-    position: relative;
-    padding: 300px 0px 200px 0px;
+.PetAppSec {
+  position: relative;
+  padding: 300px 0px 200px 0px;
 }
-.PetAppSec::after{
-    position: absolute;
-    content: " ";
-    background: url('https://d2il6osz49gpup.cloudfront.net/Images/LINES.png')no-repeat;
-    background-size: 100% 100%;
-    top: 150px;
-    left: 0;
-    width: 100%;
-    height: 330px;
+.PetAppSec::after {
+  position: absolute;
+  content: " ";
+  background: url("https://d2il6osz49gpup.cloudfront.net/Images/LINES.png")
+    no-repeat;
+  background-size: 100% 100%;
+  top: 150px;
+  left: 0;
+  width: 100%;
+  height: 330px;
 }
 
-.PetAppData{
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    align-items: center;
-    position: relative;
-    z-index: 1;
+.PetAppData {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  position: relative;
+  z-index: 1;
 }
 .LftpetApp {
-    display: flex;
-    flex-direction: column;
-    gap: 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
 }
-.PetAppText h2{
-    font-family: var(--grotesk-font);
-    font-size: 54px;
-    font-weight: 500;
-    line-height: 58.4px;
-    letter-spacing: -0.02em;
-    color: var(--black-text);
+.PetAppText h2 {
+  font-family: var(--grotesk-font);
+  font-size: 54px;
+  font-weight: 500;
+  line-height: 58.4px;
+  letter-spacing: -0.02em;
+  color: var(--black-text);
 }
-/* .PetAppText h2 span{
-    color: var(--blue-text);
-} */
-.PetAppText p{
-    font-size: 18px;
-    font-weight: 400;
-    line-height: 23.6px;
-    letter-spacing: -0.02em;
-    color: #000000;
-    max-width: 407px;
+.PetAppText p {
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 23.6px;
+  letter-spacing: -0.02em;
+  color: #000000;
+  max-width: 407px;
 }
-.PetAppBtn{
-    display: flex;
-    align-items: center;
-    gap: 12px;
+.PetAppBtn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
-.PetAppBtn a{
-    border: 1px solid var(--black-bg);
-    min-width: 215px;
-    height: 73px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 40px;
-    padding: 16px 28px;
-    background: transparent;
-    gap: 10px;
+.PetAppBtn a {
+  border: 1px solid var(--black-bg);
+  min-width: 215px;
+  height: 73px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 40px;
+  padding: 16px 28px;
+  background: transparent;
+  gap: 10px;
 }
-.PetAppBtn a:hover{
-    background: var(--black-bg);
+.PetAppBtn a:hover {
+  background: var(--black-bg);
 }
-.PetAppBtn a svg{
-    color: var(--black-bg);
+.PetAppBtn a svg {
+  color: var(--black-bg);
 }
-.PetAppBtn a:hover svg{
-    color: var(--whitebg);
+.PetAppBtn a:hover svg {
+  color: var(--whitebg);
 }
-.PetAppBtn a span{
-    display: flex;
-    flex-direction: column;
+.PetAppBtn a span {
+  display: flex;
+  flex-direction: column;
 }
-.PetAppBtn a span p{
-    color: var(--black-text);
-    font-family: var(--satoshi-font);
-    font-size: 13px;
-    font-weight: 700;
-    line-height: 120%;
-    margin: 0;
+.PetAppBtn a span p {
+  color: var(--black-text);
+  font-family: var(--satoshi-font);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 120%;
+  margin: 0;
 }
-.PetAppBtn a span h6{
-    color: var(--black-text);
-    font-family: var(--satoshi-font);
-    font-size: 23px;
-    font-weight: 700;
-    line-height: 120%;
-    margin: 0;
+.PetAppBtn a span h6 {
+  color: var(--black-text);
+  font-family: var(--satoshi-font);
+  font-size: 23px;
+  font-weight: 700;
+  line-height: 120%;
+  margin: 0;
 }
-.PetAppBtn a:hover span p , .PetAppBtn a:hover span h6   {
-    color: var(--white-text);
+.PetAppBtn a:hover span p,
+.PetAppBtn a:hover span h6 {
+  color: var(--white-text);
+}
+
+.ComingSoonBtn {
+  padding: 12px 16px;
+  background: var(--blue-text);
+  border-radius: 16px;
+  display: flex;
+  height: 60px;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  max-width: 400px;
+  cursor: pointer;
+}
+.ComingSoonBtn h3 {
+  color: var(--lightgrey);
+  text-align: center;
+  font-family: var(--satoshi-font);
+  font-size: 18px;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: -0.36px;
+  margin: 0px;
+}
+.ComingSoonStar {
+ margin-bottom: 2px;
 }
