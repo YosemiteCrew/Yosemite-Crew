@@ -1,4 +1,4 @@
-// utils/fhirPetFormatter.js
+import { type PetDetails, type FHIRPatient } from '@/types/api';
 
 export const buildPetFHIRResource = ({
   id,
@@ -17,10 +17,10 @@ export const buildPetFHIRResource = ({
   passportNumber,
   origin,
   isInsured,
-}) => ({
+}: PetDetails): FHIRPatient => ({
   resourceType: 'Patient',
   id,
-  name: [{text: name}],
+  name: [{ text: name }],
   gender,
   birthDate,
   animal: {

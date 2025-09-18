@@ -9,7 +9,6 @@ import medicalRecordReducer from '../slices/medicalRecordSlice';
 let persistConfig = {
   key: 'root',
   storage: AsyncStorage,
-  // whitelist: ['persist'],
 };
 
 let rootReducer = combineReducers({
@@ -29,6 +28,10 @@ const store = configureStore({
       serializableCheck: false,
     }),
 });
+
+// Add these two lines to export the types for your hooks
+export type RootState = ReturnType<typeof store.getState>;
+export type AppDispatch = typeof store.dispatch;
 
 export const persistor = persistStore(store);
 
