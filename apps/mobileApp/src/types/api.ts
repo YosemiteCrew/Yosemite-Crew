@@ -668,3 +668,14 @@ export interface PetState {
 export interface LoadingState {
   loading: boolean;
 }
+
+interface ApiFile {
+  name: string;
+  uri: string;
+  type: string;
+}
+
+export interface AddMedicalRecordPayload {
+  data: FHIRDocumentReference;
+  files: ApiFile[];
+}
