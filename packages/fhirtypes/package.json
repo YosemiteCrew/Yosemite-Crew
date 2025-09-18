@@ -1,0 +1,13 @@
+{
+  "name": "@yosemite-crew/fhirtypes",
+  "types": "./dist/index.d.ts",
+  "main": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist",
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "5.0.4"
+  }
+}
