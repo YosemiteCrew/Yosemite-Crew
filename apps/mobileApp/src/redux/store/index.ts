@@ -1,24 +1,25 @@
-import {configureStore, combineReducers} from '@reduxjs/toolkit';
-import {persistReducer, persistStore} from 'redux-persist';
+// src/redux/store/index.ts
+import { configureStore, combineReducers } from '@reduxjs/toolkit';
+import { persistReducer, persistStore } from 'redux-persist';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import authReducer from '../slices/authSlice';
 import loadingReducer from '../slices/loadingSlice';
 import petsReducer from '../slices/petSlice';
 import medicalRecordReducer from '../slices/medicalRecordSlice';
 
-let persistConfig = {
+const persistConfig = {
   key: 'root',
   storage: AsyncStorage,
 };
 
-let rootReducer = combineReducers({
+const rootReducer = combineReducers({
   auth: authReducer,
   loading: loadingReducer,
   pets: petsReducer,
   medicalRecord: medicalRecordReducer,
 });
 
-let persistedReducer = persistReducer(persistConfig, rootReducer);
+const persistedReducer = persistReducer(persistConfig, rootReducer);
 
 const store = configureStore({
   reducer: persistedReducer,
@@ -29,8 +30,9 @@ const store = configureStore({
     }),
 });
 
-// Add these two lines to export the types for your hooks
-export type RootState = ReturnType<typeof store.getState>;
+// Infer the `RootState` from the root reducer BEFORE persistence
+export type RootState = ReturnType<typeof rootReducer>;
+// Infer the `AppDispatch` type from the store
 export type AppDispatch = typeof store.dispatch;
 
 export const persistor = persistStore(store);

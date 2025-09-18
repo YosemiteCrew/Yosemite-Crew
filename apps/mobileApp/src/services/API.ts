@@ -62,7 +62,7 @@ export default async function API(
   }
 
   const authState = store.getState().auth;
-  const accessToken = authState?.user?.token;
+  const accessToken = authState?.user?.accessToken;
 
   // 2. Define the request object with the AxiosRequestConfig type
   const request: AxiosRequestConfig = {

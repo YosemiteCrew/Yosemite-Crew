@@ -518,8 +518,6 @@ export interface SimpleOrganization {
   city: string;
 }
 
-// These types should already be in src/types/api.ts
-
 export interface FHIRRawImmunization {
   id: string;
   vaccineCode?: { text: string };
@@ -563,8 +561,6 @@ export interface TransformedImmunization {
   }[];
 }
 
-// These types should already be in src/types/api.ts
-
 export interface FHIRRawObservationFeedback {
   id?: string;
   extension?: {
@@ -594,8 +590,6 @@ export interface TransformedObservation {
   feedBackId?: string;
 }
 
-// These types should already be in src/types/api.ts
-
 export interface FHIRPatientForList {
   id: string;
   name?: { text?: string }[];
@@ -615,10 +609,6 @@ export interface FHIRPatientForList {
   }[];
 }
 
-// This reuses the ExtractedPet interface we created earlier
-
-// These types should already be in src/types/api.ts
-
 export interface FHIRPatientForPetList {
   id: string;
   name?: { text?: string }[];
@@ -634,4 +624,13 @@ export interface TransformedPet {
   title: string;
   textColor: string;
   petImage: string | null;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  accessToken: string;
+  refreshToken: string;
 }
