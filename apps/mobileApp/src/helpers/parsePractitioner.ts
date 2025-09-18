@@ -1,7 +1,14 @@
-export const parsePractitioners = data =>
-  data?.map(item => {
+// src/helpers/parsePractitioner.ts
+import { type FHIRPractitionerResource, type ParsedPractitioner } from '@/types/api';
+
+export const parsePractitioners = (
+  data: { resource: FHIRPractitionerResource }[]
+): ParsedPractitioner[] => {
+  if (!Array.isArray(data)) return [];
+
+  return data.map(item => {
     const resource = item?.resource;
-    const extensions = {};
+    const extensions: Partial<ParsedPractitioner> = {}; // Use Partial for building the object
 
     resource.extension?.forEach(ext => {
       if (ext?.title === 'averageRating')
@@ -22,3 +29,4 @@ export const parsePractitioners = data =>
       ...extensions,
     };
   });
+};

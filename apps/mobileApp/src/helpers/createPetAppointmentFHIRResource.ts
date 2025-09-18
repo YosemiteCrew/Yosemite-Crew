@@ -1,3 +1,9 @@
+// src/helpers/createPetAppointmentFHIRResource.ts
+import {
+  type PetAppointmentDetails,
+  type FHIRPetAppointment,
+} from '@/types/api';
+
 export const createPetAppointmentFHIRResource = ({
   petId,
   doctorId,
@@ -8,11 +14,11 @@ export const createPetAppointmentFHIRResource = ({
   departmentId,
   departmentName,
   slotId,
-}) => {
+}: PetAppointmentDetails): FHIRPetAppointment => {
   return {
     resourceType: 'Appointment',
     status: 'booked',
-    start: startDateTime, // e.g., "2025-04-10T11:00:00+05:30"
+    start: startDateTime,
     description: description,
     participant: [
       {

@@ -1,16 +1,31 @@
-import {CardStyleInterpolators} from '@react-navigation/stack';
-import {Image, Platform, TouchableOpacity} from 'react-native';
-import {getStatusBarHeight} from 'react-native-status-bar-height';
+// src/helpers/screenOptions.tsx
+import {
+  CardStyleInterpolators,
+  StackNavigationOptions,
+} from '@react-navigation/stack';
+import { Image, Platform, TouchableOpacity, StyleProp, ViewStyle } from 'react-native';
+import { getStatusBarHeight } from 'react-native-status-bar-height';
 import React from 'react';
 import {
   getFontSize,
   scaledHeightValue,
   scaledValue,
 } from '../utils/design.utils';
-import {fonts} from '../utils/fonts';
-import {Images} from '../utils';
-import {colors} from '../../assets/colors';
-import HeaderButton from '../components/HeaderButton';
+import { fonts } from '../utils/fonts';
+import { Images } from '../utils';
+import { colors } from '../../assets/colors';
+
+interface ScreenOptionsProps {
+  title?: string;
+  customHeader?: boolean;
+  navigation: any;
+  headerShown?: boolean;
+  headerStyle?: StyleProp<ViewStyle>;
+  presentation?: 'modal' | 'card';
+  animationEnabled?: boolean;
+  animationTypeForReplace?: 'push' | 'pop';
+  headerShadowVisible?: boolean;
+}
 
 const getScreenOptions = ({
   title,
@@ -21,29 +36,25 @@ const getScreenOptions = ({
   presentation,
   animationEnabled,
   animationTypeForReplace,
-  headerShadowVisible,
-}) => {
+}: ScreenOptionsProps): StackNavigationOptions => {
   return {
     title: title,
     headerTitleAlign: 'center',
     headerShown: headerShown,
     presentation: presentation,
     headerShadowVisible: false,
-    animationEnabled: animationEnabled ? animationEnabled : false,
+    animation: animationEnabled ? 'slide_from_right' : 'none',
     animationTypeForReplace: animationTypeForReplace,
     headerStyle: headerStyle
       ? headerStyle
       : customHeader
       ? {
           elevation: 0,
-          // shadowColor: '#000',
           shadowOpacity: 0,
           height: getStatusBarHeight() + tabBarHeight() + customHeaderHeight(),
-          // backgroundColor: 'red',
         }
       : {
           elevation: 0,
-          // shadowColor: '#000',
           shadowOpacity: 0,
           backgroundColor: colors.paletteWhite,
         },
@@ -55,29 +66,31 @@ const getScreenOptions = ({
     },
     cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
     gestureEnabled: true,
-    // gestureDirection: 'horizontal',
-    tabBarVisible: false,
-    headerBackTitle: Platform.OS == 'ios' ? ' ' : '',
-    headerBackTitleVisible: false,
-    // headerBackImage: () => <GBack navigation={navigation} />,
+    // 👇 This line was removed to fix the type error
+    // headerBackTitleVisible: false,
   };
 };
 
 export default getScreenOptions;
 
-const tabBarHeight = () => (Platform.OS == 'ios' ? 44 : 28);
-const customHeaderHeight = () =>
-  Platform.OS == 'ios' ? scaledHeightValue(24) : 0;
+const tabBarHeight = (): number => (Platform.OS === 'ios' ? 44 : 28);
+const customHeaderHeight = (): number =>
+  Platform.OS === 'ios' ? scaledHeightValue(24) : 0;
 
-export const GBack = ({navigation}) => {
+interface GBackProps {
+  navigation: any;
+}
+
+export const GBack: React.FC<GBackProps> = ({ navigation }) => {
   return (
     <TouchableOpacity
-      style={{paddingLeft: 10, paddingRight: 10}}
+      style={{ paddingLeft: 10, paddingRight: 10 }}
       onPress={() => {
         navigation.goBack();
       }}>
       <Image
-        source={Images.leftArrow}
+        // 👇 This line was updated with the correct image name
+        source={Images.Left_Circle_Arrow}
         style={{
           height: 25,
           width: 25,

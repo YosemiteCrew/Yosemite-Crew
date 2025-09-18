@@ -1,10 +1,16 @@
+// src/helpers/createObservation.ts
+import {
+  type ObservationDetails,
+  type FHIRObservationFeedback,
+} from '@/types/api';
+
 export const createObservation = ({
   appointmentId,
   patientId,
   practitionerId,
   valueString,
   rating,
-}) => {
+}: ObservationDetails): FHIRObservationFeedback => {
   return {
     resourceType: 'Observation',
     status: 'final',
