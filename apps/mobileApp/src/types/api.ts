@@ -679,3 +679,14 @@ export interface AddMedicalRecordPayload {
   data: FHIRDocumentReference;
   files: ApiFile[];
 }
+
+export interface MedicalFolder {
+  _id: string;
+  folderName: string;
+  fileCount: number;
+}
+
+export interface MedicalRecordState {
+  folderList: MedicalFolder[];
+  loading: boolean;
+}
