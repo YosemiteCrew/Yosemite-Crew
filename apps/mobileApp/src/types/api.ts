@@ -613,8 +613,8 @@ export interface FHIRPatientForPetList {
   id: string;
   name?: { text?: string }[];
   extension?: {
-    url?: string; // Correctly using url for FHIR standard
-    title?: string; // Keeping for compatibility with original JS
+    url?: string;
+    title?: string;
     valueString?: string | { url?: string };
   }[];
 }
@@ -625,12 +625,46 @@ export interface TransformedPet {
   textColor: string;
   petImage: string | null;
 }
-
 export interface User {
+  _id: string;
   id: string;
   email: string;
   firstName: string;
   lastName: string;
+  phone: string;
   accessToken: string;
   refreshToken: string;
+  isSkip?: number;
+  [key: string]: any;
+}
+
+export interface AppointmentBookingPayload {
+  data: FHIRPetAppointment;
+  files: {
+    name: string;
+    uri: string;
+    type: string;
+  }[];
+}
+
+export interface Pet {
+  id: string;
+  name: string;
+  gender?: 'male' | 'female' | 'other' | 'unknown';
+  birthDate?: string;
+  species?: string;
+  breed?: string;
+  genderStatus?: string;
+  petImages?: any[];
+  [key: string]: any;
+}
+
+export interface PetState {
+  petLists: Pet[];
+  loading: boolean;
+  error: any | null;
+}
+
+export interface LoadingState {
+  loading: boolean;
 }
