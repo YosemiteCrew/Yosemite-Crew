@@ -1,4 +1,3 @@
-// src/helpers/buildMonthlySlotFHIRResource.ts
 import { type MonthlySlotDetails, type FHIRAppointment } from '@/types/api';
 
 export const buildMonthlySlotFHIRResource = ({
@@ -15,11 +14,11 @@ export const buildMonthlySlotFHIRResource = ({
   start: startDate,
   extension: [
     {
-      url: 'http://example.org/fhir/StructureDefinition/slot-month',
+      url: 'https://example.org/fhir/StructureDefinition/slot-month',
       valueInteger: month,
     },
     {
-      url: 'http://example.org/fhir/StructureDefinition/slot-year',
+      url: 'https://example.org/fhir/StructureDefinition/slot-year',
       valueInteger: year,
     },
   ],

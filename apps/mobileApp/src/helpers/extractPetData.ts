@@ -1,4 +1,3 @@
-// src/helpers/extractPetData.ts
 import { type FHIRBundle, type ExtractedPet } from '@/types/api';
 
 export function extractPetData(bundle: FHIRBundle): ExtractedPet[] {
@@ -9,7 +8,6 @@ export function extractPetData(bundle: FHIRBundle): ExtractedPet[] {
   return bundle.entry.map(({ resource }) => {
     const { id, name, gender, birthDate, animal, extension } = resource;
 
-    // Use a Record to create a flexible, typed object
     const extensionData: Record<string, any> = {};
     if (Array.isArray(extension)) {
       extension.forEach((ext) => {
@@ -18,13 +16,12 @@ export function extractPetData(bundle: FHIRBundle): ExtractedPet[] {
           ext.valueString ||
           ext.valueInteger ||
           ext.valueBoolean ||
-          ext.valueAttachment || // Handle the image object
+          ext.valueAttachment ||
           '';
         extensionData[title] = value;
       });
     }
 
-    // Special handling for petImage
     if (extensionData.petImage && typeof extensionData.petImage === 'object') {
       extensionData.petImageUrl = extensionData.petImage.url;
       extensionData.petImageOriginalName = extensionData.petImage.originalname;

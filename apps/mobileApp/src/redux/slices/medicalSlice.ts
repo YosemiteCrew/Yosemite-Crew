@@ -1,12 +1,11 @@
-// src/redux/slices/medicalSlice.ts
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import { setLoading } from './loadingSlice';
 import API from '../../services/API';
 import { AddMedicalRecordPayload } from '@/types/api';
 
 export const add_medical_record = createAsyncThunk<
-  any, // The type of the successful response payload
-  AddMedicalRecordPayload // The type of the argument we pass to the thunk
+  any,
+  AddMedicalRecordPayload
 >(
   'medical/saveMedicalRecord',
   async (credentials, { rejectWithValue, dispatch }) => {
@@ -14,11 +13,10 @@ export const add_medical_record = createAsyncThunk<
       dispatch(setLoading(true));
 
       const response = await API({
-        // The API function is already typed to handle FormData
         route: 'saveMedicalRecord',
         body: credentials,
         method: 'POST',
-        multiPart: true, // Assuming your API function handles this
+        multiPart: true,
       });
 
       dispatch(setLoading(false));

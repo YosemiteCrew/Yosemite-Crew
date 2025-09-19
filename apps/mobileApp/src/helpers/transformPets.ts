@@ -1,4 +1,3 @@
-// src/helpers/transformPets.ts
 import { type FHIRPatientForPetList, type TransformedPet } from '@/types/api';
 
 interface TransformPetsOptions {

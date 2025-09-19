@@ -1,4 +1,3 @@
-// src/redux/store/index.ts
 import { configureStore, combineReducers } from '@reduxjs/toolkit';
 import { persistReducer, persistStore } from 'redux-persist';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -30,9 +29,7 @@ const store = configureStore({
     }),
 });
 
-// Infer the `RootState` from the root reducer BEFORE persistence
 export type RootState = ReturnType<typeof rootReducer>;
-// Infer the `AppDispatch` type from the store
 export type AppDispatch = typeof store.dispatch;
 
 export const persistor = persistStore(store);

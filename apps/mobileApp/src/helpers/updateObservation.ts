@@ -1,4 +1,3 @@
-// src/helpers/updateObservation.ts
 import {
   type UpdateObservationDetails,
   type FHIRObservationUpdate,
@@ -16,7 +15,7 @@ export const updateObservation = ({
     code: {
       coding: [
         {
-          system: 'http://loinc.org',
+          system: 'https://loinc.org',
           code: '76432-6',
           display: 'Patient feedback',
         },

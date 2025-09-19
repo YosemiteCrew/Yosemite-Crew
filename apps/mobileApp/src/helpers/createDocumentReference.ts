@@ -1,4 +1,3 @@
-// src/helpers/createDocumentReference.ts
 import {
   type DocumentReferenceDetails,
   type FHIRDocumentReference,

@@ -22,7 +22,6 @@
     import {KeyboardProvider} from 'react-native-keyboard-controller';
     import {setLoading} from './src/redux/slices/loadingSlice';
 
-    // Define the Param List for type safety
     export type RootStackParamList = {
       OnBoardingStack: undefined;
       AuthStack: undefined;
@@ -30,7 +29,6 @@
       StackScreens: undefined;
     };
 
-    // Apply the Param List to the navigation ref
     export const navigationContainerRef = createNavigationContainerRef<RootStackParamList>();
 
     const App: React.FC = () => {
@@ -68,8 +66,6 @@
       const dispatch = useAppDispatch();
 
       useEffect(() => {
-        // Note: You may want to reconsider setting loading to false on every render.
-        // This is likely just for initialization.
         dispatch(setLoading(false));
       }, [dispatch]);
 

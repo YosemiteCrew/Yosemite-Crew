@@ -1,4 +1,3 @@
-// src/helpers/createPetAppointmentFHIRResource.ts
 import {
   type PetAppointmentDetails,
   type FHIRPetAppointment,
@@ -49,7 +48,7 @@ export const createPetAppointmentFHIRResource = ({
       {
         coding: [
           {
-            system: 'http://example.org/fhir/department',
+            system: 'https://example.org/fhir/department',
             code: departmentId,
             display: departmentName,
           },
@@ -58,7 +57,7 @@ export const createPetAppointmentFHIRResource = ({
     ],
     extension: [
       {
-        url: 'http://example.org/fhir/StructureDefinition/slotsId',
+        url: 'https://example.org/fhir/StructureDefinition/slotsId',
         valueString: slotId,
       },
     ],

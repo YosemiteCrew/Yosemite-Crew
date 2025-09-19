@@ -1,4 +1,3 @@
-// src/helpers/parseOrganizations.ts
 import { type FHIROrganizationResource, type SimpleOrganization } from '@/types/api';
 
 export const parseOrganizations = (

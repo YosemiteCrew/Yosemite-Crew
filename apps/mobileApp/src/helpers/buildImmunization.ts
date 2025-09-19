@@ -1,4 +1,3 @@
-// src/helpers/buildImmunization.ts
 import { type ImmunizationDetails, type FHIRImmunization } from '@/types/api';
 
 export const buildImmunization = ({
@@ -16,7 +15,7 @@ export const buildImmunization = ({
   vaccineCode: {
     coding: [
       {
-        system: 'http://hl7.org/fhir/sid/cvx',
+        system: 'https://hl7.org/fhir/sid/cvx',
         code: vaccineName.toLowerCase(),
         display: vaccineName,
       },

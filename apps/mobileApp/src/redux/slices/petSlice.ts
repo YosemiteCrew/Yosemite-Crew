@@ -1,9 +1,6 @@
-// The FINAL and CORRECTED code for src/redux/slices/petSlice.ts
-
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { navigationContainerRef } from '../../../App';
 import { showToast } from '../../components/Toast';
-// NOTE: This import comes from `transformPetListData.ts` and returns the complex `ExtractedPet` object, which is correct for this slice.
 import { transformPets } from '../../helpers/transformPetListData';
 import { makeThunk } from './thunks';
 import { PetState, ExtractedPet, FHIRBundle, FHIRPatientForList } from '@/types/api';
@@ -94,7 +91,6 @@ const petsSlice = createSlice({
       )
       .addMatcher(
         action => action.type.endsWith('/rejected'),
-        // This is the important correction for handling errors properly
         (state, action: PayloadAction<any>) => {
           state.loading = false;
           state.error = action.payload;

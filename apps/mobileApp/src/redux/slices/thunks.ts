@@ -1,4 +1,3 @@
-// src/redux/slices/thunks.ts
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import API from '../../services/API';
 import { showToast } from '../../components/Toast';

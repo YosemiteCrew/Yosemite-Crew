@@ -1,4 +1,3 @@
-// src/helpers/transformImmunizations.ts
 import {
   type FHIRRawImmunization,
   type TransformedImmunization,

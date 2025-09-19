@@ -1,4 +1,3 @@
-// src/redux/slices/appointmentSlice.ts
 import { makeThunk } from './thunks';
 import { AppointmentBookingPayload } from '@/types/api';
 

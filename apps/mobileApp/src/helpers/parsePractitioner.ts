@@ -1,4 +1,3 @@
-// src/helpers/parsePractitioner.ts
 import { type FHIRPractitionerResource, type ParsedPractitioner } from '@/types/api';
 
 export const parsePractitioners = (
@@ -8,7 +7,7 @@ export const parsePractitioners = (
 
   return data.map(item => {
     const resource = item?.resource;
-    const extensions: Partial<ParsedPractitioner> = {}; // Use Partial for building the object
+    const extensions: Partial<ParsedPractitioner> = {};
 
     resource.extension?.forEach(ext => {
       if (ext?.title === 'averageRating')

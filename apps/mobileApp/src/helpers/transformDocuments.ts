@@ -1,4 +1,3 @@
-// src/helpers/transformDocuments.ts
 import { type FHIRRawDocument, type TransformedDocument } from '@/types/api';
 
 const toCamelCase = (str: string): string => {

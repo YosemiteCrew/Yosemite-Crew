@@ -1,4 +1,3 @@
-// src/helpers/transformObservations.ts
 import {
   type FHIRRawObservationFeedback,
   type TransformedObservation,
@@ -13,7 +12,7 @@ export const transformObservations = (
       const appointmentId =
         resource.extension?.find(
           (ext) =>
-            ext.url === 'http://example.org/fhir/StructureDefinition/meeting-id',
+            ext.url === 'https://example.org/fhir/StructureDefinition/meeting-id',
         )?.valueString || '';
 
       const vetId = resource.performer?.[0]?.reference?.split('/')[1] || '';
@@ -30,7 +29,7 @@ export const transformObservations = (
       });
 
       const vet = {
-        name: '', // This would be populated by a real data lookup
+        name: '',
         qualification: '',
         specialization: '',
         image: '',

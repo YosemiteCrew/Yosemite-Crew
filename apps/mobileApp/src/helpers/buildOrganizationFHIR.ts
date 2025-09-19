@@ -1,4 +1,3 @@
-// src/helpers/buildOrganizationFHIR.ts
 import { type OrganizationDetails, type FHIROrganization } from '@/types/api';
 
 export const buildOrganizationFHIR = ({

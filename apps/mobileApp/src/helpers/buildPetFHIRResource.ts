@@ -27,7 +27,7 @@ export const buildPetFHIRResource = ({
     species: {
       coding: [
         {
-          system: 'http://hl7.org/fhir/animal-species',
+          system: 'https://hl7.org/fhir/animal-species',
           code:
             speciesDisplay?.value === 'Horse'
               ? 'equine'
@@ -44,7 +44,7 @@ export const buildPetFHIRResource = ({
     genderStatus: {
       coding: [
         {
-          system: 'http://terminology.hl7.org/CodeSystem/animal-genderstatus',
+          system: 'https://terminology.hl7.org/CodeSystem/animal-genderstatus',
           code: 'neutered',
           display: genderStatusDisplay,
         },
@@ -53,23 +53,23 @@ export const buildPetFHIRResource = ({
   },
   extension: [
     {
-      url: 'http://yourdomain.com/fhir/StructureDefinition/pet-current-weight',
+      url: 'https://yourdomain.com/fhir/StructureDefinition/pet-current-weight',
       valueString: weight,
     },
     {
-      url: 'http://yourdomain.com/fhir/StructureDefinition/pet-color',
+      url: 'https://yourdomain.com/fhir/StructureDefinition/pet-color',
       valueString: color,
     },
     {
-      url: 'http://yourdomain.com/fhir/StructureDefinition/age-when-neutered',
+      url: 'https://yourdomain.com/fhir/StructureDefinition/age-when-neutered',
       valueString: ageWhenNeutered,
     },
     {
-      url: 'http://yourdomain.com/fhir/StructureDefinition/microchip-number',
+      url: 'https://yourdomain.com/fhir/StructureDefinition/microchip-number',
       valueString: microchipNumber,
     },
     {
-      url: 'http://yourdomain.com/fhir/StructureDefinition/insurance',
+      url: 'https://yourdomain.com/fhir/StructureDefinition/insurance',
       extension: [
         {
           url: 'company',
@@ -82,15 +82,15 @@ export const buildPetFHIRResource = ({
       ],
     },
     {
-      url: 'http://yourdomain.com/fhir/StructureDefinition/passport-number',
+      url: 'https://yourdomain.com/fhir/StructureDefinition/passport-number',
       valueString: passportNumber,
     },
     {
-      url: 'http://yourdomain.com/fhir/StructureDefinition/pet-from',
+      url: 'https://yourdomain.com/fhir/StructureDefinition/pet-from',
       valueString: origin,
     },
     {
-      url: 'http://localhost:8000/fhir/extensions/is-insured',
+      url: 'https://localhost:8000/fhir/extensions/is-insured',
       valueBoolean: isInsured,
     },
   ],

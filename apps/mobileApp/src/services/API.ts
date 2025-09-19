@@ -1,30 +1,25 @@
-// src/services/API.ts
 import axios, { type AxiosRequestConfig, type AxiosResponse } from 'axios';
-// The 'import Axios from ./Axios' was unused and has been removed.
 import { API_BASE_URL, FHIR_API_BASE_URL } from '../constants';
 import store from '../redux/store';
 import { Alert } from 'react-native';
-import { getUser } from '../utils/constants'; // Assuming getUser is also in utils
+import { getUser } from '../utils/constants';
 
-// 1. Define the shape of the props object
 interface ApiProps {
   route: string;
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
   body?: any;
   headers?: Record<string, string>;
   multiPart?: boolean;
-  path?: string; // For custom, full URLs
-  url?: string; // Legacy support, same as path
+  path?: string;
+  url?: string;
 }
 
 export default async function API(
   props: ApiProps,
 ): Promise<AxiosResponse | any> {
-  // SET URL
   let path = API_BASE_URL;
   const { route, body = {} } = props;
 
-  // This logic can likely be simplified, but we'll keep it for now
   if (
     ![
       'auth/signup',
@@ -64,7 +59,6 @@ export default async function API(
   const authState = store.getState().auth;
   const accessToken = authState?.user?.accessToken;
 
-  // 2. Define the request object with the AxiosRequestConfig type
   const request: AxiosRequestConfig = {
     method,
     url,
@@ -75,18 +69,15 @@ export default async function API(
   };
 
   if (['POST', 'PUT', 'PATCH'].includes(method)) {
-    // 3. This line now works because 'data' is a valid property of AxiosRequestConfig
     request.data = multiPart ? formData : body;
   }
 
-  // CALL API
   try {
     const response = await axios(request);
     return response;
   } catch (error) {
     if (axios.isAxiosError(error)) {
       if (error.request && !error.response) {
-        // This is a network error
         Alert.alert(
           'Network Error',
           'Please check your internet connection and try again.',
@@ -94,7 +85,6 @@ export default async function API(
       }
       return error.response || error; // Return the response or the error itself
     }
-    // Handle non-axios errors
     return { status: 500, data: { message: 'An unknown error occurred.' } };
   }
 }

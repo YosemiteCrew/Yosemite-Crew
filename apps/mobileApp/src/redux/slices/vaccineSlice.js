@@ -31,7 +31,6 @@ const makeThunk = (
     }
   });
 
-// ✅ Thunks
 export const get_vaccine_records = makeThunk(
   'vaccineSlice/getVaccinationRecord',
   'getVaccinationRecord',

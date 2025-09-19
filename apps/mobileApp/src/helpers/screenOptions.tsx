@@ -1,4 +1,3 @@
-// src/helpers/screenOptions.tsx
 import {
   CardStyleInterpolators,
   StackNavigationOptions,
@@ -66,8 +65,6 @@ const getScreenOptions = ({
     },
     cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
     gestureEnabled: true,
-    // 👇 This line was removed to fix the type error
-    // headerBackTitleVisible: false,
   };
 };
 
@@ -89,7 +86,6 @@ export const GBack: React.FC<GBackProps> = ({ navigation }) => {
         navigation.goBack();
       }}>
       <Image
-        // 👇 This line was updated with the correct image name
         source={Images.Left_Circle_Arrow}
         style={{
           height: 25,

@@ -1,4 +1,3 @@
-// src/helpers/transformAppointments.ts
 import {
   type FHIRRawAppointment,
   type TransformedAppointment,
@@ -10,7 +9,7 @@ const transformAppointments = (
   appointments: (FHIRRawAppointment | null | undefined)[] = [],
 ): TransformedAppointment[] => {
   return appointments
-    .filter((app): app is FHIRRawAppointment => !!app) // Safely filter out nulls/undefined
+    .filter((app): app is FHIRRawAppointment => !!app)
     .map(appointment => {
       const vetParticipant = appointment.participant.find(p =>
         p.actor.reference.startsWith('Practitioner/'),
@@ -28,14 +27,14 @@ const transformAppointments = (
       const timeExtension = appointment.extension?.find(
         ext =>
           ext.url ===
-          'http://example.org/fhir/StructureDefinition/appointment-time-slot',
+          'https://example.org/fhir/StructureDefinition/appointment-time-slot',
       );
       const slotId = appointment.extension?.find(
-        ext => ext.url === 'http://example.org/fhir/StructureDefinition/slot-id',
+        ext => ext.url === 'https://example.org/fhir/StructureDefinition/slot-id',
       );
       const petImageData = patientExtensions.find(
         ext =>
-          ext.url === 'http://example.org/fhir/StructureDefinition/pet-images',
+          ext.url === 'https://example.org/fhir/StructureDefinition/pet-images',
       )?.valueArray?.[0]?.valueString;
 
       return {
@@ -53,25 +52,25 @@ const transformAppointments = (
             vetExtensions.find(
               ext =>
                 ext.url ===
-                'http://example.org/fhir/StructureDefinition/vet-department-id',
+                'https://example.org/fhir/StructureDefinition/vet-department-id',
             )?.valueString || '',
           qualification:
             vetExtensions.find(
               ext =>
                 ext.url ===
-                'http://example.org/fhir/StructureDefinition/vet-qualification',
+                'https://example.org/fhir/StructureDefinition/vet-qualification',
             )?.valueString || '',
           specialization:
             vetExtensions.find(
               ext =>
                 ext.url ===
-                'http://example.org/fhir/StructureDefinition/vet-specialization',
+                'https://example.org/fhir/StructureDefinition/vet-specialization',
             )?.valueString || '',
           image:
             vetExtensions.find(
               ext =>
                 ext.url ===
-                'http://example.org/fhir/StructureDefinition/vet-image',
+                'https://example.org/fhir/StructureDefinition/vet-image',
             )?.valueString || '',
         },
         pet: {

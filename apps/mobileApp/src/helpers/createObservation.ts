@@ -1,4 +1,3 @@
-// src/helpers/createObservation.ts
 import {
   type ObservationDetails,
   type FHIRObservationFeedback,
@@ -19,7 +18,7 @@ export const createObservation = ({
         coding: [
           {
             system:
-              'http://terminology.hl7.org/CodeSystem/observation-category',
+              'https://terminology.hl7.org/CodeSystem/observation-category',
             code: 'survey',
             display: 'Survey',
           },
@@ -29,7 +28,7 @@ export const createObservation = ({
     code: {
       coding: [
         {
-          system: 'http://loinc.org',
+          system: 'https://loinc.org',
           code: '76490-0',
           display: 'Patient feedback',
         },
@@ -56,7 +55,7 @@ export const createObservation = ({
         code: {
           coding: [
             {
-              system: 'http://loinc.org',
+              system: 'https://loinc.org',
               code: '45489-6',
               display: 'Satisfaction rating',
             },
@@ -65,7 +64,7 @@ export const createObservation = ({
         valueQuantity: {
           value: rating,
           unit: 'stars',
-          system: 'http://unitsofmeasure.org',
+          system: 'https://unitsofmeasure.org',
           code: '{score}',
         },
       },

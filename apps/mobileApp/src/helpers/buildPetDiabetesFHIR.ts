@@ -1,11 +1,9 @@
-// src/helpers/buildPetDiabetesFHIR.ts
 import {
   type DiabetesObservationDetails,
   type FHIRObservation,
   type FHIRComponentKey,
 } from '@/types/api';
 
-// Define the type for a single component's configuration
 type FHIRComponentConfig = {
   system: string;
   code: string;
@@ -15,17 +13,16 @@ type FHIRComponentConfig = {
   unit?: string;
 };
 
-// The entire FHIR_COMPONENTS object is now included
 const FHIR_COMPONENTS: Record<FHIRComponentKey, FHIRComponentConfig> = {
   activityLevel: {
-    system: 'http://loinc.org',
+    system: 'https://loinc.org',
     code: '8867-4',
     display: 'Heart rate',
     text: 'Activity Level',
     valueType: 'string',
   },
   glucose: {
-    system: 'http://loinc.org',
+    system: 'https://loinc.org',
     code: '2339-0',
     display: 'Blood glucose',
     text: 'Glucose',
@@ -33,7 +30,7 @@ const FHIR_COMPONENTS: Record<FHIRComponentKey, FHIRComponentConfig> = {
     unit: 'mmol/L',
   },
   weight: {
-    system: 'http://loinc.org',
+    system: 'https://loinc.org',
     code: '29463-7',
     display: 'Body weight',
     text: 'Weight',
@@ -41,7 +38,7 @@ const FHIR_COMPONENTS: Record<FHIRComponentKey, FHIRComponentConfig> = {
     unit: 'kg',
   },
   insulinIntake: {
-    system: 'http://loinc.org',
+    system: 'https://loinc.org',
     code: '59826-8',
     display: 'Insulin dose',
     text: 'Insulin Intake',
@@ -49,7 +46,7 @@ const FHIR_COMPONENTS: Record<FHIRComponentKey, FHIRComponentConfig> = {
     unit: 'IU',
   },
   hba1c: {
-    system: 'http://loinc.org',
+    system: 'https://loinc.org',
     code: '4548-4',
     display: 'Hemoglobin A1c/Hemoglobin.total in Blood',
     text: 'HbA1c',
@@ -57,21 +54,21 @@ const FHIR_COMPONENTS: Record<FHIRComponentKey, FHIRComponentConfig> = {
     unit: '%',
   },
   mealInfo: {
-    system: 'http://loinc.org',
+    system: 'https://loinc.org',
     code: '76506-4',
     display: 'Meal information',
     text: 'Meal Info',
     valueType: 'string',
   },
   stressLevel: {
-    system: 'http://loinc.org',
+    system: 'https://loinc.org',
     code: '75218-5',
     display: 'Perceived stress level',
     text: 'Stress Level',
     valueType: 'string',
   },
   sleepHours: {
-    system: 'http://loinc.org',
+    system: 'https://loinc.org',
     code: '93832-4',
     display: 'Hours of sleep',
     text: 'Sleep Hours',
@@ -79,7 +76,7 @@ const FHIR_COMPONENTS: Record<FHIRComponentKey, FHIRComponentConfig> = {
     unit: 'hours',
   },
   bloodPressureSystolic: {
-    system: 'http://loinc.org',
+    system: 'https://loinc.org',
     code: '8480-6',
     display: 'Systolic blood pressure',
     text: 'Systolic BP',
@@ -87,7 +84,7 @@ const FHIR_COMPONENTS: Record<FHIRComponentKey, FHIRComponentConfig> = {
     unit: 'mm[Hg]',
   },
   bloodPressureDiastolic: {
-    system: 'http://loinc.org',
+    system: 'https://loinc.org',
     code: '8462-4',
     display: 'Diastolic blood pressure',
     text: 'Diastolic BP',
@@ -95,7 +92,7 @@ const FHIR_COMPONENTS: Record<FHIRComponentKey, FHIRComponentConfig> = {
     unit: 'mm[Hg]',
   },
   notes: {
-    system: 'http://hl7.org/fhir/StructureDefinition/notes',
+    system: 'https://hl7.org/fhir/StructureDefinition/notes',
     code: 'notes',
     display: 'Additional Notes',
     text: 'Notes',
@@ -115,7 +112,7 @@ export const buildDiabetesObservation = ({
     {
       coding: [
         {
-          system: 'http://terminology.hl7.org/CodeSystem/observation-category',
+          system: 'https://terminology.hl7.org/CodeSystem/observation-category',
           code: 'social-history',
           display: 'Social History',
         },
@@ -125,7 +122,7 @@ export const buildDiabetesObservation = ({
   code: {
     coding: [
       {
-        system: 'http://loinc.org',
+        system: 'https://loinc.org',
         code: '33762-6',
         display: 'Diabetes tracking panel',
       },
@@ -173,7 +170,7 @@ export const buildDiabetesObservation = ({
         base.valueQuantity = {
           value: value as number,
           unit: config.unit,
-          system: 'http://unitsofmeasure.org',
+          system: 'https://unitsofmeasure.org',
           code: config.unit,
         };
         break;

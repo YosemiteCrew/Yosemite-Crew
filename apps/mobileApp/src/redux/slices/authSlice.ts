@@ -1,4 +1,3 @@
-// src/redux/slices/authSlice.ts
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { makeThunk } from './thunks';
 import { updatePetList } from './petSlice';
@@ -22,7 +21,6 @@ const initialState: AuthState = {
   onBoarding: false,
 };
 
-// Define response types for thunks to provide better autocompletion
 interface AuthResponse {
   status: number;
   message: string;

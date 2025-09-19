@@ -1,4 +1,3 @@
-// src/redux/slices/medicalRecordSlice.ts
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { showToast } from '../../components/Toast';
 import { makeThunk } from './thunks';
@@ -9,7 +8,6 @@ const initialState: MedicalRecordState = {
   loading: false,
 };
 
-// --- Thunks ---
 export const get_medical_record_list = makeThunk<any, void>(
   'Observation/getMedicalRecordList',
   'getMedicalRecordList',
@@ -47,8 +45,6 @@ export const create_medical_folders = makeThunk<any, any>(
     showToastMessage: false,
   },
 );
-
-// ... other thunks can be typed similarly
 
 const medicalRecordSlice = createSlice({
   name: 'medicalRecord',

@@ -1,4 +1,3 @@
-// src/helpers/parseOrganizationData.ts
 import { type FHIROrganizationWithDetails, type ParsedOrganization } from '@/types/api';
 
 export const parseOrganizations = (
@@ -34,7 +33,7 @@ export const parseOrganizations = (
     if (org.address?.[0]?.extension) {
       const geoExt = org.address[0].extension.find(
         ext =>
-          ext.url === 'http://hl7.org/fhir/StructureDefinition/geolocation',
+          ext.url === 'https://hl7.org/fhir/StructureDefinition/geolocation',
       );
       if (geoExt?.extension) {
         const latExt = geoExt.extension.find(e => e.url === 'latitude');

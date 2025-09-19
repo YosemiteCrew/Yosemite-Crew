@@ -1,4 +1,3 @@
-// src/helpers/transformPetListData.ts
 import { type FHIRPatientForList, type ExtractedPet } from '@/types/api';
 
 const toCamelCase = (str: string): string => {
