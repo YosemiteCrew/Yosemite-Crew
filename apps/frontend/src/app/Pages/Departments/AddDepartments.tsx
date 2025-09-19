@@ -10,7 +10,7 @@ import ServicesSelection from "@/app/Components/Services/ServicesSelection/Servi
 import DepartmentHeadSelector from "@/app/Components/Services/DepartmentHeadSelector/DepartmentHeadSelector";
 import { getData, postData } from "@/app/axios-services/services";
 import { convertDepartmentFromFHIR, convertFHIRToAdminDepartments, convertToFHIRDepartment } from "@yosemite-crew/fhir";
-import { useAuthStore } from "@/app/stores/authStore";
+import { useOldAuthStore } from "@/app/stores/oldAuthStore";
 import { FillBtn } from "../HomePage/HomePage";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import DynamicSelect from "@/app/Components/DynamicSelect/DynamicSelect";
@@ -37,7 +37,7 @@ function AddDepartments() {
   const [services, setServices] = useState<string[]>([]);
   const [departmentHeadId, setDepartmentHeadId] = useState<string>("");
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
-  const userId = useAuthStore((state: any) => state.userId);
+  const userId = useOldAuthStore((state: any) => state.userId);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>

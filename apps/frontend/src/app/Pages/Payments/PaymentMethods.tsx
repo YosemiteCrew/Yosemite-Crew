@@ -18,13 +18,13 @@ const initialPaymentMethods: PaymentMethod[] = [
     { name: 'Credit and Debit Cards', enabled: true },
     { name: 'Bank Transfer', enabled: true },
     { name: 'Cheque', enabled: false },
-    { name: 'Apple Pay', icon: '/Images/pay1.png', enabled: true },
-    { name: 'Google Pay', icon: '/Images/pay2.png', enabled: false },
-    { name: 'Amazon Pay', icon: '/Images/pay3.png', enabled: false },
-    { name: 'Klarna', icon: '/Images/pay4.png', enabled: true },
-    { name: 'PayPal', icon: '/Images/pay5.png', enabled: true },
-    { name: 'Paysafe', icon: '/Images/pay6.png', enabled: true },
-    { name: 'Stripe', icon: '/Images/pay7.png', enabled: true },
+    { name: 'Apple Pay', icon: 'https://d2il6osz49gpup.cloudfront.net/Images/pay1.png', enabled: true },
+    { name: 'Google Pay', icon: 'https://d2il6osz49gpup.cloudfront.net/Images/pay2.png', enabled: false },
+    { name: 'Amazon Pay', icon: 'https://d2il6osz49gpup.cloudfront.net/Images/pay3.png', enabled: false },
+    { name: 'Klarna', icon: 'https://d2il6osz49gpup.cloudfront.net/Images/pay4.png', enabled: true },
+    { name: 'PayPal', icon: 'https://d2il6osz49gpup.cloudfront.net/Images/pay5.png', enabled: true },
+    { name: 'Paysafe', icon: 'https://d2il6osz49gpup.cloudfront.net/Images/pay6.png', enabled: true },
+    { name: 'Stripe', icon: 'https://d2il6osz49gpup.cloudfront.net/Images/pay7.png', enabled: true },
 ];
 
 function PaymentMethods() {

@@ -35,7 +35,7 @@ const ProfileProgressbar: React.FC<ProfileProgressbarProps> = ({
       </div>
       <div className="Profcomp">
         <Button className="complete-button" onClick={onclicked}>
-          <Image aria-hidden  src="/Images/eyes.png" alt="Complete Later" width={24} height={24}/>
+          <Image aria-hidden  src="https://d2il6osz49gpup.cloudfront.net/Images/eyes.png" alt="Complete Later" width={24} height={24}/>
           Complete Later
         </Button>
       </div>

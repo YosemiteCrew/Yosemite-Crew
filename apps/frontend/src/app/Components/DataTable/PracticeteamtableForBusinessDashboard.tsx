@@ -5,7 +5,7 @@ import Image from "next/image";
 import { BsEye } from "react-icons/bs";
 import "./DataTable.css";
 import { getData } from "@/app/axios-services/services";
-import { useAuthStore } from "@/app/stores/authStore";
+import { useOldAuthStore } from "@/app/stores/oldAuthStore";
 import { PractitionerDatafromFHIR } from "@yosemite-crew/fhir";
 
 interface PracticeteamtableForBusinessDashboardProps {
@@ -29,7 +29,7 @@ const columns = [
     width: "60px",
     render: (item: Practitioner) => (
       <Image
-        src={item.image || "/Images/default-avatar.png"}
+        src={item.image || "https://d2il6osz49gpup.cloudfront.net/Images/default-avatar.png"}
         alt={item.name}
         width={40}
         height={40}
@@ -72,7 +72,7 @@ function PracticeteamtableForBusinessDashboard({ departmentId, role }: Practicet
   const [data, setData] = useState<Practitioner[]>([]);
 //   const [loading, setLoading] = useState<boolean>(true);
 //   const [error, setError] = useState<string | null>(null);
-  const userId = useAuthStore((state: any) => state.userId);
+  const userId = useOldAuthStore((state: any) => state.userId);
 console.log("data", data);
   useEffect(() => {
     const fetchPractitioners = async () => {

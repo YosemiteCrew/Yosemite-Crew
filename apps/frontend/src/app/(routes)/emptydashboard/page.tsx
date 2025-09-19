@@ -1,12 +1,16 @@
-import AdminDashboardEmpty from '@/app/Pages/AdminDashboardEmpty/AdminDashboardEmpty'
-import React from 'react'
+import React from "react";
+
+import ProtectedRoute from "@/app/Components/ProtectedRoute";
+import AdminDashboardEmpty from "@/app/Pages/AdminDashboardEmpty/AdminDashboardEmpty";
 
 function page() {
   return (
     <>
-    <AdminDashboardEmpty/>
+      <ProtectedRoute rolesAllowed={["owner"]}>
+        <AdminDashboardEmpty />
+      </ProtectedRoute>
     </>
-  )
+  );
 }
 
-export default page
+export default page;

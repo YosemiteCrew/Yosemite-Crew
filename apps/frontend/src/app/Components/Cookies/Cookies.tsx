@@ -70,10 +70,10 @@ const Cookies = () => {
       </div>
 
       <div className="CookieImg">
-        <Image src="/Images/cookie.png" alt="aboutstory" width={222} height={314}/>
+        <Image src="https://d2il6osz49gpup.cloudfront.net/Images/cookie.png" alt="aboutstory" width={222} height={314}/>
       </div>
       <div className="CookieImg2">
-        <Image src="/Images/cookie-bg.png" alt="aboutstory" width={250} height={205}/>
+        <Image src="https://d2il6osz49gpup.cloudfront.net/Images/cookie-bg.png" alt="aboutstory" width={250} height={205}/>
       </div>
     </div>
   );

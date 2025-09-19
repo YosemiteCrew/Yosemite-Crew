@@ -6,7 +6,7 @@ import { Button, Col, Container, Row } from "react-bootstrap";
 import { FormInput } from "../../Sign/SignUp";
 import DynamicSelect from "@/app/Components/DynamicSelect/DynamicSelect";
 import { getData, postData } from "@/app/axios-services/services";
-import { useAuthStore } from "@/app/stores/authStore";
+import { useOldAuthStore } from "@/app/stores/oldAuthStore";
 import { BackBtn } from "../../AddVetProfile/AddProileDetails";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import { convertFhirBundleToInventory } from "@yosemite-crew/fhir";
@@ -19,8 +19,8 @@ function ProcedurePackage() {
   const [packageItems, setPackageItems] = useState<any[]>([]); // ✅ lifted up state
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
-  const businessId = useAuthStore((state) => state.userId);
-  const userType = useAuthStore((state) => state.userType);
+  const businessId = useOldAuthStore((state) => state.userId);
+  const userType = useOldAuthStore((state) => state.userType);
   useEffect(() => {
     fetchInventoryDetails();
   }, []);

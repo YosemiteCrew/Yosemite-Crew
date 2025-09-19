@@ -1,29 +1,39 @@
 "use client";
-import Image from 'next/image'
-import Link from 'next/link'
-import React, { useRef } from 'react'
-import "./Footer.css"
-import { Container } from 'react-bootstrap'
-import { motion, Variants, useInView } from 'framer-motion'
+import Image from "next/image";
+import Link from "next/link";
+import React, { useRef } from "react";
+import "./Footer.css";
+import { Container } from "react-bootstrap";
+import { motion, Variants, useInView } from "framer-motion";
 
 const footerLinks = [
   {
     title: "Developers",
     links: [
-      { label: "Getting Started", href: "#" },
-      { label: "Documentation", href: "#" },
-      { label: "Search", href: "#" }
-    ]
+      {
+        label: "Getting Started",
+        href: "https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/README.md",
+      },
+      {
+        label: "Contributing",
+        href: "https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md",
+      },
+      // { label: "Documentation", href: "https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/README.md" },
+      // { label: "Search", href: "#" }
+    ],
   },
   {
     title: "Community",
     links: [
       // { label: "Case Studies", href: "#" },
-      { label: "Discord", href: "#" },
+      { label: "Discord", href: "https://discord.gg/4zDVekEz" },
       // { label: "Storybook", href: "#" },
-      { label: "GitHub", href: "#" },
+      {
+        label: "GitHub",
+        href: "https://github.com/YosemiteCrew/Yosemite-Crew",
+      },
       // { label: "Contributing", href: "#" }
-    ]
+    ],
   },
   {
     title: "Company",
@@ -35,34 +45,33 @@ const footerLinks = [
       { label: "Pricing", href: "/pricing" },
       // { label: "Enterprise", href: "#" },
       // { label: "Careers", href: "#" },
-      { label: "Blog", href: "/blogpage" }
-    ]
-  }
+      // { label: "Blog", href: "/blogpage" },
+    ],
+  },
 ];
 
 const containerVariants: Variants = {
   hidden: {},
   visible: {
     transition: {
-      staggerChildren: 0.18
-    }
-  }
+      staggerChildren: 0.18,
+    },
+  },
 };
 
 const ftDivVariants: Variants = {
   hidden: { opacity: 0, y: 40 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
 };
 
 function Footer() {
-  const footerRef = useRef(null)
-  const inView = useInView(footerRef, { once: true, margin: '-100px' })
+  const footerRef = useRef(null);
+  const inView = useInView(footerRef, { once: true, margin: "-100px" });
 
   return (
     <motion.footer
       ref={footerRef}
       className="Footersec"
-      role="contentinfo"
       aria-label="Site Footer"
       initial={{ opacity: 0, y: 40 }}
       animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
@@ -72,12 +81,48 @@ function Footer() {
         <div className="FooterData">
           <div className="FootTopData">
             <div className="leftFooter">
-              <Image aria-hidden src="/Images/Ftlogo.png" alt="Yosemite Crew Logo" width={96} height={96} />
+              <Link href={"/"}>
+                <Image
+                  aria-hidden
+                  src="https://d2il6osz49gpup.cloudfront.net/Logo.png"
+                  alt="Yosemite Crew Logo"
+                  width={105}
+                  height={96}
+                />
+              </Link>
               <div className="ClientLogo" aria-label="Certifications">
-                <Image aria-hidden src="/Images/ftlog1.png" alt="GDPR" width={55} height={56} />
-                <Image aria-hidden src="/Images/ftlog2-2.png" alt="SOC2" width={56} height={56} />
-                <Image aria-hidden src="/Images/ftlog3.png" alt="HL7 FHIR" width={54} height={60} />
-                <Image aria-hidden src="/Images/ftlog4.png" alt="ISO 27001" width={117} height={28} />
+                <Image
+                  aria-hidden
+                  src="https://d2il6osz49gpup.cloudfront.net/Images/ftlog1.png"
+                  alt="GDPR"
+                  width={55}
+                  height={56}
+                  className="gdpr-footer"
+                />
+                <Image
+                  aria-hidden
+                  src="https://d2il6osz49gpup.cloudfront.net/Images/ftlog2-2.png"
+                  alt="SOC2"
+                  width={56}
+                  height={56}
+                  className="soc-footer"
+                />
+                <Image
+                  aria-hidden
+                  src="https://d2il6osz49gpup.cloudfront.net/Images/ftlog3.png"
+                  alt="HL7 FHIR"
+                  width={54}
+                  height={60}
+                  className="iso-footer"
+                />
+                <Image
+                  aria-hidden
+                  src="https://d2il6osz49gpup.cloudfront.net/Images/ftlog4.png"
+                  alt="ISO 27001"
+                  width={117}
+                  height={28}
+                  className="fhir-footer"
+                />
               </div>
             </div>
             <motion.nav
@@ -94,10 +139,15 @@ function Footer() {
                   variants={ftDivVariants}
                 >
                   <h5>{section.title}</h5>
-                  <ul className="FtLinks" role="list">
-                    {section.links.map(link => (
+                  <ul className="FtLinks">
+                    {section.links.map((link) => (
                       <li key={link.label}>
-                        <Link href={link.href}>{link.label}</Link>
+                        <Link
+                          href={link.href}
+                          target={section.title === "Company" ? "" : "_blank"}
+                        >
+                          {link.label}
+                        </Link>
                       </li>
                     ))}
                   </ul>
@@ -110,18 +160,26 @@ function Footer() {
             <div className="Bootom_Foot">
               <h4>Copyright &copy; 2025 DuneXploration</h4>
               <p>
-                DuneXploration UG (haftungsbeschränkt), Am Finther Weg 7, 55127 Mainz<br />
-                email: <a href="mailto:support@yosemitecrew.com">support@yosemitecrew.com</a>, phone: <a href="tel:+4915227763275">+49 152 277 63275</a>
+                DuneXploration UG (haftungsbeschränkt), Am Finther Weg 7, 55127
+                Mainz
+                <br />
+                email:{" "}
+                <a href="mailto:support@yosemitecrew.com">
+                  support@yosemitecrew.com
+                </a>
+                , phone:{" "}
+                <a href="tel:+4915227763275">+49 152 277 63275</a>
               </p>
               <p>
-                Geschaftsfuhrer: Ankit Upadhyay Amtsgerichts Mainz unter HRB 52778, VAT: DE367920596
+                Geschaftsfuhrer: Ankit Upadhyay Amtsgerichts Mainz unter HRB
+                52778, VAT: DE367920596
               </p>
             </div>
           </div>
         </div>
       </Container>
     </motion.footer>
-  )
+  );
 }
 
-export default Footer
+export default Footer;

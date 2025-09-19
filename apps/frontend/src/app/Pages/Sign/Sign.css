@@ -1,7 +1,7 @@
 /* Sign Up Page Started */
 
 .MainSignUpSec{
-    background: url(/Images/SignUpBg.png)no-repeat;
+    background: url('https://d2il6osz49gpup.cloudfront.net/Images/SignUpBg.png')no-repeat;
     background-size: cover;
     background-position: center;
     min-height: 100vh;
@@ -225,7 +225,7 @@
     min-height: 100vh;
 }
 .LeftCompleteSign {
-  background-image: url(/Images/SignInBg.png);
+  background-image: url('https://d2il6osz49gpup.cloudfront.net/Images/SignInBg.png');
   background-size: 100% 100%;
   object-position: center;
   min-height: 100vh;
@@ -296,150 +296,6 @@
     font-family: var(--satoshi-font);
 }
 
-
-/* Verify Email Modal Started  */
-
-.VerifyModalSec{
-    padding: 24px 44px;
-    border-radius: 24px;
-    min-width: 595px;
-    background: var(--whitebg);
-}
-.VerifyModalSec .modal-body{
-    padding: 0px !important;
-    display: flex;
-    flex-direction: column;
-    gap: 53px;
-}
-.VerifyModalSec .modal-body .VerifyModalTopInner{
-    display: flex;
-    flex-direction: column;
-    gap: 50px;
-}
-.VerifyModalSec .modal-body .VerifyModalTopInner{
-    display: flex;
-    flex-direction: column;
-    gap: 50px;
-}
-.VerifyModalSec .modal-body .VerifyModalTopInner .VerifyTexted{
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-    align-items: center;
-    text-align: center;
-}
-.VerifyModalSec .modal-body .VerifyModalTopInner .VerifyTexted h2{
-    font-weight: 500;
-    font-size: 40px;
-    line-height: 120%;
-    font-family: var(--grotesk-font);
-    margin: 0;
-    color: var(--black-text);
-}
-.VerifyModalSec .modal-body .VerifyModalTopInner .VerifyTexted h6{
-    font-weight: 700;
-    font-size: 18px;
-    line-height: 120%;
-    font-family: var(--satoshi-font);
-    margin: 0;
-    color: var(--black-text);
-}
-.VerifyModalSec .modal-body .VerifyModalTopInner .VerifyTexted h6 span{
-    font-weight: 900;
-}
-.VerifyModalSec .modal-body .VerifyModalTopInner .VerifyTexted p{
-    font-weight: 400;
-    font-size: 18px;
-    line-height: 120%;
-    font-family: var(--satoshi-font);
-    margin: 0;
-    color: var(--black-text);
-}
-.VerifyModalSec .modal-body .VerifyModalTopInner .verifyInput{
-    max-width: 415px;
-    margin: 0 auto;
-    margin-bottom: 0 !important;
-}
-.VerifyModalSec .modal-body .VerifyModalBottomInner{
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-    align-items: center;
-    text-align: center;
-
-}
-.VerifyModalSec .modal-body .VerifyModalBottomInner .VerifyBtnDiv{
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    align-items: center;
-    text-align: center;
-}
-.VerifyModalSec .modal-body .VerifyModalBottomInner .VerifyBtnDiv button{
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-width: 415px;
-    min-height: 60px;
-    border-radius: 36px;
-    padding: 10px 32px;
-    gap: 8px;
-    background: var(--black-bg) !important;
-    color: var(--white-text);
-    font-weight: 500;
-    font-size: 23px;
-    line-height: 120%;
-    font-family: var(--grotesk-font);
-    border: 1px solid var(--black-bg) !important;
-}
-.VerifyModalSec .modal-body .VerifyModalBottomInner .VerifyBtnDiv span{
-    color: var(--notibg);
-    font-weight: 500;
-    font-size: 19px;
-    line-height: 120%;
-    font-family: var(--grotesk-font);
-}
-.VerifyModalSec .modal-body .VerifyModalBottomInner .VerifyResent{
-    display: flex;
-    align-items: center;
-    gap: 2px;
-}
-.VerifyModalSec .modal-body .VerifyModalBottomInner .VerifyResent a{
-    font-family: var(--grotesk-font);
-    font-weight: 500;
-    font-size: 19px;
-    line-height: 120%;
-    color: var(--black-text);
-}
-.VerifyModalSec .modal-body .VerifyModalBottomInner .VerifyResent a:first-child {
-    color: var(--blue-text);
-}
-
-.verifyInputDiv{
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-.verifyInputDiv p{
-    color: var(--delete);
-    font-weight: 700;
-    font-size: 13px;
-    line-height: 120%;
-    font-family: var(--satoshi-font);
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    justify-content: center;
-}
-
-
-
-/* Verify Email Modal Ended  */
-
-
-
-
 .Errors{
     display: flex;
     align-items: center;
@@ -452,10 +308,6 @@
     color: var(--delete);
     margin-top: 6px;
 }
-
-
-
-
 
 /* CompleteSignUpSec Ended */
 
@@ -470,7 +322,7 @@
     position: relative;
 }
 .leftSignIn{
-    background: url(/Images/SignInBg.png)no-repeat;
+    background: url('https://d2il6osz49gpup.cloudfront.net/Images/SignInBg.png')no-repeat;
     background-size: cover;
     height: 100%;
     width: 100%;
@@ -705,15 +557,5 @@
 .SignError .ErroItemDiv button svg{
     color: var(--black-bg);
 }
-
-
-
-
-
-
-
-
-
-
 
 /* SignError Ended */

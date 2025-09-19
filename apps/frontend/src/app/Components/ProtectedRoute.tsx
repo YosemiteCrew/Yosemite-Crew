@@ -1,59 +1,33 @@
 "use client";
-
-import { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { jwtDecode } from "jwt-decode";
 
-type UserType = "Hospital" | "Groomer Shop" | "Doctor" | string;
-type DecodedTokenType = {
-  userId: string;
-  userType: UserType;
-  [key: string]: string;
+import { useAuthStore } from "@/app/stores/authStore";
+
+type ProtectedRouteProps = {
+  children: React.ReactNode;
+  rolesAllowed?: string[];
 };
 
-export default function ProtectedRoute({
-  children,
-  allowedRoles,
-}: {
-  children: React.ReactNode;
-  allowedRoles?: string[];
-}) {
-  const [tokenChecked, setTokenChecked] = useState(false);
-  const [hasAccess, setHasAccess] = useState(false);
-
+const ProtectedRoute = ({ children, rolesAllowed }: ProtectedRouteProps) => {
+  const user = useAuthStore((state) => state.user);
+  const role = useAuthStore((state) => state.role);
   const router = useRouter();
 
   useEffect(() => {
-    const token = sessionStorage.getItem("token");
-
-    if (!token) {
-      console.log("[ProtectedRoute] No token found, redirecting...");
-      router.push("/signin");
+    if (!user) {
+      router.replace("/signin");
       return;
     }
-
-    try {
-      const decoded = jwtDecode<DecodedTokenType>(token);
-      const userRole = decoded.userType;
-
-      if (allowedRoles && !allowedRoles.includes(userRole)) {
-        console.log("[ProtectedRoute] Role not allowed:", userRole);
-        router.push("/unauthorized");
-        return;
-      }
-
-      setHasAccess(true);
-    } catch (error) {
-      console.error("[ProtectedRoute] Error decoding token", error);
-      router.push("/signin");
-    } finally {
-      setTokenChecked(true);
+    if (rolesAllowed && role && !rolesAllowed.includes(role)) {
+      router.replace("/signin");
     }
-  }, [allowedRoles, router]);
+  }, [user, role, rolesAllowed, router]);
 
-  if (!tokenChecked || !hasAccess) {
-    return null; // or <LoadingSpinner />
-  }
+  if (!user) return null;
+  if (rolesAllowed && role && !rolesAllowed.includes(role)) return null;
 
   return <>{children}</>;
-}
+};
+
+export default ProtectedRoute;

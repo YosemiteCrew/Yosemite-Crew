@@ -17,7 +17,7 @@ function LaunchGrowTab() {
           id: 1,
           title: "APIs",
           color: "#247AED",
-          icon: "/Images/buildlaunch1.png",
+          icon: "https://d2il6osz49gpup.cloudfront.net/Images/buildlaunch1.png",
           heading: "Application Programming Interface",
           details: [
             "Integrate essential veterinary features like appointment scheduling and medical records.",
@@ -31,7 +31,7 @@ function LaunchGrowTab() {
           id: 2,
           title: "SDKs",
           color: "#E9F2FD",
-          icon: "/Images/buildlaunch2.png",
+          icon: "https://d2il6osz49gpup.cloudfront.net/Images/buildlaunch2.png",
           heading: "Software Development Kit",
           details: [
             "Provides APIs for authentication, user roles, patient records, appointment scheduling, and billing.",
@@ -45,7 +45,7 @@ function LaunchGrowTab() {
           id: 3,
           title: "Pre-Built Templates",
           color: "#BBD6F9",
-          icon: "/Images/buildlaunch3.png",
+          icon: "https://d2il6osz49gpup.cloudfront.net/Images/buildlaunch3.png",
           heading: "Pre-Built Templates",
           details: [
             "Pre-designed workflows for booking, rescheduling, and managing veterinary visits.",
@@ -59,7 +59,7 @@ function LaunchGrowTab() {
           id: 4,
           title: "Documentation",
           color: "#9AC2F7",
-          icon: "/Images/buildlaunch4.png",
+          icon: "https://d2il6osz49gpup.cloudfront.net/Images/buildlaunch4.png",
           heading: "Documentation",
           details: [
             "Endpoints, authentication methods, request/response examples, and SDK usage guides.",
@@ -106,7 +106,7 @@ function LaunchGrowTab() {
                                                 {growtab.details &&
                                                     growtab.details.map((detail, index) => (
                                                         <li key={index}>
-                                                            <Icon icon="solar:verified-check-bold" width="24" height="24" style={{ color: growtab.color }} />
+                                                            <Icon icon="solar:verified-check-bold" width="24" height="24" style={{ color: "#247AED" }} />
                                                             {detail}
                                                         </li>
                                                     ))}
