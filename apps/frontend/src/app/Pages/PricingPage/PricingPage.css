@@ -1,480 +1,581 @@
-.pricingSection{
-    padding: 80px 0px;
-    position: relative;
-    z-index: 1;
+.pricingSection {
+  padding: 80px 0px;
+  position: relative;
+  z-index: 1;
 }
-.pricingSection::after{
-    content: " ";
-    position: absolute;
-    right: 0;
-    top: 0;
-    background: url('https://d2il6osz49gpup.cloudfront.net/Images/pricingafter.png') no-repeat;
-    background-size: cover;
-    width: 100%;
-    height: 1440px;
-    z-index: -1;
+.pricingSection::after {
+  content: " ";
+  position: absolute;
+  right: 0;
+  top: 0;
+  background: url("https://d2il6osz49gpup.cloudfront.net/Images/pricingafter.png")
+    no-repeat;
+  background-size: cover;
+  width: 100%;
+  height: 1440px;
+  z-index: -1;
 }
-.pricingSection .PricingData{
-    display: flex;
-    flex-direction: column;
-    gap: 80px;
+.pricingSection .PricingData {
+  display: flex;
+  flex-direction: column;
+  gap: 80px;
 }
 /* PricingPage-header Started  */
 
-.PricingPage-header{
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 80px;
+.PricingPage-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 80px;
 }
-.PricingPage-header .PriceBackdiv{
-    display: flex;
-    align-items: flex-start;
-    gap: 40px;
+.PricingPage-header .PriceBackdiv {
+  display: flex;
+  align-items: flex-start;
+  gap: 40px;
 }
-.PricingPage-header .PriceBackdiv a{
-    position: relative;
-    top: 10px;
-    color: var(--black-bg);
+.PricingPage-header .PriceBackdiv a {
+  position: relative;
+  top: 10px;
+  color: var(--black-bg);
 }
-.PricingPage-header .PricinhHeadquote{
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    align-items: center;
-    max-width: 658px;
-    text-align: center;
+.PricingPage-header .PricinhHeadquote {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  max-width: 658px;
+  text-align: center;
 }
-.PricingPage-header .PricinhHeadquote h2{
-    font-family: var(--grotesk-font);
-    font-weight: 500;
-    font-size: 40px;
-    line-height: 120%;
-    margin: 0;
-    color: var(--black-text);
+.PricingPage-header .PricinhHeadquote h2 {
+  font-family: var(--grotesk-font);
+  font-weight: 500;
+  font-size: 40px;
+  line-height: 120%;
+  margin: 0;
+  color: var(--black-text);
 }
-.PricingPage-header .PricinhHeadquote h2 span{
-    color: var(--black-grey-Text);
+.PricingPage-header .PricinhHeadquote h2 span {
+  color: var(--black-grey-Text);
 }
-.PricingPage-header .PricinhHeadquote p{
-    font-family: var(--satoshi-font);
-    font-weight: 400;
-    font-size: 18px;
-    line-height: 120%;
-    margin: 0;
-    color: var(--black-text);
-}
-
-.PricingCardDiv{
-    display: flex;
-    gap: 40px;
-    justify-content: center;
-}
-.PricingCardDiv .PricingcardItem .pricing-card{
-    max-width: 300px;
-    border-radius: 20px;
-    min-height: 418px;
-    background: var(--light-blue);
-    border: 1px solid var(--blue-text);
-    box-shadow: 4px 4px 18px -5px #55413414;
-}
-.PricingCardDiv .PricingcardItem .pricing-card .card-body{
-    display: flex;
-    flex-direction: column;
-    gap: 32px;
-    justify-content: center;
-}
-.PricingCardDiv .PricingcardItem .pricing-card .card-body .pricingbtndiv{
-    max-width: 169px;
-    margin: 0 auto;
-}
-.PricingCardDiv .PricingcardItem .pricing-card .card-body .pricingbtndiv a{
-    padding: 14px 0px;
-    font-size: 19px;
-    white-space: nowrap;
-    min-width: 169px;
+.PricingPage-header .PricinhHeadquote p {
+  font-family: var(--satoshi-font);
+  font-weight: 400;
+  font-size: 18px;
+  line-height: 120%;
+  margin: 0;
+  color: var(--black-text);
 }
 
-.PricingCardDiv .PricingcardItem .pricing-card .card-body :is(.pricing-top, .pricing-bottom){
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    gap: 8px;
-    text-align: center;
-    max-width: 260px;
-    margin: 0 auto;
+.PricingCardDiv {
+  display: flex;
+  gap: 40px;
+  justify-content: center;
 }
-.PricingCardDiv .PricingcardItem .pricing-card .card-body :is( .pricing-top h4 , .pricing-bottom h3){
-    margin: 0;
-    font-family: var(--grotesk-font);
-    color: var(--black-text);
-    font-weight: 500;
-    font-size: 28px;
-    line-height: 120%;
+.PricingCardDiv .PricingcardItem .pricing-card {
+  max-width: 300px;
+  border-radius: 20px;
+  min-height: 418px;
+  background: var(--light-blue);
+  border: 1px solid var(--blue-text);
+  box-shadow: 4px 4px 18px -5px #55413414;
 }
-.PricingCardDiv .PricingcardItem .pricing-card .card-body .pricing-top h4 span{
-    font-family: var(--satoshi-font);
-    font-weight: 700;
-    font-size: 18px;
+.PricingCardDiv .PricingcardItem .pricing-card .card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  justify-content: center;
 }
-.PricingCardDiv .PricingcardItem .pricing-card .card-body :is( .pricing-top p , .pricing-bottom p) {
-    font-family: var(--satoshi-font);
-    font-weight: 400;
-    font-size: 15px;
-    margin: 0;
-    color: var(--black-text);
-    line-height: 24px;
+.PricingCardDiv .PricingcardItem .pricing-card .card-body .pricingbtndiv {
+  max-width: 169px;
+  margin: 0 auto;
 }
-.PricingCardDiv .PricingcardItem .pricing-card .card-body .pricing-bottom{
-    gap: 4px;
+.PricingCardDiv .PricingcardItem .pricing-card .card-body .pricingbtndiv a {
+  padding: 14px 0px;
+  font-size: 19px;
+  white-space: nowrap;
+  min-width: 169px;
 }
-.PricingCardDiv .PricingcardItem .pricing-card .card-body .pricing-bottom h3{
+
+.PricingCardDiv
+  .PricingcardItem
+  .pricing-card
+  .card-body
+  :is(.pricing-top, .pricing-bottom) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  text-align: center;
+  max-width: 260px;
+  margin: 0 auto;
+}
+.PricingCardDiv
+  .PricingcardItem
+  .pricing-card
+  .card-body
+  :is(.pricing-top h4, .pricing-bottom h3) {
+  margin: 0;
+  font-family: var(--grotesk-font);
+  color: var(--black-text);
+  font-weight: 500;
+  font-size: 28px;
+  line-height: 120%;
+}
+.PricingCardDiv .PricingcardItem .pricing-card .card-body .pricing-top h4 span {
+  font-family: var(--satoshi-font);
+  font-weight: 700;
+  font-size: 18px;
+}
+.PricingCardDiv
+  .PricingcardItem
+  .pricing-card
+  .card-body
+  :is(.pricing-top p, .pricing-bottom p) {
+  font-family: var(--satoshi-font);
+  font-weight: 400;
+  font-size: 15px;
+  margin: 0;
+  color: var(--black-text);
+  line-height: 24px;
+}
+.PricingCardDiv .PricingcardItem .pricing-card .card-body .pricing-bottom {
+  gap: 4px;
+}
+.PricingCardDiv .PricingcardItem .pricing-card .card-body .pricing-bottom h3 {
   color: var(--blue-text);
 }
-
+@media screen and (max-width: 768px) {
+  .PricingCardDiv {
+    gap: 10px;
+  }
+}
+@media screen and (max-width: 578px) {
+  .pricingSection {
+    padding: 50px 0px;
+  }
+  .pricingSection .PricingData {
+    gap: 50px;
+  }
+  .PricingPage-header {
+    gap: 32px;
+  }
+  .PricingPage-header .PricinhHeadquote h2 {
+    font-size: 28px;
+  }
+  .PricingPage-header .PricinhHeadquote p {
+    font-size: 15px;
+  }
+  .PricingCardDiv {
+    gap: 5px;
+  }
+  .PricingCardDiv .PricingcardItem .pricing-card {
+    min-height: auto;
+  }
+  .PricingCardDiv .PricingcardItem .pricing-card .card-body {
+    padding: 20px 5px;
+    gap: 18px;
+    justify-content: flex-start;
+  }
+  .PricingCardDiv
+    .PricingcardItem
+    .pricing-card
+    .card-body
+    :is(.pricing-top h4, .pricing-bottom h3) {
+    font-size: 16px;
+  }
+  .PricingCardDiv
+    .PricingcardItem
+    .pricing-card
+    .card-body
+    .pricing-top
+    h4
+    span {
+    font-size: 16px;
+  }
+  .PricingCardDiv
+    .PricingcardItem
+    .pricing-card
+    .card-body
+    :is(.pricing-top p, .pricing-bottom p) {
+    font-size: 12px;
+    line-height: 16px;
+  }
+  .pricing-card-icon {
+    height: 36px;
+    width: 36px;
+  }
+  .PricingCardDiv .PricingcardItem .pricing-card .card-body .pricingbtndiv {
+    max-width: 150px;
+  }
+  .PricingCardDiv .PricingcardItem .pricing-card .card-body .pricingbtndiv a {
+    font-size: 16px;
+    min-width: 150px;
+  }
+}
 
 /* PricingPage-header Ended   */
 
-
 /* Pricing Hosting Plan Started  */
 
+.PricingHostingPlans {
+  box-shadow: 4px 4px 18px -5px #55413414;
+  border: 1px solid var(--lightgrey);
+  border-radius: 24px;
+  background: var(--whitebg);
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding-top: 32px;
+}
+.HostingHead {
+  max-width: 658px;
+  margin: 0 auto;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.HostingHead h2 {
+  margin: 0;
+  font-family: var(--grotesk-font);
+  color: var(--black-text);
+  font-weight: 500;
+  font-size: 40px;
+  line-height: 120%;
+}
+.HostingHead h2 span {
+  color: var(--black-grey-Text);
+}
+.HostingHead p {
+  margin: 0;
+  font-family: var(--satoshi-font);
+  color: var(--black-text);
+  font-weight: 400;
+  font-size: 18px;
+  line-height: 120%;
+}
 
-.PricingHostingPlans{
-    box-shadow: 4px 4px 18px -5px #55413414;
-    border: 1px solid var(--lightgrey);
-    border-radius: 24px;
-    background: var(--whitebg);
-    display: flex;
-    flex-direction: column;
-    gap: 28px;
-    padding-top: 32px;
+.hosting-table-wrapper {
+  overflow: hidden;
+  box-shadow: 0px 6px 20px rgba(0, 0, 0, 0.05);
 }
-.HostingHead{
-    max-width: 658px;
-    margin: 0 auto;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+.hosting-table-wrapper .hosting-table {
+  margin: 0;
+  background: transparent;
 }
-.HostingHead h2{
-    margin: 0;
-    font-family: var(--grotesk-font);
-    color: var(--black-text);
-    font-weight: 500;
-    font-size: 40px;
-    line-height: 120%;
+.hosting-table-wrapper .hosting-table thead tr th {
+  height: 50px;
+  background-color: var(--blue-text);
+  font-family: var(--satoshi-font);
+  color: var(--white-text);
+  font-weight: 700;
+  font-size: 20px;
+  line-height: 120%;
+  text-align: center;
+  padding: 12px 24px;
+  vertical-align: middle;
 }
-.HostingHead h2 span{
-    color: var(--black-grey-Text);
+.hosting-table-wrapper .hosting-table thead tr th span {
+  font-size: 15px;
 }
-.HostingHead p{
-    margin: 0;
-    font-family: var(--satoshi-font);
-    color: var(--black-text);
-    font-weight: 400;
-    font-size: 18px;
-    line-height: 120%;
+.hosting-table-wrapper .hosting-table thead tr th:first-child {
+  background-color: var(--lightgrey);
+  color: var(--black-text);
+  text-align: left;
+  min-width: 506px;
+}
+.hosting-table-wrapper .hosting-table tbody tr {
+  border-bottom: 1px solid var(--lightgrey);
+}
+.hosting-table-wrapper .hosting-table tbody tr:last-child {
+  border-bottom: 1px solid transparent;
+}
+.hosting-table-wrapper .hosting-table tbody tr td {
+  height: 70px;
+  font-family: var(--satoshi-font);
+  color: var(--black-text);
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 120%;
+  text-align: center;
+  padding: 12px 24px;
+  vertical-align: middle;
+  opacity: 80%;
+}
+.hosting-table-wrapper .hosting-table tbody tr td:nth-of-type(1) {
+  text-align: left;
+}
+.hosting-table-wrapper .hosting-table tbody tr td:nth-of-type(2) {
+  background-color: var(--light-blue);
+}
+.hosting-table-wrapper .hosting-table tbody tr td:nth-of-type(3) {
+  background-color: #bbd6f980;
 }
 
-.hosting-table-wrapper{
-    overflow: hidden;
-    box-shadow: 0px 6px 20px rgba(0, 0, 0, 0.05);
-}
-.hosting-table-wrapper .hosting-table{
-    margin: 0;
-    background: transparent;
-}
-.hosting-table-wrapper .hosting-table thead tr th{
-    height: 50px;
-    background-color: var(--blue-text);
-    font-family: var(--satoshi-font);
-    color: var(--white-text);
-    font-weight: 700;
-    font-size: 20px;
-    line-height: 120%;
-    text-align: center;
-    padding: 12px 24px;
-    vertical-align: middle;
-}
-.hosting-table-wrapper .hosting-table thead tr th span{
-    font-size: 15px;
-}
-.hosting-table-wrapper .hosting-table thead tr th:first-child{
+@media screen and (max-width: 1024px) {
+  .hosting-table-wrapper .hosting-table thead tr th:first-child {
     background-color: var(--lightgrey);
     color: var(--black-text);
     text-align: left;
-    min-width: 506px;
+    min-width: 100%;
+  }
 }
-.hosting-table-wrapper .hosting-table tbody tr{
-    border-bottom: 1px solid var(--lightgrey);  
-}
-.hosting-table-wrapper .hosting-table tbody tr:last-child{
-    border-bottom: 1px solid transparent;  
-}
-.hosting-table-wrapper .hosting-table tbody tr td{
-    height: 70px;
-    font-family: var(--satoshi-font);
-    color: var(--black-text);
-    font-weight: 700;
+@media screen and (max-width: 578px) {
+  .HostingHead h2 {
+    font-size: 28px;
+  }
+  .HostingHead p {
     font-size: 15px;
-    line-height: 120%;
-    text-align: center;
-    padding: 12px 24px;
-    vertical-align: middle; 
-    opacity: 80%;
-}
-.hosting-table-wrapper .hosting-table tbody tr td:nth-of-type(1){
-    text-align: left;
-}
-.hosting-table-wrapper .hosting-table tbody tr td:nth-of-type(2){
-    background-color: var(--light-blue);
-}
-.hosting-table-wrapper .hosting-table tbody tr td:nth-of-type(3){
-    background-color: #BBD6F980;
+  }
+  .hosting-table-wrapper .hosting-table thead tr th {
+    min-height: 60px;
+    height: auto;
+    font-size: 14px;
+    padding: 16px 8px;
+  }
+  .hosting-table-wrapper .hosting-table thead tr th span {
+    font-size: 14px;
+  }
+  .hosting-table-wrapper .hosting-table tbody tr td {
+    min-height: 60px;
+    height: auto;
+    font-size: 11px;
+    padding: 16px 8px;
+  }
 }
 
 /* Pricing Hosting Plan Ended  */
 
-
-
 /* Pricing Key Feature Started  */
 
-.PricingKeyFeature{
-    display: flex;
-    flex-direction: column;
-    gap: 32px;
-    max-width: 846px;
-    margin: 0 auto;
+.PricingKeyFeature {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  max-width: 846px;
+  margin: 0 auto;
 }
-.FeatureData{
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    width: 100%;
+.FeatureData {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
 }
 .fethed {
-    height: 60px;
-    display: flex;
-    align-items: center;
-    padding: 0px 24px;
-    border-radius: 6px;
-    background: var(--light-blue);
+  height: 60px;
+  display: flex;
+  align-items: center;
+  padding: 0px 24px;
+  border-radius: 6px;
+  background: var(--light-blue);
 }
-.fethed h4{
-    font-family: var(--satoshi-font);
-    font-size: 18px;
-    font-weight: 700;
-    line-height: 120%;
-    color: var(--black-text);
-    margin: 0;
+.fethed h4 {
+  font-family: var(--satoshi-font);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 120%;
+  color: var(--black-text);
+  margin: 0;
 }
-.fetiner p{
-    font-family: var(--satoshi-font);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin: 0;
-    border-bottom: 1px solid #EAEAEA;
-    padding: 12px 24px;
-    font-size: 15px;
-    font-weight: 700;
-    line-height: 120%;
-    color: var(--black-text);
-    height: 60px;
+.fetiner p {
+  font-family: var(--satoshi-font);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0;
+  border-bottom: 1px solid #eaeaea;
+  padding: 12px 24px;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 120%;
+  color: var(--black-text);
+  height: 60px;
 }
-.fetiner p:last-child{
-    border: none;
+.fetiner p:last-child {
+  border: none;
 }
 
 /* Pricing Key Feature Ended   */
 
-
 /* .Pricing Calculator Started  */
 
-.PricingCalculatorDiv{
-    display: flex;
-    flex-direction: column;
-    gap: 36px;
-    border: 1px solid var(--lightgrey);
-    background: var(--whitebg);
-    padding: 36px;
-    border-radius: 24px;
+.PricingCalculatorDiv {
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+  border: 1px solid var(--lightgrey);
+  background: var(--whitebg);
+  padding: 36px;
+  border-radius: 24px;
 }
-.pricingHeading{
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.pricingHeading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.pricingHeading h2{
-    margin: 0;
-    font-family: var(--grotesk-font);
-    color: var(--black-text);
-    font-weight: 500;
-    font-size: 40px;
-    line-height: 120%;
+.pricingHeading h2 {
+  margin: 0;
+  font-family: var(--grotesk-font);
+  color: var(--black-text);
+  font-weight: 500;
+  font-size: 40px;
+  line-height: 120%;
 }
-
-.CalculatorTabDiv{
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.CalculatorTabDiv {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.CalculatorTabDiv .PricingPlan{
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 18px;
+.CalculatorTabDiv .PricingPlan {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
 }
-.CalculatorTabDiv .PricingPlan .planbtn{
-    box-shadow: 4px 4px 18px -5px #55413414;
-    border: 1px solid var(--black-bg);
-    padding: 24px 16px;
-    min-width: 350px;
-    min-height: 130px;
-    border-radius: 24px !important;
-    background-color: transparent;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.CalculatorTabDiv .PricingPlan .planbtn {
+  box-shadow: 4px 4px 18px -5px #55413414;
+  border: 1px solid var(--black-bg);
+  padding: 24px 16px;
+  min-width: 350px;
+  min-height: 130px;
+  border-radius: 24px !important;
+  background-color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.CalculatorTabDiv .PricingPlan .planbtn.active{
-    border: 2px solid var(--blue-text);
+.CalculatorTabDiv .PricingPlan .planbtn.active {
+  border: 2px solid var(--blue-text);
 }
 .CalculatorTabDiv .PricingPlan input[type="radio"] {
   display: none;
 }
-.CalculatorTabDiv .PricingPlan .planbtn .planText{
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    gap: 4px;
+.CalculatorTabDiv .PricingPlan .planbtn .planText {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 4px;
 }
 .CalculatorTabDiv .PricingPlan .planbtn :is(.planText h2, .planText h5) {
-    margin: 0;
-    font-size: 40px;
-    line-height: 120%;
-    font-weight: 500;
-    font-family: var(--grotesk-font);
-    color: var(--black-text);
+  margin: 0;
+  font-size: 40px;
+  line-height: 120%;
+  font-weight: 500;
+  font-family: var(--grotesk-font);
+  color: var(--black-text);
 }
 .CalculatorTabDiv .PricingPlan .planbtn .planText h5 {
-    font-size: 23px;
+  font-size: 23px;
 }
 .CalculatorTabDiv .PricingPlan .planbtn .planText h5 span {
-    font-size: 18px;
-    font-weight: 400;
-    font-family: var(--satoshi-font);
+  font-size: 18px;
+  font-weight: 400;
+  font-family: var(--satoshi-font);
 }
-.CalculatorTabDiv .PricingPlan .planbtn.active :is(.planText h2, .planText h5){
-    color: var(--blue-text);
+.CalculatorTabDiv .PricingPlan .planbtn.active :is(.planText h2, .planText h5) {
+  color: var(--blue-text);
 }
-.PricingInfoDiv{
-    display: flex;
-    gap: 27px;
+.PricingInfoDiv {
+  display: flex;
+  gap: 27px;
 }
-.PricingInfoDiv .leftPriceInfo{
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 37px;
-    justify-content: space-between;
-    padding: 10px 0px;
+.PricingInfoDiv .leftPriceInfo {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 37px;
+  justify-content: space-between;
+  padding: 10px 0px;
 }
-.PricingInfoDiv .leftPriceInfo .pricingscrolldiv{
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
+.PricingInfoDiv .leftPriceInfo .pricingscrolldiv {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
 }
-.PricingInfoDiv .leftPriceInfo .pricingscrolldiv .scrolltext{
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+.PricingInfoDiv .leftPriceInfo .pricingscrolldiv .scrolltext {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
-.PricingInfoDiv .leftPriceInfo .pricingscrolldiv .scrolltext h5{
-    font-weight: 500;
-    font-family: var(--grotesk-font);
+.PricingInfoDiv .leftPriceInfo .pricingscrolldiv .scrolltext h5 {
+  font-weight: 500;
+  font-family: var(--grotesk-font);
+  color: var(--black-text);
+  margin: 0;
+  font-size: 23px;
+  line-height: 120%;
+}
+.PricingInfoDiv .leftPriceInfo .pricingscrolldiv .scrolltext span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  min-width: 135px;
+  border: 1px solid var(--pinkborder);
+  border-radius: 36px;
+  font-weight: 700;
+  font-family: var(--satoshi-font);
+  color: var(--blue-text);
+  font-size: 18px;
+  line-height: 120%;
+}
+.RytPriceInfo .pricebox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  min-width: 278px;
+  min-height: 368px;
+  border-radius: 24px;
+  padding: 0px 16px;
+  box-shadow: 4px 4px 18px -5px #55413414;
+  background: var(--blue-text);
+  gap: 37px;
+}
+.RytPriceInfo .pricebox .pricetext {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 4px;
+}
+.RytPriceInfo .pricebox .pricetext h2 {
+  font-size: 40px;
+  font-weight: 500;
+  line-height: 120%;
+  margin: 0;
+  font-family: var(--grotesk-font);
+  color: var(--white-text);
+}
+.RytPriceInfo .pricebox .pricetext h5 {
+  font-size: 23px;
+  font-weight: 500;
+  line-height: 120%;
+  margin: 0;
+  font-family: var(--grotesk-font);
+  color: var(--white-text);
+}
+.RytPriceInfo .pricebox a {
+  background: var(--black-bg);
+  min-height: 48px;
+  border-radius: 28px;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--white-text);
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 120%;
+  font-family: var(--grotesk-font);
+  &:hover {
+    background: var(--whitebg);
     color: var(--black-text);
-    margin: 0;
-    font-size: 23px;
-    line-height: 120%;
+  }
 }
-.PricingInfoDiv .leftPriceInfo .pricingscrolldiv .scrolltext span{
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 40px;
-    min-width: 135px;
-    border: 1px solid var(--pinkborder);
-    border-radius: 36px;
-    font-weight: 700;
-    font-family: var(--satoshi-font);
-    color: var(--blue-text);
-    font-size: 18px;
-    line-height: 120%;
-}
-.RytPriceInfo .pricebox{
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    min-width: 278px;
-    min-height: 368px;
-    border-radius: 24px;
-    padding: 0px 16px;
-    box-shadow: 4px 4px 18px -5px #55413414;
-    background: var(--blue-text);
-    gap: 37px;
-}
-.RytPriceInfo .pricebox .pricetext{
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    gap: 4px;
-}
-.RytPriceInfo .pricebox .pricetext h2{
-    font-size: 40px;
-    font-weight: 500;
-    line-height: 120%;
-    margin: 0;
-    font-family: var(--grotesk-font);
-    color: var(--white-text);
-}
-.RytPriceInfo .pricebox .pricetext h5{
-    font-size: 23px;
-    font-weight: 500;
-    line-height: 120%;
-    margin: 0;
-    font-family: var(--grotesk-font);
-    color: var(--white-text);
-}
-.RytPriceInfo .pricebox a{
-    background: var(--black-bg);
-    min-height: 48px;
-    border-radius: 28px;
-    padding: 14px 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    color: var(--white-text);
-    font-size: 19px;
-    font-weight: 500;
-    line-height: 120%;
-    font-family: var(--grotesk-font);
-    &:hover{
-        background: var(--whitebg);
-        color: var(--black-text);
-    }
-
-}
-
-
-
-
 
 .styled-range {
   -webkit-appearance: none;
@@ -486,8 +587,8 @@
     to right,
     var(--blue-text) 0%,
     var(--blue-text) var(--progress, 50%),
-    #302f2e2f var(--progress, 50%), /* Light gray for unfilled part */
-    #302f2e2f 100%
+    #302f2e2f var(--progress, 50%),
+    /* Light gray for unfilled part */ #302f2e2f 100%
   ) !important;
   outline: none;
   border: none;
@@ -517,7 +618,6 @@
   cursor: pointer;
   margin-top: -6px; /* Center on track */
   box-shadow: 4px 4px 18px -5px #55413433 !important;
-
 }
 .styled-range::-moz-range-thumb {
   height: 20px;
@@ -529,103 +629,219 @@
   box-shadow: 4px 4px 18px -5px #55413433 !important;
 }
 
-
+@media screen and (max-width: 1024px) {
+  .CalculatorTabDiv .PricingPlan .planbtn {
+    padding: 24px 40px;
+    min-width: auto;
+    min-height: auto;
+  }
+  .CalculatorTabDiv .PricingPlan .planbtn :is(.planText h2, .planText h5) {
+    font-size: 36px;
+  }
+  .CalculatorTabDiv .PricingPlan .planbtn .planText h5 {
+    font-size: 20px;
+  }
+  .CalculatorTabDiv .PricingPlan .planbtn .planText h5 span {
+    font-size: 16px;
+  }
+}
+@media screen and (max-width: 768px) {
+  .CalculatorTabDiv .PricingPlan .planbtn {
+    padding: 16px 40px;
+    min-width: auto;
+    min-height: auto;
+  }
+  .PricingInfoDiv {
+    flex-direction: column;
+  }
+}
+@media screen and (max-width: 578px) {
+  .PricingCalculatorDiv {
+    gap: 24px;
+    padding: 24px 12px;
+  }
+  .CalculatorTabDiv .PricingPlan .planbtn {
+    padding: 12px 30px;
+    min-width: auto;
+    min-height: auto;
+  }
+  .pricingHeading h2 {
+    font-size: 28px;
+  }
+  .CalculatorTabDiv .PricingPlan .planbtn :is(.planText h2, .planText h5) {
+    font-size: 19px;
+  }
+  .CalculatorTabDiv .PricingPlan .planbtn .planText h5 {
+    font-size: 13px;
+  }
+  .CalculatorTabDiv .PricingPlan .planbtn .planText h5 span {
+    font-size: 13px;
+    min-height: 40px;
+    min-width: 135px;
+  }
+  .PricingInfoDiv .leftPriceInfo .pricingscrolldiv .scrolltext h5 {
+    font-size: 19px;
+  }
+  .PricingInfoDiv .leftPriceInfo .pricingscrolldiv .scrolltext span {
+    min-height: 40px;
+    min-width: 80px;
+  }
+  .PricingInfoDiv .leftPriceInfo {
+    gap: 24px;
+  }
+  .RytPriceInfo .pricebox {
+    min-width: 278px;
+    min-height: 350px;
+  }
+}
 
 /* .Pricing Calculator Ended */
 
-
-.EnterPlanDiv{
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    box-shadow: 4px 4px 18px -5px #55413414;
-    padding: 0px 16px;
-    min-height: 80px;
-    border-radius: 24px;
-    background: var(--light-blue);
+.EnterPlanDiv {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 4px 4px 18px -5px #55413414;
+  padding: 0px 16px;
+  min-height: 80px;
+  border-radius: 24px;
+  background: var(--light-blue);
 }
 
-.EnterPlanDiv h4{
-    margin: 0;
-    font-size: 28px;
-    font-weight: 500;
-    line-height: 120%;
-    font-family: var(--grotesk-font);
-    color: var(--blue-text);
+.EnterPlanDiv h4 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 500;
+  line-height: 120%;
+  font-family: var(--grotesk-font);
+  color: var(--blue-text);
 }
 
-
-
-
+@media screen and (max-width: 578px) {
+  .EnterPlanDiv h4 {
+    font-size: 19px;
+  }
+}
 
 /* NeedHelpDiv */
 
-.NeedHelpDiv{
-    position: relative;
+.NeedHelpDiv {
+  position: relative;
 }
-.Needhelpitem{
-    background-color: var(--black-bg);
-    padding: 32px 48px;
-    border-radius: 28px;
-    display: flex;
-    flex-direction: column;
-    gap: 32px;
-    min-height: 214px;
-    justify-content: space-between;
-    position: relative;
+.Needhelpitem {
+  background-color: var(--black-bg);
+  padding: 32px 48px;
+  border-radius: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  min-height: 214px;
+  justify-content: space-between;
+  position: relative;
 }
-.Needhelpitem::after{
-    position: absolute;
-    content: " ";
-    background: url('https://d2il6osz49gpup.cloudfront.net/Images/doghelp.png')no-repeat;
-    background-size: 100% 100%;
-    right: 0;
-    bottom: 0;
-    width: 450px;
-    height: 299px;
+.Needhelpitem::after {
+  position: absolute;
+  content: " ";
+  background: url("https://d2il6osz49gpup.cloudfront.net/Images/doghelp.png")
+    no-repeat;
+  background-size: 100% 100%;
+  right: 0;
+  bottom: 0;
+  width: 450px;
+  height: 299px;
 }
 .helpText {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
-.helpText h3{
-    font-family: var(--grotesk-font);
-    font-size: 33px;
-    font-weight: 500;
-    line-height: 39.6px;
-    letter-spacing: -0.02em;
-    color: var(--white-text);
-    margin: 0;
+.helpText h3 {
+  font-family: var(--grotesk-font);
+  font-size: 33px;
+  font-weight: 500;
+  line-height: 39.6px;
+  letter-spacing: -0.02em;
+  color: var(--white-text);
+  margin: 0;
 }
-.helpText p{
-    font-family: var(--satoshi-font);
-    font-size: 18px;
-    font-weight: 400;
-    line-height: 21.6px;
-    letter-spacing: -0.02em;
-    color: var(--white-text);
-    margin: 0;
+.helpText p {
+  font-family: var(--satoshi-font);
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 21.6px;
+  letter-spacing: -0.02em;
+  color: var(--white-text);
+  margin: 0;
 }
-.helpbtn a{
+.helpbtn a {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  background-color: var(--blue-text);
+  border: none;
+  border-radius: 28px;
+  padding: 14px 24px;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 22.8px;
+  letter-spacing: -0.02em;
+  font-family: var(--grotesk-font);
+  color: var(--white-text);
+  width: fit-content;
+  &:hover {
+    background: var(--whitebg);
+    color: var(--black-text);
+  }
+}
+
+@media screen and (min-width: 768px) {
+  .need-help-mobile-dog {
+    display: none;
+  }
+}
+@media screen and (max-width: 1024px) {
+  .Needhelpitem::after {
+    right: -50px;
+    bottom: 0px;
+    width: 400px;
+    height: 299px;
+    background-size: cover;
+  }
+}
+@media screen and (max-width: 768px) {
+  .Needhelpitem::after {
+    display: none;
+  }
+}
+@media screen and (max-width: 578px) {
+  .Needhelpitem::after {
+    display: none;
+  }
+  .need-help-mobile-dog-wrapper {
     display: flex;
     justify-content: center;
-    gap: 6px;
-    background-color: var( --blue-text);
-    border: none;
-    border-radius: 28px;
-    padding: 14px 24px;
-    font-size: 18px;
-    font-weight: 500;
-    line-height: 22.8px;
-    letter-spacing: -0.02em;
-    font-family: var(--grotesk-font);
-    color:var(--white-text);
-    width: fit-content;
-    &:hover{
-        background: var(--whitebg);
-        color: var(--black-text);
-    }
+  }
+  .need-help-mobile-dog {
+    width: 300px;
+    height: 200px;
+    background-size: cover;
+  }
+  .Needhelpitem {
+    gap: 20px;
+    padding: 16px 16px;
+  }
+  .helpText {
+    gap: 3px;
+  }
+  .helpText h3 {
+    font-size: 19px;
+  }
+  .helpText p {
+    font-size: 13px;
+    line-height: 15px;
+  }
+  .helpbtn a {
+    padding: 10px 16px;
+    font-size: 16px;
+  }
 }
-
-
