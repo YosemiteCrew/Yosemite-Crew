@@ -58,7 +58,7 @@ function AboutUs() {
             <Container>
                 <div className="StoryData">
 
-                    <Image src="/Images/aboutstory.png" alt="aboutstory" width={605} height={515}/>
+                    <Image src="https://d2il6osz49gpup.cloudfront.net/Images/aboutstory.png" alt="aboutstory" width={605} height={515}/>
 
                     <div className="storyTexted">
                         <h2>Our Story</h2>

@@ -2,13 +2,14 @@
 export const pricingPlans = [
   {
     id: 1,
-    icon: "solar:star-bold", 
-    title:(
+    icon: "solar:star-bold",
+    title: (
       <>
-      Self-Hosting <span>(Free Plan)</span>
+        Self-Hosting <span>(Free Plan)</span>
       </>
     ),
-    description: "Perfect for new or small practices exploring digital management on your own",
+    description:
+      "Perfect for new or small practices exploring digital management on your own",
     price: "$0",
     subText: (
       <p>
@@ -16,6 +17,7 @@ export const pricingPlans = [
       </p>
     ),
     highlight: false,
+    label: "self"
   },
   {
     id: 2,
@@ -25,14 +27,14 @@ export const pricingPlans = [
     price: "Custom Pricing",
     subText: (
       <p>
-        Seats up to <strong>10 Users</strong>, max <strong>200 Appointments</strong> and{" "}
-        <strong>500 Assessments</strong>
+        Seats up to <strong>10 Users</strong>, max{" "}
+        <strong>200 Appointments</strong> and <strong>500 Assessments</strong>
       </p>
     ),
-    highlight: true, 
+    highlight: true,
+    label: "custom"
   },
 ];
-
 
 // plansData.js
 export const planFeatures = [
@@ -92,53 +94,39 @@ export const planFeatures = [
 export const featuresData = [
   {
     title: "Clinical & Medical Management",
-    items: [
-      "Appointments",
-      "Assessments",
-      "Medical Records"
-    ]
+    items: ["Appointments", "Observational Tools", "Medical Records"],
   },
   {
     title: "Appointments & Scheduling",
-    items: [
-      "Scheduler",
-      "Online Booking"
-    ]
+    items: ["Scheduler", "Online Booking"],
   },
   {
     title: "Communication & Messaging",
     items: [
       "Internal Chats",
       "2-Way Messaging",
-      "Targeted Messages & Newsletters"
-    ]
+      "Targeted Messages & Newsletters",
+    ],
   },
   {
     title: "Task & Workflow Management",
-    items: [
-      "User Tasks",
-      "Admin Triggers"
-    ]
+    items: ["User Tasks", "Admin Triggers"],
   },
   {
     title: "Finance Management",
     items: [
       "Financial Reporting & Analytics",
       "Inventory Management",
-      "Payment Processing"
-    ]
+      "Payment Processing",
+    ],
   },
   {
     title: "Customisation and Compliance",
-    items: [
-      "Mobile App",
-      "Advanced API Access"
-    ]
-  }
+    items: ["Mobile App", "Advanced API Access"],
+  },
 ];
 
-
- // Pricing Calulator
+// Pricing Calulator
 type PlanConfigParams = {
   appointments: number;
   setAppointments: (value: number) => void;
@@ -158,17 +146,47 @@ export const getPlanConfig = ({
 }: PlanConfigParams) => ({
   self: {
     ranges: [
-      { label: "Numbers of Appointment", value: appointments, setter: setAppointments, min: 0, max: 200 },
-      { label: "Seats", value: seats, setter: setSeats, min: 1, max: 5 },
+      {
+        label: "Numbers of Appointment",
+        value: appointments,
+        setter: setAppointments,
+        min: 0,
+        max: 2000,
+      },
+      {
+        label: "Number of Obervational Tools",
+        value: assessments,
+        setter: setAssessments,
+        min: 0,
+        max: 500,
+      },
+      { label: "Seats", value: seats, setter: setSeats, min: 1, max: 10 },
     ],
-    calculatePrice: () => 0, // always free
+    calculatePrice: () => (0).toFixed(2), // always free
   },
   custom: {
     ranges: [
-      { label: "Numbers of Appointment", value: appointments, setter: setAppointments, min: 0, max: 500 },
-      { label: "Number of Assessments", value: assessments, setter: setAssessments, min: 0, max: 1000 },
-      { label: "Seats", value: seats, setter: setSeats, min: 1, max: 20 },
+      {
+        label: "Numbers of Appointment",
+        value: appointments,
+        setter: setAppointments,
+        min: 0,
+        max: 2000,
+      },
+      {
+        label: "Number of Obervational Tools",
+        value: assessments,
+        setter: setAssessments,
+        min: 0,
+        max: 500,
+      },
+      { label: "Seats", value: seats, setter: setSeats, min: 1, max: 10 },
     ],
-    calculatePrice: () => (appointments * 0.5 + assessments * 0.2 + seats * 10).toFixed(2),
+    calculatePrice: () =>
+      (
+        Math.max(0, appointments - 120) * 0.079785 +
+        Math.max(0, assessments - 200) * 0.4 +
+        Math.max(0, seats - 2) * 3.75
+      ).toFixed(2),
   },
 });

@@ -37,5 +37,6 @@ export interface IWebUser {
   subscribe?:boolean;
   department?:string
   lastLogin?: Date;
-  isVerified?:number
+  isVerified?:number;
+  extraPermissions: Record<string, string[]>;
 }

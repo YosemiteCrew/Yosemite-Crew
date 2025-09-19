@@ -16,7 +16,7 @@ import { getData, postData } from "@/app/axios-services/services";
 import Swal from "sweetalert2";
 // import { useAuth } from "@/app/Context/AuthContext";
 import "./InviteTeamMembers.css";
-import { useAuthStore } from "@/app/stores/authStore";
+import { useOldAuthStore } from "@/app/stores/oldAuthStore";
 import { convertFromFhirDepartment } from "@yosemite-crew/fhir";
 // Bulk Invite Modal Component
 type Member = {
@@ -146,7 +146,7 @@ function BulkInviteModal({
 }
 
 function InviteTeamMembers() {
-  const { userId } = useAuthStore();
+  const { userId } = useOldAuthStore();
   const [modalShow, setModalShow] = useState(false);
   const [errors, setErrors] = useState<
     Record<number, Partial<Record<keyof (typeof members)[0], string>>>

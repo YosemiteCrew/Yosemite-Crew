@@ -1,5 +1,5 @@
 "use client";
-import React, {useState, ReactNode, FormEvent } from "react";
+import React, { useState, ReactNode, FormEvent } from "react";
 import Footer from "@/app/Components/Footer/Footer";
 import "./HomePage.css";
 import { Container } from "react-bootstrap";
@@ -10,10 +10,9 @@ import { MdOutlineAccessTimeFilled } from "react-icons/md";
 import Header from "@/app/Components/Header/Header";
 
 function HomePage() {
-   const [isLoggedIn] = useState(false);
+  const [isLoggedIn] = useState(false);
   return (
     <>
-     
       <section className="HomeHeroSection">
         <Container>
           <div className="HeroData">
@@ -30,10 +29,11 @@ function HomePage() {
                   <p>
                     <Image
                       aria-hidden
-                      src="/Images/petfoot.png"
+                      src="https://d2il6osz49gpup.cloudfront.net/Images/petfootblue.png"
                       alt="petfoot"
                       width={20}
                       height={20}
+                      color=""
                     />{" "}
                     Open source, cloud-based system
                   </p>
@@ -42,7 +42,7 @@ function HomePage() {
                   <p>
                     <Image
                       aria-hidden
-                      src="/Images/petfoot.png"
+                      src="https://d2il6osz49gpup.cloudfront.net/Images/petfootblue.png"
                       alt="petfoot"
                       width={20}
                       height={20}
@@ -54,7 +54,7 @@ function HomePage() {
                   <p>
                     <Image
                       aria-hidden
-                      src="/Images/petfoot.png"
+                      src="https://d2il6osz49gpup.cloudfront.net/Images/petfootblue.png"
                       alt="petfoot"
                       width={20}
                       height={20}
@@ -66,7 +66,7 @@ function HomePage() {
                   <p>
                     <Image
                       aria-hidden
-                      src="/Images/petfoot.png"
+                      src="https://d2il6osz49gpup.cloudfront.net/Images/petfootblue.png"
                       alt="petfoot"
                       width={20}
                       height={20}
@@ -77,7 +77,11 @@ function HomePage() {
               </div>
 
               <div className="HeroBtn">
-                <FillBtn icon={<IoIosFlash />} text=" Get Started" href='/signup' />
+                <FillBtn
+                  icon={<IoIosFlash />}
+                  text=" Get Started"
+                  href="/signup"
+                />
                 <UnFillBtn
                   icon={<MdOutlineAccessTimeFilled />}
                   text="Book a Demo"
@@ -88,7 +92,7 @@ function HomePage() {
             <div className="RytHeroDiv">
               <Image
                 aria-hidden
-                src="/Images/HeroBg.png"
+                src="https://d2il6osz49gpup.cloudfront.net/Images/HeroBg.png"
                 alt="Hero"
                 width={733}
                 height={564}
@@ -108,49 +112,49 @@ function HomePage() {
             </div>
             <div className="Practice_Box_Data">
               <BoxPract
-                Bpimg="/Images/pract1.png"
+                Bpimg="https://d2il6osz49gpup.cloudfront.net/Images/pract1.png"
                 BpTxt1="Appointment"
                 BpTxt2="Scheduling"
                 BpPara="Easily manage bookings, cancellations, and reminders to minimize no-shows."
               />
               <BoxPract
-                Bpimg="/Images/pract2.png"
+                Bpimg="https://d2il6osz49gpup.cloudfront.net/Images/pract2.png"
                 BpTxt1="Medical Records"
                 BpTxt2="Management"
                 BpPara="Organize animal data, treatment history, and prescriptions in one secure platform."
               />
               <BoxPract
-                Bpimg="/Images/pract3.png"
+                Bpimg="https://d2il6osz49gpup.cloudfront.net/Images/pract3.png"
                 BpTxt1="Client"
                 BpTxt2="Communication"
                 BpPara="Send automated reminders, updates, and follow-up messages via email or text."
               />
               <BoxPract
-                Bpimg="/Images/pract4.png"
+                Bpimg="https://d2il6osz49gpup.cloudfront.net/Images/pract4.png"
                 BpTxt1="Billing &"
                 BpTxt2="Payments"
-                BpPara=""
+                BpPara="Generate invoices, process payments, and track financials with ease."
               />
               <BoxPract
-                Bpimg="/Images/pract5.png"
+                Bpimg="https://d2il6osz49gpup.cloudfront.net/Images/pract5.png"
                 BpTxt1="Invoicing"
                 BpTxt2="Management"
                 BpPara="Automate finance with invoicing, quick payments, downpayments, split payments, and refunds."
               />
               <BoxPract
-                Bpimg="/Images/pract6.png"
+                Bpimg="https://d2il6osz49gpup.cloudfront.net/Images/pract6.png"
                 BpTxt1="Pet Parent"
                 BpTxt2="App"
                 BpPara="Give clients a vet-in-your-pocket with a dedicated app for reminders, medical records, and invoices—all in one."
               />
               <BoxPract
-                Bpimg="/Images/pract7.png"
+                Bpimg="https://d2il6osz49gpup.cloudfront.net/Images/pract7.png"
                 BpTxt1="Report &"
                 BpTxt2="Analytics"
                 BpPara="Monitor practice performance with detailed insights into appointments, revenue, and client retention."
               />
               <BoxPract
-                Bpimg="/Images/pract8.png"
+                Bpimg="https://d2il6osz49gpup.cloudfront.net/Images/pract8.png"
                 BpTxt1="Inventory"
                 BpTxt2="Management"
                 BpPara="Keep track of stock levels, place orders, and receive notifications when supplies are low."
@@ -173,36 +177,36 @@ function HomePage() {
 
             <div className="Focus_data">
               <FocusCard
-                Focimg="/Images/focus1.png"
+                Focimg="https://d2il6osz49gpup.cloudfront.net/Images/focus1.png"
                 focname="API-Driven"
                 focpara="Seamlessly integrate with external tools and systems, offering flexible data sharing and connectivity."
               />
               <FocusCard
-                Focimg="/Images/focus2.png"
+                Focimg="https://d2il6osz49gpup.cloudfront.net/Images/focus2.png"
                 focname="Own Your Software"
-                focpara="With Yosemite Crew’s GPL license, you own the software—SaaS simplicity with Open Source freedom and no vendor lock-in."
+                focpara="With Yosemite Crew’s GPL license, you own the software, SaaS simplicity with Open Source freedom and no vendor lock-in."
               />
               <FocusCard
-                Focimg="/Images/focus3.png"
+                Focimg="https://d2il6osz49gpup.cloudfront.net/Images/focus3.png"
                 focname="Automated Workflows"
                 focpara="Automate invoicing, appointment scheduling, and reminders, freeing up your team to focus on what matters most."
               />
               <FocusCard
-                Focimg="/Images/focus4.png"
+                Focimg="https://d2il6osz49gpup.cloudfront.net/Images/focus4.png"
                 focname="Secure & Compliant"
                 focpara="Built with GDPR, SOC2, and ISO 27001 compliance, ensuring the highest standards of security and trust."
               />
               <FocusCard
-                Focimg="/Images/focus5.png"
+                Focimg="https://d2il6osz49gpup.cloudfront.net/Images/focus5.png"
                 focname="Scalable"
-                focpara="Grow with confidence – whether you're a small clinic or a multi-location practice, our software evolves with your needs."
+                focpara="Grow with confidence, whether you're a small clinic or a multi-location practice, our software evolves with your needs."
               />
             </div>
           </div>
         </Container>
       </section>
 
-      <section className="TrustExpertSec">
+      {/* <section className="TrustExpertSec">
         <Container>
           <div className="ExptMaindata">
             <div className="ExprtTexted">
@@ -220,7 +224,7 @@ function HomePage() {
                 <div className="expertBio">
                   <Image
                     aria-hidden
-                    src={`${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/Homepage/exprt1.png`}
+                    src={`https://d2il6osz49gpup.cloudfront.net/Homepage/exprt1.png`}
                     alt="Hero"
                     width={50}
                     height={50}
@@ -244,7 +248,7 @@ function HomePage() {
                 <div className="expertBio purplebio">
                   <Image
                     aria-hidden
-                    src={`${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/Homepage/exprt2.png`}
+                    src={`https://d2il6osz49gpup.cloudfront.net/Homepage/exprt2.png`}
                     alt="Hero"
                     width={50}
                     height={50}
@@ -269,7 +273,7 @@ function HomePage() {
                 <div className="expertBio greenbio">
                   <Image
                     aria-hidden
-                    src={`${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/Homepage/exprt3.png`}
+                    src={`https://d2il6osz49gpup.cloudfront.net/Homepage/exprt3.png`}
                     alt="Hero"
                     width={50}
                     height={50}
@@ -285,7 +289,7 @@ function HomePage() {
             </div>
           </div>
         </Container>
-      </section>
+      </section> */}
 
       <section className="WhoCareSection">
         <Container>
@@ -305,29 +309,29 @@ function HomePage() {
               <div className="carelog">
                 <Image
                   aria-hidden
-                  src="/Images/cllog1.png"
+                  src="https://d2il6osz49gpup.cloudfront.net/Images/cllog1.png"
                   alt="cllog1"
                   width={109}
                   height={112}
                 />
                 <Image
                   aria-hidden
-                  src="/Images/ftlog2-2.png"
+                  src="https://d2il6osz49gpup.cloudfront.net/Images/ftlog2-2.png"
                   alt="cllog2"
                   width={115}
                   height={114}
                 />
-                
+
                 <Image
                   aria-hidden
-                  src="/Images/cllog3.png"
+                  src="https://d2il6osz49gpup.cloudfront.net/Images/cllog3.png"
                   alt="cllog3"
                   width={124}
                   height={137}
                 />
                 <Image
                   aria-hidden
-                  src="/Images/cllog4.png"
+                  src="https://d2il6osz49gpup.cloudfront.net/Images/cllog4.png"
                   alt="cllog4"
                   width={175}
                   height={42}
@@ -344,7 +348,9 @@ function HomePage() {
             <div className="lftbetter">
               <div className="betInner">
                 <div className="careText">
-                  <h2>Better Care is just a <br /> click away</h2>
+                  <h2>
+                    Better Care is just a <br /> click away
+                  </h2>
                   <p>
                     Join hundreds of veterinary clinics already enhancing
                     patient care and streamlining their workflow.
@@ -354,7 +360,13 @@ function HomePage() {
               </div>
             </div>
             <div className="lftbetter">
-              <Image aria-hidden src={`${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/Homepage/betterimg.png`} alt="betterimg" width={507} height={433} />
+              <Image
+                aria-hidden
+                src={`https://d2il6osz49gpup.cloudfront.net/Homepage/betterimg.png`}
+                alt="betterimg"
+                width={507}
+                height={433}
+              />
             </div>
           </div>
         </Container>
@@ -385,7 +397,7 @@ export function FillBtn({ icon, text, onClick, href, style }: ButtonProps) {
       onClick={(e) => {
         if (onClick) {
           e.preventDefault(); // ✅ stops immediate navigation
-          onClick(e);         // ✅ trigger your handler
+          onClick(e); // ✅ trigger your handler
         }
       }}
       style={style}
@@ -394,7 +406,7 @@ export function FillBtn({ icon, text, onClick, href, style }: ButtonProps) {
     </Link>
   );
 }
-export function UnFillBtn({ icon, text,href,onClick, style }: ButtonProps) {
+export function UnFillBtn({ icon, text, href, onClick, style }: ButtonProps) {
   return (
     <Link className="UnFillbtn" href={href} onClick={onClick} style={style}>
       {icon} {text}

@@ -51,7 +51,7 @@ function DeveloperLanding() {
             <div className="RytDevBanr ">
               <Image
                 className="floating"
-                src="/Images/devlogin.png"
+                src="https://d2il6osz49gpup.cloudfront.net/Images/devlogin.png"
                 alt="devlogin"
                 width={694}
                 height={560}
@@ -77,7 +77,7 @@ function DeveloperLanding() {
                 </p>
               </div>
               <Image
-                src="/Images/devchose1.png"
+                src="https://d2il6osz49gpup.cloudfront.net/Images/devchose1.png"
                 alt="devchose1"
                 width={200}
                 height={140}
@@ -85,7 +85,7 @@ function DeveloperLanding() {
             </div>
             <div className="DevCrewBox crewbox2">
               <Image
-                src="/Images/devchose2.png"
+                src="https://d2il6osz49gpup.cloudfront.net/Images/devchose2.png"
                 alt="devchose2"
                 width={120}
                 height={120}
@@ -107,7 +107,7 @@ function DeveloperLanding() {
                 </p>
               </div>
               <Image
-                src="/Images/devchose3.png"
+                src="https://d2il6osz49gpup.cloudfront.net/Images/devchose3.png"
                 alt="devchose3"
                 width={184}
                 height={184}
@@ -115,7 +115,7 @@ function DeveloperLanding() {
             </div>
             <div className="DevCrewBox crewbox4">
               <Image
-                src="/Images/devchose4.png"
+                src="https://d2il6osz49gpup.cloudfront.net/Images/devchose4.png"
                 alt="devchose4"
                 width={102}
                 height={102}
@@ -130,7 +130,7 @@ function DeveloperLanding() {
             </div>
             <div className="DevCrewBox crewbox5">
               <Image
-                src="/Images/devchose5.png"
+                src="https://d2il6osz49gpup.cloudfront.net/Images/devchose5.png"
                 alt="devchose5"
                 width={92}
                 height={92}
@@ -152,7 +152,7 @@ function DeveloperLanding() {
                 </p>
               </div>
               <Image
-                src="/Images/devchose6.png"
+                src="https://d2il6osz49gpup.cloudfront.net/Images/devchose6.png"
                 alt="devchose6"
                 width={129}
                 height={100}
@@ -203,7 +203,7 @@ function DeveloperLanding() {
             <div className="RytSimpleStep">
               <div className="Stepitems">
                 <Image
-                  src="/Images/devstep1.png"
+                  src="https://d2il6osz49gpup.cloudfront.net/Images/devstep1.png"
                   alt="devstep1"
                   width={48}
                   height={164}
@@ -215,7 +215,7 @@ function DeveloperLanding() {
               </div>
               <div className="Stepitems">
                 <Image
-                  src="/Images/devstep2.png"
+                  src="https://d2il6osz49gpup.cloudfront.net/Images/devstep2.png"
                   alt="devstep2"
                   width={48}
                   height={164}
@@ -227,7 +227,7 @@ function DeveloperLanding() {
               </div>
               <div className="Stepitems">
                 <Image
-                  src="/Images/devstep3.png"
+                  src="https://d2il6osz49gpup.cloudfront.net/Images/devstep3.png"
                   alt="devstep3"
                   width={48}
                   height={48}
@@ -293,7 +293,7 @@ function DeveloperLanding() {
             </div>
             <div className="RytBuild">
               <Image
-                src={`${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/Devlperlanding/devlpbuild.png`}
+                src={`https://d2il6osz49gpup.cloudfront.net/Devlperlanding/devlpbuild.png`}
                 alt="devlpbuild"
                 width={507}
                 height={433}

@@ -9,7 +9,7 @@ import { HeadingDiv } from "../BusinessDashboard/BusinessDashboard";
 import DashboardTodayAppointmentsTable from "@/app/Components/DataTable/DashboardTodayAppointmentsTable";
 // import { FaCalendar } from "react-icons/fa6";
 // import CalendarCard from "@/app/Components/CalendarCard/CalendarCard";
-import { useAuthStore } from "@/app/stores/authStore";
+import { useOldAuthStore } from "@/app/stores/oldAuthStore";
 import { getData, putData } from "@/app/axios-services/services";
 import Swal from "sweetalert2";
 import { EmergencyAppointForm } from "../Emergency/EmergencyAppointment/EmergencyAppointment";
@@ -37,7 +37,7 @@ interface doctors {
 }
 
 function DoctorDashboard() {
-  const { vetAndTeamsProfile, userId, fetchVetAndTeamsProfile, userType } = useAuthStore();
+  const { vetAndTeamsProfile, userId, fetchVetAndTeamsProfile, userType } = useOldAuthStore();
   const [available, setAvailable] = useState(true);
   const [addNewLead, setAddNewLead] = useState(false);
   const [options, setOptions] = useState<doctors[]>([{ value: "", label: "", dep: "" }]);
@@ -267,7 +267,7 @@ function DoctorDashboard() {
                 {userType === "vet" ? (
                   <Link href="#" onClick={() => setAddNewLead(true)}>
                     <Image
-                      src="/Images/stact1.png"
+                      src="https://d2il6osz49gpup.cloudfront.net/Images/stact1.png"
                       alt="stact1"
                       width={24}
                       height={24}

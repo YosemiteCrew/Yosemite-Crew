@@ -10,7 +10,7 @@ import RoundCommonTabs from "@/app/Components/RoundCommonTabs/RoundCommonTabs";
 import CardiologyTable from "@/app/Components/DataTable/CardiologyTable";
 import ManageInviteTable from "@/app/Components/DataTable/ManageInviteTable";
 import { getData } from "@/app/axios-services/services";
-import { useAuthStore } from "@/app/stores/authStore";
+import { useOldAuthStore } from "@/app/stores/oldAuthStore";
 import { convertFromFhirTeamMembers, fromFhirTeamOverview } from "@yosemite-crew/fhir";
 import { TeamMember, TeamOverview } from "@yosemite-crew/types";
 import { Button, Form } from "react-bootstrap";
@@ -23,7 +23,7 @@ function toTitleCase(str: string): string {
 }
 
 function PracticeTeam() {
-  const { userId } = useAuthStore();
+  const { userId } = useOldAuthStore();
 
   const [departmentWiseTeam, setDepartmentWiseTeam] = useState<Record<string, TeamMember[]> >({});
 
