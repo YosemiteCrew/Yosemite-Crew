@@ -1,5 +1,3 @@
-// The FINAL and COMPLETE code for src/types/api.ts
-
 export interface PetDetails {
   id: string;
   name: string;
