@@ -1,82 +1,36 @@
-"use client"
-import React, {useState, useEffect} from 'react'
-import "./PetOwner.css"
-import { Container } from 'react-bootstrap'
-import Link from 'next/link'
-import { Icon } from '@iconify/react/dist/iconify.js'
-import Footer from '@/app/Components/Footer/Footer'
-import Image from 'next/image'
+import React from "react";
+import { Container } from "react-bootstrap";
+import Image from "next/image";
+import Link from "next/link";
+import { Icon } from "@iconify/react/dist/iconify.js";
+
+import Footer from "@/app/Components/Footer/Footer";
+
+import "./PetOwner.css";
 
 function PetOwner() {
-
-    const [happyOwners, setHappyOwners] = useState(0);
-    const [appointments, setAppointments] = useState(0);
-    const [petsAdded, setPetsAdded] = useState(0);
-    const happyOwnersTarget = 10000;
-    const appointmentsTarget = 5000;
-    const petsAddedTarget = 8000;
-    const increment = 50; // Adjust increment speed for smoother effect
-    const interval = 20; // Interval time in ms
-    useEffect(() => {
-        const intervalId = setInterval(() => {
-            setHappyOwners((prev) => Math.min(prev + increment, happyOwnersTarget));
-            setAppointments((prev) => Math.min(prev + increment, appointmentsTarget));
-            setPetsAdded((prev) => Math.min(prev + increment, petsAddedTarget));
-        }, interval);
-
-        return () => clearInterval(intervalId);
-    }, []);
-
-    const formatCount = (value: number, target: number) =>
-        value === target ? `${target / 1000}K+` : value;
-    
   return (
     <>
-
       <div className="DownlodeBody">
-
         {/* DownlodeSec */}
-        <section className='DownlodeSec'>
-            <Container>
-                <div className="Downlode_Data">
-
-                    <div className="downlodetext">
-                        <h1>
-                        Your Pet’s Health, <br /> <span>in Your Hands</span>
-                        </h1>
-                        <p>
-                        Manage your pet’s health, schedule vet appointments, set
-                        reminders, and more—all in one app.
-                        </p>
-                        <PetDownBtn />
-
-                    </div>
-                    {/* <div className="downlodeReview">
-                      <div className="reviewItems">
-                          <h6>{formatCount(happyOwners, 10000)}</h6>
-                          <p>Happy Pet Owners</p>
-                      </div>
-                      <div className="reviewItems">
-                          <h6>{formatCount(appointments, 5000)}</h6>
-                          <p>Appointments Scheduled</p>
-                      </div>
-                      <div className="reviewItems" >
-                          <h6>{formatCount(petsAdded, 8000)}</h6>
-                          <p>Pets Added</p>
-                      </div>
-                    </div> */}
-
-                </div>
-
-
-
-
-
-
-            </Container>
+        <section className="DownlodeSec">
+          <Container>
+            <div className="Downlode_Data">
+              <div className="downlodetext">
+                <h1>
+                  Your Pet’s Health, <br /> <span>in Your Hands</span>
+                </h1>
+                <p>
+                  Manage your pet’s health, schedule vet appointments, set
+                  reminders, and more—all in one app.
+                </p>
+                <PetDownBtn />
+              </div>
+            </div>
+          </Container>
         </section>
 
-        <section className='PetToolkitSec'>
+        <section className="PetToolkitSec">
           <Container>
             <div className="ToolkitData">
               <div className="ToolkitHead">
@@ -84,7 +38,11 @@ function PetOwner() {
               </div>
               <div className="ToolkitCard">
                 <div className="CardToolItem">
-                  <Icon icon="solar:calendar-mark-bold" width="150" height="150" />
+                  <Icon
+                    icon="solar:calendar-mark-bold"
+                    width="150"
+                    height="150"
+                  />
                   <h6>Book and Manage Vet Appointments</h6>
                 </div>
                 <div className="CardToolItem">
@@ -100,7 +58,11 @@ function PetOwner() {
                   <h6>Medication and Health Monitoring</h6>
                 </div>
                 <div className="CardToolItem">
-                  <Icon icon="solar:chat-round-like-bold" width="150" height="150" />
+                  <Icon
+                    icon="solar:chat-round-like-bold"
+                    width="150"
+                    height="150"
+                  />
                   <h6>Medication and Health Monitoring</h6>
                 </div>
               </div>
@@ -115,26 +77,50 @@ function PetOwner() {
           </div>
           <div className="PawsPrasData">
             <div className="BrownDiv">
-              <Image aria-hidden src="https://d2il6osz49gpup.cloudfront.net/Images/Paws1.png"  alt="Paws1"  width={1516} height={294} />
+              <Image
+                aria-hidden
+                src="https://d2il6osz49gpup.cloudfront.net/Images/Paws1.png"
+                alt="Paws1"
+                width={1516}
+                height={294}
+              />
             </div>
             <div className="PurpleDiv">
-              <Image aria-hidden src="https://d2il6osz49gpup.cloudfront.net/Images/Paws2.png"  alt="Paws2"  width={1516} height={234} />
+              <Image
+                aria-hidden
+                src="https://d2il6osz49gpup.cloudfront.net/Images/Paws2.png"
+                alt="Paws2"
+                width={1516}
+                height={234}
+              />
             </div>
             <div className="GreenDiv">
-              <Image aria-hidden src="https://d2il6osz49gpup.cloudfront.net/Images/Paws3.png"  alt="Paws3"  width={1516} height={246} />
+              <Image
+                aria-hidden
+                src="https://d2il6osz49gpup.cloudfront.net/Images/Paws3.png"
+                alt="Paws3"
+                width={1516}
+                height={246}
+              />
             </div>
           </div>
         </section>
 
         {/* Glimps Sec  */}
-        <section className='GlimpseSec'>
+        <section className="GlimpseSec">
           <Container>
             <div className="GlimsData">
               <div className="GlimpsHead">
                 <h2>A Glimpse of Paw-sibilities</h2>
               </div>
               <div className="GlimpsImage">
-                <Image aria-hidden src="https://d2il6osz49gpup.cloudfront.net/Images/glimpsimg.png"  alt="glimpsimg"  width={1291} height={917} />
+                <Image
+                  aria-hidden
+                  src="https://d2il6osz49gpup.cloudfront.net/Images/glimpsimg.png"
+                  alt="glimpsimg"
+                  width={1291}
+                  height={917}
+                />
               </div>
             </div>
           </Container>
@@ -157,43 +143,60 @@ function PetOwner() {
                 <PetDownBtn />
               </div>
               <div className="RytpetApp">
-                <Image aria-hidden src="https://d2il6osz49gpup.cloudfront.net/Images/petapppic.png"  alt="petapppic"  width={569} height={569} />
+                <Image
+                  aria-hidden
+                  src="https://d2il6osz49gpup.cloudfront.net/Images/petapppic.png"
+                  alt="petapppic"
+                  width={569}
+                  height={569}
+                />
               </div>
             </div>
           </Container>
         </section>
-
       </div>
 
-      <Footer/>
-
-
-
+      <Footer />
     </>
-  )
+  );
 }
 
-export default PetOwner
+export default PetOwner;
 
+interface PetDownBtnProps {
+  launched?: boolean;
+}
+export function PetDownBtn({ launched = false }: Readonly<PetDownBtnProps>) {
+  if (!launched) {
+    return (
+      <div className="ComingSoonBtn">
+        <Icon
+          icon={"solar:star-bold"}
+          width="18"
+          height="18"
+          color="#fff"
+          className="ComingSoonStar"
+        />
+        <h3>Coming Soon</h3>
+      </div>
+    );
+  }
 
-
-export function PetDownBtn() {
   return (
     <div className="PetAppBtn">
       <Link href="#">
         <Icon icon="basil:apple-solid" width="29" height="29" />
         <span>
-            <p>Download on the</p> 
-            <h6>App Store</h6>
+          <p>Download on the</p>
+          <h6>App Store</h6>
         </span>
       </Link>
       <Link href="#">
         <Icon icon="ion:logo-google-playstore" width="29" height="29" />
         <span>
-          <p>Get it on</p> 
+          <p>Get it on</p>
           <h6>Google Play</h6>
         </span>
-        
       </Link>
     </div>
   );
