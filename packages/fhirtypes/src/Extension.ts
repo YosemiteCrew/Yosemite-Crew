@@ -1,8 +1,3 @@
-/*
- * This is a generated file
- * Do not edit manually.
- */
-
 /**
  * Optional Extension Element - found in all resources.
  */
