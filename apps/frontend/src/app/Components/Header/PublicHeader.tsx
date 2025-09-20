@@ -11,6 +11,7 @@ import { NavItem } from "./HeaderInterfaces";
 const publicNavItems: NavItem[] = [
   { label: "Home", href: "/" },
   { label: "PMS", href: "/homepage" },
+  { label: "Application", href: "/petowner" },
   { label: "Developers", href: "/developerlanding" },
   // { label: "Resources", href: "/resources" },
   { label: "About Us", href: "/about_us" },
