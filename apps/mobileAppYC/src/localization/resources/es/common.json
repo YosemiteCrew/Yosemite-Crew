@@ -60,6 +60,7 @@
     "go_back": "Volver"
   },
   "profile": {
+    "user": "Usuario",
     "settings": "Configuración",
     "support": "Soporte",
     "dark_mode": "Modo Oscuro",
@@ -68,7 +69,13 @@
     "help_support": "Ayuda y Soporte",
     "privacy_policy": "Política de Privacidad",
     "rate_app": "Calificar App",
-    "version": "Versión {{version}}"
+    "version": "Versión {{version}}",
+    "select_language": "Seleccionar Idioma",
+    "logout_confirmation": "¿Estás seguro de que quieres cerrar sesión?",
+    "notifications_message": "La configuración de notificaciones se configuraría aquí.",
+    "help_message": "Contacta a nuestro equipo de soporte en support@petcare.com",
+    "privacy_message": "Ve nuestra política de privacidad en petcare.com/privacy",
+    "rate_message": "¡Gracias por usar nuestra app! Por favor califícanos en la App Store."
   },
   "common": {
     "loading": "Cargando...",
@@ -84,7 +91,10 @@
     "try_again": "Intentar de nuevo",
     "ok": "OK",
     "yes": "Sí",
-    "no": "No"
+    "no": "No",
+    "on": "Activado",
+    "off": "Desactivado",
+    "sign_out": "Cerrar Sesión"
   },
   "validation": {
     "email_required": "El correo electrónico es requerido",

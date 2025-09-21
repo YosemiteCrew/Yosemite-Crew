@@ -1,9 +1,11 @@
+// src/navigation/types.ts - Updated navigation types
 import {NavigatorScreenParams} from '@react-navigation/native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {BottomTabScreenProps} from '@react-navigation/bottom-tabs';
 
-// Root Stack Navigator
+// Root Stack Navigator - Add Onboarding
 export type RootStackParamList = {
+  Onboarding: undefined;
   Auth: NavigatorScreenParams<AuthStackParamList>;
   Main: NavigatorScreenParams<TabParamList>;
 };
