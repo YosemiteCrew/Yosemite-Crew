@@ -734,6 +734,9 @@ importers:
       '@react-native/eslint-config':
         specifier: 0.81.4
         version: 0.81.4(eslint@8.57.1)(jest@29.7.0)(prettier@2.8.8)(typescript@5.8.3)
+      '@react-native/eslint-plugin':
+        specifier: ^0.81.1
+        version: 0.81.1
       '@react-native/metro-config':
         specifier: 0.81.4
         version: 0.81.4(@babel/core@7.28.4)
@@ -753,7 +756,7 @@ importers:
         specifier: ^19.1.0
         version: 19.1.0
       eslint:
-        specifier: ^8.19.0
+        specifier: ^8.57.1
         version: 8.57.1
       jest:
         specifier: ^29.6.3
@@ -5433,6 +5436,11 @@ packages:
   /@react-native/eslint-plugin@0.78.1:
     resolution: {integrity: sha512-J8tiNhMQi7CQfMLB8bJQEONPc99qmhHyPN/qbukpWrSMHBhBOgYDdOA+BX16bIwZWtShGm38jFS2jPa5U96qtg==}
     engines: {node: '>=18'}
+    dev: true
+
+  /@react-native/eslint-plugin@0.81.1:
+    resolution: {integrity: sha512-uo/3+yz7IpHRBnZOyvWBGQgPSzXqLyBlRRGsAG5s5wHK+8B1+sbUd3JeZn11A01KnZtYry7kBPJ59IpHk1Hn4g==}
+    engines: {node: '>= 20.19.4'}
     dev: true
 
   /@react-native/eslint-plugin@0.81.4:
