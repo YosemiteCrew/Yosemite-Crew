@@ -22,6 +22,7 @@ export interface Theme {
     transparent: string;
     overlay: string;
        black: string;
+       white: string;
   };
   typography: typeof typography;
   spacing: typeof spacing;
@@ -49,6 +50,7 @@ export const lightTheme: Theme = {
     transparent: colors.transparent,
     overlay: colors.overlay,
     black: colors.black,
+    white: colors.white,
   },
   typography,
   spacing,
@@ -76,6 +78,7 @@ export const darkTheme: Theme = {
     transparent: colors.transparent,
     overlay: colors.overlayLight,
     black: colors.black,
+    white: colors.white,
   },
   typography,
   spacing,

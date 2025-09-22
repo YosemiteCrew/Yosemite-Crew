@@ -11,6 +11,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../hooks';
+import {
+  createGlassFallback,
+  LiquidGlassButton,
+} from '@/components/common/LiquidGlassButton/LiquidGlassButton';
 
 const { width, height } = Dimensions.get('window');
 
@@ -122,7 +126,12 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
         {renderDots()}
 
         {/* Bottom Image */}
-        <View style={[styles.bottomImageContainer, { height: height * item.bottomImageHeight }]}>
+        <View
+          style={[
+            styles.bottomImageContainer,
+            { height: height * item.bottomImageHeight },
+          ]}
+        >
           <Image
             source={item.bottomImage}
             style={styles.bottomImage}
@@ -133,17 +142,24 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
         {/* Get Started Button (only on last slide) */}
         {isLastSlide && (
           <View style={styles.getStartedContainer}>
-            <TouchableOpacity
+
+            <LiquidGlassButton
+              title="Get Started"
+              variant="glass"
+              glassEffect="clear"
               style={styles.getStartedButton}
-              onPress={onComplete}
-              activeOpacity={0.8}
-            >
-              <Image
-                source={require('../../assets/images/onboarding/get-started-button.png')}
-                style={styles.getStartedImage}
-                resizeMode="contain"
-              />
-            </TouchableOpacity>
+              borderRadius="full"
+              height={60}
+              tintColor="#302F2E"
+              width={width * 0.45}
+              glassFallbackStyle={createGlassFallback.frosted(
+                '#302F2E',
+                1,
+                9999,
+              )}
+              textStyle={styles.getStartedText}
+              onPress={() => onComplete()}
+            />
           </View>
         )}
       </View>
@@ -226,23 +242,27 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
       width: width * 0.7,
       height: 60,
     },
+    getStartedText: {
+      ...theme.typography.h5,
+      color: theme.colors.white,
+    },
   });
 
   return (
-  <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-    <FlatList
-      ref={flatListRef}
-      data={onboardingData}
-      renderItem={renderOnboardingItem}
-      keyExtractor={item => item.id}
-      horizontal
-      pagingEnabled
-      showsHorizontalScrollIndicator={false}
-      onViewableItemsChanged={onViewableItemsChanged}
-      viewabilityConfig={viewabilityConfig}
-      bounces={false}
-      scrollEventThrottle={16}
-    />
-  </SafeAreaView>
-);
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <FlatList
+        ref={flatListRef}
+        data={onboardingData}
+        renderItem={renderOnboardingItem}
+        keyExtractor={item => item.id}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
+        bounces={false}
+        scrollEventThrottle={16}
+      />
+    </SafeAreaView>
+  );
 };
