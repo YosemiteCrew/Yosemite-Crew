@@ -595,6 +595,9 @@ importers:
 
   apps/mobileAppYC:
     dependencies:
+      '@callstack/liquid-glass':
+        specifier: ^0.4.1
+        version: 0.4.1(react-native@0.81.4)(react@19.1.0)
       '@hookform/resolvers':
         specifier: ^5.2.2
         version: 5.2.2(react-hook-form@7.63.0)
@@ -3317,6 +3320,16 @@ packages:
     resolution: {integrity: sha512-pqqKaeLB8R6BvyegcpI9gAyY6Xyx1bKYfWvIGOvIbTpguWyM1BBBVcT9DCeGe8Zw7Ujp5K56ci7isRUrT2Uadg==}
     dependencies:
       '@calcom/embed-core': 1.5.3
+    dev: false
+
+  /@callstack/liquid-glass@0.4.1(react-native@0.81.4)(react@19.1.0):
+    resolution: {integrity: sha512-h4b1yQwrKcR/8cKEiBPKq7QcKphIDQafG9hDsizuBbBJT6pavg2L0D9eW0gSOIbmu9G8quJRXW5gxUejloJFkA==}
+    peerDependencies:
+      react: '*'
+      react-native: '*'
+    dependencies:
+      react: 19.1.0
+      react-native: 0.81.4(@babel/core@7.28.4)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.1.13)(react@19.1.0)
     dev: false
 
   /@callstack/react-theme-provider@3.0.9(react@19.0.0):
