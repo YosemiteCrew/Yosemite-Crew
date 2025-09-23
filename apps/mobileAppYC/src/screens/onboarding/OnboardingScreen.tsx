@@ -1,11 +1,10 @@
+/* eslint-disable react-native/no-inline-styles */
 import React, { useState, useRef } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   Dimensions,
   FlatList,
-  TouchableOpacity,
   Image,
   ViewToken,
 } from 'react-native';
@@ -42,7 +41,7 @@ const onboardingData: OnboardingItem[] = [
     id: '2',
     textImage: require('../../assets/images/onboarding/text-image-2.png'),
     bottomImage: require('../../assets/images/onboarding/bottom-image-2.png'),
-    textImageWidth: 0.65, // 70% of screen width for slide 2
+    textImageWidth: 0.85, // 70% of screen width for slide 2
     bottomImageHeight: 0.55, // 55% of screen height for slide 2
   },
   {
