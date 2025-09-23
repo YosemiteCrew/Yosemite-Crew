@@ -1,10 +1,10 @@
+import { ContactPoint } from './ContactPoint';
 import { Extension } from './Extension';
 
 /**
- * A human-readable summary of the resource conveying the essential
- * clinical and business information for the resource.
+ * Specifies contact information for a person or organization.
  */
-export interface Narrative {
+export interface ContactDetail {
 
   /**
    * Unique id for the element within a resource (for internal references).
@@ -23,16 +23,13 @@ export interface Narrative {
   extension?: Extension[];
 
   /**
-   * The status of the narrative - whether it's entirely generated (from
-   * just the defined data or the extensions too), or whether a human
-   * authored it and it may contain additional data.
+   * The name of an individual to contact.
    */
-  status: 'generated' | 'extensions' | 'additional' | 'empty';
+  name?: string;
 
   /**
-   * The actual narrative content, a stripped down version of XHTML.
+   * The contact details for the individual (if a name was provided) or the
+   * organization.
    */
-  div: string;
-
+  telecom?: ContactPoint[];
 }
-
