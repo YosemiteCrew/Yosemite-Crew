@@ -1,7 +1,7 @@
 import { Address } from './Address';
 import { CodeableConcept } from './CodeableConcept';
 import { ContactPoint } from './ContactPoint';
-import { Endpoint } from './Endpoint';
+// import { Endpoint } from './Endpoint';
 import { Extension } from './Extension';
 import { HumanName } from './HumanName';
 import { Identifier } from './Identifier';
@@ -146,7 +146,7 @@ export interface Organization {
    * Technical endpoints providing access to services operated for the
    * organization.
    */
-  endpoint?: Reference<Endpoint>[];
+  // endpoint?: Reference<Endpoint>[];
 }
 
 /**
