@@ -101,4 +101,6 @@ yarn-error.log
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
-*/.scannerwork
+
+# local sonar reports
+**/.scannerwork
