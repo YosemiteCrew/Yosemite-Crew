@@ -12,7 +12,7 @@ const ProfileApi = {
       console.error("Error fetching business profile:", error);
       throw error;
     }
-  }, 
+  },
   getVetAndTeamsProfile: async(userId:string)=>{
     try {
       const response = await getData(`/fhir/v1/getDoctors/?userId=${userId}`);
@@ -24,4 +24,3 @@ const ProfileApi = {
 }
 
 export default ProfileApi;
-
