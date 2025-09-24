@@ -189,6 +189,172 @@ importers:
         specifier: ^8.32.1
         version: 8.44.0(eslint@9.35.0)(typescript@5.0.4)
 
+  apps/backend:
+    dependencies:
+      '@aws-sdk/client-cognito-identity-provider':
+        specifier: 3.772.0
+        version: 3.772.0
+      '@aws-sdk/client-pinpoint':
+        specifier: ^3.806.0
+        version: 3.883.0
+      '@aws-sdk/client-s3':
+        specifier: ^3.842.0
+        version: 3.883.0
+      '@aws-sdk/client-ses':
+        specifier: ^3.839.0
+        version: 3.883.0
+      aws-sdk:
+        specifier: 2.1692.0
+        version: 2.1692.0
+      axios:
+        specifier: ^1.11.0
+        version: 1.11.0
+      bcrypt:
+        specifier: 5.1.1
+        version: 5.1.1
+      body-parser:
+        specifier: 1.20.3
+        version: 1.20.3
+      cookie-parser:
+        specifier: 1.4.7
+        version: 1.4.7
+      cors:
+        specifier: 2.8.5
+        version: 2.8.5
+      csv-parse:
+        specifier: ^5.6.0
+        version: 5.6.0
+      dotenv:
+        specifier: 16.4.7
+        version: 16.4.7
+      express:
+        specifier: 4.21.2
+        version: 4.21.2
+      express-fileupload:
+        specifier: 1.5.1
+        version: 1.5.1
+      express-rate-limit:
+        specifier: ^7.5.0
+        version: 7.5.1(express@4.21.2)
+      fhir:
+        specifier: 4.12.0
+        version: 4.12.0
+      google-auth-library:
+        specifier: ^10.2.0
+        version: 10.3.0
+      jsonwebtoken:
+        specifier: 9.0.2
+        version: 9.0.2
+      jwks-rsa:
+        specifier: ^3.2.0
+        version: 3.2.0
+      moment:
+        specifier: 2.30.1
+        version: 2.30.1
+      moment-timezone:
+        specifier: ^0.5.48
+        version: 0.5.48
+      mongoose:
+        specifier: 8.12.2
+        version: 8.12.2
+      multer:
+        specifier: 2.0.2
+        version: 2.0.2
+      sanitize-filename:
+        specifier: ^1.6.3
+        version: 1.6.3
+      socket.io:
+        specifier: 4.8.1
+        version: 4.8.1
+      uuid:
+        specifier: 9.0.1
+        version: 9.0.1
+      validator:
+        specifier: ^13.15.0
+        version: 13.15.15
+      winston:
+        specifier: ^3.17.0
+        version: 3.17.0
+      zod:
+        specifier: ^3.24.2
+        version: 3.25.76
+    devDependencies:
+      '@eslint/js':
+        specifier: ^9.21.0
+        version: 9.35.0
+      '@types/aws-sdk':
+        specifier: ^2.7.4
+        version: 2.7.4
+      '@types/bcrypt':
+        specifier: ^5.0.2
+        version: 5.0.2
+      '@types/body-parser':
+        specifier: ^1.19.5
+        version: 1.19.6
+      '@types/cookie-parser':
+        specifier: ^1.4.8
+        version: 1.4.9(@types/express@5.0.3)
+      '@types/cors':
+        specifier: ^2.8.18
+        version: 2.8.19
+      '@types/express':
+        specifier: ^5.0.2
+        version: 5.0.3
+      '@types/express-fileupload':
+        specifier: ^1.5.1
+        version: 1.5.1
+      '@types/express-rate-limit':
+        specifier: ^6.0.2
+        version: 6.0.2(express@4.21.2)
+      '@types/jsonwebtoken':
+        specifier: ^9.0.9
+        version: 9.0.10
+      '@types/mongoose':
+        specifier: ^5.11.97
+        version: 5.11.97
+      '@types/multer':
+        specifier: ^1.4.12
+        version: 1.4.13
+      '@types/node':
+        specifier: ^22.15.21
+        version: 22.18.1
+      '@types/socket.io':
+        specifier: ^3.0.2
+        version: 3.0.2
+      '@types/uuid':
+        specifier: ^10.0.0
+        version: 10.0.0
+      '@types/validator':
+        specifier: ^13.15.2
+        version: 13.15.3
+      '@yosemite-crew/fhir':
+        specifier: workspace:^
+        version: link:../../packages/fhir
+      '@yosemite-crew/types':
+        specifier: workspace:^
+        version: link:../../packages/types
+      esbuild:
+        specifier: ^0.25.4
+        version: 0.25.9
+      eslint:
+        specifier: ^9.27.0
+        version: 9.35.0
+      nodemon:
+        specifier: ^3.1.9
+        version: 3.1.10
+      ts-node:
+        specifier: ^10.9.2
+        version: 10.9.2(@types/node@22.18.1)(typescript@5.0.4)
+      tsx:
+        specifier: ^4.19.4
+        version: 4.20.5
+      typescript:
+        specifier: 5.0.4
+        version: 5.0.4
+      typescript-eslint:
+        specifier: ^8.32.1
+        version: 8.42.0(eslint@9.35.0)(typescript@5.0.4)
+
   apps/frontend:
     dependencies:
       '@calcom/embed-react':
@@ -7243,6 +7409,14 @@ packages:
     resolution: {integrity: sha512-VmgwQJZgL/LQjk049JunzRV1YCa0vDi+BNEpbDmr5cp3lGZllq9QQFO1eI71ZPzvFVn3vvhb+eOif4sAEyGgbw==}
     dependencies:
       '@editorjs/dom': 1.0.1
+    dev: false
+
+  /@dabh/diagnostics@2.0.3:
+    resolution: {integrity: sha512-hrlQOIi7hAfzsMqlGSFyVucrx38O+j6wiGOf//H2ecvIEqYN4ADBSS2iLMh5UFyDunCNniUIPk/q3riFv45xRA==}
+    dependencies:
+      colorspace: 1.1.4
+      enabled: 2.0.0
+      kuler: 2.0.0
     dev: false
 
   /@editorjs/checklist@1.6.0:
@@ -15715,6 +15889,10 @@ packages:
     resolution: {integrity: sha512-AKrN98kuwOzMIdAizXGI86UFBoo26CL21UM763y1h/GMSJ4/OHU9k2YlsmBpyScFo/wbLzWQJBMCW4+IO3/+OQ==}
     dev: false
 
+  /enabled@2.0.0:
+    resolution: {integrity: sha512-AKrN98kuwOzMIdAizXGI86UFBoo26CL21UM763y1h/GMSJ4/OHU9k2YlsmBpyScFo/wbLzWQJBMCW4+IO3/+OQ==}
+    dev: false
+
   /encodeurl@1.0.2:
     resolution: {integrity: sha512-TPJXq8JqFaVYm2CWmPvnP2Iyo4ZSM7/QKcSmuMLDObfpH5fi7RUGmd/rTDf+rut/saiDiQEeVTNgAmJEdAOx0w==}
     engines: {node: '>= 0.8'}
@@ -23622,6 +23800,10 @@ packages:
       b4a: 1.7.1
     transitivePeerDependencies:
       - react-native-b4a
+
+  /text-hex@1.0.0:
+    resolution: {integrity: sha512-uuVGNWzgJ4yhRaNSiubPY7OjISw4sw4E5Uv0wbjp+OzcbmVU/rsT8ujgcXJhn9ypzsgr5vlzpPqP+MBBKcGvbg==}
+    dev: false
 
   /text-hex@1.0.0:
     resolution: {integrity: sha512-uuVGNWzgJ4yhRaNSiubPY7OjISw4sw4E5Uv0wbjp+OzcbmVU/rsT8ujgcXJhn9ypzsgr5vlzpPqP+MBBKcGvbg==}
