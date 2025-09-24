@@ -64,7 +64,7 @@ function MainLandingPage() {
                   href="/bookDemo"
                 />
                 <UnFillBtn
-                  href="/homepage"
+                  href="/pms"
                   icon={
                     <Icon icon="solar:bill-check-bold" width="24" height="24" />
                   }
@@ -139,7 +139,7 @@ function MainLandingPage() {
                     save time, and offer superior care to their clients.
                   </p>
                 </div>
-                <Link href="/homepage">
+                <Link href="/pms">
                   {" "}
                   <Icon
                     icon="solar:bill-check-bold"
@@ -186,7 +186,7 @@ function MainLandingPage() {
                     communication with their vets.
                   </p>
                 </div>
-                <Link href="/petowner">
+                <Link href="/application">
                   {" "}
                   <Icon
                     icon="solar:bill-check-bold"
@@ -276,7 +276,7 @@ function MainLandingPage() {
                     new veterinary solutions.
                   </p>
                 </div>
-                <Link href="/developerlanding">
+                <Link href="/developers">
                   {" "}
                   <Icon
                     icon="solar:bill-check-bold"
