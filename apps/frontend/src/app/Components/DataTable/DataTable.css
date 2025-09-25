@@ -3,11 +3,11 @@
   flex-direction: column;
   gap: 24px;
 }
-.table-footerBtn{
+.table-footerBtn {
   display: flex;
   justify-content: center;
 }
-.table-footerBtn button{
+.table-footerBtn button {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -24,20 +24,20 @@
   cursor: pointer;
   letter-spacing: 1.1px;
 }
-.table-footerBtn button:hover{
+.table-footerBtn button:hover {
   background: var(--black-bg);
   color: var(--white-text);
 }
 
 /* ScheduleTable Started  */
 
-.PetImg{
+.PetImg {
   border-radius: 50%;
   object-fit: cover;
   object-position: center;
   border: 0.67px solid var(--blue-text);
 }
-.userinfo{
+.userinfo {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -47,10 +47,10 @@
   font-weight: 700;
   font-family: var(--satoshi-font);
 }
-.userinfo span svg{
+.userinfo span svg {
   font-size: 13px;
 }
-.ActionEyes{
+.ActionEyes {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -60,20 +60,18 @@
   background: var(--lightgrey);
   border: none !important;
 }
-.ActionEyes svg{
+.ActionEyes svg {
   font-size: 24px;
   color: var(--notibg);
 }
-.ActionEyes:hover{
+.ActionEyes:hover {
   background: var(--black-grey1);
 }
-.ActionEyes:hover svg{
+.ActionEyes:hover svg {
   color: var(--whitebg);
 }
 
 /* ScheduleTable Ended  */
-
-
 
 /* PracticeTeam Table Started  */
 
@@ -102,8 +100,6 @@
 
 /* PracticeTeam Table Endead  */
 
-
-
 /* Inventry Table Started  */
 
 .inv-name-cell {
@@ -127,9 +123,6 @@
 }
 
 /* Inventry Table Ended  */
-
-
-
 
 .status-col {
   display: flex;
@@ -182,17 +175,21 @@
   color: #555;
 }
 
-
-
 /* Todays Appointemnt started  */
-.displx{
+.displx {
   display: flex;
   align-items: center;
   gap: 8px;
 }
-.action-btn-col button.circle-btn{
+.action-btn-col{
+  display: inline-flex;
+  align-items: center;
+  width: max-content;
+  gap: 8px;
+}
+.action-btn-col button.circle-btn {
   padding: 0;
-  background: transparent ;
+  background: transparent;
   border: none;
   border-radius: 50%;
   width: 40px;
@@ -201,23 +198,23 @@
   align-items: center;
   justify-content: center;
 }
-.action-btn-col button.circle-btn.done{
+.action-btn-col button.circle-btn.done {
   background: var(--checkbg);
 }
-.action-btn-col button.circle-btn.done svg{
+.action-btn-col button.circle-btn.done svg {
   color: var(--lightgreen);
 }
-.action-btn-col button.circle-btn.view{
+.action-btn-col button.circle-btn.view {
   background: var(--whitebg);
   border: 0.83px solid var(--black-bg);
 }
-.action-btn-col button.circle-btn.view svg{
+.action-btn-col button.circle-btn.view svg {
   color: var(--black-bg);
 }
-.action-btn-col button.circle-btn.cancel{
+.action-btn-col button.circle-btn.cancel {
   background: var(--errorbg);
 }
-.action-btn-col button.circle-btn.cancel svg{
+.action-btn-col button.circle-btn.cancel svg {
   color: var(--delete);
 }
 
@@ -225,13 +222,13 @@
 
 /* Cardiolgy Started  */
 
-.Cardiologybtn{
+.Cardiologybtn {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
 }
-.Cardiologybtn button{
+.Cardiologybtn button {
   width: 40px;
   height: 40px;
   border-radius: 50px;
@@ -241,26 +238,26 @@
   background: var(--greenopt) !important;
   border: 1px solid var(--greenopt) !important;
 }
-.Cardiologybtn button.red{
+.Cardiologybtn button.red {
   background: var(--redopacity) !important;
   border: 1px solid var(--redopacity) !important;
 }
-.Cardiologybtn button:hover{
+.Cardiologybtn button:hover {
   background: var(--greenopt) !important;
   border: 1px solid var(--greenopt) !important;
 }
-.Cardiologybtn button.red:hover{
+.Cardiologybtn button.red:hover {
   background: var(--redopacity) !important;
   border: 1px solid var(--redopacity) !important;
 }
-.Cardiologybtn button svg{
+.Cardiologybtn button svg {
   color: var(--avilbleText);
 }
-.Cardiologybtn button.red svg{
+.Cardiologybtn button.red svg {
   color: var(--delete);
 }
 
-.CardilogyStatus h6{
+.CardilogyStatus h6 {
   background: var(--avilblebg);
   border-radius: 8px;
   padding: 10px;
@@ -275,23 +272,23 @@
   color: var(--avilbleText);
   margin: 0;
 }
-.CardilogyStatus h6.on-break{
+.CardilogyStatus h6.on-break {
   background: var(--halforange) !important;
   color: var(--darkFawn) !important;
 }
-.CardilogyStatus h6.on-Consulting{
+.CardilogyStatus h6.on-Consulting {
   background: var(--counslingbg) !important;
   color: var(--counslingtext) !important;
 }
-.CardilogyStatus h6.on-duty{
+.CardilogyStatus h6.on-duty {
   background: var(--offdutybg) !important;
   color: var(--black-text) !important;
 }
-.CardilogyStatus h6.on-pending{
+.CardilogyStatus h6.on-pending {
   background: var(--pendingbg) !important;
   color: var(--pendingtext) !important;
 }
-.CardilogyStatus h6.on-expire{
+.CardilogyStatus h6.on-expire {
   background: var(--errorbg) !important;
   color: var(--delete) !important;
 }
@@ -358,24 +355,20 @@
 
 /* AddItemsTable Started  */
 
-.TableDropdownWrapper{
+.TableDropdownWrapper {
   display: flex;
   flex-direction: column;
   gap: 18px;
 }
-.StatementsTopBar{
+.StatementsTopBar {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-
-
-
 /* AddItemsTable Ended */
 
-
-.add-items-table-wrapper{
+.add-items-table-wrapper {
   display: flex;
   flex-direction: column;
   gap: 36px;
@@ -396,10 +389,10 @@
   background: var(--whitebg);
   border: 1px solid var(--black-bg);
 }
-.add-items-table-wrapper .action-btn svg{
+.add-items-table-wrapper .action-btn svg {
   color: var(--black-text);
 }
-.add-items-table-wrapper .action-btn.Save{
+.add-items-table-wrapper .action-btn.Save {
   color: var(--blue-text);
   border-radius: 0%;
   text-decoration: none;
@@ -435,7 +428,7 @@
   align-items: center;
   justify-content: center;
 }
-.table-footerBtn button{
+.table-footerBtn button {
   background: var(--black-bg);
   color: var(--white-text);
   display: flex;
@@ -450,15 +443,15 @@
   font-size: 21px;
   line-height: 120%;
   border: 1px solid var(--black-bg) !important;
-  &:hover{
-      background: transparent;
-      color: var(--black-text);
+  &:hover {
+    background: transparent;
+    color: var(--black-text);
   }
 }
 
-.Procedureselect button{
+.Procedureselect button {
   width: 100%;
-  border: 1px solid #37223CB2;
+  border: 1px solid #37223cb2;
   min-height: 48px;
   border-radius: 12px;
   outline: none;
@@ -468,18 +461,18 @@
   align-items: center;
   justify-content: space-between;
 }
-.Procedureselect button h6{
+.Procedureselect button h6 {
   font-family: var(--grotesk-font);
   font-weight: 400;
   font-size: 15px;
   line-height: 120%;
-  white-space: nowrap; 
-  max-width: 180px; 
+  white-space: nowrap;
+  max-width: 180px;
   text-overflow: ellipsis;
-  overflow : hidden; 
+  overflow: hidden;
 }
-.prcedureInput{
-  border: 1px solid #37223CB2 !important;
+.prcedureInput {
+  border: 1px solid #37223cb2 !important;
   min-height: 48px !important;
   border-radius: 12px !important;
   outline: none !important;
@@ -494,12 +487,12 @@
 
 /* All Apointment table Started  */
 
-.TableTopTexed{
+.TableTopTexed {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
-.TableTopTexed .LeftTopTbl h3{
+.TableTopTexed .LeftTopTbl h3 {
   margin: 0;
   font-family: var(--grotesk-font);
   font-weight: 500;
@@ -510,12 +503,12 @@
 
 /* All Apointment table Ended */
 
-.ConstBtn{
+.ConstBtn {
   display: flex;
   align-items: center;
   gap: 12px;
 }
-.ConstBtn button{
+.ConstBtn button {
   padding: 0;
   background: transparent !important;
   border: none !important;
@@ -524,25 +517,25 @@
 
 /* Task Table  */
 
-.removebtn{
+.removebtn {
   background: transparent !important;
   padding: 0 !important ;
   line-height: 0px !important;
   border: none !important;
 }
-.text-ellipsis{
-  white-space: nowrap; 
-  max-width: 115px; 
+.text-ellipsis {
+  white-space: nowrap;
+  max-width: 115px;
   text-overflow: ellipsis;
-  overflow : hidden; 
+  overflow: hidden;
 }
-.TaskStatusDiv{
+.TaskStatusDiv {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
 }
-.TaskStatus h6{
+.TaskStatus h6 {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -566,28 +559,114 @@
   background: var(--light-blue);
   color: var(--black-text);
 }
-.TaskStatus h6.on-complete span.dots{
+.TaskStatus h6.on-complete span.dots {
   background: var(--blue-text);
 }
 .TaskStatus h6.on-progress {
   background: var(--pendingbg);
   color: var(--black-text);
 }
-.TaskStatus h6.on-progress span.dots{
+.TaskStatus h6.on-progress span.dots {
   background: var(--pendingtext);
 }
 .TaskStatus h6.on-pending {
   background: var(--errorbg);
   color: var(--black-text);
 }
-.TaskStatus h6.on-pending span.dots{
+.TaskStatus h6.on-pending span.dots {
   background: var(--delete);
 }
 
-
-
-.apointment-actions{
+.apointment-actions {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.InviteDetails {
+  color: var(--yc-updated, #302f2e);
+  font-family: var(--satoshi-font);
+  font-size: 15px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 24px; /* 160% */
+  letter-spacing: -0.3px;
+}
+.InviteTime {
+  color: var(--yc-updated, #302f2e);
+  font-family: var(--satoshi-font);
+  font-size: 15px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 24px; /* 160% */
+  letter-spacing: -0.3px;
+}
+.InviteExpires {
+  color: var(--yc-updated, #302f2e);
+  font-family: var(--satoshi-font);
+  font-size: 15px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 24px; /* 160% */
+  letter-spacing: -0.3px;
+}
+
+.OrgListDetails {
+  color: var(--yc-upated-contrat1, #247aed);
+  font-size: 15px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 24px; /* 160% */
+  letter-spacing: -0.3px;
+  font-family: var(--satoshi-font);
+  cursor: pointer;
+}
+
+.OrgStatus {
+  display: flex;
+  padding: 8px;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  border-radius: 8px;
+  background: var(--pendingbg, #fef3e9);
+  color: var(--pendingtext, #f68523);
+  font-family: var(--satoshi-font);
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 120%; /* 18px */
+  letter-spacing: -0.3px;
+}
+
+.OrgListDetailsCol {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+}
+
+.action-btn {
+  display: flex;
+  min-width: 80px;
+  width: fit-content;
+  padding: 10px 16px;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  border-radius: 28px;
+  border: 1.5px solid var(--Color-Palette-Jet-jet-500, #302f2e);
+  cursor: pointer;
+}
+
+.action-btn-text {
+  color: var(#302f2e);
+  text-align: center;
+  font-family: var(--grotesk-font);
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 120%; /* 19.2px */
+  letter-spacing: -0.32px;
 }

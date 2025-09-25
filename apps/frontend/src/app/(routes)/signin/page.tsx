@@ -11,15 +11,11 @@ function Page() {
 
   useEffect(() => {
     if (user) {
-      router.push("/emptydashboard");
+      router.push("/organizations");
     }
   }, [user, router]);
 
-  return (
-    <>
-      <SignIn />
-    </>
-  );
+  return <SignIn />;
 }
 
 export default Page;
