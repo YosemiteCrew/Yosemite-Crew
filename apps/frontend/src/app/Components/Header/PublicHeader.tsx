@@ -10,9 +10,9 @@ import { NavItem } from "./HeaderInterfaces";
 
 const publicNavItems: NavItem[] = [
   { label: "Home", href: "/" },
-  { label: "PMS", href: "/pms" },
-  { label: "Application", href: "/application" },
-  { label: "Developers", href: "/developers" },
+  { label: "Pet Business", href: "/homepage" },
+  { label: "Pet Parent", href: "/petowner" },
+  { label: "Developers", href: "/developerlanding" },
   // { label: "Resources", href: "/resources" },
   { label: "About Us", href: "/about" },
   { label: "Pricing", href: "/pricing" },

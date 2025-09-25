@@ -101,6 +101,5 @@ yarn-error.log
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
-
-# local sonar reports
-**/.scannerwork
+*/.scannerwork
+apps/mobileAppYC/ios/mobileAppYC.xcodeproj/project.pbxproj

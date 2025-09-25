@@ -41,7 +41,7 @@ function GenericTable<T extends object>({
    
   return (
     <>
-      <Table hover responsive bordered={bordered} className="TableDiv mb-3">
+      <Table responsive bordered={bordered} className="TableDiv mb-3">
         <thead>
           <tr>
             {columns.map((col) => (

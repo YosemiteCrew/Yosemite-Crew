@@ -2,7 +2,7 @@
   "extends": "@react-native/typescript-config/tsconfig.json",
   "compilerOptions": {
     "allowJs": true,
-    "strict": false,
+    "strict": true,
     "skipLibCheck": true,
     "types": ["react", "react-native", "jest"],
     "baseUrl": ".",
