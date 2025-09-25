@@ -1,12 +1,8 @@
-import InviteTeamMembers from '@/app/Pages/InviteTeamMembers/InviteTeamMembers'
-import React from 'react'
+import InviteTeamMembers from "@/app/Pages/InviteTeamMembers/InviteTeamMembers";
+import React from "react";
 
 function page() {
-  return (
-    <>
-    <InviteTeamMembers/>
-    </>
-  )
+  return <InviteTeamMembers />;
 }
 
-export default page
+export default page;

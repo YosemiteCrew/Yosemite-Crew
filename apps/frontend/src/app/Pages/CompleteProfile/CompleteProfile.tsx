@@ -469,7 +469,7 @@ getDpartments()
                                   htmlFor="logo-upload"
                                   className="upload-label"
                                 >
-                                  {image && sanitizedPreview ? (
+                                  {/* {image && sanitizedPreview ? (
                                     <Image
                                       src={sanitizedPreview}
                                       alt="Preview"
@@ -487,7 +487,7 @@ getDpartments()
                                         height={40}
                                       />
                                     </div>
-                                  )}
+                                  )} */}
                                 </label>
                                 <h5>Add Profile Picture</h5>
                                 {showValidation && errors.image && (
