@@ -1,4 +1,5 @@
 import dotenv from "dotenv";
+import logger from "../utils/logger";
 dotenv.config();
 import { Request, Response } from "express";
 import dayjs from "dayjs";
@@ -394,14 +395,14 @@ const HospitalController = {
       };
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       const fhirData: unknown = normalToFHIRForTable(normalData);
-      console.log("FHIR:", fhirData);
+     // logger.info("FHIR:", fhirData);
       res.status(200).json({
         message: "Data fetched successfully",
         fhirData,
       });
     } catch (error) {
       const err = error as Error;
-      console.error("Error fetching appointments:", err);
+      logger.error("Error fetching appointments:", err);
       res.status(500).json({
         message: "An error occurred while fetching appointments.",
         error: process.env.NODE_ENV === "development" ? err.message : "Internal server error",
@@ -1055,13 +1056,13 @@ const HospitalController = {
   //           });
 
   //           // const averageRaing = await AddDoctors.feedback({})
-  //           console.log("aggregation", aggregation, organizationId);
+  //           logger.info("aggregation", aggregation, organizationId);
   //           const overview = {
   //             totalDoctors,
   //             totalSpecializations: aggregation,
   //             availableDoctors,
   //           };
-  //           console.log("overview", overview);
+  //           logger.info("overview", overview);
 
   //           const data = new FHIRConverter(overview).overviewConvertToFHIR();
   //           return res.status(200).json(JSON.stringify(data));
@@ -1270,7 +1271,7 @@ const HospitalController = {
   //                 : 0,
   //             newPetsCount: uniquePetCount,
   //           };
-  //           console.log("result", result);
+  //           logger.info("result", result);
   //           const data = new FHIRConverter(result).overviewConvertToFHIR();
 
   //           return res.status(200).json({
@@ -1765,14 +1766,14 @@ const HospitalController = {
   getAppointmentsForHospitalDashboard: async (req: Request, res: Response) => {
     const { caseType } = req.query;
 
-    // console.log(type, "type", req)
+    // logger.info(type, "type", req)
     // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HOSPITAL DASHBOARD APPOINTMENT LIST >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     switch (caseType) {
       case "AppointmentLists":
         if (req.method === "GET") {
           try {
             const { organization, offset = 0, limit = 10 } = req.query;
-            console.log("organization", organization);
+          //  logger.info("organization", organization);
 
             // Validate organization (UUID or ObjectId allowed)
             if (
@@ -2106,7 +2107,7 @@ const HospitalController = {
               page?: string;
               limit?: string;
             };
-            // console.log("hello", userId, page, limit);
+            // logger.info("hello", userId, page, limit);
             const pageNumber: number = parseInt(page, 10);
             const limitNumber: number = parseInt(limit, 10);
             const skip: number = (pageNumber - 1) * limitNumber;
@@ -2511,7 +2512,7 @@ const HospitalController = {
               { $skip: skip },
               { $limit: limitNumber },
             ]);
-            console.log("cancelledAppointments", cancelledAppointments);
+           // logger.info("cancelledAppointments", cancelledAppointments);
             const formattedAppointments = cancelledAppointments.map((appointment: any) => ({
               ...appointment,
               appointmentDate: `${daysMap[appointment.appointmentDay]}, ${appointment.appointmentDate}`,

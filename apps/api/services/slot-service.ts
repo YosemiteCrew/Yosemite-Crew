@@ -102,7 +102,7 @@ const SlotService = {
     }
 
     const slotsData: DoctorSlotDocument[] = await DoctorsTimeSlotes.find({ doctorId, day });
-console.log(slotsData,'data');
+    // console.log(slotsData,'data');
     if (!slotsData.length) {
       return { resourceType: "Bundle", type: "collection", entry: [] };
     }
@@ -221,7 +221,7 @@ console.log(slotsData,'data');
         }
         return slotObj;
       });
-console.log(availableSlots,'availableSlots');
+    // console.log(availableSlots,'availableSlots');
     return {
       resourceType: "Bundle",
       type: "collection",
