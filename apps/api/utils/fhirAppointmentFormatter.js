@@ -11,7 +11,7 @@ class fhirAppointmentFormatter{
     petName,
     document,
   }) {
-    console.log(document);
+   // console.log(document);
   
     return {
       resourceType: "Appointment",

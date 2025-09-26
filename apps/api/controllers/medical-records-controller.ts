@@ -1,4 +1,5 @@
 import  { Request, Response } from 'express';
+import logger from '../utils/logger';
 import medicalRecords from '../models/medical-records-model';
 import FHIRMedicalRecordService from '../services/fHIRMedicalRecordService';
 import mongoose from 'mongoose';
@@ -276,7 +277,7 @@ const medicalRecordsController = {
       });
       return
     } catch (error: unknown) {
-      console.error("medicalRecordList Error:", error);
+      logger.error("medicalRecordList Error:", error);
       const message = error instanceof Error ? error.message : 'Unknown error'
       res.status(200).json({
         status: 0,
@@ -349,7 +350,7 @@ const medicalRecordsController = {
         entry: fhirRecords.map(resource => ({ resource })),
       });
     } catch (error: unknown) {
-      console.error("getMedicalUnreadRecords Error:", error);
+      logger.error("getMedicalUnreadRecords Error:", error);
       const message = error instanceof Error ? error.message : 'Unknown error'
       res.status(200).json({
         status: 0,
@@ -433,7 +434,7 @@ const medicalRecordsController = {
       });
 
     } catch (error: unknown) {
-      console.error("deleteMedicalRecord Error:", error);
+      logger.error("deleteMedicalRecord Error:", error);
       const message = error instanceof Error ? error.message : 'Unknown error'
       res.status(200).json({
         status: 0,
@@ -454,7 +455,7 @@ const medicalRecordsController = {
       try {
         parsedData = JSON.parse(data);
       } catch (error: unknown) {
-        console.log(error);
+        logger.error(error);
         res.status(200).json({ status: 0, message: "Invalid FHIR JSON data" });
         return;
       }
@@ -739,7 +740,7 @@ const medicalRecordsController = {
 
       };
       await Promise.all(fileUploadPromises);
-      console.log(medicalRecords);
+     // console.log(medicalRecords);
       const newFolder = new MedicalRecordFolderModel({
         folderName: caseFolderName.toLowerCase(),
         folderUrl: folderKey,
@@ -759,7 +760,7 @@ const medicalRecordsController = {
         },
       });
     } catch (error) {
-      console.error("Error creating medical record folder:", error);
+      logger.error("Error creating medical record folder:", error);
       res.status(200).json({
         status: 0,
         message: "Internal server error",
@@ -940,7 +941,7 @@ const medicalRecordsController = {
       return;
     }
     catch (error: unknown) {
-      console.error("getMedicalRecordByFolderId Error:", error);
+      logger.error("getMedicalRecordByFolderId Error:", error);
       const message = error instanceof Error ? error.message : 'Unknown error'
       res.status(200).json({
         status: 0,

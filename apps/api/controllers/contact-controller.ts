@@ -1,4 +1,5 @@
 import { ContactUsBody,  TypedRequestBody } from '@yosemite-crew/types';
+import logger from '../utils/logger';
 import { Response } from 'express';
 import AWS from 'aws-sdk';
 import { getCognitoUserId } from '../middlewares/authMiddleware';
@@ -125,12 +126,12 @@ const contactController = {
         const reqs= JSON.parse(requests)
         
         const userId = getCognitoUserId(req);
-        console.log(userId,'userId');
+       // logger.info(userId,'userId');
         if (!userId) {
           res.status(200).json({ status: 0, message: 'User ID is missing' })
           return;
         }
-                console.log(reqs[0]?.question);
+        // logger.info(reqs[0]?.question);
         const userDetails: { email: string, firstName: string, lastName: string } | null = await AppUser.findOne({ cognitoId: userId })
         if (!userDetails) {
           res.status(200).json({ message: 'user detail not found.' })
@@ -179,7 +180,7 @@ const contactController = {
       }
 
     } catch (error) {
-      console.error('Error sending email:', error);
+      logger.error('Error sending email:', error);
       const message = error instanceof Error ? error.message :'Failed to send email'
       res.status(200).json({ status: 0, error:message});
     }

@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import logger from '../utils/logger';
 import Blog, { IBlog } from '../models/AddBlog';
 import { UploadedFile } from 'express-fileupload';
 import { handleFileUpload } from '../middlewares/upload';
@@ -58,7 +59,7 @@ const BlogController = {
       res.status(201).json(generateFHIRBlogResponse(savedBlog));
 
     } catch (error: any) {
-      console.error('AddBlog error:', error);
+      logger.error('AddBlog error:', error);
       res.status(500).json({ message: 'Failed to add blog', error: error.message });
     }
   },
@@ -77,13 +78,14 @@ const BlogController = {
         filter.topic = topic;
       }
 
-      console.log(filter, "FILTER")
+     // logger.info('Filter applied:', filter);
+
       const blogs: IBlog[] = await Blog.find(filter).sort({ createdAt: -1 });
 
       const data = blogs.map(blog => generateFHIRBlogResponse(blog));
       res.status(200).json(data);
     } catch (error: any) {
-      console.error("GetBlogs error:", error);
+      logger.error("GetBlogs error:", error);
       res.status(500).json({ message: "Failed to fetch blogs", error: error.message });
     }
   },
@@ -120,7 +122,7 @@ const BlogController = {
         },
       });
     } catch (error: any) {
-      console.error("uploadDescriptionImg error:", error);
+      logger.error("uploadDescriptionImg error:", error);
       res.status(500).json({
         success: 0,
         message: "Failed to upload description image.",

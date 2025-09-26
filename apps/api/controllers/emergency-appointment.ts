@@ -1,5 +1,5 @@
-
 import { Request, Response } from "express";
+import logger from "../utils/logger";
 import { emergencyAppointment } from "../models/emergency-appointment";
 import { FHIREmergencyAppointment, FHIRPractitioner, NormalDoctor, NormalEmergencyAppointment, NormalEmergencyAppointmentForTable } from "@yosemite-crew/types";
 import { ProfileData, WebUser } from "../models/WebUser";
@@ -104,7 +104,7 @@ export const emergencyAppointments = {
         data: newAppointment,
       });
     } catch (error) {
-      console.error("Error creating emergency appointment:", error);
+      logger.error("Error creating emergency appointment:", error);
       res.status(500).json({
         message: "Failed to create emergency appointment",
         error: (error as Error).message,
@@ -170,7 +170,7 @@ export const emergencyAppointments = {
       const fhirData: FHIRPractitioner[] = convertDoctorsToFHIR(doctors);
       res.status(200).json({ data: fhirData });
     } catch (error) {
-      console.error(error);
+      logger.error(error);
       res.status(500).json({ message: "Server error", error });
     }
   },
@@ -348,7 +348,7 @@ export const emergencyAppointments = {
       });
 
     } catch (error) {
-      console.error("Error retrieving emergency appointments:", error);
+      logger.error("Error retrieving emergency appointments:", error);
       res.status(500).json({
         message: "Failed to retrieve emergency appointments",
         error: (error as Error).message,
@@ -424,7 +424,7 @@ export const emergencyAppointments = {
           ],
         });
       } catch (error) {
-        console.error("Error updating appointment status:", error);
+        logger.error("Error updating appointment status:", error);
         res.status(500).json({
           resourceType: "OperationOutcome",
           issue: [

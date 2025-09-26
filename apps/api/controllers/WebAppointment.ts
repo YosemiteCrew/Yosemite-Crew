@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import logger from '../utils/logger';
 import validator from "validator";
 import { Request, Response } from "express";
 import pets from "../models/pet.model";
@@ -157,7 +158,7 @@ const webAppointmentController = {
       res.status(200).json({ data: fhirData });
 
     } catch (error) {
-      console.error("Error searching pets:", error);
+      logger.error("Error searching pets:", error);
       const errorResponse: OperationOutcome = {
         resourceType: "OperationOutcome",
         issue: [{
@@ -218,7 +219,7 @@ const webAppointmentController = {
       });
       return
     } catch (error) {
-      console.error("Error fetching doctors by department ID:", error);
+      logger.error("Error fetching doctors by department ID:", error);
       res.status(500).json({
         message: "Internal server error",
         error: (error as Error).message,
@@ -311,8 +312,8 @@ const webAppointmentController = {
         slotsId,
       });
 
-      console.log("info", veterinarian, date, slotsId);
-      console.log("existingAppointment", existingAppointment);
+     // console.log("info", veterinarian, date, slotsId);
+     // console.log("existingAppointment", existingAppointment);
 
       if (existingAppointment) {
         res.status(409).json({ // 409 Conflict
@@ -414,7 +415,7 @@ const webAppointmentController = {
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-      console.error("Error in createWebAppointment:", error);
+      logger.error("Error in createWebAppointment:", error);
       res.status(500).json({
         resourceType: "OperationOutcome",
         issue: [{
@@ -821,7 +822,7 @@ const webAppointmentController = {
 
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const appointments: MyAppointmentData[] = await webAppointments.aggregate(pipeline).allowDiskUse(true);
-      console.log(appointments)
+     // console.log(appointments)
       if (appointments.length === 0) {
         res.status(404).json({ message: "No appointments found", data: [] });
         return;
@@ -1177,7 +1178,7 @@ const webAppointmentController = {
         ],
       });
     } catch (error) {
-      console.error("Error updating appointment status:", error);
+      logger.error("Error updating appointment status:", error);
       res.status(500).json({
         resourceType: "OperationOutcome",
         issue: [
