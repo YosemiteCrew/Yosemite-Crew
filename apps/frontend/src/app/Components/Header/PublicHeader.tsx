@@ -14,9 +14,9 @@ const publicNavItems: NavItem[] = [
   { label: "Pet Parent", href: "/petowner" },
   { label: "Developers", href: "/developerlanding" },
   // { label: "Resources", href: "/resources" },
-  { label: "About Us", href: "/about_us" },
+  { label: "About Us", href: "/about" },
   { label: "Pricing", href: "/pricing" },
-  { label: "Contact Us", href: "/contact_us" },
+  { label: "Contact Us", href: "/contact" },
   // { label: "Blog", href: "/blogpage" },
 ];
 
