@@ -318,7 +318,7 @@ export function NeedHealp() {
           </p>
         </div>
         <div className="helpbtn">
-          <Link href="/contact_us">
+          <Link href="/contact">
             <Icon icon="solar:chat-round-like-bold" width="18" height="18" />{" "}
             Get in Touch
           </Link>

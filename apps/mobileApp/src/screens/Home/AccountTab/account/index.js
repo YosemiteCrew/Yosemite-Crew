@@ -69,7 +69,7 @@ const Account = ({navigation}) => {
       title: t('about_us_string'),
       img: Images.About,
       onAction: () => {
-        Linking.openURL('https://dev.yosemitecrew.com/about_us');
+        Linking.openURL('https://dev.yosemitecrew.com/about');
       },
     },
     {
