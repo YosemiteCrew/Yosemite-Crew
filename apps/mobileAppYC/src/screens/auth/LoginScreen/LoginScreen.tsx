@@ -6,7 +6,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {Button, Input} from '../../../components';
@@ -53,7 +52,7 @@ export const LoginScreen: React.FC<Props> = ({navigation}) => {
     try {
       await login({email: email.trim(), password});
     } catch (err) {
-      Alert.alert('Login Failed', 'Please check your credentials and try again.');
+      console.log(err)
     }
   };
 

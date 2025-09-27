@@ -14,6 +14,10 @@ import { AppNavigator } from './src/navigation';
 import { useTheme } from './src/hooks';
 import CustomSplashScreen from './src/components/common/customSplashScreen/customSplash';
 import './src/localization';
+import outputs from "./amplify_outputs.json";
+import { Amplify } from 'aws-amplify';
+
+Amplify.configure(outputs);
 
 function App(): React.JSX.Element {
   const [isSplashVisible, setIsSplashVisible] = useState(true);
