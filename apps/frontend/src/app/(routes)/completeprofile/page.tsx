@@ -8,9 +8,9 @@ function Page() {
   const type = useOldAuthStore((state) => state.userType)
   const loading = useOldAuthStore((state) => !state.userType) // Add your own loading logic if needed
 
-  if (loading) return <p>Loading profile...</p>
+  // if (loading) return <p>Loading profile...</p>
 
-  return ["veterinaryBusiness", "breedingFacility", "petSitter", "groomerShop"].includes(type as string)? <CompleteProfile /> : <AddVetProfile />
+  return ["veterinaryBusiness", "breedingFacility", "petSitter", "groomerShop"].includes(type as string)? <AddVetProfile /> : <CompleteProfile />
 }
 
 export default Page

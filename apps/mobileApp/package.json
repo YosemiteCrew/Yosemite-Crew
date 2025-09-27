@@ -27,7 +27,7 @@
     "@reduxjs/toolkit": "^2.6.1",
     "aws-sdk": "2.1692.0",
     "axios": "^1.8.4",
-    "i18next": "^24.2.3",
+    "i18next": "^25.4.1",
     "lodash": "^4.17.21",
     "lodash.debounce": "^4.0.8",
     "moment": "2.30.1",
