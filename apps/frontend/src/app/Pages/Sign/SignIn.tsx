@@ -80,64 +80,62 @@ function SignIn() {
   };
 
   return (
-    <>
-      <section className="SignInSec">
-        {ErrorTostPopup}
-        <div className="leftSignIn"></div>
-        <div className="RightSignIn">
-          <div className="SignIninner">
-            <Form onSubmit={handleSignIn}>
-              <div className="TopSignInner">
-                <h2>
-                  Sign in <span>to your account</span>{" "}
-                </h2>
-                <FormInput
-                  intype="email"
-                  inname="email"
-                  value={email}
-                  inlabel="Email Address"
-                  onChange={(e) => setEmail(e.target.value)}
-                  error={inputErrors.email}
-                />
+    <section className="SignInSec">
+      {ErrorTostPopup}
+      <div className="leftSignIn"></div>
+      <div className="RightSignIn">
+        <div className="SignIninner">
+          <Form onSubmit={handleSignIn}>
+            <div className="TopSignInner">
+              <h2>
+                Sign in <span>to your account</span>{" "}
+              </h2>
+              <FormInput
+                intype="email"
+                inname="email"
+                value={email}
+                inlabel="Email Address"
+                onChange={(e) => setEmail(e.target.value)}
+                error={inputErrors.email}
+              />
 
-                <FormInputPass
-                  inPlaceHolder="Enter your password"
-                  intype="password"
-                  inname="password"
-                  value={password}
-                  inlabel="Password"
-                  onChange={(e) => setPassword(e.target.value)}
-                  error={inputErrors.password}
-                />
+              <FormInputPass
+                inPlaceHolder="Enter your password"
+                intype="password"
+                inname="password"
+                value={password}
+                inlabel="Password"
+                onChange={(e) => setPassword(e.target.value)}
+                error={inputErrors.password}
+              />
 
-                <div className="forgtbtn">
-                  <Link href="/forgotpassword">Forgot Password?</Link>
-                </div>
+              <div className="forgtbtn">
+                <Link href="/forgotpassword">Forgot Password?</Link>
               </div>
-              <div className="Signbtn">
-                <MainBtn
-                  btnicon={<GoCheckCircleFill />}
-                  btnname="Sign in"
-                  iconPosition="left"
-                  onClick={handleSignIn}
-                />
-                <h6>
-                  {" "}
-                  Don’t have an account? <Link href="/signup">Sign up.</Link>
-                </h6>
-              </div>
-            </Form>
-          </div>
+            </div>
+            <div className="Signbtn">
+              <MainBtn
+                btnicon={<GoCheckCircleFill />}
+                btnname="Sign in"
+                iconPosition="left"
+                onClick={handleSignIn}
+              />
+              <h6>
+                {" "}
+                Don’t have an account? <Link href="/signup">Sign up.</Link>
+              </h6>
+            </div>
+          </Form>
         </div>
-        <OtpModal
-          email={email}
-          password={password}
-          showErrorTost={showErrorTost}
-          showVerifyModal={showVerifyModal}
-          setShowVerifyModal={setShowVerifyModal}
-        />
-      </section>
-    </>
+      </div>
+      <OtpModal
+        email={email}
+        password={password}
+        showErrorTost={showErrorTost}
+        showVerifyModal={showVerifyModal}
+        setShowVerifyModal={setShowVerifyModal}
+      />
+    </section>
   );
 }
 
