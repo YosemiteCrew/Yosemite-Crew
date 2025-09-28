@@ -87,6 +87,14 @@ export const typography = {
     lineHeight: fontSizes.base * lineHeights.normal,
     fontWeight: fontWeights.medium,
   },
+  paragraph: {
+  fontFamily: fonts.SATOSHI_REGULAR,
+  fontSize: fontSizes.base, // 16
+  lineHeight: fontSizes.base * 1.2, // 19.2
+  fontWeight: fontWeights.normal, // 400
+  letterSpacing: -0.32,
+  textAlign: 'center',
+},
   paragraphBold: {
   fontFamily: fonts.SATOSHI_BOLD,
   fontSize: fontSizes.base, // 16

@@ -16,6 +16,7 @@ import CustomSplashScreen from './src/components/common/customSplashScreen/custo
 import './src/localization';
 import outputs from './amplify_outputs.json';
 import {Amplify} from 'aws-amplify';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 Amplify.configure(outputs);
 
@@ -33,9 +34,11 @@ function App(): React.JSX.Element {
   return (
     <Provider store={store}>
       <SafeAreaProvider>
+        <GestureHandlerRootView style={{ flex: 1 }}>
         <NavigationContainer>
           <AppContent />
         </NavigationContainer>
+        </GestureHandlerRootView>
       </SafeAreaProvider>
     </Provider>
   );
@@ -51,7 +54,9 @@ function AppContent(): React.JSX.Element {
           barStyle={isDark ? 'light-content' : 'dark-content'}
           backgroundColor={theme.colors.background}
         />
+         <GestureHandlerRootView style={{ flex: 1 }}>
         <AppNavigator />
+        </GestureHandlerRootView>
       </SafeAreaProvider>
     </>
   );

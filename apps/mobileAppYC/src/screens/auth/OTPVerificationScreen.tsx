@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import {
   View,
   Text,
@@ -7,10 +7,11 @@ import {
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
-import {SafeArea, OTPInput, SuccessModal} from '../../components/common';
+import {SafeArea, OTPInput} from '../../components/common';
 import {useTheme} from '../../hooks';
 import {Images} from '../../assets/images';
 import LiquidGlassButton from '@/components/common/LiquidGlassButton/LiquidGlassButton';
+import CustomBottomSheet, {BottomSheetRef} from '../../components/common/BottomSheet/BottomSheet';
 
 interface OTPVerificationScreenProps {
   navigation: any;
@@ -29,9 +30,11 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
   const {email} = route.params;
   const [otpCode, setOtpCode] = useState('');
   const [otpError, setOtpError] = useState('');
-  const [showSuccess, setShowSuccess] = useState(false);
   const [countdown, setCountdown] = useState(59);
   const [canResend, setCanResend] = useState(false);
+  
+  // Bottom sheet ref
+  const successBottomSheetRef = useRef<BottomSheetRef>(null);
 
   const styles = createStyles(theme);
 
@@ -54,7 +57,8 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
     setOtpCode(otp);
     // Simulate OTP verification
     if (otp === '1234') {
-      setShowSuccess(true);
+      // Show success bottom sheet
+      successBottomSheetRef.current?.snapToIndex(0);
       setOtpError('');
     } else {
       setOtpError('The codes do not match.');
@@ -78,13 +82,40 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
   };
 
   const handleSuccessClose = () => {
-    setShowSuccess(false);
+    successBottomSheetRef.current?.close();
     navigation.navigate('CreateAccount');
   };
 
   const handleGoBack = () => {
     navigation.goBack();
   };
+
+  const renderSuccessContent = () => (
+    <View style={styles.successContent}>
+      <Image
+        source={Images.verificationSuccess}
+        style={styles.successIllustration}
+        resizeMode="contain"
+      />
+      
+      <Text style={styles.successTitle}>Code verified</Text>
+      
+      <Text style={styles.successMessage}>
+        The code sent to your email{'\n'}
+        <Text style={styles.successEmailText}>{email}</Text> has been successfully verified
+      </Text>
+      
+      <LiquidGlassButton
+        title="Okay"
+        onPress={handleSuccessClose}
+        style={styles.successButton}
+        textStyle={styles.successButtonText}
+        tintColor={theme.colors.secondary}
+        height={56}
+        borderRadius={16}
+      />
+    </View>
+  );
 
   return (
     <SafeArea style={styles.container}>
@@ -161,14 +192,24 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
           )}
         </View>
       </View>
-
-      <SuccessModal
-        visible={showSuccess}
-        onClose={handleSuccessClose}
-        title="Code verified"
-        message={`The code sent to your email\n${email} has been\nsuccessfully verified`}
-        illustration={Images.verificationSuccess}
-      />
+ <View style={styles.bottomSheetContainer}>
+      {/* Success Bottom Sheet */}
+      <CustomBottomSheet
+        ref={successBottomSheetRef}
+        snapPoints={['45%']}
+        initialIndex={-1}
+        enablePanDownToClose={false}
+        enableBackdrop={true}
+        backdropOpacity={0.5}
+        backdropAppearsOnIndex={0}
+        backdropDisappearsOnIndex={-1}
+        backdropPressBehavior="none"
+        backgroundStyle={styles.bottomSheetBackground}
+        handleIndicatorStyle={styles.bottomSheetHandle}
+      >
+        {renderSuccessContent()}
+      </CustomBottomSheet>
+      </View>
     </SafeArea>
   );
 };
@@ -289,5 +330,62 @@ const createStyles = (theme: any) =>
     countdownText: {
       ...theme.typography.paragraphBold,
       color: theme.colors.primary,
+    },
+     // Bottom Sheet Container Styles
+    bottomSheetContainer: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: 9999,
+      elevation: 9999,
+      pointerEvents: 'box-none', // Allow touches to pass through when sheet is closed
+    },
+    // Bottom Sheet Styles
+    bottomSheetBackground: {
+      backgroundColor: theme.colors.background,
+      borderTopLeftRadius: 32,
+      borderTopRightRadius: 32,
+    },
+    bottomSheetHandle: {
+      backgroundColor: theme.colors.black,
+      width: 80,
+      height: 6,
+      opacity: 0.2,
+    },
+    successContent: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 24,
+      paddingBottom: 40,
+    },
+    successIllustration: {
+      height: 170,
+      marginBottom: 24,
+    },
+    successTitle: {
+      ...theme.typography.h3,
+      color: theme.colors.text,
+      textAlign: 'center',
+    },
+    successMessage: {
+      ...theme.typography.paragraph,
+      color: theme.colors.text,
+      textAlign: 'center',
+      lineHeight: 24,
+      marginBottom: 32,
+    },
+    successEmailText: {
+      ...theme.typography.paragraphBold,
+      color: theme.colors.textSecondary,
+    },
+    successButton: {
+      width: '100%',
+    },
+    successButtonText: {
+      color: theme.colors.white,
+      ...theme.typography.paragraphBold,
     },
   });

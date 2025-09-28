@@ -104,7 +104,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation}) => {
               textStyle={styles.sendButtonText}
               tintColor={theme.colors.secondary}
               height={56}
-              borderRadius={28}
+              borderRadius="lg"
             />
 
             <View style={styles.footerContainer}>
@@ -176,13 +176,13 @@ const createStyles = (theme: any) =>
     },
     illustration: {
       width: '100%',
-      height: '55%',
-      marginBottom: 10,
+      height: '60%',
     },
     title: {
       ...theme.typography.h3,
       color: theme.colors.text,
       marginBottom: 30,
+      marginTop: -10,
       textAlign: 'center',
     },
     formContainer: {
@@ -198,7 +198,7 @@ const createStyles = (theme: any) =>
     sendButton: {
       marginBottom: 24,
       height: 52,
-      borderRadius: 26,
+      borderRadius: 16,
     },
     sendButtonText: {
       color: theme.colors.white,
@@ -220,7 +220,7 @@ const createStyles = (theme: any) =>
     },
     // Bottom Section Styles
     bottomSection: {
-      paddingHorizontal: 20,
+      paddingHorizontal: 55,
       paddingBottom: 40,
       paddingTop: 20,
       backgroundColor: theme.colors.background,
@@ -244,10 +244,10 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
-      gap: 20,
+      gap: 10,
     },
     socialTabIcon: {
-      width: 100,
+      width: 110,
       height: 60,
     },
   });
