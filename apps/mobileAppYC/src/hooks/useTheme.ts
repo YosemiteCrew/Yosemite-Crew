@@ -3,7 +3,7 @@ import {useEffect} from 'react';
 import {Appearance} from 'react-native';
 import {RootState, AppDispatch} from '../store';
 import {setTheme, toggleTheme, updateSystemTheme} from '../store/slices/themeSlice';
-import {lightTheme, darkTheme} from '../theme';
+import {lightTheme} from '../theme';
 
 export const useTheme = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -17,7 +17,7 @@ export const useTheme = () => {
     return () => subscription?.remove();
   }, [dispatch]);
 
-  const currentTheme = isDark ? darkTheme : lightTheme;
+  const currentTheme = lightTheme;
 
   return {
     theme: currentTheme,
