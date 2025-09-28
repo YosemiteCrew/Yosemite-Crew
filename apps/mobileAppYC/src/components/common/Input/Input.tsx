@@ -126,7 +126,7 @@ export const Input: React.FC<InputProps> = ({
         inputRange: [0, 1],
         outputRange: [
           Platform.OS === 'ios' ? 18 : 15, // Consistent positioning
-          Platform.OS === 'ios' ? -6 : -8,  // Slightly different for iOS
+          Platform.OS === 'ios' ? -6 : -10,  // Slightly different for iOS
         ],
       }),
       color: animatedValue.interpolate({

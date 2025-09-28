@@ -74,7 +74,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
           <Image
             source={Images.welcomeIllustration}
             style={styles.illustration}
-            resizeMode="cover"
+            resizeMode="contain"
           />
         </View>
 
@@ -91,7 +91,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
               style={styles.emailButton}
               textStyle={styles.emailButtonText}
               height={56}
-              borderRadius={28}
+              borderRadius="lg"
               leftIcon={<EmailIcon />}
             />
 
@@ -101,7 +101,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
               style={styles.socialButton}
               textStyle={styles.socialButtonTextGoogle}
               height={56}
-              borderRadius={28}
+              borderRadius="lg"
               shadowIntensity="medium" // Adds more shadow for visibility
               forceBorder={true}
               leftIcon={<GoogleIcon />}
@@ -113,7 +113,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
               style={styles.facebookButton}
               textStyle={styles.socialButtonText}
               height={56}
-              borderRadius={28}
+              borderRadius="lg"
               leftIcon={<FacebookIcon />}
             />
 
@@ -123,7 +123,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
               style={styles.appleButton}
               textStyle={styles.socialButtonText}
               height={56}
-              borderRadius={28}
+              borderRadius="lg"
               leftIcon={<AppleIcon />}
             />
           </View>
@@ -160,7 +160,7 @@ const createStyles = (theme: any) =>
     },
     mainContent: {
       flex: 1,
-      paddingTop: 32,
+      paddingTop: 12,
       paddingBottom: 40,
       justifyContent: 'space-between',
     },
