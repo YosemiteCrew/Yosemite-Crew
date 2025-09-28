@@ -2,13 +2,13 @@ import React from 'react';
 import {
   TouchableOpacity,
   Text,
-  StyleSheet,
   ViewStyle,
   TextStyle,
   ActivityIndicator,
   PlatformColor,
   Platform,
   DimensionValue,
+  View,
 } from 'react-native';
 import {
   LiquidGlassView,
@@ -16,10 +16,9 @@ import {
 } from '@callstack/liquid-glass';
 import {useTheme} from '../../../hooks';
 
-interface LiquidGlassButtonProps {
-  title: string;
+interface GlassButtonProps {
+  title?: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'glass';
   size?: 'small' | 'medium' | 'large';
   disabled?: boolean;
   loading?: boolean;
@@ -29,35 +28,24 @@ interface LiquidGlassButtonProps {
   interactive?: boolean;
   tintColor?: string;
   colorScheme?: 'light' | 'dark' | 'system';
-  // New props for dimensions
   width?: DimensionValue;
   height?: DimensionValue;
   minWidth?: DimensionValue;
   minHeight?: DimensionValue;
   maxWidth?: DimensionValue;
-  maxHeight?: DimensionValue;
-  // New props for border radius
   borderRadius?: number | keyof typeof import('../../../theme').borderRadius;
-  // New props for custom fallback styling
-  fallbackStyle?: ViewStyle;
-  glassFallbackStyle?: ViewStyle; // Specific fallback for glass variant
-  customGlassFallback?: {
-    backgroundColor?: string;
-    borderColor?: string;
-    borderWidth?: number;
-    borderRadius?: number;
-    shadowColor?: string;
-    shadowOffset?: {width: number; height: number};
-    shadowOpacity?: number;
-    shadowRadius?: number;
-    elevation?: number;
-  };
+  customContent?: React.ReactNode;
+  leftIcon?: React.ReactNode;
+  rightIcon?: React.ReactNode;
+  // Enhanced glass visibility props
+  forceBorder?: boolean; // Force border even with dark colors
+  borderColor?: string; // Custom border color
+  shadowIntensity?: 'none' | 'light' | 'medium' | 'strong'; // Control shadow for visibility
 }
 
-export const LiquidGlassButton: React.FC<LiquidGlassButtonProps> = ({
+export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
   title,
   onPress,
-  variant = 'primary',
   size = 'medium',
   disabled = false,
   loading = false,
@@ -73,9 +61,12 @@ export const LiquidGlassButton: React.FC<LiquidGlassButtonProps> = ({
   minHeight,
   maxWidth,
   borderRadius,
-  fallbackStyle,
-  glassFallbackStyle,
-  customGlassFallback,
+  customContent,
+  leftIcon,
+  rightIcon,
+  forceBorder = false,
+  borderColor,
+  shadowIntensity = 'light',
 }) => {
   const {theme, isDark} = useTheme();
 
@@ -89,21 +80,40 @@ export const LiquidGlassButton: React.FC<LiquidGlassButtonProps> = ({
     return theme.borderRadius.base;
   };
 
+  const isWhiteOrLightColor = (color?: string): boolean => {
+    if (!color) return false;
+    
+    // Check for white variations
+    const whiteColors = ['#ffffff', '#fff', 'white', 'rgba(255,255,255,1)', 'rgba(255, 255, 255, 1)'];
+    if (whiteColors.includes(color.toLowerCase().replace(/\s/g, ''))) return true;
+    
+    // Check for light colors (simplified luminance check)
+    if (color.startsWith('#')) {
+      const hex = color.replace('#', '');
+      const r = parseInt(hex.substr(0, 2), 16);
+      const g = parseInt(hex.substr(2, 2), 16);
+      const b = parseInt(hex.substr(4, 2), 16);
+      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      return luminance > 0.9; // Very light colors
+    }
+    
+    return false;
+  };
+
   const getButtonStyle = (): ViewStyle => {
     const baseStyle: ViewStyle = {
       borderRadius: getBorderRadius(),
       justifyContent: 'center',
       alignItems: 'center',
       flexDirection: 'row',
-      // Add dimension props
       width,
       height,
       minWidth,
       minHeight,
-      maxWidth
+      maxWidth,
+      overflow: 'hidden',
     };
 
-    // Size styles
     const sizeStyles: Record<string, ViewStyle> = {
       small: {
         paddingHorizontal: theme.spacing['3'],
@@ -122,59 +132,56 @@ export const LiquidGlassButton: React.FC<LiquidGlassButtonProps> = ({
       },
     };
 
-    // Default glass fallback styles
-    const getDefaultGlassFallback = (): ViewStyle => {
-      return {
-        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.8)',
-        borderWidth: 1,
-        borderColor: isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.3)',
-        ...theme.shadows.sm,
+    // Enhanced styling for glass effect visibility
+    const getGlassStyle = (): ViewStyle => {
+      const isLightTint = isWhiteOrLightColor(tintColor);
+      
+      const getShadowStyle = () => {
+        if (shadowIntensity === 'none') return {};
+        
+        const shadows = {
+          light: { shadowOpacity: 0.1, shadowRadius: 4, elevation: 1 },
+          medium: { shadowOpacity: 0.15, shadowRadius: 8, elevation: 3 },
+          strong: { shadowOpacity: 0.25, shadowRadius: 12, elevation: 5 },
+        };
+        
+        return {
+          shadowColor: '#000000',
+          shadowOffset: { width: 0, height: 2 },
+          ...shadows[shadowIntensity],
+        };
       };
-    };
+      
+      if (isLiquidGlassSupported) {
+        // For glass effect, add border and shadow to improve visibility
+        const shouldAddBorder = forceBorder || isLightTint;
+        
+        return {
+          borderWidth: shouldAddBorder ? 1 : 0.5,
+          borderColor: borderColor || (isLightTint 
+            ? 'rgba(0, 0, 0, 0.15)' // Dark border for light/white tints
+            : 'rgba(255, 255, 255, 0.2)'), // Light border for dark tints
+          ...(isLightTint || forceBorder ? getShadowStyle() : {}),
+        };
+      }
 
-    // Variant styles
-    const variantStyles: Record<string, ViewStyle> = {
-      primary: {
-        backgroundColor: disabled
-          ? theme.colors.textSecondary
-          : theme.colors.primary,
-      },
-      secondary: {
-        backgroundColor: disabled
-          ? theme.colors.textSecondary
-          : theme.colors.secondary,
-      },
-      outline: {
-        backgroundColor: theme.colors.transparent,
+      // Fallback style when liquid glass is not supported
+      return {
+        backgroundColor: tintColor || (isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 1)'),
         borderWidth: 1,
-        borderColor: disabled ? theme.colors.textSecondary : theme.colors.primary,
-      },
-      ghost: {
-        backgroundColor: theme.colors.transparent,
-      },
-      glass: {
-        // Fallback for non-liquid glass support
-        ...(isLiquidGlassSupported 
-          ? {
-              backgroundColor: theme.colors.transparent,
-              borderWidth: 0,
-              borderColor: 'transparent',
-            }
-          : {
-              ...getDefaultGlassFallback(),
-              ...glassFallbackStyle, // This will override defaults with your custom style
-              ...customGlassFallback, // This will override with detailed custom fallback if provided
-            }
-        ),
-      },
+        borderColor: borderColor || (tintColor 
+          ? (isLightTint ? 'rgba(0, 0, 0, 0.15)' : `${tintColor}40`)
+          : isDark 
+            ? 'rgba(255, 255, 255, 0.2)' 
+            : 'rgba(0, 0, 0, 0.1)'),
+        // ...getShadowStyle(),
+      };
     };
 
     return {
       ...baseStyle,
       ...sizeStyles[size],
-      ...variantStyles[variant],
-      // Apply general fallback style if provided
-      ...(variant !== 'glass' && !isLiquidGlassSupported && fallbackStyle),
+      ...getGlassStyle(),
     };
   };
 
@@ -183,78 +190,86 @@ export const LiquidGlassButton: React.FC<LiquidGlassButtonProps> = ({
       ...(size === 'small' ? theme.typography.buttonSmall : theme.typography.button),
     };
 
-    const getGlassTextColor = () => {
+    const getTextColor = () => {
+      if (disabled) {
+        return theme.colors.textSecondary;
+      }
+      
       if (Platform.OS === 'ios' && isLiquidGlassSupported) {
+        // For white/light glass on white background, use darker text for contrast
+        if (isWhiteOrLightColor(tintColor)) {
+          return theme.colors.text; // Use primary text color for better contrast
+        }
         return PlatformColor('labelColor');
       }
-      // Custom fallback text color based on background
-      if (customGlassFallback?.backgroundColor) {
-        // Simple heuristic: if background is light, use dark text, else light text
-        const bgColor = customGlassFallback.backgroundColor;
-        if (bgColor.includes('255, 255, 255') && bgColor.includes('0.8')) {
-          return theme.colors.text; // Dark text for light background
-        }
+      
+      // For fallback, determine text color based on tint color or theme
+      if (tintColor) {
+        // For light/white backgrounds, use dark text; for dark backgrounds, use white text
+        return isWhiteOrLightColor(tintColor) ? theme.colors.text : theme.colors.white;
       }
+      
       return isDark ? theme.colors.white : theme.colors.text;
-    };
-
-    const variantStyles: Record<string, TextStyle> = {
-      primary: {
-        color: theme.colors.surface,
-      },
-      secondary: {
-        color: theme.colors.surface,
-      },
-      outline: {
-        color: disabled ? theme.colors.textSecondary : theme.colors.primary,
-      },
-      ghost: {
-        color: disabled ? theme.colors.textSecondary : theme.colors.primary,
-      },
-      glass: {
-        color: getGlassTextColor(),
-      },
     };
 
     return {
       ...baseStyle,
-      ...variantStyles[variant],
+      color: getTextColor(),
     };
   };
 
-  const renderButton = (children: React.ReactNode) => (
-    <TouchableOpacity
-      style={[getButtonStyle(), style]}
-      onPress={onPress}
-      disabled={disabled || loading}
-      activeOpacity={0.7}>
-      {children}
-    </TouchableOpacity>
-  );
+  const getButtonContent = () => {
+    if (customContent) {
+      return customContent;
+    }
 
-  const buttonContent = (
-    <>
-      {loading && (
-        <ActivityIndicator
-          size="small"
-          color={
-            variant === 'primary' || variant === 'secondary'
-              ? theme.colors.surface
-              : variant === 'glass' && isLiquidGlassSupported
-              ? PlatformColor('labelColor')
-              : variant === 'glass'
-              ? (isDark ? theme.colors.white : theme.colors.text)
-              : theme.colors.primary
-          }
-          style={{marginRight: theme.spacing['2']}}
-        />
-      )}
-      <Text style={[getTextStyle(), textStyle]}>{title}</Text>
-    </>
-  );
+    const getLoadingColor = () => {
+      if (Platform.OS === 'ios' && isLiquidGlassSupported) {
+        // For white/light glass, use darker spinner
+        if (isWhiteOrLightColor(tintColor)) {
+          return theme.colors.text;
+        }
+        return PlatformColor('labelColor');
+      }
+      if (tintColor) {
+        return isWhiteOrLightColor(tintColor) ? theme.colors.text : theme.colors.white;
+      }
+      return isDark ? theme.colors.white : theme.colors.text;
+    };
 
-  // If glass variant and liquid glass is supported, wrap in LiquidGlassView
-  if (variant === 'glass' && Platform.OS === 'ios' && isLiquidGlassSupported) {
+    return (
+      <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'center'}}>
+        {loading && (
+          <ActivityIndicator
+            size="small"
+            color={getLoadingColor()}
+            style={{marginRight: theme.spacing['2']}}
+          />
+        )}
+        
+        {leftIcon && (
+          <View style={{marginRight: title ? theme.spacing['2'] : 0}}>
+            {leftIcon}
+          </View>
+        )}
+        
+        {title && (
+          <Text style={[getTextStyle(), textStyle]}>{title}</Text>
+        )}
+        
+        {rightIcon && (
+          <View style={{marginLeft: title ? theme.spacing['2'] : 0}}>
+            {rightIcon}
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  const buttonContent = getButtonContent();
+
+  // Use LiquidGlassView when supported
+  if (Platform.OS === 'ios' && isLiquidGlassSupported) {
     return (
       <LiquidGlassView
         style={[getButtonStyle(), style]}
@@ -279,61 +294,16 @@ export const LiquidGlassButton: React.FC<LiquidGlassButtonProps> = ({
     );
   }
 
-  // Regular button for all other cases
-  return renderButton(buttonContent);
+  // Fallback for when liquid glass is not supported
+  return (
+    <TouchableOpacity
+      style={[getButtonStyle(), style]}
+      onPress={onPress}
+      disabled={disabled || loading}
+      activeOpacity={0.7}>
+      {buttonContent}
+    </TouchableOpacity>
+  );
 };
 
-// Helper function to create common glass fallback styles
-export const createGlassFallback = {
-  // Light glass effect
-  light: (opacity: number = 0.8, radius?: number): ViewStyle => ({
-    backgroundColor: `rgba(255, 255, 255, ${opacity})`,
-    borderWidth: 1,
-    borderColor: `rgba(255, 255, 255, ${Math.min(opacity + 0.2, 1)})`,
-    borderRadius: radius,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  }),
-  
-  // Dark glass effect
-  dark: (opacity: number = 0.1, radius?: number): ViewStyle => ({
-    backgroundColor: `rgba(0, 0, 0, ${opacity})`,
-    borderWidth: 1,
-    borderColor: `rgba(255, 255, 255, ${Math.min(opacity * 2, 0.3)})`,
-    borderRadius: radius,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  }),
-  
-  // Frosted effect with custom tint
-  frosted: (tintColor: string = '#ffffff', opacity: number = 0.9, radius?: number): ViewStyle => ({
-    backgroundColor: `${tintColor}${Math.round(opacity * 255).toString(16).padStart(2, '0')}`,
-    borderWidth: 1,
-    borderColor: `${tintColor}ff`,
-    borderRadius: radius,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 6,
-  }),
-  
-  // Subtle glass
-  subtle: (radius?: number): ViewStyle => ({
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: radius,
-    shadowColor: 'transparent',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0,
-    shadowRadius: 0,
-    elevation: 0,
-  }),
-};
+export default LiquidGlassButton;

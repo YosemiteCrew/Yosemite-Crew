@@ -14,6 +14,7 @@ export interface Theme {
     surface: string;
     text: string;
     textSecondary: string;
+    textTertiary: string;
     border: string;
     success: string;
     warning: string;
@@ -42,6 +43,7 @@ export const lightTheme: Theme = {
     surface: colors.white,
     text: colors.text,
     textSecondary: colors.textSecondary,
+    textTertiary: colors.textTertiary,
     border: colors.border,
     success: colors.success,
     warning: colors.warning,
@@ -70,6 +72,7 @@ export const darkTheme: Theme = {
     surface: colors.gray800,
     text: colors.textDark,
     textSecondary: colors.textDarkSecondary,
+    textTertiary: colors.textTertiary,
     border: colors.borderDark,
     success: colors.success,
     warning: colors.warning,

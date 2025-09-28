@@ -22,8 +22,9 @@
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = mobileAppYC/Info.plist; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = mobileAppYC/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		3A81FA35C6D805253ADB7D27 /* libPods-mobileAppYC.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-mobileAppYC.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		42635969955E4156B6472E3C /* Colors.xcassets */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = folder.assetcatalog; name = Colors.xcassets; path = mobileAppYC/Colors.xcassets; sourceTree = "<group>"; };
-		471A248EB57E4E549A9FCD5B /* BootSplash.storyboard */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = BootSplash.storyboard; path = mobileAppYC/BootSplash.storyboard; sourceTree = "<group>"; };
+		42635969955E4156B6472E3C /* Colors.xcassets */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = folder.assetcatalog; name = Colors.xcassets; path = mobileAppYC/Colors.xcassets; sourceTree = "<group>"; };
+		471A248EB57E4E549A9FCD5B /* BootSplash.storyboard */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = BootSplash.storyboard; path = mobileAppYC/BootSplash.storyboard; sourceTree = "<group>"; };
+		5384E25E2E881C1D00342038 /* mobileAppYC.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = mobileAppYC.entitlements; path = mobileAppYC/mobileAppYC.entitlements; sourceTree = "<group>"; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = mobileAppYC/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = mobileAppYC/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		9342D376A248EE81B033DE58 /* Pods-mobileAppYC.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-mobileAppYC.release.xcconfig"; path = "Target Support Files/Pods-mobileAppYC/Pods-mobileAppYC.release.xcconfig"; sourceTree = "<group>"; };
@@ -46,6 +47,7 @@
 		13B07FAE1A68108700A75B9A /* mobileAppYC */ = {
 			isa = PBXGroup;
 			children = (
+				5384E25E2E881C1D00342038 /* mobileAppYC.entitlements */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
@@ -267,7 +269,9 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = mobileAppYC/mobileAppYC.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 9TZWPYQ45S;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = mobileAppYC/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
@@ -281,7 +285,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "org.reactjs.native.example.$(PRODUCT_NAME:rfc1034identifier)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.yosemitecrew.mobile;
 				PRODUCT_NAME = mobileAppYC;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -295,7 +299,9 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = mobileAppYC/mobileAppYC.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 9TZWPYQ45S;
 				INFOPLIST_FILE = mobileAppYC/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -308,7 +314,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "org.reactjs.native.example.$(PRODUCT_NAME:rfc1034identifier)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.yosemitecrew.mobile;
 				PRODUCT_NAME = mobileAppYC;
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";

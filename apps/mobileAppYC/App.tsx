@@ -4,18 +4,18 @@
  *
  * @format
  */
-import React, { useState } from 'react';
-import { StatusBar } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { Provider } from 'react-redux';
-import { NavigationContainer } from '@react-navigation/native';
-import { store } from './src/store';
-import { AppNavigator } from './src/navigation';
-import { useTheme } from './src/hooks';
+import React, {useState} from 'react';
+import {StatusBar} from 'react-native';
+import {SafeAreaProvider} from 'react-native-safe-area-context';
+import {Provider} from 'react-redux';
+import {NavigationContainer} from '@react-navigation/native';
+import {store} from './src/store';
+import {AppNavigator} from './src/navigation';
+import {useTheme} from './src/hooks';
 import CustomSplashScreen from './src/components/common/customSplashScreen/customSplash';
 import './src/localization';
-import outputs from "./amplify_outputs.json";
-import { Amplify } from 'aws-amplify';
+import outputs from './amplify_outputs.json';
+import {Amplify} from 'aws-amplify';
 
 Amplify.configure(outputs);
 
@@ -42,15 +42,17 @@ function App(): React.JSX.Element {
 }
 
 function AppContent(): React.JSX.Element {
-  const { theme, isDark } = useTheme();
+  const {theme, isDark} = useTheme();
 
   return (
     <>
-      <StatusBar
-        barStyle={isDark ? 'light-content' : 'dark-content'}
-        backgroundColor={theme.colors.background}
-      />
-      <AppNavigator />
+      <SafeAreaProvider>
+        <StatusBar
+          barStyle={isDark ? 'light-content' : 'dark-content'}
+          backgroundColor={theme.colors.background}
+        />
+        <AppNavigator />
+      </SafeAreaProvider>
     </>
   );
 }
