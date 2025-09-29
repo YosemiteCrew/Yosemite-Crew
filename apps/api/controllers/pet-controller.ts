@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import logger from '../utils/logger';
 import {  deleteFromS3 , handleMultipleFileUpload} from "../middlewares/upload";
 import { getCognitoUserId } from '../middlewares/authMiddleware';
 import type { pets as petType} from "@yosemite-crew/types";
@@ -52,7 +53,7 @@ const petController = {
       res.status(400).json({ status: 0, message: 'Unable to add pet' });
       return
     } catch (error) {
-      console.log(error);
+      logger.error(error);
       const message = error instanceof Error ? error.message : "Unknown error occurred";
        res.status(500).json({
         resourceType: "OperationOutcome",

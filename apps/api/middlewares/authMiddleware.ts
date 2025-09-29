@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import logger from '../utils/logger';
 dotenv.config();
 import { Request, Response, NextFunction } from 'express';
 import jwt, { JwtPayload } from 'jsonwebtoken';
@@ -18,7 +19,7 @@ export const verifyTokenAndRefresh = (
   const token = req.headers['authorization']?.split(' ')[1];
 
   if (!token) {
-    console.log('No token provided');
+    logger.warn('No token provided');
     res.status(401).json({ message: 'No token provided' });
     return;
   }
@@ -26,7 +27,7 @@ export const verifyTokenAndRefresh = (
   // Verify the token using JWT_SECRET
   jwt.verify(token, process.env.JWT_SECRET as string, (err, decoded) => {
     if (err) {
-      console.log('Token verification error:', err.message);
+      logger.error('Token verification error:', err.message);
       res.status(401).json({ message: 'Unauthorized', error: err.message });
       return;
     }

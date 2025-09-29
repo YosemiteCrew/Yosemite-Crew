@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { DoctorsTimeSlotes, UnavailableSlot } from "../models/doctors.slotes.model";
 import { convertFromFhirSlotBundle, convertToFhirSlotResource, convertToFhirSlotResources } from "@yosemite-crew/fhir";
-
+import logger from "../utils/logger";
 
 type Slot = {
   time: string;
@@ -40,12 +40,12 @@ export const DoctorSlots = {
   ): Promise<void> => {
     try {
       const { day, doctorId, date, timeSlots, unavailableSlots,duration } = convertFromFhirSlotBundle(req.body) as {day: string, doctorId: string, date: string, timeSlots: Slot[], unavailableSlots: string[],duration: string};
-       console.log(date)
+     //  logger.info(date)
       if (!doctorId || typeof doctorId !== "string" || !/^[a-fA-F0-9-]{36}$/.test(doctorId)) {
         res.status(400).json({ message: "Invalid doctorId format" });
         return;
       }
-       console.log("unavailableSlots:", unavailableSlots);
+     //  logger.info("unavailableSlots:", unavailableSlots);
       const validDays = [
         "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"
       ];
@@ -113,7 +113,7 @@ export const DoctorSlots = {
     } catch (error: unknown) {
       // TS-safe error handling
       const errMsg = error instanceof Error ? error.message : String(error);
-      console.error("❌ Error in AddDoctorsSlote:", errMsg);
+      logger.error("❌ Error in AddDoctorsSlote:", errMsg);
       res.status(500).json({
         message: "An error occurred while saving doctor slots.",
         error: errMsg,
@@ -181,7 +181,7 @@ export const DoctorSlots = {
           diagnostics: error instanceof Error ? error.message : String(error)
         }]
       });
-      console.error("❌ Error in getDoctorSloteToCompare:", error);
+      logger.error("❌ Error in getDoctorSloteToCompare:", error);
       return;
         
     }
@@ -225,8 +225,8 @@ getDoctoSlots: async(req: Request, res: Response) => {
 
    const slots  = convertToFhirSlotResources(response, doctorId, date);
     // const result = convertFromFhirSlots(slots );
-  //  console.log("Doctor Slots:", slots);
-  //  console.log("Doctor Slots:", slots);
+  //  logger.info("Doctor Slots:", slots);
+  //  logger.info("Doctor Slots:", slots);
   res.status(200).json({
       messageSchema: "Doctor slots retrieved successfully",
       data: slots,
@@ -243,7 +243,7 @@ getDoctoSlots: async(req: Request, res: Response) => {
         diagnostics: error instanceof Error ? error.message : String(error)
       }]
     });
-    console.error("❌ Error in getDoctoSlots:", error);
+    logger.error("❌ Error in getDoctoSlots:", error);
     return;
   }
 },
@@ -282,7 +282,7 @@ getDoctoSlotsToBookAppointment: async(req:Request, res:Response) =>{
     data:result
    })
   } catch (error) {
-    console.log(error)
+    logger.error("❌ Error in getDoctoSlotsToBookAppointment:", error);
   }
 }
 

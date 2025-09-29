@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import logger from '../utils/logger';
 dotenv.config();
 import { Request, Response } from 'express';
 import AWS from 'aws-sdk';
@@ -535,7 +536,7 @@ const authController = {
       return
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      console.error("Error during sign-out:", error);
+      logger.error("Error during sign-out:", error);
       res.status(200).json({ status: 0, message: message });
     }
   },
@@ -613,7 +614,7 @@ const authController = {
       res.status(200).json({ status: 1, message: 'User logged in successfully', userdata: userData })
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      console.error("Google Login Error:", error);
+      logger.error("Google Login Error:", error);
       if (error instanceof Error)
         res.status(200).json({ message: 0, error: message });
     }
@@ -806,7 +807,7 @@ const authController = {
 
       const accessToken = response.AuthenticationResult!.AccessToken!;
       const decoded = jwt.decode(accessToken) as { sub: string };
-      console.log(decoded, 'decoded');
+     // console.log(decoded, 'decoded');
 
       const payload = {
         username: decoded.sub,

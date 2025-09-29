@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import logger from '../utils/logger';
 import { Types } from 'mongoose';
 import  mongoose  from 'mongoose';
 import { validate,toFHIRBundleImmunization,VaccinationDoc } from '@yosemite-crew/fhir'; // ✅ right
@@ -123,7 +124,7 @@ const immunizationController =  {
       const fhirBundle = toFHIRBundleImmunization(transformed);
        res.status(200).json({ status: 1, data: fhirBundle });
     } catch (err: unknown) {
-      console.error(err);
+      logger.error(err);
        res.status(500).json({ status: 0, message: 'Internal Server Error' });
     }
   },
@@ -349,7 +350,7 @@ const immunizationController =  {
         res.status(200).json({status: 1,data: { entry: [] } })
          return;
       }
-     console.log(results,'resultsresults');
+      // logger.info(results,'resultsresults');
         
       const transformed: VaccinationDoc[] = results.map((doc) => ({
         _id: doc._id,
@@ -376,7 +377,7 @@ const immunizationController =  {
       const fhirBundle = toFHIRBundleImmunization(transformed);
        res.status(200).json({ status: 1, data: fhirBundle });
     } catch (err: unknown) {
-      console.error(err);
+      logger.error(err);
       const message = err instanceof Error ? err.message :'Internal Server Error'
        res.status(200).json({ status: 0, message:message  });
     }

@@ -33,7 +33,7 @@ class FHIRService {
     const vet = vetMap[app.veterinarian] || {};
     const pet = petMap[app.petId] || {};
     const hospital = hospitalMap[app.hospitalId] || {};
-    console.log(app,'apppppppp');
+    //console.log(app,'apppppppp');
     return {
       resourceType: "Appointment",
       id: app._id.toString(),
