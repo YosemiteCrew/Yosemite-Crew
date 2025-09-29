@@ -1,5 +1,5 @@
 import { Request,  Response } from "express";
-
+import logger from "../utils/logger";
 import {
   InventoryCategory,
   InventoryManufacturer,
@@ -68,7 +68,7 @@ const AdminController = {
         res.status(400).json({ message: "Failed to add Inventory Category" });
       }
     } catch (error) {
-      console.error("Error adding inventory category:", error);
+      logger.error("Error adding inventory category:", error);
       res.status(500).json({ message: "Server error" });
     }
   },
@@ -127,7 +127,7 @@ const AdminController = {
         res.status(400).json({ message: "Failed to add inventory manufacturer" });
       }
     } catch (error) {
-      console.error("Error in AddInventoryManufacturer:", error);
+      logger.error("Error in AddInventoryManufacturer:", error);
       res.status(500).json({ message: "Server error" });
     }
   },
@@ -187,7 +187,7 @@ const AdminController = {
         res.status(400).json({ message: "Failed to add Inventory ItemCategory" });
       }
     } catch (error) {
-      console.error("Error in AddInventoryItemCategory:", error);
+      logger.error("Error in AddInventoryItemCategory:", error);
       res.status(500).json({ message: "Server error" });
     }
   },

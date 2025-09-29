@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import logger from '../utils/logger';
 import exercisePlan from '../models/Plan';
 import yoshPainJournals from '../models/painJournal';
 import type { FhirCarePlan, painJournal, plan } from "@yosemite-crew/types";
@@ -39,7 +40,7 @@ const planController = {
         plan: { id: newPlan._id },
       });
     } catch (error) {
-      console.error('Error saving exercise plan:', error);
+      logger.error('Error saving exercise plan:', error);
       res.status(500).json({ message: 'Internal Server Error' });
     }
   },
@@ -59,7 +60,7 @@ const planController = {
         });
       }
     } catch (error) {
-      console.error('Error saving pain journal:', error);
+      logger.error('Error saving pain journal:', error);
       res.status(500).json({
         message: 'Failed to save pain journal entry',
       });

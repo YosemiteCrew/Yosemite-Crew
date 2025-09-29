@@ -1,4 +1,5 @@
 import AddDoctors from "../models/AddDoctor";
+import logger from "../utils/logger";
 // import { equal } from 'assert';
 import AWS from "aws-sdk";
 
@@ -107,7 +108,7 @@ const AddDoctorsController = {
             params,
             (err: Error, data: AWS.S3.ManagedUpload.SendData) => {
               if (err) {
-                console.error("S3 Upload Error:", err);
+                logger.error("S3 Upload Error:", err);
                 return reject(err);
               }
               resolve(data.Key); // return public URL instead of Key
@@ -201,7 +202,7 @@ const AddDoctorsController = {
         data: { updated: true },
       });
     } catch (error) {
-      console.error("❌ Error creating doctor profile:", error);
+      logger.error("❌ Error creating doctor profile:", error);
       const message =
         error instanceof Error ? error.message : "Unknown error occurred";
       res.status(500).json({
@@ -355,7 +356,7 @@ const AddDoctorsController = {
       res.status(200).json(convertRelatedDoctorsToFhir(allDoctors));
       return;
     } catch (error) {
-      console.error("Error fetching doctors by department ID:", error);
+      logger.error("Error fetching doctors by department ID:", error);
       res.status(500).json({
         message: "Internal server error",
         error: (error as Error).message,
@@ -425,7 +426,7 @@ const AddDoctorsController = {
 
   //     return res.status(200).json(response); // No need to stringify, Express handles objects
   //   } catch (error: any) {
-  //     console.error('Error fetching overview data:', error);
+  //     logger.error('Error fetching overview data:', error);
   //     return res.status(500).json({
   //       resourceType: 'OperationOutcome',
   //       issue: [
@@ -457,7 +458,7 @@ const AddDoctorsController = {
 
   //     return res.status(200).json(doctors);
   //   } catch (error) {
-  //     console.error("Error fetching doctors by specialization ID:", error);
+  //     logger.error("Error fetching doctors by specialization ID:", error);
 
   //     return res.status(500).json({ message: "Internal server error", error });
   //   }
@@ -480,7 +481,7 @@ const AddDoctorsController = {
 
       return res.status(200).json(doctors);
     } catch (error) {
-      // console.error('Error fetching doctors by specialization ID:', error);
+      // logger.error('Error fetching doctors by specialization ID:', error);
 
       return res.status(500).json({ message: "Internal server error", error });
     }
@@ -576,7 +577,7 @@ const AddDoctorsController = {
 
   //     res.status(200).json(fhirData);
   //   } catch (error) {
-  //     console.error("Error fetching doctors data:", error);
+  //     logger.error("Error fetching doctors data:", error);
 
   //     const operationOutcome = {
   //       resourceType: "OperationOutcome",
@@ -644,7 +645,7 @@ const AddDoctorsController = {
       });
       return res.status(200).json(fhirPractitioner);
     } catch (error) {
-      console.error("Error fetching doctor data:", error);
+      logger.error("Error fetching doctor data:", error);
       const message =
         error instanceof Error ? error.message : "Unknown error occurred";
       return res.status(500).json({
@@ -698,7 +699,7 @@ const AddDoctorsController = {
   //       const headObject = await s3.headObject(deleteParams).promise();
   //       // console.log('S3 File Found:', headObject);
   //     } catch (headErr) {
-  //       console.error("S3 File Not Found:", headErr);
+  //       logger.error("S3 File Not Found:", headErr);
   //       return res.status(404).json({ message: "File not found in S3" });
   //     }
 
@@ -706,7 +707,7 @@ const AddDoctorsController = {
   //       const deleteResponse = await s3.deleteObject(deleteParams).promise();
   //       // console.log('S3 Delete Response:', deleteResponse);
   //     } catch (deleteErr) {
-  //       console.error("S3 Deletion Error:", deleteErr);
+  //       logger.error("S3 Deletion Error:", deleteErr);
   //       return res
   //         .status(500)
   //         .json({ message: "Failed to delete file from S3", error: deleteErr });
@@ -730,7 +731,7 @@ const AddDoctorsController = {
   //       updatedUser,
   //     });
   //   } catch (err) {
-  //     console.error("Unexpected Error:", err);
+  //     logger.error("Unexpected Error:", err);
   //     res.status(500).json({
   //       message: "An error occurred while deleting the document",
   //       error: err,
@@ -763,7 +764,7 @@ const AddDoctorsController = {
 
   //       s3.upload(params, (err, data) => {
   //         if (err) {
-  //           console.error("Error uploading to S3:", err);
+  //           logger.error("Error uploading to S3:", err);
   //           reject(err);
   //         } else {
   //           resolve(data.Key);
@@ -782,7 +783,7 @@ const AddDoctorsController = {
   //       await s3.deleteObject(params).promise();
   //       // console.log(`Deleted S3 object: ${key}`);
   //     } catch (err) {
-  //       console.error("Error deleting S3 object:", err);
+  //       logger.error("Error deleting S3 object:", err);
   //     }
   //   };
 
@@ -865,7 +866,7 @@ const AddDoctorsController = {
   //       });
   //     }
   //   } catch (error) {
-  //     console.error("Error updating doctor profile:", error);
+  //     logger.error("Error updating doctor profile:", error);
   //     return res.status(500).json({
   //       resourceType: "OperationOutcome",
   //       issue: [
@@ -981,7 +982,7 @@ const AddDoctorsController = {
   //       });
   //     }
   //   } catch (error: any) {
-  //     console.error("Error in addDoctorSlots:", error);
+  //     logger.error("Error in addDoctorSlots:", error);
   //     res.status(500).json({
   //       message: "An error occurred while adding/updating slots.",
   //       error: error.message,
@@ -1052,7 +1053,7 @@ const AddDoctorsController = {
         });
       }
     } catch (error) {
-      console.error("Error in getDoctorsSlotes:", error);
+      logger.error("Error in getDoctorsSlotes:", error);
       const message =
         error instanceof Error ? error.message : "Unknown error occurred";
       return res.status(500).json({
@@ -1167,7 +1168,7 @@ const AddDoctorsController = {
         Appointments: response[0].Appointments,
       });
     } catch (error) {
-      console.error("Error in getAppointmentsForDoctorDashboard:", error);
+      logger.error("Error in getAppointmentsForDoctorDashboard:", error);
       const message =
         error instanceof Error ? error.message : "Unknown error occurred";
       return res.status(500).json({
@@ -1205,7 +1206,7 @@ const AddDoctorsController = {
         return res.status(404).json({ message: "Appointment not found." });
       }
     } catch (error) {
-      console.error("Error in AppointmentAcceptedAndCancelFHIR:", error);
+      logger.error("Error in AppointmentAcceptedAndCancelFHIR:", error);
       const message =
         error instanceof Error ? error.message : "Unknown error occurred";
       return res.status(500).json({
@@ -1242,7 +1243,7 @@ const AddDoctorsController = {
       });
       return;
     } catch (error) {
-      console.error("Error in updateAvailability:", error);
+      logger.error("Error in updateAvailability:", error);
       const message =
         error instanceof Error ? error.message : "Unknown error occurred";
       res.status(500).json({
@@ -1270,7 +1271,7 @@ const AddDoctorsController = {
         status: result.status as string,
       });
     } catch (error) {
-      // console.error("Error in getAvailabilityStatus:", error);
+      // logger.error("Error in getAvailabilityStatus:", error);
       const message =
         error instanceof Error ? error.message : "Unknown error occurred";
       return res.status(500).json({

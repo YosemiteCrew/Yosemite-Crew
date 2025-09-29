@@ -1,5 +1,5 @@
-
 import { Request } from 'express';
+import logger from '../utils/logger';
 import mongoose from 'mongoose';
 import moment from 'moment-timezone';
 import { Moment } from 'moment';
@@ -124,7 +124,7 @@ class AppointmentService {
               appointmentStatus: "cancelled",
               isCanceled: 1,
             };
-            console.log(app, 'appp');
+           // console.log(app, 'appp');
             await webAppointments.findByIdAndUpdate(app?._id, updateData, { new: true });
 
           }
@@ -191,7 +191,7 @@ class AppointmentService {
       const specializationMap: Record<string, string> = Object.fromEntries(
         specializationDocs.map(doc => [doc._id.toString(), doc.name])
       );
-console.log(vets,'vetsvets');
+      // console.log(vets,'vetsvets');
       const vetMap = Object.fromEntries(
         vets.map((v) => {
           const specializationKey = v.specialization !== undefined
@@ -261,7 +261,7 @@ console.log(vets,'vetsvets');
       };
 
     } catch (error) {
-      console.error('Error in fetchAppointments:', error);
+      logger.error('Error in fetchAppointments:', error);
       throw new Error("Failed to fetch appointments.");
     }
   }

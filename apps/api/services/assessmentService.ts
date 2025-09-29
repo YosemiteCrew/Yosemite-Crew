@@ -18,7 +18,7 @@ class AssessmentService {
       let result : any = [];
       dataArray.flatMap((a :any) => {
 
-              console.log(a);
+             // console.log(a);
               //const petId = `Patient/${a.petId}-pet`;
               //const docId = `Practitioner/${a.doctorId}-doc`;
               const assessment = {

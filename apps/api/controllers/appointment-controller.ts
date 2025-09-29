@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import logger from '../utils/logger';
 import { getCognitoUserId } from '../middlewares/authMiddleware';
 import appointmentService from '../services/appointment-service'
 import { parseAppointment} from '@yosemite-crew/fhir'
@@ -163,7 +164,7 @@ const appointmentController = {
      
 
     } catch (error) {
-      console.error("Error fetching appointments:", error);
+      logger.error("Error fetching appointments:", error);
       res.status(500).json({ message: "An error occurred while retrieving appointments" });
     }
   },
@@ -187,7 +188,7 @@ const appointmentController = {
   
       
     } catch (error) {
-      console.log(error);
+      logger.error("Error while cancelling appointment:", error);
       res.status(200).json({ status: 0, message: "Error while cancelling appointment", error });
       return
     }
@@ -218,7 +219,7 @@ const appointmentController = {
       res.status(200).json({ status: 1, message: "Appointment rescheduled successfully", data: result });
       return
     } catch (error: unknown) {
-      console.log(error)
+      logger.error("Error while rescheduling appointment:", error);
       res.status(500).json({
         status: 0,
         resourceType: "OperationOutcome",

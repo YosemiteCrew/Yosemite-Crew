@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import logger from '../utils/logger';
 import SlotService from '../services/slot-service';
 import MonthlySlotService from '../services/monthly.slot.service';
 import  {FHIRSlotValidator , MonthlySlotValidator}  from '@yosemite-crew/fhir';
@@ -59,7 +60,7 @@ const SlotController = {
       }
 
       const result = await SlotService.getAvailableTimeSlots({ appointmentDate, doctorId });
-console.log(result,'resuly', appointmentDate, today, result?.entry);
+//console.log(result,'resuly', appointmentDate, today, result?.entry);
       if (appointmentDate === today) {
         const now = new Date();
         result.entry = result.entry?.filter((slot) => {
@@ -125,7 +126,7 @@ console.log(result,'resuly', appointmentDate, today, result?.entry);
        res.status(200).json({ status: 1, data: result });
        return
     } catch (error: unknown) {
-      console.error("MonthlySlotController Error:", error);
+      logger.error("MonthlySlotController Error:", error);
       const message = error instanceof Error ? error.message : 'Internal Server Error';
        res.status(200).json({ status:0,  error: message });
        return

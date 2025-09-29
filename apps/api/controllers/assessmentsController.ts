@@ -1,5 +1,4 @@
-
-
+import logger from '../utils/logger';
 import { Request, Response } from 'express';
 import AssessmentService from '../services/assessmentService';
 import { convertToPainAssessmentFhir } from '@yosemite-crew/fhir';
@@ -257,7 +256,7 @@ const assessmentsController = {
           break;
         case 'cancelled':
         default:
-          console.log('Unknown type');
+          logger.warn('Unknown type');
       }
 
     } catch (error: unknown) {
