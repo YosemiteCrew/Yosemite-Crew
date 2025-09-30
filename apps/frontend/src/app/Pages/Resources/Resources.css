@@ -1,21 +1,60 @@
 .ResourcesSec{
     padding: 100px 0px;
 }
+
+/* Mobile styles */
+@media (max-width: 768px) {
+    .ResourcesSec{
+        padding: 60px 0px;
+    }
+}
+
+@media (max-width: 480px) {
+    .ResourcesSec{
+        padding: 40px 0px;
+    }
+}
+
 .ResourcesData{
     display: flex;
     gap: 80px;
     flex-direction: column;
 }
+
+/* Mobile styles for ResourcesData */
+@media (max-width: 768px) {
+    .ResourcesData{
+        gap: 40px;
+    }
+}
+
+@media (max-width: 480px) {
+    .ResourcesData{
+        gap: 30px;
+    }
+}
+
 .ResourcesData .ResourcesHead{
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
 }
+
+/* Mobile styles for ResourcesHead */
+@media (max-width: 768px) {
+    .ResourcesData .ResourcesHead{
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 20px;
+    }
+}
+
 .ResourcesData .ResourcesHead .ResourceTexed{
     display: flex;
     flex-direction: column;
     gap: 8px;
 }
+
 .ResourcesData .ResourcesHead .ResourceTexed span{
     margin: 0;
     font-size: 15px;
@@ -24,6 +63,7 @@
     font-family: var(--satoshi-font);
     color: var(--black-grey-Text);
 }
+
 .ResourcesData .ResourcesHead .ResourceTexed h2{
     margin: 0;
     font-size: 40px;
@@ -32,6 +72,20 @@
     font-family: var(--grotesk-font);
     color: var(--black-text);
 }
+
+/* Mobile styles for heading */
+@media (max-width: 768px) {
+    .ResourcesData .ResourcesHead .ResourceTexed h2{
+        font-size: 32px;
+    }
+}
+
+@media (max-width: 480px) {
+    .ResourcesData .ResourcesHead .ResourceTexed h2{
+        font-size: 28px;
+    }
+}
+
 .ResourcesData .ResourcesHead .ResourceTexed p{
     margin: 0;
     font-size: 18px;
@@ -40,6 +94,20 @@
     font-family: var(--satoshi-font);
     color: var(--black-grey-Text);
 }
+
+/* Mobile styles for paragraph */
+@media (max-width: 768px) {
+    .ResourcesData .ResourcesHead .ResourceTexed p{
+        font-size: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .ResourcesData .ResourcesHead .ResourceTexed p{
+        font-size: 14px;
+    }
+}
+
 .ResourcesData .ResourcesHead .ResourSearch{
     display: flex;
     align-items: center;
@@ -51,6 +119,23 @@
     padding: 10px 24px;
     border-radius: 36px;
 }
+
+/* Mobile styles for search bar */
+@media (max-width: 768px) {
+    .ResourcesData .ResourcesHead .ResourSearch{
+        min-width: 100%;
+        width: 100%;
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 480px) {
+    .ResourcesData .ResourcesHead .ResourSearch{
+        padding: 8px 16px;
+        min-height: 44px;
+    }
+}
+
 .ResourcesData .ResourcesHead .ResourSearch .form-control{
     border: none !important;
     outline: none !important;
@@ -60,6 +145,20 @@
     font-family: var(--satoshi-font);
     color: var(--black-text);
 }
+
+/* Mobile styles for form control */
+@media (max-width: 768px) {
+    .ResourcesData .ResourcesHead .ResourSearch .form-control{
+        font-size: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .ResourcesData .ResourcesHead .ResourSearch .form-control{
+        font-size: 14px;
+    }
+}
+
 .ResourcesData .ResourcesHead .ResourSearch .form-control::placeholder{
     opacity: 60%;
 }

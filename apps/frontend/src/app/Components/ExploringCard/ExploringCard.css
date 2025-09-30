@@ -3,11 +3,26 @@
     flex-direction: column;
     gap: 28px;
 }
+
+/* Mobile styles for Exploring-Data */
+@media (max-width: 768px) {
+    .Exploring-Data{
+        gap: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .Exploring-Data{
+        gap: 16px;
+    }
+}
+
 .Exploring-Data .ExplrHeading{
     display: flex;
     flex-direction: column;
     gap: 8px;
 }
+
 .Exploring-Data .ExplrHeading h4{
     font-family: var(--grotesk-font);
     font-size: 33px;
@@ -16,9 +31,24 @@
     color: var(--black-text);
     margin: 0;
 }
+
+/* Mobile styles for heading */
+@media (max-width: 768px) {
+    .Exploring-Data .ExplrHeading h4{
+        font-size: 28px;
+    }
+}
+
+@media (max-width: 480px) {
+    .Exploring-Data .ExplrHeading h4{
+        font-size: 24px;
+    }
+}
+
 .Exploring-Data .ExplrHeading h4 span{
     color: var(--black-grey);
 }
+
 .Exploring-Data .ExplrHeading p{
     font-family: var(--satoshi-font);
     font-size: 18px;
@@ -28,12 +58,41 @@
     margin: 0;
 }
 
+/* Mobile styles for paragraph */
+@media (max-width: 768px) {
+    .Exploring-Data .ExplrHeading p{
+        font-size: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .Exploring-Data .ExplrHeading p{
+        font-size: 14px;
+    }
+}
+
 .Exploring-Data .Explore-Card-Div{
     display: flex;
     flex-wrap: wrap;
     gap: 20px;
     justify-content: center;
 }
+
+/* Mobile styles for card grid */
+@media (max-width: 768px) {
+    .Exploring-Data .Explore-Card-Div{
+        gap: 16px;
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 480px) {
+    .Exploring-Data .Explore-Card-Div{
+        gap: 12px;
+        flex-direction: column;
+    }
+}
+
 .Exploring-Data .Explore-Card-Div .explr-card-item{
     border: 1.25px solid #EAEAEA;
     box-shadow: 0px 0px 8px -5px #55413414;
@@ -43,7 +102,33 @@
     gap: 12px;
     padding-bottom: 32px;
     border-radius: 16px;
+    flex: 0 0 calc(33.333% - 14px);
+    max-width: 305px;
 }
+
+/* Mobile styles for card items */
+@media (max-width: 1024px) {
+    .Exploring-Data .Explore-Card-Div .explr-card-item{
+        flex: 0 0 calc(50% - 10px);
+        max-width: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .Exploring-Data .Explore-Card-Div .explr-card-item{
+        flex: 0 0 calc(50% - 8px);
+        padding-bottom: 24px;
+    }
+}
+
+@media (max-width: 480px) {
+    .Exploring-Data .Explore-Card-Div .explr-card-item{
+        flex: 1 1 100%;
+        max-width: 100%;
+        padding-bottom: 20px;
+    }
+}
+
 .Exploring-Data .Explore-Card-Div .explr-card-item .exp-img{
     border-radius: 16px 16px 0px 0px;
 }
@@ -94,6 +179,21 @@
   overflow: hidden;
 }
 
+/* Mobile styles for play button */
+@media (max-width: 768px) {
+    .pulsating-play-btn {
+        width: 60px;
+        height: 60px;
+    }
+}
+
+@media (max-width: 480px) {
+    .pulsating-play-btn {
+        width: 50px;
+        height: 50px;
+    }
+}
+
 .pulsating-play-btn:before {
   content: "";
   position: absolute;
@@ -112,6 +212,21 @@
   background: var(--whitebg);
 }
 
+/* Mobile styles for play button before */
+@media (max-width: 768px) {
+    .pulsating-play-btn:before {
+        width: 80px;
+        height: 80px;
+    }
+}
+
+@media (max-width: 480px) {
+    .pulsating-play-btn:before {
+        width: 70px;
+        height: 70px;
+    }
+}
+
 .pulsating-play-btn:after {
   content: "";
   position: absolute;
@@ -125,6 +240,23 @@
   border-left: 15px solid var(--black-grey);
   z-index: 100;
   transition: all 400ms cubic-bezier(0.55, 0.055, 0.675, 0.19);
+}
+
+/* Mobile styles for play button after */
+@media (max-width: 768px) {
+    .pulsating-play-btn:after {
+        border-top: 8px solid transparent;
+        border-bottom: 8px solid transparent;
+        border-left: 12px solid var(--black-grey);
+    }
+}
+
+@media (max-width: 480px) {
+    .pulsating-play-btn:after {
+        border-top: 6px solid transparent;
+        border-bottom: 6px solid transparent;
+        border-left: 10px solid var(--black-grey);
+    }
 }
 
 .pulsating-play-btn:hover:before {
@@ -166,6 +298,14 @@
 .explr-card-item .exp-text{
   padding: 0px 16px;
 }
+
+/* Mobile styles for card text */
+@media (max-width: 480px) {
+    .explr-card-item .exp-text{
+        padding: 0px 12px;
+    }
+}
+
 .explr-card-item .exp-text h5{
   font-family: var(--grotesk-font);
   font-size: 19px;
@@ -173,4 +313,17 @@
   line-height: 120%;
   color: var(--black-text);
   margin: 0;
+}
+
+/* Mobile styles for card title */
+@media (max-width: 768px) {
+    .explr-card-item .exp-text h5{
+        font-size: 17px;
+    }
+}
+
+@media (max-width: 480px) {
+    .explr-card-item .exp-text h5{
+        font-size: 16px;
+    }
 }

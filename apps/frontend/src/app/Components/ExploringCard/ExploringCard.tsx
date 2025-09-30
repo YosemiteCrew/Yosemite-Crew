@@ -53,7 +53,13 @@ export default function ExploreSection({Headtitle,Headpara , Headtitlespan}: Exp
             {cards.map(c => (
             <div className="explr-card-item" key={c.id}>
                 <div className="exp-img" style={{ position: "relative" }}>
-                    <Image src={c.thumbnail} alt={c.title} width={305} height={188} />
+                    <Image 
+                        src={c.thumbnail} 
+                        alt={c.title} 
+                        width={305} 
+                        height={188}
+                        style={{ width: '100%', height: 'auto' }}
+                    />
                     <Link href={c.videoUrl}  className="glightbox-video pulsating-play-btn"data-type="video" aria-label={`Play ${c.title}`}/>
                 </div>
                 <div className="exp-text">
