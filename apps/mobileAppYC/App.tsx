@@ -17,6 +17,7 @@ import './src/localization';
 import outputs from './amplify_outputs.json';
 import {Amplify} from 'aws-amplify';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { AuthProvider } from '@/contexts/AuthContext';
 
 Amplify.configure(outputs);
 
@@ -35,9 +36,11 @@ function App(): React.JSX.Element {
     <Provider store={store}>
       <SafeAreaProvider>
         <GestureHandlerRootView style={{ flex: 1 }}>
+              <AuthProvider>
         <NavigationContainer>
           <AppContent />
         </NavigationContainer>
+         </AuthProvider>
         </GestureHandlerRootView>
       </SafeAreaProvider>
     </Provider>

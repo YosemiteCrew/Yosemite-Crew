@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const AUTH_TOKEN_KEY = '@auth_token';
@@ -11,9 +11,22 @@ export interface User {
   lastName: string;
   phone?: string;
   dateOfBirth?: string;
+  profilePicture?: string;
 }
 
-export const useAuth = () => {
+interface AuthContextType {
+  isLoggedIn: boolean;
+  user: User | null;
+  isLoading: boolean;
+  login: (userData: User, token: string) => Promise<void>;
+  loginsample: () => Promise<void>;
+  logout: () => Promise<void>;
+  updateUser: (updatedUser: Partial<User>) => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -26,7 +39,6 @@ export const useAuth = () => {
     try {
       const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
       const userData = await AsyncStorage.getItem(USER_KEY);
-      
       if (token && userData) {
         setIsLoggedIn(true);
         setUser(JSON.parse(userData));
@@ -44,6 +56,17 @@ export const useAuth = () => {
       await AsyncStorage.setItem(USER_KEY, JSON.stringify(userData));
       setUser(userData);
       setIsLoggedIn(true);
+    } catch (error) {
+      console.error('Error saving auth data:', error);
+      throw error;
+    }
+  };
+
+  const loginsample = async () => {
+    try {
+      console.log('loginsample called - setting isLoggedIn to true');
+      setIsLoggedIn(true);
+      console.log('isLoggedIn state updated');
     } catch (error) {
       console.error('Error saving auth data:', error);
       throw error;
@@ -73,12 +96,26 @@ export const useAuth = () => {
     }
   };
 
-  return {
-    isLoggedIn,
-    user,
-    isLoading,
-    login,
-    logout,
-    updateUser,
-  };
+  return (
+    <AuthContext.Provider
+      value={{
+        isLoggedIn,
+        user,
+        isLoading,
+        login,
+        logout,
+        updateUser,
+        loginsample,
+      }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 };

@@ -3,7 +3,8 @@ import {View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Moda
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useTranslation} from 'react-i18next';
 import {Button} from '../../components';
-import {useTheme, useAuth} from '../../hooks';
+import {useTheme} from '../../hooks';
+import { useAuth } from '@/contexts/AuthContext';
 
 const LANGUAGES = [
   {code: 'en', name: 'English', flag: '🇺🇸'},
@@ -205,10 +206,10 @@ export const ProfileScreen: React.FC = () => {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Image
-            source={{uri: user?.avatar || 'https://picsum.photos/100/100'}}
+            source={{uri: user?.profilePicture || 'https://picsum.photos/100/100'}}
             style={styles.avatar}
           />
-          <Text style={styles.userName}>{user?.name || t('profile.user')}</Text>
+          <Text style={styles.userName}>{user?.firstName || t('profile.user')}</Text>
           <Text style={styles.userEmail}>{user?.email || 'user@example.com'}</Text>
         </View>
 
