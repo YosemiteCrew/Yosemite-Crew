@@ -1,52 +1,48 @@
-// ============================================
-// 1. Updated Input Component with Icon Support
-// src/components/common/Input/Input.tsx
-// ============================================
-
-import React, { useState, useRef, useCallback } from 'react';
+// src/components/common/TouchableInput/TouchableInput.tsx
+import React, { useRef, useCallback, useEffect } from 'react';
 import {
-  TextInput,
   View,
   Text,
+  TouchableOpacity,
   ViewStyle,
   TextStyle,
-  TextInputProps,
   Animated,
   Platform,
-  TouchableOpacity,
 } from 'react-native';
 import { useTheme } from '../../../hooks';
 
-interface InputProps extends TextInputProps {
+interface TouchableInputProps {
   label?: string;
+  value?: string;
+  placeholder?: string;
   error?: string;
+  onPress: () => void;
+  leftComponent?: React.ReactNode;
+  rightComponent?: React.ReactNode;
   containerStyle?: ViewStyle;
-  inputStyle?: TextStyle;
+  inputStyle?: ViewStyle;
   labelStyle?: TextStyle;
   errorStyle?: TextStyle;
-  icon?: React.ReactNode;
-  onIconPress?: () => void;
+  disabled?: boolean;
 }
 
-export const Input: React.FC<InputProps> = ({
+export const TouchableInput: React.FC<TouchableInputProps> = ({
   label,
+  value,
+  placeholder,
   error,
+  onPress,
+  leftComponent,
+  rightComponent,
   containerStyle,
   inputStyle,
   labelStyle,
   errorStyle,
-  value,
-  onFocus,
-  onBlur,
-  onChangeText,
-  icon,
-  onIconPress,
-  ...textInputProps
+  disabled = false,
 }) => {
   const { theme } = useTheme();
-  const [isFocused, setIsFocused] = useState(false);
-  const [hasValue, setHasValue] = useState(!!value);
   const animatedValue = useRef(new Animated.Value(value ? 1 : 0)).current;
+  const hasValue = !!value;
 
   const animateLabel = useCallback((toValue: number) => {
     Animated.timing(animatedValue, {
@@ -56,40 +52,18 @@ export const Input: React.FC<InputProps> = ({
     }).start();
   }, [animatedValue]);
 
-  const handleFocus = (e: any) => {
-    setIsFocused(true);
-    animateLabel(1);
-    onFocus?.(e);
-  };
-
-  const handleBlur = (e: any) => {
-    setIsFocused(false);
-    if (!value && !hasValue) {
-      animateLabel(0);
-    }
-    onBlur?.(e);
-  };
-
-  const handleChangeText = (text: string) => {
-    setHasValue(!!text);
-    onChangeText?.(text);
-  };
-
-  React.useEffect(() => {
-    const shouldAnimateUp = !!value || hasValue;
-    if (shouldAnimateUp) {
+  useEffect(() => {
+    if (hasValue) {
       animateLabel(1);
     } else {
       animateLabel(0);
     }
-  }, [value, hasValue, animateLabel]);
+  }, [hasValue, animateLabel]);
 
   const getInputContainerStyle = (): ViewStyle => ({
     borderWidth: 2,
     borderColor: error
       ? theme.colors.error
-      : isFocused
-      ? theme.colors.primary
       : theme.colors.border,
     borderRadius: 15,
     backgroundColor: theme.colors.surface,
@@ -99,21 +73,22 @@ export const Input: React.FC<InputProps> = ({
     justifyContent: 'center',
     flexDirection: 'row',
     alignItems: 'center',
+    opacity: disabled ? 0.6 : 1,
   });
 
-  const getInputStyle = (): TextStyle => ({
+  const getValueStyle = (): TextStyle => ({
     ...theme.typography.body,
-    color: theme.colors.text,
+    color: hasValue ? theme.colors.text : theme.colors.textSecondary,
     fontSize: 16,
     flex: 1,
     ...(Platform.OS === 'ios' 
       ? {
-          paddingTop: label ? 10 : 12,
-          paddingBottom: label ? 8 : 12,
+          paddingTop: hasValue ? 10 : 12,
+          paddingBottom: hasValue ? 8 : 12,
           lineHeight: undefined,
         }
       : {
-          paddingTop: label ? 10 : 8,
+          paddingTop: hasValue ? 10 : 8,
           paddingBottom: 8,
           textAlignVertical: 'center',
         }
@@ -121,7 +96,6 @@ export const Input: React.FC<InputProps> = ({
     paddingHorizontal: 0,
     margin: 0,
     minHeight: Platform.OS === 'ios' ? 20 : 24,
-    height: undefined,
   });
 
   const getFloatingLabelStyle = () => {
@@ -143,7 +117,7 @@ export const Input: React.FC<InputProps> = ({
         inputRange: [0, 1],
         outputRange: [
           theme.colors.textSecondary,
-          isFocused ? theme.colors.primary : theme.colors.textSecondary,
+          theme.colors.textSecondary,
         ],
       }),
       backgroundColor: theme.colors.surface || theme.colors.background,
@@ -173,35 +147,39 @@ export const Input: React.FC<InputProps> = ({
     fontSize: 12,
   });
 
-  const IconWrapper = icon ? (
-    onIconPress ? TouchableOpacity : View
-  ) : null;
-
   return (
     <View style={containerStyle}>
-      <View style={getInputContainerStyle()}>
-        {label && (
-          <Animated.Text style={[getFloatingLabelStyle(), labelStyle]}>
-            {label}
-          </Animated.Text>
-        )}
-        <TextInput
-          style={[getInputStyle(), inputStyle]}
-          placeholderTextColor={theme.colors.textSecondary}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
-          onChangeText={handleChangeText}
-          value={value}
-          clearButtonMode="while-editing"
-          enablesReturnKeyAutomatically={true}
-          {...textInputProps}
-        />
-        {icon && IconWrapper && (
-          <IconWrapper onPress={onIconPress} activeOpacity={0.7}>
-            {icon}
-          </IconWrapper>
-        )}
-      </View>
+      <TouchableOpacity
+        onPress={onPress}
+        activeOpacity={0.7}
+        disabled={disabled}
+      >
+        <View style={[getInputContainerStyle(), inputStyle]}>
+          {/* Only show the floating label when there's a value */}
+          {label && hasValue && (
+            <Animated.Text style={[getFloatingLabelStyle(), labelStyle]}>
+              {label}
+            </Animated.Text>
+          )}
+          
+          {leftComponent && (
+            <View style={{ marginRight: 12 }}>
+              {leftComponent}
+            </View>
+          )}
+
+          <Text style={getValueStyle()}>
+            {value || placeholder}
+          </Text>
+
+          {rightComponent && (
+            <View style={{ marginLeft: 8 }}>
+              {rightComponent}
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
+      
       {error && (
         <Text style={[getErrorStyle(), errorStyle]}>{error}</Text>
       )}

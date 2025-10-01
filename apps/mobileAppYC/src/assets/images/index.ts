@@ -15,8 +15,10 @@ export const Images = {
   googleTab: require('./icons/googleTab.png'),
   appleTab: require('./icons/appleTab.png'),
   facebookTab: require('./icons/facebookTab.png'),
-  // Countries flags (you can add more)
-  flagUS: require('./icons/back.png'),
+cameraIcon: require('./icons/camera.png'),
+dropdownIcon: require('./icons/dropdown.png'),
+calendarIcon: require('./icons/calendar.png'),
+searchIcon: require('./icons/searchIcon.png'),
 
   // Logo
 } as const;
