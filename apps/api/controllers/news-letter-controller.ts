@@ -3,6 +3,7 @@ import {
   UpdateEndpointCommand,
   UpdateEndpointsBatchCommand,
 } from "@aws-sdk/client-pinpoint";
+import logger from "../utils/logger";
 import { parse } from "csv-parse/sync";
 import pinClient from "../config/pinpointClient";
 import Subscriber from "../models/Subscriber";
@@ -203,7 +204,7 @@ if (typeof uuid !== "string") {
     };
     const command = new UpdateEndpointCommand(params);
     const response = await pinClient.send(command);
-    console.log("Pinpoint response:", response);
+   // console.log("Pinpoint response:", response);
     if (response.$metadata.httpStatusCode !== 200) {
       res.status(500).json({ error: "Failed to unsubscribe" });
       return;
@@ -327,7 +328,7 @@ const batchUpload = async (req: Request, res: Response): Promise<void> => {
     }
     res.status(200).json({ message: "Endpoints creation successful!" });
   } catch (err) {
-    console.error(err);
+    logger.error(err);
     res.status(500).json({ error: "Server error processing CSV" });
   }
 };

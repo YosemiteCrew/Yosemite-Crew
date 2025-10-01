@@ -1,4 +1,5 @@
 import express, { Response } from 'express';
+import logger from '../utils/logger';
 import fs from 'fs';
 import path from 'path';
 const router = express.Router();
@@ -9,7 +10,7 @@ router.get('/pet-age', (res: Response) => {
     const filePath = path.join(process.cwd(), 'apps/api/src/extensions/pet-age.json');
     
     // Log the file path to verify it's correct
-    console.log("File Path:", filePath);
+    //logger.info("File Path:", filePath);
     
     // Read and log the JSON content from the file
     fs.readFile(filePath, 'utf8', (err, data) => {
@@ -21,7 +22,7 @@ router.get('/pet-age', (res: Response) => {
         // Parse the JSON data
         try {
             const jsonData = JSON.parse(data);
-            console.log("File Content:", jsonData);  // Log the JSON content
+          //  logger.info("File Content:", jsonData);  // Log the JSON content
             res.json(jsonData);  // Send the JSON content in the response
         } catch (parseError : unknown) {
                 console.error("Error parsing JSON:", parseError);

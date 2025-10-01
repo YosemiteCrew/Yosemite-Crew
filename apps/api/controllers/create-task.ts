@@ -1,4 +1,5 @@
 import dotenv from "dotenv";
+import logger from "../utils/logger";
 dotenv.config();
 import { Request, Response } from "express";
 import { convertTaskFromFHIR, convertToFHIRDoctorOptions } from "@yosemite-crew/fhir";
@@ -62,7 +63,7 @@ const createTaskController = {
       }
       const { formData } = convertTaskFromFHIR(fhirTask);
 
-      console.log("files", formData);
+     // logger.info("files", formData);
 
       // Uploaded files array (with metadata)
       const uploadedFiles: { key: string; name: string; type: string; date: Date }[] = [];
@@ -97,7 +98,7 @@ const createTaskController = {
       res.status(201).json({ message: "Task created successfully", data: savedTask });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
-      console.error("Error creating task:", {
+      logger.error("Error creating task:", {
         message,
         stack: error instanceof Error ? error.stack : undefined,
       });
@@ -155,7 +156,7 @@ const createTaskController = {
       data: convertToFHIRDoctorOptions(formattedDoctors),
     });
   } catch (error) {
-    console.error("Error fetching doctors by department ID:", error);
+    logger.error("Error fetching doctors by department ID:", error);
     res.status(500).json({
       message: "Internal server error",
       error: (error as Error).message,

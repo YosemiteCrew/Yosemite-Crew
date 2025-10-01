@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import logger from '../utils/logger';
 import { ZodError } from 'zod';
 import { FhirOrganization, fhirOrganizationSchema, toFhirOrganizationBreeder, toFhirOrganizationGroomer, toFhirOrganizationBoarding, convertToFhirSummary } from '@yosemite-crew/fhir';
 
@@ -266,7 +267,7 @@ const detailsController = {
 
 
     } catch (error: unknown) {
-      console.log('error:', error)
+      logger.error('error:', error)
       if (error instanceof ZodError) {
         res.status(200).json({
           status: 0,
@@ -367,7 +368,7 @@ const detailsController = {
       });
 
     } catch (error: unknown) {
-      console.log('error:', error)
+      logger.error('error:', error)
       if (error instanceof ZodError) {
         res.status(200).json({
           status: 0,

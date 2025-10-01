@@ -112,7 +112,7 @@ class formatExerciseToFHIRBundle {
     static convertPlanTypesToFHIR(exercisePlans :any) {
         const entries = exercisePlans.map((planDoc :any) => {
             const plan = planDoc.toObject();
-            console.log("plan",plan);
+           // console.log("plan",plan);
           return {
             fullUrl: `urn:uuid:${plan._id}`,
             resource: {
