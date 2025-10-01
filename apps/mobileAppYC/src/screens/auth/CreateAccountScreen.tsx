@@ -668,6 +668,7 @@ const handleSignUp = handleSubmit(async () => {
         </ScrollView>
 
         {/* Country Mobile Bottom Sheet */}
+         {currentStep === 1 && (
         <CountryMobileBottomSheet
           ref={countryMobileRef}
           countries={COUNTRIES}
@@ -675,6 +676,7 @@ const handleSignUp = handleSubmit(async () => {
           mobileNumber={step1Data.mobileNumber}
           onSave={handleCountryMobileSave}
         />
+      )}
 
         <SimpleDatePicker
           value={step1Data.dateOfBirth}
