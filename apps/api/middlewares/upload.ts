@@ -1,5 +1,6 @@
 // middlewares/upload.js
 import AWS from 'aws-sdk';
+import logger from '../utils/logger';
 import path from 'path';
 import sanitizeFilename from 'sanitize-filename';
 import { v4 as uuidv4 } from 'uuid';
@@ -73,7 +74,7 @@ async function handleFileUpload(file: UploadedFile, folderName: string) {
         
     
     } catch (err) {
-        console.error('Error uploading file to S3:', err);
+        logger.error('Error uploading file to S3:', err);
         throw err;
     }
 }
@@ -100,7 +101,7 @@ async function deleteFromS3(s3Key: string) {
         return headObject;
         // console.log('S3 File Found:', headObject);
       } catch (headErr) {
-        console.error("S3 File Not Found:", headErr);
+        logger.error("S3 File Not Found:", headErr);
         // return res.status(404).json({ message: "File not found in S3" });
       }
 }

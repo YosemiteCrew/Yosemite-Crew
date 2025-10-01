@@ -29,7 +29,7 @@ import addDiscountCodeRoutes from './routes/addDiscountCodeRoutes'
 import doctorSlots from './routes/doctor.slots'
 import createTask from './routes/create-task';
 import cors from 'cors';
-
+import logger from "./utils/logger"
 import type { S3File } from '@yosemite-crew/types'
 dotenv.config();
 const app = express();
@@ -58,16 +58,16 @@ const uploadFileToS3: UploadFileToS3 = async (file) => {
     await s3.upload(params).promise();
     return fileName; // Return only the file name
   } catch (error) {
-    console.error('Error uploading file to S3:', error);
+    logger.error('Error uploading file to S3:', error);
     throw error;
   }
 };
 
 // Connect to the database
 connectToDocumentDB()
-  .then(() => console.log('DB connected'))
+  .then(() => logger.info('DB connected'))
   .catch((err: Error) => {
-    console.error('Database connection failed:', err.message);
+    logger.error('Database connection failed:', err.message);
     process.exit(1);
   });
 
@@ -124,7 +124,7 @@ app.use('/fhir/v1',emergencyAppointments)
 app.use('/fhir/v1', createTask);
 // Global error handler
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Error:', err.message);
+  logger.error('Error:', err.message);
   res.status(500).json({
     message: 'Internal Server Error',
     error: err.message,
@@ -132,17 +132,17 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 });
 
 process.on('SIGINT', () => {
-  console.log('Server shutting down...');
+  logger.warn('Server shutting down...');
   process.exit();
 });
 
 process.on('SIGTERM', () => {
-  console.log('Server shutting down...');
+  logger.warn('Server shutting down...');
   process.exit();
 });
 
 process.on('unhandledRejection', (reason) => {
-  console.error('Unhandled Rejection:', reason);
+  logger.warn('Unhandled Rejection:', reason);
 });
 
 const server = http.createServer(app);
@@ -158,7 +158,7 @@ const io = new Server(server, {
 const onlineUsers = new Map<string, { username: string; socketIds: string[] }>();
 
 io.on('connection', (socket: Socket) => {
-  console.log('A user connected:', socket.id);
+  logger.info('A user connected:', socket.id);
 
   socket.on('userOnline', (username: string) => {
     if (!onlineUsers.has(username)) {
@@ -166,7 +166,7 @@ io.on('connection', (socket: Socket) => {
     }
     onlineUsers.get(username)!.socketIds.push(socket.id);
 
-    console.log("Online Users:", onlineUsers);
+    logger.info("Online Users:", onlineUsers);
     io.emit('updateOnlineUsers', Array.from(onlineUsers.keys()));
   });
 
@@ -192,7 +192,7 @@ io.on('connection', (socket: Socket) => {
       });
 
       const savedMessage = await newMessage.save();
-      console.log('newMessageee', savedMessage);
+      logger.info('newMessageee', savedMessage);
 
       const finalMessage = {
         sender,
@@ -210,10 +210,10 @@ io.on('connection', (socket: Socket) => {
         io.to(socketId).emit('receivePrivateMessage', finalMessage);
       });
 
-      console.log("Sent Message:", finalMessage);
+      logger.info("Sent Message:", finalMessage);
       callback({ success: true });
     } catch (error) {
-      console.error('Error processing message:', error);
+      logger.error('Error processing message:', error);
       callback({ success: false, error: 'Failed to process message' });
     }
   });
@@ -231,11 +231,11 @@ io.on('connection', (socket: Socket) => {
     }
   });
 
-  console.log('User disconnected:', socket.id);
+  logger.info('User disconnected:', socket.id);
   io.emit('updateOnlineUsers', Array.from(onlineUsers.keys()));
 });
 })
 // Start the server with Socket.IO
 server.listen(PORT,  () =>
-  console.log(`Server started on PORT: ${PORT}`)
+  logger.info(`Server started on PORT: ${PORT}`)
 );

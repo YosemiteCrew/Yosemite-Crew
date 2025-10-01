@@ -1,5 +1,6 @@
 // controllers/inviteTeamsMembers.ts
 import AWS from "aws-sdk";
+import logger from "../utils/logger";
 import validator from "validator";
 import { Request, Response } from "express";
 import { inviteTeamsMembers } from "../models/invite-teams-members";
@@ -56,7 +57,7 @@ export const inviteTeamsMembersController = {
         } else if (invitedByDoctor?.firstName || invitedByDoctor?.lastName) {
             inviterName = `${invitedByDoctor?.firstName || ""} ${invitedByDoctor?.lastName || ""}`.trim();
         }
-        console.log(inviterName)
+      //  console.log(inviterName)
         for (const invite of data) {
             const { email, name, role, department } = invite;
 
@@ -216,7 +217,7 @@ export const inviteTeamsMembersController = {
     inviteInfo: async (req: Request, res: Response): Promise<void> => {
         const { code } = req.query;
 
-        console.log("Invite Code:", code);
+      //  console.log("Invite Code:", code);
 
         if (typeof code !== "string" || !/^[a-zA-Z0-9]{8}$/.test(code)) {
             res.status(400).json({ message: "Invalid or missing invite code." });
@@ -286,7 +287,7 @@ export const inviteTeamsMembersController = {
             }
             // Step 1: Check if the user was invited
             const invitedRecord = await inviteTeamsMembers.findOne({ email });
-            console.log("Invited Record:", invitedRecord)
+          //  console.log("Invited Record:", invitedRecord)
             if (!invitedRecord) {
                 res.status(403).json({ message: "This email was not invited." });
                 return
@@ -304,13 +305,13 @@ export const inviteTeamsMembersController = {
                 };
 
                 const userData = await cognito.adminGetUser(params).promise();
-                console.log("User found in Cognito:", userData);
+              //  console.log("User found in Cognito:", userData);
 
                 const emailVerified = userData.UserAttributes?.find(
                     (attr) => attr.Name === "email_verified"
                 )?.Value === "true";
 
-                console.log("Email verified status:", emailVerified);
+             //   console.log("Email verified status:", emailVerified);
 
                 if (emailVerified) {
                     res
@@ -320,7 +321,7 @@ export const inviteTeamsMembersController = {
                 }
 
                 // Resend OTP
-                console.log("User exists but is not verified. Resending OTP...");
+               // logger.info("User exists but is not verified. Resending OTP...");
                 const resendParams: AWS.CognitoIdentityServiceProvider.ResendConfirmationCodeRequest = {
                     ClientId: process.env.COGNITO_CLIENT_ID_WEB as string,
                     Username: email,
@@ -344,7 +345,7 @@ export const inviteTeamsMembersController = {
                     "code" in err &&
                     (err as { code: string }).code !== "UserNotFoundException"
                 ) {
-                    console.error("Error checking Cognito user:", err);
+                    logger.error("Error checking Cognito user:", err);
                     res
                         .status(500)
                         .json({ message: "Error checking user status." });
@@ -372,7 +373,7 @@ export const inviteTeamsMembersController = {
                     });
                     return
                 }
-                console.error("Cognito Signup Error:", err);
+                logger.error("Cognito Signup Error:", err);
                 res.status(500).json({ message: "Error registering user. Please try again later." });
                 return
             }
@@ -413,7 +414,7 @@ export const inviteTeamsMembersController = {
             });
             return
         } catch (error) {
-            console.error("Unexpected Error:", error);
+            logger.error("Unexpected Error:", error);
             res.status(500).json({ message: "Internal Server Error. Please try again later." });
             return
         }
@@ -557,7 +558,7 @@ export const inviteTeamsMembersController = {
                 res.status(404).json({ message: "No invites found." });
                 return;
             }
-            console.log("invites", invites)
+         //   console.log("invites", invites)
             const invitesFHIR = toFHIRInviteList(invites);
 
             res.status(200).json({
@@ -565,7 +566,7 @@ export const inviteTeamsMembersController = {
                 invite: invitesFHIR as object,
             });
         } catch (error) {
-            console.error("Error fetching invites:", error);
+            logger.error("Error fetching invites:", error);
             res.status(500).json({ message: "Internal Server Error." });
         }
     },
@@ -587,7 +588,7 @@ export const inviteTeamsMembersController = {
                 res.status(200).json({ message: "Invite deleted successfully." });
             }
         } catch (error) {
-            console.error("Error deleting invite:", error);
+            logger.error("Error deleting invite:", error);
             res.status(500).json({ message: "Internal server error." });
         }
     },
@@ -688,7 +689,7 @@ export const inviteTeamsMembersController = {
                 departmentCount,
             };
 
-            console.log("result", finalResult);
+         //   console.log("result", finalResult);
             res.status(200).json({
                 message: "Team overview fetched successfully",
                 data: toFhirTeamOverview(
@@ -701,7 +702,7 @@ export const inviteTeamsMembersController = {
                 )
             });
         } catch (error) {
-            console.error("Error in practiceTeamOverView:", error);
+            logger.error("Error in practiceTeamOverView:", error);
             res.status(500).json({ message: "Internal server error" });
         }
     },
@@ -776,7 +777,7 @@ export const inviteTeamsMembersController = {
             const response = convertToFhirTeamMembers(result as []);
             res.status(200).json({ message: "Fetched Successfully", response });
         } catch (error) {
-            console.error("Error fetching practice team list:", error);
+            logger.error("Error fetching practice team list:", error);
             res.status(500).json({ message: "Internal Server Error" });
         }
     },
@@ -836,7 +837,7 @@ export const inviteTeamsMembersController = {
             });
             return
         } catch (error) {
-            console.error("Error fetching departments:", error);
+            logger.error("Error fetching departments:", error);
             res.status(500).json({ message: "Internal Server Error" });
             return
         }
@@ -1046,7 +1047,7 @@ const data:unknown  = PractitionerDatatoFHIR(practitioners)
     });
 
   } catch (error) {
-    console.error("Error fetching practitioners:", error);
+    logger.error("Error fetching practitioners:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
 },

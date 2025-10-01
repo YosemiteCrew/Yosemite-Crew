@@ -1,4 +1,5 @@
 const user = require('../models/YoshUser');
+import logger from '../utils/logger';
 const auth = require("./auth");
 
 
@@ -41,7 +42,7 @@ async function handleUserLogin(req,res){
         await auth.sendConfirmationCode(useremail, res);
 }
 async function handlehome(req,res){
-   console.log('app is connected')
+   logger.info('app is connected')
 }
 
 module.exports = {

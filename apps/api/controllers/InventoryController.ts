@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import logger from "../utils/logger";
 import { Inventory, ProcedurePackage } from "../models/Inventory";
 // import {
 //   // ProductCategoryFHIRConverter,
@@ -57,7 +58,7 @@ const InventoryControllers = {
         res.status(400).json({ message: `SKU ${data.sku} already exists.` });
         return;
       }
-      // console.log(data, "DAATA")
+      // logger.info(data, "DAATA")
       // Step 3: Convert expiryDate to Date object
       const expiryDate = data.expiryDate ? new Date(data.expiryDate) : null;
 
@@ -72,7 +73,7 @@ const InventoryControllers = {
       res.status(200).json({ message: 'Inventory Added Successfully' });
 
     } catch (error) {
-      console.error('AddInventory Error:', error);
+      logger.error('AddInventory Error:', error);
       res.status(500).json({ message: 'Server Error', error });
     }
   },
@@ -90,7 +91,7 @@ const InventoryControllers = {
         userId,
       } = req.query;
 
-      // console.log(searchCategory,"SearchCategory")
+      // logger.info(searchCategory,"SearchCategory")
       if (!userId) {
         res.status(400).json({
           resourceType: "OperationOutcome",
@@ -137,7 +138,7 @@ const InventoryControllers = {
         try {
           matchStage.category = new mongoose.Types.ObjectId(searchCategory);
         } catch (err) {
-          console.error("Invalid category ObjectId:", searchCategory);
+          logger.error("Invalid category ObjectId:", searchCategory);
         }
       } else {
         res.status(400).json({ message: "Category is required" });
@@ -207,10 +208,10 @@ const InventoryControllers = {
       ]);
 
       const inventoryDocs = inventory[0]?.data || [];
-      // console.log(inventoryDocs, "inventoryDocs");
+      // logger.info(inventoryDocs, "inventoryDocs");
       // ✅ Pass JSON directly to FHIR converter
       const fhirData = convertToFHIRInventory(inventoryDocs);
-      // console.log(fhirData, "fhirdata");
+      // logger.info(fhirData, "fhirdata");
 
       // ✅ Convert FHIR back to normal inventory (if needed)
       // const inventoryData = convertFhirBundleToInventory(fhirData);
@@ -223,7 +224,7 @@ const InventoryControllers = {
         // inventoryData,
       });
     } catch (error) {
-      console.error("Error fetching inventory:", error);
+      logger.error("Error fetching inventory:", error);
       res.status(500).json({ message: "Server error", error });
     }
   },
@@ -235,7 +236,7 @@ const InventoryControllers = {
   ): Promise<void> => {
     try {
       const { businessId } = req.body;
-      console.log(businessId, "bussinessId")
+     // logger.info(businessId, "bussinessId")
       // 1. Validate businessId (adjust regex depending on your actual format)
       if (typeof businessId !== "string" || businessId.trim() === "") {
         res.status(400).json({
@@ -517,7 +518,7 @@ const InventoryControllers = {
   getAllProcedurePackage: async (req: Request, res: Response) => {
     try {
       const { businessId } = req.query;
-      console.log(businessId, "businessId in getAllProcedurePackage")
+    //  logger.info("businessId in getAllProcedurePackage", businessId);
       if (
         !businessId ||
         typeof businessId !== "string" ||
@@ -579,7 +580,7 @@ const InventoryControllers = {
 
       res.status(200).json({ data });
     } catch (error) {
-      console.error(error);
+      logger.error(error);
       res.status(500).json({
         resourceType: "OperationOutcome",
         issue: [
@@ -651,13 +652,13 @@ const InventoryControllers = {
       }
 
       const fhirData = req.body as FHIRMedicalPackage;
-      // console.log("fhirData", JSON.stringify(fhirData, null, 2));
+      // logger.info("fhirData", JSON.stringify(fhirData, null, 2));
 
 
       const data: NormalMedicalPackage = convertFhirToNormalToUpdateProcedurePackage(fhirData);
       const { packageName, category, description, packageItems } = data;
 
-      // console.log("sanitizedItems", data)
+      // logger.info("sanitizedItems", data)
       // Update the procedure package
       const procedurePackagee = await ProcedurePackage.findOneAndUpdate(
         { _id: new mongoose.Types.ObjectId(id), bussinessId: hospitalId },
@@ -996,7 +997,7 @@ const InventoryControllers = {
         // inventoryData,
       });
     } catch (error) {
-      console.error("Error fetching inventory:", error);
+      logger.error("Error fetching inventory:", error);
       res.status(500).json({ message: "Server error", error });
     }
   },

@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import logger from '../utils/logger';
 import mongoose from 'mongoose';
 import { parseDiabetesObservation, toFHIRObservation} from '@yosemite-crew/fhir'; // ✅ right
 import helpers from '../utils/helpers';
@@ -156,7 +157,7 @@ const diabetesController = {
 
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'An unknown error occurred';
-      console.error("Error while deleting diabetes record:", errorMsg);
+      logger.error("Error while deleting diabetes record:", errorMsg);
       res.status(200).json({ status: 0, message: errorMsg });
     }
   }

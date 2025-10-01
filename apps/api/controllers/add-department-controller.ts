@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import logger from '../utils/logger';
 // import { DepartmentFromFHIRConverter } from '../utils/DepartmentFhirHandler';
 import { DepartmentCustomFormat, FHIRDepartment, FHIRHealthcareService } from '@yosemite-crew/types';
 import Department from '../models/AddDepartment';
@@ -56,7 +57,7 @@ const AddDepartmentController = {
 
   } catch (error) {
     const err = error as Error
-    console.error("Error fetching departments:", error);
+    logger.error("Error fetching departments:", error);
     res.status(500).json({
       success: false,
       message: "Internal Server Error",
@@ -98,7 +99,7 @@ const AddDepartmentController = {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      console.error('Error creating or updating department:', message);
+      logger.error('Error creating or updating department:', message);
       res.status(400).json({
         resourceType: 'OperationOutcome',
         issue: [
@@ -167,7 +168,7 @@ getDepartmentById: async (req: Request, res: Response): Promise<void> => {
     }
 
   } catch (error) {
-    console.error(error);
+    logger.error(error);
     res.status(500).json({ message: "Server Error" });
   }
 }
@@ -191,7 +192,7 @@ getDepartmentById: async (req: Request, res: Response): Promise<void> => {
 
   //         s3.upload(params, (err, data) => {
   //           if (err) {
-  //             console.error('Error uploading to S3:', err);
+  //             logger.error('Error uploading to S3:', err);
   //             reject(err);
   //           } else {
   //             resolve(data.Key);

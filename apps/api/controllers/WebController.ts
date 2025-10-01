@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import AWS from "aws-sdk";
+import logger from "../utils/logger";
 import crypto from "crypto";
 import { S3 } from "aws-sdk";
 import { Request, Response } from "express";
@@ -50,7 +51,7 @@ const WebController = {
         return
       }
 
-      console.log("Checking if user exists in Cognito...");
+     // console.log("Checking if user exists in Cognito...");
 
       try {
         const params: AWS.CognitoIdentityServiceProvider.AdminGetUserRequest = {
@@ -59,13 +60,13 @@ const WebController = {
         };
 
         const userData = await cognito.adminGetUser(params).promise();
-        console.log("User found in Cognito:", userData);
+       // console.log("User found in Cognito:", userData);
 
         const emailVerified = userData.UserAttributes?.find(
           (attr) => attr.Name === "email_verified"
         )?.Value === "true";
 
-        console.log("Email verified status:", emailVerified);
+       // console.log("Email verified status:", emailVerified);
 
         if (emailVerified) {
           res
@@ -75,7 +76,7 @@ const WebController = {
         }
 
         // Resend OTP
-        console.log("User exists but is not verified. Resending OTP...");
+       // console.log("User exists but is not verified. Resending OTP...");
         const resendParams: AWS.CognitoIdentityServiceProvider.ResendConfirmationCodeRequest = {
           ClientId: process.env.COGNITO_CLIENT_ID_WEB as string,
           Username: email,
@@ -99,7 +100,7 @@ const WebController = {
           "code" in err &&
           (err as { code: string }).code !== "UserNotFoundException"
         ) {
-          console.error("Error checking Cognito user:", err);
+          logger.error("Error checking Cognito user:", err);
           res
             .status(500)
             .json({ message: "Error checking user status." });
@@ -109,7 +110,7 @@ const WebController = {
       }
 
       // Register new user
-      console.log("User not found. Proceeding with registration...");
+     // console.log("User not found. Proceeding with registration...");
 
       const signUpParams: AWS.CognitoIdentityServiceProvider.SignUpRequest = {
         ClientId: process.env.COGNITO_CLIENT_ID_WEB as string,
@@ -125,9 +126,9 @@ const WebController = {
       let data;
       try {
         data = await cognito.signUp(signUpParams).promise();
-        console.log("User successfully registered in Cognito:", data);
+       // console.log("User successfully registered in Cognito:", data);
       } catch (err) {
-        console.error("Cognito Signup Error:", err);
+        logger.error("Cognito Signup Error:", err);
 
         if (
           typeof err === "object" &&
@@ -171,7 +172,7 @@ const WebController = {
       return
 
     } catch (error) {
-      console.error("Unexpected Error:", error);
+      logger.error("Unexpected Error:", error);
       res
         .status(500)
         .json({ message: "Internal Server Error. Please try again later." });
@@ -191,7 +192,7 @@ const WebController = {
         return
       }
 
-      console.log("Verifying OTP for email:", email);
+     // console.log("Verifying OTP for email:", email);
 
       const secretHash = getSecretHash(email);
 
@@ -205,7 +206,7 @@ const WebController = {
 
       try {
         const userData = await cognito.adminGetUser(getUserParams).promise();
-        console.log("Cognito User Data:", JSON.stringify(userData, null, 2));
+       // console.log("Cognito User Data:", JSON.stringify(userData, null, 2));
 
         const emailVerified = userData.UserAttributes?.find(
           (attr) => attr.Name === "email_verified"
@@ -218,14 +219,14 @@ const WebController = {
         )?.Value;
 
         if (!cognitoId) {
-          console.error("Cognito ID (sub) not found.");
+          logger.error("Cognito ID (sub) not found.");
           res.status(500).json({ message: "Cognito ID not found." });
           return
         }
 
-        console.log("Cognito ID:", cognitoId);
+      //  console.log("Cognito ID:", cognitoId);
       } catch (err) {
-        console.error("Error retrieving Cognito user:", err);
+        logger.error("Error retrieving Cognito user:", err);
         res
           .status(500)
           .json({ message: "Error retrieving user details." });
@@ -242,9 +243,9 @@ const WebController = {
 
         try {
           await cognito.confirmSignUp(confirmParams).promise();
-          console.log("User confirmed with OTP");
+        //  console.log("User confirmed with OTP");
         } catch (err) {
-          console.error("Cognito Verification Error:", err);
+          logger.error("Cognito Verification Error:", err);
           res
             .status(400)
             .json({ message: "Invalid OTP or user already verified." });
@@ -303,7 +304,7 @@ const WebController = {
       });
       return
     } catch (error) {
-      console.error("Unexpected Error:", error);
+      logger.error("Unexpected Error:", error);
       res
         .status(500)
         .json({ message: "Internal Server Error. Please try again later." });
@@ -420,7 +421,7 @@ const WebController = {
 
       return
     } catch (error) {
-      console.error("Error during sign-in:", error);
+      logger.error("Error during sign-in:", error);
 
       if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "NotAuthorizedException") {
         res.status(401).json({ message: "Invalid email or password" });
@@ -451,7 +452,7 @@ const WebController = {
 
       res.status(200).json({ message: "Logout successful" });
     } catch (error) {
-      console.error("Error during sign-out:", error);
+      logger.error("Error during sign-out:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   },
@@ -483,7 +484,7 @@ const WebController = {
           return
         }
 
-        console.error("Error checking user in Cognito:", err);
+        logger.error("Error checking user in Cognito:", err);
         res
           .status(500)
           .json({ message: "Error checking user status in Cognito." });
@@ -508,7 +509,7 @@ const WebController = {
       });
       return
     } catch (error) {
-      console.error("Error during forgotPassword:", error);
+      logger.error("Error during forgotPassword:", error);
       res.status(500).json({
         message: "Error during password reset process",
         error:
@@ -551,7 +552,7 @@ const WebController = {
       });
       return
     } catch (error) {
-      console.error("Error resetting password:", error);
+      logger.error("Error resetting password:", error);
 
       res.status(500).json({
         message: "Error resetting password.",
@@ -578,7 +579,7 @@ const WebController = {
             params,
             (err: Error, data: AWS.S3.ManagedUpload.SendData) => {
               if (err) {
-                console.error("Error uploading to S3:", err);
+                logger.error("Error uploading to S3:", err);
                 return reject(err);
               }
               if (data) {
@@ -700,7 +701,7 @@ const WebController = {
       }
     } catch (err) {
       const error = err as Error;
-      console.error("setupProfile error:", error);
+      logger.error("setupProfile error:", error);
       if (!res.headersSent) {
         res.status(500).json({
           message: "Internal Server Error",
@@ -729,7 +730,7 @@ const WebController = {
       }
     } catch (err) {
       const error = err as Error;
-      console.error("get departments error:", error.message);
+      logger.error("get departments error:", error.message);
 
       if (!res.headersSent) {
         res.status(500).json({
@@ -780,7 +781,7 @@ const WebController = {
       }
     } catch (err) {
       const error = err as Error;
-      console.error("get departments error:", error.message);
+      logger.error("get departments error:", error.message);
 
       if (!res.headersSent) {
         res.status(500).json({
@@ -836,7 +837,7 @@ const WebController = {
   //       const headObject = await s3.headObject(deleteParams).promise();
   //       console.log("S3 File Found:", headObject);
   //     } catch (headErr) {
-  //       console.error("S3 File Not Found:", headErr);
+  //       logger.error("S3 File Not Found:", headErr);
   //       return res.status(404).json({ message: "File not found in S3" });
   //     }
 
@@ -844,7 +845,7 @@ const WebController = {
   //       const deleteResponse = await s3.deleteObject(deleteParams).promise();
   //       console.log("S3 Delete Response:", deleteResponse);
   //     } catch (deleteErr) {
-  //       console.error("S3 Deletion Error:", deleteErr);
+  //       logger.error("S3 Deletion Error:", deleteErr);
   //       return res
   //         .status(500)
   //         .json({ message: "Failed to delete file from S3", error: deleteErr });
@@ -868,7 +869,7 @@ const WebController = {
   //       updatedUser,
   //     });
   //   } catch (err) {
-  //     console.error("Unexpected Error:", err);
+  //     logger.error("Unexpected Error:", err);
   //     res.status(500).json({
   //       message: "An error occurred while deleting the document",
   //       error: err,
@@ -933,7 +934,7 @@ const WebController = {
       // console.log("Converted FHIR Bundle:", fromFHIRBusinessProfile(fhirBundle));
       res.status(200).json(fhirBundle);
     } catch (error) {
-      console.error("Error fetching hospital profile:", error);
+      logger.error("Error fetching hospital profile:", error);
       res.status(500).json({
         resourceType: "OperationOutcome",
         issue: [
@@ -997,7 +998,7 @@ const WebController = {
       });
 
     } catch (error) {
-      console.error("Refresh error:", error);
+      logger.error("Refresh error:", error);
       res.status(403).json({ message: "Invalid or expired refresh token" });
 
     }

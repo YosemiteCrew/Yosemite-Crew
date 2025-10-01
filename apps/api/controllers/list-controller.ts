@@ -1,5 +1,5 @@
-
 import BusinessService, { formatKey } from '../services/BusinessService';
+import logger from '../utils/logger';
 import {BusinessFhirFormatter} from '@yosemite-crew/fhir';
 import mongoose from 'mongoose';
 import validator from 'validator';
@@ -171,7 +171,7 @@ const listController = {
       return
 
     } catch (error: unknown) {
-      console.error(error);
+      logger.error(error);
       if (error instanceof Error) {
         res.status(200).json({ status: 0, error: error.message || "Failed to fetch doctors." });
         return
@@ -192,7 +192,7 @@ const listController = {
         futureAppointments: WebAppointmentType[];
         hasUpcomingAppointment: boolean;
       };
-console.log(today, currentTime);
+//console.log(today, currentTime);
       const fhirDoctors: FutureAppointments[] = await AddDoctors.aggregate([
         { $match: { bussinessId: businessId } },
         {
@@ -310,12 +310,12 @@ console.log(today, currentTime);
       return
     } catch (error: unknown) {
       if (error instanceof Error) {
-        console.error("Doctor fetch error:", error.message);
+        logger.error("Doctor fetch error:", error.message);
         res.status(500).json({ status: 0, error: error.message || "Error fetching doctors and appointments." });
         return
       } else {
         // Handle unexpected error types    
-        console.error("Doctor fetch error:", error);
+        logger.error("Doctor fetch error:", error);
         res.status(500).json({ status: 0, error: "Error fetching doctors and appointments." });
         return
       }
@@ -455,7 +455,7 @@ fhirGroupedBundles[key] = {
     res.status(200).json({ status: 1, data: fhirGroupedBundles });
 
   } catch (err: unknown) {
-    console.error(err);
+    logger.error(err);
     res.status(500).json({
       status: 0,
       error: err instanceof Error ? err.message : "An unexpected error occurred."
@@ -547,12 +547,12 @@ fhirGroupedBundles[key] = {
 
     } catch (err: unknown) {
       if (err instanceof Error) {
-        console.error(err);
+        logger.error(err);
         res.status(500).json({ status: 0, error: err.message });
         return
       }
       else {
-        console.error(err);
+        logger.error(err);
         res.status(500).json({ status: 0, error: "An unexpected error occurred." });
         return
       }
