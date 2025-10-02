@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Alert,
   Platform,
+  Linking,
 } from 'react-native';
 import {
   launchCamera,
@@ -31,7 +32,6 @@ export const ProfileImagePicker: React.FC<ProfileImagePickerProps> = ({
 }) => {
   const { theme } = useTheme();
 
-  // Permission types based on platform
   const cameraPermission =
     Platform.OS === 'ios'
       ? PERMISSIONS.IOS.CAMERA
@@ -48,23 +48,28 @@ export const ProfileImagePicker: React.FC<ProfileImagePickerProps> = ({
     const permission = type === 'camera' ? cameraPermission : photoLibraryPermission;
 
     try {
-      // Check current permission status
       const checkResult = await check(permission);
       console.log(`Permission check result for ${type}:`, checkResult);
 
       switch (checkResult) {
         case RESULTS.UNAVAILABLE:
-          Alert.alert(
-            'Not Available',
-            `This feature is not available on your device.`
-          );
+          if (type === 'camera') {
+            Alert.alert(
+              'Camera Not Available',
+              'Camera is not available on this device. Please use a real device to test camera features.'
+            );
+          } else {
+            Alert.alert(
+              'Not Available',
+              'Photo library is not available on this device.'
+            );
+          }
           return false;
 
         case RESULTS.DENIED:
-          // Request permission if denied
           const requestResult = await request(permission);
           console.log(`Permission request result for ${type}:`, requestResult);
-          return requestResult === RESULTS.GRANTED;
+          return requestResult === RESULTS.GRANTED || requestResult === RESULTS.LIMITED;
 
         case RESULTS.LIMITED:
           console.log('Limited permission granted');
@@ -77,15 +82,13 @@ export const ProfileImagePicker: React.FC<ProfileImagePickerProps> = ({
         case RESULTS.BLOCKED:
           Alert.alert(
             'Permission Blocked',
-            `${
-              type === 'camera' ? 'Camera' : 'Photo library'
-            } permission is permanently blocked. Please enable it in your device settings to use this feature.`,
+            `${type === 'camera' ? 'Camera' : 'Photo library'} permission is blocked. Please enable it in Settings.`,
             [
               { text: 'Cancel', style: 'cancel' },
-              { text: 'Open Settings', onPress: () => {
-                // You can use react-native-permissions' openSettings() if available
-                // or use another library like react-native-app-settings
-              }},
+              { 
+                text: 'Open Settings', 
+                onPress: () => Linking.openSettings()
+              },
             ]
           );
           return false;
@@ -101,36 +104,46 @@ export const ProfileImagePicker: React.FC<ProfileImagePickerProps> = ({
   };
 
   const handleResponse = (response: ImagePickerResponse) => {
+    console.log('Image picker response:', response);
+
     if (response.didCancel) {
-      console.log('Image picker cancelled by user');
+      console.log('User cancelled image picker');
       return;
     }
 
     if (response.errorCode) {
-      console.log('Image picker error:', response.errorMessage);
-      let errorMessage = 'Failed to pick image';
+      console.log('Image picker error:', response.errorCode, response.errorMessage);
       
-      switch (response.errorCode) {
-        case 'camera_unavailable':
-          errorMessage = 'Camera is not available on this device';
-          break;
-        case 'permission':
-          errorMessage = 'Permission denied. Please check your app permissions.';
-          break;
-        case 'others':
-          errorMessage = response.errorMessage || 'Unknown error occurred';
-          break;
+      // Handle specific error codes as per documentation
+      if (response.errorCode === 'camera_unavailable') {
+        Alert.alert(
+          'Camera Not Available',
+          'Camera is not available. This is expected on iOS Simulator. Please test on a real device or select from gallery.'
+        );
+        return;
       }
       
-      Alert.alert('Error', errorMessage);
+      if (response.errorCode === 'permission') {
+        Alert.alert(
+          'Permission Denied',
+          'Permission was denied. Please check your app permissions in Settings.'
+        );
+        return;
+      }
+      
+      // Handle 'others' error code
+      Alert.alert(
+        'Error',
+        response.errorMessage || 'An error occurred while picking the image'
+      );
       return;
     }
 
-    if (response.assets && response.assets[0]) {
-      const uri = response.assets[0].uri;
-      if (uri) {
-        onImageSelected(uri);
-        console.log('Image selected successfully');
+    if (response.assets && response.assets.length > 0) {
+      const asset = response.assets[0];
+      if (asset.uri) {
+        onImageSelected(asset.uri);
+        console.log('Image selected successfully:', asset.fileName);
       } else {
         Alert.alert('Error', 'Failed to get image URI');
       }
@@ -150,7 +163,7 @@ export const ProfileImagePicker: React.FC<ProfileImagePickerProps> = ({
       maxHeight: 2000,
       maxWidth: 2000,
       quality: 0.8,
-      saveToPhotos: true,
+      saveToPhotos: false, // Set to true if you want to save to device photos
       cameraType: 'front',
     };
 
@@ -170,7 +183,7 @@ export const ProfileImagePicker: React.FC<ProfileImagePickerProps> = ({
       maxHeight: 2000,
       maxWidth: 2000,
       quality: 0.8,
-      selectionLimit: 1,
+      selectionLimit: 1, // 1 for single selection, 0 for unlimited (iOS 14+, Android 13+)
     };
 
     launchImageLibrary(options, handleResponse);

@@ -34,15 +34,15 @@ function App(): React.JSX.Element {
 
   return (
     <Provider store={store}>
-      <SafeAreaProvider>
         <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
               <AuthProvider>
         <NavigationContainer>
           <AppContent />
         </NavigationContainer>
          </AuthProvider>
-        </GestureHandlerRootView>
       </SafeAreaProvider>
+        </GestureHandlerRootView>
     </Provider>
   );
 }
@@ -52,15 +52,11 @@ function AppContent(): React.JSX.Element {
 
   return (
     <>
-      <SafeAreaProvider>
         <StatusBar
           barStyle={isDark ? 'light-content' : 'dark-content'}
           backgroundColor={theme.colors.background}
         />
-         <GestureHandlerRootView style={{ flex: 1 }}>
         <AppNavigator />
-        </GestureHandlerRootView>
-      </SafeAreaProvider>
     </>
   );
 }

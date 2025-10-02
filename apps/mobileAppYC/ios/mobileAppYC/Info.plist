@@ -2,24 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-<!-- Camera -->
-<key>NSCameraUsageDescription</key>
-<string>This app needs access to camera to capture profile photos and share moments with your pet community</string>
-
-<!-- Photo Library -->
-<key>NSPhotoLibraryUsageDescription</key>
-<string>This app needs access to your photo library to select photos for your profile and posts</string>
-<key>NSPhotoLibraryAddUsageDescription</key>
-<string>This app needs permission to save photos to your library</string>
-
-<!-- Location -->
-<key>NSLocationWhenInUseUsageDescription</key>
-<string>This app needs access to your location to show nearby pet services, parks, and connect you with local pet owners</string>
-<key>NSLocationAlwaysUsageDescription</key>
-<string>This app needs access to your location to provide location-based features even when the app is in the background</string>
-<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-<string>This app needs access to your location to provide location-based features</string>
-
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
@@ -51,6 +33,27 @@
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string></string>
+
+	<!-- Camera -->
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs access to camera to capture profile photos and share moments with your pet community</string>
+
+	<!-- Photo Library -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app needs access to your photo library to select photos for your profile and posts</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>This app needs permission to save photos to your library</string>
+
+	<!-- Location -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app needs access to your location to show nearby pet services, parks, and connect you with local pet owners</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>This app needs access to your location to provide location-based features even when the app is in the background</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>This app needs access to your location to provide location-based features</string>
+
+
+
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UIAppFonts</key>
