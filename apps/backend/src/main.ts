@@ -1,15 +1,23 @@
 import express, { Request, Response } from "express";
-import { logger } from "./utils/logger";
+import logger from "./utils/logger";
+import mongoose from "mongoose";
+import organizationRounter from "./routers/organization.router";
+import parentRouter from "./routers/parent.router";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-app.get("/", (req: Request, res: Response) => {
-  res.send("Hello, TypeScript + Express + pnpm!");
-});
+app.use(`/fhir/v1/organization`, organizationRounter);
+app.use(`/fhir/v1/parent`, parentRouter);
 
-app.listen(PORT, () => {
-    logger.info(`🚀 Server is running at http://localhost:${PORT}`)
-})
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/yosemitecrew')
+.then(() => {
+  logger.info('Connected to MongoDB');
+  app.listen(PORT, () => {
+    logger.info(`Server is running on port ${PORT}`);
+  });
+}).catch((err) => {
+  logger.error('Failed to connect to MongoDB', err);
+});

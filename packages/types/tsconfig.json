@@ -12,8 +12,12 @@
     "skipLibCheck": true,
     "strict": true,
     "strictNullChecks": true,
-    "outDir": "dist"
+    "outDir": "dist",
+    "rootDir": "../"
   },
   "exclude": ["node_modules"],
-  "include": ["./src/**/*"]
+  "include": ["./src/**/*", "../fhirtypes/src/**/*"],
+  "references": [
+    { "path": "../fhirtypes" }
+  ]
 }
