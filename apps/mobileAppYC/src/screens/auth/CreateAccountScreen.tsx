@@ -27,7 +27,8 @@ import {Images} from '../../assets/images';
 import {Checkbox} from '../../components/common/Checkbox/Checkbox';
 import COUNTRIES from '../../utils/countryList.json';
 import {TouchableInput} from '../../components/common/TouchableInput/TouchableInput';
-import {useAuth} from '../../contexts/AuthContext'; // Update this import
+import {useAuth} from '../../contexts/AuthContext';
+
 interface CreateAccountScreenProps {
   navigation: any;
 }
@@ -63,12 +64,10 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
 
   const countryMobileRef = useRef<CountryMobileBottomSheetRef>(null);
 
-  // Form state
   const [currentStep, setCurrentStep] = useState<number>(1);
-  const [selectedCountry, setSelectedCountry] = useState<Country>(COUNTRIES[2]); // India default
+  const [selectedCountry, setSelectedCountry] = useState<Country>(COUNTRIES[2]);
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
 
-  // Separate form state for each step to prevent data sharing between steps
   const [step1Data, setStep1Data] = useState({
     firstName: '',
     lastName: '',
@@ -112,7 +111,6 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     mode: 'onChange',
   });
 
-  // Profile Image Handler
   const handleProfileImageChange = useCallback(
     (imageUri: string | null) => {
       setStep1Data(prev => ({...prev, profileImage: imageUri}));
@@ -121,7 +119,6 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     [setValue],
   );
 
-  // Country & Mobile Number Handlers
   const handleCountryMobilePress = useCallback(() => {
     countryMobileRef.current?.open();
   }, []);
@@ -136,7 +133,6 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     [setValue],
   );
 
-  // Date Picker Handlers
   const handleDatePickerPress = useCallback(() => {
     setShowDatePicker(true);
   }, []);
@@ -163,7 +159,6 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     );
   }, []);
 
-  // Field change handlers for step 1
   const handleStep1FieldChange = useCallback(
     (field: keyof typeof step1Data, value: any) => {
       setStep1Data(prev => ({...prev, [field]: value}));
@@ -172,7 +167,6 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     [setValue],
   );
 
-  // Field change handlers for step 2
   const handleStep2FieldChange = useCallback(
     (field: keyof typeof step2Data, value: any) => {
       setStep2Data(prev => ({...prev, [field]: value}));
@@ -181,117 +175,96 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     [setValue],
   );
 
-  // Navigation Handlers
-// In handleNext function, replace the age validation section with:
-const handleNext = async () => {
-  // Validate step 1 fields
-  const fieldsToValidate = [
-    'firstName',
-    'lastName',
-    'mobileNumber',
-    'dateOfBirth',
-  ] as const;
-  const isValid = await trigger(fieldsToValidate);
+  const handleNext = async () => {
+    const fieldsToValidate = [
+      'firstName',
+      'lastName',
+      'mobileNumber',
+      'dateOfBirth',
+    ] as const;
+    const isValid = await trigger(fieldsToValidate);
 
-  // Additional manual validation for date of birth
-  if (!step1Data.dateOfBirth) {
-    setError('dateOfBirth', {
-      type: 'manual',
-      message: 'Date of birth is required',
-    });
-    return;
-  }
-
-  // Validate age is 18+
-  const birthDate = new Date(step1Data.dateOfBirth);
-  const maxDate = getMaximumDate(); // This is already the date 18 years ago
-  
-  // Check if birth date is after the maximum allowed date (meaning they're younger than 18)
-  if (birthDate > maxDate) {
-    setError('dateOfBirth', {
-      type: 'manual',
-      message: 'You must be at least 18 years old',
-    });
-    return;
-  }
-
-  if (isValid) {
-    clearErrors('dateOfBirth'); // Clear any previous errors
-    setCurrentStep(2);
-  }
-};
-
-// Modify handleGoBack to re-sync form values when going back:
-const handleGoBack = useCallback(() => {
-  if (currentStep === 2) {
-    // Re-sync step 1 values with form state when going back
-    setValue('firstName', step1Data.firstName, {shouldValidate: false});
-    setValue('lastName', step1Data.lastName, {shouldValidate: false});
-    setValue('mobileNumber', step1Data.mobileNumber, {shouldValidate: false});
-    setValue('dateOfBirth', step1Data.dateOfBirth, {shouldValidate: false});
-    setValue('profileImage', step1Data.profileImage, {shouldValidate: false});
-    clearErrors(); // Clear all errors when going back
-    setCurrentStep(1);
-  } else {
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-    } else {
-      navigation.navigate('SignUp');
+    if (!step1Data.dateOfBirth) {
+      setError('dateOfBirth', {
+        type: 'manual',
+        message: 'Date of birth is required',
+      });
+      return;
     }
-  }
-}, [currentStep, navigation, step1Data, setValue, clearErrors]);
 
-  // Form Submit Handler
-// Form Submit Handler
-const handleSignUp = handleSubmit(async () => {
-  // Combine data from both steps
-  const combinedData = {
-    ...step1Data,
-    ...step2Data,
-    countryDialCode: selectedCountry.dial_code,
-    fullMobileNumber: `${selectedCountry.dial_code}${step1Data.mobileNumber}`,
+    const birthDate = new Date(step1Data.dateOfBirth);
+    const maxDate = getMaximumDate();
+    
+    if (birthDate > maxDate) {
+      setError('dateOfBirth', {
+        type: 'manual',
+        message: 'You must be at least 18 years old',
+      });
+      return;
+    }
+
+    if (isValid) {
+      clearErrors('dateOfBirth');
+      setCurrentStep(2);
+    }
   };
 
-  // Manual validation for terms acceptance
-  if (!combinedData.acceptTerms) {
-    setError('acceptTerms', {
-      type: 'manual',
-      message: 'You must accept the terms and conditions',
-    });
-    return;
-  }
-
-  // Validate all required fields are present
-  if (!combinedData.dateOfBirth) {
-    setError('dateOfBirth', {
-      type: 'manual',
-      message: 'Date of birth is required',
-    });
-    return;
-  }
-
-  try {
-    console.log('Signup Data:', combinedData);
-
-    // Call your signup API here
-    // const response = await signupAPI(combinedData);
-    
-    // After successful signup, log in the user
-    if (loginsample) {
-      await loginsample();
-      // Navigation will be handled automatically by AppNavigator
-      // when isLoggedIn becomes true
+  const handleGoBack = useCallback(() => {
+    if (currentStep === 2) {
+      setValue('firstName', step1Data.firstName, {shouldValidate: false});
+      setValue('lastName', step1Data.lastName, {shouldValidate: false});
+      setValue('mobileNumber', step1Data.mobileNumber, {shouldValidate: false});
+      setValue('dateOfBirth', step1Data.dateOfBirth, {shouldValidate: false});
+      setValue('profileImage', step1Data.profileImage, {shouldValidate: false});
+      clearErrors();
+      setCurrentStep(1);
     } else {
-      console.error('loginsample function not available');
-      navigation.navigate('SignIn');
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.navigate('SignUp');
+      }
     }
-  } catch (error) {
-    console.error('Signup error:', error);
-    // Handle error appropriately (show error message to user)
-  }
-});
+  }, [currentStep, navigation, step1Data, setValue, clearErrors]);
 
-  // Step 1 Content
+  const handleSignUp = handleSubmit(async () => {
+    const combinedData = {
+      ...step1Data,
+      ...step2Data,
+      countryDialCode: selectedCountry.dial_code,
+      fullMobileNumber: `${selectedCountry.dial_code}${step1Data.mobileNumber}`,
+    };
+
+    if (!combinedData.acceptTerms) {
+      setError('acceptTerms', {
+        type: 'manual',
+        message: 'You must accept the terms and conditions',
+      });
+      return;
+    }
+
+    if (!combinedData.dateOfBirth) {
+      setError('dateOfBirth', {
+        type: 'manual',
+        message: 'Date of birth is required',
+      });
+      return;
+    }
+
+    try {
+      console.log('Signup Data:', combinedData);
+      
+      if (loginsample) {
+        await loginsample();
+      } else {
+        console.error('loginsample function not available');
+        navigation.navigate('SignIn');
+      }
+    } catch (error) {
+      console.error('Signup error:', error);
+    }
+  });
+
   const renderStep1 = () => (
     <>
       <ProfileImagePicker
@@ -324,6 +297,7 @@ const handleSignUp = handleSubmit(async () => {
               }}
               error={errors.firstName?.message}
               maxLength={50}
+              containerStyle={styles.inputContainer}
             />
           )}
         />
@@ -352,6 +326,7 @@ const handleSignUp = handleSubmit(async () => {
               }}
               error={errors.lastName?.message}
               maxLength={50}
+              containerStyle={styles.inputContainer}
             />
           )}
         />
@@ -376,8 +351,7 @@ const handleSignUp = handleSubmit(async () => {
               leftComponent={
                 <View style={styles.countrySection}>
                   <Text style={styles.flagText}>{selectedCountry.flag}</Text>
-                  <Text
-                    style={[styles.dialCodeText, {color: theme.colors.text}]}>
+                  <Text style={styles.dialCodeText}>
                     {selectedCountry.dial_code}
                   </Text>
                 </View>
@@ -385,18 +359,14 @@ const handleSignUp = handleSubmit(async () => {
               rightComponent={
                 <Image
                   source={Images.dropdownIcon}
-                  style={[
-                    styles.dropdownIcon,
-                    {tintColor: theme.colors.textSecondary},
-                  ]}
+                  style={styles.dropdownIcon}
                 />
               }
-              containerStyle={{marginBottom: 16}}
+              containerStyle={styles.inputContainer}
             />
           )}
         />
 
-        {/* Date of Birth Field */}
         <Controller
           control={control}
           name="dateOfBirth"
@@ -415,31 +385,17 @@ const handleSignUp = handleSubmit(async () => {
               rightComponent={
                 <Image
                   source={Images.calendarIcon}
-                  style={[
-                    styles.calendarIcon,
-                    {tintColor: theme.colors.textSecondary},
-                  ]}
+                  style={styles.calendarIcon}
                 />
               }
-              containerStyle={{marginBottom: 16}}
+              containerStyle={styles.inputContainer}
             />
           )}
         />
       </View>
-
-      <LiquidGlassButton
-        title="Next"
-        onPress={handleNext}
-        style={styles.button}
-        textStyle={styles.buttonText}
-        tintColor={theme.colors.secondary}
-        height={56}
-        borderRadius="lg"
-      />
     </>
   );
 
-  // Step 2 Content
   const renderStep2 = () => (
     <>
       <ProfileImagePicker
@@ -469,6 +425,7 @@ const handleSignUp = handleSubmit(async () => {
               error={errors.address?.message}
               multiline
               maxLength={200}
+              containerStyle={styles.inputContainer}
             />
           )}
         />
@@ -493,6 +450,7 @@ const handleSignUp = handleSubmit(async () => {
               }}
               error={errors.stateProvince?.message}
               maxLength={50}
+              containerStyle={styles.inputContainer}
             />
           )}
         />
@@ -572,70 +530,57 @@ const handleSignUp = handleSubmit(async () => {
               }}
               error={errors.country?.message}
               maxLength={50}
+              containerStyle={styles.inputContainer}
             />
           )}
         />
 
-        <View style={styles.checkboxContainer}>
-          <Controller
-            control={control}
-            name="acceptTerms"
-            render={() => (
-              <Checkbox
-                value={step2Data.acceptTerms}
-                onValueChange={checked => {
-                  handleStep2FieldChange('acceptTerms', checked);
-                  if (checked) {
-                    clearErrors('acceptTerms');
-                  }
-                }}
-                error={errors.acceptTerms?.message}
-              />
-            )}
-          />
-          <View style={styles.termsTextContainer}>
-            <Text
-              style={[
-                styles.checkboxText,
-                {color: theme.colors.textSecondary},
-              ]}>
-              I agree to the{' '}
-            </Text>
-            <TouchableOpacity onPress={() => console.log('Open terms')}>
-              <Text style={[styles.linkText, {color: theme.colors.primary}]}>
-                terms and conditions
+        <View style={styles.checkboxWrapper}>
+          <View style={styles.checkboxContainer}>
+            <Controller
+              control={control}
+              name="acceptTerms"
+              render={() => (
+                <Checkbox
+                  value={step2Data.acceptTerms}
+                  onValueChange={checked => {
+                    handleStep2FieldChange('acceptTerms', checked);
+                    if (checked) {
+                      clearErrors('acceptTerms');
+                    }
+                  }}
+                  // REMOVE: error={errors.acceptTerms?.message}
+                />
+              )}
+            />
+            <View style={styles.termsTextContainer}>
+              <Text style={styles.checkboxText}>
+                I agree to the{' '}
               </Text>
-            </TouchableOpacity>
-            <Text
-              style={[
-                styles.checkboxText,
-                {color: theme.colors.textSecondary},
-              ]}>
-              {' '}
-              and{' '}
-            </Text>
-            <TouchableOpacity onPress={() => console.log('Open privacy')}>
-              <Text style={[styles.linkText, {color: theme.colors.primary}]}>
-                privacy policy.
+              <TouchableOpacity onPress={() => console.log('Open terms')}>
+                <Text style={styles.linkText}>
+                  terms and conditions
+                </Text>
+              </TouchableOpacity>
+              <Text style={styles.checkboxText}>
+                {' '}and{' '}
               </Text>
-            </TouchableOpacity>
+              <TouchableOpacity onPress={() => console.log('Open privacy')}>
+                <Text style={styles.linkText}>
+                  privacy policy.
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
+          {/* NEW: Error message below the row */}
+          {errors.acceptTerms?.message && (
+            <Text style={styles.errorText}>
+              {errors.acceptTerms.message}
+            </Text>
+          )}
         </View>
 
-        <View
-          style={[styles.divider, {backgroundColor: theme.colors.border}]}
-        />
       </View>
-
-      <LiquidGlassButton
-        title="Sign up"
-        onPress={handleSignUp}
-        style={styles.button}
-        textStyle={styles.buttonText}
-        tintColor={theme.colors.secondary}
-        height={56}
-        borderRadius="lg"
-      />
     </>
   );
 
@@ -644,21 +589,19 @@ const handleSignUp = handleSubmit(async () => {
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidingView}>
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
             <Image
               source={Images.backIcon}
-              style={[styles.backIcon, {tintColor: theme.colors.text}]}
+              style={styles.backIcon}
             />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, {color: theme.colors.text}]}>
+          <Text style={styles.headerTitle}>
             Create account
           </Text>
           <View style={styles.spacer} />
         </View>
 
-        {/* Content */}
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
@@ -667,16 +610,17 @@ const handleSignUp = handleSubmit(async () => {
           {currentStep === 1 ? renderStep1() : renderStep2()}
         </ScrollView>
 
-        {/* Country Mobile Bottom Sheet */}
-         {currentStep === 1 && (
-        <CountryMobileBottomSheet
-          ref={countryMobileRef}
-          countries={COUNTRIES}
-          selectedCountry={selectedCountry}
-          mobileNumber={step1Data.mobileNumber}
-          onSave={handleCountryMobileSave}
-        />
-      )}
+        <View style={styles.buttonContainer}>
+          <LiquidGlassButton
+            title={currentStep === 1 ? 'Next' : 'Sign up'}
+            onPress={currentStep === 1 ? handleNext : handleSignUp}
+            style={styles.button}
+            textStyle={styles.buttonText}
+            tintColor={theme.colors.secondary}
+            height={56}
+            borderRadius={16}
+          />
+        </View>
 
         <SimpleDatePicker
           value={step1Data.dateOfBirth}
@@ -687,6 +631,14 @@ const handleSignUp = handleSubmit(async () => {
           mode="date"
         />
       </KeyboardAvoidingView>
+
+      <CountryMobileBottomSheet
+        ref={countryMobileRef}
+        countries={COUNTRIES}
+        selectedCountry={selectedCountry}
+        mobileNumber={step1Data.mobileNumber}
+        onSave={handleCountryMobileSave}
+      />
     </SafeArea>
   );
 };
@@ -703,76 +655,74 @@ const createStyles = (theme: any) =>
     header: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 20,
-      paddingTop: Platform.OS === 'ios' ? 10 : 20,
-      paddingBottom: 10,
+      paddingHorizontal: theme.spacing['5'], // 20
+      paddingTop: Platform.OS === 'ios' ? theme.spacing['2'] : theme.spacing['5'], // 8 : 20
+      paddingBottom: theme.spacing['2'], // 8
     },
     backButton: {
-      width: 30,
-      height: 30,
+      width: theme.spacing['8'], // 32
+      height: theme.spacing['8'], // 32
       justifyContent: 'center',
       alignItems: 'center',
     },
     backIcon: {
-      width: 24,
-      height: 24,
+      width: theme.spacing['6'], // 24
+      height: theme.spacing['6'], // 24
+      tintColor: theme.colors.text,
     },
     headerTitle: {
       flex: 1,
-      fontSize: 20,
-      fontWeight: '600',
+      ...theme.typography.h3,
+      color: theme.colors.text,
       textAlign: 'center',
     },
     spacer: {
-      width: 30,
+      width: theme.spacing['8'], // 32
     },
     scrollView: {
       flex: 1,
     },
     scrollContent: {
-      paddingHorizontal: 20,
-      paddingBottom: 40,
+      paddingHorizontal: theme.spacing['5'], // 20
+      paddingBottom: theme.spacing['24'], // 96 - space for fixed button
     },
     formSection: {
-      marginBottom: 20,
+      marginBottom: theme.spacing['5'], // 20
     },
-    label: {
-      fontSize: 16,
-      fontWeight: '500',
-      marginBottom: 8,
+    inputContainer: {
+      marginBottom: theme.spacing['5'], // 20 - space between inputs + error messages
     },
     countrySection: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingRight: 12,
+      paddingRight: theme.spacing['3'], // 12
       borderRightWidth: 1,
-      borderRightColor: '#E0E0E0',
+      borderRightColor: theme.colors.border,
     },
     flagText: {
-      fontSize: 24,
-      marginRight: 8,
+      fontSize: theme.spacing['6'], // 24
+      marginRight: theme.spacing['2'], // 8
     },
     dialCodeText: {
-      fontSize: 16,
+      ...theme.typography.body,
+      color: theme.colors.text,
       fontWeight: '500',
     },
     dropdownIcon: {
-      width: 12,
-      height: 12,
-      marginLeft: 8,
+      width: theme.spacing['3'], // 12
+      height: theme.spacing['3'], // 12
+      marginLeft: theme.spacing['2'], // 8
+      tintColor: theme.colors.textSecondary,
     },
     calendarIcon: {
-      width: 20,
-      height: 20,
-    },
-    errorText: {
-      marginTop: 4,
-      fontSize: 14,
+      width: theme.spacing['5'], // 20
+      height: theme.spacing['5'], // 20
+      tintColor: theme.colors.textSecondary,
     },
     cityPostalRow: {
       flexDirection: 'row',
-      gap: 10,
-      marginBottom: 16,
+      gap: theme.spacing['3'], // 12
+      marginBottom: theme.spacing['5'], // 20
     },
     cityWrapper: {
       flex: 1,
@@ -780,35 +730,55 @@ const createStyles = (theme: any) =>
     postalWrapper: {
       flex: 1,
     },
+     checkboxWrapper: {
+      marginBottom: theme.spacing['5'], // 20
+    },
     checkboxContainer: {
       flexDirection: 'row',
       alignItems: 'flex-start',
-      marginVertical: 20,
-      paddingRight: 10,
+      marginVertical: theme.spacing['5'], // 20
+      paddingRight: theme.spacing['2'], // 8
     },
     checkboxText: {
+      ...theme.typography.body,
+      color: theme.colors.textSecondary,
       fontSize: 14,
+    },
+    errorText: {
+      ...theme.typography.caption,
+      color: theme.colors.error,
+      marginTop: theme.spacing['1'], // 4
+      marginLeft: theme.spacing['8'], // 32 - align with checkbox text
+      fontSize: 12,
     },
     termsTextContainer: {
       flexDirection: 'row',
       flexWrap: 'wrap',
       flex: 1,
-      marginLeft: 8,
+      marginLeft: theme.spacing['2'], // 8
     },
     linkText: {
+      ...theme.typography.body,
+      color: theme.colors.primary,
       textDecorationLine: 'underline',
       fontSize: 14,
     },
-    divider: {
-      height: 1,
-      marginVertical: 20,
+
+    buttonContainer: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      paddingHorizontal: theme.spacing['5'], // 20
+      paddingTop: theme.spacing['4'], // 16
+      paddingBottom: theme.spacing['10'], // 40
+      backgroundColor: theme.colors.background,
     },
     button: {
-      marginTop: 20,
+      width: '100%',
     },
     buttonText: {
-      color: '#fff',
-      fontSize: 16,
-      fontWeight: '600',
+      color: theme.colors.white,
+      ...theme.typography.paragraphBold,
     },
   });

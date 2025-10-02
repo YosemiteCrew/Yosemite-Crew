@@ -345,8 +345,8 @@ const createStyles = (theme: any) =>
     // Bottom Sheet Styles
     bottomSheetBackground: {
       backgroundColor: theme.colors.background,
-      borderTopLeftRadius: 32,
-      borderTopRightRadius: 32,
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
     },
     bottomSheetHandle: {
       backgroundColor: theme.colors.black,

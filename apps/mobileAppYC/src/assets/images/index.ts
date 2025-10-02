@@ -19,7 +19,7 @@ cameraIcon: require('./icons/camera.png'),
 dropdownIcon: require('./icons/dropdown.png'),
 calendarIcon: require('./icons/calendar.png'),
 searchIcon: require('./icons/searchIcon.png'),
-
+crossIcon: require('./icons/crossIcon.png'),
   // Logo
 } as const;
 

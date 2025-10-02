@@ -183,6 +183,7 @@ const createStyles = (theme: any) =>
     },
     socialButton: {
       borderColor: theme.colors.border,
+         backgroundColor: theme.colors.white,
     },
     socialButtonTextGoogle: {
       color: theme.colors.text,

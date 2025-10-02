@@ -8,27 +8,27 @@
 
 /* Begin PBXBuildFile section */
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
+		176CC800377F9DF4B5DC7957 /* libPods-mobileAppYC.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 08E1CEE97E1A8FF670482B26 /* libPods-mobileAppYC.a */; };
 		2045D1D0726AD513B4F64DC0 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
-		C2CF4CA17728112B314AF851 /* libPods-mobileAppYC.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 3A81FA35C6D805253ADB7D27 /* libPods-mobileAppYC.a */; };
 		E6A943B3E225420BA9785A03 /* BootSplash.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 471A248EB57E4E549A9FCD5B /* BootSplash.storyboard */; };
 		EB918EA2F3434CE285FC714D /* Colors.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 42635969955E4156B6472E3C /* Colors.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		08E1CEE97E1A8FF670482B26 /* libPods-mobileAppYC.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-mobileAppYC.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07F961A680F5B00A75B9A /* mobileAppYC.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = mobileAppYC.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = mobileAppYC/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = mobileAppYC/Info.plist; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = mobileAppYC/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		3A81FA35C6D805253ADB7D27 /* libPods-mobileAppYC.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-mobileAppYC.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		42635969955E4156B6472E3C /* Colors.xcassets */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = folder.assetcatalog; name = Colors.xcassets; path = mobileAppYC/Colors.xcassets; sourceTree = "<group>"; };
 		471A248EB57E4E549A9FCD5B /* BootSplash.storyboard */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = BootSplash.storyboard; path = mobileAppYC/BootSplash.storyboard; sourceTree = "<group>"; };
 		5384E25E2E881C1D00342038 /* mobileAppYC.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = mobileAppYC.entitlements; path = mobileAppYC/mobileAppYC.entitlements; sourceTree = "<group>"; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = mobileAppYC/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = mobileAppYC/LaunchScreen.storyboard; sourceTree = "<group>"; };
-		9342D376A248EE81B033DE58 /* Pods-mobileAppYC.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-mobileAppYC.release.xcconfig"; path = "Target Support Files/Pods-mobileAppYC/Pods-mobileAppYC.release.xcconfig"; sourceTree = "<group>"; };
-		E97DA920F76648726EBAD4D3 /* Pods-mobileAppYC.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-mobileAppYC.debug.xcconfig"; path = "Target Support Files/Pods-mobileAppYC/Pods-mobileAppYC.debug.xcconfig"; sourceTree = "<group>"; };
+		9360D88A870225856C4D09ED /* Pods-mobileAppYC.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-mobileAppYC.release.xcconfig"; path = "Target Support Files/Pods-mobileAppYC/Pods-mobileAppYC.release.xcconfig"; sourceTree = "<group>"; };
+		A82117538532484939C7EE7A /* Pods-mobileAppYC.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-mobileAppYC.debug.xcconfig"; path = "Target Support Files/Pods-mobileAppYC/Pods-mobileAppYC.debug.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
@@ -37,7 +37,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C2CF4CA17728112B314AF851 /* libPods-mobileAppYC.a in Frameworks */,
+				176CC800377F9DF4B5DC7957 /* libPods-mobileAppYC.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -63,7 +63,7 @@
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				3A81FA35C6D805253ADB7D27 /* libPods-mobileAppYC.a */,
+				08E1CEE97E1A8FF670482B26 /* libPods-mobileAppYC.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -100,8 +100,8 @@
 		BBD78D7AC51CEA395F1C20DB /* Pods */ = {
 			isa = PBXGroup;
 			children = (
-				E97DA920F76648726EBAD4D3 /* Pods-mobileAppYC.debug.xcconfig */,
-				9342D376A248EE81B033DE58 /* Pods-mobileAppYC.release.xcconfig */,
+				A82117538532484939C7EE7A /* Pods-mobileAppYC.debug.xcconfig */,
+				9360D88A870225856C4D09ED /* Pods-mobileAppYC.release.xcconfig */,
 			);
 			path = Pods;
 			sourceTree = "<group>";
@@ -113,13 +113,13 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "mobileAppYC" */;
 			buildPhases = (
-				FB02DEC0CE92E99AE920994E /* [CP] Check Pods Manifest.lock */,
+				4A4E8D6A33A0519C4EEFA49B /* [CP] Check Pods Manifest.lock */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
-				7845E1F0B2C54F22481E544D /* [CP] Embed Pods Frameworks */,
-				0313D0D1B46A21E4DB9FD89E /* [CP] Copy Pods Resources */,
+				C9A2005AD2E1E509551684EC /* [CP] Embed Pods Frameworks */,
+				1319E2052B2FC1B8907C76D4 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -193,7 +193,7 @@
 			shellPath = /bin/sh;
 			shellScript = "set -e\n\nWITH_ENVIRONMENT=\"$REACT_NATIVE_PATH/scripts/xcode/with-environment.sh\"\nREACT_NATIVE_XCODE=\"$REACT_NATIVE_PATH/scripts/react-native-xcode.sh\"\n\n/bin/sh -c \"$WITH_ENVIRONMENT $REACT_NATIVE_XCODE\"\n";
 		};
-		0313D0D1B46A21E4DB9FD89E /* [CP] Copy Pods Resources */ = {
+		1319E2052B2FC1B8907C76D4 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -210,24 +210,7 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-mobileAppYC/Pods-mobileAppYC-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		7845E1F0B2C54F22481E544D /* [CP] Embed Pods Frameworks */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-mobileAppYC/Pods-mobileAppYC-frameworks-${CONFIGURATION}-input-files.xcfilelist",
-			);
-			name = "[CP] Embed Pods Frameworks";
-			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-mobileAppYC/Pods-mobileAppYC-frameworks-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-mobileAppYC/Pods-mobileAppYC-frameworks.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
-		FB02DEC0CE92E99AE920994E /* [CP] Check Pods Manifest.lock */ = {
+		4A4E8D6A33A0519C4EEFA49B /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -249,6 +232,23 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
+		C9A2005AD2E1E509551684EC /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-mobileAppYC/Pods-mobileAppYC-frameworks-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-mobileAppYC/Pods-mobileAppYC-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-mobileAppYC/Pods-mobileAppYC-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -265,7 +265,7 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = E97DA920F76648726EBAD4D3 /* Pods-mobileAppYC.debug.xcconfig */;
+			baseConfigurationReference = A82117538532484939C7EE7A /* Pods-mobileAppYC.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
@@ -274,6 +274,7 @@
 				DEVELOPMENT_TEAM = 9TZWPYQ45S;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = mobileAppYC/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Yosemite Crew";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -295,7 +296,7 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 9342D376A248EE81B033DE58 /* Pods-mobileAppYC.release.xcconfig */;
+			baseConfigurationReference = 9360D88A870225856C4D09ED /* Pods-mobileAppYC.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
@@ -303,6 +304,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 9TZWPYQ45S;
 				INFOPLIST_FILE = mobileAppYC/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Yosemite Crew";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

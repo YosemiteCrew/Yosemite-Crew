@@ -152,6 +152,7 @@ export const Input: React.FC<InputProps> = ({
         outputRange: [0, 4],
       }),
       zIndex: 1,
+        pointerEvents: 'none' as const,
     };
 
     if (Platform.OS === 'ios') {
