@@ -5,8 +5,17 @@ require Pod::Executable.execute_command('node', ['-p',
     {paths: [process.argv[1]]},
   )', __dir__]).strip
 
+# Add react-native-permissions setup
+require_relative '../node_modules/react-native-permissions/scripts/setup'
+
 platform :ios, min_ios_version_supported
 prepare_react_native_project!
+
+# Setup permissions BEFORE the target block
+setup_permissions([
+  'Camera',
+  'PhotoLibrary',
+])
 
 linkage = ENV['USE_FRAMEWORKS']
 if linkage != nil
