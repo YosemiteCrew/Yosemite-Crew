@@ -47,7 +47,7 @@ const UnverifiedProfile = ({ handleLogout }: any) => {
                 <Link href="#">
                   <RiAccountBoxFill /> Change Password
                 </Link>
-                <Link href="#" onClick={() => handleLogout()}>
+                <Link href="/" onClick={() => handleLogout()}>
                   <FaSignInAlt /> Sign Out
                 </Link>
               </div>
