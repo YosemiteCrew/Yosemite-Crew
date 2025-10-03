@@ -5,15 +5,14 @@ import {RootStackParamList} from './types';
 import {AuthNavigator} from './AuthNavigator';
 import {TabNavigator} from './TabNavigator';
 import {OnboardingScreen} from '../screens/onboarding/OnboardingScreen';
-import {useAuth} from '../hooks';
+import {useAuth} from '../contexts/AuthContext'; // Update import path
 import {Loading} from '../components';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
-
 const ONBOARDING_COMPLETED_KEY = '@onboarding_completed';
 
 export const AppNavigator: React.FC = () => {
-  const {isLoggedIn} = useAuth();
+  const {isLoggedIn, isLoading: authLoading} = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
@@ -43,9 +42,11 @@ export const AppNavigator: React.FC = () => {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || authLoading) {
     return <Loading text="Loading..." />;
   }
+
+  console.log('AppNavigator render - isLoggedIn:', isLoggedIn, 'showOnboarding:', showOnboarding);
 
   return (
     <Stack.Navigator screenOptions={{headerShown: false}}>

@@ -1,55 +1,49 @@
 import React from 'react';
-import {View, ActivityIndicator, Text, StyleSheet} from 'react-native';
-import {useTheme} from '../../../hooks';
+import {
+  View,
+  ActivityIndicator,
+  Text,
+  StyleSheet,
+} from 'react-native';
+import { useTheme } from '../../../hooks';
 
 interface LoadingProps {
-  size?: 'small' | 'large';
   text?: string;
-  overlay?: boolean;
+  size?: 'small' | 'large';
+  color?: string;
 }
 
 export const Loading: React.FC<LoadingProps> = ({
+  text = 'Loading...',
   size = 'large',
-  text,
-  overlay = false,
+  color,
 }) => {
-  const {theme} = useTheme();
-
-  const containerStyle = overlay
-    ? {
-        position: 'absolute' as const,
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: theme.colors.overlay,
-        justifyContent: 'center' as const,
-        alignItems: 'center' as const,
-        zIndex: 9999,
-      }
-    : {
-        flex: 1,
-        justifyContent: 'center' as const,
-        alignItems: 'center' as const,
-        backgroundColor: theme.colors.background,
-      };
+  const { theme } = useTheme();
 
   return (
-    <View style={containerStyle}>
-      <ActivityIndicator size={size} color={theme.colors.primary} />
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <ActivityIndicator
+        size={size}
+        color={color || theme.colors.primary}
+      />
       {text && (
-        <Text
-          style={[
-            theme.typography.body,
-            {
-              color: overlay ? theme.colors.surface : theme.colors.text,
-              marginTop: theme.spacing['4'],
-              textAlign: 'center',
-            },
-          ]}>
+        <Text style={[styles.text, { color: theme.colors.text }]}>
           {text}
         </Text>
       )}
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  text: {
+    marginTop: 16,
+    fontSize: 16,
+    textAlign: 'center',
+  },
+});
