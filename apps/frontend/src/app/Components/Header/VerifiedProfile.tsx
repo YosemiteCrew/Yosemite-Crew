@@ -47,7 +47,7 @@ const VerifiedProfile = ({ handleLogout }: any) => {
                 <Link href="#">
                   <IoIosHelpCircleOutline /> Need Help?
                 </Link>
-                <Link href="#" onClick={() => handleLogout()}>
+                <Link href="/" onClick={() => handleLogout()}>
                   <FaSignInAlt /> Sign Out
                 </Link>
               </div>

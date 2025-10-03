@@ -234,7 +234,7 @@ const PrivateHeader = () => {
                 </div>
                 <div className="verified-mobile-menu-item-sperator"></div>
                 <div className="verified-mobile-submenu-item danger">
-                  <a href="#">Sign Out</a>
+                  <Link href="/">Sign Out</Link>
                 </div>
               </div>
             </div>
