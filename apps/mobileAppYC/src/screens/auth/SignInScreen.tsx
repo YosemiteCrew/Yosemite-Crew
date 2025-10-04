@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   View,
   Text,
@@ -11,36 +11,86 @@ import {SafeArea, Input} from '../../components/common';
 import {useTheme} from '../../hooks';
 import {Images} from '../../assets/images';
 import LiquidGlassButton from '@/components/common/LiquidGlassButton/LiquidGlassButton';
+import {
+  requestPasswordlessEmailCode,
+  formatAuthError,
+} from '@/services/auth/passwordlessAuth';
+import type {NativeStackScreenProps} from '@react-navigation/native-stack';
+import type {AuthStackParamList} from '../../navigation/AuthNavigator';
 
-interface SignInScreenProps {
-  navigation: any;
-}
+type SignInScreenProps = NativeStackScreenProps<AuthStackParamList, 'SignIn'>;
 
-export const SignInScreen: React.FC<SignInScreenProps> = ({navigation}) => {
+export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) => {
   const {theme} = useTheme();
   const styles = createStyles(theme);
 
-  const [email, setEmail] = useState('');
+  const [emailValue, setEmailValue] = useState('');
   const [emailError, setEmailError] = useState('');
+  const [statusMessage, setStatusMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const routeEmail = route.params?.email;
+  const routeStatusMessage = route.params?.statusMessage;
+  const hasStatusMessageParam = route.params
+    ? Object.prototype.hasOwnProperty.call(route.params, 'statusMessage')
+    : false;
+
+  useEffect(() => {
+    if (!routeEmail && !hasStatusMessageParam) {
+      return;
+    }
+
+    console.log('[Auth] Restoring sign-in state from params', {
+      email: routeEmail,
+      statusMessage: routeStatusMessage,
+      hasStatusMessageParam,
+    });
+
+    if (routeEmail) {
+      setEmailValue(routeEmail);
+    }
+
+    if (hasStatusMessageParam) {
+      setStatusMessage(routeStatusMessage ?? '');
+    }
+
+    navigation.setParams({ email: undefined, statusMessage: undefined });
+  }, [hasStatusMessageParam, navigation, routeEmail, routeStatusMessage]);
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
 
-  const handleSendOTP = () => {
-    if (!email.trim()) {
+  const handleSendOTP = async () => {
+    if (!emailValue.trim()) {
       setEmailError('Please enter your email address');
       return;
     }
 
-    if (!validateEmail(email.trim())) {
+    if (!validateEmail(emailValue.trim())) {
       setEmailError('Please enter a valid email address');
       return;
     }
 
     setEmailError('');
-    navigation.navigate('OTPVerification', {email: email.trim()});
+    setIsSubmitting(true);
+    try {
+      const normalizedEmail = emailValue.trim();
+      console.log('[Auth] Sending OTP request', { normalizedEmail });
+      const result = await requestPasswordlessEmailCode(normalizedEmail);
+      console.log('[Auth] OTP request succeeded', result);
+      setStatusMessage(`We sent a login code to ${result.destination}`);
+      navigation.navigate('OTPVerification', {
+        email: result.destination,
+        isNewUser: result.isNewUser,
+      });
+    } catch (error) {
+      console.error('[Auth] Failed requesting passwordless code', error);
+      setEmailError(formatAuthError(error));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const navigateToSignUp = () => {
@@ -63,9 +113,12 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation}) => {
   };
 
   const handleEmailChange = (text: string) => {
-    setEmail(text);
+    setEmailValue(text);
     if (emailError) {
       setEmailError('');
+    }
+    if (statusMessage) {
+      setStatusMessage('');
     }
   };
 
@@ -88,7 +141,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation}) => {
             <View style={styles.inputContainer}>
               <Input
                 label="Email address"
-                value={email}
+                value={emailValue}
                 onChangeText={handleEmailChange}
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -102,10 +155,16 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation}) => {
               onPress={handleSendOTP}
               style={styles.sendButton}
               textStyle={styles.sendButtonText}
+              loading={isSubmitting}
+              disabled={isSubmitting}
               tintColor={theme.colors.secondary}
               height={56}
               borderRadius="lg"
             />
+
+            {statusMessage ? (
+              <Text style={styles.statusMessage}>{statusMessage}</Text>
+            ) : null}
 
             <View style={styles.footerContainer}>
               <Text style={styles.footerText}>Not a member? </Text>
@@ -203,6 +262,12 @@ const createStyles = (theme: any) =>
     sendButtonText: {
       color: theme.colors.white,
       lineHeight: 30,
+    },
+    statusMessage: {
+      ...theme.typography.paragraph,
+      color: theme.colors.success,
+      textAlign: 'center',
+      marginBottom: 16,
     },
     footerContainer: {
       flexDirection: 'row',

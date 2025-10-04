@@ -1,5 +1,5 @@
 // src/screens/Auth/CreateAccountScreen.tsx
-import React, {useState, useCallback, useRef} from 'react';
+import React, {useState, useCallback, useEffect, useRef} from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  DeviceEventEmitter,
 } from 'react-native';
 import {useForm, Controller} from 'react-hook-form';
 import {SafeArea, Input} from '../../components/common';
@@ -22,16 +23,27 @@ import {
   CountryMobileBottomSheetRef,
 } from '../../components/common/CountryMobileBottomSheet/CountryMobileBottomSheet';
 import LiquidGlassButton from '@/components/common/LiquidGlassButton/LiquidGlassButton';
+import CustomBottomSheet, {
+  BottomSheetRef,
+} from '../../components/common/BottomSheet/BottomSheet';
 import {useTheme} from '../../hooks';
 import {Images} from '../../assets/images';
 import {Checkbox} from '../../components/common/Checkbox/Checkbox';
 import COUNTRIES from '../../utils/countryList.json';
 import {TouchableInput} from '../../components/common/TouchableInput/TouchableInput';
-import {useAuth} from '../../contexts/AuthContext';
+import {useAuth, type User} from '../../contexts/AuthContext';
+import type {NativeStackScreenProps} from '@react-navigation/native-stack';
+import type {AuthStackParamList} from '../../navigation/AuthNavigator';
+import { PASSWORDLESS_AUTH_CONFIG } from '@/config/auth';
+import LocationService from '@/services/LocationService';
+import { signOutEverywhere } from '@/services/auth/passwordlessAuth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT } from '@/constants/auth';
 
-interface CreateAccountScreenProps {
-  navigation: any;
-}
+type CreateAccountScreenProps = NativeStackScreenProps<
+  AuthStackParamList,
+  'CreateAccount'
+>;
 
 interface Country {
   name: string;
@@ -57,23 +69,53 @@ interface FormData {
 
 export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
   navigation,
+  route,
 }) => {
-  const {loginsample} = useAuth();
+  const {login, logout} = useAuth();
   const {theme} = useTheme();
   const styles = createStyles(theme);
 
+  const {email, userId, profileToken, tokens, initialAttributes} = route.params;
+
+  const maybeParsedDate = initialAttributes?.dateOfBirth
+    ? new Date(initialAttributes.dateOfBirth)
+    : null;
+  const parsedDateOfBirth =
+    maybeParsedDate && !Number.isNaN(maybeParsedDate.getTime()) ? maybeParsedDate : null;
+  const rawPhone = initialAttributes?.phone?.replace(/[^0-9+]/g, '') ?? '';
+  const normalizedPhoneDigits = rawPhone.replace(/\D/g, '');
+  const resolvedCountry = (() => {
+    const match = COUNTRIES.find(country =>
+      normalizedPhoneDigits.startsWith(country.dial_code.replace('+', '')),
+    );
+    return match ?? COUNTRIES[2];
+  })();
+  const localPhoneRaw = normalizedPhoneDigits.startsWith(
+    resolvedCountry.dial_code.replace('+', ''),
+  )
+    ? normalizedPhoneDigits.slice(resolvedCountry.dial_code.replace('+', '').length)
+    : normalizedPhoneDigits;
+  const localPhoneNumber = localPhoneRaw.slice(-10);
+
   const countryMobileRef = useRef<CountryMobileBottomSheetRef>(null);
+  const successBottomSheetRef = useRef<BottomSheetRef>(null);
 
   const [currentStep, setCurrentStep] = useState<number>(1);
-  const [selectedCountry, setSelectedCountry] = useState<Country>(COUNTRIES[2]);
+  const [selectedCountry, setSelectedCountry] = useState<Country>(resolvedCountry);
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState('');
+  const [location, setLocation] = useState<{latitude: number; longitude: number} | null>(null);
+  const [isRequestingLocation, setIsRequestingLocation] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [isOtpSuccessVisible, setIsOtpSuccessVisible] = useState(true);
 
   const [step1Data, setStep1Data] = useState({
-    firstName: '',
-    lastName: '',
-    mobileNumber: '',
-    dateOfBirth: null as Date | null,
-    profileImage: null as string | null,
+    firstName: initialAttributes?.firstName ?? '',
+    lastName: initialAttributes?.lastName ?? '',
+    mobileNumber: localPhoneNumber,
+    dateOfBirth: parsedDateOfBirth,
+    profileImage: initialAttributes?.profilePicture ?? null,
   });
 
   const [step2Data, setStep2Data] = useState({
@@ -95,12 +137,12 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     clearErrors,
   } = useForm<FormData>({
     defaultValues: {
-      firstName: '',
-      lastName: '',
-      countryDialCode: COUNTRIES[2].dial_code,
-      mobileNumber: '',
-      dateOfBirth: null,
-      profileImage: null,
+      firstName: initialAttributes?.firstName ?? '',
+      lastName: initialAttributes?.lastName ?? '',
+      countryDialCode: resolvedCountry.dial_code,
+      mobileNumber: localPhoneNumber,
+      dateOfBirth: parsedDateOfBirth,
+      profileImage: initialAttributes?.profilePicture ?? null,
       address: '',
       stateProvince: '',
       city: '',
@@ -111,10 +153,61 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     mode: 'onChange',
   });
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchLocation = async () => {
+      setIsRequestingLocation(true);
+      setLocationError(null);
+      try {
+        const coords = await LocationService.getLocationWithRetry();
+        if (coords && isMounted) {
+          setLocation({latitude: coords.latitude, longitude: coords.longitude});
+        }
+      } catch (error) {
+        console.warn('Unable to fetch location', error);
+        if (isMounted) {
+          setLocationError('We could not determine your current location. You can still continue.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsRequestingLocation(false);
+        }
+      }
+    };
+
+    fetchLocation();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!successBottomSheetRef.current) {
+      return;
+    }
+
+    if (isOtpSuccessVisible) {
+      requestAnimationFrame(() => {
+        successBottomSheetRef.current?.snapToIndex(0);
+      });
+    } else {
+      requestAnimationFrame(() => {
+        successBottomSheetRef.current?.close();
+      });
+    }
+  }, [isOtpSuccessVisible]);
+
+  const handleSuccessClose = useCallback(() => {
+    successBottomSheetRef.current?.close();
+    setIsOtpSuccessVisible(false);
+  }, []);
+
   const handleProfileImageChange = useCallback(
     (imageUri: string | null) => {
       setStep1Data(prev => ({...prev, profileImage: imageUri}));
-      setValue('profileImage', imageUri);
+      setValue('profileImage', imageUri, {shouldValidate: true});
     },
     [setValue],
   );
@@ -209,7 +302,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     }
   };
 
-  const handleGoBack = useCallback(() => {
+  const handleGoBack = useCallback(async () => {
     if (currentStep === 2) {
       setValue('firstName', step1Data.firstName, {shouldValidate: false});
       setValue('lastName', step1Data.lastName, {shouldValidate: false});
@@ -218,14 +311,71 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
       setValue('profileImage', step1Data.profileImage, {shouldValidate: false});
       clearErrors();
       setCurrentStep(1);
-    } else {
-      if (navigation.canGoBack()) {
-        navigation.goBack();
-      } else {
-        navigation.navigate('SignUp');
-      }
+      return;
     }
-  }, [currentStep, navigation, step1Data, setValue, clearErrors]);
+
+    try {
+      await signOutEverywhere();
+    } catch (error) {
+      console.warn('Failed to sign out of Amplify session', error);
+    }
+
+    await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
+    DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
+
+    await logout();
+
+    navigation.reset({
+      index: 0,
+      routes: [{name: 'SignUp'}],
+    });
+  }, [clearErrors, currentStep, logout, navigation, setValue, step1Data]);
+
+  const createAccountEndpoint = PASSWORDLESS_AUTH_CONFIG.createAccountUrl;
+
+  const submitCreateAccount = useCallback(
+    async (payload: Record<string, unknown>) => {
+      if (!createAccountEndpoint) {
+        await new Promise(resolve => setTimeout(resolve, 1200));
+        return {success: true};
+      }
+
+      const outgoingPayload = {
+        ...payload,
+        location: location
+          ? {
+              latitude: location.latitude,
+              longitude: location.longitude,
+            }
+          : null,
+        locationStatus: location
+          ? 'collected'
+          : isRequestingLocation
+            ? 'pending'
+            : 'unavailable',
+      };
+
+      const response = await fetch(createAccountEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${tokens.accessToken}`,
+          'x-profile-token': profileToken,
+        },
+        body: JSON.stringify(outgoingPayload),
+      });
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(
+          message || 'We could not create your account right now. Please try again.',
+        );
+      }
+
+      return response.json().catch(() => ({success: true}));
+    },
+    [createAccountEndpoint, isRequestingLocation, location, profileToken, tokens.accessToken],
+  );
 
   const handleSignUp = handleSubmit(async () => {
     const combinedData = {
@@ -234,6 +384,8 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
       countryDialCode: selectedCountry.dial_code,
       fullMobileNumber: `${selectedCountry.dial_code}${step1Data.mobileNumber}`,
     };
+
+    setSubmissionError('');
 
     if (!combinedData.acceptTerms) {
       setError('acceptTerms', {
@@ -252,16 +404,48 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     }
 
     try {
-      console.log('Signup Data:', combinedData);
-      
-      if (loginsample) {
-        await loginsample();
-      } else {
-        console.error('loginsample function not available');
-        navigation.navigate('SignIn');
-      }
+      setIsSubmitting(true);
+      await submitCreateAccount({
+        email,
+        userId,
+        profileToken,
+        firstName: combinedData.firstName,
+        lastName: combinedData.lastName,
+        phone: combinedData.fullMobileNumber,
+        dateOfBirth: combinedData.dateOfBirth?.toISOString(),
+        address: {
+          addressLine: combinedData.address,
+          stateProvince: combinedData.stateProvince,
+          city: combinedData.city,
+          postalCode: combinedData.postalCode,
+          country: combinedData.country,
+        },
+      });
+
+      await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
+      DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
+
+      const userPayload: User = {
+        id: userId,
+        email,
+        firstName: combinedData.firstName,
+        lastName: combinedData.lastName,
+        phone: combinedData.fullMobileNumber,
+        dateOfBirth: combinedData.dateOfBirth?.toISOString().split('T')[0],
+        profilePicture: combinedData.profileImage ?? undefined,
+        profileToken,
+      };
+
+      await login(userPayload, tokens);
     } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Something went wrong while creating your account. Please try again.';
+      setSubmissionError(message);
       console.error('Signup error:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   });
 
@@ -549,7 +733,6 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
                       clearErrors('acceptTerms');
                     }
                   }}
-                  // REMOVE: error={errors.acceptTerms?.message}
                 />
               )}
             />
@@ -579,6 +762,16 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
             </Text>
           )}
         </View>
+
+        {isRequestingLocation ? (
+          <Text style={styles.locationStatus}>Fetching your location…</Text>
+        ) : location ? (
+          <Text style={styles.locationStatus}>
+            Location detected: {location.latitude.toFixed(3)}, {location.longitude.toFixed(3)}
+          </Text>
+        ) : locationError ? (
+          <Text style={styles.locationStatusError}>{locationError}</Text>
+        ) : null}
 
       </View>
     </>
@@ -610,15 +803,27 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
           {currentStep === 1 ? renderStep1() : renderStep2()}
         </ScrollView>
 
+        {submissionError ? (
+          <Text style={styles.submissionError}>{submissionError}</Text>
+        ) : null}
+
         <View style={styles.buttonContainer}>
           <LiquidGlassButton
-            title={currentStep === 1 ? 'Next' : 'Sign up'}
+            title={
+              currentStep === 1
+                ? 'Next'
+                : isSubmitting
+                ? 'Creating account...'
+                : 'Create account'
+            }
             onPress={currentStep === 1 ? handleNext : handleSignUp}
             style={styles.button}
             textStyle={styles.buttonText}
             tintColor={theme.colors.secondary}
             height={56}
             borderRadius={16}
+            loading={currentStep === 2 && isSubmitting}
+            disabled={currentStep === 2 && isSubmitting}
           />
         </View>
 
@@ -630,6 +835,44 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
           maximumDate={getMaximumDate()}
           mode="date"
         />
+
+        <View
+          style={styles.bottomSheetContainer}
+          pointerEvents={isOtpSuccessVisible ? 'auto' : 'box-none'}>
+          <CustomBottomSheet
+            ref={successBottomSheetRef}
+            snapPoints={['45%']}
+            initialIndex={1}
+            enablePanDownToClose={false}
+            enableBackdrop
+            backdropOpacity={0.5}
+            backdropAppearsOnIndex={0}
+            backdropDisappearsOnIndex={-1}
+            backdropPressBehavior="none"
+            backgroundStyle={styles.bottomSheetBackground}
+            handleIndicatorStyle={styles.bottomSheetHandle}>
+            <View style={styles.successContent}>
+              <Image
+                source={Images.verificationSuccess}
+                style={styles.successIllustration}
+                resizeMode="contain"
+              />
+              <Text style={styles.successTitle}>Code verified</Text>
+              <Text style={styles.successMessage}>
+                Nice! Now let's finish setting up your Yosemite Crew profile.
+              </Text>
+              <LiquidGlassButton
+                title="Continue"
+                onPress={handleSuccessClose}
+                style={styles.successButton}
+                textStyle={styles.successButtonText}
+                tintColor={theme.colors.secondary}
+                height={56}
+                borderRadius={16}
+              />
+            </View>
+          </CustomBottomSheet>
+        </View>
       </KeyboardAvoidingView>
 
       <CountryMobileBottomSheet
@@ -757,11 +1000,29 @@ const createStyles = (theme: any) =>
       flex: 1,
       marginLeft: theme.spacing['2'], // 8
     },
+    locationStatus: {
+      ...theme.typography.caption,
+      color: theme.colors.textSecondary,
+      marginTop: theme.spacing['2'],
+    },
+    locationStatusError: {
+      ...theme.typography.caption,
+      color: theme.colors.error,
+      marginTop: theme.spacing['2'],
+    },
     linkText: {
       ...theme.typography.body,
       color: theme.colors.primary,
       textDecorationLine: 'underline',
       fontSize: 14,
+    },
+
+    submissionError: {
+      ...theme.typography.paragraphBold,
+      color: theme.colors.error,
+      textAlign: 'center',
+      paddingHorizontal: theme.spacing['5'],
+      marginBottom: theme.spacing['2'],
     },
 
     buttonContainer: {
@@ -778,6 +1039,57 @@ const createStyles = (theme: any) =>
       width: '100%',
     },
     buttonText: {
+      color: theme.colors.white,
+      ...theme.typography.paragraphBold,
+    },
+    bottomSheetContainer: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: 9999,
+      elevation: 9999,
+      justifyContent: 'flex-end',
+    },
+    bottomSheetBackground: {
+      backgroundColor: theme.colors.background,
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+    },
+    bottomSheetHandle: {
+      backgroundColor: theme.colors.black,
+      width: 80,
+      height: 6,
+      opacity: 0.2,
+    },
+    successContent: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 24,
+      paddingBottom: 40,
+      gap: 16,
+    },
+    successIllustration: {
+      height: 170,
+      marginBottom: 16,
+    },
+    successTitle: {
+      ...theme.typography.h3,
+      color: theme.colors.text,
+      textAlign: 'center',
+    },
+    successMessage: {
+      ...theme.typography.paragraph,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 24,
+    },
+    successButton: {
+      width: '100%',
+    },
+    successButtonText: {
       color: theme.colors.white,
       ...theme.typography.paragraphBold,
     },

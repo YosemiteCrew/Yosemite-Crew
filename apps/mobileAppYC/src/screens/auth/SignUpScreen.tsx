@@ -47,7 +47,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
   const styles = createStyles(theme);
 
   const handleSignUp = () => {
-    navigation.navigate('SignUp');
+    navigation.navigate('SignIn');
   };
 
   const handleSignIn = () => {
