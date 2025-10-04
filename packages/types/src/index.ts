@@ -27,6 +27,14 @@ export type { AddressRequestDTO, AddressResponseDTO, AddressDTOAttributes } from
 export { fromAddressRequestDTO, toAddressResponseDTO } from "./dto/address.dto";
 export type { ParentRequestDTO, ParentResponseDTO, ParentDTOAttributesType } from "./dto/parent.dto";
 export { fromParentRequestDTO, toParentResponseDTO } from "./dto/parent.dto";
+export type { UserOrganization, ToFHIRUserOrganizationOptions } from "./userOrganization";
+export { toFHIRUserOrganization } from "./userOrganization";
+export type {
+  UserOrganizationRequestDTO,
+  UserOrganizationResponseDTO,
+  UserOrganizationDTOAttributes,
+} from "./dto/user-organization.dto";
+export { fromUserOrganizationRequestDTO, toUserOrganizationResponseDTO } from "./dto/user-organization.dto";
 
 export type { contact } from "./models/contact";
 export type { breeder } from "./models/breeder";
