@@ -54,6 +54,7 @@ export const PetDetailsScreen: React.FC<Props> = ({route, navigation}) => {
                 navigation.goBack();
                 Alert.alert('Success', `${pet.name} has been deleted.`);
               } catch (error) {
+                console.error('Failed to delete pet', error);
                 Alert.alert('Error', 'Failed to delete pet. Please try again.');
               }
             }

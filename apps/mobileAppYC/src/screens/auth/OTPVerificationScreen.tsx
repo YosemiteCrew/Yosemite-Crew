@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useRef} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {
   View,
   Text,
@@ -6,120 +6,200 @@ import {
   Image,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
+  BackHandler,
+  DeviceEventEmitter,
 } from 'react-native';
 import {SafeArea, OTPInput} from '../../components/common';
 import {useTheme} from '../../hooks';
 import {Images} from '../../assets/images';
 import LiquidGlassButton from '@/components/common/LiquidGlassButton/LiquidGlassButton';
-import CustomBottomSheet, {BottomSheetRef} from '../../components/common/BottomSheet/BottomSheet';
+import type {NativeStackScreenProps} from '@react-navigation/native-stack';
+import type {AuthStackParamList} from '../../navigation/AuthNavigator';
+import {
+  completePasswordlessSignIn,
+  formatAuthError,
+  requestPasswordlessEmailCode,
+  signOutEverywhere,
+} from '@/services/auth/passwordlessAuth';
+import {useAuth, type User} from '../../contexts/AuthContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT } from '@/constants/auth';
 
-interface OTPVerificationScreenProps {
-  navigation: any;
-  route: {
-    params: {
-      email: string;
-    };
-  };
-}
+const OTP_LENGTH = 4;
+const RESEND_SECONDS = 60;
+
+type OTPVerificationScreenProps = NativeStackScreenProps<
+  AuthStackParamList,
+  'OTPVerification'
+>;
 
 export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
   navigation,
   route,
 }) => {
   const {theme} = useTheme();
-  const {email} = route.params;
+  const {login, logout} = useAuth();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
+  const {email, isNewUser} = route.params;
+
   const [otpCode, setOtpCode] = useState('');
   const [otpError, setOtpError] = useState('');
-  const [countdown, setCountdown] = useState(59);
+  const [countdown, setCountdown] = useState(RESEND_SECONDS);
   const [canResend, setCanResend] = useState(false);
-  
-  // Bottom sheet ref
-  const successBottomSheetRef = useRef<BottomSheetRef>(null);
-
-  const styles = createStyles(theme);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [isResending, setIsResending] = useState(false);
 
   useEffect(() => {
-    if (countdown > 0) {
+    if (!canResend && countdown > 0) {
       const timer = setInterval(() => {
         setCountdown(prev => {
           if (prev <= 1) {
+            clearInterval(timer);
             setCanResend(true);
             return 0;
           }
           return prev - 1;
         });
       }, 1000);
+
       return () => clearInterval(timer);
     }
-  }, [countdown]);
 
-  const handleOTPComplete = (otp: string) => {
-    setOtpCode(otp);
-    // Simulate OTP verification
-    if (otp === '1234') {
-      // Show success bottom sheet
-      successBottomSheetRef.current?.snapToIndex(0);
+    return () => undefined;
+  }, [countdown, canResend]);
+
+  const handleOtpFilled = (value: string) => {
+    setOtpCode(value);
+    if (otpError) {
       setOtpError('');
-    } else {
-      setOtpError('The codes do not match.');
     }
   };
 
-  const handleVerifyCode = () => {
-    if (otpCode.length === 4) {
-      handleOTPComplete(otpCode);
+  const buildUserPayload = (
+    completion: Awaited<ReturnType<typeof completePasswordlessSignIn>>,
+  ): User => ({
+    id: completion.user.userId,
+    email: completion.attributes.email ?? completion.user.username,
+    firstName: completion.attributes.given_name,
+    lastName: completion.attributes.family_name,
+    phone: completion.attributes.phone_number,
+    dateOfBirth: completion.attributes.birthdate,
+    profilePicture: completion.attributes.picture,
+    profileToken: completion.profile.profileToken,
+  });
+
+  const handleVerifyCode = async () => {
+    if (otpCode.length !== OTP_LENGTH) {
+      setOtpError(`Please enter the ${OTP_LENGTH}-digit code.`);
+      return;
+    }
+
+    setIsVerifying(true);
+
+    try {
+      const completion = await completePasswordlessSignIn(otpCode);
+      setOtpError('');
+      const userPayload = buildUserPayload(completion);
+      const tokens = completion.tokens;
+
+      if (completion.profile.exists) {
+        await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
+        DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
+        await login(userPayload, tokens);
+      } else {
+        const createAccountPayload: AuthStackParamList['CreateAccount'] = {
+          email: userPayload.email,
+          userId: userPayload.id,
+          profileToken: completion.profile.profileToken,
+          tokens,
+          initialAttributes: {
+            firstName: userPayload.firstName,
+            lastName: userPayload.lastName,
+            phone: userPayload.phone,
+            dateOfBirth: userPayload.dateOfBirth,
+          },
+          showOtpSuccess: true,
+        };
+        await AsyncStorage.setItem(
+          PENDING_PROFILE_STORAGE_KEY,
+          JSON.stringify(createAccountPayload),
+        );
+        DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
+        navigation.reset({
+          index: 0,
+          routes: [{name: 'CreateAccount', params: createAccountPayload}],
+        });
+      }
+    } catch (error) {
+      const formatted = formatAuthError(error);
+      if (formatted === 'Unexpected authentication error. Please retry.') {
+        setOtpError('The code you entered is incorrect. Please try again.');
+      } else {
+        setOtpError(formatted);
+      }
+    } finally {
+      setIsVerifying(false);
     }
   };
 
-  const handleResendOTP = () => {
-    if (canResend) {
-      setCountdown(59);
+  const handleResendOTP = async () => {
+    if (!canResend || isResending) {
+      return;
+    }
+
+    try {
+      setIsResending(true);
+      await requestPasswordlessEmailCode(email);
+      setCountdown(RESEND_SECONDS);
       setCanResend(false);
       setOtpError('');
-      // TODO: Implement actual OTP resend logic
-      console.log('Resending OTP to:', email);
+    } catch (error) {
+      setOtpError(formatAuthError(error));
+    } finally {
+      setIsResending(false);
     }
   };
 
-  const handleSuccessClose = () => {
-    successBottomSheetRef.current?.close();
-    navigation.navigate('CreateAccount');
-  };
+  const handleGoBack = useCallback(() => {
+    const resetFlow = async () => {
+      try {
+        await signOutEverywhere();
+      } catch (error) {
+        console.warn('Failed to sign out completely', error);
+      }
 
-  const handleGoBack = () => {
-    navigation.goBack();
-  };
+      try {
+        await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
+      } catch (error) {
+        console.warn('Failed to clear pending profile state', error);
+      }
 
-  const renderSuccessContent = () => (
-    <View style={styles.successContent}>
-      <Image
-        source={Images.verificationSuccess}
-        style={styles.successIllustration}
-        resizeMode="contain"
-      />
-      
-      <Text style={styles.successTitle}>Code verified</Text>
-      
-      <Text style={styles.successMessage}>
-        The code sent to your email{'\n'}
-        <Text style={styles.successEmailText}>{email}</Text> has been successfully verified
-      </Text>
-      
-      <LiquidGlassButton
-        title="Okay"
-        onPress={handleSuccessClose}
-        style={styles.successButton}
-        textStyle={styles.successButtonText}
-        tintColor={theme.colors.secondary}
-        height={56}
-        borderRadius={16}
-      />
-    </View>
-  );
+      DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
+
+      await logout();
+
+      navigation.reset({
+        index: 0,
+        routes: [{name: 'SignIn'}],
+      });
+    };
+
+    resetFlow();
+  }, [logout, navigation]);
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      handleGoBack();
+      return true;
+    });
+
+    return () => subscription.remove();
+  }, [handleGoBack]);
 
   return (
     <SafeArea style={styles.container}>
-      {/* Fixed Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <TouchableOpacity
@@ -142,7 +222,6 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}>
-        {/* Center Content */}
         <View style={styles.content}>
           <Image
             source={Images.catLaptop}
@@ -153,37 +232,47 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
           <Text style={styles.subtitle}>Check your email</Text>
 
           <Text style={styles.description}>
-            We've sent a login code to{' '}
-            <Text style={styles.emailText}>{email}</Text>.{'\n'}
-            Please enter the 4-digit code sent in the email.
+            We've sent a {OTP_LENGTH}-digit login code to{' '}
+            <Text style={styles.emailText}>{email}</Text>.
+            {isNewUser
+              ? ' Enter the code to create your Yosemite Crew account.'
+              : ' Enter the code to continue.'}
           </Text>
 
           <OTPInput
-            length={4}
-            onComplete={handleOTPComplete}
+            length={OTP_LENGTH}
+            onComplete={handleOtpFilled}
             error={otpError}
             autoFocus
           />
         </View>
       </ScrollView>
 
-      {/* Bottom Section */}
       <View style={styles.bottomSection}>
         <LiquidGlassButton
-          title="Verify code"
+          title={isVerifying ? 'Verifying...' : 'Verify code'}
           onPress={handleVerifyCode}
           style={styles.verifyButton}
           textStyle={styles.verifyButtonText}
           tintColor={theme.colors.secondary}
           height={56}
           borderRadius={16}
+          loading={isVerifying}
+          disabled={isVerifying}
         />
 
         <View style={styles.resendContainer}>
-          <Text style={styles.resendText}>Haven't got the OTP yet? </Text>
+          <Text style={styles.resendText}>Didn't receive the code? </Text>
           {canResend ? (
-            <TouchableOpacity onPress={handleResendOTP}>
-              <Text style={styles.resendLink}>Resend</Text>
+            <TouchableOpacity
+              onPress={handleResendOTP}
+              disabled={isResending}
+              style={styles.resendButton}>
+              {isResending ? (
+                <ActivityIndicator size="small" color={theme.colors.primary} />
+              ) : (
+                <Text style={styles.resendLink}>Resend</Text>
+              )}
             </TouchableOpacity>
           ) : (
             <Text style={styles.countdownText}>
@@ -192,24 +281,7 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
           )}
         </View>
       </View>
- <View style={styles.bottomSheetContainer}>
-      {/* Success Bottom Sheet */}
-      <CustomBottomSheet
-        ref={successBottomSheetRef}
-        snapPoints={['45%']}
-        initialIndex={-1}
-        enablePanDownToClose={false}
-        enableBackdrop={true}
-        backdropOpacity={0.5}
-        backdropAppearsOnIndex={0}
-        backdropDisappearsOnIndex={-1}
-        backdropPressBehavior="none"
-        backgroundStyle={styles.bottomSheetBackground}
-        handleIndicatorStyle={styles.bottomSheetHandle}
-      >
-        {renderSuccessContent()}
-      </CustomBottomSheet>
-      </View>
+
     </SafeArea>
   );
 };
@@ -263,7 +335,7 @@ const createStyles = (theme: any) =>
     },
     scrollContent: {
       flexGrow: 1,
-      paddingTop: 100, // Account for fixed header
+      paddingTop: 100,
       paddingHorizontal: 20,
     },
     content: {
@@ -271,12 +343,6 @@ const createStyles = (theme: any) =>
       justifyContent: 'center',
       alignItems: 'center',
       paddingBottom: 20,
-    },
-    title: {
-      ...theme.typography.h3,
-      color: theme.colors.text,
-      marginBottom: 40,
-      textAlign: 'center',
     },
     illustration: {
       width: '80%',
@@ -297,7 +363,7 @@ const createStyles = (theme: any) =>
     },
     emailText: {
       ...theme.typography.body,
-      color: theme.colors.textSecondary,
+      color: theme.colors.text,
       fontWeight: 'bold',
     },
     bottomSection: {
@@ -318,10 +384,15 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
+      gap: 4,
     },
     resendText: {
       ...theme.typography.paragraphBold,
       color: theme.colors.textSecondary,
+    },
+    resendButton: {
+      paddingHorizontal: 8,
+      paddingVertical: 4,
     },
     resendLink: {
       ...theme.typography.paragraphBold,
@@ -330,62 +401,5 @@ const createStyles = (theme: any) =>
     countdownText: {
       ...theme.typography.paragraphBold,
       color: theme.colors.primary,
-    },
-     // Bottom Sheet Container Styles
-    bottomSheetContainer: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      zIndex: 9999,
-      elevation: 9999,
-      pointerEvents: 'box-none', // Allow touches to pass through when sheet is closed
-    },
-    // Bottom Sheet Styles
-    bottomSheetBackground: {
-      backgroundColor: theme.colors.background,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
-    },
-    bottomSheetHandle: {
-      backgroundColor: theme.colors.black,
-      width: 80,
-      height: 6,
-      opacity: 0.2,
-    },
-    successContent: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: 24,
-      paddingBottom: 40,
-    },
-    successIllustration: {
-      height: 170,
-      marginBottom: 24,
-    },
-    successTitle: {
-      ...theme.typography.h3,
-      color: theme.colors.text,
-      textAlign: 'center',
-    },
-    successMessage: {
-      ...theme.typography.paragraph,
-      color: theme.colors.text,
-      textAlign: 'center',
-      lineHeight: 24,
-      marginBottom: 32,
-    },
-    successEmailText: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.textSecondary,
-    },
-    successButton: {
-      width: '100%',
-    },
-    successButtonText: {
-      color: theme.colors.white,
-      ...theme.typography.paragraphBold,
     },
   });
