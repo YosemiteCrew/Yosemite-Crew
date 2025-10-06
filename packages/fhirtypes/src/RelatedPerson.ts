@@ -1,28 +1,28 @@
 import { Address } from './Address';
+import { Attachment } from './Attachment';
 import { CodeableConcept } from './CodeableConcept';
 import { ContactPoint } from './ContactPoint';
-// import { Endpoint } from './Endpoint';
 import { Extension } from './Extension';
 import { HumanName } from './HumanName';
 import { Identifier } from './Identifier';
 import { Meta } from './Meta';
 import { Narrative } from './Narrative';
+// import { Patient } from './Patient';
+import { Period } from './Period';
 import { Reference } from './Reference';
 import { Resource } from './Resource';
 
 /**
- * A formally or informally recognized grouping of people or
- * organizations formed for the purpose of achieving some form of
- * collective action.  Includes companies, institutions, corporations,
- * departments, community groups, healthcare practice groups,
- * payer/insurer, etc.
+ * Information about a person that is involved in the care for a patient,
+ * but who is not the target of healthcare, nor has a formal
+ * responsibility in the care process.
  */
-export interface Organization {
+export interface RelatedPerson {
 
   /**
-   * This is a Organization resource
+   * This is a RelatedPerson resource
    */
-  readonly resourceType: 'Organization';
+  readonly resourceType: 'RelatedPerson';
 
   /**
    * The logical id of the resource, as used in the URL for the resource.
@@ -96,63 +96,76 @@ export interface Organization {
   modifierExtension?: Extension[];
 
   /**
-   * Identifier for the organization that is used to identify the
-   * organization across multiple disparate systems.
+   * Identifier for a person within a particular scope.
    */
   identifier?: Identifier[];
 
   /**
-   * Whether the organization's record is still in active use.
+   * Whether this related person record is in active use.
    */
   active?: boolean;
 
   /**
-   * The kind(s) of organization that this is.
+   * The patient this person is related to.
    */
-  type?: CodeableConcept[];
+//   patient: Reference<Patient>;
 
   /**
-   * A name associated with the organization.
+   * The nature of the relationship between a patient and the related
+   * person.
    */
-  name?: string;
+  relationship?: CodeableConcept[];
 
   /**
-   * A list of alternate names that the organization is known as, or was
-   * known as in the past.
+   * A name associated with the person.
    */
-  alias?: string[];
+  name?: HumanName[];
 
   /**
-   * A contact detail for the organization.
+   * A contact detail for the person, e.g. a telephone number or an email
+   * address.
    */
   telecom?: ContactPoint[];
 
   /**
-   * An address for the organization.
+   * Administrative Gender - the gender that the person is considered to
+   * have for administration and record keeping purposes.
+   */
+  gender?: 'male' | 'female' | 'other' | 'unknown';
+
+  /**
+   * The date on which the related person was born.
+   */
+  birthDate?: string;
+
+  /**
+   * Address where the related person can be contacted or visited.
    */
   address?: Address[];
 
   /**
-   * The organization of which this organization forms a part.
+   * Image of the person.
    */
-  partOf?: Reference<Organization>;
+  photo?: Attachment[];
 
   /**
-   * Contact for the organization for a certain purpose.
+   * The period of time during which this relationship is or was active. If
+   * there are no dates defined, then the interval is unknown.
    */
-  contact?: OrganizationContact[];
+  period?: Period;
 
   /**
-   * Technical endpoints providing access to services operated for the
-   * organization.
+   * A language which may be used to communicate with about the patient's
+   * health.
    */
-  // endpoint?: Reference<Endpoint>[];
+  communication?: RelatedPersonCommunication[];
 }
 
 /**
- * Contact for the organization for a certain purpose.
+ * A language which may be used to communicate with about the patient's
+ * health.
  */
-export interface OrganizationContact {
+export interface RelatedPersonCommunication {
 
   /**
    * Unique id for the element within a resource (for internal references).
@@ -190,23 +203,16 @@ export interface OrganizationContact {
   modifierExtension?: Extension[];
 
   /**
-   * Indicates a purpose for which the contact can be reached.
+   * The ISO-639-1 alpha 2 code in lower case for the language, optionally
+   * followed by a hyphen and the ISO-3166-1 alpha 2 code for the region in
+   * upper case; e.g. &quot;en&quot; for English, or &quot;en-US&quot; for American English
+   * versus &quot;en-EN&quot; for England English.
    */
-  purpose?: CodeableConcept;
+  language: CodeableConcept;
 
   /**
-   * A name associated with the contact.
+   * Indicates whether or not the patient prefers this language (over other
+   * languages he masters up a certain level).
    */
-  name?: HumanName;
-
-  /**
-   * A contact detail (e.g. a telephone number or an email address) by
-   * which the party may be contacted.
-   */
-  telecom?: ContactPoint[];
-
-  /**
-   * Visiting or postal addresses for the contact.
-   */
-  address?: Address;
+  preferred?: boolean;
 }

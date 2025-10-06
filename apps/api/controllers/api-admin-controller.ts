@@ -13,6 +13,7 @@ import {
 } from "../models/AppointmentOption";
 import { convertJsonToFhir, convertToFhirAppointmentTypes, convertToFhirPurposeOfVisit } from "@yosemite-crew/fhir";
 import { FhirHealthcareService, FhirPurposeOfVisit, MongoPurposeOfVisit } from "@yosemite-crew/types";
+import { PurposeOfVisitFHIRConverter } from '../utils/adminFhirHandler';
 
 const AdminController = {
   AddInventoryCategory: async (req: Request, res: Response): Promise<void> => {
@@ -597,7 +598,7 @@ const AdminController = {
       });
 
       if (response.length > 0) {
-        const data = new PurposeOfVisitFHIRConverter(response).toValueSet();
+        const data = new PurposeOfVisitFHIRConverter(response,"").toValueSet();
         res.status(200).json({
           message: "fetched breeds successfully",
           data,
