@@ -47,27 +47,81 @@ const pruneUndefined = <T>(value: T): T => {
     return value
 }
 
+const requireSafeString = (value: unknown, fieldName: string): string => {
+    if (value == null) {
+        throw new UserOrganizationServiceError(`${fieldName} is required.`, 400)
+    }
+
+    if (typeof value !== 'string') {
+        throw new UserOrganizationServiceError(`${fieldName} must be a string.`, 400)
+    }
+
+    const trimmed = value.trim()
+
+    if (!trimmed) {
+        throw new UserOrganizationServiceError(`${fieldName} cannot be empty.`, 400)
+    }
+
+    if (trimmed.includes('$')) {
+        throw new UserOrganizationServiceError(`Invalid character in ${fieldName}.`, 400)
+    }
+
+    return trimmed
+}
+
+const optionalSafeString = (value: unknown, fieldName: string): string | undefined => {
+    if (value == null) {
+        return undefined
+    }
+
+    if (typeof value !== 'string') {
+        throw new UserOrganizationServiceError(`${fieldName} must be a string.`, 400)
+    }
+
+    const trimmed = value.trim()
+
+    if (!trimmed) {
+        return undefined
+    }
+
+    if (trimmed.includes('$')) {
+        throw new UserOrganizationServiceError(`Invalid character in ${fieldName}.`, 400)
+    }
+
+    return trimmed
+}
+
+const ensureSafeIdentifier = (value: unknown): string | undefined => {
+    const identifier = optionalSafeString(value, 'Identifier')
+
+    if (!identifier) {
+        return undefined
+    }
+
+    if (
+        !Types.ObjectId.isValid(identifier) &&
+        !/^[A-Za-z0-9\-.]{1,64}$/.test(identifier)
+    ) {
+        throw new UserOrganizationServiceError('Invalid identifier format.', 400)
+    }
+
+    return identifier
+}
+
 const sanitizeUserOrganizationAttributes = (
     dto: UserOrganizationDTOAttributes
 ): UserOrganizationMongo => {
-    if (!dto.practitionerReference) {
-        throw new UserOrganizationServiceError('Practitioner reference is required.', 400)
-    }
-
-    if (!dto.organizationReference) {
-        throw new UserOrganizationServiceError('Organization reference is required.', 400)
-    }
-
-    if (!dto.roleCode) {
-        throw new UserOrganizationServiceError('Role code is required.', 400)
-    }
+    const practitionerReference = requireSafeString(dto.practitionerReference, 'Practitioner reference')
+    const organizationReference = requireSafeString(dto.organizationReference, 'Organization reference')
+    const roleCode = requireSafeString(dto.roleCode, 'Role code')
+    const roleDisplay = optionalSafeString(dto.roleDisplay, 'Role display')
 
     return {
-        fhirId: dto.id,
-        practitionerReference: dto.practitionerReference,
-        organizationReference: dto.organizationReference,
-        roleCode: dto.roleCode,
-        roleDisplay: dto.roleDisplay,
+        fhirId: ensureSafeIdentifier(dto.id),
+        practitionerReference,
+        organizationReference,
+        roleCode,
+        roleDisplay,
         active: typeof dto.active === 'boolean' ? dto.active : true,
     }
 }
@@ -151,7 +205,7 @@ export const UserOrganizationService = {
     async upsert(payload: UserOrganizationFHIRPayload) {
         const { persistable } = createPersistableFromFHIR(payload)
 
-        const id = payload.id ?? persistable.fhirId
+        const id = ensureSafeIdentifier(payload.id ?? persistable.fhirId)
         let document: UserOrganizationDocument | null = null
         let created = false
 
@@ -159,7 +213,7 @@ export const UserOrganizationService = {
             document = await UserOrganizationModel.findOneAndUpdate(
                 resolveIdQuery(id),
                 { $set: persistable },
-                { new: true }
+                { new: true, sanitizeFilter: true }
             )
         }
 
@@ -168,13 +222,13 @@ export const UserOrganizationService = {
                 practitionerReference: persistable.practitionerReference,
                 organizationReference: persistable.organizationReference,
                 roleCode: persistable.roleCode,
-            })
+            }).setOptions({ sanitizeFilter: true })
 
             if (existing) {
                 document = await UserOrganizationModel.findOneAndUpdate(
                     { _id: existing._id },
                     { $set: persistable },
-                    { new: true }
+                    { new: true, sanitizeFilter: true }
                 )
             } else {
                 document = await UserOrganizationModel.create(persistable)

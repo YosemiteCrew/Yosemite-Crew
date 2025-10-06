@@ -1,4 +1,4 @@
-import { Types } from 'mongoose'
+import { isValidObjectId, Types } from 'mongoose'
 import OrganizationModel, {
     type OrganizationDocument,
     type OrganizationMongo,
@@ -77,6 +77,64 @@ const pruneUndefined = <T>(value: T): T => {
     return value
 }
 
+const requireSafeString = (value: unknown, fieldName: string): string => {
+    if (value == null) {
+        throw new OrganizationServiceError(`${fieldName} is required.`, 400)
+    }
+
+    if (typeof value !== 'string') {
+        throw new OrganizationServiceError(`${fieldName} must be a string.`, 400)
+    }
+
+    const trimmed = value.trim()
+
+    if (!trimmed) {
+        throw new OrganizationServiceError(`${fieldName} cannot be empty.`, 400)
+    }
+
+    if (trimmed.includes('$')) {
+        throw new OrganizationServiceError(`Invalid character in ${fieldName}.`, 400)
+    }
+
+    return trimmed
+}
+
+const optionalSafeString = (value: unknown, fieldName: string): string | undefined => {
+    if (value == null) {
+        return undefined
+    }
+
+    if (typeof value !== 'string') {
+        throw new OrganizationServiceError(`${fieldName} must be a string.`, 400)
+    }
+
+    const trimmed = value.trim()
+
+    if (!trimmed) {
+        return undefined
+    }
+
+    if (trimmed.includes('$')) {
+        throw new OrganizationServiceError(`Invalid character in ${fieldName}.`, 400)
+    }
+
+    return trimmed
+}
+
+const ensureSafeIdentifier = (value: unknown): string | undefined => {
+    const identifier = optionalSafeString(value, 'Identifier')
+
+    if (!identifier) {
+        return undefined
+    }
+
+    if (!isValidObjectId(identifier) && !/^[A-Za-z0-9\-.]{1,64}$/.test(identifier)) {
+        throw new OrganizationServiceError('Invalid identifier format.', 400)
+    }
+
+    return identifier
+}
+
 const sanitizeBusinessAttributes = (
     dto: OrganizationDTOAttributes,
     extras: {
@@ -84,12 +142,23 @@ const sanitizeBusinessAttributes = (
         imageURL?: string
     }
 ): OrganizationMongo => {
+    const name = requireSafeString(dto.name, 'Organization name')
+    const registrationNo = optionalSafeString(extras.registrationNo, 'Registration number')
+    const imageURL = optionalSafeString(extras.imageURL, 'Image URL')
+    const typeCode = optionalSafeString(dto.typeCoding?.code, 'Organization type code')
+    const typeCoding = dto.typeCoding
+        ? {
+              ...dto.typeCoding,
+              code: typeCode,
+          }
+        : undefined
+
     const departments = dto.departments?.length
         ? dto.departments.map((department) => ({
-              name: department?.name,
+              name: optionalSafeString(department?.name, 'Department name'),
               services: department?.services?.map((service) => ({
-                  name: service?.name,
-                  description: service?.description,
+                  name: optionalSafeString(service?.name, 'Service name'),
+                  description: optionalSafeString(service?.description, 'Service description'),
                   estimatedCost: service?.estimatedCost,
                   availability: service?.availability,
                   respnonseTime: service?.respnonseTime,
@@ -98,28 +167,28 @@ const sanitizeBusinessAttributes = (
         : undefined
 
     return {
-        fhirId: dto.id,
-        name: dto.name ?? '',
-        registrationNo: extras.registrationNo,
-        imageURL: extras.imageURL,
-        type: dto.typeCoding?.code,
-        phoneNo: dto.phoneNo,
-        website: dto.website,
-        country: dto.address?.country,
+        fhirId: ensureSafeIdentifier(dto.id),
+        name,
+        registrationNo,
+        imageURL,
+        type: typeCode,
+        phoneNo: optionalSafeString(dto.phoneNo, 'Phone number'),
+        website: optionalSafeString(dto.website, 'Website'),
+        country: optionalSafeString(dto.address?.country, 'Country'),
         address: dto.address
             ? {
-                  addressLine: dto.address.addressLine,
-                  country: dto.address.country,
-                  city: dto.address.city,
-                  state: dto.address.state,
-                  postalCode: dto.address.postalCode,
+                  addressLine: optionalSafeString(dto.address.addressLine, 'Address line'),
+                  country: optionalSafeString(dto.address.country, 'Address country'),
+                  city: optionalSafeString(dto.address.city, 'Address city'),
+                  state: optionalSafeString(dto.address.state, 'Address state'),
+                  postalCode: optionalSafeString(dto.address.postalCode, 'Postal code'),
                   latitude: dto.address.latitude,
                   longitude: dto.address.longitude,
               }
             : undefined,
         departments,
         isVerified: dto.isVerified,
-        typeCoding: dto.typeCoding,
+        typeCoding,
     }
 }
 
@@ -146,10 +215,6 @@ const resolveIdQuery = (id: string) => (Types.ObjectId.isValid(id) ? { _id: id }
 const createPersistableFromFHIR = (payload: OrganizationFHIRPayload) => {
     const attributes = fromOrganizationRequestDTO(payload)
 
-    if (!attributes.name) {
-        throw new OrganizationServiceError('Organization name is required.', 400)
-    }
-
     const registrationNo = extractRegistrationNumber(payload)
     const imageURL = extractImageUrl(payload)
     const sanitized = sanitizeBusinessAttributes(attributes, { registrationNo, imageURL })
@@ -162,17 +227,22 @@ export const OrganizationService = {
     async upsert(payload: OrganizationFHIRPayload) {
         const { persistable, typeCoding, attributes } = createPersistableFromFHIR(payload)
 
-        const query = attributes.id
-            ? Types.ObjectId.isValid(attributes.id)
-                ? { _id: attributes.id }
-                : { fhirId: attributes.id }
+        const identifier = ensureSafeIdentifier(attributes.id) ?? ensureSafeIdentifier(payload.id)
+        const query = identifier
+            ? isValidObjectId(identifier)
+                ? { _id: identifier }
+                : { fhirId: identifier }
             : undefined
 
         let document: OrganizationDocument | null = null
         let created = false
 
         if (query) {
-            document = await OrganizationModel.findOneAndUpdate(query, { $set: persistable }, { new: true })
+            document = await OrganizationModel.findOneAndUpdate(
+                query,
+                { $set: persistable },
+                { new: true, sanitizeFilter: true }
+            )
         }
 
         if (!document) {
@@ -220,4 +290,3 @@ export const OrganizationService = {
         return buildFHIRResponse(document, typeCoding ? { typeCoding } : undefined)
     },
 }
-
