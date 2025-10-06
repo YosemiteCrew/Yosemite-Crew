@@ -1,3 +1,7 @@
-export {Button} from './Button/Button';
-export {Input} from './Input/Input';
-export {Loading} from './Loading/Loading';
+export { Button } from './Button/Button';
+export { Input } from './Input/Input';
+export { Loading } from './Loading/Loading';
+export { Modal } from './Modal/Modal';
+export { OTPInput } from './OTPInput/OTPInput';
+export { Header } from './Header/Header';
+export { SafeArea } from './SafeArea/SafeArea';

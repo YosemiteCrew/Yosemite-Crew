@@ -13,11 +13,6 @@ export type RootStackParamList = {
 export type RootStackScreenProps<T extends keyof RootStackParamList> =
   NativeStackScreenProps<RootStackParamList, T>;
 
-// Auth Stack Navigator
-export type AuthStackParamList = {
-  Login: undefined;
-  Register: undefined;
-};
 
 export type AuthStackScreenProps<T extends keyof AuthStackParamList> =
   NativeStackScreenProps<AuthStackParamList, T>;
@@ -43,6 +38,13 @@ export type PetStackParamList = {
 
 export type PetStackScreenProps<T extends keyof PetStackParamList> =
   NativeStackScreenProps<PetStackParamList, T>;
+
+  export type AuthStackParamList = {
+  SignIn: undefined;
+  SignUp: undefined;
+  CreateAccount: undefined;
+  OTPVerification: { email: string };
+};
 
 declare global {
   namespace ReactNavigation {

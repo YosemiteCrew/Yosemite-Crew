@@ -62,10 +62,12 @@ export const typography = {
     fontWeight: fontWeights.bold,
   },
   h3: {
-    fontFamily: fonts.CLASH_DISPLAY_SEMIBOLD,
-    fontSize: fontSizes['2xl'],
-    lineHeight: fontSizes['2xl'] * lineHeights.snug,
-    fontWeight: fontWeights.semibold,
+    fontFamily: fonts.CLASH_GRO_MEDIUM, // matches "Clash Grotesk Medium"
+    fontSize: 26, // exact from Figma
+    lineHeight: 26 * 1.2, // 120% → 31.2px
+    fontWeight: fontWeights.medium, // 500
+    letterSpacing: -0.26, // matches design
+    textAlign: 'center',
   },
   h4: {
     fontFamily: fonts.CLASH_DISPLAY_SEMIBOLD,
@@ -85,6 +87,22 @@ export const typography = {
     lineHeight: fontSizes.base * lineHeights.normal,
     fontWeight: fontWeights.medium,
   },
+  paragraph: {
+  fontFamily: fonts.SATOSHI_REGULAR,
+  fontSize: fontSizes.base, // 16
+  lineHeight: fontSizes.base * 1.2, // 19.2
+  fontWeight: fontWeights.normal, // 400
+  letterSpacing: -0.32,
+  textAlign: 'center',
+},
+  paragraphBold: {
+  fontFamily: fonts.SATOSHI_BOLD,
+  fontSize: fontSizes.base, // 16
+  lineHeight: fontSizes.base * 1.2, // 19.2
+  fontWeight: fontWeights.bold, // 700
+  letterSpacing: -0.32,
+  textAlign: 'center',
+},
 
   // Body text
   bodyLarge: {
