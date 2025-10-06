@@ -11,7 +11,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../hooks';
 import {
-  createGlassFallback,
   LiquidGlassButton,
 } from '@/components/common/LiquidGlassButton/LiquidGlassButton';
 
@@ -144,18 +143,12 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
 
             <LiquidGlassButton
               title="Get Started"
-              variant="glass"
               glassEffect="clear"
               style={styles.getStartedButton}
-              borderRadius="full"
+              borderRadius="lg"
               height={60}
               tintColor="#302F2E"
               width={width * 0.45}
-              glassFallbackStyle={createGlassFallback.frosted(
-                '#302F2E',
-                1,
-                9999,
-              )}
               textStyle={styles.getStartedText}
               onPress={() => onComplete()}
             />

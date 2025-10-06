@@ -2,8 +2,9 @@ import React from 'react';
 import {View, Text, StyleSheet, ScrollView, TouchableOpacity} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {Button} from '../../../components';
-import {useTheme, useAuth} from '../../../hooks';
+import {useTheme} from '../../../hooks';
 import {TabScreenProps} from '../../../navigation/types';
+import { useAuth } from '@/contexts/AuthContext';
 
 type Props = TabScreenProps<'Home'>;
 
@@ -15,9 +16,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     logout();
   };
 
-  const handleThemeToggle = () => {
-    // This will be implemented when we add theme toggle functionality
-  };
+  // const handleThemeToggle = () => {
+  //   // This will be implemented when we add theme toggle functionality
+  // };
 
   const styles = StyleSheet.create({
     container: {
@@ -101,7 +102,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Text style={styles.greeting}>
-            Hello, {user?.name || 'Pet Parent'}! 👋
+            Hello, {user?.firstName || 'Pet Parent'}! 👋
           </Text>
           <Text style={styles.subtitle}>
             Welcome back to your pet care dashboard
