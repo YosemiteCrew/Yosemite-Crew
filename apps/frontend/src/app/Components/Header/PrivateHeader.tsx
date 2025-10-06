@@ -26,7 +26,7 @@ const PrivateHeader = () => {
   const toggleMenu = () => setMenuOpen((prev) => !prev);
 
   const clinicNavItems: NavItem[] = [
-    { label: "Dashboard", href: "/emptydashboard" },
+    { label: "Dashboard", href: "/empty-dashboard" },
     {
       label: "Clinic",
       children: [
@@ -178,7 +178,7 @@ const PrivateHeader = () => {
 
   const handleLogout = async () => {
     try {
-      await signout();
+      signout();
       console.log("✅ Signed out using Cognito signout");
     } catch (error) {
       console.error("⚠️ Cognito signout error:", error);

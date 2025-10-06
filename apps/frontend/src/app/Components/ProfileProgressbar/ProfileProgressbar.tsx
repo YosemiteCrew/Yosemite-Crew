@@ -1,7 +1,8 @@
-import React from 'react';
-import './ProfileProgressbar.css'; // if you have styles
-import Image from 'next/image';
-import { Button } from 'react-bootstrap';
+import React from "react";
+import Image from "next/image";
+import { Button } from "react-bootstrap";
+
+import "./ProfileProgressbar.css";
 
 interface ProfileProgressbarProps {
   blname: string;
@@ -14,7 +15,7 @@ const ProfileProgressbar: React.FC<ProfileProgressbarProps> = ({
   blname,
   spname,
   progres = 0, // default if not passed
-  onclicked // default click handler
+  onclicked, // default click handler
 }) => {
   return (
     <div className="profProgressDiv">
@@ -26,7 +27,10 @@ const ProfileProgressbar: React.FC<ProfileProgressbarProps> = ({
         </div>
         <div className="ProgDiv">
           <div className="progress-bar">
-            <span className="progress-fill" style={{ width: `${progres}%` }}></span>
+            <span
+              className="progress-fill"
+              style={{ width: `${progres}%` }}
+            ></span>
           </div>
           <p className="progress-text">
             {progres}% <span>Complete</span>
@@ -35,7 +39,13 @@ const ProfileProgressbar: React.FC<ProfileProgressbarProps> = ({
       </div>
       <div className="Profcomp">
         <Button className="complete-button" onClick={onclicked}>
-          <Image aria-hidden  src="https://d2il6osz49gpup.cloudfront.net/Images/eyes.png" alt="Complete Later" width={24} height={24}/>
+          <Image
+            aria-hidden
+            src="https://d2il6osz49gpup.cloudfront.net/Images/eyes.png"
+            alt="Complete Later"
+            width={24}
+            height={24}
+          />
           Complete Later
         </Button>
       </div>

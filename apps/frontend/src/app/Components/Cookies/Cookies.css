@@ -20,7 +20,7 @@
 
 .TopCokieInner {
   color: #000;
-  font-family: Satoshi;
+  font-family: var(--satoshi-font);
   font-size: 16px;
   font-style: normal;
   font-weight: 600;
@@ -29,7 +29,7 @@
 }
 .BottomCokieInner {
   color: #000;
-  font-family: Satoshi;
+  font-family: var(--satoshi-font);
   font-size: 13px;
   font-style: normal;
   font-weight: 700;
@@ -44,7 +44,7 @@
   gap: 8px;
 }
 
-.CookieImg{
+.CookieImg {
   position: absolute;
   bottom: -250px;
   left: 60px;
@@ -52,13 +52,13 @@
   pointer-events: none;
 }
 
-.CookieImg2{
+.CookieImg2 {
   position: absolute;
   bottom: -150px;
   left: 45px;
   z-index: -20;
 }
 
-.CloseButton{
+.CloseButton {
   cursor: pointer;
 }

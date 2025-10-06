@@ -32,7 +32,7 @@ const OtpModal = ({
     e: React.ChangeEvent<HTMLInputElement>,
     idx: number
   ) => {
-    const val = e.target.value.replace(/[^0-9]/g, "");
+    const val = e.target.value.replace(/\D/g, "");
     if (!val) return;
     const newCode = [...code];
     newCode[idx] = val[0];

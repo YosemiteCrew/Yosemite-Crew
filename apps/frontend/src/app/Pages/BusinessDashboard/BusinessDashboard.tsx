@@ -1,36 +1,44 @@
 "use client";
 import React, { useState, useCallback, useEffect } from "react";
-import "./BusinessDashboard.css";
-import { Col, Container, Row } from "react-bootstrap";
-import StatCard from "@/app/Components/StatCard/StatCard";
-import { GraphSelected } from "../AdminDashboardEmpty/AdminDashboardEmpty";
-import DepartmentBarChart from "@/app/Components/BarGraph/DepartmentBarChart";
-import { DepartmentData } from "@/app/types";
-import { IoIosAddCircleOutline, IoMdEye } from "react-icons/io";
 import Link from "next/link";
+import { Col, Container, Row } from "react-bootstrap";
+import { IoIosAddCircleOutline, IoMdEye } from "react-icons/io";
 import { IoNotifications } from "react-icons/io5";
-import AppointmentGraph from "@/app/Components/BarGraph/AppointmentGraph";
-import CommonTabs from "@/app/Components/CommonTabs/CommonTabs";
-import BusinessdashBoardTable from "@/app/Components/DataTable/BusinessdashBoardTable";
-import ChartCard from "@/app/Components/BarGraph/ChartCard";
-import InventoryTable from "@/app/Components/DataTable/InventoryTable";
-import { getData } from "@/app/axios-services/services";
-import { useOldAuthStore } from "@/app/stores/oldAuthStore";
 import {
   convertFhirBundleToInventory,
   convertFHIRToAdminDepartments,
   convertFHIRToGraphData,
-  convertFhirToJson,
-  convertFromFhirDepartment,
   FHIRtoJSONSpeacilityStats,
-  fromFHIR,
 } from "@yosemite-crew/fhir";
 import { Icon } from "@iconify/react/dist/iconify.js";
-import { FHIRAppointmentData, MyAppointmentData } from "@yosemite-crew/types";
-import CommonTabForBusinessDashboard from "@/app/Components/CommonTabs/CommonTabForBusinessDashboard";
-import CommonTabForPractitioners from "@/app/Components/CommonTabs/CommonTabForPractitioners";
 
-type AppointmentStatus = "In-Progress" | "Checked-In" | "Pending" | "accepted" | "cancelled" | "fulfilled";
+import StatCard from "@/app/components/StatCard/StatCard";
+import DepartmentBarChart from "@/app/components/BarGraph/DepartmentBarChart";
+import AppointmentGraph from "@/app/components/BarGraph/AppointmentGraph";
+import CommonTabs from "@/app/components/CommonTabs/CommonTabs";
+import BusinessdashBoardTable from "@/app/components/DataTable/BusinessdashBoardTable";
+import ChartCard from "@/app/components/BarGraph/ChartCard";
+import InventoryTable from "@/app/components/DataTable/InventoryTable";
+import { GraphSelected } from "@/app/pages/AdminDashboardEmpty/AdminDashboardEmpty";
+import { getData } from "@/app/services/axios";
+import { useOldAuthStore } from "@/app/stores/oldAuthStore";
+import CommonTabForBusinessDashboard from "@/app/components/CommonTabs/CommonTabForBusinessDashboard";
+import CommonTabForPractitioners from "@/app/components/CommonTabs/CommonTabForPractitioners";
+
+import "./BusinessDashboard.css";
+
+type AppointmentStatus =
+  | "In-Progress"
+  | "Checked-In"
+  | "Pending"
+  | "accepted"
+  | "cancelled"
+  | "fulfilled";
+
+interface DepartmentData {
+  name: string;
+  value: number;
+}
 
 export type TodayAppointmentItem = {
   id: string;
@@ -48,17 +56,23 @@ export type TodayAppointmentItem = {
   status: AppointmentStatus;
 };
 
-function BusinessDashboard() {
+const BusinessDashboard = () => {
   const [selectedRange, setSelectedRange] = useState("Last 30 Days");
-  const [specialityWiseSelectedRange, setSpecialityWiseSelectedRange] = useState("Last 3 Months");
-  const [revenueSelectedRange, setRevenueSelectedRange] = useState("Last 30 Days");
-  const [assessmentData, setAccessmentData] = useState<TodayAppointmentItem[]>([]);
+  const [specialityWiseSelectedRange, setSpecialityWiseSelectedRange] =
+    useState("Last 3 Months");
+  const [revenueSelectedRange, setRevenueSelectedRange] =
+    useState("Last 30 Days");
+  const [assessmentData, setAccessmentData] = useState<TodayAppointmentItem[]>(
+    []
+  );
   const [inventoryData, setInventoryData] = useState([]);
   const [inventoryCategory, setInventoryCategory] = useState([]);
   const [appointmentFilter, setAppointmentFilter] = useState("accepted");
-  const [inventoryandAssessmentGraph, setInventoryandAssessmentGraph] = useState([]);
-  const [specialityWiseAppointmentsGraph, setSpecialityWiseAppointmentsGraph] = useState([]);
-  const [data, setData] = useState<DepartmentData[]>([]);
+  const [inventoryandAssessmentGraph, setInventoryandAssessmentGraph] =
+    useState([]);
+  const [specialityWiseAppointmentsGraph, setSpecialityWiseAppointmentsGraph] =
+    useState([]);
+  const [data] = useState<DepartmentData[]>([]);
   const [departments, setDepartments] = useState([{ eventKey: "", title: "" }]);
   const userId = useOldAuthStore((state: any) => state.userId);
 
@@ -69,7 +83,9 @@ function BusinessDashboard() {
           throw new Error("userId is required");
         }
         const queryParams = new URLSearchParams({ userId, searchCategory });
-        const response = await getData(`/api/inventory/InventoryItem?${queryParams.toString()}`);
+        const response = await getData(
+          `/api/inventory/InventoryItem?${queryParams.toString()}`
+        );
         if (!response) {
           throw new Error("Network response was not ok");
         }
@@ -90,7 +106,6 @@ function BusinessDashboard() {
         `fhir/admin/GetAddInventoryCategory?bussinessId=${userId}&type=category`
       );
       if (response.status === 200) {
-        const res: any = response?.data;
         setInventoryCategory([]);
       }
     } catch (error) {
@@ -105,10 +120,12 @@ function BusinessDashboard() {
       );
       if (response.status === 200) {
         const res: any = response?.data;
-        setDepartments(convertFHIRToAdminDepartments(res.data).map((item: any) => ({
-          eventKey: item._id,
-          title: item.name
-        })));
+        setDepartments(
+          convertFHIRToAdminDepartments(res.data).map((item: any) => ({
+            eventKey: item._id,
+            title: item.name,
+          }))
+        );
       }
     } catch (error) {
       console.error(error);
@@ -121,20 +138,23 @@ function BusinessDashboard() {
     }
   }, [userId, fetchDepartments]);
 
-  const getSpecialityWiseAppointment = useCallback(async (Months:string) => {
-    const days = parseInt(Months.match(/\d+/)?.[0] || "3", 10);
-    try {
-      const response: any = await getData(
-        `fhir/v1/List?reportType=specialityWiseAppointments&userId=${userId}&LastDays=${days}`
-      );
-      if (response.status === 200) {
-        const res: any = FHIRtoJSONSpeacilityStats(response?.data);
-        setSpecialityWiseAppointmentsGraph(res);
+  const getSpecialityWiseAppointment = useCallback(
+    async (Months: string) => {
+      const days = parseInt(Months.match(/\d+/)?.[0] || "3", 10);
+      try {
+        const response: any = await getData(
+          `fhir/v1/List?reportType=specialityWiseAppointments&userId=${userId}&LastDays=${days}`
+        );
+        if (response.status === 200) {
+          const res: any = FHIRtoJSONSpeacilityStats(response?.data);
+          setSpecialityWiseAppointmentsGraph(res);
+        }
+      } catch (error) {
+        console.error(error);
       }
-    } catch (error) {
-      console.error(error);
-    }
-  }, [userId]);
+    },
+    [userId]
+  );
 
   const getAppointmentGraph = useCallback(async () => {
     try {
@@ -246,16 +266,32 @@ function BusinessDashboard() {
             </div>
             <Row>
               <Col md={3}>
-                <StatCard icon="solar:wallet-2-bold" title="Revenue (Today)" value={158} />
+                <StatCard
+                  icon="solar:wallet-2-bold"
+                  title="Revenue (Today)"
+                  value={158}
+                />
               </Col>
               <Col md={3}>
-                <StatCard icon="solar:calendar-mark-bold" title="Appointments (Today)" value={122} />
+                <StatCard
+                  icon="solar:calendar-mark-bold"
+                  title="Appointments (Today)"
+                  value={122}
+                />
               </Col>
               <Col md={3}>
-                <StatCard icon="solar:medical-kit-bold" title="Staff on-duty" value={45} />
+                <StatCard
+                  icon="solar:medical-kit-bold"
+                  title="Staff on-duty"
+                  value={45}
+                />
               </Col>
               <Col md={3}>
-                <StatCard icon="solar:home-add-bold" title="Inventory Out-of-Stock" value="$7,298" />
+                <StatCard
+                  icon="solar:home-add-bold"
+                  title="Inventory Out-of-Stock"
+                  value="$7,298"
+                />
               </Col>
             </Row>
           </div>
@@ -333,24 +369,35 @@ function BusinessDashboard() {
             <Col md={6}>
               <GraphSelected
                 title="Speciality-wise appointments"
-                options={["Last 1 Month","Last 3 Months", "Last 6 Months"]}
+                options={["Last 1 Month", "Last 3 Months", "Last 6 Months"]}
                 selectedOption={specialityWiseSelectedRange}
                 onSelect={setSpecialityWiseSelectedRange}
               />
-              <DepartmentBarChart data={data.length > 0 ? data : specialityWiseAppointmentsGraph} />
+              <DepartmentBarChart
+                data={data.length > 0 ? data : specialityWiseAppointmentsGraph}
+              />
             </Col>
           </Row>
 
           <Row>
             <div className="TableItemsRow">
               <HeadingDiv Headname="Today’s Schedule" />
-              <CommonTabForBusinessDashboard onTabClick={handleScheduleTabClick} tabs={scheduleTabs} showStatusSelect />
+              <CommonTabForBusinessDashboard
+                onTabClick={handleScheduleTabClick}
+                tabs={scheduleTabs}
+                showStatusSelect
+              />
             </div>
           </Row>
           <Row>
             <div className="TableItemsRow">
               <HeadingDiv Headname="Practice Team" Headspan="74" />
-              <CommonTabForPractitioners tabs={departments} showStatusSelect headname="Practice Team" defaultActiveKey={departments[0]?.eventKey} />
+              <CommonTabForPractitioners
+                tabs={departments}
+                showStatusSelect
+                headname="Practice Team"
+                defaultActiveKey={departments[0]?.eventKey}
+              />
             </div>
           </Row>
 
@@ -382,7 +429,13 @@ interface HeadingDivProps {
   Headspan?: string | number;
 }
 
-export function HeadingDiv({ Headname, Headspan, btntext, icon, href }: HeadingDivProps) {
+export function HeadingDiv({
+  Headname,
+  Headspan,
+  btntext,
+  icon,
+  href,
+}: Readonly<HeadingDivProps>) {
   return (
     <div className="DivHeading">
       <h5>

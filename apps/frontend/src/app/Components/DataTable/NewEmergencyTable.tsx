@@ -1,16 +1,16 @@
 "use client";
-import React, { useState } from 'react'
+import React, { useState } from "react";
+import { Button, Dropdown, Form } from "react-bootstrap";
+import { LuSearch } from "react-icons/lu";
+import Image from "next/image";
+import { BsThreeDotsVertical } from "react-icons/bs";
+import { FaUser } from "react-icons/fa6";
+import { Icon } from "@iconify/react/dist/iconify.js";
+
+import GenericTable from "@/app/components/GenericTable/GenericTable";
+
 import "./DataTable.css";
-import { Button, Dropdown, Form } from 'react-bootstrap';
-import GenericTable from '../GenericTable/GenericTable';
-import { LuSearch } from 'react-icons/lu';
-import Image from 'next/image';
-import { BsThreeDotsVertical } from 'react-icons/bs';
-import { FaUser } from 'react-icons/fa6';
-import { Icon } from '@iconify/react/dist/iconify.js';
 
-
-// Define the Column type
 type Column<T> = {
   label: string;
   key: keyof T | string;
@@ -18,7 +18,6 @@ type Column<T> = {
   render?: (item: T) => React.ReactNode;
 };
 
-// Type
 type AppointmentStatus = "Done" | "View";
 
 type AppointmentItem = {
@@ -35,7 +34,6 @@ type AppointmentItem = {
   status: AppointmentStatus;
 };
 
-// Sample Data
 const appointments: AppointmentItem[] = [
   {
     name: "Kizie",
@@ -78,50 +76,50 @@ const appointments: AppointmentItem[] = [
   },
 ];
 
-// Columns for GenericTable
 const columns: Column<AppointmentItem>[] = [
-    {
-        label: "",
-        key: "avatar",
-        width: "40px",
-        render: (item: AppointmentItem) => (
-          <Image
-            src={item.image}
-            alt={item.name}
-            width={40}
-            height={40}
-            style={{ borderRadius: "50%" }}
-          />
-        ),
-      },
+  {
+    label: "",
+    key: "avatar",
+    width: "40px",
+    render: (item: AppointmentItem) => (
+      <Image
+        src={item.image}
+        alt={item.name}
+        width={40}
+        height={40}
+        style={{ borderRadius: "50%" }}
+      />
+    ),
+  },
   {
     label: "Name",
     key: "name",
     render: (item: AppointmentItem) => (
       <div className="user-info">
-        
         <div>
           <p className="name">{item.name}</p>
-          <span className="owner"><FaUser /> {item.owner}</span>
+          <span className="owner">
+            <FaUser /> {item.owner}
+          </span>
         </div>
       </div>
     ),
   },
   {
-  label: "Appointment ID",
-  key: "appointmentId",
-  render: (item: AppointmentItem) => <p>{item.appointmentId}</p>,
-},
-{
-  label: "Reason for Appointment",
-  key: "reason",
-  render: (item: AppointmentItem) => <p>{item.reason}</p>,
-},
-{
-  label: "Breed/Pet",
-  key: "breed",
-  render: (item: AppointmentItem) => <p>{item.breed}</p>,
-},
+    label: "Appointment ID",
+    key: "appointmentId",
+    render: (item: AppointmentItem) => <p>{item.appointmentId}</p>,
+  },
+  {
+    label: "Reason for Appointment",
+    key: "reason",
+    render: (item: AppointmentItem) => <p>{item.reason}</p>,
+  },
+  {
+    label: "Breed/Pet",
+    key: "breed",
+    render: (item: AppointmentItem) => <p>{item.breed}</p>,
+  },
   {
     label: "Date",
     key: "date",
@@ -149,16 +147,13 @@ const columns: Column<AppointmentItem>[] = [
     render: (item: AppointmentItem) => (
       <div className="action-btn-col">
         {item.status === "Done" ? (
-          <Button className="circle-btn done"
-            title="Done">
-              <Icon icon="carbon:checkmark-filled" width="24" height="24" />
-            
+          <Button className="circle-btn done" title="Done">
+            <Icon icon="carbon:checkmark-filled" width="24" height="24" />
           </Button>
         ) : (
           <Button
             className="circle-btn view"
             title="View"
-            
             onClick={() => console.log("View", item)}
           >
             <Icon icon="solar:eye-bold" width="24" height="24" />
@@ -168,79 +163,87 @@ const columns: Column<AppointmentItem>[] = [
     ),
   },
   {
-  label: "",
-  key: "actionsDropdown",
-  render: (item: AppointmentItem) => (
-    <div className="action-dropdown">
-      <Dropdown align="end">
-        <Dropdown.Toggle as="span" className="custom-toggle">
-          <BsThreeDotsVertical className="menu-icon" />
-        </Dropdown.Toggle>
-        <Dropdown.Menu>
-          <Dropdown.Item onClick={() => console.log("Edit", item)}>Edit</Dropdown.Item>
-          <Dropdown.Item onClick={() => console.log("Save", item)}>Save</Dropdown.Item>
-          <Dropdown.Item onClick={() => console.log("Delete", item)}>Delete</Dropdown.Item>
-        </Dropdown.Menu>
-      </Dropdown>
-    </div>
-  ),
-}
-
-
+    label: "",
+    key: "actionsDropdown",
+    render: (item: AppointmentItem) => (
+      <div className="action-dropdown">
+        <Dropdown align="end">
+          <Dropdown.Toggle as="span" className="custom-toggle">
+            <BsThreeDotsVertical className="menu-icon" />
+          </Dropdown.Toggle>
+          <Dropdown.Menu>
+            <Dropdown.Item onClick={() => console.log("Edit", item)}>
+              Edit
+            </Dropdown.Item>
+            <Dropdown.Item onClick={() => console.log("Save", item)}>
+              Save
+            </Dropdown.Item>
+            <Dropdown.Item onClick={() => console.log("Delete", item)}>
+              Delete
+            </Dropdown.Item>
+          </Dropdown.Menu>
+        </Dropdown>
+      </div>
+    ),
+  },
 ];
-function NewEmergency() {
-    const [selectedStatus, setSelectedStatus] = useState("Doctor");
-    const [search, setSearch] = useState("");
-    const handleSearch = (e: React.FormEvent) => {
-        e.preventDefault();
-        // Implement search logic here
-        alert(`Searching for: ${search}`);
-    };
-        
-    
+
+const NewEmergency = () => {
+  const [selectedStatus, setSelectedStatus] = useState("Doctor");
+  const [search, setSearch] = useState("");
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Implement search logic here
+    alert(`Searching for: ${search}`);
+  };
+
   return (
-    <>
-
     <div className="TableDropdownWrapper">
-
-        <div className="TableTopTexed">
-            <div className="LeftTopTbl">
-                <h3>New Emergency (<span>03</span>)</h3>
-            </div>
-            <div className="RightTopTbl">
-                <Form className="Tblserchdiv" onSubmit={handleSearch} >
-                    <input
-                    type="search"
-                    placeholder="Search Patient name, time, Vet name"
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    />
-                    <Button type="submit"><LuSearch size={20} /></Button>
-                </Form>
-                <div className="StatusSlect">
-                    <Dropdown onSelect={val => setSelectedStatus(val || "Doctor")}>
-                    <Dropdown.Toggle id="status-dropdown" >
-                        {selectedStatus}
-                    </Dropdown.Toggle>
-                    <Dropdown.Menu>
-                        <Dropdown.Item eventKey="Status">Status</Dropdown.Item>
-                        <Dropdown.Item eventKey="Pending">Pending</Dropdown.Item>
-                        <Dropdown.Item eventKey="Completed">Completed</Dropdown.Item>
-                        <Dropdown.Item eventKey="Cancelled">Cancelled</Dropdown.Item>
-                    </Dropdown.Menu>
-                    </Dropdown>
-                </div>
-                
-            </div>
+      <div className="TableTopTexed">
+        <div className="LeftTopTbl">
+          <h3>
+            New Emergency (<span>03</span>)
+          </h3>
         </div>
-
-        <div className="table-wrapper">
-            <GenericTable data={appointments} columns={columns} bordered={false} pagination pageSize={6} />
+        <div className="RightTopTbl">
+          <Form className="Tblserchdiv" onSubmit={handleSearch}>
+            <input
+              type="search"
+              placeholder="Search Patient name, time, Vet name"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <Button type="submit">
+              <LuSearch size={20} />
+            </Button>
+          </Form>
+          <div className="StatusSlect">
+            <Dropdown onSelect={(val) => setSelectedStatus(val || "Doctor")}>
+              <Dropdown.Toggle id="status-dropdown">
+                {selectedStatus}
+              </Dropdown.Toggle>
+              <Dropdown.Menu>
+                <Dropdown.Item eventKey="Status">Status</Dropdown.Item>
+                <Dropdown.Item eventKey="Pending">Pending</Dropdown.Item>
+                <Dropdown.Item eventKey="Completed">Completed</Dropdown.Item>
+                <Dropdown.Item eventKey="Cancelled">Cancelled</Dropdown.Item>
+              </Dropdown.Menu>
+            </Dropdown>
+          </div>
         </div>
+      </div>
+
+      <div className="table-wrapper">
+        <GenericTable
+          data={appointments}
+          columns={columns}
+          bordered={false}
+          pagination
+          pageSize={6}
+        />
+      </div>
     </div>
-      
-    </>
-  )
-}
+  );
+};
 
-export default NewEmergency
+export default NewEmergency;

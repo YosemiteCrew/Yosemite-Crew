@@ -1,7 +1,8 @@
 "use client";
-import React from 'react';
-import { Dropdown, Form } from 'react-bootstrap';
-import './DynamicSelect.css';
+import React from "react";
+import { Dropdown, Form } from "react-bootstrap";
+
+import "./DynamicSelect.css";
 
 export type Option = { value: string; label: string };
 
@@ -16,13 +17,14 @@ interface DynamicSelectProps {
 
 const DynamicSelect: React.FC<DynamicSelectProps> = ({
   options,
-  placeholder = 'Select an option',
+  placeholder = "Select an option",
   value,
   onChange,
   inname,
   error,
 }) => {
-  const selectedLabel = options.find((opt) => opt.value === value)?.label || placeholder;
+  const selectedLabel =
+    options.find((opt) => opt.value === value)?.label || placeholder;
 
   const handleSelect = (selectedKey: string | null) => {
     if (selectedKey !== null) {
@@ -31,20 +33,21 @@ const DynamicSelect: React.FC<DynamicSelectProps> = ({
   };
 
   return (
-    <div className="SelectedInptDropdown" >
-      <Dropdown onSelect={handleSelect} >
-        <Dropdown.Toggle id={`${inname}-dropdown`} className="custom-dropdown-toggle" >
+    <div className="SelectedInptDropdown">
+      <Dropdown onSelect={handleSelect}>
+        <Dropdown.Toggle
+          id={`${inname}-dropdown`}
+          className="custom-dropdown-toggle"
+        >
           {selectedLabel}
         </Dropdown.Toggle>
 
         <Dropdown.Menu className="custom-dropdown-menu">
-          <Dropdown.Item eventKey="">
-            {placeholder}
-          </Dropdown.Item>
+          <Dropdown.Item eventKey="">{placeholder}</Dropdown.Item>
 
           {options.length > 0 ? (
             options.map((option, index) => (
-              <Dropdown.Item key={index} eventKey={option.value}>
+              <Dropdown.Item key={option.value} eventKey={option.value}>
                 {option.label}
               </Dropdown.Item>
             ))

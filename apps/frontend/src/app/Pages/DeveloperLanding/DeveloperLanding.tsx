@@ -1,14 +1,16 @@
 "use client";
 import React from "react";
-import "./DeveloperLanding.css";
 import { Container } from "react-bootstrap";
-import { FillBtn, UnFillBtn } from "../HomePage/HomePage";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import Image from "next/image";
-import LaunchGrowTab from "@/app/Components/LaunchGrowTab/LaunchGrowTab";
-import Footer from "@/app/Components/Footer/Footer";
 
-function DeveloperLanding() {
+import { FillBtn, UnFillBtn } from "@/app/pages/HomePage/HomePage";
+import LaunchGrowTab from "@/app/components/LaunchGrowTab/LaunchGrowTab";
+import Footer from "@/app/components/Footer/Footer";
+
+import "./DeveloperLanding.css";
+
+const DeveloperLanding = () => {
   return (
     <>
       <section className="DevlpHeroSec">
@@ -306,6 +308,6 @@ function DeveloperLanding() {
       <Footer />
     </>
   );
-}
+};
 
 export default DeveloperLanding;

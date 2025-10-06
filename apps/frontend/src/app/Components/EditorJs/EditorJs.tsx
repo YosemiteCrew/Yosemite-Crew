@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useEffect, useRef } from "react";
 import EditorJS from "@editorjs/editorjs";
 import Header from "@editorjs/header";
@@ -35,7 +34,7 @@ const EditorJSRenderer: React.FC<EditorProps> = ({ data, onChange }) => {
                 try {
                   const formData = new FormData();
                   formData.append("image", file);
-                  const res:any = await axios.post(
+                  const res: any = await axios.post(
                     `${process.env.NEXT_PUBLIC_BASE_URL}fhir/v1/uploadDescriptionImg`,
                     formData,
                     { headers: { "Content-Type": "multipart/form-data" } }
@@ -55,9 +54,10 @@ const EditorJSRenderer: React.FC<EditorProps> = ({ data, onChange }) => {
           },
         },
       },
-      onChange: async () => {
-        const content = await editor.save();
-        onChange(content);
+      onChange: () => {
+        editor.save().then((content) => {
+          onChange(content);
+        });
       },
     });
 

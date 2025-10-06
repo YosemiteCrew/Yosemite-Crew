@@ -1,10 +1,11 @@
- "use client";
+"use client";
 import React, { useEffect, useState } from "react";
-import "./Cookies.css";
+import Image from "next/image";
 import { IoIosCloseCircle, IoIosCheckmarkCircle } from "react-icons/io";
 
-import { FillBtn, UnFillBtn } from "@/app/Pages/HomePage/HomePage";
-import Image from "next/image";
+import { FillBtn, UnFillBtn } from "@/app/pages/HomePage/HomePage";
+
+import "./Cookies.css";
 
 const Cookies = () => {
   const [showCookiePopup, setShowCookiePopup] = useState(false);
@@ -33,8 +34,8 @@ const Cookies = () => {
       <div className="CookieSec">
         <div className="CookieInner">
           <div className="TopCokieInner">
-            Yosemite Crew doesn&apos;t use third party cookies Only a single in-house
-            cookie.
+            Yosemite Crew doesn&apos;t use third party cookies Only a single
+            in-house cookie.
           </div>
           <div className="BottomCokieInner">
             No data is sent to a third party.
@@ -70,10 +71,20 @@ const Cookies = () => {
       </div>
 
       <div className="CookieImg">
-        <Image src="https://d2il6osz49gpup.cloudfront.net/Images/cookie.png" alt="aboutstory" width={222} height={314}/>
+        <Image
+          src="https://d2il6osz49gpup.cloudfront.net/Images/cookie.png"
+          alt="aboutstory"
+          width={222}
+          height={314}
+        />
       </div>
       <div className="CookieImg2">
-        <Image src="https://d2il6osz49gpup.cloudfront.net/Images/cookie-bg.png" alt="aboutstory" width={250} height={205}/>
+        <Image
+          src="https://d2il6osz49gpup.cloudfront.net/Images/cookie-bg.png"
+          alt="aboutstory"
+          width={250}
+          height={205}
+        />
       </div>
     </div>
   );

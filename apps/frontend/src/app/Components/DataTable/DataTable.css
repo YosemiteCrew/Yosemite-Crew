@@ -5,30 +5,32 @@
 }
 .table-footerBtn {
   display: flex;
+  align-items: center;
   justify-content: center;
 }
 .table-footerBtn button {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border: 1.5px solid var(--black-bg);
-  border-radius: 24px;
-  background: transparent;
-  color: var(--black-text);
-  padding: 14px 24px;
-  min-height: 48px;
-  font-size: 19px;
-  font-weight: 500;
-  line-height: 120% !important;
-  font-family: var(--grotesk-font);
-  cursor: pointer;
-  letter-spacing: 1.1px;
-}
-.table-footerBtn button:hover {
   background: var(--black-bg);
   color: var(--white-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 32px;
+  border-radius: 36px;
+  min-width: 160px;
+  font-family: var(--grotesk-font);
+  font-weight: 500;
+  font-size: 21px;
+  line-height: 120%;
+  min-height: 48px;
+  cursor: pointer;
+  letter-spacing: 1.1px;
+  border: 1px solid var(--black-bg) !important;
+  &:hover {
+    background: transparent;
+    color: var(--black-text);
+  }
 }
-
 /* ScheduleTable Started  */
 
 .PetImg {
@@ -181,7 +183,7 @@
   align-items: center;
   gap: 8px;
 }
-.action-btn-col{
+.action-btn-col {
   display: inline-flex;
   align-items: center;
   width: max-content;
@@ -394,7 +396,6 @@
 }
 .add-items-table-wrapper .action-btn.Save {
   color: var(--blue-text);
-  border-radius: 0%;
   text-decoration: none;
   padding: 8px 16px !important;
   width: fit-content;
@@ -421,32 +422,6 @@
   padding: 15px;
   border: 1px solid #f0f0f0;
   border-radius: 8px;
-}
-
-.table-footerBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.table-footerBtn button {
-  background: var(--black-bg);
-  color: var(--white-text);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 16px 32px;
-  border-radius: 36px;
-  min-width: 160px;
-  font-family: var(--grotesk-font);
-  font-weight: 500;
-  font-size: 21px;
-  line-height: 120%;
-  border: 1px solid var(--black-bg) !important;
-  &:hover {
-    background: transparent;
-    color: var(--black-text);
-  }
 }
 
 .Procedureselect button {

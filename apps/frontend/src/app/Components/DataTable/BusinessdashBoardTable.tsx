@@ -1,21 +1,34 @@
 "use client";
 import React, { useState, useCallback, useEffect, memo } from "react";
-import GenericTable from "../GenericTable/GenericTable";
 import Image from "next/image";
-import "./DataTable.css";
+import { useRouter } from "next/navigation";
 import { Button } from "react-bootstrap";
 import { FaEye, FaUser } from "react-icons/fa6";
-import { getData } from "@/app/axios-services/services";
-import { useOldAuthStore } from "@/app/stores/oldAuthStore";
 import { fromFHIR } from "@yosemite-crew/fhir";
 import { FHIRAppointmentData, MyAppointmentData } from "@yosemite-crew/types";
-import { useRouter } from "next/navigation";
 
-// Define display values for status (aligned with CommonTabs)
-type AppointmentStatus = "In-Progress" | "Checked-In" | "Pending" | "Confirmed" | "Cancelled" | "Fulfilled";
+import { getData } from "@/app/services/axios";
+import GenericTable from "@/app/components/GenericTable/GenericTable";
+import { useOldAuthStore } from "@/app/stores/oldAuthStore";
 
-// Valid API status keys
-const validStatuses = ["accepted", "pending", "cancelled", "in-progress", "checked-in", "fulfilled"];
+import "./DataTable.css";
+
+type AppointmentStatus =
+  | "In-Progress"
+  | "Checked-In"
+  | "Pending"
+  | "Confirmed"
+  | "Cancelled"
+  | "Fulfilled";
+
+const validStatuses = [
+  "accepted",
+  "pending",
+  "cancelled",
+  "in-progress",
+  "checked-in",
+  "fulfilled",
+];
 
 export type TodayAppointmentItem = {
   id: string;
@@ -39,7 +52,13 @@ const columns = [
     key: "avatar",
     width: "40px",
     render: (item: TodayAppointmentItem) => (
-      <Image src={item.image} alt="avatar" width={40} height={40} className="PetImg" />
+      <Image
+        src={item.image}
+        alt="avatar"
+        width={40}
+        height={40}
+        className="PetImg"
+      />
     ),
   },
   {
@@ -103,16 +122,19 @@ const columns = [
   },
 ];
 
-function BusinessdashBoardTable({ status }: { status?: string }) {
-
-  const router = useRouter()
+const BusinessdashBoardTable = ({ status }: Readonly<{ status?: string }>) => {
+  const router = useRouter();
   const navigate = () => {
-    router.push('/AppointmentVet')
-  }
-  const [appointmentsData, setAppointmentsData] = useState<TodayAppointmentItem[]>([]);
+    router.push("/AppointmentVet");
+  };
+  const [appointmentsData, setAppointmentsData] = useState<
+    TodayAppointmentItem[]
+  >([]);
   const userId = useOldAuthStore((state: any) => state.userId);
 
-  const normalizeAppointments = (data: MyAppointmentData[]): TodayAppointmentItem[] => {
+  const normalizeAppointments = (
+    data: MyAppointmentData[]
+  ): TodayAppointmentItem[] => {
     return data.map((item: any) => {
       let mappedStatus: AppointmentStatus = "Pending";
       const status = item.appointmentStatus?.toLowerCase();
@@ -154,7 +176,9 @@ function BusinessdashBoardTable({ status }: { status?: string }) {
         );
         if (response.status === 200) {
           const data: any = response.data;
-          setAppointmentsData(normalizeAppointments(fromFHIR(data.data as FHIRAppointmentData[])));
+          setAppointmentsData(
+            normalizeAppointments(fromFHIR(data.data as FHIRAppointmentData[]))
+          );
         }
       } catch (error) {
         setAppointmentsData([]);
@@ -173,12 +197,16 @@ function BusinessdashBoardTable({ status }: { status?: string }) {
   return (
     <div className="table-wrapper">
       {/* Limit to first 3 items */}
-      <GenericTable data={appointmentsData.slice(0, 3)} columns={columns} bordered={false} />
+      <GenericTable
+        data={appointmentsData.slice(0, 3)}
+        columns={columns}
+        bordered={false}
+      />
       <div className="table-footerBtn ">
         <Button onClick={navigate}>See All</Button>
       </div>
     </div>
   );
-}
+};
 
 export default memo(BusinessdashBoardTable);

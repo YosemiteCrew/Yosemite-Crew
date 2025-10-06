@@ -1,8 +1,10 @@
 "use client";
 import React, { useState } from "react";
-import "./DataTable.css";
-import GenericTable from "../GenericTable/GenericTable";
 import { AiFillMinusCircle } from "react-icons/ai";
+
+import GenericTable from "@/app/components/GenericTable/GenericTable";
+
+import "./DataTable.css";
 
 type Column<T> = {
   label: string;
@@ -27,7 +29,7 @@ const demoData: InviteProps[] = [
   },
 ];
 
-function OrganizationList() {
+const OrganizationList = (orgs: any) => {
   const [data] = useState<InviteProps[]>(demoData);
 
   const columns: Column<InviteProps>[] = [
@@ -63,10 +65,10 @@ function OrganizationList() {
       key: "actions",
       width: "25%",
       render: (item: InviteProps) => (
-          <div className="action-btn">
-            <div className="action-btn-text">Leave</div>
-            <AiFillMinusCircle size={14} />
-          </div>
+        <div className="action-btn">
+          <div className="action-btn-text">Leave</div>
+          <AiFillMinusCircle size={14} />
+        </div>
       ),
     },
   ];
@@ -82,6 +84,6 @@ function OrganizationList() {
       />
     </div>
   );
-}
+};
 
 export default OrganizationList;

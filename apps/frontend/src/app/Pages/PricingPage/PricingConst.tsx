@@ -17,7 +17,7 @@ export const pricingPlans = [
       </p>
     ),
     highlight: false,
-    label: "self"
+    label: "self",
   },
   {
     id: 2,
@@ -32,7 +32,7 @@ export const pricingPlans = [
       </p>
     ),
     highlight: true,
-    label: "custom"
+    label: "custom",
   },
 ];
 

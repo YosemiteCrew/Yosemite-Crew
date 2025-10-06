@@ -69,7 +69,6 @@
     font-size: 14px;
     line-height: 100%;
 }
-
 .WeekDonutDiv .WeekReports .WeekReportsItem p .dot {
   height: 10px;
   width: 10px;
@@ -81,9 +80,7 @@
 /* DonutCardDiv Ended  */
 
 
-
 /* DepartChartWrapper Started  */
-
 .DepartChartWrapper{
   box-shadow: 0px 0px 30px 0px #4738271A;
   background: var(--whitebg);
@@ -91,11 +88,10 @@
   border-radius: 24px;
   padding: 24px;
 }
-
 /* DepartChartWrapper Ended  */
 
-/* AppointmentChartWrapper Started  */
 
+/* AppointmentChartWrapper Started  */
 .AppointmentChartWrapper{
   box-shadow: 0px 0px 30px 0px #4738271A;
   background: var(--whitebg);
@@ -103,26 +99,21 @@
   border-radius: 24px;
   padding: 24px;
 }
-
 .completed {
   background-color: var(--black-bg);
 }
-
 .cancelled {
   background-color: var(--greytext);
 }
-
 .dropdown-toggle {
   border: none;
   background-color: transparent;
   font-weight: 500;
 }
-
-
 /* AppointmentChartWrapper Ended  */
 
 
-/* Chart card styling */
+/* Chart card Started */
 .chart-card {
   box-shadow: 0px 0px 30px 0px #4738271A;
   background: var(--whitebg);
@@ -130,13 +121,9 @@
   border-radius: 24px;
   padding: 24px;
 }
-
-/* Chart container for padding */
 .bargraph-chart-container {
   padding: 8px 0 0 0;
 }
-
-/* Chat button styling */
 .chat-btn {
   position: absolute;
   right: 32px;
@@ -152,13 +139,10 @@
   gap: 6px;
   padding: 6px 18px;
 }
-
 .chat-btn span {
   font-size: 20px;
   margin-right: 4px;
 }
-
-/* Responsive adjustments if needed */
 @media (max-width: 600px) {
   .chat-btn {
     right: 12px;
@@ -166,10 +150,10 @@
     padding: 4px 12px;
   }
 }
+/* Chart card Ended */
 
 
 /* SpecialitesAppoint Started  */
-
 .SpeclAppotChartWrapper{
   box-shadow: 0px 0px 30px 0px #4738271A;
   background: var(--whitebg);
@@ -178,5 +162,4 @@
   padding: 24px;
   min-height: 342px;
 }
-
 /* SpecialitesAppoint Ended */

@@ -62,7 +62,7 @@
   margin-top: 17px;
 }
 
-.private-header-mobile-menu{
+.private-header-mobile-menu {
   background: #fff;
   z-index: 999;
   display: flex;
@@ -75,7 +75,7 @@
   padding: 30px 48px;
   overflow: auto;
 }
-.verified-mobile-menu-item-label{
+.verified-mobile-menu-item-label {
   color: var(--notibg);
   font-family: var(--grotesk-font);
   font-size: 16px;
@@ -84,17 +84,17 @@
   line-height: 100%;
   letter-spacing: -0.32px;
 }
-.verified-mobile-submenu{
+.verified-mobile-submenu {
   display: flex;
   flex-direction: column;
   gap: 4px;
   padding: 8px 0px;
   margin-top: 8px;
   border-radius: 8px;
-  background: var(--yc-updated-white, #FFF);
+  background: var(--yc-updated-white, #fff);
   box-shadow: 0 0 8px 0 rgba(0, 0, 0, 0.08);
 }
-.verified-mobile-submenu-item a{
+.verified-mobile-submenu-item a {
   color: var(--notibg);
   font-family: var(--grotesk-font);
   font-size: 13px;
@@ -109,7 +109,7 @@
   color: var(--blue-text);
   transition: 0.3s;
 }
-.verified-mobile-menu-item-sperator{
+.verified-mobile-menu-item-sperator {
   height: 1px;
   background: var(--lightgrey);
   opacity: 0.4;
@@ -117,16 +117,16 @@
   width: 100%;
   margin-top: 4px;
 }
-.verified-profile-mobile-section{
+.verified-profile-mobile-section {
   display: flex;
   align-items: center;
   gap: 8px;
 }
-.verified-profile-mobile-section .title{
+.verified-profile-mobile-section .title {
   color: var(--black-bg);
   max-width: 180px;
 }
-.verified-mobile-submenu .danger a{
+.verified-mobile-submenu .danger a {
   color: var(--error-color) !important;
 }
 @media screen and (min-width: 1024px) {
@@ -251,7 +251,7 @@
   z-index: 999;
   list-style-type: none;
 }
-.verified-profile-desktop{
+.verified-profile-desktop {
   display: block;
   opacity: 0;
   visibility: hidden;

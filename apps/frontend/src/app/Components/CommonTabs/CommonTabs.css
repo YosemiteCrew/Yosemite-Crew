@@ -1,8 +1,8 @@
-.LinesTabsSec{
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-    position: relative;
+.LinesTabsSec {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  position: relative;
 }
 .linesTabs {
   border: none;
@@ -36,7 +36,7 @@
   bottom: -1px;
   transform: scaleX(0);
   transform-origin: left;
-  transition: transform 0.3s cubic-bezier(.4,0,.2,1);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
 }
 /* Remove default focus outline */
@@ -59,7 +59,7 @@
 .linesTabs .nav-link:not(.active):hover::after {
   transform: scaleX(1);
 }
-.LinesTabsSec ul li button span.tab-count-badge{
+.LinesTabsSec ul li button span.tab-count-badge {
   width: 20px;
   height: 20px;
   display: inline-flex;
@@ -77,28 +77,26 @@
 
 /* SelectStatus Started  */
 
-.SelectStatus{
-    position: absolute;
-    top: 0;
-    right: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 10px 16px;
-    border-radius: 28px;
-    border: 1px solid var(--greybg);
+.SelectStatus {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-radius: 28px;
+  border: 1px solid var(--greybg);
 }
-.SelectStatus p{
-    margin: 0;
-    font-family: var(--grotesk-font);
-    font-size: 16px;
-    line-height: 120%;
-    font-weight: 500;
-    color: var(--black-grey);
+.SelectStatus p {
+  margin: 0;
+  font-family: var(--grotesk-font);
+  font-size: 16px;
+  line-height: 120%;
+  font-weight: 500;
+  color: var(--black-grey);
 }
-
-
 
 .custom-status-dropdown {
   border-radius: 0px !important;
@@ -112,7 +110,7 @@
   font-weight: 700 !important;
 }
 
-.custom-status-dropdown:focus, 
+.custom-status-dropdown:focus,
 .custom-status-dropdown:active {
   border-color: transparent !important;
   box-shadow: none !important;
@@ -120,20 +118,22 @@
 }
 
 .dropdown-menu {
-    box-shadow: 0px 0px 30px 0px #4738271A;
-    background: var(--whitebg);
-    border: 1px solid var(--lightgrey);
-    border-radius: 12px;
-    padding: 0;
-    max-height: 250px;
-    overflow: auto;
+  box-shadow: 0px 0px 30px 0px #4738271a;
+  background: var(--whitebg);
+  border: 1px solid var(--lightgrey);
+  border-radius: 12px;
+  padding: 0;
+  max-height: 250px;
+  overflow: auto;
 }
 .dropdown-item {
   font-size: 15px;
   font-weight: 500;
   padding: 8px 18px;
   border-radius: 2px;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
 .dropdown-item.active,
@@ -144,5 +144,3 @@
 }
 
 /* SelectStatus Ended  */
-
-

@@ -1,233 +1,230 @@
-.BusinessDashboardSec{
-    padding: 100px 0px;
+.BusinessDashboardSec {
+  padding: 100px 0px;
 }
-.BusinessDashboardData{
-    display: flex;
-    flex-direction: column;
-    gap: 54px;
+.BusinessDashboardData {
+  display: flex;
+  flex-direction: column;
+  gap: 54px;
 }
-.BuisnessDashTop{
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
+.BuisnessDashTop {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
-.TopDashHead{
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+.TopDashHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
-.TopDashHead .leftwlmdiv span{
-    color: var(--black-grey);
-    font-family: var(--satoshi-font);
-    font-weight: 700;
-    font-size: 15px;
-    line-height: 120%;
+.TopDashHead .leftwlmdiv span {
+  color: var(--black-grey);
+  font-family: var(--satoshi-font);
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 120%;
 }
-.TopDashHead .leftwlmdiv .wlcdash{
-    display: flex;
-    align-items: center;
-    gap: 20px;
+.TopDashHead .leftwlmdiv .wlcdash {
+  display: flex;
+  align-items: center;
+  gap: 20px;
 }
-.TopDashHead .leftwlmdiv .wlcdash h2{
-    font-family: var(--grotesk-font);
-    font-size: 40px;
-    font-weight: 500;
-    line-height: 120%;
-    color: var(--black-text);
-    margin: 0;
+.TopDashHead .leftwlmdiv .wlcdash h2 {
+  font-family: var(--grotesk-font);
+  font-size: 40px;
+  font-weight: 500;
+  line-height: 120%;
+  color: var(--black-text);
+  margin: 0;
 }
 .TopDashHead .leftwlmdiv .wlcdash .Apoitpopup {
-    background: var(--lightblue);
-    padding: 12px 16px;
-    border-radius: 16px;
-    min-height: 46px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 18px;
-    line-height: 120%;
-    font-weight: 700;
-    color: var(--skytext);
+  background: var(--lightblue);
+  padding: 12px 16px;
+  border-radius: 16px;
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+  line-height: 120%;
+  font-weight: 700;
+  color: var(--skytext);
 }
-.TopDashHead .Ryttwlmdiv .ClinicVisibleBtn a , .TopDashHead .Ryttwlmdiv .invitbtn a{
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 14px 28px;
-    font-size: 19px;
-    font-weight: 500;
-    font-family: var(--grotesk-font);
-    color: var(--black-text);
-    border-radius: 28px;
+.TopDashHead .Ryttwlmdiv .ClinicVisibleBtn a,
+.TopDashHead .Ryttwlmdiv .invitbtn a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 28px;
+  font-size: 19px;
+  font-weight: 500;
+  font-family: var(--grotesk-font);
+  color: var(--black-text);
+  border-radius: 28px;
 }
-.TopDashHead .Ryttwlmdiv .ClinicVisibleBtn a:hover{
-    color: var(--blue-text);
+.TopDashHead .Ryttwlmdiv .ClinicVisibleBtn a:hover {
+  color: var(--blue-text);
 }
-.TopDashHead .Ryttwlmdiv .invitbtn a{
-    background: var(--black-bg);
-    border: 1px solid var(--black-bg);
-    color: var(--white-text);
+.TopDashHead .Ryttwlmdiv .invitbtn a {
+  background: var(--black-bg);
+  border: 1px solid var(--black-bg);
+  color: var(--white-text);
 }
-.TopDashHead .Ryttwlmdiv .invitbtn a:hover{
-    background: transparent;
-    color: var(--black-text);
+.TopDashHead .Ryttwlmdiv .invitbtn a:hover {
+  background: transparent;
+  color: var(--black-text);
 }
-
-
-
-
 
 /* DepartmentDiv */
 
-.DepartIncomDiv{
-    box-shadow: 0px 0px 30px 0px #4738271A;
-    background: var(--whitebg);
-    border: 1px solid var(--lightgrey);
-    border-radius: 24px;
-    padding: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.DepartIncomDiv {
+  box-shadow: 0px 0px 30px 0px #4738271a;
+  background: var(--whitebg);
+  border: 1px solid var(--lightgrey);
+  border-radius: 24px;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .departText {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
-.departText p{
-    font-size: 15px;
-    font-weight: 700;
-    line-height: 120%;
-    letter-spacing: -0.02em;
-    color: var(--greytext);
-    margin: 0;
+.departText p {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 120%;
+  letter-spacing: -0.02em;
+  color: var(--greytext);
+  margin: 0;
 }
-.departText h5{
-    font-family: var(--grotesk-font);
-    font-size: 23px;
-    font-weight: 500;
-    line-height: 120%;
-    letter-spacing: -0.02em;
-    margin: 0;
-    color: var(--lightwhiteText);
+.departText h5 {
+  font-family: var(--grotesk-font);
+  font-size: 23px;
+  font-weight: 500;
+  line-height: 120%;
+  letter-spacing: -0.02em;
+  margin: 0;
+  color: var(--lightwhiteText);
 }
-.DeprtInner{
-    display: grid;
-    grid-template-areas: 
+.DeprtInner {
+  display: grid;
+  grid-template-areas:
     "onclogydiv intrmedcndiv Orthopedicsdiv"
     "onclogydiv Gastroenterologydiv Gastroenterologydiv"
     "Cardiologydiv Cardiologydiv Neurologydiv";
-    gap: 6px; 
-    width: 100%;
-    max-width: 580px;
+  gap: 6px;
+  width: 100%;
+  max-width: 580px;
 }
-.onclogydiv{
-    background: var(--darkblackbg);
-    width: 218px;
-    height: 193px;
-    border-radius: 12px;
-    display: flex;
-    align-items: end;
-    padding: 20px;
-    grid-area: onclogydiv;
+.onclogydiv {
+  background: var(--darkblackbg);
+  width: 218px;
+  height: 193px;
+  border-radius: 12px;
+  display: flex;
+  align-items: end;
+  padding: 20px;
+  grid-area: onclogydiv;
 }
-.intrmedcndiv{
-    background: var(--darkblackbg);
-    width: 200px;
-    height: 125px;
-    border-radius: 12px;
-    display: flex;
-    align-items: end;
-    padding: 20px;
-    grid-area: intrmedcndiv;
+.intrmedcndiv {
+  background: var(--darkblackbg);
+  width: 200px;
+  height: 125px;
+  border-radius: 12px;
+  display: flex;
+  align-items: end;
+  padding: 20px;
+  grid-area: intrmedcndiv;
 }
-.Orthopedicsdiv{
-    background: var(--greybg);
-    width: 148px;
-    height: 125px;
-    border-radius: 12px;
-    display: flex;
-    align-items: end;
-    padding: 20px;
-    grid-area: Orthopedicsdiv;
+.Orthopedicsdiv {
+  background: var(--greybg);
+  width: 148px;
+  height: 125px;
+  border-radius: 12px;
+  display: flex;
+  align-items: end;
+  padding: 20px;
+  grid-area: Orthopedicsdiv;
 }
-.Gastroenterologydiv{
-    background: var(--black-bg);
-    width: 356px;
-    height: 61px;
-    border-radius: 12px;
-    display: flex;
-    align-items: end;
-    padding: 6px 15px;
-    grid-area: Gastroenterologydiv;
+.Gastroenterologydiv {
+  background: var(--black-bg);
+  width: 356px;
+  height: 61px;
+  border-radius: 12px;
+  display: flex;
+  align-items: end;
+  padding: 6px 15px;
+  grid-area: Gastroenterologydiv;
 }
-.Cardiologydiv{
-    background: var(--darkblackbg);
-    width: 426px;
-    height: 95px;
-    border-radius: 12px;
-    display: flex;
-    align-items: end;
-    padding: 20px;
-    grid-area: Cardiologydiv;
+.Cardiologydiv {
+  background: var(--darkblackbg);
+  width: 426px;
+  height: 95px;
+  border-radius: 12px;
+  display: flex;
+  align-items: end;
+  padding: 20px;
+  grid-area: Cardiologydiv;
 }
-.Neurologydiv{
-    background: var(--black-grey);
-    width: 148px;
-    height: 95px;
-    border-radius: 12px;
-    display: flex;
-    align-items: end;
-    padding: 20px;
-    grid-area: Neurologydiv;
+.Neurologydiv {
+  background: var(--black-grey);
+  width: 148px;
+  height: 95px;
+  border-radius: 12px;
+  display: flex;
+  align-items: end;
+  padding: 20px;
+  grid-area: Neurologydiv;
 }
 
 /* DepartmentDiv */
 
-.DivHeading{
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+.DivHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
-.DivHeading h5{
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 23px;
-    font-weight: 500;
-    line-height: 120%;
-    font-family: var(--grotesk-font);
-    color: var(--black-text);
-    margin: 0;
+.DivHeading h5 {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 23px;
+  font-weight: 500;
+  line-height: 120%;
+  font-family: var(--grotesk-font);
+  color: var(--black-text);
+  margin: 0;
 }
-.DivHeading h5 span{
-    color: var(--black-grey);
+.DivHeading h5 span {
+  color: var(--black-grey);
 }
-.DivHeading a{
-    background: transparent !important;
-    border-radius: 28px;
-    padding: 14px 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    min-height: 48px;
-    border: 1px solid var(--black-bg) !important;
-    color: var(--black-text);
-    font-size: 19px;
-    line-height: 120%;
-    font-weight: 500;
-    font-family: var(--grotesk-font);
-    &:hover{
-        background: var(--black-bg) !important;
-        color: var(--white-text);
-    }
+.DivHeading a {
+  background: transparent !important;
+  border-radius: 28px;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 48px;
+  border: 1px solid var(--black-bg) !important;
+  color: var(--black-text);
+  font-size: 19px;
+  line-height: 120%;
+  font-weight: 500;
+  font-family: var(--grotesk-font);
+  &:hover {
+    background: var(--black-bg) !important;
+    color: var(--white-text);
+  }
 }
 
-.TableItemsRow{
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
+.TableItemsRow {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }

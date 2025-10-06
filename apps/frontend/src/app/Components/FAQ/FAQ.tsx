@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import "./FAQ.css";
 import { Container } from "react-bootstrap";
 
-function FAQ() {
+import "./Faq.css";
+
+const Faq = () => {
   // Define the accordion items
   const items = [
     {
@@ -78,6 +79,6 @@ function FAQ() {
       </Container>
     </section>
   );
-}
+};
 
-export default FAQ;
+export default Faq;

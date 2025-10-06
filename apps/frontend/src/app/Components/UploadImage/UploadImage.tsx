@@ -1,34 +1,37 @@
-import React, { useRef, useState, useEffect } from 'react';
-import "./UploadImage.css";
+import React, { useRef, useState, useEffect } from "react";
 import {
   FaCloudUploadAlt,
   FaFilePdf,
   FaFileWord,
   FaFileImage,
-  FaTrashAlt
+  FaTrashAlt,
 } from "react-icons/fa";
-import Image from 'next/image';
-import { Button } from 'react-bootstrap';
+import Image from "next/image";
+import { Button } from "react-bootstrap";
+
+import "./UploadImage.css";
 
 const allowedTypes = [
   "application/pdf",
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "image/png",
-  "image/jpeg"
+  "image/jpeg",
 ];
 
 function getFileIcon(type: string) {
-  if (type === "application/pdf") return <FaFilePdf className="file-icon pdf" />;
+  if (type === "application/pdf")
+    return <FaFilePdf className="file-icon pdf" />;
   if (type.includes("word")) return <FaFileWord className="file-icon word" />;
-  if (type.startsWith("image/")) return <FaFileImage className="file-icon img" />;
+  if (type.startsWith("image/"))
+    return <FaFileImage className="file-icon img" />;
   return <FaFileImage className="file-icon" />;
 }
 
 type ExistingFile = {
   name: string; // example: "abc.pdf"
   type: string; // example: "application/pdf"
-  url: string;  // example: S3 URL
+  url: string; // example: S3 URL
 };
 
 type Props = {
@@ -37,7 +40,11 @@ type Props = {
   existingFiles?: ExistingFile[];
 };
 
-function UploadImage({ onChange, value = [], existingFiles = [] }: Props) {
+function UploadImage({
+  onChange,
+  value = [],
+  existingFiles = [],
+}: Readonly<Props>) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>(value);
   const [apiFiles, setApiFiles] = useState<ExistingFile[]>(existingFiles);
@@ -52,10 +59,11 @@ function UploadImage({ onChange, value = [], existingFiles = [] }: Props) {
 
   const handleFiles = (fileList: FileList | null) => {
     if (!fileList) return;
-    const newFiles = Array.from(fileList).filter(file =>
-      allowedTypes.includes(file.type) && file.size <= 20 * 1024 * 1024
+    const newFiles = Array.from(fileList).filter(
+      (file) =>
+        allowedTypes.includes(file.type) && file.size <= 20 * 1024 * 1024
     );
-    setFiles(prev => {
+    setFiles((prev) => {
       const merged = [...prev, ...newFiles];
       if (onChange) onChange(merged);
       return merged;
@@ -84,20 +92,24 @@ function UploadImage({ onChange, value = [], existingFiles = [] }: Props) {
       <div
         className="UploadAreaData"
         onClick={() => inputRef.current?.click()}
-        onDragOver={e => e.preventDefault()}
+        onDragOver={(e) => e.preventDefault()}
         onDrop={handleDrop}
       >
         <div className="upldCont">
           <FaCloudUploadAlt className="upload-cloud" />
           <h6>Upload Certifications/ Degrees</h6>
-          <p>Only DOC, PDF, PNG, JPEG formats with<br />max size 20 MB</p>
+          <p>
+            Only DOC, PDF, PNG, JPEG formats with
+            <br />
+            max size 20 MB
+          </p>
           <input
             ref={inputRef}
             type="file"
             multiple
             accept=".pdf,.doc,.docx,.png,.jpeg,.jpg"
             style={{ display: "none" }}
-            onChange={e => handleFiles(e.target.files)}
+            onChange={(e) => handleFiles(e.target.files)}
           />
         </div>
       </div>
@@ -105,7 +117,7 @@ function UploadImage({ onChange, value = [], existingFiles = [] }: Props) {
       <div className="upload-preview-list">
         {/* New user-selected files */}
         {files.map((file, idx) => (
-          <div className="upload-preview-item" key={`file-${idx}`}>
+          <div className="upload-preview-item" key={`file-${file.name}`}>
             {file.type.startsWith("image/") ? (
               <Image
                 src={URL.createObjectURL(file)}
@@ -129,7 +141,7 @@ function UploadImage({ onChange, value = [], existingFiles = [] }: Props) {
 
         {/* API/S3 existing files */}
         {apiFiles.map((file, idx) => (
-          <div className="upload-preview-item" key={`api-${idx}`}>
+          <div className="upload-preview-item" key={`api-${file.name}`}>
             {file.type.startsWith("image/") ? (
               <Image
                 src={file.url}
@@ -144,7 +156,10 @@ function UploadImage({ onChange, value = [], existingFiles = [] }: Props) {
                 <span className="file-name">{file.name}</span>
               </div>
             )}
-            <Button className="delete-btn" onClick={() => handleDeleteExisting(idx)}>
+            <Button
+              className="delete-btn"
+              onClick={() => handleDeleteExisting(idx)}
+            >
               <FaTrashAlt />
             </Button>
           </div>
