@@ -1,12 +1,12 @@
 "use client";
 import React from "react";
+import { usePathname } from "next/navigation";
 
 import { useAuthStore } from "@/app/stores/authStore";
 import PublicHeader from "./PublicHeader";
 import PrivateHeader from "./PrivateHeader";
 
 import "./Header.css";
-import { usePathname } from "next/navigation";
 
 const publicRoutes = [
   "/",
@@ -18,7 +18,7 @@ const publicRoutes = [
   "/developers",
   "/application",
   "/pricing",
-  "/forgotpassword",
+  "/forgot-password",
 ];
 
 const Header = () => {

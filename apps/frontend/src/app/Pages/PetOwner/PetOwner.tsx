@@ -4,11 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { Icon } from "@iconify/react/dist/iconify.js";
 
-import Footer from "@/app/Components/Footer/Footer";
+import Footer from "@/app/components/Footer/Footer";
 
 import "./PetOwner.css";
 
-function PetOwner() {
+const PetOwner = () => {
   return (
     <>
       <div className="DownlodeBody">

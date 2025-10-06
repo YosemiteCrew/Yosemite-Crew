@@ -1,9 +1,10 @@
 import React from "react";
-import "./CalendarCard.css";
 import Image from "next/image";
 import { FaCalendar, FaCircleCheck, FaUser } from "react-icons/fa6";
 import { AiFillMinusCircle } from "react-icons/ai";
 import { Button } from "react-bootstrap";
+
+import "./CalendarCard.css";
 
 const calendarData = [
   {
@@ -98,7 +99,8 @@ const calendarData = [
     date: "Appointment Cancelled",
   },
 ];
-function CalendarCard(data: any) {
+
+const CalendarCard = (data: any) => {
   console.log(data, "CalendarCard Data");
   return (
     <div className="Doct_Clender_Data">
@@ -140,11 +142,11 @@ function CalendarCard(data: any) {
             <div className="ClendrCard">
               {data &&
                 data?.data?.length > 0 &&
-                data?.data 
+                data?.data
                   ?.filter((item: any) => item.appointmentStatus === col.key)
                   // .slice(0, 4) // ✅ Show only 4 cards per section
-                  .map((item: any, i: any) => (
-                    <div key={i} className="CalendarCardItem">
+                  .map((item: any) => (
+                    <div key={item.name} className="CalendarCardItem">
                       <div className="ClndrUser">
                         <Image
                           aria-hidden
@@ -179,7 +181,7 @@ function CalendarCard(data: any) {
                           <>
                             <span>
                               <FaCircleCheck />
-                            </span>
+                            </span>{" "}
                             Appointment Completed
                           </>
                         )}
@@ -187,7 +189,7 @@ function CalendarCard(data: any) {
                           <>
                             <span>
                               <AiFillMinusCircle />
-                            </span>
+                            </span>{" "}
                             Appointment Cancelled
                           </>
                         )}
@@ -200,6 +202,6 @@ function CalendarCard(data: any) {
       </div>
     </div>
   );
-}
+};
 
 export default CalendarCard;

@@ -1,16 +1,16 @@
 "use client";
-import React, { useState, ReactNode, FormEvent } from "react";
-import Footer from "@/app/Components/Footer/Footer";
-import "./HomePage.css";
+import React, { ReactNode, FormEvent } from "react";
 import { Container } from "react-bootstrap";
 import Link from "next/link";
 import Image from "next/image";
 import { IoIosFlash } from "react-icons/io";
 import { MdOutlineAccessTimeFilled } from "react-icons/md";
-import Header from "@/app/Components/Header/Header";
 
-function HomePage() {
-  const [isLoggedIn] = useState(false);
+import Footer from "@/app/components/Footer/Footer";
+
+import "./HomePage.css";
+
+const HomePage = () => {
   return (
     <>
       <section className="HomeHeroSection">
@@ -85,7 +85,7 @@ function HomePage() {
                 <UnFillBtn
                   icon={<MdOutlineAccessTimeFilled />}
                   text="Book a Demo"
-                  href="/bookDemo"
+                  href="/book-demo"
                 />
               </div>
             </div>
@@ -375,7 +375,7 @@ function HomePage() {
       <Footer />
     </>
   );
-}
+};
 
 export default HomePage;
 
@@ -389,7 +389,13 @@ type ButtonProps = {
   style?: React.CSSProperties;
 };
 
-export function FillBtn({ icon, text, onClick, href, style }: ButtonProps) {
+export function FillBtn({
+  icon,
+  text,
+  onClick,
+  href,
+  style,
+}: Readonly<ButtonProps>) {
   return (
     <Link
       href={href}
@@ -406,7 +412,13 @@ export function FillBtn({ icon, text, onClick, href, style }: ButtonProps) {
     </Link>
   );
 }
-export function UnFillBtn({ icon, text, href, onClick, style }: ButtonProps) {
+export function UnFillBtn({
+  icon,
+  text,
+  href,
+  onClick,
+  style,
+}: Readonly<ButtonProps>) {
   return (
     <Link className="UnFillbtn" href={href} onClick={onClick} style={style}>
       {icon} {text}

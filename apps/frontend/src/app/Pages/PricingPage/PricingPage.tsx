@@ -1,7 +1,5 @@
 "use client";
 import React, { useState } from "react";
-import "./PricingPage.css";
-import Footer from "@/app/Components/Footer/Footer";
 import {
   Card,
   Container,
@@ -11,18 +9,22 @@ import {
   ToggleButtonGroup,
 } from "react-bootstrap";
 import { Icon } from "@iconify/react/dist/iconify.js";
+import Image from "next/image";
+import Link from "next/link";
+
 import {
   featuresData,
   getPlanConfig,
   planFeatures,
   pricingPlans,
-} from "./PricingConst";
-import { FillBtn } from "../HomePage/HomePage";
-import Image from "next/image";
-import Link from "next/link";
-import FAQ from "@/app/Components/FAQ/FAQ";
+} from "@/app/pages/PricingPage/PricingConst";
+import { FillBtn } from "@/app/pages/HomePage/HomePage";
+import Faq from "@/app/components/Faq/Faq";
+import Footer from "@/app/components/Footer/Footer";
 
-function PricingPage() {
+import "./PricingPage.css";
+
+const PricingPage = () => {
   // Pricing Calculator Started
   const [plan, setPlan] = useState<"self" | "custom">("self");
   const [appointments, setAppointments] = useState(120);
@@ -143,8 +145,8 @@ function PricingPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {planFeatures.map((item, index) => (
-                      <tr key={index}>
+                    {planFeatures.map((item) => (
+                      <tr key={item.feature}>
                         <td>{item.feature}</td>
                         <td>{item.selfHosting}</td>
                         <td>{item.payAsYouGo}</td>
@@ -167,14 +169,14 @@ function PricingPage() {
                 </p>
               </div>
               <div className="FeatureData">
-                {featuresData.map((feature, idx) => (
-                  <div key={idx} className="FeatureItem">
+                {featuresData.map((feature) => (
+                  <div key={feature.title} className="FeatureItem">
                     <div className="fethed">
                       <h4>{feature.title}</h4>
                     </div>
                     <div className="fetiner">
-                      {feature.items.map((item, i) => (
-                        <p key={i}>
+                      {feature.items.map((item) => (
+                        <p key={item}>
                           {item}{" "}
                           <Image
                             src={`https://d2il6osz49gpup.cloudfront.net/ftcheck.png`}
@@ -232,17 +234,14 @@ function PricingPage() {
               <div className="PricingInfoDiv">
                 <div className="leftPriceInfo">
                   {currentPlan.ranges.map(
-                    (
-                      item: {
-                        label: string;
-                        min: number;
-                        max: number;
-                        value: number;
-                        setter: (value: number) => void;
-                      },
-                      index: number
-                    ) => (
-                      <div key={index} className="pricingscrolldiv">
+                    (item: {
+                      label: string;
+                      min: number;
+                      max: number;
+                      value: number;
+                      setter: (value: number) => void;
+                    }) => (
+                      <div key={item.label} className="pricingscrolldiv">
                         <div className="scrolltext">
                           <h5>{item.label}</h5>
                           <span>{item.value}</span>
@@ -291,7 +290,7 @@ function PricingPage() {
               <h4>Coming Soon</h4>
             </div>
 
-            <FAQ />
+            <Faq />
 
             {/* NeedHelpDiv */}
             <NeedHealp />
@@ -302,7 +301,7 @@ function PricingPage() {
       <Footer />
     </>
   );
-}
+};
 
 export default PricingPage;
 

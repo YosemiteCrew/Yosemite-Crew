@@ -21,7 +21,6 @@
   pointer-events: auto;
 }
 .GithubTitle {
-  color: #fff;
   font-size: 23px;
   font-weight: 500;
   line-height: 120%;
@@ -45,7 +44,7 @@
   align-items: center;
   gap: 5px;
 }
-.GithubStar .Title p{
+.GithubStar .Title p {
   color: var(--black-text);
   font-size: 13px;
   font-weight: 700;
@@ -67,7 +66,7 @@
   margin: 0;
 }
 
-.CloseButton{
+.CloseButton {
   cursor: pointer;
   margin-top: -2px;
 }

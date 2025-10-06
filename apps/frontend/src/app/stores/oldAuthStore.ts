@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import ProfileApi from "../utils/Api/profileApi";
+import ProfileApi from "../utils/api/profileApi";
 import {
   BusinessProfile,
   ConvertToFhirVetProfileParams,

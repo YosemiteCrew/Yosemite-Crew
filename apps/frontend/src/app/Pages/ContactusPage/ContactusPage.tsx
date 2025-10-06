@@ -1,24 +1,19 @@
 "use client";
 import React, { useCallback, useEffect, useState } from "react";
-import "./ContactusPage.css";
-import Footer from "@/app/Components/Footer/Footer";
 import { Button, Container } from "react-bootstrap";
-import { FormInput } from "../Sign/SignUp";
-import DynamicSelect from "@/app/Components/DynamicSelect/DynamicSelect";
 import { toFhirSupportTicket } from "@yosemite-crew/fhir";
-import {
-  CreateSupportTicket,
-  TicketCategory,
-  TicketPlatform,
-  UserStatus,
-  UserType,
-} from "@yosemite-crew/types";
-import { postData } from "@/app/axios-services/services";
-import { useOldAuthStore } from "@/app/stores/oldAuthStore";
+import { CreateSupportTicket, TicketCategory } from "@yosemite-crew/types";
 import Link from "next/link";
-import { Icon } from "@iconify/react/dist/iconify.js";
 
-function ContactusPage() {
+import Footer from "@/app/components/Footer/Footer";
+import { FormInput } from "@/app/pages/Sign/SignUp";
+import DynamicSelect from "@/app/components/DynamicSelect/DynamicSelect";
+import { postData } from "@/app/services/axios";
+import { useOldAuthStore } from "@/app/stores/oldAuthStore";
+
+import "./ContactusPage.css";
+
+const ContactusPage = () => {
   //emails
   const { email: activeEmail, userType, isVerified } = useOldAuthStore();
   const [email, setEmail] = useState("");
@@ -37,7 +32,7 @@ function ContactusPage() {
     "Complaint",
   ];
   // Subrequest options for Data Service Access Request
-  const [subselectedRequest, setSubSelectedRequest] = useState("");
+  const [subselectedRequest, setSubselectedRequest] = useState("");
   const subrequestOptions = [
     "The person, or the parent / guardian of the person, whose name appears above",
     "An agent authorized by the consumer to make this request on their behalf",
@@ -155,10 +150,7 @@ function ContactusPage() {
     const fhirData = toFhirSupportTicket(obj);
     setSubmitting(true);
     try {
-      const response = await postData(
-        "/fhir/v1/support/request-support",
-        fhirData
-      );
+      await postData("/fhir/v1/support/request-support", fhirData);
     } catch (error) {
       console.log(error);
     } finally {
@@ -248,14 +240,14 @@ function ContactusPage() {
                 <div className="DataServiceAccessFields">
                   <div className="SetSubmitted">
                     <p>You are submitting this request as</p>
-                    {subrequestOptions.map((option, index) => (
-                      <label key={index}>
+                    {subrequestOptions.map((option) => (
+                      <label key={option}>
                         <input
                           type="radio"
                           name="dsarSubmitAs"
                           value={option}
                           checked={subselectedRequest === option}
-                          onChange={() => setSubSelectedRequest(option)}
+                          onChange={() => setSubselectedRequest(option)}
                         />
                         {option}
                       </label>
@@ -277,8 +269,8 @@ function ContactusPage() {
 
                   <div className="SetSubmitted">
                     <p>You are submitting this request to</p>
-                    {requestOptions.map((option, index) => (
-                      <label key={index}>
+                    {requestOptions.map((option) => (
+                      <label key={option}>
                         <input
                           type="radio"
                           name="dsarRequestTo"
@@ -318,8 +310,8 @@ function ContactusPage() {
 
                   <div className="SetSubmitted">
                     <p>I confirm that</p>
-                    {confirmOptions.map((option, index) => (
-                      <label key={index}>
+                    {confirmOptions.map((option) => (
+                      <label key={option}>
                         <input
                           type="checkbox"
                           name="confirmDsar"
@@ -350,14 +342,14 @@ function ContactusPage() {
                 <div className="DataServiceAccessFields">
                   <div className="SetSubmitted">
                     <p>You are submitting this complaint as</p>
-                    {subrequestOptions.map((option, index) => (
-                      <label key={index}>
+                    {subrequestOptions.map((option) => (
+                      <label key={option}>
                         <input
                           type="radio"
                           name="complaintSubmitAs"
                           value={option}
                           checked={subselectedRequest === option}
-                          onChange={() => setSubSelectedRequest(option)}
+                          onChange={() => setSubselectedRequest(option)}
                         />
                         {option}
                       </label>
@@ -422,8 +414,8 @@ function ContactusPage() {
 
                   <div className="SetSubmitted">
                     <p>I confirm that</p>
-                    {confirmOptions.map((option, index) => (
-                      <label key={index}>
+                    {confirmOptions.map((option) => (
+                      <label key={option}>
                         <input
                           type="checkbox"
                           name="confirmComplaint"
@@ -454,12 +446,15 @@ function ContactusPage() {
                 selectedQueryType === "Feature Request") && (
                 <>
                   <div className="QueryDetailsFields">
-                    <label>Please leave details regarding your request</label>
+                    <label htmlFor="general-message">
+                      Please leave details regarding your request
+                    </label>
                     <textarea
                       rows={3}
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
                       placeholder="Your Message"
+                      id="general-message"
                     ></textarea>
                     {errors?.message && (
                       <div
@@ -530,6 +525,6 @@ function ContactusPage() {
       <Footer />
     </>
   );
-}
+};
 
 export default ContactusPage;

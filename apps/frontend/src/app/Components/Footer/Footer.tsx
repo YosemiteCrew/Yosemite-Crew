@@ -2,9 +2,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import React, { useRef } from "react";
-import "./Footer.css";
 import { Container } from "react-bootstrap";
 import { motion, Variants, useInView } from "framer-motion";
+
+import "./Footer.css";
 
 const footerLinks = [
   {
@@ -40,8 +41,8 @@ const footerLinks = [
     links: [
       { label: "About us", href: "/about" },
       // { label: "Security", href: "#" },
-      { label: "Terms of Service", href: "/termsandconditions" },
-      { label: "Privacy Policy", href: "/privacypolicy" },
+      { label: "Terms of Service", href: "/terms-and-conditions" },
+      { label: "Privacy Policy", href: "/privacy-policy" },
       { label: "Pricing", href: "/pricing" },
       // { label: "Enterprise", href: "#" },
       // { label: "Careers", href: "#" },
@@ -64,7 +65,7 @@ const ftDivVariants: Variants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
 };
 
-function Footer() {
+const Footer = () => {
   const footerRef = useRef(null);
   const inView = useInView(footerRef, { once: true, margin: "-100px" });
 
@@ -166,9 +167,8 @@ function Footer() {
                 email:{" "}
                 <a href="mailto:support@yosemitecrew.com">
                   support@yosemitecrew.com
-                </a>
-                , phone:{" "}
-                <a href="tel:+4915227763275">+49 152 277 63275</a>
+                </a>{" "}
+                , phone: <a href="tel:+4915227763275">+49 152 277 63275</a>
               </p>
               <p>
                 Geschaftsfuhrer: Ankit Upadhyay Amtsgerichts Mainz unter HRB

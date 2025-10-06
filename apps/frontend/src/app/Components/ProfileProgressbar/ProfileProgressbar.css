@@ -1,84 +1,85 @@
 /* profProgressDiv */
 
-.profProgressDiv{
-    border: 1px solid var(--profileborder);
-    box-shadow: 0px 0px 30px 0px #4738271A;
-    border-radius: 28px;
-    padding: 30px 30px 50px 30px;
-    display: flex;
-    flex-direction: column;
-    gap: 50px;
-
+.profProgressDiv {
+  border: 1px solid var(--profileborder);
+  box-shadow: 0px 0px 30px 0px #4738271a;
+  border-radius: 28px;
+  padding: 30px 30px 50px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 50px;
 }
 .Prof {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
-.profileText h4{
-    font-family: var(--grotesk-font);
-    font-size: 28px;
-    font-weight: 500;
-    line-height: 33.6px;
-    letter-spacing: -0.02em;
-    color: var(--black-text);
+.profileText h4 {
+  font-family: var(--grotesk-font);
+  font-size: 28px;
+  font-weight: 500;
+  line-height: 33.6px;
+  letter-spacing: -0.02em;
+  color: var(--black-text);
 }
-.profileText h4 span{
-    color: var(--black-grey);
+.profileText h4 span {
+  color: var(--black-grey);
 }
 .progress-bar {
-    background: var(--greyborder) !important;
-    border-radius: 10px;
-    height: 4px;
-    margin-bottom: 8px;
+  background: var(--greyborder) !important;
+  border-radius: 10px;
+  height: 4px;
+  margin-bottom: 8px;
 }
 .progress-fill {
-    background: linear-gradient(116.02deg, var(--blue-text) -0.58%, var(--blue-text) 67.88%);
-    height: 100%;
-    border-radius: 10px 0 0 10px;
-    transition: width 0.3s ease; 
+  background: linear-gradient(
+    116.02deg,
+    var(--blue-text) -0.58%,
+    var(--blue-text) 67.88%
+  );
+  height: 100%;
+  border-radius: 10px 0 0 10px;
+  transition: width 0.3s ease;
 }
 .progress-text {
-    margin: 0;
-    color: var(--black-text);
-    font-size: 18px;
-    font-weight: 700;
-    line-height: 21.6px;
-    letter-spacing: -0.02em;
-    font-family: var(--satoshi-font);
-    margin: 0;
+  margin: 0;
+  color: var(--black-text);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 21.6px;
+  letter-spacing: -0.02em;
+  font-family: var(--satoshi-font);
 }
-.progress-text span{
-   color: var(--black-grey);
-   opacity: 70%;
+.progress-text span {
+  color: var(--black-grey);
+  opacity: 70%;
 }
-.Profcomp{
-    display: flex;
-    justify-content: center;
-    align-items: center;
+.Profcomp {
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
-.Profcomp button{
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    border-radius: 28px;
-    padding: 14px 32px;
-    border: 1px solid var(--black-bg);
-    color: var(--chilli-red);
-    background-color: transparent !important;
-    font-size: 20px;
-    font-weight: 500;
-    letter-spacing: -0.02em;
-    font-family: var(--grotesk-font);
-    color: var(--white-tex);
+.Profcomp button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 28px;
+  padding: 14px 32px;
+  border: 1px solid var(--black-bg);
+  background-color: transparent !important;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  font-family: var(--grotesk-font);
+  color: var(--white-text);
 }
-.Profcomp img{
-    height: 24px;
+.Profcomp img {
+  height: 24px;
 }
-.Profcomp button:hover{
-    background-color: var(--black-bg) !important;
+.Profcomp button:hover {
+  background-color: var(--black-bg) !important;
 }
-.Profcomp button:hover img{
-    filter: brightness(20.5);
+.Profcomp button:hover img {
+  filter: brightness(20.5);
 }

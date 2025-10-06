@@ -6,11 +6,11 @@ import { GoCheckCircleFill } from "react-icons/go";
 import { Icon } from "@iconify/react/dist/iconify.js";
 
 import { FormInput, FormInputPass, MainBtn } from "./SignUp";
-import { useErrorTost } from "@/app/Components/Toast";
+import { useErrorTost } from "@/app/components/Toast";
 import { useAuthStore } from "@/app/stores/authStore";
-import OtpModal from "@/app/Components/OtpModal/OtpModal";
+import OtpModal from "@/app/components/OtpModal/OtpModal";
 
-function SignIn() {
+const SignIn = () => {
   const { signIn, resendCode } = useAuthStore();
   const { showErrorTost, ErrorTostPopup } = useErrorTost();
 
@@ -110,7 +110,7 @@ function SignIn() {
               />
 
               <div className="forgtbtn">
-                <Link href="/forgotpassword">Forgot Password?</Link>
+                <Link href="/forgot-password">Forgot Password?</Link>
               </div>
             </div>
             <div className="Signbtn">
@@ -137,6 +137,6 @@ function SignIn() {
       />
     </section>
   );
-}
+};
 
 export default SignIn;

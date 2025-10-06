@@ -11,7 +11,7 @@ type ErrorTostProps = {
   onClose?: () => void;
 };
 
-export const ErrorTost: React.FC<ErrorTostProps> = ({
+const ErrorTost: React.FC<ErrorTostProps> = ({
   message,
   iconElement,
   errortext,
@@ -38,7 +38,7 @@ export const ErrorTost: React.FC<ErrorTostProps> = ({
   );
 };
 
-export const useErrorTost = () => {
+const useErrorTost = () => {
   const [errorTost, setErrorTost] = useState<{
     show: boolean;
     message?: string;
@@ -76,3 +76,5 @@ export const useErrorTost = () => {
 
   return { showErrorTost, ErrorTostPopup };
 };
+
+export { ErrorTost, useErrorTost };

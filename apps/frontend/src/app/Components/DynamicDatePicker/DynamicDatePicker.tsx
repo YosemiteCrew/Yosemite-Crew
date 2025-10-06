@@ -1,12 +1,12 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import './DynamicDatePicker.css';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
-import { FormControl } from 'react-bootstrap';
-import { FaCalendarAlt } from 'react-icons/fa';
+import React, { useState, useEffect } from "react";
+import DatePicker from "react-datepicker";
+import { FormControl } from "react-bootstrap";
+import { FaCalendarAlt } from "react-icons/fa";
 
-// TypeScript interface for props
+import "react-datepicker/dist/react-datepicker.css";
+import "./DynamicDatePicker.css";
+
 interface DynamicDatePickerProps {
   placeholder: string;
   onDateChange: (date: string | null) => void;
@@ -37,8 +37,8 @@ const DynamicDatePicker: React.FC<DynamicDatePickerProps> = ({
     const formattedDate = date
       ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
           2,
-          '0'
-        )}-${String(date.getDate()).padStart(2, '0')}`
+          "0"
+        )}-${String(date.getDate()).padStart(2, "0")}`
       : null;
     onDateChange(formattedDate);
   };
@@ -47,7 +47,7 @@ const DynamicDatePicker: React.FC<DynamicDatePickerProps> = ({
     <div className="DatePicDiv">
       <FormControl
         as="div"
-        style={{ cursor: 'pointer' }}
+        style={{ cursor: "pointer" }}
         onClick={(e) => e.preventDefault()}
       >
         <DatePicker
@@ -65,4 +65,3 @@ const DynamicDatePicker: React.FC<DynamicDatePickerProps> = ({
 };
 
 export default DynamicDatePicker;
-

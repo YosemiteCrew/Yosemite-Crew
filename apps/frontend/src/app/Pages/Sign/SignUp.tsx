@@ -6,9 +6,9 @@ import Link from "next/link";
 import { GoCheckCircleFill } from "react-icons/go";
 import { Icon } from "@iconify/react/dist/iconify.js";
 
-import { useErrorTost } from "@/app/Components/Toast";
+import { useErrorTost } from "@/app/components/Toast";
 import { useAuthStore } from "@/app/stores/authStore";
-import OtpModal from "@/app/Components/OtpModal/OtpModal";
+import OtpModal from "@/app/components/OtpModal/OtpModal";
 
 import "./Sign.css";
 
@@ -255,11 +255,14 @@ const SignUp = () => {
                     label={
                       <>
                         I agree to Yosemite Crew’s{" "}
-                        <Link className="policylink" href="/termsandconditions">
+                        <Link
+                          className="policylink"
+                          href="/terms-and-conditions"
+                        >
                           Terms and Conditions
                         </Link>{" "}
                         and{" "}
-                        <Link className="policylink" href="/privacypolicy">
+                        <Link className="policylink" href="/privacy-policy">
                           Privacy Policy
                         </Link>
                       </>
@@ -424,49 +427,43 @@ export function FormInputPass({
   };
 
   return (
-    <>
-      <div className="w-100">
-        <div
-          className={`SignPassInput floating-input ${isFocused || value ? "focused" : ""}`}
-        >
-          <input
-            type={showPassword ? "text" : intype}
-            name={inname}
-            id={inname}
-            value={value ?? ""}
-            autoComplete="new-password"
-            onChange={onChange}
-            required
-            placeholder={isFocused ? inPlaceHolder : ""}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-            className={error ? "is-invalid" : ""}
+    <div className="w-100">
+      <div
+        className={`SignPassInput floating-input ${isFocused || value ? "focused" : ""}`}
+      >
+        <input
+          type={showPassword ? "text" : intype}
+          name={inname}
+          id={inname}
+          value={value ?? ""}
+          autoComplete="new-password"
+          onChange={onChange}
+          required
+          placeholder={isFocused ? inPlaceHolder : ""}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          className={error ? "is-invalid" : ""}
+        />
+        <label htmlFor={inname}>{inlabel}</label>
+        <Button type="button" onClick={togglePasswordVisibility} tabIndex={-1}>
+          <Image
+            aria-hidden
+            src="https://d2il6osz49gpup.cloudfront.net/Images/eyes.png"
+            alt="eyes"
+            width={24}
+            height={24}
           />
-          <label htmlFor={inname}>{inlabel}</label>
-          <Button
-            type="button"
-            onClick={togglePasswordVisibility}
-            tabIndex={-1}
-          >
-            <Image
-              aria-hidden
-              src="https://d2il6osz49gpup.cloudfront.net/Images/eyes.png"
-              alt="eyes"
-              width={24}
-              height={24}
-            />
-          </Button>
-        </div>
-
-        {/* Show error as bottom red text only for input validation */}
-        {error && (
-          <div className="Errors">
-            <Icon icon="mdi:error" width="16" height="16" />
-            {error}
-          </div>
-        )}
+        </Button>
       </div>
-    </>
+
+      {/* Show error as bottom red text only for input validation */}
+      {error && (
+        <div className="Errors">
+          <Icon icon="mdi:error" width="16" height="16" />
+          {error}
+        </div>
+      )}
+    </div>
   );
 }
 // FormInputPassProps Ended

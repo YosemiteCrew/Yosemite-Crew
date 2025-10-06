@@ -1,42 +1,32 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import "./AdminDashboardEmpty.css";
-import ExploringCard from "@/app/Components/ExploringCard/ExploringCard";
-import { Button, Col, Container, Dropdown, Row } from "react-bootstrap";
 import Link from "next/link";
+import { Button, Col, Container, Dropdown, Row } from "react-bootstrap";
 import { IoMdEye } from "react-icons/io";
-import { FaBellSlash} from "react-icons/fa";
 import { PiWarningOctagonFill } from "react-icons/pi";
 import { AiFillPlusCircle } from "react-icons/ai";
-import StatCard from "@/app/Components/StatCard/StatCard";
-import DynamicChartCard from "@/app/Components/BarGraph/DynamicChartCard";
-import BlankDonutCard from "@/app/Components/BarGraph/BlankDonutCard";
-import { useOldAuthStore } from "../../stores/oldAuthStore";
 
+import ExploringCard from "@/app/components/ExploringCard/ExploringCard";
+import StatCard from "@/app/components/StatCard/StatCard";
+import DynamicChartCard from "@/app/components/BarGraph/DynamicChartCard";
+import BlankDonutCard from "@/app/components/BarGraph/BlankDonutCard";
+import { useOldAuthStore } from "@/app/stores/oldAuthStore";
 
+import "./AdminDashboardEmpty.css";
 
+const AdminDashboardEmpty = () => {
+  const { userId, email, userType, isVerified } = useOldAuthStore();
 
+  useEffect(() => {
+    console.log("user", userId, email, userType);
+  }, [userId, email, userType]);
+  const [status] = useState<"appointment" | "warning" | "verify">(
+    "appointment"
+  ); // set to desired default
+  const [linkClicked] = useState(false);
+  const [selectedRange, setSelectedRange] = useState("Last 6 Months"); // graphSelected
 
-
-
-
-function AdminDashboardEmpty() {
-
-   const { userId, email, userType,isVerified } = useOldAuthStore();
-  
-    useEffect(() => {
-      console.log("user", userId, email, userType);
-    }, [userId, email, userType]);
-  const [status, setStatus] = useState<"appointment" | "warning" | "verify">("appointment");// set to desired default
-  const [linkClicked, setLinkClicked] = useState(false);
-  const [selectedRange, setSelectedRange] = useState("Last 6 Months");// graphSelected 
-
-  const handleSubscribeClick = () => {
-    setStatus("warning");
-    setLinkClicked(true);
-  };
-
-  // Empty Bar graph Stared  
+  // Empty Bar graph Stared
   const blankData = [
     { month: "March", Completed: 0, Cancelled: 0 },
     { month: "April", Completed: 0, Cancelled: 0 },
@@ -53,10 +43,7 @@ function AdminDashboardEmpty() {
     { month: "July", Revenue: 0 },
     { month: "August", Revenue: 0 },
   ];
-  // Empty Bar graph Ended  
-
-
- 
+  // Empty Bar graph Ended
 
   return (
     <section>
@@ -75,48 +62,45 @@ function AdminDashboardEmpty() {
 
       <Container>
         <div className="EmptyDashboardData">
-
-
           <div className="WelcomEmptyDash">
             <div className="leftwlmdiv">
               <span>Welcome</span>
               <div className="wlcdash">
                 <h2>Your Dashboard</h2>
                 {/* Conditional Rendering */}
-                {/* {status === "appointment" && (
-                  <div className="Apoitpopup">
-                    <FaBellSlash /> No New Appointments
-                  </div>
-                )} */}
 
                 {isVerified === 0 && (
                   <div className="Wrningpopup">
-                    <PiWarningOctagonFill /> Verification in Progress — Limited Access Enabled
+                    <PiWarningOctagonFill /> Verification in Progress — Limited
+                    Access Enabled
                   </div>
                 )}
                 {isVerified === 1 && (
                   <div className="Verifypopup">
-                    🎉 Your profile is verified and good to go — no new appointments.
+                    🎉 Your profile is verified and good to go — no new
+                    appointments.
                   </div>
                 )}
               </div>
-              <p>Your central hub for insights, performance tracking and quick access to essential tools</p>
+              <p>
+                Your central hub for insights, performance tracking and quick
+                access to essential tools
+              </p>
             </div>
             <div className="Ryttwlmdiv">
-              <Button className={status === "verify" ? "full-opacity" : ""}><IoMdEye /> Manage Clinic Visibility</Button>
+              <Button className={status === "verify" ? "full-opacity" : ""}>
+                <IoMdEye /> Manage Clinic Visibility
+              </Button>
             </div>
           </div>
 
           {status === "appointment" && (
-            <>
-              <EmptySetupCard
-                heading="Start by Setting Up Your Practice"
-                description="Add your veterinary practice details at your own pace—jump in and explore the dashboard while you're at it."
-                buttonText="Set up Your Practice"
-                href="/completeprofile"
-              />
-             
-            </>
+            <EmptySetupCard
+              heading="Start by Setting Up Your Practice"
+              description="Add your veterinary practice details at your own pace—jump in and explore the dashboard while you're at it."
+              buttonText="Set up Your Practice"
+              href="/complete-profile"
+            />
           )}
 
           {status === "verify" && (
@@ -128,23 +112,45 @@ function AdminDashboardEmpty() {
             />
           )}
           {/* Move ExploringCard to top if Subscribe clicked */}
-            {linkClicked && (
-              <ExploringCard
-                Headtitle="Haven’t Set Up Everything Yet? —"
-                Headtitlespan="Start Exploring Instead."
-                Headpara="Get familiar with Yosemite Crew while you complete your setup at your own pace."
-              />
-            )}
+          {linkClicked && (
+            <ExploringCard
+              Headtitle="Haven’t Set Up Everything Yet? —"
+              Headtitlespan="Start Exploring Instead."
+              Headpara="Get familiar with Yosemite Crew while you complete your setup at your own pace."
+            />
+          )}
 
-          
           <div className="EmtyDivDash">
-
             <div>
               <Row>
-                <Col md={3}><StatCard icon="https://d2il6osz49gpup.cloudfront.net/Images/stact2.png" title="Staff on-duty" value={122} /></Col>
-                <Col md={3}><StatCard icon="https://d2il6osz49gpup.cloudfront.net/Images/stact1.png" title="Appointments (Today)" value={158} /></Col>
-                <Col md={3}><StatCard icon="https://d2il6osz49gpup.cloudfront.net/Images/stact3.png" title="Inventory Out-of-Stock" value={45} /></Col>
-                <Col md={3}><StatCard icon="https://d2il6osz49gpup.cloudfront.net/Images/stact4.png" title="Revenue (Today)" value="$7,298" /></Col>
+                <Col md={3}>
+                  <StatCard
+                    icon="https://d2il6osz49gpup.cloudfront.net/Images/stact2.png"
+                    title="Staff on-duty"
+                    value={122}
+                  />
+                </Col>
+                <Col md={3}>
+                  <StatCard
+                    icon="https://d2il6osz49gpup.cloudfront.net/Images/stact1.png"
+                    title="Appointments (Today)"
+                    value={158}
+                  />
+                </Col>
+                <Col md={3}>
+                  <StatCard
+                    icon="https://d2il6osz49gpup.cloudfront.net/Images/stact3.png"
+                    title="Inventory Out-of-Stock"
+                    value={45}
+                  />
+                </Col>
+                <Col md={3}>
+                  <StatCard
+                    icon="https://d2il6osz49gpup.cloudfront.net/Images/stact4.png"
+                    title="Revenue (Today)"
+                    value="$7,298"
+                  />
+                </Col>
               </Row>
             </div>
 
@@ -155,11 +161,13 @@ function AdminDashboardEmpty() {
                     title="Appointments"
                     options={["Last 3 Months", "Last 6 Months", "Last 1 Year"]}
                     selectedOption={selectedRange}
-                    onSelect={setSelectedRange}/>
-                  <DynamicChartCard  data={blankData}
+                    onSelect={setSelectedRange}
+                  />
+                  <DynamicChartCard
+                    data={blankData}
                     keys={[
                       { name: "Completed", color: "#111" },
-                      { name: "Cancelled", color: "#ccc" }
+                      { name: "Cancelled", color: "#ccc" },
                     ]}
                   />
                 </Col>
@@ -169,9 +177,12 @@ function AdminDashboardEmpty() {
                     title="Revenue"
                     options={["Last 3 Months", "Last 6 Months", "Last 1 Year"]}
                     selectedOption={selectedRange}
-                    onSelect={setSelectedRange}/>
+                    onSelect={setSelectedRange}
+                  />
 
-                  <DynamicChartCard data={blankRevenue} type="line"
+                  <DynamicChartCard
+                    data={blankRevenue}
+                    type="line"
                     keys={[{ name: "Revenue", color: "#111" }]}
                     yTickFormatter={(v) => `$${v / 1000}K`}
                   />
@@ -180,7 +191,9 @@ function AdminDashboardEmpty() {
             </div>
 
             <div className="DummyTable">
-              <h5>Today’s Schedule <span>(0)</span></h5>
+              <h5>
+                Today’s Schedule <span>(0)</span>
+              </h5>
               <div className="TableDummyDiv">
                 <div className="tblhed">
                   <h6>Name</h6>
@@ -195,11 +208,12 @@ function AdminDashboardEmpty() {
                   <p>Looks like a quiet day… for now.</p>
                 </div>
               </div>
-
             </div>
 
             <div className="DummyTable">
-              <h5>Available Staff Today <span>(0)</span></h5>
+              <h5>
+                Available Staff Today <span>(0)</span>
+              </h5>
               <div className="TableDummyDiv">
                 <div className="tblhed">
                   <h6>Name</h6>
@@ -212,11 +226,12 @@ function AdminDashboardEmpty() {
                   <p>Looks like a quiet day… for now.</p>
                 </div>
               </div>
-
             </div>
 
             <div className="DummyTable">
-              <h5>Inventory <span>(0)</span></h5>
+              <h5>
+                Inventory <span>(0)</span>
+              </h5>
               <div className="TableDummyDiv">
                 <div className="tblhed">
                   <h6>Name</h6>
@@ -233,65 +248,60 @@ function AdminDashboardEmpty() {
                   <p>Looks like a quiet day… for now.</p>
                 </div>
               </div>
-
             </div>
-            
-            <div >
+
+            <div>
               <Row>
                 <Col md={4}>
                   <BlankDonutCard
                     title="New Appointments"
                     labels={[
-                      { text: 'App based Appointment', value: 0 },
-                      { text: 'Walk In Appointment', value: 0 }
+                      { text: "App based Appointment", value: 0 },
+                      { text: "Walk In Appointment", value: 0 },
                     ]}
                   />
                 </Col>
                 <Col md={4}>
-
                   <BlankDonutCard
                     title="Emergency"
                     labels={[
-                      { text: 'App based Emergency', value: 0 },
-                      { text: 'Walk In Emergency', value: 0 }
+                      { text: "App based Emergency", value: 0 },
+                      { text: "Walk In Emergency", value: 0 },
                     ]}
                   />
-
                 </Col>
                 <Col md={4}>
                   <div className="WorkCard">
-                    <StatCard icon="https://d2il6osz49gpup.cloudfront.net/Images/stact2.png" title="Week based Appointments" value="0000" />
-                    <StatCard icon="https://d2il6osz49gpup.cloudfront.net/Images/stact2.png" title="Invoice Amount" value="$7,298" />
+                    <StatCard
+                      icon="https://d2il6osz49gpup.cloudfront.net/Images/stact2.png"
+                      title="Week based Appointments"
+                      value="0000"
+                    />
+                    <StatCard
+                      icon="https://d2il6osz49gpup.cloudfront.net/Images/stact2.png"
+                      title="Invoice Amount"
+                      value="$7,298"
+                    />
                   </div>
                 </Col>
               </Row>
             </div>
 
             {!linkClicked && (
-            <ExploringCard
-              Headtitle="Haven’t Set Up Everything Yet? —"
-              Headtitlespan="Start Exploring Instead."
-              Headpara="Get familiar with Yosemite Crew while you complete your setup at your own pace."
-            />
-          )}
-
+              <ExploringCard
+                Headtitle="Haven’t Set Up Everything Yet? —"
+                Headtitlespan="Start Exploring Instead."
+                Headpara="Get familiar with Yosemite Crew while you complete your setup at your own pace."
+              />
+            )}
           </div>
-
-          
-
-
-
-
-
-          
         </div>
       </Container>
     </section>
   );
-}
+};
 
 export default AdminDashboardEmpty;
-
 
 // GraphSelectedProps
 type GraphSelectedProps = {
@@ -299,7 +309,7 @@ type GraphSelectedProps = {
   options: string[];
   selectedOption: string;
   onSelect: (option: string) => void;
-}
+};
 export const GraphSelected: React.FC<GraphSelectedProps> = ({
   title,
   options,
@@ -314,8 +324,8 @@ export const GraphSelected: React.FC<GraphSelectedProps> = ({
           {selectedOption}
         </Dropdown.Toggle>
         <Dropdown.Menu>
-          {options.map((option, index) => (
-            <Dropdown.Item key={index} onClick={() => onSelect(option)}>
+          {options.map((option) => (
+            <Dropdown.Item key={option} onClick={() => onSelect(option)}>
               {option}
             </Dropdown.Item>
           ))}
@@ -325,9 +335,7 @@ export const GraphSelected: React.FC<GraphSelectedProps> = ({
   );
 };
 
-
-
-// EmptySetupCard started 
+// EmptySetupCard started
 type EmptySetupCardProps = {
   heading: string;
   description: string;
@@ -355,4 +363,3 @@ const EmptySetupCard: React.FC<EmptySetupCardProps> = ({
     </div>
   );
 };
-

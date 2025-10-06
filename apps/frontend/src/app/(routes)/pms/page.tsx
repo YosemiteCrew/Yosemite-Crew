@@ -1,12 +1,8 @@
-import HomePage from '@/app/Pages/HomePage/HomePage'
-import React from 'react'
+import React from "react";
+import HomePage from "@/app/pages/HomePage/HomePage";
 
 function page() {
-  return (
-    <>
-        <HomePage/>
-    </>
-  )
+  return <HomePage />;
 }
 
-export default page
+export default page;

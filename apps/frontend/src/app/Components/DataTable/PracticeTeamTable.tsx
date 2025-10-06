@@ -1,10 +1,11 @@
 "use client";
 import React from "react";
-import GenericTable from "../GenericTable/GenericTable";
 import Image from "next/image";
-import { BsEye } from "react-icons/bs"; // For the eye icon
-import "./DataTable.css"
+import { BsEye } from "react-icons/bs";
 
+import GenericTable from "@/app/components/GenericTable/GenericTable";
+
+import "./DataTable.css";
 
 type Appointment = {
   avatar: string;
@@ -169,16 +170,9 @@ const columns = [
   },
 ];
 
-
-
-function PracticeTeamTable() {
+const PracticeTeamTable = () => {
   return (
-    <>
-
-    <div
-      className="table-wrapper"
-      
-    >
+    <div className="table-wrapper">
       <GenericTable data={data} columns={columns} bordered={false} />
       <div
         style={{
@@ -204,10 +198,7 @@ function PracticeTeamTable() {
         </button>
       </div>
     </div>
+  );
+};
 
-
-    </>
-  )
-}
-
-export default PracticeTeamTable
+export default PracticeTeamTable;

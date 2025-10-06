@@ -1,7 +1,7 @@
-
-import Image from "next/image";
-import "./StatCard.css"
+import React from "react";
 import { Icon } from "@iconify/react/dist/iconify.js";
+
+import "./StatCard.css";
 
 interface StatCardProps {
   icon: string;
@@ -9,7 +9,7 @@ interface StatCardProps {
   value: string | number;
 }
 
-export default function StatCard({ icon, title, value }: StatCardProps) {
+const StatCard = ({ icon, title, value }: Readonly<StatCardProps>) => {
   return (
     <div className="StatCardDiv">
       <div className="StatIcon">
@@ -22,4 +22,6 @@ export default function StatCard({ icon, title, value }: StatCardProps) {
       </div>
     </div>
   );
-}
+};
+
+export default StatCard;

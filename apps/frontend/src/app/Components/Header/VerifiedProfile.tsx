@@ -2,7 +2,6 @@ import React from "react";
 
 import Link from "next/link";
 import Image from "next/image";
-
 import { FaCaretDown, FaUser } from "react-icons/fa6";
 import { IoIosHelpCircleOutline } from "react-icons/io";
 import { IoNotifications } from "react-icons/io5";

@@ -1,4 +1,3 @@
-// PhoneInput.tsx
 import React from "react";
 import "./PhoneInput.css";
 import { Form } from "react-bootstrap";
@@ -27,7 +26,7 @@ const defaultCountries: CountryOption[] = [
   { code: "+81", flag: "🇯🇵", label: "Japan" },
 ];
 
-export const PhoneInput: React.FC<PhoneInputProps> = ({
+const PhoneInput: React.FC<PhoneInputProps> = ({
   countryCode,
   onCountryCodeChange,
   phone,
@@ -35,9 +34,6 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
   countryOptions = defaultCountries,
   error,
 }) => {
-  const selectedCountry =
-    countryOptions.find((c) => c.code === countryCode) || countryOptions[0];
-
   return (
     <Form.Group className="mb-3">
       <Form.Label>Phone Number</Form.Label>
@@ -51,8 +47,7 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
               fontSize: 22,
               display: "inline-block",
             }}
-          > 
-          </span>
+          ></span>
           <select
             value={countryCode}
             onChange={(e) => onCountryCodeChange?.(e.target.value)}
@@ -102,3 +97,5 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
     </Form.Group>
   );
 };
+
+export default PhoneInput;

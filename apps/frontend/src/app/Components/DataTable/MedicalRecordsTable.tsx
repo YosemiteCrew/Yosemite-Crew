@@ -1,17 +1,19 @@
 "use client";
 import React from "react";
-import GenericTable from "../GenericTable/GenericTable";
-import "./DataTable.css"
 import { Button } from "react-bootstrap";
 import { Icon } from "@iconify/react/dist/iconify.js";
 
+import GenericTable from "@/app/components/GenericTable/GenericTable";
+
+import "./DataTable.css";
+
 type Appointment = {
-    appointmentId: string;
-    date: string;
-    time: string;
-    reason: string;
-    vetname: string;
-    followup: string;
+  appointmentId: string;
+  date: string;
+  time: string;
+  reason: string;
+  vetname: string;
+  followup: string;
 };
 
 const data: Appointment[] = [
@@ -45,60 +47,53 @@ const columns = [
   {
     label: "Attending Veterinarian",
     key: "Attending Veterinarian",
-    render: (item: Appointment) => (
-      <p>{item?.appointmentId}</p>
-    ),
+    render: (item: Appointment) => <p>{item?.appointmentId}</p>,
   },
   {
     label: "Appointment Date",
     key: "date",
-    render: (item: Appointment) => 
-        <div >
-            <p>{item.date}</p>
-            <span>{item.time}</span>
-        </div>
+    render: (item: Appointment) => (
+      <div>
+        <p>{item.date}</p>
+        <span>{item.time}</span>
+      </div>
+    ),
   },
   {
     label: "Diagnosis / Concern",
     key: "petType",
-    render: (item: Appointment) => (
-      <p>{item.reason}</p>
-    ),
+    render: (item: Appointment) => <p>{item.reason}</p>,
   },
   {
     label: "Prescribed Treatment",
     key: "attendvet",
-    render: (item: Appointment) => (
-       <p>{item.vetname}</p>
-    ),
+    render: (item: Appointment) => <p>{item.vetname}</p>,
   },
   {
     label: "Follow-up Status",
     key: "attendvet",
-    render: (item: Appointment) => (
-       <p>{item.followup}</p>
-    ),
+    render: (item: Appointment) => <p>{item.followup}</p>,
   },
   {
     label: "",
     key: "actions",
     width: "80px",
     render: () => (
-        <div className="ConstBtn">
-            <Button><Icon icon="solar:eye-bold" width="24" height="24" color="#747473" /></Button>
-        </div>
+      <div className="ConstBtn">
+        <Button>
+          <Icon icon="solar:eye-bold" width="24" height="24" color="#747473" />
+        </Button>
+      </div>
     ),
   },
 ];
 
-function MedicalRecordsTable() {
+const MedicalRecordsTable = () => {
   return (
-    <>
-        <div className="table-wrapper" >
-            <GenericTable data={data} columns={columns} bordered={false} />
-        </div>
-    </>
-  )
-}
+    <div className="table-wrapper">
+      <GenericTable data={data} columns={columns} bordered={false} />
+    </div>
+  );
+};
 
-export default MedicalRecordsTable
+export default MedicalRecordsTable;

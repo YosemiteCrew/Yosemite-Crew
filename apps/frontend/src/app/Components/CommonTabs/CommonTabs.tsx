@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import { Tabs, Tab, Dropdown } from "react-bootstrap";
+
 import "./CommonTabs.css";
 
 interface TabData {
@@ -49,17 +50,14 @@ const CommonTabs = ({
         defaultActiveKey={defaultActiveKey || tabs[0]?.eventKey}
         className="linesTabs"
         onSelect={(eventKey) => {
-          if (eventKey && onTabClick) onTabClick(eventKey, status.toLowerCase());
+          if (eventKey && onTabClick)
+            onTabClick(eventKey, status.toLowerCase());
         }}
       >
         {tabs.map((tab) => (
           <Tab
             eventKey={tab.eventKey}
-            title={
-              <>
-                {tab.title}{" "}
-              </>
-            }
+            title={<>{tab.title} </>}
             key={tab.eventKey}
           >
             {tab.content}
@@ -70,12 +68,19 @@ const CommonTabs = ({
         <div className="SelectStatus">
           <p>Status:</p>
           <Dropdown onSelect={handleDropdownSelect}>
-            <Dropdown.Toggle className="custom-status-dropdown" id="dropdown-status">
+            <Dropdown.Toggle
+              className="custom-status-dropdown"
+              id="dropdown-status"
+            >
               {status}
             </Dropdown.Toggle>
             <Dropdown.Menu>
               {statusOptions.map((opt) => (
-                <Dropdown.Item eventKey={opt.key} key={opt.key} active={status === opt.value}>
+                <Dropdown.Item
+                  eventKey={opt.key}
+                  key={opt.key}
+                  active={status === opt.value}
+                >
                   {opt.value}
                 </Dropdown.Item>
               ))}

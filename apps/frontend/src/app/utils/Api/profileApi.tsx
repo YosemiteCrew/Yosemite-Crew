@@ -1,4 +1,4 @@
-import { getData } from "@/app/axios-services/services";
+import { getData } from "@/app/services/axios";
 import { convertFromFhirVetProfile, fromFHIRBusinessProfile } from "@yosemite-crew/fhir";
 import { ConvertToFhirVetProfileParams, FhirOrganization } from "@yosemite-crew/types";
 

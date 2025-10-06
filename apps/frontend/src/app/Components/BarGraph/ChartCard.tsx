@@ -1,8 +1,10 @@
 import React from "react";
 import { Card, Button } from "react-bootstrap";
 import { Line } from "react-chartjs-2";
-import "chart.js/auto";
+
 import type { ChartOptions } from "chart.js";
+
+import "chart.js/auto";
 
 const data = {
   labels: ["March", "April", "May", "June", "July", "August"],
@@ -29,7 +31,8 @@ const options: ChartOptions<"line"> = {
       ticks: {
         stepSize: 4000,
         callback: (tickValue: string | number) => {
-          const value = typeof tickValue === "number" ? tickValue : parseFloat(tickValue);
+          const value =
+            typeof tickValue === "number" ? tickValue : parseFloat(tickValue);
           return `$${value === 0 ? "0" : value / 1000 + "K"}`;
         },
         color: "#302F2E",
@@ -44,11 +47,11 @@ const options: ChartOptions<"line"> = {
     },
   },
   layout: {
-    padding: { left: 0, right: 0, top: 10, bottom: 0 }
+    padding: { left: 0, right: 0, top: 10, bottom: 0 },
   },
   elements: {
-    line: { borderWidth: 3 }
-  }
+    line: { borderWidth: 3 },
+  },
 };
 
 const ChartCard = () => (
@@ -58,7 +61,12 @@ const ChartCard = () => (
         <Line data={data} options={options} height={170} />
       </div>
       <Button className="chat-btn" variant="light">
-        <span role="img" aria-label="chat">💬</span> Chat
+        <img
+          src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='20' font-size='20'>💬</text></svg>"
+          alt="chat"
+          style={{ width: "1.2em", height: "1.2em", verticalAlign: "middle" }}
+        />{" "}
+        Chat
       </Button>
     </Card.Body>
   </Card>

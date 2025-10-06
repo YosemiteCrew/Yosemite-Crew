@@ -1,9 +1,11 @@
 "use client";
 import React, { useState } from "react";
-import "./DataTable.css";
-import GenericTable from "../GenericTable/GenericTable";
 import { FaCheckCircle } from "react-icons/fa";
 import { IoIosCloseCircle } from "react-icons/io";
+
+import GenericTable from "@/app/components/GenericTable/GenericTable";
+
+import "./DataTable.css";
 
 type Column<T> = {
   label: string;
@@ -26,7 +28,7 @@ const demoData: InviteProps[] = [
   },
 ];
 
-function OrgInvites() {
+const OrgInvites = (invites: any) => {
   const [data] = useState<InviteProps[]>(demoData);
 
   const columns: Column<InviteProps>[] = [
@@ -34,19 +36,25 @@ function OrgInvites() {
       label: "Details",
       key: "details",
       width: "45%",
-      render: (item: InviteProps) => <div className="InviteDetails">{item.details}</div>,
+      render: (item: InviteProps) => (
+        <div className="InviteDetails">{item.details}</div>
+      ),
     },
     {
       label: "Time",
       key: "time",
       width: "15%",
-      render: (item: InviteProps) => <div className="InviteTime">{item.time}</div>,
+      render: (item: InviteProps) => (
+        <div className="InviteTime">{item.time}</div>
+      ),
     },
     {
       label: "Expires",
       key: "expires",
       width: "15%",
-      render: (item: InviteProps) => <div className="InviteExpires">{item.expires}</div>,
+      render: (item: InviteProps) => (
+        <div className="InviteExpires">{item.expires}</div>
+      ),
     },
     {
       label: "Actions",
@@ -78,6 +86,6 @@ function OrgInvites() {
       />
     </div>
   );
-}
+};
 
 export default OrgInvites;

@@ -7,9 +7,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@iconify/react/dist/iconify.js";
 
-import { useErrorTost } from "@/app/Components/Toast";
+import { useErrorTost } from "@/app/components/Toast";
 import { useAuthStore } from "@/app/stores/authStore";
-import { FormInput, FormInputPass, MainBtn } from "@/app/Pages/Sign/SignUp";
+import { FormInput, FormInputPass, MainBtn } from "@/app/pages/Sign/SignUp";
 
 import "../Sign/Sign.css";
 
