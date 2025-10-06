@@ -15,6 +15,8 @@ export class ParentServiceError extends Error {
     }
 }
 
+const isNonEmptyString = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0
+
 const pruneUndefined = <T>(value: T): T => {
     if (Array.isArray(value)) {
         return value
@@ -41,40 +43,111 @@ const pruneUndefined = <T>(value: T): T => {
     return value
 }
 
-const sanitizeParentAttributes = (dto: ParentDTOAttributesType): ParentMongo => {
-    if (!dto.firstName) {
-        throw new ParentServiceError('Parent first name is required.', 400)
+const requireSafeString = (value: unknown, fieldName: string): string => {
+    if (!isNonEmptyString(value)) {
+        throw new ParentServiceError(`${fieldName} is required.`, 400)
     }
+
+    const trimmed = value.trim()
+
+    if (!trimmed) {
+        throw new ParentServiceError(`${fieldName} cannot be empty.`, 400)
+    }
+
+    if (trimmed.includes('$')) {
+        throw new ParentServiceError(`Invalid character in ${fieldName}.`, 400)
+    }
+
+    return trimmed
+}
+
+const optionalSafeString = (value: unknown, fieldName: string): string | undefined => {
+    if (value == null) {
+        return undefined
+    }
+
+    if (typeof value !== 'string') {
+        throw new ParentServiceError(`${fieldName} must be a string.`, 400)
+    }
+
+    const trimmed = value.trim()
+
+    if (!trimmed) {
+        return undefined
+    }
+
+    if (trimmed.includes('$')) {
+        throw new ParentServiceError(`Invalid character in ${fieldName}.`, 400)
+    }
+
+    return trimmed
+}
+
+const ensureSafeIdentifier = (value: unknown): string | undefined => {
+    const identifier = optionalSafeString(value, 'Identifier')
+
+    if (!identifier) {
+        return undefined
+    }
+
+    if (!Types.ObjectId.isValid(identifier) && !/^[A-Za-z0-9\-.]{1,64}$/.test(identifier)) {
+        throw new ParentServiceError('Invalid identifier format.', 400)
+    }
+
+    return identifier
+}
+
+const sanitizeParentAttributes = (dto: ParentDTOAttributesType): ParentMongo => {
+    const firstName = requireSafeString(dto.firstName, 'Parent first name')
 
     if (typeof dto.age !== 'number') {
         throw new ParentServiceError('Parent age is required.', 400)
     }
 
-    const address: ParentMongo['address'] | undefined = dto.address
-        ? {
-              addressLine: dto.address.addressLine,
-              country: dto.address.country,
-              city: dto.address.city,
-              state: dto.address.state,
-              postalCode: dto.address.postalCode,
-              latitude: dto.address.latitude,
-              longitude: dto.address.longitude,
-          }
-        : undefined
+    const addressDto = dto.address
 
-    if (!address) {
+    if (!addressDto) {
         throw new ParentServiceError('Parent address is required.', 400)
     }
 
+    const address: ParentMongo['address'] = {
+        addressLine: optionalSafeString(addressDto.addressLine, 'Parent address line'),
+        country: optionalSafeString(addressDto.country, 'Parent country'),
+        city: optionalSafeString(addressDto.city, 'Parent city'),
+        state: optionalSafeString(addressDto.state, 'Parent state'),
+        postalCode: optionalSafeString(addressDto.postalCode, 'Parent postal code'),
+        latitude: addressDto.latitude,
+        longitude: addressDto.longitude,
+    }
+
     return {
-        fhirId: dto._id,
-        firstName: dto.firstName,
-        lastName: dto.lastName,
+        fhirId: ensureSafeIdentifier(dto._id),
+        firstName,
+        lastName: optionalSafeString(dto.lastName, 'Parent last name'),
         age: dto.age,
         address,
-        phoneNumber: dto.phoneNumber,
-        profileImageUrl: dto.profileImageUrl,
+        phoneNumber: optionalSafeString(dto.phoneNumber, 'Parent phone number'),
+        profileImageUrl: optionalSafeString(dto.profileImageUrl, 'Parent profile image URL'),
     }
+}
+
+const isAddressComplete = (address: Address): boolean => {
+    const requiredFields: Array<keyof Address> = ['addressLine', 'city', 'state', 'postalCode', 'country']
+
+    return requiredFields.every((field) => isNonEmptyString(address[field]))
+}
+
+const determineProfileCompletion = (parent: Parent): boolean => {
+    const { firstName, age, phoneNumber, profileImageUrl, address } = parent
+
+    return (
+        isNonEmptyString(firstName) &&
+        typeof age === 'number' &&
+        age > 0 &&
+        isAddressComplete(address) &&
+        isNonEmptyString(phoneNumber) &&
+        isNonEmptyString(profileImageUrl)
+    )
 }
 
 const buildParentDomain = (document: ParentDocument): Parent => {
@@ -93,7 +166,7 @@ const buildParentDomain = (document: ParentDocument): Parent => {
         longitude: rest.address?.longitude,
     }
 
-    return {
+    const parent: Parent = {
         _id: fhirId ?? _id.toString(),
         firstName: rest.firstName,
         lastName: rest.lastName,
@@ -102,6 +175,10 @@ const buildParentDomain = (document: ParentDocument): Parent => {
         phoneNumber: rest.phoneNumber,
         profileImageUrl: rest.profileImageUrl,
     }
+
+    parent.isProfileComplete = determineProfileCompletion(parent)
+
+    return parent
 }
 
 const createPersistableFromFHIR = (payload: ParentRequestDTO) => {
@@ -115,7 +192,15 @@ const createPersistableFromFHIR = (payload: ParentRequestDTO) => {
     return { persistable }
 }
 
-const resolveIdQuery = (id: string) => (Types.ObjectId.isValid(id) ? { _id: id } : { fhirId: id })
+const resolveIdQuery = (id: string) => {
+    const safeId = ensureSafeIdentifier(id)
+
+    if (!safeId) {
+        throw new ParentServiceError('Invalid parent identifier.', 400)
+    }
+
+    return Types.ObjectId.isValid(safeId) ? { _id: safeId } : { fhirId: safeId }
+}
 
 export const ParentService = {
     async create(payload: ParentRequestDTO) {
@@ -123,8 +208,12 @@ export const ParentService = {
 
         const document = await ParentModel.create(persistable)
         const parent = buildParentDomain(document)
+        const response = toParentResponseDTO(parent)
 
-        return toParentResponseDTO(parent)
+        return {
+            response,
+            isProfileComplete: parent.isProfileComplete ?? false,
+        }
     },
 
     async getById(id: string) {
@@ -135,19 +224,28 @@ export const ParentService = {
         }
 
         const parent = buildParentDomain(document)
-        return toParentResponseDTO(parent)
+        return {
+            response: toParentResponseDTO(parent),
+            isProfileComplete: parent.isProfileComplete ?? false,
+        }
     },
 
     async update(id: string, payload: ParentRequestDTO) {
         const { persistable } = createPersistableFromFHIR(payload)
-
-        const document = await ParentModel.findOneAndUpdate(resolveIdQuery(id), { $set: persistable }, { new: true })
+        const document = await ParentModel.findOneAndUpdate(
+            resolveIdQuery(id),
+            { $set: persistable },
+            { new: true, sanitizeFilter: true }
+        )
 
         if (!document) {
             return null
         }
 
         const parent = buildParentDomain(document)
-        return toParentResponseDTO(parent)
+        return {
+            response: toParentResponseDTO(parent),
+            isProfileComplete: parent.isProfileComplete ?? false,
+        }
     },
 }
