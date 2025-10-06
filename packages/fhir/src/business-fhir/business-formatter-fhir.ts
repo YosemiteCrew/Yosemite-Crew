@@ -1,8 +1,8 @@
-import { Department, Organization } from "@yosemite-crew/types";
+import { Department, OrganizationOld } from "@yosemite-crew/types";
 
 
 class BusinessFhirFormatter {
-  static toFhirOrganization(org:Organization) {
+  static toFhirOrganization(org:OrganizationOld) {
     const selectedServicesExtension = (org.profileData?.selectedServices || []).map((service ) => ({
       url: "http://example.org/fhir/StructureDefinition/selectedService",
       valueString: service
@@ -58,7 +58,7 @@ class BusinessFhirFormatter {
     };
   }
   
-    static toFhirHealthcareServices(org:Organization) {
+    static toFhirHealthcareServices(org:OrganizationOld) {
       
       return (org.departments || []).map((dept :Department) => ({
         resourceType: "HealthcareService",
