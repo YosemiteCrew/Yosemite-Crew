@@ -34,11 +34,14 @@ import {TouchableInput} from '../../components/common/TouchableInput/TouchableIn
 import {useAuth, type User} from '../../contexts/AuthContext';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import type {AuthStackParamList} from '../../navigation/AuthNavigator';
-import { PASSWORDLESS_AUTH_CONFIG } from '@/config/auth';
+import {PASSWORDLESS_AUTH_CONFIG} from '@/config/auth';
 import LocationService from '@/services/LocationService';
-import { signOutEverywhere } from '@/services/auth/passwordlessAuth';
+import {signOutEverywhere} from '@/services/auth/passwordlessAuth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT } from '@/constants/auth';
+import {
+  PENDING_PROFILE_STORAGE_KEY,
+  PENDING_PROFILE_UPDATED_EVENT,
+} from '@/constants/auth';
 
 type CreateAccountScreenProps = NativeStackScreenProps<
   AuthStackParamList,
@@ -75,25 +78,44 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
   const {theme} = useTheme();
   const styles = createStyles(theme);
 
-  const {email, userId, profileToken, tokens, initialAttributes} = route.params;
+  const {
+    email,
+    userId,
+    profileToken,
+    tokens,
+    initialAttributes,
+    showOtpSuccess = false,
+  } = route.params;
 
   const maybeParsedDate = initialAttributes?.dateOfBirth
     ? new Date(initialAttributes.dateOfBirth)
     : null;
   const parsedDateOfBirth =
-    maybeParsedDate && !Number.isNaN(maybeParsedDate.getTime()) ? maybeParsedDate : null;
+    maybeParsedDate && !Number.isNaN(maybeParsedDate.getTime())
+      ? maybeParsedDate
+      : null;
   const rawPhone = initialAttributes?.phone?.replace(/[^0-9+]/g, '') ?? '';
   const normalizedPhoneDigits = rawPhone.replace(/\D/g, '');
+  const defaultCountry =
+    COUNTRIES.find(country => country.code === 'US') ?? COUNTRIES[0];
   const resolvedCountry = (() => {
-    const match = COUNTRIES.find(country =>
-      normalizedPhoneDigits.startsWith(country.dial_code.replace('+', '')),
-    );
-    return match ?? COUNTRIES[2];
+    if (!normalizedPhoneDigits) {
+      return defaultCountry;
+    }
+
+    const match = COUNTRIES.find(country => {
+      const dialCodeDigits = country.dial_code.replace('+', '');
+      return normalizedPhoneDigits.startsWith(dialCodeDigits);
+    });
+
+    return match ?? defaultCountry;
   })();
   const localPhoneRaw = normalizedPhoneDigits.startsWith(
     resolvedCountry.dial_code.replace('+', ''),
   )
-    ? normalizedPhoneDigits.slice(resolvedCountry.dial_code.replace('+', '').length)
+    ? normalizedPhoneDigits.slice(
+        resolvedCountry.dial_code.replace('+', '').length,
+      )
     : normalizedPhoneDigits;
   const localPhoneNumber = localPhoneRaw.slice(-10);
 
@@ -101,14 +123,19 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
   const successBottomSheetRef = useRef<BottomSheetRef>(null);
 
   const [currentStep, setCurrentStep] = useState<number>(1);
-  const [selectedCountry, setSelectedCountry] = useState<Country>(resolvedCountry);
+  const [selectedCountry, setSelectedCountry] =
+    useState<Country>(resolvedCountry);
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState('');
-  const [location, setLocation] = useState<{latitude: number; longitude: number} | null>(null);
+  const [location, setLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
-  const [isOtpSuccessVisible, setIsOtpSuccessVisible] = useState(true);
+  const [isOtpSuccessVisible, setIsOtpSuccessVisible] =
+    useState(showOtpSuccess);
 
   const [step1Data, setStep1Data] = useState({
     firstName: initialAttributes?.firstName ?? '',
@@ -167,7 +194,9 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
       } catch (error) {
         console.warn('Unable to fetch location', error);
         if (isMounted) {
-          setLocationError('We could not determine your current location. You can still continue.');
+          setLocationError(
+            'We could not determine your current location. You can still continue.',
+          );
         }
       } finally {
         if (isMounted) {
@@ -194,15 +223,18 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
       });
     } else {
       requestAnimationFrame(() => {
-        successBottomSheetRef.current?.close();
+        successBottomSheetRef.current?.forceClose();
       });
     }
   }, [isOtpSuccessVisible]);
 
   const handleSuccessClose = useCallback(() => {
-    successBottomSheetRef.current?.close();
+    requestAnimationFrame(() => {
+      successBottomSheetRef.current?.forceClose();
+    });
     setIsOtpSuccessVisible(false);
-  }, []);
+    navigation.setParams({showOtpSuccess: false});
+  }, [navigation]);
 
   const handleProfileImageChange = useCallback(
     (imageUri: string | null) => {
@@ -287,7 +319,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
 
     const birthDate = new Date(step1Data.dateOfBirth);
     const maxDate = getMaximumDate();
-    
+
     if (birthDate > maxDate) {
       setError('dateOfBirth', {
         type: 'manual',
@@ -351,8 +383,8 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
         locationStatus: location
           ? 'collected'
           : isRequestingLocation
-            ? 'pending'
-            : 'unavailable',
+          ? 'pending'
+          : 'unavailable',
       };
 
       const response = await fetch(createAccountEndpoint, {
@@ -368,13 +400,20 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
       if (!response.ok) {
         const message = await response.text();
         throw new Error(
-          message || 'We could not create your account right now. Please try again.',
+          message ||
+            'We could not create your account right now. Please try again.',
         );
       }
 
       return response.json().catch(() => ({success: true}));
     },
-    [createAccountEndpoint, isRequestingLocation, location, profileToken, tokens.accessToken],
+    [
+      createAccountEndpoint,
+      isRequestingLocation,
+      location,
+      profileToken,
+      tokens.accessToken,
+    ],
   );
 
   const handleSignUp = handleSubmit(async () => {
@@ -737,29 +776,19 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
               )}
             />
             <View style={styles.termsTextContainer}>
-              <Text style={styles.checkboxText}>
-                I agree to the{' '}
-              </Text>
+              <Text style={styles.checkboxText}>I agree to the </Text>
               <TouchableOpacity onPress={() => console.log('Open terms')}>
-                <Text style={styles.linkText}>
-                  terms and conditions
-                </Text>
+                <Text style={styles.linkText}>terms and conditions</Text>
               </TouchableOpacity>
-              <Text style={styles.checkboxText}>
-                {' '}and{' '}
-              </Text>
+              <Text style={styles.checkboxText}> and </Text>
               <TouchableOpacity onPress={() => console.log('Open privacy')}>
-                <Text style={styles.linkText}>
-                  privacy policy.
-                </Text>
+                <Text style={styles.linkText}>privacy policy.</Text>
               </TouchableOpacity>
             </View>
           </View>
           {/* NEW: Error message below the row */}
           {errors.acceptTerms?.message && (
-            <Text style={styles.errorText}>
-              {errors.acceptTerms.message}
-            </Text>
+            <Text style={styles.errorText}>{errors.acceptTerms.message}</Text>
           )}
         </View>
 
@@ -767,12 +796,12 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
           <Text style={styles.locationStatus}>Fetching your location…</Text>
         ) : location ? (
           <Text style={styles.locationStatus}>
-            Location detected: {location.latitude.toFixed(3)}, {location.longitude.toFixed(3)}
+            Location detected: {location.latitude.toFixed(3)},{' '}
+            {location.longitude.toFixed(3)}
           </Text>
         ) : locationError ? (
           <Text style={styles.locationStatusError}>{locationError}</Text>
         ) : null}
-
       </View>
     </>
   );
@@ -784,14 +813,9 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
         style={styles.keyboardAvoidingView}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
-            <Image
-              source={Images.backIcon}
-              style={styles.backIcon}
-            />
+            <Image source={Images.backIcon} style={styles.backIcon} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>
-            Create account
-          </Text>
+          <Text style={styles.headerTitle}>Create account</Text>
           <View style={styles.spacer} />
         </View>
 
@@ -820,6 +844,9 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
             style={styles.button}
             textStyle={styles.buttonText}
             tintColor={theme.colors.secondary}
+            shadowIntensity="medium"
+            forceBorder
+            borderColor="rgba(255, 255, 255, 0.35)"
             height={56}
             borderRadius={16}
             loading={currentStep === 2 && isSubmitting}
@@ -835,46 +862,47 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
           maximumDate={getMaximumDate()}
           mode="date"
         />
-
-        <View
-          style={styles.bottomSheetContainer}
-          pointerEvents={isOtpSuccessVisible ? 'auto' : 'box-none'}>
-          <CustomBottomSheet
-            ref={successBottomSheetRef}
-            snapPoints={['45%']}
-            initialIndex={1}
-            enablePanDownToClose={false}
-            enableBackdrop
-            backdropOpacity={0.5}
-            backdropAppearsOnIndex={0}
-            backdropDisappearsOnIndex={-1}
-            backdropPressBehavior="none"
-            backgroundStyle={styles.bottomSheetBackground}
-            handleIndicatorStyle={styles.bottomSheetHandle}>
-            <View style={styles.successContent}>
-              <Image
-                source={Images.verificationSuccess}
-                style={styles.successIllustration}
-                resizeMode="contain"
-              />
-              <Text style={styles.successTitle}>Code verified</Text>
-              <Text style={styles.successMessage}>
-                Nice! Now let's finish setting up your Yosemite Crew profile.
-              </Text>
-              <LiquidGlassButton
-                title="Continue"
-                onPress={handleSuccessClose}
-                style={styles.successButton}
-                textStyle={styles.successButtonText}
-                tintColor={theme.colors.secondary}
-                height={56}
-                borderRadius={16}
-              />
-            </View>
-          </CustomBottomSheet>
-        </View>
       </KeyboardAvoidingView>
-
+      <View
+        style={styles.bottomSheetContainer}
+        pointerEvents={isOtpSuccessVisible ? 'auto' : 'none'}>
+        <CustomBottomSheet
+          ref={successBottomSheetRef}
+          snapPoints={['50%']}
+          initialIndex={isOtpSuccessVisible ? 0 : -1}
+          enablePanDownToClose={false}
+          enableBackdrop
+          backdropOpacity={0.5}
+          backdropAppearsOnIndex={0}
+          backdropDisappearsOnIndex={-1}
+          backdropPressBehavior="none"
+          backgroundStyle={styles.bottomSheetBackground}
+          handleIndicatorStyle={styles.bottomSheetHandle}>
+          <View style={styles.successContent}>
+            <Image
+              source={Images.verificationSuccess}
+              style={styles.successIllustration}
+              resizeMode="contain"
+            />
+            <Text style={styles.successTitle}>Code verified</Text>
+            <Text style={styles.successMessage}>
+              Nice! Now let's finish setting up your Yosemite Crew profile.
+            </Text>
+            <LiquidGlassButton
+              title="Continue"
+              onPress={handleSuccessClose}
+              style={styles.successButton}
+              textStyle={styles.successButtonText}
+              tintColor={theme.colors.secondary}
+              shadowIntensity="medium"
+              forceBorder
+              borderColor="rgba(255, 255, 255, 0.35)"
+              height={56}
+              borderRadius={16}
+            />
+          </View>
+        </CustomBottomSheet>
+      </View>
       <CountryMobileBottomSheet
         ref={countryMobileRef}
         countries={COUNTRIES}
@@ -899,7 +927,8 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: theme.spacing['5'], // 20
-      paddingTop: Platform.OS === 'ios' ? theme.spacing['2'] : theme.spacing['5'], // 8 : 20
+      paddingTop:
+        Platform.OS === 'ios' ? theme.spacing['2'] : theme.spacing['5'], // 8 : 20
       paddingBottom: theme.spacing['2'], // 8
     },
     backButton: {
@@ -973,7 +1002,7 @@ const createStyles = (theme: any) =>
     postalWrapper: {
       flex: 1,
     },
-     checkboxWrapper: {
+    checkboxWrapper: {
       marginBottom: theme.spacing['5'], // 20
     },
     checkboxContainer: {
@@ -1037,6 +1066,15 @@ const createStyles = (theme: any) =>
     },
     button: {
       width: '100%',
+      backgroundColor: theme.colors.secondary,
+      borderRadius: theme.borderRadius.lg,
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.35)',
+      shadowColor: '#000000',
+      shadowOffset: {width: 0, height: 8},
+      shadowOpacity: 0.15,
+      shadowRadius: 12,
+      elevation: 4,
     },
     buttonText: {
       color: theme.colors.white,
@@ -1088,6 +1126,15 @@ const createStyles = (theme: any) =>
     },
     successButton: {
       width: '100%',
+      backgroundColor: theme.colors.secondary,
+      borderRadius: theme.borderRadius.lg,
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.35)',
+      shadowColor: '#000000',
+      shadowOffset: {width: 0, height: 8},
+      shadowOpacity: 0.15,
+      shadowRadius: 12,
+      elevation: 4,
     },
     successButtonText: {
       color: theme.colors.white,

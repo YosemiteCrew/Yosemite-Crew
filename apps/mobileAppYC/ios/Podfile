@@ -15,6 +15,7 @@ prepare_react_native_project!
 setup_permissions([
   'Camera',
   'PhotoLibrary',
+  'LocationWhenInUse',  # Add this line
 ])
 
 linkage = ENV['USE_FRAMEWORKS']
