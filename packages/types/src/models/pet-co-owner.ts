@@ -1,5 +1,5 @@
 import { Document } from 'mongoose'
-export type  ProfileImage = Document & {
+type  ProfileImage = Document & {
   url: string;
   originalname: string;
   mimetype: string;
