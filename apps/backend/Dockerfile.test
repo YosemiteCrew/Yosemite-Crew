@@ -1,0 +1,23 @@
+# Base image
+FROM node:18 AS test
+
+# Set working directory
+WORKDIR /app
+
+# Enable pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+ENV PNPM_HOME=/root/.pnpm
+ENV PATH=$PNPM_HOME:$PATH
+ENV PORT=8080
+
+# Copy source code
+COPY . .
+
+# Install deps
+RUN pnpm install --no-frozen-lockfile
+
+# Set test-specific env vars
+ENV USE_INMEMORY_DB=true
+
+# Run your test command (adjust if you’re using Jest, Vitest, Mocha, etc.)
+CMD ["pnpm", "run", "dev", "--filter", "backend"]

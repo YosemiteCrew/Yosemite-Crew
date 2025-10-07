@@ -1,0 +1,17 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/types" },
+    { "path": "packages/FHIRtypes" },
+    { "path": "apps/backend" },
+    { "path": "apps/frontend" },
+    { "path": "apps/mobileApp" }
+  ],
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@yosemite-crew/types": ["packages/types/src"],
+      "@yosemite-crew/fhir-types": ["packages/FHIRtypes/src"]
+    }
+  }
+}
