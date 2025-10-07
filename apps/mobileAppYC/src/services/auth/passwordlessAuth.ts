@@ -212,6 +212,7 @@ export const completePasswordlessSignIn = async (
       accessToken,
       refreshToken: undefined,
       expiresAt: expiresAtSeconds ? expiresAtSeconds * 1000 : undefined,
+      userId: authUser.userId,
     },
     profile,
   };

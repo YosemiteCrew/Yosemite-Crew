@@ -25,6 +25,7 @@ export type AuthStackParamList = {
       accessToken: string;
       refreshToken?: string;
       expiresAt?: number;
+      userId?: string;
     };
     initialAttributes?: {
       firstName?: string;
