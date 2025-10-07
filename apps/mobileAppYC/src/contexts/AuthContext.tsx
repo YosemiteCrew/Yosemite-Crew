@@ -153,7 +153,14 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
       const tokensWithExpiry: AuthTokens = {
         ...tokens,
         expiresAt: resolveExpiration(tokens),
+        userId: userData.id,
       };
+
+      console.log('[AuthContext] Persisting Cognito session', {
+        userId: userData.id,
+        idToken: tokensWithExpiry.idToken,
+        accessToken: tokensWithExpiry.accessToken,
+      });
 
       await AsyncStorage.setItem(USER_KEY, JSON.stringify(userData));
       try {
@@ -205,6 +212,8 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
           if (pendingProfile?.userId === authUser.userId) {
             console.log('[AuthContext] Pending profile flag found during refresh, forcing create account', {
               userId: authUser.userId,
+              token:idToken,
+              accessToken:accessToken
             });
             setUser(null);
             setIsLoggedIn(false);
@@ -263,6 +272,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
         accessToken,
         refreshToken: undefined,
         expiresAt: expiresAtSeconds ? expiresAtSeconds * 1000 : undefined,
+        userId: authUser.userId,
       });
     } catch (error) {
       console.log('No active Amplify session detected; falling back to stored values.', error);
@@ -278,7 +288,10 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
         if (legacyTokens) {
           storedTokens = legacyTokens;
           try {
-            await storeTokens(legacyTokens);
+            await storeTokens({
+              ...legacyTokens,
+              userId: legacyTokens.userId ?? storedUser?.id,
+            });
           } catch (migrateError) {
             console.error('Failed to migrate legacy auth tokens into secure storage', migrateError);
           }
@@ -308,7 +321,11 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
         const expiresAt = resolveExpiration(storedTokens);
         if (expiresAt && storedTokens.expiresAt !== expiresAt) {
           try {
-            await storeTokens({...storedTokens, expiresAt});
+            await storeTokens({
+              ...storedTokens,
+              expiresAt,
+              userId: storedTokens.userId ?? storedUser?.id,
+            });
           } catch (persistError) {
             console.error('Failed to persist token expiration metadata', persistError);
           }

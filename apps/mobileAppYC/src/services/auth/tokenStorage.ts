@@ -8,6 +8,7 @@ export type StoredAuthTokens = {
   accessToken: string;
   refreshToken?: string;
   expiresAt?: number;
+  userId?: string;
 };
 
 type KeychainOptions = Parameters<typeof Keychain.setGenericPassword>[2];
@@ -30,6 +31,12 @@ export const storeTokens = async (tokens: StoredAuthTokens): Promise<void> => {
     if (!didStore) {
       throw new Error('Unable to persist auth tokens to secure storage');
     }
+
+    console.log('[TokenStorage] Stored auth tokens in secure storage', {
+      userId: tokens.userId,
+      idToken: tokens.idToken,
+      accessToken: tokens.accessToken,
+    });
   } catch (error) {
     throw new Error(
       error instanceof Error
@@ -47,7 +54,13 @@ export const loadStoredTokens = async (): Promise<StoredAuthTokens | null> => {
     }
 
     try {
-      return JSON.parse(credentials.password) as StoredAuthTokens;
+      const parsed = JSON.parse(credentials.password) as StoredAuthTokens;
+      console.log('[TokenStorage] Loaded auth tokens from secure storage', {
+        userId: parsed.userId,
+        idToken: parsed.idToken,
+        accessToken: parsed.accessToken,
+      });
+      return parsed;
     } catch (error) {
       console.warn('Failed to parse tokens from secure storage', error);
       return null;
