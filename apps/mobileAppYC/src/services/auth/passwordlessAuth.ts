@@ -9,8 +9,11 @@ import {
   type SignInOutput,
   type AuthUser,
 } from 'aws-amplify/auth';
-import { AuthError } from 'aws-amplify/auth';
-import { PASSWORDLESS_AUTH_CONFIG } from '@/config/auth';
+import {AuthError} from 'aws-amplify/auth';
+import {
+  fetchProfileStatus,
+  type ProfileStatusSource,
+} from '@/services/profile/profileService';
 
 export type PasswordlessSignInRequestResult = {
   destination: string;
@@ -30,10 +33,9 @@ export type PasswordlessSignInCompletion = {
   profile: {
     exists: boolean;
     profileToken: string;
+    source: ProfileStatusSource;
   };
 };
-
-const PROFILE_SERVICE_URL = PASSWORDLESS_AUTH_CONFIG.profileServiceUrl;
 
 const randomPassword = () => {
   const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
@@ -168,47 +170,6 @@ export const requestPasswordlessEmailCode = async (
   }
 };
 
-const checkProfileStatus = async (
-  accessToken: string,
-  userId: string,
-  email: string,
-): Promise<{ exists: boolean; profileToken: string }> => {
-  if (!PROFILE_SERVICE_URL) {
-    const mockProfileToken = `mock-profile-token-${userId}`;
-    return { exists: false, profileToken: mockProfileToken };
-  }
-
-  try {
-    const response = await fetch(`${PROFILE_SERVICE_URL}/profile`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({ userId, email }),
-    });
-
-    if (!response.ok) {
-      return {
-        exists: false,
-        profileToken: `fallback-profile-token-${userId}`,
-      };
-    }
-
-    const payload = await response.json();
-    return {
-      exists: Boolean(payload?.exists),
-      profileToken: payload?.profileToken ?? `profile-token-${userId}`,
-    };
-  } catch (error) {
-    console.warn('Profile status lookup failed; continuing with mock token.', error);
-    return {
-      exists: false,
-      profileToken: `mock-profile-token-${userId}`,
-    };
-  }
-};
-
 export const completePasswordlessSignIn = async (
   otpCode: string,
 ): Promise<PasswordlessSignInCompletion> => {
@@ -237,7 +198,11 @@ export const completePasswordlessSignIn = async (
     fetchUserAttributes(),
   ]);
 
-  const profile = await checkProfileStatus(accessToken, authUser.userId, attributes.email ?? authUser.username);
+  const profile = await fetchProfileStatus({
+    accessToken,
+    userId: authUser.userId,
+    email: attributes.email ?? authUser.username,
+  });
 
   return {
     user: authUser,
