@@ -1,12 +1,12 @@
 // types/fhir.ts
 
-export interface FHIRAttachment {
+interface FHIRAttachment {
   contentType: string;
   title: string;
   url: string;
 }
 
-export interface VaccineImageFile {
+interface VaccineImageFile {
   url: string;
   originalname: string;
   mimetype: string;
@@ -129,6 +129,5 @@ export interface TransformedVaccination {
   vaccineImage: VaccineImageFile[];
   reminder: boolean;
 }
-
 
 

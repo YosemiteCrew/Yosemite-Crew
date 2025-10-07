@@ -16,7 +16,7 @@ export type Availability = {
   times: AvailabilityTime[];
 };
 
-export type DocumentFile = {
+type DocumentFile = {
   name: string;
   type: string;
   date?: Date;

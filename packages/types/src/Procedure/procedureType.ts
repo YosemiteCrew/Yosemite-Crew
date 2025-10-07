@@ -9,7 +9,7 @@ export type FhirCodeableConcept = {
   coding: FhirCoding[];
 };
 
-export type FhirQuantity = {
+type FhirQuantity = {
   value: number;
   unit?: string;
 };
@@ -133,7 +133,7 @@ export interface ProcedurePackageJSON {
   __v: number;
 }
 
-export interface ProcedurePackageItem {
+interface ProcedurePackageItem {
   id:number;
   name?: string;
   itemType?: string;
@@ -146,22 +146,22 @@ export interface ProcedurePackageItem {
 }
 
 // Minimal FHIR PlanDefinition for Procedure Package
-export interface FHIRIdentifier {
+interface FHIRIdentifier {
   system: string;
   value: string;
 }
 
-export interface FHIRCoding {
+interface FHIRCoding {
   system: string;
   code: string;
   display: string;
 }
 
-export interface FHIRType {
+interface FHIRType {
   coding: FHIRCoding[];
 }
 
-export interface FHIRAction {
+interface FHIRAction {
   id:number;
   name?: string;
   itemType?: string;
