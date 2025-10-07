@@ -11,6 +11,7 @@ import {AppState, type AppStateStatus} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {fetchAuthSession, fetchUserAttributes, getCurrentUser} from 'aws-amplify/auth';
 import {signOutEverywhere} from '@/services/auth/passwordlessAuth';
+import {fetchProfileStatus} from '@/services/profile/profileService';
 import {
   clearStoredTokens,
   loadStoredTokens,
@@ -190,16 +191,6 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
       ]);
 
       const mapped = mapAttributesToUser(attributes);
-      const hydratedUser: User = {
-        id: authUser.userId,
-        email: mapped.email ?? authUser.username,
-        firstName: mapped.firstName,
-        lastName: mapped.lastName,
-        phone: mapped.phone,
-        dateOfBirth: mapped.dateOfBirth,
-        profilePicture: mapped.profilePicture,
-        profileToken: existingProfileToken,
-      };
 
       const expiresAtSeconds =
         session.tokens?.idToken?.payload?.exp ??
@@ -225,6 +216,47 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
           console.warn('[AuthContext] Failed to parse pending profile payload', parseError);
         }
       }
+
+      let profileToken = existingProfileToken;
+
+      if (!profileToken) {
+        try {
+          const profileStatus = await fetchProfileStatus({
+            accessToken,
+            userId: authUser.userId,
+            email: mapped.email ?? authUser.username,
+          });
+
+          if (!profileStatus.exists && profileStatus.source === 'remote') {
+            console.log(
+              '[AuthContext] Remote profile lookup indicates missing profile, forcing create account',
+              {
+                userId: authUser.userId,
+              },
+            );
+            setUser(null);
+            setIsLoggedIn(false);
+            lastRefreshRef.current = Date.now();
+            scheduleSessionRefresh(undefined);
+            return;
+          }
+
+          profileToken = profileStatus.profileToken;
+        } catch (profileError) {
+          console.warn('[AuthContext] Failed to resolve profile status during refresh', profileError);
+        }
+      }
+
+      const hydratedUser: User = {
+        id: authUser.userId,
+        email: mapped.email ?? authUser.username,
+        firstName: mapped.firstName,
+        lastName: mapped.lastName,
+        phone: mapped.phone,
+        dateOfBirth: mapped.dateOfBirth,
+        profilePicture: mapped.profilePicture,
+        profileToken,
+      };
 
       await saveSession(hydratedUser, {
         idToken,

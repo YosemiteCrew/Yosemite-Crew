@@ -1,9 +1,14 @@
+import type {ProfileStatusSource} from '@/services/profile/profileService';
+
 export interface AuthState {
   isLoggedIn: boolean;
   user: User | null;
   token: string | null;
   isLoading: boolean;
   error: string | null;
+  profileExists: boolean | null;
+  profileToken: string | null;
+  profileStatusSource: ProfileStatusSource | null;
 }
 
 export interface User {
