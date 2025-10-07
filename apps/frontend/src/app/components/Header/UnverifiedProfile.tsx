@@ -20,14 +20,21 @@ const UnverifiedProfile = ({ handleLogout }: any) => {
       <div className="HeaderProfDiv">
         <ul className="NavUL">
           <li className="nav-item dropdown">
-            <span
+            <button
+              type="button"
               className="nav-profile"
+              aria-label="Open profile menu"
               onClick={() => setMenuOpen((prev) => !prev)}
             >
               <div className="user">
-                <Image src={"https://d2il6osz49gpup.cloudfront.net/Logo.png"} alt="Profile" width={40} height={40} />
+                <Image
+                  src={"https://d2il6osz49gpup.cloudfront.net/Logo.png"}
+                  alt="Profile"
+                  width={40}
+                  height={40}
+                />
               </div>
-            </span>
+            </button>
             <AnimatePresence>
               {menuOpen && (
                 <motion.div className="profileUl unverified-profile-mobile">

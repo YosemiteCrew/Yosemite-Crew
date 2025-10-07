@@ -67,10 +67,12 @@ const Organizations = () => {
   );
 };
 
-export default function ProtectedOrganizations() {
+const ProtectedOrganizations = () => {
   return (
     <ProtectedRoute>
       <Organizations />
     </ProtectedRoute>
   );
-}
+};
+
+export default ProtectedOrganizations;

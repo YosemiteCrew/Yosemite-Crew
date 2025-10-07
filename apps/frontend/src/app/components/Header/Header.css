@@ -38,7 +38,7 @@
   padding: 30px 48px;
   overflow: auto;
 }
-.mobile-menu-item a {
+.mobile-menu-item-button {
   color: var(--notibg);
   font-family: var(--grotesk-font);
   font-size: 16px;
@@ -46,8 +46,10 @@
   font-weight: 500;
   line-height: 100%;
   letter-spacing: -0.32px;
+  border: none;
+  background: var(--whitebg);
 }
-.mobile-menu-item a:hover {
+.mobile-menu-item-button:hover {
   color: var(--black-bg);
 }
 .mobile-menu-item .active,
@@ -188,6 +190,8 @@
   align-items: flex-start;
   gap: 12px;
   cursor: pointer;
+  border: none;
+  background: var(--whitebg);
 }
 .nav-profile .user {
   width: 40px;
@@ -441,6 +445,7 @@
   border-radius: 20px;
   height: 40px;
   width: 40px;
+  background-color: var(--whitebg);
 }
 
 .hamburger-icon {

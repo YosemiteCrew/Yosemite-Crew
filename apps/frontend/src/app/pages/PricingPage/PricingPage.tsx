@@ -305,7 +305,7 @@ const PricingPage = () => {
 
 export default PricingPage;
 
-export function NeedHealp() {
+const NeedHealp = () => {
   return (
     <div className="NeedHelpDiv">
       <div className="Needhelpitem">
@@ -334,4 +334,6 @@ export function NeedHealp() {
       </div>
     </div>
   );
-}
+};
+
+export { NeedHealp };

@@ -159,14 +159,14 @@ const PetOwner = () => {
       <Footer />
     </>
   );
-}
+};
 
 export default PetOwner;
 
 interface PetDownBtnProps {
   launched?: boolean;
 }
-export function PetDownBtn({ launched = false }: Readonly<PetDownBtnProps>) {
+const PetDownBtn = ({ launched = false }: Readonly<PetDownBtnProps>) => {
   if (!launched) {
     return (
       <div className="ComingSoonBtn">
@@ -200,4 +200,6 @@ export function PetDownBtn({ launched = false }: Readonly<PetDownBtnProps>) {
       </Link>
     </div>
   );
-}
+};
+
+export { PetDownBtn };

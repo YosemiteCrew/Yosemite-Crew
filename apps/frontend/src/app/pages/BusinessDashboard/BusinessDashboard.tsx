@@ -62,9 +62,6 @@ const BusinessDashboard = () => {
     useState("Last 3 Months");
   const [revenueSelectedRange, setRevenueSelectedRange] =
     useState("Last 30 Days");
-  const [assessmentData, setAccessmentData] = useState<TodayAppointmentItem[]>(
-    []
-  );
   const [inventoryData, setInventoryData] = useState([]);
   const [inventoryCategory, setInventoryCategory] = useState([]);
   const [appointmentFilter, setAppointmentFilter] = useState("accepted");
@@ -140,7 +137,8 @@ const BusinessDashboard = () => {
 
   const getSpecialityWiseAppointment = useCallback(
     async (Months: string) => {
-      const days = parseInt(Months.match(/\d+/)?.[0] || "3", 10);
+      const match = /\d+/.exec(Months);
+      const days = parseInt(match?.[0] || "3", 10);
       try {
         const response: any = await getData(
           `fhir/v1/List?reportType=specialityWiseAppointments&userId=${userId}&LastDays=${days}`
@@ -173,13 +171,7 @@ const BusinessDashboard = () => {
 
   const getAssessments = useCallback(async () => {
     try {
-      const response = await getData(
-        `/api/assessments/getAssessments?userId=${userId}`
-      );
-      if (response.status === 200) {
-        const data: any = response.data;
-        setAccessmentData(data.data);
-      }
+      await getData(`/api/assessments/getAssessments?userId=${userId}`);
     } catch (error) {
       console.error("Error fetching assessments:", error);
     }
@@ -416,7 +408,7 @@ const BusinessDashboard = () => {
       </Container>
     </section>
   );
-}
+};
 
 export default BusinessDashboard;
 
@@ -429,13 +421,13 @@ interface HeadingDivProps {
   Headspan?: string | number;
 }
 
-export function HeadingDiv({
+const HeadingDiv = ({
   Headname,
   Headspan,
   btntext,
   icon,
   href,
-}: Readonly<HeadingDivProps>) {
+}: Readonly<HeadingDivProps>) => {
   return (
     <div className="DivHeading">
       <h5>
@@ -450,4 +442,6 @@ export function HeadingDiv({
       )}
     </div>
   );
-}
+};
+
+export { HeadingDiv };

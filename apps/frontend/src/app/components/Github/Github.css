@@ -69,4 +69,6 @@
 .CloseButton {
   cursor: pointer;
   margin-top: -2px;
+  background: var(--black-bg);
+  border: none;
 }

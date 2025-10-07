@@ -19,6 +19,7 @@
   overflow: hidden;
   position: relative;
   width: 88px;
+  border: none;
 }
 .LaunchTabDiv.active {
   flex-grow: 3;

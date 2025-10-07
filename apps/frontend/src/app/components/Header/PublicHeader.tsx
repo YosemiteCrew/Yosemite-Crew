@@ -77,30 +77,39 @@ const PublicHeader = () => {
           >
             {publicNavItems.map((item) => (
               <div key={item.label} className="mobile-menu-item">
-                <a
-                  // href={item.href ? item.href : "#"}
+                <button
+                  type="button"
                   onClick={() => handleClick(item.href ? item.href : "#")}
-                  className={classNames({ active: pathname === item.href })}
+                  className={classNames("mobile-menu-item-button", {
+                    active: pathname === item.href,
+                  })}
                 >
                   {item.label}
-                </a>
+                </button>
                 <div className="mobile-menu-item-sperator"></div>
               </div>
             ))}
             {pathname !== "/signup" && pathname !== "/signin" && (
-              <a
+              <button
+                type="button"
                 onClick={() => handleClick("/signup")}
                 className="HeaderSign-mobile"
+                aria-label="Sign Up"
               >
                 <Icon icon="carbon:checkmark-filled" width="20" height="20" />{" "}
                 Sign Up
-              </a>
+              </button>
             )}
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div className="menu-toggle" onClick={toggleMenu}>
+      <button
+        type="button"
+        className="menu-toggle"
+        onClick={toggleMenu}
+        aria-label={menuOpen ? "Close menu" : "Open menu"}
+      >
         <motion.div
           className="hamburger-icon"
           initial={false}
@@ -110,7 +119,7 @@ const PublicHeader = () => {
           <motion.span variants={line2Variants} />
           <motion.span variants={line3Variants} />
         </motion.div>
-      </div>
+      </button>
 
       {pathname !== "/signup" && pathname !== "/signin" && (
         <Link href="/signup" className="HeaderSign">
