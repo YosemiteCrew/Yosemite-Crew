@@ -389,13 +389,13 @@ type ButtonProps = {
   style?: React.CSSProperties;
 };
 
-export function FillBtn({
+const FillBtn = ({
   icon,
   text,
   onClick,
   href,
   style,
-}: Readonly<ButtonProps>) {
+}: Readonly<ButtonProps>) => {
   return (
     <Link
       href={href}
@@ -411,20 +411,20 @@ export function FillBtn({
       {icon} {text}
     </Link>
   );
-}
-export function UnFillBtn({
+};
+const UnFillBtn = ({
   icon,
   text,
   href,
   onClick,
   style,
-}: Readonly<ButtonProps>) {
+}: Readonly<ButtonProps>) => {
   return (
     <Link className="UnFillbtn" href={href} onClick={onClick} style={style}>
       {icon} {text}
     </Link>
   );
-}
+};
 
 // BoxPractProps
 
@@ -465,3 +465,5 @@ const FocusCard: React.FC<FocusCardProps> = ({ Focimg, focname, focpara }) => {
     </div>
   );
 };
+
+export { FillBtn, UnFillBtn };

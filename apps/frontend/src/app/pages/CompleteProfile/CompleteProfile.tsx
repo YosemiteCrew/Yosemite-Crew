@@ -791,7 +791,7 @@ const CompleteProfile = () => {
                   <Tab.Pane eventKey="service">
                     <Form className="ServiceData">
                       <div className="services_dropdown">
-                        <div
+                        <button
                           className={`ServHeadr ${isDropdownOpen ? "open" : ""}`}
                           onClick={toggleDropdown}
                         >
@@ -803,7 +803,7 @@ const CompleteProfile = () => {
                               <IoMdArrowDropdown size={20} />
                             )}
                           </span>
-                        </div>
+                        </button>
                         {isDropdownOpen && (
                           <div className="ServDropcontent">
                             <div className="serchbtn">
@@ -852,24 +852,26 @@ const CompleteProfile = () => {
                                   ? "active"
                                   : ""
                               }
-                              onClick={() => handleModeClick("yes")}
                             >
-                              Yes
+                              <button onClick={() => handleModeClick("yes")}>
+                                Yes
+                              </button>
                             </li>
                             <li
                               className={
                                 departmentFeatureActive === "no" ? "active" : ""
                               }
-                              onClick={() => handleModeClick("no")}
                             >
-                              No
+                              <button onClick={() => handleModeClick("no")}>
+                                No
+                              </button>
                             </li>
                           </ul>
                         </div>
                       </div>
 
                       <div className="services_dropdown">
-                        <div
+                        <button
                           className={`ServHeadr ${isDropdownOpen1 ? "open" : ""}`}
                           onClick={toggleDropdown1}
                         >
@@ -881,7 +883,7 @@ const CompleteProfile = () => {
                               <IoMdArrowDropdown />
                             )}
                           </span>
-                        </div>
+                        </button>
                         {isDropdownOpen1 && (
                           <div className="ServDropcontent">
                             <div className="serchbtn">
@@ -994,11 +996,7 @@ type HeadTextProps = {
   readonly spanFirst?: boolean; // Optional, default is false
 };
 
-export function HeadText({
-  Spntext,
-  blktext,
-  spanFirst = false,
-}: HeadTextProps) {
+const HeadText = ({ Spntext, blktext, spanFirst = false }: HeadTextProps) => {
   return (
     <div className="Headingtext">
       <h3>
@@ -1014,4 +1012,6 @@ export function HeadText({
       </h3>
     </div>
   );
-}
+};
+
+export { HeadText };

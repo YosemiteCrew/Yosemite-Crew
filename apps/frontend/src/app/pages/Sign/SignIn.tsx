@@ -23,6 +23,32 @@ const SignIn = () => {
 
   const [showVerifyModal, setShowVerifyModal] = useState(false);
 
+  const handleCodeResendonError = async () => {
+    try {
+      const result = await resendCode(email);
+      if (result) {
+        setShowVerifyModal(true);
+      }
+    } catch (error: any) {
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      showErrorTost({
+        message: error.message || "Error resending code.",
+        errortext: "Error",
+        iconElement: (
+          <Icon
+            icon="solar:danger-triangle-bold"
+            width="20"
+            height="20"
+            color="#EA3729"
+          />
+        ),
+        className: "errofoundbg",
+      });
+    }
+  };
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -38,29 +64,7 @@ const SignIn = () => {
       await signIn(email, password);
     } catch (error: any) {
       if (error?.code === "UserNotConfirmedException") {
-        try {
-          const result = await resendCode(email);
-          if (result) {
-            setShowVerifyModal(true);
-          }
-        } catch (error: any) {
-          if (typeof window !== "undefined") {
-            window.scrollTo({ top: 0, behavior: "smooth" });
-          }
-          showErrorTost({
-            message: error.message || "Error resending code.",
-            errortext: "Error",
-            iconElement: (
-              <Icon
-                icon="solar:danger-triangle-bold"
-                width="20"
-                height="20"
-                color="#EA3729"
-              />
-            ),
-            className: "errofoundbg",
-          });
-        }
+        await handleCodeResendonError();
       } else {
         showErrorTost({
           message: error.message || `Sign in failed`,

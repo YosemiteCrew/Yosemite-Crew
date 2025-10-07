@@ -45,8 +45,14 @@ const SignUp = () => {
     setSelectedType(type);
   };
 
-  const handleSignUp = async (e: { preventDefault: () => void }) => {
-    e.preventDefault();
+  const validateSignUpInputs = (
+    email: string,
+    password: string,
+    confirmPassword: string,
+    selectedType: string,
+    subscribe: boolean,
+    agree: boolean
+  ) => {
     const errors: {
       email?: string;
       password?: string;
@@ -55,14 +61,13 @@ const SignUp = () => {
       subscribe?: string;
       agree?: string;
     } = {};
+
     if (!email) errors.email = "Email is required";
     if (!password) {
       errors.password = "Password is required";
     } else {
-      // Regex for strong password
       const strongPasswordRegex =
         /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-
       if (!strongPasswordRegex.test(password)) {
         errors.password =
           "Password must be at least 8 characters long, include uppercase, lowercase, number, and special character";
@@ -70,36 +75,31 @@ const SignUp = () => {
     }
     if (!confirmPassword)
       errors.confirmPassword = "Confirm Password is required";
+    if (password && confirmPassword && password !== confirmPassword)
+      errors.confirmPassword = "Passwords do not match";
     if (!selectedType) errors.selectedType = "Please select your business type";
     if (!subscribe)
       errors.subscribe =
         "Please check the Newsletter and Promotional emails box";
     if (!agree) errors.agree = "Please check the Terms and Conditions box";
-    if (password !== confirmPassword)
-      errors.confirmPassword = "Passwords do not match";
 
-    // Remove selectedType before setting input errors (if you don't want to show it in input fields)
+    return errors;
+  };
+
+  const handleSignUp = async (e: { preventDefault: () => void }) => {
+    e.preventDefault();
+    const errors = validateSignUpInputs(
+      email,
+      password,
+      confirmPassword,
+      selectedType,
+      subscribe,
+      agree
+    );
+
     setInputErrors(errors);
 
     if (Object.keys(errors).length > 0) {
-      return;
-    }
-
-    // Always validate passwords
-    if (password !== confirmPassword) {
-      showErrorTost({
-        message: "Password and Confirm Password do not match.",
-        errortext: "Password Mismatch",
-        iconElement: (
-          <Icon
-            icon="solar:danger-triangle-bold"
-            width="20"
-            height="20"
-            color="#EA3729"
-          />
-        ),
-        className: "errofoundbg",
-      });
       return;
     }
 
@@ -229,13 +229,14 @@ const SignUp = () => {
                     <div className="button-group">
                       <ul>
                         {businessTypes.map(({ key, value }) => (
-                          <li
+                          <button
                             key={key}
+                            type="button"
                             className={`business-button ${selectedType === key ? "selected" : ""}`}
                             onClick={() => handleSelectType(key)}
                           >
                             {value}
-                          </li>
+                          </button>
                         ))}
                       </ul>
                       {/* Show error for business type */}
@@ -329,12 +330,12 @@ type MainBtnProps = {
   iconPosition?: "left" | "right";
   onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
 };
-export function MainBtn({
+const MainBtn = ({
   btnname,
   btnicon,
   iconPosition,
   onClick,
-}: Readonly<MainBtnProps>) {
+}: Readonly<MainBtnProps>) => {
   return (
     <Button className="BlackButton" type="submit" onClick={onClick}>
       {iconPosition === "left" && btnicon && <span>{btnicon}</span>}
@@ -342,7 +343,7 @@ export function MainBtn({
       {iconPosition === "right" && btnicon && <span>{btnicon}</span>}
     </Button>
   );
-}
+};
 // MainBtnProps Ended
 
 // FormInputProps started
@@ -356,7 +357,7 @@ type FormInputProps = {
   onBlur?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   error?: string;
 };
-export function FormInput({
+const FormInput = ({
   intype,
   inname,
   inlabel,
@@ -365,7 +366,7 @@ export function FormInput({
   onBlur,
   readonly,
   error,
-}: Readonly<FormInputProps>) {
+}: Readonly<FormInputProps>) => {
   const [isFocused, setIsFocused] = useState(false);
 
   return (
@@ -398,7 +399,7 @@ export function FormInput({
       )}
     </div>
   );
-}
+};
 // FormInputProps Ended
 
 // FormInputPassProps started
@@ -410,7 +411,7 @@ type FormInputPassProps = {
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   inPlaceHolder?: string;
 };
-export function FormInputPass({
+const FormInputPass = ({
   intype,
   inname,
   inlabel,
@@ -418,7 +419,7 @@ export function FormInputPass({
   onChange,
   error,
   inPlaceHolder,
-}: FormInputPassProps & { error?: string }) {
+}: FormInputPassProps & { error?: string }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
 
@@ -465,5 +466,7 @@ export function FormInputPass({
       )}
     </div>
   );
-}
+};
 // FormInputPassProps Ended
+
+export { FormInput, FormInputPass, MainBtn };

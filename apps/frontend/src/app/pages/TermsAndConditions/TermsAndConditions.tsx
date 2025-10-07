@@ -1312,6 +1312,12 @@ const TermsAndConditions = () => {
             </h3>
             <div className="doc-table-wrapper ">
               <table className="doc-table">
+                <thead style={{ display: "none" }}>
+                  <tr>
+                    <th className="doc-table-label">Phone Support</th>
+                    <th>English</th>
+                  </tr>
+                </thead>
                 <tbody>
                   <tr>
                     <td className="doc-table-label">Phone Support</td>
@@ -2313,6 +2319,12 @@ const TermsAndConditions = () => {
             </table>
 
             <table className="dataMatrix">
+              <thead style={{ display: "none" }}>
+                <tr>
+                  <th className="doc-table-label">Phone Support</th>
+                  <th>English</th>
+                </tr>
+              </thead>
               <tbody>
                 <tr>
                   <td rowSpan={38} className="moduleCell">
@@ -2447,6 +2459,12 @@ const TermsAndConditions = () => {
             </table>
 
             <table className="dataMatrix">
+              <thead style={{ display: "none" }}>
+                <tr>
+                  <th className="doc-table-label">Phone Support</th>
+                  <th>English</th>
+                </tr>
+              </thead>
               <tbody>
                 <tr>
                   <td rowSpan={8} className="moduleCell">
@@ -2486,6 +2504,12 @@ const TermsAndConditions = () => {
               </tbody>
             </table>
             <table className="dataMatrix">
+              <thead style={{ display: "none" }}>
+                <tr>
+                  <th className="doc-table-label">Phone Support</th>
+                  <th>English</th>
+                </tr>
+              </thead>
               <tbody>
                 <tr>
                   <td rowSpan={23} className="moduleCell">
@@ -2577,6 +2601,12 @@ const TermsAndConditions = () => {
             </table>
 
             <table className="dataMatrix">
+              <thead style={{ display: "none" }}>
+                <tr>
+                  <th className="doc-table-label">Phone Support</th>
+                  <th>English</th>
+                </tr>
+              </thead>
               <tbody>
                 <tr>
                   <td rowSpan={7} className="moduleCell">
@@ -2617,6 +2647,12 @@ const TermsAndConditions = () => {
             </table>
 
             <table className="dataMatrix">
+              <thead style={{ display: "none" }}>
+                <tr>
+                  <th className="doc-table-label">Phone Support</th>
+                  <th>English</th>
+                </tr>
+              </thead>
               <tbody>
                 <tr>
                   <td rowSpan={25} className="moduleCell">
@@ -2713,6 +2749,12 @@ const TermsAndConditions = () => {
             </table>
 
             <table className="dataMatrix">
+              <thead style={{ display: "none" }}>
+                <tr>
+                  <th className="doc-table-label">Phone Support</th>
+                  <th>English</th>
+                </tr>
+              </thead>
               <tbody>
                 <tr>
                   <td rowSpan={10} className="moduleCell">
@@ -2758,6 +2800,12 @@ const TermsAndConditions = () => {
             </table>
 
             <table className="dataMatrix">
+              <thead style={{ display: "none" }}>
+                <tr>
+                  <th className="doc-table-label">Phone Support</th>
+                  <th>English</th>
+                </tr>
+              </thead>
               <tbody>
                 <tr>
                   <td rowSpan={16} className="moduleCell">
@@ -2815,6 +2863,12 @@ const TermsAndConditions = () => {
             </table>
 
             <table className="dataMatrix">
+              <thead style={{ display: "none" }}>
+                <tr>
+                  <th className="doc-table-label">Phone Support</th>
+                  <th>English</th>
+                </tr>
+              </thead>
               <tbody>
                 <tr>
                   <td rowSpan={29} className="moduleCell">
@@ -2928,6 +2982,12 @@ const TermsAndConditions = () => {
             </table>
 
             <table className="dataMatrix">
+              <thead style={{ display: "none" }}>
+                <tr>
+                  <th className="doc-table-label">Phone Support</th>
+                  <th>English</th>
+                </tr>
+              </thead>
               <tbody>
                 <tr>
                   <td rowSpan={17} className="moduleCell">

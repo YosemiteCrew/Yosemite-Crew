@@ -68,7 +68,7 @@ const LaunchGrowTab = () => {
   return (
     <div className="BuildLaunchTabSec">
       {Launchtabs.map((growtab) => (
-        <div
+        <button
           key={growtab.id}
           className={`LaunchTabDiv ${activeTab === growtab.id ? "active" : ""}`}
           style={{ backgroundColor: growtab.color }}
@@ -118,7 +118,7 @@ const LaunchGrowTab = () => {
               </div>
             </div>
           )}
-        </div>
+        </button>
       ))}
     </div>
   );

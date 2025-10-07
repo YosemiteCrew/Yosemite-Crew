@@ -72,6 +72,11 @@ const PrivateHeader = () => {
     setActiveDropdown((prev) => (prev === label ? null : label));
   };
 
+  const handleMobileNavItemsClick = () => {
+    setMobileOpen(false);
+    setMenuOpen(false);
+  };
+
   const renderNavItems = (items: NavItem[], isSubmenu = false) => (
     <ul className={classNames({ dropdown: isSubmenu })}>
       {items.map((item) => {
@@ -142,10 +147,7 @@ const PrivateHeader = () => {
                         className={classNames({
                           active: pathname === subItem.href,
                         })}
-                        onClick={() => {
-                          setMobileOpen(false);
-                          setMenuOpen(false);
-                        }}
+                        onClick={handleMobileNavItemsClick}
                       >
                         {subItem.label}
                       </Link>
@@ -242,7 +244,12 @@ const PrivateHeader = () => {
         )}
       </AnimatePresence>
 
-      <div className="menu-toggle" onClick={toggleMenu}>
+      <button
+        type="button"
+        className="menu-toggle"
+        onClick={toggleMenu}
+        aria-label={menuOpen ? "Close menu" : "Open menu"}
+      >
         <motion.div
           className="hamburger-icon"
           initial={false}
@@ -252,7 +259,7 @@ const PrivateHeader = () => {
           <motion.span variants={line2Variants} />
           <motion.span variants={line3Variants} />
         </motion.div>
-      </div>
+      </button>
 
       {isVerified ? (
         <VerifiedProfile roles={roles} handleLogout={handleLogout} />

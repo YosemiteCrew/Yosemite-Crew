@@ -88,12 +88,12 @@ const columns = [
   },
 ];
 
-function UpcomingConsultationsTable() {
+const UpcomingConsultationsTable = () => {
   return (
     <div className="table-wrapper">
       <GenericTable data={data} columns={columns} bordered={false} />
     </div>
   );
-}
+};
 
 export default UpcomingConsultationsTable;

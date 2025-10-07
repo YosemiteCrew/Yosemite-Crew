@@ -40,11 +40,11 @@ type Props = {
   existingFiles?: ExistingFile[];
 };
 
-function UploadImage({
+const UploadImage = ({
   onChange,
   value = [],
   existingFiles = [],
-}: Readonly<Props>) {
+}: Readonly<Props>) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>(value);
   const [apiFiles, setApiFiles] = useState<ExistingFile[]>(existingFiles);
@@ -70,7 +70,7 @@ function UploadImage({
     });
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = (e: React.DragEvent<HTMLButtonElement>) => {
     e.preventDefault();
     handleFiles(e.dataTransfer.files);
   };
@@ -89,7 +89,7 @@ function UploadImage({
 
   return (
     <>
-      <div
+      <button
         className="UploadAreaData"
         onClick={() => inputRef.current?.click()}
         onDragOver={(e) => e.preventDefault()}
@@ -112,7 +112,7 @@ function UploadImage({
             onChange={(e) => handleFiles(e.target.files)}
           />
         </div>
-      </div>
+      </button>
 
       <div className="upload-preview-list">
         {/* New user-selected files */}
@@ -167,6 +167,6 @@ function UploadImage({
       </div>
     </>
   );
-}
+};
 
 export default UploadImage;
