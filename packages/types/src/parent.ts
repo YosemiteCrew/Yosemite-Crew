@@ -1,7 +1,10 @@
 import type { RelatedPerson } from "../../fhirtypes/src/RelatedPerson";
+import type { Extension } from "../../fhirtypes/src/Extension";
 import { Address, toFHIRAddress } from "./address.model";
 
 export const PARENT_AGE_EXTENSION_URL = "http://example.org/fhir/StructureDefinition/parent-age";
+export const PARENT_PROFILE_COMPLETION_EXTENSION_URL =
+    "http://example.org/fhir/StructureDefinition/parent-profile-completed";
 
 export interface Parent {
     _id: string;
@@ -12,6 +15,7 @@ export interface Parent {
     phoneNumber?: string;
     birthDate?: string;
     profileImageUrl?: string;
+    isProfileComplete?: boolean;
 }
 
 export function toFHIRRelatedPerson(parent: Parent): RelatedPerson {
@@ -49,14 +53,21 @@ export function toFHIRRelatedPerson(parent: Parent): RelatedPerson {
           ]
         : undefined;
 
-    const extension = typeof parent.age === "number"
-        ? [
-              {
-                  url: PARENT_AGE_EXTENSION_URL,
-                  valueInteger: parent.age,
-              },
-          ]
-        : undefined;
+    const extensions: Extension[] = [];
+
+    if (typeof parent.age === "number") {
+        extensions.push({
+            url: PARENT_AGE_EXTENSION_URL,
+            valueInteger: parent.age,
+        });
+    }
+
+    if (typeof parent.isProfileComplete === "boolean") {
+        extensions.push({
+            url: PARENT_PROFILE_COMPLETION_EXTENSION_URL,
+            valueBoolean: parent.isProfileComplete,
+        });
+    }
 
     const birthDate = parent.birthDate || undefined;
 
@@ -68,6 +79,6 @@ export function toFHIRRelatedPerson(parent: Parent): RelatedPerson {
         address,
         photo,
         birthDate,
-        extension,
+        extension: extensions.length ? extensions : undefined,
     };
 }
