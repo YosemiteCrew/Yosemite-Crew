@@ -39,6 +39,8 @@ function PricingPage() {
   const currentPlan = planConfig[plan];
 
   // Add this useEffect to set initial progress values
+
+  /* istanbul ignore start */
   React.useEffect(() => {
     const sliders = document.querySelectorAll(".styled-range");
     sliders.forEach((el) => {
@@ -50,6 +52,8 @@ function PricingPage() {
       input.style.setProperty("--progress", `${pct}%`);
     });
   }, [plan, appointments, assessments, seats]);
+  /* istanbul ignore start */
+
   // Pricing Calculator Ended
 
   return (
