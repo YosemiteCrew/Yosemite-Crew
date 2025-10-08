@@ -1,0 +1,129 @@
+.BuildLaunchTabSec {
+  display: flex;
+  align-items: stretch;
+  height: 720px;
+  background: #fff2e3;
+  border-radius: 24px;
+  overflow: hidden;
+}
+.LaunchTabDiv {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--white-text);
+  transition:
+    flex-grow 0.3s ease,
+    background-color 0.3s ease;
+  overflow: hidden;
+  position: relative;
+  width: 88px;
+  border: none;
+}
+.LaunchTabDiv.active {
+  flex-grow: 3;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  transition:
+    flex-grow 0.3s ease,
+    box-shadow 0.3s ease;
+}
+.BuildText {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  justify-content: space-between;
+  width: 88px;
+  padding: 30px 15px;
+  align-items: center;
+}
+.LaunchTabDiv.active:first-child :is(.BuildText h6, .BuildText h3) {
+  color: var(--white-text);
+}
+.LaunchTabDiv:first-child :is(.BuildText h6, .BuildText h3) {
+  color: var(--white-text);
+}
+.BuildText h6 {
+  font-family: var(--grotesk-font);
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 120%;
+  color: var(--black-text);
+  margin: 0;
+}
+.BuildText h3 {
+  font-family: var(--grotesk-font);
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 120%;
+  writing-mode: sideways-lr;
+  color: var(--black-text);
+  margin: 0;
+}
+.GrowTab_Content {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: #333;
+  background: var(--whitebg);
+  width: 100%;
+  height: 100%;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  display: grid;
+  grid-template-columns: 85px auto;
+}
+
+.GrowTabInner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 48px;
+  justify-content: center;
+  background: var(--whitebg);
+  box-shadow: 0px 0px 28px 0px #00000014;
+}
+.GrowTabInner .IconPic {
+  width: 831px;
+  display: flex;
+}
+.GrowTabInner .BottomText {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 64px;
+  width: 831px;
+}
+.GrowTabInner .BottomText .Texted {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 28px;
+}
+.GrowTabInner .BottomText .Texted h2 {
+  font-size: 33px;
+  font-weight: 500;
+  line-height: 120%;
+  color: var(--black-text);
+  margin: 0;
+}
+.GrowTabInner .BottomText .Texted ul {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 24px;
+}
+.GrowTabInner .BottomText .Texted ul li {
+  padding: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-family: var(--satoshi-font);
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 120%;
+  color: var(--notibg);
+  text-align: left;
+}

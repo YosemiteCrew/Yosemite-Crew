@@ -1,5 +1,5 @@
-import PetOwner from "@/app/Pages/PetOwner/PetOwner";
 import React from "react";
+import PetOwner from "@/app/pages/PetOwner/PetOwner";
 
 function page() {
   return <PetOwner />;

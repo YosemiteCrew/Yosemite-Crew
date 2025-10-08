@@ -27,7 +27,7 @@ interface ProfileData {
     country?:string;
  
 }
-export interface Organization {
+export interface OrganizationOld {
     cognitoId: string;
     departments?: Department[];
     profileData: Partial<ProfileData >;

@@ -1,0 +1,74 @@
+.GithubWrapper {
+  position: fixed;
+  left: 0;
+  bottom: 30px;
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  pointer-events: none;
+}
+.GithubMain {
+  padding: 22px 26px;
+  background: var(--black-bg);
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  min-height: 72px;
+  pointer-events: auto;
+}
+.GithubTitle {
+  font-size: 23px;
+  font-weight: 500;
+  line-height: 120%;
+  color: var(--white-text);
+  font-family: var(--grotesk-font);
+}
+.GithubStar {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  min-height: 28px;
+  justify-content: center;
+  padding: 0px 12px;
+  background-color: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.GithubStar .Title {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.GithubStar .Title p {
+  color: var(--black-text);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 120%;
+  font-family: var(--satoshi-font);
+  margin: 0;
+}
+.GithubStar .Line {
+  height: 17px;
+  width: 1px;
+  background-color: var(--lightgrey);
+}
+.GithubStar .Stars {
+  color: var(--blue-text);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 120%;
+  font-family: var(--satoshi-font);
+  margin: 0;
+}
+
+.CloseButton {
+  cursor: pointer;
+  margin-top: -2px;
+  background: var(--black-bg);
+  border: none;
+}

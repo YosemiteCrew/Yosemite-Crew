@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import ProfileApi from "../utils/Api/profileApi";
 import {
   BusinessProfile,
   ConvertToFhirVetProfileParams,
@@ -30,8 +29,6 @@ type OldAuthStore = {
   vetAndTeamsProfile: ConvertToFhirVetProfileParams | null;
   loading: boolean;
   error: string | null;
-  fetchBusinessProfile: () => Promise<void>;
-  fetchVetAndTeamsProfile: (userId: string) => Promise<void>; // ✅ accepts param
 };
 
 export const useOldAuthStore = create<OldAuthStore>((set) => ({
@@ -63,29 +60,5 @@ export const useOldAuthStore = create<OldAuthStore>((set) => ({
 
   setVerified: (value: number = 0) => {
     set({ isVerified: value });
-  },
-
-  fetchBusinessProfile: async () => {
-    set({ loading: true, error: null });
-    try {
-      const userId = useOldAuthStore.getState().userId;
-      if (!userId) throw new Error("User ID not found");
-
-      const data = await ProfileApi.getBusinessProfile(userId);
-      set({ profile: data, loading: false });
-    } catch (err: any) {
-      set({ error: err.message, loading: false });
-    }
-  },
-
-  fetchVetAndTeamsProfile: async (userId: string) => {
-    set({ loading: true, error: null });
-    try {
-      if (!userId) throw new Error("User ID not found");
-      const data = await ProfileApi.getVetAndTeamsProfile(userId);
-      set({ vetAndTeamsProfile: data, loading: false });
-    } catch (err: any) {
-      set({ error: err.message, loading: false });
-    }
   },
 }));

@@ -1,6 +1,6 @@
 {
   "name": "@yosemite-crew/types",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/types/src/index.d.ts",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist",

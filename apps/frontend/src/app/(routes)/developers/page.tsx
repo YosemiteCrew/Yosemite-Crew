@@ -1,12 +1,8 @@
-import DeveloperLanding from '@/app/Pages/DeveloperLanding/DeveloperLanding'
-import React from 'react'
+import React from "react";
+import DeveloperLanding from "@/app/pages/DeveloperLanding/DeveloperLanding";
 
 function page() {
-  return (
-    <>
-        <DeveloperLanding/>
-    </>
-  )
+  return <DeveloperLanding />;
 }
 
-export default page
+export default page;
