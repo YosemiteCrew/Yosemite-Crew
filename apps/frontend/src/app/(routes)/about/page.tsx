@@ -1,12 +1,8 @@
-import AboutUs from '@/app/Pages/AboutUs/AboutUs'
-import React from 'react'
+import React from "react";
+import AboutUs from "@/app/pages/AboutUs/AboutUs";
 
 function page() {
-  return (
-    <>
-        <AboutUs/>
-    </>
-  )
+  return <AboutUs />;
 }
 
-export default page
+export default page;

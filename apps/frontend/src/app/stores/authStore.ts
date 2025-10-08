@@ -97,7 +97,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     return new Promise((resolve, reject) => {
       cognitoUser.confirmRegistration(code, true, (err, result) => {
         if (err) {
-          reject(err);
+          reject(err instanceof Error ? err : new Error(String(err)));
         } else {
           resolve(result);
         }
@@ -160,7 +160,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
             session: null,
             role: null,
           });
-          reject(err);
+          reject(err instanceof Error ? err : new Error(String(err)));
         },
       });
     });
