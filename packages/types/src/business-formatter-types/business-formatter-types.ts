@@ -9,7 +9,7 @@ export interface Service {
 export interface Address {
     [key: string]: string | number;
 }
-export interface ProfileData {
+interface ProfileData {
     name: string;
     businessName: string;
     address: Address;

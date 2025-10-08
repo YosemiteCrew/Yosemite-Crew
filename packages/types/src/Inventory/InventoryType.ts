@@ -65,16 +65,7 @@ export type InputData = {
 };
 
 
-export type searchConditions = {
-  itemName: string;
-  genericName: string;
-  sku: number;
-  barcode:number
-}
-
-
-
-export type AggregatedInventoryItem = {
+type AggregatedInventoryItem = {
   _id: string;
   barcode: string;
   batchNumber: string;

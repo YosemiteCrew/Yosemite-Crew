@@ -75,7 +75,7 @@ export type ParentRequestDTO = RelatedPerson
 
 export type ParentResponseDTO = RelatedPerson
 
-export type ParentDTOAttributes = {
+type ParentDTOAttributes = {
     _id?: Parent['_id']
     firstName?: Parent['firstName']
     lastName?: Parent['lastName']
@@ -112,4 +112,4 @@ export const toParentResponseDTO = (parent: Parent): ParentResponseDTO => {
     }
 }
 
-export type { ParentDTOAttributes as ParentDTOAttributesType }
+export type ParentDTOAttributesType = ParentDTOAttributes;

@@ -21,12 +21,6 @@ export type FhirPetResource = {
 };
 
 
-export type SearchPetsRequestBody = {
-  names?: string;
-  microChip?: string;
-};
-
-// Optional: define response structure (simplified for clarity)
 export type OperationOutcomeIssue = {
   severity: "error" | "warning" | "information";
   code: string;
