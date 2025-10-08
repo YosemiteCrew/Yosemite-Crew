@@ -1,17 +1,9 @@
-export type GraphData = {
-  month: number;
-  monthName: string;
-  totalAppointments: number;
-  successful: number;
-  canceled: number;
-};
-
-export type FHIRMeasureGroup = {
+type FHIRMeasureGroup = {
   code: { text: string };
   population: { count: number }[];
 };
 
-export type FHIRMeasureReport = {
+type FHIRMeasureReport = {
   resourceType: "MeasureReport";
   id: string;
   status: string;

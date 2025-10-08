@@ -12,4 +12,4 @@ export interface IMessage extends Document {
   updatedAt?: Date;
 }
 
-export type MessageType = 'text' | 'image' | 'video' | 'document';
+type MessageType = 'text' | 'image' | 'video' | 'document';

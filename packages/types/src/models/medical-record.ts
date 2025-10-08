@@ -1,5 +1,4 @@
 import mongoose, { Types, Document } from 'mongoose'
-import { Request } from "express";
 
 
 
@@ -38,37 +37,6 @@ export interface MedicalRecordRequestBody {
   data: string; // JSON string of FHIRMedicalRecord
   files?: string[]; // file URLs or metadata if needed
 }
-
-
-export interface AuthenticatedRequest extends Request {
-  user?: {
-    username: string;
-  };
-}
-
-
-
-
-
-// Interface for incoming FHIR DocumentReference
-export interface FHIRMedicalDocumentReference {
-  resourceType: 'DocumentReference';
-  type?: { text?: string };
-  description?: string;
-  date?: string;
-  context?: { period?: { end?: string } };
-  subject?: { reference?: string };
-}
-
-// Interface for converted internal format
-export interface InternalMedicalRecord {
-  documentType: string;
-  title: string;
-  issueDate?: string;
-  expiryDate?: string;
-  patientId: string;
-}
-
 // Interface for attachments inside medicalDocs
  export interface MedicalDoc {
   url?: string;
