@@ -94,11 +94,10 @@ jobs:
         shell: bash
         run: |
           if [ "${{ steps.lock.outputs.changed }}" = "true" ]; then
-            # all workspaces
-            node -e "const a=require('./ls.json'); const ws=(a.workspaces||[]).map(w=>w.name||w.package).filter(Boolean); const has=ws.length>0; process.stdout.write(`matrix=${JSON.stringify({workspace:ws})}\n`); process.stdout.write(`has_any=${has}\n`);" >> $GITHUB_OUTPUT
+            node -e 'const a=require("./ls.json"); const ws=(a.workspaces||[]).map(w=>w.name||w.package).filter(Boolean); const has=ws.length>0; process.stdout.write(`matrix=${JSON.stringify({workspace:ws})}\n`); process.stdout.write(`has_any=${has}\n`);' >> $GITHUB_OUTPUT
           else
-            # affected workspaces
-            node -e "const fs=require('fs'); const a=JSON.parse(fs.readFileSync('affected.json','utf8')); const ws=[...new Set((a.tasks||[]).map(t=>t.package).filter(Boolean))]; const has=ws.length>0; process.stdout.write(`matrix=${JSON.stringify({workspace:ws})}\n`); process.stdout.write(`has_any=${has}\n`);" >> $GITHUB_OUTPUT
+            node -e 'const fs=require("fs"); const a=JSON.parse(fs.readFileSync("affected.json","utf8")); const ws=[...new Set((a.tasks||[]).map(t=>t.package).filter(Boolean))]; const has=ws.length>0; process.stdout.write(`matrix=${JSON.stringify({workspace:ws})}\n`); process.stdout.write(`has_any=${has}\n`);' >> $GITHUB_OUTPUT
+          fi
 
       - name: Show matrix
         run: |
