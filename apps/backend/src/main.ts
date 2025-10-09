@@ -1,4 +1,5 @@
 import express from "express";
+import fileUpload from "express-fileupload";
 import logger from "./utils/logger";
 import mongoose from "mongoose";
 import organizationRounter from "./routers/organization.router";
@@ -10,6 +11,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
+app.use(fileUpload());
 
 app.use(`/fhir/v1/organization`, organizationRounter);
 app.use(`/fhir/v1/parent`, parentRouter);

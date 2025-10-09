@@ -1,12 +1,8 @@
-import PricingPage from '@/app/Pages/PricingPage/PricingPage'
-import React from 'react'
+import React from "react";
+import PricingPage from "@/app/pages/PricingPage/PricingPage";
 
 function page() {
-  return (
-    <>
-        <PricingPage/>
-    </>
-  )
+  return <PricingPage />;
 }
 
-export default page
+export default page;

@@ -1,12 +1,8 @@
-import ContactusPage from '@/app/Pages/ContactusPage/ContactusPage'
-import React from 'react'
+import React from "react";
+import ContactusPage from "@/app/pages/ContactusPage/ContactusPage";
 
 function page() {
-  return (
-    <>
-        <ContactusPage/>
-    </>
-  )
+  return <ContactusPage />;
 }
 
-export default page
+export default page;
