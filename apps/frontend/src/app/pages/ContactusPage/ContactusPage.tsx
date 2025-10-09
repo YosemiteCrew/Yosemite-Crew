@@ -327,11 +327,7 @@ const ContactusPage = () => {
                   <Button
                     className="SendBtn"
                     onClick={handleContectSubmit}
-                    disabled={submitting || !isDSARValid}
-                    style={{
-                      opacity: isDSARValid ? 1 : 0.5,
-                      pointerEvents: isDSARValid ? "auto" : "none",
-                    }}
+                    disabled={submitting}
                   >
                     {submitting ? "submitting..." : "Send Message"}
                   </Button>
@@ -431,11 +427,7 @@ const ContactusPage = () => {
                   <Button
                     className="SendBtn"
                     onClick={handleContectSubmit}
-                    disabled={submitting || !isComplaintValid}
-                    style={{
-                      opacity: isComplaintValid ? 1 : 0.5,
-                      pointerEvents: isComplaintValid ? "auto" : "none",
-                    }}
+                    disabled={submitting}
                   >
                     {submitting ? "submitting..." : "Send Message"}
                   </Button>
@@ -471,11 +463,7 @@ const ContactusPage = () => {
                   <Button
                     className="SendBtn"
                     onClick={handleContectSubmit}
-                    disabled={submitting || !isGeneralValid}
-                    style={{
-                      opacity: isGeneralValid ? 1 : 0.5,
-                      pointerEvents: isGeneralValid ? "auto" : "none",
-                    }}
+                    disabled={submitting}
                   >
                     {submitting ? "submitting..." : "Send Message"}
                   </Button>
