@@ -3,12 +3,15 @@ import * as Keychain from 'react-native-keychain';
 const TOKEN_STORAGE_SERVICE = 'yosemite-crew-auth-tokens';
 const TOKEN_STORAGE_ACCOUNT = 'yosemite-crew';
 
+export type AuthProviderName = 'amplify' | 'firebase';
+
 export type StoredAuthTokens = {
   idToken: string;
   accessToken: string;
   refreshToken?: string;
   expiresAt?: number;
   userId?: string;
+  provider?: AuthProviderName;
 };
 
 type KeychainOptions = Parameters<typeof Keychain.setGenericPassword>[2];
@@ -21,7 +24,11 @@ const keychainOptions: KeychainOptions = {
 
 export const storeTokens = async (tokens: StoredAuthTokens): Promise<void> => {
   try {
-    const payload = JSON.stringify(tokens);
+    const tokensWithProvider: StoredAuthTokens = {
+      ...tokens,
+      provider: tokens.provider ?? 'amplify',
+    };
+    const payload = JSON.stringify(tokensWithProvider);
     const didStore = await Keychain.setGenericPassword(
       TOKEN_STORAGE_ACCOUNT,
       payload,
@@ -33,9 +40,10 @@ export const storeTokens = async (tokens: StoredAuthTokens): Promise<void> => {
     }
 
     console.log('[TokenStorage] Stored auth tokens in secure storage', {
-      userId: tokens.userId,
-      idToken: tokens.idToken,
-      accessToken: tokens.accessToken,
+      userId: tokensWithProvider.userId,
+      idToken: tokensWithProvider.idToken,
+      accessToken: tokensWithProvider.accessToken,
+      provider: tokensWithProvider.provider ?? 'amplify',
     });
   } catch (error) {
     throw new Error(
@@ -55,10 +63,12 @@ export const loadStoredTokens = async (): Promise<StoredAuthTokens | null> => {
 
     try {
       const parsed = JSON.parse(credentials.password) as StoredAuthTokens;
+      parsed.provider = parsed.provider ?? 'amplify';
       console.log('[TokenStorage] Loaded auth tokens from secure storage', {
         userId: parsed.userId,
         idToken: parsed.idToken,
         accessToken: parsed.accessToken,
+        provider: parsed.provider ?? 'unknown',
       });
       return parsed;
     } catch (error) {

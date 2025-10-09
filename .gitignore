@@ -7,6 +7,8 @@ dist
 dist-ssr
 *.local
 .env
+.env.local
+.env.*.local
 .cache
 server/dist
 public/dist
@@ -17,10 +19,18 @@ public/dist
 google-services.json
 GoogleService-Info.plist
 
+# react-native-config codegen
+ios/tmp.xcconfig
+apps/mobileAppYC/ios/tmp.xcconfig
 # Constants
 #
 apps/mobileApp/android/app/google-services.json
 apps/mobileApp/src/constants/index.js
+
+apps/mobileAppYC/src/config/variables.ts
+
+ios/tmp.xcconfig
+
 
 # OSX
 #

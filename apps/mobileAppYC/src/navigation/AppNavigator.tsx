@@ -3,13 +3,14 @@ import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {RootStackParamList} from './types';
 import {AuthNavigator} from './AuthNavigator';
-import type { AuthStackParamList } from './AuthNavigator';
+import type {AuthStackParamList} from './AuthNavigator';
 import {TabNavigator} from './TabNavigator';
 import {OnboardingScreen} from '../screens/onboarding/OnboardingScreen';
 import {useAuth} from '../contexts/AuthContext'; // Update import path
 import {Loading} from '../components';
-import { PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT } from '@/constants/auth';
-import { DeviceEventEmitter } from 'react-native';
+
+import {DeviceEventEmitter} from 'react-native';
+import { PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT } from '@/config/variables';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const ONBOARDING_COMPLETED_KEY = '@onboarding_completed';
@@ -21,6 +22,7 @@ export const AppNavigator: React.FC = () => {
   const [pendingProfile, setPendingProfile] = useState<
     AuthStackParamList['CreateAccount'] | null
   >(null);
+const [isProfileComplete, setIsProfileComplete] = useState(true);
 
   useEffect(() => {
     checkOnboardingStatus();
@@ -50,10 +52,19 @@ export const AppNavigator: React.FC = () => {
     return () => subscription.remove();
   }, [loadPendingProfile]);
 
-  const checkOnboardingStatus = async () => {
+const checkOnboardingStatus = async () => {
     try {
       const onboardingCompleted = await AsyncStorage.getItem(ONBOARDING_COMPLETED_KEY);
       setShowOnboarding(onboardingCompleted === null);
+      
+      // Check if user has completed profile
+      const userData = await AsyncStorage.getItem('@user_data');
+      if (userData) {
+        const user = JSON.parse(userData);
+        // Profile is complete if user has firstName and dateOfBirth
+        const profileComplete = !!(user.firstName && user.dateOfBirth);
+        setIsProfileComplete(profileComplete);
+      }
     } catch (error) {
       console.error('Error checking onboarding status:', error);
       setShowOnboarding(true);
@@ -76,9 +87,14 @@ export const AppNavigator: React.FC = () => {
     return <Loading text="Loading..." />;
   }
 
-  console.log('AppNavigator render - isLoggedIn:', isLoggedIn, 'showOnboarding:', showOnboarding);
+  console.log(
+    'AppNavigator render - isLoggedIn:',
+    isLoggedIn,
+    'showOnboarding:',
+    showOnboarding,
+  );
 
-  return (
+return (
     <Stack.Navigator screenOptions={{headerShown: false}}>
       {showOnboarding ? (
         <Stack.Screen name="Onboarding">
@@ -94,6 +110,8 @@ export const AppNavigator: React.FC = () => {
             />
           )}
         </Stack.Screen>
+      ) : isLoggedIn && !isProfileComplete ? (
+        <Stack.Screen name="Auth" component={AuthNavigator} />
       ) : isLoggedIn ? (
         <Stack.Screen name="Main" component={TabNavigator} />
       ) : (
@@ -101,4 +119,4 @@ export const AppNavigator: React.FC = () => {
       )}
     </Stack.Navigator>
   );
-};
+}

@@ -6,6 +6,7 @@ import {
   ScrollView,
   Image,
   TouchableOpacity,
+  DeviceEventEmitter,
 } from 'react-native';
 import {SafeArea, Input} from '../../components/common';
 import {useTheme} from '../../hooks';
@@ -17,17 +18,30 @@ import {
 } from '@/services/auth/passwordlessAuth';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import type {AuthStackParamList} from '../../navigation/AuthNavigator';
+import {useAuth} from '@/contexts/AuthContext';
+import {
+  signInWithSocialProvider,
+  type SocialProvider,
+} from '@/services/auth/socialAuth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT } from '@/config/variables';
+
 
 type SignInScreenProps = NativeStackScreenProps<AuthStackParamList, 'SignIn'>;
 
 export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) => {
   const {theme} = useTheme();
   const styles = createStyles(theme);
+  const {login} = useAuth();
 
   const [emailValue, setEmailValue] = useState('');
   const [emailError, setEmailError] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [socialError, setSocialError] = useState('');
+  const [activeSocialProvider, setActiveSocialProvider] =
+    useState<SocialProvider | null>(null);
+  const isSocialLoading = activeSocialProvider !== null;
 
   const routeEmail = route.params?.email;
   const routeStatusMessage = route.params?.statusMessage;
@@ -93,24 +107,68 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) =
     }
   };
 
+  const handleSocialAuth = async (provider: SocialProvider) => {
+    if (activeSocialProvider) {
+      return;
+    }
+
+    setSocialError('');
+    setStatusMessage('');
+    setEmailError('');
+    setActiveSocialProvider(provider);
+
+    try {
+      const result = await signInWithSocialProvider(provider);
+
+      if (result.profile.exists) {
+        await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
+        DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
+        await login(result.user, result.tokens);
+        return;
+      }
+
+      const createAccountPayload: AuthStackParamList['CreateAccount'] = {
+        email: result.user.email,
+        userId: result.user.id,
+        profileToken: result.profile.profileToken,
+        tokens: result.tokens,
+        initialAttributes: {
+          firstName: result.initialAttributes.firstName,
+          lastName: result.initialAttributes.lastName,
+          profilePicture: result.initialAttributes.profilePicture,
+        },
+      };
+
+      await AsyncStorage.setItem(
+        PENDING_PROFILE_STORAGE_KEY,
+        JSON.stringify(createAccountPayload),
+      );
+      DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
+
+      navigation.reset({
+        index: 0,
+        routes: [{name: 'CreateAccount', params: createAccountPayload}],
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'We could not complete the social sign-in. Please try again.';
+      setSocialError(message);
+    } finally {
+      setActiveSocialProvider(null);
+    }
+  };
+
   const navigateToSignUp = () => {
     navigation.navigate('SignUp');
   };
 
-  const handleGoogleSignIn = () => {
-    // TODO: Implement Google sign in
-    console.log('Google Sign In');
-  };
+  const handleGoogleSignIn = () => handleSocialAuth('google');
 
-  const handleFacebookSignIn = () => {
-    // TODO: Implement Facebook sign in
-    console.log('Facebook Sign In');
-  };
+  const handleFacebookSignIn = () => handleSocialAuth('facebook');
 
-  const handleAppleSignIn = () => {
-    // TODO: Implement Apple sign in
-    console.log('Apple Sign In');
-  };
+  const handleAppleSignIn = () => handleSocialAuth('apple');
 
   const handleEmailChange = (text: string) => {
     setEmailValue(text);
@@ -119,6 +177,9 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) =
     }
     if (statusMessage) {
       setStatusMessage('');
+    }
+    if (socialError) {
+      setSocialError('');
     }
   };
 
@@ -185,7 +246,10 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) =
         </View>
 
         <View style={styles.socialButtons}>
-          <TouchableOpacity activeOpacity={0.8} onPress={handleGoogleSignIn}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={handleGoogleSignIn}
+            disabled={isSocialLoading}>
             <Image
               source={Images.googleTab}
               style={styles.socialTabIcon}
@@ -193,7 +257,10 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) =
             />
           </TouchableOpacity>
 
-          <TouchableOpacity activeOpacity={0.8} onPress={handleFacebookSignIn}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={handleFacebookSignIn}
+            disabled={isSocialLoading}>
             <Image
               source={Images.facebookTab}
               style={styles.socialTabIcon}
@@ -201,7 +268,10 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) =
             />
           </TouchableOpacity>
 
-          <TouchableOpacity activeOpacity={0.8} onPress={handleAppleSignIn}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={handleAppleSignIn}
+            disabled={isSocialLoading}>
             <Image
               source={Images.appleTab}
               style={styles.socialTabIcon}
@@ -209,6 +279,9 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) =
             />
           </TouchableOpacity>
         </View>
+        {socialError ? (
+          <Text style={styles.socialErrorText}>{socialError}</Text>
+        ) : null}
       </View>
     </SafeArea>
   );
@@ -314,5 +387,11 @@ const createStyles = (theme: any) =>
     socialTabIcon: {
       width: 110,
       height: 60,
+    },
+    socialErrorText: {
+      ...theme.typography.paragraph,
+      color: theme.colors.error ?? '#D64545',
+      textAlign: 'center',
+      marginTop: 16,
     },
   });

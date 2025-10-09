@@ -1,3 +1,4 @@
+/* eslint-disable no-useless-escape */
 export const API_CONFIG = {
   BASE_URL: __DEV__ ? 'http://localhost:3000/api' : 'https://api.petcare.com',
   TIMEOUT: 10000,

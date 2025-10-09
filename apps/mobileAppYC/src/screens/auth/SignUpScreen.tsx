@@ -1,9 +1,26 @@
-import React from 'react';
-import {View, Text, StyleSheet, Image, TouchableOpacity} from 'react-native';
+/* eslint-disable react-native/no-inline-styles */
+import React, {useState} from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  DeviceEventEmitter,
+} from 'react-native';
 import {SafeArea} from '../../components/common';
 import {LiquidGlassButton} from '../../components/common/LiquidGlassButton/LiquidGlassButton';
 import {useTheme} from '../../hooks';
 import {Images} from '../../assets/images';
+import {useAuth} from '@/contexts/AuthContext';
+import {
+  signInWithSocialProvider,
+  type SocialProvider,
+} from '@/services/auth/socialAuth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import type {NativeStackScreenProps} from '@react-navigation/native-stack';
+import type {AuthStackParamList} from '../../navigation/AuthNavigator';
+import { PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT } from '@/config/variables';
 
 // Icon components
 const EmailIcon = () => (
@@ -38,13 +55,16 @@ const AppleIcon = () => (
   />
 );
 
-interface SignUpScreenProps {
-  navigation: any;
-}
+type SignUpScreenProps = NativeStackScreenProps<AuthStackParamList, 'SignUp'>;
 
 export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
   const {theme} = useTheme();
   const styles = createStyles(theme);
+  const {login} = useAuth();
+  const [socialError, setSocialError] = useState('');
+  const [activeSocialProvider, setActiveSocialProvider] =
+    useState<SocialProvider | null>(null);
+  const isSocialLoading = activeSocialProvider !== null;
 
   const handleSignUp = () => {
     navigation.navigate('SignIn');
@@ -54,17 +74,62 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
     navigation.navigate('SignIn');
   };
 
-  const handleGoogleSignUp = () => {
-    // TODO: Implement Google sign up
+  const handleSocialAuth = async (provider: SocialProvider) => {
+    if (activeSocialProvider) {
+      return;
+    }
+
+    setSocialError('');
+    setActiveSocialProvider(provider);
+
+    try {
+      const result = await signInWithSocialProvider(provider);
+
+      if (result.profile.exists) {
+        await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
+        DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
+        await login(result.user, result.tokens);
+        return;
+      }
+
+      const createAccountPayload: AuthStackParamList['CreateAccount'] = {
+        email: result.user.email,
+        userId: result.user.id,
+        profileToken: result.profile.profileToken,
+        tokens: result.tokens,
+        initialAttributes: {
+          firstName: result.initialAttributes.firstName,
+          lastName: result.initialAttributes.lastName,
+          profilePicture: result.initialAttributes.profilePicture,
+        },
+      };
+
+      await AsyncStorage.setItem(
+        PENDING_PROFILE_STORAGE_KEY,
+        JSON.stringify(createAccountPayload),
+      );
+      DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
+
+      navigation.reset({
+        index: 0,
+        routes: [{name: 'CreateAccount', params: createAccountPayload}],
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'We could not complete the social sign-up. Please try again.';
+      setSocialError(message);
+    } finally {
+      setActiveSocialProvider(null);
+    }
   };
 
-  const handleFacebookSignUp = () => {
-    // TODO: Implement Facebook sign up
-  };
+  const handleGoogleSignUp = () => handleSocialAuth('google');
 
-  const handleAppleSignUp = () => {
-    // TODO: Implement Apple sign up
-  };
+  const handleFacebookSignUp = () => handleSocialAuth('facebook');
+
+  const handleAppleSignUp = () => handleSocialAuth('apple');
 
   return (
     <SafeArea style={styles.container}>
@@ -105,6 +170,8 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
               shadowIntensity="medium" // Adds more shadow for visibility
               forceBorder={true}
               leftIcon={<GoogleIcon />}
+              loading={activeSocialProvider === 'google'}
+              disabled={isSocialLoading}
             />
 
             <LiquidGlassButton
@@ -115,6 +182,8 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
               height={56}
               borderRadius="lg"
               leftIcon={<FacebookIcon />}
+              loading={activeSocialProvider === 'facebook'}
+              disabled={isSocialLoading}
             />
 
             <LiquidGlassButton
@@ -125,8 +194,14 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
               height={56}
               borderRadius="lg"
               leftIcon={<AppleIcon />}
+              loading={activeSocialProvider === 'apple'}
+              disabled={isSocialLoading}
             />
           </View>
+
+          {socialError ? (
+            <Text style={styles.socialErrorText}>{socialError}</Text>
+          ) : null}
 
           {/* Sign In Link */}
           <View style={styles.signInContainer}>
@@ -183,7 +258,7 @@ const createStyles = (theme: any) =>
     },
     socialButton: {
       borderColor: theme.colors.border,
-         backgroundColor: theme.colors.white,
+      backgroundColor: theme.colors.white,
     },
     socialButtonTextGoogle: {
       color: theme.colors.text,
@@ -198,6 +273,13 @@ const createStyles = (theme: any) =>
     socialButtonText: {
       color: theme.colors.white,
       lineHeight: 30,
+    },
+    socialErrorText: {
+      ...theme.typography.paragraph,
+      color: theme.colors.error ?? '#D64545',
+      textAlign: 'center',
+      marginTop: 12,
+      paddingHorizontal: 32,
     },
     signInContainer: {
       flexDirection: 'row',

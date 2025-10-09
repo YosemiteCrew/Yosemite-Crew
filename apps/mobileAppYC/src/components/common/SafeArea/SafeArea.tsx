@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-inline-styles */
 // src/components/common/SafeArea.tsx
 import React from 'react';
 import { View, StatusBar, ViewStyle } from 'react-native';

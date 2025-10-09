@@ -34,14 +34,11 @@ import {TouchableInput} from '../../components/common/TouchableInput/TouchableIn
 import {useAuth, type User} from '../../contexts/AuthContext';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import type {AuthStackParamList} from '../../navigation/AuthNavigator';
-import {PASSWORDLESS_AUTH_CONFIG} from '@/config/auth';
+import {PASSWORDLESS_AUTH_CONFIG, PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT} from '@/config/variables';
 import LocationService from '@/services/LocationService';
-import {signOutEverywhere} from '@/services/auth/passwordlessAuth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-  PENDING_PROFILE_STORAGE_KEY,
-  PENDING_PROFILE_UPDATED_EVENT,
-} from '@/constants/auth';
+
+import { getAuth } from '@react-native-firebase/auth';
 
 type CreateAccountScreenProps = NativeStackScreenProps<
   AuthStackParamList,
@@ -74,7 +71,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
   navigation,
   route,
 }) => {
-  const {login, logout} = useAuth();
+  const {login} = useAuth();
   const {theme} = useTheme();
   const styles = createStyles(theme);
 
@@ -334,34 +331,82 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     }
   };
 
-  const handleGoBack = useCallback(async () => {
-    if (currentStep === 2) {
-      setValue('firstName', step1Data.firstName, {shouldValidate: false});
-      setValue('lastName', step1Data.lastName, {shouldValidate: false});
-      setValue('mobileNumber', step1Data.mobileNumber, {shouldValidate: false});
-      setValue('dateOfBirth', step1Data.dateOfBirth, {shouldValidate: false});
-      setValue('profileImage', step1Data.profileImage, {shouldValidate: false});
-      clearErrors();
-      setCurrentStep(1);
-      return;
-    }
+const handleGoBack = useCallback(async () => {
+  // If on step 2, just go back to step 1 - NO LOGOUT NEEDED
+  if (currentStep === 2) {
+    setValue('firstName', step1Data.firstName, {shouldValidate: false});
+    setValue('lastName', step1Data.lastName, {shouldValidate: false});
+    setValue('mobileNumber', step1Data.mobileNumber, {shouldValidate: false});
+    setValue('dateOfBirth', step1Data.dateOfBirth, {shouldValidate: false});
+    setValue('profileImage', step1Data.profileImage, {shouldValidate: false});
+    clearErrors();
+    setCurrentStep(1);
+    return;
+  }
 
-    try {
-      await signOutEverywhere();
-    } catch (error) {
-      console.warn('Failed to sign out of Amplify session', error);
-    }
-
-    await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
+  // If on step 1, cancel the profile creation and go back to sign up
+  try {
+    console.log('[CreateAccountScreen] Cancelling profile creation - provider:', tokens.provider);
+    
+    // 1. Clear pending profile storage
+    await AsyncStorage.multiRemove([
+      PENDING_PROFILE_STORAGE_KEY,
+      '@user_data',
+      '@auth_tokens'
+    ]);
     DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
 
-    await logout();
+    // 2. Sign out based on provider (but handle errors gracefully)
+    if (tokens.provider === 'firebase') {
+      try {
+        const auth = getAuth();
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+          await auth.signOut();
+          console.log('[CreateAccountScreen] Firebase sign out successful');
+        }
+      } catch (firebaseError) {
+        console.warn('[CreateAccountScreen] Firebase sign out warning:', firebaseError);
+        // Continue even if sign out fails
+      }
+    } else if (tokens.provider === 'amplify') {
+      try {
+        // For Amplify, try local sign out only (not global)
+        const { signOut } = await import('aws-amplify/auth');
+        await signOut({ global: false });
+        console.log('[CreateAccountScreen] Amplify sign out successful');
+      } catch (amplifyError) {
+        console.warn('[CreateAccountScreen] Amplify sign out warning:', amplifyError);
+        // Continue even if sign out fails
+      }
+    }
 
+    // 3. Reset navigation to SignUp screen
     navigation.reset({
       index: 0,
       routes: [{name: 'SignUp'}],
     });
-  }, [clearErrors, currentStep, logout, navigation, setValue, step1Data]);
+  } catch (error) {
+    console.error('[CreateAccountScreen] handleGoBack error:', error);
+    
+    // Even if something fails, clear storage and navigate
+    try {
+      await AsyncStorage.multiRemove([
+        PENDING_PROFILE_STORAGE_KEY,
+        '@user_data',
+        '@auth_tokens'
+      ]);
+    } catch (clearError) {
+      console.error('[CreateAccountScreen] Failed to clear storage:', clearError);
+    }
+    
+    // Always navigate back to sign up
+    navigation.reset({
+      index: 0,
+      routes: [{name: 'SignUp'}],
+    });
+  }
+}, [clearErrors, currentStep, navigation, setValue, step1Data, tokens.provider]);
 
   const createAccountEndpoint = PASSWORDLESS_AUTH_CONFIG.createAccountUrl;
 
@@ -711,6 +756,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
               rules={{
                 required: 'Postal code is required',
                 pattern: {
+                  // eslint-disable-next-line no-useless-escape
                   value: /^[A-Za-z0-9\s\-]+$/,
                   message:
                     'Postal code can only contain letters, numbers, spaces and hyphens',

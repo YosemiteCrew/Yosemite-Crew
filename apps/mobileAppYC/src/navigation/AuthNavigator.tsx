@@ -4,6 +4,7 @@ import { SignInScreen } from '../screens/auth/SignInScreen';
 import { SignUpScreen } from '../screens/auth/SignUpScreen';
 import { OTPVerificationScreen } from '../screens/auth/OTPVerificationScreen';
 import { CreateAccountScreen } from '../screens/auth/CreateAccountScreen';
+import type {AuthTokens} from '@/contexts/AuthContext';
 
 // Type definitions for the Auth Stack
 export type AuthStackParamList = {
@@ -20,13 +21,7 @@ export type AuthStackParamList = {
     email: string;
     userId: string;
     profileToken: string;
-    tokens: {
-      idToken: string;
-      accessToken: string;
-      refreshToken?: string;
-      expiresAt?: number;
-      userId?: string;
-    };
+    tokens: AuthTokens;
     initialAttributes?: {
       firstName?: string;
       lastName?: string;

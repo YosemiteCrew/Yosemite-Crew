@@ -24,7 +24,7 @@ import {
 } from '@/services/auth/passwordlessAuth';
 import {useAuth, type User} from '../../contexts/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT } from '@/constants/auth';
+import { PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT } from '@/config/variables';
 
 const OTP_LENGTH = 4;
 const RESEND_SECONDS = 60;
