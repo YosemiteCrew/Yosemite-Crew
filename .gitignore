@@ -14,6 +14,10 @@ server/dist
 public/dist
 .vscode
 
+# auth keys file for firebase and oAuth config
+apps/mobileAppYC/ios/mobileAppYC/Info.plist
+apps/mobileAppYC/android/app/src/main/res/values/strings.xml
+
 # Google-Services File
 #
 google-services.json
