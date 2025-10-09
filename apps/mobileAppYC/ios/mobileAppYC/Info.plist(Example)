@@ -20,6 +20,44 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
+
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<!-- Facebook URL scheme -->
+				<string>fb$(FACEBOOK_APP_ID)</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<!-- Google Sign-In reverse client ID -->
+				<string>$(GOOGLE_REVERSE_CLIENT_ID)</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- Facebook configuration -->
+	<key>FacebookAppID</key>
+	<string>$(FACEBOOK_APP_ID)</string>
+	<key>FacebookClientToken</key>
+	<string>$(FACEBOOK_CLIENT_TOKEN_IOS)</string>
+	<key>FacebookDisplayName</key>
+	<string>$(FACEBOOK_DISPLAY_NAME)</string>
+
+	<!-- Required Facebook URL schemes -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>fbapi</string>
+		<string>fb-messenger-share-api</string>
+		<string>fbauth2</string>
+		<string>fbshareextension</string>
+	</array>
+
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
@@ -49,8 +87,6 @@
 	<string>This app needs access to your location to provide location-based features even when the app is in the background</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>This app needs access to your location to provide location-based features</string>
-
-
 
 	<key>RCTNewArchEnabled</key>
 	<true/>

@@ -29,6 +29,8 @@ export type PasswordlessSignInCompletion = {
     accessToken: string;
     refreshToken?: string;
     expiresAt?: number;
+    userId?: string;
+    provider: 'amplify';
   };
   profile: {
     exists: boolean;
@@ -213,13 +215,40 @@ export const completePasswordlessSignIn = async (
       refreshToken: undefined,
       expiresAt: expiresAtSeconds ? expiresAtSeconds * 1000 : undefined,
       userId: authUser.userId,
+      provider: 'amplify',
     },
     profile,
   };
 };
 
 export const signOutEverywhere = async () => {
-  await signOut({ global: true });
+  try {
+    // Try global sign out first
+    await signOut({ global: true });
+    console.log('[Amplify] Signed out globally');
+  } catch (globalError) {
+    console.warn('[Amplify] Global sign out failed:', globalError);
+    
+    // If global sign out fails, try local sign out
+    try {
+      await signOut({ global: false });
+      console.log('[Amplify] Signed out locally');
+    } catch (localError) {
+      console.warn('[Amplify] Local sign out also failed:', localError);
+      
+      // Check if it's an OAuth error (user might have signed in with social provider)
+      const errorName = (localError as any)?.name;
+      if (errorName === 'OAuthSignOutException') {
+        console.log('[Amplify] OAuth sign out error - user may have signed in with social provider');
+        // Don't throw the error, just log it
+        // The user session will be cleared locally anyway
+      } else {
+        // For other errors, we might want to throw
+        throw localError;
+      }
+    }
+  }
 };
+
 
 export const formatAuthError = (error: unknown) => parsePasswordlessError(error);
