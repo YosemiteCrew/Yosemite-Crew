@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   View,
   Text,
@@ -6,66 +6,180 @@ import {
   ScrollView,
   Image,
   TouchableOpacity,
+  DeviceEventEmitter,
 } from 'react-native';
 import {SafeArea, Input} from '../../components/common';
 import {useTheme} from '../../hooks';
 import {Images} from '../../assets/images';
 import LiquidGlassButton from '@/components/common/LiquidGlassButton/LiquidGlassButton';
+import {
+  requestPasswordlessEmailCode,
+  formatAuthError,
+} from '@/services/auth/passwordlessAuth';
+import type {NativeStackScreenProps} from '@react-navigation/native-stack';
+import type {AuthStackParamList} from '../../navigation/AuthNavigator';
+import {useAuth} from '@/contexts/AuthContext';
+import {
+  signInWithSocialProvider,
+  type SocialProvider,
+} from '@/services/auth/socialAuth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT } from '@/config/variables';
 
-interface SignInScreenProps {
-  navigation: any;
-}
 
-export const SignInScreen: React.FC<SignInScreenProps> = ({navigation}) => {
+type SignInScreenProps = NativeStackScreenProps<AuthStackParamList, 'SignIn'>;
+
+export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) => {
   const {theme} = useTheme();
   const styles = createStyles(theme);
+  const {login} = useAuth();
 
-  const [email, setEmail] = useState('');
+  const [emailValue, setEmailValue] = useState('');
   const [emailError, setEmailError] = useState('');
+  const [statusMessage, setStatusMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [socialError, setSocialError] = useState('');
+  const [activeSocialProvider, setActiveSocialProvider] =
+    useState<SocialProvider | null>(null);
+  const isSocialLoading = activeSocialProvider !== null;
+
+  const routeEmail = route.params?.email;
+  const routeStatusMessage = route.params?.statusMessage;
+  const hasStatusMessageParam = route.params
+    ? Object.prototype.hasOwnProperty.call(route.params, 'statusMessage')
+    : false;
+
+  useEffect(() => {
+    if (!routeEmail && !hasStatusMessageParam) {
+      return;
+    }
+
+    console.log('[Auth] Restoring sign-in state from params', {
+      email: routeEmail,
+      statusMessage: routeStatusMessage,
+      hasStatusMessageParam,
+    });
+
+    if (routeEmail) {
+      setEmailValue(routeEmail);
+    }
+
+    if (hasStatusMessageParam) {
+      setStatusMessage(routeStatusMessage ?? '');
+    }
+
+    navigation.setParams({ email: undefined, statusMessage: undefined });
+  }, [hasStatusMessageParam, navigation, routeEmail, routeStatusMessage]);
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
 
-  const handleSendOTP = () => {
-    if (!email.trim()) {
+  const handleSendOTP = async () => {
+    if (!emailValue.trim()) {
       setEmailError('Please enter your email address');
       return;
     }
 
-    if (!validateEmail(email.trim())) {
+    if (!validateEmail(emailValue.trim())) {
       setEmailError('Please enter a valid email address');
       return;
     }
 
     setEmailError('');
-    navigation.navigate('OTPVerification', {email: email.trim()});
+    setIsSubmitting(true);
+    try {
+      const normalizedEmail = emailValue.trim();
+      console.log('[Auth] Sending OTP request', { normalizedEmail });
+      const result = await requestPasswordlessEmailCode(normalizedEmail);
+      console.log('[Auth] OTP request succeeded', result);
+      setStatusMessage(`We sent a login code to ${result.destination}`);
+      navigation.navigate('OTPVerification', {
+        email: result.destination,
+        isNewUser: result.isNewUser,
+      });
+    } catch (error) {
+      console.error('[Auth] Failed requesting passwordless code', error);
+      setEmailError(formatAuthError(error));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSocialAuth = async (provider: SocialProvider) => {
+    if (activeSocialProvider) {
+      return;
+    }
+
+    setSocialError('');
+    setStatusMessage('');
+    setEmailError('');
+    setActiveSocialProvider(provider);
+
+    try {
+      const result = await signInWithSocialProvider(provider);
+
+      if (result.profile.exists) {
+        await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
+        DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
+        await login(result.user, result.tokens);
+        return;
+      }
+
+      const createAccountPayload: AuthStackParamList['CreateAccount'] = {
+        email: result.user.email,
+        userId: result.user.id,
+        profileToken: result.profile.profileToken,
+        tokens: result.tokens,
+        initialAttributes: {
+          firstName: result.initialAttributes.firstName,
+          lastName: result.initialAttributes.lastName,
+          profilePicture: result.initialAttributes.profilePicture,
+        },
+      };
+
+      await AsyncStorage.setItem(
+        PENDING_PROFILE_STORAGE_KEY,
+        JSON.stringify(createAccountPayload),
+      );
+      DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
+
+      navigation.reset({
+        index: 0,
+        routes: [{name: 'CreateAccount', params: createAccountPayload}],
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'We could not complete the social sign-in. Please try again.';
+      setSocialError(message);
+    } finally {
+      setActiveSocialProvider(null);
+    }
   };
 
   const navigateToSignUp = () => {
     navigation.navigate('SignUp');
   };
 
-  const handleGoogleSignIn = () => {
-    // TODO: Implement Google sign in
-    console.log('Google Sign In');
-  };
+  const handleGoogleSignIn = () => handleSocialAuth('google');
 
-  const handleFacebookSignIn = () => {
-    // TODO: Implement Facebook sign in
-    console.log('Facebook Sign In');
-  };
+  const handleFacebookSignIn = () => handleSocialAuth('facebook');
 
-  const handleAppleSignIn = () => {
-    // TODO: Implement Apple sign in
-    console.log('Apple Sign In');
-  };
+  const handleAppleSignIn = () => handleSocialAuth('apple');
 
   const handleEmailChange = (text: string) => {
-    setEmail(text);
+    setEmailValue(text);
     if (emailError) {
       setEmailError('');
+    }
+    if (statusMessage) {
+      setStatusMessage('');
+    }
+    if (socialError) {
+      setSocialError('');
     }
   };
 
@@ -88,7 +202,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation}) => {
             <View style={styles.inputContainer}>
               <Input
                 label="Email address"
-                value={email}
+                value={emailValue}
                 onChangeText={handleEmailChange}
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -102,10 +216,16 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation}) => {
               onPress={handleSendOTP}
               style={styles.sendButton}
               textStyle={styles.sendButtonText}
+              loading={isSubmitting}
+              disabled={isSubmitting}
               tintColor={theme.colors.secondary}
               height={56}
               borderRadius="lg"
             />
+
+            {statusMessage ? (
+              <Text style={styles.statusMessage}>{statusMessage}</Text>
+            ) : null}
 
             <View style={styles.footerContainer}>
               <Text style={styles.footerText}>Not a member? </Text>
@@ -126,7 +246,10 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation}) => {
         </View>
 
         <View style={styles.socialButtons}>
-          <TouchableOpacity activeOpacity={0.8} onPress={handleGoogleSignIn}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={handleGoogleSignIn}
+            disabled={isSocialLoading}>
             <Image
               source={Images.googleTab}
               style={styles.socialTabIcon}
@@ -134,7 +257,10 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation}) => {
             />
           </TouchableOpacity>
 
-          <TouchableOpacity activeOpacity={0.8} onPress={handleFacebookSignIn}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={handleFacebookSignIn}
+            disabled={isSocialLoading}>
             <Image
               source={Images.facebookTab}
               style={styles.socialTabIcon}
@@ -142,7 +268,10 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation}) => {
             />
           </TouchableOpacity>
 
-          <TouchableOpacity activeOpacity={0.8} onPress={handleAppleSignIn}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={handleAppleSignIn}
+            disabled={isSocialLoading}>
             <Image
               source={Images.appleTab}
               style={styles.socialTabIcon}
@@ -150,6 +279,9 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation}) => {
             />
           </TouchableOpacity>
         </View>
+        {socialError ? (
+          <Text style={styles.socialErrorText}>{socialError}</Text>
+        ) : null}
       </View>
     </SafeArea>
   );
@@ -204,6 +336,12 @@ const createStyles = (theme: any) =>
       color: theme.colors.white,
       lineHeight: 30,
     },
+    statusMessage: {
+      ...theme.typography.paragraph,
+      color: theme.colors.success,
+      textAlign: 'center',
+      marginBottom: 16,
+    },
     footerContainer: {
       flexDirection: 'row',
       justifyContent: 'center',
@@ -249,5 +387,11 @@ const createStyles = (theme: any) =>
     socialTabIcon: {
       width: 110,
       height: 60,
+    },
+    socialErrorText: {
+      ...theme.typography.paragraph,
+      color: theme.colors.error ?? '#D64545',
+      textAlign: 'center',
+      marginTop: 16,
     },
   });

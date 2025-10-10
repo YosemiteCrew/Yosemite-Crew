@@ -76,6 +76,15 @@ export const Input: React.FC<InputProps> = ({
   };
 
   React.useEffect(() => {
+    const hasExternalValue =
+      value !== undefined && value !== null && `${value}`.length > 0;
+
+    if (hasValue !== hasExternalValue) {
+      setHasValue(hasExternalValue);
+    }
+  }, [value, hasValue]);
+
+  React.useEffect(() => {
     const shouldAnimateUp = !!value || hasValue;
     if (shouldAnimateUp) {
       animateLabel(1);
