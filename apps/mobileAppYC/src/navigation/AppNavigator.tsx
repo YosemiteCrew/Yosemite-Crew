@@ -87,11 +87,13 @@ const checkOnboardingStatus = async () => {
   );
 
   const renderAuth = () => {
-    const authKey = pendingProfile
-      ? `pending-${pendingProfile.userId}`
-      : isLoggedIn && !isProfileComplete
-      ? `incomplete-${user?.id ?? 'unknown'}`
-      : 'auth-default';
+    let authKey = 'auth-default';
+    if (pendingProfile) {
+      authKey = `pending-${pendingProfile.userId}`;
+    } else if (isLoggedIn && !isProfileComplete) {
+      const userId = user?.id ?? 'unknown';
+      authKey = `incomplete-${userId}`;
+    }
 
     const initialRoute = pendingProfile ? 'CreateAccount' : 'SignUp';
 
@@ -107,17 +109,23 @@ const checkOnboardingStatus = async () => {
     );
   };
 
+  let screenToRender: React.ReactNode;
+
+  if (showOnboarding) {
+    screenToRender = (
+      <Stack.Screen name="Onboarding">
+        {() => <OnboardingScreen onComplete={handleOnboardingComplete} />}
+      </Stack.Screen>
+    );
+  } else if (isLoggedIn && isProfileComplete) {
+    screenToRender = <Stack.Screen name="Main" component={TabNavigator} />;
+  } else {
+    screenToRender = renderAuth();
+  }
+
   return (
     <Stack.Navigator screenOptions={{headerShown: false}}>
-      {showOnboarding ? (
-        <Stack.Screen name="Onboarding">
-          {() => <OnboardingScreen onComplete={handleOnboardingComplete} />}
-        </Stack.Screen>
-      ) : isLoggedIn && isProfileComplete ? (
-        <Stack.Screen name="Main" component={TabNavigator} />
-      ) : (
-        renderAuth()
-      )}
+      {screenToRender}
     </Stack.Navigator>
   );
 }

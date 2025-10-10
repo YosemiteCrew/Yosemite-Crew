@@ -118,7 +118,7 @@ const createStyles = (theme: any, useGlass: boolean) =>
       borderWidth: 1,
       borderColor: '#EAEAEA',
       backgroundColor: useGlass ? 'rgba(255, 255, 255, 0.92)' : 'rgba(255, 255, 255, 0.95)',
-      paddingVertical: 12,
+      paddingVertical: 15,
       paddingHorizontal: 20,
       ...theme.shadows.xs,
       overflow: 'hidden',
@@ -126,7 +126,7 @@ const createStyles = (theme: any, useGlass: boolean) =>
     tabItem: {
       flex: 1,
       alignItems: 'center',
-      gap: 6,
+      gap: 4,
     },
     iconWrapper: {
       width: 32,
