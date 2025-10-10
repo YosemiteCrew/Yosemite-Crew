@@ -1,6 +1,10 @@
 // src/store/slices/authSlice.ts - Fixed setTimeout issues
 import {createSlice, createAsyncThunk, PayloadAction} from '@reduxjs/toolkit';
 import {AuthState, User} from '../types';
+import {
+  fetchProfileStatus,
+  type ProfileStatusRequest,
+} from '@/services/profile/profileService';
 
 const initialState: AuthState = {
   isLoggedIn: false,
@@ -8,6 +12,9 @@ const initialState: AuthState = {
   token: null,
   isLoading: false,
   error: null,
+  profileExists: null,
+  profileToken: null,
+  profileStatusSource: null,
 };
 
 // Async thunks for authentication
@@ -58,6 +65,14 @@ export const logoutUser = createAsyncThunk('auth/logoutUser', async () => {
   return;
 });
 
+export const fetchProfileStatusThunk = createAsyncThunk(
+  'auth/fetchProfileStatus',
+  async (payload: ProfileStatusRequest) => {
+    const status = await fetchProfileStatus(payload);
+    return status;
+  },
+);
+
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -81,6 +96,9 @@ const authSlice = createSlice({
       state.user = action.payload.user;
       state.token = action.payload.token;
       state.error = null;
+      state.profileExists = null;
+      state.profileToken = null;
+      state.profileStatusSource = null;
     });
     builder.addCase(loginUser.rejected, (state, action) => {
       state.isLoading = false;
@@ -98,6 +116,9 @@ const authSlice = createSlice({
       state.user = action.payload.user;
       state.token = action.payload.token;
       state.error = null;
+      state.profileExists = null;
+      state.profileToken = null;
+      state.profileStatusSource = null;
     });
     builder.addCase(registerUser.rejected, (state, action) => {
       state.isLoading = false;
@@ -113,6 +134,22 @@ const authSlice = createSlice({
     });
     builder.addCase(logoutUser.rejected, state => {
       state.isLoading = false;
+    });
+
+    // Profile status
+    builder.addCase(fetchProfileStatusThunk.pending, state => {
+      state.isLoading = true;
+      state.error = null;
+    });
+    builder.addCase(fetchProfileStatusThunk.fulfilled, (state, action) => {
+      state.isLoading = false;
+      state.profileExists = action.payload.exists;
+      state.profileToken = action.payload.profileToken;
+      state.profileStatusSource = action.payload.source;
+    });
+    builder.addCase(fetchProfileStatusThunk.rejected, (state, action) => {
+      state.isLoading = false;
+      state.error = action.error.message || 'Profile status lookup failed';
     });
   },
 });

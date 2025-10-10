@@ -5,7 +5,7 @@
     { "path": "packages/FHIRtypes" },
     { "path": "apps/backend" },
     { "path": "apps/frontend" },
-    { "path": "apps/mobileApp" }
+    { "path": "apps/mobileAppYC" }
   ],
   "compilerOptions": {
     "baseUrl": ".",

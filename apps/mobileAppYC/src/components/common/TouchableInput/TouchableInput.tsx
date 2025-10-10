@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-inline-styles */
 // src/components/common/TouchableInput/TouchableInput.tsx
 import React, { useRef, useCallback, useEffect } from 'react';
 import {
