@@ -19,6 +19,7 @@
     "@editorjs/list": "^2.0.8",
     "@editorjs/quote": "^2.7.6",
     "@react-google-maps/api": "^2.20.6",
+    "@testing-library/user-event": "^14.6.1",
     "@types/lodash": "^4.17.20",
     "@yosemite-crew/fhir": "workspace:^",
     "@yosemite-crew/types": "workspace:^",

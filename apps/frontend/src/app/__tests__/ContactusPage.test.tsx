@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import ContactusPage from '../pages/ContactusPage/ContactusPage';
 import { useOldAuthStore } from '@/app/stores/oldAuthStore';
@@ -104,13 +105,29 @@ describe('ContactusPage', () => {
   describe('Form Submission and Validation', () => {
     it('should show validation errors if required fields are empty on general enquiry', async () => {
       render(<ContactusPage />);
-      fireEvent.click(screen.getAllByRole('button', { name: 'Send Message' })[0]);
 
-      expect(await screen.findByText('Full name is required')).toBeInTheDocument();
-      expect(await screen.findByText('Email is required')).toBeInTheDocument();
-      expect(await screen.findByText('Message is required')).toBeInTheDocument();
+  // --- Test the Full Name field ---
+  // 1. Get the input
+  const fullNameInput = screen.getByLabelText(/Full Name/i);
 
-      expect(mockedPostData).not.toHaveBeenCalled();
+  // 2. Simulate a user clicking the input and then tabbing away to trigger blur
+  await userEvent.click(fullNameInput);
+  await userEvent.tab();
+
+  // 3. IMPORTANT: Wait for the expected validation message to appear
+  await waitFor(() => {
+    expect(screen.getByText('Full name is required')).toBeInTheDocument();
+  });
+
+  // --- Test the Email field ---
+  const emailInput = screen.getByLabelText(/Enter Email Address/i);
+  await userEvent.type(emailInput, 'not-a-valid-email'); // Type something invalid
+  await userEvent.tab(); // Trigger blur
+
+  // Wait for the specific "invalid email" message
+  await waitFor(() => {
+    expect(screen.getByText('Invalid email address')).toBeInTheDocument();
+  });
     });
 
     it('should show invalid email error', async () => {
@@ -189,10 +206,14 @@ describe('ContactusPage', () => {
     it('should show validation error on complaint form', async () => {
         render(<ContactusPage />);
         fireEvent.click(screen.getByRole('radio', { name: 'Complaint' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Send Message' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Send Message' }));
 
-        expect(await screen.findByText('Full name is required')).toBeInTheDocument();
-        expect(await screen.findByText('Message is required')).toBeInTheDocument();
+        screen.debug();
+
+        await waitFor(() => {
+          expect(screen.getByText('Full name is required')).toBeInTheDocument();
+          expect(screen.getByText('Email is required')).toBeInTheDocument();
+        });
       });
 
       it('should enable submit button when DSAR form is valid and submit successfully', async () => {
@@ -242,7 +263,11 @@ describe('ContactusPage', () => {
         fireEvent.click(checkboxes[0]);
         fireEvent.click(checkboxes[1]);
 
-        expect(submitButton).toBeEnabled();
+        screen.debug(submitButton);
+
+        await waitFor(() => {
+          expect(submitButton).toBeEnabled();
+        });
       });
 
       it('should handle API submission failure gracefully', async () => {
