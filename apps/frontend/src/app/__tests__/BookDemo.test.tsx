@@ -6,7 +6,9 @@ import { getCalApi } from '@calcom/embed-react';
 
 jest.mock('@calcom/embed-react', () => {
   const mockGetCalApi = jest.fn();
-  const MockCal = (props: any) => <div data-testid="mock-cal" {...props} />;
+  const MockCal = ({ calLink, ...restProps }: any) => (
+    <div data-testid="mock-cal" {...restProps} />
+  );
 
   return {
     __esModule: true,
