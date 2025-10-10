@@ -39,12 +39,6 @@ export const storeTokens = async (tokens: StoredAuthTokens): Promise<void> => {
       throw new Error('Unable to persist auth tokens to secure storage');
     }
 
-    console.log('[TokenStorage] Stored auth tokens in secure storage', {
-      userId: tokensWithProvider.userId,
-      idToken: tokensWithProvider.idToken,
-      accessToken: tokensWithProvider.accessToken,
-      provider: tokensWithProvider.provider ?? 'amplify',
-    });
   } catch (error) {
     throw new Error(
       error instanceof Error
@@ -64,12 +58,6 @@ export const loadStoredTokens = async (): Promise<StoredAuthTokens | null> => {
     try {
       const parsed = JSON.parse(credentials.password) as StoredAuthTokens;
       parsed.provider = parsed.provider ?? 'amplify';
-      console.log('[TokenStorage] Loaded auth tokens from secure storage', {
-        userId: parsed.userId,
-        idToken: parsed.idToken,
-        accessToken: parsed.accessToken,
-        provider: parsed.provider ?? 'unknown',
-      });
       return parsed;
     } catch (error) {
       console.warn('Failed to parse tokens from secure storage', error);
