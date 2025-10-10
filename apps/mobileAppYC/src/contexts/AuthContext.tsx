@@ -166,12 +166,6 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
         provider,
       };
 
-      console.log('[AuthContext] Persisting authenticated session', {
-        userId: userData.id,
-        idToken: tokensWithExpiry.idToken,
-        accessToken: tokensWithExpiry.accessToken,
-        provider,
-      });
 
       await AsyncStorage.setItem(USER_KEY, JSON.stringify(userData));
       try {
@@ -348,7 +342,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
           }
         }
 
-        const idToken = await firebaseUser.getIdToken(true);
+        const idToken = await firebaseUser.getIdToken();
         const tokenResult = await firebaseUser.getIdTokenResult();
         const expiresAt = tokenResult?.expirationTime
           ? new Date(tokenResult.expirationTime).getTime()
@@ -488,10 +482,12 @@ const logout = useCallback(async () => {
         } catch (amplifyError) {
           console.warn('[AuthContext] Amplify sign out failed:', amplifyError);
         }
-      } else if (currentProvider === 'firebase') {
+      } 
+      // Always attempt Firebase sign-out if either provider is firebase OR a Firebase user exists
+      const fb = getAuth();
+      if (currentProvider === 'firebase' || fb.currentUser) {
         try {
-          const auth = getAuth();
-          await auth.signOut();
+          await fb.signOut();
           console.log('[AuthContext] Firebase sign out successful');
         } catch (firebaseError) {
           console.warn('[AuthContext] Firebase sign out failed:', firebaseError);

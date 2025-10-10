@@ -15,7 +15,7 @@ describe('useTheme', () => {
       preloadedState: {
         theme: {
           isDark,
-          theme: isDark ? 'dark' : 'light',
+          theme: (isDark ? 'dark' : 'light') as 'light' | 'dark' | 'system',
         },
       },
     });
@@ -23,6 +23,7 @@ describe('useTheme', () => {
 
   const Probe: React.FC<{onValue: (v: any) => void}> = ({ onValue }) => {
     const v = useTheme();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     React.useEffect(() => { onValue(v); }, [v]);
     return null;
   };

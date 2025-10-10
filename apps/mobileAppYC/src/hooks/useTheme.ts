@@ -7,7 +7,7 @@ import {lightTheme} from '../theme';
 
 export const useTheme = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const {isDark, theme} = useSelector((state: RootState) => state.theme);
+  const {theme} = useSelector((state: RootState) => state.theme);
 
   useEffect(() => {
     const subscription = Appearance.addChangeListener(({colorScheme}) => {
@@ -18,10 +18,11 @@ export const useTheme = () => {
   }, [dispatch]);
 
   const currentTheme = lightTheme;
+  const isDarkMode = false;
 
   return {
     theme: currentTheme,
-    isDark,
+    isDark: isDarkMode,
     themeMode: theme,
     setTheme: (newTheme: 'light' | 'dark' | 'system') =>
       dispatch(setTheme(newTheme)),
