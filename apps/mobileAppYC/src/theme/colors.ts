@@ -40,7 +40,7 @@ export const colors = {
   backgroundSecondary: '#F8F9FA',
   backgroundDark: '#121212',
   backgroundDarkSecondary: '#1E1E1E',
-  
+  lightBlueBackground: '#E9F2FD',
   // Text colors
   text: '#302F2E',
   textSecondary: '#747473',

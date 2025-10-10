@@ -1,44 +1,82 @@
-# Resolve react_native_pods.rb with node to allow for hoisting
+#Resolve react_native_pods.rb with node to allow for hoisting
 require Pod::Executable.execute_command('node', ['-p',
   'require.resolve(
     "react-native/scripts/react_native_pods.rb",
     {paths: [process.argv[1]]},
   )', __dir__]).strip
 
-# Add react-native-permissions setup
+#Add react-native-permissions setup
 require_relative '../node_modules/react-native-permissions/scripts/setup'
 
 platform :ios, min_ios_version_supported
 prepare_react_native_project!
 
-# Setup permissions BEFORE the target block
+static_frameworks = [
+  'FirebaseAuthInterop',
+  'FirebaseAppCheckInterop',
+  'FirebaseCore',
+  'FirebaseCoreExtension',
+  'GoogleUtilities',
+  'RecaptchaInterop',
+  'FirebaseCoreInternal',
+  'FirebaseInstallations',
+  'GoogleDataTransport',
+  'nanopb',
+  'FirebaseABTesting',
+  'FirebaseAuth'
+]
+
+pre_install do |installer|
+  installer.pod_targets.each do |pod|
+    if static_frameworks.include?(pod.name)
+      puts "Configuring #{pod.name} as static framework"
+      def pod.build_type
+        Pod::BuildType.new(:linkage => :static, :packaging => :framework)
+      end
+    end
+  end
+end
+
+#Setup permissions BEFORE the target block
 setup_permissions([
   'Camera',
   'PhotoLibrary',
+  'LocationWhenInUse',
 ])
-
-linkage = ENV['USE_FRAMEWORKS']
-if linkage != nil
-  Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
-  use_frameworks! :linkage => linkage.to_sym
-end
 
 target 'mobileAppYC' do
   config = use_native_modules!
 
   use_react_native!(
     :path => config[:reactNativePath],
-    # An absolute path to your application root.
     :app_path => "#{Pod::Config.instance.installation_root}/.."
   )
 
+  pod 'FirebaseAuth'
+  pod 'FirebaseAuthInterop'
+  pod 'FirebaseAppCheckInterop'
+  pod 'FirebaseCore'
+  pod 'FirebaseCoreExtension'
+  pod 'FirebaseCoreInternal'
+  pod 'GoogleUtilities'
+  pod 'RecaptchaInterop'
+  pod 'nanopb'
+  pod 'FirebaseABTesting'
+  pod 'FirebaseInstallations'
+  pod 'GoogleDataTransport'
+
   post_install do |installer|
-    # https://github.com/facebook/react-native/blob/main/packages/react-native/scripts/react_native_pods.rb#L197-L202
     react_native_post_install(
       installer,
       config[:reactNativePath],
-      :mac_catalyst_enabled => false,
-      # :ccache_enabled => true
+      :mac_catalyst_enabled => false
     )
+
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        config.build_settings['SWIFT_VERSION'] = '5.0'
+        config.build_settings['DEFINES_MODULE'] = 'YES'
+      end
+    end
   end
 end

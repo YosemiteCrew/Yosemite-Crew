@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">mobileAppYC</string>
+    
+    <!-- Facebook Configuration from .env -->
+    <string name="facebook_app_id">@string/FACEBOOK_APP_ID</string>
+    <string name="facebook_client_token">@string/FACEBOOK_CLIENT_TOKEN_ANDROID</string>
+    <string name="fb_login_protocol_scheme">fb@string/FACEBOOK_APP_ID</string>
+</resources>

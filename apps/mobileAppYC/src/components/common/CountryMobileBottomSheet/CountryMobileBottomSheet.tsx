@@ -202,14 +202,18 @@ export const CountryMobileBottomSheet = forwardRef<
 
         {/* Buttons - Always Visible */}
         <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={styles.cancelButton}
+          <LiquidGlassButton
+            title="Cancel"
             onPress={handleCancel}
-            activeOpacity={0.7}>
-            <Text style={styles.cancelText}>
-              Cancel
-            </Text>
-          </TouchableOpacity>
+            style={styles.cancelButton}
+            textStyle={styles.cancelButtonText}
+            tintColor={theme.colors.surface}
+            shadowIntensity="light"
+            forceBorder
+            borderColor="rgba(0, 0, 0, 0.12)"
+            height={56}
+            borderRadius={16}
+          />
 
           <LiquidGlassButton
             title="Save"
@@ -217,6 +221,9 @@ export const CountryMobileBottomSheet = forwardRef<
             style={styles.saveButton}
             textStyle={styles.saveButtonText}
             tintColor={theme.colors.secondary}
+            shadowIntensity="medium"
+            forceBorder
+            borderColor="rgba(255, 255, 255, 0.35)"
             height={56}
             borderRadius={16}
           />
@@ -350,20 +357,31 @@ const createStyles = (theme: any) =>
     },
     cancelButton: {
       flex: 1,
-      height: 56,
-      borderWidth: 2,
-      borderColor: theme.colors.border,
-      backgroundColor: theme.colors.background,
-      borderRadius: theme.borderRadius.md, // 12
-      justifyContent: 'center',
-      alignItems: 'center',
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.borderRadius.lg,
+      borderWidth: 1,
+      borderColor: 'rgba(0, 0, 0, 0.12)',
+      shadowColor: '#000000',
+      shadowOffset: {width: 0, height: 4},
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 2,
     },
-    cancelText: {
+    cancelButtonText: {
       ...theme.typography.paragraphBold,
       color: theme.colors.text,
     },
     saveButton: {
       flex: 1,
+      backgroundColor: theme.colors.secondary,
+      borderRadius: theme.borderRadius.lg,
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.35)',
+      shadowColor: '#000000',
+      shadowOffset: {width: 0, height: 8},
+      shadowOpacity: 0.15,
+      shadowRadius: 12,
+      elevation: 4,
     },
     saveButtonText: {
       color: theme.colors.white,
