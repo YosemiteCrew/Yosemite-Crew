@@ -23,172 +23,6 @@ importers:
         specifier: ^2.5.0
         version: 2.5.6
 
-  apps/api:
-    dependencies:
-      '@aws-sdk/client-cognito-identity-provider':
-        specifier: 3.772.0
-        version: 3.772.0
-      '@aws-sdk/client-pinpoint':
-        specifier: ^3.806.0
-        version: 3.883.0
-      '@aws-sdk/client-s3':
-        specifier: ^3.842.0
-        version: 3.883.0
-      '@aws-sdk/client-ses':
-        specifier: ^3.839.0
-        version: 3.883.0
-      aws-sdk:
-        specifier: 2.1692.0
-        version: 2.1692.0
-      axios:
-        specifier: ^1.11.0
-        version: 1.11.0
-      bcrypt:
-        specifier: 5.1.1
-        version: 5.1.1
-      body-parser:
-        specifier: 1.20.3
-        version: 1.20.3
-      cookie-parser:
-        specifier: 1.4.7
-        version: 1.4.7
-      cors:
-        specifier: 2.8.5
-        version: 2.8.5
-      csv-parse:
-        specifier: ^5.6.0
-        version: 5.6.0
-      dotenv:
-        specifier: 16.4.7
-        version: 16.4.7
-      express:
-        specifier: 4.21.2
-        version: 4.21.2
-      express-fileupload:
-        specifier: 1.5.1
-        version: 1.5.1
-      express-rate-limit:
-        specifier: ^7.5.0
-        version: 7.5.1(express@4.21.2)
-      fhir:
-        specifier: 4.12.0
-        version: 4.12.0
-      google-auth-library:
-        specifier: ^10.2.0
-        version: 10.3.0
-      jsonwebtoken:
-        specifier: 9.0.2
-        version: 9.0.2
-      jwks-rsa:
-        specifier: ^3.2.0
-        version: 3.2.0
-      moment:
-        specifier: 2.30.1
-        version: 2.30.1
-      moment-timezone:
-        specifier: ^0.5.48
-        version: 0.5.48
-      mongoose:
-        specifier: 8.12.2
-        version: 8.12.2
-      multer:
-        specifier: 2.0.2
-        version: 2.0.2
-      sanitize-filename:
-        specifier: ^1.6.3
-        version: 1.6.3
-      socket.io:
-        specifier: 4.8.1
-        version: 4.8.1
-      uuid:
-        specifier: 9.0.1
-        version: 9.0.1
-      validator:
-        specifier: ^13.15.0
-        version: 13.15.15
-      winston:
-        specifier: ^3.17.0
-        version: 3.17.0
-      zod:
-        specifier: ^3.24.2
-        version: 3.25.76
-    devDependencies:
-      '@eslint/js':
-        specifier: ^9.21.0
-        version: 9.35.0
-      '@types/aws-sdk':
-        specifier: ^2.7.4
-        version: 2.7.4
-      '@types/bcrypt':
-        specifier: ^5.0.2
-        version: 5.0.2
-      '@types/body-parser':
-        specifier: ^1.19.5
-        version: 1.19.6
-      '@types/cookie-parser':
-        specifier: ^1.4.8
-        version: 1.4.9(@types/express@5.0.3)
-      '@types/cors':
-        specifier: ^2.8.18
-        version: 2.8.19
-      '@types/express':
-        specifier: ^5.0.2
-        version: 5.0.3
-      '@types/express-fileupload':
-        specifier: ^1.5.1
-        version: 1.5.1
-      '@types/express-rate-limit':
-        specifier: ^6.0.2
-        version: 6.0.2(express@4.21.2)
-      '@types/jsonwebtoken':
-        specifier: ^9.0.9
-        version: 9.0.10
-      '@types/mongoose':
-        specifier: ^5.11.97
-        version: 5.11.97
-      '@types/multer':
-        specifier: ^1.4.12
-        version: 1.4.13
-      '@types/node':
-        specifier: ^22.15.21
-        version: 22.18.1
-      '@types/socket.io':
-        specifier: ^3.0.2
-        version: 3.0.2
-      '@types/uuid':
-        specifier: ^10.0.0
-        version: 10.0.0
-      '@types/validator':
-        specifier: ^13.15.2
-        version: 13.15.3
-      '@yosemite-crew/fhir':
-        specifier: workspace:^
-        version: link:../../packages/fhir
-      '@yosemite-crew/types':
-        specifier: workspace:^
-        version: link:../../packages/types
-      esbuild:
-        specifier: ^0.25.4
-        version: 0.25.9
-      eslint:
-        specifier: ^9.27.0
-        version: 9.35.0
-      nodemon:
-        specifier: ^3.1.9
-        version: 3.1.10
-      ts-node:
-        specifier: ^10.9.2
-        version: 10.9.2(@types/node@22.18.1)(typescript@5.0.4)
-      tsx:
-        specifier: ^4.19.4
-        version: 4.20.5
-      typescript:
-        specifier: 5.0.4
-        version: 5.0.4
-      typescript-eslint:
-        specifier: ^8.32.1
-        version: 8.42.0(eslint@9.35.0)(typescript@5.0.4)
-
   apps/backend:
     dependencies:
       '@aws-sdk/client-cognito-identity-provider':
@@ -384,6 +218,9 @@ importers:
       '@react-google-maps/api':
         specifier: ^2.20.6
         version: 2.20.7(react-dom@19.1.1)(react@19.1.1)
+      '@testing-library/user-event':
+        specifier: ^14.6.1
+        version: 14.6.1(@testing-library/dom@10.4.1)
       '@types/lodash':
         specifier: ^4.17.20
         version: 4.17.20
@@ -497,7 +334,7 @@ importers:
         specifier: ^4.0.1
         version: 4.0.1
       '@types/jest':
-        specifier: ^29.5.13
+        specifier: ^29.5.14
         version: 29.5.14
       '@types/node':
         specifier: ^20
@@ -524,11 +361,14 @@ importers:
         specifier: 15.3.3
         version: 15.3.3(eslint@9.35.0)(typescript@5.8.3)
       jest:
-        specifier: ^29.6.3
+        specifier: ^29.7.0
         version: 29.7.0(@types/node@20.19.13)(ts-node@10.9.2)
       jest-environment-jsdom:
         specifier: ^30.2.0
         version: 30.2.0
+      ts-jest:
+        specifier: ^29.4.4
+        version: 29.4.4(@babel/core@7.28.4)(jest@29.7.0)(typescript@5.8.3)
       ts-node:
         specifier: ^10.9.2
         version: 10.9.2(@types/node@20.19.13)(typescript@5.8.3)
@@ -13788,7 +13628,6 @@ packages:
       lz-string: 1.5.0
       picocolors: 1.1.1
       pretty-format: 27.5.1
-    dev: true
 
   /@testing-library/jest-dom@6.8.0:
     resolution: {integrity: sha512-WgXcWzVM6idy5JaftTVC8Vs83NKRmGJz4Hqs4oyOuO2J4r/y79vvKZsb+CaGyCSEbUPI6OsewfPd0G1A0/TUZQ==}
@@ -13844,7 +13683,6 @@ packages:
       '@testing-library/dom': '>=7.21.4'
     dependencies:
       '@testing-library/dom': 10.4.1
-    dev: true
 
   /@trysound/sax@0.2.0:
     resolution: {integrity: sha512-L7z9BgrNEcYyUYtF+HaEfiS5ebkh9jXqbszz7pC0hRBPaatV0XjSD3+eHrpqFemQfgwiFF0QPIarnIihIDn7OA==}
@@ -13877,7 +13715,6 @@ packages:
 
   /@types/aria-query@5.0.4:
     resolution: {integrity: sha512-rfT93uj5s0PRL7EzccGMs3brplhcrghnDoV26NqKhCAS1hVo+WdNsPvE/yb6ilfr5hi2MEk6d5EWJTKdxg8jVw==}
-    dev: true
 
   /@types/aws-lambda@8.10.152:
     resolution: {integrity: sha512-soT/c2gYBnT5ygwiHPmd9a1bftj462NWVk2tKCc1PYHSIacB2UwbTS2zYG4jzag1mRDuzg/OjtxQjQ2NKRB6Rw==}
@@ -15590,7 +15427,6 @@ packages:
     resolution: {integrity: sha512-b0P0sZPKtyu8HkeRAfCq0IfURZK+SuwMjY1UXGBU27wpAiTwQAIlq56IbIO+ytk/JjS1fMR14ee5WBBfKi5J6A==}
     dependencies:
       dequal: 2.0.3
-    dev: true
 
   /aria-query@5.3.2:
     resolution: {integrity: sha512-COROpnaoap1E2F000S62r6A60uHZnmlvomhfyT2DlTcrY1OrBKn2UhH7qn5wTC9zMvD0AY7csdPSNwKP+7WiQw==}
@@ -16241,6 +16077,13 @@ packages:
       electron-to-chromium: 1.5.214
       node-releases: 2.0.20
       update-browserslist-db: 1.1.3(browserslist@4.25.4)
+
+  /bs-logger@0.2.6:
+    resolution: {integrity: sha512-pd8DCoxmbgc7hyPKOvxtqNcjYoOsABPQdcCUjGp3d42VR2CX1ORhk2A87oqqu5R1kk+76nsxZupkmyd+MVtCog==}
+    engines: {node: '>= 6'}
+    dependencies:
+      fast-json-stable-stringify: 2.1.0
+    dev: true
 
   /bser@2.1.1:
     resolution: {integrity: sha512-gQxTNE/GAfIIrmHLUE3oJyp5FO6HRBfhjnw4/wMmA63ZGDJnWBmgY/lyQBpnDUkGmAhbSe39tx2d/iTOAfglwQ==}
@@ -17533,7 +17376,6 @@ packages:
 
   /dom-accessibility-api@0.5.16:
     resolution: {integrity: sha512-X7BJ2yElsnOJ30pZF4uIIDfBEVgF4XEBxL9Bxhy6dnrm5hkzqmsWHGTiHqRiITNhMyFLyAiWndIJP7Z1NTteDg==}
-    dev: true
 
   /dom-accessibility-api@0.6.3:
     resolution: {integrity: sha512-7ZgogeTnjuHbo+ct10G9Ffp0mif17idi0IyWNVA/wcwcm7NPOD/WEHVP3n7n3MhXqxoIYm8d6MuZohYWIZ4T3w==}
@@ -19401,6 +19243,19 @@ packages:
       uglify-js: 3.19.3
     dev: true
 
+  /handlebars@4.7.8:
+    resolution: {integrity: sha512-vafaFqs8MZkRrSX7sFVUdo3ap/eNiLnb4IakshzvP56X5Nr1iGKAIqdX6tMlm6HcNRIkr6AxO5jFEoJzzpT8aQ==}
+    engines: {node: '>=0.4.7'}
+    hasBin: true
+    dependencies:
+      minimist: 1.2.8
+      neo-async: 2.6.2
+      source-map: 0.6.1
+      wordwrap: 1.0.0
+    optionalDependencies:
+      uglify-js: 3.19.3
+    dev: true
+
   /has-bigints@1.1.0:
     resolution: {integrity: sha512-R3pbpkcIqv2Pm3dUwgjclDRVmWpTJW2DcMzcIhEXEx1oh/CEMObMm3KLmRJOdvhM7o4uQBnwr8pzRK2sJWIqfg==}
     engines: {node: '>= 0.4'}
@@ -21223,6 +21078,10 @@ packages:
     resolution: {integrity: sha512-0wJxfxH1wgO3GrbuP+dTTk7op+6L41QCXbGINEmD+ny/G/eCqGzxyCsh7159S+mgDDcoarnBw6PC1PS5+wUGgw==}
     dev: false
 
+  /lodash.memoize@4.1.2:
+    resolution: {integrity: sha512-t7j+NzmgnQzTAYXcsHYLgimltOV1MXHtlOWf6GjL9Kj8GK5FInw5JotxvbOs+IvV1/Dzo04/fCGfLVs7aXb4Ag==}
+    dev: true
+
   /lodash.merge@4.6.2:
     resolution: {integrity: sha512-0KpjqXRVvrYyCsX1swR/XTK0va6VQkQM6MNo7PqW77ByjAhoARA8EfrP1N4+KlKj8YS0ZUCtRT/YUuhyYDujIQ==}
     dev: true
@@ -21359,7 +21218,6 @@ packages:
   /lz-string@1.5.0:
     resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
     hasBin: true
-    dev: true
 
   /magic-string@0.30.18:
     resolution: {integrity: sha512-yi8swmWbO17qHhwIBNeeZxTceJMeBvWJaId6dyvTSOwTipqeHhMhOrz6513r1sOKnpvQ7zkhlG8tPrpilwTxHQ==}
@@ -23154,7 +23012,6 @@ packages:
       ansi-regex: 5.0.1
       ansi-styles: 5.2.0
       react-is: 17.0.2
-    dev: true
 
   /pretty-format@29.7.0:
     resolution: {integrity: sha512-Pdlw/oPxN+aXdmM9R00JVC9WVFoCLTKJvDVLgmJ+qAffBMxsV85l/Lu7sNx4zSzPyoL2euImuEwHhOXdEgNFZQ==}
@@ -26171,6 +26028,47 @@ packages:
     resolution: {integrity: sha512-Y/arvbn+rrz3JCKl9C4kVNfTfSm2/mEp5FSz5EsZSANGPSlQrpRI5M4PKF+mJnE52jOO90PnPSc3Ur3bTQw0gA==}
     dev: true
 
+  /ts-jest@29.4.4(@babel/core@7.28.4)(jest@29.7.0)(typescript@5.8.3):
+    resolution: {integrity: sha512-ccVcRABct5ZELCT5U0+DZwkXMCcOCLi2doHRrKy1nK/s7J7bch6TzJMsrY09WxgUUIP/ITfmcDS8D2yl63rnXw==}
+    engines: {node: ^14.15.0 || ^16.10.0 || ^18.0.0 || >=20.0.0}
+    hasBin: true
+    peerDependencies:
+      '@babel/core': '>=7.0.0-beta.0 <8'
+      '@jest/transform': ^29.0.0 || ^30.0.0
+      '@jest/types': ^29.0.0 || ^30.0.0
+      babel-jest: ^29.0.0 || ^30.0.0
+      esbuild: '*'
+      jest: ^29.0.0 || ^30.0.0
+      jest-util: ^29.0.0 || ^30.0.0
+      typescript: '>=4.3 <6'
+    peerDependenciesMeta:
+      '@babel/core':
+        optional: true
+      '@jest/transform':
+        optional: true
+      '@jest/types':
+        optional: true
+      babel-jest:
+        optional: true
+      esbuild:
+        optional: true
+      jest-util:
+        optional: true
+    dependencies:
+      '@babel/core': 7.28.4
+      bs-logger: 0.2.6
+      fast-json-stable-stringify: 2.1.0
+      handlebars: 4.7.8
+      jest: 29.7.0(@types/node@20.19.13)(ts-node@10.9.2)
+      json5: 2.2.3
+      lodash.memoize: 4.1.2
+      make-error: 1.3.6
+      semver: 7.7.2
+      type-fest: 4.41.0
+      typescript: 5.8.3
+      yargs-parser: 21.1.1
+    dev: true
+
   /ts-node@10.9.2(@types/node@20.19.13)(typescript@5.8.3):
     resolution: {integrity: sha512-f0FFpIdcHgn8zcPSbf1dRevwt047YMnaiJM3u2w2RewrB+fob/zePZcrOyQoLMMO7aBIddLcQIEK5dYjkLnGrQ==}
     hasBin: true
@@ -26463,6 +26361,11 @@ packages:
     resolution: {integrity: sha512-RAH822pAdBgcNMAfWnCBU3CFZcfZ/i1eZjwFU/dsLKumyuuP3niueg2UAukXYF0E2AAoc82ZSSf9J0WQBinzHA==}
     engines: {node: '>=12.20'}
     dev: false
+
+  /type-fest@4.41.0:
+    resolution: {integrity: sha512-TeTSQ6H5YHvpqVwBRcnLDCBnDOHWYu7IvGbHT6N8AOymcr9PJGjc1GTtiWZTYg0NCgYwvnYWEkVChQAr9bjfwA==}
+    engines: {node: '>=16'}
+    dev: true
 
   /type-is@1.6.18:
     resolution: {integrity: sha512-TkRKr9sUTxEH8MdfuCSP7VizJyzRNMjj2J2do2Jr3Kym598JVdEksuzPQCnlFPW4ky9Q+iA+ma9BGm06XQBy8g==}
