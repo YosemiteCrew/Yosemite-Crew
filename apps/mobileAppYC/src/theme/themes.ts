@@ -11,6 +11,7 @@ export interface Theme {
     accent: string;
     background: string;
     backgroundSecondary: string;
+    lightBlueBackground:string;
     surface: string;
     text: string;
     textSecondary: string;
@@ -40,6 +41,7 @@ export const lightTheme: Theme = {
     accent: colors.accent,
     background: colors.background,
     backgroundSecondary: colors.backgroundSecondary,
+    lightBlueBackground:colors.lightBlueBackground,
     surface: colors.white,
     text: colors.text,
     textSecondary: colors.textSecondary,
@@ -69,6 +71,7 @@ export const darkTheme: Theme = {
     accent: colors.accentLight,
     background: colors.backgroundDark,
     backgroundSecondary: colors.backgroundDarkSecondary,
+    lightBlueBackground:colors.lightBlueBackground,
     surface: colors.gray800,
     text: colors.textDark,
     textSecondary: colors.textDarkSecondary,
