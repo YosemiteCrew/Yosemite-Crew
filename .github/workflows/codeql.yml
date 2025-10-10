@@ -108,14 +108,14 @@ jobs:
       # - if: matrix.build-mode == 'manual' && matrix.language == 'java-kotlin'
       #   shell: bash
       #   run: |
-      #     cd ./apps/mobileApp/android
+      #     cd ./apps/mobileAppYC/android
       #     ./gradlew assembleDebug -Dorg.gradle.jvmargs="-Xmx4g"
       # - if: matrix.build-mode == 'manual' && matrix.language == 'swift'
       #   shell: bash
       #   run: |
-      #     cd ./apps/mobileApp/ios
+      #     cd ./apps/mobileAppYC/ios
       #     pod install
-      #     xcodebuild -workspace YosemiteCrewMobile.xcworkspace -scheme YosemiteCrewMobile -configuration Debug -sdk iphonesimulator clean build
+      #     xcodebuild -workspace mobileAppYC.xcworkspace -scheme mobileAppYC -configuration Debug -sdk iphonesimulator clean build
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3

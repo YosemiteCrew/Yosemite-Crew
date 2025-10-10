@@ -54,6 +54,7 @@ export const PetDetailsScreen: React.FC<Props> = ({route, navigation}) => {
                 navigation.goBack();
                 Alert.alert('Success', `${pet.name} has been deleted.`);
               } catch (error) {
+                console.error('Failed to delete pet', error);
                 Alert.alert('Error', 'Failed to delete pet. Please try again.');
               }
             }
@@ -188,6 +189,10 @@ export const PetDetailsScreen: React.FC<Props> = ({route, navigation}) => {
       ...theme.typography.caption,
       color: theme.colors.textSecondary,
     },
+    descriptionInline: {
+      textAlign: 'center', 
+      marginBottom: theme.spacing['4']
+    }
   });
 
   if (isLoading) {
@@ -200,7 +205,7 @@ export const PetDetailsScreen: React.FC<Props> = ({route, navigation}) => {
         <View style={styles.notFoundContainer}>
           <Text style={styles.emptyStateIcon}>🐾</Text>
           <Text style={styles.notFoundText}>Pet not found</Text>
-          <Text style={[styles.description, {textAlign: 'center', marginBottom: theme.spacing['4']}]}>
+          <Text style={[styles.description, styles.descriptionInline]}>
             The pet you're looking for might have been removed or doesn't exist.
           </Text>
           <Button

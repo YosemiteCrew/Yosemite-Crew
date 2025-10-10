@@ -232,7 +232,7 @@ export const ProfileImagePicker: React.FC<ProfileImagePickerProps> = ({
             height: size,
             borderRadius: size / 2,
             borderColor: theme.colors.primary,
-            backgroundColor: theme.colors.background,
+            backgroundColor: theme.colors.lightBlueBackground,
           },
         ]}
       >
