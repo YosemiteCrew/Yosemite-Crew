@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {AppState} from 'react-native';
 import {getAuth} from '@react-native-firebase/auth';
 import {fetchAuthSession, fetchUserAttributes, getCurrentUser} from 'aws-amplify/auth';
-import {AuthProvider, useAuth, type User, type AuthTokens} from '../AuthContext';
+import {AuthProvider, useAuth, User, AuthTokens} from '../AuthContext';
 import {signOutEverywhere} from '@/services/auth/passwordlessAuth';
 import {fetchProfileStatus} from '@/services/profile/profileService';
 import {

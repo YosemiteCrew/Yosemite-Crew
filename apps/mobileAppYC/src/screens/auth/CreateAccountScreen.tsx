@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   DeviceEventEmitter,
+  BackHandler,
 } from 'react-native';
 import {useForm, Controller} from 'react-hook-form';
 import {SafeArea, Input} from '../../components/common';
@@ -38,7 +39,7 @@ import {PASSWORDLESS_AUTH_CONFIG, PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_U
 import LocationService from '@/services/LocationService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { getAuth } from '@react-native-firebase/auth';
+// Removed direct provider-specific signout; use global logout from AuthContext
 
 type CreateAccountScreenProps = NativeStackScreenProps<
   AuthStackParamList,
@@ -71,7 +72,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
   navigation,
   route,
 }) => {
-  const {login} = useAuth();
+  const {login, logout} = useAuth();
   const {theme} = useTheme();
   const styles = createStyles(theme);
 
@@ -124,6 +125,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     useState<Country>(resolvedCountry);
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isHandlingBack, setIsHandlingBack] = useState(false);
   const [submissionError, setSubmissionError] = useState('');
   const [location, setLocation] = useState<{
     latitude: number;
@@ -345,68 +347,49 @@ const handleGoBack = useCallback(async () => {
   }
 
   // If on step 1, cancel the profile creation and go back to sign up
+  if (isHandlingBack) {
+    return;
+  }
+
+  setIsHandlingBack(true);
   try {
     console.log('[CreateAccountScreen] Cancelling profile creation - provider:', tokens.provider);
-    
-    // 1. Clear pending profile storage
-    await AsyncStorage.multiRemove([
-      PENDING_PROFILE_STORAGE_KEY,
-      '@user_data',
-      '@auth_tokens'
-    ]);
+    // 1) Clear pending profile immediately so AppNavigator stops forcing CreateAccount
+    await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
     DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
 
-    // 2. Sign out based on provider (but handle errors gracefully)
-    if (tokens.provider === 'firebase') {
-      try {
-        const auth = getAuth();
-        const currentUser = auth.currentUser;
-        if (currentUser) {
-          await auth.signOut();
-          console.log('[CreateAccountScreen] Firebase sign out successful');
-        }
-      } catch (firebaseError) {
-        console.warn('[CreateAccountScreen] Firebase sign out warning:', firebaseError);
-        // Continue even if sign out fails
-      }
-    } else if (tokens.provider === 'amplify') {
-      try {
-        // For Amplify, try local sign out only (not global)
-        const { signOut } = await import('aws-amplify/auth');
-        await signOut({ global: false });
-        console.log('[CreateAccountScreen] Amplify sign out successful');
-      } catch (amplifyError) {
-        console.warn('[CreateAccountScreen] Amplify sign out warning:', amplifyError);
-        // Continue even if sign out fails
-      }
-    }
+    // 2) Use global logout to clear tokens/state consistently (handles provider-specific signout)
+    await logout();
 
-    // 3. Reset navigation to SignUp screen
+    // 3) Explicitly reset to SignIn so user sees the auth entry point immediately
     navigation.reset({
       index: 0,
-      routes: [{name: 'SignUp'}],
+      routes: [{name: 'SignIn'}],
     });
   } catch (error) {
     console.error('[CreateAccountScreen] handleGoBack error:', error);
-    
-    // Even if something fails, clear storage and navigate
     try {
-      await AsyncStorage.multiRemove([
-        PENDING_PROFILE_STORAGE_KEY,
-        '@user_data',
-        '@auth_tokens'
-      ]);
-    } catch (clearError) {
-      console.error('[CreateAccountScreen] Failed to clear storage:', clearError);
-    }
-    
-    // Always navigate back to sign up
+      await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
+      DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
+    } catch {}
+    // Even on failure, rely on AppNavigator by not forcing a conflicting reset
     navigation.reset({
       index: 0,
-      routes: [{name: 'SignUp'}],
+      routes: [{name: 'SignIn'}],
     });
+  } finally {
+    setIsHandlingBack(false);
   }
-}, [clearErrors, currentStep, navigation, setValue, step1Data, tokens.provider]);
+}, [clearErrors, currentStep, isHandlingBack, logout, navigation, setValue, step1Data, tokens.provider]);
+
+  // Ensure hardware back behaves same as header back
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      handleGoBack();
+      return true;
+    });
+    return () => sub.remove();
+  }, [handleGoBack]);
 
   const createAccountEndpoint = PASSWORDLESS_AUTH_CONFIG.createAccountUrl;
 

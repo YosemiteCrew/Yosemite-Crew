@@ -94,13 +94,13 @@ export const Input: React.FC<InputProps> = ({
   }, [value, hasValue, animateLabel]);
 
   const getInputContainerStyle = (): ViewStyle => ({
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: error
       ? theme.colors.error
       : isFocused
       ? theme.colors.primary
       : theme.colors.border,
-    borderRadius: 15,
+    borderRadius: 16,
     backgroundColor: theme.colors.surface,
     paddingHorizontal: 20,
     minHeight: 56,
@@ -111,9 +111,17 @@ export const Input: React.FC<InputProps> = ({
   });
 
   const getInputStyle = (): TextStyle => ({
-    ...theme.typography.body,
-    color: theme.colors.text,
-    fontSize: 16,
+    ...theme.typography.input,
+    color: hasValue || isFocused ? theme.colors.text : theme.colors.placeholder,
+    fontFamily: hasValue || isFocused
+      ? theme.typography.inputFilled.fontFamily
+      : theme.typography.input.fontFamily,
+    fontWeight: hasValue || isFocused
+      ? theme.typography.inputFilled.fontWeight
+      : theme.typography.input.fontWeight,
+    letterSpacing: hasValue || isFocused
+      ? theme.typography.inputFilled.letterSpacing
+      : theme.typography.input.letterSpacing,
     flex: 1,
     ...(Platform.OS === 'ios' 
       ? {
@@ -137,9 +145,11 @@ export const Input: React.FC<InputProps> = ({
     const baseStyle = {
       position: 'absolute' as const,
       left: 20,
+      fontFamily: theme.typography.inputLabel.fontFamily,
+      fontWeight: theme.typography.inputLabel.fontWeight,
       fontSize: animatedValue.interpolate({
         inputRange: [0, 1],
-        outputRange: [16, 12],
+        outputRange: [16, 14],
       }),
       top: animatedValue.interpolate({
         inputRange: [0, 1],
@@ -155,6 +165,7 @@ export const Input: React.FC<InputProps> = ({
           isFocused ? theme.colors.primary : theme.colors.textSecondary,
         ],
       }),
+      letterSpacing: theme.typography.inputLabel.letterSpacing,
       backgroundColor: theme.colors.surface || theme.colors.background,
       paddingHorizontal: animatedValue.interpolate({
         inputRange: [0, 1],
@@ -176,11 +187,9 @@ export const Input: React.FC<InputProps> = ({
   };
 
   const getErrorStyle = (): TextStyle => ({
-    ...theme.typography.caption,
-    color: theme.colors.error,
+    ...theme.typography.inputError,
     marginTop: theme.spacing?.['1'] || 4,
     marginLeft: 20,
-    fontSize: 12,
   });
 
   const IconWrapper = icon ? (
@@ -197,7 +206,7 @@ export const Input: React.FC<InputProps> = ({
         )}
         <TextInput
           style={[getInputStyle(), inputStyle]}
-          placeholderTextColor={theme.colors.textSecondary}
+          placeholderTextColor={theme.colors.placeholder}
           onFocus={handleFocus}
           onBlur={handleBlur}
           onChangeText={handleChangeText}

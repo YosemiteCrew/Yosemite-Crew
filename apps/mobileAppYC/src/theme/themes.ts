@@ -17,6 +17,8 @@ export interface Theme {
     textSecondary: string;
     textTertiary: string;
     border: string;
+    placeholder: string;
+    cardBackground: string;
     success: string;
     warning: string;
     error: string;
@@ -47,6 +49,8 @@ export const lightTheme: Theme = {
     textSecondary: colors.textSecondary,
     textTertiary: colors.textTertiary,
     border: colors.border,
+    placeholder: colors.placeholder,
+    cardBackground: colors.cardBackground,
     success: colors.success,
     warning: colors.warning,
     error: colors.error,
@@ -77,6 +81,8 @@ export const darkTheme: Theme = {
     textSecondary: colors.textDarkSecondary,
     textTertiary: colors.textTertiary,
     border: colors.borderDark,
+    placeholder: colors.placeholder,
+    cardBackground: colors.cardBackground,
     success: colors.success,
     warning: colors.warning,
     error: colors.error,

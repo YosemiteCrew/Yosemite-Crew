@@ -206,7 +206,7 @@ describe('authSlice', () => {
         error: null,
         profileExists: true,
         profileToken: 'profile-token',
-        profileStatusSource: 'amplify',
+        profileStatusSource: 'remote',
       };
 
       const store = configureStore({
@@ -257,8 +257,9 @@ describe('authSlice', () => {
 
       await store.dispatch(
         fetchProfileStatusThunk({
+          accessToken: 'test-token',
+          userId: 'user-123',
           email: 'test@example.com',
-          source: 'amplify',
         }),
       );
 
@@ -284,8 +285,9 @@ describe('authSlice', () => {
 
       await store.dispatch(
         fetchProfileStatusThunk({
+          accessToken: 'test-token',
+          userId: 'user-123',
           email: 'test@example.com',
-          source: 'amplify',
         }),
       );
 
@@ -346,8 +348,9 @@ describe('authSlice', () => {
 
       await store.dispatch(
         fetchProfileStatusThunk({
+          accessToken: 'test-token',
+          userId: 'user-123',
           email: 'test@example.com',
-          source: 'amplify',
         }),
       );
 

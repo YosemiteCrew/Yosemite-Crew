@@ -15,10 +15,7 @@ module.exports = {
     '<rootDir>/jest.setup.js',
   ],
   transform: {
-    '^.+\\.(js|jsx|ts|tsx)$': [
-      'babel-jest',
-      {presets: ['module:@react-native/babel-preset']},
-    ],
+    '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', {configFile: './babel.config.js'}],
   },
   // Allow RN and related packages to be transformed, even within pnpm's virtual store
   transformIgnorePatterns: [

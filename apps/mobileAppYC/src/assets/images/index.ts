@@ -20,6 +20,24 @@ dropdownIcon: require('./icons/dropdown.png'),
 calendarIcon: require('./icons/calendar.png'),
 searchIcon: require('./icons/searchIcon.png'),
 crossIcon: require('./icons/crossIcon.png'),
+  navigation: {
+    home: {
+      focused: require('./navigation/homeFocused.png'),
+      light: require('./navigation/homeLight.png'),
+    },
+    appointments: {
+      focused: require('./navigation/appointmentsFocused.png'),
+      light: require('./navigation/appointmentsLight.png'),
+    },
+    documents: {
+      focused: require('./navigation/documentsFocused.png'),
+      light: require('./navigation/documentsLight.png'),
+    },
+    tasks: {
+      focused: require('./navigation/tasksFocused.png'),
+      light: require('./navigation/tasksLight.png'),
+    },
+  },
   // Logo
 } as const;
 

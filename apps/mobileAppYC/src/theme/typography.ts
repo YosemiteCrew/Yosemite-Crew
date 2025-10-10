@@ -67,7 +67,6 @@ export const typography = {
     lineHeight: 26 * 1.2, // 120% → 31.2px
     fontWeight: fontWeights.medium, // 500
     letterSpacing: -0.26, // matches design
-    textAlign: 'center',
   },
   h4: {
     fontFamily: fonts.CLASH_DISPLAY_SEMIBOLD,
@@ -88,21 +87,26 @@ export const typography = {
     fontWeight: fontWeights.medium,
   },
   paragraph: {
-  fontFamily: fonts.SATOSHI_REGULAR,
-  fontSize: fontSizes.base, // 16
-  lineHeight: fontSizes.base * 1.2, // 19.2
-  fontWeight: fontWeights.normal, // 400
-  letterSpacing: -0.32,
-  textAlign: 'center',
-},
+    fontFamily: fonts.SATOSHI_REGULAR,
+    fontSize: fontSizes.base,
+    lineHeight: fontSizes.base * 1.2,
+    fontWeight: fontWeights.normal,
+    letterSpacing: -0.32,
+  },
   paragraphBold: {
-  fontFamily: fonts.SATOSHI_BOLD,
-  fontSize: fontSizes.base, // 16
-  lineHeight: fontSizes.base * 1.2, // 19.2
-  fontWeight: fontWeights.bold, // 700
-  letterSpacing: -0.32,
-  textAlign: 'center',
-},
+    fontFamily: fonts.SATOSHI_BOLD,
+    fontSize: fontSizes.base,
+    lineHeight: fontSizes.base * 1.2,
+    fontWeight: fontWeights.bold,
+    letterSpacing: -0.32,
+  },
+  cta: {
+    fontFamily: fonts.CLASH_GRO_MEDIUM,
+    fontSize: 18,
+    lineHeight: 18,
+    fontWeight: fontWeights.medium,
+    letterSpacing: -0.18,
+  },
 
   // Body text
   bodyLarge: {
@@ -164,5 +168,60 @@ export const typography = {
     fontSize: fontSizes.sm,
     lineHeight: fontSizes.sm * lineHeights.none,
     fontWeight: fontWeights.medium,
+  },
+  screenTitle: {
+    fontFamily: fonts.CLASH_GRO_MEDIUM,
+    fontSize: 16,
+    lineHeight: 16 * 1.2,
+    fontWeight: fontWeights.medium,
+    letterSpacing: -0.16,
+  },
+  inputLabel: {
+    fontFamily: fonts.SATOSHI_BOLD,
+    fontSize: 14,
+    lineHeight: 16,
+    fontWeight: fontWeights.bold,
+    letterSpacing: -0.42,
+  },
+  input: {
+    fontFamily: fonts.SATOSHI_REGULAR,
+    fontSize: 16,
+    lineHeight: 16 * 1.2,
+    fontWeight: fontWeights.normal,
+    letterSpacing: -0.32,
+  },
+  inputFilled: {
+    fontFamily: fonts.SATOSHI_MEDIUM,
+    fontSize: 16,
+    lineHeight: 16,
+    fontWeight: fontWeights.medium,
+    letterSpacing: -0.48,
+  },
+  inputError: {
+    fontFamily: fonts.SATOSHI_BOLD,
+    fontSize: 14,
+    lineHeight: 16,
+    fontWeight: fontWeights.bold,
+    letterSpacing: -0.42,
+    color: '#EA3729',
+  },
+  tabLabelFocused: {
+    fontFamily: fonts.SATOSHI_BLACK,
+    fontSize: 12,
+    lineHeight: 12 * 1.2,
+    fontWeight: fontWeights.black,
+  },
+  tabLabel: {
+    fontFamily: fonts.SATOSHI_MEDIUM,
+    fontSize: 12,
+    lineHeight: 12 * 1.2,
+    fontWeight: fontWeights.medium,
+  },
+  h4Alt: {
+    fontFamily: fonts.CLASH_GRO_MEDIUM,
+    fontSize: 23,
+    lineHeight: 23 * 1.2,
+    fontWeight: fontWeights.medium,
+    letterSpacing: -0.23,
   },
 } as const;

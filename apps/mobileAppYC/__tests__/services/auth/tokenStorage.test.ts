@@ -91,18 +91,13 @@ describe('tokenStorage', () => {
       );
     });
 
-    it('should log stored tokens info', async () => {
+    it('should store tokens without logging sensitive data', async () => {
       (Keychain.setGenericPassword as jest.Mock).mockResolvedValue(true);
 
       await storeTokens(mockTokens);
 
-      expect(console.log).toHaveBeenCalledWith(
-        '[TokenStorage] Stored auth tokens in secure storage',
-        expect.objectContaining({
-          userId: mockTokens.userId,
-          provider: mockTokens.provider,
-        }),
-      );
+      // Verify no console.log was called (security fix - no logging of tokens)
+      expect(console.log).not.toHaveBeenCalled();
     });
   });
 
@@ -120,13 +115,8 @@ describe('tokenStorage', () => {
       const result = await loadStoredTokens();
 
       expect(result).toEqual(mockTokens);
-      expect(console.log).toHaveBeenCalledWith(
-        '[TokenStorage] Loaded auth tokens from secure storage',
-        expect.objectContaining({
-          userId: mockTokens.userId,
-          provider: mockTokens.provider,
-        }),
-      );
+      // Verify no console.log was called (security fix - no logging of tokens)
+      expect(console.log).not.toHaveBeenCalled();
     });
 
     it('should return null when no credentials found', async () => {

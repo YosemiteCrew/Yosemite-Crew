@@ -49,7 +49,7 @@ export const colors = {
   textDarkSecondary: '#E0E0E0',
   
   // Border colors
-  border: '#E0E0E0',
+  border: '#EAEAEA',
   borderLight: '#F5F5F5',
   borderDark: '#424242',
   
@@ -58,6 +58,7 @@ export const colors = {
   cardBackground: '#FFFFFF',
   modalOverlay: 'rgba(0, 0, 0, 0.5)',
   shimmer: '#F0F0F0',
+  placeholder: '#595958',
   
   // Transparent colors
   transparent: 'transparent',

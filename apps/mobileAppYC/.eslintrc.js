@@ -8,5 +8,6 @@ module.exports = {
     '.eslintrc.js',
     'jest.config.js',
     'jest.setup.js',
+    'coverage/',
   ],
 };

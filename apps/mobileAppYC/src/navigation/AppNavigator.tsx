@@ -16,13 +16,14 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const ONBOARDING_COMPLETED_KEY = '@onboarding_completed';
 
 export const AppNavigator: React.FC = () => {
-  const {isLoggedIn, isLoading: authLoading} = useAuth();
+  const {isLoggedIn, isLoading: authLoading, user} = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [pendingProfile, setPendingProfile] = useState<
     AuthStackParamList['CreateAccount'] | null
   >(null);
-const [isProfileComplete, setIsProfileComplete] = useState(true);
+  // Derive profile completeness directly from auth user to avoid stale storage
+  const isProfileComplete = !!(user?.firstName && user?.dateOfBirth);
 
   useEffect(() => {
     checkOnboardingStatus();
@@ -56,15 +57,6 @@ const checkOnboardingStatus = async () => {
     try {
       const onboardingCompleted = await AsyncStorage.getItem(ONBOARDING_COMPLETED_KEY);
       setShowOnboarding(onboardingCompleted === null);
-      
-      // Check if user has completed profile
-      const userData = await AsyncStorage.getItem('@user_data');
-      if (userData) {
-        const user = JSON.parse(userData);
-        // Profile is complete if user has firstName and dateOfBirth
-        const profileComplete = !!(user.firstName && user.dateOfBirth);
-        setIsProfileComplete(profileComplete);
-      }
     } catch (error) {
       console.error('Error checking onboarding status:', error);
       setShowOnboarding(true);
@@ -94,28 +86,37 @@ const checkOnboardingStatus = async () => {
     showOnboarding,
   );
 
-return (
+  const renderAuth = () => {
+    const authKey = pendingProfile
+      ? `pending-${pendingProfile.userId}`
+      : isLoggedIn && !isProfileComplete
+      ? `incomplete-${user?.id ?? 'unknown'}`
+      : 'auth-default';
+
+    const initialRoute = pendingProfile ? 'CreateAccount' : 'SignUp';
+
+    return (
+      <Stack.Screen key={authKey} name="Auth">
+        {() => (
+          <AuthNavigator
+            initialRouteName={initialRoute as any}
+            createAccountInitialParams={pendingProfile ?? undefined}
+          />
+        )}
+      </Stack.Screen>
+    );
+  };
+
+  return (
     <Stack.Navigator screenOptions={{headerShown: false}}>
       {showOnboarding ? (
         <Stack.Screen name="Onboarding">
           {() => <OnboardingScreen onComplete={handleOnboardingComplete} />}
         </Stack.Screen>
-      ) : pendingProfile ? (
-        <Stack.Screen name="Auth">
-          {() => (
-            <AuthNavigator
-              key={`pending-${pendingProfile.userId}`}
-              initialRouteName="CreateAccount"
-              createAccountInitialParams={pendingProfile}
-            />
-          )}
-        </Stack.Screen>
-      ) : isLoggedIn && !isProfileComplete ? (
-        <Stack.Screen name="Auth" component={AuthNavigator} />
-      ) : isLoggedIn ? (
+      ) : isLoggedIn && isProfileComplete ? (
         <Stack.Screen name="Main" component={TabNavigator} />
       ) : (
-        <Stack.Screen name="Auth" component={AuthNavigator} />
+        renderAuth()
       )}
     </Stack.Navigator>
   );
