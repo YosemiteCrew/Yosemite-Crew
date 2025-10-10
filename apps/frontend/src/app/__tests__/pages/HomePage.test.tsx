@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import HomePage from '../pages/HomePage/HomePage';
+import HomePage from '../../pages/HomePage/HomePage';
 import userEvent from '@testing-library/user-event';
 
 jest.mock('@/app/Components/Header/Header', () => {
@@ -75,7 +75,7 @@ test('renders call-to-action buttons with correct links', () => {
   });
 
 });
-import { FillBtn } from '../pages/HomePage/HomePage';
+import { FillBtn } from '../../pages/HomePage/HomePage';
 
 describe('FillBtn Component', () => {
   test('calls the onClick handler when clicked', async () => {

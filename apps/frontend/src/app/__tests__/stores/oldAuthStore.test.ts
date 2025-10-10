@@ -1,5 +1,5 @@
 import { act } from '@testing-library/react';
-import { useOldAuthStore } from '../stores/oldAuthStore';
+import { useOldAuthStore } from '../../stores/oldAuthStore';
 
 describe('useOldAuthStore', () => {
   beforeEach(() => {

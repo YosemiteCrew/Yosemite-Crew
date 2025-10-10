@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
-import ContactusPage from '../pages/ContactusPage/ContactusPage';
+import ContactusPage from '../../pages/ContactusPage/ContactusPage';
 import { useOldAuthStore } from '@/app/stores/oldAuthStore';
 import { postData } from '@/app/services/axios';
 import { toFhirSupportTicket } from '@yosemite-crew/fhir';
