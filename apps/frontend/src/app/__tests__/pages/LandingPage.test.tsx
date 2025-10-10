@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
-import MainLandingPage from '../pages/LandingPage/LandingPage';
+import MainLandingPage from '../../pages/LandingPage/LandingPage';
 
 jest.mock('@/app/Components/Footer/Footer', () => {
   return function DummyFooter() {

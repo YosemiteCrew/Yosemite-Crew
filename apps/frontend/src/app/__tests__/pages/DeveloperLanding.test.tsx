@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import DeveloperLanding from "../pages/DeveloperLanding/DeveloperLanding";
+import DeveloperLanding from "../../pages/DeveloperLanding/DeveloperLanding";
 
 jest.mock("@iconify/react/dist/iconify.js", () => ({
   Icon: () => <div data-testid="icon-mock" />,

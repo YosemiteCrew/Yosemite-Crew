@@ -1,8 +1,8 @@
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
-import PricingPage from '../pages/PricingPage/PricingPage';
-import { getPlanConfig } from '../pages/PricingPage/PricingConst';
+import PricingPage from '../../pages/PricingPage/PricingPage';
+import { getPlanConfig } from '../../pages/PricingPage/PricingConst';
 
 window.HTMLElement.prototype.scrollIntoView = jest.fn();
 

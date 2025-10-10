@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import BookDemo from '../pages/BookDemo/BookDemo';
+import BookDemo from '../../pages/BookDemo/BookDemo';
 import { getCalApi } from '@calcom/embed-react';
 
 jest.mock('@calcom/embed-react', () => {

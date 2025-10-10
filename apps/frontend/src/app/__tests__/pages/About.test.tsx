@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import AboutUs from "../pages/AboutUs/AboutUs";
+import AboutUs from "../../pages/AboutUs/AboutUs";
 
 jest.mock("next/image", () => ({
   __esModule: true,
