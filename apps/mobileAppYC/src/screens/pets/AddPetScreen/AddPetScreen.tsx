@@ -65,7 +65,7 @@ export const AddPetScreen: React.FC<Props> = ({navigation}) => {
           name: name.trim(),
           type: type.trim(),
           breed: breed.trim() || undefined,
-          age: age ? parseInt(age) : undefined,
+          age: age ? parseInt(age, 10) : undefined,
           weight: weight ? parseFloat(weight) : undefined,
           description: description.trim() || undefined,
           ownerId: '1', // This would come from auth context
@@ -80,6 +80,7 @@ export const AddPetScreen: React.FC<Props> = ({navigation}) => {
         },
       ]);
     } catch (error) {
+      console.error('Failed to add pet', error);
       Alert.alert('Error', 'Failed to add pet. Please try again.');
     } finally {
       setIsLoading(false);
