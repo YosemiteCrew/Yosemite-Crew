@@ -42,4 +42,23 @@ module.exports = {
     '<rootDir>/node_modules/.pnpm/',
     '<rootDir>/.jest-cache/',
   ],
+  // Coverage configuration
+  collectCoverage: true,
+  collectCoverageFrom: [
+    'src/**/*.{ts,tsx,js,jsx}',
+    '!src/**/*.d.ts',
+    '!src/**/*.test.{ts,tsx,js,jsx}',
+    '!src/**/*.spec.{ts,tsx,js,jsx}',
+    '!**/node_modules/**',
+    '!**/vendor/**',
+  ],
+  coverageDirectory: 'coverage',
+  coverageReporters: ['lcov', 'text', 'html', 'json-summary'],
+  coveragePathIgnorePatterns: [
+    '/node_modules/',
+    '/android/',
+    '/ios/',
+    '/__tests__/',
+    '/coverage/',
+  ],
 };

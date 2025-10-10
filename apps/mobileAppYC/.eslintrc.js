@@ -7,5 +7,6 @@ module.exports = {
     'metro.config.js',
     '.eslintrc.js',
     'jest.config.js',
+    'jest.setup.js',
   ],
 };
