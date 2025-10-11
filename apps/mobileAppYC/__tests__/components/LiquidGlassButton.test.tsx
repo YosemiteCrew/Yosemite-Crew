@@ -4,7 +4,7 @@ import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
 import {LiquidGlassButton} from '@/components/common/LiquidGlassButton/LiquidGlassButton';
 import {themeReducer} from '@/features/theme';
-import {Text, TouchableOpacity, ActivityIndicator, View, Platform} from 'react-native';
+import {Text, TouchableOpacity, ActivityIndicator, Platform} from 'react-native';
 
 // Mock liquid glass
 jest.mock('@callstack/liquid-glass', () => ({
