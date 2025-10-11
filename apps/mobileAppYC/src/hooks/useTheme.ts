@@ -1,31 +1,72 @@
-import {useSelector, useDispatch} from 'react-redux';
-import {useEffect} from 'react';
+import {useEffect, useMemo} from 'react';
 import {Appearance} from 'react-native';
-import {RootState, AppDispatch} from '../store';
-import {setTheme, toggleTheme, updateSystemTheme} from '../store/slices/themeSlice';
-import {lightTheme} from '../theme';
+
+import {useAppDispatch, useAppSelector} from '@/app/hooks';
+import {setTheme, toggleTheme, updateSystemTheme} from '@/features/theme';
+import {darkTheme, lightTheme} from '@/theme';
+
+const resolveScheme = (value: string | null | undefined): 'light' | 'dark' =>
+  value === 'dark' ? 'dark' : 'light';
+
+export const DARK_MODE_ENABLED = false;
 
 export const useTheme = () => {
-  const dispatch = useDispatch<AppDispatch>();
-  const {theme} = useSelector((state: RootState) => state.theme);
+  const dispatch = useAppDispatch();
+  const themeState = useAppSelector(state => state.theme);
+  const {theme: storedThemeMode, isDark: storedIsDark} = themeState;
 
   useEffect(() => {
+    if (!DARK_MODE_ENABLED) {
+      if (storedThemeMode !== 'light' || storedIsDark) {
+        dispatch(setTheme('light'));
+      }
+      return;
+    }
+
+    dispatch(updateSystemTheme(resolveScheme(Appearance.getColorScheme())));
+
     const subscription = Appearance.addChangeListener(({colorScheme}) => {
-      dispatch(updateSystemTheme(colorScheme || 'light'));
+      dispatch(updateSystemTheme(resolveScheme(colorScheme)));
     });
 
-    return () => subscription?.remove();
-  }, [dispatch]);
+    return () => {
+      subscription.remove();
+    };
+  }, [dispatch, storedIsDark, storedThemeMode]);
 
-  const currentTheme = lightTheme;
-  const isDarkMode = false;
+  const effectiveThemeMode = DARK_MODE_ENABLED ? storedThemeMode : 'light';
+  const effectiveIsDark = DARK_MODE_ENABLED ? storedIsDark : false;
+
+  const currentTheme = useMemo(
+    () => (effectiveIsDark ? darkTheme : lightTheme),
+    [effectiveIsDark],
+  );
+
+  const safeSetTheme = (mode: 'light' | 'dark' | 'system') => {
+    if (!DARK_MODE_ENABLED) {
+      if (storedThemeMode !== 'light') {
+        dispatch(setTheme('light'));
+      }
+      return;
+    }
+
+    dispatch(setTheme(mode));
+  };
+
+  const safeToggleTheme = () => {
+    if (!DARK_MODE_ENABLED) {
+      return;
+    }
+
+    dispatch(toggleTheme());
+  };
 
   return {
     theme: currentTheme,
-    isDark: isDarkMode,
-    themeMode: theme,
-    setTheme: (newTheme: 'light' | 'dark' | 'system') =>
-      dispatch(setTheme(newTheme)),
-    toggleTheme: () => dispatch(toggleTheme()),
+    isDark: effectiveIsDark,
+    themeMode: effectiveThemeMode,
+    darkModeLocked: !DARK_MODE_ENABLED,
+    setTheme: safeSetTheme,
+    toggleTheme: safeToggleTheme,
   };
 };

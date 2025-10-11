@@ -4,7 +4,7 @@ import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
 import {Text, View} from 'react-native';
 import {LiquidGlassCard} from '@/components/common/LiquidGlassCard/LiquidGlassCard';
-import themeReducer from '@/store/slices/themeSlice';
+import {themeReducer} from '@/features/theme';
 
 // Mock the liquid glass library
 jest.mock('@callstack/liquid-glass', () => ({

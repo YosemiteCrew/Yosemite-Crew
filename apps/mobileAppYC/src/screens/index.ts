@@ -1,6 +1,5 @@
 export * from './auth';
 export * from './home';
-export * from './pets';
 export * from './profile/ProfileScreen';
 export * from './appointments/AppointmentsScreen';
 export * from './documents/DocumentsScreen';

@@ -1,9 +1,10 @@
-import themeReducer, {
+import {
+  themeReducer,
   setTheme,
   toggleTheme,
   updateSystemTheme,
-} from '@/store/slices/themeSlice';
-import {ThemeState} from '@/store/types';
+  type ThemeState,
+} from '@/features/theme';
 
 // Mock Appearance before importing
 jest.mock('react-native/Libraries/Utilities/Appearance', () => ({

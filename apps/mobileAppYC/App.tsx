@@ -10,7 +10,7 @@ import {StatusBar, LogBox} from 'react-native';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {Provider} from 'react-redux';
 import {NavigationContainer} from '@react-navigation/native';
-import {store} from './src/store';
+import {store} from '@/app/store';
 import {AppNavigator} from './src/navigation';
 import {useTheme} from './src/hooks';
 import CustomSplashScreen from './src/components/common/customSplashScreen/customSplash';

@@ -11,6 +11,7 @@ import {
   Platform,
   DeviceEventEmitter,
   BackHandler,
+  ActivityIndicator,
 } from 'react-native';
 import {useForm, Controller} from 'react-hook-form';
 import {SafeArea, Input} from '../../components/common';
@@ -37,6 +38,12 @@ import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import type {AuthStackParamList} from '../../navigation/AuthNavigator';
 import {PASSWORDLESS_AUTH_CONFIG, PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT} from '@/config/variables';
 import LocationService from '@/services/LocationService';
+import {
+  fetchPlaceDetails,
+  fetchPlaceSuggestions,
+  MissingApiKeyError,
+  type PlaceSuggestion,
+} from '@/services/maps/googlePlaces';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Removed direct provider-specific signout; use global logout from AuthContext
@@ -132,7 +139,6 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     longitude: number;
   } | null>(null);
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
-  const [locationError, setLocationError] = useState<string | null>(null);
   const [isOtpSuccessVisible, setIsOtpSuccessVisible] =
     useState(showOtpSuccess);
 
@@ -152,6 +158,12 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     country: '',
     acceptTerms: false,
   });
+  const [addressQuery, setAddressQuery] = useState('');
+  const [addressSuggestions, setAddressSuggestions] = useState<PlaceSuggestion[]>([]);
+  const [isFetchingAddressSuggestions, setIsFetchingAddressSuggestions] = useState(false);
+  const [addressLookupError, setAddressLookupError] = useState<string | null>(null);
+  const skipNextAutocompleteRef = useRef(false);
+  const lastAutocompleteSignatureRef = useRef<string>('');
 
   const {
     control,
@@ -184,7 +196,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
 
     const fetchLocation = async () => {
       setIsRequestingLocation(true);
-      setLocationError(null);
+
       try {
         const coords = await LocationService.getLocationWithRetry();
         if (coords && isMounted) {
@@ -192,11 +204,6 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
         }
       } catch (error) {
         console.warn('Unable to fetch location', error);
-        if (isMounted) {
-          setLocationError(
-            'We could not determine your current location. You can still continue.',
-          );
-        }
       } finally {
         if (isMounted) {
           setIsRequestingLocation(false);
@@ -295,8 +302,142 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     (field: keyof typeof step2Data, value: any) => {
       setStep2Data(prev => ({...prev, [field]: value}));
       setValue(field, value, {shouldValidate: true});
+      if (field === 'address') {
+        setAddressQuery(value);
+      }
+      if (
+        field === 'address' ||
+        field === 'stateProvince' ||
+        field === 'city' ||
+        field === 'postalCode' ||
+        field === 'country'
+      ) {
+        clearErrors(field);
+      }
     },
-    [setValue],
+    [clearErrors, setValue],
+  );
+
+  useEffect(() => {
+    if (skipNextAutocompleteRef.current) {
+      skipNextAutocompleteRef.current = false;
+      return;
+    }
+
+    const search = addressQuery.trim();
+    if (search.length < 3) {
+      setAddressSuggestions([]);
+      setAddressLookupError(null);
+      lastAutocompleteSignatureRef.current = '';
+      return;
+    }
+
+    const locationSignature = location
+      ? `${location.latitude.toFixed(4)},${location.longitude.toFixed(4)}`
+      : 'none';
+    const signature = `${search}::${locationSignature}`;
+
+    if (signature === lastAutocompleteSignatureRef.current) {
+      return;
+    }
+
+    lastAutocompleteSignatureRef.current = signature;
+
+    let isActive = true;
+    setIsFetchingAddressSuggestions(true);
+    const timeoutId = setTimeout(async () => {
+      try {
+        const suggestions = await fetchPlaceSuggestions({
+          query: search,
+          location,
+        });
+        if (!isActive) {
+          return;
+        }
+        setAddressSuggestions(suggestions);
+        setAddressLookupError(null);
+      } catch (error) {
+        if (!isActive) {
+          return;
+        }
+        if (error instanceof MissingApiKeyError) {
+          setAddressLookupError(
+            'Address autocomplete is unavailable. Please enter your address manually.',
+          );
+        } else {
+          setAddressLookupError('Unable to fetch address suggestions.');
+        }
+        setAddressSuggestions([]);
+      } finally {
+        if (isActive) {
+          setIsFetchingAddressSuggestions(false);
+        }
+      }
+    }, 350);
+
+    return () => {
+      isActive = false;
+      clearTimeout(timeoutId);
+    };
+  }, [addressQuery, location]);
+
+  const handleAddressSuggestionPress = useCallback(
+    async (suggestion: PlaceSuggestion) => {
+      skipNextAutocompleteRef.current = true;
+      lastAutocompleteSignatureRef.current = '';
+      setIsFetchingAddressSuggestions(true);
+      try {
+        const details = await fetchPlaceDetails(suggestion.placeId);
+        const addressLine = details.addressLine ?? suggestion.primaryText;
+
+        handleStep2FieldChange('address', addressLine);
+        setAddressQuery(addressLine);
+
+        console.log('[CreateAccount] Selected address', {
+          placeId: suggestion.placeId,
+          addressLine,
+          city: details.city,
+          stateProvince: details.stateProvince,
+          postalCode: details.postalCode,
+          country: details.country,
+        });
+
+        if (details.city) {
+          handleStep2FieldChange('city', details.city);
+        }
+        if (details.stateProvince) {
+          handleStep2FieldChange('stateProvince', details.stateProvince);
+        }
+        if (details.postalCode) {
+          handleStep2FieldChange('postalCode', details.postalCode);
+        }
+        if (details.country) {
+          handleStep2FieldChange('country', details.country);
+        }
+        if (details.latitude && details.longitude) {
+          setLocation(prev =>
+            prev ?? {
+              latitude: details.latitude as number,
+              longitude: details.longitude as number,
+            },
+          );
+        }
+        setAddressLookupError(null);
+        clearErrors(['address', 'city', 'stateProvince', 'postalCode', 'country']);
+      } catch (error) {
+        if (error instanceof MissingApiKeyError) {
+          setAddressLookupError(
+            'Address autocomplete is unavailable. Please enter your address manually.',
+          );
+        } else {
+          setAddressLookupError('Unable to fetch the selected address details.');
+        }
+      } finally {
+        setAddressSuggestions([]);
+        setIsFetchingAddressSuggestions(false);
+      }
+    },
+    [clearErrors, handleStep2FieldChange, setLocation],
   );
 
   const handleNext = async () => {
@@ -681,6 +822,39 @@ const handleGoBack = useCallback(async () => {
           )}
         />
 
+        {(isFetchingAddressSuggestions || addressSuggestions.length > 0 || addressLookupError) && (
+          <View style={styles.addressAutocompleteContainer}>
+            {isFetchingAddressSuggestions ? (
+              <View style={styles.addressAutocompleteLoadingRow}>
+                <ActivityIndicator size="small" color={theme.colors.primary} />
+                <Text style={styles.addressAutocompleteLoadingText}>Searching for addresses…</Text>
+              </View>
+            ) : null}
+            {!isFetchingAddressSuggestions &&
+              addressSuggestions.map((suggestion, index) => (
+                <TouchableOpacity
+                  key={suggestion.placeId}
+                  style={[
+                    styles.addressSuggestionItem,
+                    index === addressSuggestions.length - 1 && styles.addressSuggestionItemLast,
+                  ]}
+                  onPress={() => handleAddressSuggestionPress(suggestion)}
+                >
+                  <Text style={styles.addressSuggestionPrimary}>{suggestion.primaryText}</Text>
+                  {suggestion.secondaryText ? (
+                    <Text style={styles.addressSuggestionSecondary}>{suggestion.secondaryText}</Text>
+                  ) : null}
+                </TouchableOpacity>
+              ))}
+            {addressLookupError && !isFetchingAddressSuggestions ? (
+              <Text style={styles.addressSuggestionError}>{addressLookupError}</Text>
+            ) : null}
+            {(isFetchingAddressSuggestions || addressSuggestions.length > 0) && (
+              <Text style={styles.addressPoweredBy}>Powered by Google</Text>
+            )}
+          </View>
+        )}
+
         <Controller
           control={control}
           name="stateProvince"
@@ -821,16 +995,6 @@ const handleGoBack = useCallback(async () => {
           )}
         </View>
 
-        {isRequestingLocation ? (
-          <Text style={styles.locationStatus}>Fetching your location…</Text>
-        ) : location ? (
-          <Text style={styles.locationStatus}>
-            Location detected: {location.latitude.toFixed(3)},{' '}
-            {location.longitude.toFixed(3)}
-          </Text>
-        ) : locationError ? (
-          <Text style={styles.locationStatusError}>{locationError}</Text>
-        ) : null}
       </View>
     </>
   );
@@ -992,6 +1156,57 @@ const createStyles = (theme: any) =>
     },
     inputContainer: {
       marginBottom: theme.spacing['5'], // 20 - space between inputs + error messages
+    },
+    addressAutocompleteContainer: {
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      borderRadius: theme.borderRadius.lg,
+      backgroundColor: theme.colors.cardBackground,
+      marginBottom: theme.spacing['5'],
+      overflow: 'hidden',
+    },
+    addressAutocompleteLoadingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: theme.spacing['4'],
+      paddingVertical: theme.spacing['3'],
+      gap: theme.spacing['3'],
+    },
+    addressAutocompleteLoadingText: {
+      ...theme.typography.caption,
+      color: theme.colors.textSecondary,
+    },
+    addressSuggestionItem: {
+      paddingHorizontal: theme.spacing['4'],
+      paddingVertical: theme.spacing['4'],
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.colors.border,
+    },
+    addressSuggestionItemLast: {
+      borderBottomWidth: 0,
+    },
+    addressSuggestionPrimary: {
+      ...theme.typography.paragraph,
+      color: theme.colors.text,
+    },
+    addressSuggestionSecondary: {
+      ...theme.typography.caption,
+      color: theme.colors.textSecondary,
+      marginTop: theme.spacing['1'],
+    },
+    addressSuggestionError: {
+      ...theme.typography.caption,
+      color: theme.colors.error,
+      paddingHorizontal: theme.spacing['4'],
+      paddingVertical: theme.spacing['3'],
+      backgroundColor: theme.colors.cardBackground,
+    },
+    addressPoweredBy: {
+      ...theme.typography.caption,
+      color: theme.colors.textSecondary,
+      textAlign: 'right',
+      paddingHorizontal: theme.spacing['4'],
+      paddingBottom: theme.spacing['3'],
     },
     countrySection: {
       flexDirection: 'row',
