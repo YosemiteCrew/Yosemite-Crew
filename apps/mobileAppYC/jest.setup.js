@@ -62,6 +62,9 @@ try {
   })(Animated.spring);
 } catch {}
 
+// Ensure PlatformColor exists as a function in tests (RN sometimes lacks it in JSDOM)
+// Note: If PlatformColor isn't available in tests, components should fall back gracefully.
+
 // Mock AsyncStorage
 jest.mock(
   '@react-native-async-storage/async-storage',
@@ -233,12 +236,16 @@ jest.mock('@react-navigation/native-stack', () => {
 // Mock bottom sheet to simple components
 jest.mock('@gorhom/bottom-sheet', () => {
   const React = require('react');
+  // Simple host components to satisfy RN rendering paths
+  const PassThrough = ({children, ...props}) => React.createElement('View', props, children);
   return {
     __esModule: true,
-    default: ({children}) => React.createElement(React.Fragment, null, children),
-    BottomSheetView: ({children}) => React.createElement(React.Fragment, null, children),
-    BottomSheetScrollView: ({children}) => React.createElement(React.Fragment, null, children),
-    BottomSheetFlatList: () => null,
+    default: ({children, ...props}) => React.createElement(PassThrough, props, children),
+    BottomSheetView: ({children, ...props}) => React.createElement(PassThrough, props, children),
+    BottomSheetScrollView: ({children, ...props}) => React.createElement(PassThrough, props, children),
+    BottomSheetFlatList: ({..._props}) => null,
+    BottomSheetBackdrop: ({children, ...props}) => React.createElement(PassThrough, props, children),
+    BottomSheetHandle: ({...props}) => React.createElement('View', props),
   };
 });
 

@@ -82,6 +82,8 @@
     "@react-native/eslint-plugin": "^0.81.1",
     "@react-native/metro-config": "0.81.4",
     "@react-native/typescript-config": "0.81.4",
+    "@testing-library/jest-native": "^5.4.3",
+    "@testing-library/react-native": "^13.3.3",
     "@types/jest": "^29.5.13",
     "@types/react": "^19.1.0",
     "@types/react-native-vector-icons": "^6.4.18",

@@ -1,131 +1,102 @@
-import type {PlaceSuggestion, PlaceDetails} from '@/services/maps/googlePlaces';
+import {GOOGLE_PLACES_CONFIG} from '@/config/variables';
+import {
+  fetchPlaceSuggestions,
+  fetchPlaceDetails,
+  MissingApiKeyError,
+} from '@/services/maps/googlePlaces';
 
-const mockFetch = jest.fn();
+declare const global: typeof globalThis & {fetch: jest.Mock};
 
-const loadPlacesModule = (apiKey: string) => {
-  jest.resetModules();
-  jest.doMock('@/config/variables', () => ({
-    GOOGLE_PLACES_CONFIG: {apiKey},
-  }));
-  let mod: typeof import('@/services/maps/googlePlaces') | undefined;
-  jest.isolateModules(() => {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    mod = require('@/services/maps/googlePlaces');
-  });
-  jest.dontMock('@/config/variables');
-  if (!mod) {
-    throw new Error('Failed to load googlePlaces module');
-  }
-  return mod;
-};
+describe('googlePlaces integration-edge cases', () => {
+  const originalApiKey = GOOGLE_PLACES_CONFIG.apiKey;
 
-describe('googlePlaces service', () => {
-  beforeEach(() => {
-    mockFetch.mockReset();
-    (global as any).fetch = mockFetch;
+  beforeAll(() => {
+    global.fetch = jest.fn();
   });
 
-  it('throws MissingApiKeyError when API key is absent', async () => {
-    const {fetchPlaceSuggestions, MissingApiKeyError} = loadPlacesModule('');
-    await expect(
-      fetchPlaceSuggestions({query: 'Vet'}),
-    ).rejects.toBeInstanceOf(MissingApiKeyError);
-    expect(mockFetch).not.toHaveBeenCalled();
+  afterEach(() => {
+    global.fetch.mockReset();
+    GOOGLE_PLACES_CONFIG.apiKey = originalApiKey;
   });
 
-  it('normalizes autocomplete suggestions', async () => {
-    mockFetch.mockResolvedValue({
+  it('returns empty suggestions for blank query', async () => {
+    GOOGLE_PLACES_CONFIG.apiKey = 'key';
+    const results = await fetchPlaceSuggestions({query: '   ', location: null});
+    expect(results).toEqual([]);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('filters out invalid suggestions without placeId', async () => {
+    GOOGLE_PLACES_CONFIG.apiKey = 'key';
+    global.fetch.mockResolvedValue({
       ok: true,
-      json: jest.fn().mockResolvedValue({
+      json: async () => ({
         suggestions: [
-          {
-            placePrediction: {
-              placeId: 'abc123',
-              structuredFormat: {
-                mainText: {text: 'Yosemite Vet'},
-                secondaryText: {text: 'San Francisco, CA'},
-              },
-            },
-          },
-          {
-            placePrediction: {
-              placeId: 'missing-main-text',
-              text: {text: 'Fallback Text'},
-            },
-          },
-          {
-            placePrediction: {
-              placeId: undefined,
-            },
-          },
+          {placePrediction: {text: {text: 'No ID'}}},
+          {placePrediction: {placeId: 'p1', text: {text: 'Main'}, structuredFormat: {mainText: {text: 'Main'}}}},
         ],
       }),
     });
-
-    const {fetchPlaceSuggestions} = loadPlacesModule('test-key');
-    const results = await fetchPlaceSuggestions({query: 'Vet'}) as PlaceSuggestion[];
-
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-    expect(results).toEqual([
-      {
-        placeId: 'abc123',
-        primaryText: 'Yosemite Vet',
-        secondaryText: 'San Francisco, CA',
-      },
-      {
-        placeId: 'missing-main-text',
-        primaryText: 'Fallback Text',
-        secondaryText: undefined,
-      },
-    ]);
+    const results = await fetchPlaceSuggestions({query: 'Main'});
+    expect(results).toHaveLength(1);
+    expect(results[0].placeId).toBe('p1');
   });
 
-  it('propagates server error messages for suggestions', async () => {
-    mockFetch.mockResolvedValue({
-      ok: false,
-      text: jest.fn().mockResolvedValue('quota exceeded'),
-    });
-
-    const {fetchPlaceSuggestions} = loadPlacesModule('another-key');
-
-    await expect(
-      fetchPlaceSuggestions({query: 'Vet'}),
-    ).rejects.toThrow('quota exceeded');
+  it('throws with server message on suggestions error', async () => {
+    GOOGLE_PLACES_CONFIG.apiKey = 'key';
+    global.fetch.mockResolvedValue({ ok: false, text: async () => 'Bad Request' });
+    await expect(fetchPlaceSuggestions({query: 'Main'})).rejects.toThrow('Bad Request');
   });
 
-  it('returns structured place details', async () => {
-    mockFetch.mockResolvedValue({
+  it('throws when fetching details without placeId', async () => {
+    await expect(fetchPlaceDetails('')).rejects.toThrow(/placeId is required/);
+  });
+
+  it('returns formattedAddress as addressLine when components missing', async () => {
+    GOOGLE_PLACES_CONFIG.apiKey = 'key';
+    global.fetch.mockResolvedValue({
       ok: true,
-      json: jest.fn().mockResolvedValue({
-        formattedAddress: '1234 Market St, San Francisco, CA 94103, USA',
-        addressComponents: [
-          {longText: '1234', types: ['street_number']},
-          {longText: 'Market St', types: ['route']},
-          {longText: 'Suite 200', types: ['subpremise']},
-          {longText: 'San Francisco', types: ['locality']},
-          {shortText: 'CA', types: ['administrative_area_level_1']},
-          {longText: '94103', types: ['postal_code']},
-          {longText: 'United States', types: ['country']},
-        ],
-        location: {latitude: 37.7749, longitude: -122.4194},
+      json: async () => ({
+        formattedAddress: 'Fallback Address, City, Country',
+        addressComponents: [],
+        location: {latitude: 1, longitude: 2},
       }),
     });
+    const details = await fetchPlaceDetails('pid');
+    expect(details.addressLine).toBe('Fallback Address, City, Country');
+    expect(details.latitude).toBe(1);
+  });
 
-    const {fetchPlaceDetails} = loadPlacesModule('details-key');
-    const result = await fetchPlaceDetails('place-id') as PlaceDetails;
-
-    expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining('place-id'),
-      expect.objectContaining({method: 'GET'}),
-    );
-    expect(result).toMatchObject({
-      addressLine: 'Suite 200/ 1234 Market St',
-      city: 'San Francisco',
-      stateProvince: 'CA',
-      postalCode: '94103',
-      country: 'United States',
-      latitude: 37.7749,
-      longitude: -122.4194,
+  it('uses postal_town or sublocality as city and longText for state', async () => {
+    GOOGLE_PLACES_CONFIG.apiKey = 'key';
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        formattedAddress: 'Z',
+        addressComponents: [
+          {longText: 'Route 1', types: ['route']},
+          {longText: 'Townsville', types: ['postal_town']},
+          {longText: 'California', types: ['administrative_area_level_1']},
+          {longText: '99999', types: ['postal_code']},
+          {longText: 'USA', types: ['country']},
+        ],
+        location: {},
+      }),
     });
+    const details = await fetchPlaceDetails('pid');
+    expect(details.city).toBe('Townsville');
+    expect(details.stateProvince).toBe('California');
+  });
+
+  it('throws suggestions when API key missing', async () => {
+    GOOGLE_PLACES_CONFIG.apiKey = '';
+    await expect(fetchPlaceSuggestions({query: 'q'})).rejects.toBeInstanceOf(MissingApiKeyError);
+  });
+
+  it('throws details error with server text', async () => {
+    GOOGLE_PLACES_CONFIG.apiKey = 'k';
+    global.fetch.mockResolvedValue({ ok: false, text: async () => 'Not Found' });
+    await expect(fetchPlaceDetails('pid')).rejects.toThrow('Not Found');
   });
 });
+

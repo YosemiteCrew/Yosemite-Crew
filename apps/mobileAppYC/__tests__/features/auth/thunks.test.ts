@@ -12,7 +12,7 @@ import {
 } from '@/features/auth/thunks';
 import * as sessionManager from '@/features/auth/sessionManager';
 import * as passwordlessAuth from '@/services/auth/passwordlessAuth';
-import type {User, AuthTokens} from '@/features/auth/types';
+import type {User, AuthTokens, NormalizedAuthTokens} from '@/features/auth/types';
 
 jest.mock('@/features/auth/sessionManager');
 jest.mock('@/services/auth/passwordlessAuth');
@@ -42,7 +42,7 @@ describe('auth thunks', () => {
     lastName: 'Doe',
   };
 
-  const mockTokens: AuthTokens = {
+  const mockTokens: NormalizedAuthTokens = {
     idToken: 'id-token-123',
     accessToken: 'access-token-123',
     refreshToken: 'refresh-token-123',
@@ -167,7 +167,7 @@ describe('auth thunks', () => {
     });
 
     it('should default provider to amplify if not provided', async () => {
-      const tokensWithoutProvider = {...mockTokens, provider: undefined};
+      const tokensWithoutProvider: AuthTokens = {...mockTokens, provider: undefined};
       (sessionManager.persistSessionData as jest.Mock).mockResolvedValue(mockTokens);
       (sessionManager.markAuthRefreshed as jest.Mock).mockImplementation(() => {});
       (sessionManager.scheduleSessionRefresh as jest.Mock).mockImplementation(() => {});
