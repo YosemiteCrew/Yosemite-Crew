@@ -38,6 +38,7 @@ export const colors = {
   success: '#4CAF50',
   warning: '#FF9800',
   error: '#F44336',
+  errorSurface: '#FDEBEA',
   info: '#2196F3',
   
   // Background colors

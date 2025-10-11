@@ -1061,14 +1061,17 @@ const handleGoBack = useCallback(async () => {
         pointerEvents={isOtpSuccessVisible ? 'auto' : 'none'}>
         <CustomBottomSheet
           ref={successBottomSheetRef}
-          snapPoints={['50%']}
-          initialIndex={isOtpSuccessVisible ? 0 : -1}
-          enablePanDownToClose={false}
+          snapPoints={['35%', '50%']}
+          initialIndex={isOtpSuccessVisible ? 1 : -1}
+          enablePanDownToClose
           enableBackdrop
           backdropOpacity={0.5}
           backdropAppearsOnIndex={0}
           backdropDisappearsOnIndex={-1}
-          backdropPressBehavior="none"
+          backdropPressBehavior="close"
+          enableHandlePanningGesture
+          enableContentPanningGesture={false}
+          enableOverDrag
           backgroundStyle={styles.bottomSheetBackground}
           handleIndicatorStyle={styles.bottomSheetHandle}>
           <View style={styles.successContent}>

@@ -271,4 +271,32 @@ export const typography = {
     fontWeight: fontWeights.medium,
     letterSpacing: -0.23,
   },
+  // Custom additions to match designs precisely
+  h5Clash23: {
+    fontFamily: fonts.CLASH_GRO_MEDIUM, // "Clash Grotesk Medium"
+    fontSize: 23,
+    lineHeight: 23 * 1.2,
+    fontWeight: fontWeights.medium,
+    letterSpacing: -0.46,
+  },
+  paragraph18Bold: {
+    fontFamily: fonts.SATOSHI_BOLD,
+    fontSize: 18,
+    lineHeight: 18 * 1.2,
+    fontWeight: fontWeights.bold,
+    letterSpacing: -0.36,
+  },
+  subtitleBold14: {
+    fontFamily: fonts.SATOSHI_BOLD,
+    fontSize: 14,
+    lineHeight: 14 * 1.2,
+    fontWeight: fontWeights.bold,
+  },
+  buttonH6Clash19: {
+    fontFamily: fonts.CLASH_GRO_MEDIUM,
+    fontSize: 19,
+    lineHeight: 19 * 1.2,
+    fontWeight: fontWeights.medium,
+    letterSpacing: -0.38,
+  },
 } as const;

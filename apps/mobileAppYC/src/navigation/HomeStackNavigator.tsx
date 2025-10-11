@@ -29,7 +29,7 @@ export const HomeStackNavigator: React.FC = () => {
       <Stack.Screen
         name="Account"
         component={AccountScreen}
-        options={{title: 'Account'}}
+        options={{headerShown: false}}
       />
     </Stack.Navigator>
   );

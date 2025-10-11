@@ -30,6 +30,7 @@ export interface Theme {
     warning: string;
     error: string;
     info: string;
+    errorSurface: string;
     transparent: string;
     overlay: string;
     whiteOverlay70: string;
@@ -71,6 +72,7 @@ export const lightTheme: Theme = {
     warning: colors.warning,
     error: colors.error,
     info: colors.info,
+    errorSurface: colors.errorSurface,
     transparent: colors.transparent,
     overlay: colors.overlay,
     whiteOverlay70: colors.whiteOverlay70,
@@ -112,6 +114,7 @@ export const darkTheme: Theme = {
     warning: colors.warning,
     error: colors.error,
     info: colors.info,
+    errorSurface: colors.errorSurface,
     transparent: colors.transparent,
     overlay: colors.overlayLight,
     whiteOverlay70: colors.whiteOverlay70,

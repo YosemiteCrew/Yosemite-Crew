@@ -30,7 +30,18 @@ export const Images = {
   paw: require('./dashboard/paw.png'),
   plusIcon: require('./dashboard/plusIcon.png'),
   editIconSlide: require('./icons/editIconSlide.png'),
-    viewIconSlide: require('./icons/viewIconSlide.png'),
+  viewIconSlide: require('./icons/viewIconSlide.png'),
+
+  // Account
+  logoutIcon: require('./account/logoutIcon.png'),
+  blackEdit: require('./account/blackEdit.png'),
+  rightArrow: require('./account/rightArrow.png'),
+  faqIcon: require('./account/faqIcon.png'),
+  aboutusIcon: require('./account/aboutusIcon.png'),
+  tncIcon: require('./account/tncIcon.png'),
+  privacyIcon: require('./account/privacyIcon.png'),
+  contactIcon: require('./account/contactIcon.png'),
+  deleteIconRed: require('./account/deleteIconRed.png'),
 
   navigation: {
     home: {

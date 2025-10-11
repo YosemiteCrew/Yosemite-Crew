@@ -46,6 +46,7 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#EAEAEA',
+    overflow: 'hidden',
   };
 
   const flattenedStyle = StyleSheet.flatten([

@@ -126,6 +126,23 @@ export const persistSessionData = async (
     await AsyncStorage.removeItem(LEGACY_AUTH_TOKEN_KEY);
   } catch (error) {
     console.error('Failed to persist auth tokens securely', error);
+    // Fallback: persist tokens to AsyncStorage so session recovers on next launch.
+    // recoverAuthSession() will migrate these to secure storage when available.
+    try {
+      await AsyncStorage.setItem(
+        LEGACY_AUTH_TOKEN_KEY,
+        JSON.stringify({
+          idToken: normalizedTokens.idToken,
+          accessToken: normalizedTokens.accessToken,
+          refreshToken: normalizedTokens.refreshToken,
+          expiresAt: normalizedTokens.expiresAt,
+          userId: normalizedTokens.userId,
+          provider: normalizedTokens.provider,
+        }),
+      );
+    } catch (fallbackError) {
+      console.error('Failed to persist auth tokens to legacy storage', fallbackError);
+    }
   }
 
   return normalizedTokens;
