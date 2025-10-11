@@ -7,31 +7,61 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0F120136581344B89C8255E4 /* ClashDisplay-Bold.otf in Resources */ = {isa = PBXBuildFile; fileRef = 9B6F853E1DE74D949EF0A172 /* ClashDisplay-Bold.otf */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
+		16919AB261184B14A4E6AF7F /* ClashDisplay-Regular.otf in Resources */ = {isa = PBXBuildFile; fileRef = 2B5B68E281BF4F2DA60491A9 /* ClashDisplay-Regular.otf */; };
+		1BCEC42211384772973CB204 /* ClashDisplay-Extralight.otf in Resources */ = {isa = PBXBuildFile; fileRef = 1BA8B4E7E4004337996D7C90 /* ClashDisplay-Extralight.otf */; };
 		2045D1D0726AD513B4F64DC0 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
+		309DA876120A4DB0AB8EF960 /* Satoshi-Medium.otf in Resources */ = {isa = PBXBuildFile; fileRef = AEF6A6C942B4489AA39854D7 /* Satoshi-Medium.otf */; };
+		32EB1ABDEF6E4030BB1930E5 /* ClashGrotesk-Medium.otf in Resources */ = {isa = PBXBuildFile; fileRef = 12063E1091DE405D87C11C96 /* ClashGrotesk-Medium.otf */; };
+		4DAA6BFED3214D71813F0661 /* ClashDisplay-Medium.otf in Resources */ = {isa = PBXBuildFile; fileRef = B20BB11C225246958C33590A /* ClashDisplay-Medium.otf */; };
+		5177D14AF430420FB700DA73 /* ClashDisplay-Light.otf in Resources */ = {isa = PBXBuildFile; fileRef = 18B9690E26844ED3A138EAE4 /* ClashDisplay-Light.otf */; };
 		536176352E96F265005937AA /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 536176342E96F265005937AA /* GoogleService-Info.plist */; };
+		604359F293D642278FF2C9F8 /* SFProText-semibold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 6635D2D3DB7B494180948B38 /* SFProText-semibold.ttf */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
+		791D4C612E8447EC88CEEB34 /* ClashDisplay-Semibold.otf in Resources */ = {isa = PBXBuildFile; fileRef = 0CD424F2734F483EB275E552 /* ClashDisplay-Semibold.otf */; };
+		7FA6EE15257E4A089AF96CE8 /* ClashDisplay-Variable.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 28D2C7847A484697B1AF1F8E /* ClashDisplay-Variable.ttf */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
+		8CDF7234D58144ABAB092E35 /* SFProText-regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 28621C890A9E481DB0D9B6D6 /* SFProText-regular.ttf */; };
+		B16AD49F1216448AB1FE638B /* Satoshi-Light.otf in Resources */ = {isa = PBXBuildFile; fileRef = CD336A2EB96D4E3A842ADBBC /* Satoshi-Light.otf */; };
+		DDBFAE588BE04905ACDBD2DA /* Satoshi-Black.otf in Resources */ = {isa = PBXBuildFile; fileRef = FD410C24CA4B417686DFF96F /* Satoshi-Black.otf */; };
 		DFBF78CED4AC7A527A893EEA /* libPods-mobileAppYC.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5B4ED6A9CAD267D98B6EDBAC /* libPods-mobileAppYC.a */; };
+		E01900E6C1C24FC3A177B22B /* Satoshi-Bold.otf in Resources */ = {isa = PBXBuildFile; fileRef = 3C5821CD04F54EBF928A90A1 /* Satoshi-Bold.otf */; };
+		E606C93345D04B8A9337E586 /* Satoshi-Regular.otf in Resources */ = {isa = PBXBuildFile; fileRef = 3A036FB79F8A4C37B13EA70F /* Satoshi-Regular.otf */; };
 		E6A943B3E225420BA9785A03 /* BootSplash.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 471A248EB57E4E549A9FCD5B /* BootSplash.storyboard */; };
 		EB918EA2F3434CE285FC714D /* Colors.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 42635969955E4156B6472E3C /* Colors.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		0CD424F2734F483EB275E552 /* ClashDisplay-Semibold.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "ClashDisplay-Semibold.otf"; path = "../assets/fonts/ClashDisplay-Semibold.otf"; sourceTree = "<group>"; };
+		12063E1091DE405D87C11C96 /* ClashGrotesk-Medium.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "ClashGrotesk-Medium.otf"; path = "../assets/fonts/ClashGrotesk-Medium.otf"; sourceTree = "<group>"; };
 		13266A484A6526E82BA37C15 /* Pods-mobileAppYC.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-mobileAppYC.release.xcconfig"; path = "Target Support Files/Pods-mobileAppYC/Pods-mobileAppYC.release.xcconfig"; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* mobileAppYC.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = mobileAppYC.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = mobileAppYC/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = mobileAppYC/Info.plist; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = mobileAppYC/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		18B9690E26844ED3A138EAE4 /* ClashDisplay-Light.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "ClashDisplay-Light.otf"; path = "../assets/fonts/ClashDisplay-Light.otf"; sourceTree = "<group>"; };
+		1BA8B4E7E4004337996D7C90 /* ClashDisplay-Extralight.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "ClashDisplay-Extralight.otf"; path = "../assets/fonts/ClashDisplay-Extralight.otf"; sourceTree = "<group>"; };
+		28621C890A9E481DB0D9B6D6 /* SFProText-regular.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "SFProText-regular.ttf"; path = "../assets/fonts/SFProText-regular.ttf"; sourceTree = "<group>"; };
+		28D2C7847A484697B1AF1F8E /* ClashDisplay-Variable.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "ClashDisplay-Variable.ttf"; path = "../assets/fonts/ClashDisplay-Variable.ttf"; sourceTree = "<group>"; };
+		2B5B68E281BF4F2DA60491A9 /* ClashDisplay-Regular.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "ClashDisplay-Regular.otf"; path = "../assets/fonts/ClashDisplay-Regular.otf"; sourceTree = "<group>"; };
+		3A036FB79F8A4C37B13EA70F /* Satoshi-Regular.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Satoshi-Regular.otf"; path = "../assets/fonts/Satoshi-Regular.otf"; sourceTree = "<group>"; };
+		3C5821CD04F54EBF928A90A1 /* Satoshi-Bold.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Satoshi-Bold.otf"; path = "../assets/fonts/Satoshi-Bold.otf"; sourceTree = "<group>"; };
 		42635969955E4156B6472E3C /* Colors.xcassets */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = folder.assetcatalog; name = Colors.xcassets; path = mobileAppYC/Colors.xcassets; sourceTree = "<group>"; };
 		471A248EB57E4E549A9FCD5B /* BootSplash.storyboard */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = BootSplash.storyboard; path = mobileAppYC/BootSplash.storyboard; sourceTree = "<group>"; };
 		536176342E96F265005937AA /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		5384E25E2E881C1D00342038 /* mobileAppYC.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = mobileAppYC.entitlements; path = mobileAppYC/mobileAppYC.entitlements; sourceTree = "<group>"; };
 		5B4ED6A9CAD267D98B6EDBAC /* libPods-mobileAppYC.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-mobileAppYC.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		6635D2D3DB7B494180948B38 /* SFProText-semibold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "SFProText-semibold.ttf"; path = "../assets/fonts/SFProText-semibold.ttf"; sourceTree = "<group>"; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = mobileAppYC/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = mobileAppYC/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		936411006307670BE0A315D8 /* Pods-mobileAppYC.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-mobileAppYC.debug.xcconfig"; path = "Target Support Files/Pods-mobileAppYC/Pods-mobileAppYC.debug.xcconfig"; sourceTree = "<group>"; };
+		9B6F853E1DE74D949EF0A172 /* ClashDisplay-Bold.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "ClashDisplay-Bold.otf"; path = "../assets/fonts/ClashDisplay-Bold.otf"; sourceTree = "<group>"; };
+		AEF6A6C942B4489AA39854D7 /* Satoshi-Medium.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Satoshi-Medium.otf"; path = "../assets/fonts/Satoshi-Medium.otf"; sourceTree = "<group>"; };
+		B20BB11C225246958C33590A /* ClashDisplay-Medium.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "ClashDisplay-Medium.otf"; path = "../assets/fonts/ClashDisplay-Medium.otf"; sourceTree = "<group>"; };
+		CD336A2EB96D4E3A842ADBBC /* Satoshi-Light.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Satoshi-Light.otf"; path = "../assets/fonts/Satoshi-Light.otf"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
+		FD410C24CA4B417686DFF96F /* Satoshi-Black.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Satoshi-Black.otf"; path = "../assets/fonts/Satoshi-Black.otf"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -46,6 +76,29 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		0E0708F758364C1396C5FA6E /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				9B6F853E1DE74D949EF0A172 /* ClashDisplay-Bold.otf */,
+				1BA8B4E7E4004337996D7C90 /* ClashDisplay-Extralight.otf */,
+				18B9690E26844ED3A138EAE4 /* ClashDisplay-Light.otf */,
+				B20BB11C225246958C33590A /* ClashDisplay-Medium.otf */,
+				2B5B68E281BF4F2DA60491A9 /* ClashDisplay-Regular.otf */,
+				0CD424F2734F483EB275E552 /* ClashDisplay-Semibold.otf */,
+				12063E1091DE405D87C11C96 /* ClashGrotesk-Medium.otf */,
+				FD410C24CA4B417686DFF96F /* Satoshi-Black.otf */,
+				3C5821CD04F54EBF928A90A1 /* Satoshi-Bold.otf */,
+				CD336A2EB96D4E3A842ADBBC /* Satoshi-Light.otf */,
+				AEF6A6C942B4489AA39854D7 /* Satoshi-Medium.otf */,
+				3A036FB79F8A4C37B13EA70F /* Satoshi-Regular.otf */,
+				28D2C7847A484697B1AF1F8E /* ClashDisplay-Variable.ttf */,
+				28621C890A9E481DB0D9B6D6 /* SFProText-regular.ttf */,
+				6635D2D3DB7B494180948B38 /* SFProText-semibold.ttf */,
+			);
+			name = Resources;
+			path = "";
+			sourceTree = "<group>";
+		};
 		13B07FAE1A68108700A75B9A /* mobileAppYC */ = {
 			isa = PBXGroup;
 			children = (
@@ -86,6 +139,7 @@
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
 				BBD78D7AC51CEA395F1C20DB /* Pods */,
+				0E0708F758364C1396C5FA6E /* Resources */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -176,6 +230,21 @@
 				E6A943B3E225420BA9785A03 /* BootSplash.storyboard in Resources */,
 				EB918EA2F3434CE285FC714D /* Colors.xcassets in Resources */,
 				536176352E96F265005937AA /* GoogleService-Info.plist in Resources */,
+				0F120136581344B89C8255E4 /* ClashDisplay-Bold.otf in Resources */,
+				1BCEC42211384772973CB204 /* ClashDisplay-Extralight.otf in Resources */,
+				5177D14AF430420FB700DA73 /* ClashDisplay-Light.otf in Resources */,
+				4DAA6BFED3214D71813F0661 /* ClashDisplay-Medium.otf in Resources */,
+				16919AB261184B14A4E6AF7F /* ClashDisplay-Regular.otf in Resources */,
+				791D4C612E8447EC88CEEB34 /* ClashDisplay-Semibold.otf in Resources */,
+				32EB1ABDEF6E4030BB1930E5 /* ClashGrotesk-Medium.otf in Resources */,
+				DDBFAE588BE04905ACDBD2DA /* Satoshi-Black.otf in Resources */,
+				E01900E6C1C24FC3A177B22B /* Satoshi-Bold.otf in Resources */,
+				B16AD49F1216448AB1FE638B /* Satoshi-Light.otf in Resources */,
+				309DA876120A4DB0AB8EF960 /* Satoshi-Medium.otf in Resources */,
+				E606C93345D04B8A9337E586 /* Satoshi-Regular.otf in Resources */,
+				7FA6EE15257E4A089AF96CE8 /* ClashDisplay-Variable.ttf in Resources */,
+				8CDF7234D58144ABAB092E35 /* SFProText-regular.ttf in Resources */,
+				604359F293D642278FF2C9F8 /* SFProText-semibold.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
