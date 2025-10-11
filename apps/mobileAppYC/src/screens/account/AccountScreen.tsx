@@ -21,6 +21,8 @@ import {HomeStackParamList} from '@/navigation/types';
 import DeleteAccountBottomSheet, {
   type DeleteAccountBottomSheetRef,
 } from './components/DeleteAccountBottomSheet';
+import {AccountHeader} from './components/AccountHeader';
+import {AccountMenuList} from './components/AccountMenuList';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Account'>;
 
@@ -172,23 +174,13 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
         <ScrollView
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}>
-          <View style={styles.headerRow}>
-            <TouchableOpacity
-              style={styles.headerIconButton}
-              onPress={handleBackPress}
-              activeOpacity={0.85}>
-              <Image source={Images.backIcon} style={styles.headerIconImage} />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Account</Text>
-            <TouchableOpacity
-              style={styles.headerIconButton}
-              activeOpacity={0.85}>
-              <Image
-                source={Images.notificationIcon}
-                style={styles.headerIconImage}
-              />
-            </TouchableOpacity>
-          </View>
+          <AccountHeader
+            title="Account"
+            backIcon={Images.backIcon}
+            notificationIcon={Images.notificationIcon}
+            onBack={handleBackPress}
+            onNotificationPress={() => {}}
+          />
 
         <LiquidGlassCard
           glassEffect="clear"
@@ -226,38 +218,14 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
           interactive
           style={styles.menuContainer}
           fallbackStyle={styles.menuContainerFallback}>
-          {menuItems.map((item, index) => (
-            <TouchableOpacity
-              key={item.id}
-              activeOpacity={0.85}
-              onPress={item.onPress}
-              style={[
-                styles.menuRow,
-                index < menuItems.length - 1 && styles.menuRowDivider,
-              ]}>
-              <View
-                style={[
-                  styles.menuIconWrapper,
-                  item.danger && styles.menuIconWrapperDanger,
-                ]}>
-                <Image source={item.icon} style={styles.menuIcon} />
-              </View>
-              <Text
-                style={[
-                  styles.menuLabel,
-                  item.danger && styles.menuLabelDanger,
-                ]}>
-                {item.label}
-              </Text>
-              <Image
-                source={Images.rightArrow}
-                style={[
-                  styles.menuArrow,
-                  item.danger && styles.menuArrowDanger,
-                ]}
-              />
-            </TouchableOpacity>
-          ))}
+          <AccountMenuList
+            items={menuItems}
+            rightArrowIcon={Images.rightArrow}
+            onItemPress={id => {
+              const it = menuItems.find(m => m.id === id);
+              it?.onPress();
+            }}
+          />
         </LiquidGlassCard>
 
           <LiquidGlassButton
@@ -303,30 +271,7 @@ const createStyles = (theme: any) =>
       paddingBottom: theme.spacing['10'],
       gap: theme.spacing['5'],
     },
-    headerRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    },
-    headerIconButton: {
-      width: 30,
-      height: 30,
-      borderRadius: theme.borderRadius.lg,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: theme.colors.cardBackground,
-    },
-    headerIconImage: {
-      width: 30,
-      height: 30,
-      resizeMode: 'contain',
-    },
-    headerTitle: {
-      ...theme.typography.h3,
-      color: theme.colors.secondary,
-      flex: 1,
-      textAlign: 'center',
-    },
+    headerRow: {},
     companionsCard: {
       gap: theme.spacing['4'],
     },

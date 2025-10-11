@@ -7,7 +7,6 @@ describe('CustomBottomSheet', () => {
     let tree: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
       tree = TestRenderer.create(
-        // @ts-expect-error test init
         <CustomBottomSheet>
           <></>
         </CustomBottomSheet>
@@ -20,7 +19,6 @@ describe('CustomBottomSheet', () => {
     let tree: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
       tree = TestRenderer.create(
-        // @ts-expect-error test init
         <CustomBottomSheet contentType="scrollView">
           <></>
         </CustomBottomSheet>
@@ -35,12 +33,13 @@ describe('CustomBottomSheet', () => {
     let tree: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
       tree = TestRenderer.create(
-        // @ts-expect-error test init
         <CustomBottomSheet
           contentType="flatList"
           flatListData={data}
           flatListRenderItem={renderItem}
-        />
+        >
+          <></>
+        </CustomBottomSheet>
       );
     });
     expect(tree!).toBeTruthy();
@@ -49,7 +48,6 @@ describe('CustomBottomSheet', () => {
   it('warns when flatList is missing data or renderItem', () => {
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     TestRenderer.act(() => {
-      // @ts-expect-error test init
       TestRenderer.create(
         <CustomBottomSheet contentType="flatList">
           <></>
@@ -64,7 +62,6 @@ describe('CustomBottomSheet', () => {
     let tree: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
       tree = TestRenderer.create(
-        // @ts-expect-error test init
         <CustomBottomSheet enableBackdrop>
           <></>
         </CustomBottomSheet>
@@ -78,7 +75,6 @@ describe('CustomBottomSheet', () => {
     let tree: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
       tree = TestRenderer.create(
-        // @ts-expect-error test init
         <CustomBottomSheet customHandle handleComponent={Handle}>
           <></>
         </CustomBottomSheet>

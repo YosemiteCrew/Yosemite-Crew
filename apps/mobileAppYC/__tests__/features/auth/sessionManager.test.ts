@@ -205,6 +205,7 @@ describe('sessionManager', () => {
       mockAsyncStorage.getItem.mockResolvedValue(null);
       mockFetchProfileStatus.mockResolvedValue({
         exists: false,
+        profileToken: 'test-profile-token',
         source: 'remote',
       });
 
@@ -351,6 +352,7 @@ describe('sessionManager', () => {
         if (key === '@user_data') return JSON.stringify(mockUser);
         if (key === '@auth_tokens') {
           const expSec = Math.floor(Date.now() / 1000) + 3600;
+          // eslint-disable-next-line no-div-regex
           const payload = Buffer.from(JSON.stringify({ exp: expSec })).toString('base64').replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
           const idToken = `a.${payload}.b`;
           return JSON.stringify({ idToken, accessToken: 'legacy-access', provider: 'amplify' });
