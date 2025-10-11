@@ -1,6 +1,13 @@
 import React from 'react';
 import {BottomTabBarProps} from '@react-navigation/bottom-tabs';
-import {Image, Platform, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {
+  Image,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import {LiquidGlassView, isLiquidGlassSupported} from '@callstack/liquid-glass';
 import {useTheme} from '@/hooks';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -22,6 +29,29 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
   const insets = useSafeAreaInsets();
   const useGlass = Platform.OS !== 'ios' && isLiquidGlassSupported;
   const styles = React.useMemo(() => createStyles(theme, useGlass), [theme, useGlass]);
+
+  const shouldHideTabBar = React.useMemo(() => {
+    const traverse = (navState: any): boolean => {
+      if (!navState) {
+        return false;
+      }
+      if (typeof navState.index === 'number' && navState.index > 0) {
+        return true;
+      }
+      const nestedRoute = navState.routes?.[navState.index ?? 0];
+      if (nestedRoute?.state) {
+        return traverse(nestedRoute.state);
+      }
+      return false;
+    };
+
+    const focusedRoute = state.routes[state.index] as any;
+    return traverse(focusedRoute?.state);
+  }, [state]);
+
+  if (shouldHideTabBar) {
+    return null;
+  }
 
   const renderItems = () =>
     state.routes.map((route, index) => {

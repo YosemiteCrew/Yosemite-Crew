@@ -116,18 +116,18 @@ export const CountryMobileBottomSheet = forwardRef<
   return (
     <CustomBottomSheet
       ref={bottomSheetRef}
-      snapPoints={['85%']}
+      snapPoints={['83%', '95%']}
       initialIndex={-1}
       enablePanDownToClose={true}
       enableDynamicSizing={false}
       enableContentPanningGesture={false}
+      enableHandlePanningGesture={true}
+      enableOverDrag={true}
       enableBackdrop={true}
       backdropOpacity={0.5}
       backdropDisappearsOnIndex={-1}
       backdropPressBehavior="close"
       contentType="view"
-      enableHandlePanningGesture={true}
-      enableOverDrag={true}
       backgroundStyle={styles.bottomSheetBackground}
       handleIndicatorStyle={styles.bottomSheetHandle}
       keyboardBehavior="interactive"
