@@ -101,7 +101,7 @@ export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
           onPress={handlePressView}>
           <TouchableOpacity style={styles.actionIcon} activeOpacity={0.85}>
                       <Image
-                        source={Images.editIconSlide}
+                        source={Images.viewIconSlide}
                         style={styles.actionImage}
                       />
                     </TouchableOpacity>

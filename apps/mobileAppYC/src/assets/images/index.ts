@@ -30,6 +30,7 @@ export const Images = {
   paw: require('./dashboard/paw.png'),
   plusIcon: require('./dashboard/plusIcon.png'),
   editIconSlide: require('./icons/editIconSlide.png'),
+    viewIconSlide: require('./icons/viewIconSlide.png'),
 
   navigation: {
     home: {
