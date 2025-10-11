@@ -14,10 +14,11 @@ export interface User {
 }
 
 export interface AuthTokens extends StoredAuthTokens {
-  provider: AuthProvider;
+  provider?: AuthProvider;
 }
 
 export interface NormalizedAuthTokens extends AuthTokens {
+  provider: AuthProvider;
   userId: string;
   expiresAt?: number;
 }

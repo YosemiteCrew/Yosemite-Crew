@@ -269,6 +269,10 @@ describe('googlePlaces service', () => {
       expect(result.longitude).toBeUndefined();
     });
 
+    it('should throw when placeId is missing', async () => {
+      await expect(fetchPlaceDetails('')).rejects.toThrow(/placeId is required/);
+    });
+
     it('should construct address line from street number and route', async () => {
       const mockResponse = {
         formattedAddress: '789 Pine St, City, State',

@@ -8,7 +8,7 @@ import {
   logout,
   refreshSession,
 } from '@/features/auth';
-import type {AuthTokens, User} from '@/features/auth';
+import type {AuthTokens, User, NormalizedAuthTokens} from '@/features/auth';
 import {themeReducer} from '@/features/theme';
 
 import {signOutEverywhere} from '@/services/auth/passwordlessAuth';
@@ -95,6 +95,7 @@ describe('auth thunks', () => {
       ...tokens,
       expiresAt: Date.now() + 60_000,
       userId: tokens.userId!,
+      provider: tokens.provider ?? 'amplify',
     });
 
     await dispatch(establishSession({user, tokens}));
@@ -117,10 +118,11 @@ describe('auth thunks', () => {
     const store = createStore();
     const dispatch = store.dispatch as TestDispatch;
     const user = buildUser();
-    const tokens = {
+    const tokens: NormalizedAuthTokens = {
       ...buildTokens(),
       expiresAt: Date.now() + 120_000,
       userId: 'test-user',
+      provider: 'amplify',
     };
 
     mockRecoverAuthSession.mockResolvedValue({
@@ -161,6 +163,7 @@ describe('auth thunks', () => {
       ...buildTokens(),
       expiresAt: Date.now() + 60_000,
       userId: 'test-user',
+      provider: 'amplify',
     });
 
     await dispatch(establishSession({user: buildUser(), tokens: buildTokens()}));
