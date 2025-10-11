@@ -4,7 +4,7 @@ import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
 import {TextInput} from 'react-native';
 import {OTPInput} from '@/components/common/OTPInput/OTPInput';
-import themeReducer from '@/store/slices/themeSlice';
+import {themeReducer} from '@/features/theme';
 
 describe('OTPInput', () => {
   const createTestStore = () => {

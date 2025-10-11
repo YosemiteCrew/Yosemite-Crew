@@ -4,7 +4,7 @@ import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
 import {Text, TouchableOpacity} from 'react-native';
 import {Modal} from '@/components/common/Modal/Modal';
-import themeReducer from '@/store/slices/themeSlice';
+import {themeReducer} from '@/features/theme';
 
 describe('Modal', () => {
   // Replace RN Modal with a simple View wrapper at runtime to avoid native internals

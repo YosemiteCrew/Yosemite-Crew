@@ -4,7 +4,7 @@ import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
 import {Text, TouchableOpacity, View} from 'react-native';
 import {TouchableInput} from '@/components/common/TouchableInput/TouchableInput';
-import themeReducer from '@/store/slices/themeSlice';
+import {themeReducer} from '@/features/theme';
 
 describe('TouchableInput', () => {
   const createTestStore = () => {

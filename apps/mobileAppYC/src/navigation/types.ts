@@ -37,15 +37,6 @@ export type TabScreenProps<T extends keyof TabParamList> = BottomTabScreenProps<
   T
 >;
 
-// Pet Stack Navigator
-export type PetStackParamList = {
-  PetList: undefined;
-  PetDetails: {petId: string};
-  AddPet: undefined;
-};
-
-export type PetStackScreenProps<T extends keyof PetStackParamList> =
-  NativeStackScreenProps<PetStackParamList, T>;
 
 declare global {
   namespace ReactNavigation {

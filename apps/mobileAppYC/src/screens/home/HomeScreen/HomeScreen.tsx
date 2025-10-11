@@ -1,31 +1,151 @@
 import React from 'react';
-import {View, Text, StyleSheet, ScrollView, TouchableOpacity} from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  ImageSourcePropType,
+  Animated,
+} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {useTheme} from '@/hooks';
-import {HomeStackParamList} from '@/navigation/types';
+import {NavigationProp} from '@react-navigation/native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
+import {useTheme} from '@/hooks';
+import {HomeStackParamList, TabParamList} from '@/navigation/types';
 import {useAuth} from '@/contexts/AuthContext';
+import {Images} from '@/assets/images';
+import {SearchBar, YearlySpendCard} from '@/components/common';
+import {LiquidGlassCard} from '@/components/common/LiquidGlassCard/LiquidGlassCard';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Home'>;
 
-const companions = [
-  {id: '1', name: 'Kizie', meta: '3 Tasks'},
-  {id: '2', name: 'Oscar', meta: '4 Tasks'},
-  {id: '3', name: 'Ranger', meta: '2 Tasks'},
+type Companion = {
+  id: string;
+  name: string;
+  tasks: number;
+  avatar: ImageSourcePropType;
+};
+
+const COMPANION_SEED: Companion[] = [
+  {
+    id: 'kizie',
+    name: 'Kizie',
+    tasks: 3,
+    avatar: {
+      uri: 'https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=160&h=160',
+    },
+  },
+  {
+    id: 'oscar',
+    name: 'Oscar',
+    tasks: 2,
+    avatar: {
+      uri: 'https://images.unsplash.com/photo-1517423568366-8b83523034fd?auto=format&fit=crop&w=160&h=160',
+    },
+  },
+  {
+    id: 'ranger',
+    name: 'Ranger',
+    tasks: 1,
+    avatar: {
+      uri: 'https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=160&h=160',
+    },
+  },
 ];
 
-const quickActions = [
-  {id: 'health', label: 'Manage health', glyph: '❤'},
-  {id: 'hygiene', label: 'Hygiene maintenance', glyph: '🧴'},
-  {id: 'diet', label: 'Dietary plans', glyph: '🍽'},
+const QUICK_ACTIONS = [
+  {id: 'health', label: 'Manage health', icon: Images.healthIcon},
+  {id: 'hygiene', label: 'Hygiene maintenance', icon: Images.hygeineIcon},
+  {id: 'diet', label: 'Dietary plans', icon: Images.dietryIcon},
 ];
+
+export const deriveHomeGreetingName = (rawFirstName?: string | null) => {
+  const trimmed = rawFirstName?.trim() ?? '';
+  const resolvedName = trimmed.length > 0 ? trimmed : 'Sky';
+  const displayName =
+    resolvedName.length > 13
+      ? `${resolvedName.slice(0, 13)}...`
+      : resolvedName;
+  return {resolvedName, displayName};
+};
 
 export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const {theme} = useTheme();
   const {user} = useAuth();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
 
-  const firstName = user?.firstName || 'Sky';
+  const [showCompanionCarousel, setShowCompanionCarousel] =
+    React.useState(false);
+  const [selectedCompanionId, setSelectedCompanionId] = React.useState<
+    string | null
+  >(null);
+
+  const {resolvedName: firstName, displayName} = deriveHomeGreetingName(
+    user?.firstName,
+  );
+
+  const handleActivateCompanions = () => {
+    setShowCompanionCarousel(true);
+    setSelectedCompanionId(COMPANION_SEED[0]?.id ?? null);
+  };
+
+  const handleSelectCompanion = (id: string) => {
+    setSelectedCompanionId(id);
+  };
+
+  const renderCompanionBadge = (companion: Companion) => {
+    const isSelected = selectedCompanionId === companion.id;
+
+    return (
+      <TouchableOpacity
+        key={companion.id}
+        style={styles.companionTouchable}
+        activeOpacity={0.88}
+        onPress={() => handleSelectCompanion(companion.id)}>
+        <View style={styles.companionItem}>
+          <Animated.View
+            style={[
+              styles.companionAvatarRing,
+              isSelected && styles.companionAvatarRingSelected,
+              isSelected && {transform: [{scale: 1.08}]},
+            ]}>
+            <Image source={companion.avatar} style={styles.companionAvatar} />
+          </Animated.View>
+
+          <Text style={styles.companionName}>{companion.name}</Text>
+          <Text style={styles.companionMeta}>{`${companion.tasks} Tasks`}</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderAddCompanionBadge = () => (
+    <TouchableOpacity
+      key="add-companion"
+      style={styles.companionTouchable}
+      activeOpacity={0.85}>
+      <View style={styles.addCompanionItem}>
+        <View style={styles.addCompanionCircle}>
+          <Image source={Images.blueAddIcon} style={styles.addCompanionIcon} />
+        </View>
+        <Text style={styles.addCompanionLabel}>Add companion</Text>
+      </View>
+    </TouchableOpacity>
+  );
+
+  const renderUpcomingTile = (title: string, subtitle: string, key: string) => (
+    <LiquidGlassCard
+      key={key}
+      glassEffect="regular"
+      interactive
+      style={styles.infoTile}
+      fallbackStyle={styles.tileFallback}>
+      <Text style={styles.tileTitle}>{title}</Text>
+      <Text style={styles.tileSubtitle}>{subtitle}</Text>
+    </LiquidGlassCard>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -42,94 +162,105 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
                 {firstName.charAt(0).toUpperCase()}
               </Text>
             </View>
-            <Text
-              style={styles.greetingName}
-              numberOfLines={2}
-              ellipsizeMode="tail">
-              Hello, <Text style={styles.greetingNameBold}>{firstName}</Text>
-            </Text>
+            <View>
+              <Text style={styles.greetingName}>Hello, {displayName}</Text>
+            </View>
           </TouchableOpacity>
+
           <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.actionIcon} activeOpacity={0.8}>
-              <Text style={styles.headerGlyphAlert}>✚</Text>
+            <TouchableOpacity
+              style={styles.actionIcon}
+              activeOpacity={0.85}
+              onPress={() => {
+                const tabNavigation =
+                  navigation.getParent<NavigationProp<TabParamList>>();
+                tabNavigation?.navigate('Appointments');
+              }}>
+              <Image source={Images.emergencyIcon} style={styles.actionImage} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionIcon} activeOpacity={0.8}>
-              <Text style={styles.headerGlyphPrimary}>🔔</Text>
+            <TouchableOpacity style={styles.actionIcon} activeOpacity={0.85}>
+              <Image
+                source={Images.notificationIcon}
+                style={styles.actionImage}
+              />
             </TouchableOpacity>
           </View>
         </View>
 
-        <TouchableOpacity style={styles.searchBar} activeOpacity={0.9}>
-          <Text style={styles.searchGlyph}>🔍</Text>
-          <Text style={styles.searchPlaceholder}>
-            Search hospitals, groomers, boarders…
-          </Text>
-        </TouchableOpacity>
+        <SearchBar
+          placeholder="Search hospitals, groomers, boarders..."
+          onPress={() => {}}
+        />
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.companionRow}>
-          {companions.map(item => (
-            <View key={item.id} style={styles.companionCard}>
-              <View style={styles.companionAvatar}>
-                <Text style={styles.companionInitials}>
-                  {item.name.charAt(0)}
-                </Text>
-              </View>
-              <Text style={styles.companionName}>{item.name}</Text>
-              <Text style={styles.companionMeta}>{item.meta}</Text>
-            </View>
-          ))}
-          <View style={[styles.companionCard, styles.addCompanionCard]}>
-            <View style={[styles.companionAvatar, styles.addCompanionAvatar]}>
-              <Text style={styles.addCompanionGlyph}>＋</Text>
-            </View>
-            <Text style={styles.companionName}>Add companion</Text>
-          </View>
-        </ScrollView>
+        {!showCompanionCarousel ? (
+          <LiquidGlassCard
+            glassEffect="regular"
+            interactive
+            tintColor={theme.colors.primary}
+            style={[styles.heroTouchable, styles.heroCard]}
+            fallbackStyle={styles.heroFallback}>
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={handleActivateCompanions}
+              style={styles.heroContent}>
+              <Image source={Images.paw} style={styles.heroPaw} />
+              <Image source={Images.plusIcon} style={styles.heroIconImage} />
+              <Text style={styles.heroTitle}>Add your first companion</Text>
+            </TouchableOpacity>
+          </LiquidGlassCard>
+        ) : (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.companionRow}>
+            {COMPANION_SEED.map(renderCompanionBadge)}
+            {renderAddCompanionBadge()}
+          </ScrollView>
+        )}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Upcoming</Text>
-          <View style={styles.placeholderCard}>
-            <Text style={styles.placeholderTitle}>No upcoming tasks</Text>
-            <Text style={styles.placeholderSubtitle}>
-              Add a companion to start managing their tasks
-            </Text>
-          </View>
-          <View style={styles.placeholderCard}>
-            <Text style={styles.placeholderTitle}>No upcoming appointments</Text>
-            <Text style={styles.placeholderSubtitle}>
-              Add a companion to start managing their appointments
-            </Text>
-          </View>
+          {renderUpcomingTile(
+            'No upcoming tasks',
+            'Add a companion to start managing their tasks',
+            'tasks',
+          )}
+          {renderUpcomingTile(
+            'No upcoming appointments',
+            'Add a companion to start managing their appointments',
+            'appointments',
+          )}
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Expenses</Text>
-          <View style={styles.placeholderCard}>
-            <Text style={styles.placeholderTitle}>No expenses recorded</Text>
-            <Text style={styles.placeholderSubtitle}>
-              Add a companion to start managing their expenses
-            </Text>
-          </View>
+          <YearlySpendCard amount={0} />
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick actions</Text>
-          <View style={styles.quickRow}>
-            {quickActions.map(action => (
-              <TouchableOpacity
-                key={action.id}
-                style={styles.quickCard}
-                activeOpacity={0.9}>
-                <View style={styles.quickIcon}>
-                  <Text style={styles.quickGlyph}>{action.glyph}</Text>
-                </View>
-            <Text style={styles.quickLabel}>{action.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+          <LiquidGlassCard
+            glassEffect="regular"
+            interactive
+            style={styles.quickActionsCard}
+            fallbackStyle={styles.tileFallback}>
+            <View style={styles.quickActionsRow}>
+              {QUICK_ACTIONS.map(action => (
+                <TouchableOpacity
+                  key={action.id}
+                  style={styles.quickAction}
+                  activeOpacity={0.88}>
+                  <View style={styles.quickActionIconWrapper}>
+                    <Image
+                      source={action.icon}
+                      style={styles.quickActionIcon}
+                    />
+                  </View>
+                  <Text style={styles.quickActionLabel}>{action.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </LiquidGlassCard>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -143,24 +274,26 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.background,
     },
     scrollContent: {
-      padding: 24,
-      paddingBottom: 120,
-      gap: 24,
+      paddingHorizontal: theme.spacing[6],
+      paddingTop: theme.spacing[6],
+      paddingBottom: theme.spacing[30],
+      gap: theme.spacing[6],
     },
     headerRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
+      marginTop: theme.spacing[3],
     },
     profileButton: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
+      gap: theme.spacing[3.5],
     },
     avatar: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: 48,
+      height: 48,
+      borderRadius: 24,
       backgroundColor: theme.colors.lightBlueBackground,
       alignItems: 'center',
       justifyContent: 'center',
@@ -168,165 +301,217 @@ const createStyles = (theme: any) =>
       borderColor: theme.colors.primary,
     },
     avatarInitials: {
-      ...theme.typography.paragraphBold,
+      ...theme.typography.titleMedium,
       color: theme.colors.secondary,
     },
     greetingName: {
-      ...theme.typography.h3,
-      color: theme.colors.secondary,
-      textAlign: 'left',
-    },
-    greetingNameBold: {
-      ...theme.typography.h3,
+      ...theme.typography.titleLarge,
       color: theme.colors.secondary,
     },
     headerActions: {
       flexDirection: 'row',
-      gap: 12,
+      alignItems: 'center',
+      gap: theme.spacing[3],
     },
     actionIcon: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: theme.colors.cardBackground,
-      ...theme.shadows.xs,
-    },
-    headerGlyphAlert: {
-      fontSize: 16,
-      color: '#EA3729',
-    },
-    headerGlyphPrimary: {
-      fontSize: 16,
-      color: theme.colors.secondary,
-    },
-    searchBar: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      borderRadius: 24,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      backgroundColor: theme.colors.cardBackground,
-      paddingVertical: 14,
-      paddingHorizontal: 16,
-      ...theme.shadows.xs,
-    },
-    searchGlyph: {
-      fontSize: 16,
-      marginRight: 12,
-      color: theme.colors.textSecondary,
-    },
-    searchPlaceholder: {
-      ...theme.typography.paragraph,
-      color: theme.colors.textSecondary,
-    },
-    companionRow: {
-      gap: 16,
-      paddingVertical: 4,
-    },
-    companionCard: {
-      width: 92,
-      borderRadius: 20,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      backgroundColor: theme.colors.cardBackground,
-      alignItems: 'center',
-      paddingVertical: 12,
-      gap: 6,
-      ...theme.shadows.xs,
-    },
-    companionAvatar: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      backgroundColor: theme.colors.lightBlueBackground,
+      width: 40,
+      height: 40,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    companionInitials: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.secondary,
+    actionImage: {
+      width: 25,
+      height: 25,
+      resizeMode: 'contain',
     },
-    companionName: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.secondary,
-      textAlign: 'center',
+    heroTouchable: {
+      alignSelf: 'flex-start',
+      width: '50%',
+      minWidth: 160,
+      maxWidth: 160,
     },
-    companionMeta: {
-      ...theme.typography.paragraph,
-      color: theme.colors.primary,
-      textAlign: 'center',
-      fontSize: 12,
+    heroCard: {
+      borderRadius: theme.borderRadius.lg,
+      padding: theme.spacing[5],
+      minHeight: 160,
+      overflow: 'hidden',
+      ...theme.shadows.lg,
+      shadowColor: theme.colors.neutralShadow,
     },
-    addCompanionCard: {
-      borderStyle: 'dashed',
-      borderColor: theme.colors.primary,
+    heroContent: {
+      flex: 1,
+      minHeight: 100,
+      justifyContent: 'space-between',
+      gap: theme.spacing[2],
     },
-    addCompanionAvatar: {
+    heroPaw: {
+      position: 'absolute',
+      right: -45,
+      top: -45,
+      width: 160,
+      height: 160,
+      tintColor: theme.colors.whiteOverlay70,
+      resizeMode: 'contain',
+    },
+    heroIconImage: {
+      marginTop: 35,
+      marginBottom: theme.spacing[1.25],
+      width: 35,
+      height: 35,
+      tintColor: theme.colors.onPrimary,
+      resizeMode: 'contain',
+    },
+    heroTitle: {
+      ...theme.typography.titleMedium,
+      color: theme.colors.onPrimary,
+    },
+    heroFallback: {
+      borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.primary,
-    },
-    addCompanionGlyph: {
-      fontSize: 18,
-      color: theme.colors.white,
+      borderColor: theme.colors.borderMuted,
+      overflow: 'hidden',
     },
     section: {
-      gap: 12,
+      gap: theme.spacing[3.5],
     },
     sectionTitle: {
-      ...theme.typography.screenTitle,
+      ...theme.typography.titleLarge,
       color: theme.colors.secondary,
-      textAlign: 'left',
     },
-    placeholderCard: {
-      borderRadius: 20,
+    infoTile: {
+      borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
-      borderColor: theme.colors.border,
+      borderColor: theme.colors.borderMuted,
       backgroundColor: theme.colors.cardBackground,
-      padding: 20,
-      gap: 6,
-      ...theme.shadows.xs,
+      padding: theme.spacing[5],
+      gap: theme.spacing[2],
+      ...theme.shadows.md,
+      shadowColor: theme.colors.neutralShadow,
+      overflow: 'hidden',
     },
-    placeholderTitle: {
-      ...theme.typography.paragraphBold,
+    tileFallback: {
+      borderRadius: theme.borderRadius.lg,
+      borderColor: theme.colors.borderMuted,
+      backgroundColor: theme.colors.cardBackground,
+    },
+    tileTitle: {
+      ...theme.typography.titleMedium,
       color: theme.colors.secondary,
+      textAlign: 'center',
     },
-    placeholderSubtitle: {
-      ...theme.typography.paragraph,
-      color: theme.colors.textSecondary,
+    tileSubtitle: {
+      ...theme.typography.bodySmallTight,
+      color: theme.colors.secondary,
+      textAlign: 'center',
     },
-    quickRow: {
+    quickActionsCard: {
+      borderRadius: theme.borderRadius.lg,
+      borderWidth: 1,
+      borderColor: theme.colors.borderMuted,
+      backgroundColor: theme.colors.cardBackground,
+      paddingVertical: theme.spacing[4.5],
+      paddingHorizontal: theme.spacing[4],
+      ...theme.shadows.md,
+      shadowColor: theme.colors.neutralShadow,
+      overflow: 'hidden',
+    },
+    quickActionsRow: {
       flexDirection: 'row',
-      gap: 12,
+      justifyContent: 'space-between',
+      gap: theme.spacing[3],
     },
-    quickCard: {
+    quickAction: {
       flex: 1,
-      borderRadius: 20,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      backgroundColor: theme.colors.cardBackground,
       alignItems: 'center',
-      paddingVertical: 16,
-      gap: 12,
-      ...theme.shadows.xs,
+      gap: theme.spacing[3],
     },
-    quickIcon: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
+    quickActionIconWrapper: {
+      width: 50,
+      height: 50,
+      borderRadius: 12,
       backgroundColor: theme.colors.secondary,
+      justifyContent: 'center',
+      alignItems: 'center',
+      ...theme.shadows.sm,
+      shadowColor: theme.colors.black,
+    },
+    quickActionIcon: {
+      width: 26,
+      height: 26,
+      resizeMode: 'contain',
+      tintColor: theme.colors.white,
+    },
+    quickActionLabel: {
+      ...theme.typography.labelXsBold,
+      color: theme.colors.secondary,
+      textAlign: 'center',
+    },
+    companionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing[4],
+      paddingVertical: theme.spacing[2],
+    },
+    companionTouchable: {
+      width: 96,
+    },
+    companionItem: {
+      alignItems: 'center',
+      gap: theme.spacing[2.5],
+    },
+    companionAvatarRing: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      borderWidth: 2,
+      borderColor: theme.colors.primaryTint,
       alignItems: 'center',
       justifyContent: 'center',
+      overflow: 'hidden',
+      backgroundColor: theme.colors.cardBackground,
     },
-    quickGlyph: {
-      fontSize: 18,
-      color: theme.colors.white,
+    companionAvatarRingSelected: {
+      borderColor: theme.colors.primary,
     },
-    quickLabel: {
-      ...theme.typography.paragraphBold,
+
+    companionAvatar: {
+      width: '90%',
+      height: '90%',
+      borderRadius: theme.borderRadius.full, // ensures perfect circular crop
+      resizeMode: 'cover',
+    },
+    companionName: {
+      ...theme.typography.titleSmall,
       color: theme.colors.secondary,
+    },
+    companionMeta: {
+      ...theme.typography.labelXsBold,
+      color: theme.colors.primary,
+    },
+    addCompanionItem: {
+      alignItems: 'center',
+      gap: theme.spacing[2.5],
+    },
+    addCompanionCircle: {
+      width: 64,
+      height: 64,
+      marginBottom: theme.spacing[2.5],
+      borderRadius: 32,
+      borderWidth: 2,
+      borderStyle: 'dashed',
+      borderColor: theme.colors.primaryTintStrong,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.primarySurface,
+    },
+    addCompanionIcon: {
+      width: 28,
+      height: 28,
+      resizeMode: 'contain',
+    },
+    addCompanionLabel: {
+      ...theme.typography.labelXsBold,
+      color: theme.colors.primary,
       textAlign: 'center',
     },
   });

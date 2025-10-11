@@ -86,6 +86,27 @@ export const typography = {
     lineHeight: fontSizes.base * lineHeights.normal,
     fontWeight: fontWeights.medium,
   },
+  titleLarge: {
+    fontFamily: fonts.CLASH_GRO_MEDIUM,
+    fontSize: fontSizes.xl,
+    lineHeight: fontSizes.xl * 1.2,
+    fontWeight: fontWeights.medium,
+    letterSpacing: -0.2,
+  },
+  titleMedium: {
+    fontFamily: fonts.CLASH_GRO_MEDIUM,
+    fontSize: fontSizes.lg,
+    lineHeight: fontSizes.lg * 1.2,
+    fontWeight: fontWeights.medium,
+    letterSpacing: -0.18,
+  },
+  titleSmall: {
+    fontFamily: fonts.CLASH_GRO_MEDIUM,
+    fontSize: fontSizes.base,
+    lineHeight: fontSizes.base * 1.2,
+    fontWeight: fontWeights.medium,
+    letterSpacing: -0.16,
+  },
   paragraph: {
     fontFamily: fonts.SATOSHI_REGULAR,
     fontSize: fontSizes.base,
@@ -127,6 +148,18 @@ export const typography = {
     lineHeight: fontSizes.sm * lineHeights.normal,
     fontWeight: fontWeights.normal,
   },
+  bodySmallTight: {
+    fontFamily: fonts.SATOSHI_REGULAR,
+    fontSize: fontSizes.sm,
+    lineHeight: fontSizes.sm * 1.4,
+    fontWeight: fontWeights.normal,
+  },
+  bodyExtraSmall: {
+    fontFamily: fonts.SATOSHI_REGULAR,
+    fontSize: 13,
+    lineHeight: 16,
+    fontWeight: fontWeights.normal,
+  },
 
   // Labels
   label: {
@@ -140,6 +173,20 @@ export const typography = {
     fontSize: fontSizes.sm,
     lineHeight: fontSizes.sm * lineHeights.normal,
     fontWeight: fontWeights.medium,
+  },
+  labelXxsBold: {
+    fontFamily: fonts.SATOSHI_BOLD,
+    fontSize: 12,
+    lineHeight: 12 * 1.2,
+    fontWeight: fontWeights.bold,
+    letterSpacing: 0,
+  },
+  labelXsBold: {
+    fontFamily: fonts.SATOSHI_BOLD,
+    fontSize: 13,
+    lineHeight: 13 * 1.2,
+    fontWeight: fontWeights.bold,
+    letterSpacing: 0,
   },
 
   // Captions

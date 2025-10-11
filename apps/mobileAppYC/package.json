@@ -41,6 +41,7 @@
     "react-hook-form": "^7.63.0",
     "react-i18next": "^15.4.1",
     "react-native": "0.81.4",
+    "react-native-asset": "^2.1.1",
     "react-native-bootsplash": "^6.3.11",
     "react-native-device-info": "^14.1.1",
     "react-native-fbsdk-next": "^13.4.1",

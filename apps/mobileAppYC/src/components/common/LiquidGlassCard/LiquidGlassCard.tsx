@@ -1,8 +1,10 @@
 import React from 'react';
 import {
+  Platform,
+  StyleProp,
+  StyleSheet,
   View,
   ViewStyle,
-  Platform,
 } from 'react-native';
 import {
   LiquidGlassView,
@@ -12,7 +14,7 @@ import {useTheme} from '../../../hooks';
 
 interface LiquidGlassCardProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   glassEffect?: 'clear' | 'regular' | 'none';
   interactive?: boolean;
   tintColor?: string;
@@ -20,7 +22,7 @@ interface LiquidGlassCardProps {
   padding?: keyof typeof import('../../../theme').spacing;
   borderRadius?: keyof typeof import('../../../theme').borderRadius;
   shadow?: keyof typeof import('../../../theme').shadows;
-  fallbackStyle?: ViewStyle;
+  fallbackStyle?: StyleProp<ViewStyle>;
 }
 
 export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
@@ -29,7 +31,7 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
   glassEffect = 'regular',
   interactive = false,
   tintColor,
-  colorScheme = 'system',
+  colorScheme = 'light',
   padding = '4',
   borderRadius = 'lg',
   shadow = 'base',
@@ -37,44 +39,35 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
 }) => {
   const {theme} = useTheme();
 
-  const getCardStyle = (): ViewStyle => ({
+  const baseStyle: ViewStyle = {
     padding: theme.spacing[padding],
     borderRadius: theme.borderRadius[borderRadius],
     ...theme.shadows[shadow],
-  });
-
-  const getFallbackStyle = (): ViewStyle => ({
-    backgroundColor: colorScheme === 'dark'
-      ? 'rgba(255, 255, 255, 0.1)' 
-      : 'rgba(255, 255, 255, 0.8)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: colorScheme === 'dark' 
-      ? 'rgba(255, 255, 255, 0.2)' 
-      : 'rgba(255, 255, 255, 0.3)',
-    ...theme.shadows.base,
-    ...fallbackStyle,
-  });
+    borderColor: '#EAEAEA',
+  };
 
-  const cardStyle = getCardStyle();
+  const flattenedStyle = StyleSheet.flatten([
+    baseStyle,
+    fallbackStyle,
+    style,
+  ]);
 
-  // If liquid glass is supported on iOS
-  if (Platform.OS === 'ios' && isLiquidGlassSupported) {
+  const isIosGlass = Platform.OS === 'ios' && isLiquidGlassSupported;
+
+  if (isIosGlass) {
     return (
       <LiquidGlassView
-        style={[cardStyle, style]}
+        style={flattenedStyle}
         interactive={interactive}
         effect={glassEffect}
-        tintColor={tintColor}
+        tintColor={tintColor ?? 'light'}
         colorScheme={colorScheme}>
         {children}
       </LiquidGlassView>
     );
   }
 
-  // Fallback for Android or unsupported iOS versions
-  return (
-    <View style={[cardStyle, getFallbackStyle(), style]}>
-      {children}
-    </View>
-  );
+  return <View style={flattenedStyle}>{children}</View>;
 };
