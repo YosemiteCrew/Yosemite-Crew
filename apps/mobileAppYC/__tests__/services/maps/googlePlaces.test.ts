@@ -4,10 +4,21 @@ import {
 } from '@/services/maps/googlePlaces';
 
 // Mock the config
-jest.mock('@/config/variablesExample', () => ({
+jest.mock('@/config/variables', () => ({
   GOOGLE_PLACES_CONFIG: {
     apiKey: 'test-api-key',
   },
+  PASSWORDLESS_AUTH_CONFIG: {
+    profileServiceUrl: '',
+    createAccountUrl: '',
+    profileBootstrapUrl: '',
+    googleWebClientId: '',
+    facebookAppId: '',
+    appleServiceId: '',
+    appleRedirectUri: '',
+  },
+  PENDING_PROFILE_STORAGE_KEY: '@pending_profile_payload',
+  PENDING_PROFILE_UPDATED_EVENT: 'pendingProfileUpdated',
 }));
 
 // Mock fetch
@@ -323,10 +334,21 @@ describe('googlePlaces service', () => {
   describe('API key validation', () => {
     it('should throw error when API key is missing', async () => {
       jest.resetModules();
-      jest.doMock('@/config/variablesExample', () => ({
+      jest.doMock('@/config/variables', () => ({
         GOOGLE_PLACES_CONFIG: {
           apiKey: '',
         },
+        PASSWORDLESS_AUTH_CONFIG: {
+          profileServiceUrl: '',
+          createAccountUrl: '',
+          profileBootstrapUrl: '',
+          googleWebClientId: '',
+          facebookAppId: '',
+          appleServiceId: '',
+          appleRedirectUri: '',
+        },
+        PENDING_PROFILE_STORAGE_KEY: '@pending_profile_payload',
+        PENDING_PROFILE_UPDATED_EVENT: 'pendingProfileUpdated',
       }));
 
       const {fetchPlaceSuggestions: fetchSuggestions} = require('@/services/maps/googlePlaces');
