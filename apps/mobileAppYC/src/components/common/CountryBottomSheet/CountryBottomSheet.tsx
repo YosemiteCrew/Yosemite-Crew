@@ -1,4 +1,4 @@
-// src/components/common/CountryMobileBottomSheet/CountryMobileBottomSheet.tsx
+// src/components/common/CountryBottomSheet/CountryBottomSheet.tsx
 import React, {useState, forwardRef, useImperativeHandle, useRef} from 'react';
 import {
   View,
@@ -18,48 +18,45 @@ import {Images} from '../../../assets/images';
 
 interface Country {
   name: string;
-  flag: string;
   code: string;
+  flag: string;
   dial_code: string;
 }
 
-export interface CountryMobileBottomSheetRef {
+export interface CountryBottomSheetRef {
   open: () => void;
   close: () => void;
 }
 
-interface CountryMobileBottomSheetProps {
+interface CountryBottomSheetProps {
   countries: Country[];
-  selectedCountry: Country;
-  mobileNumber: string;
-  onSave: (country: Country, mobile: string) => void;
+  selectedCountry: Country | null;
+  onSave: (country: Country | null) => void;
 }
 
-export const CountryMobileBottomSheet = forwardRef<
-  CountryMobileBottomSheetRef,
-  CountryMobileBottomSheetProps
->(({countries, selectedCountry, mobileNumber, onSave}, ref) => {
+export const CountryBottomSheet = forwardRef<
+  CountryBottomSheetRef,
+  CountryBottomSheetProps
+>(({countries, selectedCountry, onSave}, ref) => {
   const {theme} = useTheme();
   const bottomSheetRef = useRef<BottomSheetRef>(null);
 
-  const [tempCountry, setTempCountry] = useState<Country>(selectedCountry);
-  const [tempMobile, setTempMobile] = useState<string>(mobileNumber);
+  const [tempCountry, setTempCountry] = useState<Country | null>(
+    selectedCountry,
+  );
   const [searchQuery, setSearchQuery] = useState('');
 
   const styles = createStyles(theme);
 
   const renderEmptyList = () => (
     <View style={styles.emptyContainer}>
-      <Text style={styles.emptyText}>
-        No results found
-      </Text>
+      <Text style={styles.emptyText}>No results found</Text>
     </View>
   );
 
   useImperativeHandle(ref, () => ({
     open: () => {
       setTempCountry(selectedCountry);
-      setTempMobile(mobileNumber);
       setSearchQuery('');
       bottomSheetRef.current?.snapToIndex(0);
     },
@@ -68,42 +65,31 @@ export const CountryMobileBottomSheet = forwardRef<
     },
   }));
 
-  const filteredCountries = countries.filter(
-    country =>
-      country.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      country.dial_code.includes(searchQuery),
+  const filteredCountries = countries.filter(country =>
+    country.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const handleSave = () => {
-    onSave(tempCountry, tempMobile);
+    onSave(tempCountry);
     bottomSheetRef.current?.close();
   };
 
   const handleCancel = () => {
     setTempCountry(selectedCountry);
-    setTempMobile(mobileNumber);
     setSearchQuery('');
     bottomSheetRef.current?.close();
   };
 
   const renderCountryItem = ({item}: {item: Country}) => {
-    const isSelected = item.code === tempCountry.code;
+    const isSelected = tempCountry?.code === item.code;
 
     return (
       <TouchableOpacity
-        style={[
-          styles.countryItem,
-          isSelected && styles.countryItemSelected,
-        ]}
+        style={[styles.countryItem, isSelected && styles.countryItemSelected]}
         onPress={() => setTempCountry(item)}
         activeOpacity={0.7}>
         <Text style={styles.flag}>{item.flag}</Text>
-        <Text style={styles.countryName}>
-          {item.name}
-        </Text>
-        <Text style={styles.dialCode}>
-          {item.dial_code}
-        </Text>
+        <Text style={styles.countryName}>{item.name}</Text>
         {isSelected && (
           <View style={styles.checkmark}>
             <Text style={styles.checkmarkText}>✓</Text>
@@ -132,14 +118,11 @@ export const CountryMobileBottomSheet = forwardRef<
       handleIndicatorStyle={styles.bottomSheetHandle}
       keyboardBehavior="interactive"
       keyboardBlurBehavior="restore"
-      android_keyboardInputMode="adjustResize"
-    >
+      android_keyboardInputMode="adjustResize">
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>
-            Phone number
-          </Text>
+          <Text style={styles.title}>Select Country</Text>
           <TouchableOpacity onPress={handleCancel} style={styles.closeButton}>
             <Image
               source={Images.crossIcon}
@@ -147,29 +130,6 @@ export const CountryMobileBottomSheet = forwardRef<
               resizeMode="contain"
             />
           </TouchableOpacity>
-        </View>
-
-        {/* Input Row */}
-        <View style={styles.inputRow}>
-          <View style={styles.countryCodeWrapper}>
-            <Input
-              value={`${tempCountry.flag} ${tempCountry.dial_code}`}
-              editable={false}
-              label="Country"
-              containerStyle={styles.countryCodeContainer}
-              inputStyle={styles.countryCodeInput}
-            />
-          </View>
-
-          <View style={styles.mobileInputWrapper}>
-            <Input
-              value={tempMobile}
-              onChangeText={setTempMobile}
-              label="Phone number"
-              keyboardType="phone-pad"
-              maxLength={10}
-            />
-          </View>
         </View>
 
         {/* Search */}
@@ -188,20 +148,20 @@ export const CountryMobileBottomSheet = forwardRef<
           />
         </View>
 
-        {/* Country List - Fixed Height */}
+        {/* Country List */}
         <View style={styles.listWrapper}>
           <FlatList
             data={filteredCountries}
             keyExtractor={item => item.code}
             renderItem={renderCountryItem}
-            showsVerticalScrollIndicator={true}
+            showsVerticalScrollIndicator
             contentContainerStyle={styles.listContent}
-            nestedScrollEnabled={true}
+            nestedScrollEnabled
             ListEmptyComponent={renderEmptyList}
           />
         </View>
 
-        {/* Buttons - Always Visible */}
+        {/* Buttons */}
         <View style={styles.buttonContainer}>
           <LiquidGlassButton
             title="Cancel"
@@ -237,20 +197,20 @@ export const CountryMobileBottomSheet = forwardRef<
   );
 });
 
-CountryMobileBottomSheet.displayName = 'CountryMobileBottomSheet';
+CountryBottomSheet.displayName = 'CountryBottomSheet';
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      paddingHorizontal: theme.spacing['5'], // 20
+      paddingHorizontal: theme.spacing['5'],
       backgroundColor: theme.colors.background,
     },
     header: {
       flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
-      paddingVertical: theme.spacing['4'], // 16
+      paddingVertical: theme.spacing['4'],
       position: 'relative',
     },
     title: {
@@ -260,101 +220,79 @@ const createStyles = (theme: any) =>
     closeButton: {
       position: 'absolute',
       right: 0,
-      padding: theme.spacing['2'], // 8
+      padding: theme.spacing['2'],
     },
     closeIcon: {
-      width: theme.spacing['6'], // 24
-      height: theme.spacing['6'], // 24
-    },
-    inputRow: {
-      flexDirection: 'row',
-      gap: theme.spacing['3'], // 12
-      marginBottom: theme.spacing['4'], // 16
-    },
-    countryCodeWrapper: {
-      width: 110,
-    },
-    countryCodeContainer: {
-      flex: 1,
-    },
-    countryCodeInput: {
-      fontSize: 16,
-    },
-    mobileInputWrapper: {
-      flex: 1,
+      width: theme.spacing['6'],
+      height: theme.spacing['6'],
     },
     searchContainer: {
-      marginBottom: theme.spacing['4'], // 16
+      marginBottom: theme.spacing['4'],
     },
     searchInputContainer: {
       marginBottom: 0,
     },
     searchIconImage: {
-      width: theme.spacing['5'], // 20
-      height: theme.spacing['5'], // 20
+      width: theme.spacing['5'],
+      height: theme.spacing['5'],
       tintColor: theme.colors.textSecondary,
-    },
-    emptyContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingVertical: theme.spacing['10'], // 40
-    },
-    emptyText: {
-      ...theme.typography.body,
-      color: theme.colors.textSecondary,
-      textAlign: 'center',
     },
     listWrapper: {
       flex: 1,
       height: 400,
-      marginBottom: theme.spacing['2'], // 8
+      marginBottom: theme.spacing['2'],
     },
     listContent: {
-      paddingBottom: theme.spacing['2'], // 8
+      paddingBottom: theme.spacing['2'],
     },
     countryItem: {
       flexDirection: 'row',
       alignItems: 'center',
       paddingVertical: 14,
-      paddingHorizontal: theme.spacing['3'], // 12
-      borderRadius: theme.borderRadius.base, // 8
-      marginBottom: theme.spacing['1'], // 4
+      paddingHorizontal: theme.spacing['3'],
+      borderRadius: theme.borderRadius.base,
+      marginBottom: theme.spacing['1'],
     },
     countryItemSelected: {
       backgroundColor: theme.colors.surface,
     },
     flag: {
-      fontSize: theme.spacing['6'], // 24
-      marginRight: theme.spacing['3'], // 12
+      fontSize: theme.spacing['6'],
+      marginRight: theme.spacing['3'],
     },
     countryName: {
       flex: 1,
       ...theme.typography.body,
       color: theme.colors.text,
     },
-    dialCode: {
-      ...theme.typography.body,
-      color: theme.colors.textSecondary,
-      marginRight: theme.spacing['2'], // 8
-    },
     checkmark: {
-      width: theme.spacing['5'], // 20
-      height: theme.spacing['5'], // 20
-      borderRadius: theme.spacing['5'] / 2, // 10
+      width: theme.spacing['5'],
+      height: theme.spacing['5'],
+      borderRadius: theme.spacing['5'] / 2,
       backgroundColor: theme.colors.primary,
       justifyContent: 'center',
       alignItems: 'center',
     },
     checkmarkText: {
       color: theme.colors.white,
-      fontSize: theme.spacing['3'], // 12
+      fontSize: theme.spacing['3'],
       fontWeight: 'bold',
+    },
+    emptyContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: theme.spacing['10'],
+    },
+    emptyText: {
+      ...theme.typography.body,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
     },
     buttonContainer: {
       flexDirection: 'row',
-      gap: theme.spacing['3'], // 12
-      paddingVertical: theme.spacing['4'], // 16
+      gap: theme.spacing['3'],
+      paddingVertical: theme.spacing['4'],
       borderTopWidth: 1,
       borderTopColor: theme.colors.border,
       backgroundColor: 'transparent',
@@ -378,7 +316,6 @@ const createStyles = (theme: any) =>
       color: theme.colors.white,
       ...theme.typography.paragraphBold,
     },
-    // Bottom Sheet Styles
     bottomSheetBackground: {
       backgroundColor: theme.colors.background,
       borderTopLeftRadius: 28,

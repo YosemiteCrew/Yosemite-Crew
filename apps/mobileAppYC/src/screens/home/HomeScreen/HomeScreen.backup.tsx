@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  ImageSourcePropType,
   Animated,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -17,16 +18,42 @@ import {useAuth} from '@/contexts/AuthContext';
 import {Images} from '@/assets/images';
 import {SearchBar, YearlySpendCard} from '@/components/common';
 import {LiquidGlassCard} from '@/components/common/LiquidGlassCard/LiquidGlassCard';
-import {useDispatch, useSelector} from 'react-redux';
-import type {AppDispatch} from '@/app/store';
-import {
-  selectCompanions,
-  selectSelectedCompanionId,
-  setSelectedCompanion,
-  fetchCompanions,
-} from '@/features/companion';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Home'>;
+
+type Companion = {
+  id: string;
+  name: string;
+  tasks: number;
+  avatar: ImageSourcePropType;
+};
+
+const COMPANION_SEED: Companion[] = [
+  {
+    id: 'kizie',
+    name: 'Kizie',
+    tasks: 3,
+    avatar: {
+      uri: 'https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=160&h=160',
+    },
+  },
+  {
+    id: 'oscar',
+    name: 'Oscar',
+    tasks: 2,
+    avatar: {
+      uri: 'https://images.unsplash.com/photo-1517423568366-8b83523034fd?auto=format&fit=crop&w=160&h=160',
+    },
+  },
+  {
+    id: 'ranger',
+    name: 'Ranger',
+    tasks: 1,
+    avatar: {
+      uri: 'https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=160&h=160',
+    },
+  },
+];
 
 const QUICK_ACTIONS = [
   {id: 'health', label: 'Manage health', icon: Images.healthIcon},
@@ -47,38 +74,29 @@ export const deriveHomeGreetingName = (rawFirstName?: string | null) => {
 export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const {theme} = useTheme();
   const {user} = useAuth();
-  const dispatch = useDispatch<AppDispatch>();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
 
-  const companions = useSelector(selectCompanions);
-  const selectedCompanionIdRedux = useSelector(selectSelectedCompanionId);
+  const [showCompanionCarousel, setShowCompanionCarousel] =
+    React.useState(false);
+  const [selectedCompanionId, setSelectedCompanionId] = React.useState<
+    string | null
+  >(null);
 
   const {resolvedName: firstName, displayName} = deriveHomeGreetingName(
     user?.firstName,
   );
 
-  // Fetch companions on mount
-  React.useEffect(() => {
-    if (user?.id) {
-      dispatch(fetchCompanions(user.id));
-    }
-  }, [dispatch, user?.id]);
-
-  const handleAddCompanion = () => {
-    navigation.navigate('AddCompanion');
+  const handleActivateCompanions = () => {
+    setShowCompanionCarousel(true);
+    setSelectedCompanionId(COMPANION_SEED[0]?.id ?? null);
   };
 
   const handleSelectCompanion = (id: string) => {
-    dispatch(setSelectedCompanion(id));
+    setSelectedCompanionId(id);
   };
 
-  const getCompanionTaskCount = () => {
-    // Mock task count - in a real app, this would come from tasks slice
-    return Math.floor(Math.random() * 5);
-  };
-
-  const renderCompanionBadge = (companion: any) => {
-    const isSelected = selectedCompanionIdRedux === companion.id;
+  const renderCompanionBadge = (companion: Companion) => {
+    const isSelected = selectedCompanionId === companion.id;
 
     return (
       <TouchableOpacity
@@ -93,24 +111,11 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
               isSelected && styles.companionAvatarRingSelected,
               isSelected && {transform: [{scale: 1.08}]},
             ]}>
-            {companion.profileImage ? (
-              <Image
-                source={{uri: companion.profileImage}}
-                style={styles.companionAvatar}
-              />
-            ) : (
-              <View style={styles.companionAvatarPlaceholder}>
-                <Text style={styles.companionAvatarInitial}>
-                  {companion.name.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-            )}
+            <Image source={companion.avatar} style={styles.companionAvatar} />
           </Animated.View>
 
           <Text style={styles.companionName}>{companion.name}</Text>
-          <Text style={styles.companionMeta}>
-            {`${getCompanionTaskCount()} Tasks`}
-          </Text>
+          <Text style={styles.companionMeta}>{`${companion.tasks} Tasks`}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -120,8 +125,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     <TouchableOpacity
       key="add-companion"
       style={styles.companionTouchable}
-      activeOpacity={0.85}
-      onPress={handleAddCompanion}>
+      activeOpacity={0.85}>
       <View style={styles.addCompanionItem}>
         <View style={styles.addCompanionCircle}>
           <Image source={Images.blueAddIcon} style={styles.addCompanionIcon} />
@@ -188,7 +192,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
           onPress={() => {}}
         />
 
-        {companions.length === 0 ? (
+        {!showCompanionCarousel ? (
           <LiquidGlassCard
             glassEffect="regular"
             interactive
@@ -197,7 +201,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
             fallbackStyle={styles.heroFallback}>
             <TouchableOpacity
               activeOpacity={0.9}
-              onPress={handleAddCompanion}
+              onPress={handleActivateCompanions}
               style={styles.heroContent}>
               <Image source={Images.paw} style={styles.heroPaw} />
               <Image source={Images.plusIcon} style={styles.heroIconImage} />
@@ -209,7 +213,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.companionRow}>
-            {companions.map(renderCompanionBadge)}
+            {COMPANION_SEED.map(renderCompanionBadge)}
             {renderAddCompanionBadge()}
           </ScrollView>
         )}
@@ -217,21 +221,13 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Upcoming</Text>
           {renderUpcomingTile(
-            companions.length === 0 ? 'No upcoming tasks' : 'Tasks for today',
-            companions.length === 0
-              ? 'Add a companion to start managing their tasks'
-              : `${companions.length} companion${
-                  companions.length > 1 ? 's' : ''
-                } have tasks today`,
+            'No upcoming tasks',
+            'Add a companion to start managing their tasks',
             'tasks',
           )}
           {renderUpcomingTile(
-            companions.length === 0
-              ? 'No upcoming appointments'
-              : 'Next appointment',
-            companions.length === 0
-              ? 'Add a companion to start managing their appointments'
-              : 'Schedule your next vet visit',
+            'No upcoming appointments',
+            'Add a companion to start managing their appointments',
             'appointments',
           )}
         </View>
@@ -477,24 +473,12 @@ const createStyles = (theme: any) =>
     companionAvatarRingSelected: {
       borderColor: theme.colors.primary,
     },
+
     companionAvatar: {
       width: '90%',
       height: '90%',
-      borderRadius: theme.borderRadius.full,
+      borderRadius: theme.borderRadius.full, // ensures perfect circular crop
       resizeMode: 'cover',
-    },
-    companionAvatarPlaceholder: {
-      width: '90%',
-      height: '90%',
-      borderRadius: theme.borderRadius.full,
-      backgroundColor: theme.colors.lightBlueBackground,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    companionAvatarInitial: {
-      ...theme.typography.titleMedium,
-      color: theme.colors.primary,
-      fontWeight: '700',
     },
     companionName: {
       ...theme.typography.titleSmall,

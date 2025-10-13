@@ -1,5 +1,5 @@
-// src/components/common/CountryMobileBottomSheet/CountryMobileBottomSheet.tsx
-import React, {useState, forwardRef, useImperativeHandle, useRef} from 'react';
+// src/components/common/BreedBottomSheet/BreedBottomSheet.tsx
+import React, {useState, forwardRef, useImperativeHandle, useRef, useMemo} from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   StyleSheet,
   FlatList,
   Image,
-  Platform,
 } from 'react-native';
 import CustomBottomSheet from '../BottomSheet/BottomSheet';
 import type {BottomSheetRef} from '../BottomSheet/BottomSheet';
@@ -15,51 +14,73 @@ import {Input} from '../Input/Input';
 import LiquidGlassButton from '../LiquidGlassButton/LiquidGlassButton';
 import {useTheme} from '../../../hooks';
 import {Images} from '../../../assets/images';
+import type {Breed} from '@/features/companion/types';
+import type {CompanionCategory} from '@/features/companion/types';
 
-interface Country {
-  name: string;
-  flag: string;
-  code: string;
-  dial_code: string;
-}
-
-export interface CountryMobileBottomSheetRef {
+export interface BreedBottomSheetRef {
   open: () => void;
   close: () => void;
 }
 
-interface CountryMobileBottomSheetProps {
-  countries: Country[];
-  selectedCountry: Country;
-  mobileNumber: string;
-  onSave: (country: Country, mobile: string) => void;
+interface BreedBottomSheetProps {
+  breeds: Breed[];
+  selectedBreed: Breed | null;
+  category: CompanionCategory | null;
+  onSave: (breed: Breed | null) => void;
 }
 
-export const CountryMobileBottomSheet = forwardRef<
-  CountryMobileBottomSheetRef,
-  CountryMobileBottomSheetProps
->(({countries, selectedCountry, mobileNumber, onSave}, ref) => {
+export const BreedBottomSheet = forwardRef<
+  BreedBottomSheetRef,
+  BreedBottomSheetProps
+>(({breeds, selectedBreed, category, onSave}, ref) => {
   const {theme} = useTheme();
   const bottomSheetRef = useRef<BottomSheetRef>(null);
 
-  const [tempCountry, setTempCountry] = useState<Country>(selectedCountry);
-  const [tempMobile, setTempMobile] = useState<string>(mobileNumber);
+  const [tempBreed, setTempBreed] = useState<Breed | null>(selectedBreed);
   const [searchQuery, setSearchQuery] = useState('');
 
   const styles = createStyles(theme);
 
+  // Filter breeds by category
+  const categoryFilteredBreeds = useMemo(() => {
+    if (!category) {
+      return breeds;
+    }
+
+    const categoryMap: Record<CompanionCategory, string> = {
+      cat: 'Cat',
+      dog: 'Dog',
+      horse: 'Horse',
+    };
+
+    const categoryName = categoryMap[category];
+    return breeds.filter(breed =>
+      breed.speciesName.toLowerCase().includes(categoryName.toLowerCase())
+    );
+  }, [breeds, category]);
+
+  const filteredBreeds = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return categoryFilteredBreeds;
+    }
+
+    const query = searchQuery.toLowerCase();
+    return categoryFilteredBreeds.filter(breed =>
+      breed.breedName.toLowerCase().includes(query)
+    );
+  }, [categoryFilteredBreeds, searchQuery]);
+
   const renderEmptyList = () => (
     <View style={styles.emptyContainer}>
       <Text style={styles.emptyText}>
-        No results found
+        {searchQuery.trim() ? 'No breeds found' : 'No breeds available'}
       </Text>
     </View>
   );
 
   useImperativeHandle(ref, () => ({
     open: () => {
-      setTempCountry(selectedCountry);
-      setTempMobile(mobileNumber);
+      setTempBreed(selectedBreed);
       setSearchQuery('');
       bottomSheetRef.current?.snapToIndex(0);
     },
@@ -68,42 +89,29 @@ export const CountryMobileBottomSheet = forwardRef<
     },
   }));
 
-  const filteredCountries = countries.filter(
-    country =>
-      country.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      country.dial_code.includes(searchQuery),
-  );
-
   const handleSave = () => {
-    onSave(tempCountry, tempMobile);
+    onSave(tempBreed);
     bottomSheetRef.current?.close();
   };
 
   const handleCancel = () => {
-    setTempCountry(selectedCountry);
-    setTempMobile(mobileNumber);
+    setTempBreed(selectedBreed);
     setSearchQuery('');
     bottomSheetRef.current?.close();
   };
 
-  const renderCountryItem = ({item}: {item: Country}) => {
-    const isSelected = item.code === tempCountry.code;
+  const renderBreedItem = ({item}: {item: Breed}) => {
+    const isSelected = tempBreed?.breedId === item.breedId;
 
     return (
       <TouchableOpacity
         style={[
-          styles.countryItem,
-          isSelected && styles.countryItemSelected,
+          styles.breedItem,
+          isSelected && styles.breedItemSelected,
         ]}
-        onPress={() => setTempCountry(item)}
+        onPress={() => setTempBreed(item)}
         activeOpacity={0.7}>
-        <Text style={styles.flag}>{item.flag}</Text>
-        <Text style={styles.countryName}>
-          {item.name}
-        </Text>
-        <Text style={styles.dialCode}>
-          {item.dial_code}
-        </Text>
+        <Text style={styles.breedName}>{item.breedName}</Text>
         {isSelected && (
           <View style={styles.checkmark}>
             <Text style={styles.checkmarkText}>✓</Text>
@@ -132,14 +140,11 @@ export const CountryMobileBottomSheet = forwardRef<
       handleIndicatorStyle={styles.bottomSheetHandle}
       keyboardBehavior="interactive"
       keyboardBlurBehavior="restore"
-      android_keyboardInputMode="adjustResize"
-    >
+      android_keyboardInputMode="adjustResize">
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>
-            Phone number
-          </Text>
+          <Text style={styles.title}>Select breed</Text>
           <TouchableOpacity onPress={handleCancel} style={styles.closeButton}>
             <Image
               source={Images.crossIcon}
@@ -149,35 +154,20 @@ export const CountryMobileBottomSheet = forwardRef<
           </TouchableOpacity>
         </View>
 
-        {/* Input Row */}
-        <View style={styles.inputRow}>
-          <View style={styles.countryCodeWrapper}>
-            <Input
-              value={`${tempCountry.flag} ${tempCountry.dial_code}`}
-              editable={false}
-              label="Country"
-              containerStyle={styles.countryCodeContainer}
-              inputStyle={styles.countryCodeInput}
-            />
+        {/* Current Selection */}
+        {tempBreed && (
+          <View style={styles.currentSelection}>
+            <Text style={styles.currentSelectionLabel}>Selected:</Text>
+            <Text style={styles.currentSelectionValue}>{tempBreed.breedName}</Text>
           </View>
-
-          <View style={styles.mobileInputWrapper}>
-            <Input
-              value={tempMobile}
-              onChangeText={setTempMobile}
-              label="Phone number"
-              keyboardType="phone-pad"
-              maxLength={10}
-            />
-          </View>
-        </View>
+        )}
 
         {/* Search */}
         <View style={styles.searchContainer}>
           <Input
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholder="Search country name"
+            placeholder="Search from 200+ breeds"
             icon={
               <Image
                 source={Images.searchIcon}
@@ -188,12 +178,12 @@ export const CountryMobileBottomSheet = forwardRef<
           />
         </View>
 
-        {/* Country List - Fixed Height */}
+        {/* Breed List */}
         <View style={styles.listWrapper}>
           <FlatList
-            data={filteredCountries}
-            keyExtractor={item => item.code}
-            renderItem={renderCountryItem}
+            data={filteredBreeds}
+            keyExtractor={item => item.breedId.toString()}
+            renderItem={renderBreedItem}
             showsVerticalScrollIndicator={true}
             contentContainerStyle={styles.listContent}
             nestedScrollEnabled={true}
@@ -201,7 +191,7 @@ export const CountryMobileBottomSheet = forwardRef<
           />
         </View>
 
-        {/* Buttons - Always Visible */}
+        {/* Buttons */}
         <View style={styles.buttonContainer}>
           <LiquidGlassButton
             title="Cancel"
@@ -219,10 +209,7 @@ export const CountryMobileBottomSheet = forwardRef<
           <LiquidGlassButton
             title="Save"
             onPress={handleSave}
-            style={StyleSheet.flatten([
-              styles.saveButton,
-              Platform.OS === 'android' ? styles.saveButtonAndroid : null,
-            ])}
+            style={styles.saveButton}
             textStyle={styles.saveButtonText}
             tintColor={theme.colors.secondary}
             shadowIntensity="medium"
@@ -237,20 +224,20 @@ export const CountryMobileBottomSheet = forwardRef<
   );
 });
 
-CountryMobileBottomSheet.displayName = 'CountryMobileBottomSheet';
+BreedBottomSheet.displayName = 'BreedBottomSheet';
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      paddingHorizontal: theme.spacing['5'], // 20
+      paddingHorizontal: theme.spacing['5'],
       backgroundColor: theme.colors.background,
     },
     header: {
       flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
-      paddingVertical: theme.spacing['4'], // 16
+      paddingVertical: theme.spacing['4'],
       position: 'relative',
     },
     title: {
@@ -260,45 +247,49 @@ const createStyles = (theme: any) =>
     closeButton: {
       position: 'absolute',
       right: 0,
-      padding: theme.spacing['2'], // 8
+      padding: theme.spacing['2'],
     },
     closeIcon: {
-      width: theme.spacing['6'], // 24
-      height: theme.spacing['6'], // 24
+      width: theme.spacing['6'],
+      height: theme.spacing['6'],
     },
-    inputRow: {
+    currentSelection: {
       flexDirection: 'row',
-      gap: theme.spacing['3'], // 12
-      marginBottom: theme.spacing['4'], // 16
+      alignItems: 'center',
+      paddingVertical: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['4'],
+      backgroundColor: theme.colors.primarySurface,
+      borderRadius: theme.borderRadius.lg,
+      marginBottom: theme.spacing['4'],
+      gap: theme.spacing['2'],
     },
-    countryCodeWrapper: {
-      width: 110,
+    currentSelectionLabel: {
+      ...theme.typography.body,
+      color: theme.colors.textSecondary,
+      fontWeight: '500',
     },
-    countryCodeContainer: {
-      flex: 1,
-    },
-    countryCodeInput: {
-      fontSize: 16,
-    },
-    mobileInputWrapper: {
+    currentSelectionValue: {
+      ...theme.typography.body,
+      color: theme.colors.primary,
+      fontWeight: '600',
       flex: 1,
     },
     searchContainer: {
-      marginBottom: theme.spacing['4'], // 16
+      marginBottom: theme.spacing['4'],
     },
     searchInputContainer: {
       marginBottom: 0,
     },
     searchIconImage: {
-      width: theme.spacing['5'], // 20
-      height: theme.spacing['5'], // 20
+      width: theme.spacing['5'],
+      height: theme.spacing['5'],
       tintColor: theme.colors.textSecondary,
     },
     emptyContainer: {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
-      paddingVertical: theme.spacing['10'], // 40
+      paddingVertical: theme.spacing['10'],
     },
     emptyText: {
       ...theme.typography.body,
@@ -308,53 +299,45 @@ const createStyles = (theme: any) =>
     listWrapper: {
       flex: 1,
       height: 400,
-      marginBottom: theme.spacing['2'], // 8
+      marginBottom: theme.spacing['2'],
     },
     listContent: {
-      paddingBottom: theme.spacing['2'], // 8
+      paddingBottom: theme.spacing['2'],
     },
-    countryItem: {
+    breedItem: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'space-between',
       paddingVertical: 14,
-      paddingHorizontal: theme.spacing['3'], // 12
-      borderRadius: theme.borderRadius.base, // 8
-      marginBottom: theme.spacing['1'], // 4
+      paddingHorizontal: theme.spacing['3'],
+      borderRadius: theme.borderRadius.base,
+      marginBottom: theme.spacing['1'],
     },
-    countryItemSelected: {
+    breedItemSelected: {
       backgroundColor: theme.colors.surface,
     },
-    flag: {
-      fontSize: theme.spacing['6'], // 24
-      marginRight: theme.spacing['3'], // 12
-    },
-    countryName: {
+    breedName: {
       flex: 1,
       ...theme.typography.body,
       color: theme.colors.text,
     },
-    dialCode: {
-      ...theme.typography.body,
-      color: theme.colors.textSecondary,
-      marginRight: theme.spacing['2'], // 8
-    },
     checkmark: {
-      width: theme.spacing['5'], // 20
-      height: theme.spacing['5'], // 20
-      borderRadius: theme.spacing['5'] / 2, // 10
+      width: theme.spacing['5'],
+      height: theme.spacing['5'],
+      borderRadius: theme.spacing['5'] / 2,
       backgroundColor: theme.colors.primary,
       justifyContent: 'center',
       alignItems: 'center',
     },
     checkmarkText: {
       color: theme.colors.white,
-      fontSize: theme.spacing['3'], // 12
+      fontSize: theme.spacing['3'],
       fontWeight: 'bold',
     },
     buttonContainer: {
       flexDirection: 'row',
-      gap: theme.spacing['3'], // 12
-      paddingVertical: theme.spacing['4'], // 16
+      gap: theme.spacing['3'],
+      paddingVertical: theme.spacing['4'],
       borderTopWidth: 1,
       borderTopColor: theme.colors.border,
       backgroundColor: 'transparent',
@@ -371,14 +354,10 @@ const createStyles = (theme: any) =>
       flex: 1,
       backgroundColor: theme.colors.secondary,
     },
-    saveButtonAndroid: {
-      backgroundColor: theme.colors.secondary,
-    },
     saveButtonText: {
       color: theme.colors.white,
       ...theme.typography.paragraphBold,
     },
-    // Bottom Sheet Styles
     bottomSheetBackground: {
       backgroundColor: theme.colors.background,
       borderTopLeftRadius: 28,

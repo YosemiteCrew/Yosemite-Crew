@@ -9,8 +9,9 @@ import React, {useEffect, useState} from 'react';
 import {StatusBar, LogBox} from 'react-native';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {Provider} from 'react-redux';
+import {PersistGate} from 'redux-persist/integration/react';
 import {NavigationContainer} from '@react-navigation/native';
-import {store} from '@/app/store';
+import {store, persistor} from '@/app/store';
 import {AppNavigator} from './src/navigation';
 import {useTheme} from './src/hooks';
 import CustomSplashScreen from './src/components/common/customSplashScreen/customSplash';
@@ -44,15 +45,17 @@ function App(): React.JSX.Element {
 
   return (
     <Provider store={store}>
+      <PersistGate loading={<CustomSplashScreen onAnimationEnd={() => {}} />} persistor={persistor}>
         <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-              <AuthProvider>
-        <NavigationContainer>
-          <AppContent />
-        </NavigationContainer>
-         </AuthProvider>
-      </SafeAreaProvider>
+          <SafeAreaProvider>
+            <AuthProvider>
+              <NavigationContainer>
+                <AppContent />
+              </NavigationContainer>
+            </AuthProvider>
+          </SafeAreaProvider>
         </GestureHandlerRootView>
+      </PersistGate>
     </Provider>
   );
 }
