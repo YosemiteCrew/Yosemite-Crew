@@ -1,0 +1,191 @@
+name: CI (affected)
+
+on:
+  pull_request: {}
+  push:
+    branches: [main, dev]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  detect:
+    name: Detect affected workspaces
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      has-any: ${{ steps.set-matrix.outputs.has_any }}
+    steps:
+      - name: Checkout (PR-safe)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - name: Compute base SHA
+        id: base
+        run: |
+          if [ -n "${{ github.event.pull_request.base.sha }}" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE_BRANCH="${{ github.ref_name }}"
+            git fetch origin "$BASE_BRANCH" --depth=50 || true
+            BASE_SHA=$(git merge-base origin/"$BASE_BRANCH" HEAD 2>/dev/null)
+            if [ -z "$BASE_SHA" ]; then
+                BASE_SHA=$(git rev-parse HEAD)
+            fi
+          fi
+          echo "sha=$BASE_SHA" >> $GITHUB_OUTPUT
+
+      - name: Fetch base branch
+        if: github.event.pull_request.base.ref != ''
+        run: git fetch origin ${{ github.event.pull_request.base.ref }} --depth=50
+
+      # Optional: if lockfile or root package.json changed, we'll run *all* workspaces
+      - name: Check lockfile/root changes
+        id: lock
+        run: |
+          BASE_SHA="${{ steps.base.outputs.sha }}"
+          # diff between base and current HEAD
+          if git diff --name-only "$BASE_SHA" HEAD | grep -E '^(pnpm-lock\.yaml|package\.json)$' ; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      # When lockfile/root package.json changed -> set matrix to ALL workspaces
+      - name: List all workspaces (fallback)
+        if: steps.lock.outputs.changed == 'true'
+        run: pnpm dlx turbo ls --output=json > ls.json
+
+      - name: Compute affected workspaces (Turborepo)
+        if: steps.lock.outputs.changed != 'true'
+        run: |
+          BASE_SHA="${{ steps.base.outputs.sha }}"
+          echo "Diff base => $BASE_SHA"
+          if git cat-file -e "$BASE_SHA" 2>/dev/null; then
+            pnpm dlx turbo run build test --filter=...[${BASE_SHA}] --dry=json > affected.json || echo "{}" > affected.json
+          else
+            echo "⚠️ Base SHA not found, running all" && pnpm dlx turbo ls --output=json > affected.json
+          fi
+          cat affected.json || true
+
+      - name: Build matrix
+        id: set-matrix
+        shell: bash
+        run: |
+          if [ "${{ steps.lock.outputs.changed }}" = "true" ]; then
+            node -e 'const a=require("./ls.json"); const ws=(a.workspaces||[]).map(w=>w.name||w.package).filter(Boolean); const has=ws.length>0; process.stdout.write(`matrix=${JSON.stringify({workspace:ws})}\n`); process.stdout.write(`has_any=${has}\n`);' >> $GITHUB_OUTPUT
+          else
+            node -e 'const fs=require("fs"); const a=JSON.parse(fs.readFileSync("affected.json","utf8")); const ws=[...new Set((a.tasks||[]).map(t=>t.package).filter(Boolean))]; const has=ws.length>0; process.stdout.write(`matrix=${JSON.stringify({workspace:ws})}\n`); process.stdout.write(`has_any=${has}\n`);' >> $GITHUB_OUTPUT
+          fi
+
+      - name: Show matrix
+        run: |
+          echo "matrix=${{ steps.set-matrix.outputs.matrix }}"
+          echo "has_any=${{ steps.set-matrix.outputs.has_any }}"
+
+  run-affected:
+    name: CI for affected workspaces
+    needs: detect
+    if: needs.detect.outputs.has-any == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect.outputs.matrix) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
+
+      - name: Compute pnpm store path
+        id: store
+        run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_ENV
+
+      - name: Restore pnpm store cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: pnpm-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-${{ runner.os }}-${{ env.NODE_VERSION }}-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate workspace exists
+        run: |
+          if ! pnpm --filter "${{ matrix.workspace }}" exec true 2>/dev/null; then
+            echo "Workspace '${{ matrix.workspace }}' not found. Skipping..."
+            exit 0
+          fi
+
+      - name: Lint
+        run: pnpm --filter "${{ matrix.workspace }}" lint
+
+      - name: Typecheck
+        run: pnpm --filter "${{ matrix.workspace }}" type-check
+
+      - name: Build
+        run: pnpm --filter "${{ matrix.workspace }}" build
+
+      - name: Test
+        run: pnpm --filter "${{ matrix.workspace }}" test -- --ci
+
+  # No-ops job for PRs with no affected workspaces (keeps status checks predictable)
+  no-affected:
+    name: No affected workspaces
+    needs: detect
+    if: needs.detect.outputs.has-any != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "No affected workspaces. Skipping."
+
+  # Aggregate status job (like your ci-website-status-check)
+  status-check:
+    name: CI Affected Status
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    needs: [detect, run-affected, no-affected]
+    steps:
+      - name: Aggregate result
+        run: |
+          if echo "${{ toJson(needs.*.result) }}" | grep -q failure; then
+            echo "❌ One or more jobs failed"
+            exit 1
+          else
+            echo "✅ All jobs succeeded"
+          fi
