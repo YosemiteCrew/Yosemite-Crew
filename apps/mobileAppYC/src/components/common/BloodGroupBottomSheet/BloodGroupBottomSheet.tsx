@@ -45,7 +45,7 @@ const BLOOD_GROUPS: Record<CompanionCategory, string[]> = {
     'Universal Donor',
     'Unknown',
   ],
-  horse: [
+  equine: [
     'Aa',
     'Ca',
     'Da',
@@ -128,7 +128,7 @@ export const BloodGroupBottomSheet = forwardRef<
   return (
     <CustomBottomSheet
       ref={bottomSheetRef}
-      snapPoints={['70%', '85%']}
+      snapPoints={['65%', '60%']}
       initialIndex={-1}
       enablePanDownToClose={true}
       enableDynamicSizing={false}

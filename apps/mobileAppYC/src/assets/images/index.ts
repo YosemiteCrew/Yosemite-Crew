@@ -43,6 +43,18 @@ export const Images = {
   contactIcon: require('./account/contactIcon.png'),
   deleteIconRed: require('./account/deleteIconRed.png'),
 
+
+  //companion onboarding
+    cat: require('./addCompanion/cat.png'),
+    dog: require('./addCompanion/dog.png'),
+    equine: require('./addCompanion/equine.png'),
+
+
+
+
+
+
+
   navigation: {
     home: {
       focused: require('./navigation/homeFocused.png'),
