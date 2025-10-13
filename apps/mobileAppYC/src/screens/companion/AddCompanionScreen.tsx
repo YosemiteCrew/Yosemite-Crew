@@ -480,7 +480,6 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
         />
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.fieldLabel}>Gender</Text>
           <Controller
             control={control}
             name="gender"
@@ -655,7 +654,6 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
         />
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.fieldLabel}>Insurance status</Text>
           <Controller
             control={control}
             name="insuredStatus"
@@ -923,6 +921,7 @@ const createStyles = (theme: any) =>
     },
     fieldGroup: {
       gap: theme.spacing['3'],
+      paddingBottom:5
     },
     fieldLabel: {
       ...theme.typography.body,
