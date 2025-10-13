@@ -10,7 +10,7 @@ import {useAuth} from '../contexts/AuthContext'; // Update import path
 import {Loading} from '../components';
 
 import {DeviceEventEmitter} from 'react-native';
-import { PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT } from '@/config/variables';
+import { PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT } from '@/config/variablesExample';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const ONBOARDING_COMPLETED_KEY = '@onboarding_completed';

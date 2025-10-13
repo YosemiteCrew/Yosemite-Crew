@@ -6,7 +6,7 @@ import {
 } from '@/services/profile/profileService';
 
 // Mock the config
-jest.mock('@/config/variables', () => ({
+jest.mock('@/config/variablesExample', () => ({
   PASSWORDLESS_AUTH_CONFIG: {
     profileServiceUrl: 'https://api.example.com',
     profileBootstrapUrl: 'https://api.example.com/bootstrap',
@@ -35,7 +35,7 @@ describe('profileService', () => {
 
     it('should return mock token when profile service URL is not configured', async () => {
       jest.resetModules();
-      jest.doMock('@/config/variables', () => ({
+      jest.doMock('@/config/variablesExample', () => ({
         PASSWORDLESS_AUTH_CONFIG: {
           profileServiceUrl: '',
           profileBootstrapUrl: '',
@@ -217,7 +217,7 @@ describe('profileService', () => {
 
     it('should return failure when bootstrap URL is not configured', async () => {
       jest.resetModules();
-      jest.doMock('@/config/variables', () => ({
+      jest.doMock('@/config/variablesExample', () => ({
         PASSWORDLESS_AUTH_CONFIG: {
           profileServiceUrl: 'https://api.example.com',
           profileBootstrapUrl: '',

@@ -4,7 +4,7 @@ import {
 } from '@/services/maps/googlePlaces';
 
 // Mock the config
-jest.mock('@/config/variables', () => ({
+jest.mock('@/config/variablesExample', () => ({
   GOOGLE_PLACES_CONFIG: {
     apiKey: 'test-api-key',
   },
@@ -323,7 +323,7 @@ describe('googlePlaces service', () => {
   describe('API key validation', () => {
     it('should throw error when API key is missing', async () => {
       jest.resetModules();
-      jest.doMock('@/config/variables', () => ({
+      jest.doMock('@/config/variablesExample', () => ({
         GOOGLE_PLACES_CONFIG: {
           apiKey: '',
         },
