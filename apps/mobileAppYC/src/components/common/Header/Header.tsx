@@ -1,88 +1,89 @@
+// src/components/common/Header/Header.tsx
 import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
-import { useTheme } from '../../../hooks';
+import {View, Text, TouchableOpacity, Image, StyleSheet, Platform} from 'react-native';
+import {useTheme} from '../../../hooks';
+import { Images } from '@/assets/images';
 
 interface HeaderProps {
   title?: string;
   showBackButton?: boolean;
   onBack?: () => void;
-  rightComponent?: React.ReactNode;
+  rightIcon?: any;
+  onRightPress?: () => void;
+  style?: object;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   title,
   showBackButton = false,
   onBack,
-  rightComponent,
+  rightIcon,
+  onRightPress,
+  style,
 }) => {
-  const { theme } = useTheme();
+  const {theme} = useTheme();
+  const styles = createStyles(theme);
 
   return (
-    <View style={[styles.container, { borderBottomColor: theme.colors.border }]}>
-      <View style={styles.leftSection}>
-        {showBackButton && (
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={onBack}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.backText, { color: theme.colors.primary }]}>
-              ←
-            </Text>
-          </TouchableOpacity>
-        )}
-      </View>
-      
-      <View style={styles.centerSection}>
-        {title && (
-          <Text style={[styles.title, { color: theme.colors.text }]}>
-            {title}
-          </Text>
-        )}
-      </View>
-      
-      <View style={styles.rightSection}>
-        {rightComponent}
-      </View>
+    <View style={[styles.container, style]}>
+      {showBackButton ? (
+        <TouchableOpacity style={styles.iconButton} onPress={onBack}>
+          <Image
+            source={Images.backIcon || require('../../../assets/images/icons/back.png')}
+            style={[styles.icon, {tintColor: theme.colors.text}]}
+          />
+        </TouchableOpacity>
+      ) : (
+        <View style={styles.spacer} />
+      )}
+
+      {title && (
+        <Text style={styles.title} numberOfLines={1}>
+          {title}
+        </Text>
+      )}
+
+      {rightIcon ? (
+        <TouchableOpacity style={styles.iconButton} onPress={onRightPress}>
+          <Image source={rightIcon} style={[styles.icon, {tintColor: theme.colors.text}]} />
+        </TouchableOpacity>
+      ) : (
+        <View style={styles.spacer} />
+      )}
     </View>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-  },
-  leftSection: {
-    flex: 1,
-    alignItems: 'flex-start',
-  },
-  centerSection: {
-    flex: 2,
-    alignItems: 'center',
-  },
-  rightSection: {
-    flex: 1,
-    alignItems: 'flex-end',
-  },
-  backButton: {
-    padding: 8,
-  },
-  backText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    container: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: theme.spacing?.['5'] || 20,
+      paddingTop: Platform.OS === 'ios' ? theme.spacing?.['2'] || 8 : theme.spacing?.['5'] || 20,
+      paddingBottom: theme.spacing?.['2'] || 8,
+      backgroundColor: theme.colors.background,
+    },
+    iconButton: {
+      width: 32,
+      height: 32,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    icon: {
+      width: 24,
+      height: 24,
+      resizeMode: 'contain',
+    },
+    spacer: {
+      width: 32,
+      height: 32,
+    },
+    title: {
+      flex: 1,
+      textAlign: 'center',
+      ...theme.typography.h3,
+      color: theme.colors.text,
+    },
+  });

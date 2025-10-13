@@ -22,6 +22,7 @@ export type AuthStackScreenProps<T extends keyof AuthStackParamList> =
 export type HomeStackParamList = {
   Home: undefined;
   Account: undefined;
+  AddCompanion: undefined;
 };
 
 // Tab Navigator

@@ -9,8 +9,18 @@ import {
 jest.mock('@/config/variables', () => ({
   PASSWORDLESS_AUTH_CONFIG: {
     profileServiceUrl: 'https://api.example.com',
+    createAccountUrl: '',
     profileBootstrapUrl: 'https://api.example.com/bootstrap',
+    googleWebClientId: '',
+    facebookAppId: '',
+    appleServiceId: '',
+    appleRedirectUri: '',
   },
+  GOOGLE_PLACES_CONFIG: {
+    apiKey: '',
+  },
+  PENDING_PROFILE_STORAGE_KEY: '@pending_profile_payload',
+  PENDING_PROFILE_UPDATED_EVENT: 'pendingProfileUpdated',
 }));
 
 global.fetch = jest.fn();
@@ -38,8 +48,18 @@ describe('profileService', () => {
       jest.doMock('@/config/variables', () => ({
         PASSWORDLESS_AUTH_CONFIG: {
           profileServiceUrl: '',
+          createAccountUrl: '',
           profileBootstrapUrl: '',
+          googleWebClientId: '',
+          facebookAppId: '',
+          appleServiceId: '',
+          appleRedirectUri: '',
         },
+        GOOGLE_PLACES_CONFIG: {
+          apiKey: '',
+        },
+        PENDING_PROFILE_STORAGE_KEY: '@pending_profile_payload',
+        PENDING_PROFILE_UPDATED_EVENT: 'pendingProfileUpdated',
       }));
 
       const {fetchProfileStatus: fetchProfileStatusNoUrl} = require('@/services/profile/profileService');
@@ -220,8 +240,18 @@ describe('profileService', () => {
       jest.doMock('@/config/variables', () => ({
         PASSWORDLESS_AUTH_CONFIG: {
           profileServiceUrl: 'https://api.example.com',
+          createAccountUrl: '',
           profileBootstrapUrl: '',
+          googleWebClientId: '',
+          facebookAppId: '',
+          appleServiceId: '',
+          appleRedirectUri: '',
         },
+        GOOGLE_PLACES_CONFIG: {
+          apiKey: '',
+        },
+        PENDING_PROFILE_STORAGE_KEY: '@pending_profile_payload',
+        PENDING_PROFILE_UPDATED_EVENT: 'pendingProfileUpdated',
       }));
 
       const {bootstrapProfile: bootstrapProfileNoUrl} = require('@/services/profile/profileService');

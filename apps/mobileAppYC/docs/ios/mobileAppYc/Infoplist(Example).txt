@@ -72,7 +72,7 @@
 
 	<!-- Camera -->
 	<key>NSCameraUsageDescription</key>
-	<string>This app needs access to camera to capture profile photos and share moments with your pet community</string>
+	<string>This app needs access to camera to capture profile photos and share moments with your companion community</string>
 
 	<!-- Photo Library -->
 	<key>NSPhotoLibraryUsageDescription</key>
@@ -82,7 +82,7 @@
 
 	<!-- Location -->
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>This app needs access to your location to show nearby pet services, parks, and connect you with local pet owners</string>
+	<string>This app needs access to your location to show nearby companion services, parks, and connect you with local companion owners</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>This app needs access to your location to provide location-based features even when the app is in the background</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>

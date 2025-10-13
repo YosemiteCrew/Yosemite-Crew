@@ -2,6 +2,7 @@ import React from 'react';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {useTheme} from '@/hooks';
 import {AccountScreen, HomeScreen} from '@/screens';
+import {AddCompanionScreen} from '@/screens/companion/AddCompanionScreen';
 import {HomeStackParamList} from './types';
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();
@@ -29,6 +30,11 @@ export const HomeStackNavigator: React.FC = () => {
       <Stack.Screen
         name="Account"
         component={AccountScreen}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="AddCompanion"
+        component={AddCompanionScreen}
         options={{headerShown: false}}
       />
     </Stack.Navigator>

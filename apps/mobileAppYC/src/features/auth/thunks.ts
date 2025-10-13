@@ -94,17 +94,27 @@ export const initializeAuth = createAsyncThunk<
 >('auth/initialize', async (_, {dispatch, getState}) => {
   const state = getState().auth;
 
+  console.log('[Auth] initializeAuth called with state:', {
+    status: state.status,
+    initialized: state.initialized,
+    hasUser: !!state.user,
+  });
+
+  // Don't re-initialize if already initialized or currently initializing
   if (state.initialized || state.status === 'initializing') {
+    console.log('[Auth] Already initialized or initializing, skipping');
     ensureAppStateListener(dispatch);
     return;
   }
 
+  console.log('[Auth] Starting auth initialization');
   dispatch(setAuthInitializing());
   ensureAppStateListener(dispatch);
 
   try {
     const outcome = await recoverAuthSession();
-    await applyRecoverOutcome(outcome, dispatch);
+    const result = await applyRecoverOutcome(outcome, dispatch);
+    console.log('[Auth] Initialization complete with outcome:', result);
   } catch (error) {
     console.error('[Auth] Failed to initialize auth session', error);
     dispatch(
