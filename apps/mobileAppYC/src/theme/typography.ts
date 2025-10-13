@@ -207,7 +207,7 @@ export const typography = {
   button: {
     fontFamily: fonts.SATOSHI_MEDIUM,
     fontSize: fontSizes.base,
-    lineHeight: fontSizes.base * lineHeights.none,
+    lineHeight: fontSizes.base * lineHeights.tight,
     fontWeight: fontWeights.medium,
   },
   buttonSmall: {

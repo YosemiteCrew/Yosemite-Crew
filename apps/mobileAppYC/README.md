@@ -17,7 +17,7 @@
 
 ---
 
-This directory contains the React Native mobile application for the **Yosemite Crew** open-source operating system for animal health. This app serves as the primary interface for pet owners to connect with veterinary clinics and manage their pet's health.
+This directory contains the React Native mobile application for the **Yosemite Crew** open-source operating system for animal health. This app serves as the primary interface for companion owners to connect with veterinary clinics and manage their companion's health.
 
 ## 🛠️ Getting Started
 
@@ -121,11 +121,13 @@ To run the app, you need to provide your own credentials for various services. W
 
 #### A. JavaScript Variables
 
-1.  Copy the example file:
+1.  Copy the example file to create your local configuration:
     ```sh
-    cp apps/mobileAppYC/src/config/variablesExample.ts apps/mobileAppYC/src/config/variables.ts
+    cp apps/mobileAppYC/src/config/variables.ts apps/mobileAppYC/src/config/variables.local.ts
     ```
-2.  Open `apps/mobileAppYC/src/config/variables.ts` and replace the placeholder values.
+2.  Open `apps/mobileAppYC/src/config/variables.local.ts` and replace the placeholder values with your actual API keys and credentials.
+
+> **Note**: The `variables.local.ts` file is gitignored and will never be committed. The main `variables.ts` file contains safe defaults for CI/CD and is automatically committed to the repository. Your local credentials in `variables.local.ts` will be loaded automatically when present.
 
 #### B. Android Native Configuration
 

@@ -369,7 +369,7 @@ const createStyles = (theme: any) =>
     },
     saveButton: {
       flex: 1,
-      backgroundColor: 'transparent',
+      backgroundColor: theme.colors.secondary,
     },
     saveButtonAndroid: {
       backgroundColor: theme.colors.secondary,

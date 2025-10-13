@@ -279,3 +279,4 @@ jest.mock('@/components/common/customSplashScreen/customSplash', () => {
     },
   };
 });
+

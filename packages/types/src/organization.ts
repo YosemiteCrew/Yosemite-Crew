@@ -1,4 +1,4 @@
-import type { Organization as FHIROrganization } from '../../fhirtypes/src/Organization'
+import type { Organization as FHIROrganization } from "@yosemite-crew/fhirtypes"
 import type { Address } from './address.model'
 import { toFHIRAddress } from './address.model'
 import type { Department } from './department.model'
