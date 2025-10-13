@@ -157,16 +157,16 @@ jobs:
           fi
 
       - name: Lint
-        run: pnpm --filter "${{ matrix.workspace }}" lint
+        run: pnpm run lint --filter "${{ matrix.workspace }}"
 
       - name: Typecheck
-        run: pnpm --filter "${{ matrix.workspace }}" type-check
+        run: pnpm run type-check --filter "${{ matrix.workspace }}"
 
       - name: Build
-        run: pnpm --filter "${{ matrix.workspace }}" build
+        run: pnpm run build --filter "${{ matrix.workspace }}"
 
       - name: Test
-        run: pnpm --filter "${{ matrix.workspace }}" test -- --ci
+        run: pnpm run test --filter "${{ matrix.workspace }}" -- --ci
 
   # No-ops job for PRs with no affected workspaces (keeps status checks predictable)
   no-affected:
