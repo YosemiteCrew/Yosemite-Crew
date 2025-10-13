@@ -17,44 +17,13 @@ export type TicketCategory =
   | "Feature Request";
 
 // Ticket Platform
-export type TicketPlatform =
-  | "Email"
-  | "Discord"
-  | "Phone"
-  | "Web Form";
+export type TicketPlatform = "Email" | "Discord" | "Phone" | "Web Form";
 
 // User Type
-export type UserType =
-  | "Registered"
-  | "Not Registered"
-  | "Guest";
+export type UserType = "Registered" | "Not Registered" | "Guest";
 
 // User Status
-export type UserStatus =
-  | "Active"
-  | "Inactive"
-  | "Pending"
-  | "Suspended";
-
-export interface ISupportTicket {
-  ticketId: string;
-  category: TicketCategory;
-  platform: TicketPlatform;
-  fullName: string;
-  emailAddress: string;
-  userType: UserType;
-  userStatus: UserStatus;
-  message: string;
-  attachments: string[]; // S3 URLs
-  status: TicketStatus;
-  assignedTo?: string;
-  priority: "Low" | "Medium" | "High" | "Critical";
-  createdBy: "Admin" | "User" | "Guest" | "Professional";
-  createdAt: Date;
-  updatedAt: Date;
-  resolvedAt?: Date;
-  notes?: string[];
-}
+export type UserStatus = "Active" | "Inactive" | "Pending" | "Suspended";
 
 export interface CreateSupportTicket {
   ticketId?: string;
@@ -138,5 +107,9 @@ export interface FhirSupportTicket {
 
   note?: { text: string; time?: string; authorString?: string }[];
 
-  input?: { type: { text: string }; valueString?: string; valueAttachment?: FhirAttachment }[];
+  input?: {
+    type: { text: string };
+    valueString?: string;
+    valueAttachment?: FhirAttachment;
+  }[];
 }
