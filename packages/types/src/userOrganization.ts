@@ -1,4 +1,4 @@
-import type { PractitionerRole } from '../../fhirtypes/src/PractitionerRole'
+import type { PractitionerRole } from "@yosemite-crew/fhirtypes"
 
 type StringableId = { toString(): string }
 

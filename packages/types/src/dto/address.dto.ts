@@ -1,6 +1,6 @@
-import type { Address as FHIRAddress } from '../../../fhirtypes/src/Address'
-import type { Extension } from '../../../fhirtypes/src/Extension'
 import { Address, toFHIRAddress } from '../address.model'
+import type { Address as FHIRAddress, Extension } from "@yosemite-crew/fhirtypes"
+
 
 const GEOLOCATION_URL = 'http://hl7.org/fhir/StructureDefinition/geolocation'
 

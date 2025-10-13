@@ -20,8 +20,6 @@
     "@editorjs/quote": "^2.7.6",
     "@react-google-maps/api": "^2.20.6",
     "@types/lodash": "^4.17.20",
-    "@yosemite-crew/fhir": "workspace:^",
-    "@yosemite-crew/types": "workspace:^",
     "amazon-cognito-identity-js": "^6.3.15",
     "aos": "^2.3.4",
     "axios": "^1.11.0",
