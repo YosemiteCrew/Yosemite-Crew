@@ -23,6 +23,7 @@ export interface Theme {
     onPrimary: string;
     border: string;
     borderMuted: string;
+    borderSeperator:string;
     placeholder: string;
     cardBackground: string;
     cardOverlay: string;
@@ -65,6 +66,7 @@ export const lightTheme: Theme = {
     onPrimary: colors.onPrimary,
     border: colors.border,
     borderMuted: colors.borderMuted,
+    borderSeperator:colors.borderSeperator,
     placeholder: colors.placeholder,
     cardBackground: colors.cardBackground,
     cardOverlay: colors.cardOverlay,
@@ -107,6 +109,7 @@ export const darkTheme: Theme = {
     onPrimary: colors.textDark,
     border: colors.borderDark,
     borderMuted: colors.borderDark,
+    borderSeperator : colors.borderSeperator,
     placeholder: colors.placeholder,
     cardBackground: colors.cardBackground,
     cardOverlay: colors.overlay,

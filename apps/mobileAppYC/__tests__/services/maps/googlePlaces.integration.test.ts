@@ -1,33 +1,44 @@
-import {GOOGLE_PLACES_CONFIG} from '@/config/variables';
 import {
   fetchPlaceSuggestions,
   fetchPlaceDetails,
-  MissingApiKeyError,
 } from '@/services/maps/googlePlaces';
+
+// Mock the config module
+jest.mock('@/config/variables', () => ({
+  GOOGLE_PLACES_CONFIG: {
+    apiKey: 'key',
+  },
+  PASSWORDLESS_AUTH_CONFIG: {
+    profileServiceUrl: '',
+    createAccountUrl: '',
+    profileBootstrapUrl: '',
+    googleWebClientId: '',
+    facebookAppId: '',
+    appleServiceId: '',
+    appleRedirectUri: '',
+  },
+  PENDING_PROFILE_STORAGE_KEY: '@pending_profile_payload',
+  PENDING_PROFILE_UPDATED_EVENT: 'pendingProfileUpdated',
+}));
 
 declare const global: typeof globalThis & {fetch: jest.Mock};
 
 describe('googlePlaces integration-edge cases', () => {
-  const originalApiKey = GOOGLE_PLACES_CONFIG.apiKey;
-
   beforeAll(() => {
     global.fetch = jest.fn();
   });
 
   afterEach(() => {
     global.fetch.mockReset();
-    GOOGLE_PLACES_CONFIG.apiKey = originalApiKey;
   });
 
   it('returns empty suggestions for blank query', async () => {
-    GOOGLE_PLACES_CONFIG.apiKey = 'key';
     const results = await fetchPlaceSuggestions({query: '   ', location: null});
     expect(results).toEqual([]);
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
   it('filters out invalid suggestions without placeId', async () => {
-    GOOGLE_PLACES_CONFIG.apiKey = 'key';
     global.fetch.mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -43,7 +54,6 @@ describe('googlePlaces integration-edge cases', () => {
   });
 
   it('throws with server message on suggestions error', async () => {
-    GOOGLE_PLACES_CONFIG.apiKey = 'key';
     global.fetch.mockResolvedValue({ ok: false, text: async () => 'Bad Request' });
     await expect(fetchPlaceSuggestions({query: 'Main'})).rejects.toThrow('Bad Request');
   });
@@ -53,7 +63,6 @@ describe('googlePlaces integration-edge cases', () => {
   });
 
   it('returns formattedAddress as addressLine when components missing', async () => {
-    GOOGLE_PLACES_CONFIG.apiKey = 'key';
     global.fetch.mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -68,7 +77,6 @@ describe('googlePlaces integration-edge cases', () => {
   });
 
   it('uses postal_town or sublocality as city and longText for state', async () => {
-    GOOGLE_PLACES_CONFIG.apiKey = 'key';
     global.fetch.mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -89,12 +97,35 @@ describe('googlePlaces integration-edge cases', () => {
   });
 
   it('throws suggestions when API key missing', async () => {
-    GOOGLE_PLACES_CONFIG.apiKey = '';
-    await expect(fetchPlaceSuggestions({query: 'q'})).rejects.toBeInstanceOf(MissingApiKeyError);
+    // Reset modules and mock with empty API key
+    jest.resetModules();
+    jest.doMock('@/config/variables', () => ({
+      GOOGLE_PLACES_CONFIG: {
+        apiKey: '',
+      },
+      PASSWORDLESS_AUTH_CONFIG: {
+        profileServiceUrl: '',
+        createAccountUrl: '',
+        profileBootstrapUrl: '',
+        googleWebClientId: '',
+        facebookAppId: '',
+        appleServiceId: '',
+        appleRedirectUri: '',
+      },
+      PENDING_PROFILE_STORAGE_KEY: '@pending_profile_payload',
+      PENDING_PROFILE_UPDATED_EVENT: 'pendingProfileUpdated',
+    }));
+
+    const {fetchPlaceSuggestions: fetchSuggestions, MissingApiKeyError: MissingKeyErr} =
+      require('@/services/maps/googlePlaces');
+
+    await expect(fetchSuggestions({query: 'q'})).rejects.toBeInstanceOf(MissingKeyErr);
+
+    // Reset back to default mock
+    jest.resetModules();
   });
 
   it('throws details error with server text', async () => {
-    GOOGLE_PLACES_CONFIG.apiKey = 'k';
     global.fetch.mockResolvedValue({ ok: false, text: async () => 'Not Found' });
     await expect(fetchPlaceDetails('pid')).rejects.toThrow('Not Found');
   });

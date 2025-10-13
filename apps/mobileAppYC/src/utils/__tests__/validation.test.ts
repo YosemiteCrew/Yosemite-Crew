@@ -10,9 +10,9 @@ import {
   validateMaxLength,
   validateNumeric,
   validatePositiveNumber,
-  validatePetName,
-  validatePetType,
-  validatePetAge,
+  validatecompanionName,
+  validatecompanionType,
+  validatecompanionAge,
 } from '@/utils/validation';
 
 describe('utils/validation', () => {
@@ -80,12 +80,12 @@ describe('utils/validation', () => {
     expect(validatePositiveNumber('2', 'Age')).toEqual({ isValid: true });
   });
 
-  test('validatePetName/type/age', () => {
-    expect(validatePetName('')).toEqual({ isValid: false, error: 'Pet name is required' });
-    expect(validatePetType('')).toEqual({ isValid: false, error: 'Pet type is required' });
-    expect(validatePetAge('')).toEqual({ isValid: true });
-    expect(validatePetAge('60')).toEqual({ isValid: false, error: 'Age seems unusually high. Please check the value.' });
-    expect(validatePetAge('10')).toEqual({ isValid: true });
+  test('validatecompanionName/type/age', () => {
+    expect(validatecompanionName('')).toEqual({ isValid: false, error: 'companion name is required' });
+    expect(validatecompanionType('')).toEqual({ isValid: false, error: 'companion type is required' });
+    expect(validatecompanionAge('')).toEqual({ isValid: true });
+    expect(validatecompanionAge('60')).toEqual({ isValid: false, error: 'Age seems unusually high. Please check the value.' });
+    expect(validatecompanionAge('10')).toEqual({ isValid: true });
   });
 });
 
