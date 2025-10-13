@@ -124,7 +124,7 @@ export const BreedBottomSheet = forwardRef<
   return (
     <CustomBottomSheet
       ref={bottomSheetRef}
-      snapPoints={['80%', '85%']}
+      snapPoints={['83%', '85%']}
       initialIndex={-1}
       enablePanDownToClose={true}
       enableDynamicSizing={false}
