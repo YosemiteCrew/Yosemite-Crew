@@ -97,7 +97,7 @@ jobs:
         run: |
           if [ "${{ steps.lock.outputs.changed }}" = "true" ] || [ "${fallback_all:-}" = "true" ]; then
             test -f ls.json || pnpm dlx turbo ls --output=json > ls.json
-            node -e 'const a=require("./ls.json"); const ws=(a.packages||[]).map(w=>w.name||w.package).filter(Boolean); const has=ws.length>0; process.stdout.write(`matrix=${JSON.stringify({workspace:ws})}\n`); process.stdout.write(`has_any=${has}\n`);' >> $GITHUB_OUTPUT
+            node -e 'const a=require("./ls.json"); const ws=(a.packages.items||[]).map(w=>w.name||w.package).filter(Boolean); const has=ws.length>0; process.stdout.write(`matrix=${JSON.stringify({workspace:ws})}\n`); process.stdout.write(`has_any=${has}\n`);' >> $GITHUB_OUTPUT
           else
             test -s affected.json || echo "{\"tasks\":[]}" > affected.json
             node -e 'const fs=require("fs"); const a=JSON.parse(fs.readFileSync("affected.json","utf8")); const ws=[...new Set((a.tasks||[]).map(t=>t.package).filter(Boolean))]; const has=ws.length>0; process.stdout.write(`matrix=${JSON.stringify({workspace:ws})}\n`); process.stdout.write(`has_any=${has}\n`);' >> $GITHUB_OUTPUT
