@@ -10,10 +10,10 @@ import {
   validateMaxLength,
   validateNumeric,
   validatePositiveNumber,
-  validatePetName,
-  validatePetType,
-  validatePetAge,
-  validatePetWeight,
+  validatecompanionName,
+  validatecompanionType,
+  validatecompanionAge,
+  validatecompanionWeight,
 } from '@/utils/validation';
 
 describe('validation', () => {
@@ -321,100 +321,100 @@ describe('validation', () => {
     });
   });
 
-  describe('validatePetName', () => {
-    it('should return valid for pet name', () => {
-      const result = validatePetName('Buddy');
+  describe('validatecompanionName', () => {
+    it('should return valid for companion name', () => {
+      const result = validatecompanionName('Buddy');
       expect(result.isValid).toBe(true);
     });
 
-    it('should return invalid for empty pet name', () => {
-      const result = validatePetName('');
+    it('should return invalid for empty companion name', () => {
+      const result = validatecompanionName('');
       expect(result.isValid).toBe(false);
-      expect(result.error).toBe('Pet name is required');
+      expect(result.error).toBe('companion name is required');
     });
   });
 
-  describe('validatePetType', () => {
-    it('should return valid for pet type', () => {
-      const result = validatePetType('Dog');
+  describe('validatecompanionType', () => {
+    it('should return valid for companion type', () => {
+      const result = validatecompanionType('Dog');
       expect(result.isValid).toBe(true);
     });
 
-    it('should return invalid for empty pet type', () => {
-      const result = validatePetType('');
+    it('should return invalid for empty companion type', () => {
+      const result = validatecompanionType('');
       expect(result.isValid).toBe(false);
-      expect(result.error).toBe('Pet type is required');
+      expect(result.error).toBe('companion type is required');
     });
   });
 
-  describe('validatePetAge', () => {
-    it('should return valid for normal pet age', () => {
-      const result = validatePetAge('5');
+  describe('validatecompanionAge', () => {
+    it('should return valid for normal companion age', () => {
+      const result = validatecompanionAge('5');
       expect(result.isValid).toBe(true);
       expect(result.error).toBeUndefined();
     });
 
     it('should return valid for empty age (optional)', () => {
-      const result = validatePetAge('');
+      const result = validatecompanionAge('');
       expect(result.isValid).toBe(true);
     });
 
     it('should return invalid for age over 50', () => {
-      const result = validatePetAge('51');
+      const result = validatecompanionAge('51');
       expect(result.isValid).toBe(false);
       expect(result.error).toContain('unusually high');
     });
 
     it('should return valid for age exactly 50', () => {
-      const result = validatePetAge('50');
+      const result = validatecompanionAge('50');
       expect(result.isValid).toBe(true);
     });
 
     it('should return invalid for zero age', () => {
-      const result = validatePetAge('0');
+      const result = validatecompanionAge('0');
       expect(result.isValid).toBe(false);
       expect(result.error).toBe('Age must be a positive number');
     });
 
     it('should return invalid for negative age', () => {
-      const result = validatePetAge('-5');
+      const result = validatecompanionAge('-5');
       expect(result.isValid).toBe(false);
       expect(result.error).toBe('Age must be a positive number');
     });
 
     it('should return invalid for non-numeric age', () => {
-      const result = validatePetAge('abc');
+      const result = validatecompanionAge('abc');
       expect(result.isValid).toBe(false);
       expect(result.error).toBe('Age must be a valid number');
     });
   });
 
-  describe('validatePetWeight', () => {
+  describe('validatecompanionWeight', () => {
     it('should return valid for positive weight', () => {
-      const result = validatePetWeight('15.5');
+      const result = validatecompanionWeight('15.5');
       expect(result.isValid).toBe(true);
       expect(result.error).toBeUndefined();
     });
 
     it('should return valid for empty weight (optional)', () => {
-      const result = validatePetWeight('');
+      const result = validatecompanionWeight('');
       expect(result.isValid).toBe(true);
     });
 
     it('should return invalid for zero weight', () => {
-      const result = validatePetWeight('0');
+      const result = validatecompanionWeight('0');
       expect(result.isValid).toBe(false);
       expect(result.error).toBe('Weight must be a positive number');
     });
 
     it('should return invalid for negative weight', () => {
-      const result = validatePetWeight('-10');
+      const result = validatecompanionWeight('-10');
       expect(result.isValid).toBe(false);
       expect(result.error).toBe('Weight must be a positive number');
     });
 
     it('should return invalid for non-numeric weight', () => {
-      const result = validatePetWeight('heavy');
+      const result = validatecompanionWeight('heavy');
       expect(result.isValid).toBe(false);
       expect(result.error).toBe('Weight must be a valid number');
     });

@@ -230,10 +230,6 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
       shadowRadius: 8,
       elevation: 8,
     },
-    getStartedImage: {
-      width: width * 0.7,
-      height: 60,
-    },
     getStartedText: {
       ...theme.typography.h5,
       color: theme.colors.white,

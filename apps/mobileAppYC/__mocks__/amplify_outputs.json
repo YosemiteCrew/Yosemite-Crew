@@ -1,0 +1,13 @@
+{
+  "auth": {
+    "user_pool_id": "mock-user-pool-id",
+    "aws_region": "us-east-1",
+    "user_pool_client_id": "mock-client-id",
+    "identity_pool_id": "mock-identity-pool-id"
+  },
+  "geo": {
+    "amazon_location_service": {
+      "region": "us-east-1"
+    }
+  }
+}

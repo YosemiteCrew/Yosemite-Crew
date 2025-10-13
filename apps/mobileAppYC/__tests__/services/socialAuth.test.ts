@@ -79,6 +79,18 @@ describe('socialAuth', () => {
 
   it('configures social providers with configured IDs', () => {
     jest.isolateModules(() => {
+      // Mock config with actual values
+      jest.doMock('@/config/variables', () => ({
+        PASSWORDLESS_AUTH_CONFIG: {
+          profileServiceUrl: 'https://example.com/profile',
+          createAccountUrl: 'https://example.com/create',
+          profileBootstrapUrl: 'https://example.com/bootstrap',
+          googleWebClientId: 'test-google-client-id',
+          facebookAppId: 'test-facebook-app-id',
+          appleServiceId: 'com.test.app',
+          appleRedirectUri: 'https://test.firebaseapp.com/__/auth/handler',
+        },
+      }));
       jest.doMock('@react-native-google-signin/google-signin', () => ({
         GoogleSignin: mockGoogle,
         statusCodes: { SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED' },
@@ -86,10 +98,12 @@ describe('socialAuth', () => {
       jest.unmock('@/services/auth/socialAuth');
       const {configureSocialProviders} = require('@/services/auth/socialAuth');
       configureSocialProviders();
+
+      // Assert inside isolateModules to access the mocked state
+      expect(mockGoogle.configure).toHaveBeenCalledWith(
+        expect.objectContaining({ webClientId: expect.any(String) })
+      );
     });
-    expect(mockGoogle.configure).toHaveBeenCalledWith(
-      expect.objectContaining({ webClientId: expect.any(String) })
-    );
   });
 
   it('signs in with Google and bootstraps profile when missing', async () => {
