@@ -21,8 +21,8 @@ import {HomeStackParamList} from '@/navigation/types';
 import DeleteAccountBottomSheet, {
   type DeleteAccountBottomSheetRef,
 } from './components/DeleteAccountBottomSheet';
-import {AccountHeader} from './components/AccountHeader';
 import {AccountMenuList} from './components/AccountMenuList';
+import {Header} from '@/components';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Account'>;
 
@@ -93,12 +93,19 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
     const profileToken = user?.profileToken;
 
     // Check if profilePicture is a valid HTTP/HTTPS URL
-    if (profilePic && (profilePic.startsWith('http://') || profilePic.startsWith('https://'))) {
+    if (
+      profilePic &&
+      (profilePic.startsWith('http://') || profilePic.startsWith('https://'))
+    ) {
       return true;
     }
 
     // Check if profileToken is a valid HTTP/HTTPS URL
-    if (profileToken && (profileToken.startsWith('http://') || profileToken.startsWith('https://'))) {
+    if (
+      profileToken &&
+      (profileToken.startsWith('http://') ||
+        profileToken.startsWith('https://'))
+    ) {
       return true;
     }
 
@@ -200,23 +207,23 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
 
   return (
     <SafeAreaView style={styles.container}>
+             <Header
+            title="Account"
+            showBackButton
+            onBack={handleBackPress}
+            rightIcon={Images.notificationIcon}
+            onRightPress={() => {}}
+          />
       <View style={styles.contentWrapper}>
         <ScrollView
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}>
-          <AccountHeader
-            title="Account"
-            backIcon={Images.backIcon}
-            notificationIcon={Images.notificationIcon}
-            onBack={handleBackPress}
-            onNotificationPress={() => {}}
-          />
 
-        <LiquidGlassCard
-          glassEffect="clear"
-          interactive
-          style={styles.companionsCard}
-          fallbackStyle={styles.companionsCardFallback}>
+          <LiquidGlassCard
+            glassEffect="clear"
+            interactive
+            style={styles.companionsCard}
+            fallbackStyle={styles.companionsCardFallback}>
             {companions.map((companion, index) => (
               <View
                 key={companion.id}
@@ -251,20 +258,20 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
             ))}
           </LiquidGlassCard>
 
-        <LiquidGlassCard
-          glassEffect="clear"
-          interactive
-          style={styles.menuContainer}
-          fallbackStyle={styles.menuContainerFallback}>
-          <AccountMenuList
-            items={menuItems}
-            rightArrowIcon={Images.rightArrow}
-            onItemPress={id => {
-              const it = menuItems.find(m => m.id === id);
-              it?.onPress();
-            }}
-          />
-        </LiquidGlassCard>
+          <LiquidGlassCard
+            glassEffect="clear"
+            interactive
+            style={styles.menuContainer}
+            fallbackStyle={styles.menuContainerFallback}>
+            <AccountMenuList
+              items={menuItems}
+              rightArrowIcon={Images.rightArrow}
+              onItemPress={id => {
+                const it = menuItems.find(m => m.id === id);
+                it?.onPress();
+              }}
+            />
+          </LiquidGlassCard>
 
           <LiquidGlassButton
             title="Logout"
