@@ -8,7 +8,7 @@ export const STORAGE_KEYS = {
 
 export const REGEX_PATTERNS = {
   EMAIL: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-  PHONE: /^\+?[\d\s\-\(\)]+$/,
+  PHONE: /^\+?[\d\s\-()]+$/,
   PASSWORD: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{8,}$/,
 } as const;
 

@@ -4,7 +4,11 @@ export const colors = {
   primary: '#247AED', // Vibrant orange
   primaryDark: '#E55A2B',
   primaryLight: '#FF8A65',
-  
+  primaryGlass: 'rgba(36, 122, 237, 0.92)',
+  primaryTint: 'rgba(36, 122, 237, 0.2)',
+  primaryTintStrong: 'rgba(36, 122, 237, 0.8)',
+  primarySurface: 'rgba(36, 122, 237, 0.08)',
+
   // Secondary colors
   secondary: '#302F2E', // Teal
   secondaryDark: '#26A69A',
@@ -17,6 +21,7 @@ export const colors = {
   
   // Neutral colors
   white: '#FFFFFF',
+  whiteOverlay70: 'rgba(255, 255, 255, 0.7)',
   black: '#000000',
   gray50: '#FAFAFA',
   gray100: '#F5F5F5',
@@ -33,6 +38,7 @@ export const colors = {
   success: '#4CAF50',
   warning: '#FF9800',
   error: '#F44336',
+  errorSurface: '#FDEBEA',
   info: '#2196F3',
   
   // Background colors
@@ -45,20 +51,25 @@ export const colors = {
   text: '#302F2E',
   textSecondary: '#747473',
   textTertiary: '#247AED',
+  onPrimary: '#FEF8F4',
   textDark: '#FFFFFF',
   textDarkSecondary: '#E0E0E0',
   
   // Border colors
-  border: '#E0E0E0',
+  border: '#EAEAEA',
   borderLight: '#F5F5F5',
   borderDark: '#424242',
+  borderMuted: 'rgba(234, 234, 234, 0.9)',
   
   // Special UI colors
   inputBackground: '#FAFAFA',
   cardBackground: '#FFFFFF',
+  cardOverlay: 'rgba(255, 255, 255, 0.95)',
   modalOverlay: 'rgba(0, 0, 0, 0.5)',
   shimmer: '#F0F0F0',
-  
+  placeholder: '#595958',
+  neutralShadow: 'rgba(71, 56, 39, 0.15)',
+
   // Transparent colors
   transparent: 'transparent',
   overlay: 'rgba(0, 0, 0, 0.5)',

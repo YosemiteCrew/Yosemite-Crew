@@ -20,7 +20,6 @@ import {
   completePasswordlessSignIn,
   formatAuthError,
   requestPasswordlessEmailCode,
-  signOutEverywhere,
 } from '@/services/auth/passwordlessAuth';
 import {useAuth, type User} from '../../contexts/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -165,12 +164,7 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
   const handleGoBack = useCallback(() => {
     const resetFlow = async () => {
       try {
-        await signOutEverywhere();
-      } catch (error) {
-        console.warn('Failed to sign out completely', error);
-      }
-
-      try {
+        // Clear any pending profile so AppNavigator doesn't route back into CreateAccount
         await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
       } catch (error) {
         console.warn('Failed to clear pending profile state', error);
@@ -178,16 +172,14 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
 
       DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
 
+      // Use global logout for provider-aware sign out and token clearing
       await logout();
-
-      navigation.reset({
-        index: 0,
-        routes: [{name: 'SignIn'}],
-      });
+      // Do not perform nested navigation.reset here;
+      // AppNavigator will re-render into Auth flow cleanly.
     };
 
     resetFlow();
-  }, [logout, navigation]);
+  }, [logout]);
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -197,6 +189,8 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
 
     return () => subscription.remove();
   }, [handleGoBack]);
+
+  const isVerifyDisabled = isVerifying || otpCode.length !== OTP_LENGTH;
 
   return (
     <SafeArea style={styles.container}>
@@ -254,11 +248,11 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
           onPress={handleVerifyCode}
           style={styles.verifyButton}
           textStyle={styles.verifyButtonText}
-          tintColor={theme.colors.secondary}
+          tintColor={isVerifyDisabled ? '#A09F9F' : theme.colors.secondary}
           height={56}
           borderRadius={16}
           loading={isVerifying}
-          disabled={isVerifying}
+          disabled={isVerifyDisabled}
         />
 
         <View style={styles.resendContainer}>
@@ -313,7 +307,7 @@ const createStyles = (theme: any) =>
     },
     headerTitle: {
       ...theme.typography.h3,
-      color: theme.colors.text,
+      color: theme.colors.secondary,
       textAlign: 'center',
     },
     backButton: {
@@ -351,20 +345,19 @@ const createStyles = (theme: any) =>
     },
     subtitle: {
       ...theme.typography.h3,
-      color: theme.colors.text,
+      color: theme.colors.secondary,
       marginBottom: 16,
       textAlign: 'center',
     },
     description: {
-      ...theme.typography.body,
+      ...theme.typography.paragraph,
       color: theme.colors.textSecondary,
       textAlign: 'center',
-      lineHeight: 24,
+      lineHeight: 22.4,
     },
     emailText: {
-      ...theme.typography.body,
-      color: theme.colors.text,
-      fontWeight: 'bold',
+      ...theme.typography.paragraphBold,
+      color: theme.colors.secondary,
     },
     bottomSection: {
       paddingHorizontal: 20,
@@ -377,8 +370,8 @@ const createStyles = (theme: any) =>
       marginBottom: 24,
     },
     verifyButtonText: {
+      ...theme.typography.cta,
       color: theme.colors.white,
-      ...theme.typography.paragraphBold,
     },
     resendContainer: {
       flexDirection: 'row',
@@ -387,7 +380,7 @@ const createStyles = (theme: any) =>
       gap: 4,
     },
     resendText: {
-      ...theme.typography.paragraphBold,
+      ...theme.typography.paragraph,
       color: theme.colors.textSecondary,
     },
     resendButton: {
