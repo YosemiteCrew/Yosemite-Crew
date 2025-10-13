@@ -1,7 +1,6 @@
 import {
   fetchPlaceSuggestions,
   fetchPlaceDetails,
-  MissingApiKeyError,
 } from '@/services/maps/googlePlaces';
 
 // Mock the config module
