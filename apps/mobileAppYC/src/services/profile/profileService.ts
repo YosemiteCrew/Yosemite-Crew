@@ -1,4 +1,4 @@
-import {PASSWORDLESS_AUTH_CONFIG} from '@/config/variablesExample';
+import {PASSWORDLESS_AUTH_CONFIG} from '@/config/variables';
 
 export interface ProfileStatusRequest {
   accessToken: string;
