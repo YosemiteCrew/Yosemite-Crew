@@ -1,5 +1,4 @@
-import type { RelatedPerson } from "../../fhirtypes/src/RelatedPerson";
-import type { Extension } from "../../fhirtypes/src/Extension";
+import type { Extension, RelatedPerson } from "@yosemite-crew/fhirtypes"
 import { Address, toFHIRAddress } from "./address.model";
 
 export const PARENT_AGE_EXTENSION_URL = "http://example.org/fhir/StructureDefinition/parent-age";
