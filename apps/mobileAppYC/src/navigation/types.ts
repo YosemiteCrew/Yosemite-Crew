@@ -2,6 +2,7 @@
 import {NavigatorScreenParams} from '@react-navigation/native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {BottomTabScreenProps} from '@react-navigation/bottom-tabs';
+import type {AuthStackParamList} from './AuthNavigator';
 
 // Root Stack Navigator - Add Onboarding
 export type RootStackParamList = {
@@ -17,11 +18,18 @@ export type RootStackScreenProps<T extends keyof RootStackParamList> =
 export type AuthStackScreenProps<T extends keyof AuthStackParamList> =
   NativeStackScreenProps<AuthStackParamList, T>;
 
+// Home Stack Navigator
+export type HomeStackParamList = {
+  Home: undefined;
+  Account: undefined;
+};
+
 // Tab Navigator
 export type TabParamList = {
-  Home: undefined;
-  Pets: NavigatorScreenParams<PetStackParamList>;
-  Profile: undefined;
+  HomeStack: NavigatorScreenParams<HomeStackParamList>;
+  Appointments: undefined;
+  Documents: undefined;
+  Tasks: undefined;
 };
 
 export type TabScreenProps<T extends keyof TabParamList> = BottomTabScreenProps<
@@ -29,22 +37,6 @@ export type TabScreenProps<T extends keyof TabParamList> = BottomTabScreenProps<
   T
 >;
 
-// Pet Stack Navigator
-export type PetStackParamList = {
-  PetList: undefined;
-  PetDetails: {petId: string};
-  AddPet: undefined;
-};
-
-export type PetStackScreenProps<T extends keyof PetStackParamList> =
-  NativeStackScreenProps<PetStackParamList, T>;
-
-  export type AuthStackParamList = {
-  SignIn: undefined;
-  SignUp: undefined;
-  CreateAccount: undefined;
-  OTPVerification: { email: string };
-};
 
 declare global {
   namespace ReactNavigation {
