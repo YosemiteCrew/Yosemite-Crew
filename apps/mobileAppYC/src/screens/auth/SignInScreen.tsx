@@ -25,7 +25,7 @@ import {
   type SocialProvider,
 } from '@/services/auth/socialAuth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT } from '@/config/variablesExample';
+import { PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT } from '@/config/variables';
 
 const socialIconStyles = StyleSheet.create({
   icon: {

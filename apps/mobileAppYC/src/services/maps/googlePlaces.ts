@@ -1,4 +1,4 @@
-import {GOOGLE_PLACES_CONFIG} from '@/config/variablesExample';
+import {GOOGLE_PLACES_CONFIG} from '@/config/variables';
 
 const GOOGLE_PLACES_BASE_URL = 'https://places.googleapis.com/v1';
 

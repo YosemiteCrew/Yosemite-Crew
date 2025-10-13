@@ -12,7 +12,7 @@ import type {FirebaseAuthTypes} from '@react-native-firebase/auth';
 import {GoogleSignin, statusCodes as GoogleStatusCodes} from '@react-native-google-signin/google-signin';
 import {appleAuth,appleAuthAndroid} from '@invertase/react-native-apple-authentication';
 import {LoginManager, AccessToken, Settings} from 'react-native-fbsdk-next';
-import {PASSWORDLESS_AUTH_CONFIG} from '@/config/variablesExample';
+import {PASSWORDLESS_AUTH_CONFIG} from '@/config/variables';
 import {
   bootstrapProfile,
   fetchProfileStatus,
