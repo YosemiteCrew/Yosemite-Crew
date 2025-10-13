@@ -10,7 +10,7 @@ import {
   BackHandler,
   DeviceEventEmitter,
 } from 'react-native';
-import {SafeArea, OTPInput} from '../../components/common';
+import {SafeArea, OTPInput, Header} from '../../components/common';
 import {useTheme} from '../../hooks';
 import {Images} from '../../assets/images';
 import LiquidGlassButton from '@/components/common/LiquidGlassButton/LiquidGlassButton';
@@ -23,7 +23,10 @@ import {
 } from '@/services/auth/passwordlessAuth';
 import {useAuth, type User} from '../../contexts/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT } from '@/config/variables';
+import {
+  PENDING_PROFILE_STORAGE_KEY,
+  PENDING_PROFILE_UPDATED_EVENT,
+} from '@/config/variables';
 
 const OTP_LENGTH = 4;
 const RESEND_SECONDS = 60;
@@ -182,10 +185,13 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
   }, [logout]);
 
   useEffect(() => {
-    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      handleGoBack();
-      return true;
-    });
+    const subscription = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        handleGoBack();
+        return true;
+      },
+    );
 
     return () => subscription.remove();
   }, [handleGoBack]);
@@ -194,24 +200,7 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
 
   return (
     <SafeArea style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={handleGoBack}
-            activeOpacity={0.7}>
-            <Image
-              source={Images.backIcon}
-              style={[styles.backIcon, {tintColor: theme.colors.text}]}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
-          <View style={styles.titleContainer}>
-            <Text style={styles.headerTitle}>Enter login code</Text>
-          </View>
-          <View style={styles.spacer} />
-        </View>
-      </View>
+      <Header title="Enter login code" showBackButton onBack={handleGoBack} />
 
       <ScrollView
         style={styles.scrollView}
@@ -275,7 +264,6 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
           )}
         </View>
       </View>
-
     </SafeArea>
   );
 };
@@ -285,44 +273,6 @@ const createStyles = (theme: any) =>
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
-    },
-    header: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      zIndex: 1,
-      paddingTop: 60,
-      paddingHorizontal: 20,
-      backgroundColor: theme.colors.background,
-    },
-    headerContent: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    },
-    titleContainer: {
-      flex: 1,
-      alignItems: 'center',
-    },
-    headerTitle: {
-      ...theme.typography.h3,
-      color: theme.colors.secondary,
-      textAlign: 'center',
-    },
-    backButton: {
-      width: 30,
-      height: 30,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    spacer: {
-      width: 30,
-      height: 30,
-    },
-    backIcon: {
-      width: 30,
-      height: 30,
     },
     scrollView: {
       flex: 1,
