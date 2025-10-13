@@ -4,7 +4,7 @@ import {getAuth} from '@react-native-firebase/auth';
 import {fetchAuthSession, fetchUserAttributes, getCurrentUser} from 'aws-amplify/auth';
 import {Buffer} from 'buffer';
 
-import {PENDING_PROFILE_STORAGE_KEY} from '@/config/variables';
+import {PENDING_PROFILE_STORAGE_KEY} from '@/config/variablesExample';
 import {
   clearStoredTokens,
   loadStoredTokens,

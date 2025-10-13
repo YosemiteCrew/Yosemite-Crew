@@ -1,4 +1,4 @@
-import {GOOGLE_PLACES_CONFIG} from '@/config/variables';
+import {GOOGLE_PLACES_CONFIG} from '@/config/variablesExample';
 import {
   MissingApiKeyError,
   fetchPlaceDetails,

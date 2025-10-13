@@ -36,7 +36,7 @@ import {TouchableInput} from '../../components/common/TouchableInput/TouchableIn
 import {useAuth, type User} from '../../contexts/AuthContext';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import type {AuthStackParamList} from '../../navigation/AuthNavigator';
-import {PASSWORDLESS_AUTH_CONFIG, PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT} from '@/config/variables';
+import {PASSWORDLESS_AUTH_CONFIG, PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT} from '@/config/variablesExample';
 import LocationService from '@/services/LocationService';
 import {
   fetchPlaceDetails,
