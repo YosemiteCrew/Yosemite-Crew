@@ -1,4 +1,4 @@
-import { Address as FHIRAddress } from '../../fhirtypes/src/Address'
+import { Address as FHIRAddress } from "@yosemite-crew/fhirtypes"
 
 export type Address = {
     addressLine? : string;
