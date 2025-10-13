@@ -201,7 +201,10 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
         if (isWhiteOrLightColor(tintColor)) {
           return theme.colors.text; // Use primary text color for better contrast
         }
-        return PlatformColor('labelColor');
+        // Fallback if PlatformColor is not available in test env
+        return typeof PlatformColor === 'function'
+          ? PlatformColor('labelColor')
+          : (isDark ? theme.colors.white : theme.colors.text);
       }
       
       // For fallback, determine text color based on tint color or theme
@@ -230,7 +233,10 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
         if (isWhiteOrLightColor(tintColor)) {
           return theme.colors.text;
         }
-        return PlatformColor('labelColor');
+        // Fallback if PlatformColor is not available in test env
+        return typeof PlatformColor === 'function'
+          ? PlatformColor('labelColor')
+          : (isDark ? theme.colors.white : theme.colors.text);
       }
       if (tintColor) {
         return isWhiteOrLightColor(tintColor) ? theme.colors.text : theme.colors.white;

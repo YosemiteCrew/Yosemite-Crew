@@ -1,6 +1,9 @@
 // Basic Jest setup for React Native in pnpm monorepo
 // Keep lightweight to avoid ESM issues in RN's default setup file
 
+// Extend Jest matchers with React Native Testing Library
+// require('@testing-library/jest-native/extend-expect');
+
 // Timers + act environment
 global.IS_REACT_ACT_ENVIRONMENT = true;
 if (typeof global.__DEV__ === 'undefined') {
@@ -12,6 +15,55 @@ if (typeof global.__DEV__ === 'undefined') {
 try {
   jest.mock('react-native/Libraries/Animated/NativeAnimatedHelper');
 } catch {}
+
+// Ensure Animated.timing resolves synchronously in tests to avoid unhandled timers
+try {
+  const {Animated} = require('react-native');
+  Animated.timing = ((originalTiming) => (value, config = {}) => {
+    const animation = originalTiming
+      ? originalTiming(value, {...config, useNativeDriver: config.useNativeDriver ?? false})
+      : {
+          value,
+          config,
+          start: cb => {
+            value?.setValue?.(config?.toValue ?? 0);
+            cb?.({finished: true});
+          },
+          stop: jest.fn(),
+          reset: jest.fn(),
+        };
+    const start = animation.start?.bind(animation);
+    animation.start = cb => {
+      value?.setValue?.(config?.toValue ?? 0);
+      cb?.({finished: true});
+      return animation;
+    };
+    return animation;
+  })(Animated.timing);
+
+  Animated.spring = ((originalSpring) => (value, config = {}) => {
+    const animation = originalSpring
+      ? originalSpring(value, {...config, useNativeDriver: config.useNativeDriver ?? false})
+      : {
+          start: cb => {
+            value?.setValue?.(config?.toValue ?? value?.__getValue?.() ?? 0);
+            cb?.({finished: true});
+            return animation;
+          },
+          stop: jest.fn(),
+        };
+    const start = animation.start?.bind(animation);
+    animation.start = cb => {
+      value?.setValue?.(config?.toValue ?? value?.__getValue?.() ?? 0);
+      cb?.({finished: true});
+      return animation;
+    };
+    return animation;
+  })(Animated.spring);
+} catch {}
+
+// Ensure PlatformColor exists as a function in tests (RN sometimes lacks it in JSDOM)
+// Note: If PlatformColor isn't available in tests, components should fall back gracefully.
 
 // Mock AsyncStorage
 jest.mock(
@@ -47,6 +99,45 @@ jest.mock('react-native-reanimated', () => {
     runOnJS: fn => fn,
     // No-op components/hooks used by some libs
     useAnimatedScrollHandler: () => ({}),
+  };
+});
+
+// Mock Liquid Glass native dependency to a plain View fallback
+jest.mock('@callstack/liquid-glass', () => {
+  const {View} = require('react-native');
+  return {
+    __esModule: true,
+    LiquidGlassView: View,
+    isLiquidGlassSupported: false,
+  };
+});
+
+// Safe area context mock to avoid native dependency requirements
+jest.mock('react-native-safe-area-context', () => {
+  const React = require('react');
+  const {View} = require('react-native');
+  const SafeAreaView = ({children, ...props}) =>
+    React.createElement(View, props, children);
+  const SafeAreaProvider = ({children, ...props}) =>
+    React.createElement(View, props, children);
+  return {
+    __esModule: true,
+    SafeAreaView,
+    SafeAreaProvider,
+    SafeAreaConsumer: ({children}) =>
+      typeof children === 'function'
+        ? children({top: 0, right: 0, bottom: 0, left: 0})
+        : null,
+    useSafeAreaInsets: () => ({top: 0, right: 0, bottom: 0, left: 0}),
+    withSafeAreaInsets: Component => props =>
+      React.createElement(Component, {
+        ...props,
+        insets: {top: 0, right: 0, bottom: 0, left: 0},
+      }),
+    initialWindowMetrics: {
+      frame: {x: 0, y: 0, width: 0, height: 0},
+      insets: {top: 0, right: 0, bottom: 0, left: 0},
+    },
   };
 });
 
@@ -145,12 +236,16 @@ jest.mock('@react-navigation/native-stack', () => {
 // Mock bottom sheet to simple components
 jest.mock('@gorhom/bottom-sheet', () => {
   const React = require('react');
+  // Simple host components to satisfy RN rendering paths
+  const PassThrough = ({children, ...props}) => React.createElement('View', props, children);
   return {
     __esModule: true,
-    default: ({children}) => React.createElement(React.Fragment, null, children),
-    BottomSheetView: ({children}) => React.createElement(React.Fragment, null, children),
-    BottomSheetScrollView: ({children}) => React.createElement(React.Fragment, null, children),
-    BottomSheetFlatList: () => null,
+    default: ({children, ...props}) => React.createElement(PassThrough, props, children),
+    BottomSheetView: ({children, ...props}) => React.createElement(PassThrough, props, children),
+    BottomSheetScrollView: ({children, ...props}) => React.createElement(PassThrough, props, children),
+    BottomSheetFlatList: ({..._props}) => null,
+    BottomSheetBackdrop: ({children, ...props}) => React.createElement(PassThrough, props, children),
+    BottomSheetHandle: ({...props}) => React.createElement('View', props),
   };
 });
 

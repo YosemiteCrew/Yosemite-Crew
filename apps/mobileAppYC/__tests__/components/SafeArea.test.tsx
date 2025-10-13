@@ -3,15 +3,15 @@ import TestRenderer from 'react-test-renderer';
 import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
 import {SafeArea, SafeAreaWithHook} from '@/components/common/SafeArea/SafeArea';
-import themeReducer from '@/store/slices/themeSlice';
+import {themeReducer} from '@/features/theme';
 import {Text, View, StatusBar} from 'react-native';
 
 // Mock react-native-safe-area-context
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({children, ...props}: any) => {
-    const React = require('react');
-    const {View} = require('react-native');
-    return React.createElement(View, props, children);
+    const MockReact = require('react');
+    const {View: MockView} = require('react-native');
+    return MockReact.createElement(MockView, props, children);
   },
 }));
 

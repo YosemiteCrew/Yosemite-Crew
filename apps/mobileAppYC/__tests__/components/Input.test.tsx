@@ -3,7 +3,7 @@ import TestRenderer from 'react-test-renderer';
 import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
 import {Input} from '@/components/common/Input/Input';
-import themeReducer from '@/store/slices/themeSlice';
+import {themeReducer} from '@/features/theme';
 import {TextInput, Text, TouchableOpacity, View} from 'react-native';
 
 describe('Input', () => {

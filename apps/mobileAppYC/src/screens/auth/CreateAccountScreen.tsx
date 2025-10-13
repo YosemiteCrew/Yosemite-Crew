@@ -10,6 +10,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   DeviceEventEmitter,
+  BackHandler,
+  ActivityIndicator,
 } from 'react-native';
 import {useForm, Controller} from 'react-hook-form';
 import {SafeArea, Input} from '../../components/common';
@@ -36,9 +38,15 @@ import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import type {AuthStackParamList} from '../../navigation/AuthNavigator';
 import {PASSWORDLESS_AUTH_CONFIG, PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT} from '@/config/variables';
 import LocationService from '@/services/LocationService';
+import {
+  fetchPlaceDetails,
+  fetchPlaceSuggestions,
+  MissingApiKeyError,
+  type PlaceSuggestion,
+} from '@/services/maps/googlePlaces';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { getAuth } from '@react-native-firebase/auth';
+// Removed direct provider-specific signout; use global logout from AuthContext
 
 type CreateAccountScreenProps = NativeStackScreenProps<
   AuthStackParamList,
@@ -71,7 +79,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
   navigation,
   route,
 }) => {
-  const {login} = useAuth();
+  const {login, logout} = useAuth();
   const {theme} = useTheme();
   const styles = createStyles(theme);
 
@@ -124,13 +132,13 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     useState<Country>(resolvedCountry);
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isHandlingBack, setIsHandlingBack] = useState(false);
   const [submissionError, setSubmissionError] = useState('');
   const [location, setLocation] = useState<{
     latitude: number;
     longitude: number;
   } | null>(null);
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
-  const [locationError, setLocationError] = useState<string | null>(null);
   const [isOtpSuccessVisible, setIsOtpSuccessVisible] =
     useState(showOtpSuccess);
 
@@ -150,6 +158,12 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     country: '',
     acceptTerms: false,
   });
+  const [addressQuery, setAddressQuery] = useState('');
+  const [addressSuggestions, setAddressSuggestions] = useState<PlaceSuggestion[]>([]);
+  const [isFetchingAddressSuggestions, setIsFetchingAddressSuggestions] = useState(false);
+  const [addressLookupError, setAddressLookupError] = useState<string | null>(null);
+  const skipNextAutocompleteRef = useRef(false);
+  const lastAutocompleteSignatureRef = useRef<string>('');
 
   const {
     control,
@@ -182,7 +196,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
 
     const fetchLocation = async () => {
       setIsRequestingLocation(true);
-      setLocationError(null);
+
       try {
         const coords = await LocationService.getLocationWithRetry();
         if (coords && isMounted) {
@@ -190,11 +204,6 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
         }
       } catch (error) {
         console.warn('Unable to fetch location', error);
-        if (isMounted) {
-          setLocationError(
-            'We could not determine your current location. You can still continue.',
-          );
-        }
       } finally {
         if (isMounted) {
           setIsRequestingLocation(false);
@@ -293,8 +302,142 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     (field: keyof typeof step2Data, value: any) => {
       setStep2Data(prev => ({...prev, [field]: value}));
       setValue(field, value, {shouldValidate: true});
+      if (field === 'address') {
+        setAddressQuery(value);
+      }
+      if (
+        field === 'address' ||
+        field === 'stateProvince' ||
+        field === 'city' ||
+        field === 'postalCode' ||
+        field === 'country'
+      ) {
+        clearErrors(field);
+      }
     },
-    [setValue],
+    [clearErrors, setValue],
+  );
+
+  useEffect(() => {
+    if (skipNextAutocompleteRef.current) {
+      skipNextAutocompleteRef.current = false;
+      return;
+    }
+
+    const search = addressQuery.trim();
+    if (search.length < 3) {
+      setAddressSuggestions([]);
+      setAddressLookupError(null);
+      lastAutocompleteSignatureRef.current = '';
+      return;
+    }
+
+    const locationSignature = location
+      ? `${location.latitude.toFixed(4)},${location.longitude.toFixed(4)}`
+      : 'none';
+    const signature = `${search}::${locationSignature}`;
+
+    if (signature === lastAutocompleteSignatureRef.current) {
+      return;
+    }
+
+    lastAutocompleteSignatureRef.current = signature;
+
+    let isActive = true;
+    setIsFetchingAddressSuggestions(true);
+    const timeoutId = setTimeout(async () => {
+      try {
+        const suggestions = await fetchPlaceSuggestions({
+          query: search,
+          location,
+        });
+        if (!isActive) {
+          return;
+        }
+        setAddressSuggestions(suggestions);
+        setAddressLookupError(null);
+      } catch (error) {
+        if (!isActive) {
+          return;
+        }
+        if (error instanceof MissingApiKeyError) {
+          setAddressLookupError(
+            'Address autocomplete is unavailable. Please enter your address manually.',
+          );
+        } else {
+          setAddressLookupError('Unable to fetch address suggestions.');
+        }
+        setAddressSuggestions([]);
+      } finally {
+        if (isActive) {
+          setIsFetchingAddressSuggestions(false);
+        }
+      }
+    }, 350);
+
+    return () => {
+      isActive = false;
+      clearTimeout(timeoutId);
+    };
+  }, [addressQuery, location]);
+
+  const handleAddressSuggestionPress = useCallback(
+    async (suggestion: PlaceSuggestion) => {
+      skipNextAutocompleteRef.current = true;
+      lastAutocompleteSignatureRef.current = '';
+      setIsFetchingAddressSuggestions(true);
+      try {
+        const details = await fetchPlaceDetails(suggestion.placeId);
+        const addressLine = details.addressLine ?? suggestion.primaryText;
+
+        handleStep2FieldChange('address', addressLine);
+        setAddressQuery(addressLine);
+
+        console.log('[CreateAccount] Selected address', {
+          placeId: suggestion.placeId,
+          addressLine,
+          city: details.city,
+          stateProvince: details.stateProvince,
+          postalCode: details.postalCode,
+          country: details.country,
+        });
+
+        if (details.city) {
+          handleStep2FieldChange('city', details.city);
+        }
+        if (details.stateProvince) {
+          handleStep2FieldChange('stateProvince', details.stateProvince);
+        }
+        if (details.postalCode) {
+          handleStep2FieldChange('postalCode', details.postalCode);
+        }
+        if (details.country) {
+          handleStep2FieldChange('country', details.country);
+        }
+        if (details.latitude && details.longitude) {
+          setLocation(prev =>
+            prev ?? {
+              latitude: details.latitude as number,
+              longitude: details.longitude as number,
+            },
+          );
+        }
+        setAddressLookupError(null);
+        clearErrors(['address', 'city', 'stateProvince', 'postalCode', 'country']);
+      } catch (error) {
+        if (error instanceof MissingApiKeyError) {
+          setAddressLookupError(
+            'Address autocomplete is unavailable. Please enter your address manually.',
+          );
+        } else {
+          setAddressLookupError('Unable to fetch the selected address details.');
+        }
+      } finally {
+        setAddressSuggestions([]);
+        setIsFetchingAddressSuggestions(false);
+      }
+    },
+    [clearErrors, handleStep2FieldChange, setLocation],
   );
 
   const handleNext = async () => {
@@ -345,68 +488,49 @@ const handleGoBack = useCallback(async () => {
   }
 
   // If on step 1, cancel the profile creation and go back to sign up
+  if (isHandlingBack) {
+    return;
+  }
+
+  setIsHandlingBack(true);
   try {
     console.log('[CreateAccountScreen] Cancelling profile creation - provider:', tokens.provider);
-    
-    // 1. Clear pending profile storage
-    await AsyncStorage.multiRemove([
-      PENDING_PROFILE_STORAGE_KEY,
-      '@user_data',
-      '@auth_tokens'
-    ]);
+    // 1) Clear pending profile immediately so AppNavigator stops forcing CreateAccount
+    await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
     DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
 
-    // 2. Sign out based on provider (but handle errors gracefully)
-    if (tokens.provider === 'firebase') {
-      try {
-        const auth = getAuth();
-        const currentUser = auth.currentUser;
-        if (currentUser) {
-          await auth.signOut();
-          console.log('[CreateAccountScreen] Firebase sign out successful');
-        }
-      } catch (firebaseError) {
-        console.warn('[CreateAccountScreen] Firebase sign out warning:', firebaseError);
-        // Continue even if sign out fails
-      }
-    } else if (tokens.provider === 'amplify') {
-      try {
-        // For Amplify, try local sign out only (not global)
-        const { signOut } = await import('aws-amplify/auth');
-        await signOut({ global: false });
-        console.log('[CreateAccountScreen] Amplify sign out successful');
-      } catch (amplifyError) {
-        console.warn('[CreateAccountScreen] Amplify sign out warning:', amplifyError);
-        // Continue even if sign out fails
-      }
-    }
+    // 2) Use global logout to clear tokens/state consistently (handles provider-specific signout)
+    await logout();
 
-    // 3. Reset navigation to SignUp screen
+    // 3) Explicitly reset to SignIn so user sees the auth entry point immediately
     navigation.reset({
       index: 0,
-      routes: [{name: 'SignUp'}],
+      routes: [{name: 'SignIn'}],
     });
   } catch (error) {
     console.error('[CreateAccountScreen] handleGoBack error:', error);
-    
-    // Even if something fails, clear storage and navigate
     try {
-      await AsyncStorage.multiRemove([
-        PENDING_PROFILE_STORAGE_KEY,
-        '@user_data',
-        '@auth_tokens'
-      ]);
-    } catch (clearError) {
-      console.error('[CreateAccountScreen] Failed to clear storage:', clearError);
-    }
-    
-    // Always navigate back to sign up
+      await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
+      DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
+    } catch {}
+    // Even on failure, rely on AppNavigator by not forcing a conflicting reset
     navigation.reset({
       index: 0,
-      routes: [{name: 'SignUp'}],
+      routes: [{name: 'SignIn'}],
     });
+  } finally {
+    setIsHandlingBack(false);
   }
-}, [clearErrors, currentStep, navigation, setValue, step1Data, tokens.provider]);
+}, [clearErrors, currentStep, isHandlingBack, logout, navigation, setValue, step1Data, tokens.provider]);
+
+  // Ensure hardware back behaves same as header back
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      handleGoBack();
+      return true;
+    });
+    return () => sub.remove();
+  }, [handleGoBack]);
 
   const createAccountEndpoint = PASSWORDLESS_AUTH_CONFIG.createAccountUrl;
 
@@ -698,6 +822,39 @@ const handleGoBack = useCallback(async () => {
           )}
         />
 
+        {(isFetchingAddressSuggestions || addressSuggestions.length > 0 || addressLookupError) && (
+          <View style={styles.addressAutocompleteContainer}>
+            {isFetchingAddressSuggestions ? (
+              <View style={styles.addressAutocompleteLoadingRow}>
+                <ActivityIndicator size="small" color={theme.colors.primary} />
+                <Text style={styles.addressAutocompleteLoadingText}>Searching for addresses…</Text>
+              </View>
+            ) : null}
+            {!isFetchingAddressSuggestions &&
+              addressSuggestions.map((suggestion, index) => (
+                <TouchableOpacity
+                  key={suggestion.placeId}
+                  style={[
+                    styles.addressSuggestionItem,
+                    index === addressSuggestions.length - 1 && styles.addressSuggestionItemLast,
+                  ]}
+                  onPress={() => handleAddressSuggestionPress(suggestion)}
+                >
+                  <Text style={styles.addressSuggestionPrimary}>{suggestion.primaryText}</Text>
+                  {suggestion.secondaryText ? (
+                    <Text style={styles.addressSuggestionSecondary}>{suggestion.secondaryText}</Text>
+                  ) : null}
+                </TouchableOpacity>
+              ))}
+            {addressLookupError && !isFetchingAddressSuggestions ? (
+              <Text style={styles.addressSuggestionError}>{addressLookupError}</Text>
+            ) : null}
+            {(isFetchingAddressSuggestions || addressSuggestions.length > 0) && (
+              <Text style={styles.addressPoweredBy}>Powered by Google</Text>
+            )}
+          </View>
+        )}
+
         <Controller
           control={control}
           name="stateProvince"
@@ -838,16 +995,6 @@ const handleGoBack = useCallback(async () => {
           )}
         </View>
 
-        {isRequestingLocation ? (
-          <Text style={styles.locationStatus}>Fetching your location…</Text>
-        ) : location ? (
-          <Text style={styles.locationStatus}>
-            Location detected: {location.latitude.toFixed(3)},{' '}
-            {location.longitude.toFixed(3)}
-          </Text>
-        ) : locationError ? (
-          <Text style={styles.locationStatusError}>{locationError}</Text>
-        ) : null}
       </View>
     </>
   );
@@ -914,14 +1061,17 @@ const handleGoBack = useCallback(async () => {
         pointerEvents={isOtpSuccessVisible ? 'auto' : 'none'}>
         <CustomBottomSheet
           ref={successBottomSheetRef}
-          snapPoints={['50%']}
-          initialIndex={isOtpSuccessVisible ? 0 : -1}
-          enablePanDownToClose={false}
+          snapPoints={['35%', '50%']}
+          initialIndex={isOtpSuccessVisible ? 1 : -1}
+          enablePanDownToClose
           enableBackdrop
           backdropOpacity={0.5}
           backdropAppearsOnIndex={0}
           backdropDisappearsOnIndex={-1}
-          backdropPressBehavior="none"
+          backdropPressBehavior="close"
+          enableHandlePanningGesture
+          enableContentPanningGesture={false}
+          enableOverDrag
           backgroundStyle={styles.bottomSheetBackground}
           handleIndicatorStyle={styles.bottomSheetHandle}>
           <View style={styles.successContent}>
@@ -1009,6 +1159,57 @@ const createStyles = (theme: any) =>
     },
     inputContainer: {
       marginBottom: theme.spacing['5'], // 20 - space between inputs + error messages
+    },
+    addressAutocompleteContainer: {
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      borderRadius: theme.borderRadius.lg,
+      backgroundColor: theme.colors.cardBackground,
+      marginBottom: theme.spacing['5'],
+      overflow: 'hidden',
+    },
+    addressAutocompleteLoadingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: theme.spacing['4'],
+      paddingVertical: theme.spacing['3'],
+      gap: theme.spacing['3'],
+    },
+    addressAutocompleteLoadingText: {
+      ...theme.typography.caption,
+      color: theme.colors.textSecondary,
+    },
+    addressSuggestionItem: {
+      paddingHorizontal: theme.spacing['4'],
+      paddingVertical: theme.spacing['4'],
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.colors.border,
+    },
+    addressSuggestionItemLast: {
+      borderBottomWidth: 0,
+    },
+    addressSuggestionPrimary: {
+      ...theme.typography.paragraph,
+      color: theme.colors.text,
+    },
+    addressSuggestionSecondary: {
+      ...theme.typography.caption,
+      color: theme.colors.textSecondary,
+      marginTop: theme.spacing['1'],
+    },
+    addressSuggestionError: {
+      ...theme.typography.caption,
+      color: theme.colors.error,
+      paddingHorizontal: theme.spacing['4'],
+      paddingVertical: theme.spacing['3'],
+      backgroundColor: theme.colors.cardBackground,
+    },
+    addressPoweredBy: {
+      ...theme.typography.caption,
+      color: theme.colors.textSecondary,
+      textAlign: 'right',
+      paddingHorizontal: theme.spacing['4'],
+      paddingBottom: theme.spacing['3'],
     },
     countrySection: {
       flexDirection: 'row',

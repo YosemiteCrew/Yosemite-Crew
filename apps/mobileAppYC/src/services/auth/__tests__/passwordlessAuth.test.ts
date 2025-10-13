@@ -1,5 +1,4 @@
 import { formatAuthError } from '@/services/auth/passwordlessAuth';
-import { AuthError } from 'aws-amplify/auth';
 
 describe('services/auth/passwordlessAuth formatAuthError', () => {
   test('maps known amplify error names', () => {
@@ -13,9 +12,9 @@ describe('services/auth/passwordlessAuth formatAuthError', () => {
     expect(formatAuthError({ message: 'token expired' })).toMatch(/expired/i);
   });
 
-  test('AuthError instance returns message', () => {
-    const err = new AuthError('Auth broke');
-    expect(formatAuthError(err)).toBe('Auth broke');
+  test('object with known error name', () => {
+    const err = { name: 'InvalidParameterException', message: 'Auth broke' };
+    expect(formatAuthError(err)).toMatch(/invalid/i);
   });
 
   test('generic Error returns message', () => {
