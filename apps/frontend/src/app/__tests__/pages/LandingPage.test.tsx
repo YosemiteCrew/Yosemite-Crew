@@ -21,8 +21,10 @@ describe('MainLandingPage Component', () => {
 
     const heroSection = mainHeading.closest('section');
 
-    const bookDemoButton = within(heroSection).getByRole('link', { name: /book a demo/i });
-    const learnMoreButton = within(heroSection).getByRole('link', { name: /learn more/i });
+    expect(heroSection).toBeInTheDocument();
+
+    const bookDemoButton = within(heroSection!).getByRole('link', { name: /book a demo/i });
+    const learnMoreButton = within(heroSection!).getByRole('link', { name: /learn more/i });
 
     expect(bookDemoButton).toBeInTheDocument();
     expect(learnMoreButton).toBeInTheDocument();

@@ -27,24 +27,26 @@ describe('HomePage Component', () => {
     expect(heading2).toBeInTheDocument();
   });
 
-test('renders call-to-action buttons with correct links', () => {
-  render(<HomePage />);
+  test('renders call-to-action buttons with correct links', () => {
+    render(<HomePage />);
 
-  const mainHeading = screen.getByRole('heading', {
-    name: /helping you help pets/i,
+    const mainHeading = screen.getByRole('heading', {
+      name: /helping you help pets/i,
+    });
+
+    const heroSection = mainHeading.closest('section');
+
+    expect(heroSection).toBeInTheDocument();
+
+    const getStartedLink = within(heroSection!).getByRole('link', { name: /get started/i });
+    const bookDemoLink = within(heroSection!).getByRole('link', { name: /book a demo/i });
+
+    expect(getStartedLink).toBeInTheDocument();
+    expect(bookDemoLink).toBeInTheDocument();
+
+    expect(getStartedLink).toHaveAttribute('href', '/signup');
+    expect(bookDemoLink).toHaveAttribute('href', '/book-demo');
   });
-
-  const heroSection = mainHeading.closest('section');
-
-  const getStartedLink = within(heroSection).getByRole('link', { name: /get started/i });
-  const bookDemoLink = within(heroSection).getByRole('link', { name: /book a demo/i });
-
-  expect(getStartedLink).toBeInTheDocument();
-  expect(bookDemoLink).toBeInTheDocument();
-
-  expect(getStartedLink).toHaveAttribute('href', '/signup');
-  expect(bookDemoLink).toHaveAttribute('href', '/book-demo');
-});
 
   test('renders the "Run Your Practice" section heading', () => {
     render(<HomePage />);

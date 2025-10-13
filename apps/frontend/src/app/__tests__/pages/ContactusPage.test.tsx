@@ -53,11 +53,9 @@ const mockedPostData = postData as jest.Mock;
 jest.mock('@yosemite-crew/fhir');
 const mockedToFhirSupportTicket = toFhirSupportTicket as jest.Mock;
 
-// Mock the auth store
 jest.mock('@/app/stores/oldAuthStore');
-const mockedUseOldAuthStore = useOldAuthStore as jest.Mock;
+const mockedUseOldAuthStore = useOldAuthStore as unknown as jest.Mock;
 
-// --- Test Suite ---
 
 describe('ContactusPage', () => {
   beforeEach(() => {
@@ -104,8 +102,6 @@ describe('ContactusPage', () => {
   describe('Form Submission and Validation', () => {
     it('should show validation errors if required fields are empty on general enquiry', async () => {
       render(<ContactusPage />);
-      // FIXED: The component only validates on submit, not on blur.
-      // So, we click the button to trigger the validation logic.
       const submitButton = screen.getAllByRole('button', { name: 'Send Message' })[0];
       fireEvent.click(submitButton);
     });
@@ -113,8 +109,6 @@ describe('ContactusPage', () => {
     it('should show invalid email error', async () => {
       render(<ContactusPage />);
 
-      // FIXED: We must fill in the other required fields to enable the button,
-      // which allows the email validation logic to run upon submission.
       fireEvent.change(screen.getByLabelText('Full Name'), { target: { value: 'John Doe' } });
       fireEvent.change(screen.getByPlaceholderText('Your Message'), { target: { value: 'A message' } });
 
@@ -193,8 +187,6 @@ describe('ContactusPage', () => {
         render(<ContactusPage />);
         fireEvent.click(screen.getByRole('radio', { name: 'Complaint' }));
 
-        // FIXED: The test was trying to click a disabled button.
-        // Instead, we verify that the button IS disabled initially, which is correct behavior.
         const submitButton = screen.getByRole('button', { name: 'Send Message' });
         expect(submitButton).toBeDisabled();
     });
@@ -246,8 +238,6 @@ describe('ContactusPage', () => {
         fireEvent.click(checkboxes[0]);
         fireEvent.click(checkboxes[1]);
 
-        // FIXED: The test name says the button should be disabled, but the assertion was checking if it was enabled.
-        // This corrects the test to match its description.
         expect(submitButton).toBeDisabled();
       });
 
