@@ -8,7 +8,7 @@ import {AppNavigator} from '@/navigation/AppNavigator';
 import {useAuth} from '@/contexts/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {DeviceEventEmitter} from 'react-native';
-import {PENDING_PROFILE_STORAGE_KEY} from '@/config/variablesExample';
+import {PENDING_PROFILE_STORAGE_KEY} from '@/config/variables';
 
 jest.mock('@react-navigation/native-stack', () => {
   require('react');
