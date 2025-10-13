@@ -50,7 +50,7 @@ export const BreedBottomSheet = forwardRef<
     const categoryMap: Record<CompanionCategory, string> = {
       cat: 'Cat',
       dog: 'Dog',
-      horse: 'Horse',
+      equine: 'Equine',
     };
 
     const categoryName = categoryMap[category];
@@ -124,7 +124,7 @@ export const BreedBottomSheet = forwardRef<
   return (
     <CustomBottomSheet
       ref={bottomSheetRef}
-      snapPoints={['83%', '95%']}
+      snapPoints={['80%', '85%']}
       initialIndex={-1}
       enablePanDownToClose={true}
       enableDynamicSizing={false}

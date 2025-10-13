@@ -1,6 +1,6 @@
 // src/features/companion/types.ts
 
-export type CompanionCategory = 'cat' | 'dog' | 'horse';
+export type CompanionCategory = 'cat' | 'dog' | 'equine';
 
 export type CompanionGender = 'male' | 'female';
 
