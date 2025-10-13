@@ -1,10 +1,6 @@
 import {
   FhirSupportTicket,
   CreateSupportTicket,
-  TicketPlatform,
-  UserType,
-  UserStatus,
-  TicketCategory,
   TicketStatus,
 } from "@yosemite-crew/types";
 
@@ -113,29 +109,5 @@ export function toFhirSupportTicket(
       type: { text: "Attachment" },
       valueAttachment: { url },
     })),
-  };
-}
-
-export function fromFhirSupportTicket(
-  fhir: FhirSupportTicket
-): CreateSupportTicket {
-  return {
-    ticketId: fhir.id || "",
-    category: (fhir.code?.text as TicketCategory) ?? "General",
-    platform: "Web Form", // no platform in FHIR → default
-    fullName: fhir.for?.display || "Unknown",
-    emailAddress: fhir.for?.reference?.replace("mailto:", "") || "",
-    userType: "Registered",
-    userStatus: "Active",
-    message: fhir.description || "",
-    attachments:
-      fhir.input
-        ?.map((i) => i.valueAttachment?.url)
-        .filter((x): x is string => !!x) || [],
-    status: reverseMapStatus(fhir.status),
-    assignedTo: fhir.owner?.display,
-    priority: reverseMapPriority(fhir.priority),
-    createdBy: (fhir.requester?.display as any) || "User",
-    notes: fhir.note?.map((n) => n.text) || [],
   };
 }
