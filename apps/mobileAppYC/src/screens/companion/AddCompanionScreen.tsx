@@ -339,7 +339,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
       ).unwrap();
 
       console.log('Companion added successfully:', result);
-      navigation.navigate('Home');
+      navigation.popToTop();
     } catch (error) {
       const message =
         error instanceof Error
