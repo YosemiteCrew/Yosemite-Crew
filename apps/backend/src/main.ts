@@ -5,6 +5,7 @@ import mongoose from "mongoose";
 import organizationRounter from "./routers/organization.router";
 import parentRouter from "./routers/parent.router";
 import userOrganizationRouter from "./routers/user-organization.router";
+import userRouter from "./routers/user.router";
 import { MongoMemoryServer } from "mongodb-memory-server";
 
 const app = express();
@@ -16,6 +17,7 @@ app.use(fileUpload());
 app.use(`/fhir/v1/organization`, organizationRounter);
 app.use(`/fhir/v1/parent`, parentRouter);
 app.use(`/fhir/v1/user-organization`, userOrganizationRouter);
+app.use(`/fhir/v1/user`, userRouter);
 
 async function startServer() {
   try {

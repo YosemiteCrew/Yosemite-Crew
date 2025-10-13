@@ -85,3 +85,4 @@ export type {adminDepartment,AdminDepartmentItem,AdminFHIRHealthcareService} fro
 export type {NormalBlog,FHIRBlog} from './Blog/BlogTypes'
 export type {ITask,FormTaskData,UploadedFileForCreateTask} from './models/create-task';
 export type {IRole} from './models/role'
+export type { User } from './user';

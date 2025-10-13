@@ -13,6 +13,6 @@
     "noUnusedLocals": false,                      // Warn on unused variables
     "noUnusedParameters": false, 
   },
-  "include": ["src/main.ts","src/utils"],
+  "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }
