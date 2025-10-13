@@ -6,11 +6,11 @@
  * @format
  */
 import React, {useEffect, useState} from 'react';
-import {StatusBar} from 'react-native';
+import {StatusBar, LogBox} from 'react-native';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {Provider} from 'react-redux';
 import {NavigationContainer} from '@react-navigation/native';
-import {store} from './src/store';
+import {store} from '@/app/store';
 import {AppNavigator} from './src/navigation';
 import {useTheme} from './src/hooks';
 import CustomSplashScreen from './src/components/common/customSplashScreen/customSplash';
@@ -22,6 +22,10 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import {configureSocialProviders} from '@/services/auth/socialAuth';
 
 Amplify.configure(outputs);
+
+LogBox.ignoreLogs([
+  'This method is deprecated (as well as all React Native Firebase namespaced API)',
+]);
 
 function App(): React.JSX.Element {
   const [isSplashVisible, setIsSplashVisible] = useState(true);

@@ -7,6 +7,7 @@ import {
   StyleSheet,
   FlatList,
   Image,
+  Platform,
 } from 'react-native';
 import CustomBottomSheet from '../BottomSheet/BottomSheet';
 import type {BottomSheetRef} from '../BottomSheet/BottomSheet';
@@ -115,18 +116,18 @@ export const CountryMobileBottomSheet = forwardRef<
   return (
     <CustomBottomSheet
       ref={bottomSheetRef}
-      snapPoints={['85%']}
+      snapPoints={['83%', '95%']}
       initialIndex={-1}
       enablePanDownToClose={true}
       enableDynamicSizing={false}
       enableContentPanningGesture={false}
+      enableHandlePanningGesture={true}
+      enableOverDrag={true}
       enableBackdrop={true}
       backdropOpacity={0.5}
       backdropDisappearsOnIndex={-1}
       backdropPressBehavior="close"
       contentType="view"
-      enableHandlePanningGesture={true}
-      enableOverDrag={true}
       backgroundStyle={styles.bottomSheetBackground}
       handleIndicatorStyle={styles.bottomSheetHandle}
       keyboardBehavior="interactive"
@@ -207,7 +208,7 @@ export const CountryMobileBottomSheet = forwardRef<
             onPress={handleCancel}
             style={styles.cancelButton}
             textStyle={styles.cancelButtonText}
-            tintColor={theme.colors.surface}
+            tintColor="#FFFFFF"
             shadowIntensity="light"
             forceBorder
             borderColor="rgba(0, 0, 0, 0.12)"
@@ -218,7 +219,10 @@ export const CountryMobileBottomSheet = forwardRef<
           <LiquidGlassButton
             title="Save"
             onPress={handleSave}
-            style={styles.saveButton}
+            style={StyleSheet.flatten([
+              styles.saveButton,
+              Platform.OS === 'android' ? styles.saveButtonAndroid : null,
+            ])}
             textStyle={styles.saveButtonText}
             tintColor={theme.colors.secondary}
             shadowIntensity="medium"
@@ -357,15 +361,7 @@ const createStyles = (theme: any) =>
     },
     cancelButton: {
       flex: 1,
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: 'rgba(0, 0, 0, 0.12)',
-      shadowColor: '#000000',
-      shadowOffset: {width: 0, height: 4},
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
+      backgroundColor: 'transparent',
     },
     cancelButtonText: {
       ...theme.typography.paragraphBold,
@@ -373,15 +369,10 @@ const createStyles = (theme: any) =>
     },
     saveButton: {
       flex: 1,
+      backgroundColor: 'transparent',
+    },
+    saveButtonAndroid: {
       backgroundColor: theme.colors.secondary,
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.35)',
-      shadowColor: '#000000',
-      shadowOffset: {width: 0, height: 8},
-      shadowOpacity: 0.15,
-      shadowRadius: 12,
-      elevation: 4,
     },
     saveButtonText: {
       color: theme.colors.white,
