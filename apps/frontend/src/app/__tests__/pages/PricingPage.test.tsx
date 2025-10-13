@@ -6,12 +6,24 @@ import { getPlanConfig } from '../../pages/PricingPage/PricingConst';
 
 window.HTMLElement.prototype.scrollIntoView = jest.fn();
 
-jest.mock('@/app/components/Footer/Footer', () => () => <footer>Footer Mock</footer>);
-jest.mock('@/app/components/Faq/Faq', () => () => <div>FAQ Mock</div>);
+// FIXED: Gave the mock component a display name "MockFooter"
+jest.mock('@/app/components/Footer/Footer', () =>
+  function MockFooter() {
+    return <footer>Footer Mock</footer>;
+  }
+);
+
+// FIXED: Gave the mock component a display name "MockFaq"
+jest.mock('@/app/components/Faq/Faq', () =>
+  function MockFaq() {
+    return <div>FAQ Mock</div>;
+  }
+);
+
 jest.mock('@/app/pages/HomePage/HomePage', () => ({
-  FillBtn: ({ text, onClick, href }) => <a href={href || '#'} onClick={onClick}>{text}</a>,
+  FillBtn: ({ text, onClick, href }: { text: string; onClick?: () => void; href?: string; }) => <a href={href || '#'} onClick={onClick}>{text}</a>,
 }));
-jest.mock('@iconify/react/dist/iconify.js', () => ({ Icon: (props) => <span {...props} /> }));
+jest.mock('@iconify/react/dist/iconify.js', () => ({ Icon: (props: any) => <span {...props} /> }));
 
 describe('PricingPage Component', () => {
   const user = userEvent.setup();

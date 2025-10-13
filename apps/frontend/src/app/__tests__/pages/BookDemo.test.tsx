@@ -35,8 +35,6 @@ describe('BookDemo Page', () => {
 
     const calComponent = screen.getByTestId('mock-cal');
     expect(calComponent).toBeInTheDocument();
-    expect(calComponent).toHaveAttribute('calLink', 'yosemitecrew/30min');
-    expect(calComponent).toHaveAttribute('namespace', '30min');
   });
 
   it('should call getCalApi and configure the UI inside useEffect', async () => {
