@@ -280,20 +280,3 @@ jest.mock('@/components/common/customSplashScreen/customSplash', () => {
   };
 });
 
-// Mock amplify_outputs.json (gitignored file, safe mock for CI/CD)
-jest.mock('./amplify_outputs.json', () => ({
-  __esModule: true,
-  default: {
-    auth: {
-      user_pool_id: 'mock-user-pool-id',
-      aws_region: 'us-east-1',
-      user_pool_client_id: 'mock-client-id',
-      identity_pool_id: 'mock-identity-pool-id',
-    },
-    geo: {
-      amazon_location_service: {
-        region: 'us-east-1',
-      },
-    },
-  },
-}));
