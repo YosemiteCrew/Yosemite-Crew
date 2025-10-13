@@ -1,5 +1,4 @@
 import {
-  MissingApiKeyError,
   fetchPlaceDetails,
   fetchPlaceSuggestions,
 } from '@/services/maps/googlePlaces';
