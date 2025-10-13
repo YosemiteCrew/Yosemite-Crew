@@ -63,10 +63,11 @@ jobs:
       # Optional: if lockfile or root package.json changed, we'll run *all* workspaces
       - name: Check lockfile/root changes
         id: lock
+        shell: bash
         run: |
           BASE_SHA="${{ steps.base.outputs.sha }}"
           # diff between base and current HEAD
-          if git diff --name-only "$BASE_SHA" HEAD | grep -E '^(pnpm-lock\.yaml|package\.json)$' ; then
+          if git diff --name-only "$BASE_SHA" HEAD | grep -E '^(pnpm-lock\.yaml|package\.json)$' >/dev/null; then
             echo "changed=true" >> $GITHUB_OUTPUT
           else
             echo "changed=false" >> $GITHUB_OUTPUT
@@ -82,20 +83,23 @@ jobs:
         run: |
           BASE_SHA="${{ steps.base.outputs.sha }}"
           echo "Diff base => $BASE_SHA"
-          if git cat-file -e "$BASE_SHA" 2>/dev/null; then
-            pnpm dlx turbo run build test --filter=...[${BASE_SHA}] --dry=json > affected.json || echo "{}" > affected.json
+          if git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
+            pnpm dlx turbo run build test --filter=...[${BASE_SHA}] --dry=json > affected.json || echo '{"tasks":[]}' > affected.json
           else
             echo "⚠️ Base SHA not found, running all" && pnpm dlx turbo ls --output=json > affected.json
+            echo "fallback_all=true" >> $GITHUB_ENV
           fi
-          cat affected.json || true
+          ls -l affected.json ls.json || true
 
       - name: Build matrix
         id: set-matrix
         shell: bash
         run: |
-          if [ "${{ steps.lock.outputs.changed }}" = "true" ]; then
-            node -e 'const a=require("./ls.json"); const ws=(a.workspaces||[]).map(w=>w.name||w.package).filter(Boolean); const has=ws.length>0; process.stdout.write(`matrix=${JSON.stringify({workspace:ws})}\n`); process.stdout.write(`has_any=${has}\n`);' >> $GITHUB_OUTPUT
+          if [ "${{ steps.lock.outputs.changed }}" = "true" ] || [ "${fallback_all:-}" = "true" ]; then
+            test -f ls.json || pnpm dlx turbo ls --output=json > ls.json
+            node -e 'const a=require("./ls.json"); const ws=(a.packages.items||[]).map(w=>w.name||w.package).filter(Boolean); const has=ws.length>0; process.stdout.write(`matrix=${JSON.stringify({workspace:ws})}\n`); process.stdout.write(`has_any=${has}\n`);' >> $GITHUB_OUTPUT
           else
+            test -s affected.json || echo "{\"tasks\":[]}" > affected.json
             node -e 'const fs=require("fs"); const a=JSON.parse(fs.readFileSync("affected.json","utf8")); const ws=[...new Set((a.tasks||[]).map(t=>t.package).filter(Boolean))]; const has=ws.length>0; process.stdout.write(`matrix=${JSON.stringify({workspace:ws})}\n`); process.stdout.write(`has_any=${has}\n`);' >> $GITHUB_OUTPUT
           fi
 
@@ -153,16 +157,16 @@ jobs:
           fi
 
       - name: Lint
-        run: pnpm --filter "${{ matrix.workspace }}" lint
+        run: pnpm run lint --filter "${{ matrix.workspace }}"
 
       - name: Typecheck
-        run: pnpm --filter "${{ matrix.workspace }}" type-check
+        run: pnpm run type-check --filter "${{ matrix.workspace }}"
 
       - name: Build
-        run: pnpm --filter "${{ matrix.workspace }}" build
+        run: pnpm run build --filter "${{ matrix.workspace }}"
 
       - name: Test
-        run: pnpm --filter "${{ matrix.workspace }}" test -- --ci
+        run: pnpm run test --filter "${{ matrix.workspace }}" -- --ci
 
   # No-ops job for PRs with no affected workspaces (keeps status checks predictable)
   no-affected:
