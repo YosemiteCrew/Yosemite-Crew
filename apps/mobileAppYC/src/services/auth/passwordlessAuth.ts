@@ -142,6 +142,18 @@ export const requestPasswordlessEmailCode = async (
   console.log('[Auth] requestPasswordlessEmailCode normalized email', { email, username });
   let isNewUser = false;
 
+  // First, ensure we sign out any existing session
+  try {
+    const currentUser = await getCurrentUser();
+    if (currentUser) {
+      console.log('[Auth] Found existing session, signing out before new sign in');
+      await signOutEverywhere();
+    }
+  } catch (error) {
+    // No existing session, continue with sign in
+    console.log('[Auth] No existing session found, proceeding with sign in');
+  }
+
   try {
     isNewUser = await ensureUserRegistration(username);
   } catch (signupError) {

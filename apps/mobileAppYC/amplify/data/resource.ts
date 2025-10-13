@@ -25,7 +25,7 @@ export const data = defineData({
 
 /*== STEP 2 ===============================================================
 Go to your frontend source code. From your client-side code, generate a
-Data client to make CRUDL requests to your table. (THIS SNIPPET WILL ONLY
+Data client to make CRUDL requests to your table. (THIS SNIPcompanion WILL ONLY
 WORK IN THE FRONTEND CODE FILE.)
 
 Using JavaScript or Next.js React Server Components, Middleware, Server 
@@ -43,10 +43,10 @@ const client = generateClient<Schema>() // use this Data client for CRUDL reques
 
 /*== STEP 3 ===============================================================
 Fetch records from the database and use them in your frontend component.
-(THIS SNIPPET WILL ONLY WORK IN THE FRONTEND CODE FILE.)
+(THIS SNIPcompanion WILL ONLY WORK IN THE FRONTEND CODE FILE.)
 =========================================================================*/
 
-/* For example, in a React component, you can use this snippet in your
+/* For example, in a React component, you can use this snipcompanion in your
   function's RETURN statement */
 // const { data: todos } = await client.models.Todo.list()
 

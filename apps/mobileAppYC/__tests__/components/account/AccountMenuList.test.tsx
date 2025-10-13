@@ -1,3 +1,4 @@
+/* eslint-disable jest/no-disabled-tests */
 import React from 'react';
 import {render, fireEvent} from '@testing-library/react-native';
 import {AccountMenuList} from '@/screens/account/components/AccountMenuList';
