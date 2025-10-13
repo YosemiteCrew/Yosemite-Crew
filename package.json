@@ -15,10 +15,5 @@
     "turbo": "^2.5.0"
   },
   "packageManager": "pnpm@8.15.6",
-  "name": "yosemitecrew",
-  "pnpm": {
-    "patchedDependencies": {
-      "react-native-country-codes-picker@2.3.5": "patches/react-native-country-codes-picker@2.3.5.patch"
-    }
-  }
+  "name": "yosemitecrew"
 }

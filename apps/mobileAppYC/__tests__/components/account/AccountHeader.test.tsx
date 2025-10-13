@@ -1,10 +1,10 @@
+/* eslint-disable jest/no-disabled-tests */
 import React from 'react';
 import {render, fireEvent} from '@testing-library/react-native';
 import {AccountHeader} from '@/screens/account/components/AccountHeader';
 
 describe.skip('AccountHeader', () => {
   it('renders title and triggers callbacks', () => {
-    // eslint-disable-next-line no-console
     console.log('AccountHeader typeof', typeof AccountHeader);
     const onBack = jest.fn();
     const onNotif = jest.fn();

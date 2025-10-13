@@ -1276,16 +1276,6 @@ const createStyles = (theme: any) =>
       flex: 1,
       marginLeft: theme.spacing['2'], // 8
     },
-    locationStatus: {
-      ...theme.typography.caption,
-      color: theme.colors.textSecondary,
-      marginTop: theme.spacing['2'],
-    },
-    locationStatusError: {
-      ...theme.typography.caption,
-      color: theme.colors.error,
-      marginTop: theme.spacing['2'],
-    },
     linkText: {
       ...theme.typography.body,
       color: theme.colors.primary,

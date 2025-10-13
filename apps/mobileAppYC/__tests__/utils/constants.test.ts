@@ -1,25 +1,25 @@
-import {STORAGE_KEYS, REGEX_PATTERNS, PET_TYPES, COMMON_BREEDS} from '@/utils/constants';
+import {STORAGE_KEYS, REGEX_PATTERNS, companion_TYPES, COMMON_BREEDS} from '@/utils/constants';
 
 describe('constants', () => {
   describe('STORAGE_KEYS', () => {
     it('should have correct user token key', () => {
-      expect(STORAGE_KEYS.USER_TOKEN).toBe('@petcare/user_token');
+      expect(STORAGE_KEYS.USER_TOKEN).toBe('@companioncare/user_token');
     });
 
     it('should have correct user data key', () => {
-      expect(STORAGE_KEYS.USER_DATA).toBe('@petcare/user_data');
+      expect(STORAGE_KEYS.USER_DATA).toBe('@companioncare/user_data');
     });
 
     it('should have correct theme mode key', () => {
-      expect(STORAGE_KEYS.THEME_MODE).toBe('@petcare/theme_mode');
+      expect(STORAGE_KEYS.THEME_MODE).toBe('@companioncare/theme_mode');
     });
 
     it('should have correct language key', () => {
-      expect(STORAGE_KEYS.LANGUAGE).toBe('@petcare/language');
+      expect(STORAGE_KEYS.LANGUAGE).toBe('@companioncare/language');
     });
 
     it('should have correct onboarding completed key', () => {
-      expect(STORAGE_KEYS.ONBOARDING_COMPLETED).toBe('@petcare/onboarding_completed');
+      expect(STORAGE_KEYS.ONBOARDING_COMPLETED).toBe('@companioncare/onboarding_completed');
     });
   });
 
@@ -68,20 +68,20 @@ describe('constants', () => {
     });
   });
 
-  describe('PET_TYPES', () => {
-    it('should contain common pet types', () => {
-      expect(PET_TYPES).toContain('Dog');
-      expect(PET_TYPES).toContain('Cat');
-      expect(PET_TYPES).toContain('Bird');
-      expect(PET_TYPES).toContain('Fish');
+  describe('companion_TYPES', () => {
+    it('should contain common companion types', () => {
+      expect(companion_TYPES).toContain('Dog');
+      expect(companion_TYPES).toContain('Cat');
+      expect(companion_TYPES).toContain('Bird');
+      expect(companion_TYPES).toContain('Fish');
     });
 
     it('should have expected length', () => {
-      expect(PET_TYPES.length).toBe(9);
+      expect(companion_TYPES.length).toBe(9);
     });
 
     it('should be an array', () => {
-      expect(Array.isArray(PET_TYPES)).toBe(true);
+      expect(Array.isArray(companion_TYPES)).toBe(true);
     });
   });
 

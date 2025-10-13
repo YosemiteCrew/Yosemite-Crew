@@ -45,9 +45,9 @@ const COMPANION_PLACEHOLDERS: CompanionProfile[] = [
   {
     id: 'primary',
     name: 'Sky B',
-    subtitle: '2 Pets',
+    subtitle: '2 Companions',
     avatar: {
-      uri: 'https://images.unsplash.com/photo-1544723795-3fb6469f5b39?auto=format&fit=crop&w=160&h=160',
+      uri: 'https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=160&h=160',
     },
   },
   {
@@ -88,6 +88,23 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
     return COMPANION_PLACEHOLDERS[0]?.name ?? 'You';
   }, [user?.firstName, user?.lastName]);
 
+  const hasValidAvatar = React.useMemo(() => {
+    const profilePic = user?.profilePicture;
+    const profileToken = user?.profileToken;
+
+    // Check if profilePicture is a valid HTTP/HTTPS URL
+    if (profilePic && (profilePic.startsWith('http://') || profilePic.startsWith('https://'))) {
+      return true;
+    }
+
+    // Check if profileToken is a valid HTTP/HTTPS URL
+    if (profileToken && (profileToken.startsWith('http://') || profileToken.startsWith('https://'))) {
+      return true;
+    }
+
+    return false;
+  }, [user?.profilePicture, user?.profileToken]);
+
   const primaryAvatar: ImageSourcePropType = React.useMemo(() => {
     if (user?.profilePicture) {
       return {uri: user.profilePicture};
@@ -97,6 +114,13 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
     }
     return COMPANION_PLACEHOLDERS[0]?.avatar;
   }, [user?.profilePicture, user?.profileToken]);
+
+  const userInitials = React.useMemo(() => {
+    if (user?.firstName) {
+      return user.firstName.charAt(0).toUpperCase();
+    }
+    return displayName.charAt(0).toUpperCase();
+  }, [user?.firstName, displayName]);
 
   const companions = React.useMemo<CompanionProfile[]>(() => {
     if (!COMPANION_PLACEHOLDERS.length) {
@@ -114,7 +138,13 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
   }, [displayName, primaryAvatar]);
 
   const handleBackPress = React.useCallback(() => {
-    navigation.navigate('Home');
+    // Use goBack to properly pop the screen from the stack
+    // This ensures the tab bar reappears correctly
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate('Home');
+    }
   }, [navigation]);
 
   const handleDeletePress = React.useCallback(() => {
@@ -195,10 +225,18 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
                   index < companions.length - 1 && styles.companionRowDivider,
                 ]}>
                 <View style={styles.companionInfo}>
-                  <Image
-                    source={companion.avatar}
-                    style={styles.companionAvatar}
-                  />
+                  {index === 0 && !hasValidAvatar ? (
+                    <View style={styles.companionAvatarInitials}>
+                      <Text style={styles.avatarInitialsText}>
+                        {userInitials}
+                      </Text>
+                    </View>
+                  ) : (
+                    <Image
+                      source={companion.avatar}
+                      style={styles.companionAvatar}
+                    />
+                  )}
                   <View>
                     <Text style={styles.companionName}>{companion.name}</Text>
                     <Text style={styles.companionMeta}>
@@ -271,7 +309,6 @@ const createStyles = (theme: any) =>
       paddingBottom: theme.spacing['10'],
       gap: theme.spacing['5'],
     },
-    headerRow: {},
     companionsCard: {
       gap: theme.spacing['4'],
     },
@@ -287,7 +324,7 @@ const createStyles = (theme: any) =>
     },
     companionRowDivider: {
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.borderMuted,
+      borderBottomColor: theme.colors.borderSeperator,
       paddingBottom: theme.spacing['4'],
       marginBottom: theme.spacing['2'],
     },
@@ -301,6 +338,20 @@ const createStyles = (theme: any) =>
       width: 56,
       height: 56,
       borderRadius: theme.borderRadius.full,
+    },
+    companionAvatarInitials: {
+      width: 56,
+      height: 56,
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.lightBlueBackground,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: theme.colors.primary,
+    },
+    avatarInitialsText: {
+      ...theme.typography.h4,
+      color: theme.colors.secondary,
     },
     companionName: {
       ...theme.typography.h4,
@@ -332,51 +383,6 @@ const createStyles = (theme: any) =>
     },
     menuContainerFallback: {
       borderRadius: theme.borderRadius.lg,
-    },
-    menuRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: theme.spacing['3'],
-      paddingHorizontal: theme.spacing['4'],
-      backgroundColor: theme.colors.cardBackground,
-      gap: theme.spacing['4'],
-    },
-    menuRowDivider: {
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.borderMuted,
-    },
-    menuIconWrapper: {
-      width: 40,
-      height: 40,
-      borderRadius: theme.borderRadius.full,
-      backgroundColor: 'rgba(48, 47, 46, 0.12)',
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    menuIconWrapperDanger: {
-      backgroundColor: theme.colors.errorSurface,
-    },
-    menuIcon: {
-      width: 20,
-      height: 20,
-      resizeMode: 'contain',
-    },
-    menuLabel: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.secondary,
-      flex: 1,
-    },
-    menuLabelDanger: {
-      color: theme.colors.error,
-    },
-    menuArrow: {
-      width: 16,
-      height: 16,
-      resizeMode: 'contain',
-      tintColor: theme.colors.secondary,
-    },
-    menuArrowDanger: {
-      tintColor: theme.colors.error,
     },
     logoutButton: {
       width: '100%',
