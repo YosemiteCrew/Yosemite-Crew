@@ -114,12 +114,10 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
         index: 0,
         routes: [{name: 'CreateAccount', params: createAccountPayload}],
       });
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'We could not complete the social sign-up. Please try again.';
-      setSocialError(message);
+    } catch (error: any) {
+      // Show a short, generic message for cancellations and errors
+      const isCancelled = error?.code === 'auth/cancelled' || /cancel/i.test(String(error?.message ?? ''));
+      setSocialError(isCancelled ? 'Kindly retry.' : 'We couldn’t complete the sign up. Kindly retry.');
     } finally {
       setActiveSocialProvider(null);
     }
@@ -155,6 +153,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
               onPress={handleSignUp}
               style={styles.emailButton}
               textStyle={styles.emailButtonText}
+              tintColor={theme.colors.secondary}
               height={56}
               borderRadius="lg"
               leftIcon={<EmailIcon />}
@@ -165,6 +164,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
               onPress={handleGoogleSignUp}
               style={styles.socialButton}
               textStyle={styles.socialButtonTextGoogle}
+              tintColor={theme.colors.cardBackground}
               height={56}
               borderRadius="lg"
               shadowIntensity="medium" // Adds more shadow for visibility
@@ -179,6 +179,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
               onPress={handleFacebookSignUp}
               style={styles.facebookButton}
               textStyle={styles.socialButtonText}
+              tintColor={theme.colors.primary}
               height={56}
               borderRadius="lg"
               leftIcon={<FacebookIcon />}
@@ -191,6 +192,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
               onPress={handleAppleSignUp}
               style={styles.appleButton}
               textStyle={styles.socialButtonText}
+              tintColor={theme.colors.secondary}
               height={56}
               borderRadius="lg"
               leftIcon={<AppleIcon />}
@@ -241,38 +243,42 @@ const createStyles = (theme: any) =>
     },
     title: {
       ...theme.typography.h3,
-      color: theme.colors.text,
+      color: theme.colors.secondary,
       textAlign: 'center',
     },
     buttonContainer: {
-      paddingHorizontal: 40,
-      gap: 18,
+      paddingHorizontal: 24,
+      gap: 16,
       paddingTop: 20,
     },
     emailButton: {
       backgroundColor: theme.colors.secondary,
+      borderRadius: 16,
     },
     emailButtonText: {
+      ...theme.typography.cta,
       color: theme.colors.white,
-      lineHeight: 30,
     },
     socialButton: {
       borderColor: theme.colors.border,
       backgroundColor: theme.colors.white,
+      borderRadius: 16,
     },
     socialButtonTextGoogle: {
+      ...theme.typography.cta,
       color: theme.colors.text,
-      lineHeight: 30,
     },
     facebookButton: {
-      backgroundColor: '#247AED',
+      backgroundColor: theme.colors.primary,
+      borderRadius: 16,
     },
     appleButton: {
       backgroundColor: theme.colors.secondary,
+      borderRadius: 16,
     },
     socialButtonText: {
+      ...theme.typography.cta,
       color: theme.colors.white,
-      lineHeight: 30,
     },
     socialErrorText: {
       ...theme.typography.paragraph,

@@ -82,7 +82,7 @@ describe('themes', () => {
 
     it('should have same spacing values', () => {
       Object.keys(spacing).forEach(key => {
-        expect(lightTheme.spacing[key]).toBe(darkTheme.spacing[key]);
+        expect(lightTheme.spacing[key as keyof typeof spacing]).toBe(darkTheme.spacing[key as keyof typeof spacing]);
       });
     });
   });

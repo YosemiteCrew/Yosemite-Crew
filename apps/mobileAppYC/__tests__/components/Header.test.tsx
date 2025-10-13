@@ -3,7 +3,7 @@ import TestRenderer from 'react-test-renderer';
 import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
 import {Header} from '@/components/common/Header/Header';
-import themeReducer from '@/store/slices/themeSlice';
+import {themeReducer} from '@/features/theme';
 import {TouchableOpacity, Text, View} from 'react-native';
 
 describe('Header', () => {

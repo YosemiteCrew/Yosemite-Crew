@@ -9,7 +9,7 @@ import {
   AppleAuthProvider,
 } from '@react-native-firebase/auth';
 import type {FirebaseAuthTypes} from '@react-native-firebase/auth';
-import {GoogleSignin} from '@react-native-google-signin/google-signin';
+import {GoogleSignin, statusCodes as GoogleStatusCodes} from '@react-native-google-signin/google-signin';
 import {appleAuth,appleAuthAndroid} from '@invertase/react-native-apple-authentication';
 import {LoginManager, AccessToken, Settings} from 'react-native-fbsdk-next';
 import {PASSWORDLESS_AUTH_CONFIG} from '@/config/variables';
@@ -73,7 +73,8 @@ const resolveDisplayInfo = (
 const buildTokens = async (
   user: FirebaseAuthTypes.User,
 ): Promise<Pick<AuthTokens, 'idToken' | 'accessToken' | 'expiresAt' | 'userId'>> => {
-  const idToken = await user.getIdToken(true);
+  // Avoid forcing refresh to reduce deprecation noise; rely on Firebase to refresh as needed
+  const idToken = await user.getIdToken();
   const idTokenResult = await user.getIdTokenResult();
   const expiresAtTimestamp = idTokenResult?.expirationTime
     ? new Date(idTokenResult.expirationTime).getTime()
@@ -91,7 +92,17 @@ const performGoogleSignIn = async (): Promise<{
   userCredential: FirebaseAuthTypes.UserCredential;
 }> => {
   await GoogleSignin.hasPlayServices({showPlayServicesUpdateDialog: true});
-  await GoogleSignin.signIn();
+  try {
+    await GoogleSignin.signIn();
+  } catch (err: any) {
+    // Normalize cancel into a consistent code for the UI layer
+    if (err?.code === GoogleStatusCodes.SIGN_IN_CANCELLED) {
+      const e = new Error('Google sign-in cancelled');
+      (e as any).code = 'auth/cancelled';
+      throw e;
+    }
+    throw err;
+  }
   const {idToken} = await GoogleSignin.getTokens();
   
   if (!idToken) {
@@ -115,7 +126,9 @@ const performFacebookSignIn = async (): Promise<{
   ]);
 
   if (loginResult.isCancelled) {
-    throw new Error('Facebook sign-in was cancelled.');
+    const e = new Error('Facebook sign-in cancelled');
+    (e as any).code = 'auth/cancelled';
+    throw e;
   }
 
   const currentAccessToken = await AccessToken.getCurrentAccessToken();
@@ -254,7 +267,9 @@ const performAppleSignIn = async (): Promise<{
         'Apple configuration error (invalid_client). Verify Service ID, Key linkage to the Primary App ID, and exact redirect URL.',
       );
     } else if (error?.code === appleAuth.Error.CANCELED) {
-      throw new Error('Apple sign-in was cancelled.');
+      const e = new Error('Apple sign-in cancelled');
+      (e as any).code = 'auth/cancelled';
+      throw e;
     } else if (error?.code === appleAuth.Error.FAILED) {
       throw new Error('Apple sign-in failed. Please try again.');
     } else if (error?.code === appleAuth.Error.INVALID_RESPONSE) {
