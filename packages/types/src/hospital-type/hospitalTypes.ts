@@ -24,25 +24,6 @@ export type FHIRBundleEntry = {
   resource: FHIRMeasureReport;
 };
 
-export type FHIRAppointmentAssessmentGraphBundle = {
-  resourceType: "Bundle";
-  type: "collection";
-  entry: FHIRBundleEntry[];
-};
-
-export type QueryParams = {
-  userId?: string;
-  days?: string;
-  reportType?: string;
-  LastDays?: string;
-}
-export type AggregatedAppointmentGraph = {
-  month: number;
-  totalAppointments: number;
-  successful: number;
-  canceled: number;
-};
-
 export type DataItem = {
   monthname: string;
   completed: number;

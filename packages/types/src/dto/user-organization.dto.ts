@@ -1,4 +1,4 @@
-import type { PractitionerRole } from '../../../fhirtypes/src/PractitionerRole'
+import type { PractitionerRole } from "@yosemite-crew/fhirtypes"
 import type { UserOrganization } from '../userOrganization'
 import { toFHIRUserOrganization } from '../userOrganization'
 
