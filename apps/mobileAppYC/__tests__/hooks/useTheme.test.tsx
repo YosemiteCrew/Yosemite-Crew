@@ -1,90 +1,30 @@
 import React from 'react';
 import TestRenderer from 'react-test-renderer';
 import {Provider} from 'react-redux';
-import {configureStore} from '@reduxjs/toolkit';
+import {store} from '@/app/store';
 import {useTheme} from '@/hooks/useTheme';
-import themeReducer from '@/store/slices/themeSlice';
-import {lightTheme} from '@/theme/themes';
+
+const Probe: React.FC<{onRead: (v: ReturnType<typeof useTheme>) => void}> = ({onRead}) => {
+  const theme = useTheme();
+  React.useEffect(() => { onRead(theme); }, [onRead, theme]);
+  return null;
+};
 
 describe('useTheme', () => {
-  const createTestStore = (isDark: boolean = false) => {
-    return configureStore({
-      reducer: {
-        theme: themeReducer,
-      },
-      preloadedState: {
-        theme: {
-          isDark,
-          theme: isDark ? 'dark' : 'light',
-        },
-      },
-    });
-  };
-
-  const Probe: React.FC<{onValue: (v: any) => void}> = ({ onValue }) => {
-    const v = useTheme();
-    React.useEffect(() => { onValue(v); }, [v]);
-    return null;
-  };
-
-  it('should return light theme when isDark is false', () => {
-    const store = createTestStore(false);
-    let captured: any;
+  it('returns light theme with dark mode locked off', () => {
+    const spy = jest.fn();
     TestRenderer.act(() => {
-      TestRenderer.create(<Provider store={store}><Probe onValue={v => { captured = v; }} /></Provider>);
+      TestRenderer.create(
+        <Provider store={store}>
+          <Probe onRead={spy} />
+        </Provider>
+      );
     });
-    expect(captured.theme).toEqual(lightTheme);
-    expect(captured.isDark).toBe(false);
-  });
-
-  it('should reflect isDark=true while theme currently remains lightTheme', () => {
-    const store = createTestStore(true);
-    let captured: any;
-    TestRenderer.act(() => {
-      TestRenderer.create(<Provider store={store}><Probe onValue={v => { captured = v; }} /></Provider>);
-    });
-    expect(captured.theme).toEqual(lightTheme);
-    expect(captured.isDark).toBe(true);
-  });
-
-  it('should have colors property in theme', () => {
-    const store = createTestStore();
-    let captured: any;
-    TestRenderer.act(() => {
-      TestRenderer.create(<Provider store={store}><Probe onValue={v => { captured = v; }} /></Provider>);
-    });
-    expect(captured.theme.colors).toBeDefined();
-    expect(captured.theme.colors.primary).toBeDefined();
-    expect(captured.theme.colors.background).toBeDefined();
-  });
-
-  it('should have typography property in theme', () => {
-    const store = createTestStore();
-    let captured: any;
-    TestRenderer.act(() => {
-      TestRenderer.create(<Provider store={store}><Probe onValue={v => { captured = v; }} /></Provider>);
-    });
-    expect(captured.theme.typography).toBeDefined();
-    expect(captured.theme.typography.h1).toBeDefined();
-  });
-
-  it('should have spacing property in theme', () => {
-    const store = createTestStore();
-    let captured: any;
-    TestRenderer.act(() => {
-      TestRenderer.create(<Provider store={store}><Probe onValue={v => { captured = v; }} /></Provider>);
-    });
-    expect(captured.theme.spacing).toBeDefined();
-    expect(captured.theme.spacing['1']).toBeDefined();
-  });
-
-  it('should have borderRadius property in theme', () => {
-    const store = createTestStore();
-    let captured: any;
-    TestRenderer.act(() => {
-      TestRenderer.create(<Provider store={store}><Probe onValue={v => { captured = v; }} /></Provider>);
-    });
-    expect(captured.theme.borderRadius).toBeDefined();
-    expect(captured.theme.borderRadius.base).toBeDefined();
+    expect(spy).toHaveBeenCalled();
+    const value = spy.mock.calls[0][0];
+    expect(value.isDark).toBe(false);
+    expect(value.themeMode).toBe('light');
+    expect(value.darkModeLocked).toBe(true);
   });
 });
+

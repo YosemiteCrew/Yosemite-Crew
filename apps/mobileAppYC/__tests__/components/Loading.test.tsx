@@ -3,7 +3,7 @@ import TestRenderer from 'react-test-renderer';
 import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
 import {Loading} from '@/components/common/Loading/Loading';
-import themeReducer from '@/store/slices/themeSlice';
+import {themeReducer} from '@/features/theme';
 import { ActivityIndicator, Text } from 'react-native';
 
 describe('Loading', () => {

@@ -7,6 +7,7 @@ import {
   Image,
   TouchableOpacity,
   DeviceEventEmitter,
+  Platform,
 } from 'react-native';
 import {SafeArea, Input} from '../../components/common';
 import {useTheme} from '../../hooks';
@@ -25,6 +26,25 @@ import {
 } from '@/services/auth/socialAuth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT } from '@/config/variables';
+
+const socialIconStyles = StyleSheet.create({
+  icon: {
+    width: 24,
+    height: 24,
+  },
+});
+
+const GoogleIcon = () => (
+  <Image source={Images.googleIcon} style={socialIconStyles.icon} resizeMode="contain" />
+);
+
+const FacebookIcon = () => (
+  <Image source={Images.facebookIcon} style={socialIconStyles.icon} resizeMode="contain" />
+);
+
+const AppleIcon = () => (
+  <Image source={Images.appleIcon} style={socialIconStyles.icon} resizeMode="contain" />
+);
 
 
 type SignInScreenProps = NativeStackScreenProps<AuthStackParamList, 'SignIn'>;
@@ -149,12 +169,10 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) =
         index: 0,
         routes: [{name: 'CreateAccount', params: createAccountPayload}],
       });
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'We could not complete the social sign-in. Please try again.';
-      setSocialError(message);
+    } catch (error: any) {
+      // Show a short, generic message for cancellations and errors
+      const isCancelled = error?.code === 'auth/cancelled' || /cancel/i.test(String(error?.message ?? ''));
+      setSocialError(isCancelled ? 'Kindly retry.' : 'We couldn’t sign you in. Kindly retry.');
     } finally {
       setActiveSocialProvider(null);
     }
@@ -246,38 +264,53 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) =
         </View>
 
         <View style={styles.socialButtons}>
-          <TouchableOpacity
-            activeOpacity={0.8}
+          <LiquidGlassButton
             onPress={handleGoogleSignIn}
-            disabled={isSocialLoading}>
-            <Image
-              source={Images.googleTab}
-              style={styles.socialTabIcon}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.8}
+            customContent={<GoogleIcon />}
+            disabled={isSocialLoading}
+            tintColor={Platform.OS === 'ios' ? theme.colors.cardBackground : undefined}
+            height={60}
+            width={112}
+            borderRadius={20}
+            forceBorder
+            borderColor={theme.colors.border}
+            style={{
+              ...styles.socialButton,
+              ...(Platform.OS !== 'ios'
+                ? {backgroundColor: theme.colors.cardBackground}
+                : {}),
+            }}
+          />
+          <LiquidGlassButton
             onPress={handleFacebookSignIn}
-            disabled={isSocialLoading}>
-            <Image
-              source={Images.facebookTab}
-              style={styles.socialTabIcon}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.8}
+            customContent={<FacebookIcon />}
+            disabled={isSocialLoading}
+            tintColor={Platform.OS === 'ios' ? theme.colors.primary : undefined}
+            height={60}
+            width={112}
+            borderRadius={20}
+            style={{
+              ...styles.socialButton,
+              ...(Platform.OS !== 'ios'
+                ? {backgroundColor: theme.colors.primary}
+                : {}),
+            }}
+          />
+          <LiquidGlassButton
             onPress={handleAppleSignIn}
-            disabled={isSocialLoading}>
-            <Image
-              source={Images.appleTab}
-              style={styles.socialTabIcon}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
+            customContent={<AppleIcon />}
+            disabled={isSocialLoading}
+            tintColor={Platform.OS === 'ios' ? theme.colors.secondary : undefined}
+            height={60}
+            width={112}
+            borderRadius={20}
+            style={{
+              ...styles.socialButton,
+              ...(Platform.OS !== 'ios'
+                ? {backgroundColor: theme.colors.secondary}
+                : {}),
+            }}
+          />
         </View>
         {socialError ? (
           <Text style={styles.socialErrorText}>{socialError}</Text>
@@ -312,8 +345,8 @@ const createStyles = (theme: any) =>
     },
     title: {
       ...theme.typography.h3,
-      color: theme.colors.text,
-      marginBottom: 30,
+      color: theme.colors.secondary,
+      marginBottom: 24,
       marginTop: -10,
       textAlign: 'center',
     },
@@ -333,8 +366,8 @@ const createStyles = (theme: any) =>
       borderRadius: 16,
     },
     sendButtonText: {
+      ...theme.typography.cta,
       color: theme.colors.white,
-      lineHeight: 30,
     },
     statusMessage: {
       ...theme.typography.paragraph,
@@ -375,18 +408,18 @@ const createStyles = (theme: any) =>
     },
     dividerText: {
       marginHorizontal: 16,
-      ...theme.typography.paragraphBold,
+      ...theme.typography.screenTitle,
       color: theme.colors.textSecondary,
     },
     socialButtons: {
       flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
-      gap: 10,
+      gap: 12,
     },
-    socialTabIcon: {
-      width: 110,
-      height: 60,
+    socialButton: {
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     socialErrorText: {
       ...theme.typography.paragraph,

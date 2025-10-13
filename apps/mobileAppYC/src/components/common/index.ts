@@ -5,3 +5,5 @@ export { Modal } from './Modal/Modal';
 export { OTPInput } from './OTPInput/OTPInput';
 export { Header } from './Header/Header';
 export { SafeArea } from './SafeArea/SafeArea';
+export { SearchBar } from './SearchBar/SearchBar';
+export { YearlySpendCard } from './YearlySpendCard/YearlySpendCard';
