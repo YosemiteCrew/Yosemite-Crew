@@ -3,7 +3,7 @@ import '@testing-library/jest-dom';
 import HomePage from '../../pages/HomePage/HomePage';
 import userEvent from '@testing-library/user-event';
 
-jest.mock('@/app/Components/Header/Header', () => {
+jest.mock('@/app/components/Header/Header', () => {
   return function DummyHeader() {
     return <header>Header Mock</header>;
   };
