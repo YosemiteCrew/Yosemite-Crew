@@ -17,7 +17,7 @@
 
 ---
 
-This directory contains the React Native mobile application for the **Yosemite Crew** open-source operating system for animal health. This app serves as the primary interface for pet owners to connect with veterinary clinics and manage their pet's health.
+This directory contains the React Native mobile application for the **Yosemite Crew** open-source operating system for animal health. This app serves as the primary interface for companion owners to connect with veterinary clinics and manage their companion's health.
 
 ## 🛠️ Getting Started
 

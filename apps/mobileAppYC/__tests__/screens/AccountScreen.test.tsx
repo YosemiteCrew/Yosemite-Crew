@@ -1,3 +1,5 @@
+/* eslint-disable jest/no-disabled-tests */
+/* eslint-disable @typescript-eslint/no-shadow */
 import React from 'react';
 import {render, fireEvent} from '@testing-library/react-native';
 import {AccountScreen} from '@/screens/account/AccountScreen';

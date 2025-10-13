@@ -184,23 +184,23 @@ export const validatePositiveNumber = (value: string, fieldName: string): Valida
 };
 
 /**
- * Validate pet name
+ * Validate companion name
  */
-export const validatePetName = (name: string): ValidationResult => {
-  return validateRequired(name, 'Pet name');
+export const validatecompanionName = (name: string): ValidationResult => {
+  return validateRequired(name, 'companion name');
 };
 
 /**
- * Validate pet type
+ * Validate companion type
  */
-export const validatePetType = (type: string): ValidationResult => {
-  return validateRequired(type, 'Pet type');
+export const validatecompanionType = (type: string): ValidationResult => {
+  return validateRequired(type, 'companion type');
 };
 
 /**
- * Validate pet age
+ * Validate companion age
  */
-export const validatePetAge = (age: string): ValidationResult => {
+export const validatecompanionAge = (age: string): ValidationResult => {
   if (!age.trim()) {
     return {isValid: true}; // Age is optional
   }
@@ -219,9 +219,9 @@ export const validatePetAge = (age: string): ValidationResult => {
 };
 
 /**
- * Validate pet weight
+ * Validate companion weight
  */
-export const validatePetWeight = (weight: string): ValidationResult => {
+export const validatecompanionWeight = (weight: string): ValidationResult => {
   if (!weight.trim()) {
     return {isValid: true}; // Weight is optional
   }
