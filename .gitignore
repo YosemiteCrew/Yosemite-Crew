@@ -31,7 +31,7 @@ apps/mobileAppYC/ios/tmp.xcconfig
 apps/mobileApp/android/app/google-services.json
 apps/mobileApp/src/constants/index.js
 
-apps/mobileAppYC/src/config/variables.ts
+apps/mobileAppYC/src/config/variables.local.ts
 
 ios/tmp.xcconfig
 

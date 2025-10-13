@@ -14,7 +14,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import {useForm, Controller} from 'react-hook-form';
-import {SafeArea, Input} from '../../components/common';
+import {SafeArea, Input, Header} from '../../components/common';
 import {
   SimpleDatePicker,
   formatDateForDisplay,
@@ -1004,13 +1004,11 @@ const handleGoBack = useCallback(async () => {
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidingView}>
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
-            <Image source={Images.backIcon} style={styles.backIcon} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Create account</Text>
-          <View style={styles.spacer} />
-        </View>
+      <Header
+  title="Create account"
+  showBackButton
+  onBack={handleGoBack}
+/>
 
         <ScrollView
           style={styles.scrollView}
@@ -1118,34 +1116,6 @@ const createStyles = (theme: any) =>
     },
     keyboardAvoidingView: {
       flex: 1,
-    },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: theme.spacing['5'], // 20
-      paddingTop:
-        Platform.OS === 'ios' ? theme.spacing['2'] : theme.spacing['5'], // 8 : 20
-      paddingBottom: theme.spacing['2'], // 8
-    },
-    backButton: {
-      width: theme.spacing['8'], // 32
-      height: theme.spacing['8'], // 32
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    backIcon: {
-      width: theme.spacing['6'], // 24
-      height: theme.spacing['6'], // 24
-      tintColor: theme.colors.text,
-    },
-    headerTitle: {
-      flex: 1,
-      ...theme.typography.h3,
-      color: theme.colors.text,
-      textAlign: 'center',
-    },
-    spacer: {
-      width: theme.spacing['8'], // 32
     },
     scrollView: {
       flex: 1,
@@ -1275,16 +1245,6 @@ const createStyles = (theme: any) =>
       flexWrap: 'wrap',
       flex: 1,
       marginLeft: theme.spacing['2'], // 8
-    },
-    locationStatus: {
-      ...theme.typography.caption,
-      color: theme.colors.textSecondary,
-      marginTop: theme.spacing['2'],
-    },
-    locationStatusError: {
-      ...theme.typography.caption,
-      color: theme.colors.error,
-      marginTop: theme.spacing['2'],
     },
     linkText: {
       ...theme.typography.body,

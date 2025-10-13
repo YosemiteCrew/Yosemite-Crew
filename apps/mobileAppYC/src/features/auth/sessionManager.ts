@@ -219,6 +219,8 @@ export const recoverAuthSession = async (): Promise<RecoverAuthOutcome> => {
       throw new Error('No valid tokens in session');
     }
 
+    console.log('[Auth] Found valid Amplify session during recovery');
+
     const [authUser, attributes] = await Promise.all([
       getCurrentUser(),
       fetchUserAttributes(),

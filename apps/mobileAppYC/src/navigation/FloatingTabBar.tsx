@@ -30,24 +30,22 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
   const useGlass = Platform.OS !== 'ios' && isLiquidGlassSupported;
   const styles = React.useMemo(() => createStyles(theme, useGlass), [theme, useGlass]);
 
-  const shouldHideTabBar = React.useMemo(() => {
-    const traverse = (navState: any): boolean => {
-      if (!navState) {
-        return false;
-      }
-      if (typeof navState.index === 'number' && navState.index > 0) {
-        return true;
-      }
-      const nestedRoute = navState.routes?.[navState.index ?? 0];
-      if (nestedRoute?.state) {
-        return traverse(nestedRoute.state);
-      }
-      return false;
-    };
+  // Calculate if tab bar should be hidden based on nested navigation
+  const shouldHideTabBar = (() => {
+    const focusedRoute = state.routes[state.index];
 
-    const focusedRoute = state.routes[state.index] as any;
-    return traverse(focusedRoute?.state);
-  }, [state]);
+    // Check if we're in a nested stack navigator (like HomeStack)
+    if (focusedRoute?.state) {
+      const nestedState = focusedRoute.state as any;
+      const nestedIndex = nestedState.index ?? 0;
+
+      // Hide tab bar only when nested index > 0 (not on first screen of stack)
+      // Home screen is at index 0, Account screen is at index 1
+      return nestedIndex > 0;
+    }
+
+    return false;
+  })();
 
   if (shouldHideTabBar) {
     return null;
