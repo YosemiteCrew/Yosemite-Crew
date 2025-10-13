@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import MainLandingPage from '../../pages/LandingPage/LandingPage';
 
-jest.mock('@/app/Components/Footer/Footer', () => {
+jest.mock('@/app/components/Footer/Footer', () => {
   return function DummyFooter() {
     return <footer>Footer Mock</footer>;
   };
