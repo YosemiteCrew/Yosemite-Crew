@@ -8,11 +8,18 @@ import {
     toOrganizationResponseDTO,
     type OrganizationRequestDTO,
     type OrganizationDTOAttributes,
-} from '../../../../packages/types/src/dto/organization.dto'
-import { type ToFHIROrganizationOptions } from '../../../../packages/types/src/organization'
+    type Organization,
+    type ToFHIROrganizationOptions,
+} from '@yosemite-crew/types'
 
 const REGISTRATION_NUMBER_EXTENSION_URL = 'http://example.org/fhir/StructureDefinition/registrationNumber'
 const IMAGE_EXTENSION_URL = 'http://example.org/fhir/StructureDefinition/image'
+const ORGANIZATION_TYPES: Array<NonNullable<Organization['type']>> = [
+    'Veterinary Business',
+    'Groomer Shop',
+    'Breeding Facility',
+    'Pet Sitter',
+]
 
 type ExtensionLike = {
     url?: string
@@ -51,11 +58,34 @@ const extractRegistrationNumber = (organization: OrganizationFHIRPayload): strin
 const extractImageUrl = (organization: OrganizationFHIRPayload): string | undefined =>
     findExtensionValue(organization.extension, IMAGE_EXTENSION_URL)
 
+const sanitizeTypeCoding = (
+    typeCoding: ToFHIROrganizationOptions['typeCoding'] | undefined
+): ToFHIROrganizationOptions['typeCoding'] | undefined => {
+    if (!typeCoding) {
+        return undefined
+    }
+
+    const system = optionalSafeString(typeCoding.system, 'Organization type system')
+    const code = optionalSafeString(typeCoding.code, 'Organization type code')
+
+    if (!system || !code) {
+        return undefined
+    }
+
+    return {
+        system,
+        code,
+        display: optionalSafeString(typeCoding.display, 'Organization type display'),
+    }
+}
+
 const pruneUndefined = <T>(value: T): T => {
     if (Array.isArray(value)) {
-        return value
+        const arrayValue = value as unknown[]
+        const cleaned: unknown[] = arrayValue
             .map((item) => pruneUndefined(item))
-            .filter((item) => item !== undefined) as unknown as T
+            .filter((item) => item !== undefined)
+        return cleaned as unknown as T
     }
 
     if (value && typeof value === 'object') {
@@ -63,15 +93,18 @@ const pruneUndefined = <T>(value: T): T => {
             return value
         }
 
-        return Object.entries(value as Record<string, unknown>).reduce((acc, [key, entryValue]) => {
+        const record = value as Record<string, unknown>
+        const cleanedRecord: Record<string, unknown> = {}
+
+        for (const [key, entryValue] of Object.entries(record)) {
             const next = pruneUndefined(entryValue)
 
             if (next !== undefined) {
-                acc[key] = next
+                cleanedRecord[key] = next
             }
+        }
 
-            return acc
-        }, {} as Record<string, unknown>) as T
+        return cleanedRecord as unknown as T
     }
 
     return value
@@ -145,13 +178,8 @@ const sanitizeBusinessAttributes = (
     const name = requireSafeString(dto.name, 'Organization name')
     const registrationNo = optionalSafeString(extras.registrationNo, 'Registration number')
     const imageURL = optionalSafeString(extras.imageURL, 'Image URL')
-    const typeCode = optionalSafeString(dto.typeCoding?.code, 'Organization type code')
-    const typeCoding = dto.typeCoding
-        ? {
-              ...dto.typeCoding,
-              code: typeCode,
-          }
-        : undefined
+    const typeCoding = sanitizeTypeCoding(dto.typeCoding)
+    const typeCode = typeCoding?.code
 
     const departments = dto.departments?.length
         ? dto.departments.map((department) => ({
@@ -196,18 +224,43 @@ const buildFHIRResponse = (
     document: OrganizationDocument,
     options?: ToFHIROrganizationOptions
 ): ReturnType<typeof toOrganizationResponseDTO> => {
-    const { typeCoding, fhirId, __v, ...rest } = document.toObject({ virtuals: false }) as OrganizationMongo & {
+    const { typeCoding, fhirId, ...rest } = document.toObject({ virtuals: false }) as OrganizationMongo & {
         _id: Types.ObjectId
-        __v?: number
     }
 
-    const businessInput = {
-        ...rest,
-        id: fhirId ?? rest?.id ?? document._id.toString(),
+    const address = rest.address
+        ? {
+              addressLine: rest.address.addressLine,
+              country: rest.address.country,
+              city: rest.address.city,
+              state: rest.address.state,
+              postalCode: rest.address.postalCode,
+              latitude: rest.address.latitude,
+              longitude: rest.address.longitude,
+          }
+        : undefined
+
+    const organizationType = ORGANIZATION_TYPES.includes(rest.type as NonNullable<Organization['type']>)
+        ? (rest.type as NonNullable<Organization['type']>)
+        : undefined
+
+    const businessInput: Organization = {
+        id: fhirId ?? document._id.toString(),
         _id: document._id,
+        fhirId,
+        name: rest.name,
+        registrationNo: rest.registrationNo,
+        imageURL: rest.imageURL,
+        type: organizationType,
+        phoneNo: rest.phoneNo,
+        website: rest.website,
+        country: rest.country,
+        address,
+        departments: rest.departments,
+        isVerified: rest.isVerified,
     }
 
-    return toOrganizationResponseDTO(businessInput as any, options ?? (typeCoding ? { typeCoding } : undefined))
+    return toOrganizationResponseDTO(businessInput, options ?? (typeCoding ? { typeCoding } : undefined))
 }
 
 const resolveIdQuery = (id: string) => (Types.ObjectId.isValid(id) ? { _id: id } : { fhirId: id })
