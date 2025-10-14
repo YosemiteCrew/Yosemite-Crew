@@ -43,14 +43,14 @@ const PricingPage = () => {
   // Add this useEffect to set initial progress values
   React.useEffect(() => {
     const sliders = document.querySelectorAll(".styled-range");
-    sliders.forEach((el) => {
+    for (const el of sliders  ?? []) {
       const input = el as HTMLInputElement;
       const min = Number(input.min) || 0;
       const max = Number(input.max) || 100;
       const value = Number(input.value) || 0;
       const pct = ((value - min) / (max - min)) * 100;
       input.style.setProperty("--progress", `${pct}%`);
-    });
+    }
   }, [plan, appointments, assessments, seats]);
   // Pricing Calculator Ended
 

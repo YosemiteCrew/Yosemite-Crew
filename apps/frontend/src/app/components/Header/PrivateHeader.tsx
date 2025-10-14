@@ -96,7 +96,7 @@ const PrivateHeader = () => {
                   className="dropdown-toggle"
                   onClick={(e) => {
                     if (
-                      typeof window !== "undefined" &&
+                      typeof globalThis.window !== "undefined" &&
                       window.innerWidth < 1200
                     ) {
                       e.preventDefault();

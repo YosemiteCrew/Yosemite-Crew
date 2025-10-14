@@ -57,7 +57,7 @@ const ForgotPassword = () => {
   const handleOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) {
-      if (typeof window !== "undefined") {
+      if (typeof globalThis.window !== "undefined") {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
       showErrorTost({
@@ -79,7 +79,7 @@ const ForgotPassword = () => {
     try {
       const data = await forgotPassword(email);
       if (data) {
-        if (typeof window !== "undefined") {
+        if (typeof globalThis.window !== "undefined") {
           window.scrollTo({ top: 0, behavior: "smooth" });
         }
         showErrorTost({
@@ -99,7 +99,7 @@ const ForgotPassword = () => {
         setShowVerifyCode(true);
       }
     } catch (error: unknown) {
-      if (typeof window !== "undefined") {
+      if (typeof globalThis.window !== "undefined") {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
       const axiosError = error as AxiosError<{ message: string }>;
@@ -122,8 +122,8 @@ const ForgotPassword = () => {
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (otp.some((digit) => digit === "")) {
-      if (typeof window !== "undefined") {
+    if (otp.includes("")) {
+      if (typeof globalThis.window !== "undefined") {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
       showErrorTost({
@@ -150,7 +150,7 @@ const ForgotPassword = () => {
     e.preventDefault();
 
     if (!password || !confirmPassword) {
-      if (typeof window !== "undefined") {
+      if (typeof globalThis.window !== "undefined") {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
       showErrorTost({
@@ -170,7 +170,7 @@ const ForgotPassword = () => {
     }
 
     if (password !== confirmPassword) {
-      if (typeof window !== "undefined") {
+      if (typeof globalThis.window !== "undefined") {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
       showErrorTost({
@@ -217,7 +217,7 @@ const ForgotPassword = () => {
         }, 5000);
       }
     } catch (error: any) {
-      if (typeof window !== "undefined") {
+      if (typeof globalThis.window !== "undefined") {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
       if (error?.code === "CodeMismatchException") {
