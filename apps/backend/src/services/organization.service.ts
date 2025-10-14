@@ -58,6 +58,27 @@ const extractRegistrationNumber = (organization: OrganizationFHIRPayload): strin
 const extractImageUrl = (organization: OrganizationFHIRPayload): string | undefined =>
     findExtensionValue(organization.extension, IMAGE_EXTENSION_URL)
 
+const sanitizeTypeCoding = (
+    typeCoding: ToFHIROrganizationOptions['typeCoding'] | undefined
+): ToFHIROrganizationOptions['typeCoding'] | undefined => {
+    if (!typeCoding) {
+        return undefined
+    }
+
+    const system = optionalSafeString(typeCoding.system, 'Organization type system')
+    const code = optionalSafeString(typeCoding.code, 'Organization type code')
+
+    if (!system || !code) {
+        return undefined
+    }
+
+    return {
+        system,
+        code,
+        display: optionalSafeString(typeCoding.display, 'Organization type display'),
+    }
+}
+
 const pruneUndefined = <T>(value: T): T => {
     if (Array.isArray(value)) {
         const arrayValue = value as unknown[]
@@ -157,13 +178,8 @@ const sanitizeBusinessAttributes = (
     const name = requireSafeString(dto.name, 'Organization name')
     const registrationNo = optionalSafeString(extras.registrationNo, 'Registration number')
     const imageURL = optionalSafeString(extras.imageURL, 'Image URL')
-    const typeCode = optionalSafeString(dto.typeCoding?.code, 'Organization type code')
-    const typeCoding = dto.typeCoding
-        ? {
-              ...dto.typeCoding,
-              code: typeCode,
-          }
-        : undefined
+    const typeCoding = sanitizeTypeCoding(dto.typeCoding)
+    const typeCode = typeCoding?.code
 
     const departments = dto.departments?.length
         ? dto.departments.map((department) => ({
