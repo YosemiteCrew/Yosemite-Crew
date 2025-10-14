@@ -1,7 +1,14 @@
 import dotenv from 'dotenv'
 dotenv.config()
 import { type NextFunction, type Request, type Response } from 'express'
-import jwt, { JsonWebTokenError, type JwtPayload, TokenExpiredError } from 'jsonwebtoken'
+import jwt, {
+    JsonWebTokenError,
+    type JwtPayload,
+    TokenExpiredError,
+    type Secret,
+    type SignOptions,
+} from 'jsonwebtoken'
+import type { StringValue } from 'ms'
 
 type PermissionMap = Record<string, string[]>
 
@@ -13,10 +20,22 @@ export type AuthenticatedRequest = Request & {
     user?: AuthenticatedUserPayload
 }
 
+const EXPIRY_PATTERN = /^\d+(?:\s*[a-zA-Z]+)?$/
+
+const resolveExpiry = (value: string | undefined, fallback: string, label: string): StringValue => {
+    const resolved = value ?? fallback
+
+    if (!EXPIRY_PATTERN.test(resolved.trim())) {
+        throw new Error(`Invalid ${label} format.`)
+    }
+
+    return resolved.trim() as StringValue
+}
+
 const ACCESS_SECRET = process.env.JWT_SECRET
 const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET
-const ACCESS_EXPIRY = process.env.EXPIRE_IN ?? '15m'
-const REFRESH_EXPIRY = process.env.EXPIRE_IN_REFRESH ?? '7d'
+const ACCESS_EXPIRY = resolveExpiry(process.env.EXPIRE_IN, '15m', 'access token expiry')
+const REFRESH_EXPIRY = resolveExpiry(process.env.EXPIRE_IN_REFRESH, '7d', 'refresh token expiry')
 const IS_SECURE_ENV = process.env.NODE_ENV === 'development'
 
 const isNonEmptyString = (value: unknown): value is string =>
@@ -48,12 +67,20 @@ const getCookieValue = (req: Request, name: string): string | undefined => {
     return isNonEmptyString(rawValue) ? rawValue : undefined
 }
 
-const resolveSecret = (secret: string | undefined, name: string): string => {
+const resolveSecret = (secret: string | undefined, name: string): Secret => {
     if (!secret) {
         throw new Error(`${name} is not configured.`)
     }
 
     return secret
+}
+
+const ACCESS_SIGN_OPTIONS: SignOptions = {
+    expiresIn: ACCESS_EXPIRY,
+}
+
+const REFRESH_SIGN_OPTIONS: SignOptions = {
+    expiresIn: REFRESH_EXPIRY,
 }
 
 const verifyTokenPayload = (token: string, secret: string | undefined, name: string): JwtPayload => {
@@ -153,16 +180,12 @@ export const verifyToken = (req: AuthenticatedRequest, res: Response, next: Next
             userType: extractStringClaim(decodedRefresh, 'userType'),
         }
 
-        const newAccessToken = jwt.sign(refreshedPayload, resolveSecret(ACCESS_SECRET, 'JWT_SECRET'), {
-            expiresIn: ACCESS_EXPIRY,
-        })
+        const newAccessToken = jwt.sign(refreshedPayload, resolveSecret(ACCESS_SECRET, 'JWT_SECRET'), ACCESS_SIGN_OPTIONS)
 
         const newRefreshToken = jwt.sign(
             refreshedPayload,
             resolveSecret(REFRESH_SECRET, 'JWT_REFRESH_SECRET'),
-            {
-                expiresIn: REFRESH_EXPIRY,
-            }
+            REFRESH_SIGN_OPTIONS
         )
 
         res.cookie('accessToken', newAccessToken, {

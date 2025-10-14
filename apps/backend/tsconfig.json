@@ -11,7 +11,13 @@
     "types": ["node", "express"],                // Include type definitions
     "noImplicitAny": true,                       // Prevent untyped variables
     "noUnusedLocals": false,                      // Warn on unused variables
-    "noUnusedParameters": false, 
+    "noUnusedParameters": false,
+    "baseUrl": ".",
+    "paths": {
+      "@yosemite-crew/types": ["../../packages/types/src"],
+      "@yosemite-crew/fhirtypes": ["../../packages/fhirtypes/src"],
+      "@yosemite-crew/fhir-types": ["../../packages/fhirtypes/src"]
+    }
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]

@@ -163,16 +163,16 @@ const createPersistableFromFHIR = (payload: UserOrganizationFHIRPayload) => {
 
 const resolveIdQuery = (id: string) => (Types.ObjectId.isValid(id) ? { _id: id } : { fhirId: id })
 
-const buildReferenceLookups = (
-    id: string
-): Array<Record<'practitionerReference' | 'organizationReference', string>> => {
+type ReferenceLookup = Partial<Record<'practitionerReference' | 'organizationReference', string>>
+
+const buildReferenceLookups = (id: string): ReferenceLookup[] => {
     const trimmed = id.trim()
 
     if (!trimmed) {
         return []
     }
 
-    const lookups: Array<Record<'practitionerReference' | 'organizationReference', string>> = []
+    const lookups: ReferenceLookup[] = []
     const seen = new Set<string>()
     const pushLookup = (
         field: 'practitionerReference' | 'organizationReference',

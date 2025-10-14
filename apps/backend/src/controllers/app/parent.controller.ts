@@ -14,8 +14,10 @@ type ParentAttachment = NonNullable<ParentRequestDTO['photo']>[number]
 const isFileArray = (value: ExpressUploadedFile | ExpressUploadedFile[] | undefined): value is ExpressUploadedFile[] =>
     Array.isArray(value)
 
+type RequestWithFiles = Request & { files?: FileArray | ExpressUploadedFile | ExpressUploadedFile[] | null }
+
 const getSingleFile = (
-    files: FileArray | undefined,
+    files: FileArray | null | undefined,
     fieldName: string
 ): ExpressUploadedFile | undefined => {
     if (!files) {
@@ -147,7 +149,7 @@ export const ParentController = {
                 return
             }
 
-            const profileImageFile = getSingleFile(req.files, PROFILE_IMAGE_FIELD)
+            const profileImageFile = getSingleFile((req as RequestWithFiles).files, PROFILE_IMAGE_FIELD)
 
             if (profileImageFile) {
                 const uploadResult = await uploadProfileImage(profileImageFile)
@@ -234,7 +236,7 @@ export const ParentController = {
 
             payload.id = id
 
-            const profileImageFile = getSingleFile(req.files, PROFILE_IMAGE_FIELD)
+            const profileImageFile = getSingleFile((req as RequestWithFiles).files, PROFILE_IMAGE_FIELD)
 
             if (profileImageFile) {
                 const uploadResult = await uploadProfileImage(profileImageFile)
