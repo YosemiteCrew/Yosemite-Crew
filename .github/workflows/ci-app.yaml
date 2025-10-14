@@ -18,7 +18,7 @@ jobs:
       with:
         files: |
           package.json
-          apps/mobileApp/**
+          apps/mobileAppYC/**
     build:
         needs: changed-files-check
         if: needs.changed-files-check.outputs.any_changed == 'true'
@@ -40,9 +40,9 @@ jobs:
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
             # - name: Linting
-            #   run: pnpm run lint --filter mobileApp
+            #   run: pnpm run lint --filter mobileAppYC
             # - name: Build API
-            #   run: pnpm run build --filter mobileApp
+            #   run: pnpm run build --filter mobileAppYC
     ci-app-status-check:
         if: always() && !cancelled()
         timeout-minutes: 1

@@ -1,0 +1,66 @@
+.OperationsWrapper {
+  padding: 40px 0px;
+}
+.container {
+  gap: 44px;
+  display: flex;
+  flex-direction: column;
+}
+.TitleContainer {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.ComptBtn {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+.ComptBtn.twbtn {
+  justify-content: space-between;
+}
+.ComptBtn button,
+.ComptBtn button.Hov {
+  background: var(--black-bg);
+  color: var(--white-text) !important;
+  padding: 16px 32px;
+  border-radius: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 160px;
+  border: 1px solid var(--pureblack) !important;
+  font-family: var(--grotesk-font);
+  font-weight: 500;
+  font-size: 23px;
+  line-height: 120%;
+}
+.ComptBtn button.Hov {
+  background: transparent;
+  color: var(--black-text) !important;
+}
+.ComptBtn button:hover {
+  background: transparent;
+  color: var(--black-text) !important;
+}
+.ComptBtn button.Hov:hover {
+  background: var(--black-bg);
+  color: var(--white-text) !important;
+}
+
+.InvitesWrapper, .OrgaizationsList{
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+.InviteTitle {
+  color: #000;
+  font-family: var(--grotesk-font);
+  font-size: 23px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 120%; /* 27.6px */
+  letter-spacing: -0.46px;
+}

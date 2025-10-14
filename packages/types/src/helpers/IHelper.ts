@@ -25,6 +25,7 @@ export interface Helpers {
   uploadFiles: (files: UploadedFile | UploadedFile[]) => Promise<
     {
       url: string;
+      key: string;
       originalname: string;
       mimetype: string;
     }[]

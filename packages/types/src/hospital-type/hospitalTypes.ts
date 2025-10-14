@@ -1,17 +1,9 @@
-export type GraphData = {
-  month: number;
-  monthName: string;
-  totalAppointments: number;
-  successful: number;
-  canceled: number;
-};
-
-export type FHIRMeasureGroup = {
+type FHIRMeasureGroup = {
   code: { text: string };
   population: { count: number }[];
 };
 
-export type FHIRMeasureReport = {
+type FHIRMeasureReport = {
   resourceType: "MeasureReport";
   id: string;
   status: string;
@@ -30,25 +22,6 @@ export type FHIRMeasureReport = {
 
 export type FHIRBundleEntry = {
   resource: FHIRMeasureReport;
-};
-
-export type FHIRAppointmentAssessmentGraphBundle = {
-  resourceType: "Bundle";
-  type: "collection";
-  entry: FHIRBundleEntry[];
-};
-
-export type QueryParams = {
-  userId?: string;
-  days?: string;
-  reportType?: string;
-  LastDays?: string;
-}
-export type AggregatedAppointmentGraph = {
-  month: number;
-  totalAppointments: number;
-  successful: number;
-  canceled: number;
 };
 
 export type DataItem = {

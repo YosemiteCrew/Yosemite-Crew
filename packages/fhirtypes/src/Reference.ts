@@ -1,10 +1,12 @@
 import { Extension } from './Extension';
 import { Identifier } from './Identifier';
+import { Resource } from './Resource';
+import { ResourceType } from './ResourceType';
 
 /**
  * A reference from one resource to another.
  */
-export interface Reference<> {
+export interface Reference<T extends Resource = Resource> {
 
   /**
    * Unique id for the element within a resource (for internal references).
@@ -34,6 +36,20 @@ export interface Reference<> {
   reference?: string;
 
   /**
+   * The expected type of the target of the reference. If both
+   * Reference.type and Reference.reference are populated and
+   * Reference.reference is a FHIR URL, both SHALL be consistent.
+   *
+   * The type is the Canonical URL of Resource Definition that is the type
+   * this reference refers to. References are URLs that are relative to
+   * http://hl7.org/fhir/StructureDefinition/ e.g. &quot;Patient&quot; is a reference
+   * to http://hl7.org/fhir/StructureDefinition/Patient. Absolute URLs are
+   * only allowed for logical models (and can only be used in references in
+   * logical models, not resources).
+   */
+  type?: ResourceType;
+
+  /**
    * An identifier for the target resource. This is used when there is no
    * way to reference the other resource directly, either because the
    * entity it represents is not available through a FHIR server, or
@@ -51,4 +67,9 @@ export interface Reference<> {
    * resource reference.
    */
   display?: string;
+
+  /**
+   * Optional Resource referred to by this reference.
+   */
+  resource?: T;
 }
