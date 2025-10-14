@@ -16,7 +16,7 @@ const OtpModal = ({
   setShowVerifyModal,
 }: any) => {
   const { confirmSignUp, resendCode, signIn } = useAuthStore();
-  const [code, setCode] = useState(Array(6).fill(""));
+  const [code, setCode] = useState(new Array(6).fill(""));
   const [activeInput, setActiveInput] = useState(0);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [invalidOtp, setInvalidOtp] = useState(false);
@@ -32,7 +32,7 @@ const OtpModal = ({
     e: React.ChangeEvent<HTMLInputElement>,
     idx: number
   ) => {
-    const val = e.target.value.replace(/\D/g, "");
+    const val = e.target.value.replaceAll(/\D/g, "");
     if (!val) return;
     const newCode = [...code];
     newCode[idx] = val[0];
@@ -86,7 +86,7 @@ const OtpModal = ({
     try {
       const result = await confirmSignUp(email, code.join(""));
       if (result) {
-        setCode(Array(6).fill(""));
+        setCode(new Array(6).fill(""));
         setShowVerifyModal(false);
         try {
           await signIn(email, password);
@@ -108,7 +108,7 @@ const OtpModal = ({
         }
       }
     } catch (error: any) {
-      if (typeof window !== "undefined") {
+      if (typeof globalThis.window !== "undefined") {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
       console.log(error);
@@ -120,7 +120,7 @@ const OtpModal = ({
     try {
       const result = await resendCode(email);
       if (result) {
-        if (typeof window !== "undefined") {
+        if (typeof globalThis.window !== "undefined") {
           window.scrollTo({ top: 0, behavior: "smooth" });
         }
         showErrorTost({
@@ -136,13 +136,13 @@ const OtpModal = ({
           ),
           className: "CongratsBg",
         });
-        setCode(Array(6).fill("")); // Clear OTP fields on resend
+        setCode(new Array(6).fill("")); // Clear OTP fields on resend
         setActiveInput(0); // Focus first input
         setTimer(150);
         setTimerActive(true);
       }
     } catch (error: any) {
-      if (typeof window !== "undefined") {
+      if (typeof globalThis.window !== "undefined") {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
       showErrorTost({
@@ -232,7 +232,7 @@ const OtpModal = ({
           <div className="VerifyBtnDiv">
             <Button
               onClick={handleVerify}
-              disabled={timer === 0 || code.some((digit) => digit === "")}
+              disabled={timer === 0 || code.includes("")}
             >
               Verify Code
             </Button>

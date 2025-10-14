@@ -769,7 +769,7 @@ const PrivacyPolicy = () => {
                 <h4>4.4. X.com</h4>
                 <p>
                   Our website can be accessed at:{" "}
-                  <Link href="http://x.com/yosemitecrew">
+                  <Link href="https://x.com/yosemitecrew">
                     {" "}
                     http://x.com/yosemitecrew
                   </Link>{" "}
