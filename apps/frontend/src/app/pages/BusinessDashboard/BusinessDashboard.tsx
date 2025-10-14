@@ -138,7 +138,7 @@ const BusinessDashboard = () => {
   const getSpecialityWiseAppointment = useCallback(
     async (Months: string) => {
       const match = /\d+/.exec(Months);
-      const days = parseInt(match?.[0] || "3", 10);
+      const days = Number.parseInt(match?.[0] || "3", 10);
       try {
         const response: any = await getData(
           `fhir/v1/List?reportType=specialityWiseAppointments&userId=${userId}&LastDays=${days}`
