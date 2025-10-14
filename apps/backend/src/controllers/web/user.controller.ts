@@ -1,13 +1,23 @@
 import { Request, Response } from 'express'
 import logger from '../../utils/logger'
-import { UserService, UserServiceError } from '../../services/user.service'
+import { UserService, UserServiceError, type CreateUserPayload } from '../../services/user.service'
+
+type CreateUserRequest = Request<Record<string, string | undefined>, unknown, unknown>
+type GetUserRequest = Request<{ id: string }>
 
 export const UserController = {
-    create: async (req: Request, res: Response) => {
+    create: async (req: CreateUserRequest, res: Response) => {
         try {
-            const user = await UserService.create(req.body)
+            const requestBody: unknown = req.body
+
+            if (!requestBody || typeof requestBody !== 'object' || Array.isArray(requestBody)) {
+                res.status(400).json({ message: 'Invalid request body.' })
+                return
+            }
+
+            const user = await UserService.create(requestBody as CreateUserPayload)
             res.status(201).json(user)
-        } catch (error) {
+        } catch (error: unknown) {
             if (error instanceof UserServiceError) {
                 res.status(error.statusCode).json({ message: error.message })
                 return
@@ -18,7 +28,7 @@ export const UserController = {
         }
     },
 
-    getById: async (req: Request, res: Response) => {
+    getById: async (req: GetUserRequest, res: Response) => {
         try {
             const user = await UserService.getById(req.params?.id)
 
@@ -28,7 +38,7 @@ export const UserController = {
             }
 
             res.status(200).json(user)
-        } catch (error) {
+        } catch (error: unknown) {
             if (error instanceof UserServiceError) {
                 res.status(error.statusCode).json({ message: error.message })
                 return

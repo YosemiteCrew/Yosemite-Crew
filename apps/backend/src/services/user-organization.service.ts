@@ -9,8 +9,8 @@ import {
     type UserOrganizationRequestDTO,
     type UserOrganizationDTOAttributes,
     type UserOrganizationResponseDTO,
-} from '../../../../packages/types/src/dto/user-organization.dto'
-import type { UserOrganization } from '../../../../packages/types/src/userOrganization'
+    type UserOrganization,
+} from '@yosemite-crew/types'
 
 export type UserOrganizationFHIRPayload = UserOrganizationRequestDTO
 
@@ -23,9 +23,11 @@ export class UserOrganizationServiceError extends Error {
 
 const pruneUndefined = <T>(value: T): T => {
     if (Array.isArray(value)) {
-        return value
+        const arrayValue = value as unknown[]
+        const cleaned: unknown[] = arrayValue
             .map((item) => pruneUndefined(item))
-            .filter((item) => item !== undefined) as unknown as T
+            .filter((item) => item !== undefined)
+        return cleaned as unknown as T
     }
 
     if (value && typeof value === 'object') {
@@ -33,15 +35,18 @@ const pruneUndefined = <T>(value: T): T => {
             return value
         }
 
-        return Object.entries(value as Record<string, unknown>).reduce((acc, [key, entryValue]) => {
+        const record = value as Record<string, unknown>
+        const cleanedRecord: Record<string, unknown> = {}
+
+        for (const [key, entryValue] of Object.entries(record)) {
             const next = pruneUndefined(entryValue)
 
             if (next !== undefined) {
-                acc[key] = next
+                cleanedRecord[key] = next
             }
+        }
 
-            return acc
-        }, {} as Record<string, unknown>) as T
+        return cleanedRecord as unknown as T
     }
 
     return value
@@ -127,9 +132,8 @@ const sanitizeUserOrganizationAttributes = (
 }
 
 const buildUserOrganizationDomain = (document: UserOrganizationDocument): UserOrganization => {
-    const { _id, __v, ...rest } = document.toObject({ virtuals: false }) as UserOrganizationMongo & {
+    const { _id, ...rest } = document.toObject({ virtuals: false }) as UserOrganizationMongo & {
         _id: Types.ObjectId
-        __v?: number
     }
 
     return {
@@ -257,7 +261,7 @@ export const UserOrganizationService = {
     },
 
     async getById(id: string): Promise<UserOrganizationResponseDTO | UserOrganizationResponseDTO[] | null> {
-        let document = await UserOrganizationModel.findOne(resolveIdQuery(id))
+        const document = await UserOrganizationModel.findOne(resolveIdQuery(id))
 
         if (!document) {
             const referenceQueries = buildReferenceLookups(id)

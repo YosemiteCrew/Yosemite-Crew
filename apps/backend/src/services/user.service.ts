@@ -1,6 +1,5 @@
 import validator from 'validator'
 import UserModel, { type UserDocument, type UserMongo } from '../models/user'
-import type { User } from '@yosemite-crew/types'
 
 export class UserServiceError extends Error {
     constructor(message: string, public readonly statusCode: number) {
@@ -9,7 +8,7 @@ export class UserServiceError extends Error {
     }
 }
 
-type CreateUserPayload = {
+export type CreateUserPayload = {
     id: unknown
     email: unknown
     isActive?: unknown
@@ -62,7 +61,13 @@ const sanitizeUserAttributes = (payload: CreateUserPayload): UserMongo => {
     }
 }
 
-const toUserDomain = (document: UserDocument): User => {
+type UserDomain = {
+    id: string
+    email: string
+    isActive: boolean
+}
+
+const toUserDomain = (document: UserDocument): UserDomain => {
     const { userId, email, isActive } = document
 
     return {
@@ -73,7 +78,7 @@ const toUserDomain = (document: UserDocument): User => {
 }
 
 export const UserService = {
-    async create(payload: CreateUserPayload): Promise<User> {
+    async create(payload: CreateUserPayload): Promise<UserDomain> {
         const attributes = sanitizeUserAttributes(payload)
 
         const existing = await UserModel.findOne({
@@ -89,7 +94,7 @@ export const UserService = {
         return toUserDomain(document)
     },
 
-    async getById(id: unknown): Promise<User | null> {
+    async getById(id: unknown): Promise<UserDomain | null> {
         const userId = requireString(id, 'User id')
 
         const document = await UserModel.findOne({ userId })
@@ -101,3 +106,5 @@ export const UserService = {
         return toUserDomain(document)
     },
 }
+
+export type { UserDomain as User }

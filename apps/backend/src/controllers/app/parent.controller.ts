@@ -2,13 +2,14 @@ import { Request, Response } from 'express'
 import type { UploadedFile as ExpressUploadedFile, FileArray } from 'express-fileupload'
 import logger from '../../utils/logger'
 import { ParentService, ParentServiceError } from '../../services/parent.service'
-import type { ParentRequestDTO } from '../../../../../packages/types/src/dto/parent.dto'
-import type { Attachment } from '../../../../../packages/fhirtypes/src/Attachment'
+import type { ParentRequestDTO } from '@yosemite-crew/types'
 import { handleFileUpload, uploadBufferAsFile, type FileUploadResult } from '../../middelwares/upload'
 
 const PROFILE_IMAGE_FIELD = 'profileImage'
 const STORAGE_KEY_EXTENSION_URL = 'http://example.org/fhir/StructureDefinition/storage-key'
 const INLINE_DATA_URL_PATTERN = /^data:([^;]+);base64,/i
+
+type ParentAttachment = NonNullable<ParentRequestDTO['photo']>[number]
 
 const isFileArray = (value: ExpressUploadedFile | ExpressUploadedFile[] | undefined): value is ExpressUploadedFile[] =>
     Array.isArray(value)
@@ -44,7 +45,7 @@ const parseParentPayload = (payload: unknown): ParentRequestDTO | undefined => {
 
         try {
             return JSON.parse(trimmed) as ParentRequestDTO
-        } catch (error) {
+        } catch {
             throw new ParentServiceError('Invalid JSON payload for parent.', 400)
         }
     }
@@ -70,11 +71,11 @@ const extractParentPayload = (req: Request): ParentRequestDTO | undefined => {
 const uploadProfileImage = async (file: ExpressUploadedFile): Promise<FileUploadResult> =>
     handleFileUpload(file, 'parent-profiles')
 
-const parseInlinePhotoAttachment = (payload: ParentRequestDTO | undefined): Attachment | undefined => {
+const parseInlinePhotoAttachment = (payload: ParentRequestDTO | undefined): ParentAttachment | undefined => {
     return payload?.photo?.find((attachment) => typeof attachment?.data === 'string' && attachment.data.trim().length > 0)
 }
 
-const decodeInlinePhoto = (attachment: Attachment): { buffer: Buffer; mimeType: string; originalName?: string } => {
+const decodeInlinePhoto = (attachment: ParentAttachment): { buffer: Buffer; mimeType: string; originalName?: string } => {
     const rawData = attachment.data?.trim()
 
     if (!rawData) {
@@ -107,19 +108,19 @@ const decodeInlinePhoto = (attachment: Attachment): { buffer: Buffer; mimeType: 
             mimeType,
             originalName: attachment.title,
         }
-    } catch (error) {
+    } catch {
         throw new ParentServiceError('Invalid base64 photo data.', 400)
     }
 }
 
-const removeStorageKeyExtension = (attachment: Pick<Attachment, 'extension'>) =>
+const removeStorageKeyExtension = (attachment: Pick<ParentAttachment, 'extension'>) =>
     attachment.extension?.filter((item) => item?.url !== STORAGE_KEY_EXTENSION_URL)
 
 const buildAttachmentWithUploadResult = (
-    attachment: Partial<Attachment>,
+    attachment: Partial<ParentAttachment>,
     uploadResult: FileUploadResult,
     mimeType: string
-): Attachment => {
+): ParentAttachment => {
     return {
         ...attachment,
         url: uploadResult.url,
@@ -127,7 +128,7 @@ const buildAttachmentWithUploadResult = (
         contentType: mimeType,
         title: attachment.title ?? uploadResult.originalname,
         extension: [
-            ...(removeStorageKeyExtension(attachment as Pick<Attachment, 'extension'>) ?? []),
+            ...(removeStorageKeyExtension(attachment as Pick<ParentAttachment, 'extension'>) ?? []),
             {
                 url: STORAGE_KEY_EXTENSION_URL,
                 valueString: uploadResult.key,
