@@ -147,7 +147,7 @@ const columns: Column<AppointmentItem>[] = [
     render: (item: AppointmentItem) => (
       <div className="status-col">
         <span
-          className={`status-badge ${item.status.replace(/\s/g, "-").toLowerCase()}`}
+          className={`status-badge ${item.status.replaceAll(/\s/g, "-").toLowerCase()}`}
         >
           <span>●</span> {item.status}
         </span>
