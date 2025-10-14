@@ -21,30 +21,30 @@
   },
   "navigation": {
     "home": "Inicio",
-    "pets": "Mascotas",
+    "companions": "Mascotas",
     "profile": "Perfil",
-    "my_pets": "Mis Mascotas",
-    "pet_details": "Detalles de Mascota",
-    "add_pet": "Agregar Mascota"
+    "my_companions": "Mis Mascotas",
+    "companion_details": "Detalles de Mascota",
+    "add_companion": "Agregar Mascota"
   },
   "home": {
     "greeting": "¡Hola, {{name}}! 👋",
     "welcome_subtitle": "Bienvenido de vuelta a tu panel de cuidado de mascotas",
     "quick_actions": "Acciones Rápidas",
-    "add_new_pet": "Agregar Nueva Mascota",
-    "add_pet_description": "Registra un nuevo amigo peludo a tu familia",
-    "view_my_pets": "Ver Mis Mascotas",
-    "view_pets_description": "Revisa tus mascotas y su información",
+    "add_new_companion": "Agregar Nueva Mascota",
+    "add_companion_description": "Registra un nuevo amigo peludo a tu familia",
+    "view_my_companions": "Ver Mis Mascotas",
+    "view_companions_description": "Revisa tus mascotas y su información",
     "schedule_appointment": "Programar Cita",
     "schedule_description": "Reserva una cita veterinaria para tu mascota",
     "sign_out": "Cerrar Sesión"
   },
-  "pets": {
-    "no_pets_title": "Aún no hay mascotas",
-    "no_pets_subtitle": "Agrega tu primer amigo peludo para comenzar el seguimiento del cuidado de mascotas",
-    "add_first_pet": "Agregar Tu Primera Mascota",
-    "pet_name": "Nombre de Mascota",
-    "pet_type": "Tipo",
+  "companions": {
+    "no_companions_title": "Aún no hay mascotas",
+    "no_companions_subtitle": "Agrega tu primer amigo peludo para comenzar el seguimiento del cuidado de mascotas",
+    "add_first_companion": "Agregar Tu Primera Mascota",
+    "companion_name": "Nombre de Mascota",
+    "companion_type": "Tipo",
     "breed": "Raza",
     "age": "Edad",
     "weight": "Peso",
@@ -52,11 +52,11 @@
     "basic_information": "Información Básica",
     "care_history": "Historial de Cuidados",
     "no_care_records": "Aún no hay registros de cuidados. Comienza a rastrear la salud y actividades de tu mascota.",
-    "edit_pet": "Editar Mascota",
+    "edit_companion": "Editar Mascota",
     "add_record": "Agregar Registro",
-    "add_new_pet_title": "Agregar Nueva Mascota",
-    "add_pet_subtitle": "Completa los detalles sobre tu nuevo amigo peludo",
-    "pet_not_found": "Mascota no encontrada",
+    "add_new_companion_title": "Agregar Nueva Mascota",
+    "add_companion_subtitle": "Completa los detalles sobre tu nuevo amigo peludo",
+    "companion_not_found": "Mascota no encontrada",
     "go_back": "Volver"
   },
   "profile": {
@@ -73,8 +73,8 @@
     "select_language": "Seleccionar Idioma",
     "logout_confirmation": "¿Estás seguro de que quieres cerrar sesión?",
     "notifications_message": "La configuración de notificaciones se configuraría aquí.",
-    "help_message": "Contacta a nuestro equipo de soporte en support@petcare.com",
-    "privacy_message": "Ve nuestra política de privacidad en petcare.com/privacy",
+    "help_message": "Contacta a nuestro equipo de soporte en support@companioncare.com",
+    "privacy_message": "Ve nuestra política de privacidad en companioncare.com/privacy",
     "rate_message": "¡Gracias por usar nuestra app! Por favor califícanos en la App Store."
   },
   "common": {
@@ -104,7 +104,7 @@
     "name_required": "El nombre es requerido",
     "name_min_length": "El nombre debe tener al menos 2 caracteres",
     "passwords_no_match": "Las contraseñas no coinciden",
-    "pet_name_required": "El nombre de la mascota es requerido",
-    "pet_type_required": "El tipo de mascota es requerido"
+    "companion_name_required": "El nombre de la mascota es requerido",
+    "companion_type_required": "El tipo de mascota es requerido"
   }
 }

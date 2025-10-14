@@ -25,6 +25,8 @@ module.exports = {
   moduleNameMapper: {
     // Support `@/` alias used by babel-plugin-module-resolver
     '^@/(.*)$': '<rootDir>/src/$1',
+    // Mock amplify_outputs.json (gitignored file, safe mock for CI/CD)
+    '^.*/amplify_outputs\\.json$': '<rootDir>/__mocks__/amplify_outputs.json',
     // Stub asset imports if needed
     '\\.(svg)$': '<rootDir>/__mocks__/svgMock.js',
     '\\.(png|jpg|jpeg|gif|webp|bmp)$': '<rootDir>/__mocks__/fileMock.js',

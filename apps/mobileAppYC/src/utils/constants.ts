@@ -1,9 +1,9 @@
 export const STORAGE_KEYS = {
-  USER_TOKEN: '@petcare/user_token',
-  USER_DATA: '@petcare/user_data',
-  THEME_MODE: '@petcare/theme_mode',
-  LANGUAGE: '@petcare/language',
-  ONBOARDING_COMPLETED: '@petcare/onboarding_completed',
+  USER_TOKEN: '@companioncare/user_token',
+  USER_DATA: '@companioncare/user_data',
+  THEME_MODE: '@companioncare/theme_mode',
+  LANGUAGE: '@companioncare/language',
+  ONBOARDING_COMPLETED: '@companioncare/onboarding_completed',
 } as const;
 
 export const REGEX_PATTERNS = {
@@ -12,7 +12,7 @@ export const REGEX_PATTERNS = {
   PASSWORD: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{8,}$/,
 } as const;
 
-export const PET_TYPES = [
+export const companion_TYPES = [
   'Dog',
   'Cat',
   'Bird',

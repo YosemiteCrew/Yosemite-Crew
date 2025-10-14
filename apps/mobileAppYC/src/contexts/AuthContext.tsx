@@ -68,7 +68,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
 
   const contextValue = useMemo<AuthContextValue>(() => {
     const isLoggedIn = authState.status === 'authenticated' && !!authState.user;
-    const isLoading = authState.status === 'initializing' && !authState.initialized;
+    const isLoading = authState.status === 'initializing' || (!authState.initialized && authState.status === 'idle');
 
     return {
       isLoggedIn,
