@@ -5,8 +5,10 @@ import {
     toParentResponseDTO,
     type ParentRequestDTO,
     type ParentDTOAttributesType,
-} from '../../../../packages/types/src/dto/parent.dto'
-import type { Parent, Address } from '../../../../packages/types/src/parent'
+    type Parent,
+} from '@yosemite-crew/types'
+
+type ParentAddress = Parent['address']
 
 export class ParentServiceError extends Error {
     constructor(message: string, public readonly statusCode: number) {
@@ -19,9 +21,11 @@ const isNonEmptyString = (value: unknown): value is string => typeof value === '
 
 const pruneUndefined = <T>(value: T): T => {
     if (Array.isArray(value)) {
-        return value
+        const arrayValue = value as unknown[]
+        const cleaned: unknown[] = arrayValue
             .map((item) => pruneUndefined(item))
-            .filter((item) => item !== undefined) as unknown as T
+            .filter((item) => item !== undefined)
+        return cleaned as unknown as T
     }
 
     if (value && typeof value === 'object') {
@@ -29,15 +33,18 @@ const pruneUndefined = <T>(value: T): T => {
             return value
         }
 
-        return Object.entries(value as Record<string, unknown>).reduce((acc, [key, entryValue]) => {
+        const record = value as Record<string, unknown>
+        const cleanedRecord: Record<string, unknown> = {}
+
+        for (const [key, entryValue] of Object.entries(record)) {
             const next = pruneUndefined(entryValue)
 
             if (next !== undefined) {
-                acc[key] = next
+                cleanedRecord[key] = next
             }
+        }
 
-            return acc
-        }, {} as Record<string, unknown>) as T
+        return cleanedRecord as unknown as T
     }
 
     return value
@@ -131,8 +138,8 @@ const sanitizeParentAttributes = (dto: ParentDTOAttributesType): ParentMongo => 
     }
 }
 
-const isAddressComplete = (address: Address): boolean => {
-    const requiredFields: Array<keyof Address> = ['addressLine', 'city', 'state', 'postalCode', 'country']
+const isAddressComplete = (address: ParentAddress): boolean => {
+    const requiredFields: Array<keyof ParentAddress> = ['addressLine', 'city', 'state', 'postalCode', 'country']
 
     return requiredFields.every((field) => isNonEmptyString(address[field]))
 }
@@ -151,12 +158,11 @@ const determineProfileCompletion = (parent: Parent): boolean => {
 }
 
 const buildParentDomain = (document: ParentDocument): Parent => {
-    const { _id, __v, fhirId, ...rest } = document.toObject({ virtuals: false }) as ParentMongo & {
+    const { _id, fhirId, ...rest } = document.toObject({ virtuals: false }) as ParentMongo & {
         _id: Types.ObjectId
-        __v?: number
     }
 
-    const address: Address = {
+    const address: ParentAddress = {
         addressLine: rest.address?.addressLine,
         country: rest.address?.country,
         city: rest.address?.city,
