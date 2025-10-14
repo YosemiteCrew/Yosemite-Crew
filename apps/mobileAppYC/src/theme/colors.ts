@@ -1,6 +1,6 @@
 // src/theme/colors.ts
 export const colors = {
-  // Primary colors - Pet app themed
+  // Primary colors - Companion app themed
   primary: '#247AED', // Vibrant orange
   primaryDark: '#E55A2B',
   primaryLight: '#FF8A65',
@@ -60,6 +60,7 @@ export const colors = {
   borderLight: '#F5F5F5',
   borderDark: '#424242',
   borderMuted: 'rgba(234, 234, 234, 0.9)',
+  borderSeperator: '#c8c8c8ff',
   
   // Special UI colors
   inputBackground: '#FAFAFA',
