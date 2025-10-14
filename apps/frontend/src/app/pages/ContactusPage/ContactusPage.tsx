@@ -4,6 +4,7 @@ import { Button, Container } from "react-bootstrap";
 import { toFhirSupportTicket } from "@yosemite-crew/fhir";
 import { CreateSupportTicket, TicketCategory } from "@yosemite-crew/types";
 import Link from "next/link";
+import { isEmail } from "validator";
 
 import Footer from "@/app/components/Footer/Footer";
 import { FormInput } from "@/app/pages/Sign/SignUp";
@@ -103,8 +104,7 @@ const ContactusPage = () => {
     );
   };
   const isValidEmail = (email: string): boolean => {
-    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return regex.test(email);
+    return isEmail(email);
   };
 
   const handleContectSubmit = useCallback(async () => {

@@ -63,11 +63,7 @@ const GenericTable = <T extends object>({
                     style={col.width ? { width: col.width } : {}}
                   >
                     <div className="td-inner">
-                      {col.render
-                        ? col.render(row, index)
-                        : typeof col.key === "string"
-                          ? (row[col.key] as any)
-                          : (row[col.key] as any)}
+                      {col.render ? col.render(row, index) : row[col.key]}
                     </div>
                   </td>
                 ))}

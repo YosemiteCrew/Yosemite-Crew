@@ -8,7 +8,7 @@ import PrivateHeader from "./PrivateHeader";
 
 import "./Header.css";
 
-const publicRoutes = [
+const publicRoutes = new Set([
   "/",
   "/signin",
   "/signup",
@@ -19,13 +19,13 @@ const publicRoutes = [
   "/application",
   "/pricing",
   "/forgot-password",
-];
+]);
 
 const Header = () => {
   const { user } = useAuthStore();
   const pathname = usePathname();
 
-  if (publicRoutes.includes(pathname)) {
+  if (publicRoutes.has(pathname)) {
     return (
       <header className="header">
         <PublicHeader />

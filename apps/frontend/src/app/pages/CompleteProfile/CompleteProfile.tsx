@@ -368,7 +368,7 @@ const CompleteProfile = () => {
 
     const address_components = place.address_components || [];
 
-    address_components.forEach((component: any) => {
+    for (const component of address_components ?? []) {
       const types = component.types;
 
       if (types.includes("route")) {
@@ -393,7 +393,7 @@ const CompleteProfile = () => {
       if (types.includes("country")) {
         addressResp.country = component.long_name;
       }
-    });
+    }
 
     return addressResp;
   };

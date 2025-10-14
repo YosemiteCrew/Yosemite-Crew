@@ -26,9 +26,9 @@ const SignUp = () => {
   const [showVerifyModal, setShowVerifyModal] = useState(false);
 
   const [inputErrors, setInputErrors] = useState<{
-    confirmPassword?: string;
+    confirmPError?: string;
     email?: string;
-    password?: string;
+    pError?: string;
     selectedType?: string;
     subscribe?: string;
     agree?: string;
@@ -55,28 +55,27 @@ const SignUp = () => {
   ) => {
     const errors: {
       email?: string;
-      password?: string;
-      confirmPassword?: string;
+      pError?: string;
+      confirmPError?: string;
       selectedType?: string;
       subscribe?: string;
       agree?: string;
     } = {};
 
     if (!email) errors.email = "Email is required";
-    if (!password) {
-      errors.password = "Password is required";
-    } else {
+    if (password) {
       const strongPasswordRegex =
         /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
       if (!strongPasswordRegex.test(password)) {
-        errors.password =
+        errors.pError =
           "Password must be at least 8 characters long, include uppercase, lowercase, number, and special character";
       }
+    } else {
+      errors.pError = "Password is required";
     }
-    if (!confirmPassword)
-      errors.confirmPassword = "Confirm Password is required";
+    if (!confirmPassword) errors.confirmPError = "Confirm Password is required";
     if (password && confirmPassword && password !== confirmPassword)
-      errors.confirmPassword = "Passwords do not match";
+      errors.confirmPError = "Passwords do not match";
     if (!selectedType) errors.selectedType = "Please select your business type";
     if (!subscribe)
       errors.subscribe =
@@ -107,13 +106,13 @@ const SignUp = () => {
       const result = await signUp(email, password, selectedType);
 
       if (result) {
-        if (typeof window !== "undefined") {
+        if (typeof globalThis.window !== "undefined") {
           window.scrollTo({ top: 0, behavior: "smooth" });
         }
         setShowVerifyModal(true);
       }
     } catch (error: any) {
-      if (typeof window !== "undefined") {
+      if (typeof globalThis.window !== "undefined") {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
       const status = error.code === "UsernameExistsException" ? 409 : undefined;
@@ -213,7 +212,7 @@ const SignUp = () => {
                       value={password}
                       inlabel="Set up Password"
                       onChange={(e) => setPassword(e.target.value)}
-                      error={inputErrors.password}
+                      error={inputErrors.pError}
                     />
                     <FormInputPass
                       intype="password"
@@ -221,7 +220,7 @@ const SignUp = () => {
                       value={confirmPassword}
                       inlabel="Confirm Password"
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      error={inputErrors.confirmPassword}
+                      error={inputErrors.confirmPError}
                     />
                   </div>
                   <div className="business-type-container">

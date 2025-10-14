@@ -55,8 +55,8 @@ const DynamicDatePicker: React.FC<DynamicDatePickerProps> = ({
           onChange={handleDateChange}
           placeholderText={placeholder}
           dateFormat="yyyy-MM-dd"
-          minDate={minDate || undefined}
-          maxDate={maxDate || undefined}
+          minDate={minDate ?? undefined}
+          maxDate={maxDate ?? undefined}
         />
       </FormControl>
       <FaCalendarAlt />

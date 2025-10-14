@@ -21,14 +21,14 @@ type AppointmentStatus =
   | "Cancelled"
   | "Fulfilled";
 
-const validStatuses = [
+const validStatuses = new Set([
   "accepted",
   "pending",
   "cancelled",
   "in-progress",
   "checked-in",
   "fulfilled",
-];
+]);
 
 export type TodayAppointmentItem = {
   id: string;
@@ -166,7 +166,7 @@ const BusinessdashBoardTable = ({ status }: Readonly<{ status?: string }>) => {
   const getAppointments = useCallback(
     async (doctorId: string = "", statusFilter: string = "accepted") => {
       // Validate statusFilter
-      const finalStatus = validStatuses.includes(statusFilter.toLowerCase())
+      const finalStatus = validStatuses.has(statusFilter?.toLowerCase() ?? "")
         ? statusFilter.toLowerCase()
         : "accepted";
 
