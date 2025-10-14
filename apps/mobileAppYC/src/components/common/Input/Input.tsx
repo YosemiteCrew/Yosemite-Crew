@@ -145,8 +145,8 @@ export const Input: React.FC<InputProps> = ({
     const baseStyle = {
       position: 'absolute' as const,
       left: 20,
-      fontFamily: theme.typography.inputLabel.fontFamily,
-      fontWeight: theme.typography.inputLabel.fontWeight,
+      fontFamily: theme.typography.input.fontFamily,
+      fontWeight: theme.typography.input.fontWeight,
       fontSize: animatedValue.interpolate({
         inputRange: [0, 1],
         outputRange: [16, 14],
