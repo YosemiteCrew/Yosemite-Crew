@@ -1,5 +1,6 @@
 import "@testing-library/jest-dom";
 
+window.HTMLElement.prototype.scrollIntoView = jest.fn();
 // Polyfill for window.matchMedia
 Object.defineProperty(window, "matchMedia", {
   writable: true,

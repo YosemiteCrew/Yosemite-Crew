@@ -11,13 +11,13 @@ import { Button } from "react-bootstrap";
 
 import "./UploadImage.css";
 
-const allowedTypes = [
+const allowedTypes = new Set([
   "application/pdf",
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "image/png",
   "image/jpeg",
-];
+]);
 
 function getFileIcon(type: string) {
   if (type === "application/pdf")
@@ -59,9 +59,8 @@ const UploadImage = ({
 
   const handleFiles = (fileList: FileList | null) => {
     if (!fileList) return;
-    const newFiles = Array.from(fileList).filter(
-      (file) =>
-        allowedTypes.includes(file.type) && file.size <= 20 * 1024 * 1024
+    const newFiles = Array.from(fileList ?? []).filter(
+      (file) => allowedTypes.has(file.type) && file.size <= 20 * 1024 * 1024
     );
     setFiles((prev) => {
       const merged = [...prev, ...newFiles];

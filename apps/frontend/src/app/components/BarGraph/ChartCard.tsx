@@ -32,7 +32,7 @@ const options: ChartOptions<"line"> = {
         stepSize: 4000,
         callback: (tickValue: string | number) => {
           const value =
-            typeof tickValue === "number" ? tickValue : parseFloat(tickValue);
+            typeof tickValue === "number" ? tickValue : Number.parseFloat(tickValue);
           return `$${value === 0 ? "0" : value / 1000 + "K"}`;
         },
         color: "#302F2E",
