@@ -2,9 +2,10 @@
   "name": "backend",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "tsx watch src/main.ts",
-    "build": "node scripts/build.js",
+    "build": "node src/scripts/build.js",
     "start": "node dist/index.js",
     "type-check": "tsc",
     "lint": "eslint ."

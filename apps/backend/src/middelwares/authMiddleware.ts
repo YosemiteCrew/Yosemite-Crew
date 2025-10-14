@@ -1,140 +1,210 @@
-import dotenv from 'dotenv';
-dotenv.config();
-import { Request, Response, NextFunction } from 'express';
-import jwt, { JwtPayload } from 'jsonwebtoken';
+import dotenv from 'dotenv'
+dotenv.config()
+import { type NextFunction, type Request, type Response } from 'express'
+import jwt, {
+    JsonWebTokenError,
+    type JwtPayload,
+    TokenExpiredError,
+    type Secret,
+    type SignOptions,
+} from 'jsonwebtoken'
+import type { StringValue } from 'ms'
 
-// Extend the Request interface to include the user payload after decoding JWT
-interface CustomRequest extends Request {
-  user?: string | JwtPayload;
+type PermissionMap = Record<string, string[]>
+
+export interface AuthenticatedUserPayload extends JwtPayload {
+    permissions?: PermissionMap
 }
 
-// ✅ Middleware: Verifies access token and attaches user info to req.user
+export type AuthenticatedRequest = Request & {
+    user?: AuthenticatedUserPayload
+}
+
+const EXPIRY_PATTERN = /^\d+(?:\s*[a-zA-Z]+)?$/
+
+const resolveExpiry = (value: string | undefined, fallback: string, label: string): StringValue => {
+    const resolved = value ?? fallback
+
+    if (!EXPIRY_PATTERN.test(resolved.trim())) {
+        throw new Error(`Invalid ${label} format.`)
+    }
+
+    return resolved.trim() as StringValue
+}
+
+const ACCESS_SECRET = process.env.JWT_SECRET
+const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET
+const ACCESS_EXPIRY = resolveExpiry(process.env.EXPIRE_IN, '15m', 'access token expiry')
+const REFRESH_EXPIRY = resolveExpiry(process.env.EXPIRE_IN_REFRESH, '7d', 'refresh token expiry')
+const IS_SECURE_ENV = process.env.NODE_ENV === 'development'
+
+const isNonEmptyString = (value: unknown): value is string =>
+    typeof value === 'string' && value.trim().length > 0
+
+const extractBearerToken = (authorizationHeader: string | undefined): string | undefined => {
+    if (!authorizationHeader) {
+        return undefined
+    }
+
+    const parts = authorizationHeader.split(' ')
+
+    if (parts.length !== 2) {
+        return undefined
+    }
+
+    const token = parts[1]
+    return isNonEmptyString(token) ? token : undefined
+}
+
+const getCookieValue = (req: Request, name: string): string | undefined => {
+    const cookies: unknown = req.cookies
+
+    if (!cookies || typeof cookies !== 'object' || Array.isArray(cookies)) {
+        return undefined
+    }
+
+    const rawValue = (cookies as Record<string, unknown>)[name]
+    return isNonEmptyString(rawValue) ? rawValue : undefined
+}
+
+const resolveSecret = (secret: string | undefined, name: string): Secret => {
+    if (!secret) {
+        throw new Error(`${name} is not configured.`)
+    }
+
+    return secret
+}
+
+const ACCESS_SIGN_OPTIONS: SignOptions = {
+    expiresIn: ACCESS_EXPIRY,
+}
+
+const REFRESH_SIGN_OPTIONS: SignOptions = {
+    expiresIn: REFRESH_EXPIRY,
+}
+
+const verifyTokenPayload = (token: string, secret: string | undefined, name: string): JwtPayload => {
+    const resolvedSecret = resolveSecret(secret, name)
+    const decoded = jwt.verify(token, resolvedSecret)
+
+    if (!decoded || typeof decoded === 'string') {
+        throw new JsonWebTokenError('Invalid token payload')
+    }
+
+    return decoded
+}
+
+const extractStringClaim = (payload: JwtPayload, key: string): string | undefined => {
+    const payloadRecord = payload as Record<string, unknown>
+    const value = payloadRecord[key]
+    return isNonEmptyString(value) ? value : undefined
+}
+
 export const verifyTokenAndRefresh = (
-  req: CustomRequest,
-  res: Response,
-  next: NextFunction
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
 ): void => {
-  // Extract token from Authorization header: "Bearer <token>"
-  const token = req.headers['authorization']?.split(' ')[1];
+    const token = extractBearerToken(req.headers.authorization)
 
-  if (!token) {
-    console.log('No token provided');
-    res.status(401).json({ message: 'No token provided' });
-    return;
-  }
-
-  // Verify the token using JWT_SECRET
-  jwt.verify(token, process.env.JWT_SECRET as string, (err, decoded) => {
-    if (err) {
-      console.log('Token verification error:', err.message);
-      res.status(401).json({ message: 'Unauthorized', error: err.message });
-      return;
+    if (!token) {
+        res.status(401).json({ message: 'No token provided' })
+        return
     }
 
-    // Attach decoded token data to the request
-    req.user = decoded;
-    next(); // Continue to the next middleware or route handler
-  });
-};
+    try {
+        const decoded = verifyTokenPayload(token, ACCESS_SECRET, 'JWT_SECRET')
+        req.user = decoded
+        next()
+    } catch (error) {
+        if (error instanceof TokenExpiredError || error instanceof JsonWebTokenError) {
+            res.status(401).json({ message: 'Unauthorized', error: error.message })
+            return
+        }
 
-
-
-
-
-export const getCognitoUserId = (req: Request) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) throw new Error('Missing token');
-  const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
-  return decoded?.username as string;
+        res.status(500).json({ message: 'Token verification failed' })
+    }
 }
 
-const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET as string;
-const ACCESS_SECRET = process.env.JWT_SECRET as string;
-const ACCESS_EXPIRY = process.env.EXPIRE_IN ?? "15m"; // short-lived
-const REFRESH_EXPIRY = process.env.EXPIRE_IN_REFRESH;
+export const getCognitoUserId = (req: Request): string => {
+    const token = extractBearerToken(req.headers.authorization)
 
+    if (!token) {
+        throw new Error('Missing token')
+    }
 
-interface CustomRequest extends Request {
-  user?: JwtPayload;
+    const decoded = verifyTokenPayload(token, ACCESS_SECRET, 'JWT_SECRET')
+    const username = extractStringClaim(decoded, 'username')
+
+    if (!username) {
+        throw new Error('Missing username in token')
+    }
+
+    return username
 }
 
-export const verifyToken = async (
-  req: CustomRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  const accessToken = req.cookies?.accessToken;
-  const refreshToken = req.cookies?.refreshToken;
-    //  console.log("Access Token:", accessToken);
-  // console.log("Refresh Token:", refreshToken);
-  // 1️⃣ If neither token is present
-  if (!accessToken && !refreshToken) {
-     res.status(401).json({ message: 'No tokens provided' });
-     return
-  }
+export const verifyToken = (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
+    const accessToken = getCookieValue(req, 'accessToken')
+    const refreshToken = getCookieValue(req, 'refreshToken')
 
-  // 2️⃣ Try Access Token
-  if (accessToken) {
-    try {
-      const decoded = jwt.verify(accessToken, ACCESS_SECRET) as JwtPayload;
-      // console.log("Decoded Access Token:", decoded);
-      req.user = decoded;
-       next(); // ✅ Access token is valid
-       return
-    } catch (err) {
-      if (!(err instanceof jwt.TokenExpiredError)) {
-         res.status(403).json({ message: 'Invalid access token' });
-         return
-      }
-      // else — token expired, try refresh
+    if (!accessToken && !refreshToken) {
+        res.status(401).json({ message: 'No tokens provided' })
+        return
     }
-  }
 
-  // 3️⃣ Access token failed or expired — Try Refresh Token
-  if (refreshToken) {
-    try {
-      const decodedRefresh = jwt.verify(refreshToken, REFRESH_SECRET) as JwtPayload;
-      // console.log("Decoded Refresh Token:", decodedRefresh);
-      const newPayload = {
-        userId: decodedRefresh.userId,
-        email: decodedRefresh.email,
-        userType: decodedRefresh.userType,
-      };
-
-      // Sign new tokens
-      const newAccessToken = jwt.sign(newPayload, ACCESS_SECRET, {
-        expiresIn: ACCESS_EXPIRY,
-      });
-
-      const newRefreshToken = jwt.sign(newPayload, REFRESH_SECRET, {
-        expiresIn: REFRESH_EXPIRY,
-      });
-
-      // Set new tokens
-      res.cookie("accessToken", newAccessToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "development",
-        sameSite: "strict",
-        maxAge: 1000 * 60 * 15,
-      });
-
-      res.cookie("refreshToken", newRefreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "development",
-        sameSite: "strict",
-        maxAge: 1000 * 60 * 60 * 24 * 7,
-      });
-
-      req.user = newPayload;
-       next(); // ✅ Token refreshed
-       return
-    } catch (err) {
-       res.status(403).json({ message: 'Invalid or expired refresh token' });
-       return
+    if (accessToken) {
+        try {
+            const decoded = verifyTokenPayload(accessToken, ACCESS_SECRET, 'JWT_SECRET')
+            req.user = decoded
+            next()
+            return
+        } catch (error) {
+            if (!(error instanceof TokenExpiredError)) {
+                res.status(403).json({ message: 'Invalid access token' })
+                return
+            }
+        }
     }
-  }
 
-  // 4️⃣ Fallback - no valid tokens
-   res.status(401).json({ message: 'Authentication failed' });
-   return
-};
+    if (!refreshToken) {
+        res.status(401).json({ message: 'Authentication failed' })
+        return
+    }
+
+    try {
+        const decodedRefresh = verifyTokenPayload(refreshToken, REFRESH_SECRET, 'JWT_REFRESH_SECRET')
+        const refreshedPayload: AuthenticatedUserPayload = {
+            ...decodedRefresh,
+            userId: extractStringClaim(decodedRefresh, 'userId'),
+            email: extractStringClaim(decodedRefresh, 'email'),
+            userType: extractStringClaim(decodedRefresh, 'userType'),
+        }
+
+        const newAccessToken = jwt.sign(refreshedPayload, resolveSecret(ACCESS_SECRET, 'JWT_SECRET'), ACCESS_SIGN_OPTIONS)
+
+        const newRefreshToken = jwt.sign(
+            refreshedPayload,
+            resolveSecret(REFRESH_SECRET, 'JWT_REFRESH_SECRET'),
+            REFRESH_SIGN_OPTIONS
+        )
+
+        res.cookie('accessToken', newAccessToken, {
+            httpOnly: true,
+            secure: IS_SECURE_ENV,
+            sameSite: 'strict',
+            maxAge: 1000 * 60 * 15,
+        })
+
+        res.cookie('refreshToken', newRefreshToken, {
+            httpOnly: true,
+            secure: IS_SECURE_ENV,
+            sameSite: 'strict',
+            maxAge: 1000 * 60 * 60 * 24 * 7,
+        })
+
+        req.user = refreshedPayload
+        next()
+    } catch {
+        res.status(403).json({ message: 'Invalid or expired refresh token' })
+    }
+}
