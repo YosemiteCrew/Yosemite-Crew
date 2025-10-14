@@ -300,6 +300,9 @@ importers:
       sweetalert2:
         specifier: ^11.22.4
         version: 11.23.0
+      validator:
+        specifier: ^13.15.0
+        version: 13.15.15
       zustand:
         specifier: ^5.0.6
         version: 5.0.8(@types/react@19.1.12)(react@19.1.1)
