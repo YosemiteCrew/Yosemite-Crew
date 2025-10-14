@@ -47,6 +47,7 @@
     "slick-carousel": "^1.8.1",
     "socket.io-client": "^4.8.1",
     "sweetalert2": "^11.22.4",
+    "validator": "^13.15.0",
     "zustand": "^5.0.6"
   },
   "devDependencies": {

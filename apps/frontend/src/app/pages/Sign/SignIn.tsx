@@ -18,7 +18,7 @@ const SignIn = () => {
   const [password, setPassword] = useState("");
   const [inputErrors, setInputErrors] = useState<{
     email?: string;
-    password?: string;
+    pError?: string;
   }>({});
 
   const [showVerifyModal, setShowVerifyModal] = useState(false);
@@ -30,7 +30,7 @@ const SignIn = () => {
         setShowVerifyModal(true);
       }
     } catch (error: any) {
-      if (typeof window !== "undefined") {
+      if (typeof globalThis.window !== "undefined") {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
       showErrorTost({
@@ -52,9 +52,9 @@ const SignIn = () => {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const errors: { email?: string; password?: string } = {};
+    const errors: { email?: string; pError?: string } = {};
     if (!email) errors.email = "Email is required";
-    if (!password) errors.password = "Password is required";
+    if (!password) errors.pError = "Password is required";
     setInputErrors(errors);
     if (Object.keys(errors).length > 0) {
       return;
@@ -110,7 +110,7 @@ const SignIn = () => {
                 value={password}
                 inlabel="Password"
                 onChange={(e) => setPassword(e.target.value)}
-                error={inputErrors.password}
+                error={inputErrors.pError}
               />
 
               <div className="forgtbtn">
