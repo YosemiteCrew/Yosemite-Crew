@@ -19,6 +19,7 @@
     "@editorjs/list": "^2.0.8",
     "@editorjs/quote": "^2.7.6",
     "@react-google-maps/api": "^2.20.6",
+    "@testing-library/user-event": "^14.6.1",
     "@types/lodash": "^4.17.20",
     "amazon-cognito-identity-js": "^6.3.15",
     "aos": "^2.3.4",
@@ -56,7 +57,7 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@types/chart.js": "^4.0.1",
-    "@types/jest": "^29.5.13",
+    "@types/jest": "^29.5.14",
     "@types/node": "^20",
     "@types/react": "^19.1.1",
     "@types/react-datepicker": "^7.0.0",
@@ -67,8 +68,9 @@
     "@yosemite-crew/types": "workspace:^",
     "eslint": "^9",
     "eslint-config-next": "15.3.3",
-    "jest": "^29.6.3",
+    "jest": "^29.7.0",
     "jest-environment-jsdom": "^30.2.0",
+    "ts-jest": "^29.4.4",
     "ts-node": "^10.9.2",
     "typescript": "^5"
   }
