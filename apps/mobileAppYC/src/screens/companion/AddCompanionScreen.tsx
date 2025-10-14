@@ -83,7 +83,7 @@ interface FormData {
 const COMPANION_CATEGORIES = [
   {value: 'cat', label: 'Cat'},
   {value: 'dog', label: 'Dog'},
-  {value: 'horse', label: 'Horse'},
+  {value: 'equine', label: 'Equine'},
 ];
 
 const GENDER_OPTIONS = [
@@ -339,7 +339,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
       ).unwrap();
 
       console.log('Companion added successfully:', result);
-      navigation.navigate('Home');
+      navigation.popToTop();
     } catch (error) {
       const message =
         error instanceof Error
@@ -362,9 +362,9 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
         {COMPANION_CATEGORIES.map(cat => {
           const isSelected = category === cat.value;
           const imageSources: Record<string, any> = {
-            cat: Images.paw,
-            dog: Images.paw,
-            horse: Images.paw,
+            cat: Images.cat,
+            dog: Images.dog,
+            equine: Images.equine,
           };
 
           return (
@@ -384,8 +384,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
               <Image
                 source={imageSources[cat.value]}
                 style={[
-                  styles.categoryIcon,
-                  isSelected && styles.categoryIconSelected,
+                  styles.categoryIcon
                 ]}
               />
               <Text
@@ -481,7 +480,6 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
         />
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.fieldLabel}>Gender</Text>
           <Controller
             control={control}
             name="gender"
@@ -656,7 +654,6 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
         />
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.fieldLabel}>Insurance status</Text>
           <Controller
             control={control}
             name="insuredStatus"
@@ -876,7 +873,8 @@ const createStyles = (theme: any) =>
       ...theme.typography.body,
       color: theme.colors.textSecondary,
       textAlign: 'center',
-      marginBottom: theme.spacing['8'],
+      marginBottom: theme.spacing['30'],
+           marginTop: theme.spacing['6'],
       lineHeight: 22,
     },
     categoryGrid: {
@@ -892,16 +890,11 @@ const createStyles = (theme: any) =>
     },
     categoryCardSelected: {},
     categoryIcon: {
-      width: 80,
-      height: 80,
-      borderRadius: 40,
-      backgroundColor: theme.colors.lightBlueBackground,
+      width: 110,
+      height: 110,
+      objectFit:"contain",
       padding: theme.spacing['4'],
-      tintColor: theme.colors.textSecondary,
-    },
-    categoryIconSelected: {
-      tintColor: theme.colors.primary,
-      backgroundColor: theme.colors.primarySurface,
+
     },
     categoryLabel: {
       ...theme.typography.body,
@@ -928,6 +921,7 @@ const createStyles = (theme: any) =>
     },
     fieldGroup: {
       gap: theme.spacing['3'],
+      paddingBottom:5
     },
     fieldLabel: {
       ...theme.typography.body,
@@ -965,7 +959,7 @@ const createStyles = (theme: any) =>
       right: 0,
       paddingHorizontal: theme.spacing['5'],
       paddingTop: theme.spacing['4'],
-      paddingBottom: theme.spacing['10'],
+      paddingBottom: theme.spacing['4'],
       backgroundColor: theme.colors.background,
     },
     button: {
