@@ -6,7 +6,7 @@
     "emitDeclarationOnly": true,
     "declarationDir": "dist",
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "../"
   },
-  "include": ["src"]
+  "include": ["./src/**/*"],
 }

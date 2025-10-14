@@ -79,14 +79,14 @@ For Developers
   pnpm run dev                                     -- To run website & api
   ```
 
-- Run the Yosemite Crew mobileapp.
+- Run the Yosemite Crew mobile app.
 
   ```shell
-  // In apps/mobileApp directory
+  // In apps/mobileAppYC directory
 
   pnpm run start                                  -- Start the metro server for mobile development
-  pnpm run android                                -- Run the app on Andorid
-  pnpm run ios                                    -- Run the app on IOS
+  pnpm run android                                -- Run the app on Android
+  pnpm run ios                                    -- Run the app on iOS
   ```
 
 <br>

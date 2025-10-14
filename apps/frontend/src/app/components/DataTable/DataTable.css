@@ -1,0 +1,647 @@
+.table-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.table-footerBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.table-footerBtn button {
+  background: var(--black-bg);
+  color: var(--white-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 32px;
+  border-radius: 36px;
+  min-width: 160px;
+  font-family: var(--grotesk-font);
+  font-weight: 500;
+  font-size: 21px;
+  line-height: 120%;
+  min-height: 48px;
+  cursor: pointer;
+  letter-spacing: 1.1px;
+  border: 1px solid var(--black-bg) !important;
+  &:hover {
+    background: transparent;
+    color: var(--black-text);
+  }
+}
+/* ScheduleTable Started  */
+
+.PetImg {
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center;
+  border: 0.67px solid var(--blue-text);
+}
+.userinfo {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 60%;
+  color: var(--black-text);
+  font-size: 13px;
+  font-weight: 700;
+  font-family: var(--satoshi-font);
+}
+.userinfo span svg {
+  font-size: 13px;
+}
+.ActionEyes {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--lightgrey);
+  border: none !important;
+}
+.ActionEyes svg {
+  font-size: 24px;
+  color: var(--notibg);
+}
+.ActionEyes:hover {
+  background: var(--black-grey1);
+}
+.ActionEyes:hover svg {
+  color: var(--whitebg);
+}
+
+/* ScheduleTable Ended  */
+
+/* PracticeTeam Table Started  */
+
+.ptt-status {
+  display: inline-block;
+  padding: 8px;
+  border-radius: 8px;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  font-family: var(--satoshi-font);
+  min-width: 80px;
+  text-align: center;
+}
+.ptt-status-available {
+  background: var(--avilblebg) !important;
+  color: var(--avilbleText) !important;
+}
+.ptt-status-off-duty {
+  background: var(--offdutybg) !important;
+  color: var(--black-text) !important;
+}
+.ptt-status-consulting {
+  background: var(--counslingbg) !important;
+  color: var(--counslingtext) !important;
+}
+
+/* PracticeTeam Table Endead  */
+
+/* Inventry Table Started  */
+
+.inv-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.inv-status-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  opacity: 100% !important;
+}
+.inv-status-dot.in-stock {
+  background: var(--orange);
+}
+.inv-status-dot.low-stock {
+  background: var(--red);
+}
+
+/* Inventry Table Ended  */
+
+.status-col {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.status-badge {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.status-badge.in-progress {
+  background-color: #fff4e5;
+  color: var(--black-text);
+  opacity: 100%;
+}
+
+.status-badge.checked-in {
+  background-color: #e5f8f1;
+  color: var(--black-text);
+  opacity: 100%;
+}
+
+.status-badge.pending {
+  background-color: #fdeaea;
+  color: var(--black-text);
+  opacity: 100%;
+}
+
+.action-dropdown {
+  position: relative;
+}
+
+.custom-toggle {
+  cursor: pointer;
+  display: inline-flex;
+  padding: 6px;
+  border-radius: 6px;
+}
+
+.menu-icon {
+  font-size: 18px;
+  color: #555;
+}
+
+/* Todays Appointemnt started  */
+.displx {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.action-btn-col {
+  display: inline-flex;
+  align-items: center;
+  width: max-content;
+  gap: 8px;
+}
+.action-btn-col button.circle-btn {
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.action-btn-col button.circle-btn.done {
+  background: var(--checkbg);
+}
+.action-btn-col button.circle-btn.done svg {
+  color: var(--lightgreen);
+}
+.action-btn-col button.circle-btn.view {
+  background: var(--whitebg);
+  border: 0.83px solid var(--black-bg);
+}
+.action-btn-col button.circle-btn.view svg {
+  color: var(--black-bg);
+}
+.action-btn-col button.circle-btn.cancel {
+  background: var(--errorbg);
+}
+.action-btn-col button.circle-btn.cancel svg {
+  color: var(--delete);
+}
+
+/* Todays Appointemnt Ended */
+
+/* Cardiolgy Started  */
+
+.Cardiologybtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.Cardiologybtn button {
+  width: 40px;
+  height: 40px;
+  border-radius: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--greenopt) !important;
+  border: 1px solid var(--greenopt) !important;
+}
+.Cardiologybtn button.red {
+  background: var(--redopacity) !important;
+  border: 1px solid var(--redopacity) !important;
+}
+.Cardiologybtn button:hover {
+  background: var(--greenopt) !important;
+  border: 1px solid var(--greenopt) !important;
+}
+.Cardiologybtn button.red:hover {
+  background: var(--redopacity) !important;
+  border: 1px solid var(--redopacity) !important;
+}
+.Cardiologybtn button svg {
+  color: var(--avilbleText);
+}
+.Cardiologybtn button.red svg {
+  color: var(--delete);
+}
+
+.CardilogyStatus h6 {
+  background: var(--avilblebg);
+  border-radius: 8px;
+  padding: 10px;
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--satoshi-font);
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 120%;
+  color: var(--avilbleText);
+  margin: 0;
+}
+.CardilogyStatus h6.on-break {
+  background: var(--halforange) !important;
+  color: var(--darkFawn) !important;
+}
+.CardilogyStatus h6.on-Consulting {
+  background: var(--counslingbg) !important;
+  color: var(--counslingtext) !important;
+}
+.CardilogyStatus h6.on-duty {
+  background: var(--offdutybg) !important;
+  color: var(--black-text) !important;
+}
+.CardilogyStatus h6.on-pending {
+  background: var(--pendingbg) !important;
+  color: var(--pendingtext) !important;
+}
+.CardilogyStatus h6.on-expire {
+  background: var(--errorbg) !important;
+  color: var(--delete) !important;
+}
+
+/* Cardiolgy Ended */
+
+/* ProcedureEstimatesTable started */
+
+.form-switch .form-check-input {
+  width: 3em;
+  height: 1.5em;
+  cursor: pointer;
+}
+.statusbadgebtn {
+  padding: 8px;
+  border-radius: 8px;
+  font-size: 15px;
+  text-align: center;
+  font-weight: 700;
+  font-family: var(--satoshi-font);
+}
+.statusbadgebtn.paid {
+  background-color: var(--avilblebg);
+  color: var(--checkgreen);
+}
+.statusbadgebtn.unpaid {
+  background-color: var(--pendingbg);
+  color: var(--pendingtext);
+}
+.statusbadgebtn.partially-paid {
+  background-color: var(--whitebg);
+  color: var(--black-text);
+  border: 1px solid var(--lightgrey);
+}
+.statusbadgebtn.overdue {
+  background-color: var(--errorbg);
+  color: var(--error-color);
+}
+.Procedaction-buttons {
+  display: flex;
+  gap: 8px;
+}
+.Procedaction-buttons .action-btn {
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--whitebg);
+  border: 1px solid var(--black-bg);
+  padding: 0;
+}
+.Procedaction-buttons .action-btn svg {
+  color: var(--black-text);
+}
+.Procedaction-buttons .action-btn:hover {
+  background-color: var(--black-bg);
+}
+.Procedaction-buttons .action-btn:hover svg {
+  color: var(--white-text);
+}
+/* ProcedureEstimatesTable ended  */
+
+/* AddItemsTable Started  */
+
+.TableDropdownWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.StatementsTopBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* AddItemsTable Ended */
+
+.add-items-table-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+}
+.add-items-table-wrapper .action-buttons {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.add-items-table-wrapper .action-btn {
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--whitebg);
+  border: 1px solid var(--black-bg);
+}
+.add-items-table-wrapper .action-btn svg {
+  color: var(--black-text);
+}
+.add-items-table-wrapper .action-btn.Save {
+  color: var(--blue-text);
+  text-decoration: none;
+  padding: 8px 16px !important;
+  width: fit-content;
+  border-radius: 8px;
+  background: var(--light-blue);
+  border: 1px solid var(--light-blue);
+  font-family: var(--satoshi-font);
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.add-items-table-wrapper .form-control {
+  width: 100%;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+.add-item-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  margin-top: 20px;
+  padding: 15px;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+}
+
+.Procedureselect button {
+  width: 100%;
+  border: 1px solid #37223cb2;
+  min-height: 48px;
+  border-radius: 12px;
+  outline: none;
+  background: transparent !important;
+  color: var(--black-text) !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.Procedureselect button h6 {
+  font-family: var(--grotesk-font);
+  font-weight: 400;
+  font-size: 15px;
+  line-height: 120%;
+  white-space: nowrap;
+  max-width: 180px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+.prcedureInput {
+  border: 1px solid #37223cb2 !important;
+  min-height: 48px !important;
+  border-radius: 12px !important;
+  outline: none !important;
+  background: transparent !important;
+  color: var(--black-text) !important;
+  font-family: var(--grotesk-font);
+  font-weight: 400 !important;
+  font-size: 15px !important;
+  line-height: 120% !important;
+  text-align: center;
+}
+
+/* All Apointment table Started  */
+
+.TableTopTexed {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.TableTopTexed .LeftTopTbl h3 {
+  margin: 0;
+  font-family: var(--grotesk-font);
+  font-weight: 500;
+  font-size: 33px;
+  line-height: 120%;
+  color: var(--black-text);
+}
+
+/* All Apointment table Ended */
+
+.ConstBtn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ConstBtn button {
+  padding: 0;
+  background: transparent !important;
+  border: none !important;
+  line-height: 0px !important;
+}
+
+/* Task Table  */
+
+.removebtn {
+  background: transparent !important;
+  padding: 0 !important ;
+  line-height: 0px !important;
+  border: none !important;
+}
+.text-ellipsis {
+  white-space: nowrap;
+  max-width: 115px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+.TaskStatusDiv {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.TaskStatus h6 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  border-radius: 8px;
+  padding: 8px;
+  background: var(--checkbg);
+  color: var(--lightgreen);
+  font-family: var(--satoshi-font);
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 120%;
+  margin: 0;
+}
+.TaskStatus h6 span.dots {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.TaskStatus h6.on-complete {
+  background: var(--light-blue);
+  color: var(--black-text);
+}
+.TaskStatus h6.on-complete span.dots {
+  background: var(--blue-text);
+}
+.TaskStatus h6.on-progress {
+  background: var(--pendingbg);
+  color: var(--black-text);
+}
+.TaskStatus h6.on-progress span.dots {
+  background: var(--pendingtext);
+}
+.TaskStatus h6.on-pending {
+  background: var(--errorbg);
+  color: var(--black-text);
+}
+.TaskStatus h6.on-pending span.dots {
+  background: var(--delete);
+}
+
+.apointment-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.InviteDetails {
+  color: var(--yc-updated, #302f2e);
+  font-family: var(--satoshi-font);
+  font-size: 15px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 24px; /* 160% */
+  letter-spacing: -0.3px;
+}
+.InviteTime {
+  color: var(--yc-updated, #302f2e);
+  font-family: var(--satoshi-font);
+  font-size: 15px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 24px; /* 160% */
+  letter-spacing: -0.3px;
+}
+.InviteExpires {
+  color: var(--yc-updated, #302f2e);
+  font-family: var(--satoshi-font);
+  font-size: 15px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 24px; /* 160% */
+  letter-spacing: -0.3px;
+}
+
+.OrgListDetails {
+  color: var(--yc-upated-contrat1, #247aed);
+  font-size: 15px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 24px; /* 160% */
+  letter-spacing: -0.3px;
+  font-family: var(--satoshi-font);
+  cursor: pointer;
+}
+
+.OrgStatus {
+  display: flex;
+  padding: 8px;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  border-radius: 8px;
+  background: var(--pendingbg, #fef3e9);
+  color: var(--pendingtext, #f68523);
+  font-family: var(--satoshi-font);
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 120%; /* 18px */
+  letter-spacing: -0.3px;
+}
+
+.OrgListDetailsCol {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+}
+
+.action-btn {
+  display: flex;
+  min-width: 80px;
+  width: fit-content;
+  padding: 10px 16px;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  border-radius: 28px;
+  border: 1.5px solid var(--Color-Palette-Jet-jet-500, #302f2e);
+  cursor: pointer;
+}
+
+.action-btn-text {
+  color: var(#302f2e);
+  text-align: center;
+  font-family: var(--grotesk-font);
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 120%; /* 19.2px */
+  letter-spacing: -0.32px;
+}

@@ -5,7 +5,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
-import SessionInitializer from "./Components/SessionInitializer";
+import SessionInitializer from "./components/SessionInitializer";
 
 export const metadata: Metadata = {
   title: "Yosemite Crew",
