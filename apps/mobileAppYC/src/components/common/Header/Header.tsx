@@ -45,7 +45,7 @@ export const Header: React.FC<HeaderProps> = ({
 
       {rightIcon ? (
         <TouchableOpacity style={styles.iconButton} onPress={onRightPress}>
-          <Image source={rightIcon} style={[styles.icon, {tintColor: theme.colors.text}]} />
+          <Image source={rightIcon} style={[styles.icon]} />
         </TouchableOpacity>
       ) : (
         <View style={styles.spacer} />

@@ -25,6 +25,33 @@ export const formatDate = (date: string | Date): string => {
 };
 
 /**
+ * Calculates the current age in full years from a given date of birth.
+ * @param dateOfBirth The Date object or a date string representing the birth date.
+ * @returns The age in full years (number).
+ */
+export const calculateAgeFromDateOfBirth = (dateOfBirth: Date | string): number => {
+  // Ensure we are working with a Date object
+  const dob = new Date(dateOfBirth);
+  const today = new Date();
+
+  // Calculate the difference in years
+  let age = today.getFullYear() - dob.getFullYear();
+
+  // Adjust age if the birthday hasn't occurred yet this year
+  const monthDifference = today.getMonth() - dob.getMonth();
+  
+  if (
+    monthDifference < 0 ||
+    (monthDifference === 0 && today.getDate() < dob.getDate())
+  ) {
+    age--;
+  }
+
+  // Ensure age is not negative (e.g., if future date is somehow passed)
+  return Math.max(0, age);
+};
+
+/**
  * Format date to short string
  */
 export const formatDateShort = (date: string | Date): string => {
