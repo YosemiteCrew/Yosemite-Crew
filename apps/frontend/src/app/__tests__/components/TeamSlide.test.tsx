@@ -5,10 +5,8 @@ import TeamSlide from "@/app/components/TeamSlide/TeamSlide";
 
 jest.mock("next/image", () => {
     const MockImage = (props: any) => {
-        // eslint-disable-next-line @next/next/no-img-element
         return <img {...props} alt={props.alt} />;
     };
-    // FIX: Added display name
     MockImage.displayName = "MockNextImage";
     return {
         __esModule: true,
@@ -21,7 +19,6 @@ jest.mock("react-slick", () => {
     const MockSlider = ({ children }: { children: React.ReactNode }) => (
         <div data-testid="mock-slider">{children}</div>
     );
-    // FIX: Added display name
     MockSlider.displayName = 'MockSlider';
     return MockSlider;
 });

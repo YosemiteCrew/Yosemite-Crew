@@ -4,13 +4,10 @@ import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import TodayAppointments from '@/app/components/DataTable/TodayAppointments';
 
-// Mock for Next.js Image component
 jest.mock('next/image', () => {
     const MockImage = (props: any) => {
-        // eslint-disable-next-line @next/next/no-img-element
         return <img {...props} alt={props.alt} />;
     };
-    // Add display name to suppress build warnings
     MockImage.displayName = 'MockNextImage';
     return {
         __esModule: true,
@@ -19,7 +16,6 @@ jest.mock('next/image', () => {
 });
 
 
-// Mocks for react-icons
 jest.mock('react-icons/fa6', () => ({
     FaUser: () => <span data-testid="user-icon" />,
     FaEye: () => <span data-testid="eye-icon" />,
@@ -31,7 +27,6 @@ jest.mock('react-icons/lu', () => ({
     LuSearch: () => <div data-testid="search-icon" />,
 }));
 
-// Mock the API service layer
 const mockGetData = jest.fn();
 const mockPutData = jest.fn();
 jest.mock('@/app/services/axios', () => ({
@@ -39,7 +34,6 @@ jest.mock('@/app/services/axios', () => ({
     putData: (url: string, payload: any) => mockPutData(url, payload),
 }));
 
-// Mock the fhir utility
 jest.mock('@yosemite-crew/fhir', () => ({
     fhirToNormalForTable: (data: any) => ({
         Appointments: data,
@@ -47,9 +41,7 @@ jest.mock('@yosemite-crew/fhir', () => ({
     }),
 }));
 
-// Mock GenericTable
 jest.mock('@/app/components/GenericTable/GenericTable', () => {
-    // FIX: Convert the anonymous function to a named component and add a displayName.
     const MockGenericTable = ({ columns, data }: { columns: any[], data: any[] }) => (
         <div data-testid="mock-generic-table">
             {data.map((item, index) => (

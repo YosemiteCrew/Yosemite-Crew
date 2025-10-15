@@ -139,8 +139,6 @@ describe('NeedHelp Component', () => {
     const getInTouchLink = screen.getByRole('link', { name: /get in touch/i }) as HTMLAnchorElement
     expect(getInTouchLink).toHaveAttribute('href', '/contact')
   })
-<<<<<<< Updated upstream
 })
-=======
-})
->>>>>>> Stashed changes
+
+

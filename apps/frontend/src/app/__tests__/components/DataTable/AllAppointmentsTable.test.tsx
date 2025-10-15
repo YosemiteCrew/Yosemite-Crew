@@ -4,13 +4,11 @@ import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import AllAppointmentsTable from '../../../components/DataTable/AllAppointmentsTable';
 
-// Mock Next.js Image component
 jest.mock('next/image', () => ({
     __esModule: true,
     default: (props: any) => <img {...props} alt={props.alt} />,
 }));
 
-// Mock react-icons
 jest.mock('react-icons/fa6', () => ({
     FaUser: () => <span data-testid="user-icon" />,
 }));
@@ -21,12 +19,10 @@ jest.mock('react-icons/lu', () => ({
     LuSearch: () => <div data-testid="search-icon" />,
 }));
 
-// Mock appointments data
 const mockAppointments = [
     { name: "Kizie", owner: "Sky B", image: "https://d2il6osz49gpup.cloudfront.net/Images/pet.jpg", appointmentId: "DRO01-03-23-2024", reason: "Annual Health Check-Up", breed: "Beagle/Dog", time: "11:30 AM", date: "01 Sep 2024", doctor: "Dr. Emily Johnson", specialization: "Cardiology", status: "In-progress" },
 ];
 
-// Mock the GenericTable component
 const mockGenericTableProps: any = {};
 jest.mock('@/app/components/GenericTable/GenericTable', () => ({
     __esModule: true,
@@ -95,8 +91,6 @@ describe('AllAppointmentsTable Component', () => {
 
         await user.click(doctorDropdownToggle);
 
-        // FIX: The dropdown items are rendered with role="button", not "menuitem".
-        // This query now correctly finds the item in the opened dropdown menu.
         const completedOption = await screen.findByRole('button', { name: 'Completed' });
         await user.click(completedOption);
 
@@ -114,7 +108,6 @@ describe('AllAppointmentsTable Component', () => {
         await user.click(saveOption);
 
         await waitFor(() => {
-             // The component uses console.log for this action.
             expect(consoleLogSpy).toHaveBeenCalledWith('Save', expect.objectContaining({ name: 'Kizie' }));
         });
     });

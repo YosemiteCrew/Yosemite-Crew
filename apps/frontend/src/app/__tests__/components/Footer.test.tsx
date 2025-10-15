@@ -5,7 +5,6 @@ import Footer from "@/app/components/Footer/Footer";
 
 jest.mock("next/image", () => {
     const MockImage = (props: any) => {
-        // eslint-disable-next-line @next/next/no-img-element
         return <img {...props} alt={props.alt} />;
     };
     MockImage.displayName = "MockNextImage";
@@ -19,7 +18,6 @@ jest.mock("next/link", () => {
     const MockLink = ({ children, href }: { children: React.ReactNode; href: string }) => {
         return <a href={href}>{children}</a>;
     };
-    // FIX: Added display name to the mock component
     MockLink.displayName = "MockNextLink";
     return MockLink;
 });
@@ -30,11 +28,6 @@ jest.mock("framer-motion", () => {
         div: (props: any) => <div {...props} />,
         nav: (props: any) => <nav {...props} />,
     };
-
-    // FIX: Added display names to the motion components
-    motion.footer.displayName = "MotionFooter";
-    motion.div.displayName = "MotionDiv";
-    motion.nav.displayName = "MotionNav";
 
     return {
         ...jest.requireActual("framer-motion"),

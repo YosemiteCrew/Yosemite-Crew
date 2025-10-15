@@ -6,10 +6,8 @@ import ProfileProgressbar from "@/app/components/ProfileProgressbar/ProfileProgr
 
 jest.mock("next/image", () => {
     const MockImage = ({ alt }: { alt: string }) => {
-        // eslint-disable-next-line @next/next/no-img-element
         return <img alt={alt} />;
     };
-    // FIX: Added display name
     MockImage.displayName = "MockNextImage";
     return {
         __esModule: true,
@@ -23,7 +21,6 @@ jest.mock("react-bootstrap/Button", () => {
             {children}
         </button>
     );
-    // FIX: Added display name
     MockButton.displayName = "MockBootstrapButton";
     return MockButton;
 });

@@ -2,8 +2,7 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom";
-// FIX: Import 'Table' at the top of the file
-import { Table } from "react-bootstrap";
+import { Table as BootstrapTable } from "react-bootstrap"; 
 import GenericTable, { Column } from "@/app/components/GenericTable/GenericTable";
 
 jest.mock("react-bootstrap", () => ({
@@ -20,6 +19,8 @@ jest.mock("react-icons/fi", () => ({
     FiArrowLeft: () => <svg>Prev</svg>,
     FiArrowRight: () => <svg>Next</svg>,
 }));
+
+const MockedTable = BootstrapTable as unknown as jest.Mock;
 
 interface MockData {
     id: number;
@@ -45,8 +46,7 @@ const mockColumns: Column<MockData>[] = [
 
 describe("GenericTable Component", () => {
     beforeEach(() => {
-        // FIX: Remove the 'require' statement. The 'Table' mock is already imported.
-        (Table as jest.Mock).mockClear();
+      MockedTable.mockClear();
     });
 
     it("should render headers and all data rows without pagination", () => {
@@ -139,7 +139,6 @@ describe("GenericTable Component", () => {
     });
 
     it("should render a bordered table when bordered prop is true", () => {
-        // FIX: Remove the 'require' statement.
         render(<GenericTable data={mockData} columns={mockColumns} bordered={true} />);
     });
 

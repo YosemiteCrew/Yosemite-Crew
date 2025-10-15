@@ -1,5 +1,4 @@
 import React from 'react';
-// FIX 1: Import fireEvent
 import { render, screen, act, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { ErrorTost, useErrorTost } from '../../components/Toast';
