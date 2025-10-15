@@ -102,7 +102,7 @@ export const CountryBottomSheet = forwardRef<
   return (
     <CustomBottomSheet
       ref={bottomSheetRef}
-      snapPoints={['83%', '95%']}
+      snapPoints={['78%', '90%']}
       initialIndex={-1}
       enablePanDownToClose={true}
       enableDynamicSizing={false}

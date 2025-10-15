@@ -113,7 +113,7 @@ export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
         style={[styles.animatedWrapper, {transform: [{translateX}]}]}>
         <LiquidGlassCard
           interactive
-          glassEffect="regular"
+          glassEffect="clear"
           shadow="none"
           style={styles.card}
           fallbackStyle={styles.fallback}>

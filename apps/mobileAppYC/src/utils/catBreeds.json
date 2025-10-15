@@ -1,0 +1,860 @@
+[
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 7353,
+    "breedName": "Somali Short Hair"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 7355,
+    "breedName": "Somali (unspecified)"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 7356,
+    "breedName": "Somali Long Hair"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15238,
+    "breedName": "Abyssinian"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15239,
+    "breedName": "American Bobtail, Long-Haired"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15240,
+    "breedName": "American Bobtail, Short-Haired"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15241,
+    "breedName": "American Curl"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15242,
+    "breedName": "American Ringtail"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15243,
+    "breedName": "American Short Hair"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15244,
+    "breedName": "American Wire Hair"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15245,
+    "breedName": "Anatolian"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15246,
+    "breedName": "Angora"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15247,
+    "breedName": "Australian Mist, Non-spotted"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15248,
+    "breedName": "Australian Mist, Spotted"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15249,
+    "breedName": "Balinese"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15250,
+    "breedName": "Bengal"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15251,
+    "breedName": "Birman"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15252,
+    "breedName": "Bombay"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15253,
+    "breedName": "Brazilian Long Hair"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15254,
+    "breedName": "Brazilian Short Hair"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15255,
+    "breedName": "British Long Hair"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15256,
+    "breedName": "British Red Spot"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15257,
+    "breedName": "British Short Hair"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15258,
+    "breedName": "Burmese"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15259,
+    "breedName": "Burmilla"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15260,
+    "breedName": "Calico"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15261,
+    "breedName": "California Spangled"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15262,
+    "breedName": "Chantilly (Tiffany)"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15263,
+    "breedName": "Chartreux"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15264,
+    "breedName": "Chausie"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15265,
+    "breedName": "Chinchilla"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15266,
+    "breedName": "Cornish Rex"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15267,
+    "breedName": "Cross Breed"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15268,
+    "breedName": "Cymric"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15269,
+    "breedName": "Devon Rex"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15270,
+    "breedName": "Domestic Leopard Cat"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15271,
+    "breedName": "Domestic Long Hair"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15272,
+    "breedName": "Domestic Medium Hair"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15273,
+    "breedName": "Domestic Short Hair"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15274,
+    "breedName": "Don Hairless"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15275,
+    "breedName": "Don Sphynx"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15276,
+    "breedName": "Egyptian Black"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15277,
+    "breedName": "Egyptian Mau"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15278,
+    "breedName": "European Short Hair"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15279,
+    "breedName": "Exotic Long Hair"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15280,
+    "breedName": "Exotic Short Hair"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15281,
+    "breedName": "Foreign White"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15282,
+    "breedName": "German Rex"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15283,
+    "breedName": "Havana Brown"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15284,
+    "breedName": "Highland Fold"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15285,
+    "breedName": "Himalayan"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15286,
+    "breedName": "Japanese Bobtail"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15287,
+    "breedName": "Javanese"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15288,
+    "breedName": "Khao Manee"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15289,
+    "breedName": "Korat"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15290,
+    "breedName": "Kurilean Bobtail, Long-Haired"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15291,
+    "breedName": "Kurilean Bobtail, Short-Haired"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15292,
+    "breedName": "LaPerm, Long-Haired"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15293,
+    "breedName": "LaPerm, Short-Haired"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15294,
+    "breedName": "Maine Coon"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15295,
+    "breedName": "Maltese"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15296,
+    "breedName": "Manx, Long-Haired"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15297,
+    "breedName": "Manx, Short-Haired"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15298,
+    "breedName": "Manxamese"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15299,
+    "breedName": "Minskin"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15300,
+    "breedName": "Munchkin (Munchk), Long-Haired"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15301,
+    "breedName": "Munchkin (Munchk), Short-Haired"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15302,
+    "breedName": "Nebelung"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15303,
+    "breedName": "Neva Masquerade (Colourpoint Siberian Forest Cat)"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15304,
+    "breedName": "Norwegian Forest"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15305,
+    "breedName": "Ocicat"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15306,
+    "breedName": "Ojos Azules"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15307,
+    "breedName": "Oregon Rex"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15308,
+    "breedName": "Oriental Long Hair"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15309,
+    "breedName": "Oriental Short Hair"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15310,
+    "breedName": "Persian"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15311,
+    "breedName": "Persian, Tabby"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15312,
+    "breedName": "Peterbald"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15313,
+    "breedName": "PixieBob"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15314,
+    "breedName": "Ragamuffin"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15315,
+    "breedName": "Ragdoll"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15316,
+    "breedName": "Rex, Unknown"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15317,
+    "breedName": "Russian"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15318,
+    "breedName": "Savannah"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15319,
+    "breedName": "Scottish Fold, Long-Haired"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15320,
+    "breedName": "Scottish Fold, Short-Haired"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15321,
+    "breedName": "Scottish Wildcat"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15322,
+    "breedName": "Selkirk Rex"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15323,
+    "breedName": "Serengeti"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15324,
+    "breedName": "Seychellois Long Hair"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15325,
+    "breedName": "Seychellois Short Hair"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15326,
+    "breedName": "Siamese"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15327,
+    "breedName": "Siberian"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15328,
+    "breedName": "Siberian Forest Cat"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15329,
+    "breedName": "Singapura"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15330,
+    "breedName": "Snowshoe"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15331,
+    "breedName": "Sokoke (African Short Hair)"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15332,
+    "breedName": "Somali"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15333,
+    "breedName": "Sphynx"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15334,
+    "breedName": "Tonkinese"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15335,
+    "breedName": "Toyger"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15336,
+    "breedName": "Turkish Angora"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15337,
+    "breedName": "Turkish Van"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15338,
+    "breedName": "Turkish Vankedisi (Van Kedisi)"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 15339,
+    "breedName": "York Chocolate"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 18082,
+    "breedName": "American Bobtail (unspecified)"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 18084,
+    "breedName": "Asian"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 18086,
+    "breedName": "Australian Mist (unspecified)"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 18088,
+    "breedName": "British Black Tipped"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 18090,
+    "breedName": "British Blue"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 18092,
+    "breedName": "Exotic (unspecified)"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 18094,
+    "breedName": "LaPerm (unspecified)"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 18096,
+    "breedName": "Manx (unspecified)"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 18098,
+    "breedName": "Munchkin (Munchk) (unspecified)"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 18100,
+    "breedName": "Oriental (unspecified)"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 18102,
+    "breedName": "Scottish Fold (unspecified)"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 18104,
+    "breedName": "Thai"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 18747,
+    "breedName": "Domestic cat (hair length unspecified)"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 18749,
+    "breedName": "Russian (unspecified)"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 18751,
+    "breedName": "Russian Black"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 18753,
+    "breedName": "Russian Blue"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 18755,
+    "breedName": "Russian Tabby"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 18757,
+    "breedName": "Russian White"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 18759,
+    "breedName": "Rex (unspecified)"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 18760,
+    "breedName": "Persian (unspecified)"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 18762,
+    "breedName": "Persian, Blue"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 18763,
+    "breedName": "Persian, Colourpoint"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 18764,
+    "breedName": "Persian, Smoke"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 22405,
+    "breedName": "Purebred cross (Feline)"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 22407,
+    "breedName": "Breed not listed (Feline)"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 22654,
+    "breedName": "Colourpoint Short Hair"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 22655,
+    "breedName": "Allerca Hypoallergenic Cat"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 22656,
+    "breedName": "Arabian Mau"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 22657,
+    "breedName": "Ashanti"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 22658,
+    "breedName": "Bahraini Dilmun Cat ( Delmun Cat )"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 22659,
+    "breedName": "Bambino"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 22660,
+    "breedName": "European Long Hair"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 22661,
+    "breedName": "European (unspecified)"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 22662,
+    "breedName": "Polydactyl cat ( Hemingway cat )"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 22663,
+    "breedName": "European Tiger Cat"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 22664,
+    "breedName": "Minuet ( Napoleon )"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 22665,
+    "breedName": "Tiffanie"
+  },
+  {
+    "speciesId": 15459,
+    "speciesName": "Cat (Feline - Domestic)",
+    "breedId": 101008,
+    "breedName": "Australian Tundra"
+  }
+]

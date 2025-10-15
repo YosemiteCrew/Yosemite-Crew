@@ -47,7 +47,7 @@ export const Images = {
   //companion onboarding
     cat: require('./addCompanion/cat.png'),
     dog: require('./addCompanion/dog.png'),
-    equine: require('./addCompanion/equine.png'),
+    horse: require('./addCompanion/equine.png'),
 
 
 

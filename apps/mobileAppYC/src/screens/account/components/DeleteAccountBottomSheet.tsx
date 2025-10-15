@@ -142,7 +142,7 @@ export const DeleteAccountBottomSheet = forwardRef<
           <LiquidGlassButton
             title="Cancel"
             onPress={handleCancel}
-            glassEffect="regular"
+            glassEffect="clear"
             tintColor={theme.colors.surface}
             borderRadius="lg"
             textStyle={styles.buttonText}
@@ -151,7 +151,7 @@ export const DeleteAccountBottomSheet = forwardRef<
           <LiquidGlassButton
             title="Delete"
             onPress={handleDelete}
-            glassEffect="regular"
+            glassEffect="clear"
             tintColor={theme.colors.secondary}
             borderRadius="lg"
             textStyle={styles.deleteText}

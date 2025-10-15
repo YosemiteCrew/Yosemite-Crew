@@ -49,18 +49,27 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
     overflow: 'hidden',
   };
 
-  const flattenedStyle = StyleSheet.flatten([
+  const isIosGlass = Platform.OS === 'ios' && isLiquidGlassSupported;
+
+  // 1. Calculate the style for the LiquidGlassView (iOS)
+  const iosGlassStyle = StyleSheet.flatten([
     baseStyle,
-    fallbackStyle,
+    style,
+    // NOTE: fallbackStyle is deliberately excluded here.
+  ]);
+
+  // 2. Calculate the style for the plain View (Android/Fallback)
+  const androidFallbackStyle = StyleSheet.flatten([
+    baseStyle,
+    fallbackStyle, // Only applied when LiquidGlass is not used.
     style,
   ]);
 
-  const isIosGlass = Platform.OS === 'ios' && isLiquidGlassSupported;
 
   if (isIosGlass) {
     return (
       <LiquidGlassView
-        style={flattenedStyle}
+        style={iosGlassStyle}
         interactive={interactive}
         effect={glassEffect}
         tintColor={tintColor ?? 'light'}
@@ -70,5 +79,6 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
     );
   }
 
-  return <View style={flattenedStyle}>{children}</View>;
+  // Use the Android/Fallback style
+  return <View style={androidFallbackStyle}>{children}</View>;
 };
