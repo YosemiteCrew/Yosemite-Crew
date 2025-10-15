@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-// ... other imports
   TouchableOpacity,
   Image,
   Animated,
@@ -38,7 +37,6 @@ const QUICK_ACTIONS = [
 ];
 
 export const deriveHomeGreetingName = (rawFirstName?: string | null) => {
-// ... implementation
   const trimmed = rawFirstName?.trim() ?? '';
   const resolvedName = trimmed.length > 0 ? trimmed : 'Sky';
   const displayName =
@@ -67,7 +65,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   React.useEffect(() => {
     const loadCompanionsAndSelectDefault = async () => {
       if (user?.id) {
-        // Assume fetchCompanions populates the companions array in Redux state
         await dispatch(fetchCompanions(user.id));
       }
     };
@@ -81,7 +78,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     if (companions.length > 0 && !selectedCompanionIdRedux) {
       dispatch(setSelectedCompanion(companions[0].id));
     }
-  }, [companions, selectedCompanionIdRedux, dispatch]); // Rerun when companions or the selection state changes
+  }, [companions, selectedCompanionIdRedux, dispatch]); 
 
   const handleAddCompanion = () => {
     navigation.navigate('AddCompanion');
@@ -136,7 +133,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   };
 
   const renderAddCompanionBadge = () => (
-// ... implementation
     <TouchableOpacity
       key="add-companion"
       style={styles.companionTouchable}
@@ -152,7 +148,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   );
 
   const renderEmptyStateTile = (title: string, subtitle: string, key: string) => (
-// ... implementation
     <TouchableOpacity
       // When tapping the empty state tile, we allow adding the card back (simulating adding new data)
       onPress={() => {
@@ -219,7 +214,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
 
   return (
-// ... rest of the component
     <SafeAreaView style={styles.container}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -306,13 +300,24 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Quick actions</Text>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => {
-                console.log('View More pressed');
-              }}>
-              <Text style={styles.viewMoreText}>View more</Text>
-            </TouchableOpacity>
+       {companions.length > 0 && (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => {
+                  // Pass the selected companion's ID to the ProfileOverview screen
+                  if (selectedCompanionIdRedux) {
+                      navigation.navigate('ProfileOverview', { 
+                          companionId: selectedCompanionIdRedux 
+                      });
+                  } else {
+                      // This case should ideally not be hit if companions.length > 0 
+                      // and the useEffect is working, but it's a good fallback.
+                      console.warn('No companion selected to view profile.');
+                  }
+                }}>
+                <Text style={styles.viewMoreText}>View more</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           <LiquidGlassCard
@@ -343,14 +348,13 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   );
 };
 
+// ... createStyles remains unchanged
 const createStyles = (theme: any) =>
-// ... rest of createStyles
   StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
     },
-    // ... all other styles remain unchanged
     scrollContent: {
       paddingHorizontal: theme.spacing[6],
       paddingTop: theme.spacing[6],

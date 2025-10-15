@@ -39,32 +39,36 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
 }) => {
   const {theme} = useTheme();
 
+  // ✅ Stable, neutral tint to avoid random primary color hues
+  const resolvedTintColor = tintColor ?? 'rgba(255,255,255,0.6)';
+
   const baseStyle: ViewStyle = {
     padding: theme.spacing[padding],
     borderRadius: theme.borderRadius[borderRadius],
     ...theme.shadows[shadow],
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(255,255,255,0.9)', // ✅ prevents blue tint reflection
     borderWidth: 1,
-    borderColor: '#EAEAEA',
+    borderColor: 'rgba(0,0,0,0.05)',
     overflow: 'hidden',
   };
 
   const isIosGlass = Platform.OS === 'ios' && isLiquidGlassSupported;
 
-  // 1. Calculate the style for the LiquidGlassView (iOS)
+  // iOS glass style (LiquidGlass)
   const iosGlassStyle = StyleSheet.flatten([
     baseStyle,
     style,
-    // NOTE: fallbackStyle is deliberately excluded here.
   ]);
 
-  // 2. Calculate the style for the plain View (Android/Fallback)
+  // Android / fallback style
   const androidFallbackStyle = StyleSheet.flatten([
     baseStyle,
-    fallbackStyle, // Only applied when LiquidGlass is not used.
+    {
+      backgroundColor: 'rgba(255,255,255,0.95)', // ✅ clean white fallback
+    },
+    fallbackStyle,
     style,
   ]);
-
 
   if (isIosGlass) {
     return (
@@ -72,13 +76,12 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
         style={iosGlassStyle}
         interactive={interactive}
         effect={glassEffect}
-        tintColor={tintColor ?? 'light'}
+        tintColor={resolvedTintColor}
         colorScheme={colorScheme}>
         {children}
       </LiquidGlassView>
     );
   }
 
-  // Use the Android/Fallback style
   return <View style={androidFallbackStyle}>{children}</View>;
 };

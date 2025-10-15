@@ -4,6 +4,8 @@ import {useTheme} from '@/hooks';
 import {AccountScreen, HomeScreen} from '@/screens';
 import {AddCompanionScreen} from '@/screens/companion/AddCompanionScreen';
 import {HomeStackParamList} from './types';
+import {ProfileOverviewScreen} from '@/screens/companion/ProfileOverviewScreen';
+import { CompanionOverviewScreen } from '@/screens/companion/CompanionOverviewScreen';
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();
 
@@ -37,6 +39,18 @@ export const HomeStackNavigator: React.FC = () => {
         component={AddCompanionScreen}
         options={{headerShown: false}}
       />
+        <Stack.Screen
+        name="ProfileOverview"
+        component={ProfileOverviewScreen}
+        options={{headerShown: false}}
+      />
+
+         <Stack.Screen
+        name="EditCompanionOverview" // Renamed for clarity in navigation
+        component={CompanionOverviewScreen}
+        options={{headerShown: false}}
+      />
+      
     </Stack.Navigator>
   );
 };
