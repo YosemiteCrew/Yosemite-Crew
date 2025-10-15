@@ -36,7 +36,7 @@ describe('ChartCard Component', () => {
       expect(tickCallback(0)).toBe('$0');
       expect(tickCallback(4000)).toBe('$4K');
       expect(tickCallback(20000)).toBe('$20K');
-      expect(tickCallback('8000')).toBe('$8K'); // Test with a string input
+      expect(tickCallback('8000')).toBe('$8K'); 
     });
   });
 });

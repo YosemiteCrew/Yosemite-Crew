@@ -11,7 +11,6 @@ const mockResendCode = jest.fn();
 const mockSignIn = jest.fn();
 
 jest.mock("react-bootstrap", () => {
-    // FIX: Removed require() from here. 'import React from "react"' is at the top of the file.
     const Modal = ({ show, onHide, children }: { show: boolean; onHide: () => void; children: React.ReactNode }) =>
         show ? (
             <div data-testid="mock-modal">
@@ -19,11 +18,11 @@ jest.mock("react-bootstrap", () => {
                 <button onClick={onHide}>Close</button>
             </div>
         ) : null;
-    // FIX: Added display names
     Modal.displayName = 'MockModal';
 
-    Modal.Body = ({ children }: { children: React.ReactNode }) => <div>{children}</div>;
-    Modal.Body.displayName = 'MockModalBody';
+    const ModalBody = ({ children }: { children: React.ReactNode }) => <div>{children}</div>;
+    ModalBody.displayName = 'MockModalBody';
+    Modal.Body = ModalBody;
 
     const Button = ({ children, onClick, disabled }: { children: React.ReactNode; onClick: () => void; disabled?: boolean }) => (
         <button onClick={onClick} disabled={disabled}>
@@ -50,7 +49,6 @@ jest.mock("next/link", () => {
             </a>
         );
     };
-    // FIX: Added display name
     MockLink.displayName = 'MockNextLink';
     return MockLink;
 });
@@ -376,3 +374,4 @@ describe("OtpModal Component", () => {
         expect(otpInputs[0]).toHaveValue('');
     });
 });
+

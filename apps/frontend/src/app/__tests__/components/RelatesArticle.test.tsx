@@ -5,10 +5,8 @@ import RelatesArticle from "@/app/components/RelatesArticle/RelatesArticle";
 
 jest.mock("next/image", () => {
     const MockImage = ({ alt, ...props }: { alt: string }) => {
-        // eslint-disable-next-line @next/next/no-img-element
         return <img alt={alt} {...props} />;
     };
-    // FIX: Added display name
     MockImage.displayName = 'MockNextImage';
     return {
         __esModule: true,
@@ -20,7 +18,6 @@ jest.mock("react-slick", () => {
     const MockSlider = ({ children }: { children: React.ReactNode }) => (
         <div data-testid="mock-slider">{children}</div>
     );
-    // FIX: Added display name
     MockSlider.displayName = 'MockSlider';
     return MockSlider;
 });
