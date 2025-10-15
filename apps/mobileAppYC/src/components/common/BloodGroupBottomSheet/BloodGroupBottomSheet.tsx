@@ -45,7 +45,7 @@ const BLOOD_GROUPS: Record<CompanionCategory, string[]> = {
     'Universal Donor',
     'Unknown',
   ],
-  equine: [
+  horse: [
     'Aa',
     'Ca',
     'Da',
@@ -128,7 +128,7 @@ export const BloodGroupBottomSheet = forwardRef<
   return (
     <CustomBottomSheet
       ref={bottomSheetRef}
-      snapPoints={['65%', '60%']}
+      snapPoints={['58%', '65%']}
       initialIndex={-1}
       enablePanDownToClose={true}
       enableDynamicSizing={false}
@@ -154,14 +154,6 @@ export const BloodGroupBottomSheet = forwardRef<
             />
           </TouchableOpacity>
         </View>
-
-        {/* Current Selection */}
-        {tempBloodGroup && (
-          <View style={styles.currentSelection}>
-            <Text style={styles.currentSelectionLabel}>Selected:</Text>
-            <Text style={styles.currentSelectionValue}>{tempBloodGroup}</Text>
-          </View>
-        )}
 
         {/* Blood Group List */}
         <View style={styles.listWrapper}>
@@ -237,27 +229,6 @@ const createStyles = (theme: any) =>
     closeIcon: {
       width: theme.spacing['6'],
       height: theme.spacing['6'],
-    },
-    currentSelection: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: theme.spacing['3'],
-      paddingHorizontal: theme.spacing['4'],
-      backgroundColor: theme.colors.primarySurface,
-      borderRadius: theme.borderRadius.lg,
-      marginBottom: theme.spacing['4'],
-      gap: theme.spacing['2'],
-    },
-    currentSelectionLabel: {
-      ...theme.typography.body,
-      color: theme.colors.textSecondary,
-      fontWeight: '500',
-    },
-    currentSelectionValue: {
-      ...theme.typography.body,
-      color: theme.colors.primary,
-      fontWeight: '600',
-      flex: 1,
     },
     emptyContainer: {
       flex: 1,

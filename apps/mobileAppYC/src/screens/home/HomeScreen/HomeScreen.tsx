@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+// ... other imports
   TouchableOpacity,
   Image,
   Animated,
@@ -25,6 +26,8 @@ import {
   setSelectedCompanion,
   fetchCompanions,
 } from '@/features/companion';
+import {AppointmentCard} from '@/components/common/AppointmentCard/AppointmentCard';
+import {TaskCard} from '@/components/common/TaskCard/TaskCard';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Home'>;
 
@@ -35,12 +38,11 @@ const QUICK_ACTIONS = [
 ];
 
 export const deriveHomeGreetingName = (rawFirstName?: string | null) => {
+// ... implementation
   const trimmed = rawFirstName?.trim() ?? '';
   const resolvedName = trimmed.length > 0 ? trimmed : 'Sky';
   const displayName =
-    resolvedName.length > 13
-      ? `${resolvedName.slice(0, 13)}...`
-      : resolvedName;
+    resolvedName.length > 13 ? `${resolvedName.slice(0, 13)}...` : resolvedName;
   return {resolvedName, displayName};
 };
 
@@ -52,17 +54,34 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
   const companions = useSelector(selectCompanions);
   const selectedCompanionIdRedux = useSelector(selectSelectedCompanionId);
+  
+  const [hasUpcomingTasks, setHasUpcomingTasks] = React.useState(true);
+  const [hasUpcomingAppointments, setHasUpcomingAppointments] = React.useState(true);
+
 
   const {resolvedName: firstName, displayName} = deriveHomeGreetingName(
     user?.firstName,
   );
 
-  // Fetch companions on mount
+  // Fetch companions on mount and set the first one as default
   React.useEffect(() => {
-    if (user?.id) {
-      dispatch(fetchCompanions(user.id));
-    }
+    const loadCompanionsAndSelectDefault = async () => {
+      if (user?.id) {
+        // Assume fetchCompanions populates the companions array in Redux state
+        await dispatch(fetchCompanions(user.id));
+      }
+    };
+    
+    loadCompanionsAndSelectDefault();
   }, [dispatch, user?.id]);
+
+  // New useEffect to handle default selection once companions are loaded
+  React.useEffect(() => {
+    // If companions exist and no companion is currently selected, select the first one.
+    if (companions.length > 0 && !selectedCompanionIdRedux) {
+      dispatch(setSelectedCompanion(companions[0].id));
+    }
+  }, [companions, selectedCompanionIdRedux, dispatch]); // Rerun when companions or the selection state changes
 
   const handleAddCompanion = () => {
     navigation.navigate('AddCompanion');
@@ -117,6 +136,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   };
 
   const renderAddCompanionBadge = () => (
+// ... implementation
     <TouchableOpacity
       key="add-companion"
       style={styles.companionTouchable}
@@ -131,19 +151,75 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     </TouchableOpacity>
   );
 
-  const renderUpcomingTile = (title: string, subtitle: string, key: string) => (
-    <LiquidGlassCard
-      key={key}
-      glassEffect="regular"
-      interactive
-      style={styles.infoTile}
-      fallbackStyle={styles.tileFallback}>
-      <Text style={styles.tileTitle}>{title}</Text>
-      <Text style={styles.tileSubtitle}>{subtitle}</Text>
-    </LiquidGlassCard>
+  const renderEmptyStateTile = (title: string, subtitle: string, key: string) => (
+// ... implementation
+    <TouchableOpacity
+      // When tapping the empty state tile, we allow adding the card back (simulating adding new data)
+      onPress={() => {
+        if (key === 'tasks') setHasUpcomingTasks(true);
+        if (key === 'appointments') setHasUpcomingAppointments(true);
+      }}> 
+      <LiquidGlassCard
+        key={key}
+        glassEffect="clear"
+        interactive
+        style={styles.infoTile}
+        fallbackStyle={styles.tileFallback}>
+        <Text style={styles.tileTitle}>{title}</Text>
+        <Text style={styles.tileSubtitle}>{subtitle}</Text>
+      </LiquidGlassCard>
+    </TouchableOpacity>
   );
 
+
+  const renderUpcomingTasks = () => {
+    if (hasUpcomingTasks) {
+      return (
+        <TaskCard
+          key="task-card"
+          task="Give tuna to Oscar"
+          dateTime="20 Aug - 4:00PM"
+          avatars={[Images.cat, Images.cat]}
+          // Hide the card when complete is pressed
+          onComplete={() => setHasUpcomingTasks(false)} 
+        />
+      );
+    }
+    return renderEmptyStateTile(
+      'No upcoming tasks',
+      'Add a companion to start managing their tasks',
+      'tasks',
+    );
+  }
+
+  const renderUpcomingAppointments = () => {
+    if (hasUpcomingAppointments) {
+      return (
+        <AppointmentCard
+          key="appointment-card"
+          doctorName="Dr. Emily Johnson"
+          specialization="Cardiology"
+          hospital="SMPC Cardiac hospital"
+          dateTime="20 Aug - 4:00PM"
+          note="Check in is only allowed if you arrive 5 minutes early at location"
+          avatar={Images.cat}
+          onGetDirections={() => console.log('Get directions')}
+          onChat={() => console.log('Chat')}
+          // Hide the card when check in is pressed
+          onCheckIn={() => setHasUpcomingAppointments(false)}
+        />
+      );
+    }
+    return renderEmptyStateTile(
+      'No upcoming appointments',
+      'Add a companion to start managing their appointments',
+      'appointments',
+    );
+  }
+
+
   return (
+// ... rest of the component
     <SafeAreaView style={styles.container}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -190,7 +266,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
         {companions.length === 0 ? (
           <LiquidGlassCard
-            glassEffect="regular"
+            glassEffect="clear"
             interactive
             tintColor={theme.colors.primary}
             style={[styles.heroTouchable, styles.heroCard]}
@@ -216,24 +292,10 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Upcoming</Text>
-          {renderUpcomingTile(
-            companions.length === 0 ? 'No upcoming tasks' : 'Tasks for today',
-            companions.length === 0
-              ? 'Add a companion to start managing their tasks'
-              : `${companions.length} companion${
-                  companions.length > 1 ? 's' : ''
-                } have tasks today`,
-            'tasks',
-          )}
-          {renderUpcomingTile(
-            companions.length === 0
-              ? 'No upcoming appointments'
-              : 'Next appointment',
-            companions.length === 0
-              ? 'Add a companion to start managing their appointments'
-              : 'Schedule your next vet visit',
-            'appointments',
-          )}
+
+          {renderUpcomingTasks()}
+          {renderUpcomingAppointments()}
+
         </View>
 
         <View style={styles.section}>
@@ -242,9 +304,19 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick actions</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Quick actions</Text>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => {
+                console.log('View More pressed');
+              }}>
+              <Text style={styles.viewMoreText}>View more</Text>
+            </TouchableOpacity>
+          </View>
+
           <LiquidGlassCard
-            glassEffect="regular"
+            glassEffect="clear"
             interactive
             style={styles.quickActionsCard}
             fallbackStyle={styles.tileFallback}>
@@ -272,11 +344,13 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 };
 
 const createStyles = (theme: any) =>
+// ... rest of createStyles
   StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
     },
+    // ... all other styles remain unchanged
     scrollContent: {
       paddingHorizontal: theme.spacing[6],
       paddingTop: theme.spacing[6],
@@ -376,7 +450,7 @@ const createStyles = (theme: any) =>
       overflow: 'hidden',
     },
     section: {
-      gap: theme.spacing[3.5],
+      gap: theme.spacing[3.5], 
     },
     sectionTitle: {
       ...theme.typography.titleLarge,
@@ -438,6 +512,16 @@ const createStyles = (theme: any) =>
       alignItems: 'center',
       ...theme.shadows.sm,
       shadowColor: theme.colors.black,
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+
+    viewMoreText: {
+      ...theme.typography.labelXsBold,
+      color: theme.colors.primary,
     },
     quickActionIcon: {
       width: 26,

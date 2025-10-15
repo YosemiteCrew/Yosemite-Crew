@@ -39,7 +39,9 @@ import {Images} from '../../assets/images';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import type {HomeStackParamList} from '../../navigation/types';
 import COUNTRIES from '../../utils/countryList.json';
-import BREED_LIST from '../../utils/breedList.json';
+import CAT_BREEDS from '../../utils/catBreeds.json';
+import DOG_BREEDS from '../../utils/dogBreeds.json';
+import HORSE_BREEDS from '../../utils/horseBreeds.json';
 import type {
   CompanionCategory,
   CompanionGender,
@@ -83,7 +85,7 @@ interface FormData {
 const COMPANION_CATEGORIES = [
   {value: 'cat', label: 'Cat'},
   {value: 'dog', label: 'Dog'},
-  {value: 'equine', label: 'Equine'},
+  {value: 'horse', label: 'Horse'},
 ];
 
 const GENDER_OPTIONS = [
@@ -167,6 +169,22 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
   const countryOfOrigin = watch('countryOfOrigin');
   const dateOfBirth = watch('dateOfBirth');
   const profileImage = watch('profileImage');
+
+// eslint-disable-next-line @typescript-eslint/no-shadow
+const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => {
+  switch (category) {
+    case 'cat':
+      return CAT_BREEDS as Breed[];
+    case 'dog':
+      return DOG_BREEDS as Breed[];
+    case 'horse':
+      return HORSE_BREEDS as Breed[];
+    default:
+      return []; // ✅ Fix: return an empty array
+  }
+};
+
+
 
   const handleGoBack = useCallback(() => {
     if (currentStep > 1) {
@@ -364,7 +382,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
           const imageSources: Record<string, any> = {
             cat: Images.cat,
             dog: Images.dog,
-            equine: Images.equine,
+            horse: Images.horse,
           };
 
           return (
@@ -823,13 +841,13 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
         />
       </KeyboardAvoidingView>
 
-      <BreedBottomSheet
-        ref={breedSheetRef}
-        breeds={BREED_LIST}
-        selectedBreed={breed}
-        category={category}
-        onSave={handleBreedSave}
-      />
+<BreedBottomSheet
+  ref={breedSheetRef}
+  breeds={getBreedListByCategory(category)}
+  selectedBreed={breed}
+  onSave={handleBreedSave}
+/>
+
 
       <BloodGroupBottomSheet
         ref={bloodGroupSheetRef}

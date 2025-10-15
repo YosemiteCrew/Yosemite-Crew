@@ -1,5 +1,5 @@
 // src/components/common/BreedBottomSheet/BreedBottomSheet.tsx
-import React, {useState, forwardRef, useImperativeHandle, useRef, useMemo} from 'react';
+import React, { useState, forwardRef, useImperativeHandle, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,13 +9,12 @@ import {
   Image,
 } from 'react-native';
 import CustomBottomSheet from '../BottomSheet/BottomSheet';
-import type {BottomSheetRef} from '../BottomSheet/BottomSheet';
-import {Input} from '../Input/Input';
+import type { BottomSheetRef } from '../BottomSheet/BottomSheet';
+import { Input } from '../Input/Input';
 import LiquidGlassButton from '../LiquidGlassButton/LiquidGlassButton';
-import {useTheme} from '../../../hooks';
-import {Images} from '../../../assets/images';
-import type {Breed} from '@/features/companion/types';
-import type {CompanionCategory} from '@/features/companion/types';
+import { useTheme } from '../../../hooks';
+import { Images } from '../../../assets/images';
+import type { Breed } from '@/features/companion/types';
 
 export interface BreedBottomSheetRef {
   open: () => void;
@@ -25,15 +24,14 @@ export interface BreedBottomSheetRef {
 interface BreedBottomSheetProps {
   breeds: Breed[];
   selectedBreed: Breed | null;
-  category: CompanionCategory | null;
   onSave: (breed: Breed | null) => void;
 }
 
 export const BreedBottomSheet = forwardRef<
   BreedBottomSheetRef,
   BreedBottomSheetProps
->(({breeds, selectedBreed, category, onSave}, ref) => {
-  const {theme} = useTheme();
+>(({ breeds, selectedBreed, onSave }, ref) => {
+  const { theme } = useTheme();
   const bottomSheetRef = useRef<BottomSheetRef>(null);
 
   const [tempBreed, setTempBreed] = useState<Breed | null>(selectedBreed);
@@ -41,34 +39,15 @@ export const BreedBottomSheet = forwardRef<
 
   const styles = createStyles(theme);
 
-  // Filter breeds by category
-  const categoryFilteredBreeds = useMemo(() => {
-    if (!category) {
-      return breeds;
-    }
-
-    const categoryMap: Record<CompanionCategory, string> = {
-      cat: 'Cat',
-      dog: 'Dog',
-      equine: 'Equine',
-    };
-
-    const categoryName = categoryMap[category];
-    return breeds.filter(breed =>
-      breed.speciesName.toLowerCase().includes(categoryName.toLowerCase())
-    );
-  }, [breeds, category]);
-
+  // Breeds are already filtered by category in parent
   const filteredBreeds = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return categoryFilteredBreeds;
-    }
+    if (!searchQuery.trim()) return breeds;
 
     const query = searchQuery.toLowerCase();
-    return categoryFilteredBreeds.filter(breed =>
+    return breeds.filter(breed =>
       breed.breedName.toLowerCase().includes(query)
     );
-  }, [categoryFilteredBreeds, searchQuery]);
+  }, [breeds, searchQuery]);
 
   const renderEmptyList = () => (
     <View style={styles.emptyContainer}>
@@ -100,15 +79,12 @@ export const BreedBottomSheet = forwardRef<
     bottomSheetRef.current?.close();
   };
 
-  const renderBreedItem = ({item}: {item: Breed}) => {
+  const renderBreedItem = ({ item }: { item: Breed }) => {
     const isSelected = tempBreed?.breedId === item.breedId;
 
     return (
       <TouchableOpacity
-        style={[
-          styles.breedItem,
-          isSelected && styles.breedItemSelected,
-        ]}
+        style={[styles.breedItem, isSelected && styles.breedItemSelected]}
         onPress={() => setTempBreed(item)}
         activeOpacity={0.7}>
         <Text style={styles.breedName}>{item.breedName}</Text>
@@ -124,14 +100,14 @@ export const BreedBottomSheet = forwardRef<
   return (
     <CustomBottomSheet
       ref={bottomSheetRef}
-      snapPoints={['83%', '85%']}
+      snapPoints={['78%', '85%']}
       initialIndex={-1}
-      enablePanDownToClose={true}
+      enablePanDownToClose
       enableDynamicSizing={false}
       enableContentPanningGesture={false}
-      enableHandlePanningGesture={true}
-      enableOverDrag={true}
-      enableBackdrop={true}
+      enableHandlePanningGesture
+      enableOverDrag
+      enableBackdrop
       backdropOpacity={0.5}
       backdropDisappearsOnIndex={-1}
       backdropPressBehavior="close"
@@ -154,13 +130,6 @@ export const BreedBottomSheet = forwardRef<
           </TouchableOpacity>
         </View>
 
-        {/* Current Selection */}
-        {tempBreed && (
-          <View style={styles.currentSelection}>
-            <Text style={styles.currentSelectionLabel}>Selected:</Text>
-            <Text style={styles.currentSelectionValue}>{tempBreed.breedName}</Text>
-          </View>
-        )}
 
         {/* Search */}
         <View style={styles.searchContainer}>
@@ -168,12 +137,7 @@ export const BreedBottomSheet = forwardRef<
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholder="Search from 200+ breeds"
-            icon={
-              <Image
-                source={Images.searchIcon}
-                style={styles.searchIconImage}
-              />
-            }
+            icon={<Image source={Images.searchIcon} style={styles.searchIconImage} />}
             containerStyle={styles.searchInputContainer}
           />
         </View>
@@ -184,9 +148,9 @@ export const BreedBottomSheet = forwardRef<
             data={filteredBreeds}
             keyExtractor={item => item.breedId.toString()}
             renderItem={renderBreedItem}
-            showsVerticalScrollIndicator={true}
+            showsVerticalScrollIndicator
             contentContainerStyle={styles.listContent}
-            nestedScrollEnabled={true}
+            nestedScrollEnabled
             ListEmptyComponent={renderEmptyList}
           />
         </View>
@@ -252,27 +216,6 @@ const createStyles = (theme: any) =>
     closeIcon: {
       width: theme.spacing['6'],
       height: theme.spacing['6'],
-    },
-    currentSelection: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: theme.spacing['3'],
-      paddingHorizontal: theme.spacing['4'],
-      backgroundColor: theme.colors.primarySurface,
-      borderRadius: theme.borderRadius.lg,
-      marginBottom: theme.spacing['4'],
-      gap: theme.spacing['2'],
-    },
-    currentSelectionLabel: {
-      ...theme.typography.body,
-      color: theme.colors.textSecondary,
-      fontWeight: '500',
-    },
-    currentSelectionValue: {
-      ...theme.typography.body,
-      color: theme.colors.primary,
-      fontWeight: '600',
-      flex: 1,
     },
     searchContainer: {
       marginBottom: theme.spacing['4'],
