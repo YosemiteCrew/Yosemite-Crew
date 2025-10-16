@@ -1,4 +1,3 @@
-// src/components/common/CountryBottomSheet/CountryBottomSheet.tsx
 import React, {useState, forwardRef, useImperativeHandle, useRef} from 'react';
 import {
   View,
@@ -16,47 +15,67 @@ import LiquidGlassButton from '../LiquidGlassButton/LiquidGlassButton';
 import {useTheme} from '../../../hooks';
 import {Images} from '../../../assets/images';
 
-interface Country {
-  name: string;
-  code: string;
-  flag: string;
-  dial_code: string;
-}
 
-export interface CountryBottomSheetRef {
+export interface CurrencyBottomSheetRef {
   open: () => void;
   close: () => void;
 }
 
-interface CountryBottomSheetProps {
-  countries: Country[];
-  selectedCountry: Country | null;
-  onSave: (country: Country | null) => void;
+interface Currency {
+  code: string;
+  name: string;
+  symbol: string;
+  flag: string;
 }
 
-export const CountryBottomSheet = forwardRef<
-  CountryBottomSheetRef,
-  CountryBottomSheetProps
->(({countries, selectedCountry, onSave}, ref) => {
+interface RawCurrency {
+  code: string;
+  name: string;
+  symbol: string;
+  countryCode: string;
+}
+
+export interface CurrencyBottomSheetProps {
+  selectedCurrency: string;
+  onSave: (currency: string) => void;
+}
+
+export const CurrencyBottomSheet = forwardRef<
+  CurrencyBottomSheetRef,
+  CurrencyBottomSheetProps
+>(({selectedCurrency, onSave}, ref) => {
   const {theme} = useTheme();
   const bottomSheetRef = useRef<BottomSheetRef>(null);
 
-  const [tempCountry, setTempCountry] = useState<Country | null>(
-    selectedCountry,
-  );
+  const [tempCurrency, setTempCurrency] = useState<string>(selectedCurrency);
   const [searchQuery, setSearchQuery] = useState('');
 
   const styles = createStyles(theme);
 
+  const currencyData = require('../../../utils/currencyList.json');
+
+  const currencies: Currency[] = currencyData.map((currency: RawCurrency) => {
+    const COUNTRIES = require('../../../utils/countryList.json');
+    const country = COUNTRIES.find((c: any) => c.code === currency.countryCode);
+    return {
+      code: currency.code,
+      name: currency.name,
+      symbol: currency.symbol,
+      flag: country?.flag || '🇺🇸',
+    };
+  });
+
   const renderEmptyList = () => (
     <View style={styles.emptyContainer}>
-      <Text style={styles.emptyText}>No results found</Text>
+      <Text style={styles.emptyText}>
+        No results found
+      </Text>
     </View>
   );
 
   useImperativeHandle(ref, () => ({
     open: () => {
-      setTempCountry(selectedCountry);
+      setTempCurrency(selectedCurrency);
       setSearchQuery('');
       bottomSheetRef.current?.snapToIndex(0);
     },
@@ -65,31 +84,43 @@ export const CountryBottomSheet = forwardRef<
     },
   }));
 
-  const filteredCountries = countries.filter(country =>
-    country.name.toLowerCase().includes(searchQuery.toLowerCase()),
+  const filteredCurrencies = currencies.filter(
+    currency =>
+      currency.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      currency.code.toLowerCase().includes(searchQuery.toLowerCase()) 
   );
 
   const handleSave = () => {
-    onSave(tempCountry);
+    onSave(tempCurrency);
     bottomSheetRef.current?.close();
   };
 
   const handleCancel = () => {
-    setTempCountry(selectedCountry);
+    setTempCurrency(selectedCurrency);
     setSearchQuery('');
     bottomSheetRef.current?.close();
   };
 
-  const renderCountryItem = ({item}: {item: Country}) => {
-    const isSelected = tempCountry?.code === item.code;
+  const renderCurrencyItem = ({item}: {item: Currency}) => {
+    const isSelected = item.code === tempCurrency;
 
     return (
       <TouchableOpacity
-        style={[styles.countryItem, isSelected && styles.countryItemSelected]}
-        onPress={() => setTempCountry(item)}
+        style={[
+          styles.currencyItem,
+          isSelected && styles.currencyItemSelected,
+        ]}
+        onPress={() => setTempCurrency(item.code)}
         activeOpacity={0.7}>
-        <Text style={styles.flag}>{item.flag}</Text>
-        <Text style={styles.countryName}>{item.name}</Text>
+        <Text style={styles.flag}>
+          {item.flag}
+        </Text>
+        <Text style={styles.currencyName}>
+          {item.name} ({item.symbol})
+        </Text>
+        <Text style={styles.currencyCode}>
+          {item.code}
+        </Text>
         {isSelected && (
           <View style={styles.checkmark}>
             <Text style={styles.checkmarkText}>✓</Text>
@@ -102,7 +133,7 @@ export const CountryBottomSheet = forwardRef<
   return (
     <CustomBottomSheet
       ref={bottomSheetRef}
-      snapPoints={['78%', '90%']}
+      snapPoints={['75%', '95%']}
       initialIndex={-1}
       enablePanDownToClose={true}
       enableDynamicSizing={false}
@@ -118,11 +149,14 @@ export const CountryBottomSheet = forwardRef<
       handleIndicatorStyle={styles.bottomSheetHandle}
       keyboardBehavior="interactive"
       keyboardBlurBehavior="restore"
-      android_keyboardInputMode="adjustResize">
+      android_keyboardInputMode="adjustResize"
+    >
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Select Country</Text>
+          <Text style={styles.title}>
+            Currency
+          </Text>
           <TouchableOpacity onPress={handleCancel} style={styles.closeButton}>
             <Image
               source={Images.crossIcon}
@@ -137,7 +171,7 @@ export const CountryBottomSheet = forwardRef<
           <Input
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholder="Search country name"
+            placeholder="Search currency"
             icon={
               <Image
                 source={Images.searchIcon}
@@ -148,20 +182,20 @@ export const CountryBottomSheet = forwardRef<
           />
         </View>
 
-        {/* Country List */}
+        {/* Currency List - Fixed Height */}
         <View style={styles.listWrapper}>
           <FlatList
-            data={filteredCountries}
-            keyExtractor={item => item.code}
-            renderItem={renderCountryItem}
-            showsVerticalScrollIndicator
+            data={filteredCurrencies}
+            keyExtractor={(item, index) => `${item.code}-${index}`}
+            renderItem={renderCurrencyItem}
+            showsVerticalScrollIndicator={true}
             contentContainerStyle={styles.listContent}
-            nestedScrollEnabled
+            nestedScrollEnabled={true}
             ListEmptyComponent={renderEmptyList}
           />
         </View>
 
-        {/* Buttons */}
+        {/* Buttons - Always Visible */}
         <View style={styles.buttonContainer}>
           <LiquidGlassButton
             title="Cancel"
@@ -197,20 +231,20 @@ export const CountryBottomSheet = forwardRef<
   );
 });
 
-CountryBottomSheet.displayName = 'CountryBottomSheet';
+CurrencyBottomSheet.displayName = 'CurrencyBottomSheet';
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      paddingHorizontal: theme.spacing['5'],
+      paddingHorizontal: theme.spacing['5'], // 20
       backgroundColor: theme.colors.background,
     },
     header: {
       flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
-      paddingVertical: theme.spacing['4'],
+      paddingVertical: theme.spacing['4'], // 16
       position: 'relative',
     },
     title: {
@@ -220,79 +254,84 @@ const createStyles = (theme: any) =>
     closeButton: {
       position: 'absolute',
       right: 0,
-      padding: theme.spacing['2'],
+      padding: theme.spacing['2'], // 8
     },
     closeIcon: {
-      width: theme.spacing['6'],
-      height: theme.spacing['6'],
+      width: theme.spacing['6'], // 24
+      height: theme.spacing['6'], // 24
     },
     searchContainer: {
-      marginBottom: theme.spacing['4'],
+      marginBottom: theme.spacing['4'], // 16
     },
     searchInputContainer: {
       marginBottom: 0,
     },
     searchIconImage: {
-      width: theme.spacing['5'],
-      height: theme.spacing['5'],
+      width: theme.spacing['5'], // 20
+      height: theme.spacing['5'], // 20
       tintColor: theme.colors.textSecondary,
-    },
-    listWrapper: {
-      flex: 1,
-      height: 400,
-      marginBottom: theme.spacing['2'],
-    },
-    listContent: {
-      paddingBottom: theme.spacing['2'],
-    },
-    countryItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: 14,
-      paddingHorizontal: theme.spacing['3'],
-      borderRadius: theme.borderRadius.base,
-      marginBottom: theme.spacing['1'],
-    },
-    countryItemSelected: {
-      backgroundColor: theme.colors.surface,
-    },
-    flag: {
-      fontSize: theme.spacing['6'],
-      marginRight: theme.spacing['3'],
-    },
-    countryName: {
-      flex: 1,
-      ...theme.typography.body,
-      color: theme.colors.text,
-    },
-    checkmark: {
-      width: theme.spacing['5'],
-      height: theme.spacing['5'],
-      borderRadius: theme.spacing['5'] / 2,
-      backgroundColor: theme.colors.primary,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    checkmarkText: {
-      color: theme.colors.white,
-      fontSize: theme.spacing['3'],
-      fontWeight: 'bold',
     },
     emptyContainer: {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
-      paddingVertical: theme.spacing['10'],
+      paddingVertical: theme.spacing['10'], // 40
     },
     emptyText: {
       ...theme.typography.body,
       color: theme.colors.textSecondary,
       textAlign: 'center',
     },
+    listWrapper: {
+      flex: 1,
+      height: 400,
+      marginBottom: theme.spacing['2'], // 8
+    },
+    listContent: {
+      paddingBottom: theme.spacing['2'], // 8
+    },
+    currencyItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 14,
+      paddingHorizontal: theme.spacing['3'], // 12
+      borderRadius: theme.borderRadius.base, // 8
+      marginBottom: theme.spacing['1'], // 4
+    },
+    flag: {
+      fontSize: theme.spacing['6'], // 24
+      marginRight: theme.spacing['3'], // 12
+    },
+    currencyItemSelected: {
+      backgroundColor: theme.colors.surface,
+    },
+    currencyName: {
+      flex: 1,
+      ...theme.typography.body,
+      color: theme.colors.text,
+    },
+    currencyCode: {
+      ...theme.typography.body,
+      color: theme.colors.textSecondary,
+      marginRight: theme.spacing['2'], // 8
+    },
+    checkmark: {
+      width: theme.spacing['5'], // 20
+      height: theme.spacing['5'], // 20
+      borderRadius: theme.spacing['5'] / 2, // 10
+      backgroundColor: theme.colors.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    checkmarkText: {
+      color: theme.colors.white,
+      fontSize: theme.spacing['3'], // 12
+      fontWeight: 'bold',
+    },
     buttonContainer: {
       flexDirection: 'row',
-      gap: theme.spacing['3'],
-      paddingVertical: theme.spacing['4'],
+      gap: theme.spacing['3'], // 12
+      paddingVertical: theme.spacing['4'], // 16
       borderTopWidth: 1,
       borderTopColor: theme.colors.border,
       backgroundColor: theme.colors.white,
@@ -316,6 +355,7 @@ const createStyles = (theme: any) =>
       color: theme.colors.white,
       ...theme.typography.paragraphBold,
     },
+    // Bottom Sheet Styles
     bottomSheetBackground: {
       backgroundColor: theme.colors.background,
       borderTopLeftRadius: 28,

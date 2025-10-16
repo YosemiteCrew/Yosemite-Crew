@@ -6,6 +6,7 @@ import {AddCompanionScreen} from '@/screens/companion/AddCompanionScreen';
 import {HomeStackParamList} from './types';
 import {ProfileOverviewScreen} from '@/screens/companion/ProfileOverviewScreen';
 import { CompanionOverviewScreen } from '@/screens/companion/CompanionOverviewScreen';
+import { EditParentScreen } from '@/screens/account/EditParentScreen';
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();
 
@@ -50,6 +51,13 @@ export const HomeStackNavigator: React.FC = () => {
         component={CompanionOverviewScreen}
         options={{headerShown: false}}
       />
+
+        <Stack.Screen
+        name="EditParentOverview" // Renamed for clarity in navigation
+        component={EditParentScreen}
+        options={{headerShown: false}}
+      />
+      
       
     </Stack.Navigator>
   );

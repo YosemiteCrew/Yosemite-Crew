@@ -13,6 +13,7 @@ import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useSelector} from 'react-redux'; // Import useSelector
 
 import LiquidGlassButton from '@/components/common/LiquidGlassButton/LiquidGlassButton';
+import {selectAuthUser} from '@/features/auth/selectors';
 import {LiquidGlassCard} from '@/components/common/LiquidGlassCard/LiquidGlassCard';
 import {Images} from '@/assets/images';
 import {useTheme} from '@/hooks';
@@ -49,7 +50,8 @@ type MenuItem = {
 
 export const AccountScreen: React.FC<Props> = ({navigation}) => {
   const {theme} = useTheme();
-  const {user, logout} = useAuth();
+  const {logout} = useAuth();
+  const authUser = useSelector(selectAuthUser);
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const deleteSheetRef = React.useRef<DeleteAccountBottomSheetRef>(null);
 
@@ -57,7 +59,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
   const companionsFromStore = useSelector(selectCompanions);
 
   const displayName = React.useMemo(() => {
-    const composed = [user?.firstName, user?.lastName]
+    const composed = [authUser?.firstName, authUser?.lastName]
       .filter(Boolean)
       .join(' ')
       .trim();
@@ -65,50 +67,28 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
       return composed;
     }
     // Fallback to a generic name since COMPANION_PLACEHOLDERS is removed
-    return user?.firstName?.trim() || 'You';
-  }, [user?.firstName, user?.lastName]);
+    return authUser?.firstName?.trim() || 'You';
+  }, [authUser?.firstName, authUser?.lastName]);
 
-  const hasValidAvatar = React.useMemo(() => {
-    const profilePic = user?.profilePicture;
-    const profileToken = user?.profileToken;
 
-    // Check if profilePicture is a valid HTTP/HTTPS URL
-    if (
-      profilePic &&
-      (profilePic.startsWith('http://') || profilePic.startsWith('https://'))
-    ) {
-      return true;
-    }
-
-    // Check if profileToken is a valid HTTP/HTTPS URL
-    if (
-      profileToken &&
-      (profileToken.startsWith('http://') ||
-        profileToken.startsWith('https://'))
-    ) {
-      return true;
-    }
-
-    return false;
-  }, [user?.profilePicture, user?.profileToken]);
 
   const primaryAvatar: ImageSourcePropType = React.useMemo(() => {
-    if (user?.profilePicture) {
-      return {uri: user.profilePicture};
+    if (authUser?.profilePicture) {
+      return {uri: authUser.profilePicture};
     }
-    if (user?.profileToken) {
-      return {uri: user.profileToken};
+    if (authUser?.profileToken) {
+      return {uri: authUser.profileToken};
     }
     // Use a generic placeholder image if no URL is available
     return Images.cat;
-  }, [user?.profilePicture, user?.profileToken]);
+  }, [authUser?.profilePicture, authUser?.profileToken]);
 
   const userInitials = React.useMemo(() => {
-    if (user?.firstName) {
-      return user.firstName.charAt(0).toUpperCase();
+    if (authUser?.firstName) {
+      return authUser.firstName.charAt(0).toUpperCase();
     }
     return displayName.charAt(0).toUpperCase();
-  }, [user?.firstName, displayName]);
+  }, [authUser?.firstName, displayName]);
 
   const profiles = React.useMemo<CompanionProfile[]>(() => {
     // 1. User's Profile (Primary)
@@ -240,7 +220,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
                   index < profiles.length - 1 && styles.companionRowDivider,
                 ]}>
                 <View style={styles.companionInfo}>
-                  {index === 0 && !hasValidAvatar ? (
+                  {index === 0 && !authUser?.profilePicture ? (
                     <View style={styles.companionAvatarInitials}>
                       <Text style={styles.avatarInitialsText}>
                         {userInitials}
@@ -277,7 +257,9 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
                     // Index 0 is the primary user profile
                     if (index === 0) {
                       // Navigate to User Profile Edit screen
-                      console.log('Navigate to User Profile Edit Screen');
+                      navigation.navigate('EditParentOverview', {
+                        companionId: profile.id,
+                      });
                       // e.g., navigation.navigate('EditUserProfile');
                     } else {
                       // Navigate to Companion Profile Overview
@@ -327,7 +309,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
 
       <DeleteAccountBottomSheet
         ref={deleteSheetRef}
-        email={user?.email}
+        email={authUser?.email}
         onDelete={handleDeleteAccount}
       />
     </SafeAreaView>
@@ -355,7 +337,7 @@ const createStyles = (theme: any) =>
     },
     companionsCardFallback: {
       borderRadius: theme.borderRadius.lg,
-      backgroundColor: 'transparent',
+      backgroundColor: theme.colors.white,
     },
     companionRow: {
       flexDirection: 'row',

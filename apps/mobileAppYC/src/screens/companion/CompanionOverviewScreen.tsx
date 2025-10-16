@@ -26,7 +26,6 @@ import {
 } from '@/features/companion/selectors';
 
 import type {HomeStackParamList} from '@/navigation/types';
-import type {Companion} from '@/features/companion/types';
 
 // Reusable inline editor
 import {InlineEditRow} from '@/components/common/InlineEditRow/InlineEditRow';
@@ -68,6 +67,9 @@ import {
   formatDateForDisplay,
 } from '@/components/common/SimpleDatePicker/SimpleDatePicker';
 
+// Profile Image Picker
+import {ProfileImagePicker} from '@/components/common/ProfileImagePicker/ProfileImagePicker';
+
 // Types
 import type {
   CompanionGender,
@@ -75,6 +77,7 @@ import type {
   InsuredStatus,
   CompanionOrigin,
   Breed,
+  Companion
 } from '@/features/companion/types';
 import {updateCompanionProfile} from '@/features/companion';
 
@@ -106,6 +109,9 @@ export const CompanionOverviewScreen: React.FC<
   const insuredSheetRef = useRef<InsuredStatusBottomSheetRef>(null);
   const originSheetRef = useRef<OriginBottomSheetRef>(null);
 
+  // Profile image picker ref
+  const profileImagePickerRef = useRef<{ triggerPicker: () => void }>(null);
+
   // Helpers
   const goBack = useCallback(() => {
     if (navigation.canGoBack()) navigation.goBack();
@@ -129,6 +135,13 @@ export const CompanionOverviewScreen: React.FC<
       );
     },
     [dispatch, safeCompanion],
+  );
+
+  const handleProfileImageChange = useCallback(
+    (imageUri: string | null) => {
+      applyPatch({ profileImage: imageUri || undefined });
+    },
+    [applyPatch],
   );
 
   if (!safeCompanion) {
@@ -159,16 +172,18 @@ export const CompanionOverviewScreen: React.FC<
         showsVerticalScrollIndicator={false}>
         {/* Header block */}
         <View style={styles.profileHeader}>
-          <View>
-            <Image
-              source={
-                safeCompanion.profileImage
-                  ? {uri: safeCompanion.profileImage}
-                  : Images.cat
-              }
-              style={styles.avatar}
+          <View style={styles.avatarContainer}>
+            <ProfileImagePicker
+              ref={profileImagePickerRef}
+              imageUri={safeCompanion.profileImage}
+              onImageSelected={handleProfileImageChange}
+              size={100}
+              pressable={false}
+              fallbackText={safeCompanion.name.charAt(0).toUpperCase()}
             />
-            <TouchableOpacity style={styles.cameraIconContainer}>
+            <TouchableOpacity style={styles.cameraIconContainer} onPress={() => {
+              profileImagePickerRef.current?.triggerPicker();
+            }}>
               <Image source={Images.cameraIcon} style={styles.cameraIcon} />
             </TouchableOpacity>
           </View>
@@ -549,19 +564,15 @@ function getBreedListByCategorySafe(category: any): Breed[] {
       default:
         return [];
     }
-  } catch (e) {
+  } catch {
     return [];
   }
 }
 
 function getSelectedCountryObject(countryName?: string | null) {
-  try {
     const COUNTRIES = require('@/utils/countryList.json');
     if (!countryName) return null;
     return COUNTRIES.find((c: any) => c.name === countryName) ?? null;
-  } catch (e) {
-    return null;
-  }
 }
 
 const createStyles = (theme: any) =>
@@ -582,6 +593,9 @@ const createStyles = (theme: any) =>
     profileHeader: {
       alignItems: 'center',
       marginVertical: theme.spacing[6],
+    },
+    avatarContainer: {
+      position: 'relative',
     },
     avatar: {
       width: 100,

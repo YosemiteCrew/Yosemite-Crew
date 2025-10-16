@@ -590,6 +590,7 @@ const handleGoBack = useCallback(async () => {
       ...step1Data,
       ...step2Data,
       countryDialCode: selectedCountry.dial_code,
+      currency: 'USD',
       fullMobileNumber: `${selectedCountry.dial_code}${step1Data.mobileNumber}`,
     };
 
@@ -633,16 +634,25 @@ const handleGoBack = useCallback(async () => {
       await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
       DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
 
-      const userPayload: User = {
-        id: userId,
-        email,
-        firstName: combinedData.firstName,
-        lastName: combinedData.lastName,
-        phone: combinedData.fullMobileNumber,
-        dateOfBirth: combinedData.dateOfBirth?.toISOString().split('T')[0],
-        profilePicture: combinedData.profileImage ?? undefined,
-        profileToken,
-      };
+     const userPayload: User = {
+  id: userId,
+  email,
+  firstName: combinedData.firstName,
+  lastName: combinedData.lastName,
+  phone: combinedData.fullMobileNumber,
+  dateOfBirth: combinedData.dateOfBirth?.toISOString().split('T')[0],
+  profilePicture: combinedData.profileImage ?? undefined,
+  profileToken,
+  currency: combinedData.currency ?? undefined,
+  address: {
+    addressLine: combinedData.address,
+    stateProvince: combinedData.stateProvince,
+    city: combinedData.city,
+    postalCode: combinedData.postalCode,
+    country: combinedData.country,
+  },
+};
+
 
       await login(userPayload, tokens);
     } catch (error) {

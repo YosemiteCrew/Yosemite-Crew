@@ -357,11 +357,11 @@ const createStyles = (theme: any) =>
       paddingVertical: theme.spacing['4'], // 16
       borderTopWidth: 1,
       borderTopColor: theme.colors.border,
-      backgroundColor: 'transparent',
+      backgroundColor: theme.colors.white,
     },
     cancelButton: {
       flex: 1,
-      backgroundColor: 'transparent',
+      backgroundColor: theme.colors.white,
     },
     cancelButtonText: {
       ...theme.typography.paragraphBold,

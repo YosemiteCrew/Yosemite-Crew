@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   TouchableOpacity,
   Image,
+  Text,
   StyleSheet,
   Alert,
   Platform,
@@ -23,13 +24,22 @@ interface ProfileImagePickerProps {
   imageUri?: string | null;
   onImageSelected: (uri: string) => void;
   size?: number;
+  pressable?: boolean;
+  onPress?: () => void;
+  fallbackText?: string;
 }
 
-export const ProfileImagePicker: React.FC<ProfileImagePickerProps> = ({
+export const ProfileImagePicker = React.forwardRef<
+  { triggerPicker: () => void },
+  ProfileImagePickerProps
+>(({
   imageUri,
   onImageSelected,
   size = 120,
-}) => {
+  pressable = true,
+  onPress,
+  fallbackText,
+}, ref) => {
   const { theme } = useTheme();
 
   const cameraPermission =
@@ -44,7 +54,7 @@ export const ProfileImagePicker: React.FC<ProfileImagePickerProps> = ({
       ? PERMISSIONS.ANDROID.READ_MEDIA_IMAGES
       : PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE;
 
-  const handlePermission = async (type: 'camera' | 'gallery') => {
+  const handlePermission = useCallback(async (type: 'camera' | 'gallery') => {
     const permission = type === 'camera' ? cameraPermission : photoLibraryPermission;
 
     try {
@@ -85,8 +95,8 @@ export const ProfileImagePicker: React.FC<ProfileImagePickerProps> = ({
             `${type === 'camera' ? 'Camera' : 'Photo library'} permission is blocked. Please enable it in Settings.`,
             [
               { text: 'Cancel', style: 'cancel' },
-              { 
-                text: 'Open Settings', 
+              {
+                text: 'Open Settings',
                 onPress: () => Linking.openSettings()
               },
             ]
@@ -101,9 +111,9 @@ export const ProfileImagePicker: React.FC<ProfileImagePickerProps> = ({
       Alert.alert('Error', 'Failed to check permissions');
       return false;
     }
-  };
+  }, [cameraPermission, photoLibraryPermission]);
 
-  const handleResponse = (response: ImagePickerResponse) => {
+  const handleResponse = useCallback((response: ImagePickerResponse) => {
     console.log('Image picker response:', response);
 
     if (response.didCancel) {
@@ -113,7 +123,7 @@ export const ProfileImagePicker: React.FC<ProfileImagePickerProps> = ({
 
     if (response.errorCode) {
       console.log('Image picker error:', response.errorCode, response.errorMessage);
-      
+
       // Handle specific error codes as per documentation
       if (response.errorCode === 'camera_unavailable') {
         Alert.alert(
@@ -122,7 +132,7 @@ export const ProfileImagePicker: React.FC<ProfileImagePickerProps> = ({
         );
         return;
       }
-      
+
       if (response.errorCode === 'permission') {
         Alert.alert(
           'Permission Denied',
@@ -130,7 +140,7 @@ export const ProfileImagePicker: React.FC<ProfileImagePickerProps> = ({
         );
         return;
       }
-      
+
       // Handle 'others' error code
       Alert.alert(
         'Error',
@@ -148,11 +158,11 @@ export const ProfileImagePicker: React.FC<ProfileImagePickerProps> = ({
         Alert.alert('Error', 'Failed to get image URI');
       }
     }
-  };
+  }, [onImageSelected]);
 
-  const openCamera = async () => {
+  const openCamera = useCallback(async () => {
     const hasPermission = await handlePermission('camera');
-    
+
     if (!hasPermission) {
       return;
     }
@@ -168,11 +178,11 @@ export const ProfileImagePicker: React.FC<ProfileImagePickerProps> = ({
     };
 
     launchCamera(options, handleResponse);
-  };
+  }, [handlePermission, handleResponse]);
 
-  const openGallery = async () => {
+  const openGallery = useCallback(async () => {
     const hasPermission = await handlePermission('gallery');
-    
+
     if (!hasPermission) {
       return;
     }
@@ -187,9 +197,13 @@ export const ProfileImagePicker: React.FC<ProfileImagePickerProps> = ({
     };
 
     launchImageLibrary(options, handleResponse);
-  };
+  }, [handlePermission, handleResponse]);
 
-  const handleImagePicker = () => {
+  const triggerPicker = useCallback(() => {
+    if (onPress) {
+      onPress();
+      return;
+    }
     Alert.alert(
       'Select Profile Image',
       'Choose how you want to select your profile image',
@@ -209,7 +223,15 @@ export const ProfileImagePicker: React.FC<ProfileImagePickerProps> = ({
       ],
       { cancelable: true }
     );
+  }, [onPress, openCamera, openGallery]);
+
+  const handleImagePicker = () => {
+    triggerPicker();
   };
+
+  React.useImperativeHandle(ref, () => ({
+    triggerPicker,
+  }));
 
   return (
     <TouchableOpacity
@@ -221,8 +243,8 @@ export const ProfileImagePicker: React.FC<ProfileImagePickerProps> = ({
           borderRadius: size / 2,
         },
       ]}
-      onPress={handleImagePicker}
-      activeOpacity={0.8}
+      onPress={pressable ? handleImagePicker : undefined}
+      activeOpacity={pressable ? 0.8 : 1}
     >
       <View
         style={[
@@ -250,20 +272,28 @@ export const ProfileImagePicker: React.FC<ProfileImagePickerProps> = ({
           />
         ) : (
           <View style={styles.placeholderContainer}>
-            <Image
-              source={Images.cameraIcon}
-              style={[
-                styles.cameraIcon,
-                { tintColor: theme.colors.primary },
-              ]}
-              resizeMode="contain"
-            />
+            {fallbackText ? (
+              <Text style={[styles.fallbackText, { color: theme.colors.primary }]}>
+                {fallbackText}
+              </Text>
+            ) : (
+              <Image
+                source={Images.cameraIcon}
+                style={[
+                  styles.cameraIcon,
+                  { tintColor: theme.colors.primary },
+                ]}
+                resizeMode="contain"
+              />
+            )}
           </View>
         )}
       </View>
     </TouchableOpacity>
   );
-};
+});
+
+ProfileImagePicker.displayName = 'ProfileImagePicker';
 
 const styles = StyleSheet.create({
   container: {
@@ -297,5 +327,9 @@ const styles = StyleSheet.create({
   cameraIcon: {
     width: 40,
     height: 40,
+  },
+  fallbackText: {
+    fontSize: 24,
+    fontWeight: 'bold',
   },
 });

@@ -26,8 +26,12 @@ import {
   selectCompanions,
   selectCompanionLoading,
 } from '@/features/companion/selectors';
-import {deleteCompanion} from '@/features/companion/thunks';
+import {deleteCompanion, updateCompanionProfile} from '@/features/companion/thunks';
 import {useAuth} from '@/contexts/AuthContext';
+import type {Companion} from '@/features/companion/types';
+
+// Profile Image Picker
+import {ProfileImagePicker} from '@/components/common/ProfileImagePicker/ProfileImagePicker';
 
 type ProfileSection = {
   id: string;
@@ -58,6 +62,9 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const deleteSheetRef = React.useRef<DeleteProfileBottomSheetRef>(null);
 
+  // Profile image picker ref
+  const profileImagePickerRef = React.useRef<{ triggerPicker: () => void }>(null);
+
   const dispatch = useDispatch<AppDispatch>();
   const {user} = useAuth();
 
@@ -69,10 +76,33 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
     [allCompanions, companionId],
   );
 
+  const handleProfileImageChange = React.useCallback(
+    (imageUri: string | null) => {
+      if (!companion?.id) return;
+
+      const updated: Companion = {
+        ...companion,
+        profileImage: imageUri || null,
+        updatedAt: new Date().toISOString(),
+      };
+
+      dispatch(
+        updateCompanionProfile({
+          userId: user?.id || '',
+          updatedCompanion: updated,
+        }),
+      );
+    },
+    [companion, dispatch, user?.id],
+  );
+
     // NEW: Handler for navigating to the Edit Screen
   const handleSectionPress = (sectionId: string) => {
     if (sectionId === 'overview') {
       navigation.navigate('EditCompanionOverview', {companionId});
+    }
+        if (sectionId === 'parent') {
+      navigation.navigate('EditParentOverview', {companionId});
     }
     // Add logic for other sections here
   };
@@ -131,16 +161,18 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         showsVerticalScrollIndicator={false}>
         {/* Top section — normal */}
         <View style={styles.profileHeader}>
-          <View>
-            <Image
-              source={
-                companion.profileImage
-                  ? {uri: companion.profileImage}
-                  : Images.cat
-              }
-              style={styles.avatar}
+          <View style={styles.avatarContainer}>
+            <ProfileImagePicker
+              ref={profileImagePickerRef}
+              imageUri={companion.profileImage}
+              onImageSelected={handleProfileImageChange}
+              size={100}
+              pressable={false}
+              fallbackText={companion.name.charAt(0).toUpperCase()}
             />
-            <TouchableOpacity style={styles.cameraIconContainer}>
+            <TouchableOpacity style={styles.cameraIconContainer} onPress={() => {
+              profileImagePickerRef.current?.triggerPicker();
+            }}>
               <Image source={Images.cameraIcon} style={styles.cameraIcon} />
             </TouchableOpacity>
           </View>
@@ -219,6 +251,9 @@ const createStyles = (theme: any) =>
       alignItems: 'center',
       marginVertical: theme.spacing[6],
     },
+    avatarContainer: {
+      position: 'relative',
+    },
     avatar: {
       width: 100,
       height: 100,
@@ -227,7 +262,7 @@ const createStyles = (theme: any) =>
     },
     cameraIconContainer: {
       position: 'absolute',
-      bottom: 0,
+      bottom: 10,
       right: 0,
       backgroundColor: theme.colors.secondary,
       padding: theme.spacing[2],
