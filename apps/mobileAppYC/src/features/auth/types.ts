@@ -11,7 +11,16 @@ export interface User {
   dateOfBirth?: string;
   profilePicture?: string;
   profileToken?: string;
+  currency?: string;
+  address?: {
+    addressLine?: string;
+    city?: string;
+    stateProvince?: string;
+    postalCode?: string;
+    country?: string;
+  };
 }
+
 
 export interface AuthTokens extends StoredAuthTokens {
   provider?: AuthProvider;

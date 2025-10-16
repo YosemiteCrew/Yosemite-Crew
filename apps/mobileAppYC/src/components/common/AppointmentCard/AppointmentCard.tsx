@@ -234,7 +234,7 @@ const createStyles = (theme: any) =>
     },
     chatButton: {
       flex: 1,
-      backgroundColor: 'transparent',
+      backgroundColor: theme.colors.white,
     },
     chatButtonText: {
       ...theme.typography.paragraphBold,
@@ -246,7 +246,7 @@ const createStyles = (theme: any) =>
     },
     checkinButton: {
       flex: 1,
-      backgroundColor: 'transparent',
+      backgroundColor: theme.colors.white,
     },
     checkInButtonText: {
       ...theme.typography.paragraphBold,

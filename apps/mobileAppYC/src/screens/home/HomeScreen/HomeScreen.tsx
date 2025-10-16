@@ -25,6 +25,7 @@ import {
   setSelectedCompanion,
   fetchCompanions,
 } from '@/features/companion';
+import {selectAuthUser} from '@/features/auth/selectors';
 import {AppointmentCard} from '@/components/common/AppointmentCard/AppointmentCard';
 import {TaskCard} from '@/components/common/TaskCard/TaskCard';
 
@@ -47,6 +48,7 @@ export const deriveHomeGreetingName = (rawFirstName?: string | null) => {
 export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const {theme} = useTheme();
   const {user} = useAuth();
+  const authUser = useSelector(selectAuthUser);
   const dispatch = useDispatch<AppDispatch>();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
 
@@ -58,7 +60,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
 
   const {resolvedName: firstName, displayName} = deriveHomeGreetingName(
-    user?.firstName,
+    authUser?.firstName,
   );
 
   // Fetch companions on mount and set the first one as default
@@ -224,9 +226,16 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
             onPress={() => navigation.navigate('Account')}
             activeOpacity={0.85}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarInitials}>
-                {firstName.charAt(0).toUpperCase()}
-              </Text>
+              {authUser?.profilePicture ? (
+                <Image
+                  source={{ uri: authUser.profilePicture }}
+                  style={styles.avatarImage}
+                />
+              ) : (
+                <Text style={styles.avatarInitials}>
+                  {firstName.charAt(0).toUpperCase()}
+                </Text>
+              )}
             </View>
             <View>
               <Text style={styles.greetingName}>Hello, {displayName}</Text>
@@ -381,6 +390,12 @@ const createStyles = (theme: any) =>
       justifyContent: 'center',
       borderWidth: 2,
       borderColor: theme.colors.primary,
+    },
+    avatarImage: {
+      width: '100%',
+      height: '100%',
+      borderRadius: 24,
+      resizeMode: 'cover',
     },
     avatarInitials: {
       ...theme.typography.titleMedium,

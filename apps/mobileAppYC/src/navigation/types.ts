@@ -24,6 +24,7 @@ export type HomeStackParamList = {
   AddCompanion: undefined;
   ProfileOverview: { companionId: string };
   EditCompanionOverview: { companionId: string }; 
+  EditParentOverview:{ companionId: string }; 
 };
 
 // Tab Navigator

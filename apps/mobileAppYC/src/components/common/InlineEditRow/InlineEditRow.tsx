@@ -126,6 +126,7 @@ const createStyles = (theme: any) =>
     value: {
       ...theme.typography.bodySmall,
       color: theme.colors.textSecondary,
+      textAlign: 'right',
     },
     rightArrow: {
       width: 16,
@@ -147,7 +148,7 @@ const createStyles = (theme: any) =>
     },
     cancelButton: {
       flex: 1,
-      backgroundColor: 'transparent',
+      backgroundColor: theme.colors.white,
     },
     cancelButtonText: {
       ...theme.typography.paragraphBold,

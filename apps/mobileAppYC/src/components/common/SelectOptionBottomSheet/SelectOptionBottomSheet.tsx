@@ -180,7 +180,7 @@ const createStyles = (theme: any) =>
     },
     cancelBtn: {
       flex: 1,
-      backgroundColor: 'transparent',
+      backgroundColor: theme.colors.white,
       borderWidth: 1,
       borderColor: 'rgba(0,0,0,0.12)',
       borderRadius: 16,
