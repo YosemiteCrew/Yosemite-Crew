@@ -2,12 +2,12 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom";
-import { Table as BootstrapTable } from "react-bootstrap"; 
+import { Table as BootstrapTable } from "react-bootstrap";
 import GenericTable, { Column } from "@/app/components/GenericTable/GenericTable";
 
 jest.mock("react-bootstrap", () => ({
     ...jest.requireActual("react-bootstrap"),
-    Table: jest.fn(({ children, ...props }) => <table {...props}>{children}</table>),
+    Table: jest.fn(({ children, responsive, bordered, ...props }) => <table {...props}>{children}</table>),
     Button: jest.fn(({ children, onClick, disabled }) => (
         <button onClick={onClick} disabled={disabled}>
             {children}
@@ -26,13 +26,16 @@ interface MockData {
     id: number;
     name: string;
     role: string;
+    toString: () => string;
 }
 
 const mockData: MockData[] = Array.from({ length: 25 }, (_, i) => ({
     id: i + 1,
     name: `User ${i + 1}`,
     role: i % 3 === 0 ? 'Admin' : 'User',
+    toString: function() { return (this.id).toString(); },
 }));
+
 
 const mockColumns: Column<MockData>[] = [
     { label: "ID", key: "id", width: "50px" },
@@ -64,7 +67,6 @@ describe("GenericTable Component", () => {
 
     it("should render only headers when data is empty", () => {
         render(<GenericTable data={[]} columns={mockColumns} />);
-
         expect(screen.getByText("ID")).toBeInTheDocument();
         const rows = screen.getAllByRole("row");
         expect(rows).toHaveLength(1);
@@ -134,15 +136,17 @@ describe("GenericTable Component", () => {
 
     it("should not show pagination if total pages is 1 or less", () => {
         render(<GenericTable data={mockData.slice(0, 5)} columns={mockColumns} pagination pageSize={10} />);
-
         expect(screen.queryByText("Next")).not.toBeInTheDocument();
     });
 
     it("should render a bordered table when bordered prop is true", () => {
         render(<GenericTable data={mockData} columns={mockColumns} bordered={true} />);
+        expect(MockedTable.mock.calls[MockedTable.mock.calls.length - 1][0].bordered).toBe(true);
     });
 
     it("should render a non-bordered table by default", () => {
         render(<GenericTable data={mockData} columns={mockColumns} />);
+        expect(MockedTable.mock.calls[MockedTable.mock.calls.length - 1][0].bordered).toBe(false);
     });
 });
+

@@ -36,3 +36,22 @@ Object.defineProperty(global, "IntersectionObserver", {
   configurable: true,
   value: IntersectionObserverMock,
 });
+
+beforeAll(() => {
+  // Silence noisy logs but keep them visible locally by toggling with an env flag if you want
+  jest.spyOn(console, 'log').mockImplementation(() => {});
+
+  // Turn unexpected warnings/errors into failures in CI
+  jest.spyOn(console, 'warn').mockImplementation((...args) => {
+    throw new Error('Unexpected console.warn: ' + args.join(' '));
+  });
+  jest.spyOn(console, 'error').mockImplementation((...args) => {
+    throw new Error('Unexpected console.error: ' + args.join(' '));
+  });
+});
+
+afterAll(() => {
+  (console.log as jest.Mock).mockRestore?.();
+  (console.warn as jest.Mock).mockRestore?.();
+  (console.error as jest.Mock).mockRestore?.();
+});
