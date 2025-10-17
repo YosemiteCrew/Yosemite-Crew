@@ -127,7 +127,7 @@ export const CategoryDetailScreen: React.FC = () => {
               ) : (
                 subcategoryDocs.map(doc => {
                   // Don't allow edit for synced documents (health, hygiene)
-                  const canEdit = !doc.isSynced && doc.category !== 'health' && doc.category !== 'hygiene';
+                  const canEdit = !doc.isSynced && doc.category !== 'health' && doc.category !== 'hygiene-maintenance';
                   return (
                     <DocumentCard
                       key={doc.id}

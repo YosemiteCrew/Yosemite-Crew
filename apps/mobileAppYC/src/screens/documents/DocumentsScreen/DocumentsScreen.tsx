@@ -121,8 +121,9 @@ export const DocumentsScreen: React.FC = () => {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Recent</Text>
             {recentDocuments.map(doc => {
-              // Don't allow edit for synced documents (health, hygiene)
-              const canEdit = !doc.isSynced && doc.category !== 'health' && doc.category !== 'hygiene';
+              // Don't allow edit for synced documents (health, hygiene maintenance)
+              const canEdit =
+                !doc.isSynced && doc.category !== 'health' && doc.category !== 'hygiene-maintenance';
               return (
                 <DocumentCard
                   key={doc.id}
