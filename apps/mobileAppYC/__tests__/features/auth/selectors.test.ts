@@ -30,6 +30,12 @@ const createMockState = (authState: Partial<AuthState>): RootState => ({
     loading: false,
     error: null,
   },
+  documents: {
+    documents: [],
+    loading: false,
+    error: null,
+    uploadProgress: 0,
+  },
   _persist: {
     version: 1,
     rehydrated: true,
