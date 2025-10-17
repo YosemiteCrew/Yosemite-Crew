@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
-  StyleSheet as RNStyleSheet,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
@@ -464,14 +463,9 @@ export const CompanionOverviewScreen: React.FC<
 /* ----------------- Small shared pieces ----------------- */
 const Separator = () => {
   const {theme} = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   return (
-    <View
-      style={{
-        borderBottomWidth: RNStyleSheet.hairlineWidth,
-        borderBottomColor: theme.colors.borderSeperator,
-        marginLeft: 16,
-      }}
-    />
+    <View style={styles.separator} />
   );
 };
 
@@ -481,36 +475,23 @@ const RowButton: React.FC<{
   onPress: () => void;
 }> = ({label, value, onPress}) => {
   const {theme} = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   return (
     <TouchableOpacity
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: theme.spacing[3],
-        paddingHorizontal: theme.spacing[3],
-      }}
+      style={styles.rowButtonTouchable}
       activeOpacity={0.8}
       onPress={onPress}>
-      <Text
-        style={{
-          ...theme.typography.paragraphBold,
-          color: theme.colors.secondary,
-          flex: 1,
-        }}>
+      <Text style={styles.rowButtonLabel}>
         {label}
       </Text>
       <Text
-        style={{
-          ...theme.typography.bodySmall,
-          color: theme.colors.textSecondary,
-          marginRight: theme.spacing[3],
-        }}
+        style={styles.rowButtonValue}
         numberOfLines={1}>
         {value || ' '}
       </Text>
       <Image
         source={Images.rightArrow}
-        style={{width: 16, height: 16, resizeMode: 'contain'}}
+        style={styles.rowButtonArrow}
       />
     </TouchableOpacity>
   );
@@ -645,5 +626,31 @@ const createStyles = (theme: any) =>
     muted: {
       ...theme.typography.body,
       color: theme.colors.textSecondary,
+    },
+    separator: {
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.colors.borderSeperator,
+      marginLeft: 16,
+    },
+    rowButtonTouchable: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: theme.spacing[3],
+      paddingHorizontal: theme.spacing[3],
+    },
+    rowButtonLabel: {
+      ...theme.typography.paragraphBold,
+      color: theme.colors.secondary,
+      flex: 1,
+    },
+    rowButtonValue: {
+      ...theme.typography.bodySmall,
+      color: theme.colors.textSecondary,
+      marginRight: theme.spacing[3],
+    },
+    rowButtonArrow: {
+      width: 16,
+      height: 16,
+      resizeMode: 'contain',
     },
   });

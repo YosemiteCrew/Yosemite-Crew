@@ -22,11 +22,8 @@ const themeSlice = createSlice({
       }
     },
     toggleTheme: state => {
-      if (state.theme === 'system') {
-        state.theme = state.isDark ? 'light' : 'dark';
-      } else {
-        state.theme = state.isDark ? 'light' : 'dark';
-      }
+      // Switch theme regardless of whether it's system or manual
+      state.theme = state.isDark ? 'light' : 'dark';
       state.isDark = !state.isDark;
     },
     updateSystemTheme: (state, action: PayloadAction<'light' | 'dark'>) => {

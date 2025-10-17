@@ -35,9 +35,8 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
     const focusedRoute = state.routes[state.index];
 
     // Check if we're in a nested stack navigator (like HomeStack)
-    if (focusedRoute?.state) {
-      const nestedState = focusedRoute.state as any;
-      const nestedIndex = nestedState.index ?? 0;
+    if (focusedRoute?.state && 'index' in focusedRoute.state) {
+      const nestedIndex = focusedRoute.state.index ?? 0;
 
       // Hide tab bar only when nested index > 0 (not on first screen of stack)
       // Home screen is at index 0, Account screen is at index 1

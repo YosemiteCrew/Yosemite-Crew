@@ -1,4 +1,4 @@
-import {REGEX_PATTERNS} from './constants';
+import {isValidEmail, isValidPhone, isValidPassword} from './constants';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -12,11 +12,11 @@ export const validateEmail = (email: string): ValidationResult => {
   if (!email.trim()) {
     return {isValid: false, error: 'Email is required'};
   }
-  
-  if (!REGEX_PATTERNS.EMAIL.test(email)) {
+
+  if (!isValidEmail(email)) {
     return {isValid: false, error: 'Please enter a valid email address'};
   }
-  
+
   return {isValid: true};
 };
 
@@ -42,18 +42,18 @@ export const validateStrongPassword = (password: string): ValidationResult => {
   if (!password) {
     return {isValid: false, error: 'Password is required'};
   }
-  
+
   if (password.length < 8) {
     return {isValid: false, error: 'Password must be at least 8 characters long'};
   }
-  
-  if (!REGEX_PATTERNS.PASSWORD.test(password)) {
+
+  if (!isValidPassword(password)) {
     return {
       isValid: false,
       error: 'Password must contain at least one uppercase letter, one lowercase letter, and one number',
     };
   }
-  
+
   return {isValid: true};
 };
 
@@ -97,11 +97,11 @@ export const validatePhone = (phone: string): ValidationResult => {
   if (!phone.trim()) {
     return {isValid: false, error: 'Phone number is required'};
   }
-  
-  if (!REGEX_PATTERNS.PHONE.test(phone)) {
+
+  if (!isValidPhone(phone)) {
     return {isValid: false, error: 'Please enter a valid phone number'};
   }
-  
+
   return {isValid: true};
 };
 
@@ -109,10 +109,10 @@ export const validatePhone = (phone: string): ValidationResult => {
  * Validate required field
  */
 export const validateRequired = (value: string, fieldName: string): ValidationResult => {
-  if (!value || !value.trim()) {
+  if (!value?.trim()) {
     return {isValid: false, error: `${fieldName} is required`};
   }
-  
+
   return {isValid: true};
 };
 
@@ -159,11 +159,11 @@ export const validateNumeric = (value: string, fieldName: string): ValidationRes
   if (!value.trim()) {
     return {isValid: true}; // Allow empty for optional fields
   }
-  
-  if (isNaN(Number(value))) {
+
+  if (Number.isNaN(Number(value))) {
     return {isValid: false, error: `${fieldName} must be a valid number`};
   }
-  
+
   return {isValid: true};
 };
 

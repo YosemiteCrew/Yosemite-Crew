@@ -26,7 +26,7 @@ export const Loading: React.FC<LoadingProps> = ({
         size={size}
         color={color || theme.colors.primary}
       />
-      {text && (
+      {Boolean(text) && (
         <Text style={[styles.text, { color: theme.colors.text }]}>
           {text}
         </Text>

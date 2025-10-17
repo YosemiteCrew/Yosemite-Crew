@@ -99,8 +99,8 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     maybeParsedDate && !Number.isNaN(maybeParsedDate.getTime())
       ? maybeParsedDate
       : null;
-  const rawPhone = initialAttributes?.phone?.replace(/[^0-9+]/g, '') ?? '';
-  const normalizedPhoneDigits = rawPhone.replace(/\D/g, '');
+  const rawPhone = initialAttributes?.phone?.replaceAll(/[^0-9+]/g, '') ?? '';
+  const normalizedPhoneDigits = rawPhone.replaceAll(/\D/g, '');
   const defaultCountry =
     COUNTRIES.find(country => country.code === 'US') ?? COUNTRIES[0];
   const resolvedCountry = (() => {
@@ -541,6 +541,16 @@ const handleGoBack = useCallback(async () => {
         return {success: true};
       }
 
+      const getLocationStatus = () => {
+        if (location) {
+          return 'collected';
+        }
+        if (isRequestingLocation) {
+          return 'pending';
+        }
+        return 'unavailable';
+      };
+
       const outgoingPayload = {
         ...payload,
         location: location
@@ -549,11 +559,7 @@ const handleGoBack = useCallback(async () => {
               longitude: location.longitude,
             }
           : null,
-        locationStatus: location
-          ? 'collected'
-          : isRequestingLocation
-          ? 'pending'
-          : 'unavailable',
+        locationStatus: getLocationStatus(),
       };
 
       const response = await fetch(createAccountEndpoint, {
@@ -739,7 +745,7 @@ const handleGoBack = useCallback(async () => {
           rules={{
             required: 'Mobile number is required',
             pattern: {
-              value: /^[0-9]{10}$/,
+              value: /^\d{10}$/,
               message: 'Please enter a valid 10-digit mobile number',
             },
           }}
@@ -1034,13 +1040,15 @@ const handleGoBack = useCallback(async () => {
 
         <View style={styles.buttonContainer}>
           <LiquidGlassButton
-            title={
-              currentStep === 1
-                ? 'Next'
-                : isSubmitting
-                ? 'Creating account...'
-                : 'Create account'
-            }
+            title={(() => {
+              if (currentStep === 1) {
+                return 'Next';
+              }
+              if (isSubmitting) {
+                return 'Creating account...';
+              }
+              return 'Create account';
+            })()}
             onPress={currentStep === 1 ? handleNext : handleSignUp}
             style={styles.button}
             textStyle={styles.buttonText}

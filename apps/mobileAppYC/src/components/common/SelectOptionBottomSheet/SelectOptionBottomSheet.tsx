@@ -92,7 +92,7 @@ export const SelectOptionBottomSheet = forwardRef<
           data={options}
           keyExtractor={(item) => item.value}
           renderItem={renderItem}
-          contentContainerStyle={{paddingBottom: 12}}
+          contentContainerStyle={styles.contentContainer}
           showsVerticalScrollIndicator
         />
 
@@ -201,6 +201,9 @@ const createStyles = (theme: any) =>
     saveText: {
       ...theme.typography.paragraphBold,
       color: theme.colors.white,
+    },
+    contentContainer: {
+      paddingBottom: 12,
     },
   });
 

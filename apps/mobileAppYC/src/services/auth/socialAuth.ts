@@ -187,6 +187,13 @@ const performAppleSignIn = async (): Promise<{
       }
 
       const {appleServiceId, appleRedirectUri} = PASSWORDLESS_AUTH_CONFIG ?? {};
+
+      console.log('[AppleAuth] Loaded Apple configuration:', {
+        appleServiceId,
+        appleRedirectUri,
+        fullConfig: PASSWORDLESS_AUTH_CONFIG,
+      });
+
       if (!appleServiceId || !appleRedirectUri) {
         throw new Error(
           '[AppleAuth] Missing appleServiceId or appleRedirectUri in PASSWORDLESS_AUTH_CONFIG.',

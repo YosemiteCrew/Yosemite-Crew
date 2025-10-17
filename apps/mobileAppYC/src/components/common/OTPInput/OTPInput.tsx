@@ -36,7 +36,7 @@ export const OTPInput: React.FC<OTPInputProps> = ({
 
   const handleChange = (value: string, index: number) => {
     // Only allow numeric input
-    if (value && isNaN(Number(value))) return;
+    if (value && Number.isNaN(Number(value))) return;
 
     const newOtp = [...otp];
     newOtp[index] = value;
@@ -92,18 +92,22 @@ export const OTPInput: React.FC<OTPInputProps> = ({
       <View style={styles.inputContainer}>
         {otp.map((digit, index) => (
           <TextInput
-            key={index}
+            key={`otp-input-${index}`}
             ref={(ref) => {
               inputRefs.current[index] = ref;
             }}
             style={[
               styles.input,
               {
-                borderColor: error
-                  ? theme.colors.error
-                  : activeIndex === index
-                  ? theme.colors.primary
-                  : theme.colors.border,
+                borderColor: (() => {
+                  if (error) {
+                    return theme.colors.error;
+                  }
+                  if (activeIndex === index) {
+                    return theme.colors.primary;
+                  }
+                  return theme.colors.border;
+                })(),
                 backgroundColor: theme.colors.backgroundSecondary || theme.colors.background,
                 color: theme.colors.text,
               },

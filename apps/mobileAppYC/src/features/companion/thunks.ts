@@ -48,7 +48,7 @@ export const addCompanion = createAsyncThunk<
 
     // Create companion object
     const newCompanion: Companion = {
-      id: `companion_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `companion_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
       userId,
       ...payload,
       createdAt: new Date().toISOString(),

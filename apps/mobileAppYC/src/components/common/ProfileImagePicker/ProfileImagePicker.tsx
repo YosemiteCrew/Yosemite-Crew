@@ -47,12 +47,17 @@ export const ProfileImagePicker = React.forwardRef<
       ? PERMISSIONS.IOS.CAMERA
       : PERMISSIONS.ANDROID.CAMERA;
 
-  const photoLibraryPermission =
-    Platform.OS === 'ios'
-      ? PERMISSIONS.IOS.PHOTO_LIBRARY
-      : Number(Platform.Version) >= 33
-      ? PERMISSIONS.ANDROID.READ_MEDIA_IMAGES
-      : PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE;
+  const getPhotoLibraryPermission = () => {
+    if (Platform.OS === 'ios') {
+      return PERMISSIONS.IOS.PHOTO_LIBRARY;
+    }
+    if (Number(Platform.Version) >= 33) {
+      return PERMISSIONS.ANDROID.READ_MEDIA_IMAGES;
+    }
+    return PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE;
+  };
+
+  const photoLibraryPermission = getPhotoLibraryPermission();
 
   const handlePermission = useCallback(async (type: 'camera' | 'gallery') => {
     const permission = type === 'camera' ? cameraPermission : photoLibraryPermission;
@@ -76,10 +81,11 @@ export const ProfileImagePicker = React.forwardRef<
           }
           return false;
 
-        case RESULTS.DENIED:
+        case RESULTS.DENIED: {
           const requestResult = await request(permission);
           console.log(`Permission request result for ${type}:`, requestResult);
           return requestResult === RESULTS.GRANTED || requestResult === RESULTS.LIMITED;
+        }
 
         case RESULTS.LIMITED:
           console.log('Limited permission granted');

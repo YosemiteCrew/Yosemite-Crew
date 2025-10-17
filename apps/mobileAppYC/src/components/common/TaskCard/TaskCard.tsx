@@ -85,7 +85,8 @@ export const TaskCard = ({
                   source={a}
                   style={[
                     styles.avatar,
-                    {marginLeft: idx === 0 ? 0 : -15, zIndex: avatars.length - idx},
+                    idx === 0 ? styles.avatarFirst : styles.avatarSubsequent,
+                    {zIndex: avatars.length - idx},
                   ]}
                 />
               ))}
@@ -136,13 +137,10 @@ const createStyles = (theme: any) =>
     actionButton: {
       width: 48,
       height: 48,
-      borderRadius: theme.borderRadius.full,
       paddingLeft: theme.spacing[5],
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: theme.colors.primarySurface,
-      borderWidth: 1,
-      borderColor: theme.colors.primaryTintStrong,
     },
     actionIcon: {
       width: 40,
@@ -189,4 +187,10 @@ const createStyles = (theme: any) =>
     task: {...theme.typography.titleMedium, color: theme.colors.secondary},
     date: {...theme.typography.labelXsBold, color: theme.colors.placeholder},
     completeBtn: {marginTop: theme.spacing[4]},
+    avatarFirst: {
+      marginLeft: 0,
+    },
+    avatarSubsequent: {
+      marginLeft: -15,
+    },
   });
