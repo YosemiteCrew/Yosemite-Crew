@@ -963,10 +963,11 @@ const createStyles = (theme: any) =>
       tintColor: theme.colors.textSecondary,
     },
     errorText: {
-      ...theme.typography.caption,
+      ...theme.typography.labelXsBold,
       color: theme.colors.error,
-      marginTop: theme.spacing['1'],
-      fontSize: 12,
+      marginTop: -theme.spacing[3],
+      marginBottom: theme.spacing[3],
+      marginLeft: theme.spacing[1],
     },
     submissionError: {
       ...theme.typography.paragraphBold,

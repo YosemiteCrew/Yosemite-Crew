@@ -13,7 +13,7 @@ import {LiquidGlassCard} from '@/components/common/LiquidGlassCard/LiquidGlassCa
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 
-const ACTION_WIDTH = 70;
+const ACTION_WIDTH = 65;
 
 const formatDateDDMMYYYY = (date: string | Date): string => {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
@@ -97,9 +97,24 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
     });
   };
 
+  const actionOpacity = translateX.interpolate({
+    inputRange: [-totalActionWidth, 0],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+
   return (
     <View style={styles.container}>
-      <View style={styles.actionContainer}>
+      <Animated.View
+        style={[
+          styles.actionContainer,
+          {
+            opacity: actionOpacity,
+            backgroundColor: showEditAction
+              ? theme.colors.primary
+              : theme.colors.success,
+          },
+        ]}>
         {showEditAction && (
           <TouchableOpacity
             activeOpacity={0.85}
@@ -114,7 +129,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
           onPress={() => handleActionPress(onPressView)}>
           <Image source={Images.viewIconSlide} style={styles.actionImage} />
         </TouchableOpacity>
-      </View>
+      </Animated.View>
 
       <Animated.View
         {...panResponder.panHandlers}
@@ -179,20 +194,19 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       justifyContent: 'flex-end',
       alignItems: 'center',
-      backgroundColor: theme.colors.primaryGlass,
-      borderTopRightRadius: theme.borderRadius.lg,
-      borderBottomRightRadius: theme.borderRadius.lg,
+      borderRadius: theme.borderRadius.lg,
       zIndex: 0,
+      paddingLeft: theme.spacing[10], // Extra padding to extend behind curved border
     },
     actionButton: {
       width: ACTION_WIDTH,
       height: '100%',
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: '#008F5D',
+      backgroundColor: theme.colors.success,
     },
     editActionButton: {
-      backgroundColor: theme.colors.primarySurface,
+      backgroundColor: theme.colors.primary,
     },
     actionImage: {
       width: 30,

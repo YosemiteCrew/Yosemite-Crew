@@ -6,7 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  Alert,
 } from 'react-native';
 import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
@@ -19,6 +18,8 @@ import {SubcategoryBottomSheet} from '@/components/common/SubcategoryBottomSheet
 import {VisitTypeBottomSheet} from '@/components/common/VisitTypeBottomSheet/VisitTypeBottomSheet';
 import {TouchableInput} from '@/components/common/TouchableInput/TouchableInput';
 import LiquidGlassButton from '@/components/common/LiquidGlassButton/LiquidGlassButton';
+import {UploadDocumentBottomSheet, type UploadDocumentBottomSheetRef} from '@/components/common/UploadDocumentBottomSheet/UploadDocumentBottomSheet';
+import {DeleteDocumentBottomSheet, type DeleteDocumentBottomSheetRef} from '@/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
 import {useTheme} from '@/hooks';
 import {useSelector, useDispatch} from 'react-redux';
 import type {RootState, AppDispatch} from '@/app/store';
@@ -29,6 +30,7 @@ import {Images} from '@/assets/images';
 import type {CategoryBottomSheetRef} from '@/components/common/CategoryBottomSheet/CategoryBottomSheet';
 import type {SubcategoryBottomSheetRef} from '@/components/common/SubcategoryBottomSheet/SubcategoryBottomSheet';
 import type {VisitTypeBottomSheetRef} from '@/components/common/VisitTypeBottomSheet/VisitTypeBottomSheet';
+import {setSelectedCompanion} from '@/features/companion';
 
 type EditDocumentNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
 type EditDocumentRouteProp = RouteProp<DocumentStackParamList, 'EditDocument'>;
@@ -60,16 +62,32 @@ export const EditDocumentScreen: React.FC = () => {
   const [issueDate, setIssueDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [files, setFiles] = useState<DocumentFile[]>([]);
+  const [fileToDelete, setFileToDelete] = useState<string | null>(null);
+
+  // Error states
+  const [errors, setErrors] = useState({
+    category: '',
+    subcategory: '',
+    title: '',
+    businessName: '',
+    issueDate: '',
+    files: '',
+  });
 
   // Bottom sheet refs
   const categorySheetRef = useRef<CategoryBottomSheetRef>(null);
   const subcategorySheetRef = useRef<SubcategoryBottomSheetRef>(null);
   const visitTypeSheetRef = useRef<VisitTypeBottomSheetRef>(null);
+  const uploadSheetRef = useRef<UploadDocumentBottomSheetRef>(null);
+  const deleteFileSheetRef = useRef<DeleteDocumentBottomSheetRef>(null);
+  const deleteDocumentSheetRef = useRef<DeleteDocumentBottomSheetRef>(null);
 
   // Load document data
   useEffect(() => {
     if (document) {
       setSelectedCompanionId(document.companionId);
+      // Also sync with Redux when editing
+      dispatch(setSelectedCompanion(document.companionId));
       setCategory(document.category);
       setSubcategory(document.subcategory);
       setVisitType(document.visitType);
@@ -79,67 +97,103 @@ export const EditDocumentScreen: React.FC = () => {
       setIssueDate(document.issueDate ? new Date(document.issueDate) : new Date());
       setFiles(document.files);
     }
-  }, [document]);
+  }, [document, dispatch]);
 
   if (!document) {
     return (
       <SafeArea>
         <Header title="Edit document" showBackButton={true} onBack={() => navigation.goBack()} />
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Document not found</Text>
+          <Text style={styles.errorMessage}>Document not found</Text>
         </View>
       </SafeArea>
     );
   }
 
   const handleDelete = () => {
-    Alert.alert(
-      'Delete file',
-      'Are you sure you want to delete the file blood report ?',
-      [
-        {text: 'Cancel', style: 'cancel'},
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await dispatch(deleteDocument(documentId)).unwrap();
-              Alert.alert('Success', 'Document deleted successfully', [
-                {text: 'OK', onPress: () => navigation.navigate('DocumentsMain')},
-              ]);
-            } catch (error: any) {
-              Alert.alert('Error', error.message || 'Failed to delete document');
-            }
-          },
-        },
-      ],
-    );
+    deleteDocumentSheetRef.current?.open();
+  };
+
+  const confirmDeleteDocument = async () => {
+    try {
+      console.log('[EditDocument] Deleting document:', documentId);
+      await dispatch(deleteDocument(documentId)).unwrap();
+      console.log('[EditDocument] Document deleted successfully');
+      navigation.goBack();
+    } catch (error: any) {
+      console.error('[EditDocument] Failed to delete document:', error);
+      setErrors(prev => ({
+        ...prev,
+        files: error.message || 'Failed to delete document. Please try again.',
+      }));
+    }
   };
 
   const handleSave = async () => {
+    // Reset errors
+    const newErrors = {
+      category: '',
+      subcategory: '',
+      title: '',
+      businessName: '',
+      issueDate: '',
+      files: '',
+    };
+
     // Validation
-    if (!category || !subcategory || !visitType || !title.trim() || !businessName.trim()) {
-      Alert.alert('Error', 'Please fill in all required fields');
+    let hasError = false;
+
+    if (!category) {
+      newErrors.category = 'Category missing';
+      hasError = true;
+    }
+    if (!subcategory) {
+      newErrors.subcategory = 'Sub category missing';
+      hasError = true;
+    }
+    if (!title.trim()) {
+      newErrors.title = 'Title is required';
+      hasError = true;
+    }
+    if (!businessName.trim()) {
+      newErrors.businessName = 'Business name is required';
+      hasError = true;
+    }
+    if (hasIssueDate && !issueDate) {
+      newErrors.issueDate = 'Issue date missing';
+      hasError = true;
+    }
+    if (files.length === 0) {
+      newErrors.files = 'Document missing';
+      hasError = true;
+    }
+
+    if (hasError) {
+      setErrors(newErrors);
       return;
     }
 
     try {
+      console.log('[EditDocument] Starting document update process');
+
       // Upload any new files
       const newFiles = files.filter(f => !f.s3Url);
       let uploadedFiles = files.filter(f => f.s3Url);
 
       if (newFiles.length > 0) {
+        console.log('[EditDocument] Uploading new files:', newFiles.length);
         const uploaded = await dispatch(uploadDocumentFiles(newFiles)).unwrap();
         uploadedFiles = [...uploadedFiles, ...uploaded];
+        console.log('[EditDocument] New files uploaded successfully');
       }
 
       await dispatch(
         updateDocument({
           documentId,
           updates: {
-            category,
-            subcategory,
-            visitType,
+            category: category!,
+            subcategory: subcategory!,
+            visitType: visitType || 'general',
             title,
             businessName,
             issueDate: hasIssueDate ? issueDate.toISOString() : '',
@@ -148,28 +202,73 @@ export const EditDocumentScreen: React.FC = () => {
         }),
       ).unwrap();
 
-      Alert.alert('Success', 'Document updated successfully', [
-        {text: 'OK', onPress: () => navigation.goBack()},
-      ]);
+      console.log('[EditDocument] Document updated successfully');
+      navigation.goBack();
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to update document');
+      console.error('[EditDocument] Failed to update document:', error);
+      setErrors(prev => ({
+        ...prev,
+        files: error.message || 'Failed to update document. Please try again.',
+      }));
     }
   };
 
   const handleUploadDocuments = () => {
-    // Mock adding a new file
+    uploadSheetRef.current?.open();
+  };
+
+  const handleTakePhoto = () => {
     const mockFile: DocumentFile = {
       id: `file_${Date.now()}`,
-      uri: 'file://mock-new-file.jpg',
-      name: 'new-document.jpg',
+      uri: 'file://mock-photo.jpg',
+      name: 'photo.jpg',
       type: 'image/jpeg',
       size: 1024000,
     };
     setFiles([...files, mockFile]);
+    if (errors.files) {
+      setErrors(prev => ({...prev, files: ''}));
+    }
+  };
+
+  const handleChooseFromGallery = () => {
+    const mockFile: DocumentFile = {
+      id: `file_${Date.now()}`,
+      uri: 'file://mock-gallery.jpg',
+      name: 'gallery-image.jpg',
+      type: 'image/jpeg',
+      size: 2048000,
+    };
+    setFiles([...files, mockFile]);
+    if (errors.files) {
+      setErrors(prev => ({...prev, files: ''}));
+    }
+  };
+
+  const handleUploadFromDrive = () => {
+    const mockFile: DocumentFile = {
+      id: `file_${Date.now()}`,
+      uri: 'file://mock-drive-doc.pdf',
+      name: 'document.pdf',
+      type: 'application/pdf',
+      size: 3072000,
+    };
+    setFiles([...files, mockFile]);
+    if (errors.files) {
+      setErrors(prev => ({...prev, files: ''}));
+    }
   };
 
   const handleRemoveFile = (fileId: string) => {
-    setFiles(files.filter(f => f.id !== fileId));
+    setFileToDelete(fileId);
+    deleteFileSheetRef.current?.open();
+  };
+
+  const confirmDeleteFile = () => {
+    if (fileToDelete) {
+      setFiles(files.filter(f => f.id !== fileToDelete));
+      setFileToDelete(null);
+    }
   };
 
   return (
@@ -188,7 +287,10 @@ export const EditDocumentScreen: React.FC = () => {
         <CompanionSelector
           companions={companions}
           selectedCompanionId={selectedCompanionId}
-          onSelect={setSelectedCompanionId}
+          onSelect={(id) => {
+            setSelectedCompanionId(id);
+            dispatch(setSelectedCompanion(id));
+          }}
           showAddButton={false}
           containerStyle={styles.companionSelector}
         />
@@ -226,19 +328,31 @@ export const EditDocumentScreen: React.FC = () => {
           />
         </TouchableOpacity>
 
-        <Input
-          label="Title"
-          value={title}
-          onChangeText={setTitle}
-          containerStyle={styles.input}
-        />
+        <View>
+          <Input
+            label="Title"
+            value={title}
+            onChangeText={(text) => {
+              setTitle(text);
+              if (errors.title) setErrors(prev => ({...prev, title: ''}));
+            }}
+            containerStyle={styles.input}
+          />
+          {errors.title ? <Text style={styles.errorText}>{errors.title}</Text> : null}
+        </View>
 
-        <Input
-          label="Issuing business name"
-          value={businessName}
-          onChangeText={setBusinessName}
-          containerStyle={styles.input}
-        />
+        <View>
+          <Input
+            label="Issuing business name"
+            value={businessName}
+            onChangeText={(text) => {
+              setBusinessName(text);
+              if (errors.businessName) setErrors(prev => ({...prev, businessName: ''}));
+            }}
+            containerStyle={styles.input}
+          />
+          {errors.businessName ? <Text style={styles.errorText}>{errors.businessName}</Text> : null}
+        </View>
 
         <View style={styles.dateSection}>
           <View style={styles.dateSectionHeader}>
@@ -269,22 +383,48 @@ export const EditDocumentScreen: React.FC = () => {
           )}
         </View>
 
-        <Text style={styles.uploadedTitle}>Uploaded Documents</Text>
-        {files.map(file => (
-          <View key={file.id} style={styles.fileItem}>
-            <Image source={Images.documentIcon} style={styles.fileIcon} />
-            <Text style={styles.fileName} numberOfLines={1}>
-              {file.name}
-            </Text>
-            <TouchableOpacity onPress={() => handleRemoveFile(file.id)}>
-              <Image source={Images.closeIcon} style={styles.removeIcon} />
-            </TouchableOpacity>
-          </View>
-        ))}
-
-        <TouchableOpacity style={styles.addFileButton} onPress={handleUploadDocuments}>
-          <Image source={Images.blueAddIcon} style={styles.addFileIcon} />
-        </TouchableOpacity>
+        <View>
+          {files.length === 0 ? (
+            <>
+              <TouchableOpacity
+                style={[styles.uploadSection, errors.files && styles.uploadSectionError]}
+                onPress={handleUploadDocuments}
+                activeOpacity={0.7}>
+                <Image source={Images.uploadIcon} style={styles.uploadIcon} />
+                <Text style={styles.uploadTitle}>Upload documents</Text>
+                <Text style={styles.uploadSubtitle}>
+                  Only DOC, PDF, PNG, JPEG formats{'\n'}with max size 5 MB
+                </Text>
+              </TouchableOpacity>
+              {errors.files ? <Text style={styles.errorText}>{errors.files}</Text> : null}
+            </>
+          ) : (
+            <View style={styles.filesPreviewContainer}>
+              <View style={styles.multipleFilesGrid}>
+                {files.map(file => (
+                  <View key={file.id} style={styles.filePreviewBox}>
+                    <Image
+                      source={{uri: file.uri}}
+                      style={styles.filePreviewImage}
+                      resizeMode="cover"
+                    />
+                    <TouchableOpacity
+                      style={styles.removeButtonMultiple}
+                      onPress={() => handleRemoveFile(file.id)}>
+                      <Image source={Images.closeIcon} style={styles.removeIconSmall} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                <TouchableOpacity
+                  style={styles.addMoreBox}
+                  onPress={handleUploadDocuments}>
+                  <Image source={Images.addIconWhite} style={styles.addMoreIcon} />
+                </TouchableOpacity>
+              </View>
+              {errors.files ? <Text style={styles.errorText}>{errors.files}</Text> : null}
+            </View>
+          )}
+        </View>
 
         <View style={styles.saveButton}>
           <LiquidGlassButton
@@ -334,6 +474,25 @@ export const EditDocumentScreen: React.FC = () => {
         selectedVisitType={visitType}
         onSave={setVisitType}
       />
+
+      <UploadDocumentBottomSheet
+        ref={uploadSheetRef}
+        onTakePhoto={handleTakePhoto}
+        onChooseGallery={handleChooseFromGallery}
+        onUploadDrive={handleUploadFromDrive}
+      />
+
+      <DeleteDocumentBottomSheet
+        ref={deleteFileSheetRef}
+        documentTitle={fileToDelete ? files.find(f => f.id === fileToDelete)?.name : 'this file'}
+        onDelete={confirmDeleteFile}
+      />
+
+      <DeleteDocumentBottomSheet
+        ref={deleteDocumentSheetRef}
+        documentTitle={document?.title || 'this document'}
+        onDelete={confirmDeleteDocument}
+      />
     </SafeArea>
   );
 };
@@ -346,14 +505,14 @@ const createStyles = (theme: any) =>
     },
     contentContainer: {
       paddingHorizontal: theme.spacing[4],
-      paddingBottom: theme.spacing[6],
+      paddingBottom: theme.spacing[24], // Extra padding for tab bar
     },
     errorContainer: {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    errorText: {
+    errorMessage: {
       ...theme.typography.bodyLarge,
       color: theme.colors.error,
     },
@@ -409,6 +568,38 @@ const createStyles = (theme: any) =>
     },
     datePicker: {
       marginTop: theme.spacing[2],
+    },
+    uploadSection: {
+      borderWidth: 2,
+      borderStyle: 'dashed',
+      borderColor: theme.colors.borderMuted,
+      borderRadius: theme.borderRadius.lg,
+      paddingVertical: theme.spacing[8],
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: theme.spacing[4],
+      backgroundColor: theme.colors.surface,
+    },
+    uploadSectionError: {
+      borderColor: theme.colors.error,
+    },
+    uploadIcon: {
+      width: 48,
+      height: 48,
+      resizeMode: 'contain',
+      marginBottom: theme.spacing[3],
+      tintColor: theme.colors.primary,
+    },
+    uploadTitle: {
+      ...theme.typography.titleMedium,
+      color: theme.colors.secondary,
+      marginBottom: theme.spacing[1],
+    },
+    uploadSubtitle: {
+      ...theme.typography.labelXsBold,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 16,
     },
     uploadedTitle: {
       ...theme.typography.labelMdBold,
@@ -484,5 +675,89 @@ const createStyles = (theme: any) =>
     },
     inputContainer: {
       marginBottom: 0,
+    },
+    errorText: {
+      ...theme.typography.labelXsBold,
+      color: theme.colors.error,
+      marginTop: -theme.spacing[3],
+      marginBottom: theme.spacing[3],
+      marginLeft: theme.spacing[1],
+    },
+    filesPreviewContainer: {
+      marginBottom: theme.spacing[4],
+    },
+    singleFilePreview: {
+      width: '100%',
+      height: 250,
+      borderRadius: theme.borderRadius.lg,
+      overflow: 'hidden',
+      position: 'relative',
+    },
+    singleFileImage: {
+      width: '100%',
+      height: '100%',
+    },
+    removeButtonSingle: {
+      position: 'absolute',
+      top: theme.spacing[3],
+      right: theme.spacing[3],
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    removeIconLarge: {
+      width: 20,
+      height: 20,
+      tintColor: theme.colors.white,
+    },
+    multipleFilesGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: theme.spacing[3],
+    },
+    filePreviewBox: {
+      width: '47%',
+      height: 120,
+      borderRadius: theme.borderRadius.lg,
+       borderWidth: 1,
+      borderColor: theme.colors.borderMuted,
+      overflow: 'hidden',
+      position: 'relative',
+    },
+    filePreviewImage: {
+      width: '100%',
+      height: '100%',
+    },
+    removeButtonMultiple: {
+      position: 'absolute',
+      top: theme.spacing[2],
+      right: theme.spacing[2],
+      width: 28,
+      height: 28,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    removeIconSmall: {
+      width: 25,
+      height: 25,
+    },
+    addMoreBox: {
+      width: '47%',
+      height: 120,
+      borderRadius: theme.borderRadius.lg,
+      borderWidth: 2,
+      borderStyle: 'dashed',
+      borderColor: theme.colors.borderMuted,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.surface,
+    },
+    addMoreIcon: {
+      width: 32,
+      height: 32,
+      tintColor: theme.colors.textSecondary,
     },
   });

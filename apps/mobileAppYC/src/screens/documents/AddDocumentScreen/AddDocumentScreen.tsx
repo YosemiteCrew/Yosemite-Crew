@@ -6,7 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  Alert,
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
@@ -22,6 +21,8 @@ import {SubcategoryBottomSheet} from '@/components/common/SubcategoryBottomSheet
 import {VisitTypeBottomSheet} from '@/components/common/VisitTypeBottomSheet/VisitTypeBottomSheet';
 import {TouchableInput} from '@/components/common/TouchableInput/TouchableInput';
 import LiquidGlassButton from '@/components/common/LiquidGlassButton/LiquidGlassButton';
+import {UploadDocumentBottomSheet, type UploadDocumentBottomSheetRef} from '@/components/common/UploadDocumentBottomSheet/UploadDocumentBottomSheet';
+import {DeleteDocumentBottomSheet, type DeleteDocumentBottomSheetRef} from '@/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
 import {useTheme} from '@/hooks';
 import {useSelector, useDispatch} from 'react-redux';
 import type {RootState, AppDispatch} from '@/app/store';
@@ -35,6 +36,7 @@ import {Images} from '@/assets/images';
 import type {CategoryBottomSheetRef} from '@/components/common/CategoryBottomSheet/CategoryBottomSheet';
 import type {SubcategoryBottomSheetRef} from '@/components/common/SubcategoryBottomSheet/SubcategoryBottomSheet';
 import type {VisitTypeBottomSheetRef} from '@/components/common/VisitTypeBottomSheet/VisitTypeBottomSheet';
+import {setSelectedCompanion} from '@/features/companion';
 
 type AddDocumentNavigationProp =
   NativeStackNavigationProp<DocumentStackParamList>;
@@ -51,54 +53,48 @@ export const AddDocumentScreen: React.FC = () => {
   );
   const loading = useSelector((state: RootState) => state.documents.loading);
 
-  // Form state
-  const [selectedCompanionId, setSelectedCompanionId] = useState<string | null>(
-    companions.length > 0 ? companions[0].id : null,
+  // Get selected companion from Redux
+  const selectedCompanionId = useSelector(
+    (state: RootState) => state.companion.selectedCompanionId,
   );
   const [category, setCategory] = useState<string | null>(null);
   const [subcategory, setSubcategory] = useState<string | null>(null);
   const [visitType, setVisitType] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [businessName, setBusinessName] = useState('');
-  const [hasIssueDate, setHasIssueDate] = useState(false);
+  const [hasIssueDate, setHasIssueDate] = useState(true);
   const [issueDate, setIssueDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [files, setFiles] = useState<DocumentFile[]>([]);
+  const [fileToDelete, setFileToDelete] = useState<string | null>(null);
+
+  // Error states
+  const [errors, setErrors] = useState({
+    category: '',
+    subcategory: '',
+    title: '',
+    businessName: '',
+    issueDate: '',
+    files: '',
+  });
 
   // Bottom sheet refs
   const categorySheetRef = useRef<CategoryBottomSheetRef>(null);
   const subcategorySheetRef = useRef<SubcategoryBottomSheetRef>(null);
   const visitTypeSheetRef = useRef<VisitTypeBottomSheetRef>(null);
+  const uploadSheetRef = useRef<UploadDocumentBottomSheetRef>(null);
+  const deleteSheetRef = useRef<DeleteDocumentBottomSheetRef>(null);
 
   const handleCategoryChange = (newCategory: string | null) => {
     setCategory(newCategory);
     setSubcategory(null); // Reset subcategory when category changes
+    if (errors.category) {
+      setErrors(prev => ({...prev, category: ''}));
+    }
   };
 
   const handleUploadDocuments = () => {
-    Alert.alert(
-      'Upload documents',
-      'Choose upload method',
-      [
-        {
-          text: 'Take Photo',
-          onPress: () => handleTakePhoto(),
-        },
-        {
-          text: 'Choose from Gallery',
-          onPress: () => handleChooseFromGallery(),
-        },
-        {
-          text: 'Upload from Drive',
-          onPress: () => handleUploadFromDrive(),
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ],
-      {cancelable: true},
-    );
+    uploadSheetRef.current?.open();
   };
 
   const handleTakePhoto = () => {
@@ -111,6 +107,9 @@ export const AddDocumentScreen: React.FC = () => {
       size: 1024000,
     };
     setFiles([...files, mockFile]);
+    if (errors.files) {
+      setErrors(prev => ({...prev, files: ''}));
+    }
   };
 
   const handleChooseFromGallery = () => {
@@ -123,6 +122,9 @@ export const AddDocumentScreen: React.FC = () => {
       size: 2048000,
     };
     setFiles([...files, mockFile]);
+    if (errors.files) {
+      setErrors(prev => ({...prev, files: ''}));
+    }
   };
 
   const handleUploadFromDrive = () => {
@@ -135,54 +137,81 @@ export const AddDocumentScreen: React.FC = () => {
       size: 3072000,
     };
     setFiles([...files, mockFile]);
+    if (errors.files) {
+      setErrors(prev => ({...prev, files: ''}));
+    }
   };
 
   const handleRemoveFile = (fileId: string) => {
-    setFiles(files.filter(f => f.id !== fileId));
+    setFileToDelete(fileId);
+    deleteSheetRef.current?.open();
+  };
+
+  const confirmDeleteFile = () => {
+    if (fileToDelete) {
+      setFiles(files.filter(f => f.id !== fileToDelete));
+      setFileToDelete(null);
+    }
   };
 
   const handleSave = async () => {
+    // Reset errors
+    const newErrors = {
+      category: '',
+      subcategory: '',
+      title: '',
+      businessName: '',
+      issueDate: '',
+      files: '',
+    };
+
     // Validation
-    if (!selectedCompanionId) {
-      Alert.alert('Error', 'Please select a companion');
-      return;
-    }
+    let hasError = false;
+
     if (!category) {
-      Alert.alert('Error', 'Please select a category');
-      return;
+      newErrors.category = 'Category missing';
+      hasError = true;
     }
     if (!subcategory) {
-      Alert.alert('Error', 'Please select a subcategory');
-      return;
-    }
-    if (!visitType) {
-      Alert.alert('Error', 'Please select a visit type');
-      return;
+      newErrors.subcategory = 'Sub category missing';
+      hasError = true;
     }
     if (!title.trim()) {
-      Alert.alert('Error', 'Please enter a title');
-      return;
+      newErrors.title = 'Title is required';
+      hasError = true;
     }
     if (!businessName.trim()) {
-      Alert.alert('Error', 'Please enter a business name');
-      return;
+      newErrors.businessName = 'Business name is required';
+      hasError = true;
+    }
+    if (hasIssueDate && !issueDate) {
+      newErrors.issueDate = 'Issue date missing';
+      hasError = true;
     }
     if (files.length === 0) {
-      Alert.alert('Error', 'Please upload at least one document');
+      newErrors.files = 'Document missing';
+      hasError = true;
+    }
+
+    if (hasError) {
+      setErrors(newErrors);
       return;
     }
 
     try {
+      console.log('[AddDocument] Starting document upload and save process');
+
       // Upload files to S3
       const uploadedFiles = await dispatch(uploadDocumentFiles(files)).unwrap();
+      console.log('[AddDocument] Files uploaded successfully:', uploadedFiles.length);
 
       // Add document
       await dispatch(
         addDocument({
-          companionId: selectedCompanionId,
-          category,
-          subcategory,
-          visitType,
+          companionId: selectedCompanionId!,
+          category: category!,
+          subcategory: subcategory!,
+          visitType: visitType || 'general',
           title,
           businessName,
           issueDate: hasIssueDate ? issueDate.toISOString() : '',
@@ -191,11 +220,14 @@ export const AddDocumentScreen: React.FC = () => {
         }),
       ).unwrap();
 
-      Alert.alert('Success', 'Document added successfully', [
-        {text: 'OK', onPress: () => navigation.goBack()},
-      ]);
+      console.log('[AddDocument] Document added successfully');
+      navigation.navigate('DocumentsMain');
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to add document');
+      console.error('[AddDocument] Failed to add document:', error);
+      setErrors(prev => ({
+        ...prev,
+        files: error.message || 'Failed to add document. Please try again.',
+      }));
     }
   };
 
@@ -233,38 +265,44 @@ export const AddDocumentScreen: React.FC = () => {
         <CompanionSelector
           companions={companions}
           selectedCompanionId={selectedCompanionId}
-          onSelect={setSelectedCompanionId}
+          onSelect={(id) => dispatch(setSelectedCompanion(id))}
           showAddButton={false}
           containerStyle={styles.companionSelector}
         />
 
-        <TouchableOpacity onPress={() => categorySheetRef.current?.open()}>
-          <Input
-            label="Category"
-            value={getCategoryLabel()}
-            editable={false}
-            pointerEvents="none"
-            containerStyle={styles.input}
-            icon={
-              <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
-            }
-          />
-        </TouchableOpacity>
+        <View>
+          <TouchableOpacity onPress={() => categorySheetRef.current?.open()}>
+            <Input
+              label="Category"
+              value={getCategoryLabel()}
+              editable={false}
+              pointerEvents="none"
+              containerStyle={styles.input}
+              icon={
+                <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
+              }
+            />
+          </TouchableOpacity>
+          {errors.category ? <Text style={styles.errorText}>{errors.category}</Text> : null}
+        </View>
 
-        <TouchableOpacity
-          onPress={() => subcategorySheetRef.current?.open()}
-          disabled={!category}>
-          <Input
-            label="Sub category"
-            value={getSubcategoryLabel()}
-            editable={false}
-            pointerEvents="none"
-            containerStyle={styles.input}
-            icon={
-              <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
-            }
-          />
-        </TouchableOpacity>
+        <View>
+          <TouchableOpacity
+            onPress={() => subcategorySheetRef.current?.open()}
+            disabled={!category}>
+            <Input
+              label="Sub category"
+              value={getSubcategoryLabel()}
+              editable={false}
+              pointerEvents="none"
+              containerStyle={styles.input}
+              icon={
+                <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
+              }
+            />
+          </TouchableOpacity>
+          {errors.subcategory ? <Text style={styles.errorText}>{errors.subcategory}</Text> : null}
+        </View>
 
         <TouchableOpacity onPress={() => visitTypeSheetRef.current?.open()}>
           <Input
@@ -279,19 +317,31 @@ export const AddDocumentScreen: React.FC = () => {
           />
         </TouchableOpacity>
 
-        <Input
-          label="Title"
-          value={title}
-          onChangeText={setTitle}
-          containerStyle={styles.input}
-        />
+        <View>
+          <Input
+            label="Title"
+            value={title}
+            onChangeText={(text) => {
+              setTitle(text);
+              if (errors.title) setErrors(prev => ({...prev, title: ''}));
+            }}
+            containerStyle={styles.input}
+          />
+          {errors.title ? <Text style={styles.errorText}>{errors.title}</Text> : null}
+        </View>
 
-        <Input
-          label="Issuing business name"
-          value={businessName}
-          onChangeText={setBusinessName}
-          containerStyle={styles.input}
-        />
+        <View>
+          <Input
+            label="Issuing business name"
+            value={businessName}
+            onChangeText={(text) => {
+              setBusinessName(text);
+              if (errors.businessName) setErrors(prev => ({...prev, businessName: ''}));
+            }}
+            containerStyle={styles.input}
+          />
+          {errors.businessName ? <Text style={styles.errorText}>{errors.businessName}</Text> : null}
+        </View>
 
         <View style={styles.dateSection}>
           <View style={styles.dateSectionHeader}>
@@ -332,32 +382,48 @@ export const AddDocumentScreen: React.FC = () => {
           )}
         </View>
 
-        <TouchableOpacity
-          style={styles.uploadSection}
-          onPress={handleUploadDocuments}
-          activeOpacity={0.7}>
-          <Image source={Images.uploadIcon} style={styles.uploadIcon} />
-          <Text style={styles.uploadTitle}>Upload documents</Text>
-          <Text style={styles.uploadSubtitle}>
-            Only DOC, PDF, PNG, JPEG formats{'\n'}with max size 5 MB
-          </Text>
-        </TouchableOpacity>
-
-        {files.length > 0 && (
-          <View style={styles.filesSection}>
-            <Text style={styles.filesSectionTitle}>Uploaded Documents</Text>
-            {files.map(file => (
-              <View key={file.id} style={styles.fileItem}>
-                <Text style={styles.fileName} numberOfLines={1}>
-                  {file.name}
+        <View>
+          {files.length === 0 ? (
+            <>
+              <TouchableOpacity
+                style={[styles.uploadSection, errors.files && styles.uploadSectionError]}
+                onPress={handleUploadDocuments}
+                activeOpacity={0.7}>
+                <Image source={Images.uploadIcon} style={styles.uploadIcon} />
+                <Text style={styles.uploadTitle}>Upload documents</Text>
+                <Text style={styles.uploadSubtitle}>
+                  Only DOC, PDF, PNG, JPEG formats{'\n'}with max size 5 MB
                 </Text>
-                <TouchableOpacity onPress={() => handleRemoveFile(file.id)}>
-                  <Image source={Images.closeIcon} style={styles.removeIcon} />
+              </TouchableOpacity>
+              {errors.files ? <Text style={styles.errorText}>{errors.files}</Text> : null}
+            </>
+          ) : (
+            <View style={styles.filesPreviewContainer}>
+              <View style={styles.multipleFilesGrid}>
+                {files.map(file => (
+                  <View key={file.id} style={styles.filePreviewBox}>
+                    <Image
+                      source={{uri: file.uri}}
+                      style={styles.filePreviewImage}
+                      resizeMode="cover"
+                    />
+                    <TouchableOpacity
+                      style={styles.removeButtonMultiple}
+                      onPress={() => handleRemoveFile(file.id)}>
+                      <Image source={Images.closeIcon} style={styles.removeIconSmall} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                <TouchableOpacity
+                  style={styles.addMoreBox}
+                  onPress={handleUploadDocuments}>
+                  <Image source={Images.addIconWhite} style={styles.addMoreIcon} />
                 </TouchableOpacity>
               </View>
-            ))}
-          </View>
-        )}
+              {errors.files ? <Text style={styles.errorText}>{errors.files}</Text> : null}
+            </View>
+          )}
+        </View>
 
         <View style={styles.saveButton}>
           <LiquidGlassButton
@@ -407,6 +473,19 @@ export const AddDocumentScreen: React.FC = () => {
         selectedVisitType={visitType}
         onSave={setVisitType}
       />
+
+      <UploadDocumentBottomSheet
+        ref={uploadSheetRef}
+        onTakePhoto={handleTakePhoto}
+        onChooseGallery={handleChooseFromGallery}
+        onUploadDrive={handleUploadFromDrive}
+      />
+
+      <DeleteDocumentBottomSheet
+        ref={deleteSheetRef}
+        documentTitle={fileToDelete ? files.find(f => f.id === fileToDelete)?.name : 'this file'}
+        onDelete={confirmDeleteFile}
+      />
     </SafeArea>
   );
 };
@@ -419,7 +498,7 @@ const createStyles = (theme: any) =>
     },
     contentContainer: {
       paddingHorizontal: theme.spacing[4],
-      paddingBottom: theme.spacing[6],
+      paddingBottom: theme.spacing[24], // Extra padding for tab bar
     },
     companionSelector: {
       marginTop: theme.spacing[4],
@@ -560,5 +639,92 @@ const createStyles = (theme: any) =>
     },
     inputContainer: {
       marginBottom: 0,
+    },
+    errorText: {
+      ...theme.typography.labelXsBold,
+      color: theme.colors.error,
+      marginTop: -theme.spacing[3],
+      marginBottom: theme.spacing[3],
+      marginLeft: theme.spacing[1],
+    },
+    uploadSectionError: {
+      borderColor: theme.colors.error,
+    },
+    filesPreviewContainer: {
+      marginBottom: theme.spacing[4],
+    },
+    singleFilePreview: {
+      width: '100%',
+      height: 250,
+      borderRadius: theme.borderRadius.lg,
+      overflow: 'hidden',
+      position: 'relative',
+    },
+    singleFileImage: {
+      width: '100%',
+      height: '100%',
+    },
+    removeButtonSingle: {
+      position: 'absolute',
+      top: theme.spacing[3],
+      right: theme.spacing[3],
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    removeIconLarge: {
+      width: 20,
+      height: 20,
+      tintColor: theme.colors.white,
+    },
+    multipleFilesGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: theme.spacing[3],
+    },
+    filePreviewBox: {
+      width: '47%',
+      height: 120,
+      borderRadius: theme.borderRadius.lg,
+       borderWidth: 1,
+      borderColor: theme.colors.borderMuted,
+      overflow: 'hidden',
+      position: 'relative',
+    },
+    filePreviewImage: {
+      width: '100%',
+      height: '100%',
+    },
+    removeButtonMultiple: {
+      position: 'absolute',
+      top: theme.spacing[2],
+      right: theme.spacing[2],
+      width: 28,
+      height: 28,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    removeIconSmall: {
+      width: 25,
+      height: 25,
+    },
+    addMoreBox: {
+      width: '47%',
+      height: 120,
+      borderRadius: theme.borderRadius.lg,
+      borderWidth: 2,
+      borderStyle: 'dashed',
+      borderColor: theme.colors.borderMuted,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.surface,
+    },
+    addMoreIcon: {
+      width: 32,
+      height: 32,
+      tintColor: theme.colors.textSecondary,
     },
   });

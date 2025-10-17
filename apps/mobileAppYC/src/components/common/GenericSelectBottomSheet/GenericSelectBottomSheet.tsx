@@ -36,6 +36,8 @@ interface GenericSelectBottomSheetProps {
   hasSearch?: boolean;
   emptyMessage?: string;
   customContent?: React.ReactNode;
+  mode?: 'select' | 'confirm'; // 'select' = auto-close on select, 'confirm' = show save/cancel buttons
+  maxListHeight?: number;
 }
 
 export const GenericSelectBottomSheet = forwardRef<
@@ -52,6 +54,8 @@ export const GenericSelectBottomSheet = forwardRef<
   hasSearch = true,
   emptyMessage = "No items available",
   customContent,
+  mode = 'confirm',
+  maxListHeight = 400,
 }, ref) => {
   const { theme } = useTheme();
   const bottomSheetRef = useRef<BottomSheetRef>(null);
@@ -59,7 +63,7 @@ export const GenericSelectBottomSheet = forwardRef<
   const [tempItem, setTempItem] = useState<SelectItem | null>(selectedItem);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const styles = createStyles(theme);
+  const styles = createStyles(theme, maxListHeight);
 
   const filteredItems = useMemo(() => {
     if (!hasSearch || !searchQuery.trim()) return items;
@@ -78,13 +82,26 @@ export const GenericSelectBottomSheet = forwardRef<
     </View>
   );
 
+  const handleItemPress = (item: SelectItem) => {
+    if (mode === 'select') {
+      // Auto-select mode: immediately save and close
+      onSave(item);
+      bottomSheetRef.current?.close();
+    } else {
+      // Confirm mode: just update temp selection
+      setTempItem(item);
+    }
+  };
+
   const defaultRenderItem = ({ item }: { item: SelectItem }) => {
-    const isSelected = tempItem?.id === item.id;
+    const isSelected = mode === 'select'
+      ? selectedItem?.id === item.id
+      : tempItem?.id === item.id;
 
     return (
       <TouchableOpacity
         style={[styles.item, isSelected && styles.itemSelected]}
-        onPress={() => setTempItem(item)}
+        onPress={() => handleItemPress(item)}
         activeOpacity={0.7}>
         <Text style={styles.itemLabel}>{item.label}</Text>
         {isSelected && (
@@ -130,6 +147,7 @@ export const GenericSelectBottomSheet = forwardRef<
       enableOverDrag
       enableBackdrop
       backdropOpacity={0.5}
+      backdropAppearsOnIndex={0}
       backdropDisappearsOnIndex={-1}
       backdropPressBehavior="close"
       contentType="view"
@@ -173,7 +191,9 @@ export const GenericSelectBottomSheet = forwardRef<
             data={filteredItems}
             keyExtractor={item => item.id}
             renderItem={({ item }) => {
-              const isSelected = tempItem?.id === item.id;
+              const isSelected = mode === 'select'
+                ? selectedItem?.id === item.id
+                : tempItem?.id === item.id;
               return renderItem ? renderItem(item, isSelected) : defaultRenderItem({ item });
             }}
             showsVerticalScrollIndicator
@@ -183,34 +203,36 @@ export const GenericSelectBottomSheet = forwardRef<
           />
         </View>
 
-        {/* Buttons */}
-        <View style={styles.buttonContainer}>
-          <LiquidGlassButton
-            title="Cancel"
-            onPress={handleCancel}
-            style={styles.cancelButton}
-            textStyle={styles.cancelButtonText}
-            tintColor="#FFFFFF"
-            shadowIntensity="light"
-            forceBorder
-            borderColor="rgba(0, 0, 0, 0.12)"
-            height={56}
-            borderRadius={16}
-          />
+        {/* Buttons - Only shown in confirm mode */}
+        {mode === 'confirm' && (
+          <View style={styles.buttonContainer}>
+            <LiquidGlassButton
+              title="Cancel"
+              onPress={handleCancel}
+              style={styles.cancelButton}
+              textStyle={styles.cancelButtonText}
+              tintColor="#FFFFFF"
+              shadowIntensity="light"
+              forceBorder
+              borderColor="rgba(0, 0, 0, 0.12)"
+              height={56}
+              borderRadius={16}
+            />
 
-          <LiquidGlassButton
-            title="Save"
-            onPress={handleSave}
-            style={styles.saveButton}
-            textStyle={styles.saveButtonText}
-            tintColor={theme.colors.secondary}
-            shadowIntensity="medium"
-            forceBorder
-            borderColor="rgba(255, 255, 255, 0.35)"
-            height={56}
-            borderRadius={16}
-          />
-        </View>
+            <LiquidGlassButton
+              title="Save"
+              onPress={handleSave}
+              style={styles.saveButton}
+              textStyle={styles.saveButtonText}
+              tintColor={theme.colors.secondary}
+              shadowIntensity="medium"
+              forceBorder
+              borderColor="rgba(255, 255, 255, 0.35)"
+              height={56}
+              borderRadius={16}
+            />
+          </View>
+        )}
       </View>
     </CustomBottomSheet>
   );
@@ -218,7 +240,7 @@ export const GenericSelectBottomSheet = forwardRef<
 
 GenericSelectBottomSheet.displayName = 'GenericSelectBottomSheet';
 
-const createStyles = (theme: any) =>
+const createStyles = (theme: any, maxListHeight: number) =>
   StyleSheet.create({
     container: {
       flex: 1,
@@ -268,8 +290,7 @@ const createStyles = (theme: any) =>
       textAlign: 'center',
     },
     listWrapper: {
-      flex: 1,
-      height: 400,
+      maxHeight: maxListHeight,
       marginBottom: theme.spacing['2'],
     },
     listContent: {
@@ -283,6 +304,8 @@ const createStyles = (theme: any) =>
       paddingHorizontal: theme.spacing['3'],
       borderRadius: theme.borderRadius.base,
       marginBottom: theme.spacing['1'],
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
     },
     itemSelected: {
       backgroundColor: theme.colors.surface,

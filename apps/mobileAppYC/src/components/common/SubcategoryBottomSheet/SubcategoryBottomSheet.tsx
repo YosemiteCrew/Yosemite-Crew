@@ -84,6 +84,9 @@ export const SubcategoryBottomSheet = forwardRef<
       onSave={handleSave}
       hasSearch={false}
       emptyMessage="No subcategories available"
+      mode="select"
+      snapPoints={['45%', '45%']}
+      maxListHeight={300}
     />
   );
 });

@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet as RNStyleSheet,
+  Alert,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
@@ -77,21 +78,33 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   );
 
   const handleProfileImageChange = React.useCallback(
-    (imageUri: string | null) => {
+    async (imageUri: string | null) => {
       if (!companion?.id) return;
 
-      const updated: Companion = {
-        ...companion,
-        profileImage: imageUri || null,
-        updatedAt: new Date().toISOString(),
-      };
+      try {
+        console.log('[ProfileOverview] Profile image change:', imageUri);
+        const updated: Companion = {
+          ...companion,
+          profileImage: imageUri || null,
+          updatedAt: new Date().toISOString(),
+        };
 
-      dispatch(
-        updateCompanionProfile({
-          userId: user?.id || '',
-          updatedCompanion: updated,
-        }),
-      );
+        await dispatch(
+          updateCompanionProfile({
+            userId: user?.id || '',
+            updatedCompanion: updated,
+          }),
+        ).unwrap();
+
+        console.log('[ProfileOverview] Profile image updated successfully');
+      } catch (error) {
+        console.error('[ProfileOverview] Failed to update profile image:', error);
+        Alert.alert(
+          'Image Update Failed',
+          'Failed to update profile image. Please try again.',
+          [{text: 'OK'}]
+        );
+      }
     },
     [companion, dispatch, user?.id],
   );
@@ -120,14 +133,30 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   const handleDeleteProfile = async () => {
     if (!user?.id || !companion?.id) return;
 
-    const resultAction = await dispatch(
-      deleteCompanion({userId: user.id, companionId: companion.id}),
-    );
+    try {
+      console.log('[ProfileOverview] Deleting companion:', companion.id);
+      const resultAction = await dispatch(
+        deleteCompanion({userId: user.id, companionId: companion.id}),
+      );
 
-    if (deleteCompanion.fulfilled.match(resultAction)) {
-      navigation.goBack();
-    } else {
-      console.error('Failed to delete companion:', resultAction.payload);
+      if (deleteCompanion.fulfilled.match(resultAction)) {
+        console.log('[ProfileOverview] Companion deleted successfully');
+        navigation.goBack();
+      } else {
+        console.error('[ProfileOverview] Failed to delete companion:', resultAction.payload);
+        Alert.alert(
+          'Delete Failed',
+          'Failed to delete companion profile. Please try again.',
+          [{text: 'OK'}]
+        );
+      }
+    } catch (error) {
+      console.error('[ProfileOverview] Error deleting companion:', error);
+      Alert.alert(
+        'Delete Failed',
+        'An error occurred while deleting the companion profile.',
+        [{text: 'OK'}]
+      );
     }
   };
 

@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
+  Alert,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
@@ -119,26 +120,50 @@ export const CompanionOverviewScreen: React.FC<
   const safeCompanion = companion as Companion;
 
   const applyPatch = useCallback(
-    (patch: Partial<Companion>) => {
+    async (patch: Partial<Companion>) => {
       if (!safeCompanion) return;
-      const updated: Companion = {
-        ...safeCompanion,
-        ...patch,
-        updatedAt: new Date().toISOString(),
-      } as Companion;
-      dispatch(
-        updateCompanionProfile({
-          userId: safeCompanion.userId,
-          updatedCompanion: updated,
-        }),
-      );
+
+      try {
+        console.log('[CompanionOverview] Applying patch:', patch);
+        const updated: Companion = {
+          ...safeCompanion,
+          ...patch,
+          updatedAt: new Date().toISOString(),
+        } as Companion;
+
+        await dispatch(
+          updateCompanionProfile({
+            userId: safeCompanion.userId,
+            updatedCompanion: updated,
+          }),
+        ).unwrap();
+
+        console.log('[CompanionOverview] Profile updated successfully');
+      } catch (error) {
+        console.error('[CompanionOverview] Failed to update profile:', error);
+        Alert.alert(
+          'Update Failed',
+          'Failed to update companion profile. Please try again.',
+          [{text: 'OK'}]
+        );
+      }
     },
     [dispatch, safeCompanion],
   );
 
   const handleProfileImageChange = useCallback(
-    (imageUri: string | null) => {
-      applyPatch({ profileImage: imageUri || undefined });
+    async (imageUri: string | null) => {
+      try {
+        console.log('[CompanionOverview] Profile image change:', imageUri);
+        await applyPatch({ profileImage: imageUri || undefined });
+      } catch (error) {
+        console.error('[CompanionOverview] Failed to update profile image:', error);
+        Alert.alert(
+          'Image Update Failed',
+          'Failed to update profile image. Please try again.',
+          [{text: 'OK'}]
+        );
+      }
     },
     [applyPatch],
   );

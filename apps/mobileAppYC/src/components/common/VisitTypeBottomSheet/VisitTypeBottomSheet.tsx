@@ -60,6 +60,9 @@ export const VisitTypeBottomSheet = forwardRef<
       onSave={handleSave}
       hasSearch={false}
       emptyMessage="No visit types available"
+      mode="select"
+      snapPoints={['45%', '45%']}
+      maxListHeight={300}
     />
   );
 });

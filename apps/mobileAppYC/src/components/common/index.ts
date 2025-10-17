@@ -23,7 +23,7 @@ export type { BloodGroupBottomSheetRef } from './BloodGroupBottomSheet/BloodGrou
 export type { CategoryBottomSheetRef } from './CategoryBottomSheet/CategoryBottomSheet';
 export type { SubcategoryBottomSheetRef } from './SubcategoryBottomSheet/SubcategoryBottomSheet';
 export type { VisitTypeBottomSheetRef } from './VisitTypeBottomSheet/VisitTypeBottomSheet';
-export type { Companion } from './CompanionSelector/CompanionSelector';
+export type { CompanionBase } from './CompanionSelector/CompanionSelector';
 export type { DocumentCardProps } from './DocumentCard/DocumentCard';
 export type { CategoryTileProps } from './CategoryTile/CategoryTile';
 export type { SubcategoryAccordionProps } from './SubcategoryAccordion/SubcategoryAccordion';
