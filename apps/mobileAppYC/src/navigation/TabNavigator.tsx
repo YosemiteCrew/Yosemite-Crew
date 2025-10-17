@@ -37,7 +37,7 @@ export const TabNavigator: React.FC = () => {
       />
       <Tab.Screen name="Appointments" component={AppointmentsScreen} />
       <Tab.Screen
-        name="DocumentStack"
+        name="Documents"
         component={DocumentStackNavigator}
         options={{headerShown: false}}
       />

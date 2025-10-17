@@ -5,7 +5,7 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
   {
     id: 'admin',
     label: 'Admin',
-    icon: Images.passportIcon,
+    icon: Images.adminIcon,
     isSynced: false,
     fileCount: 0,
     subcategories: [
@@ -21,7 +21,7 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
   {
     id: 'health',
     label: 'Health',
-    icon: Images.hospitalIcon,
+    icon: Images.healthIconCategory,
     isSynced: true,
     fileCount: 0,
     subcategories: [
@@ -42,7 +42,7 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
   {
     id: 'hygiene-maintenance',
     label: 'Hygiene maintenance',
-    icon: Images.groomingIcon,
+    icon: Images.hygieneIcon,
     isSynced: true,
     fileCount: 0,
     subcategories: [
@@ -59,7 +59,7 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
   {
     id: 'dietary-plans',
     label: 'Dietary plans',
-    icon: Images.nutritionIcon,
+    icon: Images.dietaryIcon,
     isSynced: false,
     fileCount: 0,
     subcategories: [{id: 'nutrition-plans', label: 'Nutrition plans', fileCount: 0}],
@@ -67,7 +67,7 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
   {
     id: 'others',
     label: 'Others',
-    icon: Images.othersIcon,
+    icon: Images.othersIconCategory,
     isSynced: false,
     fileCount: 0,
     subcategories: [

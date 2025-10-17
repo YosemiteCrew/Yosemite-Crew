@@ -21,6 +21,7 @@ export const Images = {
   searchIcon: require('./icons/searchIcon.png'),
   crossIcon: require('./icons/crossIcon.png'),
   blueAddIcon: require('./icons/blueAddIcon.png'),
+   addIconDark: require('./icons/addIconDark.png'),
   emergencyIcon: require('./icons/emergencyIcon.png'),
   notificationIcon: require('./icons/notificationIcon.png'),
   walletIcon: require('./icons/walletIcon.png'),
@@ -51,6 +52,13 @@ export const Images = {
     horse: require('./addCompanion/equine.png'),
 
   // Documents
+    adminIcon: require('./documents/adminIcon.png'),
+      healthIconCategory: require('./documents/healthIconCategory.png'),
+        hygieneIcon: require('./documents/hygieneIcon.png'),
+          dietaryIcon: require('./documents/dietaryIcon.png'),
+            othersIconCategory: require('./documents/othersIconCategory.png'),
+            documentFallback: require('./documents/documentFallback.png'),
+
   emptyDocuments: require('./documents/emptyDocuments.png'),
   documentIcon: require('./documents/documentIcon.png'),
   passportIcon: require('./documents/passportIcon.png'),
@@ -68,7 +76,7 @@ export const Images = {
   othersIcon: require('./documents/othersIcon.png'),
   shareIcon: require('./icons/shareIcon.png'),
   uploadIcon: require('./icons/uploadIcon.png'),
-  cameraWhiteIcon: require('./icons/cameraWhite.png'),
+  cameraWhite: require('./icons/cameraWhiteIcon.png'),
   galleryIcon: require('./icons/galleryIcon.png'),
   driveIcon: require('./icons/driveIcon.png'),
 

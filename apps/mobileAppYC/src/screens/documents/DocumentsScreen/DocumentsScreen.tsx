@@ -92,7 +92,7 @@ export const DocumentsScreen: React.FC = () => {
         title="Documents"
         showBackButton={false}
         onRightPress={handleAddDocument}
-        rightIcon={Images.blueAddIcon}
+        rightIcon={Images.addIconDark}
       />
       <ScrollView
         style={styles.container}
@@ -170,7 +170,7 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing[4],
     },
     sectionTitle: {
-      ...theme.typography.headlineSmall,
+      ...theme.typography.titleLarge,
       color: theme.colors.secondary,
       marginBottom: theme.spacing[3],
     },

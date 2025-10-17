@@ -10,13 +10,15 @@ import {
 } from 'react-native';
 import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import {SafeArea, Input, Button} from '@/components/common';
+import {SafeArea, Input} from '@/components/common';
 import {Header} from '@/components/common/Header/Header';
 import {CompanionSelector} from '@/components/common/CompanionSelector/CompanionSelector';
-import {SimpleDatePicker} from '@/components/common/SimpleDatePicker/SimpleDatePicker';
+import {SimpleDatePicker, formatDateForDisplay} from '@/components/common/SimpleDatePicker/SimpleDatePicker';
 import {CategoryBottomSheet} from '@/components/common/CategoryBottomSheet/CategoryBottomSheet';
 import {SubcategoryBottomSheet} from '@/components/common/SubcategoryBottomSheet/SubcategoryBottomSheet';
 import {VisitTypeBottomSheet} from '@/components/common/VisitTypeBottomSheet/VisitTypeBottomSheet';
+import {TouchableInput} from '@/components/common/TouchableInput/TouchableInput';
+import LiquidGlassButton from '@/components/common/LiquidGlassButton/LiquidGlassButton';
 import {useTheme} from '@/hooks';
 import {useSelector, useDispatch} from 'react-redux';
 import type {RootState, AppDispatch} from '@/app/store';
@@ -56,6 +58,7 @@ export const EditDocumentScreen: React.FC = () => {
   const [businessName, setBusinessName] = useState('');
   const [hasIssueDate, setHasIssueDate] = useState(true);
   const [issueDate, setIssueDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [files, setFiles] = useState<DocumentFile[]>([]);
 
   // Bottom sheet refs
@@ -250,11 +253,18 @@ export const EditDocumentScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
           {hasIssueDate && (
-            <SimpleDatePicker
-              value={issueDate}
-              onDateChange={setIssueDate}
-              show={true}
-              onDismiss={() => {}}
+            <TouchableInput
+              label=""
+              value={formatDateForDisplay(issueDate)}
+              placeholder="Select issue date"
+              onPress={() => setShowDatePicker(true)}
+              rightComponent={
+                <Image
+                  source={Images.calendarIcon}
+                  style={styles.calendarIcon}
+                />
+              }
+              containerStyle={styles.inputContainer}
             />
           )}
         </View>
@@ -277,13 +287,34 @@ export const EditDocumentScreen: React.FC = () => {
         </TouchableOpacity>
 
         <View style={styles.saveButton}>
-          <Button
-            title="Save"
+          <LiquidGlassButton
+            title={loading ? 'Saving...' : 'Save'}
             onPress={handleSave}
+            style={styles.button}
+            textStyle={styles.buttonText}
+            tintColor={theme.colors.secondary}
+            shadowIntensity="medium"
+            forceBorder
+            borderColor="rgba(255, 255, 255, 0.35)"
+            height={56}
+            borderRadius={16}
+            loading={loading}
             disabled={loading}
           />
         </View>
       </ScrollView>
+
+      <SimpleDatePicker
+        value={issueDate}
+        onDateChange={(date) => {
+          setIssueDate(date);
+          setShowDatePicker(false);
+        }}
+        show={showDatePicker}
+        onDismiss={() => setShowDatePicker(false)}
+        maximumDate={new Date()}
+        mode="date"
+      />
 
       <CategoryBottomSheet
         ref={categorySheetRef}
@@ -429,5 +460,29 @@ const createStyles = (theme: any) =>
     },
     saveButton: {
       marginTop: theme.spacing[2],
+    },
+    button: {
+      width: '100%',
+      backgroundColor: theme.colors.secondary,
+      borderRadius: theme.borderRadius.lg,
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.35)',
+      shadowColor: '#000000',
+      shadowOffset: {width: 0, height: 8},
+      shadowOpacity: 0.15,
+      shadowRadius: 12,
+      elevation: 4,
+    },
+    buttonText: {
+      color: theme.colors.white,
+      ...theme.typography.paragraphBold,
+    },
+    calendarIcon: {
+      width: theme.spacing[5],
+      height: theme.spacing[5],
+      tintColor: theme.colors.textSecondary,
+    },
+    inputContainer: {
+      marginBottom: 0,
     },
   });
