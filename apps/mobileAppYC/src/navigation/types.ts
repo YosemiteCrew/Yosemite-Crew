@@ -23,15 +23,24 @@ export type HomeStackParamList = {
   Account: undefined;
   AddCompanion: undefined;
   ProfileOverview: { companionId: string };
-  EditCompanionOverview: { companionId: string }; 
-  EditParentOverview:{ companionId: string }; 
+  EditCompanionOverview: { companionId: string };
+  EditParentOverview:{ companionId: string };
+};
+
+export type DocumentStackParamList = {
+  DocumentsMain: undefined;
+  AddDocument: undefined;
+  EditDocument: { documentId: string };
+  DocumentPreview: { documentId: string };
+  CategoryDetail: { categoryId: string };
+  SubcategoryDetail: { categoryId: string; subcategoryId: string };
 };
 
 // Tab Navigator
 export type TabParamList = {
   HomeStack: NavigatorScreenParams<HomeStackParamList>;
   Appointments: undefined;
-  Documents: undefined;
+  DocumentStack: NavigatorScreenParams<DocumentStackParamList>;
   Tasks: undefined;
 };
 

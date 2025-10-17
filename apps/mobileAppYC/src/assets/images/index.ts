@@ -31,6 +31,7 @@ export const Images = {
   plusIcon: require('./dashboard/plusIcon.png'),
   editIconSlide: require('./icons/editIconSlide.png'),
   viewIconSlide: require('./icons/viewIconSlide.png'),
+  closeIcon: require('./icons/crossIcon.png'),
 
   // Account
   logoutIcon: require('./account/logoutIcon.png'),
@@ -48,6 +49,28 @@ export const Images = {
     cat: require('./addCompanion/cat.png'),
     dog: require('./addCompanion/dog.png'),
     horse: require('./addCompanion/equine.png'),
+
+  // Documents
+  emptyDocuments: require('./documents/emptyDocuments.png'),
+  documentIcon: require('./documents/documentIcon.png'),
+  passportIcon: require('./documents/passportIcon.png'),
+  certificateIcon: require('./documents/certificateIcon.png'),
+  insuranceIcon: require('./documents/insuranceIcon.png'),
+  hospitalIcon: require('./documents/hospitalIcon.png'),
+  prescriptionIcon: require('./documents/prescriptionIcon.png'),
+  vaccinationIcon: require('./documents/vaccinationIcon.png'),
+  labTestIcon: require('./documents/labTestIcon.png'),
+  groomingIcon: require('./documents/groomingIcon.png'),
+  boardingIcon: require('./documents/boardingIcon.png'),
+  trainingIcon: require('./documents/trainingIcon.png'),
+  breederIcon: require('./documents/breederIcon.png'),
+  nutritionIcon: require('./documents/nutritionIcon.png'),
+  othersIcon: require('./documents/othersIcon.png'),
+  shareIcon: require('./icons/shareIcon.png'),
+  uploadIcon: require('./icons/uploadIcon.png'),
+  cameraWhiteIcon: require('./icons/cameraWhite.png'),
+  galleryIcon: require('./icons/galleryIcon.png'),
+  driveIcon: require('./icons/driveIcon.png'),
 
 
 
