@@ -40,7 +40,7 @@ export type DocumentStackParamList = {
 export type TabParamList = {
   HomeStack: NavigatorScreenParams<HomeStackParamList>;
   Appointments: undefined;
-  DocumentStack: NavigatorScreenParams<DocumentStackParamList>;
+  Documents: NavigatorScreenParams<DocumentStackParamList>;
   Tasks: undefined;
 };
 

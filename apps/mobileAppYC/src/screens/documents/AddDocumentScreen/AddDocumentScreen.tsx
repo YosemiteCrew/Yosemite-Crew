@@ -10,25 +10,34 @@ import {
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import {SafeArea, Input, Button} from '@/components/common';
+import {SafeArea, Input} from '@/components/common';
 import {Header} from '@/components/common/Header/Header';
 import {CompanionSelector} from '@/components/common/CompanionSelector/CompanionSelector';
-import {SimpleDatePicker} from '@/components/common/SimpleDatePicker/SimpleDatePicker';
+import {
+  SimpleDatePicker,
+  formatDateForDisplay,
+} from '@/components/common/SimpleDatePicker/SimpleDatePicker';
 import {CategoryBottomSheet} from '@/components/common/CategoryBottomSheet/CategoryBottomSheet';
 import {SubcategoryBottomSheet} from '@/components/common/SubcategoryBottomSheet/SubcategoryBottomSheet';
 import {VisitTypeBottomSheet} from '@/components/common/VisitTypeBottomSheet/VisitTypeBottomSheet';
+import {TouchableInput} from '@/components/common/TouchableInput/TouchableInput';
+import LiquidGlassButton from '@/components/common/LiquidGlassButton/LiquidGlassButton';
 import {useTheme} from '@/hooks';
 import {useSelector, useDispatch} from 'react-redux';
 import type {RootState, AppDispatch} from '@/app/store';
 import type {DocumentStackParamList} from '@/navigation/types';
 import type {DocumentFile} from '@/types/document.types';
-import {addDocument, uploadDocumentFiles} from '@/features/documents/documentSlice';
+import {
+  addDocument,
+  uploadDocumentFiles,
+} from '@/features/documents/documentSlice';
 import {Images} from '@/assets/images';
 import type {CategoryBottomSheetRef} from '@/components/common/CategoryBottomSheet/CategoryBottomSheet';
 import type {SubcategoryBottomSheetRef} from '@/components/common/SubcategoryBottomSheet/SubcategoryBottomSheet';
 import type {VisitTypeBottomSheetRef} from '@/components/common/VisitTypeBottomSheet/VisitTypeBottomSheet';
 
-type AddDocumentNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
+type AddDocumentNavigationProp =
+  NativeStackNavigationProp<DocumentStackParamList>;
 
 export const AddDocumentScreen: React.FC = () => {
   const {theme} = useTheme();
@@ -37,7 +46,9 @@ export const AddDocumentScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
 
   // Get companions from Redux
-  const companions = useSelector((state: RootState) => state.companion.companions);
+  const companions = useSelector(
+    (state: RootState) => state.companion.companions,
+  );
   const loading = useSelector((state: RootState) => state.documents.loading);
 
   // Form state
@@ -49,8 +60,9 @@ export const AddDocumentScreen: React.FC = () => {
   const [visitType, setVisitType] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [businessName, setBusinessName] = useState('');
-  const [hasIssueDate, setHasIssueDate] = useState(true);
+  const [hasIssueDate, setHasIssueDate] = useState(false);
   const [issueDate, setIssueDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [files, setFiles] = useState<DocumentFile[]>([]);
 
   // Bottom sheet refs
@@ -189,12 +201,17 @@ export const AddDocumentScreen: React.FC = () => {
 
   const getCategoryLabel = () => {
     if (!category) return 'Select category';
-    return category.charAt(0).toUpperCase() + category.slice(1).replace('-', ' ');
+    return (
+      category.charAt(0).toUpperCase() + category.slice(1).replace('-', ' ')
+    );
   };
 
   const getSubcategoryLabel = () => {
     if (!subcategory) return 'Select subcategory';
-    return subcategory.charAt(0).toUpperCase() + subcategory.slice(1).replace('-', ' ');
+    return (
+      subcategory.charAt(0).toUpperCase() +
+      subcategory.slice(1).replace('-', ' ')
+    );
   };
 
   const getVisitTypeLabel = () => {
@@ -204,7 +221,11 @@ export const AddDocumentScreen: React.FC = () => {
 
   return (
     <SafeArea>
-      <Header title="Add document" showBackButton={true} onBack={() => navigation.goBack()} />
+      <Header
+        title="Add document"
+        showBackButton={true}
+        onBack={() => navigation.goBack()}
+      />
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.contentContainer}
@@ -224,18 +245,24 @@ export const AddDocumentScreen: React.FC = () => {
             editable={false}
             pointerEvents="none"
             containerStyle={styles.input}
-            icon={<Image source={Images.dropdownIcon} style={styles.dropdownIcon} />}
+            icon={
+              <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
+            }
           />
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => subcategorySheetRef.current?.open()} disabled={!category}>
+        <TouchableOpacity
+          onPress={() => subcategorySheetRef.current?.open()}
+          disabled={!category}>
           <Input
             label="Sub category"
             value={getSubcategoryLabel()}
             editable={false}
             pointerEvents="none"
             containerStyle={styles.input}
-            icon={<Image source={Images.dropdownIcon} style={styles.dropdownIcon} />}
+            icon={
+              <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
+            }
           />
         </TouchableOpacity>
 
@@ -246,7 +273,9 @@ export const AddDocumentScreen: React.FC = () => {
             editable={false}
             pointerEvents="none"
             containerStyle={styles.input}
-            icon={<Image source={Images.dropdownIcon} style={styles.dropdownIcon} />}
+            icon={
+              <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
+            }
           />
         </TouchableOpacity>
 
@@ -254,7 +283,6 @@ export const AddDocumentScreen: React.FC = () => {
           label="Title"
           value={title}
           onChangeText={setTitle}
-          placeholder="Enter title"
           containerStyle={styles.input}
         />
 
@@ -262,7 +290,6 @@ export const AddDocumentScreen: React.FC = () => {
           label="Issuing business name"
           value={businessName}
           onChangeText={setBusinessName}
-          placeholder="Enter business name"
           containerStyle={styles.input}
         />
 
@@ -289,11 +316,18 @@ export const AddDocumentScreen: React.FC = () => {
           </View>
 
           {hasIssueDate && (
-            <SimpleDatePicker
-              value={issueDate}
-              onDateChange={setIssueDate}
-              show={true}
-              onDismiss={() => {}}
+            <TouchableInput
+              label=""
+              value={formatDateForDisplay(issueDate)}
+              placeholder="Select issue date"
+              onPress={() => setShowDatePicker(true)}
+              rightComponent={
+                <Image
+                  source={Images.calendarIcon}
+                  style={styles.calendarIcon}
+                />
+              }
+              containerStyle={styles.inputContainer}
             />
           )}
         </View>
@@ -326,13 +360,34 @@ export const AddDocumentScreen: React.FC = () => {
         )}
 
         <View style={styles.saveButton}>
-          <Button
-            title="Save"
+          <LiquidGlassButton
+            title={loading ? 'Saving...' : 'Save'}
             onPress={handleSave}
+            style={styles.button}
+            textStyle={styles.buttonText}
+            tintColor={theme.colors.secondary}
+            shadowIntensity="medium"
+            forceBorder
+            borderColor={theme.colors.borderMuted}
+            height={56}
+            borderRadius={16}
+            loading={loading}
             disabled={loading}
           />
         </View>
       </ScrollView>
+
+      <SimpleDatePicker
+        value={issueDate}
+        onDateChange={date => {
+          setIssueDate(date);
+          setShowDatePicker(false);
+        }}
+        show={showDatePicker}
+        onDismiss={() => setShowDatePicker(false)}
+        maximumDate={new Date()}
+        mode="date"
+      />
 
       <CategoryBottomSheet
         ref={categorySheetRef}
@@ -463,7 +518,9 @@ const createStyles = (theme: any) =>
       paddingVertical: theme.spacing[3],
       paddingHorizontal: theme.spacing[4],
       backgroundColor: theme.colors.surface,
-      borderRadius: theme.borderRadius.base,
+      borderRadius: theme.borderRadius.lg,
+      borderWidth: 2,
+      borderColor: theme.colors.borderMuted,
       marginBottom: theme.spacing[2],
     },
     fileName: {
@@ -476,9 +533,32 @@ const createStyles = (theme: any) =>
       width: 20,
       height: 20,
       resizeMode: 'contain',
-      tintColor: theme.colors.error,
     },
     saveButton: {
       marginTop: theme.spacing[4],
+    },
+    button: {
+      width: '100%',
+      backgroundColor: theme.colors.secondary,
+      borderRadius: theme.borderRadius.lg,
+      borderWidth: 1,
+      borderColor: theme.colors.borderMuted,
+      shadowColor: '#000000',
+      shadowOffset: {width: 0, height: 8},
+      shadowOpacity: 0.15,
+      shadowRadius: 12,
+      elevation: 4,
+    },
+    buttonText: {
+      color: theme.colors.white,
+      ...theme.typography.paragraphBold,
+    },
+    calendarIcon: {
+      width: theme.spacing[5],
+      height: theme.spacing[5],
+      tintColor: theme.colors.textSecondary,
+    },
+    inputContainer: {
+      marginBottom: 0,
     },
   });

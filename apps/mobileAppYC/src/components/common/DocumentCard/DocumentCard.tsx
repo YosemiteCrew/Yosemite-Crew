@@ -15,6 +15,14 @@ import {Images} from '@/assets/images';
 
 const ACTION_WIDTH = 70;
 
+const formatDateDDMMYYYY = (date: string | Date): string => {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const year = dateObj.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
 export interface DocumentCardProps {
   title: string;
   businessName: string;
@@ -92,12 +100,6 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.actionContainer}>
-        <TouchableOpacity
-          activeOpacity={0.85}
-          style={styles.actionButton}
-          onPress={() => handleActionPress(onPressView)}>
-          <Image source={Images.viewIconSlide} style={styles.actionImage} />
-        </TouchableOpacity>
         {showEditAction && (
           <TouchableOpacity
             activeOpacity={0.85}
@@ -106,13 +108,19 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
             <Image source={Images.editIconSlide} style={styles.actionImage} />
           </TouchableOpacity>
         )}
+        <TouchableOpacity
+          activeOpacity={0.85}
+          style={styles.actionButton}
+          onPress={() => handleActionPress(onPressView)}>
+          <Image source={Images.viewIconSlide} style={styles.actionImage} />
+        </TouchableOpacity>
       </View>
 
       <Animated.View
         {...panResponder.panHandlers}
         style={[styles.animatedWrapper, {transform: [{translateX}]}]}>
         <TouchableOpacity
-          activeOpacity={0.85}
+          activeOpacity={1}
           onPress={onPress}
           disabled={!onPress}>
           <LiquidGlassCard
@@ -122,23 +130,28 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
             style={styles.card}
             fallbackStyle={styles.fallback}>
             <View style={styles.content}>
-              {thumbnail && (
-                <View style={styles.thumbnailContainer}>
-                  <Image source={thumbnail} style={styles.thumbnail} />
-                </View>
-              )}
+              <View style={styles.thumbnailContainer}>
+                <Image
+                  source={thumbnail || Images.documentFallback}
+                  style={styles.thumbnail}
+                />
+              </View>
               <View style={styles.textContainer}>
-                <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
-                  Title: {title}
+                <Text style={styles.infoRow} numberOfLines={1} ellipsizeMode="tail">
+                  <Text style={styles.label}>Title: </Text>
+                  <Text style={styles.value}>{title}</Text>
                 </Text>
-                <Text style={styles.subtitle} numberOfLines={1} ellipsizeMode="tail">
-                  Business: {businessName}
+                <Text style={styles.infoRow} numberOfLines={1} ellipsizeMode="tail">
+                  <Text style={styles.label}>Business: </Text>
+                  <Text style={styles.value}>{businessName}</Text>
                 </Text>
-                <Text style={styles.subtitle} numberOfLines={1} ellipsizeMode="tail">
-                  Visit type: {visitType}
+                <Text style={styles.infoRow} numberOfLines={1} ellipsizeMode="tail">
+                  <Text style={styles.label}>Visit type: </Text>
+                  <Text style={styles.value}>{visitType}</Text>
                 </Text>
-                <Text style={styles.subtitle} numberOfLines={1} ellipsizeMode="tail">
-                  Issue Date: {issueDate}
+                <Text style={styles.infoRow} numberOfLines={1} ellipsizeMode="tail">
+                  <Text style={styles.label}>Issue Date: </Text>
+                  <Text style={styles.value}>{formatDateDDMMYYYY(issueDate)}</Text>
                 </Text>
               </View>
             </View>
@@ -176,10 +189,10 @@ const createStyles = (theme: any) =>
       height: '100%',
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.colors.primarySurface,
+      backgroundColor: '#008F5D',
     },
     editActionButton: {
-      backgroundColor: theme.colors.secondarySurface || theme.colors.primarySurface,
+      backgroundColor: theme.colors.primarySurface,
     },
     actionImage: {
       width: 30,
@@ -228,12 +241,15 @@ const createStyles = (theme: any) =>
       flex: 1,
       gap: theme.spacing[1],
     },
-    title: {
-      ...theme.typography.labelSmBold,
-      color: theme.colors.secondary,
+    infoRow: {
+      ...theme.typography.labelXxsBold,
     },
-    subtitle: {
+    label: {
       ...theme.typography.labelXxsBold,
       color: theme.colors.textSecondary,
+    },
+    value: {
+      ...theme.typography.labelXxsBold,
+      color: theme.colors.secondary,
     },
   });

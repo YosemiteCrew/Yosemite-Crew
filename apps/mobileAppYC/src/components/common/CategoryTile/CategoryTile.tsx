@@ -48,10 +48,10 @@ export const CategoryTile: React.FC<CategoryTileProps> = ({
           </View>
 
           <View style={styles.textContainer}>
-            <Text style={styles.title} numberOfLines={1}>
+            <Text style={styles.title} numberOfLines={2}>
               {title}
             </Text>
-            <Text style={styles.subtitle} numberOfLines={1}>
+            <Text style={styles.subtitle} numberOfLines={2}>
               {subtitle}
             </Text>
           </View>
@@ -105,8 +105,8 @@ const createStyles = (theme: any) =>
       justifyContent: 'center',
     },
     icon: {
-      width: 28,
-      height: 28,
+      width: 40,
+      height: 40,
       resizeMode: 'contain',
     },
     textContainer: {
@@ -127,15 +127,17 @@ const createStyles = (theme: any) =>
       gap: theme.spacing[2],
     },
     syncBadge: {
-      backgroundColor: theme.colors.success || '#10B981',
-      paddingHorizontal: theme.spacing[2],
-      paddingVertical: theme.spacing[1.5],
-      borderRadius: theme.borderRadius.base,
+      backgroundColor: theme.colors.successLight || '#E6F4EF',
+      paddingHorizontal: theme.spacing[4],
+      paddingVertical: theme.spacing[3],
+      borderRadius: theme.borderRadius.md,
+            borderWidth: 1,
+      borderColor: theme.colors.success,
     },
     syncText: {
-      ...theme.typography.labelXxsBold,
-      color: theme.colors.white,
-      fontSize: 9,
+      ...theme.typography.labelXsBold,
+      color: theme.colors.success,
+      fontSize: 10,
       textAlign: 'center',
       lineHeight: 11,
     },
