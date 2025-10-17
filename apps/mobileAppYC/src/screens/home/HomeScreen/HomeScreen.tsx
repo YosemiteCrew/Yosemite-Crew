@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  Animated,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NavigationProp} from '@react-navigation/native';
@@ -17,6 +16,7 @@ import {useAuth} from '@/contexts/AuthContext';
 import {Images} from '@/assets/images';
 import {SearchBar, YearlySpendCard} from '@/components/common';
 import {LiquidGlassCard} from '@/components/common/LiquidGlassCard/LiquidGlassCard';
+import {CompanionSelector} from '@/components/common/CompanionSelector/CompanionSelector';
 import {useDispatch, useSelector} from 'react-redux';
 import type {AppDispatch} from '@/app/store';
 import {
@@ -94,60 +94,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     // Mock task count - in a real app, this would come from tasks slice
     return Math.floor(Math.random() * 5);
   };
-
-  const renderCompanionBadge = (companion: any) => {
-    const isSelected = selectedCompanionIdRedux === companion.id;
-
-    return (
-      <TouchableOpacity
-        key={companion.id}
-        style={styles.companionTouchable}
-        activeOpacity={0.88}
-        onPress={() => handleSelectCompanion(companion.id)}>
-        <View style={styles.companionItem}>
-          <Animated.View
-            style={[
-              styles.companionAvatarRing,
-              isSelected && styles.companionAvatarRingSelected,
-              isSelected && {transform: [{scale: 1.08}]},
-            ]}>
-            {companion.profileImage ? (
-              <Image
-                source={{uri: companion.profileImage}}
-                style={styles.companionAvatar}
-              />
-            ) : (
-              <View style={styles.companionAvatarPlaceholder}>
-                <Text style={styles.companionAvatarInitial}>
-                  {companion.name.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-            )}
-          </Animated.View>
-
-          <Text style={styles.companionName}>{companion.name}</Text>
-          <Text style={styles.companionMeta}>
-            {`${getCompanionTaskCount()} Tasks`}
-          </Text>
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
-  const renderAddCompanionBadge = () => (
-    <TouchableOpacity
-      key="add-companion"
-      style={styles.companionTouchable}
-      activeOpacity={0.85}
-      onPress={handleAddCompanion}>
-      <View style={styles.addCompanionItem}>
-        <View style={styles.addCompanionCircle}>
-          <Image source={Images.blueAddIcon} style={styles.addCompanionIcon} />
-        </View>
-        <Text style={styles.addCompanionLabel}>Add companion</Text>
-      </View>
-    </TouchableOpacity>
-  );
 
   const renderEmptyStateTile = (title: string, subtitle: string, key: string) => (
     <TouchableOpacity
@@ -284,13 +230,14 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
             </TouchableOpacity>
           </LiquidGlassCard>
         ) : (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.companionRow}>
-            {companions.map(renderCompanionBadge)}
-            {renderAddCompanionBadge()}
-          </ScrollView>
+          <CompanionSelector
+            companions={companions}
+            selectedCompanionId={selectedCompanionIdRedux}
+            onSelect={handleSelectCompanion}
+            onAddCompanion={handleAddCompanion}
+            showAddButton={true}
+            getBadgeText={() => `${getCompanionTaskCount()} Tasks`}
+          />
         )}
 
         <View style={styles.section}>
@@ -551,86 +498,6 @@ const createStyles = (theme: any) =>
     quickActionLabel: {
       ...theme.typography.labelXsBold,
       color: theme.colors.secondary,
-      textAlign: 'center',
-    },
-    companionRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: theme.spacing[4],
-      paddingVertical: theme.spacing[2],
-    },
-    companionTouchable: {
-      width: 96,
-    },
-    companionItem: {
-      alignItems: 'center',
-      gap: theme.spacing[2.5],
-    },
-    companionAvatarRing: {
-      width: 64,
-      height: 64,
-      borderRadius: 32,
-      borderWidth: 2,
-      borderColor: theme.colors.primaryTint,
-      alignItems: 'center',
-      justifyContent: 'center',
-      overflow: 'hidden',
-      backgroundColor: theme.colors.cardBackground,
-    },
-    companionAvatarRingSelected: {
-      borderColor: theme.colors.primary,
-    },
-    companionAvatar: {
-      width: '90%',
-      height: '90%',
-      borderRadius: theme.borderRadius.full,
-      resizeMode: 'cover',
-    },
-    companionAvatarPlaceholder: {
-      width: '90%',
-      height: '90%',
-      borderRadius: theme.borderRadius.full,
-      backgroundColor: theme.colors.lightBlueBackground,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    companionAvatarInitial: {
-      ...theme.typography.titleMedium,
-      color: theme.colors.primary,
-      fontWeight: '700',
-    },
-    companionName: {
-      ...theme.typography.titleSmall,
-      color: theme.colors.secondary,
-    },
-    companionMeta: {
-      ...theme.typography.labelXsBold,
-      color: theme.colors.primary,
-    },
-    addCompanionItem: {
-      alignItems: 'center',
-      gap: theme.spacing[2.5],
-    },
-    addCompanionCircle: {
-      width: 64,
-      height: 64,
-      marginBottom: theme.spacing[2.5],
-      borderRadius: 32,
-      borderWidth: 2,
-      borderStyle: 'dashed',
-      borderColor: theme.colors.primaryTintStrong,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: theme.colors.primarySurface,
-    },
-    addCompanionIcon: {
-      width: 28,
-      height: 28,
-      resizeMode: 'contain',
-    },
-    addCompanionLabel: {
-      ...theme.typography.labelXsBold,
-      color: theme.colors.primary,
       textAlign: 'center',
     },
   });

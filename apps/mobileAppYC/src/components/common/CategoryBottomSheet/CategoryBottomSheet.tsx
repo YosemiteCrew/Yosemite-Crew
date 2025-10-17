@@ -59,6 +59,9 @@ export const CategoryBottomSheet = forwardRef<
       onSave={handleSave}
       hasSearch={false}
       emptyMessage="No categories available"
+      mode="select"
+      snapPoints={['40%', '40%']}
+      maxListHeight={250}
     />
   );
 });

@@ -177,7 +177,7 @@ const createStyles = (theme: any) =>
       width: ACTION_WIDTH + theme.spacing[5],
       justifyContent: 'center',
       alignItems: 'center',
-      backgroundColor: theme.colors.primaryGlass,
+      backgroundColor: theme.colors.success,
       borderTopRightRadius: theme.borderRadius.lg,
       borderBottomRightRadius: theme.borderRadius.lg,
       zIndex: 0,
@@ -188,7 +188,7 @@ const createStyles = (theme: any) =>
       paddingLeft: theme.spacing[5],
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.colors.primarySurface,
+      backgroundColor: theme.colors.success,
     },
     actionIcon: {
       width: 40,

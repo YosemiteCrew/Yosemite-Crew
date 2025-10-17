@@ -7,12 +7,13 @@ import {Header} from '@/components/common/Header/Header';
 import {SearchBar} from '@/components/common/SearchBar/SearchBar';
 import {CompanionSelector} from '@/components/common/CompanionSelector/CompanionSelector';
 import {DocumentCard} from '@/components/common/DocumentCard/DocumentCard';
-import {CategoryTile} from '@/components/common/CategoryTile/CategoryTile';
+import {SubcategoryAccordion} from '@/components/common/SubcategoryAccordion/SubcategoryAccordion';
 import {useTheme} from '@/hooks';
-import {useSelector} from 'react-redux';
-import type {RootState} from '@/app/store';
+import {useSelector, useDispatch} from 'react-redux';
+import type {RootState, AppDispatch} from '@/app/store';
 import type {DocumentStackParamList} from '@/navigation/types';
 import {DOCUMENT_CATEGORIES, SUBCATEGORY_ICONS} from '@/constants/documents.constants';
+import {setSelectedCompanion} from '@/features/companion';
 
 type CategoryDetailNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
 type CategoryDetailRouteProp = RouteProp<DocumentStackParamList, 'CategoryDetail'>;
@@ -22,14 +23,15 @@ export const CategoryDetailScreen: React.FC = () => {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<CategoryDetailNavigationProp>();
   const route = useRoute<CategoryDetailRouteProp>();
+  const dispatch = useDispatch<AppDispatch>();
 
   const {categoryId} = route.params;
   const category = DOCUMENT_CATEGORIES.find(c => c.id === categoryId);
 
-  const [selectedCompanionId, setSelectedCompanionId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   const companions = useSelector((state: RootState) => state.companion.companions);
+  const selectedCompanionId = useSelector((state: RootState) => state.companion.selectedCompanionId);
   const documents = useSelector((state: RootState) => state.documents.documents);
 
   // Filter documents by category and companion
@@ -41,29 +43,30 @@ export const CategoryDetailScreen: React.FC = () => {
     );
   }, [documents, categoryId, selectedCompanionId]);
 
-  // Get recent document (1 for category view)
-  const recentDocument = useMemo(() => {
-    return [...categoryDocuments]
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, 1);
-  }, [categoryDocuments]);
+  // Group documents by subcategory
+  const documentsBySubcategory = useMemo(() => {
+    const grouped: Record<string, typeof categoryDocuments> = {};
 
-  // Calculate subcategory counts
-  const subcategoriesWithCounts = useMemo(() => {
-    return (category?.subcategories || []).map(sub => {
-      const count = categoryDocuments.filter(doc => doc.subcategory === sub.id).length;
-      return {
-        ...sub,
-        fileCount: count,
-      };
+    // Initialize all subcategories
+    category?.subcategories.forEach(sub => {
+      grouped[sub.id] = [];
     });
+
+    // Group documents by subcategory
+    categoryDocuments.forEach(doc => {
+      if (grouped[doc.subcategory]) {
+        grouped[doc.subcategory].push(doc);
+      }
+    });
+
+    return grouped;
   }, [category, categoryDocuments]);
 
   React.useEffect(() => {
     if (companions.length > 0 && !selectedCompanionId) {
-      setSelectedCompanionId(companions[0].id);
+      dispatch(setSelectedCompanion(companions[0].id));
     }
-  }, [companions, selectedCompanionId]);
+  }, [companions, selectedCompanionId, dispatch]);
 
   if (!category) {
     return (
@@ -75,10 +78,6 @@ export const CategoryDetailScreen: React.FC = () => {
       </SafeArea>
     );
   }
-
-  const handleSubcategoryPress = (subcategoryId: string) => {
-    navigation.navigate('SubcategoryDetail', {categoryId, subcategoryId});
-  };
 
   const handleViewDocument = (documentId: string) => {
     navigation.navigate('DocumentPreview', {documentId});
@@ -105,42 +104,48 @@ export const CategoryDetailScreen: React.FC = () => {
         <CompanionSelector
           companions={companions}
           selectedCompanionId={selectedCompanionId}
-          onSelect={setSelectedCompanionId}
+          onSelect={(id) => dispatch(setSelectedCompanion(id))}
           showAddButton={false}
           containerStyle={styles.companionSelector}
         />
 
-        {recentDocument.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Recent</Text>
-            {recentDocument.map(doc => (
-              <DocumentCard
-                key={doc.id}
-                title={doc.title}
-                businessName={doc.businessName}
-                visitType={doc.visitType}
-                issueDate={doc.issueDate}
-                showEditAction={!doc.isSynced}
-                onPressView={() => handleViewDocument(doc.id)}
-                onPressEdit={() => handleEditDocument(doc.id)}
-                onPress={() => handleViewDocument(doc.id)}
-              />
-            ))}
-          </View>
-        )}
+        {category.subcategories.map(subcategory => {
+          const subcategoryDocs = documentsBySubcategory[subcategory.id] || [];
+          const subcategoryIcon = SUBCATEGORY_ICONS[subcategory.id] || category.icon;
 
-        <View style={styles.section}>
-          {subcategoriesWithCounts.map(subcategory => (
-            <CategoryTile
+          return (
+            <SubcategoryAccordion
               key={subcategory.id}
-              icon={SUBCATEGORY_ICONS[subcategory.id] || category.icon}
               title={subcategory.label}
-              subtitle={`${subcategory.fileCount} file${subcategory.fileCount !== 1 ? 's' : ''}`}
-              isSynced={false}
-              onPress={() => handleSubcategoryPress(subcategory.id)}
-            />
-          ))}
-        </View>
+              subtitle={`${subcategoryDocs.length} file${subcategoryDocs.length !== 1 ? 's' : ''}`}
+              icon={subcategoryIcon}
+              defaultExpanded={false}>
+              {subcategoryDocs.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>No documents found</Text>
+                </View>
+              ) : (
+                subcategoryDocs.map(doc => {
+                  // Don't allow edit for synced documents (health, hygiene)
+                  const canEdit = !doc.isSynced && doc.category !== 'health' && doc.category !== 'hygiene';
+                  return (
+                    <DocumentCard
+                      key={doc.id}
+                      title={doc.title}
+                      businessName={doc.businessName}
+                      visitType={doc.visitType}
+                      issueDate={doc.issueDate}
+                      showEditAction={canEdit}
+                      onPressView={() => handleViewDocument(doc.id)}
+                      onPressEdit={canEdit ? () => handleEditDocument(doc.id) : undefined}
+                      onPress={() => handleViewDocument(doc.id)}
+                    />
+                  );
+                })
+              )}
+            </SubcategoryAccordion>
+          );
+        })}
       </ScrollView>
     </SafeArea>
   );
@@ -172,12 +177,12 @@ const createStyles = (theme: any) =>
     companionSelector: {
       marginBottom: theme.spacing[4],
     },
-    section: {
-      marginBottom: theme.spacing[4],
+    emptyContainer: {
+      paddingVertical: theme.spacing[4],
+      alignItems: 'center',
     },
-    sectionTitle: {
-      ...theme.typography.headlineSmall,
-      color: theme.colors.secondary,
-      marginBottom: theme.spacing[3],
+    emptyText: {
+      ...theme.typography.bodyMedium,
+      color: theme.colors.textSecondary,
     },
   });

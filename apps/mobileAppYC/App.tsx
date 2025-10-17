@@ -21,6 +21,7 @@ import {Amplify} from 'aws-amplify';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider } from '@/contexts/AuthContext';
 import {configureSocialProviders} from '@/services/auth/socialAuth';
+import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 
 Amplify.configure(outputs);
 
@@ -69,7 +70,9 @@ function AppContent(): React.JSX.Element {
           barStyle={isDark ? 'light-content' : 'dark-content'}
           backgroundColor={theme.colors.background}
         />
-        <AppNavigator />
+        <ErrorBoundary>
+          <AppNavigator />
+        </ErrorBoundary>
     </>
   );
 }

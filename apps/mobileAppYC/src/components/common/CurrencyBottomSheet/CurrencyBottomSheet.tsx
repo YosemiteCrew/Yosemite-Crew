@@ -303,6 +303,8 @@ const createStyles = (theme: any) =>
       paddingHorizontal: theme.spacing['3'], // 12
       borderRadius: theme.borderRadius.base, // 8
       marginBottom: theme.spacing['1'], // 4
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
     },
     flag: {
       fontSize: theme.spacing['6'], // 24

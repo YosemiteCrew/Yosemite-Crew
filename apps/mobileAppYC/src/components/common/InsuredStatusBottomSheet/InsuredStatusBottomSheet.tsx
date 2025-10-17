@@ -1,28 +1,54 @@
-import React, {forwardRef} from 'react';
-import {
-  SelectOptionBottomSheet,
-  type SelectOptionBottomSheetRef,
-  type Option,
-} from '@/components/common/SelectOptionBottomSheet/SelectOptionBottomSheet';
+import React, {forwardRef, useImperativeHandle, useRef} from 'react';
+import {GenericSelectBottomSheet, type SelectItem} from '../GenericSelectBottomSheet/GenericSelectBottomSheet';
 import type {InsuredStatus} from '@/features/companion/types';
 
-export interface InsuredStatusBottomSheetRef extends SelectOptionBottomSheetRef {}
+export interface InsuredStatusBottomSheetRef {
+  open: () => void;
+  close: () => void;
+}
 
 export const InsuredStatusBottomSheet = forwardRef<InsuredStatusBottomSheetRef, {
   selected: InsuredStatus | null;
   onSave: (v: InsuredStatus) => void;
 }>(({selected, onSave}, ref) => {
-  const options: Option[] = [
-    {label: 'Insured', value: 'insured'},
-    {label: 'Not insured', value: 'not-insured'},
+  const bottomSheetRef = useRef<any>(null);
+
+  const insuredItems: SelectItem[] = [
+    {id: 'insured', label: 'Insured'},
+    {id: 'not-insured', label: 'Not insured'},
   ];
+
+  const selectedItem = selected
+    ? insuredItems.find(item => item.id === selected) || null
+    : null;
+
+  useImperativeHandle(ref, () => ({
+    open: () => {
+      bottomSheetRef.current?.open();
+    },
+    close: () => {
+      bottomSheetRef.current?.close();
+    },
+  }));
+
+  const handleSave = (item: SelectItem | null) => {
+    if (item) {
+      onSave(item.id as InsuredStatus);
+    }
+  };
+
   return (
-    <SelectOptionBottomSheet
-      ref={ref}
+    <GenericSelectBottomSheet
+      ref={bottomSheetRef}
       title="Insurance Status"
-      options={options}
-      selectedValue={selected ?? null}
-      onSelect={(v) => onSave(v as InsuredStatus)}
+      items={insuredItems}
+      selectedItem={selectedItem}
+      onSave={handleSave}
+      hasSearch={false}
+      emptyMessage="No options available"
+      mode="select"
+      snapPoints={['30%', '35%']}
+      maxListHeight={300}
     />
   );
 });

@@ -89,6 +89,9 @@ export const BloodGroupBottomSheet = forwardRef<
       onSave={handleSave}
       hasSearch={false}
       emptyMessage="Please select a companion category first"
+      mode="select"
+      snapPoints={['45%', '45%']}
+      maxListHeight={300}
     />
   );
 });

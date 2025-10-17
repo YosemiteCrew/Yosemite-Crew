@@ -58,7 +58,7 @@ export const Images = {
           dietaryIcon: require('./documents/dietaryIcon.png'),
             othersIconCategory: require('./documents/othersIconCategory.png'),
             documentFallback: require('./documents/documentFallback.png'),
-
+addIconWhite: require('./documents/addIconWhite.png'),
   emptyDocuments: require('./documents/emptyDocuments.png'),
   documentIcon: require('./documents/documentIcon.png'),
   passportIcon: require('./documents/passportIcon.png'),

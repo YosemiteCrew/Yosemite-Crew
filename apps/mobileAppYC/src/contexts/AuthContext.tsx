@@ -70,6 +70,17 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
     const isLoggedIn = authState.status === 'authenticated' && !!authState.user;
     const isLoading = authState.status === 'initializing' || (!authState.initialized && authState.status === 'idle');
 
+    console.log('[AuthContext] State update:', {
+      isLoggedIn,
+      isLoading,
+      status: authState.status,
+      initialized: authState.initialized,
+      userId: authState.user?.id,
+      userEmail: authState.user?.email,
+      provider: authState.provider,
+      hasUser: !!authState.user,
+    });
+
     return {
       isLoggedIn,
       isLoading,

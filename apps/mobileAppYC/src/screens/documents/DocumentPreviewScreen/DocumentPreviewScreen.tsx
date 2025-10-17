@@ -52,12 +52,13 @@ export const DocumentPreviewScreen: React.FC = () => {
   };
 
   const handleEdit = () => {
-    if (document.isSynced) {
-      Alert.alert('Info', 'This document is synced with PMS and cannot be edited');
-      return;
-    }
     navigation.navigate('EditDocument', {documentId});
   };
+
+  // Don't allow edit for synced documents (health, hygiene categories)
+  const canEdit = !document.isSynced &&
+                  document.category !== 'health' &&
+                  document.category !== 'hygiene';
 
   return (
     <SafeArea>
@@ -65,8 +66,8 @@ export const DocumentPreviewScreen: React.FC = () => {
         title={document.title}
         showBackButton={true}
         onBack={() => navigation.goBack()}
-        onRightPress={handleEdit}
-        rightIcon={Images.blackEdit}
+        onRightPress={canEdit ? handleEdit : undefined}
+        rightIcon={canEdit ? Images.blackEdit : undefined}
       />
       <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
         <View style={styles.infoCard}>

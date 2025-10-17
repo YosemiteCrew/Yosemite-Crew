@@ -33,7 +33,6 @@ export type DocumentStackParamList = {
   EditDocument: { documentId: string };
   DocumentPreview: { documentId: string };
   CategoryDetail: { categoryId: string };
-  SubcategoryDetail: { categoryId: string; subcategoryId: string };
 };
 
 // Tab Navigator

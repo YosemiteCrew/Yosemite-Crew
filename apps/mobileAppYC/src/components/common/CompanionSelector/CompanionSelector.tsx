@@ -11,35 +11,43 @@ import {
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 
-export interface Companion {
+export interface CompanionBase {
   id: string;
   name: string;
   profileImage?: string | null;
   taskCount?: number;
 }
 
-interface CompanionSelectorProps {
-  companions: Companion[];
+interface CompanionSelectorProps<T extends CompanionBase = CompanionBase> {
+  companions: T[];
   selectedCompanionId: string | null;
   onSelect: (id: string) => void;
   onAddCompanion?: () => void;
   showAddButton?: boolean;
   containerStyle?: any;
+  /**
+   * Function to generate dynamic badge text for each companion
+   * @param companion - The companion object
+   * @returns The text to display below the companion name (e.g., "3 Tasks", "Dog")
+   */
+  getBadgeText?: (companion: T) => string;
 }
 
-export const CompanionSelector: React.FC<CompanionSelectorProps> = ({
+export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
   companions,
   selectedCompanionId,
   onSelect,
   onAddCompanion,
   showAddButton = true,
   containerStyle,
-}) => {
+  getBadgeText,
+}: CompanionSelectorProps<T>) => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
 
-  const renderCompanionBadge = (companion: Companion) => {
+  const renderCompanionBadge = (companion: T) => {
     const isSelected = selectedCompanionId === companion.id;
+    const badgeText = getBadgeText ? getBadgeText(companion) : companion.taskCount !== undefined ? `${companion.taskCount} Tasks` : undefined;
 
     return (
       <TouchableOpacity
@@ -69,9 +77,9 @@ export const CompanionSelector: React.FC<CompanionSelectorProps> = ({
           </Animated.View>
 
           <Text style={styles.companionName}>{companion.name}</Text>
-          {companion.taskCount !== undefined && (
+          {badgeText && (
             <Text style={styles.companionMeta}>
-              {`${companion.taskCount} Tasks`}
+              {badgeText}
             </Text>
           )}
         </View>
