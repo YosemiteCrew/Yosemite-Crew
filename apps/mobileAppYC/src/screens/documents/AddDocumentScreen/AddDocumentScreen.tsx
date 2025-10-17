@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   Image,
 } from 'react-native';
-import {useNavigation} from '@react-navigation/native';
+import {useNavigation, CommonActions} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {SafeArea, Input} from '@/components/common';
 import {Header} from '@/components/common/Header/Header';
@@ -221,7 +221,12 @@ export const AddDocumentScreen: React.FC = () => {
       ).unwrap();
 
       console.log('[AddDocument] Document added successfully');
-      navigation.navigate('DocumentsMain');
+      navigation.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{name: 'DocumentsMain'}],
+        }),
+      );
     } catch (error: any) {
       console.error('[AddDocument] Failed to add document:', error);
       setErrors(prev => ({

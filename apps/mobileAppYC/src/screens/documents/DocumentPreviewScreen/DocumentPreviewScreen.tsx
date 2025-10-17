@@ -55,10 +55,9 @@ export const DocumentPreviewScreen: React.FC = () => {
     navigation.navigate('EditDocument', {documentId});
   };
 
-  // Don't allow edit for synced documents (health, hygiene categories)
-  const canEdit = !document.isSynced &&
-                  document.category !== 'health' &&
-                  document.category !== 'hygiene';
+  // Don't allow edit for synced documents (health, hygiene maintenance categories)
+  const canEdit =
+    !document.isSynced && document.category !== 'health' && document.category !== 'hygiene-maintenance';
 
   return (
     <SafeArea>
