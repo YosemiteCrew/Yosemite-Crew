@@ -56,12 +56,18 @@ export const CurrencyBottomSheet = forwardRef<
 
   const currencies: Currency[] = currencyData.map((currency: RawCurrency) => {
     const COUNTRIES = require('../../../utils/countryList.json');
+
+    // Special flag mappings for currencies without country codes
+    const specialFlags: {[key: string]: string} = {
+      'EU': '🇪🇺', // European Union
+    };
+
     const country = COUNTRIES.find((c: any) => c.code === currency.countryCode);
     return {
       code: currency.code,
       name: currency.name,
       symbol: currency.symbol,
-      flag: country?.flag || '🇺🇸',
+      flag: specialFlags[currency.countryCode] || country?.flag || '🇺🇸',
     };
   });
 

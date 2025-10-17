@@ -24,7 +24,17 @@ const createMockState = (authState: Partial<AuthState>): RootState => ({
     theme: 'light',
     isDark: false,
   },
-});
+  companion: {
+    companions: [],
+    selectedCompanionId: null,
+    loading: false,
+    error: null,
+  },
+  _persist: {
+    version: 1,
+    rehydrated: true,
+  },
+} as RootState);
 
 describe('auth selectors', () => {
   const mockUser: User = {

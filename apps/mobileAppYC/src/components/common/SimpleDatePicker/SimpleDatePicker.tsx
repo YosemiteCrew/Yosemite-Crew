@@ -49,11 +49,9 @@ export const SimpleDatePicker: React.FC<SimpleDatePickerProps> = ({
         onDateChange(date);
       }
       onDismiss();
-    } else {
+    } else if (date) {
       // iOS - just update the internal state
-      if (date) {
-        setSelectedDate(date);
-      }
+      setSelectedDate(date);
     }
   };
 
@@ -177,7 +175,7 @@ export const formatDateForDisplay = (date: Date | null): string => {
 
   try {
     const dateObj = date instanceof Date ? date : new Date(date);
-    if (isNaN(dateObj.getTime())) return '';
+    if (Number.isNaN(dateObj.getTime())) return '';
 
     const months = [
       'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',

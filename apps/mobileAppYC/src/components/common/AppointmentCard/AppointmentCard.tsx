@@ -185,13 +185,10 @@ const createStyles = (theme: any) =>
     actionButton: {
       width: 48,
       height: 48,
-      borderRadius: theme.borderRadius.full,
       paddingLeft: theme.spacing[5],
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: theme.colors.primarySurface,
-      borderWidth: 1,
-      borderColor: theme.colors.primaryTintStrong,
     },
     actionIcon: {
       width: 40,

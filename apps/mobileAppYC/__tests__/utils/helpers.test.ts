@@ -145,6 +145,33 @@ describe('helpers', () => {
     it('should reject empty string', () => {
       expect(isValidEmail('')).toBe(false);
     });
+
+    it('should reject email without dot in domain', () => {
+      expect(isValidEmail('test@example')).toBe(false);
+    });
+
+    it('should reject email with multiple @ symbols', () => {
+      expect(isValidEmail('test@@example.com')).toBe(false);
+      expect(isValidEmail('test@test@example.com')).toBe(false);
+    });
+
+    it('should reject email starting with @', () => {
+      expect(isValidEmail('@example.com')).toBe(false);
+    });
+
+    it('should reject emails that are too long (ReDoS protection)', () => {
+      // Create email longer than 320 characters (RFC 5321 max)
+      const longEmail = 'a'.repeat(310) + '@example.com'; // 310 + 12 = 322 chars
+      expect(isValidEmail(longEmail)).toBe(false);
+    });
+
+    it('should reject email with dot immediately after @', () => {
+      expect(isValidEmail('test@.example.com')).toBe(false);
+    });
+
+    it('should reject email ending with dot', () => {
+      expect(isValidEmail('test@example.com.')).toBe(false);
+    });
   });
 
   describe('debounce', () => {
@@ -310,6 +337,36 @@ describe('helpers', () => {
 
     it('should handle zero', () => {
       expect(formatNumber(0)).toBe('0');
+    });
+
+    it('should handle negative numbers', () => {
+      expect(formatNumber(-1000)).toBe('-1,000');
+      expect(formatNumber(-1234567)).toBe('-1,234,567');
+    });
+
+    it('should handle decimal numbers', () => {
+      expect(formatNumber(1234.56)).toBe('1,234.56');
+      expect(formatNumber(1000000.123)).toBe('1,000,000.123');
+    });
+
+    it('should handle negative decimal numbers', () => {
+      expect(formatNumber(-1234.56)).toBe('-1,234.56');
+    });
+
+    it('should handle very large numbers (ReDoS protection)', () => {
+      expect(formatNumber(123456789012345)).toBe('123,456,789,012,345');
+    });
+
+    it('should handle single digit', () => {
+      expect(formatNumber(5)).toBe('5');
+    });
+
+    it('should handle two digit numbers', () => {
+      expect(formatNumber(99)).toBe('99');
+    });
+
+    it('should handle three digit numbers (no comma needed)', () => {
+      expect(formatNumber(999)).toBe('999');
     });
   });
 

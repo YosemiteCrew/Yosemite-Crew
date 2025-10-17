@@ -325,7 +325,7 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
       breed: data.breed,
       dateOfBirth: data.dateOfBirth?.toISOString() ?? null,
       gender: data.gender,
-      currentWeight: data.currentWeight ? parseFloat(data.currentWeight) : null,
+      currentWeight: data.currentWeight ? Number.parseFloat(data.currentWeight) : null,
       color: data.color || null,
       allergies: data.allergies || null,
       neuteredStatus: data.neuteredStatus,
@@ -802,22 +802,27 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
 
         <View style={styles.buttonContainer}>
           <LiquidGlassButton
-            title={
-              currentStep === 1
-                ? 'Next'
-                : currentStep === 2
-                ? 'Next'
-                : isSubmitting
-                ? 'Saving...'
-                : 'Save'
-            }
-            onPress={
-              currentStep === 1
-                ? handleStep1Next
-                : currentStep === 2
-                ? handleStep2Next
-                : handleSave
-            }
+            title={(() => {
+              if (currentStep === 1) {
+                return 'Next';
+              }
+              if (currentStep === 2) {
+                return 'Next';
+              }
+              if (isSubmitting) {
+                return 'Saving...';
+              }
+              return 'Save';
+            })()}
+            onPress={(() => {
+              if (currentStep === 1) {
+                return handleStep1Next;
+              }
+              if (currentStep === 2) {
+                return handleStep2Next;
+              }
+              return handleSave;
+            })()}
             style={styles.button}
             textStyle={styles.buttonText}
             tintColor={theme.colors.secondary}
@@ -915,7 +920,7 @@ const createStyles = (theme: any) =>
 
     },
     categoryLabel: {
-      ...theme.typography.body,
+      ...theme.typography.titleLarge,
       color: theme.colors.text,
       fontWeight: '500',
     },

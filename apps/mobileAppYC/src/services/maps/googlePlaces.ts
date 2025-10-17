@@ -121,7 +121,7 @@ export const fetchPlaceSuggestions = async ({
 
   return suggestions
     .map(normalizeSuggestion)
-    .filter((item): item is PlaceSuggestion => Boolean(item && item.primaryText));
+    .filter((item): item is PlaceSuggestion => Boolean(item?.primaryText));
 };
 
 export const fetchPlaceDetails = async (placeId: string): Promise<PlaceDetails> => {
@@ -175,7 +175,7 @@ export const fetchPlaceDetails = async (placeId: string): Promise<PlaceDetails> 
     route,
   ].filter(Boolean);
 
-  const addressLine = addressLineParts.join(' ').replace(/\s+/g, ' ').trim();
+  const addressLine = addressLineParts.join(' ').replaceAll(/\s+/g, ' ').trim();
 
   return {
     addressLine: addressLine || formattedAddress,

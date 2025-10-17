@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
-  StyleSheet as RNStyleSheet,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
@@ -308,14 +307,9 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
 /* ----------------- Small shared pieces ----------------- */
 const Separator = () => {
   const {theme} = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   return (
-    <View
-      style={{
-        borderBottomWidth: RNStyleSheet.hairlineWidth,
-        borderBottomColor: theme.colors.borderSeperator,
-        marginLeft: 16,
-      }}
-    />
+    <View style={styles.separator} />
   );
 };
 
@@ -418,5 +412,10 @@ const createStyles = (theme: any) =>
       width: 16,
       height: 16,
       resizeMode: 'contain',
+    },
+    separator: {
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.colors.borderSeperator,
+      marginLeft: 16,
     },
   });
