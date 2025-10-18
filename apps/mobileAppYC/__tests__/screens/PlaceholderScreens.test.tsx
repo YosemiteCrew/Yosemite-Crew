@@ -1,4 +1,3 @@
-import React from 'react';
 import TestRenderer from 'react-test-renderer';
 import {AppointmentsScreen} from '@/screens/appointments/AppointmentsScreen';
 import {DocumentsScreen} from '@/screens/documents/DocumentsScreen';
