@@ -66,8 +66,6 @@ describe('MedicalRecordsTable Component', () => {
     const treatmentRender = getColumnRender('attendvet');
     expect(render(<>{treatmentRender(item)}</>).getByText(/Atenolol 5mg/)).toBeInTheDocument();
 
-    const followupRender = getColumnRender('attendvet');
-
     const actionsRender = getColumnRender('actions');
     const { getByRole } = render(<>{actionsRender(item)}</>);
     expect(getByRole('button')).toBeInTheDocument();

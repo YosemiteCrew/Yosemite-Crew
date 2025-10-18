@@ -60,7 +60,7 @@ describe('ExploreSection Component', () => {
       { title: "How to see revenue reporting?", thumbnail: "https://d2il6osz49gpup.cloudfront.net/Images/Explr4.jpg" },
     ];
 
-    cards.forEach(card => {
+    for (const card of cards) {
       expect(screen.getByRole('heading', { name: card.title })).toBeInTheDocument();
 
       const image = screen.getByAltText(card.title);
@@ -70,7 +70,7 @@ describe('ExploreSection Component', () => {
       const link = screen.getByLabelText(`Play ${card.title}`);
       expect(link).toBeInTheDocument();
       expect(link).toHaveAttribute('href', '#');
-    });
+    }
   });
 
   it('should initialize and reload GLightbox on mount', async () => {

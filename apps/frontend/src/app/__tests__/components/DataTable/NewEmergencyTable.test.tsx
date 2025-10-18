@@ -8,6 +8,7 @@ jest.mock('next/image', () => ({
   __esModule: true,
   default: (props: any) => <img {...props} alt={props.alt} />,
 }));
+
 jest.mock('react-icons/fa6', () => ({
   FaUser: () => <span data-testid="user-icon" />,
 }));
@@ -15,10 +16,10 @@ jest.mock('react-icons/bs', () => ({
   BsThreeDotsVertical: () => <div data-testid="dots-icon" />,
 }));
 jest.mock('react-icons/lu', () => ({
-    LuSearch: () => <div data-testid="search-icon" />,
+  LuSearch: () => <div data-testid="search-icon" />,
 }));
 jest.mock('@iconify/react/dist/iconify.js', () => ({
-    Icon: (props: { icon: string }) => <div data-testid={props.icon} />,
+  Icon: (props: { icon: string }) => <div data-testid={props.icon} />,
 }));
 
 const mockGenericTableProps: any = {};
@@ -67,12 +68,12 @@ describe('NewEmergencyTable Component', () => {
       delete mockGenericTableProps[key];
     }
     jest.spyOn(console, 'log').mockImplementation(() => {});
-    jest.spyOn(window, 'alert').mockImplementation(() => {});
+    jest.spyOn(globalThis, 'alert').mockImplementation(() => {});
   });
 
   afterEach(() => {
     (console.log as jest.Mock).mockRestore();
-    (window.alert as jest.Mock).mockRestore();
+    (globalThis.alert as jest.Mock).mockRestore();
   });
 
   test('should render initial UI and pass correct props to GenericTable', () => {
@@ -96,7 +97,7 @@ describe('NewEmergencyTable Component', () => {
     expect(searchInput).toHaveValue('Kizie');
 
     await user.click(searchButton);
-    expect(window.alert).toHaveBeenCalledWith('Searching for: Kizie');
+    expect(globalThis.alert).toHaveBeenCalledWith('Searching for: Kizie');
   });
 
   test('should update dropdown values on selection', async () => {
@@ -112,7 +113,7 @@ describe('NewEmergencyTable Component', () => {
 
   test('should render all column content and handle all actions for 100% coverage', async () => {
     render(<NewEmergencyTable />);
-    const { columns, data } = mockGenericTableProps;
+    const { columns } = mockGenericTableProps;
     const doneItem = mockAppointmentData[0];
     const viewItem = mockAppointmentData[1];
 
