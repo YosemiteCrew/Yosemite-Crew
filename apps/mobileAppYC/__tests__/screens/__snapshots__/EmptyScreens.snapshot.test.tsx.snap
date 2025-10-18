@@ -1,0 +1,9 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Empty Screen Snapshots EmptyDocumentsScreen should render correctly 1`] = `null`;
+
+exports[`Empty Screen Snapshots GenericEmptyScreen should render with all props 1`] = `null`;
+
+exports[`Empty Screen Snapshots GenericEmptyScreen should render with different icon 1`] = `null`;
+
+exports[`Empty Screen Snapshots GenericEmptyScreen should render with minimal props 1`] = `null`;
