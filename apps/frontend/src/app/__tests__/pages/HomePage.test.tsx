@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import HomePage from '../../pages/HomePage/HomePage';
+import HomePage from "@/app/pages/HomePage/HomePage";
 import userEvent from '@testing-library/user-event';
 
 jest.mock('@/app/components/Header/Header', () => {
