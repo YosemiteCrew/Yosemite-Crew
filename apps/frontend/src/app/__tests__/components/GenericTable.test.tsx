@@ -141,12 +141,12 @@ describe("GenericTable Component", () => {
 
     it("should render a bordered table when bordered prop is true", () => {
         render(<GenericTable data={mockData} columns={mockColumns} bordered={true} />);
-        expect(MockedTable.mock.calls[MockedTable.mock.calls.length - 1][0].bordered).toBe(true);
+        expect(MockedTable.mock.calls.at(-1)[0].bordered).toBe(true);
     });
 
     it("should render a non-bordered table by default", () => {
-        render(<GenericTable data={mockData} columns={mockColumns} />);
-        expect(MockedTable.mock.calls[MockedTable.mock.calls.length - 1][0].bordered).toBe(false);
+    render(<GenericTable data={mockData} columns={mockColumns} />);
+    expect(MockedTable.mock.calls.at(-1)[0].bordered).toBe(false);
     });
 });
 

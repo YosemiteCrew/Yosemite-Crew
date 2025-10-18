@@ -37,20 +37,20 @@ describe('Faq Component', () => {
 
     expect(screen.getByRole('heading', { name: /Frequently Asked Questions/i })).toBeInTheDocument();
 
-    items.forEach(item => {
+    for (const item of items) {
       expect(screen.getByRole('button', { name: item.title })).toBeInTheDocument();
-    });
+    }
   });
 
   it('should have all accordion items collapsed by default', () => {
     render(<Faq />);
 
-    items.forEach(item => {
+    for (const item of items) {
       const content = document.getElementById(item.id);
       expect(content).not.toHaveClass('show');
       const button = screen.getByRole('button', { name: item.title });
       expect(button).toHaveAttribute('aria-expanded', 'false');
-    });
+    }
   });
 
   it('should expand an accordion item when its button is clicked', async () => {

@@ -174,8 +174,10 @@ describe('ContactusPage', () => {
       const imageInput = screen.getByLabelText('Upload Image');
       await userEvent.upload(imageInput, file);
 
-      screen.getAllByRole('checkbox').forEach(fireEvent.click);
-
+      const allCheckboxes = screen.getAllByRole('checkbox');
+      for (const checkbox of allCheckboxes) {
+        fireEvent.click(checkbox);
+      }
       await waitFor(() => expect(submitButton).toBeEnabled());
 
       fireEvent.click(submitButton);
@@ -207,7 +209,9 @@ describe('ContactusPage', () => {
         fireEvent.click(screen.getByLabelText('Access your personal information'));
 
         const checkboxes = screen.getAllByRole('checkbox');
-        checkboxes.forEach(fireEvent.click);
+        for (const checkbox of checkboxes) {
+          fireEvent.click(checkbox);
+        }
 
         await waitFor(() => expect(submitButton).toBeEnabled());
 

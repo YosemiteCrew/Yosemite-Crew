@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, waitFor, act } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom";
 import Github from "@/app/components/Github/Github";
@@ -20,7 +20,7 @@ jest.mock("react-icons/io5", () => ({
 }));
 
 const mockFetch = jest.fn();
-global.fetch = mockFetch;
+globalThis.fetch = mockFetch;
 
 describe("Github Component", () => {
   beforeEach(() => {
@@ -185,7 +185,7 @@ describe("Github Component", () => {
   });
 
   it("should clear interval on unmount", () => {
-    const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
+    const clearIntervalSpy = jest.spyOn(globalThis, 'clearInterval');
     mockFetch.mockResolvedValue({
         ok: true,
         json: async () => ({ stargazers_count: 100 }),

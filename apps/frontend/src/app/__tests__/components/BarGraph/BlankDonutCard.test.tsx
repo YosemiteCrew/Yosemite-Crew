@@ -23,9 +23,9 @@ describe('BlankDonutCard Component', () => {
 
     expect(screen.getByText(/Pet Per Week/i)).toBeInTheDocument();
 
-    mockProps.labels.forEach((label) => {
+    for (const label of mockProps.labels) {
       expect(screen.getByText(label.text)).toBeInTheDocument();
-    });
+    }
 
     const zeroValueElements = screen.getAllByText('00');
     expect(zeroValueElements).toHaveLength(mockProps.labels.length + 1);

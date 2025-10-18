@@ -29,23 +29,23 @@ describe("TeamSlide Component", () => {
 
         const teamMembers = ["Surbhi", "Ankit", "Panvi", "Anna", "Suryansh"];
 
-        teamMembers.forEach((name) => {
+        for (const name of teamMembers) {
             const image = screen.getByAltText(name);
             expect(image).toBeInTheDocument();
-        });
+        }
     });
 
     it("should have the correct image sources", () => {
         render(<TeamSlide />);
 
-        const surbhiImage = screen.getByAltText("Surbhi") as HTMLImageElement;
-        expect(surbhiImage.src).toBe(
-            "https://d2il6osz49gpup.cloudfront.net/Images/team1.png"
+        const surbhiImage = screen.getByAltText("Surbhi");
+        expect(surbhiImage).toHaveAttribute(
+            'src', "https://d2il6osz49gpup.cloudfront.net/Images/team1.png"
         );
 
-        const ankitImage = screen.getByAltText("Ankit") as HTMLImageElement;
-        expect(ankitImage.src).toBe(
-            "https://d2il6osz49gpup.cloudfront.net/Images/team2.png"
+        const ankitImage = screen.getByAltText("Ankit");
+        expect(ankitImage).toHaveAttribute(
+            'src', "https://d2il6osz49gpup.cloudfront.net/Images/team2.png"
         );
     });
 });
