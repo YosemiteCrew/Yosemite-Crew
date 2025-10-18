@@ -38,15 +38,14 @@ jest.mock("react-bootstrap", () => {
 jest.mock("next/link", () => {
     const MockLink = ({ children, onClick }: { children: React.ReactNode; onClick: (e: any) => void }) => {
         return (
-            <a
-                href=""
+            <button
+                type="button"
                 onClick={(e) => {
-                    e.preventDefault();
                     onClick?.(e);
                 }}
             >
                 {children}
-            </a>
+            </button>
         );
     };
     MockLink.displayName = 'MockNextLink';

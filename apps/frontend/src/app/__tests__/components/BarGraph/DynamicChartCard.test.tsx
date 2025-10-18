@@ -63,9 +63,9 @@ describe('DynamicChartCard Component', () => {
         const barElements = screen.getAllByTestId('bar-element');
         expect(barElements).toHaveLength(mockKeys.length);
 
-        mockKeys.forEach((key) => {
+        for (const key of mockKeys) {
             expect(screen.getByText(key.name)).toBeInTheDocument();
-        });
+        }
     });
 
     test('should render a LineChart when type prop is "line"', () => {

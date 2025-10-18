@@ -6,7 +6,7 @@ import AboutUs from "../../pages/AboutUs/AboutUs";
 jest.mock("next/image", () => ({
   __esModule: true,
   default: (props: any) => {
-    return <img {...props} />;
+    return <img {...props} alt={props.alt || "mock image"} />;
   },
 }));
 

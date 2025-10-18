@@ -30,8 +30,8 @@ jest.mock('@/app/components/GenericTable/GenericTable', () => ({
         Object.assign(mockGenericTableProps, props);
         return (
             <div data-testid="mock-generic-table">
-                {props.data.map((row: any, index: number) => (
-                    <div key={index}>
+                {props.data.map((row: any) => (
+                    <div key={row.appointmentId}>
                         {props.columns.map((col: any) => (
                             <div key={col.key}>
                                 {col.render ? col.render(row) : <span>{row[col.accessor]}</span>}
@@ -54,7 +54,7 @@ describe('AllAppointmentsTable Component', () => {
             delete mockGenericTableProps[key];
         }
         consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
-        windowAlertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {});
+        windowAlertSpy = jest.spyOn(globalThis, 'alert').mockImplementation(() => {});
     });
 
     afterEach(() => {
@@ -81,7 +81,7 @@ describe('AllAppointmentsTable Component', () => {
         expect(searchInput).toHaveValue('Kizie');
 
         await user.click(searchButton);
-        expect(window.alert).toHaveBeenCalledWith('Searching for: Kizie');
+        expect(globalThis.alert).toHaveBeenCalledWith('Searching for: Kizie');
     });
 
     test('should update dropdown values on selection', async () => {

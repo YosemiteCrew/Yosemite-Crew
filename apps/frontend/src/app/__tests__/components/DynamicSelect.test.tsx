@@ -1,5 +1,6 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 
 import DynamicSelect, { Option } from '@/app/components/DynamicSelect/DynamicSelect';
@@ -11,6 +12,7 @@ const mockOptions: Option[] = [
 ];
 
 describe('DynamicSelect Component', () => {
+  const user = userEvent.setup();
   const mockOnChange = jest.fn();
 
   beforeEach(() => {
@@ -69,16 +71,16 @@ describe('DynamicSelect Component', () => {
     );
 
     const dropdownToggle = screen.getByText('Select a fruit');
-    fireEvent.click(dropdownToggle);
+    await user.click(dropdownToggle);
 
     const cherryOption = await screen.findByText('Cherry');
-    fireEvent.click(cherryOption);
+    await user.click(cherryOption);
 
     expect(mockOnChange).toHaveBeenCalledTimes(1);
     expect(mockOnChange).toHaveBeenCalledWith('cherry');
   });
 
-  it('should display a disabled "No options available" message when options array is empty', async () => {
+  it('should display a "No options available" message when options array is empty', async () => {
     render(
       <DynamicSelect
         options={[]}
@@ -89,7 +91,7 @@ describe('DynamicSelect Component', () => {
     );
 
     const dropdownToggle = screen.getByText('Select an option');
-    fireEvent.click(dropdownToggle);
+    await user.click(dropdownToggle);
 
     const noOptionsMessage = await screen.findByText('No options available');
     expect(noOptionsMessage).toBeInTheDocument();
@@ -123,8 +125,12 @@ describe('DynamicSelect Component', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('Apple'));
+    await user.click(screen.getByText('Apple'));
 
-    const placeholderItems = await screen.findAllByText('Select a fruit');
+    const placeholderOption = await screen.findByRole('button', { name: 'Select a fruit' });
+    await user.click(placeholderOption);
+
+    expect(mockOnChange).toHaveBeenCalledTimes(1);
+    expect(mockOnChange).toHaveBeenCalledWith('');
   });
 });

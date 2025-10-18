@@ -5,7 +5,7 @@ import AdminDashboardEmpty, { GraphSelected } from "@/app/pages/AdminDashboardEm
 import { useOldAuthStore } from "@/app/stores/oldAuthStore";
 
 jest.mock("next/link", () => {
-  function MockLink({ children, href }: { children: React.ReactNode; href: string }) {
+  function MockLink({ children, href }: Readonly<{ children: React.ReactNode; href: string }>) {
     return <a href={href}>{children}</a>;
   }
   MockLink.displayName = "MockLink";
@@ -24,24 +24,24 @@ jest.mock("@/app/components/ExploringCard/ExploringCard", () => {
 });
 
 jest.mock("@/app/components/StatCard/StatCard", () => {
-  function MockStatCard(props: any) {
-    return <div data-testid="stat-card">{props.title}</div>;
+  function MockStatCard({ title }: Readonly<{ title: string }>) {
+    return <div data-testid="stat-card">{title}</div>;
   }
   MockStatCard.displayName = "MockStatCard";
   return MockStatCard;
 });
 
 jest.mock("@/app/components/BarGraph/DynamicChartCard", () => {
-  function MockDynamicChartCard(props: any) {
-    return <div data-testid={`dynamic-chart-${props.type === "line" ? "line" : "bar"}`} />;
+  function MockDynamicChartCard({ type }: Readonly<{ type: string }>) {
+    return <div data-testid={`dynamic-chart-${type === "line" ? "line" : "bar"}`} />;
   }
   MockDynamicChartCard.displayName = "MockDynamicChartCard";
   return MockDynamicChartCard;
 });
 
 jest.mock("@/app/components/BarGraph/BlankDonutCard", () => {
-  function MockBlankDonutCard(props: any) {
-    return <div data-testid="blank-donut-card">{props.title}</div>;
+  function MockBlankDonutCard({ title }: Readonly<{ title: string }>) {
+    return <div data-testid="blank-donut-card">{title}</div>;
   }
   MockBlankDonutCard.displayName = "MockBlankDonutCard";
   return MockBlankDonutCard;

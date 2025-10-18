@@ -1,8 +1,8 @@
 import "@testing-library/jest-dom";
 
-window.HTMLElement.prototype.scrollIntoView = jest.fn();
+globalThis.HTMLElement.prototype.scrollIntoView = jest.fn();
 // Polyfill for window.matchMedia
-Object.defineProperty(window, "matchMedia", {
+Object.defineProperty(globalThis, "matchMedia", {
   writable: true,
   value: jest.fn().mockImplementation((query) => ({
     matches: false,
@@ -25,13 +25,13 @@ class IntersectionObserverMock {
   takeRecords = jest.fn();
 }
 
-Object.defineProperty(window, "IntersectionObserver", {
+Object.defineProperty(globalThis, "IntersectionObserver", {
   writable: true,
   configurable: true,
   value: IntersectionObserverMock,
 });
 
-Object.defineProperty(global, "IntersectionObserver", {
+Object.defineProperty(globalThis, "IntersectionObserver", {
   writable: true,
   configurable: true,
   value: IntersectionObserverMock,

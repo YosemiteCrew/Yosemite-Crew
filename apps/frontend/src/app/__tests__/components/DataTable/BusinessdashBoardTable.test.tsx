@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import BusinessdashBoardTable from '../../../components/DataTable/BusinessdashBoardTable';
@@ -8,6 +8,7 @@ jest.mock('next/image', () => ({
   __esModule: true,
   default: (props: any) => <img {...props} alt={props.alt || 'avatar'} />,
 }));
+
 jest.mock('react-icons/fa6', () => ({
   FaUser: () => <span data-testid="user-icon" />,
   FaEye: () => <span data-testid="eye-icon" />,
@@ -46,7 +47,10 @@ jest.mock('@/app/components/GenericTable/GenericTable', () => ({
         {props.data.map((item: any, index: number) => (
           <div key={item.id}>
             {props.columns.map((col: any) => (
-              <div key={col.key}>{col.render && col.render(item, index)}</div>
+              <div key={col.key}>
+                {/* FIX: Replaced `&&` with optional chaining `?.()` for the function call */}
+                {col.render?.(item, index)}
+              </div>
             ))}
           </div>
         ))}
