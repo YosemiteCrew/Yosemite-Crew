@@ -62,9 +62,9 @@ describe('constants', () => {
 
     describe('PASSWORD pattern', () => {
       it('should match strong passwords', () => {
-        expect(REGEX_PATTERNS.PASSWORD.test('Password123')).toBe(true);
-        expect(REGEX_PATTERNS.PASSWORD.test('Test1234')).toBe(true);
-        expect(REGEX_PATTERNS.PASSWORD.test('MyPass1!')).toBe(true);
+        expect(REGEX_PATTERNS.PASSWORD.test('TestPass123')).toBe(true);
+        expect(REGEX_PATTERNS.PASSWORD.test('Example1234')).toBe(true);
+        expect(REGEX_PATTERNS.PASSWORD.test('ValidPass1!')).toBe(true);
       });
 
       it('should not match weak passwords', () => {
@@ -168,9 +168,9 @@ describe('constants', () => {
 
     describe('isValidPassword', () => {
       it('should validate strong passwords', () => {
-        expect(isValidPassword('Password123')).toBe(true);
-        expect(isValidPassword('Test1234')).toBe(true);
-        expect(isValidPassword('MyPass1!')).toBe(true);
+        expect(isValidPassword('TestPass123')).toBe(true);
+        expect(isValidPassword('Example1234')).toBe(true);
+        expect(isValidPassword('ValidPass1!')).toBe(true);
       });
 
       it('should reject weak passwords', () => {
@@ -182,13 +182,13 @@ describe('constants', () => {
       });
 
       it('should reject passwords that are too long', () => {
-        const longPassword = 'Pass1' + 'a'.repeat(130);
+        const longPassword = 'Test1' + 'a'.repeat(130);
         expect(isValidPassword(longPassword)).toBe(false);
       });
 
       it('should reject passwords with invalid special characters', () => {
-        expect(isValidPassword('Password123#')).toBe(false); // # not allowed
-        expect(isValidPassword('Password123^')).toBe(false); // ^ not allowed
+        expect(isValidPassword('TestPass123#')).toBe(false); // # not allowed
+        expect(isValidPassword('TestPass123^')).toBe(false); // ^ not allowed
       });
     });
   });

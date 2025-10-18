@@ -6,6 +6,15 @@ import {TasksScreen} from '@/screens/tasks/TasksScreen';
 import {Provider} from 'react-redux';
 import {store} from '@/app/store';
 
+// Mock EmptyDocumentsScreen to avoid complex dependencies
+jest.mock('@/screens/documents/EmptyDocumentsScreen/EmptyDocumentsScreen', () => {
+  const React = require('react');
+  const {View, Text} = require('react-native');
+  return {
+    EmptyDocumentsScreen: () => React.createElement(View, {}, React.createElement(Text, {}, 'Empty Documents')),
+  };
+});
+
 describe('Placeholder Screens', () => {
   describe('AppointmentsScreen', () => {
     it('should render without crashing', () => {
