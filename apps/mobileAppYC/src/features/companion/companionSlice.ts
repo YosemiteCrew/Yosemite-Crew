@@ -1,4 +1,3 @@
-// src/features/companion/companionSlice.ts
 import {createSlice, type PayloadAction} from '@reduxjs/toolkit';
 import type {Companion, CompanionState} from './types';
 import {addCompanion, fetchCompanions} from './thunks';
@@ -38,7 +37,6 @@ export const companionSlice = createSlice({
   },
   extraReducers: builder => {
     builder
-      // Fetch companions
       .addCase(fetchCompanions.pending, state => {
         state.loading = true;
         state.error = null;
@@ -52,7 +50,6 @@ export const companionSlice = createSlice({
         state.loading = false;
         state.error = action.payload ?? 'Failed to fetch companions';
       })
-      // Add companion
       .addCase(addCompanion.pending, state => {
         state.loading = true;
         state.error = null;

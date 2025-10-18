@@ -1,5 +1,3 @@
-// apps/mobileAppYC/__tests__/features/companion/thunks.test.ts
-
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   fetchCompanions,
@@ -11,27 +9,19 @@ import type {
   Breed,
 } from '../../../src/features/companion/types';
 
-// Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage', () => ({
   getItem: jest.fn(),
   setItem: jest.fn(),
 }));
 
-// Mock timers (for mockDelay)
 jest.useFakeTimers();
 
-// Cast the mocked functions for type-safety in tests
 const mockedGetItem = AsyncStorage.getItem as jest.Mock;
 const mockedSetItem = AsyncStorage.setItem as jest.Mock;
 
-// Mock console to reduce noise in test output
 let consoleLogSpy: jest.SpyInstance;
 let consoleErrorSpy: jest.SpyInstance;
 
-// Hold original Date object
-const RealDate = Date;
-
-// Helper function to create a minimal valid AddCompanionPayload for tests
 const createMockAddCompanionPayload = (
   overrides: Partial<AddCompanionPayload> = {},
 ): AddCompanionPayload => ({
@@ -57,7 +47,6 @@ const createMockAddCompanionPayload = (
   ...overrides,
 });
 
-// Helper for a mock Breed object if needed
 const mockBreed: Breed = {
     speciesId: 1,
     speciesName: 'Canine',
@@ -71,13 +60,11 @@ beforeEach(() => {
   mockDispatch.mockClear();
   consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
   consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-  globalThis.Date = RealDate;
 });
 
 afterEach(() => {
   consoleLogSpy.mockRestore();
   consoleErrorSpy.mockRestore();
-  globalThis.Date = RealDate;
 });
 
 const mockDispatch = jest.fn();
@@ -97,7 +84,6 @@ const mockCompanions: Companion[] = [
 
 describe('companion thunks', () => {
   describe('fetchCompanions', () => {
-    // ... (fetchCompanions tests remain unchanged) ...
      it('should fetch companions successfully (fulfilled)', async () => {
       const userId = 'u1';
       mockedGetItem.mockResolvedValue(JSON.stringify(mockCompanions));
@@ -153,52 +139,27 @@ describe('companion thunks', () => {
 
   describe('addCompanion', () => {
     const MOCK_TIMESTAMP = 1678886400000;
-    const MOCK_DATE = new RealDate(MOCK_TIMESTAMP);
-    const MOCK_ISO_STRING = MOCK_DATE.toISOString();
+    const MOCK_ISO_STRING = new Date(MOCK_TIMESTAMP).toISOString();
     const MOCK_RANDOM_VALUE = 0.5;
-    const MOCK_RANDOM_PART = MOCK_RANDOM_VALUE.toString(36).substring(2, 9); // 'i'
+    const MOCK_RANDOM_PART = MOCK_RANDOM_VALUE.toString(36).substring(2, 9);
+
     let mathRandomSpy: jest.SpyInstance;
-
-    // FIX 3: Updated mockDateImplementation to avoid spreading `any[]`
-    const mockDateImplementation = (...args: any[]) => {
-        // If called without arguments, return the mock date.
-        if (args.length === 0) {
-          return MOCK_DATE;
-        }
-        // If called with arguments, attempt to reconstruct using RealDate
-        // This handles common cases like `new Date(timestamp)` or `new Date(dateString)`
-        // It might not cover *all* Date constructor overloads perfectly, but
-        // it's safer than spreading `any[]` and covers the likely uses.
-        if (args.length === 1) {
-            return new RealDate(args[0]);
-        }
-         // For multiple arguments (year, month, etc.), pass them individually
-         // Assuming up to 7 arguments (year, monthIndex, day, hours, minutes, seconds, ms)
-         // Adjust if your code uses Date constructor differently
-        return new RealDate(
-           args[0],
-           args[1] ?? undefined, // Month index needs explicit undefined if missing
-           args[2] ?? undefined,
-           args[3] ?? undefined,
-           args[4] ?? undefined,
-           args[5] ?? undefined,
-           args[6] ?? undefined
-        );
-    };
-
+    let dateNowSpy: jest.SpyInstance;
+    let dateToISOStringSpy: jest.SpyInstance;
 
     beforeEach(() => {
-        globalThis.Date = jest.fn(mockDateImplementation) as any;
-        Object.assign(globalThis.Date, RealDate); // Copy static props like .now
-        jest.spyOn(globalThis.Date, 'now').mockReturnValue(MOCK_TIMESTAMP); // Mock static .now specifically
+        dateNowSpy = jest.spyOn(Date, 'now').mockReturnValue(MOCK_TIMESTAMP);
+        dateToISOStringSpy = jest.spyOn(Date.prototype, 'toISOString')
+            .mockReturnValue(MOCK_ISO_STRING);
+
         mathRandomSpy = jest.spyOn(Math, 'random').mockReturnValue(MOCK_RANDOM_VALUE);
     });
 
     afterEach(() => {
         mathRandomSpy.mockRestore();
-        globalThis.Date = RealDate;
+        dateNowSpy.mockRestore();
+        dateToISOStringSpy.mockRestore();
     });
-
 
     it('should add a new companion successfully (fulfilled)', async () => {
       const userId = 'u1';
