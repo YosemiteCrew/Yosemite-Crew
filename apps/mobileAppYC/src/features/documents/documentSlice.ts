@@ -87,7 +87,7 @@ export const uploadDocumentFiles = createAsyncThunk<
 // Async thunk for adding a document
 export const addDocument = createAsyncThunk<
   Document,
-  Omit<Document, 'id' | 'createdAt' | 'updatedAt'>,
+  Omit<Document, 'id' | 'createdAt' | 'updatedAt' | 'isUserAdded'>,
   {rejectValue: string}
 >(
   'documents/addDocument',
@@ -101,6 +101,7 @@ export const addDocument = createAsyncThunk<
         id: `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        isUserAdded: true, // Documents added from the app are user-added
       };
 
       return newDocument;

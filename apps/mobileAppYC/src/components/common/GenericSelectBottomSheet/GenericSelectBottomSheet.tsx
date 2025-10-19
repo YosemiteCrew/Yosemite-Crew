@@ -7,12 +7,12 @@ import {
   FlatList,
   Image,
 } from 'react-native';
-import CustomBottomSheet from '../BottomSheet/BottomSheet';
-import type { BottomSheetRef } from '../BottomSheet/BottomSheet';
-import { Input } from '../Input/Input';
-import LiquidGlassButton from '../LiquidGlassButton/LiquidGlassButton';
-import { useTheme } from '../../../hooks';
-import { Images } from '../../../assets/images';
+import CustomBottomSheet from '@/components/common/BottomSheet/BottomSheet';
+import type { BottomSheetRef } from '@/components/common/BottomSheet/BottomSheet';
+import { Input } from '@/components/common/Input/Input';
+import LiquidGlassButton from '@/components/common/LiquidGlassButton/LiquidGlassButton';
+import { useTheme } from '@/hooks';
+import { Images } from '@/assets/images';
 
 export interface GenericSelectBottomSheetRef {
   open: () => void;
@@ -64,6 +64,8 @@ export const GenericSelectBottomSheet = forwardRef<
   const [searchQuery, setSearchQuery] = useState('');
 
   const styles = createStyles(theme, maxListHeight);
+  const closeIconSource = Images?.crossIcon ?? null;
+  const searchIconSource = Images?.searchIcon ?? null;
 
   const filteredItems = useMemo(() => {
     if (!hasSearch || !searchQuery.trim()) return items;
@@ -160,13 +162,15 @@ export const GenericSelectBottomSheet = forwardRef<
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>{title}</Text>
-          <TouchableOpacity onPress={handleCancel} style={styles.closeButton}>
-            <Image
-              source={Images.crossIcon}
-              style={styles.closeIcon}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
+          {closeIconSource && (
+            <TouchableOpacity onPress={handleCancel} style={styles.closeButton}>
+              <Image
+                source={closeIconSource}
+                style={styles.closeIcon}
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Custom Content */}
@@ -179,7 +183,11 @@ export const GenericSelectBottomSheet = forwardRef<
               value={searchQuery}
               onChangeText={setSearchQuery}
               placeholder={searchPlaceholder}
-              icon={<Image source={Images.searchIcon} style={styles.searchIconImage} />}
+              icon={
+                searchIconSource ? (
+                  <Image source={searchIconSource} style={styles.searchIconImage} />
+                ) : undefined
+              }
               containerStyle={styles.searchInputContainer}
             />
           </View>

@@ -126,8 +126,8 @@ export const CategoryDetailScreen: React.FC = () => {
                 </View>
               ) : (
                 subcategoryDocs.map(doc => {
-                  // Don't allow edit for synced documents (health, hygiene)
-                  const canEdit = !doc.isSynced && doc.category !== 'health' && doc.category !== 'hygiene-maintenance';
+                  // Only allow edit/delete for documents added by user from app, not from PMS
+                  const canEdit = doc.isUserAdded;
                   return (
                     <DocumentCard
                       key={doc.id}

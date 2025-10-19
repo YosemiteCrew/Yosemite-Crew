@@ -112,6 +112,70 @@ jest.mock('@callstack/liquid-glass', () => {
   };
 });
 
+// Mock Gorhom Bottom Sheet to avoid requiring native implementation in tests
+jest.mock('@gorhom/bottom-sheet', () => {
+  const React = require('react');
+  const {View, ScrollView} = require('react-native');
+
+  const createViewStub = displayName => {
+    const Component = React.forwardRef(({children, ...props}, ref) =>
+      React.createElement(View, {...props, ref}, children),
+    );
+    Component.displayName = displayName;
+    return Component;
+  };
+
+  const MockBottomSheet = React.forwardRef(({children, ...props}, ref) => {
+    React.useImperativeHandle(ref, () => ({
+      snapToIndex: jest.fn(),
+      snapToPosition: jest.fn(),
+      expand: jest.fn(),
+      collapse: jest.fn(),
+      close: jest.fn(),
+      forceClose: jest.fn(),
+    }));
+    return React.createElement(View, props, children);
+  });
+  MockBottomSheet.displayName = 'MockBottomSheet';
+
+  const MockBottomSheetView = createViewStub('MockBottomSheetView');
+  const MockBottomSheetHandle = createViewStub('MockBottomSheetHandle');
+
+  const MockBottomSheetScrollView = React.forwardRef(({children, ...props}, ref) =>
+    React.createElement(ScrollView, {...props, ref}, children),
+  );
+  MockBottomSheetScrollView.displayName = 'MockBottomSheetScrollView';
+
+  const MockBottomSheetFlatList = React.forwardRef(
+    ({data = [], renderItem, keyExtractor, ...props}, ref) => {
+      const {View: RNView} = require('react-native');
+      return React.createElement(
+        RNView,
+        {...props, ref},
+        data.map((item, index) =>
+          renderItem
+            ? renderItem({item, index})
+            : React.createElement(RNView, {key: keyExtractor ? keyExtractor(item, index) : String(index)}),
+        ),
+      );
+    },
+  );
+  MockBottomSheetFlatList.displayName = 'MockBottomSheetFlatList';
+
+  const MockBottomSheetBackdrop = ({children, ...props}) =>
+    React.createElement(View, props, children);
+
+  return {
+    __esModule: true,
+    default: MockBottomSheet,
+    BottomSheetView: MockBottomSheetView,
+    BottomSheetScrollView: MockBottomSheetScrollView,
+    BottomSheetFlatList: MockBottomSheetFlatList,
+    BottomSheetBackdrop: MockBottomSheetBackdrop,
+    BottomSheetHandle: MockBottomSheetHandle,
+  };
+});
+
 // Safe area context mock to avoid native dependency requirements
 jest.mock('react-native-safe-area-context', () => {
   const React = require('react');
@@ -279,4 +343,3 @@ jest.mock('@/components/common/customSplashScreen/customSplash', () => {
     },
   };
 });
-

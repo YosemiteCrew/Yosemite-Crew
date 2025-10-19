@@ -41,6 +41,7 @@ describe('documentSlice', () => {
     createdAt: '2024-01-15T10:00:00.000Z',
     updatedAt: '2024-01-15T10:00:00.000Z',
     isSynced: false,
+    isUserAdded: true,
   };
 
   const mockDocument2: Document = {
@@ -92,8 +93,7 @@ describe('documentSlice', () => {
       });
 
       it('should update upload progress multiple times', () => {
-        let state = initialState;
-        state = documentReducer(state, setUploadProgress(25));
+        let state = documentReducer(initialState, setUploadProgress(25));
         expect(state.uploadProgress).toBe(25);
         state = documentReducer(state, setUploadProgress(50));
         expect(state.uploadProgress).toBe(50);

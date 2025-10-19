@@ -55,9 +55,8 @@ export const DocumentPreviewScreen: React.FC = () => {
     navigation.navigate('EditDocument', {documentId});
   };
 
-  // Don't allow edit for synced documents (health, hygiene maintenance categories)
-  const canEdit =
-    !document.isSynced && document.category !== 'health' && document.category !== 'hygiene-maintenance';
+  // Only allow edit/delete for documents added by user from app, not from PMS
+  const canEdit = document.isUserAdded;
 
   return (
     <SafeArea>

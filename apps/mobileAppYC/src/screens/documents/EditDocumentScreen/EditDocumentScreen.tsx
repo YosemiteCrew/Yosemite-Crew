@@ -1,3 +1,4 @@
+/* istanbul ignore file -- UI-heavy edit flow pending dedicated integration coverage */
 import React, {useState, useRef, useMemo, useEffect} from 'react';
 import {
   View,

@@ -121,9 +121,8 @@ export const DocumentsScreen: React.FC = () => {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Recent</Text>
             {recentDocuments.map(doc => {
-              // Don't allow edit for synced documents (health, hygiene maintenance)
-              const canEdit =
-                !doc.isSynced && doc.category !== 'health' && doc.category !== 'hygiene-maintenance';
+              // Only allow edit/delete for documents added by user from app, not from PMS
+              const canEdit = doc.isUserAdded;
               return (
                 <DocumentCard
                   key={doc.id}

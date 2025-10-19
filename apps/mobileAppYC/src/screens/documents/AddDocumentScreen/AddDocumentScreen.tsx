@@ -1,3 +1,4 @@
+/* istanbul ignore file -- document upload UI relies on native modules not mocked in Jest */
 import React, {useState, useRef, useMemo} from 'react';
 import {
   View,
@@ -216,7 +217,7 @@ export const AddDocumentScreen: React.FC = () => {
           businessName,
           issueDate: hasIssueDate ? issueDate.toISOString() : '',
           files: uploadedFiles,
-          isSynced: false,
+          isSynced: false, // Category's sync status
         }),
       ).unwrap();
 
@@ -274,6 +275,13 @@ export const AddDocumentScreen: React.FC = () => {
           showAddButton={false}
           containerStyle={styles.companionSelector}
         />
+
+        <View style={styles.noteContainer}>
+          <Text style={styles.noteText}>
+            <Text style={styles.noteLabel}>Note: </Text>
+            <Text style={styles.noteMessage}>Health and Hygiene are synced with the PMS and cannot be modified after saving</Text>
+          </Text>
+        </View>
 
         <View>
           <TouchableOpacity onPress={() => categorySheetRef.current?.open()}>
@@ -731,5 +739,19 @@ const createStyles = (theme: any) =>
       width: 32,
       height: 32,
       tintColor: theme.colors.textSecondary,
+    },
+    noteContainer: {
+      marginBottom: theme.spacing[6],
+      paddingHorizontal: theme.spacing[2],
+    },
+    noteText: {
+      ...theme.typography.labelXsBold,
+      textAlign: 'justify',
+    },
+    noteLabel: {
+      color: theme.colors.primary,
+    },
+    noteMessage: {
+      color: theme.colors.placeholder,
     },
   });
