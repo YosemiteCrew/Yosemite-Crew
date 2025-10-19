@@ -25,7 +25,7 @@ export interface ConfirmActionBottomSheetRef {
 
 interface ConfirmButtonConfig {
   label: string;
-  onPress: () => void;
+  onPress: () => Promise<void> | void;
   tintColor?: string;
   textStyle?: StyleProp<TextStyle>;
   style?: StyleProp<ViewStyle>;
@@ -98,10 +98,19 @@ export const ConfirmActionBottomSheet = forwardRef<
         | ViewStyle
         | undefined;
 
+      const handlePress = () => {
+        const result = config.onPress();
+        if (result instanceof Promise) {
+          result.catch(error => {
+            console.warn('[ConfirmActionBottomSheet] Button action rejected', error);
+          });
+        }
+      };
+
       return (
         <LiquidGlassButton
           title={config.label}
-          onPress={config.onPress}
+          onPress={handlePress}
           glassEffect="clear"
           tintColor={config.tintColor ?? defaults.tintColor}
           borderRadius="lg"
