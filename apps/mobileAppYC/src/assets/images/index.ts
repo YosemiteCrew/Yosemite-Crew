@@ -21,6 +21,7 @@ export const Images = {
   searchIcon: require('./icons/searchIcon.png'),
   crossIcon: require('./icons/crossIcon.png'),
   blueAddIcon: require('./icons/blueAddIcon.png'),
+   addIconDark: require('./icons/addIconDark.png'),
   emergencyIcon: require('./icons/emergencyIcon.png'),
   notificationIcon: require('./icons/notificationIcon.png'),
   walletIcon: require('./icons/walletIcon.png'),
@@ -31,6 +32,7 @@ export const Images = {
   plusIcon: require('./dashboard/plusIcon.png'),
   editIconSlide: require('./icons/editIconSlide.png'),
   viewIconSlide: require('./icons/viewIconSlide.png'),
+  closeIcon: require('./icons/crossIcon.png'),
 
   // Account
   logoutIcon: require('./account/logoutIcon.png'),
@@ -47,7 +49,36 @@ export const Images = {
   //companion onboarding
     cat: require('./addCompanion/cat.png'),
     dog: require('./addCompanion/dog.png'),
-    equine: require('./addCompanion/equine.png'),
+    horse: require('./addCompanion/equine.png'),
+
+  // Documents
+    adminIcon: require('./documents/adminIcon.png'),
+      healthIconCategory: require('./documents/healthIconCategory.png'),
+        hygieneIcon: require('./documents/hygieneIcon.png'),
+          dietaryIcon: require('./documents/dietaryIcon.png'),
+            othersIconCategory: require('./documents/othersIconCategory.png'),
+            documentFallback: require('./documents/documentFallback.png'),
+addIconWhite: require('./documents/addIconWhite.png'),
+  emptyDocuments: require('./documents/emptyDocuments.png'),
+  documentIcon: require('./documents/documentIcon.png'),
+  passportIcon: require('./documents/passportIcon.png'),
+  certificateIcon: require('./documents/certificateIcon.png'),
+  insuranceIcon: require('./documents/insuranceIcon.png'),
+  hospitalIcon: require('./documents/hospitalIcon.png'),
+  prescriptionIcon: require('./documents/prescriptionIcon.png'),
+  vaccinationIcon: require('./documents/vaccinationIcon.png'),
+  labTestIcon: require('./documents/labTestIcon.png'),
+  groomingIcon: require('./documents/groomingIcon.png'),
+  boardingIcon: require('./documents/boardingIcon.png'),
+  trainingIcon: require('./documents/trainingIcon.png'),
+  breederIcon: require('./documents/breederIcon.png'),
+  nutritionIcon: require('./documents/nutritionIcon.png'),
+  othersIcon: require('./documents/othersIcon.png'),
+  shareIcon: require('./icons/shareIcon.png'),
+  uploadIcon: require('./icons/uploadIcon.png'),
+  cameraWhite: require('./icons/cameraWhiteIcon.png'),
+  galleryIcon: require('./icons/galleryIcon.png'),
+  driveIcon: require('./icons/driveIcon.png'),
 
 
 

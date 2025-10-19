@@ -93,22 +93,27 @@ export const Input: React.FC<InputProps> = ({
     }
   }, [value, hasValue, animateLabel]);
 
-  const getInputContainerStyle = (): ViewStyle => ({
-    borderWidth: 1,
-    borderColor: error
-      ? theme.colors.error
-      : isFocused
-      ? theme.colors.primary
-      : theme.colors.border,
-    borderRadius: 16,
-    backgroundColor: theme.colors.surface,
-    paddingHorizontal: 20,
-    minHeight: 56,
-    position: 'relative',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-  });
+  const getInputContainerStyle = (): ViewStyle => {
+    let borderColor = theme.colors.border;
+    if (error) {
+      borderColor = theme.colors.error;
+    } else if (isFocused) {
+      borderColor = theme.colors.primary;
+    }
+
+    return {
+      borderWidth: 1,
+      borderColor,
+      borderRadius: 16,
+      backgroundColor: theme.colors.surface,
+      paddingHorizontal: 20,
+      minHeight: 56,
+      position: 'relative',
+      justifyContent: 'center',
+      flexDirection: 'row',
+      alignItems: 'center',
+    };
+  };
 
   const getInputStyle = (): TextStyle => ({
     ...theme.typography.input,
@@ -192,9 +197,10 @@ export const Input: React.FC<InputProps> = ({
     marginLeft: 20,
   });
 
-  const IconWrapper = icon ? (
-    onIconPress ? TouchableOpacity : View
-  ) : null;
+  let IconWrapper = null;
+  if (icon) {
+    IconWrapper = onIconPress ? TouchableOpacity : View;
+  }
 
   return (
     <View style={containerStyle}>

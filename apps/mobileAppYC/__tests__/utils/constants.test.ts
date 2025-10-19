@@ -1,4 +1,12 @@
-import {STORAGE_KEYS, REGEX_PATTERNS, companion_TYPES, COMMON_BREEDS} from '@/utils/constants';
+import {
+  STORAGE_KEYS,
+  REGEX_PATTERNS,
+  companion_TYPES,
+  COMMON_BREEDS,
+  isValidEmail,
+  isValidPhone,
+  isValidPassword,
+} from '@/utils/constants';
 
 describe('constants', () => {
   describe('STORAGE_KEYS', () => {
@@ -54,9 +62,9 @@ describe('constants', () => {
 
     describe('PASSWORD pattern', () => {
       it('should match strong passwords', () => {
-        expect(REGEX_PATTERNS.PASSWORD.test('Password123')).toBe(true);
-        expect(REGEX_PATTERNS.PASSWORD.test('Test1234')).toBe(true);
-        expect(REGEX_PATTERNS.PASSWORD.test('MyPass1!')).toBe(true);
+        expect(REGEX_PATTERNS.PASSWORD.test('TestPass123')).toBe(true);
+        expect(REGEX_PATTERNS.PASSWORD.test('Example1234')).toBe(true);
+        expect(REGEX_PATTERNS.PASSWORD.test('ValidPass1!')).toBe(true);
       });
 
       it('should not match weak passwords', () => {
@@ -112,6 +120,76 @@ describe('constants', () => {
 
     it('should only have Dog and Cat breeds', () => {
       expect(Object.keys(COMMON_BREEDS)).toEqual(['Dog', 'Cat']);
+    });
+  });
+
+  describe('Safe validation functions', () => {
+    describe('isValidEmail', () => {
+      it('should validate correct emails', () => {
+        expect(isValidEmail('test@example.com')).toBe(true);
+        expect(isValidEmail('user.name@domain.co')).toBe(true);
+        expect(isValidEmail('test123@test-domain.com')).toBe(true);
+      });
+
+      it('should reject invalid emails', () => {
+        expect(isValidEmail('')).toBe(false);
+        expect(isValidEmail('notanemail')).toBe(false);
+        expect(isValidEmail('missing@domain')).toBe(false);
+        expect(isValidEmail('@nodomain.com')).toBe(false);
+        expect(isValidEmail('test @example.com')).toBe(false);
+        expect(isValidEmail('test@@example.com')).toBe(false);
+      });
+
+      it('should reject emails that are too long', () => {
+        const longEmail = 'a'.repeat(300) + '@example.com';
+        expect(isValidEmail(longEmail)).toBe(false);
+      });
+    });
+
+    describe('isValidPhone', () => {
+      it('should validate correct phone numbers', () => {
+        expect(isValidPhone('+1234567890')).toBe(true);
+        expect(isValidPhone('123-456-7890')).toBe(true);
+        expect(isValidPhone('(123) 456-7890')).toBe(true);
+        expect(isValidPhone('123 456 7890')).toBe(true);
+      });
+
+      it('should reject invalid phone numbers', () => {
+        expect(isValidPhone('')).toBe(false);
+        expect(isValidPhone('abc')).toBe(false);
+        expect(isValidPhone('123abc456')).toBe(false);
+        expect(isValidPhone('+')).toBe(false);
+      });
+
+      it('should reject phone numbers that are too long', () => {
+        expect(isValidPhone('1'.repeat(30))).toBe(false);
+      });
+    });
+
+    describe('isValidPassword', () => {
+      it('should validate strong passwords', () => {
+        expect(isValidPassword('TestPass123')).toBe(true);
+        expect(isValidPassword('Example1234')).toBe(true);
+        expect(isValidPassword('ValidPass1!')).toBe(true);
+      });
+
+      it('should reject weak passwords', () => {
+        expect(isValidPassword('')).toBe(false);
+        expect(isValidPassword('password')).toBe(false); // no uppercase or number
+        expect(isValidPassword('PASSWORD')).toBe(false); // no lowercase or number
+        expect(isValidPassword('12345678')).toBe(false); // no letters
+        expect(isValidPassword('Pass1')).toBe(false); // too short
+      });
+
+      it('should reject passwords that are too long', () => {
+        const longPassword = 'Test1' + 'a'.repeat(130);
+        expect(isValidPassword(longPassword)).toBe(false);
+      });
+
+      it('should reject passwords with invalid special characters', () => {
+        expect(isValidPassword('TestPass123#')).toBe(false); // # not allowed
+        expect(isValidPassword('TestPass123^')).toBe(false); // ^ not allowed
+      });
     });
   });
 });

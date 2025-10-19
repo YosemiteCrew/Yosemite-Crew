@@ -1,20 +1,9 @@
 // src/components/common/CountryMobileBottomSheet/CountryMobileBottomSheet.tsx
-import React, {useState, forwardRef, useImperativeHandle, useRef} from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  FlatList,
-  Image,
-  Platform,
-} from 'react-native';
-import CustomBottomSheet from '../BottomSheet/BottomSheet';
-import type {BottomSheetRef} from '../BottomSheet/BottomSheet';
-import {Input} from '../Input/Input';
-import LiquidGlassButton from '../LiquidGlassButton/LiquidGlassButton';
-import {useTheme} from '../../../hooks';
-import {Images} from '../../../assets/images';
+import React, { useState, forwardRef, useImperativeHandle, useRef, useMemo } from 'react';
+import { View, StyleSheet } from 'react-native';
+import { GenericSelectBottomSheet, type SelectItem } from '../GenericSelectBottomSheet/GenericSelectBottomSheet';
+import { Input } from '../Input/Input';
+import { useTheme } from '../../../hooks';
 
 interface Country {
   name: string;
@@ -38,202 +27,80 @@ interface CountryMobileBottomSheetProps {
 export const CountryMobileBottomSheet = forwardRef<
   CountryMobileBottomSheetRef,
   CountryMobileBottomSheetProps
->(({countries, selectedCountry, mobileNumber, onSave}, ref) => {
-  const {theme} = useTheme();
-  const bottomSheetRef = useRef<BottomSheetRef>(null);
+>(({ countries, selectedCountry, mobileNumber, onSave }, ref) => {
+  const { theme } = useTheme();
+  const bottomSheetRef = useRef<any>(null);
 
   const [tempCountry, setTempCountry] = useState<Country>(selectedCountry);
   const [tempMobile, setTempMobile] = useState<string>(mobileNumber);
-  const [searchQuery, setSearchQuery] = useState('');
 
   const styles = createStyles(theme);
 
-  const renderEmptyList = () => (
-    <View style={styles.emptyContainer}>
-      <Text style={styles.emptyText}>
-        No results found
-      </Text>
-    </View>
+  const countryItems: SelectItem[] = useMemo(() =>
+    countries.map(country => ({
+      id: country.code,
+      label: `${country.flag} ${country.name} ${country.dial_code}`,
+      ...country,
+    })), [countries]
   );
+
+  const selectedItem = {
+    id: tempCountry.code,
+    label: `${tempCountry.flag} ${tempCountry.name} ${tempCountry.dial_code}`,
+    ...tempCountry,
+  };
 
   useImperativeHandle(ref, () => ({
     open: () => {
       setTempCountry(selectedCountry);
       setTempMobile(mobileNumber);
-      setSearchQuery('');
-      bottomSheetRef.current?.snapToIndex(0);
+      bottomSheetRef.current?.open();
     },
     close: () => {
       bottomSheetRef.current?.close();
     },
   }));
 
-  const filteredCountries = countries.filter(
-    country =>
-      country.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      country.dial_code.includes(searchQuery),
+  const handleSave = (item: SelectItem | null) => {
+    const country = item ? countries.find(c => c.code === item.id) || selectedCountry : selectedCountry;
+    onSave(country, tempMobile);
+  };
+
+  const customContent = (
+    <View style={styles.inputRow}>
+      <View style={styles.countryCodeWrapper}>
+        <Input
+          value={`${tempCountry.flag} ${tempCountry.dial_code}`}
+          editable={false}
+          label="Country"
+          containerStyle={styles.countryCodeContainer}
+          inputStyle={styles.countryCodeInput}
+        />
+      </View>
+
+      <View style={styles.mobileInputWrapper}>
+        <Input
+          value={tempMobile}
+          onChangeText={setTempMobile}
+          label="Phone number"
+          keyboardType="phone-pad"
+          maxLength={10}
+        />
+      </View>
+    </View>
   );
 
-  const handleSave = () => {
-    onSave(tempCountry, tempMobile);
-    bottomSheetRef.current?.close();
-  };
-
-  const handleCancel = () => {
-    setTempCountry(selectedCountry);
-    setTempMobile(mobileNumber);
-    setSearchQuery('');
-    bottomSheetRef.current?.close();
-  };
-
-  const renderCountryItem = ({item}: {item: Country}) => {
-    const isSelected = item.code === tempCountry.code;
-
-    return (
-      <TouchableOpacity
-        style={[
-          styles.countryItem,
-          isSelected && styles.countryItemSelected,
-        ]}
-        onPress={() => setTempCountry(item)}
-        activeOpacity={0.7}>
-        <Text style={styles.flag}>{item.flag}</Text>
-        <Text style={styles.countryName}>
-          {item.name}
-        </Text>
-        <Text style={styles.dialCode}>
-          {item.dial_code}
-        </Text>
-        {isSelected && (
-          <View style={styles.checkmark}>
-            <Text style={styles.checkmarkText}>✓</Text>
-          </View>
-        )}
-      </TouchableOpacity>
-    );
-  };
-
   return (
-    <CustomBottomSheet
+    <GenericSelectBottomSheet
       ref={bottomSheetRef}
-      snapPoints={['83%', '95%']}
-      initialIndex={-1}
-      enablePanDownToClose={true}
-      enableDynamicSizing={false}
-      enableContentPanningGesture={false}
-      enableHandlePanningGesture={true}
-      enableOverDrag={true}
-      enableBackdrop={true}
-      backdropOpacity={0.5}
-      backdropDisappearsOnIndex={-1}
-      backdropPressBehavior="close"
-      contentType="view"
-      backgroundStyle={styles.bottomSheetBackground}
-      handleIndicatorStyle={styles.bottomSheetHandle}
-      keyboardBehavior="interactive"
-      keyboardBlurBehavior="restore"
-      android_keyboardInputMode="adjustResize"
-    >
-      <View style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>
-            Phone number
-          </Text>
-          <TouchableOpacity onPress={handleCancel} style={styles.closeButton}>
-            <Image
-              source={Images.crossIcon}
-              style={styles.closeIcon}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
-        </View>
-
-        {/* Input Row */}
-        <View style={styles.inputRow}>
-          <View style={styles.countryCodeWrapper}>
-            <Input
-              value={`${tempCountry.flag} ${tempCountry.dial_code}`}
-              editable={false}
-              label="Country"
-              containerStyle={styles.countryCodeContainer}
-              inputStyle={styles.countryCodeInput}
-            />
-          </View>
-
-          <View style={styles.mobileInputWrapper}>
-            <Input
-              value={tempMobile}
-              onChangeText={setTempMobile}
-              label="Phone number"
-              keyboardType="phone-pad"
-              maxLength={10}
-            />
-          </View>
-        </View>
-
-        {/* Search */}
-        <View style={styles.searchContainer}>
-          <Input
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Search country name"
-            icon={
-              <Image
-                source={Images.searchIcon}
-                style={styles.searchIconImage}
-              />
-            }
-            containerStyle={styles.searchInputContainer}
-          />
-        </View>
-
-        {/* Country List - Fixed Height */}
-        <View style={styles.listWrapper}>
-          <FlatList
-            data={filteredCountries}
-            keyExtractor={item => item.code}
-            renderItem={renderCountryItem}
-            showsVerticalScrollIndicator={true}
-            contentContainerStyle={styles.listContent}
-            nestedScrollEnabled={true}
-            ListEmptyComponent={renderEmptyList}
-          />
-        </View>
-
-        {/* Buttons - Always Visible */}
-        <View style={styles.buttonContainer}>
-          <LiquidGlassButton
-            title="Cancel"
-            onPress={handleCancel}
-            style={styles.cancelButton}
-            textStyle={styles.cancelButtonText}
-            tintColor="#FFFFFF"
-            shadowIntensity="light"
-            forceBorder
-            borderColor="rgba(0, 0, 0, 0.12)"
-            height={56}
-            borderRadius={16}
-          />
-
-          <LiquidGlassButton
-            title="Save"
-            onPress={handleSave}
-            style={StyleSheet.flatten([
-              styles.saveButton,
-              Platform.OS === 'android' ? styles.saveButtonAndroid : null,
-            ])}
-            textStyle={styles.saveButtonText}
-            tintColor={theme.colors.secondary}
-            shadowIntensity="medium"
-            forceBorder
-            borderColor="rgba(255, 255, 255, 0.35)"
-            height={56}
-            borderRadius={16}
-          />
-        </View>
-      </View>
-    </CustomBottomSheet>
+      title="Phone number"
+      items={countryItems}
+      selectedItem={selectedItem}
+      onSave={handleSave}
+      searchPlaceholder="Search country name"
+      emptyMessage="No results found"
+      customContent={customContent}
+    />
   );
 });
 
@@ -357,11 +224,11 @@ const createStyles = (theme: any) =>
       paddingVertical: theme.spacing['4'], // 16
       borderTopWidth: 1,
       borderTopColor: theme.colors.border,
-      backgroundColor: 'transparent',
+      backgroundColor: theme.colors.white,
     },
     cancelButton: {
       flex: 1,
-      backgroundColor: 'transparent',
+      backgroundColor: theme.colors.white,
     },
     cancelButtonText: {
       ...theme.typography.paragraphBold,

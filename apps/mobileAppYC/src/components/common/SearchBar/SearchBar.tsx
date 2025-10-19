@@ -76,7 +76,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   return (
     <LiquidGlassCard
       interactive
-      glassEffect="regular"
+      glassEffect="clear"
       style={StyleSheet.flatten([styles.container, containerStyle])}
       fallbackStyle={StyleSheet.flatten([styles.fallback, containerStyle])}>
       {mode === 'readonly' ? renderReadonly() : renderInput()}
@@ -87,7 +87,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      borderRadius: theme.borderRadius['2xl'],
+      borderRadius: theme.borderRadius.lg,
       paddingHorizontal: theme.spacing[4],
       paddingVertical: theme.spacing[3],
       borderWidth: 1,
@@ -100,7 +100,7 @@ const createStyles = (theme: any) =>
     fallback: {
       backgroundColor: theme.colors.cardBackground,
       borderColor: theme.colors.border,
-      borderRadius: theme.borderRadius['2xl'],
+      borderRadius: theme.borderRadius.lg,
       overflow: 'hidden',
     },
     touchable: {

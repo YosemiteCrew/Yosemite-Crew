@@ -187,6 +187,8 @@ const performAppleSignIn = async (): Promise<{
       }
 
       const {appleServiceId, appleRedirectUri} = PASSWORDLESS_AUTH_CONFIG ?? {};
+
+
       if (!appleServiceId || !appleRedirectUri) {
         throw new Error(
           '[AppleAuth] Missing appleServiceId or appleRedirectUri in PASSWORDLESS_AUTH_CONFIG.',
@@ -385,11 +387,6 @@ export const signInWithSocialProvider = async (
     const {userCredential, metadata} = await resolveCredential(provider);
     const firebaseUser = userCredential.user;
 
-    console.log(`[SocialAuth] ${provider} credential resolved:`, {
-      uid: firebaseUser.uid,
-      email: firebaseUser.email || metadata?.email,
-      displayName: firebaseUser.displayName,
-    });
 
     if (!firebaseUser.email && !metadata?.email) {
       throw new Error(

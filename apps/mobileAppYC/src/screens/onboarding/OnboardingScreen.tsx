@@ -83,7 +83,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
       <View style={styles.dotsContainer}>
         {onboardingData.map((_, index) => (
           <View
-            key={index}
+            key={`onboarding-dot-${index}`}
             style={[
               styles.dot,
               {

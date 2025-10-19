@@ -93,12 +93,12 @@ const ensureUserRegistration = async (username: string): Promise<boolean> => {
 
 const parsePasswordlessError = (error: unknown) => {
   const amplifyName =
-    typeof error === 'object' && error && 'name' in error
-      ? String((error as { name?: unknown }).name)
+    typeof error === 'object' && error && 'name' in error && typeof error.name === 'string'
+      ? error.name
       : undefined;
   const amplifyMessage =
-    typeof error === 'object' && error && 'message' in error
-      ? String((error as { message?: unknown }).message ?? '')
+    typeof error === 'object' && error && 'message' in error && typeof error.message === 'string'
+      ? error.message
       : undefined;
 
   switch (amplifyName) {

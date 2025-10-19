@@ -1,6 +1,7 @@
 import {configureStore} from '@reduxjs/toolkit';
 import {authReducer} from '@/features/auth';
 import {themeReducer} from '@/features/theme';
+import {companionReducer} from '@/features/companion';
 import {
   initializeAuth,
   refreshSession,
@@ -28,12 +29,15 @@ const createTestStore = () => {
     reducer: {
       auth: authReducer,
       theme: themeReducer,
+      companion: companionReducer,
     },
   });
 };
 
+type TestStore = ReturnType<typeof createTestStore>;
+
 describe('auth thunks', () => {
-  let store: ReturnType<typeof createTestStore>;
+  let store: TestStore;
 
   const mockUser: User = {
     id: 'user-123',
@@ -59,6 +63,7 @@ describe('auth thunks', () => {
 
   describe('initializeAuth', () => {
     it('should initialize auth successfully with authenticated outcome', async () => {
+      const dispatch = store.dispatch as any;
       const mockOutcome: sessionManager.RecoverAuthOutcome = {
         kind: 'authenticated',
         user: mockUser,
@@ -72,7 +77,7 @@ describe('auth thunks', () => {
       (sessionManager.scheduleSessionRefresh as jest.Mock).mockImplementation(() => {});
       (sessionManager.registerAppStateListener as jest.Mock).mockImplementation(() => {});
 
-      await store.dispatch(initializeAuth());
+      await dispatch(initializeAuth());
 
       const state = store.getState().auth;
       expect(state.status).toBe('authenticated');
@@ -81,6 +86,7 @@ describe('auth thunks', () => {
     });
 
     it('should handle pendingProfile outcome', async () => {
+      const dispatch = store.dispatch as any;
       const mockOutcome: sessionManager.RecoverAuthOutcome = {
         kind: 'pendingProfile',
       };
@@ -90,7 +96,7 @@ describe('auth thunks', () => {
       (sessionManager.scheduleSessionRefresh as jest.Mock).mockImplementation(() => {});
       (sessionManager.registerAppStateListener as jest.Mock).mockImplementation(() => {});
 
-      await store.dispatch(initializeAuth());
+      await dispatch(initializeAuth());
 
       const state = store.getState().auth;
       expect(state.status).toBe('unauthenticated');
@@ -106,7 +112,8 @@ describe('auth thunks', () => {
       (sessionManager.markAuthRefreshed as jest.Mock).mockImplementation(() => {});
       (sessionManager.registerAppStateListener as jest.Mock).mockImplementation(() => {});
 
-      await store.dispatch(initializeAuth());
+      const dispatch = store.dispatch as any;
+      await dispatch(initializeAuth());
 
       const state = store.getState().auth;
       expect(state.status).toBe('unauthenticated');
@@ -119,7 +126,8 @@ describe('auth thunks', () => {
       );
       (sessionManager.registerAppStateListener as jest.Mock).mockImplementation(() => {});
 
-      await store.dispatch(initializeAuth());
+      const dispatch = store.dispatch as any;
+      await dispatch(initializeAuth());
 
       const state = store.getState().auth;
       expect(state.status).toBe('unauthenticated');
@@ -140,7 +148,8 @@ describe('auth thunks', () => {
       });
 
       const recoverSpy = jest.spyOn(sessionManager, 'recoverAuthSession');
-      await store.dispatch(initializeAuth());
+      const dispatch = store.dispatch as any;
+      await dispatch(initializeAuth());
 
       expect(recoverSpy).not.toHaveBeenCalled();
     });
@@ -153,7 +162,8 @@ describe('auth thunks', () => {
       (sessionManager.scheduleSessionRefresh as jest.Mock).mockImplementation(() => {});
       (sessionManager.registerAppStateListener as jest.Mock).mockImplementation(() => {});
 
-      await store.dispatch(
+      const dispatch = store.dispatch as any;
+      await dispatch(
         establishSession({
           user: mockUser,
           tokens: mockTokens,
@@ -173,7 +183,8 @@ describe('auth thunks', () => {
       (sessionManager.scheduleSessionRefresh as jest.Mock).mockImplementation(() => {});
       (sessionManager.registerAppStateListener as jest.Mock).mockImplementation(() => {});
 
-      await store.dispatch(
+      const dispatch = store.dispatch as any;
+      await dispatch(
         establishSession({
           user: mockUser,
           tokens: tokensWithoutProvider as AuthTokens,
@@ -201,7 +212,8 @@ describe('auth thunks', () => {
       (sessionManager.markAuthRefreshed as jest.Mock).mockImplementation(() => {});
       (sessionManager.scheduleSessionRefresh as jest.Mock).mockImplementation(() => {});
 
-      await store.dispatch(refreshSession());
+      const dispatch = store.dispatch as any;
+      await dispatch(refreshSession());
 
       const state = store.getState().auth;
       expect(state.status).toBe('authenticated');
@@ -213,7 +225,8 @@ describe('auth thunks', () => {
         new Error('Refresh failed'),
       );
 
-      await store.dispatch(refreshSession());
+      const dispatch = store.dispatch as any;
+      await dispatch(refreshSession());
 
       const state = store.getState().auth;
       expect(state.error).toBe('Refresh failed');
@@ -224,7 +237,8 @@ describe('auth thunks', () => {
       store.dispatch({type: 'auth/setAuthRefreshing', payload: true});
 
       const recoverSpy = jest.spyOn(sessionManager, 'recoverAuthSession');
-      await store.dispatch(refreshSession());
+      const dispatch = store.dispatch as any;
+      await dispatch(refreshSession());
 
       expect(recoverSpy).not.toHaveBeenCalled();
     });
@@ -245,7 +259,8 @@ describe('auth thunks', () => {
       });
 
       const updates = {firstName: 'Jane', lastName: 'Smith'};
-      await store.dispatch(updateUserProfile(updates));
+      const dispatch = store.dispatch as any;
+      await dispatch(updateUserProfile(updates));
 
       const state = store.getState().auth;
       expect(state.user?.firstName).toBe('Jane');
@@ -259,7 +274,8 @@ describe('auth thunks', () => {
     it('should do nothing if no user is logged in', async () => {
       const persistSpy = jest.spyOn(sessionManager, 'persistUserData');
 
-      await store.dispatch(updateUserProfile({firstName: 'Jane'}));
+      const dispatch = store.dispatch as any;
+      await dispatch(updateUserProfile({firstName: 'Jane'}));
 
       expect(persistSpy).not.toHaveBeenCalled();
     });
@@ -281,7 +297,8 @@ describe('auth thunks', () => {
         },
       });
 
-      await store.dispatch(logout());
+      const dispatch = store.dispatch as any;
+      await dispatch(logout());
 
       expect(signOutSpy).toHaveBeenCalled();
       expect(sessionManager.clearSessionData).toHaveBeenCalledWith({clearPendingProfile: true});
@@ -312,7 +329,8 @@ describe('auth thunks', () => {
         },
       });
 
-      await store.dispatch(logout());
+      const dispatch = store.dispatch as any;
+      await dispatch(logout());
 
       expect(mockSignOut).toHaveBeenCalled();
     });
@@ -332,7 +350,8 @@ describe('auth thunks', () => {
         },
       });
 
-      await store.dispatch(logout());
+      const dispatch = store.dispatch as any;
+      await dispatch(logout());
 
       const state = store.getState().auth;
       expect(state.status).toBe('unauthenticated');
@@ -343,7 +362,8 @@ describe('auth thunks', () => {
     it('should clear auth error', async () => {
       store.dispatch({type: 'auth/setAuthError', payload: 'Some error'});
 
-      await store.dispatch(clearAuthError());
+      const dispatch = store.dispatch as any;
+      await dispatch(clearAuthError());
 
       const state = store.getState().auth;
       expect(state.error).toBeNull();

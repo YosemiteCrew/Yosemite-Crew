@@ -10,6 +10,7 @@ import {
 } from '@/features/auth';
 import type {AuthTokens, User, NormalizedAuthTokens} from '@/features/auth';
 import {themeReducer} from '@/features/theme';
+import {companionReducer} from '@/features/companion';
 
 import {signOutEverywhere} from '@/services/auth/passwordlessAuth';
 import {getAuth} from '@react-native-firebase/auth';
@@ -58,11 +59,9 @@ const createStore = () =>
     reducer: {
       auth: authReducer,
       theme: themeReducer,
+      companion: companionReducer,
     },
   });
-
-type TestStore = ReturnType<typeof createStore>;
-type TestDispatch = TestStore['dispatch'];
 
 const buildUser = (): User => ({
   id: 'test-user',
@@ -87,7 +86,7 @@ describe('auth thunks', () => {
 
   it('establishSession persists session and updates state', async () => {
     const store = createStore();
-    const dispatch = store.dispatch as TestDispatch;
+    const dispatch = store.dispatch as any;
     const user = buildUser();
     const tokens = buildTokens();
 
@@ -116,7 +115,7 @@ describe('auth thunks', () => {
 
   it('initializeAuth hydrates existing authenticated session', async () => {
     const store = createStore();
-    const dispatch = store.dispatch as TestDispatch;
+    const dispatch = store.dispatch as any;
     const user = buildUser();
     const tokens: NormalizedAuthTokens = {
       ...buildTokens(),
@@ -144,7 +143,7 @@ describe('auth thunks', () => {
 
   it('refreshSession handles unauthenticated outcome', async () => {
     const store = createStore();
-    const dispatch = store.dispatch as TestDispatch;
+    const dispatch = store.dispatch as any;
 
     mockRecoverAuthSession.mockResolvedValue({kind: 'unauthenticated'});
 
@@ -157,7 +156,7 @@ describe('auth thunks', () => {
 
   it('logout clears session, tokens, and resets lifecycle hooks', async () => {
     const store = createStore();
-    const dispatch = store.dispatch as TestDispatch;
+    const dispatch = store.dispatch as any;
 
     mockPersistSessionData.mockResolvedValue({
       ...buildTokens(),
