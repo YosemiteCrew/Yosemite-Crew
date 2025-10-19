@@ -130,7 +130,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
   if (!safeUser) {
     return (
       <SafeAreaView style={styles.container}>
-        <Header title="Edit Profile" showBackButton onBack={goBack} />
+        <Header title="Parent" showBackButton onBack={goBack} />
         <View style={styles.centered}>
           {isLoading ? (
             <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -145,7 +145,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
   return (
     <SafeAreaView style={styles.container}>
       <Header
-        title="Edit Profile"
+        title="Parent"
         showBackButton
         onBack={goBack}
       />
@@ -193,6 +193,14 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
               label="Phone"
               value={safeUser.phone ? `${parsedPhone.dialCode} ${parsedPhone.localNumber}` : ''}
               onPress={() => phoneSheetRef.current?.open()}
+            />
+
+            <Separator />
+
+            {/* Email – Read only */}
+            <ReadOnlyRow
+              label="Email"
+              value={safeUser.email}
             />
 
             <Separator />
@@ -342,6 +350,27 @@ const RowButton: React.FC<{
   );
 };
 
+const ReadOnlyRow: React.FC<{
+  label: string;
+  value?: string;
+}> = ({label, value}) => {
+  const {theme} = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  return (
+    <View style={styles.readOnlyRowContainer}>
+      <Text style={styles.rowButtonLabel}>
+        {label}
+      </Text>
+      <Text
+        style={styles.rowButtonValue}
+        numberOfLines={1}
+        ellipsizeMode="tail">
+        {value || ' '}
+      </Text>
+    </View>
+  );
+};
+
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
@@ -412,6 +441,12 @@ const createStyles = (theme: any) =>
       width: 16,
       height: 16,
       resizeMode: 'contain',
+    },
+    readOnlyRowContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: theme.spacing[3],
+      paddingHorizontal: theme.spacing[3],
     },
     separator: {
       borderBottomWidth: StyleSheet.hairlineWidth,

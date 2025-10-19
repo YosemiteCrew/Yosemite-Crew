@@ -11,6 +11,7 @@ export interface Document {
   createdAt: string;
   updatedAt: string;
   isSynced: boolean;
+  isUserAdded: boolean; // true if added by user from app, false if synced from PMS
 }
 
 export interface DocumentFile {

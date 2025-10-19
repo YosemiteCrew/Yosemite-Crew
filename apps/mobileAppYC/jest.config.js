@@ -36,6 +36,8 @@ module.exports = {
     '<rootDir>/android/',
     '<rootDir>/ios/',
     '<rootDir>/coverage/',
+    '<rootDir>/__tests__/utils/',
+    '<rootDir>/__tests__/setup/',
   ],
   watchPathIgnorePatterns: [
     '<rootDir>/node_modules/.pnpm/',

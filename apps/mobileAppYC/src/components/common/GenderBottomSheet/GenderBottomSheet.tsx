@@ -10,10 +10,11 @@ export interface GenderBottomSheetRef {
 export const GenderBottomSheet = forwardRef<
   GenderBottomSheetRef,
   {
-    selected: CompanionGender | null;
+    selected?: CompanionGender | null;
+    selectedGender?: CompanionGender | null;
     onSave: (g: CompanionGender) => void;
   }
->(({selected, onSave}, ref) => {
+>(({selected, selectedGender, onSave}, ref) => {
   const bottomSheetRef = useRef<any>(null);
 
   const genderItems: SelectItem[] = [
@@ -21,8 +22,9 @@ export const GenderBottomSheet = forwardRef<
     {id: 'female', label: 'Female'},
   ];
 
-  const selectedItem = selected
-    ? genderItems.find(item => item.id === selected) || null
+  const effectiveSelection = selected ?? selectedGender ?? null;
+  const selectedItem = effectiveSelection
+    ? genderItems.find(item => item.id === effectiveSelection) || null
     : null;
 
   useImperativeHandle(ref, () => ({
@@ -50,7 +52,7 @@ export const GenderBottomSheet = forwardRef<
       hasSearch={false}
       emptyMessage="No gender options available"
       mode="select"
-  snapPoints={['30%', '35%']}
+      snapPoints={['30%', '35%']}
       maxListHeight={300}
     />
   );
