@@ -17,9 +17,7 @@ export interface Breed {
   breedName: string;
 }
 
-export interface Companion {
-  id: string;
-  userId: string;
+export interface CompanionProfileData {
   category: CompanionCategory;
   name: string;
   breed: Breed | null;
@@ -39,6 +37,11 @@ export interface Companion {
   countryOfOrigin: string | null;
   origin: CompanionOrigin;
   profileImage: string | null;
+}
+
+export interface Companion extends CompanionProfileData {
+  id: string;
+  userId: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -50,24 +53,4 @@ export interface CompanionState {
   error: string | null;
 }
 
-export interface AddCompanionPayload {
-  category: CompanionCategory;
-  name: string;
-  breed: Breed | null;
-  dateOfBirth: string | null;
-  gender: CompanionGender;
-  currentWeight: number | null;
-  color: string | null;
-  allergies: string | null;
-  neuteredStatus: NeuteredStatus;
-  ageWhenNeutered: string | null;
-  bloodGroup: string | null;
-  microchipNumber: string | null;
-  passportNumber: string | null;
-  insuredStatus: InsuredStatus;
-  insuranceCompany: string | null;
-  insurancePolicyNumber: string | null;
-  countryOfOrigin: string | null;
-  origin: CompanionOrigin;
-  profileImage: string | null;
-}
+export type AddCompanionPayload = CompanionProfileData;
