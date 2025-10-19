@@ -34,6 +34,23 @@ export type {
   ParentDTOAttributesType,
 } from "./dto/parent.dto";
 export { fromParentRequestDTO, toParentResponseDTO } from "./dto/parent.dto";
+export type {
+  CompanionRequestDTO,
+  CompanionResponseDTO,
+  CompanionDTOAttributes,
+} from "./dto/companion.dto";
+export {
+  fromCompanionRequestDTO,
+  toCompanionResponseDTO,
+} from "./dto/companion.dto";
+export type {
+  Companion,
+  CompanionType,
+  Gender,
+  SourceType,
+  RecordStatus,
+} from "./companion";
+export { toFHIRCompanion } from "./companion";
 
 export type { Organization, ToFHIROrganizationOptions } from "./organization";
 export type {
