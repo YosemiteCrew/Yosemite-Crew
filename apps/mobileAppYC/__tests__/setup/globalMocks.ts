@@ -40,7 +40,7 @@ jest.mock('@react-native-community/netinfo', () => ({
 
 // Mock react-native-gesture-handler
 jest.mock('react-native-gesture-handler', () => {
-  const View = require('react-native/Libraries/Components/View/View');
+  const {View} = require('react-native');
   return {
     Swipeable: View,
     DrawerLayout: View,
@@ -118,10 +118,10 @@ jest.mock('react-native/Libraries/Components/Keyboard/Keyboard', () => ({
 }));
 
 // Mock Alert
-global.alert = jest.fn();
+(global as any).alert = jest.fn();
 
 // Mock console methods to reduce noise in tests
-global.console = {
+(global as any).console = {
   ...console,
   error: jest.fn(),
   warn: jest.fn(),

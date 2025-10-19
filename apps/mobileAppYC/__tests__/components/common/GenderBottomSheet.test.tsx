@@ -3,19 +3,19 @@ import {render, fireEvent} from '@testing-library/react-native';
 import {GenderBottomSheet} from '@/components/common/GenderBottomSheet/GenderBottomSheet';
 
 jest.mock('@/components/common/BottomSheet/BottomSheet', () => {
-  const React = require('react');
+  const ReactModule = require('react');
   return {
     __esModule: true,
-    default: React.forwardRef(({children, title, snapPoints, onClose}: any, ref: any) => {
-      const {View, Text, TouchableOpacity} = require('react-native');
-      React.useImperativeHandle(ref, () => ({
+    default: ReactModule.forwardRef(({children, title}: any, ref: any) => {
+      const {View, Text} = require('react-native');
+      ReactModule.useImperativeHandle(ref, () => ({
         open: jest.fn(),
         close: jest.fn(),
       }));
-      return React.createElement(
+      return ReactModule.createElement(
         View,
         {testID: 'bottom-sheet'},
-        React.createElement(Text, {testID: 'sheet-title'}, title),
+        ReactModule.createElement(Text, {testID: 'sheet-title'}, title),
         children
       );
     }),
@@ -23,15 +23,15 @@ jest.mock('@/components/common/BottomSheet/BottomSheet', () => {
 });
 
 jest.mock('@/components/common/LiquidGlassButton/LiquidGlassButton', () => {
-  const React = require('react');
+  const ReactModule = require('react');
   return {
     __esModule: true,
     default: ({title, onPress}: any) => {
       const {TouchableOpacity, Text} = require('react-native');
-      return React.createElement(
+      return ReactModule.createElement(
         TouchableOpacity,
         {onPress, testID: `button-${title}`},
-        React.createElement(Text, null, title)
+        ReactModule.createElement(Text, null, title)
       );
     },
   };
