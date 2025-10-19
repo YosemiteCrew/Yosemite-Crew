@@ -387,7 +387,6 @@ export const signInWithSocialProvider = async (
     const {userCredential, metadata} = await resolveCredential(provider);
     const firebaseUser = userCredential.user;
 
-
     if (!firebaseUser.email && !metadata?.email) {
       throw new Error(
         'We could not retrieve your email address from the selected provider. Please allow email access and try again.',

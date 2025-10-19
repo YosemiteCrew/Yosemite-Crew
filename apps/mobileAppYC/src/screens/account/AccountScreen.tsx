@@ -220,7 +220,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
                   index < profiles.length - 1 && styles.companionRowDivider,
                 ]}>
                 <View style={styles.companionInfo}>
-                  {index === 0 && !authUser?.profilePicture ? (
+                  {index === 0 && authUser?.profilePicture == null ? (
                     <View style={styles.companionAvatarInitials}>
                       <Text style={styles.avatarInitialsText}>
                         {userInitials}

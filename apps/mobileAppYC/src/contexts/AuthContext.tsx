@@ -19,7 +19,7 @@ import {
 } from '@/features/auth';
 import {useAppDispatch, useAppSelector} from '@/app/hooks';
 
-export type {AuthProviderName as AuthProviderType, AuthTokens, User};
+export type {AuthProvider as AuthProviderType, AuthTokens, User} from '@/features/auth';
 
 interface AuthContextValue {
   isLoggedIn: boolean;

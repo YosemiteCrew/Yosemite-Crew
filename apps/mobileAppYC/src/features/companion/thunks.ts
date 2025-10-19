@@ -2,6 +2,7 @@
 import {createAsyncThunk} from '@reduxjs/toolkit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type {AddCompanionPayload, Companion} from './types';
+import {generateId} from '@/utils/helpers';
 
 // Mock API delay
 const mockDelay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -48,7 +49,7 @@ export const addCompanion = createAsyncThunk<
 
     // Create companion object
     const newCompanion: Companion = {
-      id: `companion_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
+      id: `companion_${Date.now()}_${generateId()}`,
       userId,
       ...payload,
       createdAt: new Date().toISOString(),

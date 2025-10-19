@@ -776,6 +776,40 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
     </View>
   );
 
+  const isStepOne = currentStep === 1;
+  const isStepTwo = currentStep === 2;
+  const isFinalStep = currentStep === 3;
+
+  const primaryButtonLabel = (() => {
+    if (isStepOne || isStepTwo) {
+      return 'Next';
+    }
+    if (isSubmitting) {
+      return 'Saving...';
+    }
+    return 'Save';
+  })();
+
+  const handlePrimaryButtonPress = () => {
+    if (isStepOne) {
+      handleStep1Next().catch(error => {
+        console.warn('Failed to progress from step 1', error);
+      });
+      return;
+    }
+    if (isStepTwo) {
+      handleStep2Next().catch(error => {
+        console.warn('Failed to progress from step 2', error);
+      });
+      return;
+    }
+    handleSave().catch(error => {
+      console.warn('Failed to save companion', error);
+    });
+  };
+
+  const isPrimaryButtonLoading = isFinalStep && isSubmitting;
+
   return (
     <SafeArea style={styles.container}>
       <KeyboardAvoidingView
@@ -803,27 +837,8 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
 
         <View style={styles.buttonContainer}>
           <LiquidGlassButton
-            title={(() => {
-              if (currentStep === 1) {
-                return 'Next';
-              }
-              if (currentStep === 2) {
-                return 'Next';
-              }
-              if (isSubmitting) {
-                return 'Saving...';
-              }
-              return 'Save';
-            })()}
-            onPress={(() => {
-              if (currentStep === 1) {
-                return handleStep1Next;
-              }
-              if (currentStep === 2) {
-                return handleStep2Next;
-              }
-              return handleSave;
-            })()}
+            title={primaryButtonLabel}
+            onPress={handlePrimaryButtonPress}
             style={styles.button}
             textStyle={styles.buttonText}
             tintColor={theme.colors.secondary}
@@ -832,8 +847,8 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
             borderColor="rgba(255, 255, 255, 0.35)"
             height={56}
             borderRadius={16}
-            loading={currentStep === 3 && isSubmitting}
-            disabled={currentStep === 3 && isSubmitting}
+            loading={isPrimaryButtonLoading}
+            disabled={isPrimaryButtonLoading}
           />
         </View>
 

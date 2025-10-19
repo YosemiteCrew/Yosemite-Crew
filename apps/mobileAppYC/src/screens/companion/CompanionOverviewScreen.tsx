@@ -121,7 +121,7 @@ export const CompanionOverviewScreen: React.FC<
 
   const applyPatch = useCallback(
     async (patch: Partial<Companion>) => {
-      if (!safeCompanion) return;
+      if (safeCompanion == null) return;
 
       try {
         console.log('[CompanionOverview] Applying patch:', patch);
@@ -168,7 +168,7 @@ export const CompanionOverviewScreen: React.FC<
     [applyPatch],
   );
 
-  if (!safeCompanion) {
+  if (safeCompanion == null) {
     return (
       <SafeAreaView style={styles.container}>
         <Header title="Overview" showBackButton onBack={goBack} />
@@ -182,6 +182,11 @@ export const CompanionOverviewScreen: React.FC<
       </SafeAreaView>
     );
   }
+
+  const currentWeightDisplay =
+    safeCompanion.currentWeight === null || safeCompanion.currentWeight === undefined
+      ? ''
+      : `${safeCompanion.currentWeight} kg`;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -268,21 +273,17 @@ export const CompanionOverviewScreen: React.FC<
             <Separator />
 
             {/* Current weight – Inline (kg) */}
-            {/* Current weight – Inline (kg) */}
             <InlineEditRow
               label="Current weight"
-              value={
-                safeCompanion.currentWeight != null
-                  ? `${safeCompanion.currentWeight} kg`
-                  : ''
-              }
+              value={currentWeightDisplay}
               keyboardType="decimal-pad"
               onSave={val => {
                 // Remove any non-numeric or unit text like "kg"
-                const cleaned = val.replace(/[^0-9.]/g, '').trim();
+                const cleaned = val.replaceAll(/[^0-9.]/g, '').trim();
                 const num = cleaned === '' ? null : Number(cleaned);
                 applyPatch({
-                  currentWeight: isNaN(num as number) ? null : (num as number),
+                  currentWeight:
+                    num === null || Number.isNaN(num) ? null : num,
                 });
               }}
             />
@@ -523,17 +524,23 @@ const RowButton: React.FC<{
 };
 
 function capitalize(s?: string | null) {
-  if (!s) return '';
+  if (s == null || s === '') {
+    return '';
+  }
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 function displayNeutered(v?: NeuteredStatus | null) {
-  if (!v) return '';
+  if (v == null) {
+    return '';
+  }
   return v === 'neutered' ? 'Neutered' : 'Not neutered';
 }
 
 function displayInsured(v?: InsuredStatus | null) {
-  if (!v) return '';
+  if (v == null) {
+    return '';
+  }
   return v === 'insured' ? 'Insured' : 'Not insured';
 }
 
@@ -577,7 +584,9 @@ function getBreedListByCategorySafe(category: any): Breed[] {
 
 function getSelectedCountryObject(countryName?: string | null) {
     const COUNTRIES = require('@/utils/countryList.json');
-    if (!countryName) return null;
+    if (countryName == null || countryName === '') {
+      return null;
+    }
     return COUNTRIES.find((c: any) => c.name === countryName) ?? null;
 }
 

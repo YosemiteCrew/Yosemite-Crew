@@ -30,8 +30,7 @@ export const TaskCard = ({
   const styles = useMemo(() => createStyles(theme), [theme]);
   const translateX = useRef(new Animated.Value(0)).current;
 
-  const clampTranslate = (dx: number) =>
-    dx < -ACTION_WIDTH ? -ACTION_WIDTH : dx > 0 ? 0 : dx;
+  const clampTranslate = (dx: number) => Math.max(-ACTION_WIDTH, Math.min(0, dx));
 
   const panResponder = useRef(
     PanResponder.create({
@@ -79,17 +78,24 @@ export const TaskCard = ({
           fallbackStyle={styles.fallback}>
           <View style={styles.row}>
             <View style={styles.avatarGroup}>
-              {avatars.map((a, idx) => (
+              {avatars.map((avatarSource, index) => {
+                const avatarKey =
+                  typeof avatarSource === 'number'
+                    ? `avatar-static-${avatarSource}-${index}`
+                    : (avatarSource?.uri ? `avatar-uri-${avatarSource.uri}` : `avatar-generic-${index}`);
+
+                return (
                 <Image
-                  key={idx}
-                  source={a}
+                  key={avatarKey}
+                  source={avatarSource}
                   style={[
                     styles.avatar,
-                    idx === 0 ? styles.avatarFirst : styles.avatarSubsequent,
-                    {zIndex: avatars.length - idx},
+                    index === 0 ? styles.avatarFirst : styles.avatarSubsequent,
+                    {zIndex: avatars.length - index},
                   ]}
                 />
-              ))}
+                );
+              })}
             </View>
             <View style={styles.textBlock}>
               <Text style={styles.task}>{task}</Text>
@@ -103,7 +109,7 @@ export const TaskCard = ({
             tintColor={theme.colors.secondary}
             shadowIntensity="medium"
             height={48}
-              textStyle={styles.completeButtonText}
+            textStyle={styles.completeButtonText}
             borderRadius={12}
             style={styles.completeBtn}
           />

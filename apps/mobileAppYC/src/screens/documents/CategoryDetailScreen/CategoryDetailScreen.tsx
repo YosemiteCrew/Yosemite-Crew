@@ -39,7 +39,7 @@ export const CategoryDetailScreen: React.FC = () => {
     return documents.filter(
       doc =>
         doc.category === categoryId &&
-        (!selectedCompanionId || doc.companionId === selectedCompanionId),
+        (selectedCompanionId === null || doc.companionId === selectedCompanionId),
     );
   }, [documents, categoryId, selectedCompanionId]);
 
@@ -48,22 +48,24 @@ export const CategoryDetailScreen: React.FC = () => {
     const grouped: Record<string, typeof categoryDocuments> = {};
 
     // Initialize all subcategories
-    category?.subcategories.forEach(sub => {
-      grouped[sub.id] = [];
-    });
+    if (category?.subcategories) {
+      for (const sub of category.subcategories) {
+        grouped[sub.id] = [];
+      }
+    }
 
     // Group documents by subcategory
-    categoryDocuments.forEach(doc => {
+    for (const doc of categoryDocuments) {
       if (grouped[doc.subcategory]) {
         grouped[doc.subcategory].push(doc);
       }
-    });
+    }
 
     return grouped;
   }, [category, categoryDocuments]);
 
   React.useEffect(() => {
-    if (companions.length > 0 && !selectedCompanionId) {
+    if (companions.length > 0 && selectedCompanionId === null) {
       dispatch(setSelectedCompanion(companions[0].id));
     }
   }, [companions, selectedCompanionId, dispatch]);
