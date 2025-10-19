@@ -3,6 +3,7 @@ import fileUpload from "express-fileupload";
 import logger from "./utils/logger";
 import mongoose from "mongoose";
 import organizationRounter from "./routers/organization.router";
+import companionRouter from "./routers/companion.router";
 import parentRouter from "./routers/parent.router";
 import userOrganizationRouter from "./routers/user-organization.router";
 import userRouter from "./routers/user.router";
@@ -15,6 +16,7 @@ app.use(express.json());
 app.use(fileUpload());
 
 app.use(`/fhir/v1/organization`, organizationRounter);
+app.use(`/fhir/v1/companion`, companionRouter);
 app.use(`/fhir/v1/parent`, parentRouter);
 app.use(`/fhir/v1/user-organization`, userOrganizationRouter);
 app.use(`/fhir/v1/user`, userRouter);
