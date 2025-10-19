@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>786906788984-hom3pa14hfcf8l4sihfuvl22blq4onjn.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.786906788984-hom3pa14hfcf8l4sihfuvl22blq4onjn</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>786906788984-uamdq5ldj7e3h5n0hljsbftgs8pcn9md.apps.googleusercontent.com</string>
+	<key>API_KEY</key>
+	<string>AIzaSyDOHEKFyBESG8HB-Ee8SlFl-HvIZT85LLI</string>
+	<key>GCM_SENDER_ID</key>
+	<string>786906788984</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.yosemitecrew.mobile</string>
+	<key>PROJECT_ID</key>
+	<string>yosemite-crew</string>
+	<key>STORAGE_BUCKET</key>
+	<string>yosemite-crew.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:786906788984:ios:d04b74ef8bdeea3e94a98d</string>
+</dict>
+</plist>

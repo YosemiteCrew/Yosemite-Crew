@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  Animated,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NavigationProp} from '@react-navigation/native';
@@ -17,6 +16,7 @@ import {useAuth} from '@/contexts/AuthContext';
 import {Images} from '@/assets/images';
 import {SearchBar, YearlySpendCard} from '@/components/common';
 import {LiquidGlassCard} from '@/components/common/LiquidGlassCard/LiquidGlassCard';
+import {CompanionSelector} from '@/components/common/CompanionSelector/CompanionSelector';
 import {useDispatch, useSelector} from 'react-redux';
 import type {AppDispatch} from '@/app/store';
 import {
@@ -25,6 +25,9 @@ import {
   setSelectedCompanion,
   fetchCompanions,
 } from '@/features/companion';
+import {selectAuthUser} from '@/features/auth/selectors';
+import {AppointmentCard} from '@/components/common/AppointmentCard/AppointmentCard';
+import {TaskCard} from '@/components/common/TaskCard/TaskCard';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Home'>;
 
@@ -38,31 +41,46 @@ export const deriveHomeGreetingName = (rawFirstName?: string | null) => {
   const trimmed = rawFirstName?.trim() ?? '';
   const resolvedName = trimmed.length > 0 ? trimmed : 'Sky';
   const displayName =
-    resolvedName.length > 13
-      ? `${resolvedName.slice(0, 13)}...`
-      : resolvedName;
+    resolvedName.length > 13 ? `${resolvedName.slice(0, 13)}...` : resolvedName;
   return {resolvedName, displayName};
 };
 
 export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const {theme} = useTheme();
   const {user} = useAuth();
+  const authUser = useSelector(selectAuthUser);
   const dispatch = useDispatch<AppDispatch>();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
 
   const companions = useSelector(selectCompanions);
   const selectedCompanionIdRedux = useSelector(selectSelectedCompanionId);
+  
+  const [hasUpcomingTasks, setHasUpcomingTasks] = React.useState(true);
+  const [hasUpcomingAppointments, setHasUpcomingAppointments] = React.useState(true);
+
 
   const {resolvedName: firstName, displayName} = deriveHomeGreetingName(
-    user?.firstName,
+    authUser?.firstName,
   );
 
-  // Fetch companions on mount
+  // Fetch companions on mount and set the first one as default
   React.useEffect(() => {
-    if (user?.id) {
-      dispatch(fetchCompanions(user.id));
-    }
+    const loadCompanionsAndSelectDefault = async () => {
+      if (user?.id) {
+        await dispatch(fetchCompanions(user.id));
+      }
+    };
+    
+    loadCompanionsAndSelectDefault();
   }, [dispatch, user?.id]);
+
+  // New useEffect to handle default selection once companions are loaded
+  React.useEffect(() => {
+    // If companions exist and no companion is currently selected, select the first one.
+    if (companions.length > 0 && !selectedCompanionIdRedux) {
+      dispatch(setSelectedCompanion(companions[0].id));
+    }
+  }, [companions, selectedCompanionIdRedux, dispatch]); 
 
   const handleAddCompanion = () => {
     navigation.navigate('AddCompanion');
@@ -77,71 +95,71 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     return Math.floor(Math.random() * 5);
   };
 
-  const renderCompanionBadge = (companion: any) => {
-    const isSelected = selectedCompanionIdRedux === companion.id;
-
-    return (
-      <TouchableOpacity
-        key={companion.id}
-        style={styles.companionTouchable}
-        activeOpacity={0.88}
-        onPress={() => handleSelectCompanion(companion.id)}>
-        <View style={styles.companionItem}>
-          <Animated.View
-            style={[
-              styles.companionAvatarRing,
-              isSelected && styles.companionAvatarRingSelected,
-              isSelected && {transform: [{scale: 1.08}]},
-            ]}>
-            {companion.profileImage ? (
-              <Image
-                source={{uri: companion.profileImage}}
-                style={styles.companionAvatar}
-              />
-            ) : (
-              <View style={styles.companionAvatarPlaceholder}>
-                <Text style={styles.companionAvatarInitial}>
-                  {companion.name.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-            )}
-          </Animated.View>
-
-          <Text style={styles.companionName}>{companion.name}</Text>
-          <Text style={styles.companionMeta}>
-            {`${getCompanionTaskCount()} Tasks`}
-          </Text>
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
-  const renderAddCompanionBadge = () => (
+  const renderEmptyStateTile = (title: string, subtitle: string, key: string) => (
     <TouchableOpacity
-      key="add-companion"
-      style={styles.companionTouchable}
-      activeOpacity={0.85}
-      onPress={handleAddCompanion}>
-      <View style={styles.addCompanionItem}>
-        <View style={styles.addCompanionCircle}>
-          <Image source={Images.blueAddIcon} style={styles.addCompanionIcon} />
-        </View>
-        <Text style={styles.addCompanionLabel}>Add companion</Text>
-      </View>
+      // When tapping the empty state tile, we allow adding the card back (simulating adding new data)
+      onPress={() => {
+        if (key === 'tasks') setHasUpcomingTasks(true);
+        if (key === 'appointments') setHasUpcomingAppointments(true);
+      }}> 
+      <LiquidGlassCard
+        key={key}
+        glassEffect="clear"
+        interactive
+        style={styles.infoTile}
+        fallbackStyle={styles.tileFallback}>
+        <Text style={styles.tileTitle}>{title}</Text>
+        <Text style={styles.tileSubtitle}>{subtitle}</Text>
+      </LiquidGlassCard>
     </TouchableOpacity>
   );
 
-  const renderUpcomingTile = (title: string, subtitle: string, key: string) => (
-    <LiquidGlassCard
-      key={key}
-      glassEffect="regular"
-      interactive
-      style={styles.infoTile}
-      fallbackStyle={styles.tileFallback}>
-      <Text style={styles.tileTitle}>{title}</Text>
-      <Text style={styles.tileSubtitle}>{subtitle}</Text>
-    </LiquidGlassCard>
-  );
+
+  const renderUpcomingTasks = () => {
+    if (hasUpcomingTasks) {
+      return (
+        <TaskCard
+          key="task-card"
+          task="Give tuna to Oscar"
+          dateTime="20 Aug - 4:00PM"
+          avatars={[Images.cat, Images.cat]}
+          // Hide the card when complete is pressed
+          onComplete={() => setHasUpcomingTasks(false)} 
+        />
+      );
+    }
+    return renderEmptyStateTile(
+      'No upcoming tasks',
+      'Add a companion to start managing their tasks',
+      'tasks',
+    );
+  }
+
+  const renderUpcomingAppointments = () => {
+    if (hasUpcomingAppointments) {
+      return (
+        <AppointmentCard
+          key="appointment-card"
+          doctorName="Dr. Emily Johnson"
+          specialization="Cardiology"
+          hospital="SMPC Cardiac hospital"
+          dateTime="20 Aug - 4:00PM"
+          note="Check in is only allowed if you arrive 5 minutes early at location"
+          avatar={Images.cat}
+          onGetDirections={() => console.log('Get directions')}
+          onChat={() => console.log('Chat')}
+          // Hide the card when check in is pressed
+          onCheckIn={() => setHasUpcomingAppointments(false)}
+        />
+      );
+    }
+    return renderEmptyStateTile(
+      'No upcoming appointments',
+      'Add a companion to start managing their appointments',
+      'appointments',
+    );
+  }
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -154,9 +172,16 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
             onPress={() => navigation.navigate('Account')}
             activeOpacity={0.85}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarInitials}>
-                {firstName.charAt(0).toUpperCase()}
-              </Text>
+              {authUser?.profilePicture ? (
+                <Image
+                  source={{ uri: authUser.profilePicture }}
+                  style={styles.avatarImage}
+                />
+              ) : (
+                <Text style={styles.avatarInitials}>
+                  {firstName.charAt(0).toUpperCase()}
+                </Text>
+              )}
             </View>
             <View>
               <Text style={styles.greetingName}>Hello, {displayName}</Text>
@@ -190,7 +215,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
         {companions.length === 0 ? (
           <LiquidGlassCard
-            glassEffect="regular"
+            glassEffect="clear"
             interactive
             tintColor={theme.colors.primary}
             style={[styles.heroTouchable, styles.heroCard]}
@@ -205,35 +230,22 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
             </TouchableOpacity>
           </LiquidGlassCard>
         ) : (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.companionRow}>
-            {companions.map(renderCompanionBadge)}
-            {renderAddCompanionBadge()}
-          </ScrollView>
+          <CompanionSelector
+            companions={companions}
+            selectedCompanionId={selectedCompanionIdRedux}
+            onSelect={handleSelectCompanion}
+            onAddCompanion={handleAddCompanion}
+            showAddButton={true}
+            getBadgeText={() => `${getCompanionTaskCount()} Tasks`}
+          />
         )}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Upcoming</Text>
-          {renderUpcomingTile(
-            companions.length === 0 ? 'No upcoming tasks' : 'Tasks for today',
-            companions.length === 0
-              ? 'Add a companion to start managing their tasks'
-              : `${companions.length} companion${
-                  companions.length > 1 ? 's' : ''
-                } have tasks today`,
-            'tasks',
-          )}
-          {renderUpcomingTile(
-            companions.length === 0
-              ? 'No upcoming appointments'
-              : 'Next appointment',
-            companions.length === 0
-              ? 'Add a companion to start managing their appointments'
-              : 'Schedule your next vet visit',
-            'appointments',
-          )}
+
+          {renderUpcomingTasks()}
+          {renderUpcomingAppointments()}
+
         </View>
 
         <View style={styles.section}>
@@ -242,9 +254,30 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick actions</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Quick actions</Text>
+       {companions.length > 0 && (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => {
+                  // Pass the selected companion's ID to the ProfileOverview screen
+                  if (selectedCompanionIdRedux) {
+                      navigation.navigate('ProfileOverview', { 
+                          companionId: selectedCompanionIdRedux 
+                      });
+                  } else {
+                      // This case should ideally not be hit if companions.length > 0 
+                      // and the useEffect is working, but it's a good fallback.
+                      console.warn('No companion selected to view profile.');
+                  }
+                }}>
+                <Text style={styles.viewMoreText}>View more</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
           <LiquidGlassCard
-            glassEffect="regular"
+            glassEffect="clear"
             interactive
             style={styles.quickActionsCard}
             fallbackStyle={styles.tileFallback}>
@@ -271,6 +304,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   );
 };
 
+// ... createStyles remains unchanged
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
@@ -303,6 +337,12 @@ const createStyles = (theme: any) =>
       justifyContent: 'center',
       borderWidth: 2,
       borderColor: theme.colors.primary,
+    },
+    avatarImage: {
+      width: '100%',
+      height: '100%',
+      borderRadius: 24,
+      resizeMode: 'cover',
     },
     avatarInitials: {
       ...theme.typography.titleMedium,
@@ -376,7 +416,7 @@ const createStyles = (theme: any) =>
       overflow: 'hidden',
     },
     section: {
-      gap: theme.spacing[3.5],
+      gap: theme.spacing[3.5], 
     },
     sectionTitle: {
       ...theme.typography.titleLarge,
@@ -439,6 +479,16 @@ const createStyles = (theme: any) =>
       ...theme.shadows.sm,
       shadowColor: theme.colors.black,
     },
+    sectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+
+    viewMoreText: {
+      ...theme.typography.labelXsBold,
+      color: theme.colors.primary,
+    },
     quickActionIcon: {
       width: 26,
       height: 26,
@@ -448,86 +498,6 @@ const createStyles = (theme: any) =>
     quickActionLabel: {
       ...theme.typography.labelXsBold,
       color: theme.colors.secondary,
-      textAlign: 'center',
-    },
-    companionRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: theme.spacing[4],
-      paddingVertical: theme.spacing[2],
-    },
-    companionTouchable: {
-      width: 96,
-    },
-    companionItem: {
-      alignItems: 'center',
-      gap: theme.spacing[2.5],
-    },
-    companionAvatarRing: {
-      width: 64,
-      height: 64,
-      borderRadius: 32,
-      borderWidth: 2,
-      borderColor: theme.colors.primaryTint,
-      alignItems: 'center',
-      justifyContent: 'center',
-      overflow: 'hidden',
-      backgroundColor: theme.colors.cardBackground,
-    },
-    companionAvatarRingSelected: {
-      borderColor: theme.colors.primary,
-    },
-    companionAvatar: {
-      width: '90%',
-      height: '90%',
-      borderRadius: theme.borderRadius.full,
-      resizeMode: 'cover',
-    },
-    companionAvatarPlaceholder: {
-      width: '90%',
-      height: '90%',
-      borderRadius: theme.borderRadius.full,
-      backgroundColor: theme.colors.lightBlueBackground,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    companionAvatarInitial: {
-      ...theme.typography.titleMedium,
-      color: theme.colors.primary,
-      fontWeight: '700',
-    },
-    companionName: {
-      ...theme.typography.titleSmall,
-      color: theme.colors.secondary,
-    },
-    companionMeta: {
-      ...theme.typography.labelXsBold,
-      color: theme.colors.primary,
-    },
-    addCompanionItem: {
-      alignItems: 'center',
-      gap: theme.spacing[2.5],
-    },
-    addCompanionCircle: {
-      width: 64,
-      height: 64,
-      marginBottom: theme.spacing[2.5],
-      borderRadius: 32,
-      borderWidth: 2,
-      borderStyle: 'dashed',
-      borderColor: theme.colors.primaryTintStrong,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: theme.colors.primarySurface,
-    },
-    addCompanionIcon: {
-      width: 28,
-      height: 28,
-      resizeMode: 'contain',
-    },
-    addCompanionLabel: {
-      ...theme.typography.labelXsBold,
-      color: theme.colors.primary,
       textAlign: 'center',
     },
   });

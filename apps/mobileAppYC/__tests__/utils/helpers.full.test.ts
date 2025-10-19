@@ -2,6 +2,7 @@ import {
   formatDate,
   formatDateShort,
   calculateAge,
+  calculateAgeFromDateOfBirth,
   capitalize,
   formatWeight,
   generateAvatarUrl,
@@ -45,6 +46,70 @@ describe('helpers utilities', () => {
       const birthDate = '1990-01-01';
       const age = calculateAge(birthDate);
       expect(age).toBeGreaterThanOrEqual(34);
+    });
+
+    it('should handle birthday not yet occurred this year', () => {
+      const today = new Date();
+      const birthDate = new Date(today.getFullYear() - 25, today.getMonth() + 1, 1);
+      const age = calculateAge(birthDate);
+      expect(age).toBe(24);
+    });
+
+    it('should handle same month but earlier day', () => {
+      const today = new Date();
+      const birthDate = new Date(today.getFullYear() - 25, today.getMonth(), today.getDate() + 1);
+      const age = calculateAge(birthDate);
+      expect(age).toBe(24);
+    });
+  });
+
+  describe('calculateAgeFromDateOfBirth', () => {
+    it('should calculate age correctly from Date object', () => {
+      const birthDate = new Date();
+      birthDate.setFullYear(birthDate.getFullYear() - 25);
+      const age = calculateAgeFromDateOfBirth(birthDate);
+      expect(age).toBe(25);
+    });
+
+    it('should calculate age correctly from string', () => {
+      const birthDate = '1990-01-01';
+      const age = calculateAgeFromDateOfBirth(birthDate);
+      expect(age).toBeGreaterThanOrEqual(34);
+    });
+
+    it('should handle birthday not yet occurred this year', () => {
+      const today = new Date();
+      const birthDate = new Date(today.getFullYear() - 25, today.getMonth() + 1, 1);
+      const age = calculateAgeFromDateOfBirth(birthDate);
+      expect(age).toBe(24);
+    });
+
+    it('should handle same month but earlier day', () => {
+      const today = new Date();
+      const birthDate = new Date(today.getFullYear() - 25, today.getMonth(), today.getDate() + 1);
+      const age = calculateAgeFromDateOfBirth(birthDate);
+      expect(age).toBe(24);
+    });
+
+    it('should return 0 for future dates', () => {
+      const futureDate = new Date();
+      futureDate.setFullYear(futureDate.getFullYear() + 5);
+      const age = calculateAgeFromDateOfBirth(futureDate);
+      expect(age).toBe(0);
+    });
+
+    it('should handle age 0 (born this year)', () => {
+      const today = new Date();
+      const birthDate = new Date(today.getFullYear(), 0, 1);
+      const age = calculateAgeFromDateOfBirth(birthDate);
+      expect(age).toBeGreaterThanOrEqual(0);
+    });
+
+    it('should handle exact birthday today', () => {
+      const today = new Date();
+      const birthDate = new Date(today.getFullYear() - 25, today.getMonth(), today.getDate());
+      const age = calculateAgeFromDateOfBirth(birthDate);
+      expect(age).toBe(25);
     });
   });
 

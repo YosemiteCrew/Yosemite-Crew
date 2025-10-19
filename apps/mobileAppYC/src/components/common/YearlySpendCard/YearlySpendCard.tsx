@@ -113,7 +113,7 @@ export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
         style={[styles.animatedWrapper, {transform: [{translateX}]}]}>
         <LiquidGlassCard
           interactive
-          glassEffect="regular"
+          glassEffect="clear"
           shadow="none"
           style={styles.card}
           fallbackStyle={styles.fallback}>
@@ -165,7 +165,7 @@ const createStyles = (theme: any) =>
       width: ACTION_WIDTH + theme.spacing[5],
       justifyContent: 'center',
       alignItems: 'center',
-      backgroundColor: theme.colors.primaryGlass,
+      backgroundColor: theme.colors.success,
       borderTopRightRadius: theme.borderRadius.lg,
       borderBottomRightRadius: theme.borderRadius.lg,
       zIndex: 0,
@@ -173,13 +173,10 @@ const createStyles = (theme: any) =>
     actionButton: {
       width: 48,
       height: 48,
-      borderRadius: theme.borderRadius.full,
       paddingLeft: theme.spacing[5],
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.colors.primarySurface,
-      borderWidth: 1,
-      borderColor: theme.colors.primaryTintStrong,
+      backgroundColor: theme.colors.success,
     },
         actionIcon: {
       width: 40,

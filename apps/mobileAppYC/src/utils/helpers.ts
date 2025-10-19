@@ -25,6 +25,33 @@ export const formatDate = (date: string | Date): string => {
 };
 
 /**
+ * Calculates the current age in full years from a given date of birth.
+ * @param dateOfBirth The Date object or a date string representing the birth date.
+ * @returns The age in full years (number).
+ */
+export const calculateAgeFromDateOfBirth = (dateOfBirth: Date | string): number => {
+  // Ensure we are working with a Date object
+  const dob = new Date(dateOfBirth);
+  const today = new Date();
+
+  // Calculate the difference in years
+  let age = today.getFullYear() - dob.getFullYear();
+
+  // Adjust age if the birthday hasn't occurred yet this year
+  const monthDifference = today.getMonth() - dob.getMonth();
+  
+  if (
+    monthDifference < 0 ||
+    (monthDifference === 0 && today.getDate() < dob.getDate())
+  ) {
+    age--;
+  }
+
+  // Ensure age is not negative (e.g., if future date is somehow passed)
+  return Math.max(0, age);
+};
+
+/**
  * Format date to short string
  */
 export const formatDateShort = (date: string | Date): string => {
@@ -75,11 +102,46 @@ export const generateAvatarUrl = (seed?: string): string => {
 };
 
 /**
- * Validate email format
+ * Validate email format (safe from ReDoS attacks)
+ * Uses string operations instead of complex regex to prevent backtracking
  */
 export const isValidEmail = (email: string): boolean => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
+  // RFC 5321: max email length is 320 characters
+  if (!email || email.length > 320) {
+    return false;
+  }
+
+  // Check for whitespace
+  if (/\s/.test(email)) {
+    return false;
+  }
+
+  // Find @ symbol - must exist and not be at start or end
+  const atIndex = email.indexOf('@');
+  if (atIndex <= 0 || atIndex === email.length - 1) {
+    return false;
+  }
+
+  // Ensure only one @ symbol
+  if (email.indexOf('@', atIndex + 1) !== -1) {
+    return false;
+  }
+
+  // Find dot after @ - must exist and not be immediately after @ or at the end
+  const domainPart = email.slice(atIndex + 1);
+
+  // Check if domain starts with a dot or ends with a dot
+  if (domainPart.startsWith('.') || domainPart.endsWith('.')) {
+    return false;
+  }
+
+  // Must have at least one dot in domain
+  const dotIndex = domainPart.indexOf('.');
+  if (dotIndex === -1) {
+    return false;
+  }
+
+  return true;
 };
 
 /**
@@ -119,7 +181,7 @@ export const throttle = <T extends (...args: any[]) => any>(
  * Generate unique ID
  */
 export const generateId = (): string => {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+  return Date.now().toString(36) + Math.random().toString(36).substring(2);
 };
 
 /**
@@ -145,10 +207,38 @@ export const truncateText = (text: string, maxLength: number): string => {
 };
 
 /**
- * Format number with commas
+ * Format number with commas (safe from ReDoS attacks)
+ * Uses string manipulation instead of complex lookahead regex
  */
 export const formatNumber = (num: number): string => {
-  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  const numStr = num.toString();
+  const parts = numStr.split('.');
+  const integerPart = parts[0];
+  const decimalPart = parts[1];
+
+  // Handle negative numbers
+  const isNegative = integerPart.startsWith('-');
+  const absoluteInteger = isNegative ? integerPart.slice(1) : integerPart;
+
+  // Add commas from right to left
+  let formatted = '';
+  for (let i = absoluteInteger.length - 1, count = 0; i >= 0; i--, count++) {
+    if (count > 0 && count % 3 === 0) {
+      formatted = ',' + formatted;
+    }
+    formatted = absoluteInteger[i] + formatted;
+  }
+
+  // Reconstruct the number
+  if (isNegative) {
+    formatted = '-' + formatted;
+  }
+
+  if (decimalPart !== undefined) {
+    formatted += '.' + decimalPart;
+  }
+
+  return formatted;
 };
 
 /**

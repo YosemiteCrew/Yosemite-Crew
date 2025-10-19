@@ -1,4 +1,4 @@
-import i18n from 'i18next';
+import i18nInstance from 'i18next';
 import {initReactI18next} from 'react-i18next';
 import {getLocales} from 'react-native-localize';
 
@@ -18,7 +18,7 @@ const resources = {
 // Get device language
 const deviceLanguage = getLocales()[0]?.languageCode || 'en';
 
-i18n
+i18nInstance
   .use(initReactI18next)
   .init({
     compatibilityJSON: 'v4', // Changed from v3 to v4
@@ -26,19 +26,19 @@ i18n
     lng: deviceLanguage,
     fallbackLng: 'en',
     debug: __DEV__,
-    
+
     // Common settings
     interpolation: {
       escapeValue: false, // React already does escaping
     },
-    
+
     // Use common namespace by default
     defaultNS: 'common',
-    
+
     // React settings
     react: {
       useSuspense: false,
     },
   });
 
-export default i18n;
+export {i18nInstance as default};

@@ -10,19 +10,24 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
+import {useSelector} from 'react-redux'; // Import useSelector
 
 import LiquidGlassButton from '@/components/common/LiquidGlassButton/LiquidGlassButton';
+import {selectAuthUser} from '@/features/auth/selectors';
 import {LiquidGlassCard} from '@/components/common/LiquidGlassCard/LiquidGlassCard';
 import {Images} from '@/assets/images';
 import {useTheme} from '@/hooks';
 import {useAuth} from '@/contexts/AuthContext';
 import {HomeStackParamList} from '@/navigation/types';
+import {selectCompanions} from '@/features/companion'; // Import the selector
+import type {Companion} from '@/features/companion/types'; // Import Companion type
 
 import DeleteAccountBottomSheet, {
   type DeleteAccountBottomSheetRef,
 } from './components/DeleteAccountBottomSheet';
 import {AccountMenuList} from './components/AccountMenuList';
 import {Header} from '@/components';
+import {calculateAgeFromDateOfBirth, truncateText} from '@/utils/helpers';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Account'>;
 
@@ -41,112 +46,95 @@ type MenuItem = {
   danger?: boolean;
 };
 
-const COMPANION_PLACEHOLDERS: CompanionProfile[] = [
-  {
-    id: 'primary',
-    name: 'Sky B',
-    subtitle: '2 Companions',
-    avatar: {
-      uri: 'https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=160&h=160',
-    },
-  },
-  {
-    id: 'kizie',
-    name: 'Kizie',
-    subtitle: 'Beagle • 3Y • 28 lbs',
-    avatar: {
-      uri: 'https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=160&h=160',
-    },
-  },
-  {
-    id: 'oscar',
-    name: 'Oscar',
-    subtitle: 'Egyptian Mau • Male • 2Y • 12 lbs',
-    avatar: {
-      uri: 'https://images.unsplash.com/photo-1517423568366-8b83523034fd?auto=format&fit=crop&w=160&h=160',
-    },
-  },
-];
+// Removed COMPANION_PLACEHOLDERS
 
 export const AccountScreen: React.FC<Props> = ({navigation}) => {
   const {theme} = useTheme();
-  const {user, logout} = useAuth();
+  const {logout} = useAuth();
+  const authUser = useSelector(selectAuthUser);
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const deleteSheetRef = React.useRef<DeleteAccountBottomSheetRef>(null);
 
+  // Get companions from the Redux store
+  const companionsFromStore = useSelector(selectCompanions);
+
   const displayName = React.useMemo(() => {
-    const composed = [user?.firstName, user?.lastName]
+    const composed = [authUser?.firstName, authUser?.lastName]
       .filter(Boolean)
       .join(' ')
       .trim();
     if (composed.length > 0) {
       return composed;
     }
-    if (user?.firstName?.trim()) {
-      return user.firstName.trim();
-    }
-    return COMPANION_PLACEHOLDERS[0]?.name ?? 'You';
-  }, [user?.firstName, user?.lastName]);
+    // Fallback to a generic name since COMPANION_PLACEHOLDERS is removed
+    return authUser?.firstName?.trim() || 'You';
+  }, [authUser?.firstName, authUser?.lastName]);
 
-  const hasValidAvatar = React.useMemo(() => {
-    const profilePic = user?.profilePicture;
-    const profileToken = user?.profileToken;
 
-    // Check if profilePicture is a valid HTTP/HTTPS URL
-    if (
-      profilePic &&
-      (profilePic.startsWith('http://') || profilePic.startsWith('https://'))
-    ) {
-      return true;
-    }
-
-    // Check if profileToken is a valid HTTP/HTTPS URL
-    if (
-      profileToken &&
-      (profileToken.startsWith('http://') ||
-        profileToken.startsWith('https://'))
-    ) {
-      return true;
-    }
-
-    return false;
-  }, [user?.profilePicture, user?.profileToken]);
 
   const primaryAvatar: ImageSourcePropType = React.useMemo(() => {
-    if (user?.profilePicture) {
-      return {uri: user.profilePicture};
+    if (authUser?.profilePicture) {
+      return {uri: authUser.profilePicture};
     }
-    if (user?.profileToken) {
-      return {uri: user.profileToken};
+    if (authUser?.profileToken) {
+      return {uri: authUser.profileToken};
     }
-    return COMPANION_PLACEHOLDERS[0]?.avatar;
-  }, [user?.profilePicture, user?.profileToken]);
+    // Use a generic placeholder image if no URL is available
+    return Images.cat;
+  }, [authUser?.profilePicture, authUser?.profileToken]);
 
   const userInitials = React.useMemo(() => {
-    if (user?.firstName) {
-      return user.firstName.charAt(0).toUpperCase();
+    if (authUser?.firstName) {
+      return authUser.firstName.charAt(0).toUpperCase();
     }
     return displayName.charAt(0).toUpperCase();
-  }, [user?.firstName, displayName]);
+  }, [authUser?.firstName, displayName]);
 
-  const companions = React.useMemo<CompanionProfile[]>(() => {
-    if (!COMPANION_PLACEHOLDERS.length) {
-      return [];
-    }
-    return COMPANION_PLACEHOLDERS.map((profile, index) =>
-      index === 0
-        ? {
-            ...profile,
-            name: displayName,
-            avatar: primaryAvatar,
-          }
-        : profile,
+  const profiles = React.useMemo<CompanionProfile[]>(() => {
+    // 1. User's Profile (Primary)
+    const userProfile: CompanionProfile = {
+      id: 'primary',
+      name: displayName,
+      subtitle: `${companionsFromStore.length} Companion${
+        companionsFromStore.length !== 1 ? 's' : ''
+      }`,
+      avatar: primaryAvatar,
+    };
+
+    // 2. Companions from Redux store
+    const companionProfiles: CompanionProfile[] = companionsFromStore.map(
+      (companion: Companion) => {
+        // Calculate age and format the string
+        let ageString: string | null = null;
+        if (companion.dateOfBirth) {
+          const age = calculateAgeFromDateOfBirth(companion.dateOfBirth);
+          ageString = age > 0 ? `${age}Y` : null;
+        }
+
+        // Dynamically build the subtitle
+        const subtitleParts = [
+          companion.breed?.breedName,
+          companion.gender,
+          ageString, // Use the calculated age string here
+          companion.currentWeight ? `${companion.currentWeight} kgs` : null,
+        ].filter(Boolean) as string[];
+
+        return {
+          id: companion.id,
+          name: companion.name,
+          subtitle: subtitleParts.join(' • '),
+          avatar: companion.profileImage
+            ? {uri: companion.profileImage}
+            : Images.cat, // Use a default companion avatar
+        };
+      },
     );
-  }, [displayName, primaryAvatar]);
+
+    // 3. Combine them: User first, then companions
+    return [userProfile, ...companionProfiles];
+  }, [displayName, primaryAvatar, companionsFromStore]); // Re-run when companions change
 
   const handleBackPress = React.useCallback(() => {
-    // Use goBack to properly pop the screen from the stack
-    // This ensures the tab bar reappears correctly
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else {
@@ -207,32 +195,32 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
 
   return (
     <SafeAreaView style={styles.container}>
-             <Header
-            title="Account"
-            showBackButton
-            onBack={handleBackPress}
-            rightIcon={Images.notificationIcon}
-            onRightPress={() => {}}
-          />
+      <Header
+        title="Account"
+        showBackButton
+        onBack={handleBackPress}
+        rightIcon={Images.notificationIcon}
+        onRightPress={() => {}}
+      />
       <View style={styles.contentWrapper}>
         <ScrollView
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}>
-
+          {/* Companion/Profile Card - Now uses 'profiles' from Redux data */}
           <LiquidGlassCard
-            glassEffect="clear"
+            glassEffect="regular"
             interactive
             style={styles.companionsCard}
             fallbackStyle={styles.companionsCardFallback}>
-            {companions.map((companion, index) => (
+            {profiles.map((profile, index) => (
               <View
-                key={companion.id}
+                key={profile.id}
                 style={[
                   styles.companionRow,
-                  index < companions.length - 1 && styles.companionRowDivider,
+                  index < profiles.length - 1 && styles.companionRowDivider,
                 ]}>
                 <View style={styles.companionInfo}>
-                  {index === 0 && !hasValidAvatar ? (
+                  {index === 0 && !authUser?.profilePicture ? (
                     <View style={styles.companionAvatarInitials}>
                       <Text style={styles.avatarInitialsText}>
                         {userInitials}
@@ -240,18 +228,46 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
                     </View>
                   ) : (
                     <Image
-                      source={companion.avatar}
+                      source={profile.avatar}
                       style={styles.companionAvatar}
                     />
                   )}
                   <View>
-                    <Text style={styles.companionName}>{companion.name}</Text>
-                    <Text style={styles.companionMeta}>
-                      {companion.subtitle}
+                    <Text
+                      style={styles.companionName}
+                      numberOfLines={1}
+                      ellipsizeMode="tail">
+                      {truncateText(profile.name, 18)}{' '}
+                      {/* limit name to ~18 chars */}
+                    </Text>
+                    <Text
+                      style={styles.companionMeta}
+                      numberOfLines={1}
+                      ellipsizeMode="tail">
+                      {truncateText(profile.subtitle, 30)}{' '}
+                      {/* limit subtitle to ~30 chars */}
                     </Text>
                   </View>
                 </View>
-                <TouchableOpacity activeOpacity={0.7} style={styles.editButton}>
+                {/* Edit Button with conditional navigation */}
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  style={styles.editButton}
+                  onPress={() => {
+                    // Index 0 is the primary user profile
+                    if (index === 0) {
+                      // Navigate to User Profile Edit screen
+                      navigation.navigate('EditParentOverview', {
+                        companionId: profile.id,
+                      });
+                      // e.g., navigation.navigate('EditUserProfile');
+                    } else {
+                      // Navigate to Companion Profile Overview
+                      navigation.navigate('ProfileOverview', {
+                        companionId: profile.id,
+                      });
+                    }
+                  }}>
                   <Image source={Images.blackEdit} style={styles.editIcon} />
                 </TouchableOpacity>
               </View>
@@ -293,7 +309,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
 
       <DeleteAccountBottomSheet
         ref={deleteSheetRef}
-        email={user?.email}
+        email={authUser?.email}
         onDelete={handleDeleteAccount}
       />
     </SafeAreaView>
@@ -321,6 +337,7 @@ const createStyles = (theme: any) =>
     },
     companionsCardFallback: {
       borderRadius: theme.borderRadius.lg,
+      backgroundColor: theme.colors.white,
     },
     companionRow: {
       flexDirection: 'row',

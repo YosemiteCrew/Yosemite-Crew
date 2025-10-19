@@ -6,6 +6,9 @@ import {
   validateName,
   validatePhone,
   validateRequired,
+  validatePositiveNumber,
+  validatecompanionAge,
+  validatecompanionWeight,
 } from '@/utils/validation';
 
 describe('validation utilities', () => {
@@ -135,6 +138,115 @@ describe('validation utilities', () => {
       const result = validateRequired('', 'Field');
       expect(result.isValid).toBe(false);
       expect(result.error).toContain('required');
+    });
+  });
+
+  describe('validatePositiveNumber', () => {
+    it('should validate positive number', () => {
+      const result = validatePositiveNumber('5', 'Age');
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should reject zero', () => {
+      const result = validatePositiveNumber('0', 'Weight');
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain('positive');
+    });
+
+    it('should reject negative number', () => {
+      const result = validatePositiveNumber('-5', 'Age');
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain('positive');
+    });
+
+    it('should reject non-numeric value', () => {
+      const result = validatePositiveNumber('abc', 'Age');
+      expect(result.isValid).toBe(false);
+    });
+
+    it('should validate decimal positive number', () => {
+      const result = validatePositiveNumber('5.5', 'Weight');
+      expect(result.isValid).toBe(true);
+    });
+  });
+
+  describe('validatecompanionAge', () => {
+    it('should validate valid age', () => {
+      const result = validatecompanionAge('5');
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should allow empty age (optional)', () => {
+      const result = validatecompanionAge('');
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should allow whitespace (optional)', () => {
+      const result = validatecompanionAge('  ');
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should reject age over 50', () => {
+      const result = validatecompanionAge('51');
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain('unusually high');
+    });
+
+    it('should reject zero age', () => {
+      const result = validatecompanionAge('0');
+      expect(result.isValid).toBe(false);
+    });
+
+    it('should reject negative age', () => {
+      const result = validatecompanionAge('-5');
+      expect(result.isValid).toBe(false);
+    });
+
+    it('should accept age exactly 50', () => {
+      const result = validatecompanionAge('50');
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should accept decimal age', () => {
+      const result = validatecompanionAge('2.5');
+      expect(result.isValid).toBe(true);
+    });
+  });
+
+  describe('validatecompanionWeight', () => {
+    it('should validate valid weight', () => {
+      const result = validatecompanionWeight('25');
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should allow empty weight (optional)', () => {
+      const result = validatecompanionWeight('');
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should allow whitespace (optional)', () => {
+      const result = validatecompanionWeight('  ');
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should reject zero weight', () => {
+      const result = validatecompanionWeight('0');
+      expect(result.isValid).toBe(false);
+    });
+
+    it('should reject negative weight', () => {
+      const result = validatecompanionWeight('-5');
+      expect(result.isValid).toBe(false);
+    });
+
+    it('should accept decimal weight', () => {
+      const result = validatecompanionWeight('12.5');
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should reject non-numeric weight', () => {
+      const result = validatecompanionWeight('heavy');
+      expect(result.isValid).toBe(false);
     });
   });
 });

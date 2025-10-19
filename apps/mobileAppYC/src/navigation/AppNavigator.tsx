@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {RootStackParamList} from './types';
@@ -22,8 +22,31 @@ export const AppNavigator: React.FC = () => {
   const [pendingProfile, setPendingProfile] = useState<
     AuthStackParamList['CreateAccount'] | null
   >(null);
+
   // Derive profile completeness directly from auth user to avoid stale storage
-  const isProfileComplete = !!(user?.firstName && user?.dateOfBirth);
+  // Add defensive checks to prevent state corruption from causing logout
+  const isProfileComplete = useMemo(() => {
+    try {
+      if (!user) {
+        console.log('[AppNavigator] No user found, profile incomplete');
+        return false;
+      }
+
+      const hasRequiredFields = !!(user.id && user.firstName && user.dateOfBirth);
+      console.log('[AppNavigator] Profile completeness check:', {
+        userId: user.id,
+        hasFirstName: !!user.firstName,
+        hasDateOfBirth: !!user.dateOfBirth,
+        isComplete: hasRequiredFields,
+      });
+
+      return hasRequiredFields;
+    } catch (error) {
+      console.error('[AppNavigator] Error checking profile completeness:', error);
+      // If there's an error checking, assume incomplete to be safe
+      return false;
+    }
+  }, [user]);
 
   useEffect(() => {
     checkOnboardingStatus();

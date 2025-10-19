@@ -18,18 +18,28 @@ export type RootStackScreenProps<T extends keyof RootStackParamList> =
 export type AuthStackScreenProps<T extends keyof AuthStackParamList> =
   NativeStackScreenProps<AuthStackParamList, T>;
 
-// Home Stack Navigator
 export type HomeStackParamList = {
   Home: undefined;
   Account: undefined;
   AddCompanion: undefined;
+  ProfileOverview: { companionId: string };
+  EditCompanionOverview: { companionId: string };
+  EditParentOverview:{ companionId: string };
+};
+
+export type DocumentStackParamList = {
+  DocumentsMain: undefined;
+  AddDocument: undefined;
+  EditDocument: { documentId: string };
+  DocumentPreview: { documentId: string };
+  CategoryDetail: { categoryId: string };
 };
 
 // Tab Navigator
 export type TabParamList = {
   HomeStack: NavigatorScreenParams<HomeStackParamList>;
   Appointments: undefined;
-  Documents: undefined;
+  Documents: NavigatorScreenParams<DocumentStackParamList>;
   Tasks: undefined;
 };
 

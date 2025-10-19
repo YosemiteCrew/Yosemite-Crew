@@ -3,7 +3,15 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import {ScrollView, StyleSheet, Text, View} from 'react-native';
 import {useTheme} from '@/hooks';
 
-export const DocumentsScreen: React.FC = () => {
+interface GenericEmptyScreenProps {
+  title: string;
+  subtitle: string;
+}
+
+export const GenericEmptyScreen: React.FC<GenericEmptyScreenProps> = ({
+  title,
+  subtitle,
+}) => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
 
@@ -13,10 +21,8 @@ export const DocumentsScreen: React.FC = () => {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
         <View style={styles.card}>
-          <Text style={styles.title}>Documents</Text>
-          <Text style={styles.subtitle}>
-            Store vaccination records, prescriptions, and care notes for every companion.
-          </Text>
+          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.subtitle}>{subtitle}</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
