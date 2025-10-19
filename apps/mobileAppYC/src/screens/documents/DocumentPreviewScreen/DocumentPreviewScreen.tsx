@@ -47,7 +47,9 @@ export const DocumentPreviewScreen: React.FC = () => {
         url: document.files[0]?.s3Url || '',
       });
     } catch (error) {
-      Alert.alert('Error', 'Failed to share document');
+      const message =
+        error instanceof Error ? error.message : 'Failed to share document';
+      Alert.alert('Error', message);
     }
   };
 

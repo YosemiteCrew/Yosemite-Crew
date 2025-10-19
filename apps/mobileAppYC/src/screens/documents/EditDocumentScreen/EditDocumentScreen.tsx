@@ -121,18 +121,21 @@ export const EditDocumentScreen: React.FC = () => {
       await dispatch(deleteDocument(documentId)).unwrap();
       console.log('[EditDocument] Document deleted successfully');
       navigation.goBack();
-    } catch (error: any) {
+    } catch (error) {
       console.error('[EditDocument] Failed to delete document:', error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Failed to delete document. Please try again.';
       setErrors(prev => ({
         ...prev,
-        files: error.message || 'Failed to delete document. Please try again.',
+        files: message,
       }));
     }
   };
 
-  const handleSave = async () => {
-    // Reset errors
-    const newErrors = {
+  const validateForm = () => {
+    const validationErrors = {
       category: '',
       subcategory: '',
       title: '',
@@ -141,36 +144,40 @@ export const EditDocumentScreen: React.FC = () => {
       files: '',
     };
 
-    // Validation
-    let hasError = false;
+    const trimmedTitle = title.trim();
+    const trimmedBusinessName = businessName.trim();
 
-    if (!category) {
-      newErrors.category = 'Category missing';
-      hasError = true;
+    if (category === null) {
+      validationErrors.category = 'Category missing';
     }
-    if (!subcategory) {
-      newErrors.subcategory = 'Sub category missing';
-      hasError = true;
+    if (subcategory === null) {
+      validationErrors.subcategory = 'Sub category missing';
     }
-    if (!title.trim()) {
-      newErrors.title = 'Title is required';
-      hasError = true;
+    if (trimmedTitle.length === 0) {
+      validationErrors.title = 'Title is required';
     }
-    if (!businessName.trim()) {
-      newErrors.businessName = 'Business name is required';
-      hasError = true;
+    if (trimmedBusinessName.length === 0) {
+      validationErrors.businessName = 'Business name is required';
     }
     if (hasIssueDate && !issueDate) {
-      newErrors.issueDate = 'Issue date missing';
-      hasError = true;
+      validationErrors.issueDate = 'Issue date missing';
     }
     if (files.length === 0) {
-      newErrors.files = 'Document missing';
-      hasError = true;
+      validationErrors.files = 'Document missing';
     }
 
-    if (hasError) {
-      setErrors(newErrors);
+    const hasValidationError = Object.values(validationErrors).some(
+      value => value !== '',
+    );
+
+    return {hasValidationError, validationErrors};
+  };
+
+  const handleSave = async () => {
+    const {hasValidationError, validationErrors} = validateForm();
+    setErrors(validationErrors);
+
+    if (hasValidationError || category === null || subcategory === null) {
       return;
     }
 
@@ -192,8 +199,8 @@ export const EditDocumentScreen: React.FC = () => {
         updateDocument({
           documentId,
           updates: {
-            category: category!,
-            subcategory: subcategory!,
+            category,
+            subcategory,
             visitType: visitType || 'general',
             title,
             businessName,
@@ -205,11 +212,15 @@ export const EditDocumentScreen: React.FC = () => {
 
       console.log('[EditDocument] Document updated successfully');
       navigation.goBack();
-    } catch (error: any) {
+    } catch (error) {
       console.error('[EditDocument] Failed to update document:', error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Failed to update document. Please try again.';
       setErrors(prev => ({
         ...prev,
-        files: error.message || 'Failed to update document. Please try again.',
+        files: message,
       }));
     }
   };

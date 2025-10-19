@@ -38,7 +38,9 @@ export const DocumentsScreen: React.FC = () => {
 
   // Filter documents by selected companion
   const filteredDocuments = useMemo(() => {
-    if (!selectedCompanionId) return documents;
+    if (selectedCompanionId === null) {
+      return documents;
+    }
     return documents.filter(doc => doc.companionId === selectedCompanionId);
   }, [documents, selectedCompanionId]);
 
@@ -64,7 +66,7 @@ export const DocumentsScreen: React.FC = () => {
 
   // Set first companion as selected on mount
   React.useEffect(() => {
-    if (companions.length > 0 && !selectedCompanionId) {
+    if (companions.length > 0 && selectedCompanionId === null) {
       dispatch(setSelectedCompanion(companions[0].id));
     }
   }, [companions, selectedCompanionId, dispatch]);
