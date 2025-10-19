@@ -295,12 +295,19 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
   shadowIntensity = 'light',
 }) => {
   const {theme, isDark} = useTheme();
-  const resolvedTintColor = React.useMemo(
-    () => tintColor ?? (isDark ? DARK_GLASS_TINT : LIGHT_GLASS_TINT),
-    [isDark, tintColor],
-  );
-  const resolvedColorScheme =
-    colorScheme === 'system' ? (isDark ? 'dark' : 'light') : colorScheme;
+  const resolvedTintColor = React.useMemo(() => {
+    if (tintColor) {
+      return tintColor;
+    }
+    return isDark ? DARK_GLASS_TINT : LIGHT_GLASS_TINT;
+  }, [isDark, tintColor]);
+
+  const resolvedColorScheme = React.useMemo(() => {
+    if (colorScheme !== 'system') {
+      return colorScheme;
+    }
+    return isDark ? 'dark' : 'light';
+  }, [colorScheme, isDark]);
   const borderRadiusValue = React.useMemo(
     () =>
       resolveBorderRadius(
