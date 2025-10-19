@@ -21,6 +21,7 @@ import {TouchableInput} from '@/components/common/TouchableInput/TouchableInput'
 import LiquidGlassButton from '@/components/common/LiquidGlassButton/LiquidGlassButton';
 import {UploadDocumentBottomSheet, type UploadDocumentBottomSheetRef} from '@/components/common/UploadDocumentBottomSheet/UploadDocumentBottomSheet';
 import {DeleteDocumentBottomSheet, type DeleteDocumentBottomSheetRef} from '@/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
+import {DocumentAttachmentsSection} from '@/components/documents/DocumentAttachmentsSection';
 import {useTheme} from '@/hooks';
 import {useSelector, useDispatch} from 'react-redux';
 import type {RootState, AppDispatch} from '@/app/store';
@@ -302,53 +303,6 @@ export const EditDocumentScreen: React.FC = () => {
     }
   };
 
-  const renderFilesSection = (): React.ReactNode => {
-    if (files.length === 0) {
-      return (
-        <>
-          <TouchableOpacity
-            style={[styles.uploadSection, errors.files && styles.uploadSectionError]}
-            onPress={handleUploadDocuments}
-            activeOpacity={0.7}>
-            <Image source={Images.uploadIcon} style={styles.uploadIcon} />
-            <Text style={styles.uploadTitle}>Upload documents</Text>
-            <Text style={styles.uploadSubtitle}>
-              Only DOC, PDF, PNG, JPEG formats{'\n'}with max size 5 MB
-            </Text>
-          </TouchableOpacity>
-          {errors.files ? <Text style={styles.errorText}>{errors.files}</Text> : null}
-        </>
-      );
-    }
-
-    return (
-      <View style={styles.filesPreviewContainer}>
-        <View style={styles.multipleFilesGrid}>
-          {files.map(file => (
-            <View key={file.id} style={styles.filePreviewBox}>
-              <Image
-                source={{uri: file.uri}}
-                style={styles.filePreviewImage}
-                resizeMode="cover"
-              />
-              <TouchableOpacity
-                style={styles.removeButtonMultiple}
-                onPress={() => handleRemoveFile(file.id)}>
-                <Image source={Images.closeIcon} style={styles.removeIconSmall} />
-              </TouchableOpacity>
-            </View>
-          ))}
-          <TouchableOpacity
-            style={styles.addMoreBox}
-            onPress={handleUploadDocuments}>
-            <Image source={Images.addIconWhite} style={styles.addMoreIcon} />
-          </TouchableOpacity>
-        </View>
-        {errors.files ? <Text style={styles.errorText}>{errors.files}</Text> : null}
-      </View>
-    );
-  };
-
   return (
     <SafeArea>
       <Header
@@ -461,7 +415,12 @@ export const EditDocumentScreen: React.FC = () => {
           )}
         </View>
 
-        <View>{renderFilesSection()}</View>
+        <DocumentAttachmentsSection
+          files={files}
+          onAddPress={handleUploadDocuments}
+          onRequestRemove={file => handleRemoveFile(file.id)}
+          error={errors.files}
+        />
 
         <View style={styles.saveButton}>
           <LiquidGlassButton
@@ -606,86 +565,6 @@ const createStyles = (theme: any) =>
     datePicker: {
       marginTop: theme.spacing[2],
     },
-    uploadSection: {
-      borderWidth: 2,
-      borderStyle: 'dashed',
-      borderColor: theme.colors.borderMuted,
-      borderRadius: theme.borderRadius.lg,
-      paddingVertical: theme.spacing[8],
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: theme.spacing[4],
-      backgroundColor: theme.colors.surface,
-    },
-    uploadSectionError: {
-      borderColor: theme.colors.error,
-    },
-    uploadIcon: {
-      width: 48,
-      height: 48,
-      resizeMode: 'contain',
-      marginBottom: theme.spacing[3],
-      tintColor: theme.colors.primary,
-    },
-    uploadTitle: {
-      ...theme.typography.titleMedium,
-      color: theme.colors.secondary,
-      marginBottom: theme.spacing[1],
-    },
-    uploadSubtitle: {
-      ...theme.typography.labelXsBold,
-      color: theme.colors.textSecondary,
-      textAlign: 'center',
-      lineHeight: 16,
-    },
-    uploadedTitle: {
-      ...theme.typography.labelMdBold,
-      color: theme.colors.secondary,
-      marginBottom: theme.spacing[3],
-    },
-    fileItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: theme.spacing[3],
-      paddingHorizontal: theme.spacing[4],
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.borderRadius.base,
-      marginBottom: theme.spacing[2],
-    },
-    fileIcon: {
-      width: 32,
-      height: 32,
-      resizeMode: 'contain',
-      marginRight: theme.spacing[3],
-    },
-    fileName: {
-      ...theme.typography.bodyMedium,
-      color: theme.colors.secondary,
-      flex: 1,
-    },
-    removeIcon: {
-      width: 20,
-      height: 20,
-      resizeMode: 'contain',
-      tintColor: theme.colors.error,
-    },
-    addFileButton: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      borderWidth: 2,
-      borderStyle: 'dashed',
-      borderColor: theme.colors.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-      alignSelf: 'center',
-      marginVertical: theme.spacing[4],
-    },
-    addFileIcon: {
-      width: 24,
-      height: 24,
-      resizeMode: 'contain',
-    },
     saveButton: {
       marginTop: theme.spacing[2],
     },
@@ -719,82 +598,5 @@ const createStyles = (theme: any) =>
       marginTop: -theme.spacing[3],
       marginBottom: theme.spacing[3],
       marginLeft: theme.spacing[1],
-    },
-    filesPreviewContainer: {
-      marginBottom: theme.spacing[4],
-    },
-    singleFilePreview: {
-      width: '100%',
-      height: 250,
-      borderRadius: theme.borderRadius.lg,
-      overflow: 'hidden',
-      position: 'relative',
-    },
-    singleFileImage: {
-      width: '100%',
-      height: '100%',
-    },
-    removeButtonSingle: {
-      position: 'absolute',
-      top: theme.spacing[3],
-      right: theme.spacing[3],
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      backgroundColor: 'rgba(0, 0, 0, 0.6)',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    removeIconLarge: {
-      width: 20,
-      height: 20,
-      tintColor: theme.colors.white,
-    },
-    multipleFilesGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: theme.spacing[3],
-    },
-    filePreviewBox: {
-      width: '47%',
-      height: 120,
-      borderRadius: theme.borderRadius.lg,
-       borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      overflow: 'hidden',
-      position: 'relative',
-    },
-    filePreviewImage: {
-      width: '100%',
-      height: '100%',
-    },
-    removeButtonMultiple: {
-      position: 'absolute',
-      top: theme.spacing[2],
-      right: theme.spacing[2],
-      width: 28,
-      height: 28,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    removeIconSmall: {
-      width: 25,
-      height: 25,
-    },
-    addMoreBox: {
-      width: '47%',
-      height: 120,
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 2,
-      borderStyle: 'dashed',
-      borderColor: theme.colors.borderMuted,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: theme.colors.surface,
-    },
-    addMoreIcon: {
-      width: 32,
-      height: 32,
-      tintColor: theme.colors.textSecondary,
     },
   });

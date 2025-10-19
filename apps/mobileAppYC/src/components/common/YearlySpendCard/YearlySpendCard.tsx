@@ -1,19 +1,8 @@
-import React, {useMemo, useRef} from 'react';
-import {
-  Animated,
-  PanResponder,
-  View,
-  Text,
-  Image,
-  ImageSourcePropType,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
-import {LiquidGlassCard} from '@/components/common/LiquidGlassCard/LiquidGlassCard';
+import React, {useMemo} from 'react';
+import {View, Text, Image, ImageSourcePropType, StyleSheet} from 'react-native';
+import {SwipeableGlassCard} from '@/components/common/SwipeableGlassCard/SwipeableGlassCard';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
-
-const ACTION_WIDTH = 70;
 
 export interface YearlySpendCardProps {
   amount?: number;
@@ -32,40 +21,9 @@ export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const translateX = useRef(new Animated.Value(0)).current;
-
-  const clampTranslate = (value: number) => {
-    if (value < -ACTION_WIDTH) {
-      return -ACTION_WIDTH;
-    }
-    if (value > 0) {
-      return 0;
-    }
-    return value;
-  };
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderMove: (_, gestureState) => {
-        translateX.setValue(clampTranslate(gestureState.dx));
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        const shouldOpen = gestureState.dx < -ACTION_WIDTH / 2;
-        Animated.spring(translateX, {
-          toValue: shouldOpen ? -ACTION_WIDTH : 0,
-          useNativeDriver: true,
-          damping: 18,
-          stiffness: 180,
-          mass: 0.8,
-        }).start();
-      },
-    }),
-  ).current;
 
   const formattedAmount = useMemo(() => {
-    let fallback = `${currencySymbol} ${amount}`;
+    const fallback = `${currencySymbol} ${amount}`;
     if (typeof Intl !== 'undefined') {
       try {
         return new Intl.NumberFormat('en-US', {
@@ -80,72 +38,46 @@ export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
     return fallback;
   }, [amount, currencySymbol]);
 
-  const handlePressView = () => {
-    Animated.spring(translateX, {
-      toValue: 0,
-      useNativeDriver: true,
-      damping: 18,
-      stiffness: 180,
-      mass: 0.8,
-    }).start(() => {
-      onPressView?.();
-    });
+  const handleViewPress = () => {
+    onPressView?.();
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.actionContainer}>
-        <TouchableOpacity
-          activeOpacity={0.85}
-          style={styles.actionButton}
-          onPress={handlePressView}>
-          <TouchableOpacity style={styles.actionIcon} activeOpacity={0.85}>
-                      <Image
-                        source={Images.viewIconSlide}
-                        style={styles.actionImage}
-                      />
-                    </TouchableOpacity>
-        </TouchableOpacity>
-      </View>
+    <SwipeableGlassCard
+      actionIcon={Images.viewIconSlide}
+      onAction={handleViewPress}
+      actionBackgroundColor={theme.colors.success}
+      containerStyle={styles.container}
+      cardProps={{
+        interactive: true,
+        glassEffect: 'clear',
+        shadow: 'none',
+        style: styles.card,
+        fallbackStyle: styles.fallback,
+      }}
+      springConfig={{useNativeDriver: true, damping: 18, stiffness: 180, mass: 0.8}}
+    >
+      <View style={styles.content}>
+        <View style={styles.iconCircle}>
+          <Image source={Images.walletIcon} style={styles.icon} />
+        </View>
 
-      <Animated.View
-        {...panResponder.panHandlers}
-        style={[styles.animatedWrapper, {transform: [{translateX}]}]}>
-        <LiquidGlassCard
-          interactive
-          glassEffect="clear"
-          shadow="none"
-          style={styles.card}
-          fallbackStyle={styles.fallback}>
-          <View style={styles.content}>
-            <View style={styles.iconCircle}>
-              <Image source={Images.walletIcon} style={styles.icon} />
-            </View>
+        <View style={styles.textContainer}>
+          <Text style={styles.label} numberOfLines={1} ellipsizeMode="tail">
+            {label}
+          </Text>
+          <Text style={styles.amount} numberOfLines={1} ellipsizeMode="tail">
+            {formattedAmount}
+          </Text>
+        </View>
 
-            <View style={styles.textContainer}>
-              <Text style={styles.label} numberOfLines={1} ellipsizeMode="tail">
-                {label}
-              </Text>
-              <Text
-                style={styles.amount}
-                numberOfLines={1}
-                ellipsizeMode="tail">
-                {formattedAmount}
-              </Text>
-            </View>
-
-            {companionAvatar && (
-              <View style={styles.companionAvatarWrapper}>
-                <Image
-                  source={companionAvatar}
-                  style={styles.companionAvatar}
-                />
-              </View>
-            )}
+        {companionAvatar && (
+          <View style={styles.companionAvatarWrapper}>
+            <Image source={companionAvatar} style={styles.companionAvatar} />
           </View>
-        </LiquidGlassCard>
-      </Animated.View>
-    </View>
+        )}
+      </View>
+    </SwipeableGlassCard>
   );
 };
 
@@ -154,43 +86,6 @@ const createStyles = (theme: any) =>
     container: {
       width: '100%',
       alignSelf: 'center',
-      borderRadius: theme.borderRadius.lg,
-      overflow: 'hidden',
-    },
-    actionContainer: {
-      position: 'absolute',
-      right: 0,
-      top: 0,
-      bottom: 0,
-      width: ACTION_WIDTH + theme.spacing[5],
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: theme.colors.success,
-      borderTopRightRadius: theme.borderRadius.lg,
-      borderBottomRightRadius: theme.borderRadius.lg,
-      zIndex: 0,
-    },
-    actionButton: {
-      width: 48,
-      height: 48,
-      paddingLeft: theme.spacing[5],
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: theme.colors.success,
-    },
-        actionIcon: {
-      width: 40,
-      height: 40,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    actionImage: {
-      width: 30,
-      height: 30,
-      resizeMode: 'contain',
-    },
-    animatedWrapper: {
-      zIndex: 1,
     },
     card: {
       borderRadius: theme.borderRadius.lg,
@@ -219,38 +114,38 @@ const createStyles = (theme: any) =>
       borderRadius: 20,
       justifyContent: 'center',
       alignItems: 'center',
-      backgroundColor: theme.colors.secondary,
+      backgroundColor: theme.colors.surface,
     },
     icon: {
-      width: 20,
-      height: 20,
+      width: 24,
+      height: 24,
       resizeMode: 'contain',
-      tintColor: theme.colors.white,
     },
     textContainer: {
       flex: 1,
       gap: theme.spacing[1],
     },
     label: {
-      ...theme.typography.labelXxsBold,
-      color: theme.colors.placeholder,
+      ...theme.typography.titleMedium,
+      color: theme.colors.secondary,
     },
     amount: {
-      ...theme.typography.h4Alt,
+      ...theme.typography.h3,
       color: theme.colors.secondary,
     },
     companionAvatarWrapper: {
-      width: 42,
-      height: 42,
-      borderRadius: 21,
-      borderWidth: 2,
-      borderColor: theme.colors.primary,
+      width: 40,
+      height: 40,
+      borderRadius: 20,
       overflow: 'hidden',
-      justifyContent: 'center',
-      alignItems: 'center',
+      borderWidth: 2,
+      borderColor: theme.colors.white,
     },
     companionAvatar: {
       width: '100%',
       height: '100%',
+      resizeMode: 'cover',
     },
   });
+
+export default YearlySpendCard;

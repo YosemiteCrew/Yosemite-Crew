@@ -50,7 +50,7 @@ export const GenericSelectBottomSheet = forwardRef<
   onSave,
   renderItem,
   searchPlaceholder = "Search",
-  snapPoints = ['85%', '90%'],
+  snapPoints = ['80%', '90%'],
   hasSearch = true,
   emptyMessage = "No items available",
   customContent,
