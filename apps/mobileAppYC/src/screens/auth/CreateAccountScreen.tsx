@@ -36,7 +36,11 @@ import {TouchableInput} from '../../components/common/TouchableInput/TouchableIn
 import {useAuth, type User} from '../../contexts/AuthContext';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import type {AuthStackParamList} from '../../navigation/AuthNavigator';
-import {PASSWORDLESS_AUTH_CONFIG, PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT} from '@/config/variables';
+import {
+  PASSWORDLESS_AUTH_CONFIG,
+  PENDING_PROFILE_STORAGE_KEY,
+  PENDING_PROFILE_UPDATED_EVENT,
+} from '@/config/variables';
 import LocationService from '@/services/LocationService';
 import {
   fetchPlaceDetails,
@@ -99,8 +103,8 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     maybeParsedDate && !Number.isNaN(maybeParsedDate.getTime())
       ? maybeParsedDate
       : null;
-  const rawPhone = initialAttributes?.phone?.replace(/[^0-9+]/g, '') ?? '';
-  const normalizedPhoneDigits = rawPhone.replace(/\D/g, '');
+  const rawPhone = initialAttributes?.phone?.replaceAll(/[^0-9+]/g, '') ?? '';
+  const normalizedPhoneDigits = rawPhone.replaceAll(/\D/g, '');
   const defaultCountry =
     COUNTRIES.find(country => country.code === 'US') ?? COUNTRIES[0];
   const resolvedCountry = (() => {
@@ -159,9 +163,14 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     acceptTerms: false,
   });
   const [addressQuery, setAddressQuery] = useState('');
-  const [addressSuggestions, setAddressSuggestions] = useState<PlaceSuggestion[]>([]);
-  const [isFetchingAddressSuggestions, setIsFetchingAddressSuggestions] = useState(false);
-  const [addressLookupError, setAddressLookupError] = useState<string | null>(null);
+  const [addressSuggestions, setAddressSuggestions] = useState<
+    PlaceSuggestion[]
+  >([]);
+  const [isFetchingAddressSuggestions, setIsFetchingAddressSuggestions] =
+    useState(false);
+  const [addressLookupError, setAddressLookupError] = useState<string | null>(
+    null,
+  );
   const skipNextAutocompleteRef = useRef(false);
   const lastAutocompleteSignatureRef = useRef<string>('');
 
@@ -415,22 +424,31 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
           handleStep2FieldChange('country', details.country);
         }
         if (details.latitude && details.longitude) {
-          setLocation(prev =>
-            prev ?? {
-              latitude: details.latitude as number,
-              longitude: details.longitude as number,
-            },
+          setLocation(
+            prev =>
+              prev ?? {
+                latitude: details.latitude as number,
+                longitude: details.longitude as number,
+              },
           );
         }
         setAddressLookupError(null);
-        clearErrors(['address', 'city', 'stateProvince', 'postalCode', 'country']);
+        clearErrors([
+          'address',
+          'city',
+          'stateProvince',
+          'postalCode',
+          'country',
+        ]);
       } catch (error) {
         if (error instanceof MissingApiKeyError) {
           setAddressLookupError(
             'Address autocomplete is unavailable. Please enter your address manually.',
           );
         } else {
-          setAddressLookupError('Unable to fetch the selected address details.');
+          setAddressLookupError(
+            'Unable to fetch the selected address details.',
+          );
         }
       } finally {
         setAddressSuggestions([]);
@@ -474,54 +492,66 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     }
   };
 
-const handleGoBack = useCallback(async () => {
-  // If on step 2, just go back to step 1 - NO LOGOUT NEEDED
-  if (currentStep === 2) {
-    setValue('firstName', step1Data.firstName, {shouldValidate: false});
-    setValue('lastName', step1Data.lastName, {shouldValidate: false});
-    setValue('mobileNumber', step1Data.mobileNumber, {shouldValidate: false});
-    setValue('dateOfBirth', step1Data.dateOfBirth, {shouldValidate: false});
-    setValue('profileImage', step1Data.profileImage, {shouldValidate: false});
-    clearErrors();
-    setCurrentStep(1);
-    return;
-  }
+  const handleGoBack = useCallback(async () => {
+    // If on step 2, just go back to step 1 - NO LOGOUT NEEDED
+    if (currentStep === 2) {
+      setValue('firstName', step1Data.firstName, {shouldValidate: false});
+      setValue('lastName', step1Data.lastName, {shouldValidate: false});
+      setValue('mobileNumber', step1Data.mobileNumber, {shouldValidate: false});
+      setValue('dateOfBirth', step1Data.dateOfBirth, {shouldValidate: false});
+      setValue('profileImage', step1Data.profileImage, {shouldValidate: false});
+      clearErrors();
+      setCurrentStep(1);
+      return;
+    }
 
-  // If on step 1, cancel the profile creation and go back to sign up
-  if (isHandlingBack) {
-    return;
-  }
+    // If on step 1, cancel the profile creation and go back to sign up
+    if (isHandlingBack) {
+      return;
+    }
 
-  setIsHandlingBack(true);
-  try {
-    console.log('[CreateAccountScreen] Cancelling profile creation - provider:', tokens.provider);
-    // 1) Clear pending profile immediately so AppNavigator stops forcing CreateAccount
-    await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
-    DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
-
-    // 2) Use global logout to clear tokens/state consistently (handles provider-specific signout)
-    await logout();
-
-    // 3) Explicitly reset to SignIn so user sees the auth entry point immediately
-    navigation.reset({
-      index: 0,
-      routes: [{name: 'SignIn'}],
-    });
-  } catch (error) {
-    console.error('[CreateAccountScreen] handleGoBack error:', error);
+    setIsHandlingBack(true);
     try {
+      console.log(
+        '[CreateAccountScreen] Cancelling profile creation - provider:',
+        tokens.provider,
+      );
+      // 1) Clear pending profile immediately so AppNavigator stops forcing CreateAccount
       await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
       DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
-    } catch {}
-    // Even on failure, rely on AppNavigator by not forcing a conflicting reset
-    navigation.reset({
-      index: 0,
-      routes: [{name: 'SignIn'}],
-    });
-  } finally {
-    setIsHandlingBack(false);
-  }
-}, [clearErrors, currentStep, isHandlingBack, logout, navigation, setValue, step1Data, tokens.provider]);
+
+      // 2) Use global logout to clear tokens/state consistently (handles provider-specific signout)
+      await logout();
+
+      // 3) Explicitly reset to SignIn so user sees the auth entry point immediately
+      navigation.reset({
+        index: 0,
+        routes: [{name: 'SignIn'}],
+      });
+    } catch (error) {
+      console.error('[CreateAccountScreen] handleGoBack error:', error);
+      try {
+        await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
+        DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
+      } catch {}
+      // Even on failure, rely on AppNavigator by not forcing a conflicting reset
+      navigation.reset({
+        index: 0,
+        routes: [{name: 'SignIn'}],
+      });
+    } finally {
+      setIsHandlingBack(false);
+    }
+  }, [
+    clearErrors,
+    currentStep,
+    isHandlingBack,
+    logout,
+    navigation,
+    setValue,
+    step1Data,
+    tokens.provider,
+  ]);
 
   // Ensure hardware back behaves same as header back
   useEffect(() => {
@@ -729,7 +759,7 @@ const handleGoBack = useCallback(async () => {
           rules={{
             required: 'Mobile number is required',
             pattern: {
-              value: /^[0-9]{10}$/,
+              value: /d{10}$/,
               message: 'Please enter a valid 10-digit mobile number',
             },
           }}
@@ -822,12 +852,16 @@ const handleGoBack = useCallback(async () => {
           )}
         />
 
-        {(isFetchingAddressSuggestions || addressSuggestions.length > 0 || addressLookupError) && (
+        {(isFetchingAddressSuggestions ||
+          addressSuggestions.length > 0 ||
+          addressLookupError) && (
           <View style={styles.addressAutocompleteContainer}>
             {isFetchingAddressSuggestions ? (
               <View style={styles.addressAutocompleteLoadingRow}>
                 <ActivityIndicator size="small" color={theme.colors.primary} />
-                <Text style={styles.addressAutocompleteLoadingText}>Searching for addresses…</Text>
+                <Text style={styles.addressAutocompleteLoadingText}>
+                  Searching for addresses…
+                </Text>
               </View>
             ) : null}
             {!isFetchingAddressSuggestions &&
@@ -836,20 +870,27 @@ const handleGoBack = useCallback(async () => {
                   key={suggestion.placeId}
                   style={[
                     styles.addressSuggestionItem,
-                    index === addressSuggestions.length - 1 && styles.addressSuggestionItemLast,
+                    index === addressSuggestions.length - 1 &&
+                      styles.addressSuggestionItemLast,
                   ]}
-                  onPress={() => handleAddressSuggestionPress(suggestion)}
-                >
-                  <Text style={styles.addressSuggestionPrimary}>{suggestion.primaryText}</Text>
+                  onPress={() => handleAddressSuggestionPress(suggestion)}>
+                  <Text style={styles.addressSuggestionPrimary}>
+                    {suggestion.primaryText}
+                  </Text>
                   {suggestion.secondaryText ? (
-                    <Text style={styles.addressSuggestionSecondary}>{suggestion.secondaryText}</Text>
+                    <Text style={styles.addressSuggestionSecondary}>
+                      {suggestion.secondaryText}
+                    </Text>
                   ) : null}
                 </TouchableOpacity>
               ))}
             {addressLookupError && !isFetchingAddressSuggestions ? (
-              <Text style={styles.addressSuggestionError}>{addressLookupError}</Text>
+              <Text style={styles.addressSuggestionError}>
+                {addressLookupError}
+              </Text>
             ) : null}
-            {(isFetchingAddressSuggestions || addressSuggestions.length > 0) && (
+            {(isFetchingAddressSuggestions ||
+              addressSuggestions.length > 0) && (
               <Text style={styles.addressPoweredBy}>Powered by Google</Text>
             )}
           </View>
@@ -994,7 +1035,6 @@ const handleGoBack = useCallback(async () => {
             <Text style={styles.errorText}>{errors.acceptTerms.message}</Text>
           )}
         </View>
-
       </View>
     </>
   );
@@ -1004,11 +1044,7 @@ const handleGoBack = useCallback(async () => {
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidingView}>
-      <Header
-  title="Create account"
-  showBackButton
-  onBack={handleGoBack}
-/>
+        <Header title="Create account" showBackButton onBack={handleGoBack} />
 
         <ScrollView
           style={styles.scrollView}

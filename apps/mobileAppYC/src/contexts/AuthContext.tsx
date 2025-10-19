@@ -32,7 +32,7 @@ interface AuthContextValue {
   refreshSession: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) => {
   const dispatch = useAppDispatch();
