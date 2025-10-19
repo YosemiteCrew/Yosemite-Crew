@@ -215,7 +215,6 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         <LiquidGlassCard
           glassEffect="clear"
           interactive
-          tintColor={theme.colors.white}
           style={styles.glassContainer}
           fallbackStyle={styles.glassFallback}>
           <View style={styles.listContainer}>

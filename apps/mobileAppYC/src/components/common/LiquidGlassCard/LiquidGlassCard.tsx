@@ -12,6 +12,9 @@ import {
 } from '@callstack/liquid-glass';
 import {useTheme} from '../../../hooks';
 
+const LIGHT_CARD_TINT = 'rgba(255, 255, 255, 0.65)';
+const DARK_CARD_TINT = 'rgba(28, 28, 30, 0.55)';
+
 interface LiquidGlassCardProps {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
@@ -37,18 +40,19 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
   shadow = 'base',
   fallbackStyle,
 }) => {
-  const {theme} = useTheme();
+  const {theme, isDark} = useTheme();
 
-  // ✅ Stable, neutral tint to avoid random primary color hues
-  const resolvedTintColor = tintColor ?? 'rgba(255,255,255,0.6)';
+  const resolvedTintColor = tintColor ?? (isDark ? DARK_CARD_TINT : LIGHT_CARD_TINT);
+  const resolvedColorScheme =
+    colorScheme === 'system' ? (isDark ? 'dark' : 'light') : colorScheme;
 
   const baseStyle: ViewStyle = {
     padding: theme.spacing[padding],
     borderRadius: theme.borderRadius[borderRadius],
     ...theme.shadows[shadow],
-    backgroundColor: 'rgba(255,255,255,0.9)', // ✅ prevents blue tint reflection
+    backgroundColor: isDark ? 'rgba(28, 28, 30, 0.72)' : 'rgba(255,255,255,0.9)',
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
+    borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
     overflow: 'hidden',
   };
 
@@ -64,7 +68,7 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
   const androidFallbackStyle = StyleSheet.flatten([
     baseStyle,
     {
-      backgroundColor: 'rgba(255,255,255,0.95)', // ✅ clean white fallback
+      backgroundColor: isDark ? 'rgba(24, 24, 26, 0.85)' : 'rgba(255,255,255,0.95)',
     },
     fallbackStyle,
     style,
@@ -77,7 +81,7 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
         interactive={interactive}
         effect={glassEffect}
         tintColor={resolvedTintColor}
-        colorScheme={colorScheme}>
+        colorScheme={resolvedColorScheme}>
         {children}
       </LiquidGlassView>
     );

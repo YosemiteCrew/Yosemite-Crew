@@ -149,6 +149,12 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
     await logout();
   }, [logout]);
 
+  const handleLogoutPress = React.useCallback(() => {
+    logout().catch(error => {
+      console.warn('[AccountScreen] Logout failed', error);
+    });
+  }, [logout]);
+
   const menuItems = React.useMemo<MenuItem[]>(
     () => [
       {
@@ -290,10 +296,9 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
 
           <LiquidGlassButton
             title="Logout"
-            onPress={logout}
+            onPress={handleLogoutPress}
             glassEffect="clear"
             interactive
-            tintColor={theme.colors.surface}
             borderRadius="lg"
             forceBorder
             borderColor={theme.colors.secondary}
