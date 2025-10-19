@@ -2,7 +2,7 @@
 import React from 'react';
 import renderer from 'react-test-renderer';
 import {GenericEmptyScreen} from '@/components/common/GenericEmptyScreen/GenericEmptyScreen';
-import EmptyDocumentsScreen from '@/screens/documents/EmptyDocumentsScreen/EmptyDocumentsScreen';
+import {EmptyDocumentsScreen} from '@/screens/documents/EmptyDocumentsScreen/EmptyDocumentsScreen';
 
 // Mock navigation
 const mockNavigation = {
@@ -25,7 +25,7 @@ describe('Empty Screen Snapshots', () => {
       const tree = renderer.create(
         <GenericEmptyScreen
           title="Empty"
-          message="No items found"
+          subtitle="No items found"
         />
       ).toJSON();
       expect(tree).toMatchSnapshot();
@@ -35,8 +35,7 @@ describe('Empty Screen Snapshots', () => {
       const tree = renderer.create(
         <GenericEmptyScreen
           title="No Documents"
-          message="Start by adding your first document"
-          iconName="document-text-outline"
+          subtitle="Start by adding your first document"
         />
       ).toJSON();
       expect(tree).toMatchSnapshot();
@@ -46,8 +45,7 @@ describe('Empty Screen Snapshots', () => {
       const tree = renderer.create(
         <GenericEmptyScreen
           title="No Companions"
-          message="Add a companion to get started"
-          iconName="paw-outline"
+          subtitle="Add a companion to get started"
         />
       ).toJSON();
       expect(tree).toMatchSnapshot();

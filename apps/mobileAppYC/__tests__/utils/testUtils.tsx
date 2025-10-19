@@ -8,8 +8,7 @@ import {render, RenderOptions} from '@testing-library/react-native';
 import {Provider} from 'react-redux';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {NavigationContainer} from '@react-navigation/native';
-import {configureStore, PreloadedState} from '@reduxjs/toolkit';
-import {RootState, store} from '@/app/store';
+import {store} from '@/app/store';
 
 // ============================================================================
 // THEME MOCK
@@ -128,9 +127,9 @@ export const setupMocks = () => {
   // Mock LiquidGlass components
   jest.mock('@callstack/liquid-glass', () => ({
     LiquidGlassView: ({children, ...props}: any) => {
-      const React = require('react');
+      const ReactModule = require('react');
       const {View} = require('react-native');
-      return React.createElement(View, props, children);
+      return ReactModule.createElement(View, props, children);
     },
     isLiquidGlassSupported: false,
   }));
@@ -139,9 +138,9 @@ export const setupMocks = () => {
   jest.mock('react-native-safe-area-context', () => ({
     SafeAreaProvider: ({children}: any) => children,
     SafeAreaView: ({children}: any) => {
-      const React = require('react');
+      const ReactModule = require('react');
       const {View} = require('react-native');
-      return React.createElement(View, {testID: 'safe-area-view'}, children);
+      return ReactModule.createElement(View, {testID: 'safe-area-view'}, children);
     },
     useSafeAreaInsets: () => ({top: 0, right: 0, bottom: 0, left: 0}),
   }));
@@ -162,7 +161,6 @@ export const setupMocks = () => {
 // ============================================================================
 
 interface ExtendedRenderOptions extends Omit<RenderOptions, 'wrapper'> {
-  preloadedState?: PreloadedState<RootState>;
   store?: typeof store;
   withNavigation?: boolean;
 }
@@ -170,7 +168,6 @@ interface ExtendedRenderOptions extends Omit<RenderOptions, 'wrapper'> {
 export function renderWithProviders(
   ui: ReactElement,
   {
-    preloadedState,
     store: customStore,
     withNavigation = false,
     ...renderOptions
@@ -273,55 +270,55 @@ export const createMockDocument = (overrides = {}) => ({
 
 export const mockComponents = {
   Header: ({title, showBackButton, onBack, rightIcon, onRightPress}: any) => {
-    const React = require('react');
+    const ReactModule = require('react');
     const {View, Text, TouchableOpacity} = require('react-native');
-    return React.createElement(
+    return ReactModule.createElement(
       View,
       {testID: 'header'},
-      React.createElement(Text, {testID: 'header-title'}, title),
+      ReactModule.createElement(Text, {testID: 'header-title'}, title),
       showBackButton &&
-        React.createElement(
+        ReactModule.createElement(
           TouchableOpacity,
           {testID: 'back-button', onPress: onBack},
-          React.createElement(Text, null, 'Back')
+          ReactModule.createElement(Text, null, 'Back')
         ),
       rightIcon &&
-        React.createElement(
+        ReactModule.createElement(
           TouchableOpacity,
           {testID: 'right-button', onPress: onRightPress},
-          React.createElement(Text, null, 'Right')
+          ReactModule.createElement(Text, null, 'Right')
         )
     );
   },
 
   SafeArea: ({children}: any) => {
-    const React = require('react');
+    const ReactModule = require('react');
     const {View} = require('react-native');
-    return React.createElement(View, {testID: 'safe-area'}, children);
+    return ReactModule.createElement(View, {testID: 'safe-area'}, children);
   },
 
   LiquidGlassCard: ({children, style, fallbackStyle}: any) => {
-    const React = require('react');
+    const ReactModule = require('react');
     const {View} = require('react-native');
-    return React.createElement(View, {style: [style, fallbackStyle]}, children);
+    return ReactModule.createElement(View, {style: [style, fallbackStyle]}, children);
   },
 
   LiquidGlassButton: ({title, onPress, leftIcon, rightIcon}: any) => {
-    const React = require('react');
+    const ReactModule = require('react');
     const {TouchableOpacity, Text, View} = require('react-native');
-    return React.createElement(
+    return ReactModule.createElement(
       TouchableOpacity,
       {onPress, testID: 'liquid-glass-button'},
-      leftIcon && React.createElement(View, null, leftIcon),
-      React.createElement(Text, null, title),
-      rightIcon && React.createElement(View, null, rightIcon)
+      leftIcon && ReactModule.createElement(View, null, leftIcon),
+      ReactModule.createElement(Text, null, title),
+      rightIcon && ReactModule.createElement(View, null, rightIcon)
     );
   },
 
   SearchBar: ({value, onChangeText, placeholder}: any) => {
-    const React = require('react');
+    const ReactModule = require('react');
     const {TextInput} = require('react-native');
-    return React.createElement(TextInput, {
+    return ReactModule.createElement(TextInput, {
       testID: 'search-bar',
       value,
       onChangeText,

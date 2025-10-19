@@ -11,8 +11,8 @@ import {companionReducer} from '@/features/companion';
 import documentReducer from '@/features/documents/documentSlice';
 
 // Import placeholder screens
-import TasksScreen from '@/screens/tasks/TasksScreen';
-import AppointmentsScreen from '@/screens/appointments/AppointmentsScreen';
+import {TasksScreen} from '@/screens/tasks/TasksScreen';
+import {AppointmentsScreen} from '@/screens/appointments/AppointmentsScreen';
 
 // Mock navigation
 const mockNavigation = {
