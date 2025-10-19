@@ -37,7 +37,7 @@ export const CategoryTile: React.FC<CategoryTileProps> = ({
       onPress={onPress}
       style={[styles.container, containerStyle]}>
       <LiquidGlassCard
-        interactive
+        interactive={false}
         glassEffect="clear"
         shadow="none"
         style={styles.card}
