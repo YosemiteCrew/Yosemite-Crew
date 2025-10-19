@@ -91,13 +91,12 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
   }, [authUser?.firstName, displayName]);
 
   const profiles = React.useMemo<CompanionProfile[]>(() => {
+    const pluralSuffix = companionsFromStore.length === 1 ? '' : 's';
     // 1. User's Profile (Primary)
     const userProfile: CompanionProfile = {
       id: 'primary',
       name: displayName,
-      subtitle: `${companionsFromStore.length} Companion${
-        companionsFromStore.length !== 1 ? 's' : ''
-      }`,
+      subtitle: `${companionsFromStore.length} Companion${pluralSuffix}`,
       avatar: primaryAvatar,
     };
 

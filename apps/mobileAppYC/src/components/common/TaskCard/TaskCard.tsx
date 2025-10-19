@@ -79,10 +79,14 @@ export const TaskCard = ({
           <View style={styles.row}>
             <View style={styles.avatarGroup}>
               {avatars.map((avatarSource, index) => {
-                const avatarKey =
-                  typeof avatarSource === 'number'
-                    ? `avatar-static-${avatarSource}-${index}`
-                    : (avatarSource?.uri ? `avatar-uri-${avatarSource.uri}` : `avatar-generic-${index}`);
+                let avatarKey: string;
+                if (typeof avatarSource === 'number') {
+                  avatarKey = `avatar-static-${avatarSource}-${index}`;
+                } else if (avatarSource?.uri) {
+                  avatarKey = `avatar-uri-${avatarSource.uri}`;
+                } else {
+                  avatarKey = `avatar-generic-${index}`;
+                }
 
                 return (
                 <Image

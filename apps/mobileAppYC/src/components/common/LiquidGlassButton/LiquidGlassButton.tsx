@@ -171,12 +171,17 @@ const buildGlassSurfaceStyle = ({
 const resolvePlatformLabelColor = (
   isDark: boolean,
   themeColors: ReturnType<typeof useTheme>['theme']['colors'],
-) =>
-  typeof PlatformColor === 'function'
-    ? PlatformColor('labelColor')
-    : isDark
-      ? themeColors.white
-      : themeColors.text;
+) => {
+  if (typeof PlatformColor === 'function') {
+    return PlatformColor('labelColor');
+  }
+
+  if (isDark) {
+    return themeColors.white;
+  }
+
+  return themeColors.text;
+};
 
 const computeTextColor = ({
   disabled,
