@@ -47,7 +47,12 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
 
   const renderCompanionBadge = (companion: T) => {
     const isSelected = selectedCompanionId === companion.id;
-    const badgeText = getBadgeText ? getBadgeText(companion) : companion.taskCount !== undefined ? `${companion.taskCount} Tasks` : undefined;
+    let badgeText: string | undefined;
+    if (getBadgeText) {
+      badgeText = getBadgeText(companion);
+    } else if (companion.taskCount !== undefined) {
+      badgeText = `${companion.taskCount} Tasks`;
+    }
 
     return (
       <TouchableOpacity

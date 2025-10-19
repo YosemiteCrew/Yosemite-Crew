@@ -1,5 +1,6 @@
 import {createSlice, createAsyncThunk, PayloadAction} from '@reduxjs/toolkit';
 import type {Document, DocumentFile, S3UploadParams} from '@/types/document.types';
+import {generateId} from '@/utils/helpers';
 
 interface DocumentState {
   documents: Document[];
@@ -22,7 +23,7 @@ const mockRequestSignedUrl = async (
   // Simulate API delay
   await new Promise(resolve => setTimeout(resolve, 500));
 
-  const fileName = params.fileName.replace(/\s/g, '_');
+  const fileName = params.fileName.replaceAll(/\s/g, '_');
   const mockUploadUrl = `https://mock-s3-bucket.s3.amazonaws.com/upload/${fileName}?signature=mock-signature`;
   const mockFileUrl = `https://mock-s3-bucket.s3.amazonaws.com/documents/${fileName}`;
 
@@ -45,6 +46,21 @@ const mockUploadToS3 = async (
   }
 };
 
+const uploadSingleFile = async (
+  file: DocumentFile,
+  onProgress: (progress: number) => void,
+): Promise<DocumentFile> => {
+  const {uploadUrl, fileUrl} = await mockRequestSignedUrl({
+    fileName: file.name,
+    fileType: file.type,
+    fileUri: file.uri,
+  });
+
+  await mockUploadToS3(uploadUrl, file.uri, onProgress);
+
+  return {...file, s3Url: fileUrl};
+};
+
 // Async thunk for uploading files to S3
 export const uploadDocumentFiles = createAsyncThunk<
   DocumentFile[],
@@ -57,23 +73,10 @@ export const uploadDocumentFiles = createAsyncThunk<
       const uploadedFiles: DocumentFile[] = [];
 
       for (const file of files) {
-        // Step 1: Request signed URL
-        const {uploadUrl, fileUrl} = await mockRequestSignedUrl({
-          fileName: file.name,
-          fileType: file.type,
-          fileUri: file.uri,
-        });
-
-        // Step 2: Upload to S3
-        await mockUploadToS3(uploadUrl, file.uri, progress => {
+        const uploadedFile = await uploadSingleFile(file, progress => {
           dispatch(setUploadProgress(progress));
         });
-
-        // Step 3: Store the uploaded file with S3 URL
-        uploadedFiles.push({
-          ...file,
-          s3Url: fileUrl,
-        });
+        uploadedFiles.push(uploadedFile);
       }
 
       dispatch(setUploadProgress(0)); // Reset progress
@@ -98,7 +101,7 @@ export const addDocument = createAsyncThunk<
 
       const newDocument: Document = {
         ...documentData,
-        id: `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: `doc_${Date.now()}_${generateId()}`,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         isUserAdded: true, // Documents added from the app are user-added

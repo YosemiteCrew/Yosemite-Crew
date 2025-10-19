@@ -1,3 +1,4 @@
+import 'react-native-get-random-values';
 import {
   confirmSignIn,
   fetchAuthSession,
@@ -39,6 +40,16 @@ export type PasswordlessSignInCompletion = {
   };
 };
 
+const secureRandomInt = (max: number): number => {
+  const cryptoObj = globalThis.crypto;
+  if (!cryptoObj?.getRandomValues) {
+    throw new Error('Secure random number generator is unavailable');
+  }
+  const buffer = new Uint32Array(1);
+  cryptoObj.getRandomValues(buffer);
+  return buffer[0] % max;
+};
+
 const randomPassword = () => {
   const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
   const lower = 'abcdefghijkmnopqrstuvwxyz';
@@ -46,7 +57,7 @@ const randomPassword = () => {
   const symbols = '!@#$%^&*()-_=+';
   const all = `${upper}${lower}${digits}${symbols}`;
 
-  const pick = (source: string) => source.charAt(Math.floor(Math.random() * source.length));
+  const pick = (source: string) => source.charAt(secureRandomInt(source.length));
 
   const requiredChars = [pick(upper), pick(lower), pick(digits), pick(symbols)];
   const remainingLength = 14 - requiredChars.length;
@@ -55,7 +66,7 @@ const randomPassword = () => {
   }
 
   for (let i = requiredChars.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = secureRandomInt(i + 1);
     [requiredChars[i], requiredChars[j]] = [requiredChars[j], requiredChars[i]];
   }
 
