@@ -23,6 +23,9 @@ apps/mobileAppYC/android/app/src/main/res/values/strings.xml
 google-services.json
 GoogleService-Info.plist
 
+**/google-services.json
+**/GoogleService-Info.plist
+
 # react-native-config codegen
 ios/tmp.xcconfig
 apps/mobileAppYC/ios/tmp.xcconfig
