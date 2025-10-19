@@ -1,19 +1,18 @@
-import React, {useRef, useMemo} from 'react';
+import React, {useMemo} from 'react';
 import {
-  Animated,
-  PanResponder,
-  View,
-  Text,
   Image,
-  TouchableOpacity,
   StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
   ImageSourcePropType,
 } from 'react-native';
-import {LiquidGlassCard} from '@/components/common/LiquidGlassCard/LiquidGlassCard';
+import {SwipeableGlassCard} from '@/components/common/SwipeableGlassCard/SwipeableGlassCard';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 
 const ACTION_WIDTH = 65;
+const ACTION_OVERLAP = 10;
 
 const formatDateDDMMYYYY = (date: string | Date): string => {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
@@ -31,7 +30,7 @@ export interface DocumentCardProps {
   thumbnail?: ImageSourcePropType;
   onPressView?: () => void;
   onPressEdit?: () => void;
-  showEditAction?: boolean; // For synced documents, this will be false
+  showEditAction?: boolean;
   onPress?: () => void;
 }
 
@@ -48,132 +47,110 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const translateX = useRef(new Animated.Value(0)).current;
 
   const actionCount = showEditAction ? 2 : 1;
   const totalActionWidth = ACTION_WIDTH * actionCount;
-
-  const clampTranslate = (value: number) => {
-    if (value < -totalActionWidth) {
-      return -totalActionWidth;
-    }
-    if (value > 0) {
-      return 0;
-    }
-    return value;
-  };
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderMove: (_, gestureState) => {
-        translateX.setValue(clampTranslate(gestureState.dx));
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        const shouldOpen = gestureState.dx < -totalActionWidth / 2;
-        Animated.spring(translateX, {
-          toValue: shouldOpen ? -totalActionWidth : 0,
-          useNativeDriver: true,
-          damping: 18,
-          stiffness: 180,
-          mass: 0.8,
-        }).start();
-      },
+  const baseActionColor = showEditAction
+    ? theme.colors.primary
+    : theme.colors.success;
+  const actionBackgroundStyle = useMemo(
+    () => ({
+      width: totalActionWidth + ACTION_OVERLAP,
+      backgroundColor: showEditAction ? theme.colors.primary : theme.colors.success,
+      borderTopRightRadius: theme.borderRadius.lg,
+      borderBottomRightRadius: theme.borderRadius.lg,
     }),
-  ).current;
+    [showEditAction, theme.colors.primary, theme.colors.success, theme.borderRadius.lg, totalActionWidth],
+  );
 
-  const handleActionPress = (action?: () => void) => {
-    Animated.spring(translateX, {
-      toValue: 0,
-      useNativeDriver: true,
-      damping: 18,
-      stiffness: 180,
-      mass: 0.8,
-    }).start(() => {
-      if (action) {
-        action();
-      }
-    });
+  const handleCardPress = () => {
+    onPress?.();
   };
-
-  const actionOpacity = translateX.interpolate({
-    inputRange: [-totalActionWidth, 0],
-    outputRange: [1, 0],
-    extrapolate: 'clamp',
-  });
 
   return (
-    <View style={styles.container}>
-      <Animated.View
-        style={[
-          styles.actionContainer,
-          {
-            opacity: actionOpacity,
-            backgroundColor: showEditAction
-              ? theme.colors.primary
-              : theme.colors.success,
-          },
-        ]}>
-        {showEditAction && (
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={[styles.actionButton, styles.editActionButton]}
-            onPress={() => handleActionPress(onPressEdit)}>
-            <Image source={Images.editIconSlide} style={styles.actionImage} />
-          </TouchableOpacity>
-        )}
-        <TouchableOpacity
-          activeOpacity={0.85}
-          style={styles.actionButton}
-          onPress={() => handleActionPress(onPressView)}>
-          <Image source={Images.viewIconSlide} style={styles.actionImage} />
-        </TouchableOpacity>
-      </Animated.View>
-
-      <Animated.View
-        {...panResponder.panHandlers}
-        style={[styles.animatedWrapper, {transform: [{translateX}]}]}>
-        <TouchableOpacity
-          activeOpacity={1}
-          onPress={onPress}
-          disabled={!onPress}>
-          <LiquidGlassCard
-            interactive
-            glassEffect="clear"
-            shadow="none"
-            style={styles.card}
-            fallbackStyle={styles.fallback}>
-            <View style={styles.content}>
-              <View style={styles.thumbnailContainer}>
-                <Image
-                  source={thumbnail || Images.documentFallback}
-                  style={styles.thumbnail}
-                />
-              </View>
-              <View style={styles.textContainer}>
-                <Text style={styles.infoRow} numberOfLines={1} ellipsizeMode="tail">
-                  <Text style={styles.label}>Title: </Text>
-                  <Text style={styles.value}>{title}</Text>
-                </Text>
-                <Text style={styles.infoRow} numberOfLines={1} ellipsizeMode="tail">
-                  <Text style={styles.label}>Business: </Text>
-                  <Text style={styles.value}>{businessName}</Text>
-                </Text>
-                <Text style={styles.infoRow} numberOfLines={1} ellipsizeMode="tail">
-                  <Text style={styles.label}>Visit type: </Text>
-                  <Text style={styles.value}>{visitType}</Text>
-                </Text>
-                <Text style={styles.infoRow} numberOfLines={1} ellipsizeMode="tail">
-                  <Text style={styles.label}>Issue Date: </Text>
-                  <Text style={styles.value}>{formatDateDDMMYYYY(issueDate)}</Text>
-                </Text>
-              </View>
-            </View>
-          </LiquidGlassCard>
-        </TouchableOpacity>
-      </Animated.View>
-    </View>
+    <SwipeableGlassCard
+      actionIcon={Images.viewIconSlide}
+      actionWidth={totalActionWidth}
+      actionBackgroundColor={baseActionColor}
+      actionOverlap={ACTION_OVERLAP}
+      actionContainerStyle={styles.actionContainer}
+      containerStyle={styles.container}
+      cardProps={{
+        interactive: true,
+        glassEffect: 'clear',
+        shadow: 'none',
+        style: styles.card,
+        fallbackStyle: styles.fallback,
+      }}
+      springConfig={{
+        useNativeDriver: true,
+        damping: 18,
+        stiffness: 180,
+        mass: 0.8,
+      }}
+      renderActionContent={close => (
+        <View style={[styles.actionWrapper, {width: totalActionWidth}]}>
+          <View style={[styles.actionBackground, actionBackgroundStyle]} />
+          <View style={styles.actionRow}>
+            {showEditAction ? (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={[styles.actionButton, styles.editActionButton]}
+                onPress={() => {
+                  close();
+                  onPressEdit?.();
+                }}>
+                <Image source={Images.editIconSlide} style={styles.actionImage} />
+              </TouchableOpacity>
+            ) : null}
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={[
+                styles.actionButton,
+                styles.viewActionButton,
+                !showEditAction && styles.singleActionButton,
+              ]}
+              onPress={() => {
+                close();
+                onPressView?.();
+              }}>
+              <Image source={Images.viewIconSlide} style={styles.actionImage} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}>
+      <TouchableOpacity
+        activeOpacity={onPress ? 0.8 : 1}
+        onPress={handleCardPress}
+        disabled={!onPress}>
+        <View style={styles.content}>
+          <View style={styles.thumbnailContainer}>
+            <Image
+              source={thumbnail ?? Images.documentFallback}
+              style={styles.thumbnail}
+            />
+          </View>
+          <View style={styles.textContainer}>
+            <Text style={styles.infoRow} numberOfLines={1} ellipsizeMode="tail">
+              <Text style={styles.label}>Title: </Text>
+              <Text style={styles.value}>{title}</Text>
+            </Text>
+            <Text style={styles.infoRow} numberOfLines={1} ellipsizeMode="tail">
+              <Text style={styles.label}>Business: </Text>
+              <Text style={styles.value}>{businessName}</Text>
+            </Text>
+            <Text style={styles.infoRow} numberOfLines={1} ellipsizeMode="tail">
+              <Text style={styles.label}>Visit type: </Text>
+              <Text style={styles.value}>{visitType}</Text>
+            </Text>
+            <Text style={styles.infoRow} numberOfLines={1} ellipsizeMode="tail">
+              <Text style={styles.label}>Issue Date: </Text>
+              <Text style={styles.value}>{formatDateDDMMYYYY(issueDate)}</Text>
+            </Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    </SwipeableGlassCard>
   );
 };
 
@@ -187,34 +164,54 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing[3],
     },
     actionContainer: {
+      flexDirection: 'row',
+      alignItems: 'stretch',
+      justifyContent: 'flex-end',
+    },
+    actionWrapper: {
+      height: '100%',
+      alignSelf: 'flex-end',
+      position: 'relative',
+      width: '100%',
+    },
+    actionBackground: {
       position: 'absolute',
-      right: 0,
       top: 0,
       bottom: 0,
+      right: -ACTION_OVERLAP,
+      borderTopRightRadius: theme.borderRadius.lg,
+      borderBottomRightRadius: theme.borderRadius.lg,
+    },
+    actionRow: {
       flexDirection: 'row',
-      justifyContent: 'flex-end',
-      alignItems: 'center',
-      borderRadius: theme.borderRadius.lg,
-      zIndex: 0,
-      paddingLeft: theme.spacing[10], // Extra padding to extend behind curved border
+      height: '100%',
+      overflow: 'hidden',
+      width: '100%',
     },
     actionButton: {
       width: ACTION_WIDTH,
       height: '100%',
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.colors.success,
     },
     editActionButton: {
       backgroundColor: theme.colors.primary,
+      borderTopLeftRadius: theme.borderRadius.lg,
+      borderBottomLeftRadius: theme.borderRadius.lg,
+    },
+    viewActionButton: {
+      backgroundColor: theme.colors.success,
+      borderTopRightRadius: theme.borderRadius.lg,
+      borderBottomRightRadius: theme.borderRadius.lg,
+    },
+    singleActionButton: {
+      borderTopLeftRadius: theme.borderRadius.lg,
+      borderBottomLeftRadius: theme.borderRadius.lg,
     },
     actionImage: {
       width: 30,
       height: 30,
       resizeMode: 'contain',
-    },
-    animatedWrapper: {
-      zIndex: 1,
     },
     card: {
       borderRadius: theme.borderRadius.lg,
@@ -234,12 +231,12 @@ const createStyles = (theme: any) =>
     },
     content: {
       flexDirection: 'row',
+      gap: theme.spacing[4],
       alignItems: 'center',
-      gap: theme.spacing[3],
     },
     thumbnailContainer: {
-      width: 60,
-      height: 60,
+      width: 48,
+      height: 48,
       borderRadius: theme.borderRadius.base,
       overflow: 'hidden',
       backgroundColor: theme.colors.surface,
@@ -256,14 +253,16 @@ const createStyles = (theme: any) =>
       gap: theme.spacing[1],
     },
     infoRow: {
-      ...theme.typography.labelXxsBold,
+      ...theme.typography.labelXsBold,
+      color: theme.colors.secondary,
     },
     label: {
-      ...theme.typography.labelXxsBold,
       color: theme.colors.textSecondary,
     },
     value: {
-      ...theme.typography.labelXxsBold,
       color: theme.colors.secondary,
+      fontWeight: '600',
     },
   });
+
+export default DocumentCard;

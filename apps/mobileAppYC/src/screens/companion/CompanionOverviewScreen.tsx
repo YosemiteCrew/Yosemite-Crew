@@ -68,7 +68,8 @@ import {
 } from '@/components/common/SimpleDatePicker/SimpleDatePicker';
 
 // Profile Image Picker
-import {ProfileImagePicker} from '@/components/common/ProfileImagePicker/ProfileImagePicker';
+import {CompanionProfileHeader} from '@/components/companion/CompanionProfileHeader';
+import type {ProfileImagePickerRef} from '@/components/common/ProfileImagePicker/ProfileImagePicker';
 
 // Types
 import type {
@@ -110,7 +111,7 @@ export const CompanionOverviewScreen: React.FC<
   const originSheetRef = useRef<OriginBottomSheetRef>(null);
 
   // Profile image picker ref
-  const profileImagePickerRef = useRef<{ triggerPicker: () => void }>(null);
+  const profileImagePickerRef = useRef<ProfileImagePickerRef | null>(null);
 
   // Helpers
   const goBack = useCallback(() => {
@@ -199,28 +200,13 @@ export const CompanionOverviewScreen: React.FC<
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
-        {/* Header block */}
-        <View style={styles.profileHeader}>
-          <View style={styles.avatarContainer}>
-            <ProfileImagePicker
-              ref={profileImagePickerRef}
-              imageUri={safeCompanion.profileImage}
-              onImageSelected={handleProfileImageChange}
-              size={100}
-              pressable={false}
-              fallbackText={safeCompanion.name.charAt(0).toUpperCase()}
-            />
-            <TouchableOpacity style={styles.cameraIconContainer} onPress={() => {
-              profileImagePickerRef.current?.triggerPicker();
-            }}>
-              <Image source={Images.cameraIcon} style={styles.cameraIcon} />
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.profileName}>{safeCompanion.name}</Text>
-          <Text style={styles.profileBreed}>
-            {safeCompanion.breed?.breedName ?? 'Unknown Breed'}
-          </Text>
-        </View>
+        <CompanionProfileHeader
+          name={safeCompanion.name}
+          breedName={safeCompanion.breed?.breedName}
+          profileImage={safeCompanion.profileImage ?? undefined}
+          pickerRef={profileImagePickerRef}
+          onImageSelected={handleProfileImageChange}
+        />
 
         {/* Card with rows */}
         <LiquidGlassCard
@@ -604,44 +590,6 @@ const createStyles = (theme: any) =>
     content: {
       paddingHorizontal: theme.spacing[5],
       paddingBottom: theme.spacing[10],
-    },
-    profileHeader: {
-      alignItems: 'center',
-      marginVertical: theme.spacing[6],
-    },
-    avatarContainer: {
-      position: 'relative',
-    },
-    avatar: {
-      width: 100,
-      height: 100,
-      borderRadius: 50,
-      backgroundColor: theme.colors.border,
-    },
-    cameraIconContainer: {
-      position: 'absolute',
-      bottom: 0,
-      right: 0,
-      backgroundColor: theme.colors.secondary,
-      padding: theme.spacing[2],
-      borderRadius: theme.borderRadius.full,
-      borderWidth: 2,
-      borderColor: theme.colors.background,
-    },
-    cameraIcon: {
-      width: 16,
-      height: 16,
-      tintColor: theme.colors.white,
-    },
-    profileName: {
-      ...theme.typography.h4Alt,
-      color: theme.colors.secondary,
-      marginTop: theme.spacing[4],
-    },
-    profileBreed: {
-      ...theme.typography.bodySmall,
-      color: theme.colors.textSecondary,
-      marginTop: theme.spacing[1],
     },
     glassContainer: {
       borderRadius: theme.borderRadius.lg,

@@ -32,7 +32,8 @@ import {useAuth} from '@/contexts/AuthContext';
 import type {Companion} from '@/features/companion/types';
 
 // Profile Image Picker
-import {ProfileImagePicker} from '@/components/common/ProfileImagePicker/ProfileImagePicker';
+import {CompanionProfileHeader} from '@/components/companion/CompanionProfileHeader';
+import type {ProfileImagePickerRef} from '@/components/common/ProfileImagePicker/ProfileImagePicker';
 
 type ProfileSection = {
   id: string;
@@ -64,7 +65,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   const deleteSheetRef = React.useRef<DeleteProfileBottomSheetRef>(null);
 
   // Profile image picker ref
-  const profileImagePickerRef = React.useRef<{ triggerPicker: () => void }>(null);
+  const profileImagePickerRef = React.useRef<ProfileImagePickerRef | null>(null);
 
   const dispatch = useDispatch<AppDispatch>();
   const {user} = useAuth();
@@ -168,7 +169,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
           {isLoading ? (
             <ActivityIndicator size="large" color={theme.colors.primary} />
           ) : (
-            <Text style={styles.profileName}>Companion not found.</Text>
+            <Text style={styles.emptyStateText}>Companion not found.</Text>
           )}
         </View>
       </SafeAreaView>
@@ -188,28 +189,13 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
-        {/* Top section — normal */}
-        <View style={styles.profileHeader}>
-          <View style={styles.avatarContainer}>
-            <ProfileImagePicker
-              ref={profileImagePickerRef}
-              imageUri={companion.profileImage}
-              onImageSelected={handleProfileImageChange}
-              size={100}
-              pressable={false}
-              fallbackText={companion.name.charAt(0).toUpperCase()}
-            />
-            <TouchableOpacity style={styles.cameraIconContainer} onPress={() => {
-              profileImagePickerRef.current?.triggerPicker();
-            }}>
-              <Image source={Images.cameraIcon} style={styles.cameraIcon} />
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.profileName}>{companion.name}</Text>
-          <Text style={styles.profileBreed}>
-            {companion.breed?.breedName ?? 'Unknown Breed'}
-          </Text>
-        </View>
+        <CompanionProfileHeader
+          name={companion.name}
+          breedName={companion.breed?.breedName}
+          profileImage={companion.profileImage ?? undefined}
+          pickerRef={profileImagePickerRef}
+          onImageSelected={handleProfileImageChange}
+        />
 
         {/* Only menu list inside glass card */}
         <LiquidGlassCard
@@ -266,6 +252,10 @@ const createStyles = (theme: any) =>
       flex: 1,
       backgroundColor: theme.colors.background,
     },
+    emptyStateText: {
+      ...theme.typography.body,
+      color: theme.colors.textSecondary,
+    },
     centered: {
       flex: 1,
       justifyContent: 'center',
@@ -274,44 +264,6 @@ const createStyles = (theme: any) =>
     content: {
       paddingHorizontal: theme.spacing[5],
       paddingBottom: theme.spacing[10],
-    },
-    profileHeader: {
-      alignItems: 'center',
-      marginVertical: theme.spacing[6],
-    },
-    avatarContainer: {
-      position: 'relative',
-    },
-    avatar: {
-      width: 100,
-      height: 100,
-      borderRadius: 50,
-      backgroundColor: theme.colors.border,
-    },
-    cameraIconContainer: {
-      position: 'absolute',
-      bottom: 10,
-      right: 0,
-      backgroundColor: theme.colors.secondary,
-      padding: theme.spacing[2],
-      borderRadius: theme.borderRadius.full,
-      borderWidth: 2,
-      borderColor: theme.colors.background,
-    },
-    cameraIcon: {
-      width: 16,
-      height: 16,
-      tintColor: theme.colors.white,
-    },
-    profileName: {
-      ...theme.typography.h4Alt,
-      color: theme.colors.secondary,
-      marginTop: theme.spacing[4],
-    },
-    profileBreed: {
-      ...theme.typography.bodySmall,
-      color: theme.colors.textSecondary,
-      marginTop: theme.spacing[1],
     },
     glassContainer: {
       borderRadius: theme.borderRadius.lg,
