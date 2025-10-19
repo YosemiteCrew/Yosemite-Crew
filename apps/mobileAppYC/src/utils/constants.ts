@@ -108,26 +108,29 @@ export const isValidPassword = (password: string): boolean => {
   for (const char of password) {
     const code = char.codePointAt(0) ?? 0;
 
-    if (code >= 97 && code <= 122) {
-      // a-z
+    const isLower = code >= 97 && code <= 122;
+    if (isLower) {
       hasLower = true;
-    } else if (code >= 65 && code <= 90) {
-      // A-Z
-      hasUpper = true;
-    } else if (code >= 48 && code <= 57) {
-      // 0-9
-      hasDigit = true;
-    } else {
-      // Check if it's an allowed special character
-      if (
-        !allowedSpecials.has(char) &&
-        (code < 97 || code > 122) &&
-        (code < 65 || code > 90) &&
-        (code < 48 || code > 57)
-      ) {
-        return false; // Invalid character
-      }
+      continue;
     }
+
+    const isUpper = code >= 65 && code <= 90;
+    if (isUpper) {
+      hasUpper = true;
+      continue;
+    }
+
+    const isDigit = code >= 48 && code <= 57;
+    if (isDigit) {
+      hasDigit = true;
+      continue;
+    }
+
+    if (allowedSpecials.has(char)) {
+      continue;
+    }
+
+    return false; // Invalid character
   }
 
   return hasLower && hasUpper && hasDigit;

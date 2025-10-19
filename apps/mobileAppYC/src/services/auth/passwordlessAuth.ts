@@ -146,6 +146,27 @@ const parsePasswordlessError = (error: unknown) => {
   return 'Unexpected authentication error. Please retry.';
 };
 
+const isNoActiveSessionError = (error: unknown): boolean => {
+  if (error instanceof AuthError) {
+    return (
+      error.name === 'AuthSessionNotSetError' ||
+      error.name === 'UserNotAuthenticatedException' ||
+      error.name === 'NotAuthorizedException'
+    );
+  }
+
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+    return (
+      message.includes('there is no current user') ||
+      message.includes('no current user') ||
+      message.includes('user is not authenticated')
+    );
+  }
+
+  return false;
+};
+
 export const requestPasswordlessEmailCode = async (
   email: string,
 ): Promise<PasswordlessSignInRequestResult> => {
@@ -161,8 +182,13 @@ export const requestPasswordlessEmailCode = async (
       await signOutEverywhere();
     }
   } catch (error) {
-    // No existing session, continue with sign in
-    console.log('[Auth] No existing session found, proceeding with sign in');
+    if (isNoActiveSessionError(error)) {
+      // No existing session, continue with sign in
+      console.log('[Auth] No existing session found, proceeding with sign in');
+    } else {
+      console.error('[Auth] Unexpected error while checking current user', error);
+      throw error;
+    }
   }
 
   try {

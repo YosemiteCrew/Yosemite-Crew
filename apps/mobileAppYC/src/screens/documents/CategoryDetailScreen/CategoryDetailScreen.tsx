@@ -114,12 +114,13 @@ export const CategoryDetailScreen: React.FC = () => {
         {category.subcategories.map(subcategory => {
           const subcategoryDocs = documentsBySubcategory[subcategory.id] || [];
           const subcategoryIcon = SUBCATEGORY_ICONS[subcategory.id] || category.icon;
+          const subcategorySuffix = subcategoryDocs.length === 1 ? '' : 's';
 
           return (
             <SubcategoryAccordion
               key={subcategory.id}
               title={subcategory.label}
-              subtitle={`${subcategoryDocs.length} file${subcategoryDocs.length !== 1 ? 's' : ''}`}
+              subtitle={`${subcategoryDocs.length} file${subcategorySuffix}`}
               icon={subcategoryIcon}
               defaultExpanded={false}>
               {subcategoryDocs.length === 0 ? (

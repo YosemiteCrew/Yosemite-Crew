@@ -147,23 +147,31 @@ export const EditDocumentScreen: React.FC = () => {
     const trimmedTitle = title.trim();
     const trimmedBusinessName = businessName.trim();
 
-    if (category === null) {
-      validationErrors.category = 'Category missing';
-    }
-    if (subcategory === null) {
-      validationErrors.subcategory = 'Sub category missing';
-    }
-    if (trimmedTitle.length === 0) {
-      validationErrors.title = 'Title is required';
-    }
-    if (trimmedBusinessName.length === 0) {
-      validationErrors.businessName = 'Business name is required';
-    }
-    if (hasIssueDate && !issueDate) {
-      validationErrors.issueDate = 'Issue date missing';
-    }
-    if (files.length === 0) {
-      validationErrors.files = 'Document missing';
+    const validationRules: Array<{
+      field: keyof typeof validationErrors;
+      failed: boolean;
+      message: string;
+    }> = [
+      {field: 'category', failed: category === null, message: 'Category missing'},
+      {field: 'subcategory', failed: subcategory === null, message: 'Sub category missing'},
+      {field: 'title', failed: trimmedTitle.length === 0, message: 'Title is required'},
+      {
+        field: 'businessName',
+        failed: trimmedBusinessName.length === 0,
+        message: 'Business name is required',
+      },
+      {
+        field: 'issueDate',
+        failed: hasIssueDate && !issueDate,
+        message: 'Issue date missing',
+      },
+      {field: 'files', failed: files.length === 0, message: 'Document missing'},
+    ];
+
+    for (const {field, failed, message} of validationRules) {
+      if (failed) {
+        validationErrors[field] = message;
+      }
     }
 
     const hasValidationError = Object.values(validationErrors).some(
@@ -171,6 +179,34 @@ export const EditDocumentScreen: React.FC = () => {
     );
 
     return {hasValidationError, validationErrors};
+  };
+
+  const uploadManagedFiles = async (
+    fileList: DocumentFile[],
+  ): Promise<DocumentFile[]> => {
+    const existingFiles = fileList.filter(f => f.s3Url);
+    const newFiles = fileList.filter(f => !f.s3Url);
+
+    if (newFiles.length === 0) {
+      return existingFiles;
+    }
+
+    console.log('[EditDocument] Uploading new files:', newFiles.length);
+    const uploaded = await dispatch(uploadDocumentFiles(newFiles)).unwrap();
+    console.log('[EditDocument] New files uploaded successfully');
+    return [...existingFiles, ...uploaded];
+  };
+
+  const handleUpdateFailure = (error: unknown) => {
+    console.error('[EditDocument] Failed to update document:', error);
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Failed to update document. Please try again.';
+    setErrors(prev => ({
+      ...prev,
+      files: message,
+    }));
   };
 
   const handleSave = async () => {
@@ -184,16 +220,7 @@ export const EditDocumentScreen: React.FC = () => {
     try {
       console.log('[EditDocument] Starting document update process');
 
-      // Upload any new files
-      const newFiles = files.filter(f => !f.s3Url);
-      let uploadedFiles = files.filter(f => f.s3Url);
-
-      if (newFiles.length > 0) {
-        console.log('[EditDocument] Uploading new files:', newFiles.length);
-        const uploaded = await dispatch(uploadDocumentFiles(newFiles)).unwrap();
-        uploadedFiles = [...uploadedFiles, ...uploaded];
-        console.log('[EditDocument] New files uploaded successfully');
-      }
+      const uploadedFiles = await uploadManagedFiles(files);
 
       await dispatch(
         updateDocument({
@@ -213,15 +240,7 @@ export const EditDocumentScreen: React.FC = () => {
       console.log('[EditDocument] Document updated successfully');
       navigation.goBack();
     } catch (error) {
-      console.error('[EditDocument] Failed to update document:', error);
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Failed to update document. Please try again.';
-      setErrors(prev => ({
-        ...prev,
-        files: message,
-      }));
+      handleUpdateFailure(error);
     }
   };
 
@@ -281,6 +300,53 @@ export const EditDocumentScreen: React.FC = () => {
       setFiles(files.filter(f => f.id !== fileToDelete));
       setFileToDelete(null);
     }
+  };
+
+  const renderFilesSection = (): React.ReactNode => {
+    if (files.length === 0) {
+      return (
+        <>
+          <TouchableOpacity
+            style={[styles.uploadSection, errors.files && styles.uploadSectionError]}
+            onPress={handleUploadDocuments}
+            activeOpacity={0.7}>
+            <Image source={Images.uploadIcon} style={styles.uploadIcon} />
+            <Text style={styles.uploadTitle}>Upload documents</Text>
+            <Text style={styles.uploadSubtitle}>
+              Only DOC, PDF, PNG, JPEG formats{'\n'}with max size 5 MB
+            </Text>
+          </TouchableOpacity>
+          {errors.files ? <Text style={styles.errorText}>{errors.files}</Text> : null}
+        </>
+      );
+    }
+
+    return (
+      <View style={styles.filesPreviewContainer}>
+        <View style={styles.multipleFilesGrid}>
+          {files.map(file => (
+            <View key={file.id} style={styles.filePreviewBox}>
+              <Image
+                source={{uri: file.uri}}
+                style={styles.filePreviewImage}
+                resizeMode="cover"
+              />
+              <TouchableOpacity
+                style={styles.removeButtonMultiple}
+                onPress={() => handleRemoveFile(file.id)}>
+                <Image source={Images.closeIcon} style={styles.removeIconSmall} />
+              </TouchableOpacity>
+            </View>
+          ))}
+          <TouchableOpacity
+            style={styles.addMoreBox}
+            onPress={handleUploadDocuments}>
+            <Image source={Images.addIconWhite} style={styles.addMoreIcon} />
+          </TouchableOpacity>
+        </View>
+        {errors.files ? <Text style={styles.errorText}>{errors.files}</Text> : null}
+      </View>
+    );
   };
 
   return (
@@ -395,48 +461,7 @@ export const EditDocumentScreen: React.FC = () => {
           )}
         </View>
 
-        <View>
-          {files.length === 0 ? (
-            <>
-              <TouchableOpacity
-                style={[styles.uploadSection, errors.files && styles.uploadSectionError]}
-                onPress={handleUploadDocuments}
-                activeOpacity={0.7}>
-                <Image source={Images.uploadIcon} style={styles.uploadIcon} />
-                <Text style={styles.uploadTitle}>Upload documents</Text>
-                <Text style={styles.uploadSubtitle}>
-                  Only DOC, PDF, PNG, JPEG formats{'\n'}with max size 5 MB
-                </Text>
-              </TouchableOpacity>
-              {errors.files ? <Text style={styles.errorText}>{errors.files}</Text> : null}
-            </>
-          ) : (
-            <View style={styles.filesPreviewContainer}>
-              <View style={styles.multipleFilesGrid}>
-                {files.map(file => (
-                  <View key={file.id} style={styles.filePreviewBox}>
-                    <Image
-                      source={{uri: file.uri}}
-                      style={styles.filePreviewImage}
-                      resizeMode="cover"
-                    />
-                    <TouchableOpacity
-                      style={styles.removeButtonMultiple}
-                      onPress={() => handleRemoveFile(file.id)}>
-                      <Image source={Images.closeIcon} style={styles.removeIconSmall} />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-                <TouchableOpacity
-                  style={styles.addMoreBox}
-                  onPress={handleUploadDocuments}>
-                  <Image source={Images.addIconWhite} style={styles.addMoreIcon} />
-                </TouchableOpacity>
-              </View>
-              {errors.files ? <Text style={styles.errorText}>{errors.files}</Text> : null}
-            </View>
-          )}
-        </View>
+        <View>{renderFilesSection()}</View>
 
         <View style={styles.saveButton}>
           <LiquidGlassButton
