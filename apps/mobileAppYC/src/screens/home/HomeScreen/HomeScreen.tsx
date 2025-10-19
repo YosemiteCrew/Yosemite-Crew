@@ -90,10 +90,16 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     dispatch(setSelectedCompanion(id));
   };
 
-  const getCompanionTaskCount = () => {
-    // Mock task count - in a real app, this would come from tasks slice
-    return Math.floor(Math.random() * 5);
-  };
+  const computeMockTaskCount = React.useCallback((companionId: string) => {
+    if (!companionId) {
+      return 0;
+    }
+    const charSum = Array.from(companionId).reduce(
+      (accumulator, character) => accumulator + character.charCodeAt(0),
+      0,
+    );
+    return (charSum % 5) + 1;
+  }, []);
 
   const renderEmptyStateTile = (title: string, subtitle: string, key: string) => (
     <TouchableOpacity
@@ -236,7 +242,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
             onSelect={handleSelectCompanion}
             onAddCompanion={handleAddCompanion}
             showAddButton={true}
-            getBadgeText={() => `${getCompanionTaskCount()} Tasks`}
+            getBadgeText={companion => `${computeMockTaskCount(companion.id)} Tasks`}
           />
         )}
 

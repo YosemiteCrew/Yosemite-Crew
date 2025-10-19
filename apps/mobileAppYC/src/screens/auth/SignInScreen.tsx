@@ -25,7 +25,8 @@ import {
   type SocialProvider,
 } from '@/services/auth/socialAuth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT } from '@/config/variables';
+import {PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT} from '@/config/variables';
+import {isValidEmail} from '@/utils/constants';
 
 const socialIconStyles = StyleSheet.create({
   icon: {
@@ -66,11 +67,12 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) =
   const routeEmail = route.params?.email;
   const routeStatusMessage = route.params?.statusMessage;
   const hasStatusMessageParam = route.params
-    ? Object.prototype.hasOwnProperty.call(route.params, 'statusMessage')
+    ? Object.hasOwn(route.params, 'statusMessage')
     : false;
 
   useEffect(() => {
-    if (!routeEmail && !hasStatusMessageParam) {
+    const shouldSkipRestore = routeEmail == null && hasStatusMessageParam === false;
+    if (shouldSkipRestore) {
       return;
     }
 
@@ -91,18 +93,15 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) =
     navigation.setParams({ email: undefined, statusMessage: undefined });
   }, [hasStatusMessageParam, navigation, routeEmail, routeStatusMessage]);
 
-  const validateEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
+  const validateEmail = (email: string) => isValidEmail(email);
 
   const handleSendOTP = async () => {
-    if (!emailValue.trim()) {
+    if (emailValue.trim().length === 0) {
       setEmailError('Please enter your email address');
       return;
     }
 
-    if (!validateEmail(emailValue.trim())) {
+    if (validateEmail(emailValue.trim()) === false) {
       setEmailError('Please enter a valid email address');
       return;
     }
@@ -276,9 +275,9 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) =
             borderColor={theme.colors.border}
             style={{
               ...styles.socialButton,
-              ...(Platform.OS !== 'ios'
-                ? {backgroundColor: theme.colors.cardBackground}
-                : {}),
+              ...(Platform.OS === 'ios'
+                ? {}
+                : {backgroundColor: theme.colors.cardBackground}),
             }}
           />
           <LiquidGlassButton
@@ -291,9 +290,9 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) =
             borderRadius={20}
             style={{
               ...styles.socialButton,
-              ...(Platform.OS !== 'ios'
-                ? {backgroundColor: theme.colors.primary}
-                : {}),
+              ...(Platform.OS === 'ios'
+                ? {}
+                : {backgroundColor: theme.colors.primary}),
             }}
           />
           <LiquidGlassButton
@@ -306,9 +305,9 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) =
             borderRadius={20}
             style={{
               ...styles.socialButton,
-              ...(Platform.OS !== 'ios'
-                ? {backgroundColor: theme.colors.secondary}
-                : {}),
+              ...(Platform.OS === 'ios'
+                ? {}
+                : {backgroundColor: theme.colors.secondary}),
             }}
           />
         </View>

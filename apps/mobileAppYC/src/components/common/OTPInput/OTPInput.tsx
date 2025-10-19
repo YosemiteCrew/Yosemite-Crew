@@ -7,6 +7,7 @@ import {
   Text,
 } from 'react-native';
 import { useTheme } from '../../../hooks';
+import {generateId} from '@/utils/helpers';
 
 interface OTPInputProps {
   length?: number;
@@ -22,9 +23,19 @@ export const OTPInput: React.FC<OTPInputProps> = ({
   autoFocus = true,
 }) => {
   const { theme } = useTheme();
-  const [otp, setOtp] = useState<string[]>(new Array(length).fill(''));
+  const [otp, setOtp] = useState<string[]>(() => Array.from({ length }, () => ''));
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRefs = useRef<(TextInput | null)[]>(new Array(length).fill(null));
+  const inputKeys = useRef<string[]>(Array.from({ length }, () => generateId()));
+
+  useEffect(() => {
+    if (inputKeys.current.length !== length) {
+      inputKeys.current = Array.from({ length }, (_unused, index) => inputKeys.current[index] ?? generateId());
+    }
+    setOtp(prev => Array.from({ length }, (_unused, index) => prev[index] ?? ''));
+    inputRefs.current = new Array(length).fill(null);
+    setActiveIndex(0);
+  }, [length]);
 
   useEffect(() => {
     if (autoFocus && inputRefs.current[0]) {
@@ -90,9 +101,11 @@ export const OTPInput: React.FC<OTPInputProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.inputContainer}>
-        {otp.map((digit, index) => (
+        {inputKeys.current.map((key, index) => {
+          const digit = otp[index] ?? '';
+          return (
           <TextInput
-            key={`otp-input-${index}`}
+            key={key}
             ref={(ref) => {
               inputRefs.current[index] = ref;
             }}
@@ -124,7 +137,8 @@ export const OTPInput: React.FC<OTPInputProps> = ({
             autoCorrect={false}
             textContentType="oneTimeCode"
           />
-        ))}
+          );
+        })}
       </View>
       {error && (
         <Text style={[styles.errorText, { color: theme.colors.error }]}>

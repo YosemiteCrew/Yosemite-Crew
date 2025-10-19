@@ -99,21 +99,21 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
   // Parse phone number to separate dial code and local number
   const parsedPhone = useMemo(() => {
     if (!safeUser.phone) return { dialCode: '+1', localNumber: '' };
-    const rawPhone = safeUser.phone.replace(/[^0-9+]/g, '');
-    const normalizedPhoneDigits = rawPhone.replace(/\D/g, '');
+    const rawPhone = safeUser.phone.replaceAll(/[^0-9+]/g, '');
+    const normalizedPhoneDigits = rawPhone.replaceAll(/\D/g, '');
     let resolvedCountry = COUNTRIES.find(country => country.code === 'US') ?? COUNTRIES[0];
     if (normalizedPhoneDigits) {
       const match = COUNTRIES.find(country => {
-        const dialCodeDigits = country.dial_code.replace('+', '');
+        const dialCodeDigits = country.dial_code.replaceAll('+', '');
         return normalizedPhoneDigits.startsWith(dialCodeDigits);
       });
       if (match) resolvedCountry = match;
     }
     const localPhoneRaw = normalizedPhoneDigits.startsWith(
-      resolvedCountry.dial_code.replace('+', ''),
+      resolvedCountry.dial_code.replaceAll('+', ''),
     )
       ? normalizedPhoneDigits.slice(
-          resolvedCountry.dial_code.replace('+', '').length,
+          resolvedCountry.dial_code.replaceAll('+', '').length,
         )
       : normalizedPhoneDigits;
     const localPhoneNumber = localPhoneRaw.slice(-10);

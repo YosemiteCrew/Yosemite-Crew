@@ -59,8 +59,12 @@ class LocationService {
           resolve(position.coords);
         },
         (error) => {
-          console.error('Location error:', error);
-          reject(error);
+          const normalizedError =
+            error instanceof Error
+              ? error
+              : new Error(error?.message ?? 'Unable to retrieve location');
+          console.error('Location error:', normalizedError);
+          reject(normalizedError);
         },
         {
           enableHighAccuracy: true,
@@ -80,8 +84,12 @@ class LocationService {
         onSuccess(position.coords);
       },
       (error) => {
-        console.error('Watch position error:', error);
-        if (onError) onError(error);
+        const normalizedError =
+          error instanceof Error
+            ? error
+            : new Error(error?.message ?? 'Unable to watch location');
+        console.error('Watch position error:', normalizedError);
+        onError?.(normalizedError);
       },
       {
         enableHighAccuracy: true,
@@ -109,7 +117,9 @@ class LocationService {
         return coords;
       } catch (error) {
         retries++;
-        console.log(`Location attempt ${retries} failed:`, error);
+        const normalizedError =
+          error instanceof Error ? error : new Error(String(error));
+        console.log(`Location attempt ${retries} failed:`, normalizedError);
         
         if (retries === maxRetries) {
           Alert.alert(
