@@ -17,6 +17,8 @@ import {Header} from '@/components';
 import {Images} from '@/assets/images';
 import {HomeStackParamList} from '@/navigation/types';
 import {LiquidGlassCard} from '@/components/common/LiquidGlassCard/LiquidGlassCard';
+import {createScreenContainerStyles} from '@/utils/screenStyles';
+import {createCenteredStyle} from '@/utils/commonHelpers';
 import DeleteProfileBottomSheet, {
   type DeleteProfileBottomSheetRef,
 } from '../../components/common/DeleteProfileBottomSheet/DeleteProfileBottomSheet';
@@ -78,6 +80,11 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
     [allCompanions, companionId],
   );
 
+  // Helper to show error alerts
+  const showErrorAlert = React.useCallback((title: string, message: string) => {
+    Alert.alert(title, message, [{text: 'OK'}]);
+  }, []);
+
   const handleProfileImageChange = React.useCallback(
     async (imageUri: string | null) => {
       if (!companion?.id) return;
@@ -100,22 +107,21 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         console.log('[ProfileOverview] Profile image updated successfully');
       } catch (error) {
         console.error('[ProfileOverview] Failed to update profile image:', error);
-        Alert.alert(
+        showErrorAlert(
           'Image Update Failed',
-          'Failed to update profile image. Please try again.',
-          [{text: 'OK'}]
+          'Failed to update profile image. Please try again.'
         );
       }
     },
-    [companion, dispatch, user?.id],
+    [companion, dispatch, user?.id, showErrorAlert],
   );
 
-    // NEW: Handler for navigating to the Edit Screen
+  // Handler for navigating to the Edit Screen
   const handleSectionPress = (sectionId: string) => {
     if (sectionId === 'overview') {
       navigation.navigate('EditCompanionOverview', {companionId});
     }
-        if (sectionId === 'parent') {
+    if (sectionId === 'parent') {
       navigation.navigate('EditParentOverview', {companionId});
     }
     // Add logic for other sections here
@@ -145,18 +151,16 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         navigation.goBack();
       } else {
         console.error('[ProfileOverview] Failed to delete companion:', resultAction.payload);
-        Alert.alert(
+        showErrorAlert(
           'Delete Failed',
-          'Failed to delete companion profile. Please try again.',
-          [{text: 'OK'}]
+          'Failed to delete companion profile. Please try again.'
         );
       }
     } catch (error) {
       console.error('[ProfileOverview] Error deleting companion:', error);
-      Alert.alert(
+      showErrorAlert(
         'Delete Failed',
-        'An error occurred while deleting the companion profile.',
-        [{text: 'OK'}]
+        'An error occurred while deleting the companion profile.'
       );
     }
   };
@@ -248,18 +252,11 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
+    ...createScreenContainerStyles(theme),
+    ...createCenteredStyle(theme),
     emptyStateText: {
       ...theme.typography.body,
       color: theme.colors.textSecondary,
-    },
-    centered: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
     },
     content: {
       paddingHorizontal: theme.spacing[5],

@@ -267,3 +267,11 @@ export const getInitials = (name: string): string => {
     .slice(0, 2)
     .join('');
 };
+
+/**
+ * Format a label by capitalizing first letter and replacing hyphens with spaces
+ */
+export const formatLabel = (str: string | null, fallback: string = ''): string => {
+  if (!str) return fallback;
+  return str.charAt(0).toUpperCase() + str.slice(1).replaceAll('-', ' ');
+};

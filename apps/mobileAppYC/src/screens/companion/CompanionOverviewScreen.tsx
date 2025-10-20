@@ -19,6 +19,8 @@ import {Header} from '@/components';
 import {LiquidGlassCard} from '@/components/common/LiquidGlassCard/LiquidGlassCard';
 import {Images} from '@/assets/images';
 import {useTheme} from '@/hooks';
+import {capitalize, createCenteredStyle, displayNeutered, displayInsured, displayOrigin} from '@/utils/commonHelpers';
+import {createScreenContainerStyles} from '@/utils/screenStyles';
 
 import {
   selectSelectedCompanion,
@@ -509,43 +511,8 @@ const RowButton: React.FC<{
   );
 };
 
-function capitalize(s?: string | null) {
-  if (s == null || s === '') {
-    return '';
-  }
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-function displayNeutered(v?: NeuteredStatus | null) {
-  if (v == null) {
-    return '';
-  }
-  return v === 'neutered' ? 'Neutered' : 'Not neutered';
-}
-
-function displayInsured(v?: InsuredStatus | null) {
-  if (v == null) {
-    return '';
-  }
-  return v === 'insured' ? 'Insured' : 'Not insured';
-}
-
-function displayOrigin(v?: CompanionOrigin | null) {
-  switch (v) {
-    case 'shop':
-      return 'Shop';
-    case 'breeder':
-      return 'Breeder';
-    case 'foster-shelter':
-      return 'Foster/ Shelter';
-    case 'friends-family':
-      return 'Friends or family';
-    case 'unknown':
-      return 'Unknown';
-    default:
-      return '';
-  }
-}
+// Helper functions moved to @/utils/commonHelpers:
+// - capitalize, displayNeutered, displayInsured, displayOrigin
 
 // Use same util as AddCompanionScreen if exported; otherwise fallback safe helper here.
 function getBreedListByCategorySafe(category: any): Breed[] {
@@ -578,15 +545,8 @@ function getSelectedCountryObject(countryName?: string | null) {
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    centered: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
+    ...createScreenContainerStyles(theme),
+    ...createCenteredStyle(theme),
     content: {
       paddingHorizontal: theme.spacing[5],
       paddingBottom: theme.spacing[10],

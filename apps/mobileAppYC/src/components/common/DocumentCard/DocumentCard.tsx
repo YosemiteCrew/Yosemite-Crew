@@ -12,7 +12,8 @@ import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 
 const ACTION_WIDTH = 65;
-const ACTION_OVERLAP = 10;
+const OVERLAP_WIDTH = 12; // Empty overlap container to hide seam
+const TOTAL_ACTION_WIDTH = ACTION_WIDTH * 2; // Edit + View containers
 
 const formatDateDDMMYYYY = (date: string | Date): string => {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
@@ -48,20 +49,9 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
-  const actionCount = showEditAction ? 2 : 1;
-  const totalActionWidth = ACTION_WIDTH * actionCount;
-  const baseActionColor = showEditAction
-    ? theme.colors.primary
-    : theme.colors.success;
-  const actionBackgroundStyle = useMemo(
-    () => ({
-      width: totalActionWidth + ACTION_OVERLAP,
-      backgroundColor: showEditAction ? theme.colors.primary : theme.colors.success,
-      borderTopRightRadius: theme.borderRadius.lg,
-      borderBottomRightRadius: theme.borderRadius.lg,
-    }),
-    [showEditAction, theme.colors.primary, theme.colors.success, theme.borderRadius.lg, totalActionWidth],
-  );
+  // Calculate widths: overlap + actions
+  const visibleActionWidth = showEditAction ? TOTAL_ACTION_WIDTH : ACTION_WIDTH;
+  const totalWidth = OVERLAP_WIDTH + visibleActionWidth;
 
   const handleCardPress = () => {
     onPress?.();
@@ -70,9 +60,9 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
   return (
     <SwipeableGlassCard
       actionIcon={Images.viewIconSlide}
-      actionWidth={totalActionWidth}
-      actionBackgroundColor={baseActionColor}
-      actionOverlap={ACTION_OVERLAP}
+      actionWidth={totalWidth}
+      actionBackgroundColor="transparent"
+      actionOverlap={OVERLAP_WIDTH}
       actionContainerStyle={styles.actionContainer}
       containerStyle={styles.container}
       cardProps={{
@@ -89,34 +79,45 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
         mass: 0.8,
       }}
       renderActionContent={close => (
-        <View style={[styles.actionWrapper, {width: totalActionWidth}]}>
-          <View style={[styles.actionBackground, actionBackgroundStyle]} />
-          <View style={styles.actionRow}>
-            {showEditAction ? (
-              <TouchableOpacity
-                activeOpacity={0.85}
-                style={[styles.actionButton, styles.editActionButton]}
-                onPress={() => {
-                  close();
-                  onPressEdit?.();
-                }}>
-                <Image source={Images.editIconSlide} style={styles.actionImage} />
-              </TouchableOpacity>
-            ) : null}
+        <View style={styles.actionWrapper}>
+          {/* Container 1: Empty overlap to hide seam behind card border */}
+          <View
+            style={[
+              styles.overlapContainer,
+              {
+                width: OVERLAP_WIDTH,
+                backgroundColor: showEditAction ? theme.colors.primary : theme.colors.success,
+              },
+            ]}
+          />
+
+          {/* Container 2: Edit action (if shown) */}
+          {showEditAction && (
             <TouchableOpacity
               activeOpacity={0.85}
-              style={[
-                styles.actionButton,
-                styles.viewActionButton,
-                !showEditAction && styles.singleActionButton,
-              ]}
+              style={[styles.actionButton, styles.editActionButton, {width: ACTION_WIDTH}]}
               onPress={() => {
                 close();
-                onPressView?.();
+                onPressEdit?.();
               }}>
-              <Image source={Images.viewIconSlide} style={styles.actionImage} />
+              <Image source={Images.editIconSlide} style={styles.actionImage} />
             </TouchableOpacity>
-          </View>
+          )}
+
+          {/* Container 3: View action */}
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={[
+              styles.actionButton,
+              styles.viewActionButton,
+              {width: ACTION_WIDTH},
+            ]}
+            onPress={() => {
+              close();
+              onPressView?.();
+            }}>
+            <Image source={Images.viewIconSlide} style={styles.actionImage} />
+          </TouchableOpacity>
         </View>
       )}>
       <TouchableOpacity
@@ -169,44 +170,25 @@ const createStyles = (theme: any) =>
       justifyContent: 'flex-end',
     },
     actionWrapper: {
-      height: '100%',
-      alignSelf: 'flex-end',
-      position: 'relative',
-      width: '100%',
-    },
-    actionBackground: {
-      position: 'absolute',
-      top: 0,
-      bottom: 0,
-      right: -ACTION_OVERLAP,
-      borderTopRightRadius: theme.borderRadius.lg,
-      borderBottomRightRadius: theme.borderRadius.lg,
-    },
-    actionRow: {
       flexDirection: 'row',
       height: '100%',
-      overflow: 'hidden',
       width: '100%',
     },
+    overlapContainer: {
+      height: '100%',
+    },
     actionButton: {
-      width: ACTION_WIDTH,
       height: '100%',
       alignItems: 'center',
       justifyContent: 'center',
     },
     editActionButton: {
       backgroundColor: theme.colors.primary,
-      borderTopLeftRadius: theme.borderRadius.lg,
-      borderBottomLeftRadius: theme.borderRadius.lg,
     },
     viewActionButton: {
       backgroundColor: theme.colors.success,
       borderTopRightRadius: theme.borderRadius.lg,
       borderBottomRightRadius: theme.borderRadius.lg,
-    },
-    singleActionButton: {
-      borderTopLeftRadius: theme.borderRadius.lg,
-      borderBottomLeftRadius: theme.borderRadius.lg,
     },
     actionImage: {
       width: 30,

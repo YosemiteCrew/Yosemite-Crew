@@ -14,6 +14,12 @@ import type {RootState, AppDispatch} from '@/app/store';
 import type {DocumentStackParamList} from '@/navigation/types';
 import {DOCUMENT_CATEGORIES, SUBCATEGORY_ICONS} from '@/constants/documents.constants';
 import {setSelectedCompanion} from '@/features/companion';
+import {
+  createScreenContainerStyles,
+  createErrorContainerStyles,
+  createEmptyStateStyles,
+  createSearchAndSelectorStyles,
+} from '@/utils/screenStyles';
 
 type CategoryDetailNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
 type CategoryDetailRouteProp = RouteProp<DocumentStackParamList, 'CategoryDetail'>;
@@ -156,36 +162,8 @@ export const CategoryDetailScreen: React.FC = () => {
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    contentContainer: {
-      paddingHorizontal: theme.spacing[4],
-      paddingBottom: theme.spacing[6],
-    },
-    errorContainer: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    errorText: {
-      ...theme.typography.bodyLarge,
-      color: theme.colors.error,
-    },
-    searchBar: {
-      marginTop: theme.spacing[4],
-      marginBottom: theme.spacing[2],
-    },
-    companionSelector: {
-      marginBottom: theme.spacing[4],
-    },
-    emptyContainer: {
-      paddingVertical: theme.spacing[4],
-      alignItems: 'center',
-    },
-    emptyText: {
-      ...theme.typography.bodyMedium,
-      color: theme.colors.textSecondary,
-    },
+    ...createScreenContainerStyles(theme),
+    ...createErrorContainerStyles(theme),
+    ...createEmptyStateStyles(theme),
+    ...createSearchAndSelectorStyles(theme),
   });

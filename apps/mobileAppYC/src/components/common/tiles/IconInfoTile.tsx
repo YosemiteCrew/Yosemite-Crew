@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import {LiquidGlassCard} from '@/components/common/LiquidGlassCard/LiquidGlassCard';
 import {useTheme} from '@/hooks';
+import {createGlassCardStyles, createCardContentStyles, createIconContainerStyles, createTextContainerStyles} from '@/utils/cardStyles';
 
 export interface IconInfoTileProps {
   icon: ImageSourcePropType;
@@ -75,49 +76,25 @@ export const IconInfoTile: React.FC<IconInfoTileProps> = ({
   );
 };
 
-const createStyles = (theme: any) =>
-  StyleSheet.create({
+const createStyles = (theme: any) => {
+  const glassCardStyles = createGlassCardStyles(theme);
+  const contentStyles = createCardContentStyles(theme, 3);
+  const iconStyles = createIconContainerStyles(theme, 48);
+  const textStyles = createTextContainerStyles(theme, 1);
+
+  return StyleSheet.create({
     container: {
       marginBottom: theme.spacing[3],
     },
-    card: {
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      overflow: 'hidden',
-      backgroundColor: theme.colors.cardBackground,
-      ...theme.shadows.md,
-      shadowColor: theme.colors.neutralShadow,
-      padding: theme.spacing[4],
-    },
-    fallback: {
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.cardBackground,
-      borderColor: theme.colors.border,
-      overflow: 'hidden',
-    },
-    content: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: theme.spacing[3],
-    },
-    iconContainer: {
-      width: 48,
-      height: 48,
-      borderRadius: theme.borderRadius.base,
-      backgroundColor: theme.colors.surface,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
+    ...glassCardStyles,
+    ...contentStyles,
+    ...iconStyles,
     icon: {
       width: 40,
       height: 40,
       resizeMode: 'contain',
     },
-    textContainer: {
-      flex: 1,
-      gap: theme.spacing[1],
-    },
+    ...textStyles,
     title: {
       ...theme.typography.titleMedium,
       color: theme.colors.secondary,
@@ -147,5 +124,6 @@ const createStyles = (theme: any) =>
       lineHeight: 11,
     },
   });
+};
 
 export default IconInfoTile;
