@@ -130,7 +130,7 @@ export const createRowStyles = (theme: any) => ({
 /**
  * Common centered container style
  */
-export const createCenteredStyle = (theme: any) => ({
+export const createCenteredStyle = (theme?: any) => ({
   centered: {
     flex: 1,
     justifyContent: 'center' as const,

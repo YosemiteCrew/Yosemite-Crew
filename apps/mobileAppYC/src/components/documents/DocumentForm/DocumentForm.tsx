@@ -29,7 +29,7 @@ import type {CategoryBottomSheetRef} from '@/components/common/CategoryBottomShe
 import type {SubcategoryBottomSheetRef} from '@/components/common/SubcategoryBottomSheet/SubcategoryBottomSheet';
 import type {VisitTypeBottomSheetRef} from '@/components/common/VisitTypeBottomSheet/VisitTypeBottomSheet';
 import type {DocumentFile} from '@/types/document.types';
-import type {Companion} from '@/types/companion.types';
+import type {Companion} from '@/features/companion/types';
 
 export interface DocumentFormData {
   category: string | null;

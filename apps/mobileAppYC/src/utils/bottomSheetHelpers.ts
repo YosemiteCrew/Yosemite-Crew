@@ -8,7 +8,7 @@ import type {RefObject} from 'react';
  * Creates imperative handle for bottom sheet with cleanup functions
  */
 export const createBottomSheetImperativeHandle = (
-  bottomSheetRef: RefObject<BottomSheetRef>,
+  bottomSheetRef: RefObject<BottomSheetRef | null>,
   cleanupFn?: () => void,
 ) => ({
   open: () => {
