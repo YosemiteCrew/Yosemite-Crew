@@ -64,9 +64,11 @@ export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
     [springConfig],
   );
 
+    const swipeableWidth = actionWidth - actionOverlap;
+
   const clamp = useCallback(
-    (dx: number) => Math.max(-actionWidth, Math.min(0, dx)),
-    [actionWidth],
+    (dx: number) => Math.max(-swipeableWidth, Math.min(0, dx)),
+    [swipeableWidth],
   );
 
   const animateTo = useCallback(
@@ -84,8 +86,8 @@ export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
       translateX.setValue(clamp(gestureState.dx));
     };
     const handleRelease = (_: any, gestureState: any) => {
-      const shouldOpen = gestureState.dx < -actionWidth / 2;
-      animateTo(shouldOpen ? -actionWidth : 0);
+      const shouldOpen = gestureState.dx < -swipeableWidth / 2;
+      animateTo(shouldOpen ? -swipeableWidth : 0);
     };
 
     return PanResponder.create({
@@ -94,7 +96,7 @@ export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
       onPanResponderMove: handleMove,
       onPanResponderRelease: handleRelease,
     });
-  }, [actionWidth, animateTo, clamp, translateX]);
+  }, [swipeableWidth, animateTo, clamp, translateX]);
 
   const handleActionPress = () => {
     animateTo(0, () => {
