@@ -54,16 +54,8 @@ export const SubcategoryAccordion: React.FC<SubcategoryAccordionProps> = ({
       Extrapolation.CLAMP
     );
 
-    const opacity = interpolate(
-      animatedHeight.value,
-      [0, 1],
-      [0, 1],
-      Extrapolation.CLAMP
-    );
-
     return {
       maxHeight,
-      opacity,
       overflow: 'hidden',
     };
   });
