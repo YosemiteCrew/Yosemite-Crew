@@ -2,9 +2,7 @@ import React, {useMemo, useRef, useState, useCallback} from 'react';
 import {
   View,
   Text,
-  Image,
   ScrollView,
-  TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
   Alert,
@@ -16,11 +14,10 @@ import {useDispatch, useSelector} from 'react-redux';
 import type {AppDispatch} from '@/app/store';
 
 import {Header} from '@/components';
-import {LiquidGlassCard} from '@/components/common/LiquidGlassCard/LiquidGlassCard';
-import {Images} from '@/assets/images';
 import {useTheme} from '@/hooks';
-import {capitalize, createCenteredStyle, displayNeutered, displayInsured, displayOrigin} from '@/utils/commonHelpers';
-import {createScreenContainerStyles} from '@/utils/screenStyles';
+import {capitalize, displayNeutered, displayInsured, displayOrigin} from '@/utils/commonHelpers';
+import {createFormScreenStyles} from '@/utils/formScreenStyles';
+import {Separator, RowButton} from '@/components/common/FormRowComponents';
 
 import {
   selectSelectedCompanion,
@@ -474,42 +471,7 @@ export const CompanionOverviewScreen: React.FC<
   );
 };
 
-/* ----------------- Small shared pieces ----------------- */
-const Separator = () => {
-  const {theme} = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
-  return (
-    <View style={styles.separator} />
-  );
-};
-
-const RowButton: React.FC<{
-  label: string;
-  value?: string;
-  onPress: () => void;
-}> = ({label, value, onPress}) => {
-  const {theme} = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
-  return (
-    <TouchableOpacity
-      style={styles.rowButtonTouchable}
-      activeOpacity={0.8}
-      onPress={onPress}>
-      <Text style={styles.rowButtonLabel}>
-        {label}
-      </Text>
-      <Text
-        style={styles.rowButtonValue}
-        numberOfLines={1}>
-        {value || ' '}
-      </Text>
-      <Image
-        source={Images.rightArrow}
-        style={styles.rowButtonArrow}
-      />
-    </TouchableOpacity>
-  );
-};
+import {LiquidGlassCard} from '@/components/common/LiquidGlassCard/LiquidGlassCard';
 
 // Helper functions moved to @/utils/commonHelpers:
 // - capitalize, displayNeutered, displayInsured, displayOrigin
@@ -545,54 +507,5 @@ function getSelectedCountryObject(countryName?: string | null) {
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    ...createScreenContainerStyles(theme),
-    ...createCenteredStyle(theme),
-    content: {
-      paddingHorizontal: theme.spacing[5],
-      paddingBottom: theme.spacing[10],
-    },
-    glassContainer: {
-      borderRadius: theme.borderRadius.lg,
-      paddingVertical: theme.spacing[2],
-      overflow: 'hidden',
-      ...theme.shadows.md,
-    },
-    glassFallback: {
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.cardBackground,
-      borderColor: theme.colors.borderMuted,
-    },
-    listContainer: {
-      gap: theme.spacing[1],
-    },
-    muted: {
-      ...theme.typography.body,
-      color: theme.colors.textSecondary,
-    },
-    separator: {
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.borderSeperator,
-      marginLeft: 16,
-    },
-    rowButtonTouchable: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: theme.spacing[3],
-      paddingHorizontal: theme.spacing[3],
-    },
-    rowButtonLabel: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.secondary,
-      flex: 1,
-    },
-    rowButtonValue: {
-      ...theme.typography.bodySmall,
-      color: theme.colors.textSecondary,
-      marginRight: theme.spacing[3],
-    },
-    rowButtonArrow: {
-      width: 16,
-      height: 16,
-      resizeMode: 'contain',
-    },
+    ...createFormScreenStyles(theme),
   });
