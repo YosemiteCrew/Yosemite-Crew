@@ -18,6 +18,8 @@ import {Header} from '@/components';
 import {LiquidGlassCard} from '@/components/common/LiquidGlassCard/LiquidGlassCard';
 import {Images} from '@/assets/images';
 import {useTheme} from '@/hooks';
+import {createScreenContainerStyles} from '@/utils/screenStyles';
+import {createCenteredStyle} from '@/utils/commonHelpers';
 
 import {
   selectAuthUser,
@@ -373,15 +375,8 @@ const ReadOnlyRow: React.FC<{
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    centered: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
+    ...createScreenContainerStyles(theme),
+    ...createCenteredStyle(theme),
     content: {
       paddingHorizontal: theme.spacing[5],
       paddingBottom: theme.spacing[10],

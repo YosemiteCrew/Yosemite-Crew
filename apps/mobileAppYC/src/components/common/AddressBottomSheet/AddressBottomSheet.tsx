@@ -20,6 +20,12 @@ import {useTheme, useAddressAutocomplete} from '@/hooks';
 import type {PlaceSuggestion} from '@/services/maps/googlePlaces';
 import {AddressFields, type AddressFieldValues} from '@/components/forms/AddressFields';
 import {Images} from '@/assets/images';
+import {
+  createBottomSheetImperativeHandle,
+  createBottomSheetStyles,
+  createBottomSheetContainerStyles,
+  createBottomSheetButtonStyles,
+} from '@/utils/bottomSheetHelpers';
 
 export interface AddressBottomSheetRef {
   open: () => void;
@@ -52,20 +58,24 @@ export const AddressBottomSheet = forwardRef<
     resetError,
   } = useAddressAutocomplete();
 
-  useImperativeHandle(ref, () => ({
-    open: () => {
-      setTempAddress(selectedAddress);
-      setAddressQuery(selectedAddress.addressLine ?? '', {suppressLookup: true});
-      clearSuggestions();
-      resetError();
-      bottomSheetRef.current?.snapToIndex(0);
-    },
-    close: () => {
-      clearSuggestions();
-      resetError();
-      bottomSheetRef.current?.close();
-    },
-  }));
+  // Helper to reset state and close bottom sheet
+  const closeSheet = () => {
+    clearSuggestions();
+    resetError();
+    bottomSheetRef.current?.close();
+  };
+
+  useImperativeHandle(
+    ref,
+    () =>
+      createBottomSheetImperativeHandle(bottomSheetRef, () => {
+        setTempAddress(selectedAddress);
+        setAddressQuery(selectedAddress.addressLine ?? '', {suppressLookup: true});
+        clearSuggestions();
+        resetError();
+      }),
+    [selectedAddress, setAddressQuery, clearSuggestions, resetError],
+  );
 
   const handleAddressSuggestionPress = async (suggestion: PlaceSuggestion) => {
     const details = await selectSuggestion(suggestion);
@@ -86,17 +96,13 @@ export const AddressBottomSheet = forwardRef<
 
   const handleSave = () => {
     onSave(tempAddress);
-    clearSuggestions();
-    resetError();
-    bottomSheetRef.current?.close();
+    closeSheet();
   };
 
   const handleCancel = () => {
     setTempAddress(selectedAddress);
     setAddressQuery(selectedAddress.addressLine ?? '', {suppressLookup: true});
-    clearSuggestions();
-    resetError();
-    bottomSheetRef.current?.close();
+    closeSheet();
   };
 
   const handleFieldChange = (field: keyof AddressFieldValues, value: string) => {
@@ -185,69 +191,9 @@ AddressBottomSheet.displayName = 'AddressBottomSheet';
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      paddingHorizontal: theme.spacing['5'],
-      backgroundColor: theme.colors.background,
-    },
-    header: {
-      flexDirection: 'row',
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingVertical: theme.spacing['4'],
-      position: 'relative',
-    },
-    title: {
-      ...theme.typography.h3,
-      color: theme.colors.text,
-    },
-    closeButton: {
-      position: 'absolute',
-      right: 0,
-      padding: theme.spacing['2'],
-    },
-    closeIcon: {
-      width: theme.spacing['6'],
-      height: theme.spacing['6'],
-    },
-    scrollView: {
-      flex: 1,
-    },
-    scrollContent: {
-      paddingBottom: theme.spacing['4'],
-      gap: theme.spacing['4'],
-    },
-    buttonContainer: {
-      flexDirection: 'row',
-      gap: theme.spacing['3'],
-      paddingVertical: theme.spacing['4'],
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: theme.colors.border,
-      backgroundColor: theme.colors.surface,
-    },
-    cancelButton: {
-      flex: 1,
-      backgroundColor: theme.colors.surface,
-    },
-    cancelButtonText: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.secondary,
-    },
-    saveButton: {
-      flex: 1,
-    },
-    saveButtonText: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.white,
-    },
-    bottomSheetBackground: {
-      backgroundColor: theme.colors.background,
-      borderTopLeftRadius: theme.borderRadius['3xl'],
-      borderTopRightRadius: theme.borderRadius['3xl'],
-    },
-    bottomSheetHandle: {
-      backgroundColor: theme.colors.borderMuted,
-    },
+    ...createBottomSheetContainerStyles(theme),
+    ...createBottomSheetButtonStyles(theme),
+    ...createBottomSheetStyles(theme),
   });
 
 export default AddressBottomSheet;

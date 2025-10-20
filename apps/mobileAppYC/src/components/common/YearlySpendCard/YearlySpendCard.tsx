@@ -3,6 +3,7 @@ import {View, Text, Image, ImageSourcePropType, StyleSheet} from 'react-native';
 import {SwipeableGlassCard} from '@/components/common/SwipeableGlassCard/SwipeableGlassCard';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
+import {createGlassCardStyles, createCardContentStyles, createTextContainerStyles} from '@/utils/cardStyles';
 
 export interface YearlySpendCardProps {
   amount?: number;
@@ -81,33 +82,18 @@ export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
   );
 };
 
-const createStyles = (theme: any) =>
-  StyleSheet.create({
+const createStyles = (theme: any) => {
+  const glassCardStyles = createGlassCardStyles(theme);
+  const contentStyles = createCardContentStyles(theme, 4);
+  const textStyles = createTextContainerStyles(theme, 1);
+
+  return StyleSheet.create({
     container: {
       width: '100%',
       alignSelf: 'center',
     },
-    card: {
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      overflow: 'hidden',
-      backgroundColor: theme.colors.cardBackground,
-      ...theme.shadows.md,
-      shadowColor: theme.colors.neutralShadow,
-      padding: theme.spacing[4],
-    },
-    fallback: {
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.cardBackground,
-      borderColor: theme.colors.border,
-      overflow: 'hidden',
-    },
-    content: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: theme.spacing[4],
-    },
+    ...glassCardStyles,
+    ...contentStyles,
     iconCircle: {
       width: 40,
       height: 40,
@@ -121,10 +107,7 @@ const createStyles = (theme: any) =>
       height: 24,
       resizeMode: 'contain',
     },
-    textContainer: {
-      flex: 1,
-      gap: theme.spacing[1],
-    },
+    ...textStyles,
     label: {
       ...theme.typography.titleMedium,
       color: theme.colors.secondary,
@@ -147,5 +130,6 @@ const createStyles = (theme: any) =>
       resizeMode: 'cover',
     },
   });
+};
 
 export default YearlySpendCard;

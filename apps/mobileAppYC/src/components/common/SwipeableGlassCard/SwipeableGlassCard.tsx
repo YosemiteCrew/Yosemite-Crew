@@ -37,6 +37,7 @@ export interface SwipeableGlassCardProps {
 
 const DEFAULT_ACTION_WIDTH = 70;
 const DEFAULT_SPRING: SpringConfig = {useNativeDriver: true};
+const DEFAULT_OVERLAP = 12; // Default overlap to hide the seam
 
 export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
   actionIcon,
@@ -50,7 +51,7 @@ export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
   cardProps,
   renderActionContent,
   springConfig,
-  actionOverlap = 0,
+  actionOverlap = DEFAULT_OVERLAP,
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -156,7 +157,7 @@ const createStyles = (theme: any) =>
       top: 0,
       bottom: 0,
       justifyContent: 'center',
-      alignItems: 'flex-end',
+      alignItems: 'center',
       borderTopRightRadius: theme.borderRadius.lg,
       borderBottomRightRadius: theme.borderRadius.lg,
       zIndex: 0,
@@ -165,8 +166,8 @@ const createStyles = (theme: any) =>
       alignItems: 'stretch',
     },
     actionButton: {
-      width: 48,
-      height: 48,
+      flex: 1,
+      width: '100%',
       alignItems: 'center',
       justifyContent: 'center',
     },
