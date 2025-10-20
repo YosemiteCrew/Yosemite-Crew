@@ -30,6 +30,7 @@ import CustomBottomSheet, {
 } from '../../components/common/BottomSheet/BottomSheet';
 import {AddressFields, type AddressFieldValues} from '@/components/forms/AddressFields';
 import {useTheme, useAddressAutocomplete} from '@/hooks';
+import {createFormScreenStyles} from '@/utils/formScreenStyles';
 import {Images} from '../../assets/images';
 import {Checkbox} from '../../components/common/Checkbox/Checkbox';
 import COUNTRIES from '../../utils/countryList.json';
@@ -985,26 +986,7 @@ const handleGoBack = useCallback(async () => {
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    keyboardAvoidingView: {
-      flex: 1,
-    },
-    scrollView: {
-      flex: 1,
-    },
-    scrollContent: {
-      paddingHorizontal: theme.spacing['5'], // 20
-      paddingBottom: theme.spacing['24'], // 96 - space for fixed button
-    },
-    formSection: {
-      marginBottom: theme.spacing['5'], // 20
-    },
-    inputContainer: {
-      marginBottom: theme.spacing['5'], // 20 - space between inputs + error messages
-    },
+    ...createFormScreenStyles(theme),
     countrySection: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -1020,17 +1002,6 @@ const createStyles = (theme: any) =>
       ...theme.typography.body,
       color: theme.colors.text,
       fontWeight: '500',
-    },
-    dropdownIcon: {
-      width: theme.spacing['3'], // 12
-      height: theme.spacing['3'], // 12
-      marginLeft: theme.spacing['2'], // 8
-      tintColor: theme.colors.textSecondary,
-    },
-    calendarIcon: {
-      width: theme.spacing['5'], // 20
-      height: theme.spacing['5'], // 20
-      tintColor: theme.colors.textSecondary,
     },
     checkboxWrapper: {
       marginBottom: theme.spacing['5'], // 20
@@ -1064,41 +1035,6 @@ const createStyles = (theme: any) =>
       color: theme.colors.primary,
       textDecorationLine: 'underline',
       fontSize: 14,
-    },
-
-    submissionError: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.error,
-      textAlign: 'center',
-      paddingHorizontal: theme.spacing['5'],
-      marginBottom: theme.spacing['2'],
-    },
-
-    buttonContainer: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      paddingHorizontal: theme.spacing['5'], // 20
-      paddingTop: theme.spacing['4'], // 16
-      paddingBottom: theme.spacing['10'], // 40
-      backgroundColor: theme.colors.background,
-    },
-    button: {
-      width: '100%',
-      backgroundColor: theme.colors.secondary,
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.35)',
-      shadowColor: '#000000',
-      shadowOffset: {width: 0, height: 8},
-      shadowOpacity: 0.15,
-      shadowRadius: 12,
-      elevation: 4,
-    },
-    buttonText: {
-      color: theme.colors.white,
-      ...theme.typography.paragraphBold,
     },
     bottomSheetContainer: {
       position: 'absolute',
