@@ -173,6 +173,7 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       height: '100%',
       width: '100%',
+      backgroundColor:theme.colors.primary,
     },
     overlapContainer: {
       height: '100%',
