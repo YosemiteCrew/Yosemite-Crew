@@ -21,18 +21,12 @@ export const ExpensesEmptyScreen: React.FC = () => {
     }
   };
 
-  const handleAddExpense = () => {
-    navigation.navigate('AddExpense');
-  };
-
   return (
     <SafeArea>
       <Header
         title="Expenses"
         showBackButton
         onBack={handleBack}
-        rightIcon={Images.addIconDark}
-        onRightPress={handleAddExpense}
       />
       <View style={styles.container}>
         <Image source={Images.emptyExpenseIllustration} style={styles.illustration} />
