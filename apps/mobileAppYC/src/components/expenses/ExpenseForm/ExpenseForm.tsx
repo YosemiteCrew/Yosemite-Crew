@@ -196,7 +196,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         {showProviderField && (
           <View style={styles.fieldGroup}>
             <Input
-              label="Provider / business"
+              label="Provider / Business"
               value={formData.providerName ?? ''}
               onChangeText={text => onFormChange('providerName', text)}
             />
