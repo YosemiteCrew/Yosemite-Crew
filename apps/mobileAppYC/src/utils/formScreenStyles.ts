@@ -36,7 +36,7 @@ export const createFormScreenStyles = (theme: any) =>
     },
     scrollContent: {
       paddingHorizontal: theme.spacing[5],
-      paddingBottom: theme.spacing[10],
+      paddingBottom: theme.spacing[20],
     },
     formSection: {
       marginBottom: theme.spacing[5],
