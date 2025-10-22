@@ -191,15 +191,13 @@ const createStyles = (theme: any) =>
       width: 24,
       height: 24,
       borderRadius: 12,
-      backgroundColor: theme.colors.black,
       opacity: 0.6,
       alignItems: 'center',
       justifyContent: 'center',
     },
     removeIcon: {
-      width: 12,
-      height: 12,
-      tintColor: theme.colors.white,
+      width: 24,
+      height: 24,
       resizeMode: 'contain',
     },
     errorText: {
