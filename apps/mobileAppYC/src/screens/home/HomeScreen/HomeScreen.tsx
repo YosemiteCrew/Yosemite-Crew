@@ -28,6 +28,12 @@ import {
 import {selectAuthUser} from '@/features/auth/selectors';
 import {AppointmentCard} from '@/components/common/AppointmentCard/AppointmentCard';
 import {TaskCard} from '@/components/common/TaskCard/TaskCard';
+import {resolveCurrencySymbol} from '@/utils/currency';
+import {
+  fetchExpensesForCompanion,
+  selectExpenseSummaryByCompanion,
+  selectHasHydratedCompanion,
+} from '@/features/expenses';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Home'>;
 
@@ -54,6 +60,13 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
   const companions = useSelector(selectCompanions);
   const selectedCompanionIdRedux = useSelector(selectSelectedCompanionId);
+  const expenseSummary = useSelector(
+    selectExpenseSummaryByCompanion(selectedCompanionIdRedux ?? null),
+  );
+  const hasExpenseHydrated = useSelector(
+    selectHasHydratedCompanion(selectedCompanionIdRedux ?? null),
+  );
+  const userCurrencyCode = authUser?.currency ?? 'USD';
   
   const [hasUpcomingTasks, setHasUpcomingTasks] = React.useState(true);
   const [hasUpcomingAppointments, setHasUpcomingAppointments] = React.useState(true);
@@ -81,6 +94,25 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       dispatch(setSelectedCompanion(companions[0].id));
     }
   }, [companions, selectedCompanionIdRedux, dispatch]); 
+
+  React.useEffect(() => {
+    if (selectedCompanionIdRedux && !hasExpenseHydrated) {
+      dispatch(fetchExpensesForCompanion({companionId: selectedCompanionIdRedux}));
+    }
+  }, [dispatch, hasExpenseHydrated, selectedCompanionIdRedux]);
+
+  const previousCurrencyRef = React.useRef(userCurrencyCode);
+
+  React.useEffect(() => {
+    if (
+      selectedCompanionIdRedux &&
+      hasExpenseHydrated &&
+      previousCurrencyRef.current !== userCurrencyCode
+    ) {
+      previousCurrencyRef.current = userCurrencyCode;
+      dispatch(fetchExpensesForCompanion({companionId: selectedCompanionIdRedux}));
+    }
+  }, [dispatch, selectedCompanionIdRedux, userCurrencyCode, hasExpenseHydrated]);
 
   const handleAddCompanion = () => {
     navigation.navigate('AddCompanion');
@@ -256,7 +288,16 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Expenses</Text>
-          <YearlySpendCard amount={0} />
+          <YearlySpendCard
+            amount={expenseSummary?.total ?? 0}
+            currencyCode={userCurrencyCode}
+            currencySymbol={resolveCurrencySymbol(userCurrencyCode, '$')}
+            onPressView={() =>
+              navigation.navigate('ExpensesStack', {
+                screen: 'ExpensesMain',
+              })
+            }
+          />
         </View>
 
         <View style={styles.section}>

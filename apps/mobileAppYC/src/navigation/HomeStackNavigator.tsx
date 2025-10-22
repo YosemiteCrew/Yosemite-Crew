@@ -7,6 +7,7 @@ import {HomeStackParamList} from './types';
 import {ProfileOverviewScreen} from '@/screens/companion/ProfileOverviewScreen';
 import { CompanionOverviewScreen } from '@/screens/companion/CompanionOverviewScreen';
 import { EditParentScreen } from '@/screens/account/EditParentScreen';
+import {ExpenseStackNavigator} from './ExpenseStackNavigator';
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();
 
@@ -55,6 +56,11 @@ export const HomeStackNavigator: React.FC = () => {
         <Stack.Screen
         name="EditParentOverview" // Renamed for clarity in navigation
         component={EditParentScreen}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="ExpensesStack"
+        component={ExpenseStackNavigator}
         options={{headerShown: false}}
       />
       

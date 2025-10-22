@@ -30,6 +30,7 @@ import {
   selectCompanionLoading,
 } from '@/features/companion/selectors';
 import {deleteCompanion, updateCompanionProfile} from '@/features/companion/thunks';
+import {setSelectedCompanion} from '@/features/companion';
 import {useAuth} from '@/contexts/AuthContext';
 import type {Companion} from '@/features/companion/types';
 
@@ -123,6 +124,12 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
     }
     if (sectionId === 'parent') {
       navigation.navigate('EditParentOverview', {companionId});
+    }
+    if (sectionId === 'expense') {
+      dispatch(setSelectedCompanion(companionId));
+      navigation.navigate('ExpensesStack', {
+        screen: 'ExpensesMain',
+      });
     }
     // Add logic for other sections here
   };
