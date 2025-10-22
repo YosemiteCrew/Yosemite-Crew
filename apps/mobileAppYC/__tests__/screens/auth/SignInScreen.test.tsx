@@ -31,7 +31,7 @@ jest.mock('@/assets/images', () => ({
 jest.mock('react-native/Libraries/Image/Image', () => ({
   __esModule: true,
   default: (props: any) => {
-    const {source, ...rest} = props;
+    const { ...rest} = props;
     return <MockView testID="mock-image" {...rest} />;
   },
 }));
@@ -166,7 +166,6 @@ const mockedEmit = jest.spyOn(DeviceEventEmitter, 'emit');
 
 const mockedRequestCode =
   passwordlessAuth.requestPasswordlessEmailCode as jest.Mock;
-const mockedFormatError = passwordlessAuth.formatAuthError as jest.Mock;
 const mockedUseSocialAuth = useSocialAuth as jest.Mock;
 const mockedUseTheme = useTheme as jest.Mock;
 

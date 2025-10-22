@@ -31,7 +31,7 @@ jest.mock('@/assets/images', () => ({
 
 jest.mock('react-native/Libraries/Image/Image', () => ({
   __esModule: true,
-  default: (props: any) => {
+  default: (_props: any) => {
     return <MockView testID="mock-image" />;
   },
 }));
