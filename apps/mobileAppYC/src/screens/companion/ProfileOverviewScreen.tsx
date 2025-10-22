@@ -17,6 +17,8 @@ import {Header} from '@/components';
 import {Images} from '@/assets/images';
 import {HomeStackParamList} from '@/navigation/types';
 import {LiquidGlassCard} from '@/components/common/LiquidGlassCard/LiquidGlassCard';
+import {createScreenContainerStyles} from '@/utils/screenStyles';
+import {createCenteredStyle} from '@/utils/commonHelpers';
 import DeleteProfileBottomSheet, {
   type DeleteProfileBottomSheetRef,
 } from '../../components/common/DeleteProfileBottomSheet/DeleteProfileBottomSheet';
@@ -32,7 +34,8 @@ import {useAuth} from '@/contexts/AuthContext';
 import type {Companion} from '@/features/companion/types';
 
 // Profile Image Picker
-import {ProfileImagePicker} from '@/components/common/ProfileImagePicker/ProfileImagePicker';
+import {CompanionProfileHeader} from '@/components/companion/CompanionProfileHeader';
+import type {ProfileImagePickerRef} from '@/components/common/ProfileImagePicker/ProfileImagePicker';
 
 type ProfileSection = {
   id: string;
@@ -64,7 +67,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   const deleteSheetRef = React.useRef<DeleteProfileBottomSheetRef>(null);
 
   // Profile image picker ref
-  const profileImagePickerRef = React.useRef<{ triggerPicker: () => void }>(null);
+  const profileImagePickerRef = React.useRef<ProfileImagePickerRef | null>(null);
 
   const dispatch = useDispatch<AppDispatch>();
   const {user} = useAuth();
@@ -76,6 +79,11 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
     () => allCompanions.find(c => c.id === companionId),
     [allCompanions, companionId],
   );
+
+  // Helper to show error alerts
+  const showErrorAlert = React.useCallback((title: string, message: string) => {
+    Alert.alert(title, message, [{text: 'OK'}]);
+  }, []);
 
   const handleProfileImageChange = React.useCallback(
     async (imageUri: string | null) => {
@@ -99,22 +107,21 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         console.log('[ProfileOverview] Profile image updated successfully');
       } catch (error) {
         console.error('[ProfileOverview] Failed to update profile image:', error);
-        Alert.alert(
+        showErrorAlert(
           'Image Update Failed',
-          'Failed to update profile image. Please try again.',
-          [{text: 'OK'}]
+          'Failed to update profile image. Please try again.'
         );
       }
     },
-    [companion, dispatch, user?.id],
+    [companion, dispatch, user?.id, showErrorAlert],
   );
 
-    // NEW: Handler for navigating to the Edit Screen
+  // Handler for navigating to the Edit Screen
   const handleSectionPress = (sectionId: string) => {
     if (sectionId === 'overview') {
       navigation.navigate('EditCompanionOverview', {companionId});
     }
-        if (sectionId === 'parent') {
+    if (sectionId === 'parent') {
       navigation.navigate('EditParentOverview', {companionId});
     }
     // Add logic for other sections here
@@ -144,18 +151,16 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         navigation.goBack();
       } else {
         console.error('[ProfileOverview] Failed to delete companion:', resultAction.payload);
-        Alert.alert(
+        showErrorAlert(
           'Delete Failed',
-          'Failed to delete companion profile. Please try again.',
-          [{text: 'OK'}]
+          'Failed to delete companion profile. Please try again.'
         );
       }
     } catch (error) {
       console.error('[ProfileOverview] Error deleting companion:', error);
-      Alert.alert(
+      showErrorAlert(
         'Delete Failed',
-        'An error occurred while deleting the companion profile.',
-        [{text: 'OK'}]
+        'An error occurred while deleting the companion profile.'
       );
     }
   };
@@ -168,7 +173,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
           {isLoading ? (
             <ActivityIndicator size="large" color={theme.colors.primary} />
           ) : (
-            <Text style={styles.profileName}>Companion not found.</Text>
+            <Text style={styles.emptyStateText}>Companion not found.</Text>
           )}
         </View>
       </SafeAreaView>
@@ -188,34 +193,18 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
-        {/* Top section — normal */}
-        <View style={styles.profileHeader}>
-          <View style={styles.avatarContainer}>
-            <ProfileImagePicker
-              ref={profileImagePickerRef}
-              imageUri={companion.profileImage}
-              onImageSelected={handleProfileImageChange}
-              size={100}
-              pressable={false}
-              fallbackText={companion.name.charAt(0).toUpperCase()}
-            />
-            <TouchableOpacity style={styles.cameraIconContainer} onPress={() => {
-              profileImagePickerRef.current?.triggerPicker();
-            }}>
-              <Image source={Images.cameraIcon} style={styles.cameraIcon} />
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.profileName}>{companion.name}</Text>
-          <Text style={styles.profileBreed}>
-            {companion.breed?.breedName ?? 'Unknown Breed'}
-          </Text>
-        </View>
+        <CompanionProfileHeader
+          name={companion.name}
+          breedName={companion.breed?.breedName}
+          profileImage={companion.profileImage ?? undefined}
+          pickerRef={profileImagePickerRef}
+          onImageSelected={handleProfileImageChange}
+        />
 
         {/* Only menu list inside glass card */}
         <LiquidGlassCard
           glassEffect="clear"
           interactive
-          tintColor={theme.colors.white}
           style={styles.glassContainer}
           fallbackStyle={styles.glassFallback}>
           <View style={styles.listContainer}>
@@ -263,56 +252,15 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    centered: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
+    ...createScreenContainerStyles(theme),
+    ...createCenteredStyle(theme),
+    emptyStateText: {
+      ...theme.typography.body,
+      color: theme.colors.textSecondary,
     },
     content: {
       paddingHorizontal: theme.spacing[5],
       paddingBottom: theme.spacing[10],
-    },
-    profileHeader: {
-      alignItems: 'center',
-      marginVertical: theme.spacing[6],
-    },
-    avatarContainer: {
-      position: 'relative',
-    },
-    avatar: {
-      width: 100,
-      height: 100,
-      borderRadius: 50,
-      backgroundColor: theme.colors.border,
-    },
-    cameraIconContainer: {
-      position: 'absolute',
-      bottom: 10,
-      right: 0,
-      backgroundColor: theme.colors.secondary,
-      padding: theme.spacing[2],
-      borderRadius: theme.borderRadius.full,
-      borderWidth: 2,
-      borderColor: theme.colors.background,
-    },
-    cameraIcon: {
-      width: 16,
-      height: 16,
-      tintColor: theme.colors.white,
-    },
-    profileName: {
-      ...theme.typography.h4Alt,
-      color: theme.colors.secondary,
-      marginTop: theme.spacing[4],
-    },
-    profileBreed: {
-      ...theme.typography.bodySmall,
-      color: theme.colors.textSecondary,
-      marginTop: theme.spacing[1],
     },
     glassContainer: {
       borderRadius: theme.borderRadius.lg,

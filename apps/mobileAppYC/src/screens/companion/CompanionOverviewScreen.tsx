@@ -2,9 +2,7 @@ import React, {useMemo, useRef, useState, useCallback} from 'react';
 import {
   View,
   Text,
-  Image,
   ScrollView,
-  TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
   Alert,
@@ -16,9 +14,10 @@ import {useDispatch, useSelector} from 'react-redux';
 import type {AppDispatch} from '@/app/store';
 
 import {Header} from '@/components';
-import {LiquidGlassCard} from '@/components/common/LiquidGlassCard/LiquidGlassCard';
-import {Images} from '@/assets/images';
 import {useTheme} from '@/hooks';
+import {capitalize, displayNeutered, displayInsured, displayOrigin} from '@/utils/commonHelpers';
+import {createFormScreenStyles} from '@/utils/formScreenStyles';
+import {Separator, RowButton} from '@/components/common/FormRowComponents';
 
 import {
   selectSelectedCompanion,
@@ -68,7 +67,8 @@ import {
 } from '@/components/common/SimpleDatePicker/SimpleDatePicker';
 
 // Profile Image Picker
-import {ProfileImagePicker} from '@/components/common/ProfileImagePicker/ProfileImagePicker';
+import {CompanionProfileHeader} from '@/components/companion/CompanionProfileHeader';
+import type {ProfileImagePickerRef} from '@/components/common/ProfileImagePicker/ProfileImagePicker';
 
 // Types
 import type {
@@ -110,7 +110,7 @@ export const CompanionOverviewScreen: React.FC<
   const originSheetRef = useRef<OriginBottomSheetRef>(null);
 
   // Profile image picker ref
-  const profileImagePickerRef = useRef<{ triggerPicker: () => void }>(null);
+  const profileImagePickerRef = useRef<ProfileImagePickerRef | null>(null);
 
   // Helpers
   const goBack = useCallback(() => {
@@ -199,28 +199,13 @@ export const CompanionOverviewScreen: React.FC<
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
-        {/* Header block */}
-        <View style={styles.profileHeader}>
-          <View style={styles.avatarContainer}>
-            <ProfileImagePicker
-              ref={profileImagePickerRef}
-              imageUri={safeCompanion.profileImage}
-              onImageSelected={handleProfileImageChange}
-              size={100}
-              pressable={false}
-              fallbackText={safeCompanion.name.charAt(0).toUpperCase()}
-            />
-            <TouchableOpacity style={styles.cameraIconContainer} onPress={() => {
-              profileImagePickerRef.current?.triggerPicker();
-            }}>
-              <Image source={Images.cameraIcon} style={styles.cameraIcon} />
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.profileName}>{safeCompanion.name}</Text>
-          <Text style={styles.profileBreed}>
-            {safeCompanion.breed?.breedName ?? 'Unknown Breed'}
-          </Text>
-        </View>
+        <CompanionProfileHeader
+          name={safeCompanion.name}
+          breedName={safeCompanion.breed?.breedName}
+          profileImage={safeCompanion.profileImage ?? undefined}
+          pickerRef={profileImagePickerRef}
+          onImageSelected={handleProfileImageChange}
+        />
 
         {/* Card with rows */}
         <LiquidGlassCard
@@ -486,80 +471,10 @@ export const CompanionOverviewScreen: React.FC<
   );
 };
 
-/* ----------------- Small shared pieces ----------------- */
-const Separator = () => {
-  const {theme} = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
-  return (
-    <View style={styles.separator} />
-  );
-};
+import {LiquidGlassCard} from '@/components/common/LiquidGlassCard/LiquidGlassCard';
 
-const RowButton: React.FC<{
-  label: string;
-  value?: string;
-  onPress: () => void;
-}> = ({label, value, onPress}) => {
-  const {theme} = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
-  return (
-    <TouchableOpacity
-      style={styles.rowButtonTouchable}
-      activeOpacity={0.8}
-      onPress={onPress}>
-      <Text style={styles.rowButtonLabel}>
-        {label}
-      </Text>
-      <Text
-        style={styles.rowButtonValue}
-        numberOfLines={1}>
-        {value || ' '}
-      </Text>
-      <Image
-        source={Images.rightArrow}
-        style={styles.rowButtonArrow}
-      />
-    </TouchableOpacity>
-  );
-};
-
-function capitalize(s?: string | null) {
-  if (s == null || s === '') {
-    return '';
-  }
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-function displayNeutered(v?: NeuteredStatus | null) {
-  if (v == null) {
-    return '';
-  }
-  return v === 'neutered' ? 'Neutered' : 'Not neutered';
-}
-
-function displayInsured(v?: InsuredStatus | null) {
-  if (v == null) {
-    return '';
-  }
-  return v === 'insured' ? 'Insured' : 'Not insured';
-}
-
-function displayOrigin(v?: CompanionOrigin | null) {
-  switch (v) {
-    case 'shop':
-      return 'Shop';
-    case 'breeder':
-      return 'Breeder';
-    case 'foster-shelter':
-      return 'Foster/ Shelter';
-    case 'friends-family':
-      return 'Friends or family';
-    case 'unknown':
-      return 'Unknown';
-    default:
-      return '';
-  }
-}
+// Helper functions moved to @/utils/commonHelpers:
+// - capitalize, displayNeutered, displayInsured, displayOrigin
 
 // Use same util as AddCompanionScreen if exported; otherwise fallback safe helper here.
 function getBreedListByCategorySafe(category: any): Breed[] {
@@ -592,99 +507,5 @@ function getSelectedCountryObject(countryName?: string | null) {
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    centered: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    content: {
-      paddingHorizontal: theme.spacing[5],
-      paddingBottom: theme.spacing[10],
-    },
-    profileHeader: {
-      alignItems: 'center',
-      marginVertical: theme.spacing[6],
-    },
-    avatarContainer: {
-      position: 'relative',
-    },
-    avatar: {
-      width: 100,
-      height: 100,
-      borderRadius: 50,
-      backgroundColor: theme.colors.border,
-    },
-    cameraIconContainer: {
-      position: 'absolute',
-      bottom: 0,
-      right: 0,
-      backgroundColor: theme.colors.secondary,
-      padding: theme.spacing[2],
-      borderRadius: theme.borderRadius.full,
-      borderWidth: 2,
-      borderColor: theme.colors.background,
-    },
-    cameraIcon: {
-      width: 16,
-      height: 16,
-      tintColor: theme.colors.white,
-    },
-    profileName: {
-      ...theme.typography.h4Alt,
-      color: theme.colors.secondary,
-      marginTop: theme.spacing[4],
-    },
-    profileBreed: {
-      ...theme.typography.bodySmall,
-      color: theme.colors.textSecondary,
-      marginTop: theme.spacing[1],
-    },
-    glassContainer: {
-      borderRadius: theme.borderRadius.lg,
-      paddingVertical: theme.spacing[2],
-      overflow: 'hidden',
-      ...theme.shadows.md,
-    },
-    glassFallback: {
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.cardBackground,
-      borderColor: theme.colors.borderMuted,
-    },
-    listContainer: {
-      gap: theme.spacing[1],
-    },
-    muted: {
-      ...theme.typography.body,
-      color: theme.colors.textSecondary,
-    },
-    separator: {
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.borderSeperator,
-      marginLeft: 16,
-    },
-    rowButtonTouchable: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: theme.spacing[3],
-      paddingHorizontal: theme.spacing[3],
-    },
-    rowButtonLabel: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.secondary,
-      flex: 1,
-    },
-    rowButtonValue: {
-      ...theme.typography.bodySmall,
-      color: theme.colors.textSecondary,
-      marginRight: theme.spacing[3],
-    },
-    rowButtonArrow: {
-      width: 16,
-      height: 16,
-      resizeMode: 'contain',
-    },
+    ...createFormScreenStyles(theme),
   });

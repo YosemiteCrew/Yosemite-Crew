@@ -17,6 +17,9 @@ import {
 } from '@callstack/liquid-glass';
 import {useTheme} from '../../../hooks';
 
+const LIGHT_GLASS_TINT = 'rgba(255, 255, 255, 0.65)';
+const DARK_GLASS_TINT = 'rgba(28, 28, 30, 0.55)';
+
 const SHADOW_MAP = {
   light: {shadowOpacity: 0.1, shadowRadius: 4, elevation: 1},
   medium: {shadowOpacity: 0.15, shadowRadius: 8, elevation: 3},
@@ -171,12 +174,17 @@ const buildGlassSurfaceStyle = ({
 const resolvePlatformLabelColor = (
   isDark: boolean,
   themeColors: ReturnType<typeof useTheme>['theme']['colors'],
-) =>
-  typeof PlatformColor === 'function'
-    ? PlatformColor('labelColor')
-    : isDark
-      ? themeColors.white
-      : themeColors.text;
+) => {
+  if (typeof PlatformColor === 'function') {
+    return PlatformColor('labelColor');
+  }
+
+  if (isDark) {
+    return themeColors.white;
+  }
+
+  return themeColors.text;
+};
 
 const computeTextColor = ({
   disabled,
@@ -287,6 +295,19 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
   shadowIntensity = 'light',
 }) => {
   const {theme, isDark} = useTheme();
+  const resolvedTintColor = React.useMemo(() => {
+    if (tintColor) {
+      return tintColor;
+    }
+    return isDark ? DARK_GLASS_TINT : LIGHT_GLASS_TINT;
+  }, [isDark, tintColor]);
+
+  const resolvedColorScheme = React.useMemo(() => {
+    if (colorScheme !== 'system') {
+      return colorScheme;
+    }
+    return isDark ? 'dark' : 'light';
+  }, [colorScheme, isDark]);
   const borderRadiusValue = React.useMemo(
     () =>
       resolveBorderRadius(
@@ -318,8 +339,8 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
   );
 
   const isLightTint = React.useMemo(
-    () => isWhiteOrLightColor(tintColor),
-    [tintColor],
+    () => isWhiteOrLightColor(resolvedTintColor),
+    [resolvedTintColor],
   );
 
   const surfaceStyle = React.useMemo(() => {
@@ -333,12 +354,19 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
     }
 
     return buildFallbackSurfaceStyle({
-      tintColor,
+      tintColor: resolvedTintColor,
       isDark,
       borderColor,
       isLightTint,
     });
-  }, [borderColor, forceBorder, isDark, isLightTint, shadowIntensity, tintColor]);
+  }, [
+    borderColor,
+    forceBorder,
+    isDark,
+    isLightTint,
+    resolvedTintColor,
+    shadowIntensity,
+  ]);
 
   const buttonStyle = React.useMemo(
     () => ({
@@ -355,12 +383,12 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
     () =>
       computeTextColor({
         disabled,
-        tintColor,
+        tintColor: resolvedTintColor,
         isDark,
         themeColors: theme.colors,
         useIosGlass,
       }),
-    [disabled, tintColor, isDark, theme.colors, useIosGlass],
+    [disabled, resolvedTintColor, isDark, theme.colors, useIosGlass],
   );
 
   const buttonTextStyle = React.useMemo<TextStyle>(
@@ -381,12 +409,12 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
   const loadingColor = React.useMemo(
     () =>
       computeLoadingColor({
-        tintColor,
+        tintColor: resolvedTintColor,
         isDark,
         themeColors: theme.colors,
         useIosGlass,
       }),
-    [isDark, theme.colors, tintColor, useIosGlass],
+    [isDark, theme.colors, resolvedTintColor, useIosGlass],
   );
 
   const getButtonContent = () => {
@@ -432,8 +460,8 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
         style={[buttonStyle, style]}
         interactive={interactive && !disabled && !loading}
         effect={glassEffect}
-        tintColor={tintColor}
-        colorScheme={colorScheme}>
+        tintColor={resolvedTintColor}
+        colorScheme={resolvedColorScheme}>
         <TouchableOpacity
           style={{
             width: '100%',

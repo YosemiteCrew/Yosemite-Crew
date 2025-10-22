@@ -10,8 +10,9 @@ import {
   Platform,
   Image,
   TouchableOpacity,
+  type KeyboardTypeOptions,
 } from 'react-native';
-import {useForm, Controller} from 'react-hook-form';
+import {useForm, Controller, type ControllerProps} from 'react-hook-form';
 import {SafeArea, Input, Header} from '../../components/common';
 import {ProfileImagePicker} from '../../components/common/ProfileImagePicker/ProfileImagePicker';
 import {TileSelector} from '../../components/common/TileSelector/TileSelector';
@@ -36,6 +37,7 @@ import {
 } from '@/components/common/CountryBottomSheet/CountryBottomSheet';
 
 import {useTheme} from '../../hooks';
+import {createFormScreenStyles} from '@/utils/formScreenStyles';
 import {Images} from '../../assets/images';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import type {HomeStackParamList} from '../../navigation/types';
@@ -161,6 +163,63 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
     },
     mode: 'onChange',
   });
+
+  const getFieldError = (field: keyof FormData) => errors[field]?.message;
+
+  type TextFieldKey =
+    | 'name'
+    | 'currentWeight'
+    | 'color'
+    | 'allergies'
+    | 'ageWhenNeutered'
+    | 'microchipNumber'
+    | 'passportNumber'
+    | 'insuranceCompany'
+    | 'insurancePolicyNumber';
+
+  const renderTextField = <Field extends TextFieldKey>(
+    field: Field,
+    {
+      label,
+      placeholder,
+      keyboardType,
+    maxLength,
+    multiline,
+    rules,
+  }: {
+    label: string;
+    placeholder?: string;
+    keyboardType?: KeyboardTypeOptions;
+    maxLength?: number;
+    multiline?: boolean;
+    rules?: ControllerProps<FormData, Field>['rules'];
+  },
+) => (
+  <Controller<FormData, Field>
+    control={control}
+    name={field}
+    rules={rules}
+    render={({field: {onChange, value}}) => {
+      let textValue = '';
+      if (typeof value === 'string' || typeof value === 'number') {
+        textValue = String(value ?? '');
+      }
+      return (
+        <Input
+          label={label}
+          value={textValue}
+          onChangeText={onChange}
+          placeholder={placeholder}
+          keyboardType={keyboardType}
+          maxLength={maxLength}
+          multiline={multiline}
+          error={getFieldError(field)}
+          containerStyle={styles.inputContainer}
+        />
+      );
+    }}
+  />
+);
 
   const category = watch('category');
   const neuteredStatus = watch('neuteredStatus');
@@ -433,27 +492,17 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
       />
 
       <View style={styles.formSection}>
-        <Controller
-          control={control}
-          name="name"
-          rules={{
+        {renderTextField('name', {
+          label: 'Name',
+          maxLength: 50,
+          rules: {
             required: 'Name is required',
             minLength: {
               value: 2,
               message: 'Name must be at least 2 characters',
             },
-          }}
-          render={({field: {onChange, value}}) => (
-            <Input
-              label="Name"
-              value={value}
-              onChangeText={onChange}
-              error={errors.name?.message}
-              maxLength={50}
-              containerStyle={styles.inputContainer}
-            />
-          )}
-        />
+          },
+        })}
 
         <Controller
           control={control}
@@ -520,52 +569,22 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
           )}
         </View>
 
-        <Controller
-          control={control}
-          name="currentWeight"
-          render={({field: {onChange, value}}) => (
-            <Input
-              label="Current weight (optional)"
-              value={value}
-              onChangeText={onChange}
-              placeholder="kgs"
-              keyboardType="decimal-pad"
-              error={errors.currentWeight?.message}
-              containerStyle={styles.inputContainer}
-            />
-          )}
-        />
+        {renderTextField('currentWeight', {
+          label: 'Current weight (optional)',
+          placeholder: 'kgs',
+          keyboardType: 'decimal-pad',
+        })}
 
-        <Controller
-          control={control}
-          name="color"
-          render={({field: {onChange, value}}) => (
-            <Input
-              label="Colour (optional)"
-              value={value}
-              onChangeText={onChange}
-              error={errors.color?.message}
-              maxLength={50}
-              containerStyle={styles.inputContainer}
-            />
-          )}
-        />
+        {renderTextField('color', {
+          label: 'Colour (optional)',
+          maxLength: 50,
+        })}
 
-        <Controller
-          control={control}
-          name="allergies"
-          render={({field: {onChange, value}}) => (
-            <Input
-              label="Allergies (optional)"
-              value={value}
-              onChangeText={onChange}
-              error={errors.allergies?.message}
-              maxLength={200}
-              multiline
-              containerStyle={styles.inputContainer}
-            />
-          )}
-        />
+        {renderTextField('allergies', {
+          label: 'Allergies (optional)',
+          maxLength: 200,
+          multiline: true,
+        })}
 
         <View style={styles.fieldGroup}>
           <Text style={styles.fieldLabel}>Neutered status</Text>
@@ -592,23 +611,12 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
           )}
         </View>
 
-        {neuteredStatus === 'neutered' && (
-          <Controller
-            control={control}
-            name="ageWhenNeutered"
-            render={({field: {onChange, value}}) => (
-              <Input
-                label="Age when neutered"
-                value={value}
-                onChangeText={onChange}
-                placeholder="e.g., 1 Year"
-                error={errors.ageWhenNeutered?.message}
-                maxLength={20}
-                containerStyle={styles.inputContainer}
-              />
-            )}
-          />
-        )}
+        {neuteredStatus === 'neutered' &&
+          renderTextField('ageWhenNeutered', {
+            label: 'Age when neutered',
+            placeholder: 'e.g., 1 Year',
+            maxLength: 20,
+          })}
       </View>
     </View>
   );
@@ -642,35 +650,15 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
           )}
         />
 
-        <Controller
-          control={control}
-          name="microchipNumber"
-          render={({field: {onChange, value}}) => (
-            <Input
-              label="Microchip number (optional)"
-              value={value}
-              onChangeText={onChange}
-              error={errors.microchipNumber?.message}
-              maxLength={50}
-              containerStyle={styles.inputContainer}
-            />
-          )}
-        />
+        {renderTextField('microchipNumber', {
+          label: 'Microchip number (optional)',
+          maxLength: 50,
+        })}
 
-        <Controller
-          control={control}
-          name="passportNumber"
-          render={({field: {onChange, value}}) => (
-            <Input
-              label="Passport number (optional)"
-              value={value}
-              onChangeText={onChange}
-              error={errors.passportNumber?.message}
-              maxLength={50}
-              containerStyle={styles.inputContainer}
-            />
-          )}
-        />
+        {renderTextField('passportNumber', {
+          label: 'Passport number (optional)',
+          maxLength: 50,
+        })}
 
         <View style={styles.fieldGroup}>
           <Controller
@@ -696,36 +684,16 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
 
         {insuredStatus === 'insured' && (
           <React.Fragment key="insurance-fields">
-            <Controller
-              control={control}
-              name="insuranceCompany"
-              render={({field: {onChange, value}}) => (
-                <Input
-                  label="Insurance company (optional)"
-                  value={value}
-                  onChangeText={onChange}
-                  error={errors.insuranceCompany?.message}
-                  maxLength={100}
-                  containerStyle={styles.inputContainer}
-                />
-              )}
-            />
+            {renderTextField('insuranceCompany', {
+              label: 'Insurance company (optional)',
+              maxLength: 100,
+            })}
 
-            <Controller
-              control={control}
-              name="insurancePolicyNumber"
-              render={({field: {onChange, value}}) => (
-                <Input
-                  label="Insurance policy number"
-                  value={value}
-                  onChangeText={onChange}
-                  placeholder="Insurance policy number"
-                  error={errors.insurancePolicyNumber?.message}
-                  maxLength={50}
-                  containerStyle={styles.inputContainer}
-                />
-              )}
-            />
+            {renderTextField('insurancePolicyNumber', {
+              label: 'Insurance policy number',
+              placeholder: 'Insurance policy number',
+              maxLength: 50,
+            })}
           </React.Fragment>
         )}
 
@@ -891,20 +859,7 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    keyboardAvoidingView: {
-      flex: 1,
-    },
-    scrollView: {
-      flex: 1,
-    },
-    scrollContent: {
-      paddingHorizontal: theme.spacing['5'],
-      paddingBottom: theme.spacing['24'],
-    },
+    ...createFormScreenStyles(theme),
     stepContainer: {
       flex: 1,
     },
@@ -950,72 +905,5 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.primary,
       borderRadius: 2,
       marginTop: theme.spacing['1'],
-    },
-    formSection: {
-      marginBottom: theme.spacing['5'],
-      gap: theme.spacing['4'],
-    },
-    inputContainer: {
-      marginBottom: 0,
-    },
-    fieldGroup: {
-      gap: theme.spacing['3'],
-      paddingBottom:5
-    },
-    fieldLabel: {
-      ...theme.typography.body,
-      color: theme.colors.text,
-      fontWeight: '600',
-    },
-    dropdownIcon: {
-      width: theme.spacing['3'],
-      height: theme.spacing['3'],
-      marginLeft: theme.spacing['2'],
-      tintColor: theme.colors.textSecondary,
-    },
-    calendarIcon: {
-      width: theme.spacing['5'],
-      height: theme.spacing['5'],
-      tintColor: theme.colors.textSecondary,
-    },
-    errorText: {
-      ...theme.typography.labelXsBold,
-      color: theme.colors.error,
-      marginTop: -theme.spacing[3],
-      marginBottom: theme.spacing[3],
-      marginLeft: theme.spacing[1],
-    },
-    submissionError: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.error,
-      textAlign: 'center',
-      paddingHorizontal: theme.spacing['5'],
-      marginBottom: theme.spacing['2'],
-    },
-    buttonContainer: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      paddingHorizontal: theme.spacing['5'],
-      paddingTop: theme.spacing['4'],
-      paddingBottom: theme.spacing['4'],
-      backgroundColor: theme.colors.background,
-    },
-    button: {
-      width: '100%',
-      backgroundColor: theme.colors.secondary,
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.35)',
-      shadowColor: '#000000',
-      shadowOffset: {width: 0, height: 8},
-      shadowOpacity: 0.15,
-      shadowRadius: 12,
-      elevation: 4,
-    },
-    buttonText: {
-      color: theme.colors.white,
-      ...theme.typography.paragraphBold,
     },
   });
