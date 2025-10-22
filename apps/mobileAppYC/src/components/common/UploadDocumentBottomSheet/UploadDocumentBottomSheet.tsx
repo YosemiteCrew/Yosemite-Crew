@@ -24,6 +24,26 @@ export const UploadDocumentBottomSheet = forwardRef<
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const bottomSheetRef = useRef<BottomSheetRef>(null);
+  const uploadOptions = useMemo(
+    () => [
+      {
+        label: 'Take Photo',
+        icon: Images.cameraWhite,
+        action: onTakePhoto,
+      },
+      {
+        label: 'Choose from Gallery',
+        icon: Images.galleryIcon,
+        action: onChooseGallery,
+      },
+      {
+        label: 'Upload from Drive',
+        icon: Images.driveIcon,
+        action: onUploadDrive,
+      },
+    ],
+    [onChooseGallery, onTakePhoto, onUploadDrive],
+  );
 
   useImperativeHandle(ref, () => ({
     open: () => {
@@ -73,29 +93,19 @@ export const UploadDocumentBottomSheet = forwardRef<
         </View>
 
         <View style={styles.optionsList}>
-          <TouchableOpacity
-            style={styles.optionItem}
-            onPress={() => handleOptionPress(onTakePhoto)}
-            activeOpacity={0.7}>
-            <Text style={styles.optionText}>Take Photo</Text>
-            <Image source={Images.cameraWhite} style={styles.optionIcon} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.optionItem}
-            onPress={() => handleOptionPress(onChooseGallery)}
-            activeOpacity={0.7}>
-            <Text style={styles.optionText}>Choose from Gallery</Text>
-            <Image source={Images.galleryIcon} style={styles.optionIcon} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.optionItem, styles.optionItemLast]}
-            onPress={() => handleOptionPress(onUploadDrive)}
-            activeOpacity={0.7}>
-            <Text style={styles.optionText}>Upload from Drive</Text>
-            <Image source={Images.driveIcon} style={styles.optionIcon} />
-          </TouchableOpacity>
+          {uploadOptions.map((option, index) => (
+            <TouchableOpacity
+              key={option.label}
+              style={[
+                styles.optionItem,
+                index === uploadOptions.length - 1 && styles.optionItemLast,
+              ]}
+              onPress={() => handleOptionPress(option.action)}
+              activeOpacity={0.7}>
+              <Text style={styles.optionText}>{option.label}</Text>
+              <Image source={option.icon} style={styles.optionIcon} />
+            </TouchableOpacity>
+          ))}
         </View>
       </View>
     </CustomBottomSheet>

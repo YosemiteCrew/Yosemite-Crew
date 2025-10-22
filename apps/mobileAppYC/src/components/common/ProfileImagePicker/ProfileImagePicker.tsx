@@ -29,8 +29,10 @@ interface ProfileImagePickerProps {
   fallbackText?: string;
 }
 
+export type ProfileImagePickerRef = { triggerPicker: () => void };
+
 export const ProfileImagePicker = React.forwardRef<
-  { triggerPicker: () => void },
+  ProfileImagePickerRef,
   ProfileImagePickerProps
 >(({
   imageUri,

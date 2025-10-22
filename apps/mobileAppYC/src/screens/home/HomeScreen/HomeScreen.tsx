@@ -95,7 +95,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       return 0;
     }
     const charSum = Array.from(companionId).reduce(
-      (accumulator, character) => accumulator + character.charCodeAt(0),
+      (accumulator, character) => accumulator + (character.codePointAt(0) ?? 0),
       0,
     );
     return (charSum % 5) + 1;

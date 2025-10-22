@@ -4,12 +4,11 @@ import React, {
   useMemo,
   useRef,
 } from 'react';
-import {StyleSheet, Text, View} from 'react-native';
+import {StyleSheet} from 'react-native';
 
-import CustomBottomSheet, {
-  type BottomSheetRef,
-} from '@/components/common/BottomSheet/BottomSheet';
-import LiquidGlassButton from '@/components/common/LiquidGlassButton/LiquidGlassButton';
+import ConfirmActionBottomSheet, {
+  type ConfirmActionBottomSheetRef,
+} from '@/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet';
 import {useTheme} from '@/hooks';
 
 export interface DeleteProfileBottomSheetRef {
@@ -30,19 +29,19 @@ export const DeleteProfileBottomSheet = forwardRef<
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
-  const bottomSheetRef = useRef<BottomSheetRef>(null);
+  const sheetRef = useRef<ConfirmActionBottomSheetRef>(null);
 
   useImperativeHandle(ref, () => ({
     open: () => {
-      bottomSheetRef.current?.snapToIndex(0);
+      sheetRef.current?.open();
     },
     close: () => {
-      bottomSheetRef.current?.close();
+      sheetRef.current?.close();
     },
   }));
 
   const handleClose = () => {
-    bottomSheetRef.current?.close();
+    sheetRef.current?.close();
   };
 
   const handleCancel = () => {
@@ -56,46 +55,32 @@ export const DeleteProfileBottomSheet = forwardRef<
   };
 
   return (
-    <CustomBottomSheet
-      ref={bottomSheetRef}
-      snapPoints={['35%','45%']}
-      initialIndex={-1}
-      style={styles.bottomSheet}
-      enablePanDownToClose
-      enableBackdrop
-      backdropOpacity={0.5}
-      backdropPressBehavior="close"
-      backgroundStyle={styles.bottomSheetBackground}
-      handleIndicatorStyle={styles.bottomSheetHandle}>
-      <View style={styles.container}>
-        <Text style={styles.title}>Delete profile</Text>
-        <Text style={styles.subtitle}>
-          Are you sure you want to delete {companionName}'s profile?
-        </Text>
-        <View style={styles.actionsRow}>
-          <LiquidGlassButton
-            title="Cancel"
-            onPress={handleCancel}
-            glassEffect="clear"
-            forceBorder
-            borderColor={theme.colors.border}
-            tintColor={theme.colors.surface}
-            borderRadius="lg"
-            textStyle={styles.cancelButtonText}
-            style={styles.button}
-          />
-          <LiquidGlassButton
-            title="Delete"
-            onPress={handleDelete}
-            glassEffect="clear"
-            tintColor={theme.colors.secondary}
-            borderRadius="lg"
-            textStyle={styles.deleteButtonText}
-            style={styles.button}
-          />
-        </View>
-      </View>
-    </CustomBottomSheet>
+    <ConfirmActionBottomSheet
+      ref={sheetRef}
+      snapPoints={['35%', '45%']}
+      title="Delete profile"
+      message={`Are you sure you want to delete ${companionName}'s profile?`}
+      primaryButton={{
+        label: 'Delete',
+        onPress: handleDelete,
+        tintColor: theme.colors.secondary,
+        textStyle: styles.deleteButtonText,
+        style: styles.button,
+      }}
+      secondaryButton={{
+        label: 'Cancel',
+        onPress: handleCancel,
+        tintColor: theme.colors.surface,
+        textStyle: styles.cancelButtonText,
+        style: styles.button,
+        forceBorder: true,
+        borderColor: theme.colors.border,
+      }}
+      containerStyle={styles.container}
+      buttonContainerStyle={styles.actionsRow}
+      titleStyle={styles.title}
+      messageStyle={styles.subtitle}
+    />
   );
 });
 
@@ -103,17 +88,6 @@ DeleteProfileBottomSheet.displayName = 'DeleteProfileBottomSheet';
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    bottomSheet: {
-      zIndex: 1000,
-    },
-    bottomSheetBackground: {
-      backgroundColor: theme.colors.surface,
-      borderTopLeftRadius: theme.borderRadius['3xl'],
-      borderTopRightRadius: theme.borderRadius['3xl'],
-    },
-    bottomSheetHandle: {
-      backgroundColor: theme.colors.borderMuted,
-    },
     container: {
       flex: 1,
       padding: theme.spacing['5'],

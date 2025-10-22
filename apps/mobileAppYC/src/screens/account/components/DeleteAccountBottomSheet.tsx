@@ -7,11 +7,10 @@ import React, {
 } from 'react';
 import {Text, View, StyleSheet} from 'react-native';
 
-import CustomBottomSheet, {
-  type BottomSheetRef,
-} from '@/components/common/BottomSheet/BottomSheet';
+import ConfirmActionBottomSheet, {
+  type ConfirmActionBottomSheetRef,
+} from '@/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet';
 import {Input} from '@/components/common/Input/Input';
-import LiquidGlassButton from '@/components/common/LiquidGlassButton/LiquidGlassButton';
 import {useTheme} from '@/hooks';
 
 export interface DeleteAccountBottomSheetRef {
@@ -32,7 +31,7 @@ export const DeleteAccountBottomSheet = forwardRef<
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
-  const bottomSheetRef = useRef<BottomSheetRef>(null);
+  const sheetRef = useRef<ConfirmActionBottomSheetRef>(null);
   const [typedEmail, setTypedEmail] = useState('');
   const [error, setError] = useState<string | undefined>(undefined);
 
@@ -46,15 +45,15 @@ export const DeleteAccountBottomSheet = forwardRef<
   useImperativeHandle(ref, () => ({
     open: () => {
       resetState();
-      bottomSheetRef.current?.snapToIndex(0);
+      sheetRef.current?.open();
     },
     close: () => {
-      bottomSheetRef.current?.close();
+      sheetRef.current?.close();
     },
   }));
 
   const handleClose = () => {
-    bottomSheetRef.current?.close();
+    sheetRef.current?.close();
   };
 
   const handleCancel = () => {
@@ -94,73 +93,55 @@ export const DeleteAccountBottomSheet = forwardRef<
   })();
 
   return (
-    <CustomBottomSheet
-      ref={bottomSheetRef}
+    <ConfirmActionBottomSheet
+      ref={sheetRef}
       snapPoints={['60%']}
-      initialIndex={-1}
-      style={styles.bottomSheet}
-      enablePanDownToClose
-      enableBackdrop
-      enableHandlePanningGesture
-      enableContentPanningGesture={false}
-      backdropOpacity={0.5}
-      backdropDisappearsOnIndex={-1}
-      backdropPressBehavior="close"
-      backgroundStyle={styles.bottomSheetBackground}
-      handleIndicatorStyle={styles.bottomSheetHandle}
-      contentType="view">
-      <View style={styles.container}>
-        <Text style={styles.title}>Delete account</Text>
-
-        <Text style={styles.subtitle}>Are you sure you want to delete your account?</Text>
-
-        <View style={styles.noteBlock}>
-          <Text style={styles.noteLabel}>Note: </Text>
-          <Text style={styles.noteBody}>
-            If you're not the primary parent, your companion's details will still be linked to the current primary parent.
-          </Text>
-        </View>
-
-        <Text style={styles.warning}>To delete account re-write your email address.</Text>
-
-        <Input
-          label="Email address"
-          value={typedEmail}
-          onChangeText={text => {
-            setTypedEmail(text);
-            if (error) {
-              setError(undefined);
-            }
-          }}
-          placeholder=""
-          autoCapitalize="none"
-          keyboardType="email-address"
-          error={error}
-        />
-
-        <View style={styles.actionsRow}>
-          <LiquidGlassButton
-            title="Cancel"
-            onPress={handleCancel}
-            glassEffect="clear"
-            tintColor={theme.colors.surface}
-            borderRadius="lg"
-            textStyle={styles.buttonText}
-            style={styles.cancelButton}
-          />
-          <LiquidGlassButton
-            title="Delete"
-            onPress={handleDelete}
-            glassEffect="clear"
-            tintColor={theme.colors.secondary}
-            borderRadius="lg"
-            textStyle={styles.deleteText}
-            style={styles.deleteButton}
-            disabled={isDeleteDisabled}
-          />
-        </View>
+      title="Delete account"
+      message="Are you sure you want to delete your account?"
+      messageAlign="left"
+      containerStyle={styles.container}
+      titleStyle={styles.title}
+      messageStyle={styles.subtitle}
+      buttonContainerStyle={styles.actionsRow}
+      secondaryButton={{
+        label: 'Cancel',
+        onPress: handleCancel,
+        tintColor: theme.colors.surface,
+        textStyle: styles.buttonText,
+        style: styles.cancelButton,
+      }}
+      primaryButton={{
+        label: 'Delete',
+        onPress: handleDelete,
+        tintColor: theme.colors.secondary,
+        textStyle: styles.deleteText,
+        style: styles.deleteButton,
+        disabled: isDeleteDisabled,
+      }}>
+      <View style={styles.noteBlock}>
+        <Text style={styles.noteLabel}>Note: </Text>
+        <Text style={styles.noteBody}>
+          If you're not the primary parent, your companion's details will still be linked to the current primary parent.
+        </Text>
       </View>
-    </CustomBottomSheet>
+
+      <Text style={styles.warning}>To delete account re-write your email address.</Text>
+
+      <Input
+        label="Email address"
+        value={typedEmail}
+        onChangeText={text => {
+          setTypedEmail(text);
+          if (error) {
+            setError(undefined);
+          }
+        }}
+        placeholder=""
+        autoCapitalize="none"
+        keyboardType="email-address"
+        error={error}
+      />
+    </ConfirmActionBottomSheet>
   );
 });
 
@@ -168,18 +149,6 @@ DeleteAccountBottomSheet.displayName = 'DeleteAccountBottomSheet';
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    bottomSheet: {
-      zIndex: 1000,
-      elevation: 24,
-    },
-    bottomSheetBackground: {
-      backgroundColor: theme.colors.surface,
-      borderTopLeftRadius: theme.borderRadius['3xl'],
-      borderTopRightRadius: theme.borderRadius['3xl'],
-    },
-    bottomSheetHandle: {
-      backgroundColor: theme.colors.borderMuted,
-    },
     container: {
       gap: theme.spacing['4'],
       paddingHorizontal: theme.spacing['5'],

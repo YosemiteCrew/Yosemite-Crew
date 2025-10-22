@@ -148,7 +148,7 @@ export const DocumentsScreen: React.FC = () => {
               key={category.id}
               icon={category.icon}
               title={category.label}
-              subtitle={`${category.fileCount} file${category.fileCount !== 1 ? 's' : ''}`}
+              subtitle={`${category.fileCount} file${category.fileCount === 1 ? '' : 's'}`}
               isSynced={category.isSynced}
               onPress={() => handleCategoryPress(category.id)}
             />

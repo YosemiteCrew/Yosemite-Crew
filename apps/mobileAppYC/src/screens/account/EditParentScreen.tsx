@@ -2,9 +2,7 @@ import React, {useMemo, useRef, useState, useCallback} from 'react';
 import {
   View,
   Text,
-  Image,
   ScrollView,
-  TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
@@ -16,8 +14,9 @@ import type {AppDispatch} from '@/app/store';
 
 import {Header} from '@/components';
 import {LiquidGlassCard} from '@/components/common/LiquidGlassCard/LiquidGlassCard';
-import {Images} from '@/assets/images';
 import {useTheme} from '@/hooks';
+import {createFormScreenStyles} from '@/utils/formScreenStyles';
+import {Separator, RowButton, ReadOnlyRow} from '@/components/common/FormRowComponents';
 
 import {
   selectAuthUser,
@@ -312,80 +311,9 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
   );
 };
 
-/* ----------------- Small shared pieces ----------------- */
-const Separator = () => {
-  const {theme} = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
-  return (
-    <View style={styles.separator} />
-  );
-};
-
-const RowButton: React.FC<{
-  label: string;
-  value?: string;
-  onPress: () => void;
-}> = ({label, value, onPress}) => {
-  const {theme} = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
-  return (
-    <TouchableOpacity
-      style={styles.rowButtonTouchable}
-      activeOpacity={0.8}
-      onPress={onPress}>
-      <Text style={styles.rowButtonLabel}>
-        {label}
-      </Text>
-      <Text
-        style={styles.rowButtonValue}
-        numberOfLines={1}
-        ellipsizeMode="tail">
-        {value || ' '}
-      </Text>
-      <Image
-        source={Images.rightArrow}
-        style={styles.rowButtonArrow}
-      />
-    </TouchableOpacity>
-  );
-};
-
-const ReadOnlyRow: React.FC<{
-  label: string;
-  value?: string;
-}> = ({label, value}) => {
-  const {theme} = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
-  return (
-    <View style={styles.readOnlyRowContainer}>
-      <Text style={styles.rowButtonLabel}>
-        {label}
-      </Text>
-      <Text
-        style={styles.rowButtonValue}
-        numberOfLines={1}
-        ellipsizeMode="tail">
-        {value || ' '}
-      </Text>
-    </View>
-  );
-};
-
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    centered: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    content: {
-      paddingHorizontal: theme.spacing[5],
-      paddingBottom: theme.spacing[10],
-    },
+    ...createFormScreenStyles(theme),
     profileHeader: {
       alignItems: 'center',
       marginVertical: theme.spacing[6],
@@ -399,58 +327,5 @@ const createStyles = (theme: any) =>
       ...theme.typography.bodySmall,
       color: theme.colors.textSecondary,
       marginTop: theme.spacing[1],
-    },
-    glassContainer: {
-      borderRadius: theme.borderRadius.lg,
-      paddingVertical: theme.spacing[2],
-      overflow: 'hidden',
-      ...theme.shadows.md,
-    },
-    glassFallback: {
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.cardBackground,
-      borderColor: theme.colors.borderMuted,
-    },
-    listContainer: {
-      gap: theme.spacing[1],
-    },
-    muted: {
-      ...theme.typography.body,
-      color: theme.colors.textSecondary,
-    },
-    rowButtonTouchable: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: theme.spacing[3],
-      paddingHorizontal: theme.spacing[3],
-    },
-    rowButtonLabel: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.secondary,
-      flex: 1,
-    },
-    rowButtonValue: {
-      ...theme.typography.bodySmall,
-      color: theme.colors.textSecondary,
-      marginRight: theme.spacing[3],
-      flexShrink: 1,
-      flex: 1,
-      textAlign: 'right',
-    },
-    rowButtonArrow: {
-      width: 16,
-      height: 16,
-      resizeMode: 'contain',
-    },
-    readOnlyRowContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: theme.spacing[3],
-      paddingHorizontal: theme.spacing[3],
-    },
-    separator: {
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.borderSeperator,
-      marginLeft: 16,
     },
   });

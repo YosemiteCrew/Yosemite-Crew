@@ -16,6 +16,15 @@ type Props = {
   onAnimationEnd: () => void;
 };
 
+const STAR_IMAGE = require('../../../assets/splash/star1.png');
+const MAIN_LOGO = require('../../../assets/splash/logo.png');
+const CERTIFICATION_LOGOS = [
+  require('../../../assets/splash/soc.png'),
+  require('../../../assets/splash/fhir.png'),
+  require('../../../assets/splash/gdpr.png'),
+  require('../../../assets/splash/iso.png'),
+];
+
 const CustomSplashScreen = ({ onAnimationEnd }: Props) => {
   const [fadeAnim] = useState(() => new Animated.Value(1));
   const [scaleAnim] = useState(() => new Animated.Value(0.8));
@@ -162,6 +171,21 @@ const CustomSplashScreen = ({ onAnimationEnd }: Props) => {
     right: screenWidth * 0.2,
   };
 
+  const stars = [
+    {
+      key: 'star1',
+      positionStyle: star1Position,
+      opacity: star1Anim,
+      rotateAnim: star1RotateAnim,
+    },
+    {
+      key: 'star2',
+      positionStyle: star2Position,
+      opacity: star2Anim,
+      rotateAnim: star2RotateAnim,
+    },
+  ];
+
   return (
     <>
       <StatusBar
@@ -190,55 +214,33 @@ const CustomSplashScreen = ({ onAnimationEnd }: Props) => {
           style={styles.gradient}
         />
 
-        {/* Star 1 - Small, positioned */}
-        <Animated.View
-          style={[
-            styles.starContainer,
-            star1Position,
-            {
-              opacity: star1Anim, // Starts at 1, only fades out
-              transform: [
-                {
-                  rotate: star1RotateAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: ['0deg', '360deg'],
-                  }),
-                },
-              ],
-            },
-          ]}
-        >
-          <Image
-            source={require('../../../assets/splash/star1.png')}
-            style={styles.starSmall}
-            resizeMode="contain"
-          />
-        </Animated.View>
+        {stars.map(({key, positionStyle, opacity, rotateAnim}) => {
+          const outputRange =
+            key === 'star1' ? ['0deg', '360deg'] : ['0deg', '-360deg'];
 
-        {/* Star 2 - Small, positioned */}
-        <Animated.View
-          style={[
-            styles.starContainer,
-            star2Position,
-            {
-              opacity: star2Anim, // Starts at 1, only fades out
-              transform: [
+          return (
+            <Animated.View
+              key={key}
+              style={[
+                styles.starContainer,
+                positionStyle,
                 {
-                  rotate: star2RotateAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: ['0deg', '-360deg'],
-                  }),
+                  opacity,
+                  transform: [
+                    {
+                      rotate: rotateAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange,
+                      }),
+                    },
+                  ],
                 },
-              ],
-            },
-          ]}
-        >
-          <Image
-            source={require('../../../assets/splash/star1.png')}
-            style={styles.starSmall}
-            resizeMode="contain"
-          />
-        </Animated.View>
+              ]}
+            >
+              <Image source={STAR_IMAGE} style={styles.starSmall} resizeMode="contain" />
+            </Animated.View>
+          );
+        })}
 
         {/* Main Logo - Center */}
         <View style={styles.logoContainer}>
@@ -247,11 +249,7 @@ const CustomSplashScreen = ({ onAnimationEnd }: Props) => {
               transform: [{ scale: scaleAnim }],
             }}
           >
-            <Image
-              source={require('../../../assets/splash/logo.png')} // Your main logo
-              style={styles.mainLogo}
-              resizeMode="contain"
-            />
+            <Image source={MAIN_LOGO} style={styles.mainLogo} resizeMode="contain" />
           </Animated.View>
         </View>
 
@@ -272,34 +270,11 @@ const CustomSplashScreen = ({ onAnimationEnd }: Props) => {
             },
           ]}
         >
-          <View style={styles.certificationWrapper}>
-            <Image
-              source={require('../../../assets/splash/soc.png')}
-              style={styles.certificationLogo}
-              resizeMode="contain"
-            />
-          </View>
-          <View style={styles.certificationWrapper}>
-            <Image
-              source={require('../../../assets/splash/fhir.png')}
-              style={styles.certificationLogo}
-              resizeMode="contain"
-            />
-          </View>
-          <View style={styles.certificationWrapper}>
-            <Image
-              source={require('../../../assets/splash/gdpr.png')}
-              style={styles.certificationLogo}
-              resizeMode="contain"
-            />
-          </View>
-          <View style={styles.certificationWrapper}>
-            <Image
-              source={require('../../../assets/splash/iso.png')}
-              style={styles.certificationLogo}
-              resizeMode="contain"
-            />
-          </View>
+          {CERTIFICATION_LOGOS.map(source => (
+            <View key={String(source)} style={styles.certificationWrapper}>
+              <Image source={source} style={styles.certificationLogo} resizeMode="contain" />
+            </View>
+          ))}
         </Animated.View>
       </Animated.View>
     </>

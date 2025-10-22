@@ -9,6 +9,7 @@ import {useSelector} from 'react-redux';
 import type {RootState} from '@/app/store';
 import type {DocumentStackParamList} from '@/navigation/types';
 import {Images} from '@/assets/images';
+import {createScreenContainerStyles, createErrorContainerStyles} from '@/utils/screenStyles';
 
 type DocumentPreviewNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
 type DocumentPreviewRouteProp = RouteProp<DocumentStackParamList, 'DocumentPreview'>;
@@ -106,23 +107,8 @@ export const DocumentPreviewScreen: React.FC = () => {
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    contentContainer: {
-      paddingHorizontal: theme.spacing[4],
-      paddingBottom: theme.spacing[6],
-    },
-    errorContainer: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    errorText: {
-      ...theme.typography.bodyLarge,
-      color: theme.colors.error,
-    },
+    ...createScreenContainerStyles(theme),
+    ...createErrorContainerStyles(theme),
     infoCard: {
       backgroundColor: theme.colors.cardBackground,
       borderRadius: theme.borderRadius.lg,
