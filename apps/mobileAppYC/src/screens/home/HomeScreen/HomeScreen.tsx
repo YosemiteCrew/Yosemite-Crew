@@ -28,6 +28,12 @@ import {
 import {selectAuthUser} from '@/features/auth/selectors';
 import {AppointmentCard} from '@/components/common/AppointmentCard/AppointmentCard';
 import {TaskCard} from '@/components/common/TaskCard/TaskCard';
+import {resolveCurrencySymbol} from '@/utils/currency';
+import {
+  fetchExpensesForCompanion,
+  selectExpenseSummaryByCompanion,
+  selectHasHydratedCompanion,
+} from '@/features/expenses';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Home'>;
 
@@ -54,10 +60,17 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
   const companions = useSelector(selectCompanions);
   const selectedCompanionIdRedux = useSelector(selectSelectedCompanionId);
+  const expenseSummary = useSelector(
+    selectExpenseSummaryByCompanion(selectedCompanionIdRedux ?? null),
+  );
+  const hasExpenseHydrated = useSelector(
+    selectHasHydratedCompanion(selectedCompanionIdRedux ?? null),
+  );
+  const userCurrencyCode = authUser?.currency ?? 'USD';
 
   const [hasUpcomingTasks, setHasUpcomingTasks] = React.useState(true);
-  const [hasUpcomingAppointments, setHasUpcomingAppointments] = React.useState(true);
-
+  const [hasUpcomingAppointments, setHasUpcomingAppointments] =
+    React.useState(true);
 
   const {resolvedName: firstName, displayName} = deriveHomeGreetingName(
     authUser?.firstName,
@@ -82,6 +95,34 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     }
   }, [companions, selectedCompanionIdRedux, dispatch]);
 
+  React.useEffect(() => {
+    if (selectedCompanionIdRedux && !hasExpenseHydrated) {
+      dispatch(
+        fetchExpensesForCompanion({companionId: selectedCompanionIdRedux}),
+      );
+    }
+  }, [dispatch, hasExpenseHydrated, selectedCompanionIdRedux]);
+
+  const previousCurrencyRef = React.useRef(userCurrencyCode);
+
+  React.useEffect(() => {
+    if (
+      selectedCompanionIdRedux &&
+      hasExpenseHydrated &&
+      previousCurrencyRef.current !== userCurrencyCode
+    ) {
+      previousCurrencyRef.current = userCurrencyCode;
+      dispatch(
+        fetchExpensesForCompanion({companionId: selectedCompanionIdRedux}),
+      );
+    }
+  }, [
+    dispatch,
+    selectedCompanionIdRedux,
+    userCurrencyCode,
+    hasExpenseHydrated,
+  ]);
+
   const handleAddCompanion = () => {
     navigation.navigate('AddCompanion');
   };
@@ -101,7 +142,11 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     return (charSum % 5) + 1;
   }, []);
 
-  const renderEmptyStateTile = (title: string, subtitle: string, key: string) => (
+  const renderEmptyStateTile = (
+    title: string,
+    subtitle: string,
+    key: string,
+  ) => (
     <TouchableOpacity
       // When tapping the empty state tile, we allow adding the card back (simulating adding new data)
       onPress={() => {
@@ -119,7 +164,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       </LiquidGlassCard>
     </TouchableOpacity>
   );
-
 
   const renderUpcomingTasks = () => {
     if (hasUpcomingTasks) {
@@ -139,7 +183,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       'Add a companion to start managing their tasks',
       'tasks',
     );
-  }
+  };
 
   const renderUpcomingAppointments = () => {
     if (hasUpcomingAppointments) {
@@ -164,8 +208,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       'Add a companion to start managing their appointments',
       'appointments',
     );
-  }
-
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -180,8 +223,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
             <View style={styles.avatar}>
               {authUser?.profilePicture ? (
                 <Image
-                  testID="avatar-image"
-                  source={{ uri: authUser.profilePicture }}
+                  source={{uri: authUser.profilePicture}}
                   style={styles.avatarImage}
                 />
               ) : (
@@ -243,7 +285,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
             onSelect={handleSelectCompanion}
             onAddCompanion={handleAddCompanion}
             showAddButton={true}
-            getBadgeText={companion => `${computeMockTaskCount(companion.id)} Tasks`}
+            getBadgeText={companion =>
+              `${computeMockTaskCount(companion.id)} Tasks`
+            }
           />
         )}
 
@@ -252,30 +296,38 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
           {renderUpcomingTasks()}
           {renderUpcomingAppointments()}
-
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Expenses</Text>
-          <YearlySpendCard amount={0} />
+          <YearlySpendCard
+            amount={expenseSummary?.total ?? 0}
+            currencyCode={userCurrencyCode}
+            currencySymbol={resolveCurrencySymbol(userCurrencyCode, '$')}
+            onPressView={() =>
+              navigation.navigate('ExpensesStack', {
+                screen: 'ExpensesMain',
+              })
+            }
+          />
         </View>
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Quick actions</Text>
-       {companions.length > 0 && (
+            {companions.length > 0 && (
               <TouchableOpacity
                 activeOpacity={0.8}
                 onPress={() => {
                   // Pass the selected companion's ID to the ProfileOverview screen
                   if (selectedCompanionIdRedux) {
-                      navigation.navigate('ProfileOverview', {
-                          companionId: selectedCompanionIdRedux
-                      });
+                    navigation.navigate('ProfileOverview', {
+                      companionId: selectedCompanionIdRedux,
+                    });
                   } else {
-                      // This case should ideally not be hit if companions.length > 0
-                      // and the useEffect is working, but it's a good fallback.
-                      console.warn('No companion selected to view profile.');
+                    // This case should ideally not be hit if companions.length > 0
+                    // and the useEffect is working, but it's a good fallback.
+                    console.warn('No companion selected to view profile.');
                   }
                 }}>
                 <Text style={styles.viewMoreText}>View more</Text>

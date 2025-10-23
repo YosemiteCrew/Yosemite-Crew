@@ -9,6 +9,7 @@ module.exports = {
     'jest.config.js',
     'jest.setup.js',
     'coverage/',
-    'react-native.config.js'
+    'react-native.config.js',
+    'jest.setup-before-env.js'
   ],
 };
