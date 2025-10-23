@@ -1,5 +1,5 @@
 /* istanbul ignore file -- shared document form UI component */
-import React, {useRef, useMemo} from 'react';
+import React, {useMemo} from 'react';
 import {
   View,
   Text,
@@ -19,15 +19,12 @@ import {SubcategoryBottomSheet} from '@/components/common/SubcategoryBottomSheet
 import {VisitTypeBottomSheet} from '@/components/common/VisitTypeBottomSheet/VisitTypeBottomSheet';
 import {TouchableInput} from '@/components/common/TouchableInput/TouchableInput';
 import LiquidGlassButton from '@/components/common/LiquidGlassButton/LiquidGlassButton';
-import {UploadDocumentBottomSheet, type UploadDocumentBottomSheetRef} from '@/components/common/UploadDocumentBottomSheet/UploadDocumentBottomSheet';
-import {DeleteDocumentBottomSheet, type DeleteDocumentBottomSheetRef} from '@/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
+import {UploadDocumentBottomSheet} from '@/components/common/UploadDocumentBottomSheet/UploadDocumentBottomSheet';
+import {DeleteDocumentBottomSheet} from '@/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
 import {DocumentAttachmentsSection} from '@/components/documents/DocumentAttachmentsSection';
-import {useTheme, useDocumentFileHandlers} from '@/hooks';
+import {useTheme, useFormBottomSheets, useFileOperations} from '@/hooks';
 import {formatLabel} from '@/utils/helpers';
 import {Images} from '@/assets/images';
-import type {CategoryBottomSheetRef} from '@/components/common/CategoryBottomSheet/CategoryBottomSheet';
-import type {SubcategoryBottomSheetRef} from '@/components/common/SubcategoryBottomSheet/SubcategoryBottomSheet';
-import type {VisitTypeBottomSheetRef} from '@/components/common/VisitTypeBottomSheet/VisitTypeBottomSheet';
 import type {DocumentFile} from '@/types/document.types';
 import type {Companion} from '@/features/companion/types';
 
@@ -82,44 +79,36 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   const [showDatePicker, setShowDatePicker] = React.useState(false);
-  const [fileToDelete, setFileToDelete] = React.useState<string | null>(null);
 
-  const categorySheetRef = useRef<CategoryBottomSheetRef>(null);
-  const subcategorySheetRef = useRef<SubcategoryBottomSheetRef>(null);
-  const visitTypeSheetRef = useRef<VisitTypeBottomSheetRef>(null);
-  const uploadSheetRef = useRef<UploadDocumentBottomSheetRef>(null);
-  const deleteSheetRef = useRef<DeleteDocumentBottomSheetRef>(null);
+  const {refs, openSheet, closeSheet} = useFormBottomSheets();
+  const {categorySheetRef, subcategorySheetRef, visitTypeSheetRef, uploadSheetRef, deleteSheetRef} = refs;
 
-  const {handleTakePhoto, handleChooseFromGallery, handleUploadFromDrive} =
-    useDocumentFileHandlers({
-      files: formData.files,
-      setFiles: (files) => onFormChange('files', files),
-      clearError: () => onErrorClear('files'),
-    });
+  const {
+    fileToDelete,
+    handleTakePhoto,
+    handleChooseFromGallery,
+    handleUploadFromDrive,
+    handleRemoveFile,
+    confirmDeleteFile,
+  } = useFileOperations({
+    files: formData.files,
+    setFiles: files => onFormChange('files', files),
+    clearError: () => onErrorClear('files'),
+    openSheet,
+    closeSheet,
+    deleteSheetRef,
+  });
 
   const handleCategoryChange = (newCategory: string | null) => {
     onFormChange('category', newCategory);
     onFormChange('subcategory', null);
     onErrorClear('category');
+    closeSheet();
   };
 
   const handleUploadDocuments = () => {
+    openSheet('upload');
     uploadSheetRef.current?.open();
-  };
-
-  const handleRemoveFile = (fileId: string) => {
-    setFileToDelete(fileId);
-    deleteSheetRef.current?.open();
-  };
-
-  const confirmDeleteFile = () => {
-    if (fileToDelete) {
-      onFormChange(
-        'files',
-        formData.files.filter(f => f.id !== fileToDelete)
-      );
-      setFileToDelete(null);
-    }
   };
 
   const getCategoryLabel = () => formatLabel(formData.category, 'Select category');
@@ -152,7 +141,10 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
         )}
 
         <View>
-          <TouchableOpacity onPress={() => categorySheetRef.current?.open()}>
+          <TouchableOpacity onPress={() => {
+            openSheet('category');
+            categorySheetRef.current?.open();
+          }}>
             <Input
               label="Category"
               value={getCategoryLabel()}
@@ -171,7 +163,12 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
 
         <View>
           <TouchableOpacity
-            onPress={() => subcategorySheetRef.current?.open()}
+            onPress={() => {
+              if (formData.category) {
+                openSheet('subcategory');
+                subcategorySheetRef.current?.open();
+              }
+            }}
             disabled={!formData.category}>
             <Input
               label="Sub category"
@@ -189,7 +186,10 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
           ) : null}
         </View>
 
-        <TouchableOpacity onPress={() => visitTypeSheetRef.current?.open()}>
+        <TouchableOpacity onPress={() => {
+          openSheet('visitType');
+          visitTypeSheetRef.current?.open();
+        }}>
           <Input
             label="Visit type"
             value={getVisitTypeLabel()}
@@ -318,20 +318,35 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
         ref={subcategorySheetRef}
         category={formData.category}
         selectedSubcategory={formData.subcategory}
-        onSave={(value) => onFormChange('subcategory', value)}
+        onSave={(value) => {
+          onFormChange('subcategory', value);
+          closeSheet();
+        }}
       />
 
       <VisitTypeBottomSheet
         ref={visitTypeSheetRef}
         selectedVisitType={formData.visitType}
-        onSave={(value) => onFormChange('visitType', value)}
+        onSave={(value) => {
+          onFormChange('visitType', value);
+          closeSheet();
+        }}
       />
 
       <UploadDocumentBottomSheet
         ref={uploadSheetRef}
-        onTakePhoto={handleTakePhoto}
-        onChooseGallery={handleChooseFromGallery}
-        onUploadDrive={handleUploadFromDrive}
+        onTakePhoto={() => {
+          handleTakePhoto();
+          closeSheet();
+        }}
+        onChooseGallery={() => {
+          handleChooseFromGallery();
+          closeSheet();
+        }}
+        onUploadDrive={() => {
+          handleUploadFromDrive();
+          closeSheet();
+        }}
       />
 
       <DeleteDocumentBottomSheet

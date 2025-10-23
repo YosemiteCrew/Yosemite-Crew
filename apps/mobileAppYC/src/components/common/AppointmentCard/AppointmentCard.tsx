@@ -47,6 +47,7 @@ export const AppointmentCard = ({
         fallbackStyle: styles.fallback,
       }}
       springConfig={{useNativeDriver: true, damping: 18, stiffness: 180, mass: 0.8}}
+      enableHorizontalSwipeOnly={true}
     >
           {/* Top Row: Avatar and Text Block */}
           <View style={styles.topRow}>

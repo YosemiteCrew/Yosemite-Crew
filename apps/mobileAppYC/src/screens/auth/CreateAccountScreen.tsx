@@ -156,6 +156,9 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     acceptTerms: false,
   });
 
+  // Track which bottom sheet is open
+  const [openBottomSheet, setOpenBottomSheet] = useState<'countryMobile' | 'success' | null>(null);
+
   const {
     setQuery: setAddressQuery,
     suggestions: addressSuggestions,
@@ -231,6 +234,35 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     });
   }, [register]);
 
+  // Handle Android back button for bottom sheets
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      // If date picker is open, close it first
+      if (showDatePicker) {
+        setShowDatePicker(false);
+        return true;
+      }
+
+      // If any bottom sheet is open, close it first
+      if (openBottomSheet) {
+        switch (openBottomSheet) {
+          case 'countryMobile':
+            countryMobileRef.current?.close();
+            break;
+          case 'success':
+            successBottomSheetRef.current?.close();
+            break;
+        }
+        setOpenBottomSheet(null);
+        return true;
+      }
+
+      return false;
+    });
+
+    return () => backHandler.remove();
+  }, [showDatePicker, openBottomSheet]);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -264,10 +296,12 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     }
 
     if (isOtpSuccessVisible) {
+      setOpenBottomSheet('success');
       requestAnimationFrame(() => {
         successBottomSheetRef.current?.snapToIndex(0);
       });
     } else {
+      setOpenBottomSheet(null);
       requestAnimationFrame(() => {
         successBottomSheetRef.current?.forceClose();
       });
@@ -275,11 +309,21 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
   }, [isOtpSuccessVisible]);
 
   const handleSuccessClose = useCallback(() => {
+    setOpenBottomSheet(null);
+    // Close the bottom sheet immediately, but wait to unmount it so
+    // any native backdrop/overlay has time to dismiss and stop
+    // intercepting touch events on Android devices.
     requestAnimationFrame(() => {
       successBottomSheetRef.current?.forceClose();
     });
-    setIsOtpSuccessVisible(false);
-    navigation.setParams({showOtpSuccess: false});
+
+    // Wait for the closing animation/native overlay teardown to finish
+    // before removing the bottom sheet from the tree. This prevents a
+    // lingering touch-blocking overlay on some physical Android devices.
+    setTimeout(() => {
+      setIsOtpSuccessVisible(false);
+      navigation.setParams({showOtpSuccess: false});
+    }, 400);
   }, [navigation]);
 
   const handleProfileImageChange = useCallback(
@@ -291,6 +335,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
   );
 
   const handleCountryMobilePress = useCallback(() => {
+    setOpenBottomSheet('countryMobile');
     countryMobileRef.current?.open();
   }, []);
 
@@ -300,6 +345,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
       setStep1Data(prev => ({...prev, mobileNumber: mobile}));
       setValue('countryDialCode', country.dial_code, {shouldValidate: true});
       setValue('mobileNumber', mobile, {shouldValidate: true});
+      setOpenBottomSheet(null);
     },
     [setValue],
   );
@@ -532,6 +578,8 @@ const handleGoBack = useCallback(async () => {
   const submitCreateAccount = useCallback(
     async (payload: Record<string, unknown>) => {
       if (!createAccountEndpoint) {
+        // In sandbox mode, skip API call and simulate success
+        console.log('[CreateAccount] Sandbox mode: Skipping API call for create account');
         await new Promise(resolve => setTimeout(resolve, 1200));
         return {success: true};
       }
@@ -930,49 +978,49 @@ const handleGoBack = useCallback(async () => {
           mode="date"
         />
       </KeyboardAvoidingView>
-      <View
-        style={styles.bottomSheetContainer}
-        pointerEvents={isOtpSuccessVisible ? 'auto' : 'none'}>
-        <CustomBottomSheet
-          ref={successBottomSheetRef}
-          snapPoints={['35%', '50%']}
-          initialIndex={isOtpSuccessVisible ? 1 : -1}
-          enablePanDownToClose
-          enableBackdrop
-          backdropOpacity={0.5}
-          backdropAppearsOnIndex={0}
-          backdropDisappearsOnIndex={-1}
-          backdropPressBehavior="close"
-          enableHandlePanningGesture
-          enableContentPanningGesture={false}
-          enableOverDrag
-          backgroundStyle={styles.bottomSheetBackground}
-          handleIndicatorStyle={styles.bottomSheetHandle}>
-          <View style={styles.successContent}>
-            <Image
-              source={Images.verificationSuccess}
-              style={styles.successIllustration}
-              resizeMode="contain"
-            />
-            <Text style={styles.successTitle}>Code verified</Text>
-            <Text style={styles.successMessage}>
-              Nice! Now let's finish setting up your Yosemite Crew profile.
-            </Text>
-            <LiquidGlassButton
-              title="Continue"
-              onPress={handleSuccessClose}
-              style={styles.successButton}
-              textStyle={styles.successButtonText}
-              tintColor={theme.colors.secondary}
-              shadowIntensity="medium"
-              forceBorder
-              borderColor="rgba(255, 255, 255, 0.35)"
-              height={56}
-              borderRadius={16}
-            />
-          </View>
-        </CustomBottomSheet>
-      </View>
+      {isOtpSuccessVisible && (
+        <View style={styles.bottomSheetContainer}>
+          <CustomBottomSheet
+            ref={successBottomSheetRef}
+            snapPoints={['35%', '50%']}
+            initialIndex={1}
+            enablePanDownToClose
+            enableBackdrop
+            backdropOpacity={0.5}
+            backdropAppearsOnIndex={0}
+            backdropDisappearsOnIndex={-1}
+            backdropPressBehavior="close"
+            enableHandlePanningGesture
+            enableContentPanningGesture={false}
+            enableOverDrag
+            backgroundStyle={styles.bottomSheetBackground}
+            handleIndicatorStyle={styles.bottomSheetHandle}>
+            <View style={styles.successContent}>
+              <Image
+                source={Images.verificationSuccess}
+                style={styles.successIllustration}
+                resizeMode="contain"
+              />
+              <Text style={styles.successTitle}>Code verified</Text>
+              <Text style={styles.successMessage}>
+                Nice! Now let's finish setting up your Yosemite Crew profile.
+              </Text>
+              <LiquidGlassButton
+                title="Continue"
+                onPress={handleSuccessClose}
+                style={styles.successButton}
+                textStyle={styles.successButtonText}
+                tintColor={theme.colors.secondary}
+                shadowIntensity="medium"
+                forceBorder
+                borderColor="rgba(255, 255, 255, 0.35)"
+                height={56}
+                borderRadius={16}
+              />
+            </View>
+          </CustomBottomSheet>
+        </View>
+      )}
       <CountryMobileBottomSheet
         ref={countryMobileRef}
         countries={COUNTRIES}
