@@ -30,6 +30,7 @@ interface GenericSelectBottomSheetProps {
   items: SelectItem[];
   selectedItem: SelectItem | null;
   onSave: (item: SelectItem | null) => void;
+  onItemSelect?: (item: SelectItem | null) => void; // Called when item is selected (in confirm mode)
   renderItem?: (item: SelectItem, isSelected: boolean) => React.ReactElement;
   searchPlaceholder?: string;
   snapPoints?: [string, string];
@@ -48,9 +49,10 @@ export const GenericSelectBottomSheet = forwardRef<
   items,
   selectedItem,
   onSave,
+  onItemSelect,
   renderItem,
   searchPlaceholder = "Search",
-  snapPoints = ['80%', '90%'],
+  snapPoints = ['90%', '95%'],
   hasSearch = true,
   emptyMessage = "No items available",
   customContent,
@@ -59,6 +61,9 @@ export const GenericSelectBottomSheet = forwardRef<
 }, ref) => {
   const { theme } = useTheme();
   const bottomSheetRef = useRef<BottomSheetRef>(null);
+
+  // Track whether the sheet is open so we only render the backdrop when visible.
+  const [isSheetVisible, setIsSheetVisible] = useState(false);
 
   const [tempItem, setTempItem] = useState<SelectItem | null>(selectedItem);
   const [searchQuery, setSearchQuery] = useState('');
@@ -92,6 +97,8 @@ export const GenericSelectBottomSheet = forwardRef<
     } else {
       // Confirm mode: just update temp selection
       setTempItem(item);
+      // Notify parent of intermediate selection
+      onItemSelect?.(item);
     }
   };
 
@@ -119,10 +126,12 @@ export const GenericSelectBottomSheet = forwardRef<
     open: () => {
       setTempItem(selectedItem);
       setSearchQuery('');
-      bottomSheetRef.current?.snapToIndex(0);
+  // mark visible before snapping so backdrop mounts correctly
+  setIsSheetVisible(true);
+  bottomSheetRef.current?.snapToIndex(0);
     },
     close: () => {
-      bottomSheetRef.current?.close();
+  bottomSheetRef.current?.close();
     },
   }));
 
@@ -142,12 +151,17 @@ export const GenericSelectBottomSheet = forwardRef<
       ref={bottomSheetRef}
       snapPoints={snapPoints}
       initialIndex={-1}
+      onChange={index => {
+        // Gorhom BottomSheet returns -1 when fully closed
+        setIsSheetVisible(index !== -1);
+      }}
       enablePanDownToClose
       enableDynamicSizing={false}
       enableContentPanningGesture={false}
       enableHandlePanningGesture
-      enableOverDrag
-      enableBackdrop
+      enableOverDrag={false}
+      // Only show the backdrop when the sheet is actually visible
+      enableBackdrop={isSheetVisible}
       backdropOpacity={0.5}
       backdropAppearsOnIndex={0}
       backdropDisappearsOnIndex={-1}
@@ -161,7 +175,9 @@ export const GenericSelectBottomSheet = forwardRef<
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>{title}</Text>
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>{title}</Text>
+          </View>
           {closeIconSource && (
             <TouchableOpacity onPress={handleCancel} style={styles.closeButton}>
               <Image
@@ -262,9 +278,17 @@ const createStyles = (theme: any, maxListHeight: number) =>
       paddingVertical: theme.spacing['4'],
       position: 'relative',
     },
+    titleContainer: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingRight: theme.spacing['8'], // Account for close button
+    },
     title: {
       ...theme.typography.h3,
       color: theme.colors.text,
+      textAlign: 'center',
+      lineHeight: theme.typography.h3.fontSize * 1.3,
     },
     closeButton: {
       position: 'absolute',

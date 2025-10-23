@@ -103,7 +103,8 @@ export const CurrencyBottomSheet = forwardRef<
       onSave={handleSave}
       searchPlaceholder="Search currency"
       emptyMessage="No results found"
-      snapPoints={['75%', '90%']}
+      snapPoints={['65%', '70%']}
+      mode="select"
     />
   );
 });

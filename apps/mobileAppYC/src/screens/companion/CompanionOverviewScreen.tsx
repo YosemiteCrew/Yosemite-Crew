@@ -1,4 +1,4 @@
-import React, {useMemo, useRef, useState, useCallback} from 'react';
+import React, {useMemo, useRef, useState, useCallback, useEffect} from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   StyleSheet,
   Alert,
+  BackHandler,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
@@ -112,6 +113,9 @@ export const CompanionOverviewScreen: React.FC<
   // Profile image picker ref
   const profileImagePickerRef = useRef<ProfileImagePickerRef | null>(null);
 
+  // Track which bottom sheet is open
+  const [openBottomSheet, setOpenBottomSheet] = useState<'breed' | 'blood' | 'country' | 'gender' | 'neutered' | 'insured' | 'origin' | null>(null);
+
   // Helpers
   const goBack = useCallback(() => {
     if (navigation.canGoBack()) navigation.goBack();
@@ -167,6 +171,50 @@ export const CompanionOverviewScreen: React.FC<
     },
     [applyPatch],
   );
+
+  // Handle Android back button for bottom sheets and date picker
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      // Close date picker first if open
+      if (showDobPicker) {
+        setShowDobPicker(false);
+        return true;
+      }
+
+      // Close bottom sheet first if open
+      if (openBottomSheet) {
+        switch (openBottomSheet) {
+          case 'breed':
+            breedSheetRef.current?.close();
+            break;
+          case 'blood':
+            bloodSheetRef.current?.close();
+            break;
+          case 'country':
+            countrySheetRef.current?.close();
+            break;
+          case 'gender':
+            genderSheetRef.current?.close();
+            break;
+          case 'neutered':
+            neuteredSheetRef.current?.close();
+            break;
+          case 'insured':
+            insuredSheetRef.current?.close();
+            break;
+          case 'origin':
+            originSheetRef.current?.close();
+            break;
+        }
+        setOpenBottomSheet(null);
+        return true;
+      }
+
+      return false;
+    });
+
+    return () => backHandler.remove();
+  }, [showDobPicker, openBottomSheet]);
 
   if (safeCompanion == null) {
     return (
@@ -228,7 +276,10 @@ export const CompanionOverviewScreen: React.FC<
             <RowButton
               label="Breed"
               value={safeCompanion.breed?.breedName ?? ''}
-              onPress={() => breedSheetRef.current?.open()}
+              onPress={() => {
+                setOpenBottomSheet('breed');
+                breedSheetRef.current?.open();
+              }}
             />
 
             <Separator />
@@ -252,7 +303,10 @@ export const CompanionOverviewScreen: React.FC<
               value={
                 safeCompanion.gender ? capitalize(safeCompanion.gender) : ''
               }
-              onPress={() => genderSheetRef.current?.open()}
+              onPress={() => {
+                setOpenBottomSheet('gender');
+                genderSheetRef.current?.open();
+              }}
             />
 
             <Separator />
@@ -298,7 +352,10 @@ export const CompanionOverviewScreen: React.FC<
             <RowButton
               label="Neutered status"
               value={displayNeutered(safeCompanion.neuteredStatus)}
-              onPress={() => neuteredSheetRef.current?.open()}
+              onPress={() => {
+                setOpenBottomSheet('neutered');
+                neuteredSheetRef.current?.open();
+              }}
             />
 
             {safeCompanion.neuteredStatus === 'neutered' && (
@@ -318,7 +375,10 @@ export const CompanionOverviewScreen: React.FC<
             <RowButton
               label="Blood group"
               value={safeCompanion.bloodGroup ?? ''}
-              onPress={() => bloodSheetRef.current?.open()}
+              onPress={() => {
+                setOpenBottomSheet('blood');
+                bloodSheetRef.current?.open();
+              }}
             />
 
             <Separator />
@@ -345,7 +405,10 @@ export const CompanionOverviewScreen: React.FC<
             <RowButton
               label="Insurance status"
               value={displayInsured(safeCompanion.insuredStatus)}
-              onPress={() => insuredSheetRef.current?.open()}
+              onPress={() => {
+                setOpenBottomSheet('insured');
+                insuredSheetRef.current?.open();
+              }}
             />
 
             {safeCompanion.insuredStatus === 'insured' && (
@@ -373,7 +436,10 @@ export const CompanionOverviewScreen: React.FC<
             <RowButton
               label="Country of origin"
               value={safeCompanion.countryOfOrigin ?? ''}
-              onPress={() => countrySheetRef.current?.open()}
+              onPress={() => {
+                setOpenBottomSheet('country');
+                countrySheetRef.current?.open();
+              }}
             />
 
             <Separator />
@@ -382,7 +448,10 @@ export const CompanionOverviewScreen: React.FC<
             <RowButton
               label="My pet comes from"
               value={displayOrigin(safeCompanion.origin)}
-              onPress={() => originSheetRef.current?.open()}
+              onPress={() => {
+                setOpenBottomSheet('origin');
+                originSheetRef.current?.open();
+              }}
             />
           </View>
         </LiquidGlassCard>
@@ -398,14 +467,20 @@ export const CompanionOverviewScreen: React.FC<
           []
         }
         selectedBreed={safeCompanion.breed ?? null}
-        onSave={(b: Breed | null) => applyPatch({breed: b})}
+        onSave={(b: Breed | null) => {
+          applyPatch({breed: b});
+          setOpenBottomSheet(null);
+        }}
       />
 
       <BloodGroupBottomSheet
         ref={bloodSheetRef}
         selectedBloodGroup={safeCompanion.bloodGroup ?? null}
         category={safeCompanion.category}
-        onSave={(bg: string | null) => applyPatch({bloodGroup: bg})}
+        onSave={(bg: string | null) => {
+          applyPatch({bloodGroup: bg});
+          setOpenBottomSheet(null);
+        }}
       />
 
       <CountryBottomSheet
@@ -414,15 +489,19 @@ export const CompanionOverviewScreen: React.FC<
         selectedCountry={getSelectedCountryObject(
           safeCompanion.countryOfOrigin,
         )}
-        onSave={country =>
-          applyPatch({countryOfOrigin: country ? country.name : null})
-        }
+        onSave={country => {
+          applyPatch({countryOfOrigin: country ? country.name : null});
+          setOpenBottomSheet(null);
+        }}
       />
 
       <GenderBottomSheet
         ref={genderSheetRef}
         selected={safeCompanion.gender as CompanionGender | null}
-        onSave={g => applyPatch({gender: g})}
+        onSave={g => {
+          applyPatch({gender: g});
+          setOpenBottomSheet(null);
+        }}
       />
 
       <NeuteredStatusBottomSheet
@@ -432,6 +511,7 @@ export const CompanionOverviewScreen: React.FC<
           const patch: Partial<Companion> = {neuteredStatus: n};
           if (n !== 'neutered') patch.ageWhenNeutered = null; // reset dependent
           applyPatch(patch);
+          setOpenBottomSheet(null);
         }}
       />
 
@@ -445,13 +525,17 @@ export const CompanionOverviewScreen: React.FC<
             patch.insurancePolicyNumber = null;
           }
           applyPatch(patch);
+          setOpenBottomSheet(null);
         }}
       />
 
       <OriginBottomSheet
         ref={originSheetRef}
         selected={safeCompanion.origin as CompanionOrigin | null}
-        onSave={o => applyPatch({origin: o})}
+        onSave={o => {
+          applyPatch({origin: o});
+          setOpenBottomSheet(null);
+        }}
       />
 
       <SimpleDatePicker

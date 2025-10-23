@@ -79,7 +79,9 @@ addIconWhite: require('./documents/addIconWhite.png'),
   cameraWhite: require('./icons/cameraWhiteIcon.png'),
   galleryIcon: require('./icons/galleryIcon.png'),
   driveIcon: require('./icons/driveIcon.png'),
+    currencyIcon: require('./icons/currencyIcon.png'),
 
+    emptyExpenseIllustration:require('./expense/emptyExpenseIllustration.png'),
 
 
 
