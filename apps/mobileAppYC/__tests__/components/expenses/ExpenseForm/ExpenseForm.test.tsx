@@ -4,8 +4,23 @@ import {render, fireEvent, act} from '@testing-library/react-native';
 const mockHandleTakePhoto = jest.fn();
 const mockHandleChooseFromGallery = jest.fn();
 const mockHandleUploadFromDrive = jest.fn();
+const mockHandleRemoveFile = jest.fn();
+const mockConfirmDeleteFile = jest.fn();
 
 jest.mock('@/hooks', () => {
+  const mockOpenSheetInternal = jest.fn();
+  const mockCloseSheetInternal = jest.fn();
+
+  const mockCategorySheetRef = {current: {open: jest.fn(), close: jest.fn()}};
+  const mockSubcategorySheetRef = {
+    current: {open: jest.fn(), close: jest.fn()},
+  };
+  const mockVisitTypeSheetRef = {current: {open: jest.fn(), close: jest.fn()}};
+  const mockUploadSheetRef = {current: {open: jest.fn(), close: jest.fn()}};
+  const mockDeleteSheetRef = {current: {open: jest.fn(), close: jest.fn()}};
+
+  let mockFileToDelete: string | null = null;
+
   return {
     useTheme: () => ({
       theme: {
@@ -25,10 +40,67 @@ jest.mock('@/hooks', () => {
         shadows: {md: {}, lg: {}},
       },
     }),
-    useDocumentFileHandlers: jest.fn().mockImplementation(() => ({
-      handleTakePhoto: mockHandleTakePhoto,
-      handleChooseFromGallery: mockHandleChooseFromGallery,
-      handleUploadFromDrive: mockHandleUploadFromDrive,
+    useFileOperations: jest
+      .fn()
+      .mockImplementation(
+        ({
+          files,
+          setFiles,
+          clearError,
+          openSheet,
+          closeSheet,
+          deleteSheetRef,
+        }) => {
+          const testCallableSetFiles = (newFiles: any[]) => {
+            setFiles(newFiles);
+          };
+          const testCallableClearError = () => {
+            clearError();
+          };
+
+          return {
+            fileToDelete: mockFileToDelete,
+            handleTakePhoto: mockHandleTakePhoto,
+            handleChooseFromGallery: mockHandleChooseFromGallery,
+            handleUploadFromDrive: mockHandleUploadFromDrive,
+            handleRemoveFile: (fileId: string) => {
+              mockFileToDelete = fileId;
+              openSheet('delete');
+              deleteSheetRef.current?.open();
+              mockHandleRemoveFile(fileId);
+            },
+            confirmDeleteFile: () => {
+              if (mockFileToDelete) {
+                const fileToRemoveId = mockFileToDelete;
+                mockConfirmDeleteFile(fileToRemoveId);
+                mockFileToDelete = null;
+                const updatedFiles = files.filter(
+                  (f: any) => f.id !== fileToRemoveId,
+                );
+                setFiles(updatedFiles);
+                closeSheet();
+              }
+            },
+            _testSetFiles: testCallableSetFiles,
+            _testClearError: testCallableClearError,
+          };
+        },
+      ),
+    useFormBottomSheets: jest.fn(() => ({
+      refs: {
+        categorySheetRef: mockCategorySheetRef,
+        subcategorySheetRef: mockSubcategorySheetRef,
+        visitTypeSheetRef: mockVisitTypeSheetRef,
+        uploadSheetRef: mockUploadSheetRef,
+        deleteSheetRef: mockDeleteSheetRef,
+      },
+      openSheet: mockOpenSheetInternal,
+      closeSheet: mockCloseSheetInternal,
+    })),
+    useBottomSheetBackHandler: jest.fn(() => ({
+      registerSheet: jest.fn(),
+      openSheet: mockOpenSheetInternal,
+      closeSheet: mockCloseSheetInternal,
     })),
   };
 });
@@ -46,15 +118,23 @@ jest.mock('@/utils/currency', () => ({
   resolveCurrencySymbol: () => '$',
 }));
 jest.mock('@/utils/expenseLabels', () => ({
-  resolveCategoryLabel: (val: string) => `Label:${val}`,
-  resolveSubcategoryLabel: (cat: string, sub: string) => `Label:${sub}`,
-  resolveVisitTypeLabel: (val: string) => `Label:${val}`,
+  resolveCategoryLabel: (val: string | null) => (val ? `Label:${val}` : ''),
+  resolveSubcategoryLabel: (cat: string | null, sub: string | null) =>
+    sub ? `Label:${sub}` : '',
+  resolveVisitTypeLabel: (val: string | null) => (val ? `Label:${val}` : ''),
 }));
 
 jest.mock('@/components/common/CompanionSelector/CompanionSelector', () => ({
   CompanionSelector: jest.fn(props => {
     const {View: MockView} = require('react-native');
-    return <MockView {...props} testID="mock-CompanionSelector" />;
+    const handleSelect = (id: string | null) => props.onSelect(id);
+    return (
+      <MockView
+        {...props}
+        testID="mock-CompanionSelector"
+        onSelect={handleSelect}
+      />
+    );
   }),
 }));
 jest.mock('@/components/common/Input/Input', () => ({
@@ -237,15 +317,19 @@ const renderComponent = (props: Partial<ExpenseFormProps> = {}) => {
 describe('ExpenseForm', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-
-    const mockedHooks = jest.requireMock('@/hooks');
-    (mockedHooks.useDocumentFileHandlers as jest.Mock).mockClear();
   });
 
   it('should render all fields correctly', () => {
     const {getByTestId} = renderComponent();
     expect(getByTestId('mock-TouchableInput-Category')).toBeTruthy();
     expect(getByTestId('mock-TouchableInput-Sub category')).toBeTruthy();
+    expect(getByTestId('mock-TouchableInput-Visit type')).toBeTruthy();
+    expect(getByTestId('mock-Input-Expense name')).toBeTruthy();
+    expect(getByTestId('mock-Input-Provider / Business')).toBeTruthy();
+    expect(getByTestId('mock-TouchableInput-Date')).toBeTruthy();
+    expect(getByTestId('mock-Input-Amount')).toBeTruthy();
+    expect(getByTestId('mock-DocumentAttachmentsSection')).toBeTruthy();
+    expect(getByTestId('mock-LiquidGlassButton')).toBeTruthy();
   });
 
   it('should hide provider field if showProviderField is false', () => {
@@ -271,8 +355,14 @@ describe('ExpenseForm', () => {
   it('should sanitize and call onFormChange for amount', () => {
     const {getByTestId, mockOnFormChange, mockOnErrorClear} = renderComponent();
     const amountInput = getByTestId('mock-Input-Amount');
-    act(() => amountInput.props.onChangeText('123.45abc!'));
+    act(() => amountInput.props.onChangeText('abc123.45xyz!@#'));
     expect(mockOnFormChange).toHaveBeenCalledWith('amount', '123.45');
+    expect(mockOnErrorClear).toHaveBeenCalledWith('amount');
+
+    mockOnFormChange.mockClear();
+    mockOnErrorClear.mockClear();
+    act(() => amountInput.props.onChangeText('987.65'));
+    expect(mockOnFormChange).toHaveBeenCalledWith('amount', '987.65');
     expect(mockOnErrorClear).toHaveBeenCalledWith('amount');
   });
 
@@ -282,7 +372,9 @@ describe('ExpenseForm', () => {
 
     expect(datePicker.props.show).toBe(false);
 
-    fireEvent.press(getByTestId('mock-TouchableInput-Date'));
+    const dateInputTouchable = getByTestId('mock-TouchableInput-Date');
+    fireEvent.press(dateInputTouchable);
+
     expect(getByTestId('mock-SimpleDatePicker').props.show).toBe(true);
 
     act(() => getByTestId('mock-SimpleDatePicker').props.onDismiss());
@@ -292,20 +384,25 @@ describe('ExpenseForm', () => {
   it('should call onFormChange when date is selected', () => {
     const {getByTestId, mockOnFormChange, mockOnErrorClear} = renderComponent();
     const datePicker = getByTestId('mock-SimpleDatePicker');
-    act(() =>
-      datePicker.props.onDateChange(new Date('2023-10-10T00:00:00.000Z')),
-    );
-    expect(mockOnFormChange).toHaveBeenCalledWith(
-      'date',
-      new Date('2023-10-10T00:00:00.000Z'),
-    );
+    const testDate = new Date('2023-10-10T00:00:00.000Z');
+
+    act(() => datePicker.props.onDateChange(testDate));
+    expect(mockOnFormChange).toHaveBeenCalledWith('date', testDate);
     expect(mockOnErrorClear).toHaveBeenCalledWith('date');
   });
 
   it('should open category bottom sheet', () => {
     const {getByTestId} = renderComponent();
-    fireEvent.press(getByTestId('mock-TouchableInput-Category'));
-    expect(mockOpenCategorySheet).toHaveBeenCalled();
+    const categoryInput = getByTestId('mock-TouchableInput-Category');
+    fireEvent.press(categoryInput);
+
+    const mockedHooks = jest.requireMock('@/hooks');
+    expect(
+      mockedHooks.useFormBottomSheets().refs.categorySheetRef.current.open,
+    ).toHaveBeenCalled();
+    expect(mockedHooks.useFormBottomSheets().openSheet).toHaveBeenCalledWith(
+      'category',
+    );
   });
 
   it('should open subcategory bottom sheet only if category is selected', () => {
@@ -316,7 +413,14 @@ describe('ExpenseForm', () => {
 
     expect(subCategoryInput.props.disabled).toBe(true);
     fireEvent.press(subCategoryInput);
-    expect(mockOpenSubcategorySheet).not.toHaveBeenCalled();
+
+    const mockedHooks = jest.requireMock('@/hooks');
+    expect(
+      mockedHooks.useFormBottomSheets().refs.subcategorySheetRef.current.open,
+    ).not.toHaveBeenCalled();
+    expect(
+      mockedHooks.useFormBottomSheets().openSheet,
+    ).not.toHaveBeenCalledWith('subcategory');
 
     rerender(
       <ExpenseForm
@@ -330,38 +434,65 @@ describe('ExpenseForm', () => {
     );
     expect(subCategoryInputEnabled.props.disabled).toBe(false);
     fireEvent.press(subCategoryInputEnabled);
-    expect(mockOpenSubcategorySheet).toHaveBeenCalled();
+    expect(
+      mockedHooks.useFormBottomSheets().refs.subcategorySheetRef.current.open,
+    ).toHaveBeenCalled();
+    expect(mockedHooks.useFormBottomSheets().openSheet).toHaveBeenCalledWith(
+      'subcategory',
+    );
   });
 
   it('should open visit type bottom sheet', () => {
     const {getByTestId} = renderComponent();
     fireEvent.press(getByTestId('mock-TouchableInput-Visit type'));
-    expect(mockOpenVisitTypeSheet).toHaveBeenCalled();
+
+    const mockedHooks = jest.requireMock('@/hooks');
+    expect(
+      mockedHooks.useFormBottomSheets().refs.visitTypeSheetRef.current.open,
+    ).toHaveBeenCalled();
+    expect(mockedHooks.useFormBottomSheets().openSheet).toHaveBeenCalledWith(
+      'visitType',
+    );
   });
 
   it('should call onFormChange and clear subcategory on category save', () => {
     const {getByTestId, mockOnFormChange, mockOnErrorClear} = renderComponent();
     const categorySheet = getByTestId('mock-CategoryBottomSheet');
+
     act(() => categorySheet.props.onSave('health'));
+
     expect(mockOnFormChange).toHaveBeenCalledWith('category', 'health');
     expect(mockOnFormChange).toHaveBeenCalledWith('subcategory', null);
     expect(mockOnErrorClear).toHaveBeenCalledWith('category');
+
+    const mockedHooks = jest.requireMock('@/hooks');
+    expect(mockedHooks.useFormBottomSheets().closeSheet).toHaveBeenCalled();
   });
 
   it('should call onFormChange on subcategory save', () => {
     const {getByTestId, mockOnFormChange, mockOnErrorClear} = renderComponent();
     const subcategorySheet = getByTestId('mock-SubcategoryBottomSheet');
+
     act(() => subcategorySheet.props.onSave('vaccination'));
+
     expect(mockOnFormChange).toHaveBeenCalledWith('subcategory', 'vaccination');
     expect(mockOnErrorClear).toHaveBeenCalledWith('subcategory');
+
+    const mockedHooks = jest.requireMock('@/hooks');
+    expect(mockedHooks.useFormBottomSheets().closeSheet).toHaveBeenCalled();
   });
 
   it('should call onFormChange on visit type save', () => {
     const {getByTestId, mockOnFormChange, mockOnErrorClear} = renderComponent();
     const visitTypeSheet = getByTestId('mock-VisitTypeBottomSheet');
+
     act(() => visitTypeSheet.props.onSave('Hospital'));
+
     expect(mockOnFormChange).toHaveBeenCalledWith('visitType', 'Hospital');
     expect(mockOnErrorClear).toHaveBeenCalledWith('visitType');
+
+    const mockedHooks = jest.requireMock('@/hooks');
+    expect(mockedHooks.useFormBottomSheets().closeSheet).toHaveBeenCalled();
   });
 
   it('should display category and subcategory labels/values when provided in initial formData', () => {
@@ -394,13 +525,17 @@ describe('ExpenseForm', () => {
 
   it('should call onSave when save button is pressed', () => {
     const {getByTestId, mockOnSave} = renderComponent();
-    fireEvent.press(getByTestId('mock-LiquidGlassButton'));
+    const saveButton = getByTestId('mock-LiquidGlassButton');
+    fireEvent.press(saveButton);
     expect(mockOnSave).toHaveBeenCalled();
   });
 
   it('should show loading state in save button', () => {
     const {getByTestId} = renderComponent({loading: true});
-    expect(getByTestId('mock-LiquidGlassButton').props.title).toBe('Saving...');
+    const saveButton = getByTestId('mock-LiquidGlassButton');
+    expect(saveButton.props.title).toBe('Saving...');
+    expect(saveButton.props.loading).toBe(true);
+    expect(saveButton.props.disabled).toBe(true);
   });
 
   it('should call onCompanionSelect from CompanionSelector', () => {
@@ -414,25 +549,34 @@ describe('ExpenseForm', () => {
     const {getByTestId} = renderComponent();
     const attachmentsSection = getByTestId('mock-DocumentAttachmentsSection');
     act(() => attachmentsSection.props.onAddPress());
-    expect(mockOpenUploadSheet).toHaveBeenCalled();
+
+    const mockedHooks = jest.requireMock('@/hooks');
+    expect(
+      mockedHooks.useFormBottomSheets().refs.uploadSheetRef.current.open,
+    ).toHaveBeenCalled();
+    expect(mockedHooks.useFormBottomSheets().openSheet).toHaveBeenCalledWith(
+      'upload',
+    );
   });
 
-  it('should call callbacks from useDocumentFileHandlers', () => {
+  it('should call callbacks from useFileOperations', () => {
     const {mockOnFormChange, mockOnErrorClear} = renderComponent();
     const mockAttachment: ExpenseAttachment = {id: 'file-new'} as any;
 
     const mockedHooks = jest.requireMock('@/hooks');
-    const hookInstance = mockedHooks.useDocumentFileHandlers as jest.Mock;
+    expect(mockedHooks.useFileOperations).toHaveBeenCalled();
+    const hookInstance = mockedHooks.useFileOperations.mock.results[0]?.value;
 
-    const hookArgs = hookInstance.mock.calls[0][0];
-    expect(hookArgs).toBeDefined();
+    if (!hookInstance) {
+      throw new Error('useFileOperations mock did not return an instance');
+    }
 
-    act(() => hookArgs.setFiles([mockAttachment]));
+    act(() => hookInstance._testSetFiles([mockAttachment]));
     expect(mockOnFormChange).toHaveBeenCalledWith('attachments', [
       mockAttachment,
     ]);
 
-    act(() => hookArgs.clearError());
+    act(() => hookInstance._testClearError());
     expect(mockOnErrorClear).toHaveBeenCalledWith('attachments');
   });
 
@@ -440,6 +584,7 @@ describe('ExpenseForm', () => {
     const mockAttachment: ExpenseAttachment = {
       id: 'file1',
       name: 'test.pdf',
+      uri: 'file://test.pdf',
     } as any;
     const {getByTestId, mockOnFormChange} = renderComponent({
       formData: {...defaultFormData, attachments: [mockAttachment]},
@@ -450,30 +595,45 @@ describe('ExpenseForm', () => {
       attachmentsSection.props.onRequestRemove(mockAttachment);
     });
 
-    expect(mockOpenDeleteSheet).toHaveBeenCalled();
+    const mockedHooks = jest.requireMock('@/hooks');
+    expect(mockedHooks.useFormBottomSheets().openSheet).toHaveBeenCalledWith(
+      'delete',
+    );
+    expect(
+      mockedHooks.useFormBottomSheets().refs.deleteSheetRef.current.open,
+    ).toHaveBeenCalled();
+    expect(mockHandleRemoveFile).toHaveBeenCalledWith('file1');
 
     const deleteSheet = getByTestId('mock-DeleteDocumentBottomSheet');
     act(() => {
       deleteSheet.props.onDelete();
     });
 
+    expect(mockConfirmDeleteFile).toHaveBeenCalledWith('file1');
     expect(mockOnFormChange).toHaveBeenCalledWith('attachments', []);
-
-    mockOnFormChange.mockClear();
-    act(() => {
-      deleteSheet.props.onDelete();
-    });
-    expect(mockOnFormChange).not.toHaveBeenCalled();
+    expect(mockedHooks.useFormBottomSheets().closeSheet).toHaveBeenCalled();
   });
 
   it('should do nothing if confirmDeleteFile is called with no file to delete', () => {
-    const {getByTestId, mockOnFormChange} = renderComponent();
+    const {mockOnFormChange} = renderComponent();
 
-    const deleteSheet = getByTestId('mock-DeleteDocumentBottomSheet');
+    const mockedHooks = jest.requireMock('@/hooks');
+    expect(mockedHooks.useFileOperations).toHaveBeenCalled();
+    const hookInstance = mockedHooks.useFileOperations.mock.results[0]?.value;
+
+    if (!hookInstance) {
+      throw new Error('useFileOperations mock did not return an instance');
+    }
+
     act(() => {
-      deleteSheet.props.onDelete();
+      hookInstance.confirmDeleteFile();
     });
 
-    expect(mockOnFormChange).not.toHaveBeenCalled();
+    expect(mockConfirmDeleteFile).not.toHaveBeenCalled();
+    expect(mockOnFormChange).not.toHaveBeenCalledWith(
+      'attachments',
+      expect.anything(),
+    );
+    expect(mockedHooks.useFormBottomSheets().closeSheet).not.toHaveBeenCalled();
   });
 });
