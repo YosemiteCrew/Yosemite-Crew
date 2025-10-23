@@ -98,7 +98,7 @@ const UserHeader = () => {
                   className="dropdown-toggle"
                   onClick={(e) => {
                     if (
-                      typeof globalThis.window !== "undefined" &&
+                      globalThis.window?.innerWidth &&
                       window.innerWidth < 1200
                     ) {
                       e.preventDefault();

@@ -1,6 +1,5 @@
 "use client";
 import React, { ReactNode, FormEvent } from "react";
-import { Container } from "react-bootstrap";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -31,7 +30,7 @@ const HomePage = () => {
                     <p>
                       <Image
                         aria-hidden
-                        src={hero.src}
+                        src="https://d2il6osz49gpup.cloudfront.net/Images/petfootblue.png"
                         alt="petfoot"
                         width={20}
                         height={20}
@@ -251,7 +250,11 @@ const HomePage = () => {
                     care and streamlining their workflow.
                   </p>
                 </div>
-                <Primary text="Book demo" href="/book-demo" style={{ width: "100%" }} />
+                <Primary
+                  text="Book demo"
+                  href="/book-demo"
+                  style={{ width: "100%" }}
+                />
               </div>
             </div>
             <div className="lftbetter">
