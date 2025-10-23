@@ -20,12 +20,16 @@ interface DeleteDocumentBottomSheetProps {
   documentTitle?: string;
   onCancel?: () => void;
   onDelete: () => Promise<void> | void;
+  title?: string;
+  message?: string;
+  primaryLabel?: string;
+  secondaryLabel?: string;
 }
 
 export const DeleteDocumentBottomSheet = forwardRef<
   DeleteDocumentBottomSheetRef,
   DeleteDocumentBottomSheetProps
->(({documentTitle = 'this document', onCancel, onDelete}, ref) => {
+>(({documentTitle = 'this document', onCancel, onDelete, title, message, primaryLabel, secondaryLabel}, ref) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const sheetRef = useRef<ConfirmActionBottomSheetRef>(null);
@@ -65,10 +69,12 @@ export const DeleteDocumentBottomSheet = forwardRef<
     <ConfirmActionBottomSheet
       ref={sheetRef}
       snapPoints={['35%']}
-      title="Delete file"
-      message={`Are you sure you want to delete the file ${documentTitle}?`}
+      title={title ?? 'Delete file'}
+      message={
+        message ?? `Are you sure you want to delete the file ${documentTitle}?`
+      }
       primaryButton={{
-        label: isDeleting ? 'Deleting...' : 'Delete',
+        label: isDeleting ? 'Deleting...' : primaryLabel ?? 'Delete',
         onPress: handleDelete,
         tintColor: theme.colors.secondary,
         textStyle: styles.deleteText,
@@ -77,7 +83,7 @@ export const DeleteDocumentBottomSheet = forwardRef<
         loading: isDeleting,
       }}
       secondaryButton={{
-        label: 'Cancel',
+        label: secondaryLabel ?? 'Cancel',
         onPress: handleCancel,
         tintColor: theme.colors.surface,
         textStyle: styles.buttonText,

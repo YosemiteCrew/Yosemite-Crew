@@ -1,6 +1,6 @@
 /* istanbul ignore file -- complex native picker workflow exercised through manual QA */
 // src/screens/companion/AddCompanionScreen.tsx
-import React, {useState, useCallback, useRef} from 'react';
+import React, {useState, useCallback, useRef, useEffect} from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Platform,
   Image,
   TouchableOpacity,
+  BackHandler,
   type KeyboardTypeOptions,
 } from 'react-native';
 import {useForm, Controller, type ControllerProps} from 'react-hook-form';
@@ -130,6 +131,9 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState('');
 
+  // Track which bottom sheet is currently open
+  const [openBottomSheet, setOpenBottomSheet] = useState<'breed' | 'bloodGroup' | 'country' | null>(null);
+
   const {
     control,
     handleSubmit,
@@ -246,6 +250,39 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
 
 
 
+  // Handle Android back button
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      // If date picker is open, close it first
+      if (showDatePicker) {
+        setShowDatePicker(false);
+        return true; // Prevent default back action
+      }
+
+      // If any bottom sheet is open, close it first
+      if (openBottomSheet) {
+        switch (openBottomSheet) {
+          case 'breed':
+            breedSheetRef.current?.close();
+            break;
+          case 'bloodGroup':
+            bloodGroupSheetRef.current?.close();
+            break;
+          case 'country':
+            countrySheetRef.current?.close();
+            break;
+        }
+        setOpenBottomSheet(null);
+        return true; // Prevent default back action
+      }
+
+      // Otherwise allow normal back navigation
+      return false;
+    });
+
+    return () => backHandler.remove();
+  }, [showDatePicker, openBottomSheet]);
+
   const handleGoBack = useCallback(() => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
@@ -262,34 +299,40 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
   );
 
   const handleBreedPress = useCallback(() => {
+    setOpenBottomSheet('breed');
     breedSheetRef.current?.open();
   }, []);
 
   const handleBreedSave = useCallback(
     (selectedBreed: Breed | null) => {
       setValue('breed', selectedBreed, {shouldValidate: true});
+      setOpenBottomSheet(null);
     },
     [setValue],
   );
 
   const handleBloodGroupPress = useCallback(() => {
+    setOpenBottomSheet('bloodGroup');
     bloodGroupSheetRef.current?.open();
   }, []);
 
   const handleBloodGroupSave = useCallback(
     (selectedBloodGroup: string | null) => {
       setValue('bloodGroup', selectedBloodGroup, {shouldValidate: true});
+      setOpenBottomSheet(null);
     },
     [setValue],
   );
 
   const handleCountryPress = useCallback(() => {
+    setOpenBottomSheet('country');
     countrySheetRef.current?.open();
   }, []);
 
   const handleCountrySave = useCallback(
     (country: any) => {
-      setValue('countryOfOrigin', country.name, {shouldValidate: true});
+      setValue('countryOfOrigin', country?.name || null, {shouldValidate: true});
+      setOpenBottomSheet(null);
     },
     [setValue],
   );

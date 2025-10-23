@@ -1,6 +1,6 @@
 /* istanbul ignore file -- UI-heavy edit flow pending dedicated integration coverage */
 import React, {useState, useRef, useEffect} from 'react';
-import {View, Text, StyleSheet} from 'react-native';
+import {View, Text, StyleSheet, BackHandler} from 'react-native';
 import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {SafeArea} from '@/components/common';
@@ -49,6 +49,7 @@ export const EditDocumentScreen: React.FC = () => {
     useDocumentFormValidation();
 
   const deleteDocumentSheetRef = useRef<DeleteDocumentBottomSheetRef>(null);
+  const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
 
   useEffect(() => {
     if (document) {
@@ -67,6 +68,20 @@ export const EditDocumentScreen: React.FC = () => {
     }
   }, [document, dispatch]);
 
+  // Handle Android back button for delete bottom sheet
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (isDeleteSheetOpen) {
+        deleteDocumentSheetRef.current?.close();
+        setIsDeleteSheetOpen(false);
+        return true;
+      }
+      return false;
+    });
+
+    return () => backHandler.remove();
+  }, [isDeleteSheetOpen]);
+
   if (!document) {
     return (
       <SafeArea>
@@ -81,6 +96,7 @@ export const EditDocumentScreen: React.FC = () => {
   }
 
   const handleDelete = () => {
+    setIsDeleteSheetOpen(true);
     deleteDocumentSheetRef.current?.open();
   };
 
@@ -89,9 +105,11 @@ export const EditDocumentScreen: React.FC = () => {
       console.log('[EditDocument] Deleting document:', documentId);
       await dispatch(deleteDocument(documentId)).unwrap();
       console.log('[EditDocument] Document deleted successfully');
+      setIsDeleteSheetOpen(false);
       navigation.goBack();
     } catch (error) {
       console.error('[EditDocument] Failed to delete document:', error);
+      setIsDeleteSheetOpen(false);
       const message =
         error instanceof Error
           ? error.message

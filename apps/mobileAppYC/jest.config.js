@@ -8,7 +8,9 @@
 module.exports = {
   // Use RN's test environment without importing its ESM setup file
   testEnvironment: require.resolve('react-native/jest/react-native-env.js'),
-  setupFiles: [],
+  setupFiles: [
+    '<rootDir>/jest.setup-before-env.js',
+  ],
   setupFilesAfterEnv: [
     // Load RN's setup after env so it is transformed by Babel (ESM in RN >=0.81)
     'react-native/jest/setup',

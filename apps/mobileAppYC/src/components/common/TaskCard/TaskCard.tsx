@@ -37,6 +37,7 @@ export const TaskCard = ({
         fallbackStyle: styles.fallback,
       }}
       springConfig={{useNativeDriver: true}}
+      enableHorizontalSwipeOnly={true}
     >
           <View style={styles.row}>
             <View style={styles.avatarGroup}>

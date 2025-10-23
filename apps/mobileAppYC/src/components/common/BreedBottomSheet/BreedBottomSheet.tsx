@@ -59,6 +59,8 @@ export const BreedBottomSheet = forwardRef<
       onSave={handleSave}
       searchPlaceholder="Search from 200+ breeds"
       emptyMessage="No breeds available"
+      mode="select"
+      snapPoints={['65%','75%']}
     />
   );
 });
