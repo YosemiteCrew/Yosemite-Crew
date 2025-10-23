@@ -2,27 +2,29 @@ import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { Icon } from "@iconify/react/dist/iconify.js";
 import classNames from "classnames";
 import { motion, AnimatePresence } from "framer-motion";
 
-import { NavItem } from "./HeaderInterfaces";
+import { useAuthStore } from "@/app/stores/authStore";
+import { NavItem } from "../HeaderInterfaces";
+import { Primary } from "../../Buttons";
+
+import "./GuestHeader.css";
 
 const publicNavItems: NavItem[] = [
   { label: "Home", href: "/" },
-  { label: "Pet Business", href: "/pms" },
-  { label: "Pet Parent", href: "/application" },
+  { label: "Pet Businesses", href: "/pms" },
+  { label: "Pet Parents", href: "/application" },
   { label: "Developers", href: "/developers" },
-  // { label: "Resources", href: "/resources" },
-  { label: "About Us", href: "/about" },
+  { label: "About us", href: "/about" },
   { label: "Pricing", href: "/pricing" },
-  { label: "Contact Us", href: "/contact" },
-  // { label: "Blog", href: "/blogpage" },
+  { label: "Contact us", href: "/contact" },
 ];
 
-const PublicHeader = () => {
+const GuestHeader = () => {
   const pathname = usePathname();
   const router = useRouter();
+  const { user } = useAuthStore();
   const [menuOpen, setMenuOpen] = useState(false);
   const logoUrl = `https://d2il6osz49gpup.cloudfront.net/Logo.png`;
 
@@ -36,8 +38,8 @@ const PublicHeader = () => {
   };
 
   return (
-    <div className="container-fluid container-xl d-flex align-items-center justify-content-between">
-      <Link href="/" className="logo d-flex align-items-center me-auto me-lg-0">
+    <div className="header-container">
+      <Link href="/" className="logo">
         <Image src={logoUrl} alt="Logo" width={80} height={80} priority />
       </Link>
 
@@ -61,7 +63,7 @@ const PublicHeader = () => {
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{
-              height: `calc(100vh - 100px)`,
+              height: `calc(100vh - 80px)`,
               opacity: 1,
               transition: { duration: 0.4, ease: [0.42, 0, 0.58, 1] },
             }}
@@ -71,11 +73,11 @@ const PublicHeader = () => {
               transition: { duration: 0.3, ease: [0.42, 0, 0.58, 1] },
             }}
             style={{
-              top: "100px",
+              top: "80px",
             }}
             className="public-header-mobile-menu"
           >
-            {publicNavItems.map((item) => (
+            {publicNavItems.map((item, index) => (
               <div key={item.label} className="mobile-menu-item">
                 <button
                   type="button"
@@ -86,18 +88,28 @@ const PublicHeader = () => {
                 >
                   {item.label}
                 </button>
-                <div className="mobile-menu-item-sperator"></div>
+                {index !== publicNavItems.length - 1 && (
+                  <div className="mobile-menu-item-sperator"></div>
+                )}
               </div>
             ))}
-            {pathname !== "/signup" && pathname !== "/signin" && (
+            {pathname !== "/signup" && pathname !== "/signin" && user ? (
+              <button
+                type="button"
+                onClick={() => handleClick("/organizations")}
+                className="HeaderSign-mobile"
+                aria-label="Sign Up"
+              >
+                Go to app
+              </button>
+            ) : (
               <button
                 type="button"
                 onClick={() => handleClick("/signup")}
                 className="HeaderSign-mobile"
                 aria-label="Sign Up"
               >
-                <Icon icon="carbon:checkmark-filled" width="20" height="20" />{" "}
-                Sign Up
+                Sign up
               </button>
             )}
           </motion.div>
@@ -121,11 +133,21 @@ const PublicHeader = () => {
         </motion.div>
       </button>
 
-      {pathname !== "/signup" && pathname !== "/signin" && (
-        <Link href="/signup" className="HeaderSign">
-          <Icon icon="carbon:checkmark-filled" width="20" height="20" /> Sign Up
-        </Link>
-      )}
+      <div className="navmenu-button">
+        {pathname !== "/signup" && pathname !== "/signin" && user ? (
+          <Primary
+            href="/organizations"
+            text="Go to app"
+            style={{ width: "160px", maxHeight: "60px" }}
+          />
+        ) : (
+          <Primary
+            href="/signup"
+            text="Sign up"
+            style={{ width: "160px", maxHeight: "60px" }}
+          />
+        )}
+      </div>
     </div>
   );
 };
@@ -145,4 +167,4 @@ const line3Variants = {
   open: { rotate: -45, y: -5 },
 };
 
-export default PublicHeader;
+export default GuestHeader;
