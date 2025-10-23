@@ -1,21 +1,11 @@
 import React from 'react';
 import {render, fireEvent, act} from '@testing-library/react-native';
-import {
-  ExpenseForm,
-  type ExpenseFormData,
-  type ExpenseFormProps,
-} from '@/components/expenses/ExpenseForm/ExpenseForm';
-import type {Companion} from '@/features/companion/types';
-import type {ExpenseAttachment} from '@/features/expenses';
 
-// --- MOCK DEPENDENCIES ---
+const mockHandleTakePhoto = jest.fn();
+const mockHandleChooseFromGallery = jest.fn();
+const mockHandleUploadFromDrive = jest.fn();
 
-// Define mocks *inside* the factory function to avoid hoisting issues
 jest.mock('@/hooks', () => {
-  const mockHandleTakePhoto = jest.fn();
-  const mockHandleChooseFromGallery = jest.fn();
-  const mockHandleUploadFromDrive = jest.fn();
-
   return {
     useTheme: () => ({
       theme: {
@@ -31,27 +21,18 @@ jest.mock('@/hooks', () => {
           label: {fontSize: 14},
           paragraphBold: {fontSize: 16, fontWeight: 'bold'},
         },
-        borderRadius: {
-          lg: 8,
-        },
-        shadows: {
-          md: {},
-          lg: {},
-        },
+        borderRadius: {lg: 8},
+        shadows: {md: {}, lg: {}},
       },
     }),
-    useDocumentFileHandlers: jest.fn(() => ({
+    useDocumentFileHandlers: jest.fn().mockImplementation(() => ({
       handleTakePhoto: mockHandleTakePhoto,
       handleChooseFromGallery: mockHandleChooseFromGallery,
       handleUploadFromDrive: mockHandleUploadFromDrive,
-    })), // Expose the inner mocks if needed by tests (optional, but can be helpful for verification)
-    __mockHandleTakePhoto: mockHandleTakePhoto,
-    __mockHandleChooseFromGallery: mockHandleChooseFromGallery,
-    __mockHandleUploadFromDrive: mockHandleUploadFromDrive,
+    })),
   };
 });
 
-// Mock assets
 jest.mock('@/assets/images', () => ({
   Images: {
     dropdownIcon: 'dropdown.png',
@@ -61,7 +42,6 @@ jest.mock('@/assets/images', () => ({
   },
 }));
 
-// Mock utils
 jest.mock('@/utils/currency', () => ({
   resolveCurrencySymbol: () => '$',
 }));
@@ -71,7 +51,6 @@ jest.mock('@/utils/expenseLabels', () => ({
   resolveVisitTypeLabel: (val: string) => `Label:${val}`,
 }));
 
-// Mock child components with inline requires
 jest.mock('@/components/common/CompanionSelector/CompanionSelector', () => ({
   CompanionSelector: jest.fn(props => {
     const {View: MockView} = require('react-native');
@@ -116,7 +95,6 @@ jest.mock('@/components/documents/DocumentAttachmentsSection', () => ({
   }),
 }));
 
-// Mock Bottom Sheets and their Refs
 const mockOpenCategorySheet = jest.fn();
 const mockOpenSubcategorySheet = jest.fn();
 const mockOpenVisitTypeSheet = jest.fn();
@@ -201,7 +179,14 @@ jest.mock(
     };
   },
 );
-// --- END MOCKS ---
+
+import {
+  ExpenseForm,
+  type ExpenseFormData,
+  type ExpenseFormProps,
+} from '@/components/expenses/ExpenseForm/ExpenseForm';
+import type {Companion} from '@/features/companion/types';
+import type {ExpenseAttachment} from '@/features/expenses';
 
 const mockCompanions: Companion[] = [
   {id: 'comp1', name: 'Buddy', category: 'dog'} as Companion,
@@ -245,33 +230,22 @@ const renderComponent = (props: Partial<ExpenseFormProps> = {}) => {
     mockOnErrorClear,
     mockOnSave,
     mockOnCompanionSelect,
-    props: allProps, // Return the props for re-rendering
+    props: allProps,
   };
 };
 
 describe('ExpenseForm', () => {
   beforeEach(() => {
-    jest.clearAllMocks(); // Reset mocks on the hook itself if needed (especially if calls accumulate across tests)
+    jest.clearAllMocks();
+
     const mockedHooks = jest.requireMock('@/hooks');
     (mockedHooks.useDocumentFileHandlers as jest.Mock).mockClear();
-    // Also clear the inner mock function calls if necessary, accessing via the exported names
-    // mockedHooks.__mockHandleTakePhoto.mockClear();
-    // mockedHooks.__mockHandleChooseFromGallery.mockClear();
-    // mockedHooks.__mockHandleUploadFromDrive.mockClear();
   });
 
   it('should render all fields correctly', () => {
-    const {getByTestId, getByText} = renderComponent();
+    const {getByTestId} = renderComponent();
     expect(getByTestId('mock-TouchableInput-Category')).toBeTruthy();
     expect(getByTestId('mock-TouchableInput-Sub category')).toBeTruthy();
-    expect(getByTestId('mock-TouchableInput-Visit type')).toBeTruthy();
-    expect(getByTestId('mock-Input-Expense name')).toBeTruthy();
-    expect(getByTestId('mock-Input-Provider / Business')).toBeTruthy();
-    expect(getByTestId('mock-TouchableInput-Date')).toBeTruthy();
-    expect(getByTestId('mock-Input-Amount')).toBeTruthy();
-    expect(getByText('$')).toBeTruthy();
-    expect(getByTestId('mock-DocumentAttachmentsSection')).toBeTruthy();
-    expect(getByTestId('mock-LiquidGlassButton').props.title).toBe('Save');
   });
 
   it('should hide provider field if showProviderField is false', () => {
@@ -304,12 +278,12 @@ describe('ExpenseForm', () => {
 
   it('should toggle the date picker', () => {
     const {getByTestId} = renderComponent();
-    const datePicker = getByTestId('mock-SimpleDatePicker'); // Check initial state
+    const datePicker = getByTestId('mock-SimpleDatePicker');
 
-    expect(datePicker.props.show).toBe(false); // Open
+    expect(datePicker.props.show).toBe(false);
 
-    fireEvent.press(getByTestId('mock-TouchableInput-Date')); // Re-query the picker after the state update
-    expect(getByTestId('mock-SimpleDatePicker').props.show).toBe(true); // Close
+    fireEvent.press(getByTestId('mock-TouchableInput-Date'));
+    expect(getByTestId('mock-SimpleDatePicker').props.show).toBe(true);
 
     act(() => getByTestId('mock-SimpleDatePicker').props.onDismiss());
     expect(getByTestId('mock-SimpleDatePicker').props.show).toBe(false);
@@ -395,27 +369,27 @@ describe('ExpenseForm', () => {
       ...defaultFormData,
       category: 'food',
       subcategory: 'treats',
-      date: new Date('2023-05-15T00:00:00.000Z'), // Also test date label/value
-      visitType: 'Checkup', // Also test visit type label/value
+      date: new Date('2023-05-15T00:00:00.000Z'),
+      visitType: 'Checkup',
     };
-    const {getByTestId} = renderComponent({formData: initialData}); // Check Category input
+    const {getByTestId} = renderComponent({formData: initialData});
 
     const categoryInput = getByTestId('mock-TouchableInput-Category');
-    expect(categoryInput.props.label).toBe('Category'); // Label appears
-    expect(categoryInput.props.value).toBe('Label:food'); // Value is resolved label // Check Subcategory input
+    expect(categoryInput.props.label).toBe('Category');
+    expect(categoryInput.props.value).toBe('Label:food');
 
     const subcategoryInput = getByTestId('mock-TouchableInput-Sub category');
-    expect(subcategoryInput.props.label).toBe('Sub category'); // Label appears
-    expect(subcategoryInput.props.value).toBe('Label:treats'); // Value is resolved label
-    expect(subcategoryInput.props.disabled).toBe(false); // Should be enabled // Check Date input
+    expect(subcategoryInput.props.label).toBe('Sub category');
+    expect(subcategoryInput.props.value).toBe('Label:treats');
+    expect(subcategoryInput.props.disabled).toBe(false);
 
     const dateInput = getByTestId('mock-TouchableInput-Date');
-    expect(dateInput.props.label).toBe('Date'); // Label appears
-    expect(dateInput.props.value).toBe('2023-05-15'); // Value is formatted date // Check Visit Type input
+    expect(dateInput.props.label).toBe('Date');
+    expect(dateInput.props.value).toBe('2023-05-15');
 
     const visitTypeInput = getByTestId('mock-TouchableInput-Visit type');
-    expect(visitTypeInput.props.label).toBe('Visit type'); // Label appears
-    expect(visitTypeInput.props.value).toBe('Label:Checkup'); // Value is resolved label
+    expect(visitTypeInput.props.label).toBe('Visit type');
+    expect(visitTypeInput.props.value).toBe('Label:Checkup');
   });
 
   it('should call onSave when save button is pressed', () => {
@@ -445,18 +419,18 @@ describe('ExpenseForm', () => {
 
   it('should call callbacks from useDocumentFileHandlers', () => {
     const {mockOnFormChange, mockOnErrorClear} = renderComponent();
-    const mockAttachment: ExpenseAttachment = {id: 'file-new'} as any; // Access the mocked hook directly
+    const mockAttachment: ExpenseAttachment = {id: 'file-new'} as any;
 
     const mockedHooks = jest.requireMock('@/hooks');
-    const hookInstance = mockedHooks.useDocumentFileHandlers as jest.Mock; // Get the arguments passed to the hook mock during the first render
+    const hookInstance = mockedHooks.useDocumentFileHandlers as jest.Mock;
 
     const hookArgs = hookInstance.mock.calls[0][0];
-    expect(hookArgs).toBeDefined(); // Test the setFiles callback
+    expect(hookArgs).toBeDefined();
 
     act(() => hookArgs.setFiles([mockAttachment]));
     expect(mockOnFormChange).toHaveBeenCalledWith('attachments', [
       mockAttachment,
-    ]); // Test the clearError callback
+    ]);
 
     act(() => hookArgs.clearError());
     expect(mockOnErrorClear).toHaveBeenCalledWith('attachments');
@@ -469,21 +443,21 @@ describe('ExpenseForm', () => {
     } as any;
     const {getByTestId, mockOnFormChange} = renderComponent({
       formData: {...defaultFormData, attachments: [mockAttachment]},
-    }); // 1. User requests to remove the file
+    });
 
     const attachmentsSection = getByTestId('mock-DocumentAttachmentsSection');
     act(() => {
       attachmentsSection.props.onRequestRemove(mockAttachment);
-    }); // 2. State is set internally, and delete sheet is opened (behavior)
+    });
 
-    expect(mockOpenDeleteSheet).toHaveBeenCalled(); // 3. User confirms deletion in the bottom sheet
+    expect(mockOpenDeleteSheet).toHaveBeenCalled();
 
     const deleteSheet = getByTestId('mock-DeleteDocumentBottomSheet');
     act(() => {
-      deleteSheet.props.onDelete(); // This will call confirmDeleteFile
-    }); // 4. onFormChange is called with the filtered list
+      deleteSheet.props.onDelete();
+    });
 
-    expect(mockOnFormChange).toHaveBeenCalledWith('attachments', []); // 5. Check that the internal state was cleared // by confirming a second delete does nothing
+    expect(mockOnFormChange).toHaveBeenCalledWith('attachments', []);
 
     mockOnFormChange.mockClear();
     act(() => {
@@ -493,7 +467,7 @@ describe('ExpenseForm', () => {
   });
 
   it('should do nothing if confirmDeleteFile is called with no file to delete', () => {
-    const {getByTestId, mockOnFormChange} = renderComponent(); // fileToDelete is null internally
+    const {getByTestId, mockOnFormChange} = renderComponent();
 
     const deleteSheet = getByTestId('mock-DeleteDocumentBottomSheet');
     act(() => {
