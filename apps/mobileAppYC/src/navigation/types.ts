@@ -25,6 +25,7 @@ export type HomeStackParamList = {
   ProfileOverview: { companionId: string };
   EditCompanionOverview: { companionId: string };
   EditParentOverview:{ companionId: string };
+  ExpensesStack: NavigatorScreenParams<ExpenseStackParamList>;
 };
 
 export type DocumentStackParamList = {
@@ -33,6 +34,15 @@ export type DocumentStackParamList = {
   EditDocument: { documentId: string };
   DocumentPreview: { documentId: string };
   CategoryDetail: { categoryId: string };
+};
+
+export type ExpenseStackParamList = {
+  ExpensesMain: undefined;
+  ExpensesEmpty: undefined;
+  AddExpense: undefined;
+  EditExpense: { expenseId: string };
+  ExpensePreview: { expenseId: string };
+  ExpensesList: { mode: 'inApp' | 'external' };
 };
 
 // Tab Navigator

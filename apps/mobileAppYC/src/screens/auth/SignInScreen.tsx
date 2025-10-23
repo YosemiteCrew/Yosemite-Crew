@@ -7,6 +7,7 @@ import {
   Image,
   TouchableOpacity,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import {SafeArea, Input} from '../../components/common';
 import {useTheme, useSocialAuth, type SocialProvider} from '@/hooks';
@@ -171,122 +172,127 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) =
 
   return (
     <SafeArea style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}>
-        <View style={styles.content}>
-          <Image
-            source={Images.authIllustration}
-            style={styles.illustration}
-            resizeMode="contain"
-          />
-
-          <Text style={styles.title}>Tail-wagging welcome!</Text>
-
-          <View style={styles.formContainer}>
-            <View style={styles.inputContainer}>
-              <Input
-                label="Email address"
-                value={emailValue}
-                onChangeText={handleEmailChange}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                inputStyle={styles.input}
-                error={emailError}
-              />
-            </View>
-
-            <LiquidGlassButton
-              title="Send OTP"
-              onPress={handleSendOTP}
-              style={styles.sendButton}
-              textStyle={styles.sendButtonText}
-              loading={isSubmitting}
-              disabled={isSubmitting}
-              tintColor={theme.colors.secondary}
-              height={56}
-              borderRadius="lg"
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
+        <ScrollView
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}>
+          <View style={styles.content}>
+            <Image
+              source={Images.authIllustration}
+              style={styles.illustration}
+              resizeMode="contain"
             />
 
-            {statusMessage ? (
-              <Text style={styles.statusMessage}>{statusMessage}</Text>
-            ) : null}
+            <Text style={styles.title}>Tail-wagging welcome!</Text>
 
-            <View style={styles.footerContainer}>
-              <Text style={styles.footerText}>Not a member? </Text>
-              <TouchableOpacity onPress={navigateToSignUp}>
-                <Text style={styles.signUpLink}>Sign up</Text>
-              </TouchableOpacity>
+            <View style={styles.formContainer}>
+              <View style={styles.inputContainer}>
+                <Input
+                  label="Email address"
+                  value={emailValue}
+                  onChangeText={handleEmailChange}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  inputStyle={styles.input}
+                  error={emailError}
+                />
+              </View>
+
+              <LiquidGlassButton
+                title="Send OTP"
+                onPress={handleSendOTP}
+                style={styles.sendButton}
+                textStyle={styles.sendButtonText}
+                loading={isSubmitting}
+                disabled={isSubmitting}
+                tintColor={theme.colors.secondary}
+                height={56}
+                borderRadius="lg"
+              />
+
+              {statusMessage ? (
+                <Text style={styles.statusMessage}>{statusMessage}</Text>
+              ) : null}
+
+              <View style={styles.footerContainer}>
+                <Text style={styles.footerText}>Not a member? </Text>
+                <TouchableOpacity onPress={navigateToSignUp}>
+                  <Text style={styles.signUpLink}>Sign up</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
 
-      {/* Fixed Bottom Section */}
-      <View style={styles.bottomSection}>
-        <View style={styles.divider}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>Login via</Text>
-          <View style={styles.dividerLine} />
-        </View>
+        {/* Fixed Bottom Section */}
+        <View style={styles.bottomSection}>
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>Login via</Text>
+            <View style={styles.dividerLine} />
+          </View>
 
-        <View style={styles.socialButtons}>
-          <LiquidGlassButton
-            onPress={handleGoogleSignIn}
-            customContent={<GoogleIcon />}
-            disabled={isSocialLoading}
-            loading={activeProvider === 'google'}
-            tintColor={Platform.OS === 'ios' ? theme.colors.cardBackground : undefined}
-            height={60}
-            width={112}
-            borderRadius={20}
-            forceBorder
-            borderColor={theme.colors.border}
-            style={{
-              ...styles.socialButton,
-              ...(Platform.OS === 'ios'
-                ? {}
-                : {backgroundColor: theme.colors.cardBackground}),
-            }}
-          />
-          <LiquidGlassButton
-            onPress={handleFacebookSignIn}
-            customContent={<FacebookIcon />}
-            disabled={isSocialLoading}
-            loading={activeProvider === 'facebook'}
-            tintColor={Platform.OS === 'ios' ? theme.colors.primary : undefined}
-            height={60}
-            width={112}
-            borderRadius={20}
-            style={{
-              ...styles.socialButton,
-              ...(Platform.OS === 'ios'
-                ? {}
-                : {backgroundColor: theme.colors.primary}),
-            }}
-          />
-          <LiquidGlassButton
-            onPress={handleAppleSignIn}
-            customContent={<AppleIcon />}
-            disabled={isSocialLoading}
-            loading={activeProvider === 'apple'}
-            tintColor={Platform.OS === 'ios' ? theme.colors.secondary : undefined}
-            height={60}
-            width={112}
-            borderRadius={20}
-            style={{
-              ...styles.socialButton,
-              ...(Platform.OS === 'ios'
-                ? {}
-                : {backgroundColor: theme.colors.secondary}),
-            }}
-          />
+          <View style={styles.socialButtons}>
+            <LiquidGlassButton
+              onPress={handleGoogleSignIn}
+              customContent={<GoogleIcon />}
+              disabled={isSocialLoading}
+              loading={activeProvider === 'google'}
+              tintColor={Platform.OS === 'ios' ? theme.colors.cardBackground : undefined}
+              height={60}
+              width={112}
+              borderRadius={20}
+              forceBorder
+              borderColor={theme.colors.border}
+              style={{
+                ...styles.socialButton,
+                ...(Platform.OS === 'ios'
+                  ? {}
+                  : {backgroundColor: theme.colors.cardBackground}),
+              }}
+            />
+            <LiquidGlassButton
+              onPress={handleFacebookSignIn}
+              customContent={<FacebookIcon />}
+              disabled={isSocialLoading}
+              loading={activeProvider === 'facebook'}
+              tintColor={Platform.OS === 'ios' ? theme.colors.primary : undefined}
+              height={60}
+              width={112}
+              borderRadius={20}
+              style={{
+                ...styles.socialButton,
+                ...(Platform.OS === 'ios'
+                  ? {}
+                  : {backgroundColor: theme.colors.primary}),
+              }}
+            />
+            <LiquidGlassButton
+              onPress={handleAppleSignIn}
+              customContent={<AppleIcon />}
+              disabled={isSocialLoading}
+              loading={activeProvider === 'apple'}
+              tintColor={Platform.OS === 'ios' ? theme.colors.secondary : undefined}
+              height={60}
+              width={112}
+              borderRadius={20}
+              style={{
+                ...styles.socialButton,
+                ...(Platform.OS === 'ios'
+                  ? {}
+                  : {backgroundColor: theme.colors.secondary}),
+              }}
+            />
+          </View>
+          {socialError ? (
+            <Text style={styles.socialErrorText}>{socialError}</Text>
+          ) : null}
         </View>
-        {socialError ? (
-          <Text style={styles.socialErrorText}>{socialError}</Text>
-        ) : null}
-      </View>
+      </KeyboardAvoidingView>
     </SafeArea>
   );
 };
@@ -296,6 +302,9 @@ const createStyles = (theme: any) =>
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
+    },
+    keyboardView: {
+      flex: 1,
     },
     scrollView: {
       flex: 1,

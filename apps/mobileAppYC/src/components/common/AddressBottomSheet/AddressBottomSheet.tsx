@@ -46,6 +46,7 @@ export const AddressBottomSheet = forwardRef<
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const bottomSheetRef = useRef<BottomSheetRef>(null);
+  const [isSheetVisible, setIsSheetVisible] = useState(false);
 
   const [tempAddress, setTempAddress] = useState<Address>(selectedAddress);
   const {
@@ -117,12 +118,15 @@ export const AddressBottomSheet = forwardRef<
       ref={bottomSheetRef}
       snapPoints={['60%', '80%']}
       initialIndex={-1}
+      onChange={index => {
+        setIsSheetVisible(index !== -1);
+      }}
       enablePanDownToClose
       enableDynamicSizing={false}
       enableContentPanningGesture={false}
       enableHandlePanningGesture
       enableOverDrag
-      enableBackdrop
+      enableBackdrop={isSheetVisible}
       backdropOpacity={0.5}
       backdropDisappearsOnIndex={-1}
       backdropPressBehavior="close"
