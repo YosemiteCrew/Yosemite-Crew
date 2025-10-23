@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   StyleSheet as RNStyleSheet,
   Alert,
+  BackHandler,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
@@ -66,6 +67,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const deleteSheetRef = React.useRef<DeleteProfileBottomSheetRef>(null);
+  const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
 
   // Profile image picker ref
   const profileImagePickerRef = React.useRef<ProfileImagePickerRef | null>(null);
@@ -125,6 +127,12 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
     if (sectionId === 'parent') {
       navigation.navigate('EditParentOverview', {companionId});
     }
+    if (sectionId === 'documents') {
+      dispatch(setSelectedCompanion(companionId));
+      navigation.getParent()?.navigate('Documents', {
+        screen: 'DocumentsMain',
+      });
+    }
     if (sectionId === 'expense') {
       dispatch(setSelectedCompanion(companionId));
       navigation.navigate('ExpensesStack', {
@@ -140,11 +148,26 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
     }
   };
 
-  const handleDeletePress = () => {
-    deleteSheetRef.current?.open();
-  };
+  // Handle Android back button for delete bottom sheet
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (isDeleteSheetOpen) {
+        deleteSheetRef.current?.close();
+        setIsDeleteSheetOpen(false);
+        return true;
+      }
+      return false;
+    });
 
-  const handleDeleteProfile = async () => {
+    return () => backHandler.remove();
+  }, [isDeleteSheetOpen]);
+
+  const handleDeletePress = React.useCallback(() => {
+    setIsDeleteSheetOpen(true);
+    deleteSheetRef.current?.open();
+  }, []);
+
+  const handleDeleteProfile = React.useCallback(async () => {
     if (!user?.id || !companion?.id) return;
 
     try {
@@ -155,6 +178,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
 
       if (deleteCompanion.fulfilled.match(resultAction)) {
         console.log('[ProfileOverview] Companion deleted successfully');
+        setIsDeleteSheetOpen(false);
         navigation.goBack();
       } else {
         console.error('[ProfileOverview] Failed to delete companion:', resultAction.payload);
@@ -170,7 +194,11 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         'An error occurred while deleting the companion profile.'
       );
     }
-  };
+  }, [user?.id, companion?.id, dispatch, navigation, showErrorAlert]);
+
+  const handleDeleteCancel = React.useCallback(() => {
+    setIsDeleteSheetOpen(false);
+  }, []);
 
   if (!companion) {
     return (
@@ -252,6 +280,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         ref={deleteSheetRef}
         companionName={companion.name}
         onDelete={handleDeleteProfile}
+        onCancel={handleDeleteCancel}
       />
     </SafeAreaView>
   );

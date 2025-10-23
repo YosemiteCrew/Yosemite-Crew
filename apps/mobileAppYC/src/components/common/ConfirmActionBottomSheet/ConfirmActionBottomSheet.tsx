@@ -74,9 +74,12 @@ export const ConfirmActionBottomSheet = forwardRef<
     const {theme} = useTheme();
     const styles = useMemo(() => createStyles(theme), [theme]);
     const bottomSheetRef = useRef<BottomSheetRef>(null);
+    // Initialize based on initialIndex - only visible if initialIndex is NOT -1
+    const [isSheetVisible, setIsSheetVisible] = React.useState(initialIndex !== -1);
 
     useImperativeHandle(ref, () => ({
       open: () => {
+        setIsSheetVisible(true);
         bottomSheetRef.current?.snapToIndex(0);
       },
       close: () => {
@@ -129,8 +132,11 @@ export const ConfirmActionBottomSheet = forwardRef<
         ref={bottomSheetRef}
         snapPoints={snapPoints}
         initialIndex={initialIndex}
+        onChange={index => {
+          setIsSheetVisible(index !== -1);
+        }}
         enablePanDownToClose
-        enableBackdrop
+        enableBackdrop={isSheetVisible}
         enableHandlePanningGesture
         enableContentPanningGesture={false}
         backdropOpacity={0.5}

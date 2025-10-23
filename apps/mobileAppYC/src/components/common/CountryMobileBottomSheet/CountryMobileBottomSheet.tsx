@@ -90,6 +90,13 @@ export const CountryMobileBottomSheet = forwardRef<
     },
   }));
 
+  const handleCountrySelect = (item: SelectItem | null) => {
+    const match = item ? countries.find(c => c.code === item.id) : undefined;
+    if (match) {
+      setTempCountry(match);
+    }
+  };
+
   const handleSave = (item: SelectItem | null) => {
     const match = item ? countries.find(c => c.code === item.id) : undefined;
     onSave(match ?? selectedCountry, tempMobile);
@@ -126,6 +133,7 @@ export const CountryMobileBottomSheet = forwardRef<
       items={countryItems}
       selectedItem={selectedItem}
       onSave={handleSave}
+      onItemSelect={handleCountrySelect}
       searchPlaceholder="Search country name"
       emptyMessage="No results found"
       customContent={customContent}
