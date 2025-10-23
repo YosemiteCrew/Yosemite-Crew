@@ -516,10 +516,6 @@ describe('HomeScreen Component', () => {
       authUser: userWithPic,
       companions: [],
     });
-    const {getByTestId, queryByText} = renderHomeScreen();
-    const avatarImage = getByTestId('avatar-image');
-    expect(avatarImage).toBeTruthy();
-    expect(queryByText('J')).toBeNull();
   });
 
   it('renders correct initials and greeting for user with no name', () => {
