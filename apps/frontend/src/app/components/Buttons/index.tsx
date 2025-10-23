@@ -1,4 +1,2 @@
-import Primary from "./Primary"
-import Secondary from "./Secondary"
-
-export { Primary, Secondary }
+export { default as Primary } from "./Primary"
+export { default as Secondary } from "./Secondary"

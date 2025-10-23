@@ -1,19 +1,15 @@
 export const heroList = [
   {
     title: "Open source, cloud-based system",
-    src: "https://d2il6osz49gpup.cloudfront.net/Images/petfootblue.png",
   },
   {
     title: "Enhance your daily workflow",
-    src: "https://d2il6osz49gpup.cloudfront.net/Images/petfootblue.png",
   },
   {
     title: "Easy-to-use, time-saving features",
-    src: "https://d2il6osz49gpup.cloudfront.net/Images/petfootblue.png",
   },
   {
     title: "Access data anytime, anywhere",
-    src: "https://d2il6osz49gpup.cloudfront.net/Images/petfootblue.png",
   },
 ];
 

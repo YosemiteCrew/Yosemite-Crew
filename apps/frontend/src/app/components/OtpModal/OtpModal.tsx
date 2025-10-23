@@ -108,7 +108,7 @@ const OtpModal = ({
         }
       }
     } catch (error: any) {
-      if (typeof globalThis.window !== "undefined") {
+      if (globalThis.window) {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
       console.log(error);
@@ -120,7 +120,7 @@ const OtpModal = ({
     try {
       const result = await resendCode(email);
       if (result) {
-        if (typeof globalThis.window !== "undefined") {
+        if (globalThis.window) {
           window.scrollTo({ top: 0, behavior: "smooth" });
         }
         showErrorTost({
@@ -142,7 +142,7 @@ const OtpModal = ({
         setTimerActive(true);
       }
     } catch (error: any) {
-      if (typeof globalThis.window !== "undefined") {
+      if (globalThis.window) {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
       showErrorTost({
