@@ -151,6 +151,7 @@ const isNoActiveSessionError = (error: unknown): boolean => {
     return (
       error.name === 'AuthSessionNotSetError' ||
       error.name === 'UserNotAuthenticatedException' ||
+      error.name === 'UserUnAuthenticatedException' ||
       error.name === 'NotAuthorizedException'
     );
   }
@@ -160,7 +161,8 @@ const isNoActiveSessionError = (error: unknown): boolean => {
     return (
       message.includes('there is no current user') ||
       message.includes('no current user') ||
-      message.includes('user is not authenticated')
+      message.includes('user is not authenticated') ||
+      message.includes('user needs to be authenticated to call this api')
     );
   }
 

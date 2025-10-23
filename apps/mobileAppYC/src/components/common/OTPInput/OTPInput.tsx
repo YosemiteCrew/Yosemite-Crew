@@ -53,18 +53,13 @@ export const OTPInput: React.FC<OTPInputProps> = ({
     newOtp[index] = value;
     setOtp(newOtp);
 
+    // Always call onComplete to notify parent of changes (for error clearing)
+    onComplete(newOtp.join(''));
+
     // Move to next input if value is entered and not at last input
     if (value && index < length - 1) {
       inputRefs.current[index + 1]?.focus();
       setActiveIndex(index + 1);
-    }
-
-    // Check if OTP is complete
-    if (newOtp.every(digit => digit !== '')) {
-      onComplete(newOtp.join(''));
-    } else if (newOtp.join('').length < length) {
-      // Clear any previous complete OTP state
-      onComplete('');
     }
   };
 
@@ -75,6 +70,7 @@ export const OTPInput: React.FC<OTPInputProps> = ({
         const newOtp = [...otp];
         newOtp[index - 1] = '';
         setOtp(newOtp);
+        onComplete(newOtp.join(''));
         inputRefs.current[index - 1]?.focus();
         setActiveIndex(index - 1);
       } else {
@@ -82,6 +78,7 @@ export const OTPInput: React.FC<OTPInputProps> = ({
         const newOtp = [...otp];
         newOtp[index] = '';
         setOtp(newOtp);
+        onComplete(newOtp.join(''));
       }
     }
   };

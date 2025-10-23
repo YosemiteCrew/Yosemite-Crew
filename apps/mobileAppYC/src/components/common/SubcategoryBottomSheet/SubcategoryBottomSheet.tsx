@@ -75,10 +75,18 @@ export const SubcategoryBottomSheet = forwardRef<
     onSave(item?.id || null);
   };
 
+  // Format category name and title to handle long text better
+  const formatCategoryName = (cat: string | null) => {
+    if (!cat) return '';
+    return cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ');
+  };
+
+  const title = category ? `${formatCategoryName(category)}\nsub category` : 'Sub category';
+
   return (
     <GenericSelectBottomSheet
       ref={bottomSheetRef}
-      title={`${category ? category.charAt(0).toUpperCase() + category.slice(1).replace('-', ' ') : ''} sub category`}
+      title={title}
       items={subcategories}
       selectedItem={tempSubcategory}
       onSave={handleSave}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   Image,
   ImageSourcePropType,
@@ -7,6 +7,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  BackHandler,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
@@ -54,6 +55,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
   const authUser = useSelector(selectAuthUser);
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const deleteSheetRef = React.useRef<DeleteAccountBottomSheetRef>(null);
+  const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
 
   // Get companions from the Redux store
   const companionsFromStore = useSelector(selectCompanions);
@@ -141,11 +143,27 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
     }
   }, [navigation]);
 
+  // Handle Android back button for delete bottom sheet
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (isDeleteSheetOpen) {
+        deleteSheetRef.current?.close();
+        setIsDeleteSheetOpen(false);
+        return true;
+      }
+      return false;
+    });
+
+    return () => backHandler.remove();
+  }, [isDeleteSheetOpen]);
+
   const handleDeletePress = React.useCallback(() => {
+    setIsDeleteSheetOpen(true);
     deleteSheetRef.current?.open();
   }, []);
 
   const handleDeleteAccount = React.useCallback(async () => {
+    setIsDeleteSheetOpen(false);
     await logout();
   }, [logout]);
 
