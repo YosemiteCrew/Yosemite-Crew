@@ -33,6 +33,7 @@ export interface SwipeableGlassCardProps {
   renderActionContent?: (close: () => void) => React.ReactNode;
   springConfig?: SpringConfig;
   actionOverlap?: number;
+  enableHorizontalSwipeOnly?: boolean;
 }
 
 const DEFAULT_ACTION_WIDTH = 70;
@@ -52,6 +53,7 @@ export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
   renderActionContent,
   springConfig,
   actionOverlap = DEFAULT_OVERLAP,
+  enableHorizontalSwipeOnly = false,
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -83,20 +85,34 @@ export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
 
   const panResponder = useMemo(() => {
     const handleMove = (_: any, gestureState: any) => {
+      if (enableHorizontalSwipeOnly) {
+        // Only allow horizontal movement if vertical movement is detected, prevent swipe
+        if (Math.abs(gestureState.dy) > Math.abs(gestureState.dx)) {
+          return;
+        }
+      }
       translateX.setValue(clamp(gestureState.dx));
     };
     const handleRelease = (_: any, gestureState: any) => {
+      if (enableHorizontalSwipeOnly && Math.abs(gestureState.dy) > Math.abs(gestureState.dx)) {
+        return;
+      }
       const shouldOpen = gestureState.dx < -swipeableWidth / 2;
       animateTo(shouldOpen ? -swipeableWidth : 0);
     };
 
     return PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponder: () => !enableHorizontalSwipeOnly,
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        if (enableHorizontalSwipeOnly) {
+          return Math.abs(gestureState.dx) > 10 && Math.abs(gestureState.dy) < 10;
+        }
+        return true;
+      },
       onPanResponderMove: handleMove,
       onPanResponderRelease: handleRelease,
     });
-  }, [swipeableWidth, animateTo, clamp, translateX]);
+  }, [swipeableWidth, animateTo, clamp, translateX, enableHorizontalSwipeOnly]);
 
   const handleActionPress = () => {
     animateTo(0, () => {

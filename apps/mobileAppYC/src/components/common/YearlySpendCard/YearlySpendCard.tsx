@@ -1,13 +1,22 @@
 import React, {useMemo} from 'react';
-import {View, Text, Image, ImageSourcePropType, StyleSheet} from 'react-native';
+import {
+  View,
+  Text,
+  Image,
+  ImageSourcePropType,
+  StyleSheet,
+  TouchableOpacity,
+} from 'react-native';
 import {SwipeableGlassCard} from '@/components/common/SwipeableGlassCard/SwipeableGlassCard';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {createGlassCardStyles, createCardContentStyles, createTextContainerStyles} from '@/utils/cardStyles';
+import {formatCurrency, resolveCurrencySymbol} from '@/utils/currency';
 
 export interface YearlySpendCardProps {
   amount?: number;
   currencySymbol?: string;
+  currencyCode?: string;
   label?: string;
   companionAvatar?: ImageSourcePropType;
   onPressView?: () => void;
@@ -16,6 +25,7 @@ export interface YearlySpendCardProps {
 export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
   amount = 0,
   currencySymbol = '$',
+  currencyCode = 'USD',
   label = 'Yearly spend summary',
   companionAvatar,
   onPressView,
@@ -23,21 +33,21 @@ export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
+  const resolvedSymbol = useMemo(
+    () => currencySymbol || resolveCurrencySymbol(currencyCode, '$'),
+    [currencySymbol, currencyCode],
+  );
+
   const formattedAmount = useMemo(() => {
-    const fallback = `${currencySymbol} ${amount}`;
-    if (typeof Intl !== 'undefined') {
-      try {
-        return new Intl.NumberFormat('en-US', {
-          style: 'currency',
-          currency: 'USD',
-          minimumFractionDigits: 0,
-        }).format(amount);
-      } catch {
-        return fallback;
-      }
+    try {
+      return formatCurrency(amount, {
+        currencyCode,
+        minimumFractionDigits: 0,
+      });
+    } catch {
+      return `${resolvedSymbol} ${amount}`;
     }
-    return fallback;
-  }, [amount, currencySymbol]);
+  }, [amount, currencyCode, resolvedSymbol]);
 
   const handleViewPress = () => {
     onPressView?.();
@@ -58,7 +68,11 @@ export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
       }}
       springConfig={{useNativeDriver: true, damping: 18, stiffness: 180, mass: 0.8}}
     >
-      <View style={styles.content}>
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={handleViewPress}
+        style={styles.content}
+      >
         <View style={styles.iconCircle}>
           <Image source={Images.walletIcon} style={styles.icon} />
         </View>
@@ -68,7 +82,7 @@ export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
             {label}
           </Text>
           <Text style={styles.amount} numberOfLines={1} ellipsizeMode="tail">
-            {formattedAmount}
+            {formattedAmount.replaceAll('\u00A0', ' ')}
           </Text>
         </View>
 
@@ -77,7 +91,7 @@ export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
             <Image source={companionAvatar} style={styles.companionAvatar} />
           </View>
         )}
-      </View>
+      </TouchableOpacity>
     </SwipeableGlassCard>
   );
 };
@@ -109,12 +123,19 @@ const createStyles = (theme: any) => {
     },
     ...textStyles,
     label: {
-      ...theme.typography.titleMedium,
-      color: theme.colors.secondary,
+      fontFamily: theme.typography.labelXsBold.fontFamily,
+      fontSize: 11,
+      fontWeight: '700',
+      lineHeight: 13.2,
+      color: '#595958',
     },
     amount: {
-      ...theme.typography.h3,
-      color: theme.colors.secondary,
+      fontFamily: theme.typography.h3.fontFamily,
+      fontSize: 23,
+      fontWeight: '500',
+      lineHeight: 27.6,
+      letterSpacing: -0.23,
+      color: '#302F2E',
     },
     companionAvatarWrapper: {
       width: 40,
