@@ -51,6 +51,7 @@ jest.mock('@/hooks/useTheme', () => ({
         textSecondary: '#555',
         primary: '#123',
         white: '#FFF',
+        error: 'red',
       },
       typography: {
         h3: {},
@@ -87,6 +88,7 @@ jest.mock('@/components/common', () => {
         testID="mock-otp-input"
         onChangeText={props.onComplete}
         value={props.value}
+        maxLength={4}
         accessibilityLabel={props.error ? `Error: ${props.error}` : undefined}
       />
     ),
@@ -94,15 +96,23 @@ jest.mock('@/components/common', () => {
 });
 
 jest.mock('@/components/common/LiquidGlassButton/LiquidGlassButton', () => {
+  const React = require('react');
   const {TouchableOpacity, Text} = jest.requireActual('react-native');
-  return jest.fn(({onPress, title, disabled, loading}) => (
-    <TouchableOpacity
-      testID="mock-liquid-button"
-      onPress={onPress}
-      disabled={disabled}>
-      <Text>{loading ? 'Loading...' : title}</Text>
-    </TouchableOpacity>
-  ));
+
+  const MockButton = React.forwardRef(
+    ({onPress, title, disabled, loading}: any, ref: any) => (
+      <TouchableOpacity
+        ref={ref}
+        testID="mock-liquid-button"
+        onPress={onPress}
+        disabled={disabled}>
+        {/* Ensure Text is correctly nested */}
+        <Text>{loading ? 'Loading...' : title}</Text>
+      </TouchableOpacity>
+    ),
+  );
+  MockButton.displayName = 'MockLiquidGlassButton';
+  return MockButton;
 });
 
 jest.mock('@react-native-async-storage/async-storage', () => ({
@@ -179,14 +189,36 @@ describe('OTPVerificationScreen', () => {
     expect(getByText(/Enter the code to continue./)).toBeTruthy();
   });
 
-  it('enables verify button when OTP is filled', () => {
-    const {getByTestId} = renderComponent();
+  it('automatically starts verification when OTP is filled', async () => {
+    let resolveSignIn: (value: any) => void;
+    const signInPromise = new Promise(resolve => {
+      resolveSignIn = resolve;
+    });
+    mockedCompleteSignIn.mockReturnValue(signInPromise);
+
+    const {getByTestId, findByText} = renderComponent();
     const otpInput = getByTestId('mock-otp-input');
     const verifyButton = getByTestId('mock-liquid-button');
 
     expect(verifyButton).toBeDisabled();
-    fireEvent.changeText(otpInput, '1234');
-    expect(verifyButton).not.toBeDisabled();
+
+    act(() => {
+      fireEvent.changeText(otpInput, '1234');
+    });
+
+    await findByText('Loading...');
+    expect(mockedCompleteSignIn).toHaveBeenCalledWith('1234');
+    expect(verifyButton).toBeDisabled();
+
+    await act(async () => {
+      resolveSignIn!({
+        user: {userId: 'user-123', username: 'test@example.com'},
+        attributes: {email: 'test@example.com'},
+        profile: {exists: true, profileToken: 'token-abc'},
+        tokens: {accessToken: 'abc', idToken: 'def'},
+      });
+      await Promise.resolve();
+    });
   });
 
   it('shows an error if verify is pressed with incomplete OTP', async () => {
@@ -197,11 +229,8 @@ describe('OTPVerificationScreen', () => {
     fireEvent.changeText(otpInput, '123');
     expect(verifyButton).toBeDisabled();
 
-    fireEvent.changeText(otpInput, '');
-
-    await act(async () => {
-      fireEvent.press(verifyButton);
-    });
+    fireEvent.press(verifyButton);
+    expect(mockedCompleteSignIn).not.toHaveBeenCalled();
   });
 
   it('handles successful verification for an existing user and logs them in', async () => {
@@ -213,14 +242,13 @@ describe('OTPVerificationScreen', () => {
       tokens: mockTokens,
     });
 
-    const {getByTestId, getByText} = renderComponent(false);
+    const {getByTestId} = renderComponent(false);
     const otpInput = getByTestId('mock-otp-input');
-    const verifyButton = getByTestId('mock-liquid-button');
 
-    fireEvent.changeText(otpInput, '1234');
-    fireEvent.press(verifyButton);
-
-    expect(getByText('Loading...')).toBeTruthy();
+    await act(async () => {
+      fireEvent.changeText(otpInput, '1234');
+      await Promise.resolve();
+    });
 
     await waitFor(() => {
       expect(mockedCompleteSignIn).toHaveBeenCalledWith('1234');
@@ -249,10 +277,11 @@ describe('OTPVerificationScreen', () => {
 
     const {getByTestId} = renderComponent(true);
     const otpInput = getByTestId('mock-otp-input');
-    const verifyButton = getByTestId('mock-liquid-button');
 
-    fireEvent.changeText(otpInput, '1234');
-    fireEvent.press(verifyButton);
+    await act(async () => {
+      fireEvent.changeText(otpInput, '1234');
+      await Promise.resolve();
+    });
 
     await waitFor(() => {
       expect(mockedCompleteSignIn).toHaveBeenCalledWith('1234');
@@ -260,6 +289,16 @@ describe('OTPVerificationScreen', () => {
         PENDING_PROFILE_STORAGE_KEY,
         expect.any(String),
       );
+      const storedData = JSON.parse(mockedSetItem.mock.calls[0][1]);
+      expect(storedData).toMatchObject({
+        userId: 'user-123',
+        email: 'test@example.com',
+        profileToken: 'token-abc',
+        initialAttributes: {firstName: 'Test'},
+        tokens: mockTokens,
+        showOtpSuccess: true,
+      });
+
       expect(mockedEmit).toHaveBeenCalledWith(PENDING_PROFILE_UPDATED_EVENT);
       expect(mockNavigation.reset).toHaveBeenCalledWith({
         index: 0,
@@ -290,37 +329,45 @@ describe('OTPVerificationScreen', () => {
       return String(error);
     });
 
-    const {getByTestId, findByLabelText} = renderComponent();
+    const {getByTestId} = renderComponent();
     const otpInput = getByTestId('mock-otp-input');
-    const verifyButton = getByTestId('mock-liquid-button');
 
-    fireEvent.changeText(otpInput, '1234');
     await act(async () => {
-      fireEvent.press(verifyButton);
+      fireEvent.changeText(otpInput, '1234');
+      try {
+        await Promise.resolve();
+      } catch (e) {}
     });
 
     const expectedErrorLabel =
       'Error: The code you entered is incorrect. Please try again.';
-    const otpInputWithError = await findByLabelText(expectedErrorLabel);
-    expect(otpInputWithError).toBeTruthy();
+    await waitFor(() => {
+      expect(getByTestId('mock-otp-input').props.accessibilityLabel).toBe(
+        expectedErrorLabel,
+      );
+    });
   });
 
   it('shows a generic error on other auth failures', async () => {
     mockedCompleteSignIn.mockRejectedValue(new Error('Network failed'));
     mockedFormatError.mockReturnValue('Network failed');
 
-    const {getByTestId, findByLabelText} = renderComponent();
+    const {getByTestId} = renderComponent();
     const otpInput = getByTestId('mock-otp-input');
-    const verifyButton = getByTestId('mock-liquid-button');
 
-    fireEvent.changeText(otpInput, '1234');
     await act(async () => {
-      fireEvent.press(verifyButton);
+      fireEvent.changeText(otpInput, '1234');
+      try {
+        await Promise.resolve();
+      } catch (e) {}
     });
 
     const expectedErrorLabel = 'Error: Network failed';
-    const otpInputWithError = await findByLabelText(expectedErrorLabel);
-    expect(otpInputWithError).toBeTruthy();
+    await waitFor(() => {
+      expect(getByTestId('mock-otp-input').props.accessibilityLabel).toBe(
+        expectedErrorLabel,
+      );
+    });
   });
 
   it('handles countdown timer and enables resend button', () => {
@@ -363,7 +410,7 @@ describe('OTPVerificationScreen', () => {
   it('handles failed OTP resend and shows error', async () => {
     mockedRequestCode.mockRejectedValue(new Error('Resend limit exceeded'));
     mockedFormatError.mockReturnValue('Resend limit exceeded');
-    const {getByText, findByLabelText} = renderComponent();
+    const {getByText, getByTestId} = renderComponent();
 
     act(() => {
       jest.advanceTimersByTime(60000);
@@ -372,12 +419,18 @@ describe('OTPVerificationScreen', () => {
     const resendButton = getByText('Resend');
     await act(async () => {
       fireEvent.press(resendButton);
-      await Promise.resolve().catch(() => {});
+      try {
+        await Promise.resolve();
+      } catch (e) {}
     });
 
     const expectedErrorLabel = 'Error: Resend limit exceeded';
-    const otpInputWithError = await findByLabelText(expectedErrorLabel);
-    expect(otpInputWithError).toBeTruthy();
+    await waitFor(() => {
+      expect(getByTestId('mock-otp-input').props.accessibilityLabel).toBe(
+        expectedErrorLabel,
+      );
+    });
+
     expect(getByText('Resend')).toBeTruthy();
   });
 

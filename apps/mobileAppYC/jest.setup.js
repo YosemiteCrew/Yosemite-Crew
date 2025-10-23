@@ -19,56 +19,67 @@ try {
 // Ensure Animated.timing resolves synchronously in tests to avoid unhandled timers
 try {
   const {Animated} = require('react-native');
-  Animated.timing = ((originalTiming) => (value, config = {}) => {
-    const animation = originalTiming
-      ? originalTiming(value, {...config, useNativeDriver: config.useNativeDriver ?? false})
-      : {
-          value,
-          config,
-          start: cb => {
-            value?.setValue?.(config?.toValue ?? 0);
-            cb?.({finished: true});
-          },
-          stop: jest.fn(),
-          reset: jest.fn(),
-        };
-    const start = animation.start?.bind(animation);
-    animation.start = cb => {
-      value?.setValue?.(config?.toValue ?? 0);
-      cb?.({finished: true});
+  Animated.timing = (
+    originalTiming =>
+    (value, config = {}) => {
+      const animation = originalTiming
+        ? originalTiming(value, {
+            ...config,
+            useNativeDriver: config.useNativeDriver ?? false,
+          })
+        : {
+            value,
+            config,
+            start: cb => {
+              value?.setValue?.(config?.toValue ?? 0);
+              cb?.({finished: true});
+            },
+            stop: jest.fn(),
+            reset: jest.fn(),
+          };
+      const start = animation.start?.bind(animation);
+      animation.start = cb => {
+        value?.setValue?.(config?.toValue ?? 0);
+        cb?.({finished: true});
+        return animation;
+      };
       return animation;
-    };
-    return animation;
-  })(Animated.timing);
+    }
+  )(Animated.timing);
 
-  Animated.spring = ((originalSpring) => (value, config = {}) => {
-    const animation = originalSpring
-      ? originalSpring(value, {...config, useNativeDriver: config.useNativeDriver ?? false})
-      : {
-          start: cb => {
-            value?.setValue?.(config?.toValue ?? value?.__getValue?.() ?? 0);
-            cb?.({finished: true});
-            return animation;
-          },
-          stop: jest.fn(),
-        };
-    const start = animation.start?.bind(animation);
-    animation.start = cb => {
-      value?.setValue?.(config?.toValue ?? value?.__getValue?.() ?? 0);
-      cb?.({finished: true});
+  Animated.spring = (
+    originalSpring =>
+    (value, config = {}) => {
+      const animation = originalSpring
+        ? originalSpring(value, {
+            ...config,
+            useNativeDriver: config.useNativeDriver ?? false,
+          })
+        : {
+            start: cb => {
+              value?.setValue?.(config?.toValue ?? value?.__getValue?.() ?? 0);
+              cb?.({finished: true});
+              return animation;
+            },
+            stop: jest.fn(),
+          };
+      const start = animation.start?.bind(animation);
+      animation.start = cb => {
+        value?.setValue?.(config?.toValue ?? value?.__getValue?.() ?? 0);
+        cb?.({finished: true});
+        return animation;
+      };
       return animation;
-    };
-    return animation;
-  })(Animated.spring);
+    }
+  )(Animated.spring);
 } catch {}
 
 // Ensure PlatformColor exists as a function in tests (RN sometimes lacks it in JSDOM)
 // Note: If PlatformColor isn't available in tests, components should fall back gracefully.
 
 // Mock AsyncStorage
-jest.mock(
-  '@react-native-async-storage/async-storage',
-  () => require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
 );
 
 // Mock Reanimated with a lightweight stub (avoid importing official mock due to ESM deps)
@@ -141,8 +152,9 @@ jest.mock('@gorhom/bottom-sheet', () => {
   const MockBottomSheetView = createViewStub('MockBottomSheetView');
   const MockBottomSheetHandle = createViewStub('MockBottomSheetHandle');
 
-  const MockBottomSheetScrollView = React.forwardRef(({children, ...props}, ref) =>
-    React.createElement(ScrollView, {...props, ref}, children),
+  const MockBottomSheetScrollView = React.forwardRef(
+    ({children, ...props}, ref) =>
+      React.createElement(ScrollView, {...props, ref}, children),
   );
   MockBottomSheetScrollView.displayName = 'MockBottomSheetScrollView';
 
@@ -155,7 +167,9 @@ jest.mock('@gorhom/bottom-sheet', () => {
         data.map((item, index) =>
           renderItem
             ? renderItem({item, index})
-            : React.createElement(RNView, {key: keyExtractor ? keyExtractor(item, index) : String(index)}),
+            : React.createElement(RNView, {
+                key: keyExtractor ? keyExtractor(item, index) : String(index),
+              }),
         ),
       );
     },
@@ -219,7 +233,7 @@ if (!global.requestAnimationFrame) {
 
 // Provide minimal performance.now polyfill expected by RN
 if (!global.performance) {
-  global.performance = { now: jest.fn(Date.now) };
+  global.performance = {now: jest.fn(Date.now)};
 }
 
 // Provide a minimal Platform mock for RN internals and libraries
@@ -235,27 +249,35 @@ jest.mock('react-native/Libraries/Utilities/Platform', () => ({
 jest.mock('@react-navigation/native', () => {
   const React = require('react');
   return {
-    NavigationContainer: ({children}) => React.createElement(React.Fragment, null, children),
+    NavigationContainer: ({children}) =>
+      React.createElement(React.Fragment, null, children),
     useNavigation: () => ({navigate: jest.fn()}),
-    createNavigatorFactory: () => (Navigator) => Navigator,
+    createNavigatorFactory: () => Navigator => Navigator,
     // Export anything else on demand if needed by tests
   };
 });
 
 // Mock aws-amplify to avoid pulling in ESM sub-deps
 jest.mock('aws-amplify', () => ({
-  Amplify: { configure: jest.fn() },
+  Amplify: {configure: jest.fn()},
 }));
 
 // Mock Amplify Auth submodule to avoid ESM deps and network
 jest.mock('aws-amplify/auth', () => ({
-  confirmSignIn: jest.fn().mockResolvedValue({ isSignedIn: true, nextStep: {} }),
-  fetchAuthSession: jest.fn().mockResolvedValue({ tokens: {} }),
+  confirmSignIn: jest.fn().mockResolvedValue({isSignedIn: true, nextStep: {}}),
+  fetchAuthSession: jest.fn().mockResolvedValue({tokens: {}}),
   fetchUserAttributes: jest.fn().mockResolvedValue({}),
-  getCurrentUser: jest.fn().mockResolvedValue({ userId: 'test', username: 'test@example.com' }),
-  signIn: jest.fn().mockResolvedValue({ nextStep: {} }),
+  getCurrentUser: jest
+    .fn()
+    .mockResolvedValue({userId: 'test', username: 'test@example.com'}),
+  signIn: jest.fn().mockResolvedValue({nextStep: {}}),
   signOut: jest.fn().mockResolvedValue(undefined),
-  AuthError: class AuthError extends Error { constructor(message) { super(message); this.name = 'AuthError'; } },
+  AuthError: class AuthError extends Error {
+    constructor(message) {
+      super(message);
+      this.name = 'AuthError';
+    }
+  },
 }));
 
 // Mock our social auth setup to a no-op
@@ -273,8 +295,10 @@ jest.mock('react-native-keychain', () => ({
   setGenericPassword: jest.fn(async () => true),
   getGenericPassword: jest.fn(async () => null),
   resetGenericPassword: jest.fn(async () => true),
-  ACCESSIBLE: { WHEN_UNLOCKED_THIS_DEVICE_ONLY: 'WHEN_UNLOCKED_THIS_DEVICE_ONLY' },
-  SECURITY_LEVEL: { SECURE_SOFTWARE: 'SECURE_SOFTWARE' },
+  ACCESSIBLE: {
+    WHEN_UNLOCKED_THIS_DEVICE_ONLY: 'WHEN_UNLOCKED_THIS_DEVICE_ONLY',
+  },
+  SECURITY_LEVEL: {SECURE_SOFTWARE: 'SECURE_SOFTWARE'},
 }));
 
 // Mock RN Image Picker
@@ -291,7 +315,8 @@ jest.mock('@react-navigation/native-stack', () => {
   const React = require('react');
   return {
     createNativeStackNavigator: () => ({
-      Navigator: ({children}) => React.createElement(React.Fragment, null, children),
+      Navigator: ({children}) =>
+        React.createElement(React.Fragment, null, children),
       Screen: () => null,
     }),
   };
@@ -301,14 +326,19 @@ jest.mock('@react-navigation/native-stack', () => {
 jest.mock('@gorhom/bottom-sheet', () => {
   const React = require('react');
   // Simple host components to satisfy RN rendering paths
-  const PassThrough = ({children, ...props}) => React.createElement('View', props, children);
+  const PassThrough = ({children, ...props}) =>
+    React.createElement('View', props, children);
   return {
     __esModule: true,
-    default: ({children, ...props}) => React.createElement(PassThrough, props, children),
-    BottomSheetView: ({children, ...props}) => React.createElement(PassThrough, props, children),
-    BottomSheetScrollView: ({children, ...props}) => React.createElement(PassThrough, props, children),
+    default: ({children, ...props}) =>
+      React.createElement(PassThrough, props, children),
+    BottomSheetView: ({children, ...props}) =>
+      React.createElement(PassThrough, props, children),
+    BottomSheetScrollView: ({children, ...props}) =>
+      React.createElement(PassThrough, props, children),
     BottomSheetFlatList: ({..._props}) => null,
-    BottomSheetBackdrop: ({children, ...props}) => React.createElement(PassThrough, props, children),
+    BottomSheetBackdrop: ({children, ...props}) =>
+      React.createElement(PassThrough, props, children),
     BottomSheetHandle: ({...props}) => React.createElement('View', props),
   };
 });
@@ -316,12 +346,13 @@ jest.mock('@gorhom/bottom-sheet', () => {
 // Mock RN Bootsplash and LinearGradient
 jest.mock('react-native-bootsplash', () => ({
   __esModule: true,
-  default: { show: jest.fn(), hide: jest.fn() },
+  default: {show: jest.fn(), hide: jest.fn()},
 }));
 jest.mock('react-native-linear-gradient', () => {
   const React = require('react');
-  const Mock = ({children}) => React.createElement(React.Fragment, null, children);
-  return { __esModule: true, default: Mock };
+  const Mock = ({children}) =>
+    React.createElement(React.Fragment, null, children);
+  return {__esModule: true, default: Mock};
 });
 
 jest.mock('react-native-localize', () => ({
@@ -341,5 +372,20 @@ jest.mock('@/components/common/customSplashScreen/customSplash', () => {
       }, [onAnimationEnd]);
       return React.createElement(React.Fragment, null);
     },
+  };
+});
+jest.mock('react-native/Libraries/Components/Keyboard/Keyboard', () => {
+  const mockKeyboard = {
+    addListener: jest.fn(() => ({
+      remove: jest.fn(),
+    })),
+    removeListener: jest.fn(),
+    dismiss: jest.fn(),
+    isVisible: jest.fn(() => false),
+  };
+  return {
+    __esModule: true,
+    default: mockKeyboard,
+    Keyboard: mockKeyboard,
   };
 });
