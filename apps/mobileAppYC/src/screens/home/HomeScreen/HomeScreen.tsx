@@ -54,7 +54,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
   const companions = useSelector(selectCompanions);
   const selectedCompanionIdRedux = useSelector(selectSelectedCompanionId);
-  
+
   const [hasUpcomingTasks, setHasUpcomingTasks] = React.useState(true);
   const [hasUpcomingAppointments, setHasUpcomingAppointments] = React.useState(true);
 
@@ -70,7 +70,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         await dispatch(fetchCompanions(user.id));
       }
     };
-    
+
     loadCompanionsAndSelectDefault();
   }, [dispatch, user?.id]);
 
@@ -80,7 +80,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     if (companions.length > 0 && !selectedCompanionIdRedux) {
       dispatch(setSelectedCompanion(companions[0].id));
     }
-  }, [companions, selectedCompanionIdRedux, dispatch]); 
+  }, [companions, selectedCompanionIdRedux, dispatch]);
 
   const handleAddCompanion = () => {
     navigation.navigate('AddCompanion');
@@ -107,7 +107,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       onPress={() => {
         if (key === 'tasks') setHasUpcomingTasks(true);
         if (key === 'appointments') setHasUpcomingAppointments(true);
-      }}> 
+      }}>
       <LiquidGlassCard
         key={key}
         glassEffect="clear"
@@ -130,7 +130,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
           dateTime="20 Aug - 4:00PM"
           avatars={[Images.cat, Images.cat]}
           // Hide the card when complete is pressed
-          onComplete={() => setHasUpcomingTasks(false)} 
+          onComplete={() => setHasUpcomingTasks(false)}
         />
       );
     }
@@ -180,6 +180,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
             <View style={styles.avatar}>
               {authUser?.profilePicture ? (
                 <Image
+                  testID="avatar-image"
                   source={{ uri: authUser.profilePicture }}
                   style={styles.avatarImage}
                 />
@@ -268,11 +269,11 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
                 onPress={() => {
                   // Pass the selected companion's ID to the ProfileOverview screen
                   if (selectedCompanionIdRedux) {
-                      navigation.navigate('ProfileOverview', { 
-                          companionId: selectedCompanionIdRedux 
+                      navigation.navigate('ProfileOverview', {
+                          companionId: selectedCompanionIdRedux
                       });
                   } else {
-                      // This case should ideally not be hit if companions.length > 0 
+                      // This case should ideally not be hit if companions.length > 0
                       // and the useEffect is working, but it's a good fallback.
                       console.warn('No companion selected to view profile.');
                   }
@@ -422,7 +423,7 @@ const createStyles = (theme: any) =>
       overflow: 'hidden',
     },
     section: {
-      gap: theme.spacing[3.5], 
+      gap: theme.spacing[3.5],
     },
     sectionTitle: {
       ...theme.typography.titleLarge,
