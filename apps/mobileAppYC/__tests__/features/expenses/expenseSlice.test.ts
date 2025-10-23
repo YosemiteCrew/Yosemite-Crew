@@ -11,7 +11,6 @@ import {
 } from '@/features/expenses/thunks';
 import type {ExpensesState, Expense, ExpenseSummary} from '@/features/expenses/types';
 
-// Mock the date for consistent snapshots
 jest.useFakeTimers().setSystemTime(new Date('2023-01-01T00:00:00.000Z'));
 
 const initialState: ExpensesState = {
@@ -22,7 +21,6 @@ const initialState: ExpensesState = {
   hydratedCompanions: {},
 };
 
-// --- MOCK DATA ---
 const mockExpense1: Expense = {
   id: 'exp1',
   companionId: 'comp1',
@@ -61,7 +59,6 @@ const mockSummary: ExpenseSummary = {
   currencyCode: 'USD',
   lastUpdated: '2023-01-01T00:00:00.000Z',
 };
-// --- END MOCK DATA ---
 
 describe('expensesSlice', () => {
   it('should return the initial state', () => {
@@ -88,8 +85,8 @@ describe('expensesSlice', () => {
       const nextState = expensesReducer(state, action);
 
       expect(nextState.items).toEqual(newExpenses);
-      expect(nextState.summaries.comp1.total).toBe(150); // <<< LINT FIX
-      expect(nextState.hydratedCompanions.comp1).toBe(true); // <<< LINT FIX
+      expect(nextState.summaries.comp1.total).toBe(150);
+      expect(nextState.hydratedCompanions.comp1).toBe(true);
     });
   });
 
@@ -112,20 +109,20 @@ describe('expensesSlice', () => {
 
       expect(state.loading).toBe(false);
       expect(state.items).toEqual([mockExpense1, mockExpense2]);
-      expect(state.summaries.comp1).toEqual(payload.summary); // <<< LINT FIX
-      expect(state.hydratedCompanions.comp1).toBe(true); // <<< LINT FIX
+      expect(state.summaries.comp1).toEqual(payload.summary);
+      expect(state.hydratedCompanions.comp1).toBe(true);
     });
 
     it('should merge existing external expenses on fulfilled', () => {
       const initialStateWithExternal: ExpensesState = {
         ...initialState,
-        items: [mockExternalExpense], // Existing external expense
+        items: [mockExternalExpense],
       };
 
       const payload = {
         companionId: 'comp1',
-        expenses: [mockExpense1, mockExpense2], // Fetched in-app expenses
-        summary: {...mockSummary, total: 150}, // Summary from thunk (will be recalculated)
+        expenses: [mockExpense1, mockExpense2],
+        summary: {...mockSummary, total: 150},
       };
       const action = {type: fetchExpensesForCompanion.fulfilled.type, payload};
       const state = expensesReducer(initialStateWithExternal, action);
@@ -135,12 +132,12 @@ describe('expensesSlice', () => {
       expect(state.items).toContain(mockExpense1);
       expect(state.items).toContain(mockExpense2);
       expect(state.items).toContain(mockExternalExpense);
-      expect(state.summaries.comp1.total).toBe(350); // <<< LINT FIX (100 + 50 + 200)
-      expect(state.hydratedCompanions.comp1).toBe(true); // <<< LINT FIX
+      expect(state.summaries.comp1.total).toBe(350);
+      expect(state.hydratedCompanions.comp1).toBe(true);
     });
 
     it('should not preserve external expense if ID collides', () => {
-      const collidingExternal = {...mockExternalExpense, id: 'exp1'}; // Same ID as mockExpense1
+      const collidingExternal = {...mockExternalExpense, id: 'exp1'};
       const initialStateWithExternal: ExpensesState = {
         ...initialState,
         items: [collidingExternal],
@@ -157,7 +154,7 @@ describe('expensesSlice', () => {
       expect(state.items).toHaveLength(2);
       expect(state.items).toContain(mockExpense1);
       expect(state.items).toContain(mockExpense2);
-      expect(state.summaries.comp1.total).toBe(150); // <<< LINT FIX (100 + 50)
+      expect(state.summaries.comp1.total).toBe(150);
     });
 
     it('should set error on rejected', () => {
@@ -188,8 +185,8 @@ describe('expensesSlice', () => {
 
       expect(state.loading).toBe(false);
       expect(state.items).toEqual([mockExpense1]);
-      expect(state.summaries.comp1.total).toBe(100); // <<< LINT FIX
-      expect(state.summaries.comp1.currencyCode).toBe('USD'); // <<< LINT FIX
+      expect(state.summaries.comp1.total).toBe(100);
+      expect(state.summaries.comp1.currencyCode).toBe('USD');
     });
 
     it('should set error on rejected', () => {
@@ -233,7 +230,7 @@ describe('expensesSlice', () => {
       expect(state.items[0].amount).toBe(150);
       expect(state.items[0].title).toBe('New Title');
       expect(state.items[0].updatedAt).toBe('2023-01-02T00:00:00.000Z');
-      expect(state.summaries.comp1.total).toBe(150); // <<< LINT FIX
+      expect(state.summaries.comp1.total).toBe(150);
     });
 
     it('should not update if expenseId is not found', () => {
@@ -242,8 +239,8 @@ describe('expensesSlice', () => {
       const action = {type: updateExternalExpense.fulfilled.type, payload};
       const state = expensesReducer(initialStateWithItem, action);
 
-      expect(state.items[0].amount).toBe(100); // Unchanged
-      expect(state.summaries.comp1.total).toBe(100); // <<< LINT FIX (Unchanged)
+      expect(state.items[0].amount).toBe(100);
+      expect(state.summaries.comp1.total).toBe(100);
     });
 
     it('should set error on rejected', () => {
@@ -281,13 +278,13 @@ describe('expensesSlice', () => {
 
       expect(state.loading).toBe(false);
       expect(state.items).toEqual([]);
-      expect(state.summaries.comp1).toBeUndefined(); // <<< LINT FIX (Summary should be deleted)
+      expect(state.summaries.comp1).toBeUndefined();
     });
 
     it('should delete expense and recalculate summary if others remain', () => {
       const initialStateWithItems: ExpensesState = {
         ...initialState,
-        items: [mockExpense1, mockExpense2], // Both for 'comp1'
+        items: [mockExpense1, mockExpense2],
         summaries: {comp1: {...mockSummary, total: 150}},
       };
       const payload = {expenseId: 'exp1', companionId: 'comp1'};
@@ -295,7 +292,7 @@ describe('expensesSlice', () => {
       const state = expensesReducer(initialStateWithItems, action);
 
       expect(state.items).toEqual([mockExpense2]);
-      expect(state.summaries.comp1.total).toBe(50); // <<< LINT FIX (Recalculated)
+      expect(state.summaries.comp1.total).toBe(50);
     });
 
     it('should set error on rejected', () => {
@@ -316,7 +313,7 @@ describe('expensesSlice', () => {
   describe('extraReducers - markInAppExpenseStatus', () => {
     const initialStateWithItem: ExpensesState = {
       ...initialState,
-      items: [mockExpense2], // mockExpense2 is 'unpaid'
+      items: [mockExpense2],
       summaries: {comp1: {...mockSummary, total: 50}},
     };
 
@@ -334,7 +331,7 @@ describe('expensesSlice', () => {
       expect(state.loading).toBe(false);
       expect(state.items[0].status).toBe('paid');
       expect(state.items[0].updatedAt).toBe('2023-01-01T00:00:00.000Z');
-      expect(state.summaries.comp1.total).toBe(50); // <<< LINT FIX
+      expect(state.summaries.comp1.total).toBe(50);
     });
 
     it('should not update if expenseId is not found', () => {
@@ -342,7 +339,7 @@ describe('expensesSlice', () => {
       const action = {type: markInAppExpenseStatus.fulfilled.type, payload};
       const state = expensesReducer(initialStateWithItem, action);
 
-      expect(state.items[0].status).toBe('unpaid'); // Unchanged
+      expect(state.items[0].status).toBe('unpaid');
     });
 
     it('should set error on rejected', () => {
