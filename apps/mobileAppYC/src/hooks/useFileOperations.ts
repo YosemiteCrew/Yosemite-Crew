@@ -1,7 +1,8 @@
 import {useState} from 'react';
 import {useDocumentFileHandlers} from './useDocumentFileHandlers';
+import type {DocumentFile} from '@/types/document.types';
 
-interface FileOperationsConfig<T> {
+interface FileOperationsConfig<T extends DocumentFile> {
   files: T[];
   setFiles: (files: T[]) => void;
   clearError: () => void;
@@ -10,7 +11,7 @@ interface FileOperationsConfig<T> {
   deleteSheetRef: React.RefObject<any>;
 }
 
-export const useFileOperations = <T extends {id: string}>({
+export const useFileOperations = <T extends DocumentFile>({
   files,
   setFiles,
   clearError,
