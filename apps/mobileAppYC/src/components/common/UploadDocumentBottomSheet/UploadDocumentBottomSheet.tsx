@@ -1,4 +1,4 @@
-import React, {forwardRef, useImperativeHandle, useMemo, useRef} from 'react';
+import React, {forwardRef, useImperativeHandle, useMemo, useRef, useState} from 'react';
 import {Text, View, StyleSheet, TouchableOpacity, Image} from 'react-native';
 import CustomBottomSheet, {
   type BottomSheetRef,
@@ -24,6 +24,7 @@ export const UploadDocumentBottomSheet = forwardRef<
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const bottomSheetRef = useRef<BottomSheetRef>(null);
+  const [isSheetVisible, setIsSheetVisible] = useState(false);
   const uploadOptions = useMemo(
     () => [
       {
@@ -68,9 +69,12 @@ export const UploadDocumentBottomSheet = forwardRef<
       ref={bottomSheetRef}
       snapPoints={['35%']}
       initialIndex={-1}
+      onChange={index => {
+        setIsSheetVisible(index !== -1);
+      }}
       style={styles.bottomSheet}
       enablePanDownToClose
-      enableBackdrop
+      enableBackdrop={isSheetVisible}
       enableHandlePanningGesture
       enableContentPanningGesture={false}
       backdropOpacity={0.5}

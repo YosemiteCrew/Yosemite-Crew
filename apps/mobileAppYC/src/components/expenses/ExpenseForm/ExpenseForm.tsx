@@ -1,4 +1,4 @@
-import React, {useMemo, useRef, useState} from 'react';
+import React, {useMemo, useState} from 'react';
 import {
   Image,
   ScrollView,
@@ -6,14 +6,11 @@ import {
   Text,
   View,
 } from 'react-native';
-import {useTheme, useDocumentFileHandlers} from '@/hooks';
+import {useTheme, useFormBottomSheets, useFileOperations} from '@/hooks';
 import {CompanionSelector} from '@/components/common/CompanionSelector/CompanionSelector';
 import {CategoryBottomSheet} from '@/components/common/CategoryBottomSheet/CategoryBottomSheet';
-import type {CategoryBottomSheetRef} from '@/components/common/CategoryBottomSheet/CategoryBottomSheet';
 import {SubcategoryBottomSheet} from '@/components/common/SubcategoryBottomSheet/SubcategoryBottomSheet';
-import type {SubcategoryBottomSheetRef} from '@/components/common/SubcategoryBottomSheet/SubcategoryBottomSheet';
 import {VisitTypeBottomSheet} from '@/components/common/VisitTypeBottomSheet/VisitTypeBottomSheet';
-import type {VisitTypeBottomSheetRef} from '@/components/common/VisitTypeBottomSheet/VisitTypeBottomSheet';
 import {TouchableInput} from '@/components/common/TouchableInput/TouchableInput';
 import {Input} from '@/components/common';
 import LiquidGlassButton from '@/components/common/LiquidGlassButton/LiquidGlassButton';
@@ -21,8 +18,8 @@ import {
   SimpleDatePicker,
   formatDateForDisplay,
 } from '@/components/common/SimpleDatePicker/SimpleDatePicker';
-import {UploadDocumentBottomSheet, type UploadDocumentBottomSheetRef} from '@/components/common/UploadDocumentBottomSheet/UploadDocumentBottomSheet';
-import {DeleteDocumentBottomSheet, type DeleteDocumentBottomSheetRef} from '@/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
+import {UploadDocumentBottomSheet} from '@/components/common/UploadDocumentBottomSheet/UploadDocumentBottomSheet';
+import {DeleteDocumentBottomSheet} from '@/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
 import {DocumentAttachmentsSection} from '@/components/documents/DocumentAttachmentsSection';
 import {Images} from '@/assets/images';
 import type {Companion} from '@/features/companion/types';
@@ -87,37 +84,27 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [fileToDelete, setFileToDelete] = useState<string | null>(null);
 
-  const categorySheetRef = useRef<CategoryBottomSheetRef>(null);
-  const subcategorySheetRef = useRef<SubcategoryBottomSheetRef>(null);
-  const visitTypeSheetRef = useRef<VisitTypeBottomSheetRef>(null);
-  const uploadSheetRef = useRef<UploadDocumentBottomSheetRef>(null);
-  const deleteSheetRef = useRef<DeleteDocumentBottomSheetRef>(null);
+  const {refs, openSheet, closeSheet} = useFormBottomSheets();
+  const {categorySheetRef, subcategorySheetRef, visitTypeSheetRef, uploadSheetRef, deleteSheetRef} = refs;
 
   const currencySymbol = resolveCurrencySymbol(currencyCode, '$');
 
-  const {handleTakePhoto, handleChooseFromGallery, handleUploadFromDrive} =
-    useDocumentFileHandlers({
-      files: formData.attachments,
-      setFiles: files => onFormChange('attachments', files as ExpenseAttachment[]),
-      clearError: () => onErrorClear('attachments'),
-    });
-
-  const handleRemoveFile = (fileId: string) => {
-    setFileToDelete(fileId);
-    deleteSheetRef.current?.open();
-  };
-
-  const confirmDeleteFile = () => {
-    if (fileToDelete) {
-      onFormChange(
-        'attachments',
-        formData.attachments.filter(file => file.id !== fileToDelete),
-      );
-      setFileToDelete(null);
-    }
-  };
+  const {
+    fileToDelete,
+    handleTakePhoto,
+    handleChooseFromGallery,
+    handleUploadFromDrive,
+    handleRemoveFile,
+    confirmDeleteFile,
+  } = useFileOperations({
+    files: formData.attachments,
+    setFiles: files => onFormChange('attachments', files),
+    clearError: () => onErrorClear('attachments'),
+    openSheet,
+    closeSheet,
+    deleteSheetRef,
+  });
 
   const displayDate = formData.date
     ? formatDateForDisplay(formData.date)
@@ -152,7 +139,10 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
             label={formData.category ? 'Category' : undefined}
             value={categoryValue}
             placeholder="Category"
-            onPress={() => categorySheetRef.current?.open()}
+            onPress={() => {
+              openSheet('category');
+              categorySheetRef.current?.open();
+            }}
             rightComponent={<Image source={Images.dropdownIcon} style={styles.dropdownIcon} />}
             error={errors.category}
           />
@@ -163,7 +153,12 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
             label={formData.subcategory ? 'Sub category' : undefined}
             value={subcategoryValue}
             placeholder="Sub category"
-            onPress={() => formData.category && subcategorySheetRef.current?.open()}
+            onPress={() => {
+              if (formData.category) {
+                openSheet('subcategory');
+                subcategorySheetRef.current?.open();
+              }
+            }}
             rightComponent={<Image source={Images.dropdownIcon} style={styles.dropdownIcon} />}
             error={errors.subcategory}
             disabled={!formData.category}
@@ -175,7 +170,10 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
             label={formData.visitType ? 'Visit type' : undefined}
             value={visitTypeValue}
             placeholder="Visit type"
-            onPress={() => visitTypeSheetRef.current?.open()}
+            onPress={() => {
+              openSheet('visitType');
+              visitTypeSheetRef.current?.open();
+            }}
             rightComponent={<Image source={Images.dropdownIcon} style={styles.dropdownIcon} />}
             error={errors.visitType}
           />
@@ -237,7 +235,10 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         <View style={styles.fieldGroup}>
           <DocumentAttachmentsSection
             files={formData.attachments}
-            onAddPress={() => uploadSheetRef.current?.open()}
+            onAddPress={() => {
+              openSheet('upload');
+              uploadSheetRef.current?.open();
+            }}
             onRequestRemove={file => handleRemoveFile(file.id)}
             error={errors.attachments}
             emptyTitle="Upload documents"
@@ -280,6 +281,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
           onFormChange('category', category);
           onFormChange('subcategory', null);
           onErrorClear('category');
+          closeSheet();
         }}
       />
 
@@ -290,6 +292,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         onSave={(subcategory: string | null) => {
           onFormChange('subcategory', subcategory);
           onErrorClear('subcategory');
+          closeSheet();
         }}
       />
 
@@ -299,22 +302,33 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         onSave={(visitType: string | null) => {
           onFormChange('visitType', visitType);
           onErrorClear('visitType');
+          closeSheet();
         }}
       />
 
       <UploadDocumentBottomSheet
         ref={uploadSheetRef}
-        onTakePhoto={handleTakePhoto}
-        onChooseGallery={handleChooseFromGallery}
-        onUploadDrive={handleUploadFromDrive}
+        onTakePhoto={() => {
+          handleTakePhoto();
+          closeSheet();
+        }}
+        onChooseGallery={() => {
+          handleChooseFromGallery();
+          closeSheet();
+        }}
+        onUploadDrive={() => {
+          handleUploadFromDrive();
+          closeSheet();
+        }}
       />
 
       <DeleteDocumentBottomSheet
         ref={deleteSheetRef}
-        title="Delete file"
-        message="Are you sure you want to delete this attachment?"
-        primaryLabel="Delete"
-        secondaryLabel="Cancel"
+        documentTitle={
+          fileToDelete
+            ? formData.attachments.find(f => f.id === fileToDelete)?.name
+            : 'this file'
+        }
         onDelete={confirmDeleteFile}
       />
     </>

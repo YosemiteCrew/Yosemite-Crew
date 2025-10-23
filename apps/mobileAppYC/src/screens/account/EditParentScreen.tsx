@@ -1,10 +1,11 @@
-import React, {useMemo, useRef, useState, useCallback} from 'react';
+import React, {useMemo, useRef, useState, useCallback, useEffect} from 'react';
 import {
   View,
   Text,
   ScrollView,
   ActivityIndicator,
   StyleSheet,
+  BackHandler,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
@@ -80,6 +81,9 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
   const addressSheetRef = useRef<AddressBottomSheetRef>(null);
   const phoneSheetRef = useRef<CountryMobileBottomSheetRef>(null);
 
+  // Track which bottom sheet is open
+  const [openBottomSheet, setOpenBottomSheet] = useState<'currency' | 'address' | 'phone' | null>(null);
+
   // Helpers
   const goBack = useCallback(() => {
     if (navigation.canGoBack()) navigation.goBack();
@@ -125,6 +129,38 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
     },
     [applyPatch],
   );
+
+  // Handle Android back button for bottom sheets and date picker
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      // Close date picker first if open
+      if (showDobPicker) {
+        setShowDobPicker(false);
+        return true;
+      }
+
+      // Close bottom sheet first if open
+      if (openBottomSheet) {
+        switch (openBottomSheet) {
+          case 'currency':
+            currencySheetRef.current?.close();
+            break;
+          case 'address':
+            addressSheetRef.current?.close();
+            break;
+          case 'phone':
+            phoneSheetRef.current?.close();
+            break;
+        }
+        setOpenBottomSheet(null);
+        return true;
+      }
+
+      return false;
+    });
+
+    return () => backHandler.remove();
+  }, [showDobPicker, openBottomSheet]);
 
   if (!safeUser) {
     return (
@@ -191,7 +227,10 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
             <RowButton
               label="Phone"
               value={safeUser.phone ? `${parsedPhone.dialCode} ${parsedPhone.localNumber}` : ''}
-              onPress={() => phoneSheetRef.current?.open()}
+              onPress={() => {
+                setOpenBottomSheet('phone');
+                phoneSheetRef.current?.open();
+              }}
             />
 
             <Separator />
@@ -221,7 +260,10 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
             <RowButton
               label="Currency"
               value={safeUser.currency ?? 'USD'}
-              onPress={() => currencySheetRef.current?.open()}
+              onPress={() => {
+                setOpenBottomSheet('currency');
+                currencySheetRef.current?.open();
+              }}
             />
 
             <Separator />
@@ -230,7 +272,10 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
             <RowButton
               label="Address"
               value={safeUser.address?.addressLine ?? ''}
-              onPress={() => addressSheetRef.current?.open()}
+              onPress={() => {
+                setOpenBottomSheet('address');
+                addressSheetRef.current?.open();
+              }}
               key="address"
             />
 
@@ -239,7 +284,10 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
             <RowButton
               label="State/Province"
               value={safeUser.address?.stateProvince ?? ''}
-              onPress={() => addressSheetRef.current?.open()}
+              onPress={() => {
+                setOpenBottomSheet('address');
+                addressSheetRef.current?.open();
+              }}
               key="stateProvince"
             />
 
@@ -248,7 +296,10 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
             <RowButton
               label="City"
               value={safeUser.address?.city ?? ''}
-              onPress={() => addressSheetRef.current?.open()}
+              onPress={() => {
+                setOpenBottomSheet('address');
+                addressSheetRef.current?.open();
+              }}
               key="city"
             />
 
@@ -257,7 +308,10 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
             <RowButton
               label="Postal Code"
               value={safeUser.address?.postalCode ?? ''}
-              onPress={() => addressSheetRef.current?.open()}
+              onPress={() => {
+                setOpenBottomSheet('address');
+                addressSheetRef.current?.open();
+              }}
               key="postalCode"
             />
 
@@ -266,7 +320,10 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
             <RowButton
               label="Country"
               value={safeUser.address?.country ?? ''}
-              onPress={() => addressSheetRef.current?.open()}
+              onPress={() => {
+                setOpenBottomSheet('address');
+                addressSheetRef.current?.open();
+              }}
               key="country"
             />
           </View>
@@ -277,13 +334,19 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
       <CurrencyBottomSheet
         ref={currencySheetRef}
         selectedCurrency={safeUser.currency ?? 'USD'}
-        onSave={(currency: string) => applyPatch({currency})}
+        onSave={(currency: string) => {
+          applyPatch({currency});
+          setOpenBottomSheet(null);
+        }}
       />
 
       <AddressBottomSheet
         ref={addressSheetRef}
         selectedAddress={safeUser.address ?? {}}
-        onSave={(address) => applyPatch({address})}
+        onSave={(address) => {
+          applyPatch({address});
+          setOpenBottomSheet(null);
+        }}
       />
 
       <CountryMobileBottomSheet
@@ -291,7 +354,10 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
         countries={COUNTRIES}
         selectedCountry={COUNTRIES.find(country => country.dial_code === parsedPhone.dialCode) ?? COUNTRIES.find((c: any) => c.code === 'US') ?? COUNTRIES[0]}
         mobileNumber={parsedPhone.localNumber}
-        onSave={(country, phone) => applyPatch({phone: `${country.dial_code}${phone}`})}
+        onSave={(country, phone) => {
+          applyPatch({phone: `${country.dial_code}${phone}`});
+          setOpenBottomSheet(null);
+        }}
       />
 
       <SimpleDatePicker
