@@ -39,9 +39,13 @@ describe("HomePage Component", () => {
 
     const heroSection = mainHeading.closest("section");
 
+    if (heroSection === null) {
+      fail("Expected hero section to be in the document");
+    }
+
     expect(heroSection).toBeInTheDocument();
 
-    const bookDemoLink = within(heroSection!).getByRole("link", {
+    const bookDemoLink = within(heroSection).getByRole("link", {
       name: /book demo/i,
     });
 
