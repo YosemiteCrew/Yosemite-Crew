@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
-    "module": "CommonJS",         
+    "module": "ESNext",         
+    "target": "ES2022",
     "outDir": "dist",
     "strict": true,                              // All strict type-checking options
     "esModuleInterop": true,                     // For importing CommonJS modules like Express

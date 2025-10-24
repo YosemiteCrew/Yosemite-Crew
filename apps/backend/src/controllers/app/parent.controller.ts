@@ -87,7 +87,7 @@ const decodeInlinePhoto = (attachment: ParentAttachment): { buffer: Buffer; mime
     let base64Content = rawData
     let mimeType = attachment.contentType?.trim()
 
-    const inlineMatch = rawData.match(INLINE_DATA_URL_PATTERN)
+    const inlineMatch = INLINE_DATA_URL_PATTERN.exec(rawData)
 
     if (inlineMatch) {
         mimeType = mimeType ?? inlineMatch[1]

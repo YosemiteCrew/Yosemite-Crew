@@ -14,12 +14,12 @@ import {
 
 const REGISTRATION_NUMBER_EXTENSION_URL = 'http://example.org/fhir/StructureDefinition/registrationNumber'
 const IMAGE_EXTENSION_URL = 'http://example.org/fhir/StructureDefinition/image'
-const ORGANIZATION_TYPES: Array<NonNullable<Organization['type']>> = [
-    'Veterinary Business',
-    'Groomer Shop',
-    'Breeding Facility',
-    'Pet Sitter',
-]
+const ORGANIZATION_TYPES = new Set<NonNullable<Organization["type"]>>([
+  "Veterinary Business",
+  "Groomer Shop",
+  "Breeding Facility",
+  "Pet Sitter",
+]);
 
 type ExtensionLike = {
     url?: string
@@ -240,7 +240,7 @@ const buildFHIRResponse = (
           }
         : undefined
 
-    const organizationType = ORGANIZATION_TYPES.includes(rest.type as NonNullable<Organization['type']>)
+    const organizationType = ORGANIZATION_TYPES.has(rest.type as NonNullable<Organization['type']>)
         ? (rest.type as NonNullable<Organization['type']>)
         : undefined
 
@@ -281,11 +281,13 @@ export const OrganizationService = {
         const { persistable, typeCoding, attributes } = createPersistableFromFHIR(payload)
 
         const identifier = ensureSafeIdentifier(attributes.id) ?? ensureSafeIdentifier(payload.id)
-        const query = identifier
-            ? isValidObjectId(identifier)
-                ? { _id: identifier }
-                : { fhirId: identifier }
-            : undefined
+        let query: { _id?: string; fhirId?: string } | undefined = undefined;
+
+        if (identifier) {
+        query = isValidObjectId(identifier)
+            ? { _id: identifier }
+            : { fhirId: identifier };
+        }
 
         let document: OrganizationDocument | null = null
         let created = false
