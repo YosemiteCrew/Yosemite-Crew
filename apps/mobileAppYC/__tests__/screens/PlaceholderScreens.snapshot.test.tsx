@@ -50,10 +50,10 @@ jest.mock('react-native-safe-area-context', () => ({
 
 // Mock EmptyDocumentsScreen to avoid complex dependencies
 jest.mock('@/screens/documents/EmptyDocumentsScreen/EmptyDocumentsScreen', () => {
-  const React = require('react');
+  const ReactModule = require('react');
   const {View, Text} = require('react-native');
   return {
-    EmptyDocumentsScreen: () => React.createElement(View, {}, React.createElement(Text, {}, 'Empty Documents')),
+    EmptyDocumentsScreen: () => ReactModule.createElement(View, {}, ReactModule.createElement(Text, {}, 'Empty Documents')),
   };
 });
 

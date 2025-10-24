@@ -100,10 +100,9 @@ export const TaskViewScreen: React.FC = () => {
   // Get task type breadcrumb
   const getTaskTypeBreadcrumb = () => {
     if (isMedication) {
-      const details = task.details as MedicationTaskDetails;
       return buildTaskTypeBreadcrumb(
         task.category,
-        task.subcategory,
+        task.subcategory === 'none' ? undefined : task.subcategory,
         undefined,
         undefined,
         'give-medication',
@@ -112,7 +111,7 @@ export const TaskViewScreen: React.FC = () => {
       const details = task.details as ObservationalToolTaskDetails;
       return buildTaskTypeBreadcrumb(
         task.category,
-        task.subcategory,
+        task.subcategory === 'none' ? undefined : task.subcategory,
         undefined,
         details.chronicConditionType,
         'take-observational-tool',
@@ -172,7 +171,6 @@ export const TaskViewScreen: React.FC = () => {
             value={getTaskTypeBreadcrumb()}
             onPress={() => {}} // View only - no action
             rightComponent={<Image source={Images.dropdownIcon} style={styles.dropdownIcon} />}
-            editable={false}
           />
         </View>
 
@@ -202,7 +200,6 @@ export const TaskViewScreen: React.FC = () => {
                 )}
                 onPress={() => {}} // View only
                 rightComponent={<Image source={Images.dropdownIcon} style={styles.dropdownIcon} />}
-                editable={false}
               />
             </View>
 
@@ -215,7 +212,6 @@ export const TaskViewScreen: React.FC = () => {
                 }`}
                 onPress={() => {}} // View only
                 rightComponent={<Image source={Images.dropdownIcon} style={styles.dropdownIcon} />}
-                editable={false}
               />
             </View>
 
@@ -249,7 +245,6 @@ export const TaskViewScreen: React.FC = () => {
                 )}
                 onPress={() => {}} // View only
                 rightComponent={<Image source={Images.dropdownIcon} style={styles.dropdownIcon} />}
-                editable={false}
               />
             </View>
 
@@ -265,7 +260,6 @@ export const TaskViewScreen: React.FC = () => {
                   rightComponent={
                     <Image source={Images.calendarIcon} style={styles.calendarIcon} />
                   }
-                  editable={false}
                 />
               </View>
 
@@ -283,7 +277,6 @@ export const TaskViewScreen: React.FC = () => {
                   rightComponent={
                     <Image source={Images.calendarIcon} style={styles.calendarIcon} />
                   }
-                  editable={false}
                 />
               </View>
             </View>
@@ -316,7 +309,6 @@ export const TaskViewScreen: React.FC = () => {
                 )}
                 onPress={() => {}} // View only
                 rightComponent={<Image source={Images.dropdownIcon} style={styles.dropdownIcon} />}
-                editable={false}
               />
             </View>
 
@@ -327,7 +319,6 @@ export const TaskViewScreen: React.FC = () => {
                 value={formatDateForDisplay(new Date(task.date))}
                 onPress={() => {}} // View only
                 rightComponent={<Image source={Images.calendarIcon} style={styles.calendarIcon} />}
-                editable={false}
               />
             </View>
 
@@ -338,7 +329,6 @@ export const TaskViewScreen: React.FC = () => {
                 value={formatTime(task.time)}
                 onPress={() => {}} // View only
                 rightComponent={<Image source={Images.clockIcon} style={styles.calendarIcon} />}
-                editable={false}
               />
             </View>
 
@@ -349,7 +339,6 @@ export const TaskViewScreen: React.FC = () => {
                 value={resolveTaskFrequencyLabel(task.frequency)}
                 onPress={() => {}} // View only
                 rightComponent={<Image source={Images.dropdownIcon} style={styles.dropdownIcon} />}
-                editable={false}
               />
             </View>
 
@@ -396,7 +385,6 @@ export const TaskViewScreen: React.FC = () => {
                   rightComponent={
                     <Image source={Images.calendarIcon} style={styles.calendarIcon} />
                   }
-                  editable={false}
                 />
               </View>
 
@@ -406,7 +394,6 @@ export const TaskViewScreen: React.FC = () => {
                   value={formatTime(task.time)}
                   onPress={() => {}} // View only
                   rightComponent={<Image source={Images.clockIcon} style={styles.calendarIcon} />}
-                  editable={false}
                 />
               </View>
             </View>
@@ -418,7 +405,6 @@ export const TaskViewScreen: React.FC = () => {
                 value={resolveTaskFrequencyLabel(task.frequency)}
                 onPress={() => {}} // View only
                 rightComponent={<Image source={Images.dropdownIcon} style={styles.dropdownIcon} />}
-                editable={false}
               />
             </View>
 
@@ -474,7 +460,6 @@ export const TaskViewScreen: React.FC = () => {
               value={getCalendarProviderLabel(task.calendarProvider)}
               onPress={() => {}} // View only
               rightComponent={<Image source={Images.dropdownIcon} style={styles.dropdownIcon} />}
-              editable={false}
             />
           </View>
         )}

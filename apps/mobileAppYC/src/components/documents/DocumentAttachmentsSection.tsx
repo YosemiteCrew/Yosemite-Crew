@@ -17,6 +17,7 @@ interface DocumentAttachmentsSectionProps {
   error?: string;
   emptyTitle?: string;
   emptySubtitle?: string;
+  hideAddButton?: boolean;
 }
 
 const DEFAULT_EMPTY_TITLE = 'Upload documents';
@@ -35,6 +36,7 @@ export const DocumentAttachmentsSection: React.FC<
   error,
   emptyTitle = DEFAULT_EMPTY_TITLE,
   emptySubtitle = DEFAULT_EMPTY_SUBTITLE,
+  hideAddButton = false,
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -84,12 +86,14 @@ export const DocumentAttachmentsSection: React.FC<
         <View style={styles.filesPreviewContainer}>
           <View style={styles.multipleFilesGrid}>
             {files.map(renderPreviewTile)}
-            <TouchableOpacity
-              style={styles.addMoreBox}
-              onPress={onAddPress}
-              activeOpacity={0.7}>
-              <Image source={Images.addIconWhite} style={styles.addMoreIcon} />
-            </TouchableOpacity>
+            {!hideAddButton && (
+              <TouchableOpacity
+                style={styles.addMoreBox}
+                onPress={onAddPress}
+                activeOpacity={0.7}>
+                <Image source={Images.addIconWhite} style={styles.addMoreIcon} />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       )}
