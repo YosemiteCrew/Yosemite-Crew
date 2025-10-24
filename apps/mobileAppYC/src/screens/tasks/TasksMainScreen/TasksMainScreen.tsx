@@ -308,7 +308,7 @@ export const TasksMainScreen: React.FC = () => {
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={() => handleViewMore(category)}>
-              <Text style={styles.viewMore}>More</Text>
+              <Text style={styles.viewMore}>View More</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -435,8 +435,8 @@ const createStyles = (theme: any) =>
     },
     companionSelectorTask: {
       marginTop: theme.spacing[4],
-      marginBottom: theme.spacing[4],
-      paddingHorizontal: 0,
+      marginBottom: theme.spacing[2],
+      paddingHorizontal: theme.spacing[4],
     },
     monthNavigation: {
       flexDirection: 'row',
