@@ -2,9 +2,10 @@ import React from 'react';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import type {BottomTabBarProps} from '@react-navigation/bottom-tabs';
 import {TabParamList} from './types';
-import {AppointmentsScreen, TasksScreen} from '@/screens';
+import {AppointmentsScreen} from '@/screens';
 import {HomeStackNavigator} from './HomeStackNavigator';
 import {DocumentStackNavigator} from './DocumentStackNavigator';
+import {TaskStackNavigator} from './TaskStackNavigator';
 import {FloatingTabBar} from './FloatingTabBar';
 import {useTheme} from '../hooks';
 
@@ -41,7 +42,7 @@ export const TabNavigator: React.FC = () => {
         component={DocumentStackNavigator}
         options={{headerShown: false}}
       />
-      <Tab.Screen name="Tasks" component={TasksScreen} />
+      <Tab.Screen name="Tasks" component={TaskStackNavigator} options={{headerShown: false}} />
     </Tab.Navigator>
   );
 };

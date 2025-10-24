@@ -13,6 +13,7 @@ import {
   BackHandler,
   type KeyboardTypeOptions,
 } from 'react-native';
+import {DiscardChangesBottomSheet} from '@/components/common/DiscardChangesBottomSheet/DiscardChangesBottomSheet';
 import {useForm, Controller, type ControllerProps} from 'react-hook-form';
 import {SafeArea, Input, Header} from '../../components/common';
 import {ProfileImagePicker} from '../../components/common/ProfileImagePicker/ProfileImagePicker';
@@ -126,10 +127,12 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
   const breedSheetRef = useRef<BreedBottomSheetRef>(null);
   const bloodGroupSheetRef = useRef<BloodGroupBottomSheetRef>(null);
   const countrySheetRef = useRef<CountryBottomSheetRef>(null);
+  const discardSheetRef = useRef<any>(null);
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState('');
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Track which bottom sheet is currently open
   const [openBottomSheet, setOpenBottomSheet] = useState<'breed' | 'bloodGroup' | 'country' | null>(null);
@@ -212,7 +215,10 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
         <Input
           label={label}
           value={textValue}
-          onChangeText={onChange}
+          onChangeText={(text) => {
+            onChange(text);
+            setHasUnsavedChanges(true);
+          }}
           placeholder={placeholder}
           keyboardType={keyboardType}
           maxLength={maxLength}
@@ -287,13 +293,18 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
     } else {
-      navigation.goBack();
+      if (hasUnsavedChanges) {
+        discardSheetRef.current?.open();
+      } else {
+        navigation.goBack();
+      }
     }
-  }, [currentStep, navigation]);
+  }, [currentStep, navigation, hasUnsavedChanges]);
 
   const handleProfileImageChange = useCallback(
     (imageUri: string | null) => {
       setValue('profileImage', imageUri, {shouldValidate: true});
+      setHasUnsavedChanges(true);
     },
     [setValue],
   );
@@ -307,6 +318,7 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
     (selectedBreed: Breed | null) => {
       setValue('breed', selectedBreed, {shouldValidate: true});
       setOpenBottomSheet(null);
+      setHasUnsavedChanges(true);
     },
     [setValue],
   );
@@ -320,6 +332,7 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
     (selectedBloodGroup: string | null) => {
       setValue('bloodGroup', selectedBloodGroup, {shouldValidate: true});
       setOpenBottomSheet(null);
+      setHasUnsavedChanges(true);
     },
     [setValue],
   );
@@ -333,6 +346,7 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
     (country: any) => {
       setValue('countryOfOrigin', country?.name || null, {shouldValidate: true});
       setOpenBottomSheet(null);
+      setHasUnsavedChanges(true);
     },
     [setValue],
   );
@@ -345,6 +359,7 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
     (date: Date) => {
       setValue('dateOfBirth', date, {shouldValidate: true});
       setShowDatePicker(false);
+      setHasUnsavedChanges(true);
     },
     [setValue],
   );
@@ -500,6 +515,7 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
                   shouldValidate: true,
                 });
                 clearErrors('category');
+                setHasUnsavedChanges(true);
               }}
               activeOpacity={0.8}>
               <Image
@@ -599,11 +615,12 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
               <TileSelector
                 options={GENDER_OPTIONS}
                 selectedValue={watch('gender')}
-                onSelect={value =>
+                onSelect={value => {
                   setValue('gender', value as CompanionGender, {
                     shouldValidate: true,
-                  })
-                }
+                  });
+                  setHasUnsavedChanges(true);
+                }}
               />
             )}
           />
@@ -639,11 +656,12 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
               <TileSelector
                 options={NEUTERED_OPTIONS}
                 selectedValue={neuteredStatus}
-                onSelect={value =>
+                onSelect={value => {
                   setValue('neuteredStatus', value as NeuteredStatus, {
                     shouldValidate: true,
-                  })
-                }
+                  });
+                  setHasUnsavedChanges(true);
+                }}
               />
             )}
           />
@@ -712,11 +730,12 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
               <TileSelector
                 options={INSURED_OPTIONS}
                 selectedValue={insuredStatus}
-                onSelect={value =>
+                onSelect={value => {
                   setValue('insuredStatus', value as InsuredStatus, {
                     shouldValidate: true,
-                  })
-                }
+                  });
+                  setHasUnsavedChanges(true);
+                }}
               />
             )}
           />
@@ -771,11 +790,12 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
               <TileSelector
                 options={ORIGIN_OPTIONS}
                 selectedValue={watch('origin')}
-                onSelect={value =>
+                onSelect={value => {
                   setValue('origin', value as CompanionOrigin, {
                     shouldValidate: true,
-                  })
-                }
+                  });
+                  setHasUnsavedChanges(true);
+                }}
               />
             )}
           />
@@ -873,12 +893,12 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
         />
       </KeyboardAvoidingView>
 
-<BreedBottomSheet
-  ref={breedSheetRef}
-  breeds={getBreedListByCategory(category)}
-  selectedBreed={breed}
-  onSave={handleBreedSave}
-/>
+      <BreedBottomSheet
+        ref={breedSheetRef}
+        breeds={getBreedListByCategory(category)}
+        selectedBreed={breed}
+        onSave={handleBreedSave}
+      />
 
 
       <BloodGroupBottomSheet
@@ -895,6 +915,11 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
           COUNTRIES.find(c => c.name === countryOfOrigin) ?? null // Use null if no country is selected
         }
         onSave={country => handleCountrySave(country)}
+      />
+
+      <DiscardChangesBottomSheet
+        ref={discardSheetRef}
+        onDiscard={() => navigation.goBack()}
       />
     </SafeArea>
   );

@@ -84,6 +84,21 @@ addIconWhite: require('./documents/addIconWhite.png'),
     emptyExpenseIllustration:require('./expense/emptyExpenseIllustration.png'),
 
 
+  leftArrowIcon: require('./tasks/leftArrow.png'), // Placeholder - use left arrow from Figma
+  rightArrowIcon: require('./tasks/rightArrow.png'), // Placeholder - use right arrow from Figma
+  clockIcon: require('./tasks/clockIcon.png'), // Placeholder - use clock icon from Figma
+  checkCircleIcon: require('./icons/calendar.png'), // Placeholder - use check circle from Figma
+  checkIcon: require('./icons/blueAddIcon.png'), // Temporary - use check icon when available
+  addIcon: require('./icons/blueAddIcon.png'), // Placeholder - already exists
+  editIcon: require('./account/blackEdit.png'),// Placeholder - already exists
+  deleteIcon: require('./account/deleteIconRed.png'), // Placeholder - already exists
+  googleCalendarIcon: require('./tasks/googleCalendarIcon.png'), // Placeholder - use Google Calendar icon from Figma
+  iCloudCalendarIcon: require('./tasks/iCloudCalendarIcon.png'), // Placeholder - use iCloud Calendar icon from Figma
+  medicationIcon: require('./documents/prescriptionIcon.png'), // Placeholder - already exists
+  observationalToolIcon: require('./documents/labTestIcon.png'), // Placeholder - already exists
+  emptyTasksIllustration: require('./documents/emptyDocuments.png'), // Placeholder - use tasks illustration from Figma
+
+
 
 
 

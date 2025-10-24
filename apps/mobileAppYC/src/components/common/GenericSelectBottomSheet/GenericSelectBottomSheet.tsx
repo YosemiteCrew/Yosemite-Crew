@@ -218,7 +218,19 @@ export const GenericSelectBottomSheet = forwardRef<
               const isSelected = mode === 'select'
                 ? selectedItem?.id === item.id
                 : tempItem?.id === item.id;
-              return renderItem ? renderItem(item, isSelected) : defaultRenderItem({ item });
+
+              if (renderItem) {
+                return (
+                  <TouchableOpacity
+                    style={styles.touchableItem}
+                    onPress={() => handleItemPress(item)}
+                    activeOpacity={0.7}>
+                    {renderItem(item, isSelected)}
+                  </TouchableOpacity>
+                );
+              }
+
+              return defaultRenderItem({ item });
             }}
             showsVerticalScrollIndicator
             contentContainerStyle={styles.listContent}
@@ -394,5 +406,8 @@ const createStyles = (theme: any, maxListHeight: number) =>
       width: 80,
       height: 6,
       opacity: 0.2,
+    },
+    touchableItem: {
+      flex: 1,
     },
   });

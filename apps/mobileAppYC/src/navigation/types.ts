@@ -45,12 +45,21 @@ export type ExpenseStackParamList = {
   ExpensesList: { mode: 'inApp' | 'external' };
 };
 
+export type TaskStackParamList = {
+  TasksMain: undefined;
+  TasksList: { category: 'health' | 'hygiene' | 'dietary' | 'custom' };
+  AddTask: undefined;
+  TaskView: { taskId: string };
+  EditTask: { taskId: string };
+  ObservationalTool: { taskId: string };
+};
+
 // Tab Navigator
 export type TabParamList = {
   HomeStack: NavigatorScreenParams<HomeStackParamList>;
   Appointments: undefined;
   Documents: NavigatorScreenParams<DocumentStackParamList>;
-  Tasks: undefined;
+  Tasks: NavigatorScreenParams<TaskStackParamList>;
 };
 
 export type TabScreenProps<T extends keyof TabParamList> = BottomTabScreenProps<

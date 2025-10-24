@@ -8,12 +8,20 @@ import {
 import type {RootState} from '@/app/store';
 import type {AuthState, User} from '@/features/auth/types';
 import type {ExpensesState} from '@/features/expenses';
+import type {TasksState} from '@/features/tasks';
 
 const createMockExpensesState = (): ExpensesState => ({
   items: [],
   loading: false,
   error: null,
   summaries: {},
+  hydratedCompanions: {},
+});
+
+const createMockTasksState = (): TasksState => ({
+  items: [],
+  loading: false,
+  error: null,
   hydratedCompanions: {},
 });
 
@@ -46,6 +54,7 @@ const createMockState = (authState: Partial<AuthState>): RootState => ({
     uploadProgress: 0,
   },
   expenses: createMockExpensesState(),
+  tasks: createMockTasksState(),
   _persist: {
     version: 2,
     rehydrated: true,

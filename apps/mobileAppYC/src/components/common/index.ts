@@ -1,5 +1,6 @@
 export { Button } from './Button/Button';
 export { Input } from './Input/Input';
+export { TouchableInput } from './TouchableInput/TouchableInput';
 export { Loading } from './Loading/Loading';
 export { Modal } from './Modal/Modal';
 export { OTPInput } from './OTPInput/OTPInput';

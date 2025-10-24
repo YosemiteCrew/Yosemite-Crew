@@ -7,6 +7,7 @@ import {SafeArea} from '@/components/common';
 import {Header} from '@/components/common/Header/Header';
 import {DocumentForm, type DocumentFormData} from '@/components/documents/DocumentForm/DocumentForm';
 import {DeleteDocumentBottomSheet, type DeleteDocumentBottomSheetRef} from '@/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
+import {DiscardChangesBottomSheet} from '@/components/common/DiscardChangesBottomSheet/DiscardChangesBottomSheet';
 import {useTheme, useDocumentFormValidation} from '@/hooks';
 import {useSelector, useDispatch} from 'react-redux';
 import type {RootState, AppDispatch} from '@/app/store';
@@ -49,7 +50,9 @@ export const EditDocumentScreen: React.FC = () => {
     useDocumentFormValidation();
 
   const deleteDocumentSheetRef = useRef<DeleteDocumentBottomSheetRef>(null);
+  const discardSheetRef = useRef<any>(null);
   const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   useEffect(() => {
     if (document) {
@@ -175,6 +178,15 @@ export const EditDocumentScreen: React.FC = () => {
 
   const handleFormChange = (field: keyof DocumentFormData, value: any) => {
     setFormData(prev => ({...prev, [field]: value}));
+    setHasUnsavedChanges(true);
+  };
+
+  const handleBack = () => {
+    if (hasUnsavedChanges) {
+      discardSheetRef.current?.open();
+    } else {
+      navigation.goBack();
+    }
   };
 
   const handleCompanionSelect = (id: string | null) => {
@@ -187,7 +199,7 @@ export const EditDocumentScreen: React.FC = () => {
       <Header
         title="Edit document"
         showBackButton={true}
-        onBack={() => navigation.goBack()}
+        onBack={handleBack}
         onRightPress={handleDelete}
         rightIcon={Images.deleteIconRed}
       />
@@ -209,6 +221,11 @@ export const EditDocumentScreen: React.FC = () => {
         ref={deleteDocumentSheetRef}
         documentTitle={document?.title || 'this document'}
         onDelete={confirmDeleteDocument}
+      />
+
+      <DiscardChangesBottomSheet
+        ref={discardSheetRef}
+        onDiscard={() => navigation.goBack()}
       />
     </SafeArea>
   );
