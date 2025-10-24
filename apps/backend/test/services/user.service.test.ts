@@ -23,6 +23,7 @@ describe("UserService", () => {
   describe("create", () => {
     it("persists a sanitized user when no duplicate exists", async () => {
       mockedUserModel.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+
       const createdDocument = {
         userId: "user-1",
         email: "test@example.com",
@@ -56,6 +57,7 @@ describe("UserService", () => {
 
     it("defaults isActive to true when not provided", async () => {
       mockedUserModel.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+
       const createdDocument = {
         userId: "user-2",
         email: "user2@example.com",
