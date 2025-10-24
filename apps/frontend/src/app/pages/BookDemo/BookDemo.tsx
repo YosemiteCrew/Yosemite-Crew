@@ -16,7 +16,7 @@ const BookDemo = () => {
     <div className="App">
       <Cal
         namespace="30min"
-        calLink="yosemitecrew/30min"
+        calLink="yosemitecrew/demo"
         style={{ width: "100%", height: "100%", overflow: "scroll" }}
         config={{ theme: "light", layout: "month_view" }}
       />
