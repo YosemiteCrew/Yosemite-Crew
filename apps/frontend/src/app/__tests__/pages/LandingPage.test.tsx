@@ -20,12 +20,16 @@ describe("MainLandingPage Component", () => {
 
     const heroSection = mainHeading.closest("section");
 
+    if (heroSection === null) {
+      fail("Expected hero section to be in the document");
+    }
+
     expect(heroSection).toBeInTheDocument();
 
-    const bookDemoButton = within(heroSection!).getByRole("link", {
+    const bookDemoButton = within(heroSection).getByRole("link", {
       name: /book demo/i,
     });
-    const learnMoreButton = within(heroSection!).getByRole("link", {
+    const learnMoreButton = within(heroSection).getByRole("link", {
       name: /learn more/i,
     });
 
