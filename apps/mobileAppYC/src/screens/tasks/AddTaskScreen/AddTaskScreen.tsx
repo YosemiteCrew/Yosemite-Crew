@@ -136,40 +136,6 @@ export const AddTaskScreen: React.FC = () => {
     }
   }, [companions, selectedCompanionId, dispatch]);
 
-  // Reset form fields when task type changes
-  useEffect(() => {
-    if (taskTypeSelection) {
-      // Reset fields that don't apply to the new task type
-      const resetFormData: Partial<TaskFormData> = {
-        medicineName: '',
-        medicineType: null,
-        dosages: [],
-        medicationFrequency: null,
-        startDate: null,
-        endDate: null,
-        observationalTool: null,
-        description: '',
-      };
-
-      // Only reset irrelevant fields based on category
-      if (taskTypeSelection.category === 'custom') {
-        // Custom tasks use all fields
-      } else if (taskTypeSelection.category === 'health' && taskTypeSelection.taskType === 'give-medication') {
-        // Keep medication fields, reset observation
-        resetFormData.observationalTool = null;
-        resetFormData.description = '';
-      } else if (taskTypeSelection.category === 'health' && taskTypeSelection.taskType === 'take-observational-tool') {
-        // Keep observation fields, reset medication
-        resetFormData.medicineName = '';
-        resetFormData.medicineType = null;
-        resetFormData.dosages = [];
-        resetFormData.medicationFrequency = null;
-      }
-
-      setFormData(prev => ({...prev, ...resetFormData}));
-    }
-  }, [taskTypeSelection]);
-
   const updateField = <K extends keyof TaskFormData>(
     field: K,
     value: TaskFormData[K],
@@ -188,28 +154,51 @@ export const AddTaskScreen: React.FC = () => {
   };
 
   const handleTaskTypeSelect = (selection: TaskTypeSelection) => {
-    setTaskTypeSelection(selection);
-    setHasUnsavedChanges(true);
+    const isMedication = selection.category === 'health' && selection.taskType === 'give-medication';
+    const isObservationalTool = selection.category === 'health' && selection.taskType === 'take-observational-tool';
 
-    // Update form data based on selection
-    updateField('category', selection.category);
-    updateField('subcategory', selection.subcategory || null);
-    updateField('parasitePreventionType', selection.parasitePreventionType || null);
-    updateField('chronicConditionType', selection.chronicConditionType || null);
+    // Build the updated form data
+    const updatedFormData: Partial<TaskFormData> = {
+      category: selection.category,
+      subcategory: selection.subcategory || null,
+      parasitePreventionType: selection.parasitePreventionType || null,
+      chronicConditionType: selection.chronicConditionType || null,
+
+      // Reset all task type fields first
+      healthTaskType: null,
+      hygieneTaskType: null,
+      dietaryTaskType: null,
+
+      // Reset all form-specific fields
+      medicineName: '',
+      medicineType: null,
+      dosages: [],
+      medicationFrequency: null,
+      startDate: new Date(),
+      endDate: null,
+      observationalTool: null,
+      description: '',
+      time: null,
+      frequency: null,
+    };
+
+    // Set the appropriate task type field
+    if (selection.category === 'health') {
+      updatedFormData.healthTaskType = selection.taskType as any;
+    } else if (selection.category === 'hygiene') {
+      updatedFormData.hygieneTaskType = selection.taskType as any;
+    } else if (selection.category === 'dietary') {
+      updatedFormData.dietaryTaskType = selection.taskType as any;
+    }
 
     // Auto-fill title
     const title = getTaskTitle(selection.category, selection.taskType);
-    updateField('title', title);
+    updatedFormData.title = title;
 
-    // Set task type
-    if (selection.category === 'health') {
-      updateField('healthTaskType', selection.taskType as any);
-    } else if (selection.category === 'hygiene') {
-      updateField('hygieneTaskType', selection.taskType as any);
-    } else if (selection.category === 'dietary') {
-      updateField('dietaryTaskType', selection.taskType as any);
-    }
-
+    // Apply all updates at once
+    setFormData(prev => ({...prev, ...updatedFormData}));
+    setTaskTypeSelection(selection);
+    setHasUnsavedChanges(true);
     clearError('category');
   };
 
@@ -517,6 +506,35 @@ export const AddTaskScreen: React.FC = () => {
                   />
                 </View>
 
+                {/* Display Dosage Details */}
+                {formData.dosages.length > 0 && (
+                  <View style={styles.dosageDisplayContainer}>
+                    {formData.dosages.map((dosage) => (
+                      <View key={dosage.id} style={styles.dosageDisplayRow}>
+                        <View style={styles.dosageDisplayField}>
+                          <Input
+                            label="Dosage"
+                            value={dosage.label}
+                            editable={false}
+                          />
+                        </View>
+                        <View style={styles.dosageDisplayField}>
+                          <Input
+                            label="Time"
+                            value={new Date(dosage.time).toLocaleTimeString('en-US', {
+                              hour: 'numeric',
+                              minute: '2-digit',
+                              hour12: true,
+                            })}
+                            editable={false}
+                            icon={<Image source={Images.clockIcon} style={styles.calendarIcon} />}
+                          />
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
                 <View style={styles.fieldGroup}>
                   <TouchableInput
                     label={formData.medicationFrequency ? 'Medication frequency' : undefined}
@@ -548,7 +566,7 @@ export const AddTaskScreen: React.FC = () => {
                     <TouchableInput
                       label={formData.endDate ? 'End Date' : undefined}
                       value={formData.endDate ? formatDateForDisplay(formData.endDate) : undefined}
-                      placeholder="End Date (optional)"
+                      placeholder="End Date"
                       onPress={() => setShowEndDatePicker(true)}
                       rightComponent={
                         <Image source={Images.calendarIcon} style={styles.calendarIcon} />
@@ -802,7 +820,13 @@ export const AddTaskScreen: React.FC = () => {
               <View style={styles.fieldGroup}>
                 <TouchableInput
                   label={formData.calendarProvider ? 'Calendar provider' : undefined}
-                  value={formData.calendarProvider ? formData.calendarProvider : undefined}
+                  value={
+                    formData.calendarProvider
+                      ? formData.calendarProvider === 'google'
+                        ? 'Google Calendar'
+                        : 'iCloud Calendar'
+                      : undefined
+                  }
                   placeholder="Select calendar provider"
                   onPress={() => calendarSyncSheetRef.current?.open()}
                   rightComponent={
@@ -1090,6 +1114,17 @@ const createStyles = (theme: any) =>
     textArea: {
       minHeight: 80,
       textAlignVertical: 'top',
+    },
+    dosageDisplayContainer: {
+      gap: theme.spacing[3],
+      marginBottom: theme.spacing[4],
+    },
+    dosageDisplayRow: {
+      flexDirection: 'row',
+      gap: theme.spacing[3],
+    },
+    dosageDisplayField: {
+      flex: 1,
     },
     footer: {
       paddingHorizontal: theme.spacing[4],

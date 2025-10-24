@@ -141,7 +141,7 @@ export const CalendarSyncBottomSheet = forwardRef<
       hasSearch={false}
       mode="select"
       renderItem={renderProviderItem}
-      snapPoints={['30%', '45%']}
+      snapPoints={['30%', '40%']}
       emptyMessage="No calendar providers available"
     />
   );

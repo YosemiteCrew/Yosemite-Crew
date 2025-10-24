@@ -1,7 +1,8 @@
 import React, {forwardRef, useImperativeHandle, useRef, useState, useMemo} from 'react';
-import {View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Platform, TextInput} from 'react-native';
+import {View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Platform} from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {ConfirmActionBottomSheet, ConfirmActionBottomSheetRef} from '@/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet';
+import {Input} from '@/components/common/Input/Input';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import type {DosageSchedule} from '@/features/tasks/types';
@@ -56,6 +57,7 @@ export const DosageBottomSheet = forwardRef<DosageBottomSheetRef, DosageBottomSh
     const handleTimeChange = (event: any, selectedTime?: Date) => {
       if (Platform.OS === 'android') {
         setShowTimePicker(false);
+        setEditingDosageId(null);
       }
 
       if (selectedTime && editingDosageId) {
@@ -64,10 +66,12 @@ export const DosageBottomSheet = forwardRef<DosageBottomSheetRef, DosageBottomSh
         );
         setTempDosages(updated);
 
-        if (Platform.OS === 'ios') {
-          setShowTimePicker(false);
+        if (Platform.OS === 'android') {
           setEditingDosageId(null);
         }
+      } else if (Platform.OS === 'android' && !selectedTime) {
+        // User cancelled on Android
+        setEditingDosageId(null);
       }
     };
 
@@ -100,7 +104,7 @@ export const DosageBottomSheet = forwardRef<DosageBottomSheetRef, DosageBottomSh
       <ConfirmActionBottomSheet
       ref={bottomSheetRef}
       title="Dosage"
-      snapPoints={['500%']}
+      snapPoints={['50%']}
       primaryButton={{
         label: "Save",
         onPress: handleSave,
@@ -112,32 +116,29 @@ export const DosageBottomSheet = forwardRef<DosageBottomSheetRef, DosageBottomSh
             contentContainerStyle={styles.scrollContent}>
             {tempDosages.map((dosage, _index) => (
               <View key={dosage.id} style={styles.dosageRow}>
-                <View style={styles.dosageInfo}>
-                  {editingLabelId === dosage.id ? (
-                    <TextInput
-                      style={styles.labelInput}
-                      value={dosage.label}
-                      onChangeText={text => handleLabelChange(dosage.id, text)}
-                      onBlur={() => setEditingLabelId(null)}
-                      placeholder="Dose name"
-                      placeholderTextColor={theme.colors.textSecondary}
-                      autoFocus
-                    />
-                  ) : (
-                    <TouchableOpacity
-                      onPress={() => setEditingLabelId(dosage.id)}
-                      style={styles.labelTouchable}>
-                      <Text style={styles.dosageLabel}>{dosage.label}</Text>
-                    </TouchableOpacity>
-                  )}
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    style={styles.timeButton}
-                    onPress={() => handleEditTime(dosage.id)}>
-                    <Text style={styles.timeText}>{formatTime(dosage.time)}</Text>
-                    <Image source={Images.clockIcon} style={styles.clockIcon} />
-                  </TouchableOpacity>
+                <View style={styles.inputField}>
+                  <Input
+                    label="Dosage"
+                    value={dosage.label}
+                    onChangeText={text => handleLabelChange(dosage.id, text)}
+                    placeholder="Enter dose name"
+                    containerStyle={styles.inputContainer}
+                  />
                 </View>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => handleEditTime(dosage.id)}
+                  style={styles.inputField}>
+                  <Input
+                    label="Time"
+                    value={formatTime(dosage.time)}
+                    placeholder="Select time"
+                    editable={false}
+                    pointerEvents="none"
+                    icon={<Image source={Images.clockIcon} style={styles.clockIconInput} />}
+                    containerStyle={styles.inputContainer}
+                  />
+                </TouchableOpacity>
                 <TouchableOpacity
                   activeOpacity={0.7}
                   style={styles.removeButton}
@@ -157,13 +158,43 @@ export const DosageBottomSheet = forwardRef<DosageBottomSheetRef, DosageBottomSh
           </ScrollView>
 
           {showTimePicker && currentEditingDosage && (
-            <DateTimePicker
-              value={new Date(currentEditingDosage.time)}
-              mode="time"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={handleTimeChange}
-              textColor={theme.colors.secondary}
-            />
+            <>
+              {Platform.OS === 'ios' && (
+                <View style={styles.iosPickerContainer}>
+                  <View style={styles.iosPickerHeader}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setShowTimePicker(false);
+                        setEditingDosageId(null);
+                      }}>
+                      <Text style={styles.iosPickerButton}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setShowTimePicker(false);
+                        setEditingDosageId(null);
+                      }}>
+                      <Text style={[styles.iosPickerButton, styles.iosPickerDone]}>Done</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <DateTimePicker
+                    value={new Date(currentEditingDosage.time)}
+                    mode="time"
+                    display="spinner"
+                    onChange={handleTimeChange}
+                    textColor={theme.colors.secondary}
+                  />
+                </View>
+              )}
+              {Platform.OS === 'android' && (
+                <DateTimePicker
+                  value={new Date(currentEditingDosage.time)}
+                  mode="time"
+                  display="default"
+                  onChange={handleTimeChange}
+                />
+              )}
+            </>
           )}
         </View>
       </ConfirmActionBottomSheet>
@@ -184,54 +215,27 @@ const createStyles = (theme: any) =>
     },
     dosageRow: {
       flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      gap: theme.spacing[3],
       paddingVertical: theme.spacing[3],
       paddingHorizontal: theme.spacing[4],
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.borderMuted,
     },
-    dosageInfo: {
+    inputField: {
       flex: 1,
-      gap: theme.spacing[2],
     },
-    dosageLabel: {
-      ...theme.typography.bodyMedium,
-      color: theme.colors.secondary,
-      fontWeight: '600',
+    inputContainer: {
+      marginBottom: 0,
     },
-    labelTouchable: {
-      paddingVertical: theme.spacing[1],
-    },
-    labelInput: {
-      ...theme.typography.bodyMedium,
-      color: theme.colors.secondary,
-      fontWeight: '600',
-      paddingVertical: theme.spacing[2],
-      paddingHorizontal: theme.spacing[3],
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: theme.colors.primary,
-      backgroundColor: theme.colors.surface,
-    },
-    timeButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: theme.spacing[2],
-      paddingVertical: theme.spacing[2],
-    },
-    timeText: {
-      ...theme.typography.bodyMedium,
-      color: theme.colors.textSecondary,
-    },
-    clockIcon: {
-      width: 16,
-      height: 16,
+    clockIconInput: {
+      width: 18,
+      height: 18,
       resizeMode: 'contain',
-      tintColor: theme.colors.textSecondary,
     },
     removeButton: {
       padding: theme.spacing[2],
+      marginTop: theme.spacing[2],
     },
     deleteIcon: {
       width: 20,
@@ -256,6 +260,26 @@ const createStyles = (theme: any) =>
     addText: {
       ...theme.typography.button,
       color: theme.colors.secondary,
+    },
+    iosPickerContainer: {
+      backgroundColor: theme.colors.background,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.borderMuted,
+    },
+    iosPickerHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingHorizontal: theme.spacing[4],
+      paddingVertical: theme.spacing[3],
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.borderMuted,
+    },
+    iosPickerButton: {
+      ...theme.typography.button,
+      color: theme.colors.secondary,
+    },
+    iosPickerDone: {
+      fontWeight: '600',
     },
   });
 

@@ -71,8 +71,9 @@ export const AssignTaskBottomSheet = forwardRef<
       flex: 1,
       paddingVertical: 12,
       paddingHorizontal: 16,
-      backgroundColor: isSelected ? theme.colors.lightBlueBackground : 'transparent',
-      borderRadius: 8,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: '#EAEAEA',
     };
 
     const avatarStyle = {width: 40, height: 40, borderRadius: 20, resizeMode: 'cover' as const};
@@ -86,7 +87,6 @@ export const AssignTaskBottomSheet = forwardRef<
     };
     const avatarTextStyle = {fontSize: 18, fontWeight: '700' as const, color: theme.colors.primary};
     const nameTextStyle = {
-      color: isSelected ? theme.colors.primary : theme.colors.secondary,
       fontWeight: isSelected ? '600' as const : '500' as const,
       fontSize: 16,
     };
@@ -135,7 +135,7 @@ export const AssignTaskBottomSheet = forwardRef<
       hasSearch={false}
       mode="select"
       renderItem={renderUserItem}
-      snapPoints={['50%', '65%']}
+      snapPoints={['25%', '35%']}
       emptyMessage="No users available"
     />
   );
