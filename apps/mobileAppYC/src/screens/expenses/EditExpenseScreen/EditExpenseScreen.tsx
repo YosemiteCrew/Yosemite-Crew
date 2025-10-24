@@ -7,6 +7,7 @@ import {useDispatch, useSelector} from 'react-redux';
 import {SafeArea} from '@/components/common';
 import {Header} from '@/components/common/Header/Header';
 import {ExpenseForm} from '@/components/expenses';
+import {DiscardChangesBottomSheet} from '@/components/common/DiscardChangesBottomSheet/DiscardChangesBottomSheet';
 import {useExpenseForm} from '../hooks/useExpenseForm';
 import type {AppDispatch, RootState} from '@/app/store';
 import {setSelectedCompanion} from '@/features/companion';
@@ -44,7 +45,9 @@ export const EditExpenseScreen: React.FC = () => {
   const {formData, setFormData, errors, handleChange, handleErrorClear, validate} =
     useExpenseForm(null);
   const deleteSheetRef = useRef<DeleteDocumentBottomSheetRef>(null);
+  const discardSheetRef = useRef<any>(null);
   const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   useEffect(() => {
     if (!expense) {
@@ -161,9 +164,18 @@ export const EditExpenseScreen: React.FC = () => {
     }
   };
 
+  const handleChangeWithTracking = (field: string, value: any) => {
+    handleChange(field, value);
+    setHasUnsavedChanges(true);
+  };
+
   const handleGoBack = () => {
-    if (navigation.canGoBack()) {
-      navigation.goBack();
+    if (hasUnsavedChanges) {
+      discardSheetRef.current?.open();
+    } else {
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      }
     }
   };
 
@@ -183,9 +195,12 @@ export const EditExpenseScreen: React.FC = () => {
       <ExpenseForm
         companions={companions}
         selectedCompanionId={selectedCompanionId}
-        onCompanionSelect={id => dispatch(setSelectedCompanion(id))}
+        onCompanionSelect={id => {
+          dispatch(setSelectedCompanion(id));
+          setHasUnsavedChanges(true);
+        }}
         formData={formData}
-        onFormChange={handleChange}
+        onFormChange={handleChangeWithTracking}
         errors={errors}
         onErrorClear={handleErrorClear}
         loading={loading}
@@ -205,6 +220,15 @@ export const EditExpenseScreen: React.FC = () => {
         primaryLabel="Delete"
         secondaryLabel="Cancel"
         onDelete={confirmDeleteExpense}
+      />
+
+      <DiscardChangesBottomSheet
+        ref={discardSheetRef}
+        onDiscard={() => {
+          if (navigation.canGoBack()) {
+            navigation.goBack();
+          }
+        }}
       />
     </SafeArea>
   );

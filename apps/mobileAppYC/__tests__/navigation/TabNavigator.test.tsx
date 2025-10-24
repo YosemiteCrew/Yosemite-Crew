@@ -21,12 +21,12 @@ jest.mock('@/screens/appointments/AppointmentsScreen', () => ({
   AppointmentsScreen: () => null,
 }));
 
-jest.mock('@/screens/documents/DocumentsScreen', () => ({
-  DocumentsScreen: () => null,
+jest.mock('@/navigation/DocumentStackNavigator', () => ({
+  DocumentStackNavigator: () => null,
 }));
 
-jest.mock('@/screens/tasks/TasksScreen', () => ({
-  TasksScreen: () => null,
+jest.mock('@/navigation/TaskStackNavigator', () => ({
+  TaskStackNavigator: () => null,
 }));
 
 jest.mock('@/navigation/FloatingTabBar', () => ({

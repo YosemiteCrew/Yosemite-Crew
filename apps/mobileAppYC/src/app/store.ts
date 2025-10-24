@@ -47,12 +47,13 @@ import {themeReducer} from '@/features/theme';
 import {companionReducer} from '@/features/companion';
 import documentReducer from '@/features/documents/documentSlice';
 import {expensesReducer} from '@/features/expenses';
+import {tasksReducer} from '@/features/tasks';
 
 const persistConfig = {
   key: 'root',
   version: 2,
   storage: storageForPersist,
-  whitelist: ['auth', 'theme', 'documents', 'companion', 'expenses'],
+  whitelist: ['auth', 'theme', 'documents', 'companion', 'expenses', 'tasks'],
   migrate: (state: any) => {
     console.log('[Redux Persist] Migrating state from version', state?._persist?.version);
     // Handle migration from version 1 to 2
@@ -69,6 +70,7 @@ const rootReducer = combineReducers({
   companion: companionReducer,
   documents: documentReducer,
   expenses: expensesReducer,
+  tasks: tasksReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
