@@ -8,7 +8,7 @@
     "moduleResolution": "node",                  // Resolve modules like Node.js
     "skipLibCheck": true,                        // Skip type checks on `node_modules`
     "resolveJsonModule": true,                   // Allow importing JSON files
-    "types": ["node", "express"],                // Include type definitions
+    "types": ["node", "express", "jest"],        // Include type definitions
     "noImplicitAny": true,                       // Prevent untyped variables
     "noUnusedLocals": false,                      // Warn on unused variables
     "noUnusedParameters": false,
