@@ -263,7 +263,15 @@ const buildFHIRResponse = (
     return toOrganizationResponseDTO(businessInput, options ?? (typeCoding ? { typeCoding } : undefined))
 }
 
-const resolveIdQuery = (id: string) => (Types.ObjectId.isValid(id) ? { _id: id } : { fhirId: id })
+const resolveIdQuery = (id: unknown) => {
+    const identifier = ensureSafeIdentifier(id)
+
+    if (!identifier) {
+        throw new OrganizationServiceError('Organization identifier is required.', 400)
+    }
+
+    return Types.ObjectId.isValid(identifier) ? { _id: identifier } : { fhirId: identifier }
+}
 
 const createPersistableFromFHIR = (payload: OrganizationFHIRPayload) => {
     const attributes = fromOrganizationRequestDTO(payload)
@@ -311,7 +319,7 @@ export const OrganizationService = {
     },
 
     async getById(id: string) {
-        const document = await OrganizationModel.findOne(resolveIdQuery(id))
+        const document = await OrganizationModel.findOne(resolveIdQuery(id), null, { sanitizeFilter: true })
 
         if (!document) {
             return null
@@ -326,7 +334,7 @@ export const OrganizationService = {
     },
 
     async deleteById(id: string) {
-        const result = await OrganizationModel.findOneAndDelete(resolveIdQuery(id))
+        const result = await OrganizationModel.findOneAndDelete(resolveIdQuery(id), { sanitizeFilter: true })
         return Boolean(result)
     },
 
@@ -335,7 +343,7 @@ export const OrganizationService = {
         const document = await OrganizationModel.findOneAndUpdate(
             resolveIdQuery(id),
             { $set: persistable },
-            { new: true }
+            { new: true, sanitizeFilter: true }
         )
 
         if (!document) {

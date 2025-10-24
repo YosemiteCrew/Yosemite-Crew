@@ -161,12 +161,44 @@ const createPersistableFromFHIR = (payload: UserOrganizationFHIRPayload) => {
     return { persistable }
 }
 
-const resolveIdQuery = (id: string) => (Types.ObjectId.isValid(id) ? { _id: id } : { fhirId: id })
+const normalizeLookupIdentifier = (value: unknown, fieldName: string): string => {
+    const identifier = optionalSafeString(value, fieldName)
+
+    if (!identifier) {
+        throw new UserOrganizationServiceError(`${fieldName} is required.`, 400)
+    }
+
+    return identifier
+}
+
+const resolveIdQuery = (id: unknown): { _id?: string; fhirId?: string } | null => {
+    const identifier = normalizeLookupIdentifier(id, 'Identifier')
+
+    if (Types.ObjectId.isValid(identifier)) {
+        return { _id: identifier }
+    }
+
+    if (/^[A-Za-z0-9\-.]{1,64}$/.test(identifier)) {
+        return { fhirId: identifier }
+    }
+
+    return null
+}
+
+const resolveStrictIdQuery = (id: unknown, context: string): { _id?: string; fhirId?: string } => {
+    const query = resolveIdQuery(id)
+
+    if (!query) {
+        throw new UserOrganizationServiceError(`Invalid ${context} format.`, 400)
+    }
+
+    return query
+}
 
 type ReferenceLookup = Partial<Record<'practitionerReference' | 'organizationReference', string>>
 
-const buildReferenceLookups = (id: string): ReferenceLookup[] => {
-    const trimmed = id.trim()
+const buildReferenceLookups = (id: unknown): ReferenceLookup[] => {
+    const trimmed = normalizeLookupIdentifier(id, 'Identifier')
 
     if (!trimmed) {
         return []
@@ -215,7 +247,7 @@ export const UserOrganizationService = {
 
         if (id) {
             document = await UserOrganizationModel.findOneAndUpdate(
-                resolveIdQuery(id),
+                resolveStrictIdQuery(id, 'identifier'),
                 { $set: persistable },
                 { new: true, sanitizeFilter: true }
             )
@@ -261,13 +293,20 @@ export const UserOrganizationService = {
     },
 
     async getById(id: string): Promise<UserOrganizationResponseDTO | UserOrganizationResponseDTO[] | null> {
-        const document = await UserOrganizationModel.findOne(resolveIdQuery(id))
+        let document: UserOrganizationDocument | null = null
+        const idQuery = resolveIdQuery(id)
+
+        if (idQuery) {
+            document = await UserOrganizationModel.findOne(idQuery, null, { sanitizeFilter: true })
+        }
 
         if (!document) {
             const referenceQueries = buildReferenceLookups(id)
 
             if (referenceQueries.length) {
-                const documents = await UserOrganizationModel.find({ $or: referenceQueries })
+                const documents = await UserOrganizationModel.find({ $or: referenceQueries }).setOptions({
+                    sanitizeFilter: true,
+                })
 
                 if (!documents.length) {
                     return null
@@ -299,7 +338,9 @@ export const UserOrganizationService = {
     },
 
     async deleteById(id: string) {
-        const result = await UserOrganizationModel.findOneAndDelete(resolveIdQuery(id))
+        const result = await UserOrganizationModel.findOneAndDelete(resolveStrictIdQuery(id, 'identifier'), {
+            sanitizeFilter: true,
+        })
         return Boolean(result)
     },
 
@@ -307,9 +348,9 @@ export const UserOrganizationService = {
         const { persistable } = createPersistableFromFHIR(payload)
 
         const document = await UserOrganizationModel.findOneAndUpdate(
-            resolveIdQuery(id),
+            resolveStrictIdQuery(id, 'identifier'),
             { $set: persistable },
-            { new: true }
+            { new: true, sanitizeFilter: true }
         )
 
         if (!document) {
