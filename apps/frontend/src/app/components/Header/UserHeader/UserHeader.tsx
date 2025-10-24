@@ -6,11 +6,13 @@ import classNames from "classnames";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { useAuthStore } from "@/app/stores/authStore";
-import { NavItem } from "./HeaderInterfaces";
+import { NavItem } from "../HeaderInterfaces";
 import VerifiedProfile from "./VerifiedProfile";
 import UnverifiedProfile from "./UnverifiedProfile";
 
-const PrivateHeader = () => {
+import "./UserHeader.css";
+
+const UserHeader = () => {
   const isVerified = false;
   const { signout } = useAuthStore();
   const pathname = usePathname();
@@ -96,7 +98,7 @@ const PrivateHeader = () => {
                   className="dropdown-toggle"
                   onClick={(e) => {
                     if (
-                      typeof globalThis.window !== "undefined" &&
+                      globalThis.window?.innerWidth &&
                       window.innerWidth < 1200
                     ) {
                       e.preventDefault();
@@ -285,4 +287,4 @@ const line3Variants = {
   open: { rotate: -45, y: -5 },
 };
 
-export default PrivateHeader;
+export default UserHeader;

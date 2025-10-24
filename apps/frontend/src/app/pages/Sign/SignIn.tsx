@@ -30,7 +30,7 @@ const SignIn = () => {
         setShowVerifyModal(true);
       }
     } catch (error: any) {
-      if (typeof globalThis.window !== "undefined") {
+      if (globalThis.window) {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
       showErrorTost({
