@@ -12,15 +12,11 @@ import { Icon } from "@iconify/react/dist/iconify.js";
 import Image from "next/image";
 import Link from "next/link";
 
-import {
-  featuresData,
-  getPlanConfig,
-  planFeatures,
-  pricingPlans,
-} from "@/app/pages/PricingPage/PricingConst";
+import { getPlanConfig } from "@/app/pages/PricingPage/PricingConst";
 import { FillBtn } from "@/app/pages/HomePage/HomePage";
 import Faq from "@/app/components/Faq/Faq";
 import Footer from "@/app/components/Footer/Footer";
+import { pricingPlans, planFeatures, featuresData } from "./data.json";
 
 import "./PricingPage.css";
 
@@ -43,7 +39,7 @@ const PricingPage = () => {
   // Add this useEffect to set initial progress values
   React.useEffect(() => {
     const sliders = document.querySelectorAll(".styled-range");
-    for (const el of sliders  ?? []) {
+    for (const el of sliders ?? []) {
       const input = el as HTMLInputElement;
       const min = Number(input.min) || 0;
       const max = Number(input.max) || 100;
@@ -88,12 +84,16 @@ const PricingPage = () => {
                             color="#247AED"
                             className="pricing-card-icon"
                           />
-                          <h4>{plan.title}</h4>
+                          <h4
+                            dangerouslySetInnerHTML={{ __html: plan.title }}
+                          />
                           <p>{plan.description}</p>
                         </div>
                         <div className="pricing-bottom">
                           <h3>{plan.price}</h3>
-                          {plan.subText}
+                          <p
+                            dangerouslySetInnerHTML={{ __html: plan.subText }}
+                          />
                         </div>
                         <div className="pricingbtndiv">
                           <FillBtn

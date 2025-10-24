@@ -7,7 +7,7 @@ import Footer from "@/app/components/Footer/Footer";
 import { Primary } from "@/app/components/Buttons";
 import FeatureBox from "./FeatureBox/FeatureBox";
 import FocusCard from "./FocusCard/FocusCard";
-import { focusCards, heroList, practiceFeatures } from "./data";
+import { focusCards, practiceFeatures, heroList } from "./data.json";
 
 import "./HomePage.css";
 

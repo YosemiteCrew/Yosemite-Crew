@@ -22,7 +22,6 @@ import InventoryTable from "@/app/components/DataTable/InventoryTable";
 import { GraphSelected } from "@/app/pages/AdminDashboardEmpty/AdminDashboardEmpty";
 import { getData } from "@/app/services/axios";
 import { useOldAuthStore } from "@/app/stores/oldAuthStore";
-import CommonTabForBusinessDashboard from "@/app/components/CommonTabs/CommonTabForBusinessDashboard";
 import CommonTabForPractitioners from "@/app/components/CommonTabs/CommonTabForPractitioners";
 
 import "./BusinessDashboard.css";
@@ -374,7 +373,7 @@ const BusinessDashboard = () => {
           <Row>
             <div className="TableItemsRow">
               <HeadingDiv Headname="Today’s Schedule" />
-              <CommonTabForBusinessDashboard
+              <CommonTabs
                 onTabClick={handleScheduleTabClick}
                 tabs={scheduleTabs}
                 showStatusSelect
