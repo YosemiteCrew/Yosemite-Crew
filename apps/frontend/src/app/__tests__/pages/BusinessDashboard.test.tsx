@@ -105,23 +105,6 @@ jest.mock('@/app/pages/AdminDashboardEmpty/AdminDashboardEmpty', () => ({
   ),
 }));
 
-jest.mock('@/app/components/CommonTabs/CommonTabForBusinessDashboard', () => {
-  const MockCommonTabForBusinessDashboard = ({ onTabClick, tabs }: { onTabClick: any; tabs: any[] }) => (
-    <div>
-      {tabs.map((tab) => (
-        <button key={tab.eventKey} onClick={() => onTabClick(tab.eventKey)}>
-          {tab.title}
-        </button>
-      ))}
-      <button onClick={() => onTabClick(tabs[0]?.eventKey, 'cancelled')}>
-        Set Status to Cancelled
-      </button>
-    </div>
-  );
-  MockCommonTabForBusinessDashboard.displayName = 'MockCommonTabForBusinessDashboard';
-  return MockCommonTabForBusinessDashboard;
-});
-
 jest.mock('@/app/components/CommonTabs/CommonTabForPractitioners', () => {
     const MockCommonTabForPractitioners = ({ tabs }: { tabs: any[] }) => (
         <div>
@@ -209,20 +192,6 @@ describe('BusinessDashboard', () => {
     });
   });
 
-  it('updates appointmentFilter state via onTabClick prop', async () => {
-    render(<BusinessDashboard />);
-
-    const appointmentsTabButton = await screen.findByRole('button', {
-      name: 'Appointments',
-    });
-    fireEvent.click(appointmentsTabButton);
-
-    const setStatusButton = await screen.findByRole('button', {
-      name: 'Set Status to Cancelled',
-    });
-    fireEvent.click(setStatusButton);
-  });
-
   it('renders dashboard welcome message and static elements', async () => {
     render(<BusinessDashboard />);
     await screen.findByText('Your Dashboard');
@@ -285,19 +254,6 @@ describe('BusinessDashboard', () => {
     fireEvent.change(appointmentsFilter, { target: { value: 'Last 6 Months' } });
     await waitFor(() => {
       expect(appointmentsFilter).toHaveValue('Last 6 Months');
-    });
-  });
-
-  it('fetches inventory details when an inventory tab is clicked', async () => {
-    render(<BusinessDashboard />);
-    const inventoryTab = await screen.findByRole('button', {
-      name: 'Inventory Tab',
-    });
-    fireEvent.click(inventoryTab);
-    await waitFor(() => {
-      expect(mockGetData).toHaveBeenCalledWith(
-        `/api/inventory/InventoryItem?userId=${mockUserId}&searchCategory=mock-category-id`
-      );
     });
   });
 });

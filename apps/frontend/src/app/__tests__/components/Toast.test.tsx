@@ -1,14 +1,16 @@
-import React from 'react';
-import { render, screen, act, fireEvent } from '@testing-library/react';
-import '@testing-library/jest-dom';
-import { ErrorTost, useErrorTost } from '../../components/Toast';
+import React from "react";
+import { render, screen, act, fireEvent } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import { ErrorTost, useErrorTost } from "../../components/Toast";
 
-jest.mock('@iconify/react/dist/iconify.js', () => ({
-  Icon: (props: { icon: string }) => <div data-testid="mock-icon" data-icon={props.icon} />,
+jest.mock("@iconify/react/dist/iconify.js", () => ({
+  Icon: (props: { icon: string }) => (
+    <div data-testid="mock-icon" data-icon={props.icon} />
+  ),
 }));
 
-describe('ErrorTost Component', () => {
-  it('should render props correctly and call onClose when clicked', () => {
+describe("ErrorTost Component", () => {
+  it("should render props correctly and call onClose when clicked", () => {
     const onCloseMock = jest.fn();
 
     render(
@@ -20,16 +22,21 @@ describe('ErrorTost Component', () => {
       />
     );
 
-    expect(screen.getByRole('heading', { name: 'Error Occurred' })).toBeInTheDocument();
-    expect(screen.getByText('A detailed error message.')).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Error Occurred" })
+    ).toBeInTheDocument();
+    expect(screen.getByText("A detailed error message.")).toBeInTheDocument();
 
-    const closeButton = screen.getByTestId('mock-icon').closest('button');
-    fireEvent.click(closeButton!);
+    const closeButton = screen.getByTestId("mock-icon").closest("button");
+    if (closeButton === null) {
+      fail("Expected CloseButton");
+    }
+    fireEvent.click(closeButton);
     expect(onCloseMock).toHaveBeenCalledTimes(1);
   });
 });
 
-describe('useErrorTost Hook', () => {
+describe("useErrorTost Hook", () => {
   jest.useFakeTimers();
 
   const HookTester = () => {
@@ -37,11 +44,13 @@ describe('useErrorTost Hook', () => {
     return (
       <div>
         <button
-          onClick={() => showErrorTost({
-            message: 'Success!',
-            errortext: 'Operation Complete',
-            iconElement: <span data-testid="custom-icon">✅</span>,
-          })}
+          onClick={() =>
+            showErrorTost({
+              message: "Success!",
+              errortext: "Operation Complete",
+              iconElement: <span data-testid="custom-icon">✅</span>,
+            })
+          }
         >
           Show Toast
         </button>
@@ -50,41 +59,48 @@ describe('useErrorTost Hook', () => {
     );
   };
 
-  it('should initially render nothing', () => {
+  it("should initially render nothing", () => {
     render(<HookTester />);
-    expect(screen.queryByRole('heading', { name: 'Operation Complete' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Operation Complete" })
+    ).not.toBeInTheDocument();
   });
 
-  it('should render the popup when showErrorTost is called', () => {
+  it("should render the popup when showErrorTost is called", () => {
     render(<HookTester />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Show Toast' }));
+    fireEvent.click(screen.getByRole("button", { name: "Show Toast" }));
 
-    expect(screen.getByRole('heading', { name: 'Operation Complete' })).toBeInTheDocument();
-    expect(screen.getByText('Success!')).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Operation Complete" })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Success!")).toBeInTheDocument();
   });
 
-  it('should automatically hide the popup after the default duration', () => {
+  it("should automatically hide the popup after the default duration", () => {
     render(<HookTester />);
-    fireEvent.click(screen.getByRole('button', { name: 'Show Toast' }));
-    expect(screen.getByText('Success!')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Show Toast" }));
+    expect(screen.getByText("Success!")).toBeInTheDocument();
 
     act(() => {
       jest.runAllTimers();
     });
 
-    expect(screen.queryByText('Success!')).not.toBeInTheDocument();
+    expect(screen.queryByText("Success!")).not.toBeInTheDocument();
   });
 
-  it('should hide the popup immediately when its close button is clicked', () => {
+  it("should hide the popup immediately when its close button is clicked", () => {
     render(<HookTester />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Show Toast' }));
-    expect(screen.getByText('Success!')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Show Toast" }));
+    expect(screen.getByText("Success!")).toBeInTheDocument();
 
-    const closeButton = screen.getByTestId('mock-icon').closest('button');
-    fireEvent.click(closeButton!);
+    const closeButton = screen.getByTestId("mock-icon").closest("button");
+    if (closeButton === null) {
+      fail("Expected CloseButton");
+    }
+    fireEvent.click(closeButton);
 
-    expect(screen.queryByText('Success!')).not.toBeInTheDocument();
+    expect(screen.queryByText("Success!")).not.toBeInTheDocument();
   });
 });
