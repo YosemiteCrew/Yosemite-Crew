@@ -154,9 +154,6 @@ export const AddTaskScreen: React.FC = () => {
   };
 
   const handleTaskTypeSelect = (selection: TaskTypeSelection) => {
-    const isMedication = selection.category === 'health' && selection.taskType === 'give-medication';
-    const isObservationalTool = selection.category === 'health' && selection.taskType === 'take-observational-tool';
-
     // Build the updated form data
     const updatedFormData: Partial<TaskFormData> = {
       category: selection.category,

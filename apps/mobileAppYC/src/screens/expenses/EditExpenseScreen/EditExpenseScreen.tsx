@@ -6,7 +6,7 @@ import type {RouteProp} from '@react-navigation/native';
 import {useDispatch, useSelector} from 'react-redux';
 import {SafeArea} from '@/components/common';
 import {Header} from '@/components/common/Header/Header';
-import {ExpenseForm} from '@/components/expenses';
+import {ExpenseForm, type ExpenseFormData} from '@/components/expenses';
 import {DiscardChangesBottomSheet} from '@/components/common/DiscardChangesBottomSheet/DiscardChangesBottomSheet';
 import {useExpenseForm} from '../hooks/useExpenseForm';
 import type {AppDispatch, RootState} from '@/app/store';
@@ -164,7 +164,7 @@ export const EditExpenseScreen: React.FC = () => {
     }
   };
 
-  const handleChangeWithTracking = (field: string, value: any) => {
+  const handleChangeWithTracking = <K extends keyof ExpenseFormData>(field: K, value: ExpenseFormData[K]) => {
     handleChange(field, value);
     setHasUnsavedChanges(true);
   };

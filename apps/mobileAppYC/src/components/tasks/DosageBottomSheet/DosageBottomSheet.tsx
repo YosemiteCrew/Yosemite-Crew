@@ -25,7 +25,6 @@ export const DosageBottomSheet = forwardRef<DosageBottomSheetRef, DosageBottomSh
     const [tempDosages, setTempDosages] = useState<DosageSchedule[]>(dosages);
     const [showTimePicker, setShowTimePicker] = useState(false);
     const [editingDosageId, setEditingDosageId] = useState<string | null>(null);
-    const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
 
     useImperativeHandle(ref, () => ({
       open: () => bottomSheetRef.current?.open(),
@@ -39,7 +38,6 @@ export const DosageBottomSheet = forwardRef<DosageBottomSheetRef, DosageBottomSh
         time: new Date().toISOString(),
       };
       setTempDosages([...tempDosages, newDosage]);
-      setEditingLabelId(newDosage.id);
     };
 
     const handleRemoveDosage = (id: string) => {
