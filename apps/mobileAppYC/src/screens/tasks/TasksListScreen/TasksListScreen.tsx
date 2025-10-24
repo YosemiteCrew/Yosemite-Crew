@@ -120,7 +120,6 @@ export const TasksListScreen: React.FC = () => {
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      flex: 1,
       backgroundColor: theme.colors.background,
     },
     companionSelector: {

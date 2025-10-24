@@ -1033,14 +1033,13 @@ const createStyles = (theme: any) =>
     contentContainer: {
       paddingHorizontal: theme.spacing[4],
       paddingBottom: theme.spacing[24],
-      gap: theme.spacing[4],
     },
     companionSelector: {
       marginTop: theme.spacing[4],
       marginBottom: theme.spacing[2],
     },
     fieldGroup: {
-      marginBottom: theme.spacing[4],
+      marginBottom: theme.spacing[6],
     },
     breadcrumbContainer: {
       paddingVertical: theme.spacing[3],
@@ -1057,7 +1056,7 @@ const createStyles = (theme: any) =>
     dateTimeRow: {
       flexDirection: 'row',
       gap: theme.spacing[3],
-      marginBottom: theme.spacing[4],
+      marginBottom: theme.spacing[6],
     },
     dateTimeField: {
       flex: 1,
@@ -1094,9 +1093,9 @@ const createStyles = (theme: any) =>
       paddingVertical: theme.spacing[2],
       paddingHorizontal: theme.spacing[3],
       backgroundColor: theme.colors.surface,
-      borderRadius: 20,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
+      borderRadius: 28,
+      borderWidth: 0.5,
+      borderColor: '#312943',
     },
     reminderPillSelected: {
       backgroundColor: theme.colors.lightBlueBackground,
@@ -1117,7 +1116,7 @@ const createStyles = (theme: any) =>
     },
     dosageDisplayContainer: {
       gap: theme.spacing[3],
-      marginBottom: theme.spacing[4],
+      marginBottom: theme.spacing[6],
     },
     dosageDisplayRow: {
       flexDirection: 'row',

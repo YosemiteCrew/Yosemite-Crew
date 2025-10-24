@@ -123,7 +123,6 @@ const createStyles = (theme: any) =>
     companionRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[4],
       paddingVertical: theme.spacing[2],
     },
     companionTouchable: {
