@@ -63,7 +63,9 @@ const mergePermissions = (target: PermissionMap, source: PermissionMap) => {
     for (const [resource, actions] of Object.entries(source)) {
         const existing = target[resource] ?? []
         const nextActions = new Set(existing)
-        actions.forEach((action) => nextActions.add(action))
+        for (const action of actions) {
+            nextActions.add(action)
+        }
         target[resource] = Array.from(nextActions)
     }
 }
