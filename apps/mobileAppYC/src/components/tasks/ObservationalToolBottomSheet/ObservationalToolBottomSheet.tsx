@@ -65,7 +65,7 @@ export const ObservationalToolBottomSheet = forwardRef<
       onSave={handleSave}
       hasSearch={false}
       mode="select"
-      snapPoints={['50%', '65%']}
+      snapPoints={['25%', '35%']}
       emptyMessage="No observational tools available for this companion"
     />
   );

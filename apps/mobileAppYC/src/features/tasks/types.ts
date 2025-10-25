@@ -232,6 +232,7 @@ export interface TaskFormErrors {
   endDate?: string;
   attachments?: string;
   description?: string;
+  additionalNote?: string;
 }
 
 // Task Type Selection for bottom sheet

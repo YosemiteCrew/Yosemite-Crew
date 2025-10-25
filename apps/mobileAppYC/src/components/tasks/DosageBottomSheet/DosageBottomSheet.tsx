@@ -100,7 +100,7 @@ export const DosageBottomSheet = forwardRef<DosageBottomSheetRef, DosageBottomSh
           return 'Invalid time';
         }
 
-        if (isNaN(date.getTime())) return 'Invalid time';
+        if (Number.isNaN(date.getTime())) return 'Invalid time';
 
         return date.toLocaleTimeString('en-US', {
           hour: 'numeric',
