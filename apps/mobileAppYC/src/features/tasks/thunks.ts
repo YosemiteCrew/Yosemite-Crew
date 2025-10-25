@@ -1,4 +1,5 @@
 import {createAsyncThunk} from '@reduxjs/toolkit';
+import {v4 as uuidv4} from 'uuid';
 import type {Task, TaskStatus} from './types';
 
 // Simulate API delay
@@ -38,7 +39,7 @@ export const addTask = createAsyncThunk<
 
     const newTask: Task = {
       ...taskData,
-      id: `task_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
+      id: uuidv4(),
       status: 'pending',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
