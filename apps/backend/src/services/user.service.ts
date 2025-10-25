@@ -99,19 +99,21 @@ export const UserService = {
     async create(payload: CreateUserPayload): Promise<UserDomain> {
         const attributes = sanitizeUserAttributes(payload)
 
-        const existingById = await UserModel.findOne()
-            .where('userId')
-            .equals(attributes.userId)
-            .setOptions({ sanitizeFilter: true })
+        const existingById = await UserModel.findOne(
+            { userId: attributes.userId },
+            null,
+            { sanitizeFilter: true }
+        )
 
         if (existingById) {
             throw new UserServiceError('User with the same id or email already exists.', 409)
         }
 
-        const existingByEmail = await UserModel.findOne()
-            .where('email')
-            .equals(attributes.email)
-            .setOptions({ sanitizeFilter: true })
+        const existingByEmail = await UserModel.findOne(
+            { email: attributes.email },
+            null,
+            { sanitizeFilter: true }
+        )
 
         if (existingByEmail) {
             throw new UserServiceError('User with the same id or email already exists.', 409)
@@ -129,10 +131,7 @@ export const UserService = {
     async getById(id: unknown): Promise<UserDomain | null> {
         const userId = requireSafeIdentifier(id, 'User id')
 
-        const document = await UserModel.findOne()
-            .where('userId')
-            .equals(userId)
-            .setOptions({ sanitizeFilter: true })
+        const document = await UserModel.findOne({ userId }, null, { sanitizeFilter: true })
 
         if (!document) {
             return null

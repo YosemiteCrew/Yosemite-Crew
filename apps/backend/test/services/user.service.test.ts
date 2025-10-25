@@ -22,7 +22,7 @@ describe("UserService", () => {
 
   describe("create", () => {
     it("persists a sanitized user when no duplicate exists", async () => {
-      mockedUserModel.findOne.mockResolvedValueOnce(null);
+      mockedUserModel.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
       const createdDocument = {
         userId: "user-1",
         email: "test@example.com",
@@ -36,8 +36,11 @@ describe("UserService", () => {
         isActive: false,
       });
 
-      expect(mockedUserModel.findOne).toHaveBeenCalledWith({
-        $or: [{ userId: "user-1" }, { email: "test@example.com" }],
+      expect(mockedUserModel.findOne).toHaveBeenNthCalledWith(1, { userId: "user-1" }, null, {
+        sanitizeFilter: true,
+      });
+      expect(mockedUserModel.findOne).toHaveBeenNthCalledWith(2, { email: "test@example.com" }, null, {
+        sanitizeFilter: true,
       });
       expect(mockedUserModel.create).toHaveBeenCalledWith({
         userId: "user-1",
@@ -52,7 +55,7 @@ describe("UserService", () => {
     });
 
     it("defaults isActive to true when not provided", async () => {
-      mockedUserModel.findOne.mockResolvedValueOnce(null);
+      mockedUserModel.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
       const createdDocument = {
         userId: "user-2",
         email: "user2@example.com",
