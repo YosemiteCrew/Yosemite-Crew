@@ -23,7 +23,6 @@ const medicationTypes: MedicationType[] = [
   'patches',
   'suppositories',
   'sprinkle-capsules',
-  'drops',
 ];
 
 export const MedicationTypeBottomSheet = forwardRef<

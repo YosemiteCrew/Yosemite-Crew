@@ -3,18 +3,18 @@ import type {RootState} from '@/app/store';
 import type {TaskStatus, TaskCategory} from './types';
 
 // Helper function to safely convert date to YYYY-MM-DD format (LOCAL timezone, not UTC)
-const getDateString = (date: Date | any): string => {
+const getDateString = (date: Date | string): string => {
   try {
     let dateObj: Date;
 
     // If it's already a Date instance
-    if (date instanceof Date && !isNaN(date.getTime())) {
+    if (date instanceof Date && !Number.isNaN(date.getTime())) {
       dateObj = date;
     }
     // If it's a plain object (serialized Date), try to create a new Date
     else if (typeof date === 'object' && date !== null) {
       dateObj = new Date(date);
-      if (isNaN(dateObj.getTime())) {
+      if (Number.isNaN(dateObj.getTime())) {
         return formatLocalDate(new Date());
       }
     }
@@ -107,18 +107,17 @@ export const selectRecentTasksByCategory = (
   createSelector(
     [selectTasksByCompanionDateAndCategory(companionId, date, category)],
     tasks => {
-      return tasks
-        .sort((a, b) => {
-          // Sort by status (pending first) and then by time
-          if (a.status !== b.status) {
-            return a.status === 'pending' ? -1 : 1;
-          }
-          if (a.time && b.time) {
-            return a.time.localeCompare(b.time);
-          }
-          return 0;
-        })
-        .slice(0, limit);
+      const sortedTasks = [...tasks].sort((a, b) => {
+        // Sort by status (pending first) and then by time
+        if (a.status !== b.status) {
+          return a.status === 'pending' ? -1 : 1;
+        }
+        if (a.time && b.time) {
+          return a.time.localeCompare(b.time);
+        }
+        return 0;
+      });
+      return sortedTasks.slice(0, limit);
     },
   );
 

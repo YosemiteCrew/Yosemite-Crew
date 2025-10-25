@@ -36,10 +36,8 @@ export const AddExpenseScreen: React.FC = () => {
   const handleGoBack = () => {
     if (hasUnsavedChanges) {
       discardSheetRef.current?.open();
-    } else {
-      if (navigation.canGoBack()) {
-        navigation.goBack();
-      }
+    } else if (navigation.canGoBack()) {
+      navigation.goBack();
     }
   };
 

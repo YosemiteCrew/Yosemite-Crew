@@ -78,9 +78,9 @@ export const TasksMainScreen: React.FC = () => {
   // Get dates with tasks for the selected companion
   const datesWithTasks = useMemo(() => {
     const dateSet = new Set<string>();
-    allTasks.forEach(task => {
+    for (const task of allTasks) {
       dateSet.add(task.date); // date is in YYYY-MM-DD format
-    });
+    }
     return dateSet;
   }, [allTasks]);
 
@@ -172,23 +172,20 @@ export const TasksMainScreen: React.FC = () => {
           );
 
           if (selectedIndex !== -1) {
-            try {
-              // Scroll to center the selected date (0.5 means center of viewport)
+            // Scroll to center the selected date (0.5 means center of viewport)
+            dateListRef.current?.scrollToIndex({
+              index: selectedIndex,
+              viewPosition: 0.5,
+              animated: true,
+            });
+            // Fallback: if scrollToIndex fails, retry after a delay
+            setTimeout(() => {
               dateListRef.current?.scrollToIndex({
                 index: selectedIndex,
                 viewPosition: 0.5,
                 animated: true,
               });
-            } catch (error) {
-              // Fallback: if scrollToIndex fails, retry after a delay
-              setTimeout(() => {
-                dateListRef.current?.scrollToIndex({
-                  index: selectedIndex,
-                  viewPosition: 0.5,
-                  animated: true,
-                });
-              }, 300);
-            }
+            }, 300);
           }
         }
       }, 100); // Small delay to ensure layout is complete

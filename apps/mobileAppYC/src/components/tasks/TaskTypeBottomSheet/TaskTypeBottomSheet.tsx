@@ -1,61 +1,22 @@
-import React, {forwardRef, useRef, useMemo, useImperativeHandle} from 'react';
+import React, {forwardRef, useRef, useMemo, useImperativeHandle, useCallback} from 'react';
 import {View, Text, StyleSheet, TouchableOpacity, FlatList, Image} from 'react-native';
 import CustomBottomSheet from '@/components/common/BottomSheet/BottomSheet';
 import type {BottomSheetRef} from '@/components/common/BottomSheet/BottomSheet';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
-import {
-  createBottomSheetStyles,
-} from '@/utils/bottomSheetHelpers';
+import {createBottomSheetStyles} from '@/utils/bottomSheetHelpers';
 import type {
-  TaskCategory,
-  HealthSubcategory,
-  ParasitePreventionType,
-  ChronicConditionType,
-  TaskTypeSelection,
-} from '@/features/tasks/types';
-
-export interface TaskTypeBottomSheetRef {
-  open: () => void;
-  close: () => void;
-}
-
-interface TaskTypeBottomSheetProps {
-  selectedTaskType?: TaskTypeSelection | null;
-  onSelect: (selection: TaskTypeSelection) => void;
-  companionType?: 'cat' | 'dog' | 'horse';
-}
-
-interface TaskTypeOption {
-  id: string;
-  label: string;
-  category?: TaskCategory;
-  subcategory?: HealthSubcategory;
-  parasitePreventionType?: ParasitePreventionType;
-  chronicConditionType?: ChronicConditionType;
-  taskType?: string;
-  children?: TaskTypeOption[];
-}
-
-interface SubsubcategoryWithChildren {
-  subsubcategory: TaskTypeOption;
-  children: Array<{option: TaskTypeOption; ancestors: TaskTypeOption[]}>;
-}
-
-interface SubcategoryWithChildren {
-  subcategory: TaskTypeOption;
-  subsubcategories?: SubsubcategoryWithChildren[];
-  children?: Array<{option: TaskTypeOption; ancestors: TaskTypeOption[]}>;
-}
-
-interface CategorySection {
-  type: 'single' | 'category'; // single for Custom, category for others
-  category: TaskTypeOption;
-  subcategories?: SubcategoryWithChildren[];
-}
+  TaskTypeBottomSheetRef,
+  TaskTypeBottomSheetProps,
+  TaskTypeOption,
+  CategorySection,
+  SubcategoryWithChildren,
+  SubsubcategoryWithChildren,
+} from './types';
+import {flattenTaskOptions, buildCategorySections, buildSelectionFromOption} from './helpers';
 
 export const TaskTypeBottomSheet = forwardRef<TaskTypeBottomSheetRef, TaskTypeBottomSheetProps>(
-  ({onSelect, companionType: _companionType = 'dog'}, ref) => {
+  ({onSelect}, ref) => {
     const {theme} = useTheme();
     const styles = useMemo(() => createStyles(theme), [theme]);
     const bottomSheetRef = useRef<BottomSheetRef>(null);
@@ -246,230 +207,78 @@ export const TaskTypeBottomSheet = forwardRef<TaskTypeBottomSheetRef, TaskTypeBo
       },
     ], []);
 
-    // Helper functions
-    const isLeafNode = (option: TaskTypeOption) => !option.children || option.children.length === 0;
-    const isCategory = (option: TaskTypeOption) => option.children && option.children.length > 0;
-
     // Flatten all task options recursively
-    const flattenTaskOptions = useMemo(() => {
-      const flatten = (options: TaskTypeOption[], ancestors: TaskTypeOption[] = []) => {
-        const result: Array<{option: TaskTypeOption; ancestors: TaskTypeOption[]}> = [];
-
-        options.forEach(option => {
-          if (option.children && option.children.length > 0) {
-            result.push({option, ancestors});
-            result.push(...flatten(option.children, [...ancestors, option]));
-          } else {
-            result.push({option, ancestors});
-          }
-        });
-
-        return result;
-      };
-
-      return flatten(taskTypeOptions);
+    const flattenedOptions = useMemo(() => {
+      const result = [];
+      for (const option of taskTypeOptions) {
+        result.push(...flattenTaskOptions([option]));
+      }
+      return result;
     }, [taskTypeOptions]);
 
     // Build category sections with proper hierarchy
     const categorySections = useMemo(() => {
-      const sections: CategorySection[] = [];
+      return buildCategorySections(flattenedOptions);
+    }, [flattenedOptions]);
 
-      flattenTaskOptions.forEach(item => {
-        // Handle Custom separately (it doesn't have children, so it won't be detected as category)
-        if (item.option.id === 'custom' && item.ancestors.length === 0) {
-          sections.push({
-            type: 'single',
-            category: item.option,
-          });
-        } else if (isCategory(item.option) && item.ancestors.length === 0) {
-          // For other categories, group by their direct children (subcategories or leaf nodes)
-          const directChildren = flattenTaskOptions.filter(
-            child =>
-              child.ancestors.length > 0 &&
-              child.ancestors[child.ancestors.length - 1]?.id === item.option.id
-          );
+    // Handler for selecting a task type
+    const handleTaskSelect = useCallback((option: TaskTypeOption, ancestors: TaskTypeOption[]) => {
+      const selection = buildSelectionFromOption(option, ancestors);
+      onSelect(selection);
+      bottomSheetRef.current?.close();
+    }, [onSelect]);
 
-          // Check if direct children are categories (have their own children)
-          const hasSubcategories = directChildren.some(child => isCategory(child.option));
+    // Render a single pill button
+    const renderPillButton = useCallback((child: {option: TaskTypeOption; ancestors: TaskTypeOption[]}) => (
+      <TouchableOpacity
+        key={child.option.id}
+        style={styles.pillButton}
+        onPress={() => handleTaskSelect(child.option, child.ancestors)}>
+        <Text style={styles.pillButtonText}>{child.option.label}</Text>
+      </TouchableOpacity>
+    ), [handleTaskSelect, styles.pillButton, styles.pillButtonText]);
 
-          if (hasSubcategories) {
-            // For Health: group by subcategories with potential sub-subcategories
-            const subcategories: SubcategoryWithChildren[] = [];
+    // Render subsubcategory group with pills
+    const renderSubsubcategory = useCallback((subsubcat: SubsubcategoryWithChildren) => (
+      <View key={subsubcat.subsubcategory.id} style={styles.subsubcategoryGroup}>
+        <Text style={styles.subsubcategoryHeader}>{subsubcat.subsubcategory.label}</Text>
+        <View style={styles.pillsContainer}>
+          {subsubcat.children.map(renderPillButton)}
+        </View>
+      </View>
+    ), [renderPillButton, styles.subsubcategoryGroup, styles.subsubcategoryHeader, styles.pillsContainer]);
 
-            directChildren.forEach(subcat => {
-              if (isCategory(subcat.option)) {
-                // Get direct children of subcategory
-                const subcatDirectChildren = flattenTaskOptions.filter(
-                  child =>
-                    child.ancestors.length > 0 &&
-                    child.ancestors[child.ancestors.length - 1]?.id === subcat.option.id
-                );
+    // Render subcategory group (either with subsubcategories or direct children)
+    const renderSubcategory = useCallback((subcat: SubcategoryWithChildren, categoryId: string) => {
+      const hasSubsubcategories = subcat.subsubcategories && subcat.subsubcategories.length > 0;
+      const showSubcategoryHeader = categoryId !== subcat.subcategory.id;
 
-                // Check if these children are also categories (3rd level)
-                const hasSubSubcategories = subcatDirectChildren.some(child => isCategory(child.option));
+      return (
+        <View key={subcat.subcategory.id} style={styles.subcategoryGroup}>
+          {showSubcategoryHeader && (
+            <Text style={styles.subcategoryHeader}>{subcat.subcategory.label}</Text>
+          )}
 
-                if (hasSubSubcategories) {
-                  // 3rd level: For Parasite Prevention and Chronic Conditions
-                  const subsubcategories: SubsubcategoryWithChildren[] = [];
+          {hasSubsubcategories ? (
+            <View>{subcat.subsubcategories!.map(renderSubsubcategory)}</View>
+          ) : (
+            <View style={styles.pillsContainer}>
+              {subcat.children?.map(renderPillButton)}
+            </View>
+          )}
+        </View>
+      );
+    }, [renderPillButton, renderSubsubcategory, styles.subcategoryGroup, styles.subcategoryHeader, styles.pillsContainer]);
 
-                  subcatDirectChildren.forEach(subsubcat => {
-                    if (isCategory(subsubcat.option)) {
-                      const subsubcatLeaves = flattenTaskOptions.filter(
-                        leaf =>
-                          leaf.ancestors.length > 0 &&
-                          leaf.ancestors.some(anc => anc.id === subsubcat.option.id) &&
-                          isLeafNode(leaf.option)
-                      );
-
-                      if (subsubcatLeaves.length > 0) {
-                        subsubcategories.push({
-                          subsubcategory: subsubcat.option,
-                          children: subsubcatLeaves,
-                        });
-                      }
-                    }
-                  });
-
-                  if (subsubcategories.length > 0) {
-                    subcategories.push({
-                      subcategory: subcat.option,
-                      subsubcategories,
-                    });
-                  }
-                } else {
-                  // 2nd level: Direct leaves (like Vaccination)
-                  const subcatLeaves = flattenTaskOptions.filter(
-                    leaf =>
-                      leaf.ancestors.length > 0 &&
-                      leaf.ancestors.some(anc => anc.id === subcat.option.id) &&
-                      isLeafNode(leaf.option)
-                  );
-
-                  if (subcatLeaves.length > 0) {
-                    subcategories.push({
-                      subcategory: subcat.option,
-                      children: subcatLeaves,
-                    });
-                  }
-                }
-              }
-            });
-
-            if (subcategories.length > 0) {
-              sections.push({
-                type: 'category',
-                category: item.option,
-                subcategories,
-              });
-            }
-          } else {
-            // For Hygiene/Dietary: direct leaf children
-            const leaves = flattenTaskOptions.filter(
-              leaf =>
-                leaf.ancestors.length > 0 &&
-                leaf.ancestors[leaf.ancestors.length - 1]?.id === item.option.id &&
-                isLeafNode(leaf.option)
-            );
-
-            if (leaves.length > 0) {
-              sections.push({
-                type: 'category',
-                category: item.option,
-                subcategories: [
-                  {
-                    subcategory: item.option,
-                    children: leaves,
-                  },
-                ],
-              });
-            }
-          }
-        }
-      });
-
-      return sections;
-    }, [flattenTaskOptions]);
-
-    const buildSelectionFromOption = (
-      option: TaskTypeOption,
-      ancestors: TaskTypeOption[],
-    ): TaskTypeSelection => {
-      let category: TaskCategory = 'custom';
-      let subcategory: HealthSubcategory | undefined;
-      let parasitePreventionType: ParasitePreventionType | undefined;
-      let chronicConditionType: ChronicConditionType | undefined;
-      let taskType: string | undefined;
-
-      if (option.category) {
-        category = option.category;
-      } else {
-        for (const ancestor of ancestors) {
-          if (ancestor.category) {
-            category = ancestor.category;
-            break;
-          }
-        }
-      }
-
-      if (option.subcategory) {
-        subcategory = option.subcategory;
-      } else {
-        for (const ancestor of ancestors) {
-          if (ancestor.subcategory) {
-            subcategory = ancestor.subcategory;
-            break;
-          }
-        }
-      }
-
-      if (option.parasitePreventionType) {
-        parasitePreventionType = option.parasitePreventionType;
-      } else {
-        for (const ancestor of ancestors) {
-          if (ancestor.parasitePreventionType) {
-            parasitePreventionType = ancestor.parasitePreventionType;
-            break;
-          }
-        }
-      }
-
-      if (option.chronicConditionType) {
-        chronicConditionType = option.chronicConditionType;
-      } else {
-        for (const ancestor of ancestors) {
-          if (ancestor.chronicConditionType) {
-            chronicConditionType = ancestor.chronicConditionType;
-            break;
-          }
-        }
-      }
-
-      if (option.taskType) {
-        taskType = option.taskType;
-      }
-
-      return {
-        category,
-        subcategory,
-        parasitePreventionType,
-        chronicConditionType,
-        taskType,
-        label: option.label,
-      };
-    };
-
-    const renderCategorySection = (section: CategorySection) => {
+    // Render a single category section
+    const renderCategorySection = useCallback((section: CategorySection) => {
       // Custom category - single pill at top level without category container/header
       if (section.type === 'single') {
         return (
           <View key={section.category.id} style={styles.customPillWrapper}>
             <TouchableOpacity
               style={styles.pillButton}
-              onPress={() => {
-                const selection = buildSelectionFromOption(section.category, []);
-                onSelect(selection);
-                bottomSheetRef.current?.close();
-              }}>
+              onPress={() => handleTaskSelect(section.category, [])}>
               <Text style={styles.pillButtonText}>{section.category.label}</Text>
             </TouchableOpacity>
           </View>
@@ -480,59 +289,10 @@ export const TaskTypeBottomSheet = forwardRef<TaskTypeBottomSheetRef, TaskTypeBo
       return (
         <View key={section.category.id} style={styles.categorySection}>
           <Text style={styles.categoryHeader}>{section.category.label}</Text>
-
-          {section.subcategories?.map(subcat => (
-            <View key={subcat.subcategory.id} style={styles.subcategoryGroup}>
-              {/* Only show subcategory header if it's different from category (for Health) */}
-              {section.category.id !== subcat.subcategory.id && (
-                <Text style={styles.subcategoryHeader}>{subcat.subcategory.label}</Text>
-              )}
-
-              {/* 3-level hierarchy: subsubcategories */}
-              {subcat.subsubcategories && subcat.subsubcategories.length > 0 ? (
-                <View>
-                  {subcat.subsubcategories.map(subsubcat => (
-                    <View key={subsubcat.subsubcategory.id} style={styles.subsubcategoryGroup}>
-                      <Text style={styles.subsubcategoryHeader}>{subsubcat.subsubcategory.label}</Text>
-                      <View style={styles.pillsContainer}>
-                        {subsubcat.children.map(child => (
-                          <TouchableOpacity
-                            key={child.option.id}
-                            style={styles.pillButton}
-                            onPress={() => {
-                              const selection = buildSelectionFromOption(child.option, child.ancestors);
-                              onSelect(selection);
-                              bottomSheetRef.current?.close();
-                            }}>
-                            <Text style={styles.pillButtonText}>{child.option.label}</Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              ) : (
-                /* 2-level hierarchy: direct children */
-                <View style={styles.pillsContainer}>
-                  {subcat.children?.map(child => (
-                    <TouchableOpacity
-                      key={child.option.id}
-                      style={styles.pillButton}
-                      onPress={() => {
-                        const selection = buildSelectionFromOption(child.option, child.ancestors);
-                        onSelect(selection);
-                        bottomSheetRef.current?.close();
-                      }}>
-                      <Text style={styles.pillButtonText}>{child.option.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-            </View>
-          ))}
+          {section.subcategories?.map(subcat => renderSubcategory(subcat, section.category.id))}
         </View>
       );
-    };
+    }, [handleTaskSelect, renderSubcategory, styles.customPillWrapper, styles.pillButton, styles.pillButtonText, styles.categorySection, styles.categoryHeader]);
 
     const closeIconSource = Images?.crossIcon ?? null;
 

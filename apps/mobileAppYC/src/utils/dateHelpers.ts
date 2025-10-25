@@ -75,8 +75,6 @@ export const getMonthDates = (monthDate: Date, selectedDate: Date): DateInfo[] =
     const date = new Date(d);
     date.setHours(0, 0, 0, 0);
 
-    // const isCurrentMonth = date.getMonth() === monthDate.getMonth();
-
     dates.push({
       date,
       dayName: date.toLocaleDateString('en-US', {weekday: 'short'}),
