@@ -7,6 +7,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
+  Switch,
 } from 'react-native';
 import {Input} from '@/components/common';
 import {CompanionSelector} from '@/components/common/CompanionSelector/CompanionSelector';
@@ -233,25 +234,12 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
         <View style={styles.dateSection}>
           <View style={styles.dateSectionHeader}>
             <Text style={styles.label}>Issue date</Text>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() =>
-                onFormChange('hasIssueDate', !formData.hasIssueDate)
-              }
-              style={styles.toggle}>
-              <View
-                style={[
-                  styles.toggleTrack,
-                  formData.hasIssueDate && styles.toggleTrackActive,
-                ]}>
-                <View
-                  style={[
-                    styles.toggleThumb,
-                    formData.hasIssueDate && styles.toggleThumbActive,
-                  ]}
-                />
-              </View>
-            </TouchableOpacity>
+            <Switch
+              value={formData.hasIssueDate}
+              onValueChange={value => onFormChange('hasIssueDate', value)}
+              trackColor={{false: theme.colors.borderMuted, true: theme.colors.primary}}
+              thumbColor={theme.colors.white}
+            />
           </View>
 
           {formData.hasIssueDate && (
@@ -397,30 +385,6 @@ const createStyles = (theme: any) =>
     label: {
       ...theme.typography.labelMdBold,
       color: theme.colors.secondary,
-    },
-    toggle: {
-      padding: theme.spacing[1],
-    },
-    toggleTrack: {
-      width: 48,
-      height: 28,
-      borderRadius: 14,
-      backgroundColor: theme.colors.borderMuted,
-      justifyContent: 'center',
-      paddingHorizontal: 2,
-    },
-    toggleTrackActive: {
-      backgroundColor: theme.colors.primary,
-    },
-    toggleThumb: {
-      width: 24,
-      height: 24,
-      borderRadius: 12,
-      backgroundColor: theme.colors.white,
-      alignSelf: 'flex-start',
-    },
-    toggleThumbActive: {
-      alignSelf: 'flex-end',
     },
     saveButton: {
       marginTop: theme.spacing[4],

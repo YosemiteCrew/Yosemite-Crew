@@ -1,7 +1,7 @@
 import React, {forwardRef, useImperativeHandle, useRef, useState, useMemo} from 'react';
-import {View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Platform} from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import {View, Text, StyleSheet, ScrollView, TouchableOpacity, Image} from 'react-native';
 import {ConfirmActionBottomSheet, ConfirmActionBottomSheetRef} from '@/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet';
+import {SimpleDatePicker} from '@/components/common/SimpleDatePicker/SimpleDatePicker';
 import {Input} from '@/components/common/Input/Input';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
@@ -57,25 +57,18 @@ export const DosageBottomSheet = forwardRef<DosageBottomSheetRef, DosageBottomSh
       setTempDosages(updated);
     };
 
-    const handleTimeChange = (event: any, selectedTime?: Date) => {
-      if (Platform.OS === 'android') {
-        setShowTimePicker(false);
-        setEditingDosageId(null);
-      }
-
-      if (selectedTime && editingDosageId) {
+    const handleTimeChange = (selectedTime: Date) => {
+      if (editingDosageId) {
         const updated = tempDosages.map(d =>
           d.id === editingDosageId ? {...d, time: selectedTime.toISOString()} : d,
         );
         setTempDosages(updated);
-
-        if (Platform.OS === 'android') {
-          setEditingDosageId(null);
-        }
-      } else if (Platform.OS === 'android' && !selectedTime) {
-        // User cancelled on Android
-        setEditingDosageId(null);
       }
+    };
+
+    const handleTimePickerDismiss = () => {
+      setShowTimePicker(false);
+      setEditingDosageId(null);
     };
 
     const handleEditTime = (dosageId: string) => {
@@ -195,43 +188,13 @@ export const DosageBottomSheet = forwardRef<DosageBottomSheetRef, DosageBottomSh
           </ScrollView>
 
           {showTimePicker && currentEditingDosage && (
-            <>
-              {Platform.OS === 'ios' && (
-                <View style={styles.iosPickerContainer}>
-                  <View style={styles.iosPickerHeader}>
-                    <TouchableOpacity
-                      onPress={() => {
-                        setShowTimePicker(false);
-                        setEditingDosageId(null);
-                      }}>
-                      <Text style={styles.iosPickerButton}>Cancel</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => {
-                        setShowTimePicker(false);
-                        setEditingDosageId(null);
-                      }}>
-                      <Text style={[styles.iosPickerButton, styles.iosPickerDone]}>Done</Text>
-                    </TouchableOpacity>
-                  </View>
-                  <DateTimePicker
-                    value={getDateFromDosageTime(currentEditingDosage.time)}
-                    mode="time"
-                    display="spinner"
-                    onChange={handleTimeChange}
-                    textColor={theme.colors.secondary}
-                  />
-                </View>
-              )}
-              {Platform.OS === 'android' && (
-                <DateTimePicker
-                  value={getDateFromDosageTime(currentEditingDosage.time)}
-                  mode="time"
-                  display="default"
-                  onChange={handleTimeChange}
-                />
-              )}
-            </>
+            <SimpleDatePicker
+              value={getDateFromDosageTime(currentEditingDosage.time)}
+              onDateChange={handleTimeChange}
+              show={showTimePicker}
+              onDismiss={handleTimePickerDismiss}
+              mode="time"
+            />
           )}
         </View>
       </ConfirmActionBottomSheet>
@@ -297,26 +260,6 @@ const createStyles = (theme: any) =>
     addText: {
       ...theme.typography.button,
       color: theme.colors.secondary,
-    },
-    iosPickerContainer: {
-      backgroundColor: theme.colors.background,
-      borderTopWidth: 1,
-      borderTopColor: theme.colors.borderMuted,
-    },
-    iosPickerHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      paddingHorizontal: theme.spacing[4],
-      paddingVertical: theme.spacing[3],
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.borderMuted,
-    },
-    iosPickerButton: {
-      ...theme.typography.button,
-      color: theme.colors.secondary,
-    },
-    iosPickerDone: {
-      fontWeight: '600',
     },
   });
 

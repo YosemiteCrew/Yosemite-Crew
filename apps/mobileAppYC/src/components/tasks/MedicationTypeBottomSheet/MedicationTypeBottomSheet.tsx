@@ -67,7 +67,7 @@ export const MedicationTypeBottomSheet = forwardRef<
       onSave={handleSave}
       hasSearch={true}
       mode="select"
-      snapPoints={['60%', '75%']}
+      snapPoints={['65%', '75%']}
       emptyMessage="No medication types available"
     />
   );

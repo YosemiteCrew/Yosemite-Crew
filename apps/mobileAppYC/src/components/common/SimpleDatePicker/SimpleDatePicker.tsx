@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Platform } from 'react-native';
+import { Platform, Modal, View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 interface SimpleDatePickerProps {
@@ -22,49 +22,146 @@ export const SimpleDatePicker: React.FC<SimpleDatePickerProps> = ({
   mode = 'date',
 }) => {
   const [internalShow, setInternalShow] = useState(show);
+  const [tempDate, setTempDate] = useState(value || new Date());
 
   useEffect(() => {
     setInternalShow(show);
-  }, [show]);
+    if (show) {
+      setTempDate(value || new Date());
+    }
+  }, [show, value]);
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
     // On Android, the picker closes automatically
     if (Platform.OS === 'android') {
       setInternalShow(false);
       onDismiss();
-    }
 
-    // If user selected a date
-    if (event.type === 'set' && selectedDate) {
-      onDateChange(selectedDate);
-
-      // On iOS, close manually after selection
-      if (Platform.OS === 'ios') {
-        setInternalShow(false);
-        onDismiss();
+      // If user selected a date
+      if (event.type === 'set' && selectedDate) {
+        onDateChange(selectedDate);
       }
-    } else if (event.type === 'dismissed') {
-      // User cancelled
-      setInternalShow(false);
-      onDismiss();
+    } else {
+      // On iOS, just update the temp date
+      if (selectedDate) {
+        setTempDate(selectedDate);
+      }
     }
+  };
+
+  const handleConfirm = () => {
+    onDateChange(tempDate);
+    setInternalShow(false);
+    onDismiss();
+  };
+
+  const handleCancel = () => {
+    setInternalShow(false);
+    onDismiss();
   };
 
   if (!internalShow) {
     return null;
   }
 
+  // iOS needs a modal container
+  if (Platform.OS === 'ios') {
+    return (
+      <Modal
+        transparent
+        animationType="slide"
+        visible={internalShow}
+        onRequestClose={handleCancel}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={handleCancel}
+          />
+          <View style={styles.modalContent}>
+            <View style={styles.header}>
+              <TouchableOpacity onPress={handleCancel} style={styles.button}>
+                <Text style={styles.buttonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleConfirm} style={styles.button}>
+                <Text style={[styles.buttonText, styles.confirmText]}>Done</Text>
+              </TouchableOpacity>
+            </View>
+            <DateTimePicker
+              value={tempDate}
+              mode={mode}
+              display="spinner"
+              onChange={handleDateChange}
+              minimumDate={minimumDate}
+              maximumDate={maximumDate}
+              style={styles.picker}
+            />
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+
+  // Android uses default picker
   return (
     <DateTimePicker
       value={value || new Date()}
       mode={mode}
-      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+      display="default"
       onChange={handleDateChange}
       minimumDate={minimumDate}
       maximumDate={maximumDate}
     />
   );
 };
+
+const styles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  },
+  modalBackdrop: {
+    flex: 1,
+  },
+  modalContent: {
+    backgroundColor: '#1C1C1E',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: 34, // Safe area for iOS
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#38383A',
+    backgroundColor: '#1C1C1E',
+    width: '100%',
+  },
+  button: {
+    padding: 8,
+    minWidth: 60,
+  },
+  buttonText: {
+    fontSize: 17,
+    color: '#0A84FF',
+    textAlign: 'center',
+  },
+  confirmText: {
+    fontWeight: '600',
+  },
+  picker: {
+    height: 216,
+    width: '100%',
+    backgroundColor: '#1C1C1E',
+  },
+});
 
 // Utility function for date formatting
 export const formatDateForDisplay = (date: Date | null): string => {
