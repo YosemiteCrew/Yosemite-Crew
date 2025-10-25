@@ -59,17 +59,34 @@ export const AvatarGroup: React.FC<AvatarGroupProps> = ({
     return undefined;
   };
 
+  const getUniqueKey = (avatar: any, index: number) => {
+    if (isAvatarConfig(avatar)) {
+      if (avatar.source && typeof avatar.source === 'object' && 'uri' in avatar.source && typeof avatar.source.uri === 'string') {
+        return avatar.source.uri;
+      }
+      return avatar.placeholder || `config-${index}`;
+    }
+    if (typeof avatar === 'object' && avatar && 'uri' in avatar && typeof avatar.uri === 'string') {
+      return avatar.uri;
+    }
+    if (typeof avatar === 'number') {
+      return `require-${avatar}`;
+    }
+    return `avatar-${index}`;
+  };
+
   return (
     <View style={[styles.avatarGroup, containerStyle]}>
       {displayedAvatars.map((avatar, index) => {
         const source = getAvatarSource(avatar);
         const placeholder = getPlaceholder(avatar);
+        const uniqueKey = getUniqueKey(avatar, index);
 
         if (source) {
           // Render actual image
           return (
             <Image
-              key={`avatar-${index}`}
+              key={uniqueKey}
               source={source}
               style={[
                 styles.avatar,
@@ -81,7 +98,7 @@ export const AvatarGroup: React.FC<AvatarGroupProps> = ({
           // Render placeholder with initial
           return (
             <View
-              key={`avatar-${index}`}
+              key={uniqueKey}
               style={[
                 styles.avatarPlaceholder,
                 index === 0 ? styles.avatarFirst : { marginLeft: overlap },
