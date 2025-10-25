@@ -1,5 +1,5 @@
 import React from 'react';
-import {View, StyleSheet, Image} from 'react-native';
+import {View, StyleSheet, Image, TouchableOpacity} from 'react-native';
 import {Input, TouchableInput} from '@/components/common';
 import {formatDateForDisplay} from '@/components/common/SimpleDatePicker/SimpleDatePicker';
 import {Images} from '@/assets/images';
@@ -92,12 +92,17 @@ export const MedicationFormSection: React.FC<MedicationFormSectionProps> = ({
       {showDosageDisplay && formData.dosages.length > 0 && (
         <View style={styles.dosageDisplayContainer}>
           {formData.dosages.map((dosage) => (
-            <View key={dosage.id} style={styles.dosageDisplayRow}>
+            <TouchableOpacity
+              key={dosage.id}
+              style={styles.dosageDisplayRow}
+              activeOpacity={0.6}
+              onPress={onOpenDosageSheet}>
               <View style={styles.dosageDisplayField}>
                 <Input
                   label="Dosage"
                   value={dosage.label}
                   editable={false}
+                  pointerEvents="none"
                 />
               </View>
               <View style={styles.dosageDisplayField}>
@@ -109,10 +114,11 @@ export const MedicationFormSection: React.FC<MedicationFormSectionProps> = ({
                     hour12: true,
                   })}
                   editable={false}
+                  pointerEvents="none"
                   icon={<Image source={Images.clockIcon} style={styles.calendarIcon} />}
                 />
               </View>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
       )}
@@ -191,6 +197,10 @@ const createStyles = (theme: any) =>
     dosageDisplayRow: {
       flexDirection: 'row',
       gap: theme.spacing[3],
+      paddingVertical: theme.spacing[2],
+      paddingHorizontal: theme.spacing[2],
+      borderRadius: 8,
+      backgroundColor: 'transparent',
     },
     dosageDisplayField: {
       flex: 1,
