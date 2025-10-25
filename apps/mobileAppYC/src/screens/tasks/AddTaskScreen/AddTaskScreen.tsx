@@ -23,6 +23,7 @@ import {
 } from '@/components/tasks';
 import {useTheme, useFormBottomSheets, useFileOperations, useTaskFormState, useTaskFormSheets} from '@/hooks';
 import {Images} from '@/assets/images';
+import {createIconStyles} from '@/utils/iconStyles';
 import {addTask} from '@/features/tasks';
 import {setSelectedCompanion} from '@/features/companion';
 import type {AppDispatch, RootState} from '@/app/store';
@@ -68,6 +69,7 @@ export const AddTaskScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const {theme} = useTheme();
   const styles = useMemo(() => createTaskFormStyles(theme), [theme]);
+  const iconStyles = useMemo(() => createIconStyles(theme), [theme]);
 
   const companions = useSelector((state: RootState) => state.companion.companions);
   const selectedCompanionId = useSelector(
@@ -231,7 +233,7 @@ export const AddTaskScreen: React.FC = () => {
                 : undefined
             }
             onPress={() => taskTypeSheetRef.current?.open()}
-            rightComponent={<Image source={Images.dropdownIcon} style={styles.dropdownIcon} />}
+            rightComponent={<Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />}
             error={errors.category}
           />
         </View>

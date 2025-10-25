@@ -3,6 +3,7 @@ import {View, StyleSheet, Image} from 'react-native';
 import {Input, TouchableInput} from '@/components/common';
 import {formatDateForDisplay} from '@/components/common/SimpleDatePicker/SimpleDatePicker';
 import {Images} from '@/assets/images';
+import {createIconStyles} from '@/utils/iconStyles';
 import type {TaskFormData, TaskFormErrors, TaskTypeSelection} from '@/features/tasks/types';
 
 interface SimpleTaskFormSectionProps {
@@ -27,6 +28,7 @@ export const SimpleTaskFormSection: React.FC<SimpleTaskFormSectionProps> = ({
   theme,
 }) => {
   const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const iconStyles = React.useMemo(() => createIconStyles(theme), [theme]);
   const isEditable = !taskTypeSelection || taskTypeSelection.category === 'custom';
   const placeholderText = isEditable ? 'Enter task name' : undefined;
 
@@ -99,7 +101,7 @@ export const SimpleTaskFormSection: React.FC<SimpleTaskFormSectionProps> = ({
           placeholder="Task frequency"
           onPress={onOpenTaskFrequencySheet}
           rightComponent={
-            <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
+            <Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />
           }
           error={errors.frequency}
         />
@@ -124,11 +126,6 @@ const createStyles = (theme: any) =>
     },
     dateTimeField: {
       flex: 1,
-    },
-    dropdownIcon: {
-      width: 16,
-      height: 16,
-      resizeMode: 'contain',
     },
     calendarIcon: {
       width: 18,

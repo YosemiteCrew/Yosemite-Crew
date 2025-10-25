@@ -1,20 +1,17 @@
 import React, {useMemo} from 'react';
 import {
-  Image,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import {SwipeableGlassCard} from '@/components/common/SwipeableGlassCard/SwipeableGlassCard';
+import {SwipeableActionCard} from '@/components/common/SwipeableActionCard/SwipeableActionCard';
+import {CardActionButton} from '@/components/common/CardActionButton/CardActionButton';
+import {AvatarGroup} from '@/components/common/AvatarGroup/AvatarGroup';
 import {useTheme} from '@/hooks';
-import {Images} from '@/assets/images';
 import {formatDateForDisplay} from '@/components/common/SimpleDatePicker/SimpleDatePicker';
+import {createCardStyles} from '@/components/common/cardStyles';
 import type {TaskCategory, TaskStatus} from '@/features/tasks/types';
-
-const ACTION_WIDTH = 65;
-const OVERLAP_WIDTH = 12;
-const TOTAL_ACTION_WIDTH = ACTION_WIDTH * 2;
 
 export interface TaskCardProps {
   title: string;
@@ -59,6 +56,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const cardStyles = useMemo(() => createCardStyles(theme), [theme]);
 
   const formattedDate = useMemo(() => {
     try {
@@ -86,8 +84,6 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   }, [time]);
 
   const isCompleted = status === 'completed';
-  const visibleActionWidth = showEditAction ? TOTAL_ACTION_WIDTH : ACTION_WIDTH;
-  const totalActionWidth = OVERLAP_WIDTH + visibleActionWidth;
 
   const renderTaskDetails = () => {
     if (!details) return null;
@@ -128,105 +124,43 @@ export const TaskCard: React.FC<TaskCardProps> = ({
     return null;
   };
 
+  const avatars = [];
+  if (companionAvatar) {
+    avatars.push({uri: companionAvatar});
+  } else {
+    // Show placeholder with companion name initial
+    avatars.push({placeholder: companionName.charAt(0).toUpperCase()});
+  }
+  if (assignedToName) {
+    if (assignedToAvatar) {
+      avatars.push({uri: assignedToAvatar});
+    } else {
+      // Show placeholder with assigned user name initial
+      avatars.push({placeholder: assignedToName.charAt(0).toUpperCase()});
+    }
+  }
+
   return (
-    <SwipeableGlassCard
-      actionIcon={Images.viewIconSlide}
-      actionWidth={hideSwipeActions ? 0 : totalActionWidth}
-      actionBackgroundColor="transparent"
-      actionOverlap={hideSwipeActions ? 0 : OVERLAP_WIDTH}
-      containerStyle={styles.container}
-      cardProps={{
-        interactive: true,
-        glassEffect: 'clear',
-        shadow: 'none',
-        style: styles.card,
-        fallbackStyle: styles.fallback,
-      }}
-      actionContainerStyle={
-        hideSwipeActions ? styles.hiddenActionContainer : styles.actionContainer
-      }
-      renderActionContent={
-        hideSwipeActions
-          ? undefined
-          : close => (
-              <View style={styles.actionWrapper}>
-                <View
-                  style={[
-                    styles.overlapContainer,
-                    {
-                      width: OVERLAP_WIDTH,
-                      backgroundColor: showEditAction
-                        ? theme.colors.primary
-                        : theme.colors.success,
-                    },
-                  ]}
-                />
-
-                {showEditAction && (
-                  <TouchableOpacity
-                    activeOpacity={0.85}
-                    style={[
-                      styles.actionButton,
-                      styles.editActionButton,
-                      {width: ACTION_WIDTH},
-                    ]}
-                    onPress={() => {
-                      close();
-                      onPressEdit?.();
-                    }}>
-                    <Image source={Images.editIconSlide} style={styles.actionIcon} />
-                  </TouchableOpacity>
-                )}
-
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  style={[
-                    styles.actionButton,
-                    styles.viewActionButton,
-                    {width: ACTION_WIDTH},
-                  ]}
-                  onPress={() => {
-                    close();
-                    onPressView?.();
-                  }}>
-                  <Image source={Images.viewIconSlide} style={styles.actionIcon} />
-                </TouchableOpacity>
-              </View>
-            )
-      }>
+    <SwipeableActionCard
+      cardStyle={cardStyles.card}
+      fallbackStyle={cardStyles.fallback}
+      onPressView={onPressView}
+      onPressEdit={onPressEdit}
+      showEditAction={showEditAction && !isCompleted}
+      hideSwipeActions={hideSwipeActions}
+    >
       <TouchableOpacity
         activeOpacity={onPressView ? 0.85 : 1}
         onPress={onPressView}
         style={styles.innerContent}>
         <View style={styles.infoRow}>
-          <View style={styles.avatarGroup}>
-            {companionAvatar ? (
-              <Image
-                source={{uri: companionAvatar}}
-                style={[styles.avatar, styles.avatarFirst]}
-              />
-            ) : (
-              <View style={[styles.avatarPlaceholder, styles.avatarFirst]}>
-                <Text style={styles.avatarInitial}>
-                  {companionName.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-            )}
-            {assignedToName && (
-              assignedToAvatar ? (
-                <Image
-                  source={{uri: assignedToAvatar}}
-                  style={[styles.avatar, styles.avatarSubsequent]}
-                />
-              ) : (
-                <View style={[styles.avatarPlaceholder, styles.avatarSubsequent]}>
-                  <Text style={styles.avatarInitial}>
-                    {assignedToName.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
-              )
-            )}
-          </View>
+          {avatars.length > 0 && (
+            <AvatarGroup
+              avatars={avatars}
+              size={40}
+              overlap={-15}
+            />
+          )}
 
           <View style={styles.textContent}>
             <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
@@ -252,79 +186,19 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         </View>
 
         {showCompleteButton && !isCompleted && (
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={styles.completeButton}
-            onPress={onPressComplete}>
-            <Text style={styles.completeLabel}>Complete</Text>
-          </TouchableOpacity>
+          <CardActionButton
+            label="Complete"
+            onPress={onPressComplete!}
+            variant="primary"
+          />
         )}
       </TouchableOpacity>
-    </SwipeableGlassCard>
+    </SwipeableActionCard>
   );
 };
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    container: {
-      width: '100%',
-      alignSelf: 'center',
-      marginBottom: theme.spacing[3],
-    },
-    card: {
-      borderRadius: theme.borderRadius.lg,
-      paddingHorizontal: theme.spacing[4],
-      paddingVertical: theme.spacing[4],
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-    },
-    fallback: {
-      borderRadius: theme.borderRadius.lg,
-      paddingHorizontal: theme.spacing[4],
-      paddingVertical: theme.spacing[4],
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-    },
-    actionContainer: {
-      flexDirection: 'row',
-      alignItems: 'stretch',
-      justifyContent: 'flex-end',
-    },
-    hiddenActionContainer: {
-      width: 0,
-    },
-    actionWrapper: {
-      flexDirection: 'row',
-      height: '100%',
-      width: '100%',
-      backgroundColor: theme.colors.primary,
-      borderTopRightRadius: theme.borderRadius.lg,
-      borderBottomRightRadius: theme.borderRadius.lg,
-      overflow: 'hidden',
-    },
-    overlapContainer: {
-      height: '100%',
-    },
-    actionButton: {
-      height: '100%',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    editActionButton: {
-      backgroundColor: theme.colors.primary,
-    },
-    viewActionButton: {
-      backgroundColor: theme.colors.success,
-      borderTopRightRadius: theme.borderRadius.lg,
-      borderBottomRightRadius: theme.borderRadius.lg,
-    },
-    actionIcon: {
-      width: 30,
-      height: 30,
-      resizeMode: 'contain',
-    },
     innerContent: {
       width: '100%',
     },
@@ -332,39 +206,6 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: theme.spacing[3],
-    },
-    avatarGroup: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    avatar: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      borderWidth: 2,
-      borderColor: theme.colors.white,
-      resizeMode: 'cover',
-    },
-    avatarFirst: {
-      marginLeft: 0,
-    },
-    avatarSubsequent: {
-      marginLeft: -15,
-    },
-    avatarPlaceholder: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      borderWidth: 2,
-      borderColor: theme.colors.white,
-      backgroundColor: theme.colors.lightBlueBackground,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    avatarInitial: {
-      ...theme.typography.titleSmall,
-      color: theme.colors.primary,
-      fontWeight: '700',
     },
     textContent: {
       flex: 1,
@@ -392,23 +233,6 @@ const createStyles = (theme: any) =>
     completedText: {
       ...theme.typography.labelSmall,
       color: theme.colors.success,
-    },
-    completeButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: theme.colors.secondary,
-      borderRadius: theme.borderRadius.lg,
-      paddingVertical: theme.spacing[2],
-      paddingHorizontal: theme.spacing[4],
-      marginTop: theme.spacing[3],
-      backgroundColor: theme.colors.white,
-      minHeight: 45,
-    },
-    completeLabel: {
-      ...theme.typography.button,
-      color: theme.colors.secondary,
     },
     detailsSection: {
       marginTop: theme.spacing[2],

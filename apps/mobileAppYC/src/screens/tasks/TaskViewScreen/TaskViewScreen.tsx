@@ -9,6 +9,8 @@ import {Header} from '@/components/common/Header/Header';
 import {DocumentAttachmentsSection} from '@/components/documents/DocumentAttachmentsSection';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
+import {createIconStyles} from '@/utils/iconStyles';
+import {createFormStyles} from '@/utils/formStyles';
 import {selectTaskById} from '@/features/tasks/selectors';
 import {selectAuthUser} from '@/features/auth/selectors';
 import type {TaskStackParamList} from '@/navigation/types';
@@ -32,6 +34,7 @@ export const TaskViewScreen: React.FC = () => {
   const route = useRoute<Route>();
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const iconStyles = useMemo(() => createIconStyles(theme), [theme]);
 
   const {taskId} = route.params;
   const task = useSelector((state: RootState) => selectTaskById(taskId)(state));
@@ -170,7 +173,7 @@ export const TaskViewScreen: React.FC = () => {
             label="Task type"
             value={getTaskTypeBreadcrumb()}
             onPress={() => {}} // View only - no action
-            rightComponent={<Image source={Images.dropdownIcon} style={styles.dropdownIcon} />}
+            rightComponent={<Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />}
           />
         </View>
 
@@ -199,7 +202,7 @@ export const TaskViewScreen: React.FC = () => {
                   (task.details as MedicationTaskDetails).medicineType,
                 )}
                 onPress={() => {}} // View only
-                rightComponent={<Image source={Images.dropdownIcon} style={styles.dropdownIcon} />}
+                rightComponent={<Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />}
               />
             </View>
 
@@ -211,7 +214,7 @@ export const TaskViewScreen: React.FC = () => {
                   (task.details as MedicationTaskDetails).dosages.length > 1 ? 's' : ''
                 }`}
                 onPress={() => {}} // View only
-                rightComponent={<Image source={Images.dropdownIcon} style={styles.dropdownIcon} />}
+                rightComponent={<Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />}
               />
             </View>
 
@@ -244,7 +247,7 @@ export const TaskViewScreen: React.FC = () => {
                   (task.details as MedicationTaskDetails).frequency,
                 )}
                 onPress={() => {}} // View only
-                rightComponent={<Image source={Images.dropdownIcon} style={styles.dropdownIcon} />}
+                rightComponent={<Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />}
               />
             </View>
 
@@ -308,7 +311,7 @@ export const TaskViewScreen: React.FC = () => {
                   (task.details as ObservationalToolTaskDetails).toolType,
                 )}
                 onPress={() => {}} // View only
-                rightComponent={<Image source={Images.dropdownIcon} style={styles.dropdownIcon} />}
+                rightComponent={<Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />}
               />
             </View>
 
@@ -338,7 +341,7 @@ export const TaskViewScreen: React.FC = () => {
                 label="Task frequency"
                 value={resolveTaskFrequencyLabel(task.frequency)}
                 onPress={() => {}} // View only
-                rightComponent={<Image source={Images.dropdownIcon} style={styles.dropdownIcon} />}
+                rightComponent={<Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />}
               />
             </View>
 
@@ -404,7 +407,7 @@ export const TaskViewScreen: React.FC = () => {
                 label="Task frequency"
                 value={resolveTaskFrequencyLabel(task.frequency)}
                 onPress={() => {}} // View only
-                rightComponent={<Image source={Images.dropdownIcon} style={styles.dropdownIcon} />}
+                rightComponent={<Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />}
               />
             </View>
 
@@ -459,7 +462,7 @@ export const TaskViewScreen: React.FC = () => {
               label="Calendar provider"
               value={getCalendarProviderLabel(task.calendarProvider)}
               onPress={() => {}} // View only
-              rightComponent={<Image source={Images.dropdownIcon} style={styles.dropdownIcon} />}
+              rightComponent={<Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />}
             />
           </View>
         )}
@@ -516,8 +519,10 @@ export const TaskViewScreen: React.FC = () => {
   );
 };
 
-const createStyles = (theme: any) =>
-  StyleSheet.create({
+const createStyles = (theme: any) => {
+  const formStyles = createFormStyles(theme);
+
+  return StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
@@ -526,64 +531,11 @@ const createStyles = (theme: any) =>
       paddingHorizontal: theme.spacing[4],
       paddingBlock: theme.spacing[4],
     },
-    fieldGroup: {
-      marginBottom: theme.spacing[4],
-    },
-    dateTimeRow: {
-      flexDirection: 'row',
-      gap: theme.spacing[3],
-      marginBottom: theme.spacing[4],
-    },
-    dateTimeField: {
-      flex: 1,
-    },
-    dropdownIcon: {
-      width: 16,
-      height: 16,
-      resizeMode: 'contain',
-    },
+    ...formStyles,
     calendarIcon: {
       width: 18,
       height: 18,
       resizeMode: 'contain',
-    },
-    toggleSection: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: theme.spacing[4],
-    },
-    toggleLabel: {
-      ...theme.typography.bodyMedium,
-      color: theme.colors.secondary,
-      fontWeight: '500',
-    },
-    reminderPillsContainer: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: theme.spacing[2],
-      marginBottom: theme.spacing[4],
-    },
-    reminderPill: {
-      paddingVertical: theme.spacing[2],
-      paddingHorizontal: theme.spacing[3],
-      backgroundColor: theme.colors.surface,
-      borderRadius: 28,
-      borderWidth: 0.5,
-      borderColor: '#312943',
-    },
-    reminderPillSelected: {
-      backgroundColor: theme.colors.lightBlueBackground,
-      borderColor: theme.colors.primary,
-    },
-    reminderPillText: {
-      ...theme.typography.bodySmall,
-      color: theme.colors.secondary,
-      fontWeight: '500',
-    },
-    reminderPillTextSelected: {
-      color: theme.colors.primary,
-      fontWeight: '600',
     },
     textArea: {
       minHeight: 100,
@@ -623,5 +575,6 @@ const createStyles = (theme: any) =>
       color: theme.colors.error,
     },
   });
+};
 
 export default TaskViewScreen;

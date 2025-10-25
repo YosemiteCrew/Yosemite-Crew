@@ -1,5 +1,6 @@
 import React from 'react';
-import {View, StyleSheet, Text, Switch, TouchableOpacity} from 'react-native';
+import {View, Text, Switch, TouchableOpacity} from 'react-native';
+import {createFormStyles} from '@/utils/formStyles';
 import type {TaskFormData, ReminderOption} from '@/features/tasks/types';
 
 interface ReminderSectionProps {
@@ -15,12 +16,12 @@ export const ReminderSection: React.FC<ReminderSectionProps> = ({
   reminderOptions,
   theme,
 }) => {
-  const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const formStyles = React.useMemo(() => createFormStyles(theme), [theme]);
 
   return (
     <>
-      <View style={styles.toggleSection}>
-        <Text style={styles.toggleLabel}>Reminder</Text>
+      <View style={formStyles.toggleSection}>
+        <Text style={formStyles.toggleLabel}>Reminder</Text>
         <Switch
           value={formData.reminderEnabled}
           onValueChange={value => updateField('reminderEnabled', value)}
@@ -30,15 +31,15 @@ export const ReminderSection: React.FC<ReminderSectionProps> = ({
       </View>
 
       {formData.reminderEnabled && (
-        <View style={styles.reminderPillsContainer}>
+        <View style={formStyles.reminderPillsContainer}>
           {reminderOptions.map(option => {
             const isSelected = formData.reminderOptions === option;
             return (
               <TouchableOpacity
                 key={option}
                 style={[
-                  styles.reminderPill,
-                  isSelected && styles.reminderPillSelected,
+                  formStyles.reminderPill,
+                  isSelected && formStyles.reminderPillSelected,
                 ]}
                 onPress={() => {
                   if (isSelected) {
@@ -49,8 +50,8 @@ export const ReminderSection: React.FC<ReminderSectionProps> = ({
                 }}>
                 <Text
                   style={[
-                    styles.reminderPillText,
-                    isSelected && styles.reminderPillTextSelected,
+                    formStyles.reminderPillText,
+                    isSelected && formStyles.reminderPillTextSelected,
                   ]}>
                   {option}
                 </Text>
@@ -62,45 +63,3 @@ export const ReminderSection: React.FC<ReminderSectionProps> = ({
     </>
   );
 };
-
-const createStyles = (theme: any) =>
-  StyleSheet.create({
-    toggleSection: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: theme.spacing[4],
-    },
-    toggleLabel: {
-      ...theme.typography.bodyMedium,
-      color: theme.colors.secondary,
-      fontWeight: '500',
-    },
-    reminderPillsContainer: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: theme.spacing[2],
-      marginBottom: theme.spacing[4],
-    },
-    reminderPill: {
-      paddingVertical: theme.spacing[2],
-      paddingHorizontal: theme.spacing[3],
-      backgroundColor: theme.colors.surface,
-      borderRadius: 28,
-      borderWidth: 0.5,
-      borderColor: '#312943',
-    },
-    reminderPillSelected: {
-      backgroundColor: theme.colors.lightBlueBackground,
-      borderColor: theme.colors.primary,
-    },
-    reminderPillText: {
-      ...theme.typography.bodySmall,
-      color: theme.colors.secondary,
-      fontWeight: '500',
-    },
-    reminderPillTextSelected: {
-      color: theme.colors.primary,
-      fontWeight: '600',
-    },
-  });
