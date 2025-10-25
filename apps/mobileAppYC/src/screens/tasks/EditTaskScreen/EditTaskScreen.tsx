@@ -1,5 +1,5 @@
-import React, {useState, useRef, useMemo, useEffect} from 'react';
-import {ScrollView, StyleSheet, View, Text, Switch, Alert} from 'react-native';
+import React, {useMemo, useEffect} from 'react';
+import {ScrollView, View, Text, Switch, Alert} from 'react-native';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
@@ -7,7 +7,6 @@ import {useDispatch, useSelector} from 'react-redux';
 import {SafeArea, Input} from '@/components/common';
 import {Header} from '@/components/common/Header/Header';
 import LiquidGlassButton from '@/components/common/LiquidGlassButton/LiquidGlassButton';
-import {SimpleDatePicker} from '@/components/common/SimpleDatePicker/SimpleDatePicker';
 import {DocumentAttachmentsSection} from '@/components/documents/DocumentAttachmentsSection';
 import {UploadDocumentBottomSheet} from '@/components/common/UploadDocumentBottomSheet/UploadDocumentBottomSheet';
 import {DeleteDocumentBottomSheet} from '@/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
@@ -21,17 +20,13 @@ import {
   CalendarSyncBottomSheet,
   ObservationalToolBottomSheet,
 } from '@/components/tasks';
-import {useTheme, useFormBottomSheets, useFileOperations} from '@/hooks';
+import {useTheme, useFormBottomSheets, useFileOperations, useTaskFormState, useTaskFormSheets} from '@/hooks';
 import {Images} from '@/assets/images';
 import {updateTask, deleteTask} from '@/features/tasks';
 import {selectTaskById} from '@/features/tasks/selectors';
 import type {AppDispatch, RootState} from '@/app/store';
 import type {TaskStackParamList} from '@/navigation/types';
-import type {
-  TaskFormData,
-  TaskFormErrors,
-  ReminderOption,
-} from '@/features/tasks/types';
+import type {ReminderOption} from '@/features/tasks/types';
 import {resolveCategoryLabel} from '@/utils/taskLabels';
 import {initializeFormDataFromTask} from './initialization';
 import {validateTaskForm} from './validation';
@@ -44,6 +39,8 @@ import {
   CalendarSyncSection,
   CommonTaskFields,
 } from './components';
+import {TaskDatePickers} from '@/screens/tasks/components/TaskDatePickers';
+import {createTaskFormStyles} from '@/screens/tasks/styles';
 
 type Navigation = NativeStackNavigationProp<TaskStackParamList, 'EditTask'>;
 type Route = RouteProp<TaskStackParamList, 'EditTask'>;
@@ -62,62 +59,45 @@ export const EditTaskScreen: React.FC = () => {
   const route = useRoute<Route>();
   const dispatch = useDispatch<AppDispatch>();
   const {theme} = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const styles = useMemo(() => createTaskFormStyles(theme), [theme]);
 
   const {taskId} = route.params;
   const task = useSelector((state: RootState) => selectTaskById(taskId)(state));
   const loading = useSelector((state: RootState) => state.tasks.loading);
   const companions = useSelector((state: RootState) => state.companion.companions);
 
-  const [formData, setFormData] = useState<TaskFormData>({
-    category: null,
-    subcategory: null,
-    parasitePreventionType: null,
-    chronicConditionType: null,
-    healthTaskType: null,
-    hygieneTaskType: null,
-    dietaryTaskType: null,
-    title: '',
-    date: new Date(),
-    time: null,
-    frequency: null,
-    assignedTo: null,
-    reminderEnabled: false,
-    reminderOptions: null,
-    syncWithCalendar: false,
-    calendarProvider: null,
-    attachDocuments: false,
-    attachments: [],
-    additionalNote: '',
-    medicineName: '',
-    medicineType: null,
-    dosages: [],
-    medicationFrequency: null,
-    startDate: new Date(),
-    endDate: null,
-    observationalTool: null,
-    description: '',
-  });
-
-  const [errors, setErrors] = useState<TaskFormErrors>({});
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
-  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const {
+    formData,
+    errors,
+    hasUnsavedChanges,
+    showDatePicker,
+    setShowDatePicker,
+    showTimePicker,
+    setShowTimePicker,
+    showStartDatePicker,
+    setShowStartDatePicker,
+    showEndDatePicker,
+    setShowEndDatePicker,
+    updateField,
+    clearError,
+    setFormData,
+    setErrors,
+  } = useTaskFormState();
 
   const {refs, openSheet, closeSheet} = useFormBottomSheets();
   const {uploadSheetRef} = refs;
 
-  const medicationTypeSheetRef = useRef<any>(null);
-  const dosageSheetRef = useRef<any>(null);
-  const medicationFrequencySheetRef = useRef<any>(null);
-  const taskFrequencySheetRef = useRef<any>(null);
-  const assignTaskSheetRef = useRef<any>(null);
-  const calendarSyncSheetRef = useRef<any>(null);
-  const observationalToolSheetRef = useRef<any>(null);
-  const discardSheetRef = useRef<any>(null);
-  const deleteSheetRef = useRef<any>(null);
+  const {
+    medicationTypeSheetRef,
+    dosageSheetRef,
+    medicationFrequencySheetRef,
+    taskFrequencySheetRef,
+    assignTaskSheetRef,
+    calendarSyncSheetRef,
+    observationalToolSheetRef,
+    discardSheetRef,
+    deleteSheetRef,
+  } = useTaskFormSheets();
 
   const {
     fileToDelete,
@@ -140,25 +120,9 @@ export const EditTaskScreen: React.FC = () => {
     if (task) {
       const initialFormData = initializeFormDataFromTask(task);
       setFormData(initialFormData);
+      setErrors({});
     }
-  }, [task]);
-
-  const updateField = <K extends keyof TaskFormData>(
-    field: K,
-    value: TaskFormData[K],
-  ) => {
-    setFormData(prev => ({...prev, [field]: value}));
-    setHasUnsavedChanges(true);
-    clearError(field as keyof TaskFormErrors);
-  };
-
-  const clearError = (field: keyof TaskFormErrors) => {
-    setErrors(prev => {
-      const newErrors = {...prev};
-      delete newErrors[field];
-      return newErrors;
-    });
-  };
+  }, [task, setFormData, setErrors]);
 
   const validateForm = (): boolean => {
     const newErrors = validateTaskForm(formData);
@@ -364,47 +328,17 @@ export const EditTaskScreen: React.FC = () => {
       </View>
 
       {/* Date & Time Pickers */}
-      <SimpleDatePicker
-        show={showDatePicker}
-        value={formData.date}
-        mode="date"
-        minimumDate={new Date()}
-        onDateChange={(selectedDate) => {
-          updateField('date', selectedDate);
-        }}
-        onDismiss={() => setShowDatePicker(false)}
-      />
-
-      <SimpleDatePicker
-        show={showStartDatePicker}
-        value={formData.startDate}
-        mode="date"
-        minimumDate={new Date()}
-        onDateChange={(selectedDate) => {
-          updateField('startDate', selectedDate);
-        }}
-        onDismiss={() => setShowStartDatePicker(false)}
-      />
-
-      <SimpleDatePicker
-        show={showEndDatePicker}
-        value={formData.endDate}
-        mode="date"
-        minimumDate={new Date()}
-        onDateChange={(selectedDate) => {
-          updateField('endDate', selectedDate);
-        }}
-        onDismiss={() => setShowEndDatePicker(false)}
-      />
-
-      <SimpleDatePicker
-        show={showTimePicker}
-        value={formData.time}
-        mode="time"
-        onDateChange={(selectedTime) => {
-          updateField('time', selectedTime);
-        }}
-        onDismiss={() => setShowTimePicker(false)}
+      <TaskDatePickers
+        showDatePicker={showDatePicker}
+        setShowDatePicker={setShowDatePicker}
+        showTimePicker={showTimePicker}
+        setShowTimePicker={setShowTimePicker}
+        showStartDatePicker={showStartDatePicker}
+        setShowStartDatePicker={setShowStartDatePicker}
+        showEndDatePicker={showEndDatePicker}
+        setShowEndDatePicker={setShowEndDatePicker}
+        formData={formData}
+        updateField={updateField}
       />
 
       {/* Bottom Sheets */}
@@ -499,56 +433,5 @@ export const EditTaskScreen: React.FC = () => {
   );
 };
 
-const createStyles = (theme: any) =>
-  StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    contentContainer: {
-      paddingHorizontal: theme.spacing[4],
-      paddingTop: theme.spacing[4],
-      paddingBottom: theme.spacing[24],
-    },
-    fieldGroup: {
-      marginBottom: theme.spacing[6],
-    },
-    toggleSection: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingVertical: theme.spacing[4],
-      marginBottom: theme.spacing[2],
-    },
-    toggleLabel: {
-      ...theme.typography.bodyMedium,
-      color: theme.colors.secondary,
-      fontWeight: '500',
-    },
-    footer: {
-      paddingHorizontal: theme.spacing[4],
-      paddingBottom: theme.spacing[6],
-      paddingTop: theme.spacing[2],
-      backgroundColor: theme.colors.background,
-    },
-    saveButton: {
-      width: '100%',
-      marginTop: theme.spacing[4],
-    },
-    saveButtonText: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.white,
-    },
-    errorContainer: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: theme.spacing[4],
-    },
-    errorText: {
-      ...theme.typography.bodyMedium,
-      color: theme.colors.error,
-    },
-  });
 
 export default EditTaskScreen;
