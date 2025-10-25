@@ -82,8 +82,10 @@ const createStyles = (theme: any) =>
       textAlignVertical: 'top',
     },
     errorText: {
+      ...theme.typography.labelXsBold,
       color: theme.colors.error,
-      fontSize: 12,
-      marginTop: theme.spacing[1],
+      marginTop: -theme.spacing[3],
+      marginBottom: theme.spacing[3],
+      marginLeft: theme.spacing[1],
     },
   });

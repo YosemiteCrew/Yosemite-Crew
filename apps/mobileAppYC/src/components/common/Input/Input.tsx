@@ -209,9 +209,11 @@ export const Input: React.FC<InputProps> = ({
   };
 
   const getErrorStyle = (): TextStyle => ({
-    ...theme.typography.inputError,
-    marginTop: theme.spacing?.['1'] || 4,
-    marginLeft: 20,
+    ...theme.typography.labelXsBold,
+    color: theme.colors.error,
+    marginTop: -(theme.spacing?.[3] || 12),
+    marginBottom: theme.spacing?.[3] || 12,
+    marginLeft: theme.spacing?.[1] || 4,
   });
 
   let IconWrapper = null;

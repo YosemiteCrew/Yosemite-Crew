@@ -212,11 +212,13 @@ const createStyles = (theme: any) =>
       gap: theme.spacing[1],
     },
     title: {
-      ...theme.typography.titleMedium,
+      ...theme.typography.h6Clash,
       color: theme.colors.secondary,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
     },
     meta: {
-      ...theme.typography.bodySmall,
+      ...theme.typography.captionBoldSatoshi,
       color: theme.colors.textSecondary,
     },
     statusColumn: {
