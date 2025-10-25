@@ -78,15 +78,15 @@ export const TouchableInput: React.FC<TouchableInputProps> = ({
   });
 
   const getValueStyle = (): TextStyle => ({
-    ...theme.typography.body,
+    ...(hasValue ? theme.typography.inputFilled : theme.typography.input),
     color: hasValue ? theme.colors.text : theme.colors.textSecondary,
     fontSize: 16,
+    lineHeight: 20,
     flex: 1,
-    ...(Platform.OS === 'ios' 
+    ...(Platform.OS === 'ios'
       ? {
           paddingTop: hasValue ? 10 : 12,
           paddingBottom: hasValue ? 8 : 12,
-          lineHeight: undefined,
         }
       : {
           paddingTop: hasValue ? 10 : 8,
