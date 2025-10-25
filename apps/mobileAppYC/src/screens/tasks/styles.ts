@@ -8,47 +8,87 @@ export const createTaskFormStyles = (theme: any) =>
     },
     contentContainer: {
       paddingHorizontal: theme.spacing[4],
-      paddingVertical: theme.spacing[4],
-      gap: theme.spacing[5],
+      paddingBlock: theme.spacing[4],
     },
     companionSelector: {
-      marginTop: theme.spacing[2],
       marginBottom: theme.spacing[4],
     },
     fieldGroup: {
-      gap: theme.spacing[3],
+      marginBottom: theme.spacing[4],
     },
     dropdownIcon: {
-      width: 20,
-      height: 20,
-      tintColor: theme.colors.secondary,
+      width: 16,
+      height: 16,
+      resizeMode: 'contain',
+    },
+    calendarIcon: {
+      width: 18,
+      height: 18,
+      resizeMode: 'contain',
     },
     toggleSection: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      paddingVertical: theme.spacing[3],
-      paddingHorizontal: theme.spacing[4],
-      backgroundColor: theme.colors.surface,
-      borderRadius: 8,
+      marginBottom: theme.spacing[4],
     },
     toggleLabel: {
       ...theme.typography.bodyMedium,
-      color: theme.colors.text,
+      color: theme.colors.secondary,
+      fontWeight: '500',
+    },
+    reminderPillsContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: theme.spacing[2],
+      marginBottom: theme.spacing[4],
+    },
+    reminderPill: {
+      paddingVertical: theme.spacing[2],
+      paddingHorizontal: theme.spacing[3],
+      backgroundColor: theme.colors.surface,
+      borderRadius: 28,
+      borderWidth: 0.5,
+      borderColor: '#312943',
+    },
+    reminderPillSelected: {
+      backgroundColor: theme.colors.lightBlueBackground,
+      borderColor: theme.colors.primary,
+    },
+    reminderPillText: {
+      ...theme.typography.bodySmall,
+      color: theme.colors.secondary,
+      fontWeight: '500',
+    },
+    reminderPillTextSelected: {
+      color: theme.colors.primary,
       fontWeight: '600',
+    },
+    dateTimeRow: {
+      flexDirection: 'row',
+      gap: theme.spacing[3],
+      marginBottom: theme.spacing[4],
+    },
+    dateTimeField: {
+      flex: 1,
+    },
+    textArea: {
+      minHeight: 100,
+      textAlignVertical: 'top',
     },
     footer: {
       paddingHorizontal: theme.spacing[4],
-      paddingVertical: theme.spacing[4],
+      paddingBottom: theme.spacing[6],
+      paddingTop: theme.spacing[2],
       backgroundColor: theme.colors.background,
     },
     saveButton: {
-      flex: 1,
+      width: '100%',
+      marginTop: theme.spacing[4],
     },
     saveButtonText: {
-      ...theme.typography.labelLarge,
+      ...theme.typography.paragraphBold,
       color: theme.colors.white,
-      fontWeight: '600',
     },
     errorContainer: {
       flex: 1,

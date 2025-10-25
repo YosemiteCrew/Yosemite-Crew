@@ -21,14 +21,38 @@ const parseTime = (timeStr: string | null | undefined): Date | null => {
   return now;
 };
 
+const normalizeDosageTime = (dosageTime: string): string => {
+  // Ensure dosage times are in ISO format for consistent handling
+  if (!dosageTime) return new Date().toISOString();
+
+  if (dosageTime.includes('T')) {
+    // Already in ISO format
+    return dosageTime;
+  } else if (dosageTime.includes(':')) {
+    // Time-only format, convert to today's ISO datetime
+    const [hours, minutes, seconds] = dosageTime.split(':').map(Number);
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) return new Date().toISOString();
+    const date = new Date();
+    date.setHours(hours, minutes, seconds || 0, 0);
+    return date.toISOString();
+  }
+
+  return new Date().toISOString();
+};
+
 const extractMedicationData = (
   task: Task,
   medicationDetails: MedicationTaskDetails | null,
 ) => {
+  const normalizedDosages = (medicationDetails?.dosages || []).map(dosage => ({
+    ...dosage,
+    time: normalizeDosageTime(dosage.time),
+  }));
+
   return {
     medicineName: medicationDetails?.medicineName || '',
     medicineType: medicationDetails?.medicineType || null,
-    dosages: medicationDetails?.dosages || [],
+    dosages: normalizedDosages,
     medicationFrequency: medicationDetails?.frequency || null,
     startDate: parseDate(medicationDetails?.startDate || null),
     endDate: parseDate(medicationDetails?.endDate || null),

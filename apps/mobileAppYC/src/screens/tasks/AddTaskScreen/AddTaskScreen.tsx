@@ -174,16 +174,8 @@ export const AddTaskScreen: React.FC = () => {
 
     try {
       const taskData = buildTaskFromForm(formData, selectedCompanionId);
-      const result = await dispatch(addTask(taskData)).unwrap();
-
-      if (result) {
-        Alert.alert('Success', 'Task added successfully', [
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack(),
-          },
-        ]);
-      }
+      await dispatch(addTask(taskData)).unwrap();
+      navigation.goBack();
     } catch (error) {
       Alert.alert(
         'Unable to add task',

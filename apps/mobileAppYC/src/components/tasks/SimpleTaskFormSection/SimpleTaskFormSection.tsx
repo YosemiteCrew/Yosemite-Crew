@@ -111,16 +111,16 @@ export const SimpleTaskFormSection: React.FC<SimpleTaskFormSectionProps> = ({
 const createStyles = (theme: any) =>
   StyleSheet.create({
     fieldGroup: {
-      marginBottom: theme.spacing[6],
+      marginBottom: theme.spacing[4],
     },
     textArea: {
-      minHeight: 80,
+      minHeight: 100,
       textAlignVertical: 'top',
     },
     dateTimeRow: {
       flexDirection: 'row',
       gap: theme.spacing[3],
-      marginBottom: theme.spacing[6],
+      marginBottom: theme.spacing[4],
     },
     dateTimeField: {
       flex: 1,
