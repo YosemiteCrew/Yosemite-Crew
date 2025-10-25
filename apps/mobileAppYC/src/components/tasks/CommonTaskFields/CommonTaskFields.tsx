@@ -1,6 +1,9 @@
 import React from 'react';
-import {View, StyleSheet, Text, TouchableOpacity} from 'react-native';
-import {Input} from '@/components/common';
+import {View, StyleSheet, Text, Image} from 'react-native';
+import {useSelector} from 'react-redux';
+import {Input, TouchableInput} from '@/components/common';
+import {selectAuthUser} from '@/features/auth/selectors';
+import {Images} from '@/assets/images';
 import type {TaskFormData, TaskFormErrors} from '@/features/tasks/types';
 
 interface CommonTaskFieldsProps {
@@ -19,20 +22,32 @@ export const CommonTaskFields: React.FC<CommonTaskFieldsProps> = ({
   theme,
 }) => {
   const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const currentUser = useSelector(selectAuthUser);
+
+  // Get the assigned user's display name
+  const getAssignedUserName = (): string => {
+    if (!formData.assignedTo) return '';
+    // Check if the assigned user is the current user
+    if (currentUser && currentUser.id === formData.assignedTo) {
+      return currentUser.firstName || currentUser.email || 'You';
+    }
+    return formData.assignedTo; // Fallback to ID if user not found
+  };
 
   return (
     <View style={styles.container}>
       {/* Assign Task Field */}
       <View style={styles.fieldGroup}>
-        <TouchableOpacity onPress={onOpenAssignTaskSheet}>
-          <Input
-            label="Assign to"
-            value={formData.assignedTo ? `User ${formData.assignedTo}` : ''}
-            editable={false}
-            onChangeText={() => {}}
-          />
-        </TouchableOpacity>
-        {errors.assignedTo && <Text style={styles.errorText}>{errors.assignedTo}</Text>}
+        <TouchableInput
+          label={getAssignedUserName() ? 'Assign to' : undefined}
+          value={getAssignedUserName()}
+          placeholder="Assign to"
+          onPress={onOpenAssignTaskSheet}
+          rightComponent={
+            <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
+          }
+          error={errors.assignedTo}
+        />
       </View>
 
       {/* Additional Note Field */}
@@ -59,6 +74,11 @@ const createStyles = (theme: any) =>
     fieldGroup: {
       marginBottom: theme.spacing[4],
       gap: theme.spacing[1],
+    },
+    dropdownIcon: {
+      width: 16,
+      height: 16,
+      resizeMode: 'contain',
     },
     textArea: {
       minHeight: 100,

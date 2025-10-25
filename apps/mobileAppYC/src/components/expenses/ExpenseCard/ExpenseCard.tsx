@@ -12,7 +12,7 @@ import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {formatDateForDisplay} from '@/components/common/SimpleDatePicker/SimpleDatePicker';
 import {formatCurrency, resolveCurrencySymbol} from '@/utils/currency';
-import {createCardStyles, ACTION_WIDTH, OVERLAP_WIDTH, TOTAL_ACTION_WIDTH} from '@/components/common/cardStyles';
+import {createCardStyles, ACTION_WIDTH, OVERLAP_WIDTH, TOTAL_ACTION_WIDTH, getActionWrapperStyle, getEditActionButtonStyle, getViewActionButtonStyle} from '@/components/common/cardStyles';
 
 export interface ExpenseCardProps {
   title: string;
@@ -95,7 +95,7 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
         hideSwipeActions
           ? undefined
           : close => (
-              <View style={baseStyles.actionWrapper(showEditAction, theme)}>
+              <View style={getActionWrapperStyle(showEditAction, theme)}>
                 <View
                   style={[
                     baseStyles.overlapContainer,
@@ -111,7 +111,7 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
                 {showEditAction && (
                   <TouchableOpacity
                     activeOpacity={0.85}
-                    style={[baseStyles.actionButton, baseStyles.editActionButton(theme), {width: ACTION_WIDTH}]}
+                    style={[baseStyles.actionButton, getEditActionButtonStyle(theme), {width: ACTION_WIDTH}]}
                     onPress={() => {
                       close();
                       onPressEdit?.();
@@ -122,7 +122,7 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
 
                 <TouchableOpacity
                   activeOpacity={0.85}
-                  style={[baseStyles.actionButton, baseStyles.viewActionButton(theme), {width: ACTION_WIDTH}]}
+                  style={[baseStyles.actionButton, getViewActionButtonStyle(theme), {width: ACTION_WIDTH}]}
                   onPress={() => {
                     close();
                     onPressView?.();

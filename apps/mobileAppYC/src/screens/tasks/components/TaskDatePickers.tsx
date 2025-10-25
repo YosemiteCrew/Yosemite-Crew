@@ -30,60 +30,52 @@ export const TaskDatePickers: React.FC<TaskDatePickersProps> = ({
   return (
     <>
       {/* Main task date picker */}
-      {showDatePicker && (
-        <SimpleDatePicker
-          visible={showDatePicker}
-          onClose={() => setShowDatePicker(false)}
-          selectedDate={formData.date}
-          onConfirm={(date) => {
-            updateField('date', date);
-            setShowDatePicker(false);
-          }}
-          mode="date"
-        />
-      )}
+      <SimpleDatePicker
+        show={showDatePicker}
+        onDismiss={() => setShowDatePicker(false)}
+        value={formData.date}
+        onDateChange={(date: Date) => {
+          updateField('date', date);
+          setShowDatePicker(false);
+        }}
+        mode="date"
+      />
 
       {/* Main task time picker */}
-      {showTimePicker && (
-        <SimpleDatePicker
-          visible={showTimePicker}
-          onClose={() => setShowTimePicker(false)}
-          selectedDate={formData.time || new Date()}
-          onConfirm={(date) => {
-            updateField('time', date);
-            setShowTimePicker(false);
-          }}
-          mode="time"
-        />
-      )}
+      <SimpleDatePicker
+        show={showTimePicker}
+        onDismiss={() => setShowTimePicker(false)}
+        value={formData.time || new Date()}
+        onDateChange={(date: Date) => {
+          updateField('time', date);
+          setShowTimePicker(false);
+        }}
+        mode="time"
+      />
 
       {/* Medication start date picker */}
-      {showStartDatePicker && (
-        <SimpleDatePicker
-          visible={showStartDatePicker}
-          onClose={() => setShowStartDatePicker(false)}
-          selectedDate={formData.startDate}
-          onConfirm={(date) => {
-            updateField('startDate', date);
-            setShowStartDatePicker(false);
-          }}
-          mode="date"
-        />
-      )}
+      <SimpleDatePicker
+        show={showStartDatePicker}
+        onDismiss={() => setShowStartDatePicker(false)}
+        value={formData.startDate}
+        onDateChange={(date: Date) => {
+          updateField('startDate', date);
+          setShowStartDatePicker(false);
+        }}
+        mode="date"
+      />
 
       {/* Medication end date picker */}
-      {showEndDatePicker && (
-        <SimpleDatePicker
-          visible={showEndDatePicker}
-          onClose={() => setShowEndDatePicker(false)}
-          selectedDate={formData.endDate || new Date()}
-          onConfirm={(date) => {
-            updateField('endDate', date);
-            setShowEndDatePicker(false);
-          }}
-          mode="date"
-        />
-      )}
+      <SimpleDatePicker
+        show={showEndDatePicker}
+        onDismiss={() => setShowEndDatePicker(false)}
+        value={formData.endDate || new Date()}
+        onDateChange={(date: Date) => {
+          updateField('endDate', date);
+          setShowEndDatePicker(false);
+        }}
+        mode="date"
+      />
     </>
   );
 };

@@ -29,7 +29,7 @@ export interface BaseCardProps {
   primaryButtonLabel?: string;
   primaryIcon?: ImageSourcePropType;
   hideSwipeActions?: boolean;
-  onTogglePrimaryStatus?: () => void;
+  _onTogglePrimaryStatus?: () => void;
   amountDisplay?: string;
   rightContent?: React.ReactNode;
   bottomContent?: React.ReactNode;
