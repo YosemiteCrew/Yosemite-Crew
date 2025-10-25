@@ -69,8 +69,7 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingVertical: theme.spacing[4],
-      marginBottom: theme.spacing[2],
+      marginBottom: theme.spacing[4],
     },
     toggleLabel: {
       ...theme.typography.bodyMedium,

@@ -136,16 +136,8 @@ export const EditTaskScreen: React.FC = () => {
 
     try {
       const taskData = buildTaskFromForm(formData, task.companionId);
-      const result = await dispatch(updateTask({taskId: task.id, updates: taskData})).unwrap();
-
-      if (result) {
-        Alert.alert('Success', 'Task updated successfully', [
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack(),
-          },
-        ]);
-      }
+      await dispatch(updateTask({taskId: task.id, updates: taskData})).unwrap();
+      navigation.goBack();
     } catch (error) {
       Alert.alert(
         'Unable to update task',
@@ -203,7 +195,7 @@ export const EditTaskScreen: React.FC = () => {
 
       <ScrollView
         style={styles.container}
-        contentContainerStyle={[styles.contentContainer, {paddingTop: theme.spacing[6]}]}
+        contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}>
         {/* Category (LOCKED) */}
         <View style={styles.fieldGroup}>

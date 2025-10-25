@@ -64,8 +64,7 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingVertical: theme.spacing[4],
-      marginBottom: theme.spacing[2],
+      marginBottom: theme.spacing[4],
     },
     toggleLabel: {
       ...theme.typography.bodyMedium,
@@ -73,7 +72,7 @@ const createStyles = (theme: any) =>
       fontWeight: '500',
     },
     fieldGroup: {
-      marginBottom: theme.spacing[6],
+      marginBottom: theme.spacing[4],
     },
     dropdownIcon: {
       width: 16,

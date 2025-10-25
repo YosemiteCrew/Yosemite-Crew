@@ -524,16 +524,15 @@ const createStyles = (theme: any) =>
     },
     contentContainer: {
       paddingHorizontal: theme.spacing[4],
-      paddingTop: theme.spacing[4],
-      paddingBottom: theme.spacing[24],
+      paddingBlock: theme.spacing[4],
     },
     fieldGroup: {
-      marginBottom: theme.spacing[6],
+      marginBottom: theme.spacing[4],
     },
     dateTimeRow: {
       flexDirection: 'row',
       gap: theme.spacing[3],
-      marginBottom: theme.spacing[6],
+      marginBottom: theme.spacing[4],
     },
     dateTimeField: {
       flex: 1,
@@ -552,8 +551,7 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingVertical: theme.spacing[4],
-      marginBottom: theme.spacing[2],
+      marginBottom: theme.spacing[4],
     },
     toggleLabel: {
       ...theme.typography.bodyMedium,
@@ -588,12 +586,12 @@ const createStyles = (theme: any) =>
       fontWeight: '600',
     },
     textArea: {
-      minHeight: 80,
+      minHeight: 100,
       textAlignVertical: 'top',
     },
     dosageDisplayContainer: {
       gap: theme.spacing[3],
-      marginBottom: theme.spacing[6],
+      marginBottom: theme.spacing[4],
     },
     dosageDisplayRow: {
       flexDirection: 'row',

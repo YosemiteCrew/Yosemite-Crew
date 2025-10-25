@@ -164,12 +164,12 @@ export const MedicationFormSection: React.FC<MedicationFormSectionProps> = ({
 const createStyles = (theme: any) =>
   StyleSheet.create({
     fieldGroup: {
-      marginBottom: theme.spacing[6],
+      marginBottom: theme.spacing[4],
     },
     dateTimeRow: {
       flexDirection: 'row',
       gap: theme.spacing[3],
-      marginBottom: theme.spacing[6],
+      marginBottom: theme.spacing[4],
     },
     dateTimeField: {
       flex: 1,
@@ -186,7 +186,7 @@ const createStyles = (theme: any) =>
     },
     dosageDisplayContainer: {
       gap: theme.spacing[3],
-      marginBottom: theme.spacing[6],
+      marginBottom: theme.spacing[4],
     },
     dosageDisplayRow: {
       flexDirection: 'row',

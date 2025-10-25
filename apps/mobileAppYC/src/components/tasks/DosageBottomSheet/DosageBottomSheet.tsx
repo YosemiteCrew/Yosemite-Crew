@@ -26,6 +26,11 @@ export const DosageBottomSheet = forwardRef<DosageBottomSheetRef, DosageBottomSh
     const [showTimePicker, setShowTimePicker] = useState(false);
     const [editingDosageId, setEditingDosageId] = useState<string | null>(null);
 
+    // Sync tempDosages when dosages prop changes
+    React.useEffect(() => {
+      setTempDosages(dosages);
+    }, [dosages]);
+
     useImperativeHandle(ref, () => ({
       open: () => bottomSheetRef.current?.open(),
       close: () => bottomSheetRef.current?.close(),
@@ -80,7 +85,23 @@ export const DosageBottomSheet = forwardRef<DosageBottomSheetRef, DosageBottomSh
 
     const formatTime = (isoTime: string) => {
       try {
-        const date = new Date(isoTime);
+        // Handle both ISO string and regular date formats
+        let date: Date;
+        if (isoTime.includes('T')) {
+          // ISO format: use as-is
+          date = new Date(isoTime);
+        } else if (isoTime.includes(':')) {
+          // Time-only format (HH:mm:ss), create date with today's date
+          const [hours, minutes, seconds] = isoTime.split(':').map(Number);
+          if (Number.isNaN(hours) || Number.isNaN(minutes)) return 'Invalid time';
+          date = new Date();
+          date.setHours(hours, minutes, seconds || 0, 0);
+        } else {
+          return 'Invalid time';
+        }
+
+        if (isNaN(date.getTime())) return 'Invalid time';
+
         return date.toLocaleTimeString('en-US', {
           hour: 'numeric',
           minute: '2-digit',
@@ -97,6 +118,24 @@ export const DosageBottomSheet = forwardRef<DosageBottomSheetRef, DosageBottomSh
     };
 
     const currentEditingDosage = tempDosages.find(d => d.id === editingDosageId);
+
+    const getDateFromDosageTime = (dosageTime: string): Date => {
+      try {
+        if (dosageTime.includes('T')) {
+          // ISO format
+          return new Date(dosageTime);
+        } else if (dosageTime.includes(':')) {
+          // Time-only format
+          const [hours, minutes, seconds] = dosageTime.split(':').map(Number);
+          const date = new Date();
+          date.setHours(hours, minutes, seconds || 0, 0);
+          return date;
+        }
+        return new Date();
+      } catch {
+        return new Date();
+      }
+    };
 
     return (
       <ConfirmActionBottomSheet
@@ -176,7 +215,7 @@ export const DosageBottomSheet = forwardRef<DosageBottomSheetRef, DosageBottomSh
                     </TouchableOpacity>
                   </View>
                   <DateTimePicker
-                    value={new Date(currentEditingDosage.time)}
+                    value={getDateFromDosageTime(currentEditingDosage.time)}
                     mode="time"
                     display="spinner"
                     onChange={handleTimeChange}
@@ -186,7 +225,7 @@ export const DosageBottomSheet = forwardRef<DosageBottomSheetRef, DosageBottomSh
               )}
               {Platform.OS === 'android' && (
                 <DateTimePicker
-                  value={new Date(currentEditingDosage.time)}
+                  value={getDateFromDosageTime(currentEditingDosage.time)}
                   mode="time"
                   display="default"
                   onChange={handleTimeChange}

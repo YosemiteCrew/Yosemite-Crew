@@ -27,7 +27,6 @@ export const CommonTaskFields: React.FC<CommonTaskFieldsProps> = ({
         <TouchableOpacity onPress={onOpenAssignTaskSheet}>
           <Input
             label="Assign to"
-            placeholder="Select a team member"
             value={formData.assignedTo ? `User ${formData.assignedTo}` : ''}
             editable={false}
             onChangeText={() => {}}
@@ -40,11 +39,11 @@ export const CommonTaskFields: React.FC<CommonTaskFieldsProps> = ({
       <View style={styles.fieldGroup}>
         <Input
           label="Additional note"
-          placeholder="Add any extra details..."
           value={formData.additionalNote || ''}
           onChangeText={value => updateField('additionalNote', value)}
           multiline
           numberOfLines={3}
+          inputStyle={styles.textArea}
         />
         {errors.additionalNote && <Text style={styles.errorText}>{errors.additionalNote}</Text>}
       </View>
@@ -55,10 +54,15 @@ export const CommonTaskFields: React.FC<CommonTaskFieldsProps> = ({
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      gap: theme.spacing[3],
+      gap: 0,
     },
     fieldGroup: {
+      marginBottom: theme.spacing[4],
       gap: theme.spacing[1],
+    },
+    textArea: {
+      minHeight: 100,
+      textAlignVertical: 'top',
     },
     errorText: {
       color: theme.colors.error,

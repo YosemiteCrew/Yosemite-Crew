@@ -105,7 +105,7 @@ export const ObservationalToolFormSection: React.FC<ObservationalToolFormSection
 const createStyles = (theme: any) =>
   StyleSheet.create({
     fieldGroup: {
-      marginBottom: theme.spacing[6],
+      marginBottom: theme.spacing[4],
     },
     dropdownIcon: {
       width: 16,
