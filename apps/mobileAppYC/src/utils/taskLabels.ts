@@ -32,7 +32,6 @@ export const resolveHealthSubcategoryLabel = (
     vaccination: 'Vaccination',
     'parasite-prevention': 'Parasite Prevention',
     'chronic-conditions': 'Chronic Conditions',
-    other: 'Other',
   };
   return labels[subcategory] || subcategory;
 };
@@ -56,7 +55,6 @@ export const resolveChronicConditionLabel = (
     pain: 'Pain',
     diabetes: 'Diabetes',
     epilepsy: 'Epilepsy',
-    other: 'Other',
   };
   return labels[type] || type;
 };
@@ -109,7 +107,6 @@ export const resolveMedicationTypeLabel = (type: MedicationType): string => {
     patches: 'Patches',
     suppositories: 'Suppositories',
     'sprinkle-capsules': 'Sprinkle Capsules',
-    drops: 'Drops',
   };
   return labels[type] || type;
 };

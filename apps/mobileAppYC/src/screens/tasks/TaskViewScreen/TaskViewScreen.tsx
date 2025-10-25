@@ -73,7 +73,7 @@ export const TaskViewScreen: React.FC = () => {
       // Handle HH:mm:ss format (time string)
       if (timeStr.includes(':')) {
         const [hours, minutes] = timeStr.split(':').map(Number);
-        if (isNaN(hours) || isNaN(minutes)) return '';
+        if (Number.isNaN(hours) || Number.isNaN(minutes)) return '';
 
         const date = new Date();
         date.setHours(hours, minutes, 0, 0);
@@ -86,7 +86,7 @@ export const TaskViewScreen: React.FC = () => {
 
       // Fallback for ISO date strings
       const date = new Date(timeStr);
-      if (isNaN(date.getTime())) return '';
+      if (Number.isNaN(date.getTime())) return '';
       return date.toLocaleTimeString('en-US', {
         hour: 'numeric',
         minute: '2-digit',
@@ -147,8 +147,8 @@ export const TaskViewScreen: React.FC = () => {
         title="Task"
         showBackButton
         onBack={() => navigation.goBack()}
-        rightIcon={!isCompleted ? Images.editIcon : undefined}
-        onRightPress={!isCompleted ? handleEdit : undefined}
+        rightIcon={isCompleted ? undefined : Images.editIcon}
+        onRightPress={isCompleted ? undefined : handleEdit}
       />
 
       <ScrollView

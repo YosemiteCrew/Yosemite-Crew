@@ -5,20 +5,16 @@ export type TaskCategory = 'health' | 'hygiene' | 'dietary' | 'custom';
 export type HealthSubcategory =
   | 'vaccination'
   | 'parasite-prevention'
-  | 'chronic-conditions'
-  | 'other';
+  | 'chronic-conditions';
 
 // Health - Parasite Prevention Types
 export type ParasitePreventionType = 'deworming' | 'flea-tick-prevention';
 
 // Health - Chronic Conditions Types
-export type ChronicConditionType = 'pain' | 'diabetes' | 'epilepsy' | 'other';
+export type ChronicConditionType = 'pain' | 'diabetes' | 'epilepsy';
 
 // Health Task Types
-export type HealthTaskType =
-  | 'give-medication'
-  | 'take-observational-tool'
-  | 'vaccination';
+export type HealthTaskType = 'give-medication' | 'take-observational-tool' | 'vaccination';
 
 // Hygiene Task Types
 export type HygieneTaskType =
@@ -42,8 +38,7 @@ export type MedicationType =
   | 'inhales'
   | 'patches'
   | 'suppositories'
-  | 'sprinkle-capsules'
-  | 'drops';
+  | 'sprinkle-capsules';
 
 // Medication Frequency
 export type MedicationFrequency = 'once' | 'daily' | 'weekly' | 'monthly';
@@ -245,6 +240,6 @@ export interface TaskTypeSelection {
   subcategory?: HealthSubcategory;
   parasitePreventionType?: ParasitePreventionType;
   chronicConditionType?: ChronicConditionType;
-  taskType?: HealthTaskType | HygieneTaskType | DietaryTaskType | string;
+  taskType?: HealthTaskType | HygieneTaskType | DietaryTaskType;
   label: string;
 }

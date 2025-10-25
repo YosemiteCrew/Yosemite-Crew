@@ -292,12 +292,10 @@ const getBreedListByCategory = (category: CompanionCategory | null): Breed[] => 
   const handleGoBack = useCallback(() => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
+    } else if (hasUnsavedChanges) {
+      discardSheetRef.current?.open();
     } else {
-      if (hasUnsavedChanges) {
-        discardSheetRef.current?.open();
-      } else {
-        navigation.goBack();
-      }
+      navigation.goBack();
     }
   }, [currentStep, navigation, hasUnsavedChanges]);
 

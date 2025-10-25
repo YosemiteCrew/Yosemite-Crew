@@ -1,13 +1,13 @@
 import React, {useState, useRef, useMemo, useEffect} from 'react';
-import {ScrollView, StyleSheet, View, Text, Switch, Image, TouchableOpacity, Alert} from 'react-native';
+import {ScrollView, StyleSheet, View, Text, Switch, Alert} from 'react-native';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
 import {useDispatch, useSelector} from 'react-redux';
-import {SafeArea, Input, TouchableInput} from '@/components/common';
+import {SafeArea, Input} from '@/components/common';
 import {Header} from '@/components/common/Header/Header';
 import LiquidGlassButton from '@/components/common/LiquidGlassButton/LiquidGlassButton';
-import {formatDateForDisplay, SimpleDatePicker} from '@/components/common/SimpleDatePicker/SimpleDatePicker';
+import {SimpleDatePicker} from '@/components/common/SimpleDatePicker/SimpleDatePicker';
 import {DocumentAttachmentsSection} from '@/components/documents/DocumentAttachmentsSection';
 import {UploadDocumentBottomSheet} from '@/components/common/UploadDocumentBottomSheet/UploadDocumentBottomSheet';
 import {DeleteDocumentBottomSheet} from '@/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
@@ -30,13 +30,20 @@ import type {TaskStackParamList} from '@/navigation/types';
 import type {
   TaskFormData,
   TaskFormErrors,
-  Task,
-  TaskAttachment,
-  MedicationTaskDetails,
-  ObservationalToolTaskDetails,
   ReminderOption,
 } from '@/features/tasks/types';
 import {resolveCategoryLabel} from '@/utils/taskLabels';
+import {initializeFormDataFromTask} from './initialization';
+import {validateTaskForm} from './validation';
+import {buildTaskFromForm} from './taskBuilder';
+import {
+  MedicationFormSection,
+  ObservationalToolFormSection,
+  SimpleTaskFormSection,
+  ReminderSection,
+  CalendarSyncSection,
+  CommonTaskFields,
+} from './components';
 
 type Navigation = NativeStackNavigationProp<TaskStackParamList, 'EditTask'>;
 type Route = RouteProp<TaskStackParamList, 'EditTask'>;
@@ -131,57 +138,8 @@ export const EditTaskScreen: React.FC = () => {
   // Initialize form with task data
   useEffect(() => {
     if (task) {
-      const parseDate = (dateStr: string | null | undefined): Date | null => {
-        if (!dateStr) return null;
-        const [year, month, day] = dateStr.split('-').map(Number);
-        if (isNaN(year) || isNaN(month) || isNaN(day)) return null;
-        return new Date(year, month - 1, day);
-      };
-
-      const parseTime = (timeStr: string | null | undefined): Date | null => {
-        if (!timeStr) return null;
-        const [hours, minutes, seconds] = timeStr.split(':').map(Number);
-        if (isNaN(hours) || isNaN(minutes)) return null;
-        const now = new Date();
-        now.setHours(hours, minutes, seconds || 0, 0);
-        return now;
-      };
-
-      const isMedication = task.details && 'taskType' in task.details && task.details.taskType === 'give-medication';
-      const isObservationalTool = task.details && 'taskType' in task.details && task.details.taskType === 'take-observational-tool';
-
-      const medicationDetails = isMedication && task.details ? (task.details as MedicationTaskDetails) : null;
-      const observationalDetails = isObservationalTool && task.details ? (task.details as ObservationalToolTaskDetails) : null;
-
-      setFormData({
-        category: task.category,
-        subcategory: task.subcategory as any,
-        parasitePreventionType: null,
-        chronicConditionType: observationalDetails?.chronicConditionType || null,
-        healthTaskType: isMedication || isObservationalTool ? (task.details as any).taskType : null,
-        hygieneTaskType: task.category === 'hygiene' ? (task.details as any)?.taskType : null,
-        dietaryTaskType: task.category === 'dietary' ? (task.details as any)?.taskType : null,
-        title: task.title,
-        date: parseDate(task.date) || new Date(),
-        time: parseTime(task.time),
-        frequency: task.frequency as any,
-        assignedTo: task.assignedTo || null,
-        reminderEnabled: task.reminderEnabled,
-        reminderOptions: task.reminderOptions || null,
-        syncWithCalendar: task.syncWithCalendar,
-        calendarProvider: task.calendarProvider || null,
-        attachDocuments: task.attachDocuments,
-        attachments: task.attachments || [],
-        additionalNote: task.additionalNote || '',
-        medicineName: medicationDetails?.medicineName || '',
-        medicineType: medicationDetails?.medicineType || null,
-        dosages: medicationDetails?.dosages || [],
-        medicationFrequency: medicationDetails?.frequency || null,
-        startDate: parseDate(medicationDetails?.startDate || null),
-        endDate: parseDate(medicationDetails?.endDate || null),
-        observationalTool: observationalDetails?.toolType || null,
-        description: (task.details && 'description' in task.details ? task.details.description : '') || '',
-      });
+      const initialFormData = initializeFormDataFromTask(task);
+      setFormData(initialFormData);
     }
   }, [task]);
 
@@ -203,140 +161,9 @@ export const EditTaskScreen: React.FC = () => {
   };
 
   const validateForm = (): boolean => {
-    const newErrors: TaskFormErrors = {};
-
-    if (!formData.title.trim()) {
-      newErrors.title = 'Task name is required';
-    }
-
-    if (!formData.assignedTo) {
-      newErrors.assignedTo = 'Assigned to is required';
-    }
-
-    const isMedication = formData.healthTaskType === 'give-medication';
-    const isObservationalTool = formData.healthTaskType === 'take-observational-tool';
-
-    if (isMedication) {
-      if (!formData.medicineName.trim()) {
-        newErrors.medicineName = 'Medicine name is required';
-      }
-      if (!formData.medicineType) {
-        newErrors.medicineType = 'Medication type is required';
-      }
-      if (formData.dosages.length === 0) {
-        newErrors.dosages = 'At least one dosage is required';
-      }
-      if (!formData.medicationFrequency) {
-        newErrors.medicationFrequency = 'Medication frequency is required';
-      }
-      if (!formData.startDate) {
-        newErrors.startDate = 'Start date is required';
-      }
-    } else if (isObservationalTool) {
-      if (!formData.observationalTool) {
-        newErrors.observationalTool = 'Please select an observational tool';
-      }
-      if (!formData.date) {
-        newErrors.date = 'Date is required';
-      }
-      if (!formData.frequency) {
-        newErrors.frequency = 'Task frequency is required';
-      }
-    } else {
-      if (!formData.date) {
-        newErrors.date = 'Date is required';
-      }
-      if (!formData.frequency) {
-        newErrors.frequency = 'Task frequency is required';
-      }
-    }
-
+    const newErrors = validateTaskForm(formData);
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
-
-  const formatDateToISODate = (date: Date | null): string | null => {
-    if (!date) return null;
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
-  const formatTimeToISO = (date: Date | null): string | undefined => {
-    if (!date) return undefined;
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
-    return `${hours}:${minutes}:${seconds}`;
-  };
-
-  const buildTaskFromForm = (): Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'status' | 'completedAt'> => {
-    const isMedication = formData.healthTaskType === 'give-medication';
-    const isObservationalTool = formData.healthTaskType === 'take-observational-tool';
-
-    let details: any = {};
-
-    if (isMedication) {
-      const formattedDosages = formData.dosages.map(dosage => ({
-        id: dosage.id,
-        label: dosage.label,
-        time: formatTimeToISO(new Date(dosage.time)) || '00:00:00',
-      }));
-
-      details = {
-        taskType: 'give-medication',
-        medicineName: formData.medicineName,
-        medicineType: formData.medicineType!,
-        dosages: formattedDosages,
-        frequency: formData.medicationFrequency!,
-        startDate: formatDateToISODate(formData.startDate) || new Date().toISOString().split('T')[0],
-        endDate: formatDateToISODate(formData.endDate) || undefined,
-      };
-    } else if (isObservationalTool) {
-      details = {
-        taskType: 'take-observational-tool',
-        toolType: formData.observationalTool!,
-        chronicConditionType: formData.chronicConditionType,
-      };
-    } else if (formData.category === 'hygiene') {
-      details = {
-        taskType: formData.hygieneTaskType!,
-        description: formData.description,
-      };
-    } else if (formData.category === 'dietary') {
-      details = {
-        taskType: formData.dietaryTaskType!,
-        description: formData.description,
-      };
-    } else {
-      details = {
-        description: formData.description,
-      };
-    }
-
-    const taskDate = formData.date || formData.startDate || new Date();
-    const formattedDate = formatDateToISODate(taskDate) || taskDate.toISOString().split('T')[0];
-    const formattedTime = formData.time ? formatTimeToISO(formData.time) : undefined;
-
-    return {
-      companionId: task!.companionId,
-      category: formData.category!,
-      subcategory: formData.subcategory || undefined,
-      title: formData.title,
-      date: formattedDate,
-      time: formattedTime,
-      frequency: formData.frequency || formData.medicationFrequency || 'once',
-      assignedTo: formData.assignedTo || undefined,
-      reminderEnabled: formData.reminderEnabled,
-      reminderOptions: formData.reminderOptions,
-      syncWithCalendar: formData.syncWithCalendar,
-      calendarProvider: formData.calendarProvider || undefined,
-      attachDocuments: formData.attachDocuments,
-      attachments: formData.attachments as TaskAttachment[],
-      additionalNote: formData.additionalNote || undefined,
-      details,
-    };
   };
 
   const handleSave = async () => {
@@ -344,8 +171,8 @@ export const EditTaskScreen: React.FC = () => {
     if (!task) return;
 
     try {
-      const taskData = buildTaskFromForm();
-      const result = await dispatch(updateTask({taskId: task.id, updates: taskData as any})).unwrap();
+      const taskData = buildTaskFromForm(formData, task.companionId);
+      const result = await dispatch(updateTask({taskId: task.id, updates: taskData})).unwrap();
 
       if (result) {
         Alert.alert('Success', 'Task updated successfully', [
@@ -403,7 +230,7 @@ export const EditTaskScreen: React.FC = () => {
   const isObservationalToolForm = formData.healthTaskType === 'take-observational-tool';
   const isSimpleForm = !isMedicationForm && !isObservationalToolForm;
 
-  const companion = companions && companions.find(c => c.id === task.companionId);
+  const companion = companions?.find(c => c.id === task.companionId);
   const companionType = companion?.category || 'dog';
 
   return (
@@ -426,349 +253,70 @@ export const EditTaskScreen: React.FC = () => {
 
         {/* Medication Task Form */}
         {isMedicationForm && (
-          <>
-            {/* Task Name (LOCKED) */}
-            <View style={styles.fieldGroup}>
-              <Input
-                label="Task name"
-                value={formData.title}
-                onChangeText={text => updateField('title', text)}
-                error={errors.title}
-                editable={false}
-              />
-            </View>
-
-            <View style={styles.fieldGroup}>
-              <Input
-                label="Medicine name"
-                value={formData.medicineName}
-                onChangeText={text => updateField('medicineName', text)}
-                error={errors.medicineName}
-                placeholder="Medicinal name"
-              />
-            </View>
-
-            <View style={styles.fieldGroup}>
-              <TouchableInput
-                label={formData.medicineType ? 'Medication type' : undefined}
-                value={formData.medicineType ? formData.medicineType : undefined}
-                placeholder="Medication type"
-                onPress={() => medicationTypeSheetRef.current?.open()}
-                rightComponent={
-                  <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
-                }
-                error={errors.medicineType}
-              />
-            </View>
-
-            <View style={styles.fieldGroup}>
-              <TouchableInput
-                label="Dosage"
-                value={
-                  formData.dosages.length > 0
-                    ? `${formData.dosages.length} dosage${formData.dosages.length > 1 ? 's' : ''}`
-                    : undefined
-                }
-                placeholder="Dosage"
-                onPress={() => dosageSheetRef.current?.open()}
-                rightComponent={
-                  <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
-                }
-                error={errors.dosages}
-              />
-            </View>
-
-            <View style={styles.fieldGroup}>
-              <TouchableInput
-                label={formData.medicationFrequency ? 'Medication frequency' : undefined}
-                value={formData.medicationFrequency ? formData.medicationFrequency : undefined}
-                placeholder="Medication frequency"
-                onPress={() => medicationFrequencySheetRef.current?.open()}
-                rightComponent={
-                  <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
-                }
-                error={errors.medicationFrequency}
-              />
-            </View>
-
-            <View style={styles.dateTimeRow}>
-              <View style={styles.dateTimeField}>
-                <TouchableInput
-                  label={formData.startDate ? 'Start Date' : undefined}
-                  value={formData.startDate ? formatDateForDisplay(formData.startDate) : undefined}
-                  placeholder="Start Date"
-                  onPress={() => setShowStartDatePicker(true)}
-                  rightComponent={
-                    <Image source={Images.calendarIcon} style={styles.calendarIcon} />
-                  }
-                  error={errors.startDate}
-                />
-              </View>
-
-              <View style={styles.dateTimeField}>
-                <TouchableInput
-                  label={formData.endDate ? 'End Date' : undefined}
-                  value={formData.endDate ? formatDateForDisplay(formData.endDate) : undefined}
-                  placeholder="End Date (optional)"
-                  onPress={() => setShowEndDatePicker(true)}
-                  rightComponent={
-                    <Image source={Images.calendarIcon} style={styles.calendarIcon} />
-                  }
-                  error={errors.endDate}
-                />
-              </View>
-            </View>
-
-            <View style={styles.fieldGroup}>
-              <TouchableInput
-                label={formData.assignedTo ? 'Assign task' : undefined}
-                value={formData.assignedTo ? 'Assigned' : undefined}
-                placeholder="Assign task"
-                onPress={() => assignTaskSheetRef.current?.open()}
-                rightComponent={<Image source={Images.dropdownIcon} style={styles.dropdownIcon} />}
-              />
-            </View>
-          </>
+          <MedicationFormSection
+            formData={formData}
+            errors={errors}
+            updateField={updateField}
+            onOpenMedicationTypeSheet={() => medicationTypeSheetRef.current?.open()}
+            onOpenDosageSheet={() => dosageSheetRef.current?.open()}
+            onOpenMedicationFrequencySheet={() => medicationFrequencySheetRef.current?.open()}
+            onOpenStartDatePicker={() => setShowStartDatePicker(true)}
+            onOpenEndDatePicker={() => setShowEndDatePicker(true)}
+            theme={theme}
+          />
         )}
 
         {/* Observational Tool Task Form */}
         {isObservationalToolForm && (
-          <>
-            {/* Task Name (LOCKED) */}
-            <View style={styles.fieldGroup}>
-              <Input
-                label="Task name"
-                value={formData.title}
-                onChangeText={text => updateField('title', text)}
-                error={errors.title}
-                editable={false}
-              />
-            </View>
-
-            <View style={styles.fieldGroup}>
-              <TouchableInput
-                label={formData.observationalTool ? 'Select observational tool' : undefined}
-                value={formData.observationalTool ? formData.observationalTool : undefined}
-                placeholder="Select observational tool"
-                onPress={() => observationalToolSheetRef.current?.open()}
-                rightComponent={
-                  <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
-                }
-                error={errors.observationalTool}
-              />
-            </View>
-
-            <View style={styles.fieldGroup}>
-              <TouchableInput
-                label={formData.date ? 'Date' : undefined}
-                value={formData.date ? formatDateForDisplay(formData.date) : undefined}
-                placeholder="Date"
-                onPress={() => setShowDatePicker(true)}
-                rightComponent={
-                  <Image source={Images.calendarIcon} style={styles.calendarIcon} />
-                }
-                error={errors.date}
-              />
-            </View>
-
-            <View style={styles.fieldGroup}>
-              <TouchableInput
-                label={formData.time ? 'Time' : undefined}
-                value={
-                  formData.time
-                    ? formData.time.toLocaleTimeString('en-US', {
-                        hour: 'numeric',
-                        minute: '2-digit',
-                        hour12: true,
-                      })
-                    : undefined
-                }
-                placeholder="Time"
-                onPress={() => setShowTimePicker(true)}
-                rightComponent={<Image source={Images.clockIcon} style={styles.calendarIcon} />}
-                error={errors.time}
-              />
-            </View>
-
-            <View style={styles.fieldGroup}>
-              <TouchableInput
-                label={formData.frequency ? 'Task frequency' : undefined}
-                value={formData.frequency ? formData.frequency : undefined}
-                placeholder="Task frequency"
-                onPress={() => taskFrequencySheetRef.current?.open()}
-                rightComponent={
-                  <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
-                }
-                error={errors.frequency}
-              />
-            </View>
-
-            <View style={styles.fieldGroup}>
-              <TouchableInput
-                label={formData.assignedTo ? 'Assign task' : undefined}
-                value={formData.assignedTo ? 'Assigned' : undefined}
-                placeholder="Assign task"
-                onPress={() => assignTaskSheetRef.current?.open()}
-                rightComponent={<Image source={Images.dropdownIcon} style={styles.dropdownIcon} />}
-              />
-            </View>
-          </>
+          <ObservationalToolFormSection
+            formData={formData}
+            errors={errors}
+            updateField={updateField}
+            onOpenObservationalToolSheet={() => observationalToolSheetRef.current?.open()}
+            onOpenDatePicker={() => setShowDatePicker(true)}
+            onOpenTimePicker={() => setShowTimePicker(true)}
+            onOpenTaskFrequencySheet={() => taskFrequencySheetRef.current?.open()}
+            theme={theme}
+          />
         )}
 
         {/* Custom & Hygiene & Dietary Task Form */}
         {isSimpleForm && (
-          <>
-            {/* Task Name */}
-            <View style={styles.fieldGroup}>
-              <Input
-                label="Task name"
-                value={formData.title}
-                onChangeText={text => updateField('title', text)}
-                error={errors.title}
-                placeholder="Enter task name"
-              />
-            </View>
-
-            {/* Task Description */}
-            <View style={styles.fieldGroup}>
-              <Input
-                label="Task description (optional)"
-                value={formData.description}
-                onChangeText={text => updateField('description', text)}
-                multiline
-                numberOfLines={3}
-                inputStyle={styles.textArea}
-              />
-            </View>
-
-            {/* Date and Time in Single Row */}
-            <View style={styles.dateTimeRow}>
-              <View style={styles.dateTimeField}>
-                <TouchableInput
-                  label={formData.date ? 'Date' : undefined}
-                  value={formData.date ? formatDateForDisplay(formData.date) : undefined}
-                  placeholder="Date"
-                  onPress={() => setShowDatePicker(true)}
-                  rightComponent={
-                    <Image source={Images.calendarIcon} style={styles.calendarIcon} />
-                  }
-                  error={errors.date}
-                />
-              </View>
-
-              <View style={styles.dateTimeField}>
-                <TouchableInput
-                  label={formData.time ? 'Time' : undefined}
-                  value={
-                    formData.time
-                      ? formData.time.toLocaleTimeString('en-US', {
-                          hour: 'numeric',
-                          minute: '2-digit',
-                          hour12: true,
-                        })
-                      : undefined
-                  }
-                  placeholder="Time"
-                  onPress={() => setShowTimePicker(true)}
-                  rightComponent={<Image source={Images.clockIcon} style={styles.calendarIcon} />}
-                  error={errors.time}
-                />
-              </View>
-            </View>
-
-            {/* Task Frequency */}
-            <View style={styles.fieldGroup}>
-              <TouchableInput
-                label={formData.frequency ? 'Task frequency' : undefined}
-                value={formData.frequency ? formData.frequency : undefined}
-                placeholder="Task frequency"
-                onPress={() => taskFrequencySheetRef.current?.open()}
-                rightComponent={
-                  <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
-                }
-                error={errors.frequency}
-              />
-            </View>
-
-            {/* Assign Task */}
-            <View style={styles.fieldGroup}>
-              <TouchableInput
-                label={formData.assignedTo ? 'Assign task' : undefined}
-                value={formData.assignedTo ? 'Assigned' : undefined}
-                placeholder="Assign task"
-                onPress={() => assignTaskSheetRef.current?.open()}
-                rightComponent={<Image source={Images.dropdownIcon} style={styles.dropdownIcon} />}
-              />
-            </View>
-          </>
+          <SimpleTaskFormSection
+            formData={formData}
+            errors={errors}
+            updateField={updateField}
+            onOpenDatePicker={() => setShowDatePicker(true)}
+            onOpenTimePicker={() => setShowTimePicker(true)}
+            onOpenTaskFrequencySheet={() => taskFrequencySheetRef.current?.open()}
+            theme={theme}
+          />
         )}
+
+        {/* Common Task Fields */}
+        <CommonTaskFields
+          formData={formData}
+          errors={errors}
+          updateField={updateField}
+          onOpenAssignTaskSheet={() => assignTaskSheetRef.current?.open()}
+          theme={theme}
+        />
 
         {/* Reminder Section */}
-        <View style={styles.toggleSection}>
-          <Text style={styles.toggleLabel}>Reminder</Text>
-          <Switch
-            value={formData.reminderEnabled}
-            onValueChange={value => updateField('reminderEnabled', value)}
-            trackColor={{false: theme.colors.borderMuted, true: theme.colors.primary}}
-            thumbColor={theme.colors.white}
-          />
-        </View>
-
-        {formData.reminderEnabled && (
-          <View style={styles.reminderPillsContainer}>
-            {REMINDER_OPTIONS.map(option => {
-              const isSelected = formData.reminderOptions === option;
-              return (
-                <TouchableOpacity
-                  key={option}
-                  style={[
-                    styles.reminderPill,
-                    isSelected && styles.reminderPillSelected,
-                  ]}
-                  onPress={() => {
-                    if (isSelected) {
-                      updateField('reminderOptions', null);
-                    } else {
-                      updateField('reminderOptions', option);
-                    }
-                  }}>
-                  <Text
-                    style={[
-                      styles.reminderPillText,
-                      isSelected && styles.reminderPillTextSelected,
-                    ]}>
-                    {option}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        )}
+        <ReminderSection
+          formData={formData}
+          updateField={updateField}
+          reminderOptions={REMINDER_OPTIONS}
+          theme={theme}
+        />
 
         {/* Calendar Sync */}
-        <View style={styles.toggleSection}>
-          <Text style={styles.toggleLabel}>Sync with Calendar</Text>
-          <Switch
-            value={formData.syncWithCalendar}
-            onValueChange={value => updateField('syncWithCalendar', value)}
-            trackColor={{false: theme.colors.borderMuted, true: theme.colors.primary}}
-            thumbColor={theme.colors.white}
-          />
-        </View>
-
-        {formData.syncWithCalendar && (
-          <View style={styles.fieldGroup}>
-            <TouchableInput
-              label={formData.calendarProvider ? 'Calendar provider' : undefined}
-              value={formData.calendarProvider ? formData.calendarProvider : undefined}
-              placeholder="Select calendar provider"
-              onPress={() => calendarSyncSheetRef.current?.open()}
-              rightComponent={
-                <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
-              }
-            />
-          </View>
-        )}
+        <CalendarSyncSection
+          formData={formData}
+          updateField={updateField}
+          onOpenCalendarSyncSheet={() => calendarSyncSheetRef.current?.open()}
+          theme={theme}
+        />
 
         {/* Attach Documents */}
         <View style={styles.toggleSection}>
@@ -796,18 +344,6 @@ export const EditTaskScreen: React.FC = () => {
             />
           </View>
         )}
-
-        {/* Additional Note */}
-        <View style={styles.fieldGroup}>
-          <Input
-            label="Additional note (optional)"
-            value={formData.additionalNote}
-            onChangeText={text => updateField('additionalNote', text)}
-            multiline
-            numberOfLines={3}
-            inputStyle={styles.textArea}
-          />
-        </View>
       </ScrollView>
 
       <View style={styles.footer}>
@@ -977,42 +513,6 @@ const createStyles = (theme: any) =>
     fieldGroup: {
       marginBottom: theme.spacing[6],
     },
-    lockedLabel: {
-      ...theme.typography.labelMedium,
-      color: theme.colors.textSecondary,
-      marginBottom: theme.spacing[2],
-    },
-    lockedField: {
-      paddingVertical: theme.spacing[3],
-      paddingHorizontal: theme.spacing[4],
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.borderRadius.md,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-    },
-    lockedValue: {
-      ...theme.typography.bodyMedium,
-      color: theme.colors.secondary,
-      opacity: 0.6,
-    },
-    dateTimeRow: {
-      flexDirection: 'row',
-      gap: theme.spacing[3],
-      marginBottom: theme.spacing[6],
-    },
-    dateTimeField: {
-      flex: 1,
-    },
-    dropdownIcon: {
-      width: 16,
-      height: 16,
-      resizeMode: 'contain',
-    },
-    calendarIcon: {
-      width: 18,
-      height: 18,
-      resizeMode: 'contain',
-    },
     toggleSection: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -1024,37 +524,6 @@ const createStyles = (theme: any) =>
       ...theme.typography.bodyMedium,
       color: theme.colors.secondary,
       fontWeight: '500',
-    },
-    reminderPillsContainer: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: theme.spacing[2],
-      marginBottom: theme.spacing[4],
-    },
-    reminderPill: {
-      paddingVertical: theme.spacing[2],
-      paddingHorizontal: theme.spacing[3],
-      backgroundColor: theme.colors.surface,
-      borderRadius: 28,
-      borderWidth: 0.5,
-      borderColor: '#312943',
-    },
-    reminderPillSelected: {
-      backgroundColor: theme.colors.lightBlueBackground,
-      borderColor: theme.colors.primary,
-    },
-    reminderPillText: {
-      ...theme.typography.bodySmall,
-      color: theme.colors.secondary,
-      fontWeight: '500',
-    },
-    reminderPillTextSelected: {
-      color: theme.colors.primary,
-      fontWeight: '600',
-    },
-    textArea: {
-      minHeight: 80,
-      textAlignVertical: 'top',
     },
     footer: {
       paddingHorizontal: theme.spacing[4],

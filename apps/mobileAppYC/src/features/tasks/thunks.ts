@@ -15,8 +15,8 @@ export const fetchTasksForCompanion = createAsyncThunk<
     try {
       await delay(800);
 
-      // Mock data - in production, this would be an API call
-      const mockTasks: Task[] = [];
+    // Mock data - in production, this would be an API call
+    const mockTasks: Task[] = [];
 
       return {companionId, tasks: mockTasks};
     } catch (error) {
@@ -38,7 +38,7 @@ export const addTask = createAsyncThunk<
 
     const newTask: Task = {
       ...taskData,
-      id: `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `task_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
       status: 'pending',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),

@@ -72,7 +72,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
     if (!time) return null;
     try {
       const [hours, minutes, seconds] = time.split(':').map(Number);
-      if (isNaN(hours) || isNaN(minutes)) return time;
+      if (Number.isNaN(hours) || Number.isNaN(minutes)) return time;
       const timeDate = new Date();
       timeDate.setHours(hours, minutes, seconds || 0);
       return timeDate.toLocaleTimeString('en-US', {
