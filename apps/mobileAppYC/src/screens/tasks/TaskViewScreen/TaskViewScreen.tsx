@@ -231,7 +231,7 @@ export const TaskViewScreen: React.FC = () => {
                         label="Time"
                         value={formatTime(dosage.time)}
                         editable={false}
-                        icon={<Image source={Images.clockIcon} style={styles.calendarIcon} />}
+                        icon={<Image source={Images.clockIcon} style={iconStyles.clockIcon} />}
                       />
                     </View>
                   </View>
@@ -261,7 +261,7 @@ export const TaskViewScreen: React.FC = () => {
                   )}
                   onPress={() => {}} // View only
                   rightComponent={
-                    <Image source={Images.calendarIcon} style={styles.calendarIcon} />
+                    <Image source={Images.calendarIcon} style={iconStyles.calendarIcon} />
                   }
                 />
               </View>
@@ -278,7 +278,7 @@ export const TaskViewScreen: React.FC = () => {
                   }
                   onPress={() => {}} // View only
                   rightComponent={
-                    <Image source={Images.calendarIcon} style={styles.calendarIcon} />
+                    <Image source={Images.calendarIcon} style={iconStyles.calendarIcon} />
                   }
                 />
               </View>
@@ -321,7 +321,7 @@ export const TaskViewScreen: React.FC = () => {
                 label="Date"
                 value={formatDateForDisplay(new Date(task.date))}
                 onPress={() => {}} // View only
-                rightComponent={<Image source={Images.calendarIcon} style={styles.calendarIcon} />}
+                rightComponent={<Image source={Images.calendarIcon} style={iconStyles.calendarIcon} />}
               />
             </View>
 
@@ -331,7 +331,7 @@ export const TaskViewScreen: React.FC = () => {
                 label="Time"
                 value={formatTime(task.time)}
                 onPress={() => {}} // View only
-                rightComponent={<Image source={Images.clockIcon} style={styles.calendarIcon} />}
+                rightComponent={<Image source={Images.clockIcon} style={iconStyles.clockIcon} />}
               />
             </View>
 
@@ -386,7 +386,7 @@ export const TaskViewScreen: React.FC = () => {
                   value={formatDateForDisplay(new Date(task.date))}
                   onPress={() => {}} // View only
                   rightComponent={
-                    <Image source={Images.calendarIcon} style={styles.calendarIcon} />
+                    <Image source={Images.calendarIcon} style={iconStyles.calendarIcon} />
                   }
                 />
               </View>
@@ -396,7 +396,7 @@ export const TaskViewScreen: React.FC = () => {
                   label="Time"
                   value={formatTime(task.time)}
                   onPress={() => {}} // View only
-                  rightComponent={<Image source={Images.clockIcon} style={styles.calendarIcon} />}
+                  rightComponent={<Image source={Images.clockIcon} style={iconStyles.clockIcon} />}
                 />
               </View>
             </View>
@@ -532,10 +532,33 @@ const createStyles = (theme: any) => {
       paddingBlock: theme.spacing[4],
     },
     ...formStyles,
+    // Input and Label styles - matching DocumentForm
+    input: {
+      marginBottom: theme.spacing[4],
+    },
+    dropdownIcon: {
+      width: 20,
+      height: 20,
+      resizeMode: 'contain',
+      tintColor: theme.colors.textSecondary,
+    },
     calendarIcon: {
       width: 18,
       height: 18,
       resizeMode: 'contain',
+      tintColor: theme.colors.textSecondary,
+    },
+    label: {
+      ...theme.typography.inputLabel,
+      color: theme.colors.secondary,
+    },
+    // Error styles - matching DocumentForm
+    errorText: {
+      ...theme.typography.labelXsBold,
+      color: theme.colors.error,
+      marginTop: -theme.spacing[3],
+      marginBottom: theme.spacing[3],
+      marginLeft: theme.spacing[1],
     },
     textArea: {
       minHeight: 100,
@@ -570,7 +593,7 @@ const createStyles = (theme: any) => {
       justifyContent: 'center',
       padding: theme.spacing[4],
     },
-    errorText: {
+    errorContainerText: {
       ...theme.typography.bodyMedium,
       color: theme.colors.error,
     },

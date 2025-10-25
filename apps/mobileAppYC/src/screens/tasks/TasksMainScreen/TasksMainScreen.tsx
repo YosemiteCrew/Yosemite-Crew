@@ -480,35 +480,37 @@ const createStyles = (theme: any) =>
     dateItemSelected: {
       backgroundColor: theme.colors.lightBlueBackground,
       borderColor: theme.colors.primary,
-      borderWidth: 2,
+      borderWidth: 1,
+      borderRadius: 12,
     },
     dateItemToday: {
       borderColor: theme.colors.primary,
       borderWidth: 2,
     },
     dayName: {
-      ...theme.typography.bodySmall,
+      ...theme.typography.h6Clash,
       color: theme.colors.textSecondary,
       marginBottom: theme.spacing[1],
+      textAlign: 'center',
     },
     dayNameSelected: {
       color: theme.colors.primary,
-      fontWeight: '600',
+      fontWeight: '500',
     },
     dayNameToday: {
-      fontWeight: '600',
+      fontWeight: '500',
     },
     dayNumber: {
-      ...theme.typography.bodyMedium,
+      ...theme.typography.h6Clash,
       color: theme.colors.textSecondary,
-      fontWeight: '500',
+      textAlign: 'center',
     },
     dayNumberSelected: {
       color: theme.colors.primary,
-      fontWeight: '700',
+      fontWeight: '500',
     },
     dayNumberToday: {
-      fontWeight: '700',
+      fontWeight: '500',
       color: theme.colors.primary,
     },
     dateItemDisabled: {
@@ -545,9 +547,13 @@ const createStyles = (theme: any) =>
       fontWeight: '600',
     },
     viewMore: {
-      ...theme.typography.bodyMedium,
+      ...theme.typography.h6Clash,
       color: theme.colors.primary,
       fontWeight: '500',
+      fontSize: 14,
+      lineHeight: 14,
+      letterSpacing: -0.14,
+      textAlign: 'center',
     },
     emptyCard: {
       backgroundColor: theme.colors.surface,

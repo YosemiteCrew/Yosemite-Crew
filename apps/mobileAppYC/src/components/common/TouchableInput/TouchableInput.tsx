@@ -141,11 +141,11 @@ export const TouchableInput: React.FC<TouchableInputProps> = ({
   };
 
   const getErrorStyle = (): TextStyle => ({
-    ...theme.typography.caption,
+    ...theme.typography.labelXsBold,
     color: theme.colors.error,
-    marginTop: theme.spacing?.['1'] || 4,
-    marginLeft: 20,
-    fontSize: 12,
+    marginTop: -(theme.spacing?.[3] || 12),
+    marginBottom: theme.spacing?.[3] || 12,
+    marginLeft: theme.spacing?.[1] || 4,
   });
 
   return (
