@@ -20,6 +20,6 @@
       "@yosemite-crew/fhir-types": ["../../packages/fhirtypes/src"]
     }
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "test/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }
