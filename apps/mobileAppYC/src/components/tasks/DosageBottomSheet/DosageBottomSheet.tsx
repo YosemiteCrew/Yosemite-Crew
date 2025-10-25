@@ -141,7 +141,7 @@ export const DosageBottomSheet = forwardRef<DosageBottomSheetRef, DosageBottomSh
       <ConfirmActionBottomSheet
       ref={bottomSheetRef}
       title="Dosage"
-      snapPoints={['50%']}
+      snapPoints={['80%']}
       primaryButton={{
         label: "Save",
         onPress: handleSave,

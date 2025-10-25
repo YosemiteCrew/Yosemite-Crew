@@ -4,6 +4,7 @@ import {useSelector} from 'react-redux';
 import {Input, TouchableInput} from '@/components/common';
 import {selectAuthUser} from '@/features/auth/selectors';
 import {Images} from '@/assets/images';
+import {createIconStyles} from '@/utils/iconStyles';
 import type {TaskFormData, TaskFormErrors} from '@/features/tasks/types';
 
 interface CommonTaskFieldsProps {
@@ -22,6 +23,7 @@ export const CommonTaskFields: React.FC<CommonTaskFieldsProps> = ({
   theme,
 }) => {
   const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const iconStyles = React.useMemo(() => createIconStyles(theme), [theme]);
   const currentUser = useSelector(selectAuthUser);
 
   // Get the assigned user's display name
@@ -44,7 +46,7 @@ export const CommonTaskFields: React.FC<CommonTaskFieldsProps> = ({
           placeholder="Assign to"
           onPress={onOpenAssignTaskSheet}
           rightComponent={
-            <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
+            <Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />
           }
           error={errors.assignedTo}
         />
@@ -74,11 +76,6 @@ const createStyles = (theme: any) =>
     fieldGroup: {
       marginBottom: theme.spacing[4],
       gap: theme.spacing[1],
-    },
-    dropdownIcon: {
-      width: 16,
-      height: 16,
-      resizeMode: 'contain',
     },
     textArea: {
       minHeight: 100,

@@ -3,6 +3,7 @@ import {View, StyleSheet, Image, TouchableOpacity} from 'react-native';
 import {Input, TouchableInput} from '@/components/common';
 import {formatDateForDisplay} from '@/components/common/SimpleDatePicker/SimpleDatePicker';
 import {Images} from '@/assets/images';
+import {createIconStyles} from '@/utils/iconStyles';
 import type {TaskFormData, TaskFormErrors} from '@/features/tasks/types';
 
 interface MedicationFormSectionProps {
@@ -39,6 +40,7 @@ export const MedicationFormSection: React.FC<MedicationFormSectionProps> = ({
   showDosageDisplay = true,
 }) => {
   const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const iconStyles = React.useMemo(() => createIconStyles(theme), [theme]);
 
   return (
     <>
@@ -69,7 +71,7 @@ export const MedicationFormSection: React.FC<MedicationFormSectionProps> = ({
           placeholder="Medication type"
           onPress={onOpenMedicationTypeSheet}
           rightComponent={
-            <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
+            <Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />
           }
           error={errors.medicineType}
         />
@@ -82,7 +84,7 @@ export const MedicationFormSection: React.FC<MedicationFormSectionProps> = ({
           placeholder="Dosage"
           onPress={onOpenDosageSheet}
           rightComponent={
-            <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
+            <Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />
           }
           error={errors.dosages}
         />
@@ -130,7 +132,7 @@ export const MedicationFormSection: React.FC<MedicationFormSectionProps> = ({
           placeholder="Medication frequency"
           onPress={onOpenMedicationFrequencySheet}
           rightComponent={
-            <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
+            <Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />
           }
           error={errors.medicationFrequency}
         />
@@ -179,11 +181,6 @@ const createStyles = (theme: any) =>
     },
     dateTimeField: {
       flex: 1,
-    },
-    dropdownIcon: {
-      width: 16,
-      height: 16,
-      resizeMode: 'contain',
     },
     calendarIcon: {
       width: 18,

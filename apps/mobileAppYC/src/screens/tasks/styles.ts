@@ -1,7 +1,10 @@
 import {StyleSheet} from 'react-native';
+import {createFormStyles} from '@/utils/formStyles';
 
-export const createTaskFormStyles = (theme: any) =>
-  StyleSheet.create({
+export const createTaskFormStyles = (theme: any) => {
+  const formStyles = createFormStyles(theme);
+
+  return StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
@@ -13,68 +16,11 @@ export const createTaskFormStyles = (theme: any) =>
     companionSelector: {
       marginBottom: theme.spacing[4],
     },
-    fieldGroup: {
-      marginBottom: theme.spacing[4],
-    },
-    dropdownIcon: {
-      width: 16,
-      height: 16,
-      resizeMode: 'contain',
-    },
+    ...formStyles,
     calendarIcon: {
       width: 18,
       height: 18,
       resizeMode: 'contain',
-    },
-    toggleSection: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: theme.spacing[4],
-    },
-    toggleLabel: {
-      ...theme.typography.bodyMedium,
-      color: theme.colors.secondary,
-      fontWeight: '500',
-    },
-    reminderPillsContainer: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: theme.spacing[2],
-      marginBottom: theme.spacing[4],
-    },
-    reminderPill: {
-      paddingVertical: theme.spacing[2],
-      paddingHorizontal: theme.spacing[3],
-      backgroundColor: theme.colors.surface,
-      borderRadius: 28,
-      borderWidth: 0.5,
-      borderColor: '#312943',
-    },
-    reminderPillSelected: {
-      backgroundColor: theme.colors.lightBlueBackground,
-      borderColor: theme.colors.primary,
-    },
-    reminderPillText: {
-      ...theme.typography.bodySmall,
-      color: theme.colors.secondary,
-      fontWeight: '500',
-    },
-    reminderPillTextSelected: {
-      color: theme.colors.primary,
-      fontWeight: '600',
-    },
-    dateTimeRow: {
-      flexDirection: 'row',
-      gap: theme.spacing[3],
-      marginBottom: theme.spacing[4],
-    },
-    dateTimeField: {
-      flex: 1,
-    },
-    textArea: {
-      minHeight: 100,
-      textAlignVertical: 'top',
     },
     footer: {
       paddingHorizontal: theme.spacing[4],
@@ -102,3 +48,4 @@ export const createTaskFormStyles = (theme: any) =>
       textAlign: 'center',
     },
   });
+};

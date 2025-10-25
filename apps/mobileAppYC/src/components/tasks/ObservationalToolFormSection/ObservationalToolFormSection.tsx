@@ -3,6 +3,7 @@ import {View, StyleSheet, Image} from 'react-native';
 import {Input, TouchableInput} from '@/components/common';
 import {formatDateForDisplay} from '@/components/common/SimpleDatePicker/SimpleDatePicker';
 import {Images} from '@/assets/images';
+import {createIconStyles} from '@/utils/iconStyles';
 import type {TaskFormData, TaskFormErrors} from '@/features/tasks/types';
 
 interface ObservationalToolFormSectionProps {
@@ -27,6 +28,7 @@ export const ObservationalToolFormSection: React.FC<ObservationalToolFormSection
   theme,
 }) => {
   const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const iconStyles = React.useMemo(() => createIconStyles(theme), [theme]);
 
   return (
     <>
@@ -48,7 +50,7 @@ export const ObservationalToolFormSection: React.FC<ObservationalToolFormSection
           placeholder="Select observational tool"
           onPress={onOpenObservationalToolSheet}
           rightComponent={
-            <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
+            <Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />
           }
           error={errors.observationalTool}
         />
@@ -93,7 +95,7 @@ export const ObservationalToolFormSection: React.FC<ObservationalToolFormSection
           placeholder="Task frequency"
           onPress={onOpenTaskFrequencySheet}
           rightComponent={
-            <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
+            <Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />
           }
           error={errors.frequency}
         />
@@ -106,11 +108,6 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     fieldGroup: {
       marginBottom: theme.spacing[4],
-    },
-    dropdownIcon: {
-      width: 16,
-      height: 16,
-      resizeMode: 'contain',
     },
     calendarIcon: {
       width: 18,

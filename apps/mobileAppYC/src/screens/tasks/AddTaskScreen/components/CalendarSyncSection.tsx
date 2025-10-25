@@ -1,7 +1,9 @@
 import React from 'react';
-import {View, StyleSheet, Text, Switch, Image} from 'react-native';
+import {View, Text, Switch, Image} from 'react-native';
 import {TouchableInput} from '@/components/common';
 import {Images} from '@/assets/images';
+import {createIconStyles} from '@/utils/iconStyles';
+import {createFormStyles} from '@/utils/formStyles';
 import type {TaskFormData} from '@/features/tasks/types';
 
 interface CalendarSyncSectionProps {
@@ -27,12 +29,13 @@ export const CalendarSyncSection: React.FC<CalendarSyncSectionProps> = ({
   onOpenCalendarSyncSheet,
   theme,
 }) => {
-  const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const iconStyles = React.useMemo(() => createIconStyles(theme), [theme]);
+  const formStyles = React.useMemo(() => createFormStyles(theme), [theme]); // Used in JSX below
 
   return (
     <>
-      <View style={styles.toggleSection}>
-        <Text style={styles.toggleLabel}>Sync with Calendar</Text>
+      <View style={formStyles.toggleSection}>
+        <Text style={formStyles.toggleLabel}>Sync with Calendar</Text>
         <Switch
           value={formData.syncWithCalendar}
           onValueChange={value => updateField('syncWithCalendar', value)}
@@ -42,14 +45,14 @@ export const CalendarSyncSection: React.FC<CalendarSyncSectionProps> = ({
       </View>
 
       {formData.syncWithCalendar && (
-        <View style={styles.fieldGroup}>
+        <View style={formStyles.fieldGroup}>
           <TouchableInput
             label={formData.calendarProvider ? 'Calendar provider' : undefined}
             value={formatCalendarProvider(formData.calendarProvider)}
             placeholder="Select calendar provider"
             onPress={onOpenCalendarSyncSheet}
             rightComponent={
-              <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
+              <Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />
             }
           />
         </View>
@@ -57,26 +60,3 @@ export const CalendarSyncSection: React.FC<CalendarSyncSectionProps> = ({
     </>
   );
 };
-
-const createStyles = (theme: any) =>
-  StyleSheet.create({
-    toggleSection: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: theme.spacing[4],
-    },
-    toggleLabel: {
-      ...theme.typography.bodyMedium,
-      color: theme.colors.secondary,
-      fontWeight: '500',
-    },
-    fieldGroup: {
-      marginBottom: theme.spacing[4],
-    },
-    dropdownIcon: {
-      width: 16,
-      height: 16,
-      resizeMode: 'contain',
-    },
-  });

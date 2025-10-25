@@ -7,12 +7,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import {SwipeableGlassCard} from '@/components/common/SwipeableGlassCard/SwipeableGlassCard';
+import {SwipeableActionCard} from '@/components/common/SwipeableActionCard/SwipeableActionCard';
+import {CardActionButton} from '@/components/common/CardActionButton/CardActionButton';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {formatDateForDisplay} from '@/components/common/SimpleDatePicker/SimpleDatePicker';
 import {formatCurrency, resolveCurrencySymbol} from '@/utils/currency';
-import {createCardStyles, ACTION_WIDTH, OVERLAP_WIDTH, TOTAL_ACTION_WIDTH, getActionWrapperStyle, getEditActionButtonStyle, getViewActionButtonStyle} from '@/components/common/cardStyles';
+import {createCardStyles} from '@/components/common/cardStyles';
 
 export interface ExpenseCardProps {
   title: string;
@@ -73,65 +74,15 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
     return `${symbol}${amount.toFixed(2)}`;
   }, [amount, currencyCode, payButtonLabel]);
 
-  const visibleActionWidth = showEditAction ? TOTAL_ACTION_WIDTH : ACTION_WIDTH;
-  const totalActionWidth = OVERLAP_WIDTH + visibleActionWidth;
-
   return (
-    <SwipeableGlassCard
-      actionIcon={Images.viewIconSlide}
-      actionWidth={hideSwipeActions ? 0 : totalActionWidth}
-      actionBackgroundColor="transparent"
-      actionOverlap={hideSwipeActions ? 0 : OVERLAP_WIDTH}
-      containerStyle={baseStyles.container}
-      cardProps={{
-        interactive: true,
-        glassEffect: 'clear',
-        shadow: 'none',
-        style: baseStyles.card,
-        fallbackStyle: baseStyles.fallback,
-      }}
-      actionContainerStyle={hideSwipeActions ? baseStyles.hiddenActionContainer : baseStyles.actionContainer}
-      renderActionContent={
-        hideSwipeActions
-          ? undefined
-          : close => (
-              <View style={getActionWrapperStyle(showEditAction, theme)}>
-                <View
-                  style={[
-                    baseStyles.overlapContainer,
-                    {
-                      width: OVERLAP_WIDTH,
-                      backgroundColor: showEditAction
-                        ? theme.colors.primary
-                        : theme.colors.success,
-                    },
-                  ]}
-                />
-
-                {showEditAction && (
-                  <TouchableOpacity
-                    activeOpacity={0.85}
-                    style={[baseStyles.actionButton, getEditActionButtonStyle(theme), {width: ACTION_WIDTH}]}
-                    onPress={() => {
-                      close();
-                      onPressEdit?.();
-                    }}>
-                    <Image source={Images.editIconSlide} style={baseStyles.actionIcon} />
-                  </TouchableOpacity>
-                )}
-
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  style={[baseStyles.actionButton, getViewActionButtonStyle(theme), {width: ACTION_WIDTH}]}
-                  onPress={() => {
-                    close();
-                    onPressView?.();
-                  }}>
-                  <Image source={Images.viewIconSlide} style={baseStyles.actionIcon} />
-                </TouchableOpacity>
-              </View>
-            )
-      }>
+    <SwipeableActionCard
+      cardStyle={baseStyles.card}
+      fallbackStyle={baseStyles.fallback}
+      onPressView={onPressView}
+      onPressEdit={onPressEdit}
+      showEditAction={showEditAction}
+      hideSwipeActions={hideSwipeActions}
+    >
       <TouchableOpacity
         activeOpacity={onPressView ? 0.85 : 1}
         onPress={onPressView}
@@ -178,16 +129,15 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
         </View>
 
         {showPayButton && !isPaid && (
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={styles.payButton}
-            onPress={onPressPay}>
-            <Image source={Images.currencyIcon} style={styles.payIcon} />
-            <Text style={styles.payLabel}>Pay {payCtaLabel}</Text>
-          </TouchableOpacity>
+          <CardActionButton
+            label={`Pay ${payCtaLabel}`}
+            icon={Images.currencyIcon}
+            onPress={onPressPay!}
+            variant="primary"
+          />
         )}
       </TouchableOpacity>
-    </SwipeableGlassCard>
+    </SwipeableActionCard>
   );
 };
 
@@ -219,30 +169,6 @@ const createStyles = (theme: any) =>
     paidText: {
       ...theme.typography.labelSmall,
       color: theme.colors.success,
-    },
-    payButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: theme.colors.secondary,
-      borderRadius: theme.borderRadius.lg,
-      paddingVertical: theme.spacing[2],
-      paddingHorizontal: theme.spacing[4],
-      marginTop: theme.spacing[3],
-      gap: theme.spacing[2],
-      backgroundColor: theme.colors.white,
-      minHeight: 45,
-    },
-    payIcon: {
-      width: 20,
-      height: 20,
-      resizeMode: 'contain',
-      tintColor: theme.colors.secondary,
-    },
-    payLabel: {
-      ...theme.typography.button,
-      color: theme.colors.secondary,
     },
   });
 
