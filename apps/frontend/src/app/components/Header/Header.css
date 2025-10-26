@@ -1,0 +1,30 @@
+.header {
+  background: var(--whitebg);
+  position: fixed;
+  width: 100%;
+  z-index: 997;
+  border-bottom: 2px solid;
+  border-image-source: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    #7d7d7d 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  border-image-slice: 1;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media screen and (min-width: 1024px) {
+  .header {
+    position: relative;
+  }
+}
+
+@media screen and (max-width: 1024px) {
+  .header {
+    height: 80px;
+  }
+}

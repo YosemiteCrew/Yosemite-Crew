@@ -1,0 +1,242 @@
+.HeroSection {
+  min-height: 100vh;
+  padding: 0px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.HeroContainer {
+  display: flex;
+  max-width: 1560px;
+  height: 100%;
+  align-items: center;
+}
+
+
+.LeftHeroSection {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 20px;
+  padding: 32px 80px;
+  width: 50%;
+}
+.LeftHeroText {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.LeftHeroText h2 {
+  font-weight: 500;
+  font-size: 57px;
+  font-family: var(--grotesk-font);
+  line-height: 120%;
+  margin: 0;
+  color: var(--black-text);
+}
+.LeftHeroText p {
+  font-weight: 400;
+  font-size: 18px;
+  font-family: var(--satoshi-font);
+  line-height: 120%;
+  margin: 0;
+  color: var(--black-text);
+}
+.LeftHeroButtons {
+  display: flex;
+  width: 100%;
+  gap: 20px;
+}
+
+
+.RightHeroSection {
+  width: 50%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.LandingCarouselDiv {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  height: 100%;
+}
+.LandingCarouselDiv img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.carousel-text h4 {
+  font-weight: 500;
+  font-size: 24px;
+  font-family: var(--grotesk-font);
+  line-height: 120%;
+  margin: 0;
+  color: var(--black-text);
+}
+.carousel-indicators {
+  position: absolute;
+  right: 0;
+  bottom: 68px;
+  left: 20px !important;
+  justify-content: left;
+  margin: 0 !important;
+  width: fit-content !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.carousel-indicators button {
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 50% !important;
+  background: var(--lightgrey) !important;
+  border: none !important;
+  margin: 0 !important;
+}
+.carousel-indicators button.active {
+  background: var(--black-bg) !important;
+}
+.carousel-control-next,
+.carousel-control-prev {
+  position: absolute;
+  top: inherit;
+  bottom: 50px !important;
+  right: 0px !important;
+  left: inherit !important;
+  background: var(--whitebg) !important;
+  border-radius: 50% !important;
+  width: 48px !important;
+  height: 48px !important;
+}
+.carousel-control-prev {
+  right: 110px !important;
+}
+.carousel-control-next {
+  right: 50px !important;
+}
+.custom-arrow svg {
+  color: var(--greyborder);
+}
+.carousel-img {
+  object-fit: cover;
+  border-radius: 8px;
+}
+.carousel-text {
+  text-align: left;
+  font-size: 16px;
+  font-weight: 500;
+  color: #1a2130;
+  padding: 20px;
+  padding: 15px 10px 10px 0;
+  min-height: 170px;
+  background: var(--whitebg);
+}
+.carousel-caption {
+  position: static !important;
+  padding: 0 !important;
+  text-align: left !important;
+}
+.carousel-indicators [data-bs-target] {
+  background-color: #1a2130;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.carousel-control-prev-icon,
+.carousel-control-next-icon {
+  filter: invert(1);
+}
+
+@media screen and (max-width: 1280px) {
+  .LeftHeroSection {
+    padding: 32px 48px;
+  }
+  .LeftHeroText h2 {
+    font-size: 40px;
+  }
+}
+@media screen and (max-width: 1024px) {
+  .HeroContainer {
+    flex-direction: column;
+  }
+  .LeftHeroSection {
+    width: 100%;
+    gap: 16px;
+  }
+  .RightHeroSection {
+    width: 100%;
+  }
+  .LeftHeroText h2 {
+    font-size: 40px;
+    text-align: center;
+  }
+  .LeftHeroText p {
+    text-align: center;
+  }
+  .LeftHeroButtons {
+    justify-content: center;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .LeftHeroSection {
+    padding: 24px 16px;
+  }
+  .LeftHeroText h2 {
+    font-size: 28px;
+  }
+  .LeftHeroText p {
+    font-size: 15px;
+    line-height: 160%;
+  }
+}
+
+@media screen and (max-width: 640px) {
+  .LeftHeroButtons {
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .LeftHeroButtons a {
+    width: 100% !important;
+  }
+  .carousel-indicators {
+    position: absolute;
+    right: 0;
+    bottom: 45px;
+    left: 20px !important;
+    display: flex;
+    justify-content: left;
+    margin: 0 !important;
+    width: fit-content !important;
+    align-items: center;
+    gap: 8px;
+  }
+  .custom-arrow svg {
+    height: 36px;
+    width: 36px;
+  }
+  .carousel-control-next,
+  .carousel-control-prev {
+    position: absolute;
+    top: inherit;
+    bottom: 30px !important;
+    right: 0px !important;
+    left: inherit !important;
+    background: var(--whitebg) !important;
+    border-radius: 50% !important;
+    width: 36px !important;
+    height: 36px !important;
+  }
+  .carousel-control-prev {
+    right: 80px !important;
+  }
+  .carousel-control-next {
+    right: 40px !important;
+  }
+}

@@ -1,0 +1,165 @@
+/* DonutCardDiv Started */
+.DonutCardDiv{
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.DonutCardDiv h6{
+    font-family: var(--grotesk-font);
+    font-weight: 500;
+    font-size: 23px;
+    line-height: 120%;
+    margin: 0;
+    color: var(--black-text);
+}
+.DonutCardDiv .DonutCard{
+    min-height: 228px;
+    box-shadow: 0px 0px 8px 0px #47382714;
+    border: 1px solid var(--lightgrey);
+    background: var(--whitebg);
+    border-radius: 24px;
+    padding: 20px;
+    flex-direction: column;
+    justify-content: space-between;
+}
+.DonutCardDiv .DonutCard .WeekTexed p{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0;
+    color: var(--black-text);
+    font-family: var(--grotesk-font);
+    font-weight: 500;
+    font-size: 19px;
+    line-height: 120%;
+}
+.DonutCardDiv .DonutCard .WeekTexed p span{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.WeekDonutDiv{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.WeekDonutDiv .donut-placeholder {
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+  border: 20px solid #EAEAEA;
+  position: relative;
+}
+.WeekDonutDiv .WeekReports {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.WeekDonutDiv .WeekReports .WeekReportsItem{
+  display: flex;
+  justify-content: space-between;
+  gap: 23px;
+  align-items: center;
+}
+.WeekDonutDiv .WeekReports .WeekReportsItem p{
+    margin: 0;
+    color: var(--black-text);
+    font-family: var(--grotesk-font);
+    font-weight: 500;
+    font-size: 14px;
+    line-height: 100%;
+}
+.WeekDonutDiv .WeekReports .WeekReportsItem p .dot {
+  height: 10px;
+  width: 10px;
+  background-color: var(--black-text);
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 8px;
+}
+/* DonutCardDiv Ended  */
+
+
+/* DepartChartWrapper Started  */
+.DepartChartWrapper{
+  box-shadow: 0px 0px 30px 0px #4738271A;
+  background: var(--whitebg);
+  border: 1px solid var(--lightgrey);
+  border-radius: 24px;
+  padding: 24px;
+}
+/* DepartChartWrapper Ended  */
+
+
+/* AppointmentChartWrapper Started  */
+.AppointmentChartWrapper{
+  box-shadow: 0px 0px 30px 0px #4738271A;
+  background: var(--whitebg);
+  border: 1px solid var(--lightgrey);
+  border-radius: 24px;
+  padding: 24px;
+}
+.completed {
+  background-color: var(--black-bg);
+}
+.cancelled {
+  background-color: var(--greytext);
+}
+.dropdown-toggle {
+  border: none;
+  background-color: transparent;
+  font-weight: 500;
+}
+/* AppointmentChartWrapper Ended  */
+
+
+/* Chart card Started */
+.chart-card {
+  box-shadow: 0px 0px 30px 0px #4738271A;
+  background: var(--whitebg);
+  border: 1px solid var(--lightgrey);
+  border-radius: 24px;
+  padding: 24px;
+}
+.bargraph-chart-container {
+  padding: 8px 0 0 0;
+}
+.chat-btn {
+  position: absolute;
+  right: 32px;
+  top: 100px;
+  background: #302F2E;
+  color: #ffffff;
+  border: none;
+  border-radius: 20px;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 18px;
+}
+.chat-btn span {
+  font-size: 20px;
+  margin-right: 4px;
+}
+@media (max-width: 600px) {
+  .chat-btn {
+    right: 12px;
+    top: 80px;
+    padding: 4px 12px;
+  }
+}
+/* Chart card Ended */
+
+
+/* SpecialitesAppoint Started  */
+.SpeclAppotChartWrapper{
+  box-shadow: 0px 0px 30px 0px #4738271A;
+  background: var(--whitebg);
+  border: 1px solid var(--lightgrey);
+  border-radius: 24px;
+  padding: 24px;
+  min-height: 342px;
+}
+/* SpecialitesAppoint Ended */

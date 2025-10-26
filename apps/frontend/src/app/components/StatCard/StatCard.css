@@ -1,0 +1,44 @@
+.StatCardDiv {
+  box-shadow: 0px 0px 8px 0px #47382714;
+  border: 1px solid var(--lightgrey);
+  background: var(--whitebg);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 305px;
+  min-height: 104px;
+  border-radius: 24px;
+  padding: 20px;
+}
+.StatCardDiv .StatIcon {
+  width: 64px;
+  height: 64px;
+  background: var(--popupbg);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.StatCardDiv .StateTexed {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.StatCardDiv .StateTexed h4 {
+  font-family: var(--grotesk-font);
+  font-weight: 500;
+  font-size: 28px;
+  line-height: 120%;
+  color: var(--black-text);
+  margin: 0;
+}
+.StatCardDiv .StateTexed p {
+  font-family: var(--satoshi-font);
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 120%;
+  color: var(--black-text);
+  margin: 0;
+  opacity: 60%;
+}

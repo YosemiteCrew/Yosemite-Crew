@@ -1,0 +1,5 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Placeholder Screens Snapshots AppointmentsScreen should render correctly 1`] = `null`;
+
+exports[`Placeholder Screens Snapshots TasksScreen should render correctly 1`] = `null`;

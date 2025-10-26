@@ -1,0 +1,1676 @@
+[
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79018,
+    "breedName": "Unknown"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79019,
+    "breedName": "Fjord (Norwegian)"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79020,
+    "breedName": "Fjord X (Norwegian)"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79021,
+    "breedName": "Abyssinian"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79022,
+    "breedName": "Abyssinian X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79023,
+    "breedName": "Akhal-Teke"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79024,
+    "breedName": "Akhal-Teke X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79025,
+    "breedName": "Altai"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79026,
+    "breedName": "Altai X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79027,
+    "breedName": "Alter Real"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79028,
+    "breedName": "Alter Real X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79029,
+    "breedName": "American Albino"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79030,
+    "breedName": "American Albino X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79031,
+    "breedName": "American Miniature Horse"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79032,
+    "breedName": "American Miniature Horse X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79033,
+    "breedName": "American Quarter"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79034,
+    "breedName": "American Quarter X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79035,
+    "breedName": "American Saddlebred"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79036,
+    "breedName": "American Saddlebred X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79037,
+    "breedName": "American Standardbred"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79038,
+    "breedName": "American Standardbred X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79039,
+    "breedName": "Andalusian"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79040,
+    "breedName": "Andalusian X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79041,
+    "breedName": "Anglo-Arab"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79042,
+    "breedName": "Anglo-Arab X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79043,
+    "breedName": "Anglo-Dutch"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79044,
+    "breedName": "Anglo-Dutch X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79045,
+    "breedName": "Angora"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79046,
+    "breedName": "Angora X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79047,
+    "breedName": "Appaloosa"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79048,
+    "breedName": "Appaloosa X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79049,
+    "breedName": "Arab"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79050,
+    "breedName": "Arab X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79051,
+    "breedName": "Ardennes (Ardennais)"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79052,
+    "breedName": "Ardennes (Ardennais) X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79053,
+    "breedName": "Australian Stock"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79054,
+    "breedName": "Australian Stock X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79055,
+    "breedName": "Baden-Wurttemberger"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79056,
+    "breedName": "Baden-Wurttemberger X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79057,
+    "breedName": "Barb"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79058,
+    "breedName": "Barb X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79059,
+    "breedName": "Bashkir"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79060,
+    "breedName": "Bashkir X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79061,
+    "breedName": "Bavarian Warmblood"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79062,
+    "breedName": "Bavarian Warmblood X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79063,
+    "breedName": "Belgian Draft"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79064,
+    "breedName": "Belgian Draft X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79065,
+    "breedName": "Belgian Warmblood"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79066,
+    "breedName": "Belgian Warmblood X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79067,
+    "breedName": "Brandenburg"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79068,
+    "breedName": "Brandenburg X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79069,
+    "breedName": "Breton"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79070,
+    "breedName": "Breton X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79071,
+    "breedName": "British Miniature Horse"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79072,
+    "breedName": "British Miniature Horse X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79073,
+    "breedName": "British Riding Pony"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79074,
+    "breedName": "British Riding Pony X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79075,
+    "breedName": "British Sports Horse"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79076,
+    "breedName": "British Sports Horse X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79077,
+    "breedName": "British Spotted Pony"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79078,
+    "breedName": "British Spotted Pony X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79079,
+    "breedName": "British Warmblood"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79080,
+    "breedName": "British Warmblood X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79081,
+    "breedName": "Camargue"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79082,
+    "breedName": "Camargue X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79083,
+    "breedName": "Carneddau"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79084,
+    "breedName": "Carneddau X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79085,
+    "breedName": "Carriage Horse"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79086,
+    "breedName": "Caspian"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79087,
+    "breedName": "Caspian X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79088,
+    "breedName": "Cleveland Bay"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79089,
+    "breedName": "Cleveland Bay X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79090,
+    "breedName": "Clydesdale"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79091,
+    "breedName": "Clydesdale X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79092,
+    "breedName": "Cob"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79093,
+    "breedName": "Cob X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79094,
+    "breedName": "Comtois"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79095,
+    "breedName": "Comtois X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79096,
+    "breedName": "Connemara"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79097,
+    "breedName": "Connemara X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79098,
+    "breedName": "Cremello"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79099,
+    "breedName": "Cremello X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79100,
+    "breedName": "Criollo"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79101,
+    "breedName": "Criollo X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79102,
+    "breedName": "Crossbred"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79103,
+    "breedName": "Dales"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79104,
+    "breedName": "Dales X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79105,
+    "breedName": "Danish Warmblood"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79106,
+    "breedName": "Danish Warmblood X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79107,
+    "breedName": "Dartmoor"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79108,
+    "breedName": "Dartmoor X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79109,
+    "breedName": "Draft"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79110,
+    "breedName": "Draft X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79111,
+    "breedName": "Dutch Warmblood"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79112,
+    "breedName": "Dutch Warmblood X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79113,
+    "breedName": "Eriskay"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79114,
+    "breedName": "Eriskay X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79115,
+    "breedName": "Exmoor"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79116,
+    "breedName": "Exmoor X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79117,
+    "breedName": "Falabella"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79118,
+    "breedName": "Falabella X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79119,
+    "breedName": "Fell"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79120,
+    "breedName": "Fell X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79121,
+    "breedName": "Finnish"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79122,
+    "breedName": "Finnish X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79123,
+    "breedName": "French Thoroughbred"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79124,
+    "breedName": "French Thoroughbred X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79125,
+    "breedName": "French Trotter"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79126,
+    "breedName": "French Trotter X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79127,
+    "breedName": "French Warmblood"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79128,
+    "breedName": "French Warmblood X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79129,
+    "breedName": "Friesian"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79130,
+    "breedName": "Friesian X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79131,
+    "breedName": "Gelderlander"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79132,
+    "breedName": "Gelderlander X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79133,
+    "breedName": "German Riding Pony"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79134,
+    "breedName": "German Riding Pony X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79135,
+    "breedName": "German Warmblood"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79136,
+    "breedName": "German Warmblood X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79137,
+    "breedName": "Hackney"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79138,
+    "breedName": "Hackney X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79139,
+    "breedName": "Haflinger"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79140,
+    "breedName": "Haflinger X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79141,
+    "breedName": "Hanoverian"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79142,
+    "breedName": "Hanoverian X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79143,
+    "breedName": "Henson"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79144,
+    "breedName": "Henson X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79145,
+    "breedName": "Hessian (Hessen)"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79146,
+    "breedName": "Hessian (Hessen) X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79147,
+    "breedName": "Highland"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79148,
+    "breedName": "Highland X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79149,
+    "breedName": "Hispano"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79150,
+    "breedName": "Hispano X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79151,
+    "breedName": "Holstein"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79152,
+    "breedName": "Holstein X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79153,
+    "breedName": "Horse"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79154,
+    "breedName": "Hungarian Warmblood"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79155,
+    "breedName": "Hungarian Warmblood X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79156,
+    "breedName": "Hunter"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79157,
+    "breedName": "Hunter X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79158,
+    "breedName": "Iberian"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79159,
+    "breedName": "Iberian X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79160,
+    "breedName": "Icelandic"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79161,
+    "breedName": "Icelandic X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79162,
+    "breedName": "Irish"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79163,
+    "breedName": "Irish X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79164,
+    "breedName": "Irish Cob (Gypsy vanner)"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79165,
+    "breedName": "Irish Cob (Gypsy vanner) X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79166,
+    "breedName": "Irish Draft"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79167,
+    "breedName": "Irish Draft X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79168,
+    "breedName": "Irish Hunter"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79169,
+    "breedName": "Irish Hunter X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79170,
+    "breedName": "Irish Sport Horse"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79171,
+    "breedName": "Irish Sport Horse X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79172,
+    "breedName": "Kerry Bog"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79173,
+    "breedName": "Kerry Bog X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79174,
+    "breedName": "Knabstrup"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79175,
+    "breedName": "Knabstrup X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79176,
+    "breedName": "Konik"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79177,
+    "breedName": "Konik X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79178,
+    "breedName": "KWPN"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79179,
+    "breedName": "KWPN X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79180,
+    "breedName": "Lipizzaner"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79181,
+    "breedName": "Lipizzaner X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79182,
+    "breedName": "Lusitano"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79183,
+    "breedName": "Lusitano X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79184,
+    "breedName": "Malopolska"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79185,
+    "breedName": "Malopolska X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79186,
+    "breedName": "Mecklenburger"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79187,
+    "breedName": "Mecklenburger X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79188,
+    "breedName": "Miniature Horse"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79189,
+    "breedName": "Miniature Horse X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79190,
+    "breedName": "Miniature Pony"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79191,
+    "breedName": "Miniature Pony X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79192,
+    "breedName": "Miniature Shetland"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79193,
+    "breedName": "Miniature Shetland X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79194,
+    "breedName": "Miniature Spotted"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79195,
+    "breedName": "Miniature Spotted X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79196,
+    "breedName": "Morgan"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79197,
+    "breedName": "Morgan X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79198,
+    "breedName": "Moutain and Moorland"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79199,
+    "breedName": "Moutain and Moorland X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79200,
+    "breedName": "Mustang"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79201,
+    "breedName": "Mustang X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79202,
+    "breedName": "Native"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79203,
+    "breedName": "Native X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79204,
+    "breedName": "New Forest"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79205,
+    "breedName": "New Forest X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79206,
+    "breedName": "New Zealand Warmblood"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79207,
+    "breedName": "New Zealand Warmblood X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79208,
+    "breedName": "Newfoundland"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79209,
+    "breedName": "Newfoundland X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79210,
+    "breedName": "Nonius"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79211,
+    "breedName": "Nonius X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79212,
+    "breedName": "Norman Cob"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79213,
+    "breedName": "Norman Cob X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79214,
+    "breedName": "Oldenburg"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79215,
+    "breedName": "Oldenburg X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79216,
+    "breedName": "Orlov Trotter"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79217,
+    "breedName": "Orlov Trotter X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79218,
+    "breedName": "Paint"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79219,
+    "breedName": "Paint X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79220,
+    "breedName": "Palomino"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79221,
+    "breedName": "Palomino X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79222,
+    "breedName": "Paso Fino"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79223,
+    "breedName": "Paso Fino X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79224,
+    "breedName": "Percheron"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79225,
+    "breedName": "Percheron X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79226,
+    "breedName": "Pinto"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79227,
+    "breedName": "Pinto X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79228,
+    "breedName": "Polish Warmblood"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79229,
+    "breedName": "Polish Warmblood X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79230,
+    "breedName": "Polo pony"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79231,
+    "breedName": "Pony"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79232,
+    "breedName": "Quarter Horse"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79233,
+    "breedName": "Quarter Horse X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79234,
+    "breedName": "Rhenish Warmblood (Rhinelander)"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79235,
+    "breedName": "Rhenish Warmblood (Rhinelander) X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79236,
+    "breedName": "Riding Pony"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79237,
+    "breedName": "Riding Pony X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79238,
+    "breedName": "Rocky Mountain"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79239,
+    "breedName": "Rocky Mountain X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79240,
+    "breedName": "Russian Warmblood"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79241,
+    "breedName": "Russian Warmblood X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79242,
+    "breedName": "Saddlebred"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79243,
+    "breedName": "Saddlebred X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79244,
+    "breedName": "Selle Francais"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79245,
+    "breedName": "Selle Francais X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79246,
+    "breedName": "Shetland"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79247,
+    "breedName": "Shetland X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79248,
+    "breedName": "Shire"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79249,
+    "breedName": "Shire X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79250,
+    "breedName": "Show Horse"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79251,
+    "breedName": "Show Pony"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79252,
+    "breedName": "Spanish (Pura Raza Espa\u00f1ola)"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79253,
+    "breedName": "Spanish (Pura Raza Espa\u00f1ola) X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79254,
+    "breedName": "Sports Horse"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79255,
+    "breedName": "Spotted Pony"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79256,
+    "breedName": "Spotted Pony X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79257,
+    "breedName": "Standardbred"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79258,
+    "breedName": "Standardbred X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79259,
+    "breedName": "Suffolk Punch"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79260,
+    "breedName": "Suffolk Punch X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79261,
+    "breedName": "Swedish Warmblood"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79262,
+    "breedName": "Swedish Warmblood X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79263,
+    "breedName": "Swiss Warmblood"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79264,
+    "breedName": "Swiss Warmblood X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79265,
+    "breedName": "Tennesse Walking Horse"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79266,
+    "breedName": "Tennesse Walking Horse X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79267,
+    "breedName": "Tersk"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79268,
+    "breedName": "Tersk X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79269,
+    "breedName": "Thoroughbred"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79270,
+    "breedName": "Thoroughbred X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79271,
+    "breedName": "Trait du Nord"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79272,
+    "breedName": "Trait du Nord X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79273,
+    "breedName": "Trakehner"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79274,
+    "breedName": "Trakehner X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79275,
+    "breedName": "Trotter"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79276,
+    "breedName": "Trotter X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79277,
+    "breedName": "Warmblood"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79278,
+    "breedName": "Warmblood X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79279,
+    "breedName": "Welsh"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79280,
+    "breedName": "Welsh X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79281,
+    "breedName": "Welsh Section A"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79282,
+    "breedName": "Welsh Section A X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79283,
+    "breedName": "Welsh Section B"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79284,
+    "breedName": "Welsh Section B X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79285,
+    "breedName": "Welsh Section C"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79286,
+    "breedName": "Welsh Section C X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79287,
+    "breedName": "Welsh Section D (Welsh Cob)"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79288,
+    "breedName": "Welsh Section D (Welsh Cob) X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79289,
+    "breedName": "Westphalian"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79290,
+    "breedName": "Westphalian X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79291,
+    "breedName": "Wielkopolska (WLKP)"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79292,
+    "breedName": "Wielkopolska (WLKP) X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79293,
+    "breedName": "Zangersheide"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79294,
+    "breedName": "Zangersheide X"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79295,
+    "breedName": "Zweibrucker"
+  },
+  {
+    "speciesId": 15463,
+    "speciesName": "Equine - Horse",
+    "breedId": 79296,
+    "breedName": "Zweibrucker X"
+  }
+]

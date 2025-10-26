@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "module": "ESNext",         
+    "target": "ES2022",
+    "outDir": "dist",
+    "strict": true,                              // All strict type-checking options
+    "esModuleInterop": true,                     // For importing CommonJS modules like Express
+    "forceConsistentCasingInFileNames": true,    // Catch inconsistent imports
+    "moduleResolution": "node",                  // Resolve modules like Node.js
+    "skipLibCheck": true,                        // Skip type checks on `node_modules`
+    "resolveJsonModule": true,                   // Allow importing JSON files
+    "types": ["node", "express", "jest"],        // Include type definitions
+    "noImplicitAny": true,                       // Prevent untyped variables
+    "noUnusedLocals": false,                      // Warn on unused variables
+    "noUnusedParameters": false,
+    "baseUrl": ".",
+    "paths": {
+      "@yosemite-crew/types": ["../../packages/types/src"],
+      "@yosemite-crew/fhirtypes": ["../../packages/fhirtypes/src"],
+      "@yosemite-crew/fhir-types": ["../../packages/fhirtypes/src"]
+    }
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

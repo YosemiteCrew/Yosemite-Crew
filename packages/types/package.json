@@ -1,6 +1,12 @@
 {
   "name": "@yosemite-crew/types",
-  "types": "./dist/index.d.ts",
+  "type": "module",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "types": "./dist/types/src/index.d.ts",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist",
@@ -10,6 +16,7 @@
     "@types/express": "^5.0.2",
     "@types/multer": "^1.4.12",
     "@types/node": "^22.15.21",
+    "@yosemite-crew/fhirtypes": "workspace:^",
     "express": "4.21.2",
     "mongoose": "8.12.2",
     "multer": "2.0.2",

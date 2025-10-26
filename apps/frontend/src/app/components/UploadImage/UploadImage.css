@@ -1,0 +1,113 @@
+.UploadAreaData {
+  width: 100%;
+  min-height: 150px;
+  border: 2px dashed var(--greyborder);
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.2s;
+  cursor: pointer;
+}
+.UploadAreaData:hover,
+.UploadAreaData:focus {
+  border-color: var(--blue-text);
+}
+.UploadAreaData .upldCont {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.UploadAreaData .upldCont svg {
+  font-size: 40px;
+  color: var(--blue-text);
+}
+.UploadAreaData .upldCont h6 {
+  color: var(--black-text);
+  font-family: var(--grotesk-font);
+  font-weight: 500;
+  font-size: 18px;
+  line-height: 120%;
+  margin: 0;
+}
+.UploadAreaData .upldCont p {
+  color: var(--notibg);
+  font-family: var(--satoshi-font);
+  font-weight: 400;
+  font-size: 13px;
+  line-height: 120%;
+  margin: 0;
+  text-align: center;
+}
+.upload-preview-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.upload-preview-item {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 150px;
+  min-width: 150px;
+  min-height: 190px;
+  max-height: 190px;
+  position: relative;
+  border: 1px solid var(--profileborder);
+  border-radius: 12px;
+  box-shadow: 0px 0px 30px 0px #4738271a;
+}
+.preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+.preview-doc {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+  gap: 10px;
+}
+.file-icon {
+  font-size: 32px;
+}
+.file-icon.pdf {
+  color: #e53e3e;
+}
+.file-icon.word {
+  color: #2563eb;
+}
+.file-icon.img {
+  color: #10b981;
+}
+.file-name {
+  font-size: 15px;
+  color: #222;
+  font-family: var(--satoshi-font, Arial, sans-serif);
+  min-width: 140px;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.delete-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: transparent !important;
+  padding: 0;
+  border: none;
+  cursor: pointer;
+}
+.delete-btn svg {
+  color: var(--red);
+  font-size: 18px;
+}

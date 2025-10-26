@@ -1,0 +1,97 @@
+.PrivacyPolicySec {
+  padding: 80px 0px;
+}
+.PrivacyPolicySec .PrivacyPolicyData {
+  display: flex;
+  flex-direction: column;
+  gap: 56px;
+  max-width: 842px;
+  margin: 0 auto;
+}
+.PrivacyPolicySec .PrivacyPolicyData .privacyHead {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+.PrivacyPolicySec .PrivacyPolicyData .privacyHead .privacyhead {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.PrivacyPolicySec .PrivacyPolicyData .privacyHead .privacyhead h2 {
+  font-family: var(--grotesk-font);
+  font-weight: 500;
+  font-size: 40px;
+  line-height: 120%;
+  color: var(--black-text);
+  margin: 0;
+}
+.PrivacyPolicySec .PrivacyPolicyData .privacyHead p {
+  font-family: var(--satoshi-font);
+  font-weight: 400;
+  font-size: 18px;
+  line-height: 120%;
+  color: var(--black-text);
+  margin: 0;
+  text-align: center;
+}
+.PrivacyPolicySec .PrivacyPolicyData .PolicyItems {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.PrivacyPolicySec .PrivacyPolicyData .PolicyNumbdetail {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+.PrivacyPolicySec .PrivacyPolicyData .PolicyItems h4 {
+  font-family: var(--satoshi-font);
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 120%;
+  color: var(--black-text);
+  margin: 0;
+}
+.PrivacyPolicySec
+  .PrivacyPolicyData
+  .PolicyItems
+  :is(p, .policyul p, .policyul li, a) {
+  font-family: var(--satoshi-font);
+  font-weight: 400;
+  font-size: 18px;
+  line-height: 120%;
+  color: var(--black-text);
+  margin: 0;
+}
+.PrivacyPolicySec .PrivacyPolicyData .PolicyItems .policyul {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.PrivacyPolicySec .PrivacyPolicyData .PolicyItems .policyul ul {
+  margin: 0;
+}
+.PrivacyPolicySec
+  .PrivacyPolicyData
+  .PolicyItems
+  :is(
+    p span.warningtext,
+    .policyul p span.warningtext,
+    .policyul li span.warningtext,
+    p span.warningtext a
+  ) {
+  color: var(--black-text);
+}
+.PrivacyPolicySec
+  .PrivacyPolicyData
+  .PolicyItems
+  :is(p span.warningtext a):hover {
+  color: var(--blue-text);
+}
+.PrivacyPolicySec .PrivacyPolicyData .PolicyItems :is(p span.spanlink, p a) {
+  text-decoration: underline !important;
+}
+.PrivacyPolicySec .PrivacyPolicyData .PolicyItems p a:hover {
+  color: var(--blue-text);
+}
