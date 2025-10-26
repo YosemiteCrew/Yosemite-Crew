@@ -1,0 +1,390 @@
+.main-container {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  padding: 15px 10px;
+}
+
+/* -------- Intro & Serve Sections -------- */
+.intro-section,
+.serve-section {
+  text-align: left;
+  max-width: 900px;
+}
+
+.crew-section,
+.developer-section {
+  max-width: 800px;
+}
+
+.intro-section h1,
+.serve-section h1,
+.crew-section h1,
+.developer-section h1 {
+  font-size: 36px;
+  font-weight: 500;
+  margin-bottom: 20px;
+  color: #111;
+}
+
+.intro-section p {
+  font-size: 16px;
+  line-height: 1.6;
+  color: #444;
+}
+
+/* -------- Serve Section -------- */
+.serve-row {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+
+/* -------- Shared Card Styles -------- */
+.pet-owners-card,
+.business-card,
+.developers-card {
+  width: 100%;
+  border-radius: 32px;
+  border: 1px solid var(--lightgrey);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  text-align: center;
+  justify-content: flex-start;
+  text-align: start;
+  padding: 28px 16px;
+  position: relative;
+  background: #fff;
+}
+
+.pet-owners-card h3,
+.business-card h3,
+.developers-card h3 {
+  font-size: 28px;
+  font-weight: 500;
+  color: #222;
+  margin-bottom: 10px;
+}
+
+.pet-owners-card p,
+.business-card p,
+.developers-card p {
+  font-size: 14px;
+  color: #444;
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+/* -------- Pet Owners Section -------- */
+.phones {
+  display: flex;
+  justify-content: center;
+  position: relative;
+  width: 250px;
+  height: 200px;
+  gap: 10px;
+}
+
+.phone1-img {
+  position: absolute;
+  width: 190px;
+  height: 200px;
+  top: 0;
+  left: 0;
+}
+
+.phone2-img {
+  position: absolute;
+  width: 140px;
+  height: 150px;
+  top: 0;
+  right: 0;
+}
+
+/* -------- Developers (Middle) -------- */
+.serve-center {
+  background: transparent;
+  box-shadow: none;
+  text-align: center;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+}
+
+.circle-logo {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 209px;
+  height: 209px;
+  border-radius: 24px;
+}
+
+.dev-table-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: auto;
+}
+
+.developers-table {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+/* -------- Pet Business Section -------- */
+.appointment-cards {
+  width: auto;
+}
+
+.appointment-img {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+/* -------- Features Section -------- */
+.featuresGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 32px;
+  padding: 40px 0;
+}
+
+/* -------- Sidebar Overlay (Mobile) -------- */
+.sidebar-overlay {
+  position: absolute;
+  top: 60px;
+  left: 0;
+  right: 0;
+  background: #fff;
+  z-index: 999;
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  padding: 10px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+/* -------- Mobile Search -------- */
+.mobile-search {
+  position: relative;
+  width: 100%;
+  z-index: 10;
+}
+
+.mobile-search.expanded .search-input {
+  width: 100%;
+  transition: all 0.2s ease;
+}
+
+.mobile-sidebar-content {
+  margin-top: 10px;
+  width: 100%;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  padding: 16px;
+  max-height: 75vh;
+  overflow-y: auto;
+  animation: slideDown 0.25s ease;
+  position: relative;
+}
+
+.close-sidebar-btn {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #555;
+  z-index: 1001;
+  padding: 4px;
+  border-radius: 50%;
+  transition: background 0.2s ease;
+}
+
+.close-sidebar-btn:hover {
+  background: #f0f0f0;
+}
+
+/* -------- Animations -------- */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* -------- Responsive Breakpoints -------- */
+@media (min-width: 768px) {
+  .main-container {
+    padding: 60px 40px;
+  }
+
+  .featuresGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .developers-card {
+    flex-direction: column;
+  }
+
+  .developers-table {
+    width: 383px;
+    height: 136px;
+  }
+
+  .pet-owners-card,
+  .business-card {
+    flex-direction: column;
+    align-items: start;
+    text-align: start;
+    width: 209px;
+    height: 436px;
+  }
+
+  .phone1-img {
+    width: 236px;
+    height: 270px;
+    bottom: -16px;
+    left: -54px;
+  }
+
+  .phone2-img {
+    width: 190px;
+    height: 217px;
+    top: 137px;
+    left: 59px;
+  }
+}
+
+/* -------- Tablet Optimization (768px–1023px) -------- */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .serve-row {
+    display: flex;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 28px;
+    align-items: center;
+    justify-items: center;
+  }
+
+  .serve-center {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .pet-owners-card,
+  .business-card,
+  .developers-card {
+    width: 100%;
+    max-width: 360px;
+    height: auto;
+    text-align: center;
+    align-items: center;
+  }
+
+  .pet-owners-card h3,
+  .business-card h3,
+  .developers-card h3 {
+    font-size: 22px;
+  }
+
+  .pet-owners-card p,
+  .business-card p,
+  .developers-card p {
+    font-size: 13px;
+  }
+
+  .phones {
+    width: 220px;
+    height: 180px;
+  }
+
+  .phone1-img {
+    width: 180px;
+    height: 200px;
+    left: 0;
+    top: 0;
+  }
+
+  .phone2-img {
+    width: 140px;
+    height: 160px;
+    right: 0;
+    top: 20px;
+  }
+
+  .developers-table {
+    width: 300px;
+    height: auto;
+  }
+
+  .circle-logo {
+    display: none;
+  }
+}
+
+@media (min-width: 1024px) {
+  .serve-row {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+
+  .circle-logo {
+    display: flex;
+  }
+
+  .pet-owners-card,
+  .business-card {
+    width: 380px;
+    height: 480px;
+    text-align: start;
+    align-items: center;
+  }
+
+  .phones {
+    width: 200px;
+    height: 180px;
+    position: relative;
+  }
+
+  .phone1-img {
+    position: absolute;
+    width: 280px;
+    height: 350px;
+    left: -82px;
+    top: 0;
+  }
+
+  .phone2-img {
+    width: 200px;
+    height: 240px;
+    right: 0px;
+    top: -30px;
+  }
+  
+}
+
+@media (min-width: 1200px) {
+  .search-section {
+    display: none;
+  }
+}

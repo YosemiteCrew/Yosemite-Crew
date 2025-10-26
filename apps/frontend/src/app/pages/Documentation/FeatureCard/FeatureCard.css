@@ -1,0 +1,82 @@
+.card {
+  background: var(--whitebg);
+  border: 1px solid var(--lightgrey);
+  width: 100%;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  padding: 16px;
+}
+
+.icon {
+  margin: 16px;
+}
+
+.textContainer {
+  border-top: 2px solid #eee;
+  padding: 12px 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  flex-direction: column;
+  text-align: start;
+}
+
+.textContainer h4 {
+  font-family: var(--grotesk-font);
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 120%;
+  color: var(--black-text);
+}
+.textContainer p {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 120%;
+  color: var(--black-text);
+  margin: 0;
+  opacity: 80%;
+  font-family: var(--satoshi-font);
+}
+
+@media screen and (max-width: 1280px) {
+  .textContainer h4 {
+    font-size: 19px;
+  }
+  .textContainer p {
+    font-size: 10px;
+  }
+  .card img {
+    width: 82px;
+    height: 76px;
+  }
+  .card {
+    min-height: 208px;
+    width: 100%;     /* ✅ Full width */
+    max-width: none; /* ✅ Remove width restriction */
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .textContainer h4 {
+    font-size: 16px;
+  }
+  .textContainer p {
+    font-size: 8px;
+  }
+  .card img {
+    width: 46px;
+    height: 46px;
+  }
+  .card {
+    min-height: 155px;
+    width: 100%;    
+    max-width: none;
+    padding: 10px;
+  }
+}
+

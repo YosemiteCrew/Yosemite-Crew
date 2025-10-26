@@ -1,0 +1,128 @@
+.sidebar-menu {
+  max-width: 380px;
+  padding: 20px;
+  border: 1px solid #ddd;
+  border-radius: 16px;
+  font-family: "Inter", sans-serif;
+  background-color: #fff;
+  height: fit-content;
+  position: sticky;
+  margin: 16px 0;
+  top: 20px;
+}
+
+.search-form {
+  width: 100%;
+}
+
+.input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #555;
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  padding: 10px 12px 10px 46px;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  outline: none;
+  background-color: #f9f9f9;
+  transition: all 0.2s ease;
+}
+
+.search-input:focus {
+  outline: 1px solid var(--blue-text);
+  background-color: #fff;
+}
+.sidebar-content {
+  display: flex;
+  flex-direction: column;
+  margin-top: 24px;
+}
+.menu-section {
+  padding: 0 12px;
+}
+
+.menu-section h4 {
+  font-weight: 500;
+  font-size: 15px;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.menu-section h4:hover,
+.menu-section li:hover {
+  color: #000;
+}
+
+.section-title {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.menu-section ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+.menu-section li {
+  margin: 6px 0;
+  font-size: 14px;
+  color: #333;
+  cursor: pointer;
+}
+
+@media (max-width: 1200px) {
+  .sidebar-menu {
+    display: none;
+  }
+
+  .search-form {
+    position: relative;
+    width: 100%;
+  }
+
+  .input-wrapper {
+    position: relative;
+    width: 100%;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #555;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .search-input {
+    width: 100%;
+    border-radius: 8px;
+    padding-left: 46px; 
+    background-color: #f9f9f9;
+    border: 1px solid transparent;
+    position: relative;
+    z-index: 1; 
+  }
+
+  .search-input:focus {
+    width: 100%;
+    background-color: #fff;
+    border: 1px solid var(--blue-text);
+    outline: none;
+  }
+}
+

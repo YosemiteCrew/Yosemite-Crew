@@ -1,0 +1,15 @@
+.Documentation  {
+  min-height: 100vh;
+}
+
+.container {
+  display: flex;
+  gap: 44px;
+  position: relative;
+}
+
+@media (max-width: 1200px) {
+  .sidebar-menu {
+    display: none;
+  }
+}

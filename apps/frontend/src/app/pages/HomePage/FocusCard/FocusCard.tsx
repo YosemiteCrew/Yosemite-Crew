@@ -5,7 +5,7 @@ import './FocusCard.css'
 
 interface FocusCardProps {
   Focimg: string;
-  focname: string;
+  focname: string; 
   focpara: string;
 }
 
