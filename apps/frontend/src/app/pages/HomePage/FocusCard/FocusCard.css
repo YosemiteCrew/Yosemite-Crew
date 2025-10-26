@@ -1,0 +1,72 @@
+.FocusItem {
+  background: var(--whitebg);
+  border: 1px solid var(--lightgrey);
+  width: 100%;
+  max-width: 450px;
+  border-radius: 16px;
+  min-height: 309px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  padding: 16px;
+}
+.focusText {
+  max-width: 377px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.focusText h4 {
+  font-family: var(--grotesk-font);
+  font-size: 28px;
+  font-weight: 500;
+  line-height: 120%;
+  color: var(--black-text);
+  margin: 0;
+}
+.focusText p {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 120%;
+  color: var(--black-text);
+  margin: 0;
+  opacity: 80%;
+  font-family: var(--satoshi-font);
+}
+@media screen and (max-width: 1280px) {
+  .focusText h4 {
+    font-size: 19px;
+  }
+  .focusText p {
+    font-size: 10px;
+  }
+  .FocusItem img {
+    width: 82px;
+    height: 76px;
+  }
+  .FocusItem {
+    min-height: 208px;
+    max-width: 208px;
+  }
+}
+@media screen and (max-width: 768px) {
+  .focusText h4 {
+    font-size: 16px;
+  }
+  .focusText p {
+    font-size: 8px;
+  }
+  .FocusItem img {
+    width: 46px;
+    height: 46px;
+  }
+  .FocusItem {
+    min-height: 155px;
+    max-width: 155px;
+    padding: 10px;
+  }
+}

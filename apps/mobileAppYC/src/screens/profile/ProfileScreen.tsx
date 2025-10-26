@@ -17,13 +17,19 @@ export const ProfileScreen: React.FC = () => {
   const {t, i18n} = useTranslation();
   const [showLanguageModal, setShowLanguageModal] = useState(false);
 
+  const handleConfirmLogout = () => {
+    logout().catch(error => {
+      console.warn('[Profile] Logout failed', error);
+    });
+  };
+
   const handleLogout = () => {
     Alert.alert(
       t('common.sign_out'),
       t('profile.logout_confirmation'),
       [
         {text: t('common.cancel'), style: 'cancel'},
-        {text: t('common.sign_out'), onPress: logout, style: 'destructive'},
+        {text: t('common.sign_out'), onPress: handleConfirmLogout, style: 'destructive'},
       ]
     );
   };

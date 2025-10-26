@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   BackHandler,
   DeviceEventEmitter,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import {SafeArea, OTPInput, Header} from '../../components/common';
 import {useTheme} from '../../hooks';
@@ -77,6 +79,11 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
     if (otpError) {
       setOtpError('');
     }
+
+    // Auto-verify when all digits are filled
+    if (value.length === OTP_LENGTH && !isVerifying) {
+      verifyOtpCode(value);
+    }
   };
 
   const buildUserPayload = (
@@ -92,8 +99,8 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
     profileToken: completion.profile.profileToken,
   });
 
-  const handleVerifyCode = async () => {
-    if (otpCode.length !== OTP_LENGTH) {
+  const verifyOtpCode = async (code: string) => {
+    if (code.length !== OTP_LENGTH) {
       setOtpError(`Please enter the ${OTP_LENGTH}-digit code.`);
       return;
     }
@@ -101,7 +108,7 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
     setIsVerifying(true);
 
     try {
-      const completion = await completePasswordlessSignIn(otpCode);
+      const completion = await completePasswordlessSignIn(code);
       setOtpError('');
       const userPayload = buildUserPayload(completion);
       const tokens = completion.tokens;
@@ -144,6 +151,10 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
     } finally {
       setIsVerifying(false);
     }
+  };
+
+  const handleVerifyCode = async () => {
+    await verifyOtpCode(otpCode);
   };
 
   const handleResendOTP = async () => {
@@ -202,68 +213,73 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
     <SafeArea style={styles.container}>
       <Header title="Enter login code" showBackButton onBack={handleGoBack} />
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}>
-        <View style={styles.content}>
-          <Image
-            source={Images.catLaptop}
-            style={styles.illustration}
-            resizeMode="contain"
-          />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}>
+          <View style={styles.content}>
+            <Image
+              source={Images.catLaptop}
+              style={styles.illustration}
+              resizeMode="contain"
+            />
 
-          <Text style={styles.subtitle}>Check your email</Text>
+            <Text style={styles.subtitle}>Check your email</Text>
 
-          <Text style={styles.description}>
-            We've sent a {OTP_LENGTH}-digit login code to{' '}
-            <Text style={styles.emailText}>{email}</Text>.
-            {isNewUser
-              ? ' Enter the code to create your Yosemite Crew account.'
-              : ' Enter the code to continue.'}
-          </Text>
-
-          <OTPInput
-            length={OTP_LENGTH}
-            onComplete={handleOtpFilled}
-            error={otpError}
-            autoFocus
-          />
-        </View>
-      </ScrollView>
-
-      <View style={styles.bottomSection}>
-        <LiquidGlassButton
-          title={isVerifying ? 'Verifying...' : 'Verify code'}
-          onPress={handleVerifyCode}
-          style={styles.verifyButton}
-          textStyle={styles.verifyButtonText}
-          tintColor={isVerifyDisabled ? '#A09F9F' : theme.colors.secondary}
-          height={56}
-          borderRadius={16}
-          loading={isVerifying}
-          disabled={isVerifyDisabled}
-        />
-
-        <View style={styles.resendContainer}>
-          <Text style={styles.resendText}>Didn't receive the code? </Text>
-          {canResend ? (
-            <TouchableOpacity
-              onPress={handleResendOTP}
-              disabled={isResending}
-              style={styles.resendButton}>
-              {isResending ? (
-                <ActivityIndicator size="small" color={theme.colors.primary} />
-              ) : (
-                <Text style={styles.resendLink}>Resend</Text>
-              )}
-            </TouchableOpacity>
-          ) : (
-            <Text style={styles.countdownText}>
-              00:{countdown.toString().padStart(2, '0')} sec
+            <Text style={styles.description}>
+              We've sent a {OTP_LENGTH}-digit login code to{' '}
+              <Text style={styles.emailText}>{email}</Text>.
+              {isNewUser
+                ? ' Enter the code to create your Yosemite Crew account.'
+                : ' Enter the code to continue.'}
             </Text>
-          )}
+
+            <OTPInput
+              length={OTP_LENGTH}
+              onComplete={handleOtpFilled}
+              error={otpError}
+              autoFocus
+            />
+          </View>
+        </ScrollView>
+
+        <View style={styles.bottomSection}>
+          <LiquidGlassButton
+            title={isVerifying ? 'Verifying...' : 'Verify code'}
+            onPress={handleVerifyCode}
+            style={styles.verifyButton}
+            textStyle={styles.verifyButtonText}
+            tintColor={isVerifyDisabled ? '#A09F9F' : theme.colors.secondary}
+            height={56}
+            borderRadius={16}
+            loading={isVerifying}
+            disabled={isVerifyDisabled}
+          />
+
+          <View style={styles.resendContainer}>
+            <Text style={styles.resendText}>Didn't receive the code? </Text>
+            {canResend ? (
+              <TouchableOpacity
+                onPress={handleResendOTP}
+                disabled={isResending}
+                style={styles.resendButton}>
+                {isResending ? (
+                  <ActivityIndicator size="small" color={theme.colors.primary} />
+                ) : (
+                  <Text style={styles.resendLink}>Resend</Text>
+                )}
+              </TouchableOpacity>
+            ) : (
+              <Text style={styles.countdownText}>
+                00:{countdown.toString().padStart(2, '0')} sec
+              </Text>
+            )}
+          </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </SafeArea>
   );
 };
@@ -273,6 +289,9 @@ const createStyles = (theme: any) =>
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
+    },
+    keyboardView: {
+      flex: 1,
     },
     scrollView: {
       flex: 1,

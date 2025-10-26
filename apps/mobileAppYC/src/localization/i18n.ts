@@ -41,4 +41,4 @@ i18nInstance
     },
   });
 
-export {i18nInstance as default};
+export {default} from 'i18next';

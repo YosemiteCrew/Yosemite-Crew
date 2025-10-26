@@ -17,6 +17,231 @@ import {
 } from '@callstack/liquid-glass';
 import {useTheme} from '../../../hooks';
 
+const LIGHT_GLASS_TINT = 'rgba(255, 255, 255, 0.65)';
+const DARK_GLASS_TINT = 'rgba(28, 28, 30, 0.55)';
+
+const SHADOW_MAP = {
+  light: {shadowOpacity: 0.1, shadowRadius: 4, elevation: 1},
+  medium: {shadowOpacity: 0.15, shadowRadius: 8, elevation: 3},
+  strong: {shadowOpacity: 0.25, shadowRadius: 12, elevation: 5},
+} as const;
+
+const WHITE_COLOR_ALIASES = [
+  '#ffffff',
+  '#fff',
+  'white',
+  'rgba(255,255,255,1)',
+  'rgba(255, 255, 255, 1)',
+] as const;
+
+const resolveBorderRadius = (
+  radius: GlassButtonProps['borderRadius'],
+  themeRadius: Record<string, number>,
+  fallback: number,
+) => {
+  if (typeof radius === 'number') {
+    return radius;
+  }
+
+  if (typeof radius === 'string') {
+    const value = themeRadius[radius];
+    if (typeof value === 'number') {
+      return value;
+    }
+  }
+
+  return fallback;
+};
+
+const isWhiteOrLightColor = (color?: string): boolean => {
+  if (!color) {
+    return false;
+  }
+
+  const normalized = color.toLowerCase().replaceAll(/\s/g, '');
+  if (WHITE_COLOR_ALIASES.includes(normalized as typeof WHITE_COLOR_ALIASES[number])) {
+    return true;
+  }
+
+  if (!color.startsWith('#')) {
+    return false;
+  }
+
+  const hex = color.slice(1);
+  const r = Number.parseInt(hex.substring(0, 2), 16);
+  const g = Number.parseInt(hex.substring(2, 4), 16);
+  const b = Number.parseInt(hex.substring(4, 6), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.9;
+};
+
+const buildShadowStyle = (intensity: GlassButtonProps['shadowIntensity']) => {
+  if (!intensity || intensity === 'none') {
+    return {};
+  }
+
+  return {
+    shadowColor: '#000000',
+    shadowOffset: {width: 0, height: 2},
+    ...SHADOW_MAP[intensity],
+  };
+};
+
+const SIZE_CONFIG = {
+  small: {paddingHorizontalKey: '3', paddingVerticalKey: '2', fallbackHeight: 36},
+  medium: {paddingHorizontalKey: '4', paddingVerticalKey: '3', fallbackHeight: 44},
+  large: {paddingHorizontalKey: '6', paddingVerticalKey: '4', fallbackHeight: 52},
+} as const;
+
+const buildSizeStyle = (
+  size: NonNullable<GlassButtonProps['size']>,
+  themeSpacing: Record<string, number>,
+  buttonHeight: GlassButtonProps['height'],
+  minHeight: GlassButtonProps['minHeight'],
+): ViewStyle => {
+  const config = SIZE_CONFIG[size];
+  const resolvedMinHeight =
+    (minHeight ?? buttonHeight ?? config.fallbackHeight) as number;
+
+  return {
+    paddingHorizontal: themeSpacing[config.paddingHorizontalKey],
+    paddingVertical: themeSpacing[config.paddingVerticalKey],
+    minHeight: resolvedMinHeight,
+  } as ViewStyle;
+};
+
+const buildFallbackSurfaceStyle = ({
+  tintColor,
+  isDark,
+  borderColor,
+  isLightTint,
+}: {
+  tintColor?: string;
+  isDark: boolean;
+  borderColor?: string;
+  isLightTint: boolean;
+}): ViewStyle => {
+  const backgroundColor =
+    tintColor ??
+    (isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 1)');
+
+  let computedBorderColor = borderColor;
+
+  if (!computedBorderColor) {
+    if (tintColor) {
+      computedBorderColor = isLightTint
+        ? 'rgba(0, 0, 0, 0.15)'
+        : `${tintColor}40`;
+    } else {
+      computedBorderColor = isDark
+        ? 'rgba(255, 255, 255, 0.2)'
+        : 'rgba(0, 0, 0, 0.1)';
+    }
+  }
+
+  return {
+    backgroundColor,
+    borderWidth: 1,
+    borderColor: computedBorderColor,
+  };
+};
+
+const buildGlassSurfaceStyle = ({
+  borderColor,
+  isLightTint,
+  forceBorder,
+  shadowIntensity,
+}: {
+  borderColor?: string;
+  isLightTint: boolean;
+  forceBorder: boolean;
+  shadowIntensity: GlassButtonProps['shadowIntensity'];
+}): ViewStyle => {
+  const shouldAddBorder = forceBorder || isLightTint;
+  const borderColorValue =
+    borderColor ??
+    (isLightTint
+      ? 'rgba(0, 0, 0, 0.15)'
+      : 'rgba(255, 255, 255, 0.2)');
+
+  return {
+    borderWidth: shouldAddBorder ? 1 : 0.5,
+    borderColor: borderColorValue,
+    ...(shouldAddBorder ? buildShadowStyle(shadowIntensity) : {}),
+  };
+};
+
+const resolvePlatformLabelColor = (
+  isDark: boolean,
+  themeColors: ReturnType<typeof useTheme>['theme']['colors'],
+) => {
+  if (typeof PlatformColor === 'function') {
+    return PlatformColor('labelColor');
+  }
+
+  if (isDark) {
+    return themeColors.white;
+  }
+
+  return themeColors.text;
+};
+
+const computeTextColor = ({
+  disabled,
+  tintColor,
+  isDark,
+  themeColors,
+  useIosGlass,
+}: {
+  disabled: boolean;
+  tintColor?: string;
+  isDark: boolean;
+  themeColors: ReturnType<typeof useTheme>['theme']['colors'];
+  useIosGlass: boolean;
+}) => {
+  if (disabled) {
+    return themeColors.textSecondary;
+  }
+
+  if (useIosGlass) {
+    if (isWhiteOrLightColor(tintColor)) {
+      return themeColors.text;
+    }
+    return resolvePlatformLabelColor(isDark, themeColors);
+  }
+
+  if (tintColor) {
+    return isWhiteOrLightColor(tintColor) ? themeColors.text : themeColors.white;
+  }
+
+  return isDark ? themeColors.white : themeColors.text;
+};
+
+const computeLoadingColor = ({
+  tintColor,
+  isDark,
+  themeColors,
+  useIosGlass,
+}: {
+  tintColor?: string;
+  isDark: boolean;
+  themeColors: ReturnType<typeof useTheme>['theme']['colors'];
+  useIosGlass: boolean;
+}) => {
+  if (useIosGlass) {
+    if (isWhiteOrLightColor(tintColor)) {
+      return themeColors.text;
+    }
+    return resolvePlatformLabelColor(isDark, themeColors);
+  }
+
+  if (tintColor) {
+    return isWhiteOrLightColor(tintColor) ? themeColors.text : themeColors.white;
+  }
+
+  return isDark ? themeColors.white : themeColors.text;
+};
+
 interface GlassButtonProps {
   title?: string;
   onPress: () => void;
@@ -70,196 +295,139 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
   shadowIntensity = 'light',
 }) => {
   const {theme, isDark} = useTheme();
-
-  const getBorderRadius = (): number => {
-    if (typeof borderRadius === 'number') {
-      return borderRadius;
+  const resolvedTintColor = React.useMemo(() => {
+    if (tintColor) {
+      return tintColor;
     }
-    if (typeof borderRadius === 'string' && borderRadius in theme.borderRadius) {
-      return theme.borderRadius[borderRadius as keyof typeof theme.borderRadius];
+    return isDark ? DARK_GLASS_TINT : LIGHT_GLASS_TINT;
+  }, [isDark, tintColor]);
+
+  const resolvedColorScheme = React.useMemo(() => {
+    if (colorScheme !== 'system') {
+      return colorScheme;
     }
-    return theme.borderRadius.base;
-  };
+    return isDark ? 'dark' : 'light';
+  }, [colorScheme, isDark]);
+  const borderRadiusValue = React.useMemo(
+    () =>
+      resolveBorderRadius(
+        borderRadius,
+        theme.borderRadius,
+        theme.borderRadius.base,
+      ),
+    [borderRadius, theme.borderRadius],
+  );
 
-  const isWhiteOrLightColor = (color?: string): boolean => {
-    if (!color) return false;
-    
-    // Check for white variations
-    const whiteColors = ['#ffffff', '#fff', 'white', 'rgba(255,255,255,1)', 'rgba(255, 255, 255, 1)'];
-    if (whiteColors.includes(color.toLowerCase().replaceAll(/\s/g, ''))) return true;
-
-    // Check for light colors (simplified luminance check)
-    if (color.startsWith('#')) {
-      const hex = color.replace('#', '');
-      const r = Number.parseInt(hex.substring(0, 2), 16);
-      const g = Number.parseInt(hex.substring(2, 4), 16);
-      const b = Number.parseInt(hex.substring(4, 6), 16);
-      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-      return luminance > 0.9; // Very light colors
-    }
-    
-    return false;
-  };
-
-  const getButtonStyle = (): ViewStyle => {
-    const baseStyle: ViewStyle = {
-      borderRadius: getBorderRadius(),
+  const baseButtonStyle = React.useMemo<ViewStyle>(
+    () => ({
+      borderRadius: borderRadiusValue,
       justifyContent: 'center',
       alignItems: 'center',
       flexDirection: 'row',
       width,
       height,
       minWidth,
-      minHeight,
       maxWidth,
       overflow: 'hidden',
-    };
+    }),
+    [borderRadiusValue, height, maxWidth, minWidth, width],
+  );
 
-    const sizeStyles: Record<string, ViewStyle> = {
-      small: {
-        paddingHorizontal: theme.spacing['3'],
-        paddingVertical: theme.spacing['2'],
-        minHeight: minHeight || height || 36,
-      },
-      medium: {
-        paddingHorizontal: theme.spacing['4'],
-        paddingVertical: theme.spacing['3'],
-        minHeight: minHeight || height || 44,
-      },
-      large: {
-        paddingHorizontal: theme.spacing['6'],
-        paddingVertical: theme.spacing['4'],
-        minHeight: minHeight || height || 52,
-      },
-    };
+  const sizeStyle = React.useMemo(
+    () => buildSizeStyle(size, theme.spacing, height, minHeight),
+    [height, minHeight, size, theme.spacing],
+  );
 
-    // Enhanced styling for glass effect visibility
-    const getGlassStyle = (): ViewStyle => {
-      const isLightTint = isWhiteOrLightColor(tintColor);
-      
-      const getShadowStyle = () => {
-        if (shadowIntensity === 'none') return {};
-        
-        const shadows = {
-          light: { shadowOpacity: 0.1, shadowRadius: 4, elevation: 1 },
-          medium: { shadowOpacity: 0.15, shadowRadius: 8, elevation: 3 },
-          strong: { shadowOpacity: 0.25, shadowRadius: 12, elevation: 5 },
-        };
-        
-        return {
-          shadowColor: '#000000',
-          shadowOffset: { width: 0, height: 2 },
-          ...shadows[shadowIntensity],
-        };
-      };
-      
-      if (isLiquidGlassSupported) {
-        // For glass effect, add border and shadow to improve visibility
-        const shouldAddBorder = forceBorder || isLightTint;
-        
-        return {
-          borderWidth: shouldAddBorder ? 1 : 0.5,
-          borderColor: borderColor || (isLightTint 
-            ? 'rgba(0, 0, 0, 0.15)' // Dark border for light/white tints
-            : 'rgba(255, 255, 255, 0.2)'), // Light border for dark tints
-          ...(isLightTint || forceBorder ? getShadowStyle() : {}),
-        };
-      }
+  const isLightTint = React.useMemo(
+    () => isWhiteOrLightColor(resolvedTintColor),
+    [resolvedTintColor],
+  );
 
-      // Fallback style when liquid glass is not supported
-      let backgroundColor = tintColor;
-      if (!backgroundColor) {
-        backgroundColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 1)';
-      }
+  const surfaceStyle = React.useMemo(() => {
+    if (isLiquidGlassSupported) {
+      return buildGlassSurfaceStyle({
+        borderColor,
+        isLightTint,
+        forceBorder,
+        shadowIntensity,
+      });
+    }
 
-      let computedBorderColor = borderColor;
-      if (!computedBorderColor) {
-        if (tintColor) {
-          computedBorderColor = isLightTint ? 'rgba(0, 0, 0, 0.15)' : `${tintColor}40`;
-        } else {
-          computedBorderColor = isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)';
-        }
-      }
+    return buildFallbackSurfaceStyle({
+      tintColor: resolvedTintColor,
+      isDark,
+      borderColor,
+      isLightTint,
+    });
+  }, [
+    borderColor,
+    forceBorder,
+    isDark,
+    isLightTint,
+    resolvedTintColor,
+    shadowIntensity,
+  ]);
+
+  const buttonStyle = React.useMemo(
+    () => ({
+      ...baseButtonStyle,
+      ...sizeStyle,
+      ...surfaceStyle,
+    }),
+    [baseButtonStyle, sizeStyle, surfaceStyle],
+  );
+
+  const useIosGlass = Platform.OS === 'ios' && isLiquidGlassSupported;
+
+  const textColor = React.useMemo(
+    () =>
+      computeTextColor({
+        disabled,
+        tintColor: resolvedTintColor,
+        isDark,
+        themeColors: theme.colors,
+        useIosGlass,
+      }),
+    [disabled, resolvedTintColor, isDark, theme.colors, useIosGlass],
+  );
+
+  const buttonTextStyle = React.useMemo<TextStyle>(
+    () => {
+      const typography =
+        size === 'small'
+          ? theme.typography.buttonSmall
+          : theme.typography.button;
 
       return {
-        backgroundColor,
-        borderWidth: 1,
-        borderColor: computedBorderColor,
-        // ...getShadowStyle(),
+        ...typography,
+        color: textColor,
       };
-    };
+    },
+    [size, textColor, theme.typography],
+  );
 
-    return {
-      ...baseStyle,
-      ...sizeStyles[size],
-      ...getGlassStyle(),
-    };
-  };
-
-  const getTextStyle = (): TextStyle => {
-    const baseStyle: TextStyle = {
-      ...(size === 'small' ? theme.typography.buttonSmall : theme.typography.button),
-    };
-
-    const getTextColor = () => {
-      if (disabled) {
-        return theme.colors.textSecondary;
-      }
-      
-      if (Platform.OS === 'ios' && isLiquidGlassSupported) {
-        // For white/light glass on white background, use darker text for contrast
-        if (isWhiteOrLightColor(tintColor)) {
-          return theme.colors.text; // Use primary text color for better contrast
-        }
-        // Fallback if PlatformColor is not available in test env
-        return typeof PlatformColor === 'function'
-          ? PlatformColor('labelColor')
-          : (isDark ? theme.colors.white : theme.colors.text);
-      }
-      
-      // For fallback, determine text color based on tint color or theme
-      if (tintColor) {
-        // For light/white backgrounds, use dark text; for dark backgrounds, use white text
-        return isWhiteOrLightColor(tintColor) ? theme.colors.text : theme.colors.white;
-      }
-      
-      return isDark ? theme.colors.white : theme.colors.text;
-    };
-
-    return {
-      ...baseStyle,
-      color: getTextColor(),
-    };
-  };
+  const loadingColor = React.useMemo(
+    () =>
+      computeLoadingColor({
+        tintColor: resolvedTintColor,
+        isDark,
+        themeColors: theme.colors,
+        useIosGlass,
+      }),
+    [isDark, theme.colors, resolvedTintColor, useIosGlass],
+  );
 
   const getButtonContent = () => {
     if (customContent) {
       return customContent;
     }
 
-    const getLoadingColor = () => {
-      if (Platform.OS === 'ios' && isLiquidGlassSupported) {
-        // For white/light glass, use darker spinner
-        if (isWhiteOrLightColor(tintColor)) {
-          return theme.colors.text;
-        }
-        // Fallback if PlatformColor is not available in test env
-        return typeof PlatformColor === 'function'
-          ? PlatformColor('labelColor')
-          : (isDark ? theme.colors.white : theme.colors.text);
-      }
-      if (tintColor) {
-        return isWhiteOrLightColor(tintColor) ? theme.colors.text : theme.colors.white;
-      }
-      return isDark ? theme.colors.white : theme.colors.text;
-    };
-
     return (
       <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'center'}}>
         {loading && (
           <ActivityIndicator
             size="small"
-            color={getLoadingColor()}
+            color={loadingColor}
             style={{marginRight: theme.spacing['2']}}
           />
         )}
@@ -271,7 +439,7 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
         )}
         
         {title && (
-          <Text style={[getTextStyle(), textStyle]}>{title}</Text>
+          <Text style={[buttonTextStyle, textStyle]}>{title}</Text>
         )}
         
         {rightIcon && (
@@ -289,11 +457,11 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
   if (Platform.OS === 'ios' && isLiquidGlassSupported) {
     return (
       <LiquidGlassView
-        style={[getButtonStyle(), style]}
+        style={[buttonStyle, style]}
         interactive={interactive && !disabled && !loading}
         effect={glassEffect}
-        tintColor={tintColor}
-        colorScheme={colorScheme}>
+        tintColor={resolvedTintColor}
+        colorScheme={resolvedColorScheme}>
         <TouchableOpacity
           style={{
             width: '100%',
@@ -314,7 +482,7 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
   // Fallback for when liquid glass is not supported
   return (
     <TouchableOpacity
-      style={[getButtonStyle(), style]}
+      style={[buttonStyle, style]}
       onPress={onPress}
       disabled={disabled || loading}
       activeOpacity={0.7}>

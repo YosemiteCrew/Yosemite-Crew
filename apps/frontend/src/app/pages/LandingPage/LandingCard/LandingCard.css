@@ -1,0 +1,154 @@
+.landingSection {
+  min-height: 100vh;
+  padding: 0px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.landingContainer {
+  padding: 80px;
+  max-width: 1560px;
+}
+.landingSection .LandingData {
+  display: flex;
+  justify-content: space-between;
+  padding: 80px 0px;
+  gap: 20px;
+}
+.landingSection .LandingData .LeftLanding {
+  display: flex;
+  flex-direction: column;
+  gap: 120px;
+  padding: 20px 0px;
+  width: 40%;
+}
+.landingSection .landingTop span {
+  font-family: var(--grotesk-font);
+  color: var(--blue-text);
+  font-size: 33px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 120%;
+  letter-spacing: -0.66px;
+}
+
+.landingSection .LandingData .LeftLanding .landingTexed {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.landingSection .LandingData .LeftLanding .landingTexed .landinginnerTexed {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.landingSection .LandingData .LeftLanding .landingTexed .landinginnerTexed h2 {
+  margin: 0;
+  font-size: 57px;
+  font-weight: 500;
+  font-family: var(--grotesk-font);
+  line-height: 120%;
+  color: var(--black-text);
+}
+.landingSection .LandingData .LeftLanding .landingTexed .landinginnerTexed p {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 400;
+  font-family: var(--satoshi-font);
+  line-height: 120%;
+  color: var(--black-text);
+}
+.landingSection .LandingData .RightLanding {
+  width: 60%;
+}
+.landingSection .LandingData .RightLanding img {
+  height: auto;
+  width: 100%;
+}
+
+@media screen and (max-width: 1280px) {
+  .landingContainer {
+    padding: 32px 48px;
+  }
+  .landingSection .LandingData {
+    flex-direction: column-reverse;
+    align-items: center;
+    gap: 16px;
+    padding: 0px;
+  }
+  .landingSection .landingTop span {
+    padding: 0px 20px;
+  }
+  .landingSection .LandingData .LeftLanding {
+    gap: 60px;
+    width: 80%;
+    padding: 0px 0px;
+  }
+  .landingSection .LandingData .RightLanding {
+    display: flex;
+    gap: 16px;
+    flex-direction: column;
+    width: 100%;
+  }
+  .landingSection .LandingData .RightLanding img {
+    height: auto;
+    width: 100%;
+  }
+  .landingSection .LandingData .LeftLanding .landingTexed {
+    width: 100%;
+    align-items: center;
+    gap: 16px;
+  }
+  .landingSection .LandingData .LeftLanding .landingTexed br {
+    display: none;
+  }
+  .landingSection
+    .LandingData
+    .LeftLanding
+    .landingTexed
+    .landinginnerTexed
+    h2 {
+    text-align: center;
+    font-size: 40px;
+  }
+  .landingSection .LandingData .LeftLanding .landingTexed .landinginnerTexed p {
+    text-align: center;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .landingSection {
+    padding: 0px 0px;
+    min-height: auto;
+  }
+  .landingContainer {
+    padding: 24px 16px;
+  }
+  .landingSection .landingTop span {
+    padding: 0px 15px;
+    font-size: 19px;
+  }
+  .landingSection .LandingData {
+    gap: 16px;
+  }
+  .landingSection .LandingData .LeftLanding {
+    padding: 0px 20px;
+    width: 100%;
+  }
+  .landingSection .LandingData .LeftLanding .landingTexed {
+    gap: 16px;
+  }
+  .landingSection
+    .LandingData
+    .LeftLanding
+    .landingTexed
+    .landinginnerTexed
+    h2 {
+    font-size: 28px;
+  }
+  .landingSection .LandingData .LeftLanding .landingTexed .landinginnerTexed p {
+    font-size: 15px;
+    line-height: 160%;
+  }
+}

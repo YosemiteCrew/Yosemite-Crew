@@ -106,13 +106,13 @@ const SignUp = () => {
       const result = await signUp(email, password, selectedType);
 
       if (result) {
-        if (typeof globalThis.window !== "undefined") {
+        if (globalThis.window) {
           window.scrollTo({ top: 0, behavior: "smooth" });
         }
         setShowVerifyModal(true);
       }
     } catch (error: any) {
-      if (typeof globalThis.window !== "undefined") {
+      if (globalThis.window) {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
       const status = error.code === "UsernameExistsException" ? 409 : undefined;

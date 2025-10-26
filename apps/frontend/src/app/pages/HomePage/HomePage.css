@@ -1,20 +1,40 @@
 /* HomeHeroSection started  */
 .HomeHeroSection {
-  padding: 80px 0px;
   display: flex;
   align-items: center;
+  justify-content: center;
 }
-.HomeHeroSection .HeroData {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+.Container {
+  padding: 32px 80px;
+  max-width: 1560px;
+  width: 100%;
+  display: flex;
   align-items: center;
+  justify-content: center;
 }
-.HomeHeroSection .HeroData .LeftHeroDiv {
+.HomeHeroData {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+  justify-content: space-between;
+}
+.LeftHeroDiv {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 18px;
+  width: 45%;
 }
-.LeftHeroDiv .herotext h1 {
+.RightHeroDiv {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 55%;
+}
+.RytHeroDiv img {
+  width: 100%;
+  height: auto;
+}
+.herotext h1 {
   font-size: 48px;
   font-weight: 500;
   line-height: 120%;
@@ -29,12 +49,12 @@
   position: relative;
   margin: 0;
 }
-.LeftHeroDiv .herotext .first {
+.first {
   animation:
     type 1.5s steps(90) 0s 1 normal both,
-    cursor 1s step-end infinite;
+    cursor 1s step-end infinite !important;
 }
-.LeftHeroDiv .herotext .second {
+.second {
   animation:
     type 1.5s steps(90) 1.5s 1 normal both,
     cursor 1s step-end infinite; /* Delay for the second h1 */
@@ -49,12 +69,12 @@
   }
 }
 
-.LeftHeroDiv .heroPara {
+.heroPara {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
-.LeftHeroDiv .heroPara .paraitem p {
+.paraitem p {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -65,11 +85,10 @@
   color: var(--black-text);
   margin: 0;
 }
-.LeftHeroDiv .HeroBtn {
+.HeroBtn {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding-top: 40px;
 }
 a.Fillbtn {
   background: var(--black-bg);
@@ -111,6 +130,44 @@ a.UnFillbtn {
   }
 }
 
+@media screen and (max-width: 1280px) {
+  .Container {
+    padding: 32px 48px;
+  }
+  .HomeHeroData {
+    gap: 20px;
+  }
+  .herotext h1 {
+    font-size: 33px;
+  }
+}
+@media screen and (max-width: 1024px) {
+  .HomeHeroData {
+    gap: 32px;
+    flex-direction: column;
+  }
+  .LeftHeroDiv {
+    width: 100%;
+  }
+  .RightHeroDiv {
+    width: 100%;
+  }
+}
+@media screen and (max-width: 768px) {
+  .Container {
+    padding: 32px 16px;
+  }
+  .LeftHeroDiv {
+    gap: 12px;
+  }
+  .herotext h1 {
+    font-size: 23px;
+  }
+  .paraitem p {
+    font-size: 15px;
+    line-height: 160%;
+  }
+}
 @media screen and (max-width: 640px) {
   a.Fillbtn {
     padding: 14px 24px;
@@ -125,66 +182,88 @@ a.UnFillbtn {
 /* PracticedSection Started  */
 
 .PracticedSection {
-  padding: 80px 0px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .PracticedData {
   display: flex;
   flex-direction: column;
   gap: 28px;
+  width: 100%;
 }
 .PractHeading h2 {
   font-family: var(--grotesk-font);
-  font-size: 40px;
+  font-size: 48px;
   font-weight: 500;
   line-height: 120%;
   color: var(--black-text);
+  width: 40%;
 }
 .Practice_Box_Data {
+  width: 100%;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  grid-gap: 24px 20px;
-  padding: 20px 0px;
+  grid-gap: 26px;
+  justify-items: center;
 }
-.PracBox {
-  background: var(--whitebg);
-  border: 1px solid var(--lightgrey);
-  width: 100%;
-  max-width: 305px;
-  border-radius: 36px;
-  min-height: 309px;
-  padding: 28px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  align-items: flex-start;
+@media screen and (max-width: 1280px) {
+  .PractHeading h2 {
+    font-size: 33px;
+    text-align: center;
+    width: 100%;
+  }
+  .Practice_Box_Data {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 18px;
+  }
 }
-.PracBox h4 {
-  font-family: var(--grotesk-font);
-  font-size: 26px;
-  font-weight: 500;
-  line-height: 120%;
-  color: var(--black-text);
-  margin: 0;
-  padding-top: 15px;
+@media screen and (max-width: 1024px) {
+  .Practice_Box_Data {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .HomeHeroData {
+    gap: 32px;
+    flex-direction: column;
+  }
+  .LeftHeroDiv {
+    width: 100%;
+  }
+  .RightHeroDiv {
+    width: 100%;
+  }
 }
-.PracBox p {
-  font-family: var(--satoshi-font);
-  font-size: 16px;
-  font-weight: 400;
-  line-height: 120%;
-  color: var(--black-text);
-  margin: 0;
-  opacity: 80%;
+@media screen and (max-width: 768px) {
+  .PractHeading h2 {
+    font-size: 23px;
+    text-align: center;
+    width: 100%;
+  }
+}
+@media screen and (max-width: 640px) {
+  .Practice_Box_Data {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media screen and (max-width: 450px) {
+  .Practice_Box_Data {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 /* PracticedSection Ended  */
 
 /* FocusSection Started */
 
+.FocusSection {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 .FocusData {
   display: flex;
   flex-direction: column;
   gap: 28px;
+  width: 100%;
 }
 .FocusTexted {
   display: flex;
@@ -198,14 +277,14 @@ a.UnFillbtn {
 }
 .FocusTexted h2 {
   font-family: var(--grotesk-font);
-  font-size: 40px;
+  font-size: 48px;
   font-weight: 500;
   line-height: 120%;
   color: var(--black-text);
   margin: 0;
 }
 .FocusTexted p {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 400;
   line-height: 120%;
   color: var(--black-text);
@@ -216,47 +295,53 @@ a.UnFillbtn {
 .Focus_data {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  grid-gap: 30px 20px;
+  grid-gap: 40px;
   padding: 10px 0px;
 }
-.FocusItem {
-  background: var(--whitebg);
-  border: 1px solid var(--lightgrey);
-  box-shadow: 0px 0px 8px 0px #247aed14;
-  width: 100%;
-  max-width: 415px;
-  border-radius: 28px;
-  min-height: 309px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-  gap: 32px;
+@media screen and (max-width: 1280px) {
+  .FocusTexted h2 {
+    font-size: 33px;
+  }
+  .Focus_data {
+    grid-gap: 18px;
+    grid-template-columns: repeat(5, 1fr);
+  }
 }
-.focusText {
-  max-width: 377px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+@media screen and (max-width: 1024px) {
+  .Focus_data {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
-.focusText h4 {
-  font-family: var(--grotesk-font);
-  font-size: 28px;
-  font-weight: 500;
-  line-height: 120%;
-  color: var(--black-text);
-  margin: 0;
+@media screen and (max-width: 840px) {
+  .Focus_data {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
-.focusText p {
-  font-size: 16px;
-  font-weight: 400;
-  line-height: 120%;
-  color: var(--pureblack);
-  margin: 0;
-  opacity: 80%;
-  font-family: var(--satoshi-font);
+@media screen and (max-width: 768px) {
+  .FocusTexted {
+    min-width: 100%;
+  }
+  .FocusTexted h2 {
+    font-size: 23px;
+  }
+  .FocusTexted p {
+    font-size: 13px;
+    max-width: 328px;
+  }
+  .Focus_data {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+@media screen and (max-width: 640px) {
+  .Focus_data {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media screen and (max-width: 450px) {
+  .Focus_data {
+    grid-template-columns: repeat(2, 1fr);
+    justify-items: center;
+  }
 }
 /* FocusSection ended  */
 
@@ -381,60 +466,111 @@ a.UnFillbtn {
 /* WhoCareSection Started  */
 
 .WhoCareSection {
-  padding: 50px 0px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .whocareData {
   display: grid;
   grid-template-columns: 1fr 1fr;
   align-items: center;
+  padding: 48px 0px;
+  width: 100%;
 }
 .whocareData .lftcare {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
 }
 .whocareData .lftcare h2 {
   font-family: var(--grotesk-font);
+  color: var(--black-text);
   margin: 0;
   font-weight: 500;
-  font-size: 40px;
+  font-size: 48px;
   line-height: 120%;
+  max-width: 432px;
 }
 .whocareData .lftcare p {
   font-family: var(--satoshi-font);
+  color: var(--black-text);
   margin: 0;
   font-weight: 400;
   font-size: 18px;
   line-height: 120%;
-  max-width: 422px;
 }
 .whocareData .rytcare {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 20px;
-  flex-direction: column;
-}
-.whocareData .rytcare p {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 120%;
-  color: var(--black-text);
-  opacity: 70%;
-}
-.whocareData .rytcare .carelog {
-  display: flex;
-  gap: 20px;
-  align-items: center;
   justify-content: space-evenly;
   width: 100%;
+}
+@media screen and (max-width: 1280px) {
+  .whocareData {
+    padding: 0px 0px;
+  }
+  .whocareData .lftcare h2 {
+    font-size: 33px;
+    max-width: 300px;
+  }
+  .rytcare img:nth-child(1) {
+    height: 84px;
+    width: 84px;
+  }
+  .rytcare img:nth-child(2) {
+    height: 84px;
+    width: 84px;
+  }
+  .rytcare img:nth-child(3) {
+    height: 96px;
+    width: 84px;
+  }
+  .rytcare img:nth-child(4) {
+    height: 36px;
+    width: 150px;
+  }
+}
+@media screen and (max-width: 1024px) {
+  .whocareData {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  .whocareData .lftcare h2 {
+    text-align: center;
+    width: 100%;
+    max-width: none;
+  }
+  .whocareData .lftcare p {
+    text-align: center;
+  }
+  .whocareData .rytcare {
+    justify-content: center;
+    gap: 24px;
+  }
+}
+@media screen and (max-width: 768px) {
+  .whocareData .lftcare {
+    gap: 4px;
+  }
+  .whocareData .lftcare h2 {
+    font-size: 23px;
+  }
+  .whocareData .lftcare p {
+    font-size: 15px;
+    line-height: 160%;
+  }
+  .whocareData .rytcare {
+    gap: 16px;
+    flex-wrap: wrap;
+  }
 }
 
 /* WhoCareSection Ended   */
 
 .BetterCareSec {
-  padding: 100px 0px 200px 0px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .BettercareBox {
   width: 100%;
@@ -447,6 +583,8 @@ a.UnFillbtn {
   box-shadow: 0px 0px 8px 0px #55413414;
   border: 1px solid var(--lightgrey);
   border-radius: 38px;
+  gap: 20px;
+  margin-bottom: 20px;
 }
 .lftbetter {
   display: flex;
@@ -454,19 +592,19 @@ a.UnFillbtn {
   justify-content: center;
 }
 .betInner {
-  max-width: 422px;
   display: flex;
   align-items: flex-start;
   flex-direction: column;
-  gap: 52px;
+  gap: 18px;
+  padding: 0px 33px;
 }
 .betInner .careText {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 2px;
 }
 .betInner h2 {
-  font-size: 40px;
+  font-size: 48px;
   font-weight: 500;
   margin: 0;
   font-family: var(--grotesk-font);
@@ -482,4 +620,38 @@ a.UnFillbtn {
 }
 .lftbetter img {
   width: 100%;
+  object-fit: cover;
+}
+@media screen and (max-width: 1280px) {
+  .betInner h2 {
+    font-size: 33px;
+  }
+  .betInner p {
+    font-size: 13px;
+  }
+}
+@media screen and (max-width: 1024px) {
+  .BettercareBox {
+    grid-template-columns: 1fr;
+  }
+  .betInner {
+    padding: 24px 16px;
+  }
+  .lftbetter img {
+    height: 346px;
+  }
+}
+@media screen and (max-width: 768px) {
+  .BettercareBox {
+    gap: 0px;
+  }
+  .betInner h2 {
+    font-size: 23px;
+  }
+  .betInner {
+    gap: 12px;
+  }
+  .lftbetter img {
+    height: 246px;
+  }
 }

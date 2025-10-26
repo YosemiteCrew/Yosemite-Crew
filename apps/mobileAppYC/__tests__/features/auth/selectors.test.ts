@@ -7,6 +7,15 @@ import {
 } from '@/features/auth/selectors';
 import type {RootState} from '@/app/store';
 import type {AuthState, User} from '@/features/auth/types';
+import type {ExpensesState} from '@/features/expenses';
+
+const createMockExpensesState = (): ExpensesState => ({
+  items: [],
+  loading: false,
+  error: null,
+  summaries: {},
+  hydratedCompanions: {},
+});
 
 const createMockState = (authState: Partial<AuthState>): RootState => ({
   auth: {
@@ -36,8 +45,9 @@ const createMockState = (authState: Partial<AuthState>): RootState => ({
     error: null,
     uploadProgress: 0,
   },
+  expenses: createMockExpensesState(),
   _persist: {
-    version: 1,
+    version: 2,
     rehydrated: true,
   },
 } as RootState);

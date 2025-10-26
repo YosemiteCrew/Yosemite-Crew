@@ -26,6 +26,11 @@ interface InputProps extends TextInputProps {
   errorStyle?: TextStyle;
   icon?: React.ReactNode;
   onIconPress?: () => void;
+  /**
+   * Additional left offset applied only to the placeholder text so that
+   * the placeholder can be visually indented without shifting the entered text.
+   */
+  placeholderOffset?: number;
 }
 
 export const Input: React.FC<InputProps> = ({
@@ -41,6 +46,7 @@ export const Input: React.FC<InputProps> = ({
   onChangeText,
   icon,
   onIconPress,
+  placeholderOffset,
   ...textInputProps
 }) => {
   const { theme } = useTheme();
@@ -146,10 +152,21 @@ export const Input: React.FC<InputProps> = ({
     height: undefined,
   });
 
+  // We no longer adjust the TextInput padding for placeholderOffset.
+  // Instead we shift the floating label's absolute left position when
+  // the label is in the placeholder state. This gives visual offset
+  // for the placeholder text without affecting entered text alignment.
+  const effectivePlaceholderOffset = placeholderOffset ?? 0;
+
   const getFloatingLabelStyle = () => {
     const baseStyle = {
       position: 'absolute' as const,
-      left: 20,
+      // left will be animated between placeholder position (20 + offset)
+      // when not floated and the regular left (20) when floated.
+      left: animatedValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: [20 + effectivePlaceholderOffset, 20],
+      }),
       fontFamily: theme.typography.input.fontFamily,
       fontWeight: theme.typography.input.fontWeight,
       fontSize: animatedValue.interpolate({

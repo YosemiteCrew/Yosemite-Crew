@@ -1,21 +1,34 @@
-.RedefiningSection .RederfiningData {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+.HeroSection {
+  min-height: 100vh;
+  padding: 0px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.RedefiningSection .RederfiningData .leftRederfine {
+.HeroContainer {
+  display: flex;
+  max-width: 1560px;
+  height: 100%;
+  align-items: center;
+}
+
+
+.LeftHeroSection {
   height: 100%;
   display: flex;
+  align-items: center;
+  justify-content: center;
   flex-direction: column;
-  gap: 40px;
-  max-width: 487px;
-  padding-top: 150px;
+  gap: 20px;
+  padding: 32px 80px;
+  width: 50%;
 }
-.RedefiningSection .RederfiningData .leftRederfine .RederfineTextInner {
+.LeftHeroText {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
-.RedefiningSection .RederfiningData .leftRederfine .RederfineTextInner h2 {
+.LeftHeroText h2 {
   font-weight: 500;
   font-size: 57px;
   font-family: var(--grotesk-font);
@@ -23,7 +36,7 @@
   margin: 0;
   color: var(--black-text);
 }
-.RedefiningSection .RederfiningData .leftRederfine .RederfineTextInner p {
+.LeftHeroText p {
   font-weight: 400;
   font-size: 18px;
   font-family: var(--satoshi-font);
@@ -31,40 +44,33 @@
   margin: 0;
   color: var(--black-text);
 }
-.RedefiningSection .RederfiningData .leftRederfine .RederfineInnerBtn {
+.LeftHeroButtons {
+  display: flex;
+  width: 100%;
+  gap: 20px;
+}
+
+
+.RightHeroSection {
+  width: 50%;
+  height: 100%;
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
 }
-.RedefiningSection .RederfiningData .RightRederfine {
-  max-width: 720px;
-  box-shadow: -16px 0px 40px 0px #9a8a784d;
-}
-.RedefiningSection .RederfiningData .RightRederfine .LandingCarouselDiv {
+.LandingCarouselDiv {
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 20px;
+  height: 100%;
 }
-.RedefiningSection .RederfiningData .RightRederfine .LandingCarouselDiv img {
+.LandingCarouselDiv img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-.RedefiningSection
-  .RederfiningData
-  .RightRederfine
-  .LandingCarouselDiv
-  .carousel-text {
-  padding: 20px;
-  min-height: 170px;
-  background: var(--whitebg);
-}
-.RedefiningSection
-  .RederfiningData
-  .RightRederfine
-  .LandingCarouselDiv
-  .carousel-text
-  h4 {
+.carousel-text h4 {
   font-weight: 500;
   font-size: 24px;
   font-family: var(--grotesk-font);
@@ -72,7 +78,7 @@
   margin: 0;
   color: var(--black-text);
 }
-.RightRederfine .carousel .carousel-indicators {
+.carousel-indicators {
   position: absolute;
   right: 0;
   bottom: 68px;
@@ -84,7 +90,7 @@
   align-items: center;
   gap: 8px;
 }
-.RightRederfine .carousel .carousel-indicators button {
+.carousel-indicators button {
   width: 8px !important;
   height: 8px !important;
   border-radius: 50% !important;
@@ -92,11 +98,11 @@
   border: none !important;
   margin: 0 !important;
 }
-.RightRederfine .carousel .carousel-indicators button.active {
+.carousel-indicators button.active {
   background: var(--black-bg) !important;
 }
-.RightRederfine .carousel .carousel-control-next,
-.RightRederfine .carousel .carousel-control-prev {
+.carousel-control-next,
+.carousel-control-prev {
   position: absolute;
   top: inherit;
   bottom: 50px !important;
@@ -107,129 +113,99 @@
   width: 48px !important;
   height: 48px !important;
 }
-.RightRederfine .carousel .carousel-control-prev {
+.carousel-control-prev {
   right: 110px !important;
 }
-.RightRederfine .carousel .carousel-control-next {
+.carousel-control-next {
   right: 50px !important;
 }
-.RightRederfine .carousel .custom-arrow svg {
+.custom-arrow svg {
   color: var(--greyborder);
 }
-
 .carousel-img {
   object-fit: cover;
   border-radius: 8px;
 }
-
 .carousel-text {
   text-align: left;
   font-size: 16px;
   font-weight: 500;
   color: #1a2130;
+  padding: 20px;
   padding: 15px 10px 10px 0;
+  min-height: 170px;
+  background: var(--whitebg);
 }
-
-/* move caption BELOW the image */
 .carousel-caption {
   position: static !important;
   padding: 0 !important;
   text-align: left !important;
 }
-
-/* pagination dots */
 .carousel-indicators [data-bs-target] {
   background-color: #1a2130;
   width: 8px;
   height: 8px;
   border-radius: 50%;
 }
-
-/* arrows */
 .carousel-control-prev-icon,
 .carousel-control-next-icon {
   filter: invert(1);
 }
 
+@media screen and (max-width: 1280px) {
+  .LeftHeroSection {
+    padding: 32px 48px;
+  }
+  .LeftHeroText h2 {
+    font-size: 40px;
+  }
+}
 @media screen and (max-width: 1024px) {
-  .RedefiningSection .RederfiningData {
-    gap: 20px;
+  .HeroContainer {
+    flex-direction: column;
   }
-  .RedefiningSection .RederfiningData .leftRederfine {
-    padding-top: 60px;
+  .LeftHeroSection {
+    width: 100%;
+    gap: 16px;
   }
-  .RedefiningSection .RederfiningData .leftRederfine .RederfineTextInner {
-    align-items: center;
+  .RightHeroSection {
+    width: 100%;
   }
-  .RedefiningSection .RederfiningData .leftRederfine .RederfineTextInner h2 {
+  .LeftHeroText h2 {
     font-size: 40px;
     text-align: center;
   }
-  .RedefiningSection .RederfiningData .leftRederfine .RederfineTextInner p {
-    font-size: 18px;
+  .LeftHeroText p {
     text-align: center;
   }
-  .RedefiningSection
-    .RederfiningData
-    .RightRederfine
-    .LandingCarouselDiv
-    .carousel-text {
-    padding: 10px;
+  .LeftHeroButtons {
+    justify-content: center;
   }
 }
 
 @media screen and (max-width: 768px) {
-  .RedefiningSection .RederfiningData {
-    gap: 20px;
-    grid-template-columns: 1fr;
-    grid-auto-flow: row;
+  .LeftHeroSection {
+    padding: 24px 16px;
   }
-  .RedefiningSection .RederfiningData .leftRederfine {
-    padding-top: 10px;
-    padding-bottom: 60px;
-    max-width: 100%;
-    align-items: center;
-    gap: 20px;
+  .LeftHeroText h2 {
+    font-size: 28px;
   }
-  .RedefiningSection .RederfiningData .RightRederfine {
-    grid-column: 1 /2;
-    grid-row: 1;
-    box-shadow: 0px 0px 0px 0px #9a8a784d;
-    background-color: var(--light-blue);
-  }
-  .RedefiningSection .RederfiningData .LeftRederfine {
-    grid-column: 1 /2;
-    grid-row: 2;
-  }
-  .RedefiningSection
-    .RederfiningData
-    .RightRederfine
-    .LandingCarouselDiv
-    .carousel-text {
-    padding: 10px;
-    background-color: var(--light-blue);
+  .LeftHeroText p {
+    font-size: 15px;
+    line-height: 160%;
   }
 }
+
 @media screen and (max-width: 640px) {
-  #customContainer {
-    padding: 0px 0px !important;
-  }
-  .RedefiningSection .RederfiningData .leftRederfine {
-    padding: 0px 20px;
-    padding-bottom: 60px;
-  }
-  .RedefiningSection .RederfiningData .leftRederfine .RederfineInnerBtn {
+  .LeftHeroButtons {
     flex-direction: column;
+    align-items: center;
+    gap: 8px;
   }
-  .RedefiningSection .RederfiningData .leftRederfine .RederfineTextInner h2 {
-    font-size: 28px;
-    text-align: center;
+  .LeftHeroButtons a {
+    width: 100% !important;
   }
-  .RedefiningSection .RederfiningData .leftRederfine .RederfineTextInner p {
-    font-size: 15px;
-    text-align: center;
-  }
-  .RightRederfine .carousel .carousel-indicators {
+  .carousel-indicators {
     position: absolute;
     right: 0;
     bottom: 45px;
@@ -241,12 +217,12 @@
     align-items: center;
     gap: 8px;
   }
-  .RightRederfine .carousel .custom-arrow svg {
+  .custom-arrow svg {
     height: 36px;
     width: 36px;
   }
-  .RightRederfine .carousel .carousel-control-next,
-  .RightRederfine .carousel .carousel-control-prev {
+  .carousel-control-next,
+  .carousel-control-prev {
     position: absolute;
     top: inherit;
     bottom: 30px !important;
@@ -257,194 +233,10 @@
     width: 36px !important;
     height: 36px !important;
   }
-  .RightRederfine .carousel .carousel-control-prev {
+  .carousel-control-prev {
     right: 80px !important;
   }
-  .RightRederfine .carousel .carousel-control-next {
+  .carousel-control-next {
     right: 40px !important;
-  }
-}
-
-.landingSection {
-  min-height: 100vh;
-  padding: 80px 0px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.landingSection .LandingData {
-  display: flex;
-  justify-content: space-between;
-}
-.landingSection .LandingData .LeftLanding {
-  display: flex;
-  flex-direction: column;
-  gap: 120px;
-}
-.landingSection .LandingData .LeftLanding .landingTop span {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--black-bg);
-  border-radius: 40px;
-  padding: 20px 24px;
-  min-height: 63px;
-  background: transparent;
-  color: var(--black-text);
-  font-size: 19px;
-  font-weight: 500;
-  font-family: var(--grotesk-font);
-  line-height: 120%;
-}
-
-.landingSection .LandingData .LeftLanding .landingTexed {
-  display: flex;
-  flex-direction: column;
-  gap: 40px;
-  max-width: 388px;
-}
-.landingSection .LandingData .LeftLanding .landingTexed a {
-  display: flex;
-  align-items: center;
-  justify-content: left;
-  gap: 8px;
-  padding: 16px 32px;
-  min-height: 60px;
-  background: var(--black-bg);
-  color: var(--white-text);
-  width: fit-content;
-  border-radius: 50px;
-  min-width: 160px;
-  font-size: 23px;
-  font-weight: 500;
-  font-family: var(--grotesk-font);
-  line-height: 120%;
-  transition: 0.3s;
-  border: 1px solid var(--black-bg);
-  &:hover {
-    background: var(--black-hover);
-  }
-}
-
-.landingSection .LandingData .LeftLanding .landingTexed .landinginnerTexed {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-.landingSection .LandingData .LeftLanding .landingTexed .landinginnerTexed h2 {
-  margin: 0;
-  font-size: 38px;
-  font-weight: 500;
-  font-family: var(--grotesk-font);
-  line-height: 120%;
-  color: var(--black-text);
-}
-.landingSection .LandingData .LeftLanding .landingTexed .landinginnerTexed p {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 400;
-  font-family: var(--satoshi-font);
-  line-height: 120%;
-  color: var(--black-text);
-}
-.landingSection .LandingData .RightLanding img {
-  height: auto;
-  max-width: 100%;
-}
-.OpacityBlueSec {
-  background: var(--opacityBlue);
-  border-radius: 40px 40px 0px 0px;
-}
-.DarkBlueSec {
-  background: var(--light-blue);
-  border-radius: 40px 40px 0px 0px;
-}
-.DarkLightBlueSec {
-  background: var(--darklight-blue);
-}
-.landingSection .LandingData .RightLanding .landingTop-Mobile span {
-  display: none;
-}
-
-@media screen and (max-width: 1280px) {
-  .landingSection .LandingData {
-    flex-direction: column-reverse;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .landingSection .LandingData .LeftLanding {
-    gap: 60px;
-  }
-  .landingSection .LandingData .LeftLanding .landingTop {
-    display: none;
-  }
-  .landingSection .LandingData .RightLanding {
-    display: flex;
-    gap: 16px;
-    flex-direction: column;
-  }
-  .landingSection .LandingData .RightLanding .landingTop-Mobile {
-    width: 100%;
-    padding: 0px 20px;
-  }
-  .landingSection .LandingData .RightLanding .landingTop-Mobile span {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid var(--black-bg);
-    border-radius: 40px;
-    padding: 12px 24px;
-    min-height: 48px;
-    width: fit-content;
-    background: transparent;
-    color: var(--black-text);
-    font-size: 19px;
-    font-weight: 500;
-    font-family: var(--grotesk-font);
-    line-height: 120%;
-  }
-  .landingSection .LandingData .LeftLanding .landingTexed {
-    max-width: 100%;
-    width: 100%;
-    align-items: center;
-  }
-  .landingSection .LandingData .LeftLanding .landingTexed br {
-    display: none;
-  }
-  .landingSection
-    .LandingData
-    .LeftLanding
-    .landingTexed
-    .landinginnerTexed
-    h2 {
-    text-align: center;
-  }
-  .landingSection .LandingData .LeftLanding .landingTexed .landinginnerTexed p {
-    text-align: center;
-  }
-}
-
-@media screen and (max-width: 768px) {
-  .landingSection {
-    padding: 60px 0px;
-    min-height: auto;
-  }
-  .landingSection .LandingData .LeftLanding {
-    padding: 0px 20px;
-  }
-  .landingSection .LandingData .LeftLanding .landingTexed {
-    gap: 24px;
-  }
-  .landingSection
-    .LandingData
-    .LeftLanding
-    .landingTexed
-    .landinginnerTexed
-    h2 {
-    font-size: 28px;
-  }
-  .landingSection .LandingData .LeftLanding .landingTexed .landinginnerTexed p {
-    font-size: 15px;
   }
 }

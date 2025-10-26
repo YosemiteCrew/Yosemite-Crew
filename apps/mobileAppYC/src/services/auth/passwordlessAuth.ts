@@ -1,3 +1,4 @@
+import 'react-native-get-random-values';
 import {
   confirmSignIn,
   fetchAuthSession,
@@ -39,6 +40,16 @@ export type PasswordlessSignInCompletion = {
   };
 };
 
+const secureRandomInt = (max: number): number => {
+  const cryptoObj = globalThis.crypto;
+  if (!cryptoObj?.getRandomValues) {
+    throw new Error('Secure random number generator is unavailable');
+  }
+  const buffer = new Uint32Array(1);
+  cryptoObj.getRandomValues(buffer);
+  return buffer[0] % max;
+};
+
 const randomPassword = () => {
   const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
   const lower = 'abcdefghijkmnopqrstuvwxyz';
@@ -46,7 +57,7 @@ const randomPassword = () => {
   const symbols = '!@#$%^&*()-_=+';
   const all = `${upper}${lower}${digits}${symbols}`;
 
-  const pick = (source: string) => source.charAt(Math.floor(Math.random() * source.length));
+  const pick = (source: string) => source.charAt(secureRandomInt(source.length));
 
   const requiredChars = [pick(upper), pick(lower), pick(digits), pick(symbols)];
   const remainingLength = 14 - requiredChars.length;
@@ -55,7 +66,7 @@ const randomPassword = () => {
   }
 
   for (let i = requiredChars.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = secureRandomInt(i + 1);
     [requiredChars[i], requiredChars[j]] = [requiredChars[j], requiredChars[i]];
   }
 
@@ -135,6 +146,29 @@ const parsePasswordlessError = (error: unknown) => {
   return 'Unexpected authentication error. Please retry.';
 };
 
+const isNoActiveSessionError = (error: unknown): boolean => {
+  if (error instanceof AuthError) {
+    return (
+      error.name === 'AuthSessionNotSetError' ||
+      error.name === 'UserNotAuthenticatedException' ||
+      error.name === 'UserUnAuthenticatedException' ||
+      error.name === 'NotAuthorizedException'
+    );
+  }
+
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+    return (
+      message.includes('there is no current user') ||
+      message.includes('no current user') ||
+      message.includes('user is not authenticated') ||
+      message.includes('user needs to be authenticated to call this api')
+    );
+  }
+
+  return false;
+};
+
 export const requestPasswordlessEmailCode = async (
   email: string,
 ): Promise<PasswordlessSignInRequestResult> => {
@@ -150,8 +184,13 @@ export const requestPasswordlessEmailCode = async (
       await signOutEverywhere();
     }
   } catch (error) {
-    // No existing session, continue with sign in
-    console.log('[Auth] No existing session found, proceeding with sign in');
+    if (isNoActiveSessionError(error)) {
+      // No existing session, continue with sign in
+      console.log('[Auth] No existing session found, proceeding with sign in');
+    } else {
+      console.error('[Auth] Unexpected error while checking current user', error);
+      throw error;
+    }
   }
 
   try {

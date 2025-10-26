@@ -3,8 +3,8 @@ import React from "react";
 import { usePathname } from "next/navigation";
 
 import { useAuthStore } from "@/app/stores/authStore";
-import PublicHeader from "./PublicHeader";
-import PrivateHeader from "./PrivateHeader";
+import GuestHeader from "./GuestHeader/GuestHeader";
+import UserHeader from "./UserHeader/UserHeader";
 
 import "./Header.css";
 
@@ -28,14 +28,14 @@ const Header = () => {
   if (publicRoutes.has(pathname)) {
     return (
       <header className="header">
-        <PublicHeader />
+        <GuestHeader />
       </header>
     );
   }
 
   return (
     <header className="header">
-      {user ? <PrivateHeader /> : <PublicHeader />}
+      {user ? <UserHeader /> : <GuestHeader />}
     </header>
   );
 };

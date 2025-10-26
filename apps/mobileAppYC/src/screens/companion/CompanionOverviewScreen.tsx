@@ -1,13 +1,12 @@
-import React, {useMemo, useRef, useState, useCallback} from 'react';
+import React, {useMemo, useRef, useState, useCallback, useEffect} from 'react';
 import {
   View,
   Text,
-  Image,
   ScrollView,
-  TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
   Alert,
+  BackHandler,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
@@ -16,9 +15,10 @@ import {useDispatch, useSelector} from 'react-redux';
 import type {AppDispatch} from '@/app/store';
 
 import {Header} from '@/components';
-import {LiquidGlassCard} from '@/components/common/LiquidGlassCard/LiquidGlassCard';
-import {Images} from '@/assets/images';
 import {useTheme} from '@/hooks';
+import {capitalize, displayNeutered, displayInsured, displayOrigin} from '@/utils/commonHelpers';
+import {createFormScreenStyles} from '@/utils/formScreenStyles';
+import {Separator, RowButton} from '@/components/common/FormRowComponents';
 
 import {
   selectSelectedCompanion,
@@ -68,7 +68,8 @@ import {
 } from '@/components/common/SimpleDatePicker/SimpleDatePicker';
 
 // Profile Image Picker
-import {ProfileImagePicker} from '@/components/common/ProfileImagePicker/ProfileImagePicker';
+import {CompanionProfileHeader} from '@/components/companion/CompanionProfileHeader';
+import type {ProfileImagePickerRef} from '@/components/common/ProfileImagePicker/ProfileImagePicker';
 
 // Types
 import type {
@@ -110,7 +111,10 @@ export const CompanionOverviewScreen: React.FC<
   const originSheetRef = useRef<OriginBottomSheetRef>(null);
 
   // Profile image picker ref
-  const profileImagePickerRef = useRef<{ triggerPicker: () => void }>(null);
+  const profileImagePickerRef = useRef<ProfileImagePickerRef | null>(null);
+
+  // Track which bottom sheet is open
+  const [openBottomSheet, setOpenBottomSheet] = useState<'breed' | 'blood' | 'country' | 'gender' | 'neutered' | 'insured' | 'origin' | null>(null);
 
   // Helpers
   const goBack = useCallback(() => {
@@ -121,7 +125,7 @@ export const CompanionOverviewScreen: React.FC<
 
   const applyPatch = useCallback(
     async (patch: Partial<Companion>) => {
-      if (!safeCompanion) return;
+      if (safeCompanion == null) return;
 
       try {
         console.log('[CompanionOverview] Applying patch:', patch);
@@ -168,7 +172,51 @@ export const CompanionOverviewScreen: React.FC<
     [applyPatch],
   );
 
-  if (!safeCompanion) {
+  // Handle Android back button for bottom sheets and date picker
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      // Close date picker first if open
+      if (showDobPicker) {
+        setShowDobPicker(false);
+        return true;
+      }
+
+      // Close bottom sheet first if open
+      if (openBottomSheet) {
+        switch (openBottomSheet) {
+          case 'breed':
+            breedSheetRef.current?.close();
+            break;
+          case 'blood':
+            bloodSheetRef.current?.close();
+            break;
+          case 'country':
+            countrySheetRef.current?.close();
+            break;
+          case 'gender':
+            genderSheetRef.current?.close();
+            break;
+          case 'neutered':
+            neuteredSheetRef.current?.close();
+            break;
+          case 'insured':
+            insuredSheetRef.current?.close();
+            break;
+          case 'origin':
+            originSheetRef.current?.close();
+            break;
+        }
+        setOpenBottomSheet(null);
+        return true;
+      }
+
+      return false;
+    });
+
+    return () => backHandler.remove();
+  }, [showDobPicker, openBottomSheet]);
+
+  if (safeCompanion == null) {
     return (
       <SafeAreaView style={styles.container}>
         <Header title="Overview" showBackButton onBack={goBack} />
@@ -183,6 +231,11 @@ export const CompanionOverviewScreen: React.FC<
     );
   }
 
+  const currentWeightDisplay =
+    safeCompanion.currentWeight === null || safeCompanion.currentWeight === undefined
+      ? ''
+      : `${safeCompanion.currentWeight} kg`;
+
   return (
     <SafeAreaView style={styles.container}>
       <Header
@@ -194,28 +247,13 @@ export const CompanionOverviewScreen: React.FC<
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
-        {/* Header block */}
-        <View style={styles.profileHeader}>
-          <View style={styles.avatarContainer}>
-            <ProfileImagePicker
-              ref={profileImagePickerRef}
-              imageUri={safeCompanion.profileImage}
-              onImageSelected={handleProfileImageChange}
-              size={100}
-              pressable={false}
-              fallbackText={safeCompanion.name.charAt(0).toUpperCase()}
-            />
-            <TouchableOpacity style={styles.cameraIconContainer} onPress={() => {
-              profileImagePickerRef.current?.triggerPicker();
-            }}>
-              <Image source={Images.cameraIcon} style={styles.cameraIcon} />
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.profileName}>{safeCompanion.name}</Text>
-          <Text style={styles.profileBreed}>
-            {safeCompanion.breed?.breedName ?? 'Unknown Breed'}
-          </Text>
-        </View>
+        <CompanionProfileHeader
+          name={safeCompanion.name}
+          breedName={safeCompanion.breed?.breedName}
+          profileImage={safeCompanion.profileImage ?? undefined}
+          pickerRef={profileImagePickerRef}
+          onImageSelected={handleProfileImageChange}
+        />
 
         {/* Card with rows */}
         <LiquidGlassCard
@@ -238,7 +276,10 @@ export const CompanionOverviewScreen: React.FC<
             <RowButton
               label="Breed"
               value={safeCompanion.breed?.breedName ?? ''}
-              onPress={() => breedSheetRef.current?.open()}
+              onPress={() => {
+                setOpenBottomSheet('breed');
+                breedSheetRef.current?.open();
+              }}
             />
 
             <Separator />
@@ -262,27 +303,26 @@ export const CompanionOverviewScreen: React.FC<
               value={
                 safeCompanion.gender ? capitalize(safeCompanion.gender) : ''
               }
-              onPress={() => genderSheetRef.current?.open()}
+              onPress={() => {
+                setOpenBottomSheet('gender');
+                genderSheetRef.current?.open();
+              }}
             />
 
             <Separator />
 
             {/* Current weight – Inline (kg) */}
-            {/* Current weight – Inline (kg) */}
             <InlineEditRow
               label="Current weight"
-              value={
-                safeCompanion.currentWeight != null
-                  ? `${safeCompanion.currentWeight} kg`
-                  : ''
-              }
+              value={currentWeightDisplay}
               keyboardType="decimal-pad"
               onSave={val => {
                 // Remove any non-numeric or unit text like "kg"
-                const cleaned = val.replace(/[^0-9.]/g, '').trim();
+                const cleaned = val.replaceAll(/[^0-9.]/g, '').trim();
                 const num = cleaned === '' ? null : Number(cleaned);
                 applyPatch({
-                  currentWeight: isNaN(num as number) ? null : (num as number),
+                  currentWeight:
+                    num === null || Number.isNaN(num) ? null : num,
                 });
               }}
             />
@@ -312,7 +352,10 @@ export const CompanionOverviewScreen: React.FC<
             <RowButton
               label="Neutered status"
               value={displayNeutered(safeCompanion.neuteredStatus)}
-              onPress={() => neuteredSheetRef.current?.open()}
+              onPress={() => {
+                setOpenBottomSheet('neutered');
+                neuteredSheetRef.current?.open();
+              }}
             />
 
             {safeCompanion.neuteredStatus === 'neutered' && (
@@ -332,7 +375,10 @@ export const CompanionOverviewScreen: React.FC<
             <RowButton
               label="Blood group"
               value={safeCompanion.bloodGroup ?? ''}
-              onPress={() => bloodSheetRef.current?.open()}
+              onPress={() => {
+                setOpenBottomSheet('blood');
+                bloodSheetRef.current?.open();
+              }}
             />
 
             <Separator />
@@ -359,7 +405,10 @@ export const CompanionOverviewScreen: React.FC<
             <RowButton
               label="Insurance status"
               value={displayInsured(safeCompanion.insuredStatus)}
-              onPress={() => insuredSheetRef.current?.open()}
+              onPress={() => {
+                setOpenBottomSheet('insured');
+                insuredSheetRef.current?.open();
+              }}
             />
 
             {safeCompanion.insuredStatus === 'insured' && (
@@ -387,7 +436,10 @@ export const CompanionOverviewScreen: React.FC<
             <RowButton
               label="Country of origin"
               value={safeCompanion.countryOfOrigin ?? ''}
-              onPress={() => countrySheetRef.current?.open()}
+              onPress={() => {
+                setOpenBottomSheet('country');
+                countrySheetRef.current?.open();
+              }}
             />
 
             <Separator />
@@ -396,7 +448,10 @@ export const CompanionOverviewScreen: React.FC<
             <RowButton
               label="My pet comes from"
               value={displayOrigin(safeCompanion.origin)}
-              onPress={() => originSheetRef.current?.open()}
+              onPress={() => {
+                setOpenBottomSheet('origin');
+                originSheetRef.current?.open();
+              }}
             />
           </View>
         </LiquidGlassCard>
@@ -412,14 +467,20 @@ export const CompanionOverviewScreen: React.FC<
           []
         }
         selectedBreed={safeCompanion.breed ?? null}
-        onSave={(b: Breed | null) => applyPatch({breed: b})}
+        onSave={(b: Breed | null) => {
+          applyPatch({breed: b});
+          setOpenBottomSheet(null);
+        }}
       />
 
       <BloodGroupBottomSheet
         ref={bloodSheetRef}
         selectedBloodGroup={safeCompanion.bloodGroup ?? null}
         category={safeCompanion.category}
-        onSave={(bg: string | null) => applyPatch({bloodGroup: bg})}
+        onSave={(bg: string | null) => {
+          applyPatch({bloodGroup: bg});
+          setOpenBottomSheet(null);
+        }}
       />
 
       <CountryBottomSheet
@@ -428,15 +489,19 @@ export const CompanionOverviewScreen: React.FC<
         selectedCountry={getSelectedCountryObject(
           safeCompanion.countryOfOrigin,
         )}
-        onSave={country =>
-          applyPatch({countryOfOrigin: country ? country.name : null})
-        }
+        onSave={country => {
+          applyPatch({countryOfOrigin: country ? country.name : null});
+          setOpenBottomSheet(null);
+        }}
       />
 
       <GenderBottomSheet
         ref={genderSheetRef}
         selected={safeCompanion.gender as CompanionGender | null}
-        onSave={g => applyPatch({gender: g})}
+        onSave={g => {
+          applyPatch({gender: g});
+          setOpenBottomSheet(null);
+        }}
       />
 
       <NeuteredStatusBottomSheet
@@ -446,6 +511,7 @@ export const CompanionOverviewScreen: React.FC<
           const patch: Partial<Companion> = {neuteredStatus: n};
           if (n !== 'neutered') patch.ageWhenNeutered = null; // reset dependent
           applyPatch(patch);
+          setOpenBottomSheet(null);
         }}
       />
 
@@ -459,13 +525,17 @@ export const CompanionOverviewScreen: React.FC<
             patch.insurancePolicyNumber = null;
           }
           applyPatch(patch);
+          setOpenBottomSheet(null);
         }}
       />
 
       <OriginBottomSheet
         ref={originSheetRef}
         selected={safeCompanion.origin as CompanionOrigin | null}
-        onSave={o => applyPatch({origin: o})}
+        onSave={o => {
+          applyPatch({origin: o});
+          setOpenBottomSheet(null);
+        }}
       />
 
       <SimpleDatePicker
@@ -485,74 +555,10 @@ export const CompanionOverviewScreen: React.FC<
   );
 };
 
-/* ----------------- Small shared pieces ----------------- */
-const Separator = () => {
-  const {theme} = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
-  return (
-    <View style={styles.separator} />
-  );
-};
+import {LiquidGlassCard} from '@/components/common/LiquidGlassCard/LiquidGlassCard';
 
-const RowButton: React.FC<{
-  label: string;
-  value?: string;
-  onPress: () => void;
-}> = ({label, value, onPress}) => {
-  const {theme} = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
-  return (
-    <TouchableOpacity
-      style={styles.rowButtonTouchable}
-      activeOpacity={0.8}
-      onPress={onPress}>
-      <Text style={styles.rowButtonLabel}>
-        {label}
-      </Text>
-      <Text
-        style={styles.rowButtonValue}
-        numberOfLines={1}>
-        {value || ' '}
-      </Text>
-      <Image
-        source={Images.rightArrow}
-        style={styles.rowButtonArrow}
-      />
-    </TouchableOpacity>
-  );
-};
-
-function capitalize(s?: string | null) {
-  if (!s) return '';
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-function displayNeutered(v?: NeuteredStatus | null) {
-  if (!v) return '';
-  return v === 'neutered' ? 'Neutered' : 'Not neutered';
-}
-
-function displayInsured(v?: InsuredStatus | null) {
-  if (!v) return '';
-  return v === 'insured' ? 'Insured' : 'Not insured';
-}
-
-function displayOrigin(v?: CompanionOrigin | null) {
-  switch (v) {
-    case 'shop':
-      return 'Shop';
-    case 'breeder':
-      return 'Breeder';
-    case 'foster-shelter':
-      return 'Foster/ Shelter';
-    case 'friends-family':
-      return 'Friends or family';
-    case 'unknown':
-      return 'Unknown';
-    default:
-      return '';
-  }
-}
+// Helper functions moved to @/utils/commonHelpers:
+// - capitalize, displayNeutered, displayInsured, displayOrigin
 
 // Use same util as AddCompanionScreen if exported; otherwise fallback safe helper here.
 function getBreedListByCategorySafe(category: any): Breed[] {
@@ -577,105 +583,13 @@ function getBreedListByCategorySafe(category: any): Breed[] {
 
 function getSelectedCountryObject(countryName?: string | null) {
     const COUNTRIES = require('@/utils/countryList.json');
-    if (!countryName) return null;
+    if (countryName == null || countryName === '') {
+      return null;
+    }
     return COUNTRIES.find((c: any) => c.name === countryName) ?? null;
 }
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    centered: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    content: {
-      paddingHorizontal: theme.spacing[5],
-      paddingBottom: theme.spacing[10],
-    },
-    profileHeader: {
-      alignItems: 'center',
-      marginVertical: theme.spacing[6],
-    },
-    avatarContainer: {
-      position: 'relative',
-    },
-    avatar: {
-      width: 100,
-      height: 100,
-      borderRadius: 50,
-      backgroundColor: theme.colors.border,
-    },
-    cameraIconContainer: {
-      position: 'absolute',
-      bottom: 0,
-      right: 0,
-      backgroundColor: theme.colors.secondary,
-      padding: theme.spacing[2],
-      borderRadius: theme.borderRadius.full,
-      borderWidth: 2,
-      borderColor: theme.colors.background,
-    },
-    cameraIcon: {
-      width: 16,
-      height: 16,
-      tintColor: theme.colors.white,
-    },
-    profileName: {
-      ...theme.typography.h4Alt,
-      color: theme.colors.secondary,
-      marginTop: theme.spacing[4],
-    },
-    profileBreed: {
-      ...theme.typography.bodySmall,
-      color: theme.colors.textSecondary,
-      marginTop: theme.spacing[1],
-    },
-    glassContainer: {
-      borderRadius: theme.borderRadius.lg,
-      paddingVertical: theme.spacing[2],
-      overflow: 'hidden',
-      ...theme.shadows.md,
-    },
-    glassFallback: {
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.cardBackground,
-      borderColor: theme.colors.borderMuted,
-    },
-    listContainer: {
-      gap: theme.spacing[1],
-    },
-    muted: {
-      ...theme.typography.body,
-      color: theme.colors.textSecondary,
-    },
-    separator: {
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.borderSeperator,
-      marginLeft: 16,
-    },
-    rowButtonTouchable: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: theme.spacing[3],
-      paddingHorizontal: theme.spacing[3],
-    },
-    rowButtonLabel: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.secondary,
-      flex: 1,
-    },
-    rowButtonValue: {
-      ...theme.typography.bodySmall,
-      color: theme.colors.textSecondary,
-      marginRight: theme.spacing[3],
-    },
-    rowButtonArrow: {
-      width: 16,
-      height: 16,
-      resizeMode: 'contain',
-    },
+    ...createFormScreenStyles(theme),
   });

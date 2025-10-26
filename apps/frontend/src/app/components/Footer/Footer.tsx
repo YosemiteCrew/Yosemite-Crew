@@ -12,41 +12,32 @@ const footerLinks = [
     title: "Developers",
     links: [
       {
-        label: "Getting Started",
-        href: "https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/README.md",
+        label: "Developer portal",
+        href: "https://github.com/YosemiteCrew/Yosemite-Crew/",
       },
       {
         label: "Contributing",
         href: "https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md",
       },
-      // { label: "Documentation", href: "https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/README.md" },
-      // { label: "Search", href: "#" }
     ],
   },
   {
     title: "Community",
     links: [
-      // { label: "Case Studies", href: "#" },
       { label: "Discord", href: "https://discord.gg/4zDVekEz" },
-      // { label: "Storybook", href: "#" },
       {
         label: "GitHub",
         href: "https://github.com/YosemiteCrew/Yosemite-Crew",
       },
-      // { label: "Contributing", href: "#" }
     ],
   },
   {
     title: "Company",
     links: [
       { label: "About us", href: "/about" },
-      // { label: "Security", href: "#" },
-      { label: "Terms of Service", href: "/terms-and-conditions" },
-      { label: "Privacy Policy", href: "/privacy-policy" },
+      { label: "Terms and conditions", href: "/terms-and-conditions" },
+      { label: "Privacy policy", href: "/privacy-policy" },
       { label: "Pricing", href: "/pricing" },
-      // { label: "Enterprise", href: "#" },
-      // { label: "Careers", href: "#" },
-      // { label: "Blog", href: "/blogpage" },
     ],
   },
 ];
@@ -87,14 +78,14 @@ const Footer = () => {
                   aria-hidden
                   src="https://d2il6osz49gpup.cloudfront.net/Logo.png"
                   alt="Yosemite Crew Logo"
-                  width={105}
-                  height={96}
+                  width={90}
+                  height={83}
                 />
               </Link>
               <div className="ClientLogo" aria-label="Certifications">
                 <Image
                   aria-hidden
-                  src="https://d2il6osz49gpup.cloudfront.net/Images/ftlog1.png"
+                  src="https://d2il6osz49gpup.cloudfront.net/footer/gdpr.png"
                   alt="GDPR"
                   width={55}
                   height={56}
@@ -102,7 +93,7 @@ const Footer = () => {
                 />
                 <Image
                   aria-hidden
-                  src="https://d2il6osz49gpup.cloudfront.net/Images/ftlog2-2.png"
+                  src="https://d2il6osz49gpup.cloudfront.net/footer/soc-2.png"
                   alt="SOC2"
                   width={56}
                   height={56}
@@ -110,16 +101,16 @@ const Footer = () => {
                 />
                 <Image
                   aria-hidden
-                  src="https://d2il6osz49gpup.cloudfront.net/Images/ftlog3.png"
-                  alt="HL7 FHIR"
+                  src="https://d2il6osz49gpup.cloudfront.net/footer/iso.png"
+                  alt="ISO"
                   width={54}
                   height={60}
                   className="iso-footer"
                 />
                 <Image
                   aria-hidden
-                  src="https://d2il6osz49gpup.cloudfront.net/Images/ftlog4.png"
-                  alt="ISO 27001"
+                  src="https://d2il6osz49gpup.cloudfront.net/footer/fhir.png"
+                  alt="FHIR"
                   width={117}
                   height={28}
                   className="fhir-footer"
@@ -165,10 +156,10 @@ const Footer = () => {
                 Mainz
                 <br />
                 email:{" "}
-                <a href="mailto:support@yosemitecrew.com">
+                <a className="Bootom_Foot_Focus" href="mailto:support@yosemitecrew.com">
                   support@yosemitecrew.com
                 </a>{" "}
-                , phone: <a href="tel:+4915227763275">+49 152 277 63275</a>
+                , phone: <a className="Bootom_Foot_Focus" href="tel:+4915227763275">+49 152 277 63275</a>
               </p>
               <p>
                 Geschaftsfuhrer: Ankit Upadhyay Amtsgerichts Mainz unter HRB
@@ -180,6 +171,6 @@ const Footer = () => {
       </Container>
     </motion.footer>
   );
-}
+};
 
 export default Footer;

@@ -27,15 +27,30 @@ exports[`GenderBottomSheet matches snapshot 1`] = `
         }
       }
     >
-      <Text
+      <View
         style={
           {
-            "color": undefined,
+            "alignItems": "center",
+            "flex": 1,
+            "justifyContent": "center",
+            "paddingRight": 32,
           }
         }
       >
-        Select Gender
-      </Text>
+        <Text
+          style={
+            {
+              "color": "#000",
+              "fontSize": 26,
+              "fontWeight": "500",
+              "lineHeight": 33.800000000000004,
+              "textAlign": "center",
+            }
+          }
+        >
+          Select Gender
+        </Text>
+      </View>
     </View>
     <View
       style={
@@ -134,7 +149,7 @@ exports[`GenderBottomSheet matches snapshot 1`] = `
               <Text
                 style={
                   {
-                    "color": undefined,
+                    "color": "#000",
                     "flex": 1,
                   }
                 }
@@ -194,7 +209,7 @@ exports[`GenderBottomSheet matches snapshot 1`] = `
               <Text
                 style={
                   {
-                    "color": undefined,
+                    "color": "#000",
                     "flex": 1,
                   }
                 }

@@ -1,26 +1,13 @@
 /* eslint-disable react-native/no-inline-styles */
 import React, {useState} from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Image,
-  TouchableOpacity,
-  DeviceEventEmitter,
-} from 'react-native';
+import {View, Text, StyleSheet, Image, TouchableOpacity} from 'react-native';
 import {SafeArea} from '../../components/common';
 import {LiquidGlassButton} from '../../components/common/LiquidGlassButton/LiquidGlassButton';
-import {useTheme} from '../../hooks';
+import {useTheme, useSocialAuth, type SocialProvider} from '@/hooks';
 import {Images} from '../../assets/images';
 import {useAuth} from '@/contexts/AuthContext';
-import {
-  signInWithSocialProvider,
-  type SocialProvider,
-} from '@/services/auth/socialAuth';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import type {AuthStackParamList} from '../../navigation/AuthNavigator';
-import { PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT } from '@/config/variables';
 
 // Icon components
 const EmailIcon = () => (
@@ -62,9 +49,21 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
   const styles = createStyles(theme);
   const {login} = useAuth();
   const [socialError, setSocialError] = useState('');
-  const [activeSocialProvider, setActiveSocialProvider] =
-    useState<SocialProvider | null>(null);
-  const isSocialLoading = activeSocialProvider !== null;
+  const {activeProvider, isSocialLoading, handleSocialAuth} = useSocialAuth({
+    onStart: () => {
+      setSocialError('');
+    },
+    onExistingProfile: async result => {
+      await login(result.user, result.tokens);
+    },
+    onNewProfile: async createAccountPayload => {
+      navigation.reset({
+        index: 0,
+        routes: [{name: 'CreateAccount', params: createAccountPayload}],
+      });
+    },
+    genericErrorMessage: 'We couldn’t complete the sign up. Kindly retry.',
+  });
 
   const handleSignUp = () => {
     navigation.navigate('SignIn');
@@ -74,60 +73,23 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
     navigation.navigate('SignIn');
   };
 
-  const handleSocialAuth = async (provider: SocialProvider) => {
-    if (activeSocialProvider) {
-      return;
-    }
-
-    setSocialError('');
-    setActiveSocialProvider(provider);
-
+  const attemptSocialAuth = async (provider: SocialProvider) => {
     try {
-      const result = await signInWithSocialProvider(provider);
-
-      if (result.profile.exists) {
-        await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
-        DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
-        await login(result.user, result.tokens);
-        return;
-      }
-
-      const createAccountPayload: AuthStackParamList['CreateAccount'] = {
-        email: result.user.email,
-        userId: result.user.id,
-        profileToken: result.profile.profileToken,
-        tokens: result.tokens,
-        initialAttributes: {
-          firstName: result.initialAttributes.firstName,
-          lastName: result.initialAttributes.lastName,
-          profilePicture: result.initialAttributes.profilePicture,
-        },
-      };
-
-      await AsyncStorage.setItem(
-        PENDING_PROFILE_STORAGE_KEY,
-        JSON.stringify(createAccountPayload),
-      );
-      DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
-
-      navigation.reset({
-        index: 0,
-        routes: [{name: 'CreateAccount', params: createAccountPayload}],
-      });
-    } catch (error: any) {
-      // Show a short, generic message for cancellations and errors
-      const isCancelled = error?.code === 'auth/cancelled' || /cancel/i.test(String(error?.message ?? ''));
-      setSocialError(isCancelled ? 'Kindly retry.' : 'We couldn’t complete the sign up. Kindly retry.');
-    } finally {
-      setActiveSocialProvider(null);
+      await handleSocialAuth(provider);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'We couldn’t complete the sign up. Kindly retry.';
+      setSocialError(message);
     }
   };
 
-  const handleGoogleSignUp = () => handleSocialAuth('google');
+  const handleGoogleSignUp = () => attemptSocialAuth('google');
 
-  const handleFacebookSignUp = () => handleSocialAuth('facebook');
+  const handleFacebookSignUp = () => attemptSocialAuth('facebook');
 
-  const handleAppleSignUp = () => handleSocialAuth('apple');
+  const handleAppleSignUp = () => attemptSocialAuth('apple');
 
   return (
     <SafeArea style={styles.container}>
@@ -170,7 +132,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
               shadowIntensity="medium" // Adds more shadow for visibility
               forceBorder={true}
               leftIcon={<GoogleIcon />}
-              loading={activeSocialProvider === 'google'}
+              loading={activeProvider === 'google'}
               disabled={isSocialLoading}
             />
 
@@ -183,7 +145,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
               height={56}
               borderRadius="lg"
               leftIcon={<FacebookIcon />}
-              loading={activeSocialProvider === 'facebook'}
+              loading={activeProvider === 'facebook'}
               disabled={isSocialLoading}
             />
 
@@ -196,7 +158,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
               height={56}
               borderRadius="lg"
               leftIcon={<AppleIcon />}
-              loading={activeSocialProvider === 'apple'}
+              loading={activeProvider === 'apple'}
               disabled={isSocialLoading}
             />
           </View>
