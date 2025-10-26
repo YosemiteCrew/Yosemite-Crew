@@ -46,6 +46,10 @@ export const UserOrganizationController = {
 
             res.status(200).json(resource)
         } catch (error) {
+            if (error instanceof UserOrganizationServiceError) {
+                res.status(error.statusCode).json({ message: error.message })
+                return
+            }
             logger.error('Failed to retrieve user-organization mapping', error)
             res.status(500).json({ message: 'Unable to retrieve user-organization mapping.' })
         }
@@ -79,6 +83,10 @@ export const UserOrganizationController = {
 
             res.status(200).json({ message: 'Mapping deleted successfully.' })
         } catch (error) {
+            if (error instanceof UserOrganizationServiceError) {
+                res.status(error.statusCode).json({ message: error.message })
+                return
+            }
             logger.error('Failed to delete user-organization mapping', error)
             res.status(500).json({ message: 'Unable to delete user-organization mapping.' })
         }

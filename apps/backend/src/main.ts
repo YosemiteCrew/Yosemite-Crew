@@ -21,35 +21,29 @@ app.use(`/fhir/v1/parent`, parentRouter);
 app.use(`/fhir/v1/user-organization`, userOrganizationRouter);
 app.use(`/fhir/v1/user`, userRouter);
 
-async function startServer() {
-  try {
-    let mongoUri: string;
+let mongoUri: string;
 
-    if (process.env.USE_INMEMORY_DB === "true") {
-      logger.info("Starting in-memory MongoDB...");
-      const mongod = await MongoMemoryServer.create(
-        {
-          instance: { 
-            dbName: "yosemitecrew",
-            port: 27017  // You can specify a port if needed
-          },
-        }
-      );
-      mongoUri = mongod.getUri();
-    } else {
-      mongoUri = process.env.MONGODB_URI || "mongodb://localhost:27017/yosemitecrew";
-    }
-
-    await mongoose.connect(mongoUri);
-    logger.info(`connected to MongoDB at ${mongoUri}`);
-
-    app.listen(PORT, () => {
-      logger.info(`Server is running on port ${PORT}`);
+try {
+  if (process.env.USE_INMEMORY_DB === "true") {
+    logger.info("Starting in-memory MongoDB...");
+    const mongod = await MongoMemoryServer.create({
+      instance: {
+        dbName: "yosemitecrew",
+        port: 27017,
+      },
     });
-  } catch (err) {
-    logger.error("Failed to connect to MongoDB", err);
-    process.exit(1);
+    mongoUri = mongod.getUri();
+  } else {
+    mongoUri = process.env.MONGODB_URI || "mongodb://localhost:27017/yosemitecrew";
   }
-}
 
-void startServer();
+  await mongoose.connect(mongoUri);
+  logger.info(`Connected to MongoDB at ${mongoUri}`);
+
+  app.listen(PORT, () => {
+    logger.info(`Server is running on port ${PORT}`);
+  });
+} catch (err) {
+  logger.error("Failed to connect to MongoDB", err);
+  process.exit(1);
+}

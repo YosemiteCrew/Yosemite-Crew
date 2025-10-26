@@ -1,6 +1,6 @@
 // middlewares/upload.js
 import AWS from 'aws-sdk';
-import path from 'path';
+import path from 'node:path';
 import sanitizeFilename from 'sanitize-filename';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -10,8 +10,8 @@ interface UploadedFile {
   data: Buffer;
 }
 
-const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'application/pdf']
-
+const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'application/pdf']);
+const isAllowedMimeType = (mimeType: string) => ALLOWED_MIME_TYPES.has(mimeType);
 // Configure AWS S3
 const s3 = new AWS.S3({
     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -66,7 +66,7 @@ async function handleFileUpload(file: UploadedFile, folderName: string): Promise
             throw new Error('No file uploaded.');
         }
 
-        if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+        if (!isAllowedMimeType(file.mimetype)) {
             throw new Error('Unsupported file type.');
         }
 
@@ -119,18 +119,18 @@ async function uploadBufferAsFile(
 ): Promise<FileUploadResult> {
     const { folderName, mimeType, originalName } = options
 
-    if (!ALLOWED_MIME_TYPES.includes(mimeType)) {
+    if (!isAllowedMimeType) {
         throw new Error('Unsupported file type.');
     }
 
     const safeOriginal = sanitizeFilename(originalName ?? 'file') || 'file'
     const extension = path.extname(safeOriginal) || mimeTypeToExtension(mimeType)
     const fileName = `${folderName}/${uuidv4()}${extension}`
-    const originalnameWithExtension = extension
-        ? safeOriginal.endsWith(extension)
-            ? safeOriginal
-            : `${safeOriginal}${extension}`
-        : safeOriginal
+    let originalnameWithExtension = safeOriginal;
+    
+    if (extension && !safeOriginal.endsWith(extension)) {
+    originalnameWithExtension = `${safeOriginal}${extension}`;
+    }
     const { location, key } = await uploadToS3(fileName, buffer, mimeType)
 
     return {
@@ -155,10 +155,8 @@ async function deleteFromS3(s3Key: string) {
       try {
         const headObject = await s3.headObject(deleteParams).promise();
         return headObject;
-        // console.log('S3 File Found:', headObject);
-      } catch (headErr) {
-        console.error("S3 File Not Found:", headErr);
-        // return res.status(404).json({ message: "File not found in S3" });
+      } catch (error) {
+        console.error("S3 File Not Found:", error);
       }
 }
 
