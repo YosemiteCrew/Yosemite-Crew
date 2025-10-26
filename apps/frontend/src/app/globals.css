@@ -91,7 +91,7 @@
 :root {
   --black-text: #302f2e;
   --black-bg: #302f2e;
-  --black-hover: #1d1c1b;
+  --black-hover: #1A1A19;
   --darkblackbg: #141413;
   --blck: #333333;
   --lightblack: #312943;
@@ -160,7 +160,7 @@ body {
   background-color: var(--whitebg) !important;
 }
 .bodywrapper {
-  padding-top: 100px;
+  padding-top: 80px;
 }
 @media screen and (min-width: 1024px) {
   .bodywrapper {

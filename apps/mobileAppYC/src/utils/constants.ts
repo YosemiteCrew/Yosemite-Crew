@@ -8,11 +8,13 @@ export const STORAGE_KEYS = {
 
 // Legacy regex patterns - DEPRECATED due to ReDoS vulnerabilities
 // Use the validation functions below instead
-export const REGEX_PATTERNS = {
-  EMAIL: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-  PHONE: /^\+?[\d\s\-()]+$/,
-  PASSWORD: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{8,}$/,
-} as const;
+type SafePattern = {
+  test: (value: string) => boolean;
+};
+
+const createSafePattern = (validator: (value: string) => boolean): SafePattern => ({
+  test: (value: string) => validator(value),
+});
 
 /**
  * Safe email validation without ReDoS vulnerability
@@ -36,7 +38,7 @@ export const isValidEmail = (email: string): boolean => {
   }
 
   // Ensure only one @ symbol
-  if (email.indexOf('@', atIndex + 1) !== -1) {
+  if (email.slice(atIndex + 1).includes('@')) {
     return false;
   }
 
@@ -67,7 +69,7 @@ export const isValidPhone = (phone: string): boolean => {
 
   // Check if starts with optional +
   let index = 0;
-  if (phone[0] === '+') {
+  if (phone.startsWith('+')) {
     index = 1;
   }
 
@@ -78,8 +80,7 @@ export const isValidPhone = (phone: string): boolean => {
 
   // Check remaining characters are valid (digits, spaces, hyphens, parentheses)
   let hasDigit = false;
-  for (let i = index; i < phone.length; i++) {
-    const char = phone[i];
+  for (const char of phone.slice(index)) {
     if (char >= '0' && char <= '9') {
       hasDigit = true;
     } else if (char !== ' ' && char !== '-' && char !== '(' && char !== ')') {
@@ -102,31 +103,44 @@ export const isValidPassword = (password: string): boolean => {
   let hasLower = false;
   let hasUpper = false;
   let hasDigit = false;
+  const allowedSpecials = new Set(['@', '$', '!', '%', '*', '?', '&']);
 
-  for (let i = 0; i < password.length; i++) {
-    const char = password[i];
-    const code = char.charCodeAt(0);
+  for (const char of password) {
+    const code = char.codePointAt(0) ?? 0;
 
-    if (code >= 97 && code <= 122) {
-      // a-z
+    const isLower = code >= 97 && code <= 122;
+    if (isLower) {
       hasLower = true;
-    } else if (code >= 65 && code <= 90) {
-      // A-Z
-      hasUpper = true;
-    } else if (code >= 48 && code <= 57) {
-      // 0-9
-      hasDigit = true;
-    } else {
-      // Check if it's an allowed special character
-      const allowedSpecials = '@$!%*?&';
-      if (!allowedSpecials.includes(char) && (code < 97 || code > 122) && (code < 65 || code > 90) && (code < 48 || code > 57)) {
-        return false; // Invalid character
-      }
+      continue;
     }
+
+    const isUpper = code >= 65 && code <= 90;
+    if (isUpper) {
+      hasUpper = true;
+      continue;
+    }
+
+    const isDigit = code >= 48 && code <= 57;
+    if (isDigit) {
+      hasDigit = true;
+      continue;
+    }
+
+    if (allowedSpecials.has(char)) {
+      continue;
+    }
+
+    return false; // Invalid character
   }
 
   return hasLower && hasUpper && hasDigit;
 };
+
+export const REGEX_PATTERNS = {
+  EMAIL: createSafePattern(isValidEmail),
+  PHONE: createSafePattern(isValidPhone),
+  PASSWORD: createSafePattern(isValidPassword),
+} as const;
 
 export const companion_TYPES = [
   'Dog',

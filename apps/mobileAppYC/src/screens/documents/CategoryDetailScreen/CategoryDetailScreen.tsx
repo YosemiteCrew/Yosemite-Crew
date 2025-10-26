@@ -14,6 +14,12 @@ import type {RootState, AppDispatch} from '@/app/store';
 import type {DocumentStackParamList} from '@/navigation/types';
 import {DOCUMENT_CATEGORIES, SUBCATEGORY_ICONS} from '@/constants/documents.constants';
 import {setSelectedCompanion} from '@/features/companion';
+import {
+  createScreenContainerStyles,
+  createErrorContainerStyles,
+  createEmptyStateStyles,
+  createSearchAndSelectorStyles,
+} from '@/utils/screenStyles';
 
 type CategoryDetailNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
 type CategoryDetailRouteProp = RouteProp<DocumentStackParamList, 'CategoryDetail'>;
@@ -39,7 +45,7 @@ export const CategoryDetailScreen: React.FC = () => {
     return documents.filter(
       doc =>
         doc.category === categoryId &&
-        (!selectedCompanionId || doc.companionId === selectedCompanionId),
+        (selectedCompanionId === null || doc.companionId === selectedCompanionId),
     );
   }, [documents, categoryId, selectedCompanionId]);
 
@@ -48,22 +54,24 @@ export const CategoryDetailScreen: React.FC = () => {
     const grouped: Record<string, typeof categoryDocuments> = {};
 
     // Initialize all subcategories
-    category?.subcategories.forEach(sub => {
-      grouped[sub.id] = [];
-    });
+    if (category?.subcategories) {
+      for (const sub of category.subcategories) {
+        grouped[sub.id] = [];
+      }
+    }
 
     // Group documents by subcategory
-    categoryDocuments.forEach(doc => {
+    for (const doc of categoryDocuments) {
       if (grouped[doc.subcategory]) {
         grouped[doc.subcategory].push(doc);
       }
-    });
+    }
 
     return grouped;
   }, [category, categoryDocuments]);
 
   React.useEffect(() => {
-    if (companions.length > 0 && !selectedCompanionId) {
+    if (companions.length > 0 && selectedCompanionId === null) {
       dispatch(setSelectedCompanion(companions[0].id));
     }
   }, [companions, selectedCompanionId, dispatch]);
@@ -112,12 +120,13 @@ export const CategoryDetailScreen: React.FC = () => {
         {category.subcategories.map(subcategory => {
           const subcategoryDocs = documentsBySubcategory[subcategory.id] || [];
           const subcategoryIcon = SUBCATEGORY_ICONS[subcategory.id] || category.icon;
+          const subcategorySuffix = subcategoryDocs.length === 1 ? '' : 's';
 
           return (
             <SubcategoryAccordion
               key={subcategory.id}
               title={subcategory.label}
-              subtitle={`${subcategoryDocs.length} file${subcategoryDocs.length !== 1 ? 's' : ''}`}
+              subtitle={`${subcategoryDocs.length} file${subcategorySuffix}`}
               icon={subcategoryIcon}
               defaultExpanded={false}>
               {subcategoryDocs.length === 0 ? (
@@ -153,36 +162,8 @@ export const CategoryDetailScreen: React.FC = () => {
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    contentContainer: {
-      paddingHorizontal: theme.spacing[4],
-      paddingBottom: theme.spacing[6],
-    },
-    errorContainer: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    errorText: {
-      ...theme.typography.bodyLarge,
-      color: theme.colors.error,
-    },
-    searchBar: {
-      marginTop: theme.spacing[4],
-      marginBottom: theme.spacing[2],
-    },
-    companionSelector: {
-      marginBottom: theme.spacing[4],
-    },
-    emptyContainer: {
-      paddingVertical: theme.spacing[4],
-      alignItems: 'center',
-    },
-    emptyText: {
-      ...theme.typography.bodyMedium,
-      color: theme.colors.textSecondary,
-    },
+    ...createScreenContainerStyles(theme),
+    ...createErrorContainerStyles(theme),
+    ...createEmptyStateStyles(theme),
+    ...createSearchAndSelectorStyles(theme),
   });

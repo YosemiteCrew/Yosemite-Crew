@@ -12,7 +12,6 @@ import {
   Platform,
   DeviceEventEmitter,
   BackHandler,
-  ActivityIndicator,
 } from 'react-native';
 import {useForm, Controller} from 'react-hook-form';
 import {SafeArea, Input, Header} from '../../components/common';
@@ -29,7 +28,9 @@ import LiquidGlassButton from '@/components/common/LiquidGlassButton/LiquidGlass
 import CustomBottomSheet, {
   BottomSheetRef,
 } from '../../components/common/BottomSheet/BottomSheet';
-import {useTheme} from '../../hooks';
+import {AddressFields, type AddressFieldValues} from '@/components/forms/AddressFields';
+import {useTheme, useAddressAutocomplete} from '@/hooks';
+import {createFormScreenStyles} from '@/utils/formScreenStyles';
 import {Images} from '../../assets/images';
 import {Checkbox} from '../../components/common/Checkbox/Checkbox';
 import COUNTRIES from '../../utils/countryList.json';
@@ -39,12 +40,7 @@ import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import type {AuthStackParamList} from '../../navigation/AuthNavigator';
 import {PASSWORDLESS_AUTH_CONFIG, PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT} from '@/config/variables';
 import LocationService from '@/services/LocationService';
-import {
-  fetchPlaceDetails,
-  fetchPlaceSuggestions,
-  MissingApiKeyError,
-  type PlaceSuggestion,
-} from '@/services/maps/googlePlaces';
+import type {PlaceSuggestion} from '@/services/maps/googlePlaces';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Removed direct provider-specific signout; use global logout from AuthContext
@@ -159,16 +155,24 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     country: '',
     acceptTerms: false,
   });
-  const [addressQuery, setAddressQuery] = useState('');
-  const [addressSuggestions, setAddressSuggestions] = useState<PlaceSuggestion[]>([]);
-  const [isFetchingAddressSuggestions, setIsFetchingAddressSuggestions] = useState(false);
-  const [addressLookupError, setAddressLookupError] = useState<string | null>(null);
-  const skipNextAutocompleteRef = useRef(false);
-  const lastAutocompleteSignatureRef = useRef<string>('');
+
+  // Track which bottom sheet is open
+  const [openBottomSheet, setOpenBottomSheet] = useState<'countryMobile' | 'success' | null>(null);
+
+  const {
+    setQuery: setAddressQuery,
+    suggestions: addressSuggestions,
+    isFetching: isFetchingAddressSuggestions,
+    error: addressLookupError,
+    clearSuggestions: clearAddressSuggestions,
+    selectSuggestion: selectAddressSuggestion,
+    resetError: resetAddressError,
+  } = useAddressAutocomplete({location});
 
   const {
     control,
     handleSubmit,
+    register,
     formState: {errors},
     trigger,
     setValue,
@@ -191,6 +195,73 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     },
     mode: 'onChange',
   });
+
+  useEffect(() => {
+    register('address', {
+      required: 'Address is required',
+      minLength: {
+        value: 5,
+        message: 'Address must be at least 5 characters',
+      },
+    });
+    register('stateProvince', {
+      required: 'State/Province is required',
+      pattern: {
+        value: /^[A-Za-z\s]+$/,
+        message: 'State/Province can only contain letters and spaces',
+      },
+    });
+    register('city', {
+      required: 'City is required',
+      pattern: {
+        value: /^[A-Za-z\s]+$/,
+        message: 'City can only contain letters and spaces',
+      },
+    });
+    register('postalCode', {
+      required: 'Postal code is required',
+      pattern: {
+        value: /^[A-Za-z0-9\s-]{4,10}$/,
+        message: 'Please enter a valid postal code',
+      },
+    });
+    register('country', {
+      required: 'Country is required',
+      pattern: {
+        value: /^[A-Za-z\s]+$/,
+        message: 'Country can only contain letters and spaces',
+      },
+    });
+  }, [register]);
+
+  // Handle Android back button for bottom sheets
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      // If date picker is open, close it first
+      if (showDatePicker) {
+        setShowDatePicker(false);
+        return true;
+      }
+
+      // If any bottom sheet is open, close it first
+      if (openBottomSheet) {
+        switch (openBottomSheet) {
+          case 'countryMobile':
+            countryMobileRef.current?.close();
+            break;
+          case 'success':
+            successBottomSheetRef.current?.close();
+            break;
+        }
+        setOpenBottomSheet(null);
+        return true;
+      }
+
+      return false;
+    });
+
+    return () => backHandler.remove();
+  }, [showDatePicker, openBottomSheet]);
 
   useEffect(() => {
     let isMounted = true;
@@ -225,10 +296,12 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     }
 
     if (isOtpSuccessVisible) {
+      setOpenBottomSheet('success');
       requestAnimationFrame(() => {
         successBottomSheetRef.current?.snapToIndex(0);
       });
     } else {
+      setOpenBottomSheet(null);
       requestAnimationFrame(() => {
         successBottomSheetRef.current?.forceClose();
       });
@@ -236,11 +309,21 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
   }, [isOtpSuccessVisible]);
 
   const handleSuccessClose = useCallback(() => {
+    setOpenBottomSheet(null);
+    // Close the bottom sheet immediately, but wait to unmount it so
+    // any native backdrop/overlay has time to dismiss and stop
+    // intercepting touch events on Android devices.
     requestAnimationFrame(() => {
       successBottomSheetRef.current?.forceClose();
     });
-    setIsOtpSuccessVisible(false);
-    navigation.setParams({showOtpSuccess: false});
+
+    // Wait for the closing animation/native overlay teardown to finish
+    // before removing the bottom sheet from the tree. This prevents a
+    // lingering touch-blocking overlay on some physical Android devices.
+    setTimeout(() => {
+      setIsOtpSuccessVisible(false);
+      navigation.setParams({showOtpSuccess: false});
+    }, 400);
   }, [navigation]);
 
   const handleProfileImageChange = useCallback(
@@ -252,6 +335,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
   );
 
   const handleCountryMobilePress = useCallback(() => {
+    setOpenBottomSheet('countryMobile');
     countryMobileRef.current?.open();
   }, []);
 
@@ -261,6 +345,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
       setStep1Data(prev => ({...prev, mobileNumber: mobile}));
       setValue('countryDialCode', country.dial_code, {shouldValidate: true});
       setValue('mobileNumber', mobile, {shouldValidate: true});
+      setOpenBottomSheet(null);
     },
     [setValue],
   );
@@ -303,9 +388,6 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     (field: keyof typeof step2Data, value: any) => {
       setStep2Data(prev => ({...prev, [field]: value}));
       setValue(field, value, {shouldValidate: true});
-      if (field === 'address') {
-        setAddressQuery(value);
-      }
       if (
         field === 'address' ||
         field === 'stateProvince' ||
@@ -319,126 +401,84 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     [clearErrors, setValue],
   );
 
-  useEffect(() => {
-    if (skipNextAutocompleteRef.current) {
-      skipNextAutocompleteRef.current = false;
-      return;
-    }
-
-    const search = addressQuery.trim();
-    if (search.length < 3) {
-      setAddressSuggestions([]);
-      setAddressLookupError(null);
-      lastAutocompleteSignatureRef.current = '';
-      return;
-    }
-
-    const locationSignature = location
-      ? `${location.latitude.toFixed(4)},${location.longitude.toFixed(4)}`
-      : 'none';
-    const signature = `${search}::${locationSignature}`;
-
-    if (signature === lastAutocompleteSignatureRef.current) {
-      return;
-    }
-
-    lastAutocompleteSignatureRef.current = signature;
-
-    let isActive = true;
-    setIsFetchingAddressSuggestions(true);
-    const timeoutId = setTimeout(async () => {
-      try {
-        const suggestions = await fetchPlaceSuggestions({
-          query: search,
-          location,
-        });
-        if (!isActive) {
-          return;
-        }
-        setAddressSuggestions(suggestions);
-        setAddressLookupError(null);
-      } catch (error) {
-        if (!isActive) {
-          return;
-        }
-        if (error instanceof MissingApiKeyError) {
-          setAddressLookupError(
-            'Address autocomplete is unavailable. Please enter your address manually.',
-          );
-        } else {
-          setAddressLookupError('Unable to fetch address suggestions.');
-        }
-        setAddressSuggestions([]);
-      } finally {
-        if (isActive) {
-          setIsFetchingAddressSuggestions(false);
+  const handleAddressFieldChange = useCallback(
+    (field: keyof AddressFieldValues, value: string) => {
+      let targetField: keyof typeof step2Data;
+      switch (field) {
+        case 'addressLine':
+          targetField = 'address';
+          break;
+        case 'city':
+          targetField = 'city';
+          break;
+        case 'stateProvince':
+          targetField = 'stateProvince';
+          break;
+        case 'postalCode':
+          targetField = 'postalCode';
+          break;
+        case 'country':
+          targetField = 'country';
+          break;
+        default:
+          targetField = 'address';
+      }
+      handleStep2FieldChange(targetField, value);
+      if (field === 'addressLine') {
+        setAddressQuery(value);
+        if (addressLookupError) {
+          resetAddressError();
         }
       }
-    }, 350);
-
-    return () => {
-      isActive = false;
-      clearTimeout(timeoutId);
-    };
-  }, [addressQuery, location]);
+    },
+    [addressLookupError, handleStep2FieldChange, resetAddressError, setAddressQuery],
+  );
 
   const handleAddressSuggestionPress = useCallback(
     async (suggestion: PlaceSuggestion) => {
-      skipNextAutocompleteRef.current = true;
-      lastAutocompleteSignatureRef.current = '';
-      setIsFetchingAddressSuggestions(true);
-      try {
-        const details = await fetchPlaceDetails(suggestion.placeId);
-        const addressLine = details.addressLine ?? suggestion.primaryText;
-
-        handleStep2FieldChange('address', addressLine);
-        setAddressQuery(addressLine);
-
-        console.log('[CreateAccount] Selected address', {
-          placeId: suggestion.placeId,
-          addressLine,
-          city: details.city,
-          stateProvince: details.stateProvince,
-          postalCode: details.postalCode,
-          country: details.country,
-        });
-
-        if (details.city) {
-          handleStep2FieldChange('city', details.city);
-        }
-        if (details.stateProvince) {
-          handleStep2FieldChange('stateProvince', details.stateProvince);
-        }
-        if (details.postalCode) {
-          handleStep2FieldChange('postalCode', details.postalCode);
-        }
-        if (details.country) {
-          handleStep2FieldChange('country', details.country);
-        }
-        if (details.latitude && details.longitude) {
-          setLocation(prev =>
-            prev ?? {
-              latitude: details.latitude as number,
-              longitude: details.longitude as number,
-            },
-          );
-        }
-        setAddressLookupError(null);
-        clearErrors(['address', 'city', 'stateProvince', 'postalCode', 'country']);
-      } catch (error) {
-        if (error instanceof MissingApiKeyError) {
-          setAddressLookupError(
-            'Address autocomplete is unavailable. Please enter your address manually.',
-          );
-        } else {
-          setAddressLookupError('Unable to fetch the selected address details.');
-        }
-      } finally {
-        setAddressSuggestions([]);
-        setIsFetchingAddressSuggestions(false);
+      const details = await selectAddressSuggestion(suggestion);
+      if (!details) {
+        return;
       }
+
+      const addressLine = details.addressLine ?? suggestion.primaryText;
+      handleStep2FieldChange('address', addressLine);
+
+      console.log('[CreateAccount] Selected address', {
+        placeId: suggestion.placeId,
+        addressLine,
+        city: details.city,
+        stateProvince: details.stateProvince,
+        postalCode: details.postalCode,
+        country: details.country,
+      });
+
+      if (details.city) {
+        handleStep2FieldChange('city', details.city);
+      }
+      if (details.stateProvince) {
+        handleStep2FieldChange('stateProvince', details.stateProvince);
+      }
+      if (details.postalCode) {
+        handleStep2FieldChange('postalCode', details.postalCode);
+      }
+      if (details.country) {
+        handleStep2FieldChange('country', details.country);
+      }
+      if (details.latitude && details.longitude) {
+        setLocation(prev =>
+          prev ?? {
+            latitude: details.latitude as number,
+            longitude: details.longitude as number,
+          },
+        );
+      }
+
+      resetAddressError();
+      clearAddressSuggestions();
+      clearErrors(['address', 'city', 'stateProvince', 'postalCode', 'country']);
     },
-    [clearErrors, handleStep2FieldChange, setLocation],
+    [clearAddressSuggestions, clearErrors, handleStep2FieldChange, resetAddressError, selectAddressSuggestion, setLocation],
   );
 
   const handleNext = async () => {
@@ -538,6 +578,8 @@ const handleGoBack = useCallback(async () => {
   const submitCreateAccount = useCallback(
     async (payload: Record<string, unknown>) => {
       if (!createAccountEndpoint) {
+        // In sandbox mode, skip API call and simulate success
+        console.log('[CreateAccount] Sandbox mode: Skipping API call for create account');
         await new Promise(resolve => setTimeout(resolve, 1200));
         return {success: true};
       }
@@ -805,177 +847,39 @@ const handleGoBack = useCallback(async () => {
     </>
   );
 
-  const renderStep2 = () => (
-    <>
+  const renderStep2 = () => {
+    const addressValues: AddressFieldValues = {
+      addressLine: step2Data.address,
+      city: step2Data.city,
+      stateProvince: step2Data.stateProvince,
+      postalCode: step2Data.postalCode,
+      country: step2Data.country,
+    };
+
+    const addressFieldErrors: Partial<Record<keyof AddressFieldValues, string | undefined>> = {
+      addressLine: errors.address?.message,
+      city: errors.city?.message,
+      stateProvince: errors.stateProvince?.message,
+      postalCode: errors.postalCode?.message,
+      country: errors.country?.message,
+    };
+
+    return (
+      <>
       <ProfileImagePicker
         imageUri={step1Data.profileImage}
         onImageSelected={handleProfileImageChange}
       />
 
       <View style={styles.formSection}>
-        <Controller
-          control={control}
-          name="address"
-          rules={{
-            required: 'Address is required',
-            minLength: {
-              value: 5,
-              message: 'Address must be at least 5 characters',
-            },
-          }}
-          render={({field: {onChange}}) => (
-            <Input
-              label="Address"
-              value={step2Data.address}
-              onChangeText={text => {
-                handleStep2FieldChange('address', text);
-                onChange(text);
-              }}
-              error={errors.address?.message}
-              multiline
-              maxLength={200}
-              containerStyle={styles.inputContainer}
-            />
-          )}
-        />
-
-        {(isFetchingAddressSuggestions || addressSuggestions.length > 0 || addressLookupError) && (
-          <View style={styles.addressAutocompleteContainer}>
-            {isFetchingAddressSuggestions ? (
-              <View style={styles.addressAutocompleteLoadingRow}>
-                <ActivityIndicator size="small" color={theme.colors.primary} />
-                <Text style={styles.addressAutocompleteLoadingText}>Searching for addresses…</Text>
-              </View>
-            ) : null}
-            {!isFetchingAddressSuggestions &&
-              addressSuggestions.map((suggestion, index) => (
-                <TouchableOpacity
-                  key={suggestion.placeId}
-                  style={[
-                    styles.addressSuggestionItem,
-                    index === addressSuggestions.length - 1 && styles.addressSuggestionItemLast,
-                  ]}
-                  onPress={() => handleAddressSuggestionPress(suggestion)}
-                >
-                  <Text style={styles.addressSuggestionPrimary}>{suggestion.primaryText}</Text>
-                  {suggestion.secondaryText ? (
-                    <Text style={styles.addressSuggestionSecondary}>{suggestion.secondaryText}</Text>
-                  ) : null}
-                </TouchableOpacity>
-              ))}
-            {addressLookupError && !isFetchingAddressSuggestions ? (
-              <Text style={styles.addressSuggestionError}>{addressLookupError}</Text>
-            ) : null}
-            {(isFetchingAddressSuggestions || addressSuggestions.length > 0) && (
-              <Text style={styles.addressPoweredBy}>Powered by Google</Text>
-            )}
-          </View>
-        )}
-
-        <Controller
-          control={control}
-          name="stateProvince"
-          rules={{
-            required: 'State/Province is required',
-            pattern: {
-              value: /^[A-Za-z\s]+$/,
-              message: 'State/Province can only contain letters and spaces',
-            },
-          }}
-          render={({field: {onChange}}) => (
-            <Input
-              label="State/Province"
-              value={step2Data.stateProvince}
-              onChangeText={text => {
-                handleStep2FieldChange('stateProvince', text);
-                onChange(text);
-              }}
-              error={errors.stateProvince?.message}
-              maxLength={50}
-              containerStyle={styles.inputContainer}
-            />
-          )}
-        />
-
-        <View style={styles.cityPostalRow}>
-          <View style={styles.cityWrapper}>
-            <Controller
-              control={control}
-              name="city"
-              rules={{
-                required: 'City is required',
-                pattern: {
-                  value: /^[A-Za-z\s]+$/,
-                  message: 'City can only contain letters and spaces',
-                },
-              }}
-              render={({field: {onChange}}) => (
-                <Input
-                  label="City"
-                  value={step2Data.city}
-                  onChangeText={text => {
-                    handleStep2FieldChange('city', text);
-                    onChange(text);
-                  }}
-                  error={errors.city?.message}
-                  maxLength={50}
-                />
-              )}
-            />
-          </View>
-          <View style={styles.postalWrapper}>
-            <Controller
-              control={control}
-              name="postalCode"
-              rules={{
-                required: 'Postal code is required',
-                pattern: {
-                  // eslint-disable-next-line no-useless-escape
-                  value: /^[A-Za-z0-9\s\-]+$/,
-                  message:
-                    'Postal code can only contain letters, numbers, spaces and hyphens',
-                },
-              }}
-              render={({field: {onChange}}) => (
-                <Input
-                  label="Postal code"
-                  value={step2Data.postalCode}
-                  onChangeText={text => {
-                    handleStep2FieldChange('postalCode', text);
-                    onChange(text);
-                  }}
-                  keyboardType="default"
-                  error={errors.postalCode?.message}
-                  maxLength={10}
-                />
-              )}
-            />
-          </View>
-        </View>
-
-        <Controller
-          control={control}
-          name="country"
-          rules={{
-            required: 'Country is required',
-            pattern: {
-              value: /^[A-Za-z\s]+$/,
-              message: 'Country can only contain letters and spaces',
-            },
-          }}
-          render={({field: {onChange}}) => (
-            <Input
-              label="Country"
-              value={step2Data.country}
-              onChangeText={text => {
-                handleStep2FieldChange('country', text);
-                onChange(text);
-              }}
-              error={errors.country?.message}
-              maxLength={50}
-              containerStyle={styles.inputContainer}
-            />
-          )}
+        <AddressFields
+          values={addressValues}
+          onChange={handleAddressFieldChange}
+          addressSuggestions={addressSuggestions}
+          isFetchingSuggestions={isFetchingAddressSuggestions}
+          error={addressLookupError}
+          onSelectSuggestion={handleAddressSuggestionPress}
+          fieldErrors={addressFieldErrors}
         />
 
         <View style={styles.checkboxWrapper}>
@@ -1014,7 +918,8 @@ const handleGoBack = useCallback(async () => {
 
       </View>
     </>
-  );
+    );
+  };
 
   return (
     <SafeArea style={styles.container}>
@@ -1073,49 +978,49 @@ const handleGoBack = useCallback(async () => {
           mode="date"
         />
       </KeyboardAvoidingView>
-      <View
-        style={styles.bottomSheetContainer}
-        pointerEvents={isOtpSuccessVisible ? 'auto' : 'none'}>
-        <CustomBottomSheet
-          ref={successBottomSheetRef}
-          snapPoints={['35%', '50%']}
-          initialIndex={isOtpSuccessVisible ? 1 : -1}
-          enablePanDownToClose
-          enableBackdrop
-          backdropOpacity={0.5}
-          backdropAppearsOnIndex={0}
-          backdropDisappearsOnIndex={-1}
-          backdropPressBehavior="close"
-          enableHandlePanningGesture
-          enableContentPanningGesture={false}
-          enableOverDrag
-          backgroundStyle={styles.bottomSheetBackground}
-          handleIndicatorStyle={styles.bottomSheetHandle}>
-          <View style={styles.successContent}>
-            <Image
-              source={Images.verificationSuccess}
-              style={styles.successIllustration}
-              resizeMode="contain"
-            />
-            <Text style={styles.successTitle}>Code verified</Text>
-            <Text style={styles.successMessage}>
-              Nice! Now let's finish setting up your Yosemite Crew profile.
-            </Text>
-            <LiquidGlassButton
-              title="Continue"
-              onPress={handleSuccessClose}
-              style={styles.successButton}
-              textStyle={styles.successButtonText}
-              tintColor={theme.colors.secondary}
-              shadowIntensity="medium"
-              forceBorder
-              borderColor="rgba(255, 255, 255, 0.35)"
-              height={56}
-              borderRadius={16}
-            />
-          </View>
-        </CustomBottomSheet>
-      </View>
+      {isOtpSuccessVisible && (
+        <View style={styles.bottomSheetContainer}>
+          <CustomBottomSheet
+            ref={successBottomSheetRef}
+            snapPoints={['35%', '50%']}
+            initialIndex={1}
+            enablePanDownToClose
+            enableBackdrop
+            backdropOpacity={0.5}
+            backdropAppearsOnIndex={0}
+            backdropDisappearsOnIndex={-1}
+            backdropPressBehavior="close"
+            enableHandlePanningGesture
+            enableContentPanningGesture={false}
+            enableOverDrag
+            backgroundStyle={styles.bottomSheetBackground}
+            handleIndicatorStyle={styles.bottomSheetHandle}>
+            <View style={styles.successContent}>
+              <Image
+                source={Images.verificationSuccess}
+                style={styles.successIllustration}
+                resizeMode="contain"
+              />
+              <Text style={styles.successTitle}>Code verified</Text>
+              <Text style={styles.successMessage}>
+                Nice! Now let's finish setting up your Yosemite Crew profile.
+              </Text>
+              <LiquidGlassButton
+                title="Continue"
+                onPress={handleSuccessClose}
+                style={styles.successButton}
+                textStyle={styles.successButtonText}
+                tintColor={theme.colors.secondary}
+                shadowIntensity="medium"
+                forceBorder
+                borderColor="rgba(255, 255, 255, 0.35)"
+                height={56}
+                borderRadius={16}
+              />
+            </View>
+          </CustomBottomSheet>
+        </View>
+      )}
       <CountryMobileBottomSheet
         ref={countryMobileRef}
         countries={COUNTRIES}
@@ -1129,77 +1034,7 @@ const handleGoBack = useCallback(async () => {
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    keyboardAvoidingView: {
-      flex: 1,
-    },
-    scrollView: {
-      flex: 1,
-    },
-    scrollContent: {
-      paddingHorizontal: theme.spacing['5'], // 20
-      paddingBottom: theme.spacing['24'], // 96 - space for fixed button
-    },
-    formSection: {
-      marginBottom: theme.spacing['5'], // 20
-    },
-    inputContainer: {
-      marginBottom: theme.spacing['5'], // 20 - space between inputs + error messages
-    },
-    addressAutocompleteContainer: {
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.colors.border,
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.cardBackground,
-      marginBottom: theme.spacing['5'],
-      overflow: 'hidden',
-    },
-    addressAutocompleteLoadingRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: theme.spacing['4'],
-      paddingVertical: theme.spacing['3'],
-      gap: theme.spacing['3'],
-    },
-    addressAutocompleteLoadingText: {
-      ...theme.typography.caption,
-      color: theme.colors.textSecondary,
-    },
-    addressSuggestionItem: {
-      paddingHorizontal: theme.spacing['4'],
-      paddingVertical: theme.spacing['4'],
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.border,
-    },
-    addressSuggestionItemLast: {
-      borderBottomWidth: 0,
-    },
-    addressSuggestionPrimary: {
-      ...theme.typography.paragraph,
-      color: theme.colors.text,
-    },
-    addressSuggestionSecondary: {
-      ...theme.typography.caption,
-      color: theme.colors.textSecondary,
-      marginTop: theme.spacing['1'],
-    },
-    addressSuggestionError: {
-      ...theme.typography.caption,
-      color: theme.colors.error,
-      paddingHorizontal: theme.spacing['4'],
-      paddingVertical: theme.spacing['3'],
-      backgroundColor: theme.colors.cardBackground,
-    },
-    addressPoweredBy: {
-      ...theme.typography.caption,
-      color: theme.colors.textSecondary,
-      textAlign: 'right',
-      paddingHorizontal: theme.spacing['4'],
-      paddingBottom: theme.spacing['3'],
-    },
+    ...createFormScreenStyles(theme),
     countrySection: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -1215,28 +1050,6 @@ const createStyles = (theme: any) =>
       ...theme.typography.body,
       color: theme.colors.text,
       fontWeight: '500',
-    },
-    dropdownIcon: {
-      width: theme.spacing['3'], // 12
-      height: theme.spacing['3'], // 12
-      marginLeft: theme.spacing['2'], // 8
-      tintColor: theme.colors.textSecondary,
-    },
-    calendarIcon: {
-      width: theme.spacing['5'], // 20
-      height: theme.spacing['5'], // 20
-      tintColor: theme.colors.textSecondary,
-    },
-    cityPostalRow: {
-      flexDirection: 'row',
-      gap: theme.spacing['3'], // 12
-      marginBottom: theme.spacing['5'], // 20
-    },
-    cityWrapper: {
-      flex: 1,
-    },
-    postalWrapper: {
-      flex: 1,
     },
     checkboxWrapper: {
       marginBottom: theme.spacing['5'], // 20
@@ -1270,41 +1083,6 @@ const createStyles = (theme: any) =>
       color: theme.colors.primary,
       textDecorationLine: 'underline',
       fontSize: 14,
-    },
-
-    submissionError: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.error,
-      textAlign: 'center',
-      paddingHorizontal: theme.spacing['5'],
-      marginBottom: theme.spacing['2'],
-    },
-
-    buttonContainer: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      paddingHorizontal: theme.spacing['5'], // 20
-      paddingTop: theme.spacing['4'], // 16
-      paddingBottom: theme.spacing['10'], // 40
-      backgroundColor: theme.colors.background,
-    },
-    button: {
-      width: '100%',
-      backgroundColor: theme.colors.secondary,
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.35)',
-      shadowColor: '#000000',
-      shadowOffset: {width: 0, height: 8},
-      shadowOpacity: 0.15,
-      shadowRadius: 12,
-      elevation: 4,
-    },
-    buttonText: {
-      color: theme.colors.white,
-      ...theme.typography.paragraphBold,
     },
     bottomSheetContainer: {
       position: 'absolute',

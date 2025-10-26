@@ -68,7 +68,8 @@ describe('OTPInput', () => {
     });
 
     // Should have been called with '1234' when complete
-    expect(onComplete).toHaveBeenCalledWith('1234');
+    // Note: onComplete is now called on every change, so we check the last call
+    expect(onComplete).toHaveBeenLastCalledWith('1234');
   });
 
   it('should only accept numeric input', () => {
@@ -158,7 +159,7 @@ describe('OTPInput', () => {
     });
   });
 
-  it('should clear onComplete when incomplete', () => {
+  it('should call onComplete when backspace is pressed', () => {
     const onComplete = jest.fn();
     let tree!: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
@@ -190,9 +191,8 @@ describe('OTPInput', () => {
       inputs[3].props.onKeyPress({nativeEvent: {key: 'Backspace'}});
     });
 
-    // After backspace, component doesn't automatically call onComplete with empty
-    // This test verifies the component handles backspace correctly
-    expect(tree.root).toBeTruthy();
+    // After backspace, onComplete should be called with the incomplete OTP (for error clearing)
+    expect(onComplete).toHaveBeenCalledWith('123');
   });
 
   it('should handle focus correctly', () => {
@@ -210,5 +210,46 @@ describe('OTPInput', () => {
     // Active index should be set, but we can't directly test internal state
     // We verify the component doesn't crash
     expect(tree.root).toBeTruthy();
+  });
+
+  it('should call onComplete on every digit change for error clearing', () => {
+    const onComplete = jest.fn();
+    let tree!: TestRenderer.ReactTestRenderer;
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(wrap(<OTPInput length={4} onComplete={onComplete} />));
+    });
+
+    const inputs = tree.root.findAllByType(TextInput);
+
+    TestRenderer.act(() => {
+      inputs[0].props.onChangeText('1');
+    });
+
+    // Should be called with '1' after first digit
+    expect(onComplete).toHaveBeenCalledWith('1');
+
+    TestRenderer.act(() => {
+      inputs[1].props.onChangeText('2');
+    });
+
+    // Should be called with '12' after second digit
+    expect(onComplete).toHaveBeenCalledWith('12');
+
+    TestRenderer.act(() => {
+      inputs[2].props.onChangeText('3');
+    });
+
+    // Should be called with '123' after third digit
+    expect(onComplete).toHaveBeenCalledWith('123');
+
+    TestRenderer.act(() => {
+      inputs[3].props.onChangeText('4');
+    });
+
+    // Should be called with '1234' when complete
+    expect(onComplete).toHaveBeenLastCalledWith('1234');
+
+    // Verify it was called 4 times total
+    expect(onComplete).toHaveBeenCalledTimes(4);
   });
 });

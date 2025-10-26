@@ -1,19 +1,9 @@
-import React, {useMemo, useRef} from 'react';
-import {
-  View,
-  Text,
-  Image,
-  Animated,
-  PanResponder,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
-import {LiquidGlassCard} from '@/components/common/LiquidGlassCard/LiquidGlassCard';
+import React, {useMemo} from 'react';
+import {View, Text, Image, StyleSheet} from 'react-native';
 import {LiquidGlassButton} from '@/components/common/LiquidGlassButton/LiquidGlassButton';
+import {SwipeableGlassCard} from '@/components/common/SwipeableGlassCard/SwipeableGlassCard';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
-
-const ACTION_WIDTH = 70;
 
 export const AppointmentCard = ({
   doctorName,
@@ -38,64 +28,27 @@ export const AppointmentCard = ({
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const translateX = useRef(new Animated.Value(0)).current;
-
-  const clampTranslate = (value: number) => {
-    if (value < -ACTION_WIDTH) return -ACTION_WIDTH;
-    if (value > 0) return 0;
-    return value;
-  };
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderMove: (_, gestureState) =>
-        translateX.setValue(clampTranslate(gestureState.dx)),
-      onPanResponderRelease: (_, gestureState) => {
-        const shouldOpen = gestureState.dx < -ACTION_WIDTH / 2;
-        Animated.spring(translateX, {
-          toValue: shouldOpen ? -ACTION_WIDTH : 0,
-          useNativeDriver: true,
-          damping: 18,
-          stiffness: 180,
-          mass: 0.8,
-        }).start();
-      },
-    }),
-  ).current;
 
   const handleViewPress = () => {
-    Animated.spring(translateX, {
-      toValue: 0,
-      useNativeDriver: true,
-    }).start(() => onGetDirections?.());
+    onGetDirections?.();
   };
 
   return (
-    <View style={styles.container}>
-      {/* Slide Action */}
-      <View style={styles.actionContainer}>
-        <TouchableOpacity
-          activeOpacity={0.85}
-          style={styles.actionButton}
-          onPress={handleViewPress}>
-          <TouchableOpacity style={styles.actionIcon} activeOpacity={0.85}>
-            <Image source={Images.viewIconSlide} style={styles.actionImage} />
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </View>
-
-      {/* Main Card */}
-      <Animated.View
-        {...panResponder.panHandlers}
-        style={[styles.animatedWrapper, {transform: [{translateX}]}]}>
-        <LiquidGlassCard
-          glassEffect="clear"
-          interactive
-          shadow="none"
-          style={styles.card}
-          fallbackStyle={styles.fallback}>
+    <SwipeableGlassCard
+      actionIcon={Images.viewIconSlide}
+      onAction={handleViewPress}
+      actionBackgroundColor={theme.colors.success}
+      containerStyle={styles.container}
+      cardProps={{
+        glassEffect: 'clear',
+        interactive: true,
+        shadow: 'none',
+        style: styles.card,
+        fallbackStyle: styles.fallback,
+      }}
+      springConfig={{useNativeDriver: true, damping: 18, stiffness: 180, mass: 0.8}}
+      enableHorizontalSwipeOnly={true}
+    >
           {/* Top Row: Avatar and Text Block */}
           <View style={styles.topRow}>
             <Image source={avatar} style={styles.avatar} />
@@ -155,9 +108,7 @@ export const AppointmentCard = ({
               />
             </View>
           </View>
-        </LiquidGlassCard>
-      </Animated.View>
-    </View>
+    </SwipeableGlassCard>
   );
 };
 
@@ -169,39 +120,6 @@ const createStyles = (theme: any) =>
       borderRadius: theme.borderRadius.lg,
       overflow: 'hidden',
     },
-    actionContainer: {
-      position: 'absolute',
-      right: 0,
-      top: 0,
-      bottom: 0,
-      width: ACTION_WIDTH + theme.spacing[5],
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: theme.colors.success,
-      borderTopRightRadius: theme.borderRadius.lg,
-      borderBottomRightRadius: theme.borderRadius.lg,
-      zIndex: 0,
-    },
-    actionButton: {
-      width: 48,
-      height: 48,
-      paddingLeft: theme.spacing[5],
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: theme.colors.success,
-    },
-    actionIcon: {
-      width: 40,
-      height: 40,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    actionImage: {
-      width: 30,
-      height: 30,
-      resizeMode: 'contain',
-    },
-    animatedWrapper: {zIndex: 1},
     card: {
       borderRadius: theme.borderRadius.lg,
       borderWidth: 1,

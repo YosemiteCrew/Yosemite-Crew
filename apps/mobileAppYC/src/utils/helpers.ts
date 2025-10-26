@@ -1,3 +1,4 @@
+import 'react-native-get-random-values';
 import {Dimensions, Platform} from 'react-native';
 
 /**
@@ -123,7 +124,7 @@ export const isValidEmail = (email: string): boolean => {
   }
 
   // Ensure only one @ symbol
-  if (email.indexOf('@', atIndex + 1) !== -1) {
+  if (email.slice(atIndex + 1).includes('@')) {
     return false;
   }
 
@@ -136,8 +137,7 @@ export const isValidEmail = (email: string): boolean => {
   }
 
   // Must have at least one dot in domain
-  const dotIndex = domainPart.indexOf('.');
-  if (dotIndex === -1) {
+  if (!domainPart.includes('.')) {
     return false;
   }
 
@@ -181,7 +181,23 @@ export const throttle = <T extends (...args: any[]) => any>(
  * Generate unique ID
  */
 export const generateId = (): string => {
-  return Date.now().toString(36) + Math.random().toString(36).substring(2);
+  const cryptoObj = globalThis.crypto;
+  if (cryptoObj?.randomUUID) {
+    return cryptoObj.randomUUID();
+  }
+  if (!cryptoObj?.getRandomValues) {
+    throw new Error('Secure random number generator is unavailable');
+  }
+  const buffer = new Uint8Array(16);
+  cryptoObj.getRandomValues(buffer);
+  const hex = Array.from(buffer, byte => byte.toString(16).padStart(2, '0')).join('');
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    hex.slice(12, 16),
+    hex.slice(16, 20),
+    hex.slice(20, 32),
+  ].join('-');
 };
 
 /**
@@ -250,4 +266,12 @@ export const getInitials = (name: string): string => {
     .map(word => word.charAt(0).toUpperCase())
     .slice(0, 2)
     .join('');
+};
+
+/**
+ * Format a label by capitalizing first letter and replacing hyphens with spaces
+ */
+export const formatLabel = (str: string | null, fallback: string = ''): string => {
+  if (!str) return fallback;
+  return str.charAt(0).toUpperCase() + str.slice(1).replaceAll('-', ' ');
 };

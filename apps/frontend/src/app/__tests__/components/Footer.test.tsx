@@ -45,8 +45,8 @@ describe("Footer Component", () => {
         expect(screen.getByAltText("Yosemite Crew Logo")).toBeInTheDocument();
         expect(screen.getByAltText("GDPR")).toBeInTheDocument();
         expect(screen.getByAltText("SOC2")).toBeInTheDocument();
-        expect(screen.getByAltText("HL7 FHIR")).toBeInTheDocument();
-        expect(screen.getByAltText("ISO 27001")).toBeInTheDocument();
+        expect(screen.getByAltText("FHIR")).toBeInTheDocument();
+        expect(screen.getByAltText("ISO")).toBeInTheDocument();
     });
 
     it("should render all navigation section titles", () => {
@@ -56,9 +56,9 @@ describe("Footer Component", () => {
     });
 
     it("should render all navigation links with correct href attributes", () => {
-        const gettingStartedLink = screen.getByRole("link", { name: "Getting Started" });
+        const gettingStartedLink = screen.getByRole("link", { name: "Developer portal" });
         expect(gettingStartedLink).toBeInTheDocument();
-        expect(gettingStartedLink).toHaveAttribute("href","https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/README.md");
+        expect(gettingStartedLink).toHaveAttribute("href","https://github.com/YosemiteCrew/Yosemite-Crew/");
 
         const discordLink = screen.getByRole("link", { name: "Discord" });
         expect(discordLink).toBeInTheDocument();

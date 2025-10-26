@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {AppState, type AppStateStatus} from 'react-native';
 import {getAuth} from '@react-native-firebase/auth';
 import {fetchAuthSession, fetchUserAttributes, getCurrentUser} from 'aws-amplify/auth';
-import {Buffer} from 'buffer';
+import {Buffer} from 'node:buffer';
 
 import {PENDING_PROFILE_STORAGE_KEY} from '@/config/variables';
 import {
@@ -34,7 +34,7 @@ const decodeJwtExpiration = (token?: string): number | undefined => {
       return undefined;
     }
 
-    const normalized = payloadSegment.replace(/-/g, '+').replace(/_/g, '/');
+    const normalized = payloadSegment.replaceAll('-', '+').replaceAll('_', '/');
     const padded = normalized.padEnd(
       normalized.length + ((4 - (normalized.length % 4)) % 4),
       '=',
@@ -200,23 +200,69 @@ export type RecoverAuthOutcome =
   | {kind: 'pendingProfile'}
   | {kind: 'unauthenticated'};
 
-export const recoverAuthSession = async (): Promise<RecoverAuthOutcome> => {
-  const existingUserRaw = await AsyncStorage.getItem(USER_KEY);
-  const existingUser = existingUserRaw ? (JSON.parse(existingUserRaw) as User) : null;
-  const existingProfileToken = existingUser?.profileToken;
+type PendingProfileResult = {kind: 'pendingProfile'};
+type RecoveryResult = RecoverAuthOutcome | PendingProfileResult | null;
 
-  const maybeHandlePendingProfile = async (userId: string) => {
-    const pending = await checkPendingProfile(userId);
-    return pending === 'pending';
-  };
+const resolveProfileTokenForUser = async (
+  params: {
+    existingProfileToken?: string | null;
+    accessToken: string;
+    userId: string;
+    email: string;
+  },
+  sourceLabel: 'Amplify' | 'Firebase',
+): Promise<{status: 'resolved'; token?: string | null} | PendingProfileResult> => {
+  if (params.existingProfileToken) {
+    return {status: 'resolved', token: params.existingProfileToken};
+  }
 
+  try {
+    const profileStatus = await fetchProfileStatus({
+      accessToken: params.accessToken,
+      userId: params.userId,
+      email: params.email,
+    });
+
+    if (!profileStatus.exists && profileStatus.source === 'remote') {
+      return {kind: 'pendingProfile'};
+    }
+
+    return {status: 'resolved', token: profileStatus.profileToken};
+  } catch (error) {
+    console.warn(
+      `[Auth] Failed to resolve profile status during ${sourceLabel} refresh`,
+      error,
+    );
+    return {status: 'resolved', token: params.existingProfileToken};
+  }
+};
+
+const buildAmplifyUser = (
+  authUser: Awaited<ReturnType<typeof getCurrentUser>>,
+  mapped: Partial<User>,
+  profileToken: string | null | undefined,
+): User => ({
+  id: authUser.userId,
+  email: mapped.email ?? authUser.username,
+  firstName: mapped.firstName,
+  lastName: mapped.lastName,
+  phone: mapped.phone,
+  dateOfBirth: mapped.dateOfBirth,
+  profilePicture: mapped.profilePicture,
+  profileToken: profileToken ?? undefined,
+});
+
+const attemptAmplifyRecovery = async (
+  existingProfileToken: string | null | undefined,
+  maybeHandlePendingProfile: (userId: string) => Promise<boolean>,
+): Promise<RecoveryResult> => {
   try {
     const session = await fetchAuthSession();
     const idToken = session.tokens?.idToken?.toString();
     const accessToken = session.tokens?.accessToken?.toString();
 
     if (!idToken || !accessToken) {
-      throw new Error('No valid tokens in session');
+      return null;
     }
 
     console.log('[Auth] Found valid Amplify session during recovery');
@@ -231,39 +277,25 @@ export const recoverAuthSession = async (): Promise<RecoverAuthOutcome> => {
     }
 
     const mapped = mapAttributesToUser(attributes);
-    let profileToken = existingProfileToken;
+    const profileTokenResult = await resolveProfileTokenForUser(
+      {
+        existingProfileToken,
+        accessToken,
+        userId: authUser.userId,
+        email: mapped.email ?? authUser.username,
+      },
+      'Amplify',
+    );
 
-    if (!profileToken) {
-      try {
-        const profileStatus = await fetchProfileStatus({
-          accessToken,
-          userId: authUser.userId,
-          email: mapped.email ?? authUser.username,
-        });
-
-        if (!profileStatus.exists && profileStatus.source === 'remote') {
-          return {kind: 'pendingProfile'};
-        }
-
-        profileToken = profileStatus.profileToken;
-      } catch (profileError) {
-        console.warn(
-          '[Auth] Failed to resolve profile status during Amplify refresh',
-          profileError,
-        );
-      }
+    if ('kind' in profileTokenResult) {
+      return profileTokenResult;
     }
 
-    const hydratedUser: User = {
-      id: authUser.userId,
-      email: mapped.email ?? authUser.username,
-      firstName: mapped.firstName,
-      lastName: mapped.lastName,
-      phone: mapped.phone,
-      dateOfBirth: mapped.dateOfBirth,
-      profilePicture: mapped.profilePicture,
-      profileToken,
-    };
+    const hydratedUser = buildAmplifyUser(
+      authUser,
+      mapped,
+      profileTokenResult.token,
+    );
 
     const expiresAtSeconds =
       session.tokens?.idToken?.payload?.exp ??
@@ -291,86 +323,92 @@ export const recoverAuthSession = async (): Promise<RecoverAuthOutcome> => {
     };
   } catch (error) {
     console.log('No active Amplify session detected; checking Firebase session.', error);
+    return null;
   }
+};
 
+const attemptFirebaseRecovery = async (
+  existingUser: User | null,
+  existingProfileToken: string | null | undefined,
+  maybeHandlePendingProfile: (userId: string) => Promise<boolean>,
+): Promise<RecoveryResult> => {
   try {
     const auth = getAuth();
     const firebaseUser = auth.currentUser;
 
-    if (firebaseUser) {
-      await firebaseUser.reload();
-
-      if (await maybeHandlePendingProfile(firebaseUser.uid)) {
-        return {kind: 'pendingProfile'};
-      }
-
-      let profileToken = existingProfileToken;
-
-      if (!profileToken) {
-        try {
-          const idToken = await firebaseUser.getIdToken();
-          const profileStatus = await fetchProfileStatus({
-            accessToken: idToken,
-            userId: firebaseUser.uid,
-            email: firebaseUser.email ?? existingUser?.email ?? '',
-          });
-
-          if (!profileStatus.exists && profileStatus.source === 'remote') {
-            return {kind: 'pendingProfile'};
-          }
-
-          profileToken = profileStatus.profileToken;
-        } catch (profileError) {
-          console.warn(
-            '[Auth] Failed to resolve profile status during Firebase refresh',
-            profileError,
-          );
-        }
-      }
-
-      const idToken = await firebaseUser.getIdToken();
-      const tokenResult = await firebaseUser.getIdTokenResult();
-      const expiresAt = tokenResult?.expirationTime
-        ? new Date(tokenResult.expirationTime).getTime()
-        : undefined;
-
-      const hydratedUser: User = {
-        id: firebaseUser.uid,
-        email: firebaseUser.email ?? existingUser?.email ?? '',
-        firstName: existingUser?.firstName,
-        lastName: existingUser?.lastName,
-        phone: existingUser?.phone,
-        dateOfBirth: existingUser?.dateOfBirth,
-        profilePicture: existingUser?.profilePicture ?? firebaseUser.photoURL ?? undefined,
-        profileToken: profileToken ?? existingProfileToken,
-      };
-
-      const normalizedTokens = normalizeTokens(
-        {
-          idToken,
-          accessToken: idToken,
-          expiresAt,
-          userId: firebaseUser.uid,
-          provider: 'firebase',
-        },
-        firebaseUser.uid,
-        'firebase',
-      );
-
-      return {
-        kind: 'authenticated',
-        user: hydratedUser,
-        tokens: normalizedTokens,
-        provider: 'firebase',
-      };
+    if (!firebaseUser) {
+      return null;
     }
-  } catch (firebaseError) {
+
+    await firebaseUser.reload();
+
+    if (await maybeHandlePendingProfile(firebaseUser.uid)) {
+      return {kind: 'pendingProfile'};
+    }
+
+    const idToken = await firebaseUser.getIdToken();
+    const profileTokenResult = await resolveProfileTokenForUser(
+      {
+        existingProfileToken,
+        accessToken: idToken,
+        userId: firebaseUser.uid,
+        email: firebaseUser.email ?? existingUser?.email ?? '',
+      },
+      'Firebase',
+    );
+
+    if ('kind' in profileTokenResult) {
+      return profileTokenResult;
+    }
+
+    const tokenResult = await firebaseUser.getIdTokenResult();
+    const expiresAt = tokenResult?.expirationTime
+      ? new Date(tokenResult.expirationTime).getTime()
+      : undefined;
+
+    const hydratedUser: User = {
+      id: firebaseUser.uid,
+      email: firebaseUser.email ?? existingUser?.email ?? '',
+      firstName: existingUser?.firstName,
+      lastName: existingUser?.lastName,
+      phone: existingUser?.phone,
+      dateOfBirth: existingUser?.dateOfBirth,
+      profilePicture:
+        existingUser?.profilePicture ?? firebaseUser.photoURL ?? undefined,
+      profileToken: profileTokenResult.token ?? existingProfileToken ?? undefined,
+    };
+
+    const normalizedTokens = normalizeTokens(
+      {
+        idToken,
+        accessToken: idToken,
+        expiresAt,
+        userId: firebaseUser.uid,
+        provider: 'firebase',
+      },
+      firebaseUser.uid,
+      'firebase',
+    );
+
+    return {
+      kind: 'authenticated',
+      user: hydratedUser,
+      tokens: normalizedTokens,
+      provider: 'firebase',
+    };
+  } catch (error) {
     console.warn(
       'No Firebase session detected during refresh. Falling back to stored values.',
-      firebaseError,
+      error,
     );
+    return null;
   }
+};
 
+const recoverFromStoredTokens = async (
+  existingUser: User | null,
+  existingProfileToken: string | null | undefined,
+): Promise<RecoveryResult> => {
   let storedTokens = await loadStoredTokens();
 
   if (!storedTokens) {
@@ -393,26 +431,67 @@ export const recoverAuthSession = async (): Promise<RecoverAuthOutcome> => {
     }
   }
 
-  if (existingUser && storedTokens) {
-    if (await maybeHandlePendingProfile(existingUser.id)) {
-      return {kind: 'pendingProfile'};
+  if (!existingUser || !storedTokens) {
+    return null;
+  }
+
+  const normalizedTokens = normalizeTokens(
+    {
+      ...storedTokens,
+      userId: storedTokens.userId ?? existingUser.id,
+      provider: storedTokens.provider ?? 'amplify',
+    },
+    storedTokens.userId ?? existingUser.id,
+  );
+
+  return {
+    kind: 'authenticated',
+    user: {
+      ...existingUser,
+      profileToken: existingUser.profileToken ?? existingProfileToken ?? undefined,
+    },
+    tokens: normalizedTokens,
+    provider: normalizedTokens.provider,
+  };
+};
+
+export const recoverAuthSession = async (): Promise<RecoverAuthOutcome> => {
+  const existingUserRaw = await AsyncStorage.getItem(USER_KEY);
+  const existingUser = existingUserRaw ? (JSON.parse(existingUserRaw) as User) : null;
+  const existingProfileToken = existingUser?.profileToken;
+
+  const maybeHandlePendingProfile = async (userId: string) => {
+    const pending = await checkPendingProfile(userId);
+    return pending === 'pending';
+  };
+  const amplifyResult = await attemptAmplifyRecovery(
+    existingProfileToken,
+    maybeHandlePendingProfile,
+  );
+  if (amplifyResult) {
+    return amplifyResult;
+  }
+
+  const firebaseResult = await attemptFirebaseRecovery(
+    existingUser,
+    existingProfileToken,
+    maybeHandlePendingProfile,
+  );
+  if (firebaseResult) {
+    return firebaseResult;
+  }
+
+  const storedTokensResult = await recoverFromStoredTokens(
+    existingUser,
+    existingProfileToken,
+  );
+  if (storedTokensResult) {
+    if (storedTokensResult.kind === 'authenticated') {
+      if (await maybeHandlePendingProfile(storedTokensResult.user.id)) {
+        return {kind: 'pendingProfile'};
+      }
     }
-
-    const normalizedTokens = normalizeTokens(
-      {
-        ...storedTokens,
-        userId: storedTokens.userId ?? existingUser.id,
-        provider: storedTokens.provider ?? 'amplify',
-      },
-      storedTokens.userId ?? existingUser.id,
-    );
-
-    return {
-      kind: 'authenticated',
-      user: existingUser,
-      tokens: normalizedTokens,
-      provider: normalizedTokens.provider,
-    };
+    return storedTokensResult;
   }
 
   await clearSessionData();

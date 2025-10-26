@@ -7,6 +7,7 @@ import {
   Text,
 } from 'react-native';
 import { useTheme } from '../../../hooks';
+import {generateId} from '@/utils/helpers';
 
 interface OTPInputProps {
   length?: number;
@@ -22,9 +23,19 @@ export const OTPInput: React.FC<OTPInputProps> = ({
   autoFocus = true,
 }) => {
   const { theme } = useTheme();
-  const [otp, setOtp] = useState<string[]>(new Array(length).fill(''));
+  const [otp, setOtp] = useState<string[]>(() => Array.from({ length }, () => ''));
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRefs = useRef<(TextInput | null)[]>(new Array(length).fill(null));
+  const inputKeys = useRef<string[]>(Array.from({ length }, () => generateId()));
+
+  useEffect(() => {
+    if (inputKeys.current.length !== length) {
+      inputKeys.current = Array.from({ length }, (_unused, index) => inputKeys.current[index] ?? generateId());
+    }
+    setOtp(prev => Array.from({ length }, (_unused, index) => prev[index] ?? ''));
+    inputRefs.current = new Array(length).fill(null);
+    setActiveIndex(0);
+  }, [length]);
 
   useEffect(() => {
     if (autoFocus && inputRefs.current[0]) {
@@ -42,18 +53,13 @@ export const OTPInput: React.FC<OTPInputProps> = ({
     newOtp[index] = value;
     setOtp(newOtp);
 
+    // Always call onComplete to notify parent of changes (for error clearing)
+    onComplete(newOtp.join(''));
+
     // Move to next input if value is entered and not at last input
     if (value && index < length - 1) {
       inputRefs.current[index + 1]?.focus();
       setActiveIndex(index + 1);
-    }
-
-    // Check if OTP is complete
-    if (newOtp.every(digit => digit !== '')) {
-      onComplete(newOtp.join(''));
-    } else if (newOtp.join('').length < length) {
-      // Clear any previous complete OTP state
-      onComplete('');
     }
   };
 
@@ -64,6 +70,7 @@ export const OTPInput: React.FC<OTPInputProps> = ({
         const newOtp = [...otp];
         newOtp[index - 1] = '';
         setOtp(newOtp);
+        onComplete(newOtp.join(''));
         inputRefs.current[index - 1]?.focus();
         setActiveIndex(index - 1);
       } else {
@@ -71,6 +78,7 @@ export const OTPInput: React.FC<OTPInputProps> = ({
         const newOtp = [...otp];
         newOtp[index] = '';
         setOtp(newOtp);
+        onComplete(newOtp.join(''));
       }
     }
   };
@@ -90,9 +98,11 @@ export const OTPInput: React.FC<OTPInputProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.inputContainer}>
-        {otp.map((digit, index) => (
+        {inputKeys.current.map((key, index) => {
+          const digit = otp[index] ?? '';
+          return (
           <TextInput
-            key={`otp-input-${index}`}
+            key={key}
             ref={(ref) => {
               inputRefs.current[index] = ref;
             }}
@@ -124,7 +134,8 @@ export const OTPInput: React.FC<OTPInputProps> = ({
             autoCorrect={false}
             textContentType="oneTimeCode"
           />
-        ))}
+          );
+        })}
       </View>
       {error && (
         <Text style={[styles.errorText, { color: theme.colors.error }]}>

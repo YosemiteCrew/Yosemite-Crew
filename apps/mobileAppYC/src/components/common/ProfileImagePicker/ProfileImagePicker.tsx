@@ -29,8 +29,10 @@ interface ProfileImagePickerProps {
   fallbackText?: string;
 }
 
+export type ProfileImagePickerRef = { triggerPicker: () => void };
+
 export const ProfileImagePicker = React.forwardRef<
-  { triggerPicker: () => void },
+  ProfileImagePickerRef,
   ProfileImagePickerProps
 >(({
   imageUri,
@@ -103,7 +105,11 @@ export const ProfileImagePicker = React.forwardRef<
               { text: 'Cancel', style: 'cancel' },
               {
                 text: 'Open Settings',
-                onPress: () => Linking.openSettings()
+                onPress: () => {
+                  Linking.openSettings().catch(openSettingsError => {
+                    console.warn('Failed to open settings', openSettingsError);
+                  });
+                },
               },
             ]
           );
@@ -216,11 +222,19 @@ export const ProfileImagePicker = React.forwardRef<
       [
         {
           text: 'Take Photo',
-          onPress: openCamera,
+          onPress: () => {
+            openCamera().catch(cameraError => {
+              console.warn('Failed to open camera picker', cameraError);
+            });
+          },
         },
         {
           text: 'Choose from Gallery',
-          onPress: openGallery,
+          onPress: () => {
+            openGallery().catch(galleryError => {
+              console.warn('Failed to open gallery picker', galleryError);
+            });
+          },
         },
         {
           text: 'Cancel',

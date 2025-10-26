@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   Image,
   ImageSourcePropType,
@@ -7,6 +7,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  BackHandler,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
@@ -54,6 +55,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
   const authUser = useSelector(selectAuthUser);
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const deleteSheetRef = React.useRef<DeleteAccountBottomSheetRef>(null);
+  const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
 
   // Get companions from the Redux store
   const companionsFromStore = useSelector(selectCompanions);
@@ -91,13 +93,12 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
   }, [authUser?.firstName, displayName]);
 
   const profiles = React.useMemo<CompanionProfile[]>(() => {
+    const pluralSuffix = companionsFromStore.length === 1 ? '' : 's';
     // 1. User's Profile (Primary)
     const userProfile: CompanionProfile = {
       id: 'primary',
       name: displayName,
-      subtitle: `${companionsFromStore.length} Companion${
-        companionsFromStore.length !== 1 ? 's' : ''
-      }`,
+      subtitle: `${companionsFromStore.length} Companion${pluralSuffix}`,
       avatar: primaryAvatar,
     };
 
@@ -142,12 +143,34 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
     }
   }, [navigation]);
 
+  // Handle Android back button for delete bottom sheet
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (isDeleteSheetOpen) {
+        deleteSheetRef.current?.close();
+        setIsDeleteSheetOpen(false);
+        return true;
+      }
+      return false;
+    });
+
+    return () => backHandler.remove();
+  }, [isDeleteSheetOpen]);
+
   const handleDeletePress = React.useCallback(() => {
+    setIsDeleteSheetOpen(true);
     deleteSheetRef.current?.open();
   }, []);
 
   const handleDeleteAccount = React.useCallback(async () => {
+    setIsDeleteSheetOpen(false);
     await logout();
+  }, [logout]);
+
+  const handleLogoutPress = React.useCallback(() => {
+    logout().catch(error => {
+      console.warn('[AccountScreen] Logout failed', error);
+    });
   }, [logout]);
 
   const menuItems = React.useMemo<MenuItem[]>(
@@ -220,7 +243,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
                   index < profiles.length - 1 && styles.companionRowDivider,
                 ]}>
                 <View style={styles.companionInfo}>
-                  {index === 0 && !authUser?.profilePicture ? (
+                  {index === 0 && authUser?.profilePicture == null ? (
                     <View style={styles.companionAvatarInitials}>
                       <Text style={styles.avatarInitialsText}>
                         {userInitials}
@@ -291,10 +314,9 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
 
           <LiquidGlassButton
             title="Logout"
-            onPress={logout}
+            onPress={handleLogoutPress}
             glassEffect="clear"
             interactive
-            tintColor={theme.colors.surface}
             borderRadius="lg"
             forceBorder
             borderColor={theme.colors.secondary}

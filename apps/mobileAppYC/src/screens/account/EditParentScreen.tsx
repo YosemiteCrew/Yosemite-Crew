@@ -1,12 +1,11 @@
-import React, {useMemo, useRef, useState, useCallback} from 'react';
+import React, {useMemo, useRef, useState, useCallback, useEffect} from 'react';
 import {
   View,
   Text,
-  Image,
   ScrollView,
-  TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
+  BackHandler,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
@@ -16,8 +15,9 @@ import type {AppDispatch} from '@/app/store';
 
 import {Header} from '@/components';
 import {LiquidGlassCard} from '@/components/common/LiquidGlassCard/LiquidGlassCard';
-import {Images} from '@/assets/images';
 import {useTheme} from '@/hooks';
+import {createFormScreenStyles} from '@/utils/formScreenStyles';
+import {Separator, RowButton, ReadOnlyRow} from '@/components/common/FormRowComponents';
 
 import {
   selectAuthUser,
@@ -81,6 +81,9 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
   const addressSheetRef = useRef<AddressBottomSheetRef>(null);
   const phoneSheetRef = useRef<CountryMobileBottomSheetRef>(null);
 
+  // Track which bottom sheet is open
+  const [openBottomSheet, setOpenBottomSheet] = useState<'currency' | 'address' | 'phone' | null>(null);
+
   // Helpers
   const goBack = useCallback(() => {
     if (navigation.canGoBack()) navigation.goBack();
@@ -99,21 +102,21 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
   // Parse phone number to separate dial code and local number
   const parsedPhone = useMemo(() => {
     if (!safeUser.phone) return { dialCode: '+1', localNumber: '' };
-    const rawPhone = safeUser.phone.replace(/[^0-9+]/g, '');
-    const normalizedPhoneDigits = rawPhone.replace(/\D/g, '');
+    const rawPhone = safeUser.phone.replaceAll(/[^0-9+]/g, '');
+    const normalizedPhoneDigits = rawPhone.replaceAll(/\D/g, '');
     let resolvedCountry = COUNTRIES.find(country => country.code === 'US') ?? COUNTRIES[0];
     if (normalizedPhoneDigits) {
       const match = COUNTRIES.find(country => {
-        const dialCodeDigits = country.dial_code.replace('+', '');
+        const dialCodeDigits = country.dial_code.replaceAll('+', '');
         return normalizedPhoneDigits.startsWith(dialCodeDigits);
       });
       if (match) resolvedCountry = match;
     }
     const localPhoneRaw = normalizedPhoneDigits.startsWith(
-      resolvedCountry.dial_code.replace('+', ''),
+      resolvedCountry.dial_code.replaceAll('+', ''),
     )
       ? normalizedPhoneDigits.slice(
-          resolvedCountry.dial_code.replace('+', '').length,
+          resolvedCountry.dial_code.replaceAll('+', '').length,
         )
       : normalizedPhoneDigits;
     const localPhoneNumber = localPhoneRaw.slice(-10);
@@ -126,6 +129,38 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
     },
     [applyPatch],
   );
+
+  // Handle Android back button for bottom sheets and date picker
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      // Close date picker first if open
+      if (showDobPicker) {
+        setShowDobPicker(false);
+        return true;
+      }
+
+      // Close bottom sheet first if open
+      if (openBottomSheet) {
+        switch (openBottomSheet) {
+          case 'currency':
+            currencySheetRef.current?.close();
+            break;
+          case 'address':
+            addressSheetRef.current?.close();
+            break;
+          case 'phone':
+            phoneSheetRef.current?.close();
+            break;
+        }
+        setOpenBottomSheet(null);
+        return true;
+      }
+
+      return false;
+    });
+
+    return () => backHandler.remove();
+  }, [showDobPicker, openBottomSheet]);
 
   if (!safeUser) {
     return (
@@ -192,7 +227,10 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
             <RowButton
               label="Phone"
               value={safeUser.phone ? `${parsedPhone.dialCode} ${parsedPhone.localNumber}` : ''}
-              onPress={() => phoneSheetRef.current?.open()}
+              onPress={() => {
+                setOpenBottomSheet('phone');
+                phoneSheetRef.current?.open();
+              }}
             />
 
             <Separator />
@@ -222,7 +260,10 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
             <RowButton
               label="Currency"
               value={safeUser.currency ?? 'USD'}
-              onPress={() => currencySheetRef.current?.open()}
+              onPress={() => {
+                setOpenBottomSheet('currency');
+                currencySheetRef.current?.open();
+              }}
             />
 
             <Separator />
@@ -231,7 +272,10 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
             <RowButton
               label="Address"
               value={safeUser.address?.addressLine ?? ''}
-              onPress={() => addressSheetRef.current?.open()}
+              onPress={() => {
+                setOpenBottomSheet('address');
+                addressSheetRef.current?.open();
+              }}
               key="address"
             />
 
@@ -240,7 +284,10 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
             <RowButton
               label="State/Province"
               value={safeUser.address?.stateProvince ?? ''}
-              onPress={() => addressSheetRef.current?.open()}
+              onPress={() => {
+                setOpenBottomSheet('address');
+                addressSheetRef.current?.open();
+              }}
               key="stateProvince"
             />
 
@@ -249,7 +296,10 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
             <RowButton
               label="City"
               value={safeUser.address?.city ?? ''}
-              onPress={() => addressSheetRef.current?.open()}
+              onPress={() => {
+                setOpenBottomSheet('address');
+                addressSheetRef.current?.open();
+              }}
               key="city"
             />
 
@@ -258,7 +308,10 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
             <RowButton
               label="Postal Code"
               value={safeUser.address?.postalCode ?? ''}
-              onPress={() => addressSheetRef.current?.open()}
+              onPress={() => {
+                setOpenBottomSheet('address');
+                addressSheetRef.current?.open();
+              }}
               key="postalCode"
             />
 
@@ -267,7 +320,10 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
             <RowButton
               label="Country"
               value={safeUser.address?.country ?? ''}
-              onPress={() => addressSheetRef.current?.open()}
+              onPress={() => {
+                setOpenBottomSheet('address');
+                addressSheetRef.current?.open();
+              }}
               key="country"
             />
           </View>
@@ -278,13 +334,19 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
       <CurrencyBottomSheet
         ref={currencySheetRef}
         selectedCurrency={safeUser.currency ?? 'USD'}
-        onSave={(currency: string) => applyPatch({currency})}
+        onSave={(currency: string) => {
+          applyPatch({currency});
+          setOpenBottomSheet(null);
+        }}
       />
 
       <AddressBottomSheet
         ref={addressSheetRef}
         selectedAddress={safeUser.address ?? {}}
-        onSave={(address) => applyPatch({address})}
+        onSave={(address) => {
+          applyPatch({address});
+          setOpenBottomSheet(null);
+        }}
       />
 
       <CountryMobileBottomSheet
@@ -292,7 +354,10 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
         countries={COUNTRIES}
         selectedCountry={COUNTRIES.find(country => country.dial_code === parsedPhone.dialCode) ?? COUNTRIES.find((c: any) => c.code === 'US') ?? COUNTRIES[0]}
         mobileNumber={parsedPhone.localNumber}
-        onSave={(country, phone) => applyPatch({phone: `${country.dial_code}${phone}`})}
+        onSave={(country, phone) => {
+          applyPatch({phone: `${country.dial_code}${phone}`});
+          setOpenBottomSheet(null);
+        }}
       />
 
       <SimpleDatePicker
@@ -312,80 +377,9 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
   );
 };
 
-/* ----------------- Small shared pieces ----------------- */
-const Separator = () => {
-  const {theme} = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
-  return (
-    <View style={styles.separator} />
-  );
-};
-
-const RowButton: React.FC<{
-  label: string;
-  value?: string;
-  onPress: () => void;
-}> = ({label, value, onPress}) => {
-  const {theme} = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
-  return (
-    <TouchableOpacity
-      style={styles.rowButtonTouchable}
-      activeOpacity={0.8}
-      onPress={onPress}>
-      <Text style={styles.rowButtonLabel}>
-        {label}
-      </Text>
-      <Text
-        style={styles.rowButtonValue}
-        numberOfLines={1}
-        ellipsizeMode="tail">
-        {value || ' '}
-      </Text>
-      <Image
-        source={Images.rightArrow}
-        style={styles.rowButtonArrow}
-      />
-    </TouchableOpacity>
-  );
-};
-
-const ReadOnlyRow: React.FC<{
-  label: string;
-  value?: string;
-}> = ({label, value}) => {
-  const {theme} = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
-  return (
-    <View style={styles.readOnlyRowContainer}>
-      <Text style={styles.rowButtonLabel}>
-        {label}
-      </Text>
-      <Text
-        style={styles.rowButtonValue}
-        numberOfLines={1}
-        ellipsizeMode="tail">
-        {value || ' '}
-      </Text>
-    </View>
-  );
-};
-
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    centered: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    content: {
-      paddingHorizontal: theme.spacing[5],
-      paddingBottom: theme.spacing[10],
-    },
+    ...createFormScreenStyles(theme),
     profileHeader: {
       alignItems: 'center',
       marginVertical: theme.spacing[6],
@@ -399,58 +393,5 @@ const createStyles = (theme: any) =>
       ...theme.typography.bodySmall,
       color: theme.colors.textSecondary,
       marginTop: theme.spacing[1],
-    },
-    glassContainer: {
-      borderRadius: theme.borderRadius.lg,
-      paddingVertical: theme.spacing[2],
-      overflow: 'hidden',
-      ...theme.shadows.md,
-    },
-    glassFallback: {
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.cardBackground,
-      borderColor: theme.colors.borderMuted,
-    },
-    listContainer: {
-      gap: theme.spacing[1],
-    },
-    muted: {
-      ...theme.typography.body,
-      color: theme.colors.textSecondary,
-    },
-    rowButtonTouchable: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: theme.spacing[3],
-      paddingHorizontal: theme.spacing[3],
-    },
-    rowButtonLabel: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.secondary,
-      flex: 1,
-    },
-    rowButtonValue: {
-      ...theme.typography.bodySmall,
-      color: theme.colors.textSecondary,
-      marginRight: theme.spacing[3],
-      flexShrink: 1,
-      flex: 1,
-      textAlign: 'right',
-    },
-    rowButtonArrow: {
-      width: 16,
-      height: 16,
-      resizeMode: 'contain',
-    },
-    readOnlyRowContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: theme.spacing[3],
-      paddingHorizontal: theme.spacing[3],
-    },
-    separator: {
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.borderSeperator,
-      marginLeft: 16,
     },
   });

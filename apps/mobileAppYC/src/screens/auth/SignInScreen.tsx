@@ -6,11 +6,11 @@ import {
   ScrollView,
   Image,
   TouchableOpacity,
-  DeviceEventEmitter,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import {SafeArea, Input} from '../../components/common';
-import {useTheme} from '../../hooks';
+import {useTheme, useSocialAuth, type SocialProvider} from '@/hooks';
 import {Images} from '../../assets/images';
 import LiquidGlassButton from '@/components/common/LiquidGlassButton/LiquidGlassButton';
 import {
@@ -20,12 +20,7 @@ import {
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import type {AuthStackParamList} from '../../navigation/AuthNavigator';
 import {useAuth} from '@/contexts/AuthContext';
-import {
-  signInWithSocialProvider,
-  type SocialProvider,
-} from '@/services/auth/socialAuth';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT } from '@/config/variables';
+import {isValidEmail} from '@/utils/constants';
 
 const socialIconStyles = StyleSheet.create({
   icon: {
@@ -59,18 +54,34 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) =
   const [statusMessage, setStatusMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [socialError, setSocialError] = useState('');
-  const [activeSocialProvider, setActiveSocialProvider] =
-    useState<SocialProvider | null>(null);
-  const isSocialLoading = activeSocialProvider !== null;
+
+  const {activeProvider, isSocialLoading, handleSocialAuth} = useSocialAuth({
+    onStart: () => {
+      setSocialError('');
+      setStatusMessage('');
+      setEmailError('');
+    },
+    onExistingProfile: async result => {
+      await login(result.user, result.tokens);
+    },
+    onNewProfile: async createAccountPayload => {
+      navigation.reset({
+        index: 0,
+        routes: [{name: 'CreateAccount', params: createAccountPayload}],
+      });
+    },
+    genericErrorMessage: 'We couldn’t sign you in. Kindly retry.',
+  });
 
   const routeEmail = route.params?.email;
   const routeStatusMessage = route.params?.statusMessage;
   const hasStatusMessageParam = route.params
-    ? Object.prototype.hasOwnProperty.call(route.params, 'statusMessage')
+    ? Object.hasOwn(route.params, 'statusMessage')
     : false;
 
   useEffect(() => {
-    if (!routeEmail && !hasStatusMessageParam) {
+    const shouldSkipRestore = routeEmail == null && hasStatusMessageParam === false;
+    if (shouldSkipRestore) {
       return;
     }
 
@@ -91,18 +102,15 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) =
     navigation.setParams({ email: undefined, statusMessage: undefined });
   }, [hasStatusMessageParam, navigation, routeEmail, routeStatusMessage]);
 
-  const validateEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
+  const validateEmail = (email: string) => isValidEmail(email);
 
   const handleSendOTP = async () => {
-    if (!emailValue.trim()) {
+    if (emailValue.trim().length === 0) {
       setEmailError('Please enter your email address');
       return;
     }
 
-    if (!validateEmail(emailValue.trim())) {
+    if (validateEmail(emailValue.trim()) === false) {
       setEmailError('Please enter a valid email address');
       return;
     }
@@ -127,54 +135,15 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) =
     }
   };
 
-  const handleSocialAuth = async (provider: SocialProvider) => {
-    if (activeSocialProvider) {
-      return;
-    }
-
-    setSocialError('');
-    setStatusMessage('');
-    setEmailError('');
-    setActiveSocialProvider(provider);
-
+  const attemptSocialAuth = async (provider: SocialProvider) => {
     try {
-      const result = await signInWithSocialProvider(provider);
-
-      if (result.profile.exists) {
-        await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
-        DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
-        await login(result.user, result.tokens);
-        return;
-      }
-
-      const createAccountPayload: AuthStackParamList['CreateAccount'] = {
-        email: result.user.email,
-        userId: result.user.id,
-        profileToken: result.profile.profileToken,
-        tokens: result.tokens,
-        initialAttributes: {
-          firstName: result.initialAttributes.firstName,
-          lastName: result.initialAttributes.lastName,
-          profilePicture: result.initialAttributes.profilePicture,
-        },
-      };
-
-      await AsyncStorage.setItem(
-        PENDING_PROFILE_STORAGE_KEY,
-        JSON.stringify(createAccountPayload),
-      );
-      DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
-
-      navigation.reset({
-        index: 0,
-        routes: [{name: 'CreateAccount', params: createAccountPayload}],
-      });
-    } catch (error: any) {
-      // Show a short, generic message for cancellations and errors
-      const isCancelled = error?.code === 'auth/cancelled' || /cancel/i.test(String(error?.message ?? ''));
-      setSocialError(isCancelled ? 'Kindly retry.' : 'We couldn’t sign you in. Kindly retry.');
-    } finally {
-      setActiveSocialProvider(null);
+      await handleSocialAuth(provider);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'We couldn’t sign you in. Kindly retry.';
+      setSocialError(message);
     }
   };
 
@@ -182,11 +151,11 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) =
     navigation.navigate('SignUp');
   };
 
-  const handleGoogleSignIn = () => handleSocialAuth('google');
+  const handleGoogleSignIn = () => attemptSocialAuth('google');
 
-  const handleFacebookSignIn = () => handleSocialAuth('facebook');
+  const handleFacebookSignIn = () => attemptSocialAuth('facebook');
 
-  const handleAppleSignIn = () => handleSocialAuth('apple');
+  const handleAppleSignIn = () => attemptSocialAuth('apple');
 
   const handleEmailChange = (text: string) => {
     setEmailValue(text);
@@ -203,119 +172,127 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({navigation, route}) =
 
   return (
     <SafeArea style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}>
-        <View style={styles.content}>
-          <Image
-            source={Images.authIllustration}
-            style={styles.illustration}
-            resizeMode="contain"
-          />
-
-          <Text style={styles.title}>Tail-wagging welcome!</Text>
-
-          <View style={styles.formContainer}>
-            <View style={styles.inputContainer}>
-              <Input
-                label="Email address"
-                value={emailValue}
-                onChangeText={handleEmailChange}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                inputStyle={styles.input}
-                error={emailError}
-              />
-            </View>
-
-            <LiquidGlassButton
-              title="Send OTP"
-              onPress={handleSendOTP}
-              style={styles.sendButton}
-              textStyle={styles.sendButtonText}
-              loading={isSubmitting}
-              disabled={isSubmitting}
-              tintColor={theme.colors.secondary}
-              height={56}
-              borderRadius="lg"
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
+        <ScrollView
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}>
+          <View style={styles.content}>
+            <Image
+              source={Images.authIllustration}
+              style={styles.illustration}
+              resizeMode="contain"
             />
 
-            {statusMessage ? (
-              <Text style={styles.statusMessage}>{statusMessage}</Text>
-            ) : null}
+            <Text style={styles.title}>Tail-wagging welcome!</Text>
 
-            <View style={styles.footerContainer}>
-              <Text style={styles.footerText}>Not a member? </Text>
-              <TouchableOpacity onPress={navigateToSignUp}>
-                <Text style={styles.signUpLink}>Sign up</Text>
-              </TouchableOpacity>
+            <View style={styles.formContainer}>
+              <View style={styles.inputContainer}>
+                <Input
+                  label="Email address"
+                  value={emailValue}
+                  onChangeText={handleEmailChange}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  inputStyle={styles.input}
+                  error={emailError}
+                />
+              </View>
+
+              <LiquidGlassButton
+                title="Send OTP"
+                onPress={handleSendOTP}
+                style={styles.sendButton}
+                textStyle={styles.sendButtonText}
+                loading={isSubmitting}
+                disabled={isSubmitting}
+                tintColor={theme.colors.secondary}
+                height={56}
+                borderRadius="lg"
+              />
+
+              {statusMessage ? (
+                <Text style={styles.statusMessage}>{statusMessage}</Text>
+              ) : null}
+
+              <View style={styles.footerContainer}>
+                <Text style={styles.footerText}>Not a member? </Text>
+                <TouchableOpacity onPress={navigateToSignUp}>
+                  <Text style={styles.signUpLink}>Sign up</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
 
-      {/* Fixed Bottom Section */}
-      <View style={styles.bottomSection}>
-        <View style={styles.divider}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>Login via</Text>
-          <View style={styles.dividerLine} />
-        </View>
+        {/* Fixed Bottom Section */}
+        <View style={styles.bottomSection}>
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>Login via</Text>
+            <View style={styles.dividerLine} />
+          </View>
 
-        <View style={styles.socialButtons}>
-          <LiquidGlassButton
-            onPress={handleGoogleSignIn}
-            customContent={<GoogleIcon />}
-            disabled={isSocialLoading}
-            tintColor={Platform.OS === 'ios' ? theme.colors.cardBackground : undefined}
-            height={60}
-            width={112}
-            borderRadius={20}
-            forceBorder
-            borderColor={theme.colors.border}
-            style={{
-              ...styles.socialButton,
-              ...(Platform.OS !== 'ios'
-                ? {backgroundColor: theme.colors.cardBackground}
-                : {}),
-            }}
-          />
-          <LiquidGlassButton
-            onPress={handleFacebookSignIn}
-            customContent={<FacebookIcon />}
-            disabled={isSocialLoading}
-            tintColor={Platform.OS === 'ios' ? theme.colors.primary : undefined}
-            height={60}
-            width={112}
-            borderRadius={20}
-            style={{
-              ...styles.socialButton,
-              ...(Platform.OS !== 'ios'
-                ? {backgroundColor: theme.colors.primary}
-                : {}),
-            }}
-          />
-          <LiquidGlassButton
-            onPress={handleAppleSignIn}
-            customContent={<AppleIcon />}
-            disabled={isSocialLoading}
-            tintColor={Platform.OS === 'ios' ? theme.colors.secondary : undefined}
-            height={60}
-            width={112}
-            borderRadius={20}
-            style={{
-              ...styles.socialButton,
-              ...(Platform.OS !== 'ios'
-                ? {backgroundColor: theme.colors.secondary}
-                : {}),
-            }}
-          />
+          <View style={styles.socialButtons}>
+            <LiquidGlassButton
+              onPress={handleGoogleSignIn}
+              customContent={<GoogleIcon />}
+              disabled={isSocialLoading}
+              loading={activeProvider === 'google'}
+              tintColor={Platform.OS === 'ios' ? theme.colors.cardBackground : undefined}
+              height={60}
+              width={112}
+              borderRadius={20}
+              forceBorder
+              borderColor={theme.colors.border}
+              style={{
+                ...styles.socialButton,
+                ...(Platform.OS === 'ios'
+                  ? {}
+                  : {backgroundColor: theme.colors.cardBackground}),
+              }}
+            />
+            <LiquidGlassButton
+              onPress={handleFacebookSignIn}
+              customContent={<FacebookIcon />}
+              disabled={isSocialLoading}
+              loading={activeProvider === 'facebook'}
+              tintColor={Platform.OS === 'ios' ? theme.colors.primary : undefined}
+              height={60}
+              width={112}
+              borderRadius={20}
+              style={{
+                ...styles.socialButton,
+                ...(Platform.OS === 'ios'
+                  ? {}
+                  : {backgroundColor: theme.colors.primary}),
+              }}
+            />
+            <LiquidGlassButton
+              onPress={handleAppleSignIn}
+              customContent={<AppleIcon />}
+              disabled={isSocialLoading}
+              loading={activeProvider === 'apple'}
+              tintColor={Platform.OS === 'ios' ? theme.colors.secondary : undefined}
+              height={60}
+              width={112}
+              borderRadius={20}
+              style={{
+                ...styles.socialButton,
+                ...(Platform.OS === 'ios'
+                  ? {}
+                  : {backgroundColor: theme.colors.secondary}),
+              }}
+            />
+          </View>
+          {socialError ? (
+            <Text style={styles.socialErrorText}>{socialError}</Text>
+          ) : null}
         </View>
-        {socialError ? (
-          <Text style={styles.socialErrorText}>{socialError}</Text>
-        ) : null}
-      </View>
+      </KeyboardAvoidingView>
     </SafeArea>
   );
 };
@@ -325,6 +302,9 @@ const createStyles = (theme: any) =>
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
+    },
+    keyboardView: {
+      flex: 1,
     },
     scrollView: {
       flex: 1,
