@@ -7,6 +7,8 @@ import {useSelector} from 'react-redux';
 import {SafeArea, Input, TouchableInput} from '@/components/common';
 import {Header} from '@/components/common/Header/Header';
 import {DocumentAttachmentsSection} from '@/components/documents/DocumentAttachmentsSection';
+import {ViewField, ViewTouchField} from './components/ViewField';
+import {ViewDateTimeRow} from './components/ViewDateTimeRow';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {createIconStyles} from '@/utils/iconStyles';
@@ -159,64 +161,59 @@ export const TaskViewScreen: React.FC = () => {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}>
         {/* Companion */}
-        <View style={styles.fieldGroup}>
-          <Input
-            label="Companion"
-            value={companion?.name || ''}
-            editable={false}
-          />
-        </View>
+        <ViewField
+          label="Companion"
+          value={companion?.name || ''}
+          fieldGroupStyle={styles.fieldGroup}
+        />
 
         {/* Task Type */}
-        <View style={styles.fieldGroup}>
-          <TouchableInput
-            label="Task type"
-            value={getTaskTypeBreadcrumb()}
-            onPress={() => {}} // View only - no action
-            rightComponent={<Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />}
-          />
-        </View>
+        <ViewTouchField
+          label="Task type"
+          value={getTaskTypeBreadcrumb()}
+          icon={Images.dropdownIcon}
+          iconStyle={iconStyles.dropdownIcon}
+          fieldGroupStyle={styles.fieldGroup}
+        />
 
         {/* Medication Task Form */}
         {isMedication && (
           <>
             {/* Task Name */}
-            <View style={styles.fieldGroup}>
-              <Input label="Task name" value={task.title} editable={false} />
-            </View>
+            <ViewField
+              label="Task name"
+              value={task.title}
+              fieldGroupStyle={styles.fieldGroup}
+            />
 
             {/* Medicine Name */}
-            <View style={styles.fieldGroup}>
-              <Input
-                label="Medicine name"
-                value={(task.details as MedicationTaskDetails).medicineName}
-                editable={false}
-              />
-            </View>
+            <ViewField
+              label="Medicine name"
+              value={(task.details as MedicationTaskDetails).medicineName}
+              fieldGroupStyle={styles.fieldGroup}
+            />
 
             {/* Medication Type */}
-            <View style={styles.fieldGroup}>
-              <TouchableInput
-                label="Medication type"
-                value={resolveMedicationTypeLabel(
-                  (task.details as MedicationTaskDetails).medicineType,
-                )}
-                onPress={() => {}} // View only
-                rightComponent={<Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />}
-              />
-            </View>
+            <ViewTouchField
+              label="Medication type"
+              value={resolveMedicationTypeLabel(
+                (task.details as MedicationTaskDetails).medicineType,
+              )}
+              icon={Images.dropdownIcon}
+              iconStyle={iconStyles.dropdownIcon}
+              fieldGroupStyle={styles.fieldGroup}
+            />
 
             {/* Dosage */}
-            <View style={styles.fieldGroup}>
-              <TouchableInput
-                label="Dosage"
-                value={`${(task.details as MedicationTaskDetails).dosages.length} dosage${
-                  (task.details as MedicationTaskDetails).dosages.length > 1 ? 's' : ''
-                }`}
-                onPress={() => {}} // View only
-                rightComponent={<Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />}
-              />
-            </View>
+            <ViewTouchField
+              label="Dosage"
+              value={`${(task.details as MedicationTaskDetails).dosages.length} dosage${
+                (task.details as MedicationTaskDetails).dosages.length > 1 ? 's' : ''
+              }`}
+              icon={Images.dropdownIcon}
+              iconStyle={iconStyles.dropdownIcon}
+              fieldGroupStyle={styles.fieldGroup}
+            />
 
             {/* Display Dosage Details */}
             {(task.details as MedicationTaskDetails).dosages.length > 0 && (
@@ -299,60 +296,56 @@ export const TaskViewScreen: React.FC = () => {
         {isObservationalTool && (
           <>
             {/* Task Name */}
-            <View style={styles.fieldGroup}>
-              <Input label="Task name" value={task.title} editable={false} />
-            </View>
+            <ViewField
+              label="Task name"
+              value={task.title}
+              fieldGroupStyle={styles.fieldGroup}
+            />
 
             {/* Observational Tool */}
-            <View style={styles.fieldGroup}>
-              <TouchableInput
-                label="Select observational tool"
-                value={resolveObservationalToolLabel(
-                  (task.details as ObservationalToolTaskDetails).toolType,
-                )}
-                onPress={() => {}} // View only
-                rightComponent={<Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />}
-              />
-            </View>
+            <ViewTouchField
+              label="Select observational tool"
+              value={resolveObservationalToolLabel(
+                (task.details as ObservationalToolTaskDetails).toolType,
+              )}
+              icon={Images.dropdownIcon}
+              iconStyle={iconStyles.dropdownIcon}
+              fieldGroupStyle={styles.fieldGroup}
+            />
 
             {/* Date */}
-            <View style={styles.fieldGroup}>
-              <TouchableInput
-                label="Date"
-                value={formatDateForDisplay(new Date(task.date))}
-                onPress={() => {}} // View only
-                rightComponent={<Image source={Images.calendarIcon} style={iconStyles.calendarIcon} />}
-              />
-            </View>
+            <ViewTouchField
+              label="Date"
+              value={formatDateForDisplay(new Date(task.date))}
+              icon={Images.calendarIcon}
+              iconStyle={iconStyles.calendarIcon}
+              fieldGroupStyle={styles.fieldGroup}
+            />
 
             {/* Time */}
-            <View style={styles.fieldGroup}>
-              <TouchableInput
-                label="Time"
-                value={formatTime(task.time)}
-                onPress={() => {}} // View only
-                rightComponent={<Image source={Images.clockIcon} style={iconStyles.clockIcon} />}
-              />
-            </View>
+            <ViewTouchField
+              label="Time"
+              value={formatTime(task.time)}
+              icon={Images.clockIcon}
+              iconStyle={iconStyles.clockIcon}
+              fieldGroupStyle={styles.fieldGroup}
+            />
 
             {/* Task Frequency */}
-            <View style={styles.fieldGroup}>
-              <TouchableInput
-                label="Task frequency"
-                value={resolveTaskFrequencyLabel(task.frequency)}
-                onPress={() => {}} // View only
-                rightComponent={<Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />}
-              />
-            </View>
+            <ViewTouchField
+              label="Task frequency"
+              value={resolveTaskFrequencyLabel(task.frequency)}
+              icon={Images.dropdownIcon}
+              iconStyle={iconStyles.dropdownIcon}
+              fieldGroupStyle={styles.fieldGroup}
+            />
 
             {/* Assign Task */}
-            <View style={styles.fieldGroup}>
-              <Input
-                label="Assign task"
-                value={getAssignedToName()}
-                editable={false}
-              />
-            </View>
+            <ViewField
+              label="Assign task"
+              value={getAssignedToName()}
+              fieldGroupStyle={styles.fieldGroup}
+            />
           </>
         )}
 
@@ -360,65 +353,51 @@ export const TaskViewScreen: React.FC = () => {
         {!isMedication && !isObservationalTool && (
           <>
             {/* Task Name */}
-            <View style={styles.fieldGroup}>
-              <Input label="Task name" value={task.title} editable={false} />
-            </View>
+            <ViewField
+              label="Task name"
+              value={task.title}
+              fieldGroupStyle={styles.fieldGroup}
+            />
 
             {/* Task Description */}
             {task.details && 'description' in task.details && task.details.description && (
-              <View style={styles.fieldGroup}>
-                <Input
-                  label="Task description"
-                  value={task.details.description}
-                  multiline
-                  numberOfLines={3}
-                  inputStyle={styles.textArea}
-                  editable={false}
-                />
-              </View>
+              <ViewField
+                label="Task description"
+                value={task.details.description}
+                multiline
+                numberOfLines={3}
+                textAreaStyle={styles.textArea}
+                fieldGroupStyle={styles.fieldGroup}
+              />
             )}
 
             {/* Date and Time */}
-            <View style={styles.dateTimeRow}>
-              <View style={styles.dateTimeField}>
-                <TouchableInput
-                  label="Date"
-                  value={formatDateForDisplay(new Date(task.date))}
-                  onPress={() => {}} // View only
-                  rightComponent={
-                    <Image source={Images.calendarIcon} style={iconStyles.calendarIcon} />
-                  }
-                />
-              </View>
-
-              <View style={styles.dateTimeField}>
-                <TouchableInput
-                  label="Time"
-                  value={formatTime(task.time)}
-                  onPress={() => {}} // View only
-                  rightComponent={<Image source={Images.clockIcon} style={iconStyles.clockIcon} />}
-                />
-              </View>
-            </View>
+            <ViewDateTimeRow
+              dateLabel="Date"
+              dateValue={formatDateForDisplay(new Date(task.date))}
+              timeLabel="Time"
+              timeValue={formatTime(task.time)}
+              dateTimeRowStyle={styles.dateTimeRow}
+              dateTimeFieldStyle={styles.dateTimeField}
+              calendarIconStyle={iconStyles.calendarIcon}
+              clockIconStyle={iconStyles.clockIcon}
+            />
 
             {/* Task Frequency */}
-            <View style={styles.fieldGroup}>
-              <TouchableInput
-                label="Task frequency"
-                value={resolveTaskFrequencyLabel(task.frequency)}
-                onPress={() => {}} // View only
-                rightComponent={<Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />}
-              />
-            </View>
+            <ViewTouchField
+              label="Task frequency"
+              value={resolveTaskFrequencyLabel(task.frequency)}
+              icon={Images.dropdownIcon}
+              iconStyle={iconStyles.dropdownIcon}
+              fieldGroupStyle={styles.fieldGroup}
+            />
 
             {/* Assign Task */}
-            <View style={styles.fieldGroup}>
-              <Input
-                label="Assign task"
-                value={getAssignedToName()}
-                editable={false}
-              />
-            </View>
+            <ViewField
+              label="Assign task"
+              value={getAssignedToName()}
+              fieldGroupStyle={styles.fieldGroup}
+            />
           </>
         )}
 

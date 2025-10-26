@@ -1,9 +1,9 @@
 import React, {forwardRef, useRef, useMemo, useImperativeHandle, useCallback} from 'react';
-import {View, Text, StyleSheet, TouchableOpacity, FlatList, Image} from 'react-native';
+import {View, Text, StyleSheet, TouchableOpacity, FlatList} from 'react-native';
 import CustomBottomSheet from '@/components/common/BottomSheet/BottomSheet';
 import type {BottomSheetRef} from '@/components/common/BottomSheet/BottomSheet';
+import {BottomSheetHeader} from '@/components/common/BottomSheetHeader/BottomSheetHeader';
 import {useTheme} from '@/hooks';
-import {Images} from '@/assets/images';
 import {createBottomSheetStyles} from '@/utils/bottomSheetHelpers';
 import type {
   TaskTypeBottomSheetRef,
@@ -14,6 +14,7 @@ import type {
   SubsubcategoryWithChildren,
 } from './types';
 import {flattenTaskOptions, buildCategorySections, buildSelectionFromOption} from './helpers';
+import {taskTypeOptions} from './taskOptions';
 
 export const TaskTypeBottomSheet = forwardRef<TaskTypeBottomSheetRef, TaskTypeBottomSheetProps>(
   ({onSelect}, ref) => {
@@ -27,186 +28,6 @@ export const TaskTypeBottomSheet = forwardRef<TaskTypeBottomSheetRef, TaskTypeBo
       close: () => bottomSheetRef.current?.close(),
     }));
 
-    const taskTypeOptions: TaskTypeOption[] = useMemo(() => [
-      {
-        id: 'custom',
-        label: 'Custom',
-        category: 'custom',
-      },
-      {
-        id: 'health',
-        label: 'Health',
-        category: 'health',
-        children: [
-          {
-            id: 'health-vaccination',
-            label: 'Vaccination',
-            subcategory: 'vaccination',
-            children: [
-              {
-                id: 'health-vaccination-give-medication',
-                label: 'Give medication',
-                taskType: 'give-medication',
-              },
-            ],
-          },
-          {
-            id: 'health-parasite',
-            label: 'Parasite Prevention',
-            subcategory: 'parasite-prevention',
-            children: [
-              {
-                id: 'deworming',
-                label: 'Deworming',
-                parasitePreventionType: 'deworming',
-                children: [
-                  {
-                    id: 'deworming-medication',
-                    label: 'Give medication',
-                    taskType: 'give-medication',
-                  },
-                  {
-                    id: 'deworming-tool',
-                    label: 'Take observational tool',
-                    taskType: 'take-observational-tool',
-                  },
-                ],
-              },
-              {
-                id: 'flea-tick',
-                label: 'Flea and tick prevention',
-                parasitePreventionType: 'flea-tick-prevention',
-                children: [
-                  {
-                    id: 'flea-tick-medication',
-                    label: 'Give medication',
-                    taskType: 'give-medication',
-                  },
-                  {
-                    id: 'flea-tick-tool',
-                    label: 'Take observational tool',
-                    taskType: 'take-observational-tool',
-                  },
-                ],
-              },
-            ],
-          },
-          {
-            id: 'health-chronic',
-            label: 'Chronic conditions',
-            subcategory: 'chronic-conditions',
-            children: [
-              {
-                id: 'pain',
-                label: 'Pain',
-                chronicConditionType: 'pain',
-                children: [
-                  {
-                    id: 'pain-medication',
-                    label: 'Give medication',
-                    taskType: 'give-medication',
-                  },
-                  {
-                    id: 'pain-tool',
-                    label: 'Take observational tool',
-                    taskType: 'take-observational-tool',
-                  },
-                ],
-              },
-              {
-                id: 'diabetes',
-                label: 'Diabetes',
-                chronicConditionType: 'diabetes',
-                children: [
-                  {
-                    id: 'diabetes-medication',
-                    label: 'Give medication',
-                    taskType: 'give-medication',
-                  },
-                  {
-                    id: 'diabetes-tool',
-                    label: 'Take observational tool',
-                    taskType: 'take-observational-tool',
-                  },
-                ],
-              },
-              {
-                id: 'epilepsy',
-                label: 'Epilepsy',
-                chronicConditionType: 'epilepsy',
-                children: [
-                  {
-                    id: 'epilepsy-medication',
-                    label: 'Give medication',
-                    taskType: 'give-medication',
-                  },
-                  {
-                    id: 'epilepsy-tool',
-                    label: 'Take observational tool',
-                    taskType: 'take-observational-tool',
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      },
-      {
-        id: 'hygiene',
-        label: 'Hygiene maintenance',
-        category: 'hygiene',
-        children: [
-          {
-            id: 'brushing-hair',
-            label: 'Brushing hair',
-            taskType: 'brushing-hair',
-          },
-          {
-            id: 'dental-care',
-            label: 'Dental care',
-            taskType: 'dental-care',
-          },
-          {
-            id: 'nail-trimming',
-            label: 'Nail trimming',
-            taskType: 'nail-trimming',
-          },
-          {
-            id: 'give-bath',
-            label: 'Give bath',
-            taskType: 'give-bath',
-          },
-          {
-            id: 'take-exercise',
-            label: 'Take for exercise',
-            taskType: 'take-exercise',
-          },
-          {
-            id: 'give-training',
-            label: 'Give training',
-            taskType: 'give-training',
-          },
-        ],
-      },
-      {
-        id: 'dietary',
-        label: 'Dietary plan',
-        category: 'dietary',
-        children: [
-          {
-            id: 'meals',
-            label: 'Meals',
-            taskType: 'meals',
-          },
-          {
-            id: 'freshwater',
-            label: 'Freshwater',
-            taskType: 'freshwater',
-          },
-        ],
-      },
-    ], []);
-
     // Flatten all task options recursively
     const flattenedOptions = useMemo(() => {
       const result = [];
@@ -214,7 +35,7 @@ export const TaskTypeBottomSheet = forwardRef<TaskTypeBottomSheetRef, TaskTypeBo
         result.push(...flattenTaskOptions([option]));
       }
       return result;
-    }, [taskTypeOptions]);
+    }, []);
 
     // Build category sections with proper hierarchy
     const categorySections = useMemo(() => {
@@ -294,8 +115,6 @@ export const TaskTypeBottomSheet = forwardRef<TaskTypeBottomSheetRef, TaskTypeBo
       );
     }, [handleTaskSelect, renderSubcategory, styles.customPillWrapper, styles.pillButton, styles.pillButtonText, styles.categorySection, styles.categoryHeader]);
 
-    const closeIconSource = Images?.crossIcon ?? null;
-
     const handleClose = () => {
       bottomSheetRef.current?.close();
     };
@@ -317,20 +136,11 @@ export const TaskTypeBottomSheet = forwardRef<TaskTypeBottomSheetRef, TaskTypeBo
         backgroundStyle={styles.bottomSheetBackground}
         handleIndicatorStyle={styles.bottomSheetHandle}>
         <View style={styles.container}>
-          <View style={styles.header}>
-            <View style={styles.titleContainer}>
-              <Text style={styles.title}>Select Task Type</Text>
-            </View>
-            {closeIconSource && (
-              <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-                <Image
-                  source={closeIconSource}
-                  style={styles.closeIcon}
-                  resizeMode="contain"
-                />
-              </TouchableOpacity>
-            )}
-          </View>
+          <BottomSheetHeader
+            title="Select Task Type"
+            onClose={handleClose}
+            theme={theme}
+          />
 
           <View style={styles.listWrapper}>
             <FlatList
@@ -357,35 +167,6 @@ const createStyles = (theme: any) =>
       flex: 1,
       paddingHorizontal: theme.spacing['5'],
       backgroundColor: theme.colors.background,
-    },
-    header: {
-      flexDirection: 'row',
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingVertical: theme.spacing['4'],
-      position: 'relative',
-    },
-    titleContainer: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingRight: theme.spacing['8'],
-    },
-    title: {
-      ...theme.typography.h3,
-      color: theme.colors.text,
-      textAlign: 'center',
-      lineHeight: theme.typography.h3.fontSize * 1.3,
-      fontSize: theme.typography.h3.fontSize - 2,
-    },
-    closeButton: {
-      position: 'absolute',
-      right: 0,
-      padding: theme.spacing['2'],
-    },
-    closeIcon: {
-      width: theme.spacing['6'],
-      height: theme.spacing['6'],
     },
     listWrapper: {
       maxHeight: 600,

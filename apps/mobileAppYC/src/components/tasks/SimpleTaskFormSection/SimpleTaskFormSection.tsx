@@ -1,9 +1,11 @@
 import React from 'react';
-import {View, StyleSheet, Image} from 'react-native';
+import {View, Image} from 'react-native';
 import {Input, TouchableInput} from '@/components/common';
 import {formatDateForDisplay} from '@/components/common/SimpleDatePicker/SimpleDatePicker';
+import {formatTimeForDisplay} from '@/utils/timeHelpers';
 import {Images} from '@/assets/images';
 import {createIconStyles} from '@/utils/iconStyles';
+import {createTaskFormSectionStyles} from '@/components/tasks/shared/taskFormStyles';
 import type {TaskFormData, TaskFormErrors, TaskTypeSelection} from '@/features/tasks/types';
 
 interface SimpleTaskFormSectionProps {
@@ -27,7 +29,7 @@ export const SimpleTaskFormSection: React.FC<SimpleTaskFormSectionProps> = ({
   onOpenTaskFrequencySheet,
   theme,
 }) => {
-  const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const styles = React.useMemo(() => createTaskFormSectionStyles(theme), [theme]);
   const iconStyles = React.useMemo(() => createIconStyles(theme), [theme]);
   const isEditable = !taskTypeSelection || taskTypeSelection.category === 'custom';
   const placeholderText = isEditable ? 'Enter task name' : undefined;
@@ -76,15 +78,7 @@ export const SimpleTaskFormSection: React.FC<SimpleTaskFormSectionProps> = ({
         <View style={styles.dateTimeField}>
           <TouchableInput
             label={formData.time ? 'Time' : undefined}
-            value={
-              formData.time
-                ? formData.time.toLocaleTimeString('en-US', {
-                    hour: 'numeric',
-                    minute: '2-digit',
-                    hour12: true,
-                  })
-                : undefined
-            }
+            value={formatTimeForDisplay(formData.time)}
             placeholder="Time"
             onPress={onOpenTimePicker}
             rightComponent={<Image source={Images.clockIcon} style={styles.calendarIcon} />}
@@ -109,27 +103,3 @@ export const SimpleTaskFormSection: React.FC<SimpleTaskFormSectionProps> = ({
     </>
   );
 };
-
-const createStyles = (theme: any) =>
-  StyleSheet.create({
-    fieldGroup: {
-      marginBottom: theme.spacing[4],
-    },
-    textArea: {
-      minHeight: 100,
-      textAlignVertical: 'top',
-    },
-    dateTimeRow: {
-      flexDirection: 'row',
-      gap: theme.spacing[3],
-      marginBottom: theme.spacing[4],
-    },
-    dateTimeField: {
-      flex: 1,
-    },
-    calendarIcon: {
-      width: 18,
-      height: 18,
-      resizeMode: 'contain',
-    },
-  });

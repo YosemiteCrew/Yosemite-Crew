@@ -41,11 +41,12 @@ export const SimpleDatePicker: React.FC<SimpleDatePickerProps> = ({
       if (event.type === 'set' && selectedDate) {
         onDateChange(selectedDate);
       }
-    } else {
-      // On iOS, just update the temp date
-      if (selectedDate) {
-        setTempDate(selectedDate);
-      }
+      return;
+    }
+
+    // On iOS, just update the temp date
+    if (selectedDate) {
+      setTempDate(selectedDate);
     }
   };
 

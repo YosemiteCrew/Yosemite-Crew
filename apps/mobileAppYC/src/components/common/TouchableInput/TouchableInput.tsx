@@ -8,9 +8,13 @@ import {
   ViewStyle,
   TextStyle,
   Animated,
-  Platform,
 } from 'react-native';
 import { useTheme } from '../../../hooks';
+import {
+  getFloatingLabelAnimatedStyle,
+  getInputContainerBaseStyle,
+  getValueTextStyle,
+} from '../shared/floatingLabelStyles';
 
 interface TouchableInputProps {
   label?: string;
@@ -61,84 +65,15 @@ export const TouchableInput: React.FC<TouchableInputProps> = ({
     }
   }, [hasValue, animateLabel]);
 
-  const getInputContainerStyle = (): ViewStyle => ({
-    borderWidth: 2,
-    borderColor: error
-      ? theme.colors.error
-      : theme.colors.border,
-    borderRadius: 15,
-    backgroundColor: theme.colors.surface,
-    paddingHorizontal: 20,
-    minHeight: 56,
-    position: 'relative',
-    justifyContent: 'center',
+  const inputContainerStyle: ViewStyle = {
+    ...getInputContainerBaseStyle(theme, error),
     flexDirection: 'row',
     alignItems: 'center',
     opacity: disabled ? 0.6 : 1,
-  });
-
-  const getValueStyle = (): TextStyle => ({
-    ...(hasValue ? theme.typography.inputFilled : theme.typography.input),
-    color: hasValue ? theme.colors.text : theme.colors.textSecondary,
-    fontSize: 16,
-    lineHeight: 20,
-    flex: 1,
-    ...(Platform.OS === 'ios'
-      ? {
-          paddingTop: hasValue ? 10 : 12,
-          paddingBottom: hasValue ? 8 : 12,
-        }
-      : {
-          paddingTop: hasValue ? 10 : 8,
-          paddingBottom: 8,
-          textAlignVertical: 'center',
-        }
-    ),
-    paddingHorizontal: 0,
-    margin: 0,
-    minHeight: Platform.OS === 'ios' ? 20 : 24,
-  });
-
-  const getFloatingLabelStyle = () => {
-    const baseStyle = {
-      position: 'absolute' as const,
-      left: 20,
-      fontSize: animatedValue.interpolate({
-        inputRange: [0, 1],
-        outputRange: [16, 12],
-      }),
-      top: animatedValue.interpolate({
-        inputRange: [0, 1],
-        outputRange: [
-          Platform.OS === 'ios' ? 18 : 15,
-          Platform.OS === 'ios' ? -6 : -10,
-        ],
-      }),
-      color: animatedValue.interpolate({
-        inputRange: [0, 1],
-        outputRange: [
-          theme.colors.textSecondary,
-          theme.colors.textSecondary,
-        ],
-      }),
-      backgroundColor: theme.colors.surface || theme.colors.background,
-      paddingHorizontal: animatedValue.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0, 4],
-      }),
-      zIndex: 1,
-    };
-
-    if (Platform.OS === 'ios') {
-      return {
-        ...baseStyle,
-        includeFontPadding: false,
-        textAlignVertical: 'center' as const,
-      };
-    }
-
-    return baseStyle;
   };
+
+  const valueStyle = getValueTextStyle(theme, hasValue);
+  const floatingLabelStyle = getFloatingLabelAnimatedStyle({animatedValue, theme});
 
   const getErrorStyle = (): TextStyle => ({
     ...theme.typography.labelXsBold,
@@ -155,21 +90,21 @@ export const TouchableInput: React.FC<TouchableInputProps> = ({
         activeOpacity={0.7}
         disabled={disabled}
       >
-        <View style={[getInputContainerStyle(), inputStyle]}>
+        <View style={[inputContainerStyle, inputStyle]}>
           {/* Only show the floating label when there's a value */}
           {label && hasValue && (
-            <Animated.Text style={[getFloatingLabelStyle(), labelStyle]}>
+            <Animated.Text style={[floatingLabelStyle, labelStyle]}>
               {label}
             </Animated.Text>
           )}
-          
+
           {leftComponent && (
             <View style={{ marginRight: 12 }}>
               {leftComponent}
             </View>
           )}
 
-          <Text style={getValueStyle()}>
+          <Text style={valueStyle}>
             {value || placeholder}
           </Text>
 

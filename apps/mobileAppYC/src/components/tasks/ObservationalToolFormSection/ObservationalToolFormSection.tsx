@@ -1,9 +1,11 @@
 import React from 'react';
-import {View, StyleSheet, Image} from 'react-native';
+import {View, Image} from 'react-native';
 import {Input, TouchableInput} from '@/components/common';
 import {formatDateForDisplay} from '@/components/common/SimpleDatePicker/SimpleDatePicker';
+import {formatTimeForDisplay} from '@/utils/timeHelpers';
 import {Images} from '@/assets/images';
 import {createIconStyles} from '@/utils/iconStyles';
+import {createTaskFormSectionStyles} from '@/components/tasks/shared/taskFormStyles';
 import type {TaskFormData, TaskFormErrors} from '@/features/tasks/types';
 
 interface ObservationalToolFormSectionProps {
@@ -27,7 +29,7 @@ export const ObservationalToolFormSection: React.FC<ObservationalToolFormSection
   onOpenTaskFrequencySheet,
   theme,
 }) => {
-  const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const styles = React.useMemo(() => createTaskFormSectionStyles(theme), [theme]);
   const iconStyles = React.useMemo(() => createIconStyles(theme), [theme]);
 
   return (
@@ -72,15 +74,7 @@ export const ObservationalToolFormSection: React.FC<ObservationalToolFormSection
       <View style={styles.fieldGroup}>
         <TouchableInput
           label={formData.time ? 'Time' : undefined}
-          value={
-            formData.time
-              ? formData.time.toLocaleTimeString('en-US', {
-                  hour: 'numeric',
-                  minute: '2-digit',
-                  hour12: true,
-                })
-              : undefined
-          }
+          value={formatTimeForDisplay(formData.time)}
           placeholder="Time"
           onPress={onOpenTimePicker}
           rightComponent={<Image source={Images.clockIcon} style={styles.calendarIcon} />}
@@ -103,15 +97,3 @@ export const ObservationalToolFormSection: React.FC<ObservationalToolFormSection
     </>
   );
 };
-
-const createStyles = (theme: any) =>
-  StyleSheet.create({
-    fieldGroup: {
-      marginBottom: theme.spacing[4],
-    },
-    calendarIcon: {
-      width: 18,
-      height: 18,
-      resizeMode: 'contain',
-    },
-  });
