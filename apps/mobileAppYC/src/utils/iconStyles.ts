@@ -16,8 +16,8 @@ type IconStylesType = {
 export const createIconStyles = (theme: any): IconStylesType => ({
   // Dropdown/Select icon - used in TouchableInput fields
   dropdownIcon: {
-    width: 16,
-    height: 16,
+    width: 20,
+    height: 20,
     resizeMode: 'contain',
   },
 

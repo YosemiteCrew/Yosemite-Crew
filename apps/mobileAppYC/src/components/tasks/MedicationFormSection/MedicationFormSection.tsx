@@ -4,6 +4,7 @@ import {Input, TouchableInput} from '@/components/common';
 import {formatDateForDisplay} from '@/components/common/SimpleDatePicker/SimpleDatePicker';
 import {Images} from '@/assets/images';
 import {createIconStyles} from '@/utils/iconStyles';
+import {createTaskFormSectionStyles} from '@/components/tasks/shared/taskFormStyles';
 import type {TaskFormData, TaskFormErrors} from '@/features/tasks/types';
 
 interface MedicationFormSectionProps {
@@ -39,7 +40,9 @@ export const MedicationFormSection: React.FC<MedicationFormSectionProps> = ({
   theme,
   showDosageDisplay = true,
 }) => {
-  const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const baseStyles = React.useMemo(() => createTaskFormSectionStyles(theme), [theme]);
+  const customStyles = React.useMemo(() => createMedicationStyles(theme), [theme]);
+  const styles = React.useMemo(() => ({...baseStyles, ...customStyles}), [baseStyles, customStyles]);
   const iconStyles = React.useMemo(() => createIconStyles(theme), [theme]);
 
   return (
@@ -169,24 +172,8 @@ export const MedicationFormSection: React.FC<MedicationFormSectionProps> = ({
   );
 };
 
-const createStyles = (theme: any) =>
+const createMedicationStyles = (theme: any) =>
   StyleSheet.create({
-    fieldGroup: {
-      marginBottom: theme.spacing[4],
-    },
-    dateTimeRow: {
-      flexDirection: 'row',
-      gap: theme.spacing[3],
-      marginBottom: theme.spacing[4],
-    },
-    dateTimeField: {
-      flex: 1,
-    },
-    calendarIcon: {
-      width: 18,
-      height: 18,
-      resizeMode: 'contain',
-    },
     dosageDisplayContainer: {
       gap: theme.spacing[3],
       marginBottom: theme.spacing[4],
