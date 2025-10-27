@@ -1,6 +1,6 @@
 import type { UserDocument } from "../../src/models/user";
 import UserModel from "../../src/models/user";
-import { UserService, UserServiceError } from "../../src/services/user.service";
+import { UserService } from "../../src/services/user.service";
 
 jest.mock("../../src/models/user", () => ({
   __esModule: true,
