@@ -2,4 +2,6 @@
 
 exports[`Placeholder Screens Snapshots AppointmentsScreen should render correctly 1`] = `null`;
 
-exports[`Placeholder Screens Snapshots TasksScreen should render correctly 1`] = `null`;
+exports[`Placeholder Screens Snapshots DocumentsScreen should render correctly 1`] = `null`;
+
+exports[`Placeholder Screens Snapshots TasksMainScreen should render correctly 1`] = `null`;

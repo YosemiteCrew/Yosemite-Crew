@@ -1,10 +1,11 @@
 /* istanbul ignore file -- document upload UI relies on native modules not mocked in Jest */
-import React, {useState} from 'react';
+import React, {useState, useRef} from 'react';
 import {useNavigation, CommonActions} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {SafeArea} from '@/components/common';
 import {Header} from '@/components/common/Header/Header';
 import {DocumentForm, type DocumentFormData} from '@/components/documents/DocumentForm/DocumentForm';
+import {DiscardChangesBottomSheet} from '@/components/common/DiscardChangesBottomSheet/DiscardChangesBottomSheet';
 import {useDocumentFormValidation} from '@/hooks';
 import {useSelector, useDispatch} from 'react-redux';
 import type {RootState, AppDispatch} from '@/app/store';
@@ -40,6 +41,8 @@ export const AddDocumentScreen: React.FC = () => {
     issueDate: new Date(),
     files: [],
   });
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const discardSheetRef = useRef<any>(null);
 
   const {errors, clearError, validateForm, setFormError} =
     useDocumentFormValidation();
@@ -49,10 +52,19 @@ export const AddDocumentScreen: React.FC = () => {
     value: any,
   ) => {
     setFormData(prev => ({...prev, [field]: value}));
+    setHasUnsavedChanges(true);
   };
 
   const handleCompanionSelect = (id: string | null) => {
     dispatch(setSelectedCompanion(id));
+  };
+
+  const handleBack = () => {
+    if (hasUnsavedChanges) {
+      discardSheetRef.current?.open();
+    } else {
+      navigation.goBack();
+    }
   };
 
   const handleSave = async () => {
@@ -105,7 +117,7 @@ export const AddDocumentScreen: React.FC = () => {
       <Header
         title="Add document"
         showBackButton={true}
-        onBack={() => navigation.goBack()}
+        onBack={handleBack}
       />
       <DocumentForm
         companions={companions}
@@ -119,6 +131,11 @@ export const AddDocumentScreen: React.FC = () => {
         onSave={handleSave}
         saveButtonText="Save"
         showNote={true}
+      />
+
+      <DiscardChangesBottomSheet
+        ref={discardSheetRef}
+        onDiscard={() => navigation.goBack()}
       />
     </SafeArea>
   );
