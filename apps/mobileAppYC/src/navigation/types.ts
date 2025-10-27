@@ -49,8 +49,8 @@ export type TaskStackParamList = {
   TasksMain: undefined;
   TasksList: { category: 'health' | 'hygiene' | 'dietary' | 'custom' };
   AddTask: undefined;
-  TaskView: { taskId: string };
-  EditTask: { taskId: string };
+  TaskView: { taskId: string; source?: 'home' | 'tasks' };
+  EditTask: { taskId: string; source?: 'home' | 'tasks' };
   ObservationalTool: { taskId: string };
 };
 
