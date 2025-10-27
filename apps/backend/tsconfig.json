@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
-    "module": "CommonJS",         
+    "module": "ESNext",         
+    "target": "ES2022",
     "outDir": "dist",
     "strict": true,                              // All strict type-checking options
     "esModuleInterop": true,                     // For importing CommonJS modules like Express
@@ -8,7 +9,7 @@
     "moduleResolution": "node",                  // Resolve modules like Node.js
     "skipLibCheck": true,                        // Skip type checks on `node_modules`
     "resolveJsonModule": true,                   // Allow importing JSON files
-    "types": ["node", "express"],                // Include type definitions
+    "types": ["node", "express", "jest"],        // Include type definitions
     "noImplicitAny": true,                       // Prevent untyped variables
     "noUnusedLocals": false,                      // Warn on unused variables
     "noUnusedParameters": false,
@@ -19,6 +20,6 @@
       "@yosemite-crew/fhir-types": ["../../packages/fhirtypes/src"]
     }
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "test/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

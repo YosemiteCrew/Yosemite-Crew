@@ -14,12 +14,12 @@ import {
 
 const REGISTRATION_NUMBER_EXTENSION_URL = 'http://example.org/fhir/StructureDefinition/registrationNumber'
 const IMAGE_EXTENSION_URL = 'http://example.org/fhir/StructureDefinition/image'
-const ORGANIZATION_TYPES: Array<NonNullable<Organization['type']>> = [
-    'Veterinary Business',
-    'Groomer Shop',
-    'Breeding Facility',
-    'Pet Sitter',
-]
+const ORGANIZATION_TYPES = new Set<NonNullable<Organization["type"]>>([
+  "Veterinary Business",
+  "Groomer Shop",
+  "Breeding Facility",
+  "Pet Sitter",
+]);
 
 type ExtensionLike = {
     url?: string
@@ -240,7 +240,7 @@ const buildFHIRResponse = (
           }
         : undefined
 
-    const organizationType = ORGANIZATION_TYPES.includes(rest.type as NonNullable<Organization['type']>)
+    const organizationType = ORGANIZATION_TYPES.has(rest.type as NonNullable<Organization['type']>)
         ? (rest.type as NonNullable<Organization['type']>)
         : undefined
 
@@ -263,7 +263,15 @@ const buildFHIRResponse = (
     return toOrganizationResponseDTO(businessInput, options ?? (typeCoding ? { typeCoding } : undefined))
 }
 
-const resolveIdQuery = (id: string) => (Types.ObjectId.isValid(id) ? { _id: id } : { fhirId: id })
+const resolveIdQuery = (id: unknown) => {
+    const identifier = ensureSafeIdentifier(id)
+
+    if (!identifier) {
+        throw new OrganizationServiceError('Organization identifier is required.', 400)
+    }
+
+    return Types.ObjectId.isValid(identifier) ? { _id: identifier } : { fhirId: identifier }
+}
 
 const createPersistableFromFHIR = (payload: OrganizationFHIRPayload) => {
     const attributes = fromOrganizationRequestDTO(payload)
@@ -281,11 +289,13 @@ export const OrganizationService = {
         const { persistable, typeCoding, attributes } = createPersistableFromFHIR(payload)
 
         const identifier = ensureSafeIdentifier(attributes.id) ?? ensureSafeIdentifier(payload.id)
-        const query = identifier
-            ? isValidObjectId(identifier)
-                ? { _id: identifier }
-                : { fhirId: identifier }
-            : undefined
+        let query: { _id?: string; fhirId?: string } | undefined = undefined;
+
+        if (identifier) {
+        query = isValidObjectId(identifier)
+            ? { _id: identifier }
+            : { fhirId: identifier };
+        }
 
         let document: OrganizationDocument | null = null
         let created = false
@@ -309,7 +319,7 @@ export const OrganizationService = {
     },
 
     async getById(id: string) {
-        const document = await OrganizationModel.findOne(resolveIdQuery(id))
+        const document = await OrganizationModel.findOne(resolveIdQuery(id), null, { sanitizeFilter: true })
 
         if (!document) {
             return null
@@ -324,7 +334,7 @@ export const OrganizationService = {
     },
 
     async deleteById(id: string) {
-        const result = await OrganizationModel.findOneAndDelete(resolveIdQuery(id))
+        const result = await OrganizationModel.findOneAndDelete(resolveIdQuery(id), { sanitizeFilter: true })
         return Boolean(result)
     },
 
@@ -333,7 +343,7 @@ export const OrganizationService = {
         const document = await OrganizationModel.findOneAndUpdate(
             resolveIdQuery(id),
             { $set: persistable },
-            { new: true }
+            { new: true, sanitizeFilter: true }
         )
 
         if (!document) {
