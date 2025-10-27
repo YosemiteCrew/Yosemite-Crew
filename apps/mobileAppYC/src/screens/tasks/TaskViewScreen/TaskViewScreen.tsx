@@ -38,7 +38,7 @@ export const TaskViewScreen: React.FC = () => {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const iconStyles = useMemo(() => createIconStyles(theme), [theme]);
 
-  const {taskId} = route.params;
+  const {taskId, source = 'tasks'} = route.params;
   const task = useSelector((state: RootState) => selectTaskById(taskId)(state));
   const companion = useSelector((state: RootState) =>
     state.companion.companions.find(c => c.id === task?.companionId),
@@ -68,7 +68,24 @@ export const TaskViewScreen: React.FC = () => {
 
   const handleEdit = () => {
     if (!isCompleted) {
-      navigation.navigate('EditTask', {taskId: task.id});
+      // Pass source to EditTask so it knows where to go back
+      navigation.navigate('EditTask', {taskId: task.id, source});
+    }
+  };
+
+  const handleBack = () => {
+    if (source === 'home') {
+      // Reset tab stack and go back to HomeStack
+      navigation.getParent()?.reset({
+        index: 0,
+        routes: [{name: 'HomeStack'}],
+      });
+    } else {
+      // Default behavior - came from Tasks tab, reset to TasksMain
+      navigation.reset({
+        index: 0,
+        routes: [{name: 'TasksMain'}],
+      });
     }
   };
 
@@ -151,7 +168,7 @@ export const TaskViewScreen: React.FC = () => {
       <Header
         title="Task"
         showBackButton
-        onBack={() => navigation.goBack()}
+        onBack={handleBack}
         rightIcon={isCompleted ? undefined : Images.editIcon}
         onRightPress={isCompleted ? undefined : handleEdit}
       />
