@@ -1,4 +1,4 @@
-import { Icon } from "@iconify/react/dist/iconify.js";
+import { Icon } from "@iconify/react";
 import "./SidebarMenu.css";
 
 export function SidebarContent() {
@@ -46,7 +46,13 @@ function SidebarMenu() {
 
 export default SidebarMenu;
 
-export const SearchInput = ({ onFocus, onBlur }) => {
+export const SearchInput = ({
+  onFocus,
+  onBlur,
+}: {
+  onFocus?: React.FocusEventHandler<HTMLInputElement>;
+  onBlur?: React.FocusEventHandler<HTMLInputElement>;
+}) => {
   return (
     <form className="search-form">
       <div className="input-wrapper">

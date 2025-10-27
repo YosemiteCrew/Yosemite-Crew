@@ -12,7 +12,7 @@ import "./MainContent.css";
 import { featuresList } from "../data";
 import FeatureCard from "../FeatureCard/FeatureCard";
 import { SearchInput, SidebarContent } from "../SidebarMenu/SidebarMenu";
-import { Icon } from "@iconify/react/dist/iconify.js";
+import { Icon } from "@iconify/react";
 
 interface MainContentProps {
   isMobile: boolean;
