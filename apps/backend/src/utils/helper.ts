@@ -1,6 +1,6 @@
 import { handleMultipleFileUpload, deleteFromS3 } from "../middelwares/upload"
 import { S3 } from "aws-sdk";
-import crypto from "crypto";
+import crypto from "node:crypto";
 interface UploadedFile {
   name: string;
   mimetype: string;
@@ -43,7 +43,7 @@ calculateAge: (date: string | Date): number => {
     hours = time.split(":")[0];
 
     if (modifier === "PM" && hours !== "12") {
-      hours = (parseInt(hours, 10) + 12).toString();
+      hours = (Number.parseInt(hours, 10) + 12).toString();
     }
     if (modifier === "AM" && hours === "12") {
       hours = "00";
@@ -106,9 +106,8 @@ calculateAge: (date: string | Date): number => {
     }
 
     // Shuffle to avoid predictable placement
-    return password
-      .sort(() => 0.5 - Math.random())
-      .join('');
+    password.sort(() => 0.5 - Math.random());
+    return password.join('');
   },
   formatAppointmentDateTime(rawDateTime: string) {
   // Use the given string as-is, respecting the +05:30 offset

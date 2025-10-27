@@ -5,8 +5,8 @@ ENV PNPM_HOME=/root/.pnpm
 ENV PATH=$PNPM_HOME:$PATH
 ENV PORT=3000
 COPY . .
-RUN pnpm add --global turbo
-RUN pnpm install --frozen-lockfile
+RUN pnpm add --global turbo \
+&&  pnpm install --frozen-lockfile
 # RUN pnpm run build --filter api
 EXPOSE ${PORT}
 CMD ["pnpm", "run", "dev", "--filter", "api"]
