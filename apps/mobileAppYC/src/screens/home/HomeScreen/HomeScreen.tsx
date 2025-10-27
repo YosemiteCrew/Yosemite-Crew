@@ -27,13 +27,19 @@ import {
 } from '@/features/companion';
 import {selectAuthUser} from '@/features/auth/selectors';
 import {AppointmentCard} from '@/components/common/AppointmentCard/AppointmentCard';
-import {TaskCard} from '@/components/common/TaskCard/TaskCard';
+import {TaskCard} from '@/components/tasks/TaskCard/TaskCard';
 import {resolveCurrencySymbol} from '@/utils/currency';
 import {
   fetchExpensesForCompanion,
   selectExpenseSummaryByCompanion,
   selectHasHydratedCompanion,
 } from '@/features/expenses';
+import {
+  fetchTasksForCompanion,
+  selectNextUpcomingTask,
+  selectHasHydratedCompanion as selectHasHydratedTasksCompanion,
+  markTaskStatus,
+} from '@/features/tasks';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Home'>;
 
@@ -66,9 +72,14 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const hasExpenseHydrated = useSelector(
     selectHasHydratedCompanion(selectedCompanionIdRedux ?? null),
   );
+  const hasTasksHydrated = useSelector(
+    selectHasHydratedTasksCompanion(selectedCompanionIdRedux ?? null),
+  );
+  const nextUpcomingTask = useSelector(
+    selectNextUpcomingTask(selectedCompanionIdRedux ?? null),
+  );
   const userCurrencyCode = authUser?.currency ?? 'USD';
 
-  const [hasUpcomingTasks, setHasUpcomingTasks] = React.useState(true);
   const [hasUpcomingAppointments, setHasUpcomingAppointments] =
     React.useState(true);
 
@@ -103,6 +114,13 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     }
   }, [dispatch, hasExpenseHydrated, selectedCompanionIdRedux]);
 
+  // Fetch tasks for selected companion
+  React.useEffect(() => {
+    if (selectedCompanionIdRedux && !hasTasksHydrated) {
+      dispatch(fetchTasksForCompanion({companionId: selectedCompanionIdRedux}));
+    }
+  }, [dispatch, hasTasksHydrated, selectedCompanionIdRedux]);
+
   const previousCurrencyRef = React.useRef(userCurrencyCode);
 
   React.useEffect(() => {
@@ -131,6 +149,10 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     dispatch(setSelectedCompanion(id));
   };
 
+  const selectedCompanion = React.useMemo(() => {
+    return companions.find(c => c.id === selectedCompanionIdRedux);
+  }, [companions, selectedCompanionIdRedux]);
+
   const computeMockTaskCount = React.useCallback((companionId: string) => {
     if (!companionId) {
       return 0;
@@ -150,7 +172,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     <TouchableOpacity
       // When tapping the empty state tile, we allow adding the card back (simulating adding new data)
       onPress={() => {
-        if (key === 'tasks') setHasUpcomingTasks(true);
         if (key === 'appointments') setHasUpcomingAppointments(true);
       }}>
       <LiquidGlassCard
@@ -165,16 +186,51 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     </TouchableOpacity>
   );
 
+  const handleCompleteTask = React.useCallback(
+    async (taskId: string) => {
+      try {
+        await dispatch(
+          markTaskStatus({
+            taskId,
+            status: 'completed',
+            completedAt: new Date().toISOString(),
+          }),
+        ).unwrap();
+      } catch (error) {
+        console.error('Failed to complete task:', error);
+      }
+    },
+    [dispatch],
+  );
+
   const renderUpcomingTasks = () => {
-    if (hasUpcomingTasks) {
+    if (nextUpcomingTask && selectedCompanion) {
+      // Get assigned user's profile image and name
+      const assignedToData = nextUpcomingTask?.assignedTo === authUser?.id ? {
+        avatar: authUser?.profilePicture,
+        name: authUser?.firstName || 'User',
+      } : undefined;
+
       return (
         <TaskCard
-          key="task-card"
-          task="Give tuna to Oscar"
-          dateTime="20 Aug - 4:00PM"
-          avatars={[Images.cat, Images.cat]}
-          // Hide the card when complete is pressed
-          onComplete={() => setHasUpcomingTasks(false)}
+          key={nextUpcomingTask.id}
+          title={nextUpcomingTask.title}
+          categoryLabel={nextUpcomingTask.category}
+          subcategoryLabel={nextUpcomingTask.subcategory && nextUpcomingTask.subcategory !== 'none' ? nextUpcomingTask.subcategory : undefined}
+          date={nextUpcomingTask.date}
+          time={nextUpcomingTask.time}
+          companionName={selectedCompanion.name}
+          companionAvatar={selectedCompanion.profileImage ?? undefined}
+          assignedToName={assignedToData?.name}
+          assignedToAvatar={assignedToData?.avatar}
+          status={nextUpcomingTask.status}
+          category={nextUpcomingTask.category}
+          details={nextUpcomingTask.details}
+          showCompleteButton={true}
+          completeButtonVariant="liquid-glass"
+          completeButtonLabel="Complete"
+          hideSwipeActions={false}
+          onPressComplete={() => handleCompleteTask(nextUpcomingTask.id)}
         />
       );
     }
