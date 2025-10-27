@@ -432,7 +432,7 @@ const createStyles = (theme: any) =>
     },
     companionSelectorTask: {
       marginTop: theme.spacing[4],
-      marginBottom: theme.spacing[2],
+      marginBottom: theme.spacing[4],
       paddingHorizontal: theme.spacing[4],
     },
     monthNavigation: {
