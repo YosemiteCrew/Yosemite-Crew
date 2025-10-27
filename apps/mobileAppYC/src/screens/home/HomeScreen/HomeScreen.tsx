@@ -193,7 +193,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
           markTaskStatus({
             taskId,
             status: 'completed',
-            completedAt: new Date().toISOString(),
           }),
         ).unwrap();
       } catch (error) {
