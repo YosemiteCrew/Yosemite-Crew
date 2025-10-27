@@ -21,7 +21,7 @@ module.exports = {
   },
   // Allow RN and related packages to be transformed, even within pnpm's virtual store
   transformIgnorePatterns: [
-    'node_modules/(?!(\\.pnpm/[^/]+/node_modules/)?(react|react-dom|react-native|@react-native|@react-native-community|react-clone-referenced-element|@react-navigation|react-native-gesture-handler|react-native-reanimated|react-native-worklets|react-native-safe-area-context|react-native-screens|react-native-vector-icons|@react-native-async-storage|@react-native-firebase|react-redux|redux|@reduxjs|immer|@callstack/liquid-glass)/)'
+    'node_modules/(?!(\\.pnpm/[^/]+/node_modules/)?(react|react-dom|react-native|@react-native|@react-native-community|react-clone-referenced-element|@react-navigation|react-native-gesture-handler|react-native-reanimated|react-native-worklets|react-native-safe-area-context|react-native-screens|react-native-vector-icons|@react-native-async-storage|@react-native-firebase|react-redux|redux|@reduxjs|immer|@callstack/liquid-glass|uuid)/)'
   ],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
   moduleNameMapper: {

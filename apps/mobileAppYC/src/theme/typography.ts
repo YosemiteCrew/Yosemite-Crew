@@ -299,4 +299,20 @@ export const typography = {
     fontWeight: fontWeights.medium,
     letterSpacing: -0.38,
   },
+  // H6 Clash - for TaskCard and TasksMainScreen date selector
+  h6Clash: {
+    fontFamily: fonts.CLASH_GRO_MEDIUM,
+    fontSize: 18,
+    lineHeight: 18 * 1.2,
+    fontWeight: fontWeights.medium,
+    letterSpacing: -0.18,
+  },
+  // Caption Bold - for companion names and date/time text
+  captionBoldSatoshi: {
+    fontFamily: fonts.SATOSHI_BOLD,
+    fontSize: 13,
+    lineHeight: 13 * 1.2,
+    fontWeight: fontWeights.bold,
+    letterSpacing: 0,
+  },
 } as const;

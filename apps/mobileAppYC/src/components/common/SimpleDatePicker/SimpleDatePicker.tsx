@@ -1,27 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Platform, Modal, View, TouchableOpacity, Text, StyleSheet } from 'react-native';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { Platform, Modal, View, StyleSheet, TouchableOpacity, Text } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 interface SimpleDatePickerProps {
-  /** The current value of the date picker */
   value: Date | null;
-
-  /** Callback when the user confirms a date (on Android auto-triggers) */
   onDateChange: (date: Date) => void;
-
-  /** Whether the picker should be shown */
   show: boolean;
-
-  /** Callback when the picker should be closed */
   onDismiss: () => void;
-
-  /** Earliest selectable date */
   minimumDate?: Date;
-
-  /** Latest selectable date */
   maximumDate?: Date;
-
-  /** Picker mode (defaults to 'date') */
   mode?: 'date' | 'time' | 'datetime';
 }
 
@@ -34,92 +21,99 @@ export const SimpleDatePicker: React.FC<SimpleDatePickerProps> = ({
   maximumDate,
   mode = 'date',
 }) => {
-  const [selectedDate, setSelectedDate] = useState(value || new Date());
+  const [internalShow, setInternalShow] = useState(show);
+  const [tempDate, setTempDate] = useState(value || new Date());
 
   useEffect(() => {
-    if (value) {
-      setSelectedDate(value);
+    setInternalShow(show);
+    if (show) {
+      setTempDate(value || new Date());
     }
-  }, [value]);
+  }, [show, value]);
 
-  const handleDateChange = (event: DateTimePickerEvent, date?: Date) => {
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    // On Android, the picker closes automatically
     if (Platform.OS === 'android') {
-      // Android auto-closes
-      if (event.type === 'set' && date) {
-        onDateChange(date);
-      }
+      setInternalShow(false);
       onDismiss();
-    } else if (date) {
-      // iOS - just update the internal state
-      setSelectedDate(date);
+
+      // If user selected a date
+      if (event.type === 'set' && selectedDate) {
+        onDateChange(selectedDate);
+      }
+      return;
+    }
+
+    // On iOS, just update the temp date
+    if (selectedDate) {
+      setTempDate(selectedDate);
     }
   };
 
-  const handleIOSConfirm = () => {
-    onDateChange(selectedDate);
+  const handleConfirm = () => {
+    onDateChange(tempDate);
+    setInternalShow(false);
     onDismiss();
   };
 
-  const handleIOSCancel = () => {
-    setSelectedDate(value || new Date());
+  const handleCancel = () => {
+    setInternalShow(false);
     onDismiss();
   };
 
-  if (!show) return null;
-
-  // Android: render picker directly (it shows in a dialog)
-  if (Platform.OS === 'android') {
-    return (
-      <DateTimePicker
-        value={selectedDate}
-        mode={mode}
-        display="default"
-        onChange={handleDateChange}
-        minimumDate={minimumDate}
-        maximumDate={maximumDate}
-      />
-    );
+  if (!internalShow) {
+    return null;
   }
 
-  // iOS: wrap in a modal with confirm/cancel buttons
-  return (
-    <Modal
-      transparent
-      animationType="slide"
-      visible={show}
-      onRequestClose={handleIOSCancel}
-    >
-      <TouchableOpacity
-        style={styles.modalOverlay}
-        activeOpacity={1}
-        onPress={handleIOSCancel}
+  // iOS needs a modal container
+  if (Platform.OS === 'ios') {
+    return (
+      <Modal
+        transparent
+        animationType="slide"
+        visible={internalShow}
+        onRequestClose={handleCancel}
       >
-        <View style={styles.pickerContainer}>
-          {/* Buttons */}
-          <View style={styles.buttonRow}>
-            <TouchableOpacity onPress={handleIOSCancel} style={styles.button}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleIOSConfirm} style={styles.button}>
-              <Text style={styles.doneButtonText}>Done</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Date Picker */}
-          <View style={styles.pickerWrapper}>
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={handleCancel}
+          />
+          <View style={styles.modalContent}>
+            <View style={styles.header}>
+              <TouchableOpacity onPress={handleCancel} style={styles.button}>
+                <Text style={styles.buttonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleConfirm} style={styles.button}>
+                <Text style={[styles.buttonText, styles.confirmText]}>Done</Text>
+              </TouchableOpacity>
+            </View>
             <DateTimePicker
-              value={selectedDate}
+              value={tempDate}
               mode={mode}
               display="spinner"
               onChange={handleDateChange}
               minimumDate={minimumDate}
               maximumDate={maximumDate}
-              {...(Platform.OS === 'ios' ? { textColor: '#FFFFFF' } : {})}
+              style={styles.picker}
             />
           </View>
         </View>
-      </TouchableOpacity>
-    </Modal>
+      </Modal>
+    );
+  }
+
+  // Android uses default picker
+  return (
+    <DateTimePicker
+      value={value || new Date()}
+      mode={mode}
+      display="default"
+      onChange={handleDateChange}
+      minimumDate={minimumDate}
+      maximumDate={maximumDate}
+    />
   );
 };
 
@@ -127,49 +121,50 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
-  pickerContainer: {
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: 34, // Account for iOS safe area
+  modalBackdrop: {
+    flex: 1,
   },
-  buttonRow: {
+  modalContent: {
+    backgroundColor: '#1C1C1E',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: 34, // Safe area for iOS
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#38383A',
+    backgroundColor: '#1C1C1E',
+    width: '100%',
   },
   button: {
     padding: 8,
+    minWidth: 60,
   },
-  cancelButtonText: {
-    color: '#FFFFFF',
+  buttonText: {
     fontSize: 17,
-    fontWeight: '400',
+    color: '#0A84FF',
+    textAlign: 'center',
   },
-  doneButtonText: {
-    color: '#007AFF',
-    fontSize: 17,
+  confirmText: {
     fontWeight: '600',
   },
-  pickerWrapper: {
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 20,
-  },
   picker: {
+    height: 216,
     width: '100%',
-    height: 216, // Standard iOS picker height
+    backgroundColor: '#1C1C1E',
   },
 });
 
-// Utility function remains the same
+// Utility function for date formatting
 export const formatDateForDisplay = (date: Date | null): string => {
   if (!date) return '';
 
@@ -189,6 +184,25 @@ export const formatDateForDisplay = (date: Date | null): string => {
     return `${day}-${month}-${year}`;
   } catch (error) {
     console.error('Date formatting error:', error);
+    return '';
+  }
+};
+
+// Utility function for time formatting
+export const formatTimeForDisplay = (time: Date | null): string => {
+  if (!time) return '';
+
+  try {
+    const timeObj = time instanceof Date ? time : new Date(time);
+    if (Number.isNaN(timeObj.getTime())) return '';
+
+    const minutes = timeObj.getMinutes().toString().padStart(2, '0');
+    const ampm = timeObj.getHours() >= 12 ? 'PM' : 'AM';
+    const displayHours = (timeObj.getHours() % 12 || 12).toString().padStart(2, '0');
+
+    return `${displayHours}:${minutes} ${ampm}`;
+  } catch (error) {
+    console.error('Time formatting error:', error);
     return '';
   }
 };

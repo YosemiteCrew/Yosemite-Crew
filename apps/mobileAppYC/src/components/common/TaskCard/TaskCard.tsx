@@ -108,7 +108,7 @@ const createStyles = (theme: any) =>
       borderColor: theme.colors.border,
       overflow: 'hidden',
     },
-    row: {flexDirection: 'row', alignItems: 'center', gap: theme.spacing[3],paddingBottom:5},
+    row: {flexDirection: 'row', alignItems: 'center', gap: theme.spacing[3], paddingBottom: 5},
     avatarGroup: {flexDirection: 'row'},
     avatar: {
       width: 40,
@@ -117,7 +117,7 @@ const createStyles = (theme: any) =>
       borderWidth: 2,
       borderColor: theme.colors.white,
     },
-      completeButtonText: {
+    completeButtonText: {
       ...theme.typography.paragraphBold,
       color: theme.colors.white,
     },

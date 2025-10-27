@@ -94,6 +94,7 @@ const mockRootState: RootState = {
   companion: {} as any,
   theme: {} as any,
   documents: {} as any,
+  tasks: {} as any,
   _persist: { version: -1, rehydrated: true },
 };
 

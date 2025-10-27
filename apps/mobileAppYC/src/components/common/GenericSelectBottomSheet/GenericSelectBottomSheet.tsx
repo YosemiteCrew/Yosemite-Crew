@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import CustomBottomSheet from '@/components/common/BottomSheet/BottomSheet';
 import type { BottomSheetRef } from '@/components/common/BottomSheet/BottomSheet';
+import {BottomSheetHeader} from '@/components/common/BottomSheetHeader/BottomSheetHeader';
 import { Input } from '@/components/common/Input/Input';
 import LiquidGlassButton from '@/components/common/LiquidGlassButton/LiquidGlassButton';
 import { useTheme } from '@/hooks';
@@ -69,7 +70,6 @@ export const GenericSelectBottomSheet = forwardRef<
   const [searchQuery, setSearchQuery] = useState('');
 
   const styles = createStyles(theme, maxListHeight);
-  const closeIconSource = Images?.crossIcon ?? null;
   const searchIconSource = Images?.searchIcon ?? null;
 
   const filteredItems = useMemo(() => {
@@ -174,20 +174,11 @@ export const GenericSelectBottomSheet = forwardRef<
       android_keyboardInputMode="adjustResize">
       <View style={styles.container}>
         {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.titleContainer}>
-            <Text style={styles.title}>{title}</Text>
-          </View>
-          {closeIconSource && (
-            <TouchableOpacity onPress={handleCancel} style={styles.closeButton}>
-              <Image
-                source={closeIconSource}
-                style={styles.closeIcon}
-                resizeMode="contain"
-              />
-            </TouchableOpacity>
-          )}
-        </View>
+        <BottomSheetHeader
+          title={title}
+          onClose={handleCancel}
+          theme={theme}
+        />
 
         {/* Custom Content */}
         {customContent}
@@ -218,7 +209,19 @@ export const GenericSelectBottomSheet = forwardRef<
               const isSelected = mode === 'select'
                 ? selectedItem?.id === item.id
                 : tempItem?.id === item.id;
-              return renderItem ? renderItem(item, isSelected) : defaultRenderItem({ item });
+
+              if (renderItem) {
+                return (
+                  <TouchableOpacity
+                    style={styles.touchableItem}
+                    onPress={() => handleItemPress(item)}
+                    activeOpacity={0.7}>
+                    {renderItem(item, isSelected)}
+                  </TouchableOpacity>
+                );
+              }
+
+              return defaultRenderItem({ item });
             }}
             showsVerticalScrollIndicator
             contentContainerStyle={styles.listContent}
@@ -270,34 +273,6 @@ const createStyles = (theme: any, maxListHeight: number) =>
       flex: 1,
       paddingHorizontal: theme.spacing['5'],
       backgroundColor: theme.colors.background,
-    },
-    header: {
-      flexDirection: 'row',
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingVertical: theme.spacing['4'],
-      position: 'relative',
-    },
-    titleContainer: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingRight: theme.spacing['8'], // Account for close button
-    },
-    title: {
-      ...theme.typography.h3,
-      color: theme.colors.text,
-      textAlign: 'center',
-      lineHeight: theme.typography.h3.fontSize * 1.3,
-    },
-    closeButton: {
-      position: 'absolute',
-      right: 0,
-      padding: theme.spacing['2'],
-    },
-    closeIcon: {
-      width: theme.spacing['6'],
-      height: theme.spacing['6'],
     },
     searchContainer: {
       marginBottom: theme.spacing['4'],
@@ -394,5 +369,8 @@ const createStyles = (theme: any, maxListHeight: number) =>
       width: 80,
       height: 6,
       opacity: 0.2,
+    },
+    touchableItem: {
+      flex: 1,
     },
   });

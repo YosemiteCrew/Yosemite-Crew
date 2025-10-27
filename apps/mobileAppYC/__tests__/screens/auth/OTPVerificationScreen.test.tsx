@@ -96,10 +96,10 @@ jest.mock('@/components/common', () => {
 });
 
 jest.mock('@/components/common/LiquidGlassButton/LiquidGlassButton', () => {
-  const React = require('react');
+  const ReactModule = require('react');
   const {TouchableOpacity, Text} = jest.requireActual('react-native');
 
-  const MockButton = React.forwardRef(
+  const MockButton = ReactModule.forwardRef(
     ({onPress, title, disabled, loading}: any, ref: any) => (
       <TouchableOpacity
         ref={ref}
