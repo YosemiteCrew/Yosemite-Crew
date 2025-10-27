@@ -202,6 +202,19 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     [dispatch],
   );
 
+  const handleViewTask = React.useCallback(() => {
+    if (nextUpcomingTask && selectedCompanionIdRedux) {
+      // Navigate to Tasks tab and then to TaskView screen with source='home'
+      (navigation as any).navigate('Tasks', {
+        screen: 'TaskView',
+        params: {
+          taskId: nextUpcomingTask.id,
+          source: 'home',
+        },
+      });
+    }
+  }, [nextUpcomingTask, selectedCompanionIdRedux, navigation]);
+
   const renderUpcomingTasks = () => {
     if (nextUpcomingTask && selectedCompanion) {
       // Get assigned user's profile image and name
@@ -228,7 +241,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
           showCompleteButton={true}
           completeButtonVariant="liquid-glass"
           completeButtonLabel="Complete"
+          showEditAction={false}
           hideSwipeActions={false}
+          onPressView={handleViewTask}
           onPressComplete={() => handleCompleteTask(nextUpcomingTask.id)}
         />
       );
