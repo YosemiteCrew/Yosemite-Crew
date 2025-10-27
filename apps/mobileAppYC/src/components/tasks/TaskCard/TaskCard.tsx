@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 import {SwipeableActionCard} from '@/components/common/SwipeableActionCard/SwipeableActionCard';
 import {CardActionButton} from '@/components/common/CardActionButton/CardActionButton';
+import {LiquidGlassButton} from '@/components/common/LiquidGlassButton/LiquidGlassButton';
 import {AvatarGroup} from '@/components/common/AvatarGroup/AvatarGroup';
 import {useTheme} from '@/hooks';
 import {formatDateForDisplay} from '@/components/common/SimpleDatePicker/SimpleDatePicker';
@@ -29,6 +30,8 @@ export interface TaskCardProps {
   onPressComplete?: () => void;
   showEditAction?: boolean;
   showCompleteButton?: boolean;
+  completeButtonVariant?: 'primary' | 'success' | 'secondary' | 'liquid-glass';
+  completeButtonLabel?: string;
   hideSwipeActions?: boolean;
   category: TaskCategory;
   details?: any; // Task-specific details (medication, observational tool, etc.)
@@ -50,6 +53,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   onPressComplete,
   showEditAction = true,
   showCompleteButton = false,
+  completeButtonVariant = 'primary',
+  completeButtonLabel = 'Complete',
   hideSwipeActions = false,
   category,
   details,
@@ -186,11 +191,26 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         </View>
 
         {showCompleteButton && !isCompleted && (
-          <CardActionButton
-            label="Complete"
-            onPress={onPressComplete!}
-            variant="primary"
-          />
+          <>
+            {completeButtonVariant === 'liquid-glass' ? (
+              <LiquidGlassButton
+                title={completeButtonLabel}
+                onPress={onPressComplete!}
+                tintColor={theme.colors.secondary}
+                shadowIntensity="medium"
+                height={48}
+                textStyle={styles.liquidGlassButtonText}
+                borderRadius={12}
+                style={styles.liquidGlassButton}
+              />
+            ) : (
+              <CardActionButton
+                label={completeButtonLabel}
+                onPress={onPressComplete!}
+                variant={completeButtonVariant}
+              />
+            )}
+          </>
         )}
       </TouchableOpacity>
     </SwipeableActionCard>
@@ -251,6 +271,13 @@ const createStyles = (theme: any) =>
     detailSmall: {
       ...theme.typography.labelXsBold,
       color: theme.colors.textSecondary,
+    },
+    liquidGlassButton: {
+      marginTop: theme.spacing[4],
+    },
+    liquidGlassButtonText: {
+      ...theme.typography.paragraphBold,
+      color: theme.colors.white,
     },
   });
 

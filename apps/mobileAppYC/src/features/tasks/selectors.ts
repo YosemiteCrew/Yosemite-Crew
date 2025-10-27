@@ -155,3 +155,40 @@ export const selectTaskCountByCategory = (
     [selectTasksByCompanionDateAndCategory(companionId, date, category)],
     tasks => tasks.length,
   );
+
+// Select upcoming pending tasks (today or future) for companion
+export const selectUpcomingTasks = (companionId: string | null) =>
+  createSelector([selectTasksByCompanion(companionId)], tasks => {
+    const today = formatLocalDate(new Date());
+
+    return tasks
+      .filter(task => {
+        // Only pending tasks
+        if (task.status !== 'pending') return false;
+
+        // Task date >= today
+        return task.date >= today;
+      })
+      .sort((a, b) => {
+        // Sort by date first
+        const dateCompare = a.date.localeCompare(b.date);
+        if (dateCompare !== 0) return dateCompare;
+
+        // Then by time if available
+        if (a.time && b.time) {
+          return a.time.localeCompare(b.time);
+        }
+
+        // Tasks with time come before tasks without time
+        if (a.time && !b.time) return -1;
+        if (!a.time && b.time) return 1;
+
+        return 0;
+      });
+  });
+
+// Select the next upcoming task for companion
+export const selectNextUpcomingTask = (companionId: string | null) =>
+  createSelector([selectUpcomingTasks(companionId)], tasks =>
+    tasks.length > 0 ? tasks[0] : null
+  );
