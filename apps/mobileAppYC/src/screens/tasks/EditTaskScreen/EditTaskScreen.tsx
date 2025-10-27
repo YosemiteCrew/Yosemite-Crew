@@ -31,7 +31,7 @@ export const EditTaskScreen: React.FC = () => {
   const {theme} = useTheme();
   const styles = useMemo(() => createTaskFormStyles(theme), [theme]);
 
-  const {taskId} = route.params;
+  const {taskId, source = 'tasks'} = route.params;
 
   const hookData = useEditTaskScreen(taskId, navigation);
   const {
@@ -43,7 +43,6 @@ export const EditTaskScreen: React.FC = () => {
     isMedicationForm,
     isObservationalToolForm,
     isSimpleForm,
-    handleBack,
     handleDelete,
     sheetHandlers,
     validateForm,
@@ -54,6 +53,23 @@ export const EditTaskScreen: React.FC = () => {
     openSheet,
   } = hookData;
 
+  // Smart back handler that cleans up the navigation stack properly based on source
+  const handleSmartBack = React.useCallback(() => {
+    if (source === 'home') {
+      // Reset tab stack and go back to HomeStack
+      navigation.getParent()?.reset({
+        index: 0,
+        routes: [{name: 'HomeStack'}],
+      });
+    } else {
+      // Default behavior - came from Tasks tab, reset to TasksMain
+      navigation.reset({
+        index: 0,
+        routes: [{name: 'TasksMain'}],
+      });
+    }
+  }, [navigation, source]);
+
   const handleSave = async () => {
     if (!validateForm(formData)) return;
     if (!task) return;
@@ -61,7 +77,7 @@ export const EditTaskScreen: React.FC = () => {
     try {
       const taskData = buildTaskFromForm(formData, task.companionId);
       await dispatch(updateTask({taskId: task.id, updates: taskData})).unwrap();
-      navigation.goBack();
+      handleSmartBack();
     } catch (error) {
       showErrorAlert('Unable to update task', error);
     }
@@ -71,7 +87,7 @@ export const EditTaskScreen: React.FC = () => {
     if (!task) return;
     try {
       await dispatch(deleteTask({taskId: task.id, companionId: task.companionId})).unwrap();
-      navigation.goBack();
+      handleSmartBack();
     } catch (error) {
       showErrorAlert('Unable to delete task', error);
     }
@@ -90,7 +106,7 @@ export const EditTaskScreen: React.FC = () => {
 
   return (
     <SafeArea>
-      <Header title="Edit task" showBackButton onBack={handleBack} rightIcon={Images.deleteIconRed} onRightPress={handleDelete} />
+      <Header title="Edit task" showBackButton onBack={handleSmartBack} rightIcon={Images.deleteIconRed} onRightPress={handleDelete} />
 
       <ScrollView
         style={styles.container}
