@@ -12,6 +12,7 @@ import {useTheme} from '@/hooks';
 import {setSelectedCompanion} from '@/features/companion';
 import {markTaskStatus} from '@/features/tasks';
 import {selectAllTasksByCategory} from '@/features/tasks/selectors';
+import {selectAuthUser} from '@/features/auth/selectors';
 import type {AppDispatch, RootState} from '@/app/store';
 import type {TaskStackParamList} from '@/navigation/types';
 import type {Task} from '@/features/tasks/types';
@@ -33,6 +34,7 @@ export const TasksListScreen: React.FC = () => {
   const selectedCompanionId = useSelector(
     (state: RootState) => state.companion.selectedCompanionId,
   );
+  const authUser = useSelector(selectAuthUser);
 
   const tasks = useSelector(selectAllTasksByCategory(selectedCompanionId, category));
 
@@ -59,6 +61,12 @@ export const TasksListScreen: React.FC = () => {
 
     if (!companion) return null;
 
+    // Get assigned user's profile image and name
+    const assignedToData = item.assignedTo === authUser?.id ? {
+      avatar: authUser?.profilePicture,
+      name: authUser?.firstName || 'User',
+    } : undefined;
+
     return (
       <TaskCard
         title={item.title}
@@ -68,6 +76,8 @@ export const TasksListScreen: React.FC = () => {
         time={item.time}
         companionName={companion.name}
         companionAvatar={companion.profileImage ?? undefined}
+        assignedToName={assignedToData?.name}
+        assignedToAvatar={assignedToData?.avatar}
         status={item.status}
         onPressView={() => handleViewTask(item.id)}
         onPressEdit={() => handleEditTask(item.id)}
@@ -75,6 +85,7 @@ export const TasksListScreen: React.FC = () => {
         showEditAction={item.status !== 'completed'}
         showCompleteButton={item.status === 'pending'}
         category={item.category}
+        details={item.details}
       />
     );
   };
@@ -89,20 +100,22 @@ export const TasksListScreen: React.FC = () => {
 
   return (
     <SafeArea>
-      <Header
-        title={`${resolveCategoryLabel(category)} tasks`}
-        showBackButton
-        onBack={() => navigation.goBack()}
-      />
-
-      <View style={styles.container}>
-        <CompanionSelector
-          companions={companions}
-          selectedCompanionId={selectedCompanionId}
-          onSelect={handleCompanionSelect}
-          showAddButton={false}
-          containerStyle={styles.companionSelector}
+      <View style={styles.mainContainer}>
+        <Header
+          title={`${resolveCategoryLabel(category)} tasks`}
+          showBackButton
+          onBack={() => navigation.goBack()}
         />
+
+        <View style={styles.companionSelectorContainer}>
+          <CompanionSelector
+            companions={companions}
+            selectedCompanionId={selectedCompanionId}
+            onSelect={handleCompanionSelect}
+            showAddButton={false}
+            containerStyle={styles.companionSelector}
+          />
+        </View>
 
         <FlatList
           data={tasks}
@@ -111,6 +124,7 @@ export const TasksListScreen: React.FC = () => {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={renderEmpty}
+          style={styles.list}
         />
       </View>
     </SafeArea>
@@ -119,16 +133,26 @@ export const TasksListScreen: React.FC = () => {
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    container: {
+    mainContainer: {
+      flex: 1,
       backgroundColor: theme.colors.background,
     },
-    companionSelector: {
+    list: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    companionSelectorContainer: {
+      backgroundColor: theme.colors.background,
+      marginTop: theme.spacing[4],
       marginBottom: theme.spacing[4],
+    },
+    companionSelector: {
       paddingHorizontal: theme.spacing[4],
     },
     listContent: {
       paddingHorizontal: theme.spacing[4],
       paddingBottom: theme.spacing[8],
+      gap: theme.spacing[3],
     },
     emptyContainer: {
       paddingVertical: theme.spacing[12],
