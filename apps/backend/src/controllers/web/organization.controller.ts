@@ -46,6 +46,10 @@ export const OrganizationController = {
 
             res.status(200).json(resource)
         } catch (error) {
+            if (error instanceof OrganizationServiceError) {
+                res.status(error.statusCode).json({ message: error.message })
+                return
+            }
             logger.error('Failed to retrieve business', error)
             res.status(500).json({ message: 'Unable to retrieve business.' })
         }
@@ -79,6 +83,10 @@ export const OrganizationController = {
 
             res.status(200).json({ message: 'Business deleted successfully.' })
         } catch (error) {
+            if (error instanceof OrganizationServiceError) {
+                res.status(error.statusCode).json({ message: error.message })
+                return
+            }
             logger.error('Failed to delete business', error)
             res.status(500).json({ message: 'Unable to delete business.' })
         }
