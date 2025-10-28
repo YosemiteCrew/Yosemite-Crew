@@ -12,12 +12,17 @@ import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {createCardStyles} from '@/components/common/cardStyles';
 
-const formatDateDDMMYYYY = (date: string | Date): string => {
+const formatReadableDate = (date: string | Date): string => {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
-  const day = String(dateObj.getDate()).padStart(2, '0');
-  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-  const year = dateObj.getFullYear();
-  return `${day}/${month}/${year}`;
+  if (Number.isNaN(dateObj.getTime())) {
+    return '—';
+  }
+
+  return dateObj.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
 };
 
 export interface DocumentCardProps {
@@ -85,7 +90,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
             </Text>
             <Text style={styles.infoRow} numberOfLines={1} ellipsizeMode="tail">
               <Text style={styles.label}>Issue Date: </Text>
-              <Text style={styles.value}>{formatDateDDMMYYYY(issueDate)}</Text>
+              <Text style={styles.value}>{formatReadableDate(issueDate)}</Text>
             </Text>
           </View>
         </View>

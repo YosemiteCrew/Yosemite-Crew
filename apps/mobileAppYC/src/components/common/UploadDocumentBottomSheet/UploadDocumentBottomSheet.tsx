@@ -69,6 +69,7 @@ export const UploadDocumentBottomSheet = forwardRef<
       ref={bottomSheetRef}
       snapPoints={['35%']}
       initialIndex={-1}
+      enableDynamicSizing={false}
       onChange={index => {
         setIsSheetVisible(index !== -1);
       }}

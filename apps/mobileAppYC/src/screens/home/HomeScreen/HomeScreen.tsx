@@ -266,6 +266,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
           dateTime="20 Aug - 4:00PM"
           note="Check in is only allowed if you arrive 5 minutes early at location"
           avatar={Images.cat}
+          onViewDetails={() => console.log('View appointment')}
           onGetDirections={() => console.log('Get directions')}
           onChat={() => console.log('Chat')}
           // Hide the card when check in is pressed
@@ -314,7 +315,10 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
               onPress={() => {
                 const tabNavigation =
                   navigation.getParent<NavigationProp<TabParamList>>();
-                tabNavigation?.navigate('Appointments');
+                tabNavigation?.navigate('Appointments', {
+                  screen: 'MyAppointments',
+                  params: {resetKey: Date.now()},
+                } as any);
               }}>
               <Image source={Images.emergencyIcon} style={styles.actionImage} />
             </TouchableOpacity>
@@ -450,7 +454,6 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      marginTop: theme.spacing[3],
     },
     profileButton: {
       flexDirection: 'row',

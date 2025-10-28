@@ -9,6 +9,8 @@ import type {RootState} from '@/app/store';
 import type {AuthState, User} from '@/features/auth/types';
 import type {ExpensesState} from '@/features/expenses';
 import type {TasksState} from '@/features/tasks';
+import type {AppointmentsState} from '@/features/appointments/types';
+import type {BusinessesState} from '@/features/appointments/types';
 
 const createMockExpensesState = (): ExpensesState => ({
   items: [],
@@ -23,6 +25,22 @@ const createMockTasksState = (): TasksState => ({
   loading: false,
   error: null,
   hydratedCompanions: {},
+});
+
+const createMockAppointmentsState = (): AppointmentsState => ({
+  items: [],
+  invoices: [],
+  loading: false,
+  error: null,
+  hydratedCompanions: {},
+});
+
+const createMockBusinessesState = (): BusinessesState => ({
+  businesses: [],
+  employees: [],
+  availability: [],
+  loading: false,
+  error: null,
 });
 
 const createMockState = (authState: Partial<AuthState>): RootState => ({
@@ -55,6 +73,8 @@ const createMockState = (authState: Partial<AuthState>): RootState => ({
   },
   expenses: createMockExpensesState(),
   tasks: createMockTasksState(),
+  appointments: createMockAppointmentsState(),
+  businesses: createMockBusinessesState(),
   _persist: {
     version: 2,
     rehydrated: true,
