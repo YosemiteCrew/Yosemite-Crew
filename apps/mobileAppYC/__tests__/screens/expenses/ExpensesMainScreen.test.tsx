@@ -222,7 +222,7 @@ const mockExternalExpense = {
   updatedAt: '2030-10-24T10:00:00.000Z',
 };
 
-const baseState = {
+const baseState: RootState = {
   companion: {
     companions: mockCompanions,
     selectedCompanionId: 'c1',
@@ -256,14 +256,31 @@ const baseState = {
     theme: 'light' as ThemeState['theme'],
     isDark: false,
   },
-  common: {
+  tasks: {
+    items: [],
+    loading: false,
+    error: null,
+    hydratedCompanions: {},
+  },
+  appointments: {
+    items: [],
+    invoices: [],
+    loading: false,
+    error: null,
+    hydratedCompanions: {},
+  },
+  businesses: {
+    businesses: [],
+    employees: [],
+    availability: [],
+    loading: false,
+    error: null,
   },
   _persist: {
     version: 0,
     rehydrated: true,
-    key: 'root',
   },
-} as RootState;
+};
 
 let mockState: RootState;
 
