@@ -1,9 +1,18 @@
-import eslint from '@eslint/js';
-import tseslint from 'typescript-eslint';
+import eslint from "@eslint/js";
+import tseslint from "typescript-eslint";
 
 export default [
   {
-    ignores: ['dist/**', 'eslint.config.js', 'src/scripts/**', 'jest.config.cjs', 'test/**'],
+    ignores: [
+      "dist/**",
+      "eslint.config.js",
+      "src/scripts/**",
+      "jest.config.cjs",
+      "test/**",
+      "node_modules/",
+      "dist/",
+      "coverage/",
+    ],
   },
   ...tseslint.config(
     eslint.configs.recommended,
@@ -15,6 +24,6 @@ export default [
           tsconfigRootDir: import.meta.dirname,
         },
       },
-    },
+    }
   ),
 ];
