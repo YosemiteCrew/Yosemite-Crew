@@ -15,16 +15,6 @@ import {CompanionOverviewScreen} from '@/screens/companion/CompanionOverviewScre
 // Assuming Breed type is also exported or available for import
 import type {Companion, Breed} from '@/features/companion/types'; // Ensure this path is correct
 
-// --- FIX for ts(2339): Property 'mock-*' does not exist on type 'JSX.IntrinsicElements' ---
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      [elemName: string]: any;
-    }
-  }
-}
-// --- END FIX ---
-
 // --- Global Variables for Module Mocks ---
 let mockAddEventListener: jest.Mock;
 let mockRemove: jest.Mock;
@@ -162,70 +152,81 @@ jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: 'SafeAreaView',
 }));
 
-// --- Component Mocks --- (Remain the same structure, tags handled by declare global)
-jest.mock('@/components/common/Header/Header', () => ({
-  Header: jest.fn(({title, onBack, showBackButton}) => (
-    <mock-Header
-      testID="header"
-      title={title}
-      onBack={onBack}
-      showBackButton={showBackButton}
-    />
-  )),
-}));
-jest.mock('@/components/common/LiquidGlassCard/LiquidGlassCard', () => ({
-  LiquidGlassCard: jest.fn(({children, style, fallbackStyle}) => (
-    <mock-LiquidGlassCard style={[style, fallbackStyle]}>
-      {children}
-    </mock-LiquidGlassCard>
-  )),
-}));
-jest.mock('@/components/companion/CompanionProfileHeader', () => ({
-  CompanionProfileHeader: jest.fn(props => (
-    <mock-CompanionProfileHeader testID="companion-profile-header" {...props} />
-  )),
-}));
-jest.mock('@/components/common/FormRowComponents', () => {
-  const {Text: ActualText} = jest.requireActual('react-native');
+// --- Component Mocks ---
+jest.mock('@/components/common/Header/Header', () => {
+  const {View} = jest.requireActual('react-native');
   return {
-    Separator: jest.fn(() => <mock-Separator />),
+    Header: jest.fn(({title, onBack, showBackButton}) => (
+      <View
+        testID="header"
+        title={title}
+        onBack={onBack}
+        showBackButton={showBackButton}
+      />
+    )),
+  };
+});
+jest.mock('@/components/common/LiquidGlassCard/LiquidGlassCard', () => {
+  const {View} = jest.requireActual('react-native');
+  return {
+    LiquidGlassCard: jest.fn(({children, style, fallbackStyle}) => (
+      <View testID="liquid-glass-card" style={[style, fallbackStyle]}>
+        {children}
+      </View>
+    )),
+  };
+});
+jest.mock('@/components/companion/CompanionProfileHeader', () => {
+  const {View} = jest.requireActual('react-native');
+  return {
+    CompanionProfileHeader: jest.fn(props => (
+      <View testID="companion-profile-header" {...props} />
+    )),
+  };
+});
+jest.mock('@/components/common/FormRowComponents', () => {
+  const {Text, TouchableOpacity, View} = jest.requireActual('react-native');
+  return {
+    Separator: jest.fn(() => <View testID="row-separator" />),
     RowButton: jest.fn(({label, value, onPress, testID: explicitTestID}) => {
       const generatedTestID = `row-button-${label.replaceAll(/\s+/g, '-')}`;
       return (
-        <mock-RowButton
+        <TouchableOpacity
           testID={explicitTestID || generatedTestID}
           onPress={onPress}>
-          {' '}
-          <ActualText testID="label">{label}</ActualText>{' '}
-          <ActualText testID="value">{value}</ActualText>{' '}
-        </mock-RowButton>
+          <Text testID="label">{label}</Text>
+          <Text testID="value">{value}</Text>
+        </TouchableOpacity>
       );
     }),
   };
 });
-jest.mock('@/components/common/InlineEditRow/InlineEditRow', () => ({
-  InlineEditRow: jest.fn(
-    ({
-      label,
-      value,
-      onSave,
-      testID: explicitTestID,
-      multiline,
-      keyboardType,
-    }) => {
-      const generatedTestID = `inline-edit-${label.replaceAll(/\s+/g, '-')}`;
-      return (
-        <mock-InlineEditRow
-          testID={explicitTestID || generatedTestID}
-          value={value}
-          onSave={onSave}
-          multiline={multiline}
-          keyboardType={keyboardType}
-        />
-      );
-    },
-  ),
-}));
+jest.mock('@/components/common/InlineEditRow/InlineEditRow', () => {
+  const {View} = jest.requireActual('react-native');
+  return {
+    InlineEditRow: jest.fn(
+      ({
+        label,
+        value,
+        onSave,
+        testID: explicitTestID,
+        multiline,
+        keyboardType,
+      }) => {
+        const generatedTestID = `inline-edit-${label.replaceAll(/\s+/g, '-')}`;
+        return (
+          <View
+            testID={explicitTestID || generatedTestID}
+            value={value}
+            onSave={onSave}
+            multiline={multiline}
+            keyboardType={keyboardType}
+          />
+        );
+      },
+    ),
+  };
+});
 
 // --- Bottom Sheet Mocks (Using Helper for Ref Handling) ---
 const createBottomSheetMock = (
@@ -318,24 +319,27 @@ jest.mock('@/components/common/OriginBottomSheet/OriginBottomSheet', () => ({
 // --- End Bottom Sheet Mocks ---
 
 // --- Date Picker Mock --- (Remains the same)
-jest.mock('@/components/common/SimpleDatePicker/SimpleDatePicker', () => ({
-  SimpleDatePicker: jest.fn(
-    ({show, onDateChange, onDismiss, value, mode, maximumDate}) =>
-      show ? (
-        <mock-SimpleDatePicker
-          testID="dob-picker"
-          value={value}
-          onDateChange={onDateChange}
-          onDismiss={onDismiss}
-          mode={mode}
-          maximumDate={maximumDate}
-        />
-      ) : null,
-  ),
+jest.mock('@/components/common/SimpleDatePicker/SimpleDatePicker', () => {
+  const {View} = jest.requireActual('react-native');
+  return {
+    SimpleDatePicker: jest.fn(
+      ({show, onDateChange, onDismiss, value, mode, maximumDate}) =>
+        show ? (
+          <View
+            testID="dob-picker"
+            value={value}
+            onDateChange={onDateChange}
+            onDismiss={onDismiss}
+            mode={mode}
+            maximumDate={maximumDate}
+          />
+        ) : null,
+    ),
   formatDateForDisplay: jest.fn(date =>
     date ? `Formatted: ${date.toISOString().split('T')[0]}` : '',
   ),
-}));
+  };
+});
 
 // --- Utility Mocks --- (Remain the same)
 jest.mock('@/utils/formScreenStyles', () => ({
@@ -373,9 +377,9 @@ jest.mock(
   '@/utils/catBreeds.json',
   () => [
     {
-      breedId: '1',
+      breedId: 1,
       breedName: 'Siamese',
-      speciesId: 2, // FIX TS(2352): Use number
+      speciesId: 2,
       speciesName: 'Cat',
     },
   ],
@@ -385,9 +389,9 @@ jest.mock(
   '@/utils/dogBreeds.json',
   () => [
     {
-      breedId: 'b1',
+      breedId: 1,
       breedName: 'Labrador',
-      speciesId: 1, // FIX TS(2352): Use number
+      speciesId: 1,
       speciesName: 'Dog',
     },
   ],
@@ -443,27 +447,26 @@ const mockCompanion: Companion = {
   currentWeight: 15.5,
   color: 'Brown',
   allergies: 'Peanuts, Pollen',
-  neuteredStatus: null,
+  neuteredStatus: 'not-neutered',
   ageWhenNeutered: null,
   bloodGroup: 'DEA 1.1+',
   microchipNumber: '12345',
   passportNumber: 'P54321',
-  insuredStatus: null,
+  insuredStatus: 'not-insured',
   insuranceCompany: null,
   insurancePolicyNumber: null,
   countryOfOrigin: 'USA',
   origin: 'breeder',
   profileImage: 'http://test.com/img.jpg',
-  // FIX TS(2352): Provide full Breed object structure with correct speciesId type
   breed: {
-    breedId: 'b1',
+    breedId: 1,
     breedName: 'Labrador',
-    speciesId: 1, // <-- Must be a number
+    speciesId: 1,
     speciesName: 'Dog',
   },
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
-} as Companion; // Keep cast
+};
 
 // --- Test Suite ---
 describe('CompanionOverviewScreen', () => {
@@ -903,9 +906,9 @@ describe('CompanionOverviewScreen', () => {
     const breedSheet = screen.getByTestId('breed-sheet');
     // FIX TS(2352): Ensure the mock breed data matches the expected Breed type structure
     const newBreed: Breed = {
-      breedId: '1',
+      breedId: 1,
       breedName: 'Siamese',
-      speciesId: 2, // <-- Use number
+      speciesId: 2,
       speciesName: 'Cat',
     };
     fireEvent(breedSheet, 'onSave', newBreed);
@@ -917,9 +920,9 @@ describe('CompanionOverviewScreen', () => {
         updatedCompanion: expect.objectContaining({
           // Expect the full Breed object in the payload
           breed: {
-            breedId: '1',
+            breedId: 1,
             breedName: 'Siamese',
-            speciesId: 2, // <-- Use number
+            speciesId: 2,
             speciesName: 'Cat',
           },
           updatedAt: expect.any(String),
@@ -1026,9 +1029,9 @@ describe('CompanionOverviewScreen', () => {
     // FIX TS(2352): Use the correct expected Breed structure from the JSON mock
     expect(screen.getByTestId('breed-sheet')).toHaveProp('breeds', [
       {
-        breedId: '1',
+        breedId: 1,
         breedName: 'Siamese',
-        speciesId: 2, // <-- Use number
+        speciesId: 2,
         speciesName: 'Cat',
       },
     ]);

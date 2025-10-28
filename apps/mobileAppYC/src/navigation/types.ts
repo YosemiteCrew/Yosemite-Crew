@@ -36,6 +36,22 @@ export type DocumentStackParamList = {
   CategoryDetail: { categoryId: string };
 };
 
+// Appointment stack
+export type AppointmentStackParamList = {
+  MyAppointmentsEmpty: undefined;
+  MyAppointments: { resetKey?: number } | undefined;
+  BrowseBusinesses: undefined;
+  BusinessDetails: { businessId: string };
+  BookingForm: { businessId: string; employeeId?: string; appointmentType?: string };
+  ViewAppointment: { appointmentId: string };
+  PaymentInvoice: { appointmentId: string; companionId?: string };
+  PaymentSuccess: { appointmentId: string; companionId?: string };
+  Review: { appointmentId: string };
+  Chat: { appointmentId: string };
+  EditAppointment: { appointmentId: string; mode?: 'reschedule' };
+  BusinessesList: { category: 'hospital' | 'groomer' | 'breeder' | 'pet_center' | 'boarder' };
+};
+
 export type ExpenseStackParamList = {
   ExpensesMain: undefined;
   ExpensesEmpty: undefined;
@@ -57,7 +73,7 @@ export type TaskStackParamList = {
 // Tab Navigator
 export type TabParamList = {
   HomeStack: NavigatorScreenParams<HomeStackParamList>;
-  Appointments: undefined;
+  Appointments: NavigatorScreenParams<AppointmentStackParamList>;
   Documents: NavigatorScreenParams<DocumentStackParamList>;
   Tasks: NavigatorScreenParams<TaskStackParamList>;
 };
