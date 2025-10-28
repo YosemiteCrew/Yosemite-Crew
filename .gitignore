@@ -111,6 +111,7 @@ yarn-error.log
 
 # testing
 /coverage
+apps/backend/coverage
 
 # Yarn
 .yarn/*
