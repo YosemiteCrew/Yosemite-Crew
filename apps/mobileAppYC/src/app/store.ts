@@ -48,17 +48,33 @@ import {companionReducer} from '@/features/companion';
 import documentReducer from '@/features/documents/documentSlice';
 import {expensesReducer} from '@/features/expenses';
 import {tasksReducer} from '@/features/tasks';
+import appointmentsReducer from '@/features/appointments/appointmentsSlice';
+import businessesReducer from '@/features/appointments/businessesSlice';
 
 const persistConfig = {
   key: 'root',
-  version: 2,
+  version: 3,
   storage: storageForPersist,
-  whitelist: ['auth', 'theme', 'documents', 'companion', 'expenses', 'tasks'],
+  whitelist: ['auth', 'theme', 'documents', 'companion', 'expenses', 'tasks', 'appointments', 'businesses'],
   migrate: (state: any) => {
     console.log('[Redux Persist] Migrating state from version', state?._persist?.version);
     // Handle migration from version 1 to 2
     if (state?._persist?.version === 1) {
       console.log('[Redux Persist] Migrating from v1 to v2 - adding companion state');
+    }
+    // Handle migration from version 2 to 3
+    if (state?._persist?.version === 2) {
+      console.log('[Redux Persist] Migrating from v2 to v3 - refreshing businesses data with descriptions');
+      // Clear old businesses data to force fresh fetch with descriptions
+      if (state.businesses) {
+        state.businesses = {
+          businesses: [],
+          employees: [],
+          availability: [],
+          loading: false,
+          error: null,
+        };
+      }
     }
     return Promise.resolve(state);
   },
@@ -71,6 +87,8 @@ const rootReducer = combineReducers({
   documents: documentReducer,
   expenses: expensesReducer,
   tasks: tasksReducer,
+  appointments: appointmentsReducer,
+  businesses: businessesReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

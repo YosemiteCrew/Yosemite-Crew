@@ -15,6 +15,9 @@ export const AppointmentCard = ({
   onGetDirections,
   onChat,
   onCheckIn,
+  showActions = true,
+  footer,
+  onViewDetails,
 }: {
   doctorName: string;
   specialization: string;
@@ -25,18 +28,22 @@ export const AppointmentCard = ({
   onGetDirections?: () => void;
   onChat?: () => void;
   onCheckIn?: () => void;
+  showActions?: boolean;
+  footer?: React.ReactNode;
+  onViewDetails?: () => void;
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   const handleViewPress = () => {
-    onGetDirections?.();
+    onViewDetails?.();
   };
 
   return (
     <SwipeableGlassCard
       actionIcon={Images.viewIconSlide}
       onAction={handleViewPress}
+      onPress={onViewDetails}
       actionBackgroundColor={theme.colors.success}
       containerStyle={styles.container}
       cardProps={{
@@ -46,68 +53,75 @@ export const AppointmentCard = ({
         style: styles.card,
         fallbackStyle: styles.fallback,
       }}
-      springConfig={{useNativeDriver: true, damping: 18, stiffness: 180, mass: 0.8}}
-      enableHorizontalSwipeOnly={true}
-    >
-          {/* Top Row: Avatar and Text Block */}
-          <View style={styles.topRow}>
-            <Image source={avatar} style={styles.avatar} />
-            <View style={styles.textBlock}>
-              <Text style={styles.name}>{doctorName}</Text>
-              <Text style={styles.sub}>{specialization}</Text>
-              <Text style={styles.sub}>{hospital}</Text>
-              <Text style={styles.date}>{dateTime}</Text>
-            </View>
-          </View>
+      springConfig={{
+        useNativeDriver: true,
+        damping: 18,
+        stiffness: 180,
+        mass: 0.8,
+      }}
+      enableHorizontalSwipeOnly={true}>
+      {/* Top Row: Avatar and Text Block */}
+      <View style={styles.topRow}>
+        <Image source={avatar} style={styles.avatar} />
+        <View style={styles.textBlock}>
+          <Text style={styles.name}>{doctorName}</Text>
+          <Text style={styles.sub}>{specialization}</Text>
+          <Text style={styles.sub}>{hospital}</Text>
+          <Text style={styles.date}>{dateTime}</Text>
+        </View>
+      </View>
 
-          {/* Note Container - NEW LOCATION */}
-          {note && (
-            <View style={styles.noteContainer}>
-              <Text style={styles.note}>
-                <Text style={styles.noteLabel}>Note: </Text>
-                {note}
-              </Text>
-            </View>
-          )}
+      {/* Note Container - NEW LOCATION */}
+      {note && (
+        <View style={styles.noteContainer}>
+          <Text style={styles.note}>
+            <Text style={styles.noteLabel}>Note: </Text>
+            {note}
+          </Text>
+        </View>
+      )}
 
-          {/* Buttons */}
-          <View style={styles.buttonContainer}>
+      {/* Buttons */}
+      {showActions && (
+        <View style={styles.buttonContainer}>
+          <LiquidGlassButton
+            title="Get directions"
+            onPress={onGetDirections ?? (() => {})}
+            tintColor={theme.colors.secondary}
+            shadowIntensity="medium"
+            textStyle={styles.directionsButtonText}
+            height={48}
+            borderRadius={12}
+          />
+          <View style={styles.inlineButtons}>
             <LiquidGlassButton
-              title="Get directions"
-              onPress={onGetDirections ?? (() => {})}
-              tintColor={theme.colors.secondary}
-              shadowIntensity="medium"
-              textStyle={styles.directionsButtonText}
-              height={48}
-              borderRadius={12}
+              title="Chat"
+              onPress={onChat ?? (() => {})}
+              style={styles.actionButton}
+              textStyle={styles.actionButtonText}
+              tintColor={theme.colors.white}
+              shadowIntensity="light"
+              forceBorder
+              borderColor="#302F2E"
+              height={52}
+              borderRadius={16}
             />
-            <View style={styles.inlineButtons}>
-              <LiquidGlassButton
-                title="Chat"
-                onPress={onChat ?? (() => {})}
-                style={styles.chatButton}
-                textStyle={styles.chatButtonText}
-                tintColor="#FFFFFF"
-                shadowIntensity="light"
-                forceBorder
-                borderColor="rgba(0, 0, 0, 0.12)"
-                height={56}
-                borderRadius={16}
-              />
-              <LiquidGlassButton
-                title="Check in"
-                onPress={onCheckIn ?? (() => {})}
-                style={styles.checkinButton}
-                textStyle={styles.checkInButtonText}
-                tintColor="#FFFFFF"
-                shadowIntensity="medium"
-                forceBorder
-                borderColor="rgba(0, 0, 0, 0.12)"
-                height={56}
-                borderRadius={16}
-              />
-            </View>
+            <LiquidGlassButton
+              title="Check in"
+              onPress={onCheckIn ?? (() => {})}
+              style={styles.actionButton}
+              textStyle={styles.actionButtonText}
+              tintColor={theme.colors.white}
+              shadowIntensity="light"
+              forceBorder
+              borderColor="#302F2E"
+              height={52}
+              borderRadius={16}
+            />
           </View>
+        </View>
+      )}
+      {footer ? <View style={styles.footer}>{footer}</View> : null}
     </SwipeableGlassCard>
   );
 };
@@ -138,6 +152,7 @@ const createStyles = (theme: any) =>
     },
     topRow: {
       flexDirection: 'row',
+      alignItems: 'center',
       gap: theme.spacing[4],
       marginBottom: theme.spacing[3],
     }, // Added marginBottom
@@ -147,25 +162,26 @@ const createStyles = (theme: any) =>
       borderRadius: 30,
       backgroundColor: theme.colors.primarySurface,
     },
-    chatButton: {
+    actionButton: {
       flex: 1,
+      minWidth: 100,
+      justifyContent: 'center',
+      alignItems: 'center',
       backgroundColor: theme.colors.white,
+      borderWidth: 1,
+      borderColor: '#302F2E',
+      borderRadius: 16,
+      paddingHorizontal: 20,
     },
-    chatButtonText: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.text,
+    actionButtonText: {
+      ...theme.typography.businessTitle16,
+      color: '#302F2E',
+      lineHeight: 19.2,
+      letterSpacing: -0.16,
     },
     directionsButtonText: {
       ...theme.typography.paragraphBold,
       color: theme.colors.white,
-    },
-    checkinButton: {
-      flex: 1,
-      backgroundColor: theme.colors.white,
-    },
-    checkInButtonText: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.text,
     },
     textBlock: {flex: 1, gap: 2},
     name: {...theme.typography.titleMedium, color: theme.colors.secondary},
@@ -182,4 +198,5 @@ const createStyles = (theme: any) =>
       justifyContent: 'space-between',
       gap: theme.spacing[3],
     },
+    footer: {marginTop: theme.spacing[2]},
   });

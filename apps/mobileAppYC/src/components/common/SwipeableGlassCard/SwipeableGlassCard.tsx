@@ -23,6 +23,7 @@ type SpringConfig = Partial<Animated.SpringAnimationConfig> & {
 export interface SwipeableGlassCardProps {
   actionIcon: ImageSourcePropType;
   onAction?: () => Promise<void> | void;
+  onPress?: () => void;
   children: React.ReactNode;
   actionWidth?: number;
   actionBackgroundColor?: string;
@@ -43,6 +44,7 @@ const DEFAULT_OVERLAP = 12; // Default overlap to hide the seam
 export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
   actionIcon,
   onAction,
+  onPress,
   children,
   actionWidth = DEFAULT_ACTION_WIDTH,
   actionBackgroundColor,
@@ -94,25 +96,37 @@ export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
       translateX.setValue(clamp(gestureState.dx));
     };
     const handleRelease = (_: any, gestureState: any) => {
-      if (enableHorizontalSwipeOnly && Math.abs(gestureState.dy) > Math.abs(gestureState.dx)) {
+      const isMostlyVertical = Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
+
+      if (enableHorizontalSwipeOnly && isMostlyVertical) {
+        if (Math.abs(gestureState.dx) < 8 && Math.abs(gestureState.dy) < 8) {
+          onPress?.();
+        }
         return;
       }
+
+      const isTap = Math.abs(gestureState.dx) < 8 && Math.abs(gestureState.dy) < 8;
+      if (isTap) {
+        animateTo(0, () => onPress?.());
+        return;
+      }
+
       const shouldOpen = gestureState.dx < -swipeableWidth / 2;
       animateTo(shouldOpen ? -swipeableWidth : 0);
     };
 
     return PanResponder.create({
-      onStartShouldSetPanResponder: () => !enableHorizontalSwipeOnly,
+      onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (evt, gestureState) => {
         if (enableHorizontalSwipeOnly) {
           return Math.abs(gestureState.dx) > 10 && Math.abs(gestureState.dy) < 10;
         }
-        return true;
+        return Math.abs(gestureState.dx) > 6 || Math.abs(gestureState.dy) > 6;
       },
       onPanResponderMove: handleMove,
       onPanResponderRelease: handleRelease,
     });
-  }, [swipeableWidth, animateTo, clamp, translateX, enableHorizontalSwipeOnly]);
+  }, [swipeableWidth, animateTo, clamp, translateX, enableHorizontalSwipeOnly, onPress]);
 
   const handleActionPress = () => {
     animateTo(0, () => {
