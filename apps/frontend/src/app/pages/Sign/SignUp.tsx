@@ -137,7 +137,7 @@ const SignUp = () => {
           <Col md={6} className="MainSignCol">
             <div className="BuildEveryone">
               <div className="SignBuildText">
-                <h2>Built for Everyone, from Day One.</h2>
+                <h2>Built for everyone, from day one</h2>
               </div>
 
               <div className="BuildCloud">
@@ -148,7 +148,7 @@ const SignUp = () => {
                     </span>
                   </div>
                   <div className="CloudText">
-                    <h4>Enjoy Cloud Hosting with us!</h4>
+                    <h4>Enjoy cloud hosting with us!</h4>
                     <p>
                       Website are hosted on a network of servers, offering
                       greater, scalability, reliability, and flexibility.
@@ -163,7 +163,7 @@ const SignUp = () => {
                     </span>
                   </div>
                   <div className="CloudText">
-                    <h4>Start Free. Pay as You Grow.</h4>
+                    <h4>Start free. Pay as you grow.</h4>
                     <p>
                       Enjoy generous free usage on cloud hosting. Upgrade only
                       when you need more power.
@@ -178,7 +178,7 @@ const SignUp = () => {
                     </span>
                   </div>
                   <div className="CloudText">
-                    <h4>GDPR-Ready, EU-Based Servers.</h4>
+                    <h4>GDPR-ready, EU-based servers.</h4>
                     <p>
                       All cloud data is securely hosted in the EU with full GDPR
                       compliance.
@@ -194,7 +194,7 @@ const SignUp = () => {
               <Form onSubmit={handleSignUp} method="post">
                 <div className="TopSignUp">
                   <div className="Headingtext">
-                    <h2>Sign up for Cloud </h2>
+                    <h2>Sign up for cloud</h2>
                   </div>
 
                   <div className="SignFormItems">
@@ -202,7 +202,7 @@ const SignUp = () => {
                       intype="email"
                       inname="email"
                       value={email}
-                      inlabel="Enter Email Address"
+                      inlabel="Enter email address"
                       onChange={(e) => setEmail(e.target.value)}
                       error={inputErrors.email}
                     />
@@ -210,7 +210,7 @@ const SignUp = () => {
                       intype="password"
                       inname="password"
                       value={password}
-                      inlabel="Set up Password"
+                      inlabel="Set up password"
                       onChange={(e) => setPassword(e.target.value)}
                       error={inputErrors.pError}
                     />
@@ -218,13 +218,13 @@ const SignUp = () => {
                       intype="password"
                       inname="password"
                       value={confirmPassword}
-                      inlabel="Confirm Password"
+                      inlabel="Confirm password"
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       error={inputErrors.confirmPError}
                     />
                   </div>
                   <div className="business-type-container">
-                    <p>Select Your Business Type</p>
+                    <p>Select your business type</p>
                     <div className="button-group">
                       <ul>
                         {businessTypes.map(({ key, value }) => (
@@ -259,11 +259,11 @@ const SignUp = () => {
                           className="policylink"
                           href="/terms-and-conditions"
                         >
-                          Terms and Conditions
+                          terms and conditions
                         </Link>{" "}
                         and{" "}
                         <Link className="policylink" href="/privacy-policy">
-                          Privacy Policy
+                          privacy policy
                         </Link>
                       </>
                     }
@@ -278,7 +278,7 @@ const SignUp = () => {
                   )}
                   <Form.Check
                     type="checkbox"
-                    label="Sign me up for Newsletter and Promotional emails"
+                    label="Sign me up for newsletter and promotional emails"
                     onChange={(e) => setSubscribe(e.target.checked)}
                   />
                   {/* Show error for newsletter */}
@@ -300,7 +300,7 @@ const SignUp = () => {
                   {/* <MainBtn btnname="Sign up" btnicon={<GoCheckCircleFill />} iconPosition="left" /> */}
                   <h6>
                     {" "}
-                    Already have an account? <Link href="/signin">Login</Link>
+                    Already have an account? <Link href="/signin">Sign In</Link>
                   </h6>
                 </div>
               </Form>

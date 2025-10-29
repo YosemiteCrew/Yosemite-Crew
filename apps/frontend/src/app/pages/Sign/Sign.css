@@ -35,6 +35,7 @@
   font-weight: 500;
   font-size: 23px;
   line-height: 120%;
+  letter-spacing: -1px;
   margin: 0;
 }
 
@@ -80,7 +81,7 @@
   box-shadow: 0px 10px 20px 0px #47382729;
   font-weight: 500;
   border-radius: 23px;
-  padding: 20px;
+  padding: 24px 16px;
   width: 100%;
   margin-left: auto;
   margin-right: 0;
@@ -223,7 +224,7 @@
 .Signbtn h6 {
   color: var(--black-text);
   font-weight: 500;
-  font-size: 19px;
+  font-size: 18px;
   line-height: 120%;
   font-family: var(--grotesk-font);
   margin: 0;
@@ -564,11 +565,20 @@
 
   .BuildEveryone .SignBuildText h2 {
     font-size: 33px;
-    letter-spacing: -2px;
+    letter-spacing: -1px;
+  }
+
+  .Headingtext h2 {
+    font-size: 33px;
+    letter-spacing: -1px;
   }
 
   .BuildEveryone {
     width: 100%;
+  }
+
+  .SignUpFormDiv {
+    padding: 40px 20px;
   }
 }
 
@@ -576,20 +586,18 @@
   .MainSignUpRow {
     width: 100%;
     flex-direction: row;
+    justify-content: space-between;
     margin: 40px;
-  }
-  .SignUpFormDiv {
-    padding: 40px 20px;
-    max-width: 563px;
   }
 
   .MainSignCol {
-    width: 50%;
+    width: 47%;
     padding: 0;
   }
 
   .BuildEveryone .SignBuildText h2 {
     font-size: 57px;
+    letter-spacing: -2px;
   }
 
   .BuildEveryone .BuildCloud .CloudItems .CloudText h4 {
@@ -600,8 +608,10 @@
     font-weight: 400;
     font-size: 18px;
   }
+
   .Headingtext h2 {
     font-size: 48px;
+    letter-spacing: -2px;
   }
 
   .SignUpFormDiv form .Sign_check .form-check label {
@@ -612,5 +622,9 @@
 @media (min-width: 1400px) {
   .MainSignUpRow {
     margin: 80px;
+  }
+
+  .MainSignCol {
+    width: 45%;
   }
 }
