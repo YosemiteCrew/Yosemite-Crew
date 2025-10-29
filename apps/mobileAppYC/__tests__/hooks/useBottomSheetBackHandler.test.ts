@@ -1,5 +1,5 @@
 import { renderHook, act } from '@testing-library/react-hooks';
-import { useBottomSheetBackHandler } from '@/hooks/useBottomSheetBackHandler'; // Adjust path if needed
+import { useBottomSheetBackHandler } from '@/shared/hooks/useBottomSheetBackHandler'; // Adjust path if needed
 
 // --- Mocks ---
 

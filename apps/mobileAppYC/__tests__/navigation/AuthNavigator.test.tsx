@@ -4,19 +4,19 @@ import {AuthNavigator} from '@/navigation/AuthNavigator';
 import {NavigationContainer} from '@react-navigation/native';
 
 // Mock the screens
-jest.mock('@/screens/auth/SignInScreen', () => ({
+jest.mock('@/features/auth/screens/SignInScreen', () => ({
   SignInScreen: () => null,
 }));
 
-jest.mock('@/screens/auth/SignUpScreen', () => ({
+jest.mock('@/features/auth/screens/SignUpScreen', () => ({
   SignUpScreen: () => null,
 }));
 
-jest.mock('@/screens/auth/OTPVerificationScreen', () => ({
+jest.mock('@/features/auth/screens/OTPVerificationScreen', () => ({
   OTPVerificationScreen: () => null,
 }));
 
-jest.mock('@/screens/auth/CreateAccountScreen', () => ({
+jest.mock('@/features/auth/screens/CreateAccountScreen', () => ({
   CreateAccountScreen: () => null,
 }));
 

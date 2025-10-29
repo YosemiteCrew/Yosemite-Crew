@@ -3,7 +3,7 @@ import { Alert } from 'react-native';
 import {
   useExpenseForm,
   DEFAULT_FORM,
-} from '@/screens/expenses/hooks/useExpenseForm';
+} from '@/features/expenses/hooks/useExpenseForm';
 
 // --- Mock Dependencies ---
 
@@ -11,7 +11,7 @@ import {
 jest.mock('react-native/Libraries/Alert/Alert');
 
 // We must mock the types that are imported, as the test runner doesn't
-// have access to the actual file at '@/components/expenses'.
+// have access to the actual file at '@/features/expenses/components'.
 // We can define local types for this test file based on the hook's usage.
 type ExpenseFormData = {
   category: string | null;

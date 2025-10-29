@@ -17,7 +17,7 @@ jest.mock('@/navigation/HomeStackNavigator', () => ({
   HomeStackNavigator: () => null,
 }));
 
-jest.mock('@/screens/appointments/AppointmentsScreen', () => ({
+jest.mock('@/features/appointments/screens/AppointmentsScreen', () => ({
   AppointmentsScreen: () => null,
 }));
 

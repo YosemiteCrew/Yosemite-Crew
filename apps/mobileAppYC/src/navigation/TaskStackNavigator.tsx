@@ -3,12 +3,12 @@ import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import type {TaskStackParamList} from './types';
 
 // Import screens
-import {TasksMainScreen} from '@/screens/tasks/TasksMainScreen/TasksMainScreen';
-import {TasksListScreen} from '@/screens/tasks/TasksListScreen/TasksListScreen';
-import {AddTaskScreen} from '@/screens/tasks/AddTaskScreen/AddTaskScreen';
-import {EditTaskScreen} from '@/screens/tasks/EditTaskScreen/EditTaskScreen';
-import {TaskViewScreen} from '@/screens/tasks/TaskViewScreen/TaskViewScreen';
-import {ObservationalToolScreen} from '@/screens/tasks/ObservationalToolScreen/ObservationalToolScreen';
+import {TasksMainScreen} from '@/features/tasks/screens/TasksMainScreen/TasksMainScreen';
+import {TasksListScreen} from '@/features/tasks/screens/TasksListScreen/TasksListScreen';
+import {AddTaskScreen} from '@/features/tasks/screens/AddTaskScreen/AddTaskScreen';
+import {EditTaskScreen} from '@/features/tasks/screens/EditTaskScreen/EditTaskScreen';
+import {TaskViewScreen} from '@/features/tasks/screens/TaskViewScreen/TaskViewScreen';
+import {ObservationalToolScreen} from '@/features/tasks/screens/ObservationalToolScreen/ObservationalToolScreen';
 
 const Stack = createNativeStackNavigator<TaskStackParamList>();
 

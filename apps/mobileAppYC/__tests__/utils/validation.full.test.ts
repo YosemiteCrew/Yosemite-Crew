@@ -9,7 +9,7 @@ import {
   validatePositiveNumber,
   validatecompanionAge,
   validatecompanionWeight,
-} from '@/utils/validation';
+} from '@/shared/utils/validation';
 
 describe('validation utilities', () => {
   describe('validateEmail', () => {
