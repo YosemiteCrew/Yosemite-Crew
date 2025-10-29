@@ -1,7 +1,9 @@
 import React from 'react';
 import {render, screen, fireEvent, within} from '@testing-library/react-native';
-import {MedicationFormSection} from '@/components/tasks/MedicationFormSection/MedicationFormSection';
-import {formatDateForDisplay} from '@/components/common/SimpleDatePicker/SimpleDatePicker';
+// FIX 1: Update component import path
+import {MedicationFormSection} from '@/features/tasks/components/MedicationFormSection/MedicationFormSection';
+// FIX 2: Update helper import path
+import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
 
 import type {
   TaskFormData,
@@ -9,7 +11,8 @@ import type {
   DosageSchedule,
 } from '@/features/tasks/types';
 
-jest.mock('@/components/common', () => {
+// FIX 3: Update mocked component path
+jest.mock('@/shared/components/common', () => {
   const MockView = require('react-native').View;
   const MockTouchableOpacity = require('react-native').TouchableOpacity;
   const MockText = require('react-native').Text;
@@ -72,23 +75,29 @@ jest.mock('@/components/common', () => {
   return {Input: InputMock, TouchableInput: TouchableInputMock};
 });
 
-jest.mock('@/components/common/SimpleDatePicker/SimpleDatePicker', () => ({
-  formatDateForDisplay: jest.fn((date: Date | null): string => {
-    if (!date) return '';
-    const year = date.getFullYear();
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const day = date.getDate().toString().padStart(2, '0');
-    return `Formatted: ${year}-${month}-${day}`;
+// FIX 4: Update mocked component path
+jest.mock(
+  '@/shared/components/common/SimpleDatePicker/SimpleDatePicker',
+  () => ({
+    formatDateForDisplay: jest.fn((date: Date | null): string => {
+      if (!date) return '';
+      const year = date.getFullYear();
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const day = date.getDate().toString().padStart(2, '0');
+      return `Formatted: ${year}-${month}-${day}`;
+    }),
   }),
-}));
+);
 
-jest.mock('@/utils/iconStyles', () => ({
+// FIX 5: Update mocked util path
+jest.mock('@/shared/utils/iconStyles', () => ({
   createIconStyles: jest.fn(() => ({
     dropdownIcon: {width: 16, height: 16},
   })),
 }));
 
-jest.mock('@/components/tasks/shared/taskFormStyles', () => ({
+// FIX 6: Update mocked style path
+jest.mock('@/features/tasks/components/shared/taskFormStyles', () => ({
   createTaskFormSectionStyles: jest.fn(() => ({
     fieldGroup: {},
     textArea: {},

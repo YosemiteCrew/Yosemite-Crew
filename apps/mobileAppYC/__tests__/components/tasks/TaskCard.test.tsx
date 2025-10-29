@@ -1,37 +1,46 @@
 import React from 'react';
 import {render, screen, fireEvent} from '@testing-library/react-native';
-// --- FIX: Correct import path for component ---
-import {TaskCard} from '@/components/tasks/TaskCard/TaskCard';
-import {useTheme} from '@/hooks';
-import {formatDateForDisplay} from '@/components/common/SimpleDatePicker/SimpleDatePicker';
-import {createCardStyles} from '@/components/common/cardStyles';
-// --- FIX: Correct import path for type ---
-import type {TaskCardProps} from '@/components/tasks/TaskCard/TaskCard';
+// FIX 1: Correct import path for component
+import {TaskCard} from '@/features/tasks/components/TaskCard/TaskCard';
+// FIX 2: Correct import path for hook
+import {useTheme} from '@/shared/hooks';
+// FIX 3: Correct import path for helper
+import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+// FIX 4: Correct import path for helper
+import {createCardStyles} from '@/shared/components/common/cardStyles';
+// FIX 5: Correct import path for type
+import type {TaskCardProps} from '@/features/tasks/components/TaskCard/TaskCard';
 
 // --- Mocks ---
 
-jest.mock('@/hooks', () => ({
+// FIX 6: Correct mock path
+jest.mock('@/shared/hooks', () => ({
   useTheme: jest.fn(),
 }));
 const mockUseTheme = useTheme as jest.Mock;
 
-jest.mock('@/components/common/SimpleDatePicker/SimpleDatePicker', () => ({
-  formatDateForDisplay: jest.fn(),
-}));
+// FIX 7: Correct mock path
+jest.mock(
+  '@/shared/components/common/SimpleDatePicker/SimpleDatePicker',
+  () => ({
+    formatDateForDisplay: jest.fn(),
+  }),
+);
 const mockFormatDate = formatDateForDisplay as jest.Mock;
 
-jest.mock('@/components/common/cardStyles', () => ({
+// FIX 8: Correct mock path
+jest.mock('@/shared/components/common/cardStyles', () => ({
   createCardStyles: jest.fn(),
 }));
 const mockCreateCardStyles = createCardStyles as jest.Mock;
 
 // Mock child components
+// FIX 9: Correct mock path
 jest.mock(
-  '@/components/common/SwipeableActionCard/SwipeableActionCard',
+  '@/shared/components/common/SwipeableActionCard/SwipeableActionCard',
   () => ({
     SwipeableActionCard: jest.fn(({children, ...props}) => {
       const MockView = require('react-native').View;
-      // We pass the children through so we can test pressing the inner TouchableOpacity
       return (
         <MockView testID="mock-swipe-card" {...props}>
           {children}
@@ -41,22 +50,26 @@ jest.mock(
   }),
 );
 
-jest.mock('@/components/common/CardActionButton/CardActionButton', () => ({
-  CardActionButton: jest.fn(({label, onPress}) => {
-    const MockButton = require('react-native').TouchableOpacity;
-    const MockText = require('react-native').Text;
-    return (
-      <MockButton testID="mock-action-button" onPress={onPress}>
-        <MockText>{label}</MockText>
-      </MockButton>
-    );
+// FIX 10: Correct mock path
+jest.mock(
+  '@/shared/components/common/CardActionButton/CardActionButton',
+  () => ({
+    CardActionButton: jest.fn(({label, onPress}) => {
+      const MockButton = require('react-native').TouchableOpacity;
+      const MockText = require('react-native').Text;
+      return (
+        <MockButton testID="mock-action-button" onPress={onPress}>
+          <MockText>{label}</MockText>
+        </MockButton>
+      );
+    }),
   }),
-}));
+);
 
-jest.mock('@/components/common/AvatarGroup/AvatarGroup', () => ({
+// FIX 11: Correct mock path
+jest.mock('@/shared/components/common/AvatarGroup/AvatarGroup', () => ({
   AvatarGroup: jest.fn(({avatars}) => {
     const MockView = require('react-native').View;
-    // We can check the avatars prop in our tests
     return <MockView testID="mock-avatar-group" avatars={avatars} />;
   }),
 }));
@@ -97,14 +110,14 @@ const baseProps: TaskCardProps = {
 
 const renderComponent = (props: Partial<TaskCardProps> = {}) => {
   mockUseTheme.mockReturnValue({theme: mockTheme});
-  mockFormatDate.mockReturnValue('October 29, 2025'); // Consistent mock date
+  mockFormatDate.mockReturnValue('October 29, 2025');
   mockCreateCardStyles.mockReturnValue({card: {}, fallback: {}});
 
   const mergedProps = {...baseProps, ...props};
   render(<TaskCard {...mergedProps} />);
 
   return {
-    ...mergedProps, // Return the props for assertion
+    ...mergedProps,
   };
 };
 
@@ -120,7 +133,6 @@ describe('TaskCard', () => {
       renderComponent();
       expect(screen.getByText('Give Morning Medication')).toBeTruthy();
       expect(screen.getByText('Buddy')).toBeTruthy();
-      // Checks for the date part, time is tested separately
       expect(screen.getByText(/October 29, 2025/)).toBeTruthy();
       expect(mockFormatDate).toHaveBeenCalledWith(new Date(baseProps.date));
     });
@@ -176,7 +188,6 @@ describe('TaskCard', () => {
   describe('Date and Time Formatting', () => {
     it('formats and displays the time when provided', () => {
       renderComponent({time: '14:30:00'});
-      // The component's logic formats '14:30:00' to '2:30 PM'
       expect(screen.getByText(/2:30 PM/)).toBeTruthy();
       expect(screen.getByText('October 29, 2025 - 2:30 PM')).toBeTruthy();
     });
@@ -185,7 +196,6 @@ describe('TaskCard', () => {
       renderComponent({time: undefined});
       const text = screen.getByText('October 29, 2025');
       expect(text).toBeTruthy();
-      // Check that no time string is appended
       expect(screen.queryByText(/- \d/)).toBeNull();
     });
 
@@ -291,7 +301,6 @@ describe('TaskCard', () => {
 
     it('renders null if no details are provided', () => {
       renderComponent({details: undefined});
-      // Check for any detail-related text
       expect(screen.queryByText(/💊/)).toBeNull();
       expect(screen.queryByText(/📋/)).toBeNull();
     });

@@ -1,29 +1,28 @@
 import React from 'react';
-// FIX: Removed unused 'fireEvent'
 import {render, screen, act} from '@testing-library/react-native';
 import {useSelector} from 'react-redux';
+// FIX 1: Update component import path
 import {
   AssignTaskBottomSheet,
   type AssignTaskBottomSheetRef,
-} from '@/components/tasks/AssignTaskBottomSheet/AssignTaskBottomSheet';
-import {useTheme} from '@/hooks';
+} from '@/features/tasks/components/AssignTaskBottomSheet/AssignTaskBottomSheet';
+// FIX 2: Update hook import path
+import {useTheme} from '@/shared/hooks';
 import {selectAuthUser} from '@/features/auth/selectors';
 import type {RootState} from '@/app/store';
 import type {User} from '@/features/auth/types';
-// FIX: Removed unused Companion import
-import type {SelectItem} from '@/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
+// FIX 3: Update shared component type import path
+import type {SelectItem} from '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
 
 // --- Mocks ---
 
-// FIX: Mock RN Image to prevent 'displayName' crash
 jest.mock('react-native/Libraries/Image/Image', () => {
   const MockView = require('react-native').View;
   const MockImage = (props: any) => <MockView testID="mock-image" {...props} />;
-  MockImage.displayName = 'Image'; // Add displayName
+  MockImage.displayName = 'Image';
   return MockImage;
 });
 
-// FIX: Mock other problematic RN components
 jest.mock('react-native/Libraries/Components/ScrollView/ScrollView', () => {
   const React = require('react');
   const MockView = require('react-native').View;
@@ -51,7 +50,8 @@ jest.mock('@react-navigation/native', () => ({
 
 // Redux & Hooks
 jest.mock('react-redux');
-jest.mock('@/hooks');
+// FIX 4: Update hook mock path
+jest.mock('@/shared/hooks');
 jest.mock('@/features/auth/selectors');
 
 // Mock child component: GenericSelectBottomSheet
@@ -61,8 +61,9 @@ const mockSheetRef = {
     close: jest.fn(),
   },
 };
+// FIX 5: Update mocked component path
 jest.mock(
-  '@/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet',
+  '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet',
   () => {
     const React = require('react');
     const MockView = require('react-native').View;
@@ -76,6 +77,8 @@ jest.mock(
         return <MockView testID="mock-generic-sheet" {...props} />;
       },
     );
+    // Add displayName
+    MockGenericSelectBottomSheet.displayName = 'GenericSelectBottomSheet';
     return {
       GenericSelectBottomSheet: MockGenericSelectBottomSheet,
     };
@@ -83,24 +86,18 @@ jest.mock(
 );
 
 // Type-cast mocks
-// FIX: Simplify useSelector type to fix SyntaxError and TS error
 const mockedUseSelector = useSelector as unknown as jest.Mock;
 const mockedUseTheme = useTheme as jest.Mock;
 const mockedSelectAuthUser = selectAuthUser as jest.Mock;
 
 // --- Mock Data ---
 
-// FIX: Use 'as any' to bypass complex type validation in tests
 const mockUserFull: User = {
   id: 'user-1',
   firstName: 'Test',
   lastName: 'User',
   email: 'test@user.com',
   profilePicture: 'http://example.com/avatar.png',
-  phone: undefined,
-  dateOfBirth: undefined,
-  currency: 'USD',
-  address: undefined,
 } as any;
 
 const mockUserMinimal: User = {
@@ -109,10 +106,6 @@ const mockUserMinimal: User = {
   lastName: undefined,
   email: 'minimal@user.com',
   profilePicture: undefined,
-  phone: undefined,
-  dateOfBirth: undefined,
-  currency: 'USD',
-  address: undefined,
 } as any;
 
 const testTheme = {
@@ -122,7 +115,6 @@ const testTheme = {
     white: '#ffffff',
   },
   typography: {
-    // Add any typography styles used in renderItem
     bodyMedium: {fontSize: 16},
   },
 };
@@ -204,7 +196,6 @@ describe('AssignTaskBottomSheet', () => {
     ]);
   });
 
-  // COVERAGE TEST (Branch: `|| 'You'`)
   it('uses "You" as fallback if name and email are missing', () => {
     const youUser: User = {
       id: 'user-3',
@@ -234,7 +225,6 @@ describe('AssignTaskBottomSheet', () => {
     });
   });
 
-  // COVERAGE TEST (Branch: `|| 'Unknown'`)
   it('passes "Unknown" label if selectedUserId is not in the list', () => {
     renderComponent(mockUserFull, {selectedUserId: 'user-not-found'});
     const sheet = screen.getByTestId('mock-generic-sheet');
@@ -263,7 +253,6 @@ describe('AssignTaskBottomSheet', () => {
     expect(onSelect).toHaveBeenCalledWith('user-1');
   });
 
-  // COVERAGE TEST (Branch: `if (item)`)
   it('does not call onSelect when onSave is triggered with null', () => {
     const {onSelect} = renderComponent(mockUserFull);
     const sheet = screen.getByTestId('mock-generic-sheet');
@@ -275,7 +264,6 @@ describe('AssignTaskBottomSheet', () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
-  // FIX: This describe block now mocks useTheme to prevent crashes
   describe('renderUserItem', () => {
     let renderItem: (
       item: SelectItem,
@@ -283,40 +271,29 @@ describe('AssignTaskBottomSheet', () => {
     ) => React.ReactElement;
 
     beforeEach(() => {
-      // Mock useTheme *before* rendering the item
       mockedUseTheme.mockReturnValue({theme: testTheme});
-
-      // Render component once to get the renderItem function
-      // We need to re-render this to get the `renderItem` function
-      // created in a scope where `useTheme` is mocked.
       renderComponent(mockUserFull);
       const sheet = screen.getByTestId('mock-generic-sheet');
       renderItem = sheet.props.renderItem;
     });
 
     it('renders avatar image when avatar URL is present', () => {
-      // FIX: Mock useTheme again just before this isolated render
       mockedUseTheme.mockReturnValue({theme: testTheme});
     });
 
     it('renders initials when avatar URL is missing', () => {
       const item: SelectItem = {id: 'user-1', label: 'Test', avatar: undefined};
-
-      // FIX: Mock useTheme again
       mockedUseTheme.mockReturnValue({theme: testTheme});
       const {getByText, queryByTestId} = render(renderItem(item, false));
-
       expect(getByText('T')).toBeTruthy(); // First char of 'Test'
       expect(queryByTestId('mock-image')).toBeNull();
     });
 
     it('renders a checkmark when item is selected', () => {
-      // FIX: Mock useTheme again
       mockedUseTheme.mockReturnValue({theme: testTheme});
     });
 
     it('does not render a checkmark when item is not selected', () => {
-      // FIX: Mock useTheme again
       mockedUseTheme.mockReturnValue({theme: testTheme});
     });
   });

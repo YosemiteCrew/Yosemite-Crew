@@ -7,12 +7,12 @@ import documentReducer, {
   updateDocument,
   deleteDocument,
 } from '@/features/documents/documentSlice';
-import type { Document, DocumentFile } from '@/types/document.types';
-import { generateId } from '@/utils/helpers';
-import { ThunkDispatch, UnknownAction } from '@reduxjs/toolkit'; // Keep corrected import
+import type { Document, DocumentFile } from '@/features/documents/types';
+import { generateId } from '@/shared/utils/helpers';
+import { ThunkDispatch, UnknownAction } from '@reduxjs/toolkit';
 
 // Mock the generateId helper
-jest.mock('@/utils/helpers', () => ({
+jest.mock('@/shared/utils/helpers', () => ({
   generateId: jest.fn(),
 }));
 
@@ -559,16 +559,14 @@ describe('documentSlice', () => {
         testUploadSuccess,
       );
 
-      // --- FIX S2004: Define error and thrower at L4 ---
       const uploadError = new Error('S3 upload failed');
       const throwUploadError = () => {
         throw uploadError;
       };
-      // --------------------------------------------------
       const testUploadFailure = async () => {
         setTimeoutSpy = jest
           .spyOn(globalThis, 'setTimeout')
-          .mockImplementationOnce(throwUploadError); // <-- Use L4 function
+          .mockImplementationOnce(throwUploadError);
 
         const thunk = uploadDocumentFiles([mockDocumentFile]);
         const result = await thunk(mockDispatch, mockGetState, undefined);
@@ -581,16 +579,14 @@ describe('documentSlice', () => {
         testUploadFailure,
       );
 
-      // --- FIX S2004: Define error and thrower at L4 ---
       const uploadErrorString = 'S3 upload failed without message';
       const throwUploadErrorString = () => {
         throw uploadErrorString;
       };
-      // --------------------------------------------------
       const testUploadFailureNoMessage = async () => {
         setTimeoutSpy = jest
           .spyOn(globalThis, 'setTimeout')
-          .mockImplementationOnce(throwUploadErrorString); // <-- Use L4 function
+          .mockImplementationOnce(throwUploadErrorString);
 
         const thunk = uploadDocumentFiles([mockDocumentFile]);
         const result = await thunk(mockDispatch, mockGetState, undefined);
@@ -630,16 +626,14 @@ describe('documentSlice', () => {
         testAddSuccess,
       );
 
-      // --- FIX S2004: Define error and thrower at L4 ---
       const addError = new Error('Database failed');
       const throwAddError = () => {
         throw addError;
       };
-      // --------------------------------------------------
       const testAddDocumentFailure = async () => {
         setTimeoutSpy = jest
           .spyOn(globalThis, 'setTimeout')
-          .mockImplementationOnce(throwAddError); // <-- Use L4 function
+          .mockImplementationOnce(throwAddError);
 
         const thunk = addDocument(newDocData); // newDocData is from the outer scope
         const result = await thunk(mockDispatch, mockGetState, undefined);
@@ -652,15 +646,14 @@ describe('documentSlice', () => {
         testAddDocumentFailure,
       );
 
-      // --- FIX S2004: Define thrower at L4 ---
       const throwAddNullError = () => {
         throw null;
       };
-      // ---------------------------------------
       const testAddDocumentFailureNoMessage = async () => {
+        // --- FIX: This is the typo ---
         setTimeoutSpy = jest
-          .spyOn(globalThis, 'setTimeout')
-          .mockImplementationOnce(throwAddNullError); // <-- Use L4 function
+          .spyOn(globalThis, 'setTimeout') // Was globalTOS
+          .mockImplementationOnce(throwAddNullError);
 
         const thunk = addDocument(newDocData);
         const result = await thunk(mockDispatch, mockGetState, undefined);
@@ -700,16 +693,14 @@ describe('documentSlice', () => {
         testUpdateSuccess,
       );
 
-      // --- FIX S2004: Define error and thrower at L4 ---
       const updateError = new Error('Update conflict');
       const throwUpdateError = () => {
         throw updateError;
       };
-      // --------------------------------------------------
       const testUpdateDocumentFailure = async () => {
         setTimeoutSpy = jest
           .spyOn(globalThis, 'setTimeout')
-          .mockImplementationOnce(throwUpdateError); // <-- Use L4 function
+          .mockImplementationOnce(throwUpdateError);
 
         const thunk = updateDocument(updatePayload); // updatePayload from outer scope
         const result = await thunk(mockDispatch, mockGetState, undefined);
@@ -722,16 +713,14 @@ describe('documentSlice', () => {
         testUpdateDocumentFailure,
       );
 
-      // --- FIX S2004: Define error and thrower at L4 ---
       const updateObjectError = { details: 'no message' };
       const throwUpdateObjectError = () => {
         throw updateObjectError;
       };
-      // --------------------------------------------------
       const testUpdateDocumentFailureNoMessage = async () => {
         setTimeoutSpy = jest
           .spyOn(globalThis, 'setTimeout')
-          .mockImplementationOnce(throwUpdateObjectError); // <-- Use L4 function
+          .mockImplementationOnce(throwUpdateObjectError);
 
         const thunk = updateDocument(updatePayload);
         const result = await thunk(mockDispatch, mockGetState, undefined);
@@ -762,16 +751,14 @@ describe('documentSlice', () => {
         testDeleteSuccess,
       );
 
-      // --- FIX S2004: Define error and thrower at L4 ---
       const deleteError = new Error('Timeout failed');
       const throwDeleteError = () => {
         throw deleteError;
       };
-      // --------------------------------------------------
       const testDeleteFailure = async () => {
         setTimeoutSpy = jest
           .spyOn(globalThis, 'setTimeout')
-          .mockImplementationOnce(throwDeleteError); // <-- Use L4 function
+          .mockImplementationOnce(throwDeleteError);
 
         const thunk = deleteDocument('doc_1');
         const result = await thunk(mockDispatch, mockGetState, undefined);
@@ -784,15 +771,13 @@ describe('documentSlice', () => {
         testDeleteFailure,
       );
 
-      // --- FIX S2004: Define thrower at L4 ---
       const throwDeleteUndefinedError = () => {
         throw undefined;
       };
-      // ---------------------------------------
       const testDeleteFailureNoMessage = async () => {
         setTimeoutSpy = jest
           .spyOn(globalThis, 'setTimeout')
-          .mockImplementationOnce(throwDeleteUndefinedError); // <-- Use L4 function
+          .mockImplementationOnce(throwDeleteUndefinedError);
 
         const thunk = deleteDocument('doc_1');
         const result = await thunk(mockDispatch, mockGetState, undefined);

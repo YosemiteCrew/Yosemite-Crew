@@ -1,15 +1,22 @@
 // __tests__/components/tasks/MedicationTypeBottomSheet.test.tsx
 
 import React from 'react';
-import { render, screen, fireEvent, act } from '@testing-library/react-native';
-import { MedicationTypeBottomSheet } from '@/components/tasks/MedicationTypeBottomSheet/MedicationTypeBottomSheet';
-import { resolveMedicationTypeLabel } from '@/utils/taskLabels';
-import type { MedicationTypeBottomSheetRef } from '@/components/tasks/MedicationTypeBottomSheet/MedicationTypeBottomSheet';
-import type { MedicationType } from '@/features/tasks/types';
-import type { GenericSelectBottomSheetRef, SelectItem } from '@/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
+import {render, screen, fireEvent, act} from '@testing-library/react-native';
+// FIX 1: Update component import path
+import {MedicationTypeBottomSheet} from '@/features/tasks/components/MedicationTypeBottomSheet/MedicationTypeBottomSheet';
+// FIX 2: Update helper import path
+import {resolveMedicationTypeLabel} from '@/features/tasks/utils/taskLabels';
+// FIX 3: Update type import path
+import type {MedicationTypeBottomSheetRef} from '@/features/tasks/components/MedicationTypeBottomSheet/MedicationTypeBottomSheet';
+import type {MedicationType} from '@/features/tasks/types';
+// FIX 4: Update shared component type import path
+import type {
+  GenericSelectBottomSheetRef,
+  SelectItem,
+} from '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
 
-
-jest.mock('@/utils/taskLabels', () => ({
+// FIX 5: Update mocked helper path
+jest.mock('@/features/tasks/utils/taskLabels', () => ({
   resolveMedicationTypeLabel: jest.fn((type: string) => `Label for ${type}`),
 }));
 const mockResolveLabel = resolveMedicationTypeLabel as jest.Mock;
@@ -20,51 +27,59 @@ const mockInternalSheetRef = {
 };
 let mockOnSaveCallback: (item: SelectItem | null) => void;
 
-jest.mock('@/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet', () => {
-  const ReactMock = require('react');
-  const { View, Text, TouchableOpacity } = require('react-native');
+// FIX 6: Update mocked component path
+jest.mock(
+  '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet',
+  () => {
+    const ReactMock = require('react');
+    const {View, Text, TouchableOpacity} = require('react-native');
 
-  const MockGenericSheet: React.ForwardRefRenderFunction<
-    GenericSelectBottomSheetRef,
-    any
-  > = (props, ref) => {
-    mockOnSaveCallback = props.onSave;
+    const MockGenericSheet: React.ForwardRefRenderFunction<
+      GenericSelectBottomSheetRef,
+      any
+    > = (props, ref) => {
+      mockOnSaveCallback = props.onSave;
 
-    ReactMock.useImperativeHandle(ref, () => ({
-      open: mockInternalSheetRef.open,
-      close: mockInternalSheetRef.close,
-    }));
+      ReactMock.useImperativeHandle(ref, () => ({
+        open: mockInternalSheetRef.open,
+        close: mockInternalSheetRef.close,
+      }));
 
-    return (
-      <View testID="mock-generic-sheet">
-        <Text>Title: {props.title}</Text>
-        <Text>Selected: {props.selectedItem?.id || 'null'}</Text>
-        <Text>Items: {props.items.map((i: SelectItem) => i.label).join(', ')}</Text>
-        <Text>HasSearch: {String(props.hasSearch)}</Text>
-        <Text>Mode: {props.mode}</Text>
+      return (
+        <View testID="mock-generic-sheet">
+          <Text>Title: {props.title}</Text>
+          <Text>Selected: {props.selectedItem?.id || 'null'}</Text>
+          <Text>
+            Items: {props.items.map((i: SelectItem) => i.label).join(', ')}
+          </Text>
+          <Text>HasSearch: {String(props.hasSearch)}</Text>
+          <Text>Mode: {props.mode}</Text>
 
-        {/* Add buttons to simulate interactions */}
-        <TouchableOpacity
-          testID="simulate-save-injection"
-          onPress={() => mockOnSaveCallback({ id: 'injection', label: 'Label for injection' })}
-        />
-        <TouchableOpacity
-          testID="simulate-save-null"
-          onPress={() => mockOnSaveCallback(null)}
-        />
-      </View>
-    );
-  };
+          {/* Add buttons to simulate interactions */}
+          <TouchableOpacity
+            testID="simulate-save-injection"
+            onPress={() =>
+              mockOnSaveCallback({
+                id: 'injection',
+                label: 'Label for injection',
+              })
+            }
+          />
+          <TouchableOpacity
+            testID="simulate-save-null"
+            onPress={() => mockOnSaveCallback(null)}
+          />
+        </View>
+      );
+    };
 
-  return { GenericSelectBottomSheet: ReactMock.forwardRef(MockGenericSheet) };
-});
-
+    return {GenericSelectBottomSheet: ReactMock.forwardRef(MockGenericSheet)};
+  },
+);
 
 const mockOnSelect = jest.fn();
 
-const renderComponent = (
-  selectedType: MedicationType | null = null,
-) => {
+const renderComponent = (selectedType: MedicationType | null = null) => {
   const ref = React.createRef<MedicationTypeBottomSheetRef>();
   render(
     <MedicationTypeBottomSheet
@@ -73,9 +88,8 @@ const renderComponent = (
       onSelect={mockOnSelect}
     />,
   );
-  return { ref, mockOnSelect };
+  return {ref, mockOnSelect};
 };
-
 
 describe('MedicationTypeBottomSheet', () => {
   beforeEach(() => {
@@ -87,7 +101,7 @@ describe('MedicationTypeBottomSheet', () => {
 
     expect(screen.getByTestId('mock-generic-sheet')).toBeTruthy();
     expect(screen.getByText('Title: Medication type')).toBeTruthy();
-    expect(screen.getByText('HasSearch: true')).toBeTruthy(); // Different from the last component
+    expect(screen.getByText('HasSearch: true')).toBeTruthy();
     expect(screen.getByText('Mode: select')).toBeTruthy();
   });
 
@@ -126,7 +140,7 @@ describe('MedicationTypeBottomSheet', () => {
   });
 
   it('calls onSelect with the item id when handleSave is triggered', () => {
-    const { mockOnSelect } = renderComponent();
+    const {mockOnSelect} = renderComponent();
 
     fireEvent.press(screen.getByTestId('simulate-save-injection'));
 
@@ -135,7 +149,7 @@ describe('MedicationTypeBottomSheet', () => {
   });
 
   it('does not call onSelect when handleSave is triggered with null', () => {
-    const { mockOnSelect } = renderComponent();
+    const {mockOnSelect} = renderComponent();
 
     fireEvent.press(screen.getByTestId('simulate-save-null'));
 
@@ -143,7 +157,7 @@ describe('MedicationTypeBottomSheet', () => {
   });
 
   it('exposes and calls open method via ref', () => {
-    const { ref } = renderComponent();
+    const {ref} = renderComponent();
 
     act(() => {
       ref.current?.open();
@@ -153,7 +167,7 @@ describe('MedicationTypeBottomSheet', () => {
   });
 
   it('exposes and calls close method via ref', () => {
-    const { ref } = renderComponent();
+    const {ref} = renderComponent();
 
     act(() => {
       ref.current?.close();
