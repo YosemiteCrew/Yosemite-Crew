@@ -1,5 +1,4 @@
 // __tests__/components/tasks/TaskFrequencyBottomSheet.test.tsx
-
 import React from 'react';
 import {render, screen, fireEvent, act} from '@testing-library/react-native';
 import {TaskFrequencyBottomSheet} from '@/components/tasks/TaskFrequencyBottomSheet/TaskFrequencyBottomSheet';
@@ -11,15 +10,12 @@ import type {
   SelectItem,
 } from '@/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
 
-// --- Mocks ---
 
-// Mock the task label utility
 jest.mock('@/utils/taskLabels', () => ({
   resolveTaskFrequencyLabel: jest.fn((freq: string) => `Label for ${freq}`),
 }));
 const mockResolveLabel = resolveTaskFrequencyLabel as jest.Mock;
 
-// Mock the child GenericSelectBottomSheet
 const mockInternalSheetRef = {
   open: jest.fn(),
   close: jest.fn(),
@@ -32,19 +28,17 @@ jest.mock(
     const ReactMock = require('react');
     const {View, Text, TouchableOpacity} = require('react-native');
 
-    // Define the render function with explicit types
     const MockGenericSheet: React.ForwardRefRenderFunction<
       GenericSelectBottomSheetRef,
-      any // Props can be 'any' for the mock
+      any
     > = (props, ref) => {
-      mockOnSaveCallback = props.onSave; // Store the onSave callback
+      mockOnSaveCallback = props.onSave;
 
       ReactMock.useImperativeHandle(ref, () => ({
         open: mockInternalSheetRef.open,
         close: mockInternalSheetRef.close,
       }));
 
-      // Render props so we can test them
       return (
         <View testID="mock-generic-sheet">
           <Text>Title: {props.title}</Text>
@@ -71,12 +65,10 @@ jest.mock(
       );
     };
 
-    // Pass the typed function to forwardRef
     return {GenericSelectBottomSheet: ReactMock.forwardRef(MockGenericSheet)};
   },
 );
 
-// --- Helper ---
 
 const mockOnSelect = jest.fn();
 
@@ -92,7 +84,6 @@ const renderComponent = (selectedFrequency: TaskFrequency | null = null) => {
   return {ref, mockOnSelect};
 };
 
-// --- Tests ---
 
 describe('TaskFrequencyBottomSheet', () => {
   beforeEach(() => {
@@ -114,14 +105,12 @@ describe('TaskFrequencyBottomSheet', () => {
   it('builds and passes frequency items correctly', () => {
     renderComponent();
 
-    // Check that the label resolver was called for each frequency
     expect(mockResolveLabel).toHaveBeenCalledWith('once');
     expect(mockResolveLabel).toHaveBeenCalledWith('daily');
     expect(mockResolveLabel).toHaveBeenCalledWith('every-day');
     expect(mockResolveLabel).toHaveBeenCalledWith('weekly');
     expect(mockResolveLabel).toHaveBeenCalledWith('monthly');
 
-    // Check that the items are passed to the mock
     const expectedLabels = [
       'Label for once',
       'Label for daily',
@@ -140,7 +129,6 @@ describe('TaskFrequencyBottomSheet', () => {
   it('passes the correct selectedItem when a frequency is provided', () => {
     renderComponent('weekly');
 
-    // Check that the label resolver was called an extra time for the selected item
     expect(mockResolveLabel).toHaveBeenCalledWith('weekly');
     expect(screen.getByText('Selected: weekly')).toBeTruthy();
   });

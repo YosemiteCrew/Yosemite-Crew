@@ -11,7 +11,6 @@ import type {
   SelectItem,
 } from '@/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
 
-// --- Mocks ---
 
 jest.mock('@/utils/taskLabels', () => ({
   resolveObservationalToolLabel: jest.fn((tool: string) => `Label for ${tool}`),
@@ -73,13 +72,11 @@ jest.mock(
   },
 );
 
-// --- Helper ---
 
 const mockOnSelect = jest.fn();
 
 const renderComponent = (props: {
   selectedTool?: ObservationalTool | null;
-  // FIX: Change to just 'string' to resolve SonarQube warnings
   companionType: string;
 }) => {
   const ref = React.createRef<ObservationalToolBottomSheetRef>();
@@ -87,7 +84,6 @@ const renderComponent = (props: {
     <ObservationalToolBottomSheet
       ref={ref}
       selectedTool={props.selectedTool}
-      // Cast to the component's expected prop type
       companionType={props.companionType as 'cat' | 'dog' | 'horse'}
       onSelect={mockOnSelect}
     />,
@@ -95,7 +91,6 @@ const renderComponent = (props: {
   return {ref, mockOnSelect};
 };
 
-// --- Tests ---
 
 describe('ObservationalToolBottomSheet', () => {
   beforeEach(() => {
@@ -142,7 +137,6 @@ describe('ObservationalToolBottomSheet', () => {
     ).toBeTruthy();
   });
 
-  // This test now works with the updated helper type
   it('returns an empty list if companionType is unknown', () => {
     renderComponent({companionType: 'lizard'}); // No 'as any' needed now
     expect(screen.getByText('Items:')).toBeTruthy();

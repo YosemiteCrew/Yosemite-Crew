@@ -8,15 +8,12 @@ import type { MedicationTypeBottomSheetRef } from '@/components/tasks/Medication
 import type { MedicationType } from '@/features/tasks/types';
 import type { GenericSelectBottomSheetRef, SelectItem } from '@/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
 
-// --- Mocks ---
 
-// Mock the task label utility
 jest.mock('@/utils/taskLabels', () => ({
   resolveMedicationTypeLabel: jest.fn((type: string) => `Label for ${type}`),
 }));
 const mockResolveLabel = resolveMedicationTypeLabel as jest.Mock;
 
-// Mock the child GenericSelectBottomSheet
 const mockInternalSheetRef = {
   open: jest.fn(),
   close: jest.fn(),
@@ -27,20 +24,17 @@ jest.mock('@/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet
   const ReactMock = require('react');
   const { View, Text, TouchableOpacity } = require('react-native');
 
-  // Define the render function with explicit types
   const MockGenericSheet: React.ForwardRefRenderFunction<
     GenericSelectBottomSheetRef,
-    any // Props can be 'any' for the mock
+    any
   > = (props, ref) => {
-    mockOnSaveCallback = props.onSave; // Store the onSave callback
+    mockOnSaveCallback = props.onSave;
 
-    // Expose open/close methods for the *internal* ref
     ReactMock.useImperativeHandle(ref, () => ({
       open: mockInternalSheetRef.open,
       close: mockInternalSheetRef.close,
     }));
 
-    // Render props so we can test them
     return (
       <View testID="mock-generic-sheet">
         <Text>Title: {props.title}</Text>
@@ -62,11 +56,9 @@ jest.mock('@/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet
     );
   };
 
-  // Pass the typed function to forwardRef
   return { GenericSelectBottomSheet: ReactMock.forwardRef(MockGenericSheet) };
 });
 
-// --- Helper ---
 
 const mockOnSelect = jest.fn();
 
@@ -84,7 +76,6 @@ const renderComponent = (
   return { ref, mockOnSelect };
 };
 
-// --- Tests ---
 
 describe('MedicationTypeBottomSheet', () => {
   beforeEach(() => {
@@ -103,14 +94,11 @@ describe('MedicationTypeBottomSheet', () => {
   it('builds and passes medication type items correctly', () => {
     renderComponent();
 
-    // Check that the label resolver was called for each type
     expect(mockResolveLabel).toHaveBeenCalledWith('tablets-pills');
     expect(mockResolveLabel).toHaveBeenCalledWith('capsule');
     expect(mockResolveLabel).toHaveBeenCalledWith('liquids');
-    // ... (add more if you want to be exhaustive)
     expect(mockResolveLabel).toHaveBeenCalledWith('sprinkle-capsules');
 
-    // Check that the items are passed to the mock
     const expectedLabels = [
       'Label for tablets-pills',
       'Label for capsule',
@@ -133,7 +121,6 @@ describe('MedicationTypeBottomSheet', () => {
   it('passes the correct selectedItem when a type is provided', () => {
     renderComponent('injection');
 
-    // Check that the label resolver was called an extra time for the selected item
     expect(mockResolveLabel).toHaveBeenCalledWith('injection');
     expect(screen.getByText('Selected: injection')).toBeTruthy();
   });
