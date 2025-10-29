@@ -1,162 +1,356 @@
-// __tests__/components/tasks/MedicationFrequencyBottomSheet.test.tsx
+// __tests__/components/tasks/ObservationalToolFormSection.test.tsx
 
-import React from 'react'; // Keep top-level import for types
-import {render, screen, fireEvent, act} from '@testing-library/react-native';
-import {MedicationFrequencyBottomSheet} from '@/components/tasks/MedicationFrequencyBottomSheet/MedicationFrequencyBottomSheet';
-import {resolveMedicationFrequencyLabel} from '@/utils/taskLabels';
-import type {MedicationFrequencyBottomSheetRef} from '@/components/tasks/MedicationFrequencyBottomSheet/MedicationFrequencyBottomSheet';
-import type {MedicationFrequency} from '@/features/tasks/types';
-// FIX 1: Import SelectItem and GenericSelectBottomSheetRef from its correct location
+import React from 'react';
+// FIX: Import 'within'
+import {render, screen, fireEvent, within} from '@testing-library/react-native';
+// FIX: Remove unused aliased imports
+// import { View as MockView, Text as MockText, TouchableOpacity as MockTouchableOpacity } from 'react-native';
+import {ObservationalToolFormSection} from '@/components/tasks/ObservationalToolFormSection/ObservationalToolFormSection';
+import {formatDateForDisplay} from '@/components/common/SimpleDatePicker/SimpleDatePicker'; // Mocked
+import {formatTimeForDisplay} from '@/utils/timeHelpers'; // Mocked
+import {Images} from '@/assets/images'; // Mocked
 import type {
-  GenericSelectBottomSheetRef,
-  SelectItem,
-} from '@/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
+  TaskFormData,
+  TaskFormErrors,
+  ObservationalTool,
+  TaskFrequency,
+} from '@/features/tasks/types';
 
 // --- Mocks ---
 
-jest.mock('@/utils/taskLabels', () => ({
-  resolveMedicationFrequencyLabel: jest.fn(
-    (freq: string) => `Label for ${freq}`,
-  ),
-}));
-const mockResolveLabel = resolveMedicationFrequencyLabel as jest.Mock;
+// Mock child components from @/components/common
+jest.mock('@/components/common', () => {
+  const RN = require('react-native');
+  // FIX: Destructure into PascalCase for SonarQube
+  const {View, Text, TouchableOpacity} = RN;
 
-const mockInternalSheetRef = {
-  open: jest.fn(),
-  close: jest.fn(),
-};
-let mockOnSaveCallback: (item: SelectItem | null) => void;
-
-jest.mock(
-  '@/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet',
-  () => {
-    const ReactMock = require('react');
-    const {View, Text, TouchableOpacity} = require('react-native');
-
-    // FIX 2: Explicitly type the mock component function first
-    const MockGenericSheet: React.ForwardRefRenderFunction<
-      GenericSelectBottomSheetRef,
-      any // Props can be 'any' for the mock
-    > = (props, ref) => {
-      mockOnSaveCallback = props.onSave;
-
-      ReactMock.useImperativeHandle(ref, () => ({
-        open: mockInternalSheetRef.open,
-        close: mockInternalSheetRef.close,
-      }));
-
+  // Mock Input
+  const InputMock = jest.fn(
+    ({
+      label,
+      placeholder,
+      value,
+      onChangeText,
+      error,
+      editable = true,
+      icon,
+      ...props
+    }) => {
+      const testIdBase = (label || placeholder || 'input').replaceAll(
+        /[\s()]/g,
+        '-',
+      );
+      const inputTestId = `mock-input-${testIdBase}`;
       return (
-        <View testID="mock-generic-sheet">
-          <Text>Title: {props.title}</Text>
-          <Text>Selected: {props.selectedItem?.id || 'null'}</Text>
-          <Text>
-            Items: {props.items.map((i: SelectItem) => i.label).join(', ')}
-          </Text>
-          <Text>HasSearch: {String(props.hasSearch)}</Text>
-          <Text>Mode: {props.mode}</Text>
-
-          <TouchableOpacity
-            testID="simulate-save-daily"
-            onPress={() =>
-              mockOnSaveCallback({id: 'daily', label: 'Label for daily'})
-            }
-          />
-          <TouchableOpacity
-            testID="simulate-save-null"
-            onPress={() => mockOnSaveCallback(null)}
-          />
+        <View {...props} testID={inputTestId}>
+          {label && <Text>Label: {label}</Text>}
+          {placeholder && <Text>Placeholder: {placeholder}</Text>}
+          <Text>Value: {value ?? ''}</Text>
+          {error && <Text>Error: {error}</Text>}
+          <Text>Editable: {String(editable)}</Text>
+          {/* FIX: Use optional chaining correctly */}
+          {icon?.props?.source && <Text>Icon: {icon.props.source}</Text>}
+          {editable && (
+            <TouchableOpacity
+              testID={`${inputTestId}-touchable`}
+              onPress={() => onChangeText && onChangeText('mock change')}
+            />
+          )}
         </View>
       );
-    };
+    },
+  );
 
-    // Pass the typed function to forwardRef
-    return {GenericSelectBottomSheet: ReactMock.forwardRef(MockGenericSheet)};
+  // Mock TouchableInput
+  const TouchableInputMock = jest.fn(
+    ({label, placeholder, value, onPress, rightComponent, error, ...props}) => {
+      const testIdBase = (label || placeholder || 'touchable').replaceAll(
+        /[\s()]/g,
+        '-',
+      );
+      const touchableTestId = `mock-touchable-${testIdBase}`;
+      return (
+        <TouchableOpacity {...props} testID={touchableTestId} onPress={onPress}>
+          {label && <Text>Label: {label}</Text>}
+          {placeholder && <Text>Placeholder: {placeholder}</Text>}
+          <Text>Value: {value || ''}</Text>
+          {/* FIX: Use optional chaining correctly */}
+          {rightComponent?.props?.source && (
+            <Text>Icon: {rightComponent.props.source}</Text>
+          )}
+          {error && <Text>Error: {error}</Text>}
+        </TouchableOpacity>
+      );
+    },
+  );
+
+  return {Input: InputMock, TouchableInput: TouchableInputMock};
+});
+
+// Mock utilities
+jest.mock('@/components/common/SimpleDatePicker/SimpleDatePicker', () => ({
+  // FIX: Use local date parts to avoid timezone conversion from .toISOString()
+  formatDateForDisplay: jest.fn((date: Date | null): string => {
+    if (!date) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `FormattedDate: ${year}-${month}-${day}`;
+  }),
+}));
+const mockFormatDateForDisplay = formatDateForDisplay as jest.Mock;
+
+jest.mock('@/utils/timeHelpers', () => ({
+  // FIX: Make mock timezone-independent
+  formatTimeForDisplay: jest.fn((time: Date | null): string => {
+    if (!time) return '';
+    // Use getHours/getMinutes which are based on the local time of the Date object
+    const hours = String(time.getHours()).padStart(2, '0');
+    const minutes = String(time.getMinutes()).padStart(2, '0');
+    const seconds = String(time.getSeconds()).padStart(2, '0');
+    return `FormattedTime: ${hours}:${minutes}:${seconds}`;
+  }),
+}));
+const mockFormatTimeForDisplay = formatTimeForDisplay as jest.Mock;
+
+jest.mock('@/assets/images', () => ({
+  Images: {
+    calendarIcon: 'calendar.png',
+    clockIcon: 'clock.png',
+    dropdownIcon: 'dropdown.png',
   },
-);
+}));
+
+// Mock style functions
+jest.mock('@/utils/iconStyles', () => ({
+  createIconStyles: jest.fn(() => ({})),
+}));
+jest.mock('@/components/tasks/shared/taskFormStyles', () => ({
+  createTaskFormSectionStyles: jest.fn(() => ({})),
+}));
+
+// Mock RN Image
+jest.mock('react-native/Libraries/Image/Image', () => {
+  // FIX: Destructure into PascalCase for SonarQube
+  const {View, Text} = require('react-native');
+  const MockImage = (props: any) => (
+    <View testID="mock-image">
+      <Text>Source Prop: {props.source}</Text>
+    </View>
+  );
+  MockImage.displayName = 'Image';
+  return MockImage;
+});
+
+// --- Mock Data ---
+const mockTheme = {spacing: {}, colors: {}, typography: {}};
+
+// FIX: Remove companionId and taskType. Ensure all fields from type are present.
+const baseFormData: TaskFormData = {
+  title: 'Take Observational Tool',
+  description: '',
+  date: null,
+  time: null,
+  frequency: null,
+  category: 'health',
+  // companionId: 'comp-1', // Invalid
+  // taskType: 'take-observational-tool', // Invalid
+  subcategory: null,
+  parasitePreventionType: null,
+  chronicConditionType: null,
+  healthTaskType: 'take-observational-tool',
+  hygieneTaskType: null,
+  dietaryTaskType: null,
+  assignedTo: null,
+  reminderEnabled: false,
+  reminderOptions: null,
+  syncWithCalendar: false,
+  calendarProvider: null,
+  attachDocuments: false,
+  attachments: [],
+  additionalNote: '',
+  medicineName: '',
+  medicineType: null,
+  dosages: [],
+  medicationFrequency: null,
+  startDate: null,
+  endDate: null,
+  observationalTool: null,
+};
+
+const baseErrors: TaskFormErrors = {};
 
 // --- Helper ---
 
-const mockOnSelect = jest.fn();
-
 const renderComponent = (
-  selectedFrequency: MedicationFrequency | null = null,
+  props: {
+    formData?: Partial<TaskFormData>;
+    errors?: Partial<TaskFormErrors>;
+  } = {},
 ) => {
-  const ref = React.createRef<MedicationFrequencyBottomSheetRef>();
+  mockFormatDateForDisplay.mockClear();
+  mockFormatTimeForDisplay.mockClear();
+
+  const mockUpdateField = jest.fn();
+  const mockOnOpenObservationalToolSheet = jest.fn();
+  const mockOnOpenDatePicker = jest.fn();
+  const mockOnOpenTimePicker = jest.fn();
+  const mockOnOpenTaskFrequencySheet = jest.fn();
+
+  const fullFormData = {...baseFormData, ...props.formData};
+  const fullErrors = {...baseErrors, ...props.errors};
+
   render(
-    <MedicationFrequencyBottomSheet
-      ref={ref}
-      selectedFrequency={selectedFrequency}
-      onSelect={mockOnSelect}
+    <ObservationalToolFormSection
+      formData={fullFormData}
+      errors={fullErrors}
+      updateField={mockUpdateField}
+      onOpenObservationalToolSheet={mockOnOpenObservationalToolSheet}
+      onOpenDatePicker={mockOnOpenDatePicker}
+      onOpenTimePicker={mockOnOpenTimePicker}
+      onOpenTaskFrequencySheet={mockOnOpenTaskFrequencySheet}
+      theme={mockTheme}
     />,
   );
-  return {ref, mockOnSelect};
+
+  return {
+    mockUpdateField,
+    mockOnOpenObservationalToolSheet,
+    mockOnOpenDatePicker,
+    mockOnOpenTimePicker,
+    mockOnOpenTaskFrequencySheet,
+  };
 };
 
 // --- Tests ---
 
-describe('MedicationFrequencyBottomSheet', () => {
+describe('ObservationalToolFormSection', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('renders and passes correct static props to GenericSelectBottomSheet', () => {
-    renderComponent();
-    expect(screen.getByTestId('mock-generic-sheet')).toBeTruthy();
-    expect(screen.getByText('Title: Medication frequency')).toBeTruthy();
-    expect(screen.getByText('HasSearch: false')).toBeTruthy();
-    expect(screen.getByText('Mode: select')).toBeTruthy();
-  });
+  describe('Rendering', () => {
+    it('renders all fields with placeholders by default', () => {
+      renderComponent();
 
-  it('builds and passes frequency items correctly', () => {
-    renderComponent();
-    expect(mockResolveLabel).toHaveBeenCalledWith('once');
-    expect(mockResolveLabel).toHaveBeenCalledWith('daily');
-    expect(mockResolveLabel).toHaveBeenCalledWith('weekly');
-    expect(mockResolveLabel).toHaveBeenCalledWith('monthly');
-    expect(
-      screen.getByText(
-        'Items: Label for once, Label for daily, Label for weekly, Label for monthly',
-      ),
-    ).toBeTruthy();
-  });
+      // FIX: Use 'within' to query text inside the mock
+      const titleInput = screen.getByTestId('mock-input-Task-name');
+      expect(
+        within(titleInput).getByText('Value: Take Observational Tool'),
+      ).toBeTruthy();
+      expect(within(titleInput).getByText('Editable: false')).toBeTruthy();
 
-  it('passes null as selectedItem when no frequency is selected', () => {
-    renderComponent(null);
-    expect(screen.getByText('Selected: null')).toBeTruthy();
-  });
-
-  it('passes the correct selectedItem when a frequency is provided', () => {
-    renderComponent('weekly');
-    expect(mockResolveLabel).toHaveBeenCalledWith('weekly');
-    expect(screen.getByText('Selected: weekly')).toBeTruthy();
-  });
-
-  it('calls onSelect with the item id when handleSave is triggered', () => {
-    const {mockOnSelect} = renderComponent();
-    fireEvent.press(screen.getByTestId('simulate-save-daily'));
-    expect(mockOnSelect).toHaveBeenCalledWith('daily');
-    expect(mockOnSelect).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not call onSelect when handleSave is triggered with null', () => {
-    const {mockOnSelect} = renderComponent();
-    fireEvent.press(screen.getByTestId('simulate-save-null'));
-    expect(mockOnSelect).not.toHaveBeenCalled();
-  });
-
-  it('exposes and calls open method via ref', () => {
-    const {ref} = renderComponent();
-    act(() => {
-      ref.current?.open();
+      expect(
+        screen.getByText('Placeholder: Select observational tool'),
+      ).toBeTruthy();
+      expect(screen.getByText('Placeholder: Date')).toBeTruthy();
+      expect(screen.getByText('Placeholder: Time')).toBeTruthy();
+      expect(screen.getByText('Placeholder: Task frequency')).toBeTruthy();
     });
-    expect(mockInternalSheetRef.open).toHaveBeenCalledTimes(1);
+
+    it('renders all fields with values from formData', () => {
+      // FIX: Use local date constructor
+      const testDate = new Date(2025, 9, 29); // Oct 29, 2025
+      const testTime = new Date(2025, 9, 29, 14, 30, 0); // 14:30:00
+      const tool: ObservationalTool = 'feline-grimace-scale';
+      const freq: TaskFrequency = 'daily';
+
+      renderComponent({
+        formData: {
+          date: testDate,
+          time: testTime,
+          observationalTool: tool,
+          frequency: freq,
+        },
+      });
+
+      expect(mockFormatDateForDisplay).toHaveBeenCalledWith(testDate);
+      expect(mockFormatTimeForDisplay).toHaveBeenCalledWith(testTime);
+
+      expect(screen.getByText(`Value: ${tool}`)).toBeTruthy();
+      // FIX: Assert against the new, correct formatted date
+      expect(screen.getByText('Value: FormattedDate: 2025-10-29')).toBeTruthy();
+      expect(screen.getByText('Value: FormattedTime: 14:30:00')).toBeTruthy();
+      expect(screen.getByText(`Value: ${freq}`)).toBeTruthy();
+    });
+
+    it('renders error messages', () => {
+      renderComponent({
+        errors: {
+          observationalTool: 'Tool error',
+          date: 'Date error',
+          time: 'Time error',
+          frequency: 'Frequency error',
+        },
+      });
+
+      expect(screen.getByText('Error: Tool error')).toBeTruthy();
+      expect(screen.getByText('Error: Date error')).toBeTruthy();
+      expect(screen.getByText('Error: Time error')).toBeTruthy();
+      expect(screen.getByText('Error: Frequency error')).toBeTruthy();
+    });
+
+    it('renders all icons', () => {
+      renderComponent();
+
+      // FIX: Use 'within' to find the specific icon text
+      const toolInput = screen.getByTestId(
+        'mock-touchable-Select-observational-tool',
+      );
+      expect(
+        within(toolInput).getByText(`Icon: ${Images.dropdownIcon}`),
+      ).toBeTruthy();
+
+      const dateInput = screen.getByTestId('mock-touchable-Date');
+      expect(
+        within(dateInput).getByText(`Icon: ${Images.calendarIcon}`),
+      ).toBeTruthy();
+
+      const timeInput = screen.getByTestId('mock-touchable-Time');
+      expect(
+        within(timeInput).getByText(`Icon: ${Images.clockIcon}`),
+      ).toBeTruthy();
+
+      const freqInput = screen.getByTestId('mock-touchable-Task-frequency');
+      expect(
+        within(freqInput).getByText(`Icon: ${Images.dropdownIcon}`),
+      ).toBeTruthy();
+    });
   });
 
-  it('exposes and calls close method via ref', () => {
-    const {ref} = renderComponent();
-    act(() => {
-      ref.current?.close();
+  describe('Interactions', () => {
+    it('does not call updateField when non-editable title is pressed', () => {
+      const {mockUpdateField} = renderComponent();
+      // The touchable shouldn't exist due to `editable: false` in the mock
+      const touchable = screen.queryByTestId('mock-input-Task-name-touchable');
+      expect(touchable).toBeNull();
+      expect(mockUpdateField).not.toHaveBeenCalled();
     });
-    expect(mockInternalSheetRef.close).toHaveBeenCalledTimes(1);
+
+    it('calls onOpenObservationalToolSheet when pressed', () => {
+      const {mockOnOpenObservationalToolSheet} = renderComponent();
+      fireEvent.press(
+        screen.getByTestId('mock-touchable-Select-observational-tool'),
+      );
+      expect(mockOnOpenObservationalToolSheet).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls onOpenDatePicker when pressed', () => {
+      const {mockOnOpenDatePicker} = renderComponent();
+      fireEvent.press(screen.getByTestId('mock-touchable-Date'));
+      expect(mockOnOpenDatePicker).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls onOpenTimePicker when pressed', () => {
+      const {mockOnOpenTimePicker} = renderComponent();
+      fireEvent.press(screen.getByTestId('mock-touchable-Time'));
+      expect(mockOnOpenTimePicker).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls onOpenTaskFrequencySheet when pressed', () => {
+      const {mockOnOpenTaskFrequencySheet} = renderComponent();
+      fireEvent.press(screen.getByTestId('mock-touchable-Task-frequency'));
+      expect(mockOnOpenTaskFrequencySheet).toHaveBeenCalledTimes(1);
+    });
   });
 });
