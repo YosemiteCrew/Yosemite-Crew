@@ -1,7 +1,7 @@
 import {
   fetchPlaceSuggestions,
   fetchPlaceDetails,
-} from '@/services/maps/googlePlaces';
+} from '@/shared/services/maps/googlePlaces';
 
 // Mock the config module
 jest.mock('@/config/variables', () => ({
@@ -117,7 +117,7 @@ describe('googlePlaces integration-edge cases', () => {
     }));
 
     const {fetchPlaceSuggestions: fetchSuggestions, MissingApiKeyError: MissingKeyErr} =
-      require('@/services/maps/googlePlaces');
+      require('@/shared/services/maps/googlePlaces');
 
     await expect(fetchSuggestions({query: 'q'})).rejects.toBeInstanceOf(MissingKeyErr);
 

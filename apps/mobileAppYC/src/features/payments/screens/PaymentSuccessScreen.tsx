@@ -1,9 +1,9 @@
 import React, {useMemo, useCallback} from 'react';
 import {View, Text, StyleSheet, Image, TouchableOpacity} from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
-import {SafeArea} from '@/components/common';
-import {Header} from '@/components/common/Header/Header';
-import {LiquidGlassButton} from '@/components/common/LiquidGlassButton/LiquidGlassButton';
+import {SafeArea} from '@/shared/components/common';
+import {Header} from '@/shared/components/common/Header/Header';
+import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {useNavigation, useRoute} from '@react-navigation/native';

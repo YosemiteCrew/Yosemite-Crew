@@ -2,7 +2,7 @@ import React from 'react';
 import TestRenderer from 'react-test-renderer';
 import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
-import {Button} from '@/components/common/Button/Button';
+import {Button} from '@/shared/components/common/Button/Button';
 import {themeReducer} from '@/features/theme';
 import { Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 

@@ -1,9 +1,9 @@
 import React, {useMemo} from 'react';
 import {ScrollView, View, Text, StyleSheet, Image} from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
-import {SafeArea} from '@/components/common';
-import {Header} from '@/components/common/Header/Header';
-import {LiquidGlassButton} from '@/components/common/LiquidGlassButton/LiquidGlassButton';
+import {SafeArea} from '@/shared/components/common';
+import {Header} from '@/shared/components/common/Header/Header';
+import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {useTheme} from '@/hooks';
 import type {RootState, AppDispatch} from '@/app/store';
 import {useNavigation, useRoute} from '@react-navigation/native';
@@ -11,7 +11,7 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
 import {selectInvoiceForAppointment} from '@/features/appointments/selectors';
 import {recordPayment} from '@/features/appointments/appointmentsSlice';
-import {BookingSummaryCard} from '@/components/appointments/BookingSummaryCard';
+import {BookingSummaryCard} from '@/features/appointments/components/BookingSummaryCard';
 import {Images} from '@/assets/images';
 import type {InvoiceItem} from '@/features/appointments/types';
 

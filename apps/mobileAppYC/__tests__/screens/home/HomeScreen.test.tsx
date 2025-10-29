@@ -3,8 +3,8 @@ import {render, fireEvent, waitFor, act} from '@testing-library/react-native';
 import {
   HomeScreen,
   deriveHomeGreetingName,
-} from '@/screens/home/HomeScreen/HomeScreen';
-import {useAuth} from '@/contexts/AuthContext';
+} from '@/features/home/screens/HomeScreen/HomeScreen';
+import {useAuth} from '@/features/auth/context/AuthContext';
 import {useDispatch, useSelector} from 'react-redux';
 import {
   fetchCompanions,
@@ -157,7 +157,7 @@ jest.mock('react-native/Libraries/Image/Image', () => ({
 jest.mock('@/hooks', () => ({
   useTheme: jest.fn(() => ({theme: mockTheme})),
 }));
-jest.mock('@/contexts/AuthContext', () => ({useAuth: jest.fn()}));
+jest.mock('@/features/auth/context/AuthContext', () => ({useAuth: jest.fn()}));
 jest.mock('react-redux', () => ({
   useDispatch: jest.fn(),
   useSelector: jest.fn(),
@@ -173,7 +173,7 @@ jest.mock('@/features/companion', () => ({
 }));
 jest.mock('@/features/auth/selectors', () => ({selectAuthUser: jest.fn()}));
 
-jest.mock('@/components/tasks/TaskCard/TaskCard', () => {
+jest.mock('@/features/tasks/components/TaskCard/TaskCard', () => {
   const {TouchableOpacity, Text} = jest.requireActual('react-native');
   return {
     __esModule: true,
@@ -188,7 +188,7 @@ jest.mock('@/components/tasks/TaskCard/TaskCard', () => {
 const mockOnGetDirections = jest.fn();
 const mockOnChat = jest.fn();
 
-jest.mock('@/components/common/AppointmentCard/AppointmentCard', () => {
+jest.mock('@/shared/components/common/AppointmentCard/AppointmentCard', () => {
   const {TouchableOpacity, Text, View} = jest.requireActual('react-native');
   return {
     __esModule: true,
@@ -212,7 +212,7 @@ jest.mock('@/components/common/AppointmentCard/AppointmentCard', () => {
   };
 });
 
-jest.mock('@/components/common/CompanionSelector/CompanionSelector', () => {
+jest.mock('@/shared/components/common/CompanionSelector/CompanionSelector', () => {
   const {TouchableOpacity, Text, View} = jest.requireActual('react-native');
   return {
     __esModule: true,
@@ -242,7 +242,7 @@ jest.mock('@/components/common/CompanionSelector/CompanionSelector', () => {
   };
 });
 
-jest.mock('@/components/common/LiquidGlassCard/LiquidGlassCard', () => {
+jest.mock('@/shared/components/common/LiquidGlassCard/LiquidGlassCard', () => {
   const {View} = jest.requireActual('react-native');
   return {
     __esModule: true,
@@ -254,7 +254,7 @@ jest.mock('@/components/common/LiquidGlassCard/LiquidGlassCard', () => {
   };
 });
 
-jest.mock('@/components/common/YearlySpendCard/YearlySpendCard', () => {
+jest.mock('@/shared/components/common/YearlySpendCard/YearlySpendCard', () => {
   const {View, Text} = jest.requireActual('react-native');
   return {
     __esModule: true,
@@ -266,7 +266,7 @@ jest.mock('@/components/common/YearlySpendCard/YearlySpendCard', () => {
   };
 });
 
-jest.mock('@/components/common/SearchBar/SearchBar', () => {
+jest.mock('@/shared/components/common/SearchBar/SearchBar', () => {
   const {TouchableOpacity, Text} = jest.requireActual('react-native');
   return {
     __esModule: true,

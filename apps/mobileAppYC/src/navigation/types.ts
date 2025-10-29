@@ -3,6 +3,7 @@ import {NavigatorScreenParams} from '@react-navigation/native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {BottomTabScreenProps} from '@react-navigation/bottom-tabs';
 import type {AuthStackParamList} from './AuthNavigator';
+import type {TaskCategory} from '@/features/tasks/types';
 
 // Root Stack Navigator - Add Onboarding
 export type RootStackParamList = {
@@ -63,7 +64,7 @@ export type ExpenseStackParamList = {
 
 export type TaskStackParamList = {
   TasksMain: undefined;
-  TasksList: { category: 'health' | 'hygiene' | 'dietary' | 'custom' };
+  TasksList: { category: TaskCategory };
   AddTask: undefined;
   TaskView: { taskId: string; source?: 'home' | 'tasks' };
   EditTask: { taskId: string; source?: 'home' | 'tasks' };

@@ -2,7 +2,7 @@ import React from 'react';
 import TestRenderer from 'react-test-renderer';
 import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
-import {SafeArea, SafeAreaWithHook} from '@/components/common/SafeArea/SafeArea';
+import {SafeArea, SafeAreaWithHook} from '@/shared/components/common/SafeArea/SafeArea';
 import {themeReducer} from '@/features/theme';
 import {Text, View, StatusBar} from 'react-native';
 

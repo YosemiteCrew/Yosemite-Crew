@@ -114,17 +114,17 @@ jest.mock('@/assets/images', () => ({
   },
 }));
 
-jest.mock('@/utils/currency', () => ({
+jest.mock('@/shared/utils/currency', () => ({
   resolveCurrencySymbol: () => '$',
 }));
-jest.mock('@/utils/expenseLabels', () => ({
+jest.mock('@/features/expenses/utils/expenseLabels', () => ({
   resolveCategoryLabel: (val: string | null) => (val ? `Label:${val}` : ''),
   resolveSubcategoryLabel: (cat: string | null, sub: string | null) =>
     sub ? `Label:${sub}` : '',
   resolveVisitTypeLabel: (val: string | null) => (val ? `Label:${val}` : ''),
 }));
 
-jest.mock('@/components/common/CompanionSelector/CompanionSelector', () => ({
+jest.mock('@/shared/components/common/CompanionSelector/CompanionSelector', () => ({
   CompanionSelector: jest.fn(props => {
     const {View: MockView} = require('react-native');
     const handleSelect = (id: string | null) => props.onSelect(id);
@@ -137,13 +137,13 @@ jest.mock('@/components/common/CompanionSelector/CompanionSelector', () => ({
     );
   }),
 }));
-jest.mock('@/components/common/Input/Input', () => ({
+jest.mock('@/shared/components/common/Input/Input', () => ({
   Input: jest.fn(props => {
     const {View: MockView} = require('react-native');
     return <MockView {...props} testID={`mock-Input-${props.label}`} />;
   }),
 }));
-jest.mock('@/components/common/TouchableInput/TouchableInput', () => ({
+jest.mock('@/shared/components/common/TouchableInput/TouchableInput', () => ({
   TouchableInput: jest.fn(props => {
     const {View: MockView} = require('react-native');
     return (
@@ -155,20 +155,20 @@ jest.mock('@/components/common/TouchableInput/TouchableInput', () => ({
   }),
 }));
 jest.mock(
-  '@/components/common/LiquidGlassButton/LiquidGlassButton',
+  '@/shared/components/common/LiquidGlassButton/LiquidGlassButton',
   () => (props: any) => {
     const {View: MockView} = require('react-native');
     return <MockView {...props} testID="mock-LiquidGlassButton" />;
   },
 );
-jest.mock('@/components/common/SimpleDatePicker/SimpleDatePicker', () => ({
+jest.mock('@/shared/components/common/SimpleDatePicker/SimpleDatePicker', () => ({
   SimpleDatePicker: jest.fn(props => {
     const {View: MockView} = require('react-native');
     return <MockView {...props} testID="mock-SimpleDatePicker" />;
   }),
   formatDateForDisplay: (date: Date) => date.toISOString().split('T')[0],
 }));
-jest.mock('@/components/documents/DocumentAttachmentsSection', () => ({
+jest.mock('@/features/documents/components/DocumentAttachmentsSection', () => ({
   DocumentAttachmentsSection: jest.fn(props => {
     const {View: MockView} = require('react-native');
     return <MockView {...props} testID="mock-DocumentAttachmentsSection" />;
@@ -181,7 +181,7 @@ const mockOpenVisitTypeSheet = jest.fn();
 const mockOpenUploadSheet = jest.fn();
 const mockOpenDeleteSheet = jest.fn();
 
-jest.mock('@/components/common/CategoryBottomSheet/CategoryBottomSheet', () => {
+jest.mock('@/shared/components/common/CategoryBottomSheet/CategoryBottomSheet', () => {
   const MockReact = require('react');
   const {View: MockView} = require('react-native');
   return {
@@ -192,7 +192,7 @@ jest.mock('@/components/common/CategoryBottomSheet/CategoryBottomSheet', () => {
   };
 });
 jest.mock(
-  '@/components/common/SubcategoryBottomSheet/SubcategoryBottomSheet',
+  '@/shared/components/common/SubcategoryBottomSheet/SubcategoryBottomSheet',
   () => {
     const MockReact = require('react');
     const {View: MockView} = require('react-native');
@@ -207,7 +207,7 @@ jest.mock(
   },
 );
 jest.mock(
-  '@/components/common/VisitTypeBottomSheet/VisitTypeBottomSheet',
+  '@/shared/components/common/VisitTypeBottomSheet/VisitTypeBottomSheet',
   () => {
     const MockReact = require('react');
     const {View: MockView} = require('react-native');
@@ -222,7 +222,7 @@ jest.mock(
   },
 );
 jest.mock(
-  '@/components/common/UploadDocumentBottomSheet/UploadDocumentBottomSheet',
+  '@/shared/components/common/UploadDocumentBottomSheet/UploadDocumentBottomSheet',
   () => {
     const MockReact = require('react');
     const {View: MockView} = require('react-native');
@@ -241,7 +241,7 @@ jest.mock(
   },
 );
 jest.mock(
-  '@/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet',
+  '@/shared/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet',
   () => {
     const MockReact = require('react');
     const {View: MockView} = require('react-native');
@@ -264,7 +264,7 @@ import {
   ExpenseForm,
   type ExpenseFormData,
   type ExpenseFormProps,
-} from '@/components/expenses/ExpenseForm/ExpenseForm';
+} from '@/features/expenses/components/ExpenseForm/ExpenseForm';
 import type {Companion} from '@/features/companion/types';
 import type {ExpenseAttachment} from '@/features/expenses';
 

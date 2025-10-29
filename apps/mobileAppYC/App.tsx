@@ -14,14 +14,14 @@ import {NavigationContainer} from '@react-navigation/native';
 import {store, persistor} from '@/app/store';
 import {AppNavigator} from './src/navigation';
 import {useTheme} from './src/hooks';
-import CustomSplashScreen from './src/components/common/customSplashScreen/customSplash';
+import CustomSplashScreen from './src/shared/components/common/customSplashScreen/customSplash';
 import './src/localization';
 import outputs from './amplify_outputs.json';
 import {Amplify} from 'aws-amplify';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { AuthProvider } from '@/contexts/AuthContext';
-import {configureSocialProviders} from '@/services/auth/socialAuth';
-import { ErrorBoundary } from '@/components/common/ErrorBoundary';
+import { AuthProvider } from '@/features/auth/context/AuthContext';
+import {configureSocialProviders} from '@/features/auth/services/socialAuth';
+import { ErrorBoundary } from '@/shared/components/common/ErrorBoundary';
 
 Amplify.configure(outputs);
 

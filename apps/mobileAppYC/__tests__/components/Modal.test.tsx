@@ -3,7 +3,7 @@ import TestRenderer from 'react-test-renderer';
 import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
 import {Text, TouchableOpacity} from 'react-native';
-import {Modal} from '@/components/common/Modal/Modal';
+import {Modal} from '@/shared/components/common/Modal/Modal';
 import {themeReducer} from '@/features/theme';
 
 describe('Modal', () => {

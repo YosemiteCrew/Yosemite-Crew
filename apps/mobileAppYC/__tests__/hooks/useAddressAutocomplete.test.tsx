@@ -1,15 +1,15 @@
 import {renderHook, act} from '@testing-library/react-hooks';
-import {useAddressAutocomplete} from '@/hooks/useAddressAutocomplete'; // CORRECTED IMPORT PATH
+import {useAddressAutocomplete} from '@/shared/hooks/useAddressAutocomplete'; // CORRECTED IMPORT PATH
 import {
   fetchPlaceDetails,
   fetchPlaceSuggestions,
   MissingApiKeyError,
-} from '@/services/maps/googlePlaces'; // CORRECTED IMPORT PATH
-import type {PlaceDetails, PlaceSuggestion} from '@/services/maps/googlePlaces';
+} from '@/shared/services/maps/googlePlaces'; // CORRECTED IMPORT PATH
+import type {PlaceDetails, PlaceSuggestion} from '@/shared/services/maps/googlePlaces';
 
 // --- Mocks ---
 
-jest.mock('@/services/maps/googlePlaces', () => ({
+jest.mock('@/shared/services/maps/googlePlaces', () => ({
   fetchPlaceSuggestions: jest.fn(),
   fetchPlaceDetails: jest.fn(),
   // Ensure the custom error class is mockable/constructable

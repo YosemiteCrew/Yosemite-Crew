@@ -1,6 +1,6 @@
 import React from 'react';
 import TestRenderer from 'react-test-renderer';
-import {SimpleDatePicker, formatDateForDisplay} from '@/components/common/SimpleDatePicker/SimpleDatePicker';
+import {SimpleDatePicker, formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
 
 // Mock the date picker component
 jest.mock('@react-native-community/datetimepicker', () => {

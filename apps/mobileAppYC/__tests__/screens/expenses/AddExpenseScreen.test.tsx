@@ -1,11 +1,11 @@
 import React from 'react';
 import {render, fireEvent, waitFor} from '@testing-library/react-native';
 import {Alert} from 'react-native';
-import {AddExpenseScreen} from '@/screens/expenses/AddExpenseScreen/AddExpenseScreen';
+import {AddExpenseScreen} from '@/features/expenses/screens/AddExpenseScreen/AddExpenseScreen';
 import {
   useExpenseForm,
   DEFAULT_FORM,
-} from '@/screens/expenses/hooks/useExpenseForm';
+} from '@/features/expenses/hooks/useExpenseForm';
 import {addExternalExpense} from '@/features/expenses';
 import {setSelectedCompanion} from '@/features/companion';
 import type {RootState} from '@/app/store';
@@ -55,7 +55,7 @@ const defaultUseExpenseFormMockImplementation = () => ({
   handleErrorClear: mockHandleErrorClear,
   validate: mockValidate,
 });
-jest.mock('@/screens/expenses/hooks/useExpenseForm', () => ({
+jest.mock('@/features/expenses/hooks/useExpenseForm', () => ({
   useExpenseForm: jest.fn(defaultUseExpenseFormMockImplementation),
   DEFAULT_FORM: {},
 }));
@@ -71,11 +71,11 @@ jest.mock('@/features/companion', () => ({
   setSelectedCompanion: jest.fn(id => ({type: 'SET_COMPANION', payload: id})),
 }));
 
-jest.mock('@/components/common', () => ({
+jest.mock('@/shared/components/common', () => ({
   SafeArea: ({children}: {children: React.ReactNode}) => <>{children}</>,
 }));
 
-jest.mock('@/components/common/Header/Header', () => {
+jest.mock('@/shared/components/common/Header/Header', () => {
   const {TouchableOpacity} = require('react-native');
   return {
     Header: jest.fn((props: any) => (
@@ -89,7 +89,7 @@ jest.mock('@/components/common/Header/Header', () => {
   };
 });
 
-jest.mock('@/components/expenses', () => {
+jest.mock('@/features/expenses/components', () => {
   const {View: MockInnerView} = require('react-native');
   return {
     ExpenseForm: (props: any) => (
@@ -100,7 +100,7 @@ jest.mock('@/components/expenses', () => {
 
 const mockDiscardSheetOpen = jest.fn();
 jest.mock(
-  '@/components/common/DiscardChangesBottomSheet/DiscardChangesBottomSheet',
+  '@/shared/components/common/DiscardChangesBottomSheet/DiscardChangesBottomSheet',
   () => {
     const ReactInside = require('react');
     const {View: MockView} = require('react-native');

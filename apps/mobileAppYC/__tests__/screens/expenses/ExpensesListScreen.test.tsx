@@ -10,7 +10,7 @@ import {
   useFocusEffect,
 } from '@react-navigation/native';
 // 2. Import AnyAction
-import {ExpensesListScreen} from '@/screens/expenses/ExpensesListScreen/ExpensesListScreen';
+import {ExpensesListScreen} from '@/features/expenses/screens/ExpensesListScreen/ExpensesListScreen';
 import * as expensesSlice from '@/features/expenses';
 import * as companionSlice from '@/features/companion';
 import {useTheme} from '@/hooks';
@@ -54,7 +54,7 @@ jest.mock('@/hooks', () => ({
 });
 
 // FIX 4: Move 'RN' import inside each mock factory & use PascalCase
-jest.mock('@/components/common', () => {
+jest.mock('@/shared/components/common', () => {
   const RN = jest.requireActual('react-native');
   // Use PascalCase for mock component names
   const MockYearlySpendCard = (props: any) => (
@@ -65,7 +65,7 @@ jest.mock('@/components/common', () => {
     YearlySpendCard: MockYearlySpendCard,
   };
 });
-jest.mock('@/components/common/Header/Header', () => {
+jest.mock('@/shared/components/common/Header/Header', () => {
   const RN = jest.requireActual('react-native');
   const MockHeader = (props: any) => (
     <RN.View testID="mock-Header" {...props} />
@@ -74,7 +74,7 @@ jest.mock('@/components/common/Header/Header', () => {
     Header: MockHeader,
   };
 });
-jest.mock('@/components/common/CompanionSelector/CompanionSelector', () => {
+jest.mock('@/shared/components/common/CompanionSelector/CompanionSelector', () => {
   const RN = jest.requireActual('react-native');
   const MockCompanionSelector = (props: any) => (
     <RN.View testID="mock-CompanionSelector" {...props} />
@@ -83,7 +83,7 @@ jest.mock('@/components/common/CompanionSelector/CompanionSelector', () => {
     CompanionSelector: MockCompanionSelector,
   };
 });
-jest.mock('@/components/expenses', () => {
+jest.mock('@/features/expenses/components', () => {
   const RN = jest.requireActual('react-native');
   const MockExpenseCard = (props: any) => (
     <RN.View testID="mock-ExpenseCard" {...props} />
@@ -95,12 +95,12 @@ jest.mock('@/components/expenses', () => {
 // --- End of Fix 4 ---
 
 // Mock utils
-jest.mock('@/utils/expenseLabels', () => ({
+jest.mock('@/features/expenses/utils/expenseLabels', () => ({
   resolveCategoryLabel: (c: string) => `cat:${c}`,
   resolveSubcategoryLabel: (c: string, s: string) => `sub:${s}`,
   resolveVisitTypeLabel: (v: string) => `visit:${v}`,
 }));
-jest.mock('@/utils/currency', () => ({
+jest.mock('@/shared/utils/currency', () => ({
   resolveCurrencySymbol: () => '$',
 }));
 
