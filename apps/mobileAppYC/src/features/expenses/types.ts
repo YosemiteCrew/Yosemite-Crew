@@ -1,4 +1,4 @@
-import type {DocumentFile} from '@/types/document.types';
+import type {DocumentFile} from '@/features/documents/types';
 
 export type ExpenseSource = 'inApp' | 'external';
 

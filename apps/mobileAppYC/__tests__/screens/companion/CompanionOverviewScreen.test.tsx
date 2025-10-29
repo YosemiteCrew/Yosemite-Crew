@@ -11,19 +11,9 @@ import {Provider} from 'react-redux';
 import {store} from '@/app/store'; // Ensure this path is correct
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import type {HomeStackParamList} from '@/navigation/types'; // Ensure this path is correct
-import {CompanionOverviewScreen} from '@/screens/companion/CompanionOverviewScreen'; // Ensure this path is correct
+import {CompanionOverviewScreen} from '@/features/companion/screens/CompanionOverviewScreen'; // Ensure this path is correct
 // Assuming Breed type is also exported or available for import
 import type {Companion, Breed} from '@/features/companion/types'; // Ensure this path is correct
-
-// --- FIX for ts(2339): Property 'mock-*' does not exist on type 'JSX.IntrinsicElements' ---
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      [elemName: string]: any;
-    }
-  }
-}
-// --- END FIX ---
 
 // --- Global Variables for Module Mocks ---
 let mockAddEventListener: jest.Mock;
@@ -162,70 +152,81 @@ jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: 'SafeAreaView',
 }));
 
-// --- Component Mocks --- (Remain the same structure, tags handled by declare global)
-jest.mock('@/components/common/Header/Header', () => ({
-  Header: jest.fn(({title, onBack, showBackButton}) => (
-    <mock-Header
-      testID="header"
-      title={title}
-      onBack={onBack}
-      showBackButton={showBackButton}
-    />
-  )),
-}));
-jest.mock('@/components/common/LiquidGlassCard/LiquidGlassCard', () => ({
-  LiquidGlassCard: jest.fn(({children, style, fallbackStyle}) => (
-    <mock-LiquidGlassCard style={[style, fallbackStyle]}>
-      {children}
-    </mock-LiquidGlassCard>
-  )),
-}));
-jest.mock('@/components/companion/CompanionProfileHeader', () => ({
-  CompanionProfileHeader: jest.fn(props => (
-    <mock-CompanionProfileHeader testID="companion-profile-header" {...props} />
-  )),
-}));
-jest.mock('@/components/common/FormRowComponents', () => {
-  const {Text: ActualText} = jest.requireActual('react-native');
+// --- Component Mocks ---
+jest.mock('@/shared/components/common/Header/Header', () => {
+  const {View} = jest.requireActual('react-native');
   return {
-    Separator: jest.fn(() => <mock-Separator />),
+    Header: jest.fn(({title, onBack, showBackButton}) => (
+      <View
+        testID="header"
+        title={title}
+        onBack={onBack}
+        showBackButton={showBackButton}
+      />
+    )),
+  };
+});
+jest.mock('@/shared/components/common/LiquidGlassCard/LiquidGlassCard', () => {
+  const {View} = jest.requireActual('react-native');
+  return {
+    LiquidGlassCard: jest.fn(({children, style, fallbackStyle}) => (
+      <View testID="liquid-glass-card" style={[style, fallbackStyle]}>
+        {children}
+      </View>
+    )),
+  };
+});
+jest.mock('@/features/companion/components/CompanionProfileHeader', () => {
+  const {View} = jest.requireActual('react-native');
+  return {
+    CompanionProfileHeader: jest.fn(props => (
+      <View testID="companion-profile-header" {...props} />
+    )),
+  };
+});
+jest.mock('@/shared/components/common/FormRowComponents', () => {
+  const {Text, TouchableOpacity, View} = jest.requireActual('react-native');
+  return {
+    Separator: jest.fn(() => <View testID="row-separator" />),
     RowButton: jest.fn(({label, value, onPress, testID: explicitTestID}) => {
       const generatedTestID = `row-button-${label.replaceAll(/\s+/g, '-')}`;
       return (
-        <mock-RowButton
+        <TouchableOpacity
           testID={explicitTestID || generatedTestID}
           onPress={onPress}>
-          {' '}
-          <ActualText testID="label">{label}</ActualText>{' '}
-          <ActualText testID="value">{value}</ActualText>{' '}
-        </mock-RowButton>
+          <Text testID="label">{label}</Text>
+          <Text testID="value">{value}</Text>
+        </TouchableOpacity>
       );
     }),
   };
 });
-jest.mock('@/components/common/InlineEditRow/InlineEditRow', () => ({
-  InlineEditRow: jest.fn(
-    ({
-      label,
-      value,
-      onSave,
-      testID: explicitTestID,
-      multiline,
-      keyboardType,
-    }) => {
-      const generatedTestID = `inline-edit-${label.replaceAll(/\s+/g, '-')}`;
-      return (
-        <mock-InlineEditRow
-          testID={explicitTestID || generatedTestID}
-          value={value}
-          onSave={onSave}
-          multiline={multiline}
-          keyboardType={keyboardType}
-        />
-      );
-    },
-  ),
-}));
+jest.mock('@/shared/components/common/InlineEditRow/InlineEditRow', () => {
+  const {View} = jest.requireActual('react-native');
+  return {
+    InlineEditRow: jest.fn(
+      ({
+        label,
+        value,
+        onSave,
+        testID: explicitTestID,
+        multiline,
+        keyboardType,
+      }) => {
+        const generatedTestID = `inline-edit-${label.replaceAll(/\s+/g, '-')}`;
+        return (
+          <View
+            testID={explicitTestID || generatedTestID}
+            value={value}
+            onSave={onSave}
+            multiline={multiline}
+            keyboardType={keyboardType}
+          />
+        );
+      },
+    ),
+  };
+});
 
 // --- Bottom Sheet Mocks (Using Helper for Ref Handling) ---
 const createBottomSheetMock = (
@@ -257,7 +258,7 @@ const createBottomSheetMock = (
   });
 };
 
-jest.mock('@/components/common/BreedBottomSheet/BreedBottomSheet', () => ({
+jest.mock('@/shared/components/common/BreedBottomSheet/BreedBottomSheet', () => ({
   BreedBottomSheet: createBottomSheetMock(
     'mock-BreedBottomSheet',
     'breed-sheet',
@@ -265,7 +266,7 @@ jest.mock('@/components/common/BreedBottomSheet/BreedBottomSheet', () => ({
   ),
 }));
 jest.mock(
-  '@/components/common/BloodGroupBottomSheet/BloodGroupBottomSheet',
+  '@/shared/components/common/BloodGroupBottomSheet/BloodGroupBottomSheet',
   () => ({
     BloodGroupBottomSheet: createBottomSheetMock(
       'mock-BloodGroupBottomSheet',
@@ -274,14 +275,14 @@ jest.mock(
     ),
   }),
 );
-jest.mock('@/components/common/CountryBottomSheet/CountryBottomSheet', () => ({
+jest.mock('@/shared/components/common/CountryBottomSheet/CountryBottomSheet', () => ({
   CountryBottomSheet: createBottomSheetMock(
     'mock-CountryBottomSheet',
     'country-sheet',
     'CountryBottomSheet',
   ),
 }));
-jest.mock('@/components/common/GenderBottomSheet/GenderBottomSheet', () => ({
+jest.mock('@/shared/components/common/GenderBottomSheet/GenderBottomSheet', () => ({
   GenderBottomSheet: createBottomSheetMock(
     'mock-GenderBottomSheet',
     'gender-sheet',
@@ -289,7 +290,7 @@ jest.mock('@/components/common/GenderBottomSheet/GenderBottomSheet', () => ({
   ),
 }));
 jest.mock(
-  '@/components/common/NeuteredStatusBottomSheet/NeuteredStatusBottomSheet',
+  '@/shared/components/common/NeuteredStatusBottomSheet/NeuteredStatusBottomSheet',
   () => ({
     NeuteredStatusBottomSheet: createBottomSheetMock(
       'mock-NeuteredStatusBottomSheet',
@@ -299,7 +300,7 @@ jest.mock(
   }),
 );
 jest.mock(
-  '@/components/common/InsuredStatusBottomSheet/InsuredStatusBottomSheet',
+  '@/shared/components/common/InsuredStatusBottomSheet/InsuredStatusBottomSheet',
   () => ({
     InsuredStatusBottomSheet: createBottomSheetMock(
       'mock-InsuredStatusBottomSheet',
@@ -308,7 +309,7 @@ jest.mock(
     ),
   }),
 );
-jest.mock('@/components/common/OriginBottomSheet/OriginBottomSheet', () => ({
+jest.mock('@/shared/components/common/OriginBottomSheet/OriginBottomSheet', () => ({
   OriginBottomSheet: createBottomSheetMock(
     'mock-OriginBottomSheet',
     'origin-sheet',
@@ -318,27 +319,30 @@ jest.mock('@/components/common/OriginBottomSheet/OriginBottomSheet', () => ({
 // --- End Bottom Sheet Mocks ---
 
 // --- Date Picker Mock --- (Remains the same)
-jest.mock('@/components/common/SimpleDatePicker/SimpleDatePicker', () => ({
-  SimpleDatePicker: jest.fn(
-    ({show, onDateChange, onDismiss, value, mode, maximumDate}) =>
-      show ? (
-        <mock-SimpleDatePicker
-          testID="dob-picker"
-          value={value}
-          onDateChange={onDateChange}
-          onDismiss={onDismiss}
-          mode={mode}
-          maximumDate={maximumDate}
-        />
-      ) : null,
-  ),
+jest.mock('@/shared/components/common/SimpleDatePicker/SimpleDatePicker', () => {
+  const {View} = jest.requireActual('react-native');
+  return {
+    SimpleDatePicker: jest.fn(
+      ({show, onDateChange, onDismiss, value, mode, maximumDate}) =>
+        show ? (
+          <View
+            testID="dob-picker"
+            value={value}
+            onDateChange={onDateChange}
+            onDismiss={onDismiss}
+            mode={mode}
+            maximumDate={maximumDate}
+          />
+        ) : null,
+    ),
   formatDateForDisplay: jest.fn(date =>
     date ? `Formatted: ${date.toISOString().split('T')[0]}` : '',
   ),
-}));
+  };
+});
 
 // --- Utility Mocks --- (Remain the same)
-jest.mock('@/utils/formScreenStyles', () => ({
+jest.mock('@/shared/utils/formScreenStyles', () => ({
   createFormScreenStyles: jest.fn(() => ({
     container: {},
     centered: {},
@@ -349,7 +353,7 @@ jest.mock('@/utils/formScreenStyles', () => ({
     glassFallback: {},
   })),
 }));
-jest.mock('@/utils/commonHelpers', () => ({
+jest.mock('@/shared/utils/commonHelpers', () => ({
   capitalize: jest.fn(s => (s ? s.charAt(0).toUpperCase() + s.slice(1) : '')),
   displayNeutered: jest.fn(s => {
     if (s === 'neutered') return 'Neutered';
@@ -370,31 +374,31 @@ jest.mock('@/utils/commonHelpers', () => ({
 
 // Mock JSON data
 jest.mock(
-  '@/utils/catBreeds.json',
+  '@/features/companion/data/catBreeds.json',
   () => [
     {
-      breedId: '1',
+      breedId: 1,
       breedName: 'Siamese',
-      speciesId: 2, // FIX TS(2352): Use number
+      speciesId: 2,
       speciesName: 'Cat',
     },
   ],
   {virtual: true},
 );
 jest.mock(
-  '@/utils/dogBreeds.json',
+  '@/features/companion/data/dogBreeds.json',
   () => [
     {
-      breedId: 'b1',
+      breedId: 1,
       breedName: 'Labrador',
-      speciesId: 1, // FIX TS(2352): Use number
+      speciesId: 1,
       speciesName: 'Dog',
     },
   ],
   {virtual: true},
 );
-jest.mock('@/utils/horseBreeds.json', () => [], {virtual: true});
-jest.mock('@/utils/countryList.json', () => [{name: 'USA'}, {name: 'Canada'}], {
+jest.mock('@/features/companion/data/horseBreeds.json', () => [], {virtual: true});
+jest.mock('@/shared/utils/countryList.json', () => [{name: 'USA'}, {name: 'Canada'}], {
   virtual: true,
 });
 
@@ -443,27 +447,26 @@ const mockCompanion: Companion = {
   currentWeight: 15.5,
   color: 'Brown',
   allergies: 'Peanuts, Pollen',
-  neuteredStatus: null,
+  neuteredStatus: 'not-neutered',
   ageWhenNeutered: null,
   bloodGroup: 'DEA 1.1+',
   microchipNumber: '12345',
   passportNumber: 'P54321',
-  insuredStatus: null,
+  insuredStatus: 'not-insured',
   insuranceCompany: null,
   insurancePolicyNumber: null,
   countryOfOrigin: 'USA',
   origin: 'breeder',
   profileImage: 'http://test.com/img.jpg',
-  // FIX TS(2352): Provide full Breed object structure with correct speciesId type
   breed: {
-    breedId: 'b1',
+    breedId: 1,
     breedName: 'Labrador',
-    speciesId: 1, // <-- Must be a number
+    speciesId: 1,
     speciesName: 'Dog',
   },
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
-} as Companion; // Keep cast
+};
 
 // --- Test Suite ---
 describe('CompanionOverviewScreen', () => {
@@ -504,32 +507,32 @@ describe('CompanionOverviewScreen', () => {
     mockCapturedBackPressCallback = null;
     mockDispatch.mockImplementation(() => ({unwrap: () => Promise.resolve()}));
     (
-      require('@/utils/commonHelpers').capitalize as jest.Mock
+      require('@/shared/utils/commonHelpers').capitalize as jest.Mock
     ).mockImplementation(s =>
       s ? s.charAt(0).toUpperCase() + s.slice(1) : '',
     );
     (
-      require('@/components/common/SimpleDatePicker/SimpleDatePicker')
+      require('@/shared/components/common/SimpleDatePicker/SimpleDatePicker')
         .formatDateForDisplay as jest.Mock
     ).mockImplementation(date =>
       date ? `Formatted: ${date.toISOString().split('T')[0]}` : '',
     );
     (
-      require('@/utils/commonHelpers').displayNeutered as jest.Mock
+      require('@/shared/utils/commonHelpers').displayNeutered as jest.Mock
     ).mockImplementation(s => {
       if (s === 'neutered') return 'Neutered';
       if (s === 'intact') return 'Intact';
       return 'Unknown';
     });
     (
-      require('@/utils/commonHelpers').displayInsured as jest.Mock
+      require('@/shared/utils/commonHelpers').displayInsured as jest.Mock
     ).mockImplementation(s => {
       if (s === 'insured') return 'Insured';
       if (s === 'not-insured') return 'Not Insured';
       return 'Unknown';
     }); // Corrected key
     (
-      require('@/utils/commonHelpers').displayOrigin as jest.Mock
+      require('@/shared/utils/commonHelpers').displayOrigin as jest.Mock
     ).mockImplementation(s => {
       if (s === 'breeder') return 'Breeder';
       if (s === 'rescue') return 'Rescue / Shelter';
@@ -903,9 +906,9 @@ describe('CompanionOverviewScreen', () => {
     const breedSheet = screen.getByTestId('breed-sheet');
     // FIX TS(2352): Ensure the mock breed data matches the expected Breed type structure
     const newBreed: Breed = {
-      breedId: '1',
+      breedId: 1,
       breedName: 'Siamese',
-      speciesId: 2, // <-- Use number
+      speciesId: 2,
       speciesName: 'Cat',
     };
     fireEvent(breedSheet, 'onSave', newBreed);
@@ -917,9 +920,9 @@ describe('CompanionOverviewScreen', () => {
         updatedCompanion: expect.objectContaining({
           // Expect the full Breed object in the payload
           breed: {
-            breedId: '1',
+            breedId: 1,
             breedName: 'Siamese',
-            speciesId: 2, // <-- Use number
+            speciesId: 2,
             speciesName: 'Cat',
           },
           updatedAt: expect.any(String),
@@ -1026,9 +1029,9 @@ describe('CompanionOverviewScreen', () => {
     // FIX TS(2352): Use the correct expected Breed structure from the JSON mock
     expect(screen.getByTestId('breed-sheet')).toHaveProp('breeds', [
       {
-        breedId: '1',
+        breedId: 1,
         breedName: 'Siamese',
-        speciesId: 2, // <-- Use number
+        speciesId: 2,
         speciesName: 'Cat',
       },
     ]);

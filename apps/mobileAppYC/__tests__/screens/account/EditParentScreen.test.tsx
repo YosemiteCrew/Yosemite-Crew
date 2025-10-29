@@ -1,7 +1,7 @@
 import React from 'react';
 import {render, fireEvent, act} from '@testing-library/react-native';
 // FIX: Removed unused View and Text. Kept BackHandler for tests.
-import {EditParentScreen} from '@/screens/account/EditParentScreen';
+import {EditParentScreen} from '@/features/account/screens/EditParentScreen';
 import {useTheme} from '@/hooks';
 import {selectAuthUser, selectAuthIsLoading} from '@/features/auth/selectors';
 import {updateUserProfile} from '@/features/auth';
@@ -61,7 +61,7 @@ const mockTheme: any = {
 };
 
 jest.mock(
-  '@/utils/countryList.json',
+  '@/shared/utils/countryList.json',
   () => [
     {name: 'United States', dial_code: '+1', code: 'US'},
     {name: 'United Kingdom', dial_code: '+44', code: 'GB'},
@@ -118,7 +118,7 @@ jest.mock('@/features/auth', () => ({
 
 // --- Component Mocks ---
 
-jest.mock('@/components', () => {
+jest.mock('@/shared/components/common/Header/Header', () => {
   const {View: MockView} = require('react-native');
   return {
     Header: jest.fn(({onBack}: any) => (
@@ -127,7 +127,7 @@ jest.mock('@/components', () => {
   };
 });
 
-jest.mock('@/components/common/LiquidGlassCard/LiquidGlassCard', () => {
+jest.mock('@/shared/components/common/LiquidGlassCard/LiquidGlassCard', () => {
   const {View: MockView} = require('react-native');
   return {
     LiquidGlassCard: jest.fn(({children}: any) => (
@@ -136,7 +136,7 @@ jest.mock('@/components/common/LiquidGlassCard/LiquidGlassCard', () => {
   };
 });
 
-jest.mock('@/components/common/FormRowComponents', () => {
+jest.mock('@/shared/components/common/FormRowComponents', () => {
   const {View: MockView, Text: MockText} = require('react-native');
   return {
     Separator: jest.fn(() => <MockView testID="mock-separator" />),
@@ -158,7 +158,7 @@ jest.mock('@/components/common/FormRowComponents', () => {
   };
 });
 
-jest.mock('@/components/common/InlineEditRow/InlineEditRow', () => {
+jest.mock('@/shared/components/common/InlineEditRow/InlineEditRow', () => {
   const {View: MockView, Text: MockText} = require('react-native');
   return {
     InlineEditRow: jest.fn((props: any) => (
@@ -180,7 +180,7 @@ const mockCurrencySheetRef = {current: {open: jest.fn(), close: jest.fn()}};
 const mockAddressSheetRef = {current: {open: jest.fn(), close: jest.fn()}};
 const mockPhoneSheetRef = {current: {open: jest.fn(), close: jest.fn()}};
 
-jest.mock('@/components/common/CurrencyBottomSheet/CurrencyBottomSheet', () => {
+jest.mock('@/shared/components/common/CurrencyBottomSheet/CurrencyBottomSheet', () => {
   const ReactInside = require('react');
   const {View: MockView} = require('react-native');
   return {
@@ -191,7 +191,7 @@ jest.mock('@/components/common/CurrencyBottomSheet/CurrencyBottomSheet', () => {
   };
 });
 
-jest.mock('@/components/common/AddressBottomSheet/AddressBottomSheet', () => {
+jest.mock('@/shared/components/common/AddressBottomSheet/AddressBottomSheet', () => {
   const ReactInside = require('react');
   const {View: MockView} = require('react-native');
   return {
@@ -203,7 +203,7 @@ jest.mock('@/components/common/AddressBottomSheet/AddressBottomSheet', () => {
 });
 
 jest.mock(
-  '@/components/common/CountryMobileBottomSheet/CountryMobileBottomSheet',
+  '@/shared/components/common/CountryMobileBottomSheet/CountryMobileBottomSheet',
   () => {
     const ReactInside = require('react');
     const {View: MockView} = require('react-native');
@@ -221,7 +221,7 @@ jest.mock(
 // Date Picker
 // --- UPDATED MOCK ---
 // Add 'value' prop and a 'clear' button to test all paths
-jest.mock('@/components/common/SimpleDatePicker/SimpleDatePicker', () => {
+jest.mock('@/shared/components/common/SimpleDatePicker/SimpleDatePicker', () => {
   const {View: MockView} = require('react-native');
   return {
     SimpleDatePicker: jest.fn(({onDateChange, onDismiss, show, value}: any) =>
@@ -249,7 +249,7 @@ jest.mock('@/components/common/SimpleDatePicker/SimpleDatePicker', () => {
 // --- END UPDATED MOCK ---
 
 // Image Picker
-jest.mock('@/components/common/ProfileImagePicker/ProfileImagePicker', () => {
+jest.mock('@/shared/components/common/ProfileImagePicker/ProfileImagePicker', () => {
   const {View: MockView} = require('react-native');
   return {
     ProfileImagePicker: jest.fn((props: any) => (
@@ -263,7 +263,7 @@ jest.mock('@/components/common/ProfileImagePicker/ProfileImagePicker', () => {
 });
 
 // Utils
-jest.mock('@/utils/formScreenStyles', () => ({
+jest.mock('@/shared/utils/formScreenStyles', () => ({
   createFormScreenStyles: jest.fn(() => ({
     container: {},
     content: {},

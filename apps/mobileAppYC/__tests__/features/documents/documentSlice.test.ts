@@ -7,7 +7,7 @@ import documentReducer, {
   updateDocument,
   deleteDocument,
 } from '@/features/documents/documentSlice';
-import type {Document, DocumentFile} from '@/types/document.types';
+import type {Document, DocumentFile} from '@/features/documents/types';
 
 // Mock setTimeout to speed up tests
 jest.useFakeTimers();

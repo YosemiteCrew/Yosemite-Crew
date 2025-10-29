@@ -1,8 +1,8 @@
 import React from 'react';
 import {render, fireEvent} from '@testing-library/react-native';
-import {GenderBottomSheet} from '@/components/common/GenderBottomSheet/GenderBottomSheet';
+import {GenderBottomSheet} from '@/shared/components/common/GenderBottomSheet/GenderBottomSheet';
 
-jest.mock('@/components/common/BottomSheet/BottomSheet', () => {
+jest.mock('@/shared/components/common/BottomSheet/BottomSheet', () => {
   const ReactModule = require('react');
   return {
     __esModule: true,
@@ -22,7 +22,7 @@ jest.mock('@/components/common/BottomSheet/BottomSheet', () => {
   };
 });
 
-jest.mock('@/components/common/LiquidGlassButton/LiquidGlassButton', () => {
+jest.mock('@/shared/components/common/LiquidGlassButton/LiquidGlassButton', () => {
   const ReactModule = require('react');
   return {
     __esModule: true,

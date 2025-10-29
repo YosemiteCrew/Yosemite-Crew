@@ -95,6 +95,20 @@ const mockRootState: RootState = {
   theme: {} as any,
   documents: {} as any,
   tasks: {} as any,
+  appointments: {
+    items: [],
+    invoices: [],
+    loading: false,
+    error: null,
+    hydratedCompanions: {},
+  },
+  businesses: {
+    businesses: [],
+    employees: [],
+    availability: [],
+    loading: false,
+    error: null,
+  },
   _persist: { version: -1, rehydrated: true },
 };
 

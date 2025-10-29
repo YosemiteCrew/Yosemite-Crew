@@ -5,7 +5,7 @@ import {Provider} from 'react-redux';
 import {store} from '@/app/store';
 
 import {AppNavigator} from '@/navigation/AppNavigator';
-import {useAuth} from '@/contexts/AuthContext';
+import {useAuth} from '@/features/auth/context/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {DeviceEventEmitter} from 'react-native';
 import {PENDING_PROFILE_STORAGE_KEY} from '@/config/variables';
@@ -61,7 +61,7 @@ jest.mock('@/navigation/TabNavigator', () => {
   };
 });
 
-jest.mock('@/screens/onboarding/OnboardingScreen', () => {
+jest.mock('@/features/onboarding/screens/OnboardingScreen', () => {
   require('react');
   const {Text: MockText} = require('react-native');
 
@@ -77,7 +77,7 @@ jest.mock('@/screens/onboarding/OnboardingScreen', () => {
   };
 });
 
-jest.mock('@/contexts/AuthContext', () => ({
+jest.mock('@/features/auth/context/AuthContext', () => ({
   useAuth: jest.fn(),
 }));
 

@@ -1,10 +1,10 @@
 import React from 'react';
 import {render, fireEvent, waitFor, act} from '@testing-library/react-native';
 import {Platform, View as MockView, DeviceEventEmitter} from 'react-native';
-import {SignInScreen} from '@/screens/auth/SignInScreen';
-import * as passwordlessAuth from '@/services/auth/passwordlessAuth';
+import {SignInScreen} from '@/features/auth/screens/SignInScreen';
+import * as passwordlessAuth from '@/features/auth/services/passwordlessAuth';
 import {useSocialAuth, useTheme} from '@/hooks';
-import * as ConstantsUtil from '@/utils/constants';
+import * as ConstantsUtil from '@/shared/constants/constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type MockAuthStackParamList = {
@@ -47,7 +47,7 @@ jest.mock('react-native/Libraries/Utilities/Platform', () => ({
   select: mockPlatformSelect,
 }));
 
-jest.mock('@/services/auth/passwordlessAuth', () => ({
+jest.mock('@/features/auth/services/passwordlessAuth', () => ({
   requestPasswordlessEmailCode: jest.fn(),
   formatAuthError: jest.fn(error => error.message || String(error)),
 }));
@@ -72,14 +72,14 @@ const mockTheme = {
     screenTitle: {},
   },
 };
-jest.mock('@/hooks/useTheme', () => ({
+jest.mock('@/shared/hooks/useTheme', () => ({
   useTheme: jest.fn(() => ({
     theme: mockTheme,
   })),
 }));
 
 const mockedLogin = jest.fn().mockResolvedValue(undefined);
-jest.mock('@/contexts/AuthContext', () => ({
+jest.mock('@/features/auth/context/AuthContext', () => ({
   useAuth: jest.fn(() => ({
     login: mockedLogin,
   })),
@@ -92,7 +92,7 @@ let capturedSocialAuthCallbacks: {
   onNewProfile?: (payload: any) => Promise<void>;
 } = {};
 
-jest.mock('@/hooks/useSocialAuth', () => ({
+jest.mock('@/features/auth/hooks/useSocialAuth', () => ({
   useSocialAuth: jest.fn(callbacks => {
     capturedSocialAuthCallbacks = callbacks;
     return {
@@ -103,7 +103,7 @@ jest.mock('@/hooks/useSocialAuth', () => ({
   }),
 }));
 
-jest.mock('@/components/common', () => {
+jest.mock('@/shared/components/common', () => {
   const {View, TextInput} = jest.requireActual('react-native');
 
   const MockSafeArea = ({children, ...props}: {children: React.ReactNode}) => (
@@ -123,7 +123,7 @@ jest.mock('@/components/common', () => {
   };
 });
 
-jest.mock('@/components/common/LiquidGlassButton/LiquidGlassButton', () => {
+jest.mock('@/shared/components/common/LiquidGlassButton/LiquidGlassButton', () => {
   const {TouchableOpacity, Text} = jest.requireActual('react-native');
 
   return {
@@ -151,7 +151,7 @@ jest.mock('@/components/common/LiquidGlassButton/LiquidGlassButton', () => {
   };
 });
 
-jest.mock('@/utils/constants', () => ({
+jest.mock('@/shared/constants/constants', () => ({
   isValidEmail: jest.fn(),
 }));
 

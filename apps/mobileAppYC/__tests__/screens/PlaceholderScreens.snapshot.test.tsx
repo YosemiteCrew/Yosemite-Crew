@@ -12,9 +12,9 @@ import documentReducer from '@/features/documents/documentSlice';
 import tasksReducer from '@/features/tasks/taskSlice';
 
 // Import placeholder screens
-import {TasksMainScreen} from '@/screens/tasks/TasksMainScreen/TasksMainScreen';
-import {AppointmentsScreen} from '@/screens/appointments/AppointmentsScreen';
-import {DocumentsScreen} from '@/screens/documents/DocumentsScreen';
+import {TasksMainScreen} from '@/features/tasks/screens/TasksMainScreen/TasksMainScreen';
+import {AppointmentsScreen} from '@/features/appointments/screens/AppointmentsScreen';
+import {DocumentsScreen} from '@/features/documents/screens/DocumentsScreen';
 
 // Mock navigation
 const mockNavigation = {
@@ -49,7 +49,7 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 
 // Mock EmptyDocumentsScreen to avoid complex dependencies
-jest.mock('@/screens/documents/EmptyDocumentsScreen/EmptyDocumentsScreen', () => {
+jest.mock('@/features/documents/screens/EmptyDocumentsScreen/EmptyDocumentsScreen', () => {
   const ReactModule = require('react');
   const {View, Text} = require('react-native');
   return {
