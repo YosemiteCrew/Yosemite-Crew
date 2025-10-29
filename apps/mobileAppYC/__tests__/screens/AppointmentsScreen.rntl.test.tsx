@@ -2,7 +2,7 @@ import React from 'react';
 import {render} from '@testing-library/react-native';
 import {Provider} from 'react-redux';
 import {store} from '@/app/store';
-import {AppointmentsScreen} from '@/screens/appointments/AppointmentsScreen';
+import {AppointmentsScreen} from '@/features/appointments/screens/AppointmentsScreen';
 
 const withProviders = (ui: React.ReactElement) => <Provider store={store}>{ui}</Provider>;
 

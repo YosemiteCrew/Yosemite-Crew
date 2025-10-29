@@ -2,7 +2,7 @@ import React from 'react';
 import {render, fireEvent} from '@testing-library/react-native';
 import {Provider} from 'react-redux';
 import {store} from '@/app/store';
-import {useTheme} from '@/hooks/useTheme';
+import {useTheme} from '@/shared/hooks/useTheme';
 import {Text, TouchableOpacity, View} from 'react-native';
 
 const withProviders = (ui: React.ReactElement) => <Provider store={store}>{ui}</Provider>;

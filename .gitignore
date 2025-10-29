@@ -121,3 +121,6 @@ apps/backend/coverage
 !.yarn/sdks
 !.yarn/versions
 **/.scannerwork
+
+
+apps/mobileAppYC/amplify_outputs.json

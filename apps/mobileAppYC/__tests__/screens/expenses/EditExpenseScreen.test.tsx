@@ -1,8 +1,8 @@
 import React from 'react';
 import {render, fireEvent, waitFor, act} from '@testing-library/react-native';
 import {Alert} from 'react-native'; // Import View
-import {EditExpenseScreen} from '@/screens/expenses/EditExpenseScreen/EditExpenseScreen';
-import {useExpenseForm} from '@/screens/expenses/hooks/useExpenseForm';
+import {EditExpenseScreen} from '@/features/expenses/screens/EditExpenseScreen/EditExpenseScreen';
+import {useExpenseForm} from '@/features/expenses/hooks/useExpenseForm';
 import type {RootState} from '@/app/store';
 import {setSelectedCompanion} from '@/features/companion';
 
@@ -79,7 +79,7 @@ const defaultUseExpenseFormMockImplementation = () => ({
   handleErrorClear: mockHandleErrorClear,
   validate: mockValidate,
 });
-jest.mock('@/screens/expenses/hooks/useExpenseForm', () => ({
+jest.mock('@/features/expenses/hooks/useExpenseForm', () => ({
   useExpenseForm: jest.fn(defaultUseExpenseFormMockImplementation),
   DEFAULT_FORM: {}, // Mock if needed
 }));
@@ -108,11 +108,11 @@ jest.mock('@/features/companion', () => ({
 }));
 
 // --- Component Mocks ---
-jest.mock('@/components/common', () => ({
+jest.mock('@/shared/components/common', () => ({
   SafeArea: ({children}: {children: React.ReactNode}) => <>{children}</>,
 }));
 
-jest.mock('@/components/common/Header/Header', () => {
+jest.mock('@/shared/components/common/Header/Header', () => {
   const {TouchableOpacity} = require('react-native');
   return {
     Header: jest.fn((props: any) => (
@@ -125,10 +125,10 @@ jest.mock('@/components/common/Header/Header', () => {
     )),
   };
 });
-import {Header} from '@/components/common/Header/Header';
+import {Header} from '@/shared/components/common/Header/Header';
 const MockedHeader = Header as jest.MockedFunction<typeof Header>;
 
-jest.mock('@/components/expenses', () => {
+jest.mock('@/features/expenses/components', () => {
   const {View: MockExpenseFormView} = require('react-native');
   return {
     ExpenseForm: (props: any) => (
@@ -140,7 +140,7 @@ jest.mock('@/components/expenses', () => {
 const mockDeleteSheetOpen = jest.fn();
 const mockDeleteSheetClose = jest.fn();
 jest.mock(
-  '@/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet',
+  '@/shared/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet',
   () => {
     const ReactInsideMock = require('react');
     const {TouchableOpacity: MockDeleteButton} = require('react-native');
@@ -171,7 +171,7 @@ jest.mock(
 // Mock DiscardChangesBottomSheet (needed because EditExpenseScreen uses it implicitly via useTheme)
 const mockDiscardSheetOpen = jest.fn();
 jest.mock(
-  '@/components/common/DiscardChangesBottomSheet/DiscardChangesBottomSheet',
+  '@/shared/components/common/DiscardChangesBottomSheet/DiscardChangesBottomSheet',
   () => {
     const ReactInside = require('react');
     const {View: MockView} = require('react-native');

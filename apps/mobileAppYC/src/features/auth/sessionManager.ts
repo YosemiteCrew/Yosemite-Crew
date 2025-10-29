@@ -10,8 +10,8 @@ import {
   loadStoredTokens,
   storeTokens,
   type StoredAuthTokens,
-} from '@/services/auth/tokenStorage';
-import {fetchProfileStatus} from '@/services/profile/profileService';
+} from '@/features/auth/services/tokenStorage';
+import {fetchProfileStatus} from '@/features/profile/services/profileService';
 
 import type {AuthProvider, NormalizedAuthTokens, User} from './types';
 

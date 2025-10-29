@@ -1,6 +1,6 @@
 import React from 'react';
 import TestRenderer from 'react-test-renderer';
-import CustomBottomSheet from '@/components/common/BottomSheet/BottomSheet';
+import CustomBottomSheet from '@/shared/components/common/BottomSheet/BottomSheet';
 
 describe('CustomBottomSheet', () => {
   it('renders default view content', () => {

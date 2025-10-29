@@ -2,7 +2,7 @@ import React from 'react';
 import TestRenderer from 'react-test-renderer';
 import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
-import {LiquidGlassButton} from '@/components/common/LiquidGlassButton/LiquidGlassButton';
+import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {themeReducer} from '@/features/theme';
 import {Text, TouchableOpacity, ActivityIndicator, Platform} from 'react-native';
 

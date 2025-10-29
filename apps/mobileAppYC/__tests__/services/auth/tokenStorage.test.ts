@@ -3,7 +3,7 @@ import {
   loadStoredTokens,
   clearStoredTokens,
   StoredAuthTokens,
-} from '@/services/auth/tokenStorage';
+} from '@/features/auth/services/tokenStorage';
 import * as Keychain from 'react-native-keychain';
 
 jest.mock('react-native-keychain');
