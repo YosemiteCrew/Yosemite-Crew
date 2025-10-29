@@ -5,9 +5,9 @@ import {RootStackParamList} from './types';
 import {AuthNavigator} from './AuthNavigator';
 import type {AuthStackParamList} from './AuthNavigator';
 import {TabNavigator} from './TabNavigator';
-import {OnboardingScreen} from '../screens/onboarding/OnboardingScreen';
-import {useAuth} from '../contexts/AuthContext'; // Update import path
-import {Loading} from '../components';
+import {OnboardingScreen} from '@/features/onboarding/screens/OnboardingScreen';
+import {useAuth} from '@/features/auth/context/AuthContext';
+import {Loading} from '@/shared/components/common';
 
 import {DeviceEventEmitter} from 'react-native';
 import { PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT } from '@/config/variables';

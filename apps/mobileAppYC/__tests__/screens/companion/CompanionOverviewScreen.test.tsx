@@ -11,7 +11,7 @@ import {Provider} from 'react-redux';
 import {store} from '@/app/store'; // Ensure this path is correct
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import type {HomeStackParamList} from '@/navigation/types'; // Ensure this path is correct
-import {CompanionOverviewScreen} from '@/screens/companion/CompanionOverviewScreen'; // Ensure this path is correct
+import {CompanionOverviewScreen} from '@/features/companion/screens/CompanionOverviewScreen'; // Ensure this path is correct
 // Assuming Breed type is also exported or available for import
 import type {Companion, Breed} from '@/features/companion/types'; // Ensure this path is correct
 
@@ -153,7 +153,7 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 
 // --- Component Mocks ---
-jest.mock('@/components/common/Header/Header', () => {
+jest.mock('@/shared/components/common/Header/Header', () => {
   const {View} = jest.requireActual('react-native');
   return {
     Header: jest.fn(({title, onBack, showBackButton}) => (
@@ -166,7 +166,7 @@ jest.mock('@/components/common/Header/Header', () => {
     )),
   };
 });
-jest.mock('@/components/common/LiquidGlassCard/LiquidGlassCard', () => {
+jest.mock('@/shared/components/common/LiquidGlassCard/LiquidGlassCard', () => {
   const {View} = jest.requireActual('react-native');
   return {
     LiquidGlassCard: jest.fn(({children, style, fallbackStyle}) => (
@@ -176,7 +176,7 @@ jest.mock('@/components/common/LiquidGlassCard/LiquidGlassCard', () => {
     )),
   };
 });
-jest.mock('@/components/companion/CompanionProfileHeader', () => {
+jest.mock('@/features/companion/components/CompanionProfileHeader', () => {
   const {View} = jest.requireActual('react-native');
   return {
     CompanionProfileHeader: jest.fn(props => (
@@ -184,7 +184,7 @@ jest.mock('@/components/companion/CompanionProfileHeader', () => {
     )),
   };
 });
-jest.mock('@/components/common/FormRowComponents', () => {
+jest.mock('@/shared/components/common/FormRowComponents', () => {
   const {Text, TouchableOpacity, View} = jest.requireActual('react-native');
   return {
     Separator: jest.fn(() => <View testID="row-separator" />),
@@ -201,7 +201,7 @@ jest.mock('@/components/common/FormRowComponents', () => {
     }),
   };
 });
-jest.mock('@/components/common/InlineEditRow/InlineEditRow', () => {
+jest.mock('@/shared/components/common/InlineEditRow/InlineEditRow', () => {
   const {View} = jest.requireActual('react-native');
   return {
     InlineEditRow: jest.fn(
@@ -258,7 +258,7 @@ const createBottomSheetMock = (
   });
 };
 
-jest.mock('@/components/common/BreedBottomSheet/BreedBottomSheet', () => ({
+jest.mock('@/shared/components/common/BreedBottomSheet/BreedBottomSheet', () => ({
   BreedBottomSheet: createBottomSheetMock(
     'mock-BreedBottomSheet',
     'breed-sheet',
@@ -266,7 +266,7 @@ jest.mock('@/components/common/BreedBottomSheet/BreedBottomSheet', () => ({
   ),
 }));
 jest.mock(
-  '@/components/common/BloodGroupBottomSheet/BloodGroupBottomSheet',
+  '@/shared/components/common/BloodGroupBottomSheet/BloodGroupBottomSheet',
   () => ({
     BloodGroupBottomSheet: createBottomSheetMock(
       'mock-BloodGroupBottomSheet',
@@ -275,14 +275,14 @@ jest.mock(
     ),
   }),
 );
-jest.mock('@/components/common/CountryBottomSheet/CountryBottomSheet', () => ({
+jest.mock('@/shared/components/common/CountryBottomSheet/CountryBottomSheet', () => ({
   CountryBottomSheet: createBottomSheetMock(
     'mock-CountryBottomSheet',
     'country-sheet',
     'CountryBottomSheet',
   ),
 }));
-jest.mock('@/components/common/GenderBottomSheet/GenderBottomSheet', () => ({
+jest.mock('@/shared/components/common/GenderBottomSheet/GenderBottomSheet', () => ({
   GenderBottomSheet: createBottomSheetMock(
     'mock-GenderBottomSheet',
     'gender-sheet',
@@ -290,7 +290,7 @@ jest.mock('@/components/common/GenderBottomSheet/GenderBottomSheet', () => ({
   ),
 }));
 jest.mock(
-  '@/components/common/NeuteredStatusBottomSheet/NeuteredStatusBottomSheet',
+  '@/shared/components/common/NeuteredStatusBottomSheet/NeuteredStatusBottomSheet',
   () => ({
     NeuteredStatusBottomSheet: createBottomSheetMock(
       'mock-NeuteredStatusBottomSheet',
@@ -300,7 +300,7 @@ jest.mock(
   }),
 );
 jest.mock(
-  '@/components/common/InsuredStatusBottomSheet/InsuredStatusBottomSheet',
+  '@/shared/components/common/InsuredStatusBottomSheet/InsuredStatusBottomSheet',
   () => ({
     InsuredStatusBottomSheet: createBottomSheetMock(
       'mock-InsuredStatusBottomSheet',
@@ -309,7 +309,7 @@ jest.mock(
     ),
   }),
 );
-jest.mock('@/components/common/OriginBottomSheet/OriginBottomSheet', () => ({
+jest.mock('@/shared/components/common/OriginBottomSheet/OriginBottomSheet', () => ({
   OriginBottomSheet: createBottomSheetMock(
     'mock-OriginBottomSheet',
     'origin-sheet',
@@ -319,7 +319,7 @@ jest.mock('@/components/common/OriginBottomSheet/OriginBottomSheet', () => ({
 // --- End Bottom Sheet Mocks ---
 
 // --- Date Picker Mock --- (Remains the same)
-jest.mock('@/components/common/SimpleDatePicker/SimpleDatePicker', () => {
+jest.mock('@/shared/components/common/SimpleDatePicker/SimpleDatePicker', () => {
   const {View} = jest.requireActual('react-native');
   return {
     SimpleDatePicker: jest.fn(
@@ -342,7 +342,7 @@ jest.mock('@/components/common/SimpleDatePicker/SimpleDatePicker', () => {
 });
 
 // --- Utility Mocks --- (Remain the same)
-jest.mock('@/utils/formScreenStyles', () => ({
+jest.mock('@/shared/utils/formScreenStyles', () => ({
   createFormScreenStyles: jest.fn(() => ({
     container: {},
     centered: {},
@@ -353,7 +353,7 @@ jest.mock('@/utils/formScreenStyles', () => ({
     glassFallback: {},
   })),
 }));
-jest.mock('@/utils/commonHelpers', () => ({
+jest.mock('@/shared/utils/commonHelpers', () => ({
   capitalize: jest.fn(s => (s ? s.charAt(0).toUpperCase() + s.slice(1) : '')),
   displayNeutered: jest.fn(s => {
     if (s === 'neutered') return 'Neutered';
@@ -374,7 +374,7 @@ jest.mock('@/utils/commonHelpers', () => ({
 
 // Mock JSON data
 jest.mock(
-  '@/utils/catBreeds.json',
+  '@/features/companion/data/catBreeds.json',
   () => [
     {
       breedId: 1,
@@ -386,7 +386,7 @@ jest.mock(
   {virtual: true},
 );
 jest.mock(
-  '@/utils/dogBreeds.json',
+  '@/features/companion/data/dogBreeds.json',
   () => [
     {
       breedId: 1,
@@ -397,8 +397,8 @@ jest.mock(
   ],
   {virtual: true},
 );
-jest.mock('@/utils/horseBreeds.json', () => [], {virtual: true});
-jest.mock('@/utils/countryList.json', () => [{name: 'USA'}, {name: 'Canada'}], {
+jest.mock('@/features/companion/data/horseBreeds.json', () => [], {virtual: true});
+jest.mock('@/shared/utils/countryList.json', () => [{name: 'USA'}, {name: 'Canada'}], {
   virtual: true,
 });
 
@@ -507,32 +507,32 @@ describe('CompanionOverviewScreen', () => {
     mockCapturedBackPressCallback = null;
     mockDispatch.mockImplementation(() => ({unwrap: () => Promise.resolve()}));
     (
-      require('@/utils/commonHelpers').capitalize as jest.Mock
+      require('@/shared/utils/commonHelpers').capitalize as jest.Mock
     ).mockImplementation(s =>
       s ? s.charAt(0).toUpperCase() + s.slice(1) : '',
     );
     (
-      require('@/components/common/SimpleDatePicker/SimpleDatePicker')
+      require('@/shared/components/common/SimpleDatePicker/SimpleDatePicker')
         .formatDateForDisplay as jest.Mock
     ).mockImplementation(date =>
       date ? `Formatted: ${date.toISOString().split('T')[0]}` : '',
     );
     (
-      require('@/utils/commonHelpers').displayNeutered as jest.Mock
+      require('@/shared/utils/commonHelpers').displayNeutered as jest.Mock
     ).mockImplementation(s => {
       if (s === 'neutered') return 'Neutered';
       if (s === 'intact') return 'Intact';
       return 'Unknown';
     });
     (
-      require('@/utils/commonHelpers').displayInsured as jest.Mock
+      require('@/shared/utils/commonHelpers').displayInsured as jest.Mock
     ).mockImplementation(s => {
       if (s === 'insured') return 'Insured';
       if (s === 'not-insured') return 'Not Insured';
       return 'Unknown';
     }); // Corrected key
     (
-      require('@/utils/commonHelpers').displayOrigin as jest.Mock
+      require('@/shared/utils/commonHelpers').displayOrigin as jest.Mock
     ).mockImplementation(s => {
       if (s === 'breeder') return 'Breeder';
       if (s === 'rescue') return 'Rescue / Shelter';

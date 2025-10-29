@@ -1,5 +1,5 @@
 import {createAsyncThunk} from '@reduxjs/toolkit';
-import {generateId} from '@/utils/helpers';
+import {generateId} from '@/shared/utils/helpers';
 import type {RootState} from '@/app/store';
 import type {
   Expense,

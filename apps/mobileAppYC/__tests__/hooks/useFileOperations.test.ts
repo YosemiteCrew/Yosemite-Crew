@@ -1,12 +1,12 @@
 import { renderHook, act } from '@testing-library/react-hooks';
-import { useFileOperations } from '@/hooks/useFileOperations';
-import { useDocumentFileHandlers } from '@/hooks/useDocumentFileHandlers';
-import type { DocumentFile } from '@/types/document.types';
+import { useFileOperations } from '@/shared/hooks/useFileOperations';
+import { useDocumentFileHandlers } from '@/shared/hooks/useDocumentFileHandlers';
+import type { DocumentFile } from '@/features/documents/types';
 
 // --- Mocks ---
 
 // Mock the dependency hook
-jest.mock('@/hooks/useDocumentFileHandlers');
+jest.mock('@/shared/hooks/useDocumentFileHandlers');
 
 // Type-cast the mock for easier use
 const mockedUseDocumentFileHandlers = useDocumentFileHandlers as jest.Mock;

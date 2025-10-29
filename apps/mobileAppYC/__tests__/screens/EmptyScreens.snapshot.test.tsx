@@ -1,8 +1,8 @@
 // __tests__/screens/EmptyScreens.snapshot.test.tsx
 import React from 'react';
 import renderer from 'react-test-renderer';
-import {GenericEmptyScreen} from '@/components/common/GenericEmptyScreen/GenericEmptyScreen';
-import {EmptyDocumentsScreen} from '@/screens/documents/EmptyDocumentsScreen/EmptyDocumentsScreen';
+import {GenericEmptyScreen} from '@/shared/components/common/GenericEmptyScreen/GenericEmptyScreen';
+import {EmptyDocumentsScreen} from '@/features/documents/screens/EmptyDocumentsScreen/EmptyDocumentsScreen';
 
 // Mock navigation
 const mockNavigation = {

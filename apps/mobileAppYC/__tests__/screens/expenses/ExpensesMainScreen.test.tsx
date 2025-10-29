@@ -1,6 +1,6 @@
 import React from 'react';
 import {render, fireEvent, waitFor} from '@testing-library/react-native';
-import {ExpensesMainScreen} from '@/screens/expenses/ExpensesMainScreen/ExpensesMainScreen';
+import {ExpensesMainScreen} from '@/features/expenses/screens/ExpensesMainScreen/ExpensesMainScreen';
 import {setSelectedCompanion} from '@/features/companion';
 import type {ExpensePaymentStatus} from '@/features/expenses';
 import {
@@ -57,7 +57,7 @@ jest.mock('@/hooks', () => ({
   useTheme: () => ({theme: mockTheme}),
 }));
 
-jest.mock('@/components/common', () => {
+jest.mock('@/shared/components/common', () => {
   const RN = jest.requireActual('react-native');
   return {
     SafeArea: ({children}: {children: React.ReactNode}) => <>{children}</>,
@@ -67,7 +67,7 @@ jest.mock('@/components/common', () => {
   };
 });
 
-jest.mock('@/components/common/Header/Header', () => {
+jest.mock('@/shared/components/common/Header/Header', () => {
   const RN = jest.requireActual('react-native');
   return {
     Header: (props: any) => (
@@ -82,7 +82,7 @@ jest.mock('@/components/common/Header/Header', () => {
   };
 });
 
-jest.mock('@/components/common/CompanionSelector/CompanionSelector', () => {
+jest.mock('@/shared/components/common/CompanionSelector/CompanionSelector', () => {
   const RN = jest.requireActual('react-native');
   return {
     CompanionSelector: (props: any) => (
@@ -96,7 +96,7 @@ jest.mock('@/components/common/CompanionSelector/CompanionSelector', () => {
   };
 });
 
-jest.mock('@/components/expenses', () => {
+jest.mock('@/features/expenses/components', () => {
   const RN = jest.requireActual('react-native');
   return {
     ExpenseCard: (props: any) => (
@@ -117,10 +117,10 @@ jest.mock('@/assets/images', () => ({
   Images: {addIconDark: 'add-icon-path'},
 }));
 
-jest.mock('@/utils/currency', () => ({
+jest.mock('@/shared/utils/currency', () => ({
   resolveCurrencySymbol: jest.fn(() => '$'),
 }));
-jest.mock('@/utils/expenseLabels', () => ({
+jest.mock('@/features/expenses/utils/expenseLabels', () => ({
   resolveCategoryLabel: jest.fn(val => `${val}-label`),
   resolveSubcategoryLabel: jest.fn((_cat, sub) => `${sub}-label`),
   resolveVisitTypeLabel: jest.fn(val => `${val}-label`),

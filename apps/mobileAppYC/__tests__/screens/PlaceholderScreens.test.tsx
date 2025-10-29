@@ -1,12 +1,12 @@
 import TestRenderer from 'react-test-renderer';
-import {AppointmentsScreen} from '@/screens/appointments/AppointmentsScreen';
-import {DocumentsScreen} from '@/screens/documents/DocumentsScreen';
-import {TasksMainScreen} from '@/screens/tasks/TasksMainScreen/TasksMainScreen';
+import {AppointmentsScreen} from '@/features/appointments/screens/AppointmentsScreen';
+import {DocumentsScreen} from '@/features/documents/screens/DocumentsScreen';
+import {TasksMainScreen} from '@/features/tasks/screens/TasksMainScreen/TasksMainScreen';
 import {Provider} from 'react-redux';
 import {store} from '@/app/store';
 
 // Mock EmptyDocumentsScreen to avoid complex dependencies
-jest.mock('@/screens/documents/EmptyDocumentsScreen/EmptyDocumentsScreen', () => {
+jest.mock('@/features/documents/screens/EmptyDocumentsScreen/EmptyDocumentsScreen', () => {
   const React = require('react');
   const {View, Text} = require('react-native');
   return {
@@ -15,7 +15,7 @@ jest.mock('@/screens/documents/EmptyDocumentsScreen/EmptyDocumentsScreen', () =>
 });
 
 // Mock EmptyTasksScreen to avoid complex dependencies
-jest.mock('@/screens/tasks/EmptyTasksScreen/EmptyTasksScreen', () => {
+jest.mock('@/features/tasks/screens/EmptyTasksScreen/EmptyTasksScreen', () => {
   const React = require('react');
   const {View, Text} = require('react-native');
   return {
@@ -24,17 +24,17 @@ jest.mock('@/screens/tasks/EmptyTasksScreen/EmptyTasksScreen', () => {
 });
 
 // Mock Header component
-jest.mock('@/components/common/Header/Header', () => ({
+jest.mock('@/shared/components/common/Header/Header', () => ({
   Header: () => null,
 }));
 
 // Mock CompanionSelector component
-jest.mock('@/components/common/CompanionSelector/CompanionSelector', () => ({
+jest.mock('@/shared/components/common/CompanionSelector/CompanionSelector', () => ({
   CompanionSelector: () => null,
 }));
 
 // Mock TaskCard component
-jest.mock('@/components/tasks/TaskCard/TaskCard', () => ({
+jest.mock('@/features/tasks/components/TaskCard/TaskCard', () => ({
   TaskCard: () => null,
 }));
 

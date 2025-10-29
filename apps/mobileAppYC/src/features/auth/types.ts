@@ -1,4 +1,4 @@
-import type {AuthProviderName, StoredAuthTokens} from '@/services/auth/tokenStorage';
+import type {AuthProviderName, StoredAuthTokens} from '@/features/auth/services/tokenStorage';
 
 export type AuthProvider = AuthProviderName;
 

@@ -16,14 +16,14 @@ import {
   clearStoredTokens,
   loadStoredTokens,
   storeTokens,
-} from '@/services/auth/tokenStorage';
-import {fetchProfileStatus} from '@/services/profile/profileService';
+} from '@/features/auth/services/tokenStorage';
+import {fetchProfileStatus} from '@/features/profile/services/profileService';
 import type {User} from '@/features/auth/types';
 
 // Mock dependencies
 jest.mock('@react-native-async-storage/async-storage');
-jest.mock('@/services/auth/tokenStorage');
-jest.mock('@/services/profile/profileService');
+jest.mock('@/features/auth/services/tokenStorage');
+jest.mock('@/features/profile/services/profileService');
 jest.mock('@react-native-firebase/auth');
 jest.mock('aws-amplify/auth');
 

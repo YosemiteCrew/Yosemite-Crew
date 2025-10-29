@@ -1,7 +1,7 @@
 import React from 'react';
 import {render, act} from '@testing-library/react-native';
 import {Alert} from 'react-native';
-import {ExpensePreviewScreen} from '@/screens/expenses/ExpensePreviewScreen/ExpensePreviewScreen';
+import {ExpensePreviewScreen} from '@/features/expenses/screens/ExpensePreviewScreen/ExpensePreviewScreen';
 import type {RootState} from '@/app/store';
 import type {Expense, ExpenseAttachment} from '@/features/expenses';
 import type {Companion} from '@/features/companion/types';
@@ -88,12 +88,12 @@ jest.mock('@/features/expenses', () => ({
   ),
 }));
 
-jest.mock('@/utils/currency', () => ({
+jest.mock('@/shared/utils/currency', () => ({
   formatCurrency: jest.fn((amount, _options) => `$${amount.toFixed(2)}`),
 }));
-import {formatCurrency} from '@/utils/currency';
+import {formatCurrency} from '@/shared/utils/currency';
 
-jest.mock('@/utils/expenseLabels', () => ({
+jest.mock('@/features/expenses/utils/expenseLabels', () => ({
   resolveCategoryLabel: jest.fn(catID => `Category:${catID}`),
   resolveSubcategoryLabel: jest.fn((_catID, subcatID) => `Sub:${subcatID}`),
   resolveVisitTypeLabel: jest.fn(visitID => `Visit:${visitID}`),
@@ -107,16 +107,16 @@ jest.mock('@/assets/images', () => ({
   },
 }));
 
-jest.mock('@/components/common', () => ({
+jest.mock('@/shared/components/common', () => ({
   SafeArea: ({children}: {children: React.ReactNode}) => <>{children}</>,
 }));
-jest.mock('@/components/common/Header/Header', () => {
+jest.mock('@/shared/components/common/Header/Header', () => {
   const {View} = require('react-native');
   return {
     Header: (props: any) => <View testID="Header" {...props} />,
   };
 });
-jest.mock('@/components/common/AttachmentPreview/AttachmentPreview', () => {
+jest.mock('@/shared/components/common/AttachmentPreview/AttachmentPreview', () => {
   const {View} = require('react-native');
   return {
     __esModule: true,

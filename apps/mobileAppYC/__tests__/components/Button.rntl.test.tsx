@@ -2,7 +2,7 @@ import React from 'react';
 import {render, fireEvent} from '@testing-library/react-native';
 import {Provider} from 'react-redux';
 import {store} from '@/app/store';
-import {Button} from '@/components/common/Button/Button';
+import {Button} from '@/shared/components/common/Button/Button';
 import {TouchableOpacity, Text} from 'react-native';
 
 const withProviders = (ui: React.ReactElement) => <Provider store={store}>{ui}</Provider>;

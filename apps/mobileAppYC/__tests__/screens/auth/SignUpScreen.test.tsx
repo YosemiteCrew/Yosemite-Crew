@@ -1,7 +1,7 @@
 import React from 'react';
 import {render, fireEvent, act} from '@testing-library/react-native';
 import {View as MockView} from 'react-native'; // Import for Image mock
-import {SignUpScreen} from '@/screens/auth/SignUpScreen';
+import {SignUpScreen} from '@/features/auth/screens/SignUpScreen';
 import {useSocialAuth, type SocialProvider} from '@/hooks';
 
 // Define Mock Param List relevant to SignUpScreen
@@ -61,7 +61,7 @@ const mockTheme = {
     cta: {fontSize: 16, fontWeight: '600'},
   },
 };
-jest.mock('@/hooks/useTheme', () => ({
+jest.mock('@/shared/hooks/useTheme', () => ({
   useTheme: jest.fn(() => ({
     theme: mockTheme,
   })),
@@ -69,7 +69,7 @@ jest.mock('@/hooks/useTheme', () => ({
 
 // Mock Auth Context hook
 const mockedLogin = jest.fn().mockResolvedValue(undefined);
-jest.mock('@/contexts/AuthContext', () => ({
+jest.mock('@/features/auth/context/AuthContext', () => ({
   useAuth: jest.fn(() => ({
     login: mockedLogin,
   })),
@@ -84,7 +84,7 @@ let capturedSocialAuthCallbacks: {
   genericErrorMessage?: string;
 } = {};
 
-jest.mock('@/hooks/useSocialAuth', () => ({
+jest.mock('@/features/auth/hooks/useSocialAuth', () => ({
   useSocialAuth: jest.fn(callbacks => {
     capturedSocialAuthCallbacks = callbacks; // Capture callbacks passed by SignUpScreen
     return {
@@ -97,8 +97,8 @@ jest.mock('@/hooks/useSocialAuth', () => ({
 }));
 
 // Mock Common Components (SafeArea)
-// Assuming SafeArea is a named export from '@/components/common'
-jest.mock('@/components/common', () => {
+// Assuming SafeArea is a named export from '@/shared/components/common'
+jest.mock('@/shared/components/common', () => {
   const {View} = jest.requireActual('react-native');
   const MockSafeArea = ({children, ...props}: {children: React.ReactNode}) => (
     <View {...props}>{children}</View>
@@ -111,7 +111,7 @@ jest.mock('@/components/common', () => {
 
 // Mock LiquidGlassButton
 // Component uses: import { LiquidGlassButton } from ... (NAMED import)
-jest.mock('@/components/common/LiquidGlassButton/LiquidGlassButton', () => {
+jest.mock('@/shared/components/common/LiquidGlassButton/LiquidGlassButton', () => {
   const {TouchableOpacity, Text, View} = jest.requireActual('react-native');
   return {
     __esModule: true,

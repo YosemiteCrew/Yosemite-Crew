@@ -2,7 +2,7 @@
 import {createAsyncThunk} from '@reduxjs/toolkit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type {AddCompanionPayload, Companion} from './types';
-import {generateId} from '@/utils/helpers';
+import {generateId} from '@/shared/utils/helpers';
 
 // Mock API delay
 const mockDelay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
