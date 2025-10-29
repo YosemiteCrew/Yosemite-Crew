@@ -1,8 +1,8 @@
 import { renderHook, act } from '@testing-library/react-hooks';
 import { DeviceEventEmitter } from 'react-native'; // Import comes first
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useSocialAuth } from '@/hooks/useSocialAuth';
-import { signInWithSocialProvider } from '@/services/auth/socialAuth';
+import { useSocialAuth } from '@/features/auth/hooks/useSocialAuth';
+import { signInWithSocialProvider } from '@/features/auth/services/socialAuth';
 import {
   PENDING_PROFILE_STORAGE_KEY,
   PENDING_PROFILE_UPDATED_EVENT,
@@ -12,7 +12,7 @@ import type { AuthStackParamList } from '@/navigation/AuthNavigator';
 // --- Mocks ---
 
 // Mock the core social auth service
-jest.mock('@/services/auth/socialAuth', () => ({
+jest.mock('@/features/auth/services/socialAuth', () => ({
   signInWithSocialProvider: jest.fn(),
 }));
 const mockedSignInWithSocialProvider =

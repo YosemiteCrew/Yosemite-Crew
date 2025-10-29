@@ -1,5 +1,5 @@
 // Mock profile service first
-jest.mock('@/services/profile/profileService', () => ({
+jest.mock('@/features/profile/services/profileService', () => ({
   fetchProfileStatus: jest.fn(),
 }));
 
@@ -25,10 +25,10 @@ import {
   completePasswordlessSignIn,
   signOutEverywhere,
   formatAuthError,
-} from '@/services/auth/passwordlessAuth';
+} from '@/features/auth/services/passwordlessAuth';
 
 const AmplifyAuth = require('aws-amplify/auth');
-const {fetchProfileStatus} = require('@/services/profile/profileService');
+const {fetchProfileStatus} = require('@/features/profile/services/profileService');
 
 describe('passwordlessAuth', () => {
   beforeEach(() => {

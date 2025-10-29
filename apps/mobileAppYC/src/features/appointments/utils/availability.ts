@@ -1,6 +1,9 @@
 import type {EmployeeAvailability} from '@/features/appointments/types';
+import {addDays, formatDateToISODate, parseISODate} from '@/shared/utils/dateHelpers';
 
 const sortIsoDates = (a: string, b: string) => a.localeCompare(b);
+const DEFAULT_TIME_SLOTS = ['09:00', '10:30', '12:00', '13:30', '15:00', '16:30'];
+const DEFAULT_MARKER_WINDOW_DAYS = 30;
 
 export const getFirstAvailableDate = (
   availability: EmployeeAvailability | null | undefined,
@@ -27,18 +30,26 @@ export const getSlotsForDate = (
   date: string,
   todayISO: string,
 ) => {
-  if (!availability) {
+  if (date < todayISO) {
     return [];
   }
 
-  const sameDaySlots = availability.slotsByDate?.[date];
-  if (sameDaySlots?.length) {
-    return sameDaySlots;
+  if (availability) {
+    const sameDaySlots = availability.slotsByDate?.[date];
+    if (sameDaySlots?.length) {
+      return sameDaySlots;
+    }
+
+    const futureSlots = Object.entries(availability.slotsByDate ?? {})
+      .filter(([iso]) => iso >= todayISO)
+      .flatMap(([, values]) => values);
+
+    if (futureSlots.length > 0) {
+      return futureSlots;
+    }
   }
 
-  return Object.entries(availability.slotsByDate)
-    .filter(([iso]) => iso >= todayISO)
-    .flatMap(([, values]) => values);
+  return DEFAULT_TIME_SLOTS;
 };
 
 export const getFutureAvailabilityMarkers = (
@@ -46,13 +57,19 @@ export const getFutureAvailabilityMarkers = (
   todayISO: string,
 ) => {
   const markers = new Set<string>();
-  if (!availability) {
-    return markers;
+  const baseDate = parseISODate(todayISO);
+
+  if (!Number.isNaN(baseDate.getTime())) {
+    for (let i = 0; i < DEFAULT_MARKER_WINDOW_DAYS; i++) {
+      markers.add(formatDateToISODate(addDays(baseDate, i)));
+    }
   }
 
-  for (const key of Object.keys(availability.slotsByDate)) {
-    if (key >= todayISO) {
-      markers.add(key);
+  if (availability) {
+    for (const key of Object.keys(availability.slotsByDate)) {
+      if (key >= todayISO) {
+        markers.add(key);
+      }
     }
   }
 

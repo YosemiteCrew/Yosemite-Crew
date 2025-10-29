@@ -1,10 +1,10 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { SignInScreen } from '../screens/auth/SignInScreen';
-import { SignUpScreen } from '../screens/auth/SignUpScreen';
-import { OTPVerificationScreen } from '../screens/auth/OTPVerificationScreen';
-import { CreateAccountScreen } from '../screens/auth/CreateAccountScreen';
-import type {AuthTokens} from '@/contexts/AuthContext';
+import { SignInScreen } from '@/features/auth/screens/SignInScreen';
+import { SignUpScreen } from '@/features/auth/screens/SignUpScreen';
+import { OTPVerificationScreen } from '@/features/auth/screens/OTPVerificationScreen';
+import { CreateAccountScreen } from '@/features/auth/screens/CreateAccountScreen';
+import type {AuthTokens} from '@/features/auth/context/AuthContext';
 
 // Type definitions for the Auth Stack
 export type AuthStackParamList = {

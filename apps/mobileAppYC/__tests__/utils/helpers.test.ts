@@ -14,7 +14,7 @@ import {
   truncateText,
   formatNumber,
   getInitials,
-} from '@/utils/helpers';
+} from '@/shared/utils/helpers';
 
 describe('helpers', () => {
   describe('formatDate', () => {

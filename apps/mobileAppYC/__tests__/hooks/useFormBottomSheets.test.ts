@@ -1,8 +1,10 @@
 import { renderHook } from '@testing-library/react-hooks';
-import { useFormBottomSheets } from '@/hooks/useFormBottomSheets';
-import { useBottomSheetBackHandler } from '@/hooks/useBottomSheetBackHandler';
+import { useFormBottomSheets } from '@/shared/hooks/useFormBottomSheets';
+import { useBottomSheetBackHandler } from '@/shared/hooks/useBottomSheetBackHandler';
 
-jest.mock('@/hooks/useBottomSheetBackHandler');
+
+// Mock the dependency hook
+jest.mock('@/shared/hooks/useBottomSheetBackHandler');
 
 const mockRegisterSheet = jest.fn();
 const mockOpenSheet = jest.fn();
