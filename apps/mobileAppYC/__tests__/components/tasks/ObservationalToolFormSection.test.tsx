@@ -1,13 +1,12 @@
 // __tests__/components/tasks/ObservationalToolFormSection.test.tsx
 
 import React from 'react';
-// FIX: Import 'within'
 import {render, screen, fireEvent, within} from '@testing-library/react-native';
-// FIX: Remove unused aliased imports
-// import { View as MockView, Text as MockText, TouchableOpacity as MockTouchableOpacity } from 'react-native';
-import {ObservationalToolFormSection} from '@/components/tasks/ObservationalToolFormSection/ObservationalToolFormSection';
-import {formatDateForDisplay} from '@/components/common/SimpleDatePicker/SimpleDatePicker'; // Mocked
-import {formatTimeForDisplay} from '@/utils/timeHelpers'; // Mocked
+// FIX 1: Update component import path
+import {ObservationalToolFormSection} from '@/features/tasks/components/ObservationalToolFormSection/ObservationalToolFormSection';
+// FIX 2: Update helper import path
+import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker'; // Mocked
+import {formatTimeForDisplay} from '@/shared/utils/timeHelpers'; // Mocked
 import {Images} from '@/assets/images'; // Mocked
 import type {
   TaskFormData,
@@ -18,10 +17,9 @@ import type {
 
 // --- Mocks ---
 
-// Mock child components from @/components/common
-jest.mock('@/components/common', () => {
+// FIX 3: Update mocked component path
+jest.mock('@/shared/components/common', () => {
   const RN = require('react-native');
-  // FIX: Destructure into PascalCase for SonarQube
   const {View, Text, TouchableOpacity} = RN;
 
   // Mock Input
@@ -48,7 +46,6 @@ jest.mock('@/components/common', () => {
           <Text>Value: {value ?? ''}</Text>
           {error && <Text>Error: {error}</Text>}
           <Text>Editable: {String(editable)}</Text>
-          {/* FIX: Use optional chaining correctly */}
           {icon?.props?.source && <Text>Icon: {icon.props.source}</Text>}
           {editable && (
             <TouchableOpacity
@@ -74,7 +71,6 @@ jest.mock('@/components/common', () => {
           {label && <Text>Label: {label}</Text>}
           {placeholder && <Text>Placeholder: {placeholder}</Text>}
           <Text>Value: {value || ''}</Text>
-          {/* FIX: Use optional chaining correctly */}
           {rightComponent?.props?.source && (
             <Text>Icon: {rightComponent.props.source}</Text>
           )}
@@ -88,23 +84,25 @@ jest.mock('@/components/common', () => {
 });
 
 // Mock utilities
-jest.mock('@/components/common/SimpleDatePicker/SimpleDatePicker', () => ({
-  // FIX: Use local date parts to avoid timezone conversion from .toISOString()
-  formatDateForDisplay: jest.fn((date: Date | null): string => {
-    if (!date) return '';
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `FormattedDate: ${year}-${month}-${day}`;
+// FIX 4: Update mocked component path
+jest.mock(
+  '@/shared/components/common/SimpleDatePicker/SimpleDatePicker',
+  () => ({
+    formatDateForDisplay: jest.fn((date: Date | null): string => {
+      if (!date) return '';
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `FormattedDate: ${year}-${month}-${day}`;
+    }),
   }),
-}));
+);
 const mockFormatDateForDisplay = formatDateForDisplay as jest.Mock;
 
-jest.mock('@/utils/timeHelpers', () => ({
-  // FIX: Make mock timezone-independent
+// FIX 5: Update mocked util path
+jest.mock('@/shared/utils/timeHelpers', () => ({
   formatTimeForDisplay: jest.fn((time: Date | null): string => {
     if (!time) return '';
-    // Use getHours/getMinutes which are based on the local time of the Date object
     const hours = String(time.getHours()).padStart(2, '0');
     const minutes = String(time.getMinutes()).padStart(2, '0');
     const seconds = String(time.getSeconds()).padStart(2, '0');
@@ -122,16 +120,17 @@ jest.mock('@/assets/images', () => ({
 }));
 
 // Mock style functions
-jest.mock('@/utils/iconStyles', () => ({
+// FIX 6: Update mocked util path
+jest.mock('@/shared/utils/iconStyles', () => ({
   createIconStyles: jest.fn(() => ({})),
 }));
-jest.mock('@/components/tasks/shared/taskFormStyles', () => ({
+// FIX 7: Update mocked style path
+jest.mock('@/features/tasks/components/shared/taskFormStyles', () => ({
   createTaskFormSectionStyles: jest.fn(() => ({})),
 }));
 
 // Mock RN Image
 jest.mock('react-native/Libraries/Image/Image', () => {
-  // FIX: Destructure into PascalCase for SonarQube
   const {View, Text} = require('react-native');
   const MockImage = (props: any) => (
     <View testID="mock-image">
@@ -145,7 +144,6 @@ jest.mock('react-native/Libraries/Image/Image', () => {
 // --- Mock Data ---
 const mockTheme = {spacing: {}, colors: {}, typography: {}};
 
-// FIX: Remove companionId and taskType. Ensure all fields from type are present.
 const baseFormData: TaskFormData = {
   title: 'Take Observational Tool',
   description: '',
@@ -153,8 +151,6 @@ const baseFormData: TaskFormData = {
   time: null,
   frequency: null,
   category: 'health',
-  // companionId: 'comp-1', // Invalid
-  // taskType: 'take-observational-tool', // Invalid
   subcategory: null,
   parasitePreventionType: null,
   chronicConditionType: null,
@@ -233,7 +229,6 @@ describe('ObservationalToolFormSection', () => {
     it('renders all fields with placeholders by default', () => {
       renderComponent();
 
-      // FIX: Use 'within' to query text inside the mock
       const titleInput = screen.getByTestId('mock-input-Task-name');
       expect(
         within(titleInput).getByText('Value: Take Observational Tool'),
@@ -249,7 +244,6 @@ describe('ObservationalToolFormSection', () => {
     });
 
     it('renders all fields with values from formData', () => {
-      // FIX: Use local date constructor
       const testDate = new Date(2025, 9, 29); // Oct 29, 2025
       const testTime = new Date(2025, 9, 29, 14, 30, 0); // 14:30:00
       const tool: ObservationalTool = 'feline-grimace-scale';
@@ -268,7 +262,6 @@ describe('ObservationalToolFormSection', () => {
       expect(mockFormatTimeForDisplay).toHaveBeenCalledWith(testTime);
 
       expect(screen.getByText(`Value: ${tool}`)).toBeTruthy();
-      // FIX: Assert against the new, correct formatted date
       expect(screen.getByText('Value: FormattedDate: 2025-10-29')).toBeTruthy();
       expect(screen.getByText('Value: FormattedTime: 14:30:00')).toBeTruthy();
       expect(screen.getByText(`Value: ${freq}`)).toBeTruthy();
@@ -293,7 +286,6 @@ describe('ObservationalToolFormSection', () => {
     it('renders all icons', () => {
       renderComponent();
 
-      // FIX: Use 'within' to find the specific icon text
       const toolInput = screen.getByTestId(
         'mock-touchable-Select-observational-tool',
       );
@@ -321,7 +313,6 @@ describe('ObservationalToolFormSection', () => {
   describe('Interactions', () => {
     it('does not call updateField when non-editable title is pressed', () => {
       const {mockUpdateField} = renderComponent();
-      // The touchable shouldn't exist due to `editable: false` in the mock
       const touchable = screen.queryByTestId('mock-input-Task-name-touchable');
       expect(touchable).toBeNull();
       expect(mockUpdateField).not.toHaveBeenCalled();

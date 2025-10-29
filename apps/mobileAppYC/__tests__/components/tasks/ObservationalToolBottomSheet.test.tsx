@@ -1,18 +1,20 @@
-// __tests__/components/tasks/ObservationalToolBottomSheet.test.tsx
-
 import React from 'react';
 import {render, screen, fireEvent, act} from '@testing-library/react-native';
-import {ObservationalToolBottomSheet} from '@/components/tasks/ObservationalToolBottomSheet/ObservationalToolBottomSheet';
-import {resolveObservationalToolLabel} from '@/utils/taskLabels';
-import type {ObservationalToolBottomSheetRef} from '@/components/tasks/ObservationalToolBottomSheet/ObservationalToolBottomSheet';
+// FIX 1: Update component import path
+import {ObservationalToolBottomSheet} from '@/features/tasks/components/ObservationalToolBottomSheet/ObservationalToolBottomSheet';
+// FIX 2: Update helper import path
+import {resolveObservationalToolLabel} from '@/features/tasks/utils/taskLabels';
+// FIX 3: Update type import path
+import type {ObservationalToolBottomSheetRef} from '@/features/tasks/components/ObservationalToolBottomSheet/ObservationalToolBottomSheet';
 import type {ObservationalTool} from '@/features/tasks/types';
+// FIX 4: Update shared component type import path
 import type {
   GenericSelectBottomSheetRef,
   SelectItem,
-} from '@/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
+} from '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
 
-
-jest.mock('@/utils/taskLabels', () => ({
+// FIX 5: Update mocked helper path
+jest.mock('@/features/tasks/utils/taskLabels', () => ({
   resolveObservationalToolLabel: jest.fn((tool: string) => `Label for ${tool}`),
 }));
 const mockResolveLabel = resolveObservationalToolLabel as jest.Mock;
@@ -23,8 +25,9 @@ const mockInternalSheetRef = {
 };
 let mockOnSaveCallback: (item: SelectItem | null) => void;
 
+// FIX 6: Update mocked component path
 jest.mock(
-  '@/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet',
+  '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet',
   () => {
     const ReactMock = require('react');
     const {View, Text, TouchableOpacity} = require('react-native');
@@ -72,7 +75,6 @@ jest.mock(
   },
 );
 
-
 const mockOnSelect = jest.fn();
 
 const renderComponent = (props: {
@@ -90,7 +92,6 @@ const renderComponent = (props: {
   );
   return {ref, mockOnSelect};
 };
-
 
 describe('ObservationalToolBottomSheet', () => {
   beforeEach(() => {
@@ -138,7 +139,7 @@ describe('ObservationalToolBottomSheet', () => {
   });
 
   it('returns an empty list if companionType is unknown', () => {
-    renderComponent({companionType: 'lizard'}); // No 'as any' needed now
+    renderComponent({companionType: 'lizard'});
     expect(screen.getByText('Items:')).toBeTruthy();
     expect(screen.queryByText(/Label for/)).toBeNull();
   });

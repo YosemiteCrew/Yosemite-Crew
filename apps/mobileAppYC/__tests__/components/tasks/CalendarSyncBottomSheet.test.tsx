@@ -1,12 +1,15 @@
 import React from 'react';
-import {render, screen, act} from '@testing-library/react-native'; // Import 'within'
+import {render, screen, act} from '@testing-library/react-native';
+// FIX 1: Update component import path
 import {
   CalendarSyncBottomSheet,
   type CalendarSyncBottomSheetRef,
-} from '@/components/tasks/CalendarSyncBottomSheet/CalendarSyncBottomSheet';
-import {useTheme} from '@/hooks';
-import type {SelectItem} from '@/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
-import {View} from 'react-native'; // Import Text/View for helper
+} from '@/features/tasks/components/CalendarSyncBottomSheet/CalendarSyncBottomSheet';
+// FIX 2: Update hook import path
+import {useTheme} from '@/shared/hooks';
+// FIX 3: Update type import path
+import type {SelectItem} from '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
+import {View} from 'react-native';
 
 // --- Mocks ---
 
@@ -19,7 +22,8 @@ jest.mock('react-native/Libraries/Image/Image', () => {
   return MockImageComponent;
 });
 
-jest.mock('@/hooks');
+// FIX 4: Update hook mock path
+jest.mock('@/shared/hooks');
 
 let mockGoogleCalendarIcon: string | undefined = 'google.png';
 let mockICloudCalendarIcon: string | undefined = 'icloud.png';
@@ -41,8 +45,9 @@ const mockSheetRef = {
     close: jest.fn(),
   },
 };
+// FIX 5: Update mocked component path
 jest.mock(
-  '@/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet',
+  '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet',
   () => {
     const React = require('react');
     const MockView = require('react-native').View;
@@ -108,10 +113,7 @@ const renderComponent = (
   return {ref, onSelect, ...renderResult};
 };
 
-// --- Wrapper for renderItem output ---
-// FIX: Use a simple wrapper to allow rendering the item element
 const RenderItemWrapper = ({element}: {element: React.ReactElement | null}) => {
-  // Wrap in a View to ensure it's always a valid RN structure for `render`
   return element ? <View testID="item-wrapper">{element}</View> : null;
 };
 
@@ -220,7 +222,6 @@ describe('CalendarSyncBottomSheet', () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
-  // FIX: Use wrapper + within queries for renderItem tests
   describe('renderProviderItem', () => {
     let renderItem: (
       item: SelectItem,
@@ -239,31 +240,19 @@ describe('CalendarSyncBottomSheet', () => {
     });
 
     it('renders the item icon, label, and no status for "available"', () => {
-      // Get the element structure
-      // Render the element using the wrapper
-      // Use standard queries on the rendered output
-      // Check source prop (may need adjustment based on mock specifics, but testID finds it)
-      // For simple mocks like View, props might not perfectly match Image source. Finding by testID is key.
+      // (This test seems incomplete in your original, but the setup is now correct)
     });
 
-    it('renders "Connecting..." text for "connecting" status', () => {});
+    it('renders "Connecting..." text for "connecting" status', () => {
+      // (This test seems incomplete in your original, but the setup is now correct)
+    });
 
     it('renders a checkmark and selected styles when isSelected is true', () => {
-      // The first child of the wrapper *is* the root View from renderItem
-      // Check background color on the root element
-      // Note: Direct style checks can be brittle. Check presence of checkmark and text color.
-      // Optional: Check background if reliable
-      // expect(rootElement.props.style.backgroundColor).toBe(testTheme.colors.lightBlueBackground);
-      // Check for checkmark text
-      // Check label text style color
+      // (This test seems incomplete in your original, but the setup is now correct)
     });
 
     it('does not render a checkmark and uses default styles when isSelected is false', () => {
-      // Check background color on the root element
-      // Optional: Check background if reliable
-      // expect(rootElement.props.style.backgroundColor).toBe('transparent');
-      // Check checkmark text is NOT present
-      // Check label text style color
+      // (This test seems incomplete in your original, but the setup is now correct)
     });
 
     it('renders item without an icon if item.icon is missing', () => {
@@ -277,10 +266,7 @@ describe('CalendarSyncBottomSheet', () => {
         <RenderItemWrapper element={element} />,
       );
 
-      // Check Image element is NOT present
       expect(queryByTestId('mock-image')).toBeNull();
-
-      // Check label is still present
       expect(getByText('No Icon')).toBeTruthy();
     });
   });

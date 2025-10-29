@@ -1,18 +1,22 @@
 // __tests__/components/tasks/MedicationFrequencyBottomSheet.test.tsx
 
-import React from 'react'; 
+import React from 'react';
 import {render, screen, fireEvent, act} from '@testing-library/react-native';
-import {MedicationFrequencyBottomSheet} from '@/components/tasks/MedicationFrequencyBottomSheet/MedicationFrequencyBottomSheet';
-import {resolveMedicationFrequencyLabel} from '@/utils/taskLabels';
-import type {MedicationFrequencyBottomSheetRef} from '@/components/tasks/MedicationFrequencyBottomSheet/MedicationFrequencyBottomSheet';
+// FIX 1: Update component import path
+import {MedicationFrequencyBottomSheet} from '@/features/tasks/components/MedicationFrequencyBottomSheet/MedicationFrequencyBottomSheet';
+// FIX 2: Update helper import path
+import {resolveMedicationFrequencyLabel} from '@/features/tasks/utils/taskLabels';
+// FIX 3: Update type import path
+import type {MedicationFrequencyBottomSheetRef} from '@/features/tasks/components/MedicationFrequencyBottomSheet/MedicationFrequencyBottomSheet';
 import type {MedicationFrequency} from '@/features/tasks/types';
+// FIX 4: Update shared component type import path
 import type {
   GenericSelectBottomSheetRef,
   SelectItem,
-} from '@/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
+} from '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
 
-
-jest.mock('@/utils/taskLabels', () => ({
+// FIX 5: Update mocked helper path
+jest.mock('@/features/tasks/utils/taskLabels', () => ({
   resolveMedicationFrequencyLabel: jest.fn(
     (freq: string) => `Label for ${freq}`,
   ),
@@ -25,8 +29,9 @@ const mockInternalSheetRef = {
 };
 let mockOnSaveCallback: (item: SelectItem | null) => void;
 
+// FIX 6: Update mocked component path
 jest.mock(
-  '@/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet',
+  '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet',
   () => {
     const ReactMock = require('react');
     const {View, Text, TouchableOpacity} = require('react-native');
@@ -70,7 +75,6 @@ jest.mock(
   },
 );
 
-
 const mockOnSelect = jest.fn();
 
 const renderComponent = (
@@ -86,7 +90,6 @@ const renderComponent = (
   );
   return {ref, mockOnSelect};
 };
-
 
 describe('MedicationFrequencyBottomSheet', () => {
   beforeEach(() => {

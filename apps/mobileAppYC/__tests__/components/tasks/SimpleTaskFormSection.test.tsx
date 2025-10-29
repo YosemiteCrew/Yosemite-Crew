@@ -1,17 +1,17 @@
 import React from 'react';
-// Import 'within' for more specific queries
 import {render, screen, fireEvent, within} from '@testing-library/react-native';
-// Import with aliases for clarity in mocks
 import {
   View as MockView,
   Text as MockText,
   TouchableOpacity as MockTouchableOpacity,
 } from 'react-native';
-import {SimpleTaskFormSection} from '@/components/tasks/SimpleTaskFormSection/SimpleTaskFormSection';
-import {formatDateForDisplay} from '@/components/common/SimpleDatePicker/SimpleDatePicker';
-import {formatTimeForDisplay} from '@/utils/timeHelpers';
+// FIX 1: Update component import path
+import {SimpleTaskFormSection} from '@/features/tasks/components/SimpleTaskFormSection/SimpleTaskFormSection';
+// FIX 2: Update helper import path
+import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+// FIX 3: Update helper import path
+import {formatTimeForDisplay} from '@/shared/utils/timeHelpers';
 import {Images} from '@/assets/images';
-// Removed unused imports
 import type {
   TaskFormData,
   TaskFormErrors,
@@ -21,10 +21,8 @@ import type {
 
 // --- Mocks ---
 
-// Mock child components from @/components/common
-jest.mock('@/components/common', () => {
-  // Use aliases defined above
-  // Mock Input - Render props like label, placeholder, value, error
+// FIX 4: Update mocked component path
+jest.mock('@/shared/components/common', () => {
   const InputMock = jest.fn(
     ({
       label,
@@ -35,7 +33,6 @@ jest.mock('@/components/common', () => {
       editable = true,
       ...props
     }) => {
-      // Use replaceAll
       const testIdBase = label
         ? label.replaceAll(' ', '-')
         : placeholder?.replaceAll(' ', '-');
@@ -44,13 +41,11 @@ jest.mock('@/components/common', () => {
       return (
         <MockView {...props} testID={inputTestId}>
           {' '}
-          {/* Use testID here */}
           {label && <MockText>Label: {label}</MockText>}
           {placeholder && <MockText>Placeholder: {placeholder}</MockText>}
           <MockText>Value: {value}</MockText>
           {error && <MockText>Error: {error}</MockText>}
           <MockText>Editable: {String(editable)}</MockText>
-          {/* Add a touchable area to simulate text change for testing */}
           <MockTouchableOpacity
             testID={`${inputTestId}-touchable`}
             onPress={() => onChangeText && onChangeText('mock change')}
@@ -60,10 +55,8 @@ jest.mock('@/components/common', () => {
     },
   );
 
-  // Mock TouchableInput - Render props like label, placeholder, value, error, and rightComponent
   const TouchableInputMock = jest.fn(
     ({label, placeholder, value, onPress, rightComponent, error, ...props}) => {
-      // Use replaceAll
       const testIdBase = label
         ? label.replaceAll(' ', '-')
         : placeholder?.replaceAll(' ', '-');
@@ -75,11 +68,9 @@ jest.mock('@/components/common', () => {
           testID={touchableTestId}
           onPress={onPress}>
           {' '}
-          {/* Use testID here */}
           {label && <MockText>Label: {label}</MockText>}
           {placeholder && <MockText>Placeholder: {placeholder}</MockText>}
           <MockText>Value: {value || ''}</MockText>
-          {/* Use optional chaining */}
           {rightComponent?.props?.source && (
             <MockText>Icon: {rightComponent.props.source}</MockText>
           )}
@@ -96,12 +87,17 @@ jest.mock('@/components/common', () => {
 });
 
 // Mock utilities
-jest.mock('@/components/common/SimpleDatePicker/SimpleDatePicker', () => ({
-  formatDateForDisplay: jest.fn(),
-}));
+// FIX 5: Update mocked component path
+jest.mock(
+  '@/shared/components/common/SimpleDatePicker/SimpleDatePicker',
+  () => ({
+    formatDateForDisplay: jest.fn(),
+  }),
+);
 const mockFormatDateForDisplay = formatDateForDisplay as jest.Mock;
 
-jest.mock('@/utils/timeHelpers', () => ({
+// FIX 6: Update mocked util path
+jest.mock('@/shared/utils/timeHelpers', () => ({
   formatTimeForDisplay: jest.fn(),
 }));
 const mockFormatTimeForDisplay = formatTimeForDisplay as jest.Mock;
@@ -114,15 +110,15 @@ jest.mock('@/assets/images', () => ({
   },
 }));
 
-// Mock createIconStyles - keep it simple
-jest.mock('@/utils/iconStyles', () => ({
+// FIX 7: Update mocked util path
+jest.mock('@/shared/utils/iconStyles', () => ({
   createIconStyles: jest.fn(() => ({
     dropdownIcon: {width: 16, height: 16},
   })),
 }));
 
-// Mock createTaskFormSectionStyles - keep it simple
-jest.mock('@/components/tasks/shared/taskFormStyles', () => ({
+// FIX 8: Update mocked style path
+jest.mock('@/features/tasks/components/shared/taskFormStyles', () => ({
   createTaskFormSectionStyles: jest.fn(() => ({
     fieldGroup: {},
     textArea: {},
@@ -134,8 +130,6 @@ jest.mock('@/components/tasks/shared/taskFormStyles', () => ({
 
 // Mock RN Image
 jest.mock('react-native/Libraries/Image/Image', () => {
-  // Use aliased imports
-  // Render the source prop to allow checking which icon is used
   const MockImage = (props: any) => (
     <MockView testID="mock-image">
       <MockText>Source: {props.source}</MockText>
@@ -153,16 +147,29 @@ const mockTheme = {
   colors: {},
 };
 
-// Define baseFormData ensuring it matches TaskFormData structure used by component
 const baseFormData: TaskFormData = {
   title: '',
   description: '',
   date: null,
   time: null,
   frequency: null,
-  type: 'simple', // Assuming type is required, provide default
-  companionId: 'comp-1',
-  // Add other necessary TaskFormData fields with default values if any
+  category: 'custom', // Added category
+  subcategory: null, // Added subcategory
+  healthTaskType: null, // Added
+  hygieneTaskType: null, // Added
+  dietaryTaskType: null, // Added
+  assignedTo: null, // Added
+  reminderEnabled: false, // Added
+  syncWithCalendar: false, // Added
+  attachments: [], // Added
+  additionalNote: '', // Added
+  medicineName: '', // Added
+  medicineType: null, // Added
+  dosages: [], // Added
+  medicationFrequency: null, // Added
+  startDate: null, // Added
+  endDate: null, // Added
+  observationalTool: null, // Added
 };
 
 const baseErrors: TaskFormErrors = {};
@@ -180,17 +187,17 @@ const renderComponent = ({
   errors = {},
   taskTypeSelection,
 }: TestProps = {}) => {
-  // Corrected date formatting mock
   mockFormatDateForDisplay.mockImplementation((date: Date | null) => {
     if (!date) return '';
-    // Manually format to YYYY-MM-DD, respecting the date's components
     const year = date.getFullYear();
-    const month = (date.getMonth() + 1).toString().padStart(2, '0'); // getMonth is 0-indexed
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
     const day = date.getDate().toString().padStart(2, '0');
     return `Formatted: ${year}-${month}-${day}`;
   });
-  mockFormatTimeForDisplay.mockImplementation((time: string | null) =>
-    time ? `Formatted: ${time}` : '',
+  mockFormatTimeForDisplay.mockImplementation(
+    (
+      time: Date | null, // Changed type to Date
+    ) => (time ? `Formatted: ${time.getHours()}:${time.getMinutes()}` : ''),
   );
 
   const mockUpdateField = jest.fn();
@@ -198,7 +205,6 @@ const renderComponent = ({
   const mockOnOpenTimePicker = jest.fn();
   const mockOnOpenTaskFrequencySheet = jest.fn();
 
-  // Combine base and provided formData
   const fullFormData = {
     ...baseFormData,
     ...formData,
@@ -234,23 +240,23 @@ describe('SimpleTaskFormSection', () => {
 
   describe('Rendering', () => {
     it('renders inputs with initial values from formData', () => {
-      const date = new Date(2025, 9, 29); // Oct 29, 2025
+      const date = new Date(2025, 9, 29);
+      const time = new Date(2025, 9, 29, 10, 30);
       const frequencyValue: TaskFrequency = 'daily';
       renderComponent({
         formData: {
           title: 'Test Task',
           description: 'Test Desc',
           date: date,
-          time: '10:30:00',
+          time: time, // Use Date object
           frequency: frequencyValue,
         },
       });
 
       expect(screen.getByText('Value: Test Task')).toBeTruthy();
       expect(screen.getByText('Value: Test Desc')).toBeTruthy();
-      // Check against the manually formatted string from the mock
       expect(screen.getByText('Value: Formatted: 2025-10-29')).toBeTruthy();
-      expect(screen.getByText('Value: Formatted: 10:30:00')).toBeTruthy();
+      expect(screen.getByText('Value: Formatted: 10:30')).toBeTruthy(); // Updated assertion
       expect(screen.getByText(`Value: ${frequencyValue}`)).toBeTruthy();
     });
 
@@ -263,15 +269,15 @@ describe('SimpleTaskFormSection', () => {
       expect(screen.getByText('Placeholder: Task frequency')).toBeTruthy();
 
       const emptyValueTexts = screen.getAllByText('Value: ');
-      // Expecting empty values for title, desc, date, time, frequency
       expect(emptyValueTexts.length).toBeGreaterThanOrEqual(5);
     });
 
     it('calls date and time formatters', () => {
       const date = new Date();
-      renderComponent({formData: {date: date, time: '12:00:00'}});
+      const time = new Date();
+      renderComponent({formData: {date: date, time: time}});
       expect(mockFormatDateForDisplay).toHaveBeenCalledWith(date);
-      expect(mockFormatTimeForDisplay).toHaveBeenCalledWith('12:00:00');
+      expect(mockFormatTimeForDisplay).toHaveBeenCalledWith(time);
     });
 
     it('renders correct icons for date, time, and frequency', () => {
@@ -330,7 +336,6 @@ describe('SimpleTaskFormSection', () => {
     });
 
     it('makes title editable if taskTypeSelection category is "custom"', () => {
-      // Add label property to satisfy TaskTypeSelection type
       renderComponent({
         taskTypeSelection: {category: 'custom', label: 'Custom Task'},
       });
@@ -342,7 +347,6 @@ describe('SimpleTaskFormSection', () => {
     });
 
     it('makes title non-editable if taskTypeSelection category is not "custom"', () => {
-      // Add label property to satisfy TaskTypeSelection type
       renderComponent({
         taskTypeSelection: {
           category: 'health',

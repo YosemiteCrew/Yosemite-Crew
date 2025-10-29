@@ -1,46 +1,43 @@
 import React from 'react';
 import {render, screen, fireEvent} from '@testing-library/react-native';
 import {useSelector} from 'react-redux';
-import {CommonTaskFields} from '@/components/tasks/CommonTaskFields/CommonTaskFields';
+// FIX 1: Update component import path
+import {CommonTaskFields} from '@/features/tasks/components/CommonTaskFields/CommonTaskFields';
 import {selectAuthUser} from '@/features/auth/selectors';
 import type {TaskFormData, TaskFormErrors} from '@/features/tasks/types';
 import type {User} from '@/features/auth/types';
 
 // --- Mocks ---
 
-// FIX 1: Correctly mock react-redux
 jest.mock('react-redux', () => ({
   ...jest.requireActual('react-redux'),
   useSelector: jest.fn(),
 }));
-// Type-cast the imported function to satisfy TypeScript
 const mockUseSelector = useSelector as unknown as jest.Mock;
 
-// Mock selectors
 jest.mock('@/features/auth/selectors', () => ({
   selectAuthUser: jest.fn(),
 }));
 
-// Mock assets
 jest.mock('@/assets/images', () => ({
   Images: {
-    dropdownIcon: 'dropdown.png', // Using string for mock source
+    dropdownIcon: 'dropdown.png',
   },
 }));
 
-// Mock utils
-jest.mock('@/utils/iconStyles', () => ({
+// FIX 2: Update mocked util path
+jest.mock('@/shared/utils/iconStyles', () => ({
   createIconStyles: jest.fn(() => ({
     dropdownIcon: {width: 16, height: 16},
   })),
 }));
 
-// FIX 2 & 3: Mock child components using <View> instead of custom string tags
-jest.mock('@/components/common', () => {
+// FIX 3: Update mocked component path
+jest.mock('@/shared/components/common', () => {
   const MockView = require('react-native').View;
   return {
     Input: jest.fn(({value, onChangeText, ...props}) => (
-      <MockView // Use a valid component
+      <MockView
         testID="mock-input-additionalNote"
         value={value}
         onChangeText={onChangeText}
@@ -48,7 +45,7 @@ jest.mock('@/components/common', () => {
       />
     )),
     TouchableInput: jest.fn(({value, onPress, ...props}) => (
-      <MockView // Use a valid component
+      <MockView
         testID="mock-touchable-input-assignedTo"
         value={value}
         onPress={onPress}
@@ -58,7 +55,6 @@ jest.mock('@/components/common', () => {
   };
 });
 
-// Mock RN Image
 jest.mock('react-native/Libraries/Image/Image', () => {
   const MockView = require('react-native').View;
   const MockImage = (props: any) => <MockView testID="mock-image" {...props} />;
@@ -109,7 +105,7 @@ const renderComponent = ({
 
   const props = {
     formData: {
-      assignedTo: undefined, // Use 'undefined' to match type
+      assignedTo: undefined,
       additionalNote: '',
       ...formData,
     } as TaskFormData,
@@ -142,7 +138,6 @@ describe('CommonTaskFields', () => {
     it('calls updateField when "Additional note" text is changed', () => {
       const {mockUpdateField} = renderComponent();
       const noteInput = screen.getByTestId('mock-input-additionalNote');
-      // The mock renders a View, so we call the prop directly
       noteInput.props.onChangeText('New note');
       expect(mockUpdateField).toHaveBeenCalledTimes(1);
       expect(mockUpdateField).toHaveBeenCalledWith(
@@ -150,13 +145,11 @@ describe('CommonTaskFields', () => {
         'New note',
       );
     });
-
-    
   });
 
   describe('Assigned User Logic (getAssignedUserName)', () => {
     it('shows placeholder and no label when no user is assigned', () => {
-      renderComponent({formData: {assignedTo: undefined}}); // Use undefined
+      renderComponent({formData: {assignedTo: undefined}});
       const assignInput = screen.getByTestId('mock-touchable-input-assignedTo');
       expect(assignInput.props.value).toBe('');
       expect(assignInput.props.placeholder).toBe('Assign to');

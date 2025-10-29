@@ -6,7 +6,6 @@ import { useBottomSheetBackHandler } from '@/shared/hooks/useBottomSheetBackHand
 // Mock the dependency hook
 jest.mock('@/shared/hooks/useBottomSheetBackHandler');
 
-
 const mockRegisterSheet = jest.fn();
 const mockOpenSheet = jest.fn();
 const mockCloseSheet = jest.fn();

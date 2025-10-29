@@ -1,17 +1,20 @@
-// __tests__/components/tasks/TaskFrequencyBottomSheet.test.tsx
 import React from 'react';
 import {render, screen, fireEvent, act} from '@testing-library/react-native';
-import {TaskFrequencyBottomSheet} from '@/components/tasks/TaskFrequencyBottomSheet/TaskFrequencyBottomSheet';
-import {resolveTaskFrequencyLabel} from '@/utils/taskLabels';
-import type {TaskFrequencyBottomSheetRef} from '@/components/tasks/TaskFrequencyBottomSheet/TaskFrequencyBottomSheet';
+// FIX 1: Update component import path
+import {TaskFrequencyBottomSheet} from '@/features/tasks/components/TaskFrequencyBottomSheet/TaskFrequencyBottomSheet';
+// FIX 2: Update helper import path
+import {resolveTaskFrequencyLabel} from '@/features/tasks/utils/taskLabels';
+// FIX 3: Update type import path
+import type {TaskFrequencyBottomSheetRef} from '@/features/tasks/components/TaskFrequencyBottomSheet/TaskFrequencyBottomSheet';
 import type {TaskFrequency} from '@/features/tasks/types';
+// FIX 4: Update shared component type import path
 import type {
   GenericSelectBottomSheetRef,
   SelectItem,
-} from '@/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
+} from '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
 
-
-jest.mock('@/utils/taskLabels', () => ({
+// FIX 5: Update mocked helper path
+jest.mock('@/features/tasks/utils/taskLabels', () => ({
   resolveTaskFrequencyLabel: jest.fn((freq: string) => `Label for ${freq}`),
 }));
 const mockResolveLabel = resolveTaskFrequencyLabel as jest.Mock;
@@ -22,8 +25,9 @@ const mockInternalSheetRef = {
 };
 let mockOnSaveCallback: (item: SelectItem | null) => void;
 
+// FIX 6: Update mocked component path
 jest.mock(
-  '@/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet',
+  '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet',
   () => {
     const ReactMock = require('react');
     const {View, Text, TouchableOpacity} = require('react-native');
@@ -69,7 +73,6 @@ jest.mock(
   },
 );
 
-
 const mockOnSelect = jest.fn();
 
 const renderComponent = (selectedFrequency: TaskFrequency | null = null) => {
@@ -83,7 +86,6 @@ const renderComponent = (selectedFrequency: TaskFrequency | null = null) => {
   );
   return {ref, mockOnSelect};
 };
-
 
 describe('TaskFrequencyBottomSheet', () => {
   beforeEach(() => {

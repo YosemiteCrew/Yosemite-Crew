@@ -1,13 +1,15 @@
 import React, {createRef} from 'react';
 import {render, screen, fireEvent, act} from '@testing-library/react-native';
-import {TaskTypeBottomSheet} from '@/components/tasks/TaskTypeBottomSheet/TaskTypeBottomSheet';
+// FIX 1: Update component import path
+import {TaskTypeBottomSheet} from '@/features/tasks/components/TaskTypeBottomSheet/TaskTypeBottomSheet';
+// FIX 2: Update type import path
 import type {
   TaskTypeBottomSheetRef,
   TaskTypeOption,
   CategorySection,
-} from '@/components/tasks/TaskTypeBottomSheet/types';
-import {buildSelectionFromOption} from '@/components/tasks/TaskTypeBottomSheet/helpers';
-
+} from '@/features/tasks/components/TaskTypeBottomSheet/types';
+// FIX 3: Update helper import path
+import {buildSelectionFromOption} from '@/features/tasks/components/TaskTypeBottomSheet/helpers';
 
 const mockCategorySections: CategorySection[] = [
   {
@@ -106,23 +108,30 @@ const mockCategorySections: CategorySection[] = [
   },
 ];
 
-jest.mock('@/components/tasks/TaskTypeBottomSheet/helpers', () => ({
+// FIX 4: Update mocked helper path
+jest.mock('@/features/tasks/components/TaskTypeBottomSheet/helpers', () => ({
   flattenTaskOptions: jest.fn(options => options),
   buildCategorySections: jest.fn(() => mockCategorySections),
   buildSelectionFromOption: jest.requireActual(
-    '@/components/tasks/TaskTypeBottomSheet/helpers',
+    // FIX 5: Update requireActual path
+    '@/features/tasks/components/TaskTypeBottomSheet/helpers',
   ).buildSelectionFromOption,
 }));
 
-jest.mock('@/components/tasks/TaskTypeBottomSheet/taskOptions', () => ({
-  __esModule: true,
-  taskTypeOptions: [],
-}));
+// FIX 6: Update mocked options path
+jest.mock(
+  '@/features/tasks/components/TaskTypeBottomSheet/taskOptions',
+  () => ({
+    __esModule: true,
+    taskTypeOptions: [],
+  }),
+);
 
 const mockExpand = jest.fn();
 const mockClose = jest.fn();
 
-jest.mock('@/components/common/BottomSheet/BottomSheet', () => {
+// FIX 7: Update mocked component path
+jest.mock('@/shared/components/common/BottomSheet/BottomSheet', () => {
   const {
     forwardRef: mockForwardRef,
     useImperativeHandle: mockUseImperativeHandle,
@@ -144,27 +153,32 @@ jest.mock('@/components/common/BottomSheet/BottomSheet', () => {
   };
 });
 
-jest.mock('@/components/common/BottomSheetHeader/BottomSheetHeader', () => {
-  const MockView = require('react-native').View;
-  const MockTouchableOpacity = require('react-native').TouchableOpacity;
-  const MockText = require('react-native').Text;
-  return {
-    BottomSheetHeader: ({
-      title,
-      onClose,
-    }: {
-      title: string;
-      onClose: () => void;
-    }) => (
-      <MockView>
-        <MockText>{title}</MockText>
-        <MockTouchableOpacity testID="mock-header-close" onPress={onClose} />
-      </MockView>
-    ),
-  };
-});
+// FIX 8: Update mocked component path
+jest.mock(
+  '@/shared/components/common/BottomSheetHeader/BottomSheetHeader',
+  () => {
+    const MockView = require('react-native').View;
+    const MockTouchableOpacity = require('react-native').TouchableOpacity;
+    const MockText = require('react-native').Text;
+    return {
+      BottomSheetHeader: ({
+        title,
+        onClose,
+      }: {
+        title: string;
+        onClose: () => void;
+      }) => (
+        <MockView>
+          <MockText>{title}</MockText>
+          <MockTouchableOpacity testID="mock-header-close" onPress={onClose} />
+        </MockView>
+      ),
+    };
+  },
+);
 
-jest.mock('@/hooks', () => ({
+// FIX 9: Update mocked hook path
+jest.mock('@/shared/hooks', () => ({
   useTheme: () => ({
     theme: {
       spacing: {'1': 4, '2': 8, '3': 12, '5': 20},
@@ -178,13 +192,13 @@ jest.mock('@/hooks', () => ({
   }),
 }));
 
-jest.mock('@/utils/bottomSheetHelpers', () => ({
+// FIX 10: Update mocked util path
+jest.mock('@/shared/utils/bottomSheetHelpers', () => ({
   createBottomSheetStyles: () => ({
     bottomSheetBackground: {backgroundColor: 'white'},
     bottomSheetHandle: {backgroundColor: 'grey'},
   }),
 }));
-
 
 const renderComponent = () => {
   const mockOnSelect = jest.fn();
@@ -194,7 +208,6 @@ const renderComponent = () => {
 
   return {ref, mockOnSelect};
 };
-
 
 describe('TaskTypeBottomSheet', () => {
   beforeEach(() => {
@@ -237,7 +250,7 @@ describe('TaskTypeBottomSheet', () => {
       renderComponent();
       expect(screen.getByText('Food')).toBeTruthy();
       expect(screen.queryByText('Food Sub')).toBeNull();
-      expect(screen.getByText('Breakfast')).toBeTruthy(); 
+      expect(screen.getByText('Breakfast')).toBeTruthy();
     });
   });
 
