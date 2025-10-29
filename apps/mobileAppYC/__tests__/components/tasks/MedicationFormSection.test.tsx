@@ -2,18 +2,13 @@ import React from 'react';
 import {render, screen, fireEvent, within} from '@testing-library/react-native';
 import {MedicationFormSection} from '@/components/tasks/MedicationFormSection/MedicationFormSection';
 import {formatDateForDisplay} from '@/components/common/SimpleDatePicker/SimpleDatePicker';
-// FIX 4: Remove unused 'Images' import
-// import {Images} from '@/assets/images';
-// FIX 1: Import 'DosageSchedule' instead of 'MedicationDosage'
+
 import type {
   TaskFormData,
   TaskFormErrors,
   DosageSchedule,
 } from '@/features/tasks/types';
 
-// --- Mocks ---
-
-// Mock child components from @/components/common
 jest.mock('@/components/common', () => {
   const MockView = require('react-native').View;
   const MockTouchableOpacity = require('react-native').TouchableOpacity;
@@ -77,7 +72,6 @@ jest.mock('@/components/common', () => {
   return {Input: InputMock, TouchableInput: TouchableInputMock};
 });
 
-// Mock utilities
 jest.mock('@/components/common/SimpleDatePicker/SimpleDatePicker', () => ({
   formatDateForDisplay: jest.fn((date: Date | null): string => {
     if (!date) return '';
@@ -107,7 +101,6 @@ jest.mock('@/components/tasks/shared/taskFormStyles', () => ({
   })),
 }));
 
-// Mock RN Image
 jest.mock('react-native/Libraries/Image/Image', () => {
   const MockView = require('react-native').View;
   const MockText = require('react-native').Text;
@@ -120,17 +113,13 @@ jest.mock('react-native/Libraries/Image/Image', () => {
   return MockImage;
 });
 
-// --- Mock Data ---
-
 const mockTheme = {
   spacing: {1: 4, 2: 8, 3: 12, 4: 16},
   typography: {},
   colors: {},
 };
 
-// Base FormData for Medication
 const baseFormData: TaskFormData = {
-  // FIX 2: Remove 'id' as it's not in TaskFormData
   title: 'Give Medication',
   date: null,
   time: null,
@@ -141,7 +130,6 @@ const baseFormData: TaskFormData = {
   medicationFrequency: null,
   startDate: null,
   endDate: null,
-  // Add other required fields from BaseTaskFormData
   category: 'health',
   subcategory: null,
   parasitePreventionType: null,
@@ -163,19 +151,15 @@ const baseFormData: TaskFormData = {
 
 const baseErrors: TaskFormErrors = {};
 
-// Mock dosages
 const mockDate1 = new Date();
-mockDate1.setHours(8, 0, 0, 0); // 8:00 AM
+mockDate1.setHours(8, 0, 0, 0);
 const mockDate2 = new Date();
-mockDate2.setHours(20, 0, 0, 0); // 8:00 PM
+mockDate2.setHours(20, 0, 0, 0);
 
-// FIX 1: Use 'DosageSchedule' type
 const mockDosages: DosageSchedule[] = [
   {id: '1', label: '1 Tablet', time: mockDate1.toISOString()},
   {id: '2', label: '0.5 Tablet', time: mockDate2.toISOString()},
 ];
-
-// --- Helper ---
 
 interface TestProps {
   formData?: Partial<TaskFormData>;
@@ -225,8 +209,6 @@ const renderComponent = ({
   };
 };
 
-// --- Tests ---
-
 describe('MedicationFormSection', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -250,7 +232,6 @@ describe('MedicationFormSection', () => {
         formData: {
           title: 'Test Med Task',
           medicineName: 'Apoquel',
-          // FIX 3: Use valid MedicationType
           medicineType: 'tablets-pills',
           medicationFrequency: 'daily',
           startDate: startDate,

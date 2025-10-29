@@ -1,18 +1,16 @@
 // __tests__/components/tasks/MedicationFrequencyBottomSheet.test.tsx
 
-import React from 'react'; // Keep top-level import for types
+import React from 'react'; 
 import {render, screen, fireEvent, act} from '@testing-library/react-native';
 import {MedicationFrequencyBottomSheet} from '@/components/tasks/MedicationFrequencyBottomSheet/MedicationFrequencyBottomSheet';
 import {resolveMedicationFrequencyLabel} from '@/utils/taskLabels';
 import type {MedicationFrequencyBottomSheetRef} from '@/components/tasks/MedicationFrequencyBottomSheet/MedicationFrequencyBottomSheet';
 import type {MedicationFrequency} from '@/features/tasks/types';
-// FIX 1: Import SelectItem and GenericSelectBottomSheetRef from its correct location
 import type {
   GenericSelectBottomSheetRef,
   SelectItem,
 } from '@/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
 
-// --- Mocks ---
 
 jest.mock('@/utils/taskLabels', () => ({
   resolveMedicationFrequencyLabel: jest.fn(
@@ -33,10 +31,9 @@ jest.mock(
     const ReactMock = require('react');
     const {View, Text, TouchableOpacity} = require('react-native');
 
-    // FIX 2: Explicitly type the mock component function first
     const MockGenericSheet: React.ForwardRefRenderFunction<
       GenericSelectBottomSheetRef,
-      any // Props can be 'any' for the mock
+      any
     > = (props, ref) => {
       mockOnSaveCallback = props.onSave;
 
@@ -69,12 +66,10 @@ jest.mock(
       );
     };
 
-    // Pass the typed function to forwardRef
     return {GenericSelectBottomSheet: ReactMock.forwardRef(MockGenericSheet)};
   },
 );
 
-// --- Helper ---
 
 const mockOnSelect = jest.fn();
 
@@ -92,7 +87,6 @@ const renderComponent = (
   return {ref, mockOnSelect};
 };
 
-// --- Tests ---
 
 describe('MedicationFrequencyBottomSheet', () => {
   beforeEach(() => {

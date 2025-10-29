@@ -6,20 +6,14 @@ import type {
   TaskTypeOption,
   CategorySection,
 } from '@/components/tasks/TaskTypeBottomSheet/types';
-// Import the real helper function we are testing against
 import {buildSelectionFromOption} from '@/components/tasks/TaskTypeBottomSheet/helpers';
 
-// --- Mocks ---
 
-// This is the data structure the component's useMemo hook expects from buildCategorySections
-// FIX: Removed 'type' property from all mock objects to match TaskTypeOption
 const mockCategorySections: CategorySection[] = [
-  // 1. A "single" type pill
   {
     type: 'single',
     category: {id: 'custom', label: 'Custom Task'},
   },
-  // 2. A category with direct children
   {
     type: 'category',
     category: {id: 'health', label: 'Health'},
@@ -35,7 +29,6 @@ const mockCategorySections: CategorySection[] = [
       },
     ],
   },
-  // 3. A category with subcategories
   {
     type: 'category',
     category: {id: 'medication', label: 'Medication'},
@@ -60,7 +53,6 @@ const mockCategorySections: CategorySection[] = [
       },
     ],
   },
-  // 4. A category with sub-subcategories
   {
     type: 'category',
     category: {id: 'exercise', label: 'Exercise'},
@@ -94,7 +86,6 @@ const mockCategorySections: CategorySection[] = [
       },
     ],
   },
-  // 5. A category that hides the subcategory header
   {
     type: 'category',
     category: {id: 'food', label: 'Food'},
@@ -115,24 +106,19 @@ const mockCategorySections: CategorySection[] = [
   },
 ];
 
-// Mock the helpers module
 jest.mock('@/components/tasks/TaskTypeBottomSheet/helpers', () => ({
-  // We only mock the functions that build the data
   flattenTaskOptions: jest.fn(options => options),
   buildCategorySections: jest.fn(() => mockCategorySections),
-  // We MUST use the real implementation of buildSelectionFromOption
   buildSelectionFromOption: jest.requireActual(
     '@/components/tasks/TaskTypeBottomSheet/helpers',
   ).buildSelectionFromOption,
 }));
 
-// Mock the data module
 jest.mock('@/components/tasks/TaskTypeBottomSheet/taskOptions', () => ({
   __esModule: true,
-  taskTypeOptions: [], // This doesn't matter now since helpers are mocked
+  taskTypeOptions: [],
 }));
 
-// Mock child components
 const mockExpand = jest.fn();
 const mockClose = jest.fn();
 
@@ -178,7 +164,6 @@ jest.mock('@/components/common/BottomSheetHeader/BottomSheetHeader', () => {
   };
 });
 
-// Mock hooks and style utils
 jest.mock('@/hooks', () => ({
   useTheme: () => ({
     theme: {
@@ -200,7 +185,6 @@ jest.mock('@/utils/bottomSheetHelpers', () => ({
   }),
 }));
 
-// --- Helper ---
 
 const renderComponent = () => {
   const mockOnSelect = jest.fn();
@@ -211,7 +195,6 @@ const renderComponent = () => {
   return {ref, mockOnSelect};
 };
 
-// --- Tests ---
 
 describe('TaskTypeBottomSheet', () => {
   beforeEach(() => {
@@ -231,30 +214,30 @@ describe('TaskTypeBottomSheet', () => {
 
     it('renders a category with direct children', () => {
       renderComponent();
-      expect(screen.getByText('Health')).toBeTruthy(); // Category Header
-      expect(screen.getByText('Vitals')).toBeTruthy(); // Pill
+      expect(screen.getByText('Health')).toBeTruthy();
+      expect(screen.getByText('Vitals')).toBeTruthy();
     });
 
     it('renders a category with subcategories and their children', () => {
       renderComponent();
-      expect(screen.getByText('Medication')).toBeTruthy(); // Category Header
-      expect(screen.getByText('Administration')).toBeTruthy(); // Subcategory Header
-      expect(screen.getByText('Pill')).toBeTruthy(); // Pill
+      expect(screen.getByText('Medication')).toBeTruthy();
+      expect(screen.getByText('Administration')).toBeTruthy();
+      expect(screen.getByText('Pill')).toBeTruthy();
     });
 
     it('renders a category with sub-subcategories and their children', () => {
       renderComponent();
-      expect(screen.getByText('Exercise')).toBeTruthy(); // Category Header
-      expect(screen.getByText('Exercise Sub')).toBeTruthy(); // Subcategory Header
-      expect(screen.getByText('Exercise Sub-Sub')).toBeTruthy(); // Sub-Subcategory Header
-      expect(screen.getByText('Walk')).toBeTruthy(); // Pill
+      expect(screen.getByText('Exercise')).toBeTruthy();
+      expect(screen.getByText('Exercise Sub')).toBeTruthy();
+      expect(screen.getByText('Exercise Sub-Sub')).toBeTruthy();
+      expect(screen.getByText('Walk')).toBeTruthy();
     });
 
     it('hides the subcategory header if its ID matches the category ID', () => {
       renderComponent();
-      expect(screen.getByText('Food')).toBeTruthy(); // Category Header
-      expect(screen.queryByText('Food Sub')).toBeNull(); // Subcategory Header is hidden
-      expect(screen.getByText('Breakfast')).toBeTruthy(); // Pill
+      expect(screen.getByText('Food')).toBeTruthy();
+      expect(screen.queryByText('Food Sub')).toBeNull();
+      expect(screen.getByText('Breakfast')).toBeTruthy(); 
     });
   });
 
