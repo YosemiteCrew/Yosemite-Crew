@@ -26,4 +26,6 @@ export interface LegalSection {
   id: string;
   title: string;
   blocks: LegalContentBlock[];
+  // optional alignment: 'center' currently supported
+  align?: 'center' | 'left';
 }
