@@ -9,6 +9,7 @@ export type {
 } from './legalContentTypes';
 
 import {seg, b, p, oli, ol} from './legalContentHelpers';
+import {createContactSection} from './sharedLegalSections';
 
 export const TERMS_SECTIONS: LegalSection[] = [
   {
@@ -575,6 +576,8 @@ export const TERMS_SECTIONS: LegalSection[] = [
       ),
     ],
   },
+
+  createContactSection('16. If you have any comments or questions', 'contact-questions'),
   {
     id: 'availability',
     title: '12. Availability and Maintenance',
