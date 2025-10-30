@@ -21,7 +21,7 @@ export const Images = {
   searchIcon: require('./icons/searchIcon.png'),
   crossIcon: require('./icons/crossIcon.png'),
   blueAddIcon: require('./icons/blueAddIcon.png'),
-   addIconDark: require('./icons/addIconDark.png'),
+  addIconDark: require('./icons/addIconDark.png'),
   emergencyIcon: require('./icons/emergencyIcon.png'),
   notificationIcon: require('./icons/notificationIcon.png'),
   walletIcon: require('./icons/walletIcon.png'),
@@ -45,20 +45,19 @@ export const Images = {
   contactIcon: require('./account/contactIcon.png'),
   deleteIconRed: require('./account/deleteIconRed.png'),
 
-
   //companion onboarding
-    cat: require('./addCompanion/cat.png'),
-    dog: require('./addCompanion/dog.png'),
-    horse: require('./addCompanion/equine.png'),
+  cat: require('./addCompanion/cat.png'),
+  dog: require('./addCompanion/dog.png'),
+  horse: require('./addCompanion/equine.png'),
 
   // Documents
-    adminIcon: require('./documents/adminIcon.png'),
-      healthIconCategory: require('./documents/healthIconCategory.png'),
-        hygieneIcon: require('./documents/hygieneIcon.png'),
-          dietaryIcon: require('./documents/dietaryIcon.png'),
-            othersIconCategory: require('./documents/othersIconCategory.png'),
-            documentFallback: require('./documents/documentFallback.png'),
-addIconWhite: require('./documents/addIconWhite.png'),
+  adminIcon: require('./documents/adminIcon.png'),
+  healthIconCategory: require('./documents/healthIconCategory.png'),
+  hygieneIcon: require('./documents/hygieneIcon.png'),
+  dietaryIcon: require('./documents/dietaryIcon.png'),
+  othersIconCategory: require('./documents/othersIconCategory.png'),
+  documentFallback: require('./documents/documentFallback.png'),
+  addIconWhite: require('./documents/addIconWhite.png'),
   emptyDocuments: require('./documents/emptyDocuments.png'),
   documentIcon: require('./documents/documentIcon.png'),
   passportIcon: require('./documents/passportIcon.png'),
@@ -79,14 +78,34 @@ addIconWhite: require('./documents/addIconWhite.png'),
   cameraWhite: require('./icons/cameraWhiteIcon.png'),
   galleryIcon: require('./icons/galleryIcon.png'),
   driveIcon: require('./icons/driveIcon.png'),
-    currencyIcon: require('./icons/currencyIcon.png'),
+  currencyIcon: require('./icons/currencyIcon.png'),
 
-    emptyExpenseIllustration:require('./expense/emptyExpenseIllustration.png'),
+  emptyExpenseIllustration: require('./expense/emptyExpenseIllustration.png'),
 
+  leftArrowIcon: require('./tasks/leftArrow.png'), // Placeholder - use left arrow from Figma
+  rightArrowIcon: require('./tasks/rightArrow.png'), // Placeholder - use right arrow from Figma
+  clockIcon: require('./tasks/clockIcon.png'), // Placeholder - use clock icon from Figma
+  checkCircleIcon: require('./icons/calendar.png'), // Placeholder - use check circle from Figma
+  checkIcon: require('./icons/blueAddIcon.png'), // Temporary - use check icon when available
+  addIcon: require('./icons/blueAddIcon.png'), // Placeholder - already exists
+  editIcon: require('./account/blackEdit.png'), // Placeholder - already exists
+  deleteIcon: require('./account/deleteIconRed.png'), // Placeholder - already exists
+  googleCalendarIcon: require('./tasks/googleCalendarIcon.png'), // Placeholder - use Google Calendar icon from Figma
+  iCloudCalendarIcon: require('./tasks/iCloudCalendarIcon.png'), // Placeholder - use iCloud Calendar icon from Figma
+  medicationIcon: require('./documents/prescriptionIcon.png'), // Placeholder - already exists
+  observationalToolIcon: require('./documents/labTestIcon.png'), // Placeholder - already exists
+  emptyTasksIllustration: require('./documents/emptyDocuments.png'), // Placeholder - use tasks illustration from Figma
 
-
-
-
+  //appointmet mock data
+  sampleHospital1: require('./appointment/sampleHospital1.png'),
+  sampleHospital2: require('./appointment/sampleHospital2.png'),
+  sampleHospital3: require('./appointment/sampleHospital3.png'),
+  sampleHospital4: require('./appointment/sampleHospital4.png'),
+  sampleHospital5: require('./appointment/sampleHospital5.png'),
+  doc1: require('./appointment/doc1.png'),
+  doc2: require('./appointment/doc2.png'),
+  doc3: require('./appointment/doc3.png'),
+  sampleInvoice: require('./appointment/sampleInvoice.png'),
 
   navigation: {
     home: {
@@ -106,7 +125,18 @@ addIconWhite: require('./documents/addIconWhite.png'),
       light: require('./navigation/tasksLight.png'),
     },
   },
-  // Logo
+
+
+  // Appointments
+  emptyAppointments: require('./appointment/emptyAppointment.png'),
+  locationIcon: require('./icons/locationIcon.png'),
+  starIcon: require('./icons/starIcon.png'), 
+  distanceIcon: require('./icons/distanceIcon.png'), 
+  arrowDown: require('./icons/dropdown.png'), 
+  websiteIcon: require('./icons/websiteIcon.png'), 
+    specialityIcon: require('./appointment/specialityIcon.png'), 
+
+    successPayment: require('./appointment/successPayment.png'),
 } as const;
 
 export type ImageKeys = keyof typeof Images;

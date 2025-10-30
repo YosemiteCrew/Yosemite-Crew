@@ -3,6 +3,7 @@ import {NavigatorScreenParams} from '@react-navigation/native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {BottomTabScreenProps} from '@react-navigation/bottom-tabs';
 import type {AuthStackParamList} from './AuthNavigator';
+import type {TaskCategory} from '@/features/tasks/types';
 
 // Root Stack Navigator - Add Onboarding
 export type RootStackParamList = {
@@ -36,6 +37,22 @@ export type DocumentStackParamList = {
   CategoryDetail: { categoryId: string };
 };
 
+// Appointment stack
+export type AppointmentStackParamList = {
+  MyAppointmentsEmpty: undefined;
+  MyAppointments: { resetKey?: number } | undefined;
+  BrowseBusinesses: undefined;
+  BusinessDetails: { businessId: string };
+  BookingForm: { businessId: string; employeeId?: string; appointmentType?: string };
+  ViewAppointment: { appointmentId: string };
+  PaymentInvoice: { appointmentId: string; companionId?: string };
+  PaymentSuccess: { appointmentId: string; companionId?: string };
+  Review: { appointmentId: string };
+  Chat: { appointmentId: string };
+  EditAppointment: { appointmentId: string; mode?: 'reschedule' };
+  BusinessesList: { category: 'hospital' | 'groomer' | 'breeder' | 'pet_center' | 'boarder' };
+};
+
 export type ExpenseStackParamList = {
   ExpensesMain: undefined;
   ExpensesEmpty: undefined;
@@ -45,12 +62,21 @@ export type ExpenseStackParamList = {
   ExpensesList: { mode: 'inApp' | 'external' };
 };
 
+export type TaskStackParamList = {
+  TasksMain: undefined;
+  TasksList: { category: TaskCategory };
+  AddTask: undefined;
+  TaskView: { taskId: string; source?: 'home' | 'tasks' };
+  EditTask: { taskId: string; source?: 'home' | 'tasks' };
+  ObservationalTool: { taskId: string };
+};
+
 // Tab Navigator
 export type TabParamList = {
   HomeStack: NavigatorScreenParams<HomeStackParamList>;
-  Appointments: undefined;
+  Appointments: NavigatorScreenParams<AppointmentStackParamList>;
   Documents: NavigatorScreenParams<DocumentStackParamList>;
-  Tasks: undefined;
+  Tasks: NavigatorScreenParams<TaskStackParamList>;
 };
 
 export type TabScreenProps<T extends keyof TabParamList> = BottomTabScreenProps<

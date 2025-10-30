@@ -7,6 +7,7 @@
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "start": "react-native start",
+    "type-check": "tsc --noEmit",
     "test": "jest"
   },
   "dependencies": {
@@ -34,6 +35,7 @@
     "@reduxjs/toolkit": "^2.6.1",
     "aws-amplify": "^6.15.6",
     "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
     "i18next": "^25.4.1",
     "i18next-resources-to-backend": "^1.2.1",
     "js-sha256": "^0.11.1",
@@ -83,11 +85,13 @@
     "@react-native/metro-config": "0.81.4",
     "@react-native/typescript-config": "0.81.4",
     "@testing-library/jest-native": "^5.4.3",
+    "@testing-library/react-hooks": "^8.0.1",
     "@testing-library/react-native": "^13.3.3",
     "@types/jest": "^29.5.13",
     "@types/react": "^19.1.0",
     "@types/react-native-vector-icons": "^6.4.18",
     "@types/react-test-renderer": "^19.1.0",
+    "@types/redux-mock-store": "^1.5.0",
     "aws-cdk-lib": "2.204.0",
     "babel-plugin-module-resolver": "^5.0.0",
     "constructs": "^10.4.2",
@@ -98,6 +102,7 @@
     "react-test-renderer": "19.1.0",
     "reactotron-react-native": "^5.1.17",
     "reactotron-redux": "^3.2.1",
+    "redux-mock-store": "^1.5.5",
     "tsx": "^4.20.5",
     "typescript": "^5.8.3"
   },

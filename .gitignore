@@ -111,6 +111,7 @@ yarn-error.log
 
 # testing
 /coverage
+apps/backend/coverage
 
 # Yarn
 .yarn/*
@@ -120,3 +121,6 @@ yarn-error.log
 !.yarn/sdks
 !.yarn/versions
 **/.scannerwork
+
+
+apps/mobileAppYC/amplify_outputs.json

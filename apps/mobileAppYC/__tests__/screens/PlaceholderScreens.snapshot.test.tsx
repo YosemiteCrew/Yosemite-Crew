@@ -9,10 +9,12 @@ import {authReducer} from '@/features/auth';
 import {themeReducer} from '@/features/theme';
 import {companionReducer} from '@/features/companion';
 import documentReducer from '@/features/documents/documentSlice';
+import tasksReducer from '@/features/tasks/taskSlice';
 
 // Import placeholder screens
-import {TasksScreen} from '@/screens/tasks/TasksScreen';
-import {AppointmentsScreen} from '@/screens/appointments/AppointmentsScreen';
+import {TasksMainScreen} from '@/features/tasks/screens/TasksMainScreen/TasksMainScreen';
+import {AppointmentsScreen} from '@/features/appointments/screens/AppointmentsScreen';
+import {DocumentsScreen} from '@/features/documents/screens/DocumentsScreen';
 
 // Mock navigation
 const mockNavigation = {
@@ -33,7 +35,10 @@ jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
   useNavigation: () => mockNavigation,
   useRoute: () => mockRoute,
-  useFocusEffect: jest.fn(),
+  useFocusEffect: (callback: any) => {
+    // Call the callback to simulate focus effect
+    callback();
+  },
 }));
 
 // Mock Safe Area
@@ -43,6 +48,15 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({top: 0, right: 0, bottom: 0, left: 0}),
 }));
 
+// Mock EmptyDocumentsScreen to avoid complex dependencies
+jest.mock('@/features/documents/screens/EmptyDocumentsScreen/EmptyDocumentsScreen', () => {
+  const ReactModule = require('react');
+  const {View, Text} = require('react-native');
+  return {
+    EmptyDocumentsScreen: () => ReactModule.createElement(View, {}, ReactModule.createElement(Text, {}, 'Empty Documents')),
+  };
+});
+
 const createTestStore = () => {
   return configureStore({
     reducer: {
@@ -50,6 +64,7 @@ const createTestStore = () => {
       theme: themeReducer,
       companion: companionReducer,
       documents: documentReducer,
+      tasks: tasksReducer,
     },
   });
 };
@@ -62,11 +77,11 @@ describe('Placeholder Screens Snapshots', () => {
     jest.clearAllMocks();
   });
 
-  describe('TasksScreen', () => {
+  describe('TasksMainScreen', () => {
     it('should render correctly', () => {
       const tree = renderer.create(
         <Provider store={store}>
-          <TasksScreen />
+          <TasksMainScreen />
         </Provider>
       ).toJSON();
       expect(tree).toMatchSnapshot();
@@ -78,6 +93,17 @@ describe('Placeholder Screens Snapshots', () => {
       const tree = renderer.create(
         <Provider store={store}>
           <AppointmentsScreen />
+        </Provider>
+      ).toJSON();
+      expect(tree).toMatchSnapshot();
+    });
+  });
+
+  describe('DocumentsScreen', () => {
+    it('should render correctly', () => {
+      const tree = renderer.create(
+        <Provider store={store}>
+          <DocumentsScreen />
         </Provider>
       ).toJSON();
       expect(tree).toMatchSnapshot();

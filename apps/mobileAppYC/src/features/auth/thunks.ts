@@ -1,7 +1,7 @@
 import {createAsyncThunk} from '@reduxjs/toolkit';
 
 import {AppDispatch, type RootState} from '@/app/store';
-import {signOutEverywhere} from '@/services/auth/passwordlessAuth';
+import {signOutEverywhere} from '@/features/auth/services/passwordlessAuth';
 import {getAuth} from '@react-native-firebase/auth';
 
 import {

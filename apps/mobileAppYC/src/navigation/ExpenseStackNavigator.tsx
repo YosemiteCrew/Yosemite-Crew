@@ -1,12 +1,12 @@
 import React from 'react';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import type {ExpenseStackParamList} from './types';
-import {ExpensesMainScreen} from '@/screens/expenses/ExpensesMainScreen/ExpensesMainScreen';
-import {ExpensesEmptyScreen} from '@/screens/expenses/ExpensesEmptyScreen/ExpensesEmptyScreen';
-import {AddExpenseScreen} from '@/screens/expenses/AddExpenseScreen/AddExpenseScreen';
-import {EditExpenseScreen} from '@/screens/expenses/EditExpenseScreen/EditExpenseScreen';
-import {ExpensePreviewScreen} from '@/screens/expenses/ExpensePreviewScreen/ExpensePreviewScreen';
-import {ExpensesListScreen} from '@/screens/expenses/ExpensesListScreen/ExpensesListScreen';
+import {ExpensesMainScreen} from '@/features/expenses/screens/ExpensesMainScreen/ExpensesMainScreen';
+import {ExpensesEmptyScreen} from '@/features/expenses/screens/ExpensesEmptyScreen/ExpensesEmptyScreen';
+import {AddExpenseScreen} from '@/features/expenses/screens/AddExpenseScreen/AddExpenseScreen';
+import {EditExpenseScreen} from '@/features/expenses/screens/EditExpenseScreen/EditExpenseScreen';
+import {ExpensePreviewScreen} from '@/features/expenses/screens/ExpensePreviewScreen/ExpensePreviewScreen';
+import {ExpensesListScreen} from '@/features/expenses/screens/ExpensesListScreen/ExpensesListScreen';
 
 const Stack = createNativeStackNavigator<ExpenseStackParamList>();
 
