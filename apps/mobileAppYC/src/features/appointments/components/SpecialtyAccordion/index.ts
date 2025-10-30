@@ -1,0 +1,1 @@
+export {SpecialtyAccordion} from './SpecialtyAccordion';

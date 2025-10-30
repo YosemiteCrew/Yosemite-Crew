@@ -6,7 +6,7 @@ import {
   capitalize,
   formatWeight,
   generateAvatarUrl,
-} from '@/utils/helpers';
+} from '@/shared/utils/helpers';
 
 describe('helpers utilities', () => {
   describe('formatDate', () => {

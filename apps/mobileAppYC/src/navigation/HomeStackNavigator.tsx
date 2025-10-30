@@ -1,12 +1,13 @@
 import React from 'react';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {useTheme} from '@/hooks';
-import {AccountScreen, HomeScreen} from '@/screens';
-import {AddCompanionScreen} from '@/screens/companion/AddCompanionScreen';
+import {AccountScreen} from '@/features/account/screens/AccountScreen';
+import {HomeScreen} from '@/features/home/screens';
+import {AddCompanionScreen} from '@/features/companion/screens/AddCompanionScreen';
 import {HomeStackParamList} from './types';
-import {ProfileOverviewScreen} from '@/screens/companion/ProfileOverviewScreen';
-import { CompanionOverviewScreen } from '@/screens/companion/CompanionOverviewScreen';
-import { EditParentScreen } from '@/screens/account/EditParentScreen';
+import {ProfileOverviewScreen} from '@/features/companion/screens/ProfileOverviewScreen';
+import { CompanionOverviewScreen } from '@/features/companion/screens/CompanionOverviewScreen';
+import { EditParentScreen } from '@/features/account/screens/EditParentScreen';
 import {ExpenseStackNavigator} from './ExpenseStackNavigator';
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();

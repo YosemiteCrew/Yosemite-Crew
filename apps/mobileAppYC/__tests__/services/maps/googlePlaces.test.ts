@@ -1,7 +1,7 @@
 import {
   fetchPlaceSuggestions,
   fetchPlaceDetails,
-} from '@/services/maps/googlePlaces';
+} from '@/shared/services/maps/googlePlaces';
 
 // Mock the config
 jest.mock('@/config/variables', () => ({
@@ -351,7 +351,7 @@ describe('googlePlaces service', () => {
         PENDING_PROFILE_UPDATED_EVENT: 'pendingProfileUpdated',
       }));
 
-      const {fetchPlaceSuggestions: fetchSuggestions} = require('@/services/maps/googlePlaces');
+      const {fetchPlaceSuggestions: fetchSuggestions} = require('@/shared/services/maps/googlePlaces');
 
       await expect(
         fetchSuggestions({query: 'test'}),

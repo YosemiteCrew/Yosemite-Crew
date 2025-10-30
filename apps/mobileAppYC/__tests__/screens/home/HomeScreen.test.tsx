@@ -3,8 +3,8 @@ import {render, fireEvent, waitFor, act} from '@testing-library/react-native';
 import {
   HomeScreen,
   deriveHomeGreetingName,
-} from '@/screens/home/HomeScreen/HomeScreen';
-import {useAuth} from '@/contexts/AuthContext';
+} from '@/features/home/screens/HomeScreen/HomeScreen';
+import {useAuth} from '@/features/auth/context/AuthContext';
 import {useDispatch, useSelector} from 'react-redux';
 import {
   fetchCompanions,
@@ -106,6 +106,30 @@ const mockCompanions = [
   {id: 'comp-2', name: 'Lucy', profilePicture: ''},
 ];
 
+const mockFetchTasksForCompanion = jest.fn();
+const mockMarkTaskStatusThunk = jest.fn();
+let mockNextUpcomingTask: any = null;
+let mockTasksHydrated = false;
+
+const mockFetchExpensesForCompanion = jest.fn();
+let mockExpenseSummary: any = {total: 0};
+let mockExpenseHydrated = false;
+
+jest.mock('@/features/tasks', () => ({
+  __esModule: true,
+  fetchTasksForCompanion: (...args: any[]) => mockFetchTasksForCompanion(...args),
+  selectNextUpcomingTask: (..._args: any[]) => () => mockNextUpcomingTask,
+  selectHasHydratedCompanion: (..._args: any[]) => () => mockTasksHydrated,
+  markTaskStatus: (...args: any[]) => mockMarkTaskStatusThunk(...args),
+}));
+
+jest.mock('@/features/expenses', () => ({
+  __esModule: true,
+  fetchExpensesForCompanion: (...args: any[]) => mockFetchExpensesForCompanion(...args),
+  selectExpenseSummaryByCompanion: (..._args: any[]) => () => mockExpenseSummary,
+  selectHasHydratedCompanion: (..._args: any[]) => () => mockExpenseHydrated,
+}));
+
 jest.mock('@/assets/images', () => ({
   Images: {
     healthIcon: 1,
@@ -133,7 +157,7 @@ jest.mock('react-native/Libraries/Image/Image', () => ({
 jest.mock('@/hooks', () => ({
   useTheme: jest.fn(() => ({theme: mockTheme})),
 }));
-jest.mock('@/contexts/AuthContext', () => ({useAuth: jest.fn()}));
+jest.mock('@/features/auth/context/AuthContext', () => ({useAuth: jest.fn()}));
 jest.mock('react-redux', () => ({
   useDispatch: jest.fn(),
   useSelector: jest.fn(),
@@ -149,12 +173,12 @@ jest.mock('@/features/companion', () => ({
 }));
 jest.mock('@/features/auth/selectors', () => ({selectAuthUser: jest.fn()}));
 
-jest.mock('@/components/common/TaskCard/TaskCard', () => {
+jest.mock('@/features/tasks/components/TaskCard/TaskCard', () => {
   const {TouchableOpacity, Text} = jest.requireActual('react-native');
   return {
     __esModule: true,
-    TaskCard: ({onComplete}: any) => (
-      <TouchableOpacity onPress={onComplete} testID="task-card">
+    TaskCard: ({onPressComplete}: any) => (
+      <TouchableOpacity onPress={onPressComplete} testID="task-card">
         <Text>Task</Text>
       </TouchableOpacity>
     ),
@@ -164,7 +188,7 @@ jest.mock('@/components/common/TaskCard/TaskCard', () => {
 const mockOnGetDirections = jest.fn();
 const mockOnChat = jest.fn();
 
-jest.mock('@/components/common/AppointmentCard/AppointmentCard', () => {
+jest.mock('@/shared/components/common/AppointmentCard/AppointmentCard', () => {
   const {TouchableOpacity, Text, View} = jest.requireActual('react-native');
   return {
     __esModule: true,
@@ -188,7 +212,7 @@ jest.mock('@/components/common/AppointmentCard/AppointmentCard', () => {
   };
 });
 
-jest.mock('@/components/common/CompanionSelector/CompanionSelector', () => {
+jest.mock('@/shared/components/common/CompanionSelector/CompanionSelector', () => {
   const {TouchableOpacity, Text, View} = jest.requireActual('react-native');
   return {
     __esModule: true,
@@ -218,7 +242,7 @@ jest.mock('@/components/common/CompanionSelector/CompanionSelector', () => {
   };
 });
 
-jest.mock('@/components/common/LiquidGlassCard/LiquidGlassCard', () => {
+jest.mock('@/shared/components/common/LiquidGlassCard/LiquidGlassCard', () => {
   const {View} = jest.requireActual('react-native');
   return {
     __esModule: true,
@@ -230,7 +254,7 @@ jest.mock('@/components/common/LiquidGlassCard/LiquidGlassCard', () => {
   };
 });
 
-jest.mock('@/components/common/YearlySpendCard/YearlySpendCard', () => {
+jest.mock('@/shared/components/common/YearlySpendCard/YearlySpendCard', () => {
   const {View, Text} = jest.requireActual('react-native');
   return {
     __esModule: true,
@@ -242,7 +266,7 @@ jest.mock('@/components/common/YearlySpendCard/YearlySpendCard', () => {
   };
 });
 
-jest.mock('@/components/common/SearchBar/SearchBar', () => {
+jest.mock('@/shared/components/common/SearchBar/SearchBar', () => {
   const {TouchableOpacity, Text} = jest.requireActual('react-native');
   return {
     __esModule: true,
@@ -276,18 +300,31 @@ const setupMocks = ({
   authUser = mockAuthUser,
   companions = [],
   selectedCompanionId = null,
+  nextUpcomingTask = null,
+  tasksHydrated = false,
+  expenseSummary = {total: 0},
+  expenseHydrated = false,
 }: {
   user?: any;
   authUser?: any;
   companions?: any[];
   selectedCompanionId?: string | null;
+  nextUpcomingTask?: any;
+  tasksHydrated?: boolean;
+  expenseSummary?: any;
+  expenseHydrated?: boolean;
 }) => {
   mockedUseAuth.mockReturnValue({user});
   mockedUseDispatch.mockReturnValue(mockDispatch);
+  mockNextUpcomingTask = nextUpcomingTask;
+  mockTasksHydrated = tasksHydrated;
+  mockExpenseSummary = expenseSummary;
+  mockExpenseHydrated = expenseHydrated;
   mockedUseSelector.mockImplementation(selector => {
     if (selector === selectAuthUser) return authUser;
     if (selector === selectCompanions) return companions;
     if (selector === selectSelectedCompanionId) return selectedCompanionId;
+    return typeof selector === 'function' ? selector({} as any) : undefined;
   });
 };
 
@@ -323,6 +360,16 @@ describe('deriveHomeGreetingName', () => {
 describe('HomeScreen Component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockDispatch.mockImplementation(action => action);
+    mockFetchTasksForCompanion.mockImplementation(() => ({
+      type: 'FETCH_TASKS_MOCK',
+    }));
+    mockMarkTaskStatusThunk.mockImplementation(() => ({
+      unwrap: jest.fn().mockResolvedValue(undefined),
+    }));
+    mockFetchExpensesForCompanion.mockImplementation(() => ({
+      type: 'FETCH_EXPENSES_MOCK',
+    }));
     setupMocks({
       user: mockUser,
       authUser: mockAuthUser,
@@ -339,7 +386,8 @@ describe('HomeScreen Component', () => {
     expect(getByText('J')).toBeTruthy();
     expect(getByText('Add your first companion')).toBeTruthy();
     expect(queryByTestId('companion-selector')).toBeNull();
-    expect(getByTestId('task-card')).toBeTruthy();
+    expect(queryByTestId('task-card')).toBeNull();
+    expect(getByText('No upcoming tasks')).toBeTruthy();
     expect(getByTestId('appointment-card-container')).toBeTruthy();
     expect(getByTestId('yearly-spend-card')).toBeTruthy();
     expect(getByText('Manage health')).toBeTruthy();
@@ -431,18 +479,38 @@ describe('HomeScreen Component', () => {
     expect(mockNavigation.navigate).toHaveBeenCalledWith('AddCompanion');
   });
 
-  it('toggles upcoming tasks card to empty state and back', async () => {
-    const {getByTestId, findByText, queryByTestId, queryByText} =
-      renderHomeScreen();
+  it('renders upcoming task card when task data exists and dispatches completion', async () => {
+    const upcomingTask = {
+      id: 'task-1',
+      title: 'Health follow up',
+      category: 'health',
+      subcategory: 'General',
+      date: '2025-08-20',
+      time: '10:00',
+      status: 'pending',
+      companionId: 'comp-1',
+      details: 'Discuss lab results',
+    };
+    setupMocks({
+      user: mockUser,
+      authUser: mockAuthUser,
+      companions: mockCompanions,
+      selectedCompanionId: 'comp-1',
+      nextUpcomingTask: upcomingTask,
+      tasksHydrated: true,
+    });
+    const {getByTestId, queryByText} = renderHomeScreen();
     expect(getByTestId('task-card')).toBeTruthy();
-    fireEvent.press(getByTestId('task-card'));
-    const emptyTile = await findByText('No upcoming tasks');
-    expect(emptyTile).toBeTruthy();
-    expect(queryByTestId('task-card')).toBeNull();
-    fireEvent.press(emptyTile);
-    const taskCard = await findByText('Task');
-    expect(taskCard).toBeTruthy();
     expect(queryByText('No upcoming tasks')).toBeNull();
+
+    fireEvent.press(getByTestId('task-card'));
+
+    await waitFor(() => {
+      expect(mockMarkTaskStatusThunk).toHaveBeenCalledWith({
+        taskId: upcomingTask.id,
+        status: 'completed',
+      });
+    });
   });
 
   it('toggles upcoming appointments card to empty state and back', async () => {

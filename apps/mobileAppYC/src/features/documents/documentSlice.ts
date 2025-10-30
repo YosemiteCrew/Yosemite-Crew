@@ -1,6 +1,6 @@
 import {createSlice, createAsyncThunk, PayloadAction} from '@reduxjs/toolkit';
-import type {Document, DocumentFile, S3UploadParams} from '@/types/document.types';
-import {generateId} from '@/utils/helpers';
+import type {Document, DocumentFile, S3UploadParams} from '@/features/documents/types';
+import {generateId} from '@/shared/utils/helpers';
 
 interface DocumentState {
   documents: Document[];

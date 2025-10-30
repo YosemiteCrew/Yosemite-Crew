@@ -3,11 +3,11 @@ import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import type {DocumentStackParamList} from './types';
 
 // Import screens (will be created)
-import {DocumentsScreen} from '@/screens/documents/DocumentsScreen/DocumentsScreen';
-import {AddDocumentScreen} from '@/screens/documents/AddDocumentScreen/AddDocumentScreen';
-import {EditDocumentScreen} from '@/screens/documents/EditDocumentScreen/EditDocumentScreen';
-import {DocumentPreviewScreen} from '@/screens/documents/DocumentPreviewScreen/DocumentPreviewScreen';
-import {CategoryDetailScreen} from '@/screens/documents/CategoryDetailScreen/CategoryDetailScreen';
+import {DocumentsScreen} from '@/features/documents/screens/DocumentsScreen/DocumentsScreen';
+import {AddDocumentScreen} from '@/features/documents/screens/AddDocumentScreen/AddDocumentScreen';
+import {EditDocumentScreen} from '@/features/documents/screens/EditDocumentScreen/EditDocumentScreen';
+import {DocumentPreviewScreen} from '@/features/documents/screens/DocumentPreviewScreen/DocumentPreviewScreen';
+import {CategoryDetailScreen} from '@/features/documents/screens/CategoryDetailScreen/CategoryDetailScreen';
 
 const Stack = createNativeStackNavigator<DocumentStackParamList>();
 

@@ -1,4 +1,4 @@
-import LocationService from '@/services/LocationService';
+import LocationService from '@/shared/services/LocationService';
 import Geolocation from '@react-native-community/geolocation';
 import {check, request, PERMISSIONS, RESULTS} from 'react-native-permissions';
 import {Alert, Platform} from 'react-native';
