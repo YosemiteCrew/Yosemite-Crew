@@ -231,3 +231,19 @@ export const createJointResponsibilityStorage = (): ParagraphBlock =>
     b('Storage period: '),
     seg('We do not store any personal data ourselves within the scope of joint responsibility. With regard to contact requests outside the network, the above information on establishing contact applies accordingly.')
   );
+
+// Factory for creating numbered paragraph blocks
+export const createNumberedParagraph = (number: string, ...segments: TextSegment[]): ParagraphBlock =>
+  p(b(number), ...segments);
+
+// Factory for creating definition paragraphs
+export const createDefinition = (number: string, term: string, definition: string): ParagraphBlock =>
+  p(b(number), b(` ${term} `), seg(definition));
+
+// Factory for creating subsection header paragraphs
+export const createSubsectionHeader = (number: string, title: string): ParagraphBlock =>
+  p(b(number), b(` ${title}`));
+
+// Factory for creating subsection with bold title
+export const createSubsection = (number: string, title: string): ParagraphBlock =>
+  p(b(number), seg(` ${title}`));
