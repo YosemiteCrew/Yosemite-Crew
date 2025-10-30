@@ -48,8 +48,8 @@ type ContactUsScreenProps = NativeStackScreenProps<
 type ConfirmationState = Record<string, boolean>;
 
 const buildInitialConfirmationState = (): ConfirmationState =>
-  CONFIRMATION_CHECKBOXES.reduce<ConfirmationState>((acc, option, index) => {
-    acc[option.id] = index === 0; // First option selected by default
+  CONFIRMATION_CHECKBOXES.reduce<ConfirmationState>((acc, option) => {
+    acc[option.id] = false;
     return acc;
   }, {});
 
@@ -81,52 +81,69 @@ const useSimpleFormState = () => {
 // Small presentational helpers lifted to module scope to avoid deep nesting
 type Option = {id: string; label: string};
 
-const SubmitterOptions: React.FC<{
-  options: Option[];
-  selectedId: string | null | undefined;
-  onSelect: (id: string) => void;
-  styles: ReturnType<typeof createStyles>;
-}> = ({options, selectedId, onSelect, styles}) => (
-  <View style={styles.optionsBox}>
-    {options.map(option => {
-      const isSelected = selectedId === option.id;
-      return (
-        <TouchableOpacity
-          key={option.id}
-          style={styles.optionRow}
-          onPress={() => onSelect(option.id)}
-          activeOpacity={0.8}>
-          <Text
-            style={isSelected ? styles.optionTextSelected : styles.optionText}>
-            {option.label}
-          </Text>
-        </TouchableOpacity>
-      );
-    })}
-  </View>
-);
+type SimpleFormErrors = Record<
+  'general' | 'feature',
+  Partial<Record<'subject' | 'message', string>>
+>;
 
-const RequestOptions: React.FC<{
+type DsarFormErrors = Partial<
+  Record<
+    | 'submitterId'
+    | 'lawId'
+    | 'otherLawNotes'
+    | 'requestId'
+    | 'otherRequestNotes'
+    | 'message'
+    | 'confirmations',
+    string
+  >
+>;
+
+type ComplaintFormErrors = Partial<
+  Record<'submitterId' | 'description' | 'referenceLink' | 'confirmations', string>
+>;
+
+const isValidUrl = (value: string): boolean => {
+  if (!value) {
+    return false;
+  }
+  if (typeof URL.canParse === 'function') {
+    return URL.canParse(value);
+  }
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const SelectionList: React.FC<{
   options: Option[];
   selectedId: string | null | undefined;
   onSelect: (id: string) => void;
   styles: ReturnType<typeof createStyles>;
-}> = ({options, selectedId, onSelect, styles}) => (
-  <View style={styles.optionsBox}>
-    {options.map(option => {
-      const active = selectedId === option.id;
-      return (
-        <TouchableOpacity
-          key={option.id}
-          onPress={() => onSelect(option.id)}
-          activeOpacity={0.85}
-          style={active ? [styles.selectionTile, styles.selectionTileActive] : styles.selectionTile}>
-          <Text style={active ? styles.selectionLabelActive : styles.selectionLabel}>
-            {option.label}
-          </Text>
-        </TouchableOpacity>
-      );
-    })}
+  error?: string;
+}> = ({options, selectedId, onSelect, styles, error}) => (
+  <View>
+    <View style={styles.optionsBox}>
+      {options.map(option => {
+        const isSelected = selectedId === option.id;
+        return (
+          <TouchableOpacity
+            key={option.id}
+            style={styles.optionRow}
+            onPress={() => onSelect(option.id)}
+            activeOpacity={0.8}>
+            <Text
+              style={isSelected ? styles.optionTextSelected : styles.optionText}>
+              {option.label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+    {error ? <Text style={styles.errorText}>{error}</Text> : null}
   </View>
 );
 
@@ -134,7 +151,8 @@ const ConfirmationList: React.FC<{
   values: ConfirmationState;
   onToggle: (checkboxId: string) => void;
   styles: ReturnType<typeof createStyles>;
-}> = ({values, onToggle, styles}) => (
+  error?: string;
+}> = ({values, onToggle, styles, error}) => (
   <View style={styles.checkboxGroup}>
     {CONFIRMATION_CHECKBOXES.map(option => {
       const isChecked = values[option.id];
@@ -150,6 +168,7 @@ const ConfirmationList: React.FC<{
         />
       );
     })}
+    {error ? <Text style={styles.errorText}>{error}</Text> : null}
   </View>
 );
 
@@ -163,8 +182,16 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
   const {forms: simpleForms, updateForm: updateSimpleForm} =
     useSimpleFormState();
 
+  const [simpleErrors, setSimpleErrors] = React.useState<SimpleFormErrors>({
+    general: {},
+    feature: {},
+  });
+  const [dsarErrors, setDsarErrors] = React.useState<DsarFormErrors>({});
+  const [complaintErrors, setComplaintErrors] =
+    React.useState<ComplaintFormErrors>({});
+
   const [dsarForm, setDsarForm] = React.useState({
-    submitterId: DSAR_SUBMITTER_OPTIONS[0].id,
+    submitterId: null as string | null,
     lawId: null as string | null,
     otherLawNotes: '',
     requestId: null as string | null,
@@ -174,11 +201,123 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
   });
 
   const [complaintForm, setComplaintForm] = React.useState({
-    submitterId: DSAR_SUBMITTER_OPTIONS[0].id,
+    submitterId: null as string | null,
     description: '',
     referenceLink: '',
     confirmations: buildInitialConfirmationState(),
   });
+
+  const validateSimpleForm = React.useCallback(
+    (tabId: 'general' | 'feature') => {
+      const form = simpleForms[tabId];
+      const errors: Partial<Record<'subject' | 'message', string>> = {};
+
+      if (!form.subject.trim()) {
+        errors.subject = 'Subject is required';
+      }
+
+      if (!form.message.trim()) {
+        errors.message = 'Message is required';
+      }
+
+      setSimpleErrors(prev => ({
+        ...prev,
+        [tabId]: errors,
+      }));
+
+      return Object.keys(errors).length === 0;
+    },
+    [simpleForms],
+  );
+
+  const handleSimpleFormSubmit = React.useCallback(
+    (tabId: 'general' | 'feature') => {
+      const isValid = validateSimpleForm(tabId);
+      if (isValid) {
+        // Submission handling to be integrated here.
+      }
+      return isValid;
+    },
+    [validateSimpleForm],
+  );
+
+  const validateDsarForm = React.useCallback(() => {
+    const errors: DsarFormErrors = {};
+
+    if (!dsarForm.submitterId) {
+      errors.submitterId = 'Please select who is submitting this request.';
+    }
+
+    if (!dsarForm.lawId) {
+      errors.lawId = 'Regulation is required.';
+    }
+
+    if (dsarForm.lawId === 'other' && !dsarForm.otherLawNotes.trim()) {
+      errors.otherLawNotes = 'Please specify the regulation.';
+    }
+
+    if (!dsarForm.requestId) {
+      errors.requestId = 'Please select the request type.';
+    }
+
+    if (
+      dsarForm.requestId === 'other-request' &&
+      !dsarForm.otherRequestNotes.trim()
+    ) {
+      errors.otherRequestNotes = 'Please add additional details.';
+    }
+
+    if (!dsarForm.message.trim()) {
+      errors.message = 'Message is required.';
+    }
+
+    if (!Object.values(dsarForm.confirmations).every(Boolean)) {
+      errors.confirmations = 'Please confirm all statements.';
+    }
+
+    setDsarErrors(errors);
+    return Object.keys(errors).length === 0;
+  }, [dsarForm]);
+
+  const handleDsarSubmit = React.useCallback(() => {
+    const isValid = validateDsarForm();
+    if (isValid) {
+      // Submission handling to be integrated here.
+    }
+    return isValid;
+  }, [validateDsarForm]);
+
+  const validateComplaintForm = React.useCallback(() => {
+    const errors: ComplaintFormErrors = {};
+
+    if (!complaintForm.submitterId) {
+      errors.submitterId = 'Please select who is submitting this complaint.';
+    }
+
+    if (!complaintForm.description.trim()) {
+      errors.description = 'Complaint details are required.';
+    }
+
+    const trimmedLink = complaintForm.referenceLink.trim();
+    if (trimmedLink && !isValidUrl(trimmedLink)) {
+      errors.referenceLink = 'Please enter a valid link.';
+    }
+
+    if (!Object.values(complaintForm.confirmations).every(Boolean)) {
+      errors.confirmations = 'Please confirm all statements.';
+    }
+
+    setComplaintErrors(errors);
+    return Object.keys(errors).length === 0;
+  }, [complaintForm]);
+
+  const handleComplaintSubmit = React.useCallback(() => {
+    const isValid = validateComplaintForm();
+    if (isValid) {
+      // Submission handling to be integrated here.
+    }
+    return isValid;
+  }, [validateComplaintForm]);
 
   const lawSheetRef = React.useRef<DataSubjectLawBottomSheetRef>(null);
   const uploadSheetRef = React.useRef<UploadDocumentBottomSheetRef>(null);
@@ -234,86 +373,133 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
   const handleToggleConfirmation = React.useCallback(
     (form: 'dsar' | 'complaint', checkboxId: string) => {
       if (form === 'dsar') {
-        setDsarForm(prev => ({
-          ...prev,
-          confirmations: {
+        setDsarForm(prev => {
+          const updatedConfirmations = {
             ...prev.confirmations,
             [checkboxId]: !prev.confirmations[checkboxId],
-          },
-        }));
+          };
+          const allChecked = Object.values(updatedConfirmations).every(Boolean);
+          setDsarErrors(prevErrors => {
+            if (allChecked && prevErrors.confirmations) {
+              const nextErrors = {...prevErrors};
+              delete nextErrors.confirmations;
+              return nextErrors;
+            }
+            return prevErrors;
+          });
+          return {
+            ...prev,
+            confirmations: updatedConfirmations,
+          };
+        });
       } else {
-        setComplaintForm(prev => ({
-          ...prev,
-          confirmations: {
+        setComplaintForm(prev => {
+          const updatedConfirmations = {
             ...prev.confirmations,
             [checkboxId]: !prev.confirmations[checkboxId],
-          },
-        }));
+          };
+          const allChecked = Object.values(updatedConfirmations).every(Boolean);
+          setComplaintErrors(prevErrors => {
+            if (allChecked && prevErrors.confirmations) {
+              const nextErrors = {...prevErrors};
+              delete nextErrors.confirmations;
+              return nextErrors;
+            }
+            return prevErrors;
+          });
+          return {
+            ...prev,
+            confirmations: updatedConfirmations,
+          };
+        });
       }
     },
-    [],
+    [setComplaintErrors, setDsarErrors],
   );
 
-  const handleRequestSelect = React.useCallback((requestId: string) => {
-    setDsarForm(prev => ({
-      ...prev,
-      requestId,
-      otherRequestNotes:
-        requestId === 'other-request' ? prev.otherRequestNotes : '',
-    }));
-  }, []);
+  const handleRequestSelect = React.useCallback(
+    (requestId: string) => {
+      setDsarForm(prev => ({
+        ...prev,
+        requestId,
+        otherRequestNotes:
+          requestId === 'other-request' ? prev.otherRequestNotes : '',
+      }));
+      setDsarErrors(prev => {
+        const next = {...prev};
+        if (next.requestId) {
+          delete next.requestId;
+        }
+        if (requestId !== 'other-request' && next.otherRequestNotes) {
+          delete next.otherRequestNotes;
+        }
+        return next;
+      });
+    },
+    [setDsarErrors],
+  );
 
   // use helpers for confirmation lists and option lists
 
-  const renderSimpleForm = React.useCallback(
-    (tabId: 'general' | 'feature') => {
-      const form = simpleForms[tabId];
+  const renderSimpleForm = (tabId: 'general' | 'feature') => {
+    const form = simpleForms[tabId];
+    const errors = simpleErrors[tabId];
 
-      return (
-        <View style={styles.surfaceCard}>
-          <View style={styles.formFields}>
-            <Input
-              label="Subject"
-              value={form.subject}
-              onChangeText={value => updateSimpleForm(tabId, 'subject', value)}
-            />
-            <Input
-              label="Your message"
-              value={form.message}
-              multiline
-              numberOfLines={4}
-              onChangeText={value => updateSimpleForm(tabId, 'message', value)}
-              textAlignVertical="top"
-              inputStyle={styles.textArea}
-            />
-          </View>
-          <LiquidGlassButton
-            title={tabId === 'feature' ? 'Send' : 'Submit'}
-            onPress={() => {}}
-            glassEffect="regular"
-            interactive
-            tintColor={theme.colors.secondary}
-            borderColor={theme.colors.borderMuted}
-            style={styles.button}
-            textStyle={styles.buttonText}
-            height={56}
-            borderRadius={16}
+    return (
+      <View style={styles.surfaceCard}>
+        <View style={styles.formFields}>
+          <Input
+            label="Subject"
+            value={form.subject}
+            onChangeText={value => {
+              updateSimpleForm(tabId, 'subject', value);
+              setSimpleErrors(prev => {
+                const next = {...prev[tabId]};
+                if (next.subject && value.trim()) {
+                  delete next.subject;
+                  return {...prev, [tabId]: next};
+                }
+                return prev;
+              });
+            }}
+            error={errors.subject}
+          />
+          <Input
+            label="Your message"
+            value={form.message}
+            multiline
+            numberOfLines={4}
+            onChangeText={value => {
+              updateSimpleForm(tabId, 'message', value);
+              setSimpleErrors(prev => {
+                const next = {...prev[tabId]};
+                if (next.message && value.trim()) {
+                  delete next.message;
+                  return {...prev, [tabId]: next};
+                }
+                return prev;
+              });
+            }}
+            textAlignVertical="top"
+            inputStyle={styles.textArea}
+            error={errors.message}
           />
         </View>
-      );
-    },
-    [
-      simpleForms,
-      styles.surfaceCard,
-      styles.formFields,
-      styles.textArea,
-      styles.button,
-      styles.buttonText,
-      theme.colors.secondary,
-      theme.colors.borderMuted,
-      updateSimpleForm,
-    ],
-  );
+        <LiquidGlassButton
+          title={tabId === 'feature' ? 'Send' : 'Submit'}
+          onPress={() => handleSimpleFormSubmit(tabId)}
+          glassEffect="regular"
+          interactive
+          tintColor={theme.colors.secondary}
+          borderColor={theme.colors.borderMuted}
+          style={styles.button}
+          textStyle={styles.buttonText}
+          height={56}
+          borderRadius={16}
+        />
+      </View>
+    );
+  };
 
   const lawSummary = React.useMemo(() => {
     if (!dsarForm.lawId) {
@@ -331,11 +517,22 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
         <Text style={styles.sectionLabel}>
           You are submitting this request as
         </Text>
-        <SubmitterOptions
+        <SelectionList
           options={DSAR_SUBMITTER_OPTIONS}
           selectedId={dsarForm.submitterId}
-          onSelect={id => setDsarForm(prev => ({...prev, submitterId: id}))}
+          onSelect={id => {
+            setDsarForm(prev => ({...prev, submitterId: id}));
+            setDsarErrors(prev => {
+              if (!prev.submitterId) {
+                return prev;
+              }
+              const next = {...prev};
+              delete next.submitterId;
+              return next;
+            });
+          }}
           styles={styles}
+          error={dsarErrors.submitterId}
         />
       </View>
 
@@ -351,6 +548,7 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
             openSheet('law');
             lawSheetRef.current?.open();
           }}
+          error={dsarErrors.lawId}
           rightComponent={
             <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
           }
@@ -359,9 +557,18 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
           <Input
             label="Please specify"
             value={dsarForm.otherLawNotes}
-            onChangeText={value =>
-              setDsarForm(prev => ({...prev, otherLawNotes: value}))
-            }
+            onChangeText={value => {
+              setDsarForm(prev => ({...prev, otherLawNotes: value}));
+              setDsarErrors(prev => {
+                if (prev.otherLawNotes && value.trim()) {
+                  const next = {...prev};
+                  delete next.otherLawNotes;
+                  return next;
+                }
+                return prev;
+              });
+            }}
+            error={dsarErrors.otherLawNotes}
           />
         )}
       </View>
@@ -370,19 +577,29 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
         <Text style={styles.sectionLabel}>
           You are submitting this request to
         </Text>
-        <RequestOptions
+        <SelectionList
           options={DSAR_REQUEST_TYPES}
           selectedId={dsarForm.requestId}
           onSelect={handleRequestSelect}
           styles={styles}
+          error={dsarErrors.requestId}
         />
         {dsarForm.requestId === 'other-request' && (
           <Input
             label="Additional details"
             value={dsarForm.otherRequestNotes}
-            onChangeText={value =>
-              setDsarForm(prev => ({...prev, otherRequestNotes: value}))
-            }
+            onChangeText={value => {
+              setDsarForm(prev => ({...prev, otherRequestNotes: value}));
+              setDsarErrors(prev => {
+                if (prev.otherRequestNotes && value.trim()) {
+                  const next = {...prev};
+                  delete next.otherRequestNotes;
+                  return next;
+                }
+                return prev;
+              });
+            }}
+            error={dsarErrors.otherRequestNotes}
           />
         )}
       </View>
@@ -397,10 +614,19 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
           numberOfLines={4}
           textAlignVertical="top"
           value={dsarForm.message}
-          onChangeText={value =>
-            setDsarForm(prev => ({...prev, message: value}))
-          }
+          onChangeText={value => {
+            setDsarForm(prev => ({...prev, message: value}));
+            setDsarErrors(prev => {
+              if (prev.message && value.trim()) {
+                const next = {...prev};
+                delete next.message;
+                return next;
+              }
+              return prev;
+            });
+          }}
           inputStyle={styles.textArea}
+          error={dsarErrors.message}
         />
       </View>
 
@@ -409,11 +635,12 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
         <ConfirmationList
           values={dsarForm.confirmations}
           styles={styles}
+          error={dsarErrors.confirmations}
           onToggle={checkboxId => handleToggleConfirmation('dsar', checkboxId)}
         />
         <LiquidGlassButton
           title="Submit"
-          onPress={() => {}}
+          onPress={handleDsarSubmit}
           glassEffect="regular"
           interactive
           tintColor={theme.colors.secondary}
@@ -433,11 +660,22 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
         <Text style={styles.sectionLabel}>
           You are submitting this complaint as
         </Text>
-        <SubmitterOptions
+        <SelectionList
           options={DSAR_SUBMITTER_OPTIONS}
           selectedId={complaintForm.submitterId}
-          onSelect={id => setComplaintForm(prev => ({...prev, submitterId: id}))}
+          onSelect={id => {
+            setComplaintForm(prev => ({...prev, submitterId: id}));
+            setComplaintErrors(prev => {
+              if (!prev.submitterId) {
+                return prev;
+              }
+              const next = {...prev};
+              delete next.submitterId;
+              return next;
+            });
+          }}
           styles={styles}
+          error={complaintErrors.submitterId}
         />
       </View>
 
@@ -451,10 +689,19 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
           numberOfLines={4}
           textAlignVertical="top"
           value={complaintForm.description}
-          onChangeText={value =>
-            setComplaintForm(prev => ({...prev, description: value}))
-          }
+          onChangeText={value => {
+            setComplaintForm(prev => ({...prev, description: value}));
+            setComplaintErrors(prev => {
+              if (prev.description && value.trim()) {
+                const next = {...prev};
+                delete next.description;
+                return next;
+              }
+              return prev;
+            });
+          }}
           inputStyle={styles.textArea}
+          error={complaintErrors.description}
         />
       </View>
 
@@ -465,9 +712,22 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
         <Input
           label="Reference link"
           value={complaintForm.referenceLink}
-          onChangeText={value =>
-            setComplaintForm(prev => ({...prev, referenceLink: value}))
-          }
+          onChangeText={value => {
+            setComplaintForm(prev => ({...prev, referenceLink: value}));
+            setComplaintErrors(prev => {
+              if (!prev.referenceLink) {
+                return prev;
+              }
+              const trimmed = value.trim();
+              if (!trimmed || isValidUrl(trimmed)) {
+                const next = {...prev};
+                delete next.referenceLink;
+                return next;
+              }
+              return prev;
+            });
+          }}
+          error={complaintErrors.referenceLink}
         />
       </View>
 
@@ -490,11 +750,12 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
         <ConfirmationList
           values={complaintForm.confirmations}
           styles={styles}
+          error={complaintErrors.confirmations}
           onToggle={checkboxId => handleToggleConfirmation('complaint', checkboxId)}
         />
         <LiquidGlassButton
           title="Submit"
-          onPress={() => {}}
+          onPress={handleComplaintSubmit}
           glassEffect="regular"
           interactive
           style={styles.button}
@@ -560,13 +821,24 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
       <DataSubjectLawBottomSheet
         ref={lawSheetRef}
         selectedLawId={dsarForm.lawId}
-        onSelect={item =>
+        onSelect={item => {
+          const nextLawId = item?.id ?? null;
           setDsarForm(prev => ({
             ...prev,
-            lawId: item?.id ?? null,
-            otherLawNotes: item?.id === 'other' ? prev.otherLawNotes : '',
-          }))
-        }
+            lawId: nextLawId,
+            otherLawNotes: nextLawId === 'other' ? prev.otherLawNotes : '',
+          }));
+          setDsarErrors(prev => {
+            const next = {...prev};
+            if (next.lawId) {
+              delete next.lawId;
+            }
+            if (nextLawId !== 'other' && next.otherLawNotes) {
+              delete next.otherLawNotes;
+            }
+            return next;
+          });
+        }}
       />
       <UploadDocumentBottomSheet
         ref={uploadSheetRef}
@@ -673,9 +945,6 @@ const createStyles = (theme: any) =>
       lineHeight: 16 * 1.2,
       color: theme.colors.text,
     },
-    selectionGroup: {
-      gap: theme.spacing['2'],
-    },
     optionsBox: {
       borderWidth: 1,
       borderColor: theme.colors.border,
@@ -697,30 +966,12 @@ const createStyles = (theme: any) =>
       color: theme.colors.text,
       ...theme.typography.paragraphBold,
     },
-    selectionTile: {
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing['3'],
-      backgroundColor: theme.colors.surface,
-    },
-    selectionTileActive: {
-      // no highlight color per design; keep background transparent
-      backgroundColor: 'transparent',
-      borderColor: theme.colors.border,
-    },
-    selectionLabel: {
-      ...theme.typography.titleSmall,
-      color: theme.colors.text,
-      fontFamily: theme.typography.titleSmall.fontFamily,
-      fontWeight: theme.typography.titleSmall.fontWeight,
-      fontSize: 16,
-    },
-    selectionLabelActive: {
-      ...theme.typography.titleSmall,
-      fontSize: 16,
-      color: theme.colors.text,
-      fontWeight: theme.typography.titleSmall.fontWeight,
+    errorText: {
+      ...theme.typography.labelXsBold,
+      color: theme.colors.error,
+      marginTop: 3,
+      marginBottom: theme.spacing['3'],
+      marginLeft: theme.spacing['1'],
     },
     checkboxGroup: {
       gap: theme.spacing['2'],
