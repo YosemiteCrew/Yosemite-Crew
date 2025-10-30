@@ -62,8 +62,8 @@ const createStyles = (theme: any) =>
       marginBottom: 8,
     },
     checkboxContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
+  flexDirection: 'row',
+  alignItems: 'flex-start',
     },
     checkbox: {
       width: 20,
@@ -88,7 +88,11 @@ const createStyles = (theme: any) =>
       fontWeight: 'bold',
     },
     label: {
-      ...theme.typography.body,
+      // Use Satoshi 14 regular as requested
+      fontFamily: theme.typography.subtitleRegular14?.fontFamily || theme.typography.SATOSHI_REGULAR,
+      fontSize: theme.typography.subtitleRegular14?.fontSize || 14,
+      lineHeight: theme.typography.subtitleRegular14?.lineHeight || 14 * 1.2,
+      fontWeight: theme.typography.subtitleRegular14?.fontWeight || '400',
       color: theme.colors.text,
       flex: 1,
     },

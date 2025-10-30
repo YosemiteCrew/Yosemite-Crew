@@ -78,6 +78,81 @@ const useSimpleFormState = () => {
   return {forms, updateForm};
 };
 
+// Small presentational helpers lifted to module scope to avoid deep nesting
+type Option = {id: string; label: string};
+
+const SubmitterOptions: React.FC<{
+  options: Option[];
+  selectedId: string | null | undefined;
+  onSelect: (id: string) => void;
+  styles: ReturnType<typeof createStyles>;
+}> = ({options, selectedId, onSelect, styles}) => (
+  <View style={styles.optionsBox}>
+    {options.map(option => {
+      const isSelected = selectedId === option.id;
+      return (
+        <TouchableOpacity
+          key={option.id}
+          style={styles.optionRow}
+          onPress={() => onSelect(option.id)}
+          activeOpacity={0.8}>
+          <Text
+            style={isSelected ? styles.optionTextSelected : styles.optionText}>
+            {option.label}
+          </Text>
+        </TouchableOpacity>
+      );
+    })}
+  </View>
+);
+
+const RequestOptions: React.FC<{
+  options: Option[];
+  selectedId: string | null | undefined;
+  onSelect: (id: string) => void;
+  styles: ReturnType<typeof createStyles>;
+}> = ({options, selectedId, onSelect, styles}) => (
+  <View style={styles.optionsBox}>
+    {options.map(option => {
+      const active = selectedId === option.id;
+      return (
+        <TouchableOpacity
+          key={option.id}
+          onPress={() => onSelect(option.id)}
+          activeOpacity={0.85}
+          style={active ? [styles.selectionTile, styles.selectionTileActive] : styles.selectionTile}>
+          <Text style={active ? styles.selectionLabelActive : styles.selectionLabel}>
+            {option.label}
+          </Text>
+        </TouchableOpacity>
+      );
+    })}
+  </View>
+);
+
+const ConfirmationList: React.FC<{
+  values: ConfirmationState;
+  onToggle: (checkboxId: string) => void;
+  styles: ReturnType<typeof createStyles>;
+}> = ({values, onToggle, styles}) => (
+  <View style={styles.checkboxGroup}>
+    {CONFIRMATION_CHECKBOXES.map(option => {
+      const isChecked = values[option.id];
+      return (
+        <Checkbox
+          key={option.id}
+          value={isChecked}
+          onValueChange={() => onToggle(option.id)}
+          label={option.label}
+          labelStyle={
+            isChecked ? styles.checkboxLabelChecked : styles.checkboxLabel
+          }
+        />
+      );
+    })}
+  </View>
+);
+
 export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
   navigation,
 }) => {
@@ -188,32 +263,7 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
     }));
   }, []);
 
-  const renderConfirmationList = React.useCallback(
-    (form: 'dsar' | 'complaint', values: ConfirmationState) => (
-      <View style={styles.checkboxGroup}>
-        {CONFIRMATION_CHECKBOXES.map(option => {
-          const isChecked = values[option.id];
-          return (
-            <Checkbox
-              key={option.id}
-              value={isChecked}
-              onValueChange={() => handleToggleConfirmation(form, option.id)}
-              label={option.label}
-              labelStyle={
-                isChecked ? styles.checkboxLabelChecked : styles.checkboxLabel
-              }
-            />
-          );
-        })}
-      </View>
-    ),
-    [
-      handleToggleConfirmation,
-      styles.checkboxGroup,
-      styles.checkboxLabel,
-      styles.checkboxLabelChecked,
-    ],
-  );
+  // use helpers for confirmation lists and option lists
 
   const renderSimpleForm = React.useCallback(
     (tabId: 'general' | 'feature') => {
@@ -281,27 +331,12 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
         <Text style={styles.sectionLabel}>
           You are submitting this request as
         </Text>
-        <View style={styles.optionsBox}>
-          {DSAR_SUBMITTER_OPTIONS.map(option => {
-            const isSelected = dsarForm.submitterId === option.id;
-            return (
-              <TouchableOpacity
-                key={option.id}
-                style={styles.optionRow}
-                onPress={() =>
-                  setDsarForm(prev => ({...prev, submitterId: option.id}))
-                }
-                activeOpacity={0.8}>
-                <Text
-                  style={
-                    isSelected ? styles.optionTextSelected : styles.optionText
-                  }>
-                  {option.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        <SubmitterOptions
+          options={DSAR_SUBMITTER_OPTIONS}
+          selectedId={dsarForm.submitterId}
+          onSelect={id => setDsarForm(prev => ({...prev, submitterId: id}))}
+          styles={styles}
+        />
       </View>
 
       <View style={styles.surfaceCard}>
@@ -335,25 +370,12 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
         <Text style={styles.sectionLabel}>
           You are submitting this request to
         </Text>
-        <View style={styles.optionsBox}>
-          {DSAR_REQUEST_TYPES.map(option => {
-            const isSelected = dsarForm.requestId === option.id;
-            return (
-              <TouchableOpacity
-                key={option.id}
-                style={styles.optionRow}
-                onPress={() => handleRequestSelect(option.id)}
-                activeOpacity={0.8}>
-                <Text
-                  style={
-                    isSelected ? styles.optionTextSelected : styles.optionText
-                  }>
-                  {option.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        <RequestOptions
+          options={DSAR_REQUEST_TYPES}
+          selectedId={dsarForm.requestId}
+          onSelect={handleRequestSelect}
+          styles={styles}
+        />
         {dsarForm.requestId === 'other-request' && (
           <Input
             label="Additional details"
@@ -384,7 +406,11 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
 
       <View style={styles.surfaceCard}>
         <Text style={styles.sectionLabel}>I Confirm that</Text>
-        {renderConfirmationList('dsar', dsarForm.confirmations)}
+        <ConfirmationList
+          values={dsarForm.confirmations}
+          styles={styles}
+          onToggle={checkboxId => handleToggleConfirmation('dsar', checkboxId)}
+        />
         <LiquidGlassButton
           title="Submit"
           onPress={() => {}}
@@ -407,27 +433,12 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
         <Text style={styles.sectionLabel}>
           You are submitting this complaint as
         </Text>
-        <View style={styles.optionsBox}>
-          {DSAR_SUBMITTER_OPTIONS.map(option => {
-            const isSelected = complaintForm.submitterId === option.id;
-            return (
-              <TouchableOpacity
-                key={option.id}
-                style={styles.optionRow}
-                onPress={() =>
-                  setComplaintForm(prev => ({...prev, submitterId: option.id}))
-                }
-                activeOpacity={0.8}>
-                <Text
-                  style={
-                    isSelected ? styles.optionTextSelected : styles.optionText
-                  }>
-                  {option.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        <SubmitterOptions
+          options={DSAR_SUBMITTER_OPTIONS}
+          selectedId={complaintForm.submitterId}
+          onSelect={id => setComplaintForm(prev => ({...prev, submitterId: id}))}
+          styles={styles}
+        />
       </View>
 
       <View style={styles.formCard}>
@@ -476,7 +487,11 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
 
       <View style={styles.formCard}>
         <Text style={styles.sectionLabel}>I Confirm that</Text>
-        {renderConfirmationList('complaint', complaintForm.confirmations)}
+        <ConfirmationList
+          values={complaintForm.confirmations}
+          styles={styles}
+          onToggle={checkboxId => handleToggleConfirmation('complaint', checkboxId)}
+        />
         <LiquidGlassButton
           title="Submit"
           onPress={() => {}}

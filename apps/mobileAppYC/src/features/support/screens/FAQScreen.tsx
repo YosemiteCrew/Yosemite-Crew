@@ -42,6 +42,89 @@ interface HelpfulState {
   [faqId: string]: 'yes' | 'no' | null;
 }
 
+// Small presentational card extracted to reduce nesting inside FAQScreen
+const FAQCard: React.FC<{
+  faq: FAQEntry;
+  isExpanded: boolean;
+  relatedEntries: FAQEntry[];
+  helpfulSelection: 'yes' | 'no' | null;
+  onToggle: (id: string) => void;
+  onHelpfulSelect: (id: string, value: 'yes' | 'no') => void;
+  onRelatedPress: (id: string, isInFiltered: boolean) => void;
+  styles: ReturnType<typeof createStyles>;
+  theme: any;
+}> = ({faq, isExpanded, relatedEntries, helpfulSelection, onToggle, onHelpfulSelect, onRelatedPress, styles, theme}) => (
+  <LiquidGlassCard
+    glassEffect="regular"
+    interactive
+    style={styles.faqCard}
+    fallbackStyle={styles.cardFallback}>
+    <TouchableOpacity
+      style={styles.questionRow}
+      onPress={() => onToggle(faq.id)}
+      activeOpacity={0.8}>
+      <Text style={styles.questionText}>{faq.question}</Text>
+      <Text style={styles.toggleSymbol}>{isExpanded ? '−' : '+'}</Text>
+    </TouchableOpacity>
+
+    {isExpanded && (
+      <View style={styles.answerSection}>
+        <Text style={styles.answerText}>{faq.answer}</Text>
+
+        <View style={styles.helpfulSection}>
+          <Text style={styles.helpfulPrompt}>Was this answer helpful?</Text>
+          <View style={styles.helpfulButtons}>
+            <LiquidGlassButton
+              title="Yes"
+              size="small"
+              glassEffect="regular"
+              interactive
+              borderRadius="xl"
+              forceBorder
+              tintColor={theme.colors.secondary}
+              borderColor={theme.colors.secondary}
+              style={[styles.glassButtonDark, helpfulSelection === 'yes' && styles.glassButtonSelected]}
+              textStyle={styles.glassButtonDarkText}
+              onPress={() => onHelpfulSelect(faq.id, 'yes')}
+            />
+            <LiquidGlassButton
+              title="No"
+              size="small"
+              glassEffect="regular"
+              interactive
+              borderRadius="xl"
+              forceBorder
+              tintColor={theme.colors.background}
+              borderColor={theme.colors.secondary}
+              style={styles.glassButtonLight}
+              textStyle={styles.glassButtonLightText}
+              onPress={() => onHelpfulSelect(faq.id, 'no')}
+            />
+          </View>
+        </View>
+
+        {relatedEntries.length > 0 && (
+          <View style={styles.relatedSection}>
+            <Text style={styles.relatedTitle}>Related Questions</Text>
+            {relatedEntries.map(related => (
+              <TouchableOpacity
+                key={related.id}
+                style={styles.relatedRow}
+                onPress={() => onRelatedPress(related.id, false)}
+                activeOpacity={0.7}>
+                <Text style={styles.relatedText}>{related.question}</Text>
+                <Image source={Images.rightArrow} style={styles.relatedArrow} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+      </View>
+    )}
+  </LiquidGlassCard>
+);
+
+// (removed unused helper; per-component `onRelatedPress` used instead)
+
 export const FAQScreen: React.FC<FAQScreenProps> = ({navigation}) => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
@@ -68,7 +151,9 @@ export const FAQScreen: React.FC<FAQScreenProps> = ({navigation}) => {
 
   const relatedLookup = React.useMemo(() => {
     const map = new Map<string, FAQEntry>();
-    FAQ_ENTRIES.forEach(entry => map.set(entry.id, entry));
+    for (const entry of FAQ_ENTRIES) {
+      map.set(entry.id, entry);
+    }
     return map;
   }, []);
 
@@ -85,6 +170,14 @@ export const FAQScreen: React.FC<FAQScreenProps> = ({navigation}) => {
       ...prev,
       [faqId]: prev[faqId] === value ? null : value,
     }));
+  }, []);
+
+  const onRelatedPress = React.useCallback((id: string, isInFiltered: boolean) => {
+    // keep behavior same as previous inline handler
+    setExpandedFaqId(id);
+    if (!isInFiltered) {
+      setSelectedCategory('all');
+    }
   }, []);
 
   return (
@@ -113,93 +206,22 @@ export const FAQScreen: React.FC<FAQScreenProps> = ({navigation}) => {
             const isExpanded = expandedFaqId === faq.id;
             const relatedEntries: FAQEntry[] = (faq.relatedIds ?? [])
               .map(id => relatedLookup.get(id))
-              .filter((entry): entry is FAQEntry => Boolean(entry));
+              .filter(Boolean) as FAQEntry[];
             const helpfulSelection = helpfulState[faq.id] ?? null;
 
             return (
-              <LiquidGlassCard
+              <FAQCard
                 key={faq.id}
-                glassEffect="regular"
-                interactive
-                style={styles.faqCard}
-                fallbackStyle={styles.cardFallback}>
-                <TouchableOpacity
-                  style={styles.questionRow}
-                  onPress={() => handleToggle(faq.id)}
-                  activeOpacity={0.8}>
-                  <Text style={styles.questionText}>{faq.question}</Text>
-                  <Text style={styles.toggleSymbol}>
-                    {isExpanded ? '−' : '+'}
-                  </Text>
-                </TouchableOpacity>
-
-                {isExpanded && (
-                  <View style={styles.answerSection}>
-                    <Text style={styles.answerText}>{faq.answer}</Text>
-
-                    <View style={styles.helpfulSection}>
-                      <Text style={styles.helpfulPrompt}>
-                        Was this answer helpful?
-                      </Text>
-                      <View style={styles.helpfulButtons}>
-                        <LiquidGlassButton
-                          title="Yes"
-                          size="small"
-                          glassEffect="regular"
-                          interactive
-                          borderRadius="xl"
-                          forceBorder
-                          tintColor={theme.colors.secondary}
-                          borderColor={theme.colors.secondary}
-                          style={[
-                            styles.glassButtonDark,
-                            helpfulSelection === 'yes' && styles.glassButtonSelected,
-                          ]}
-                          textStyle={styles.glassButtonDarkText}
-                          onPress={() => handleHelpfulSelection(faq.id, 'yes')}
-                        />
-                        <LiquidGlassButton
-                          title="No"
-                          size="small"
-                          glassEffect="regular"
-                          interactive
-                          borderRadius="xl"
-                          forceBorder
-                          tintColor={theme.colors.background}
-                          borderColor={theme.colors.secondary}
-                          style={styles.glassButtonLight}
-                          textStyle={styles.glassButtonLightText}
-                          onPress={() => handleHelpfulSelection(faq.id, 'no')}
-                        />
-                      </View>
-                    </View>
-
-                    {relatedEntries.length > 0 && (
-                      <View style={styles.relatedSection}>
-                        <Text style={styles.relatedTitle}>Related Questions</Text>
-                        {relatedEntries.map(related => (
-                          <TouchableOpacity
-                            key={related.id}
-                            style={styles.relatedRow}
-                            onPress={() => {
-                              setExpandedFaqId(related.id);
-                              if (!filteredFaqs.some(item => item.id === related.id)) {
-                                setSelectedCategory('all');
-                              }
-                            }}
-                            activeOpacity={0.7}>
-                            <Text style={styles.relatedText}>{related.question}</Text>
-                            <Image
-                              source={Images.rightArrow}
-                              style={styles.relatedArrow}
-                            />
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    )}
-                  </View>
-                )}
-              </LiquidGlassCard>
+                faq={faq}
+                isExpanded={isExpanded}
+                relatedEntries={relatedEntries}
+                helpfulSelection={helpfulSelection}
+                onToggle={handleToggle}
+                onHelpfulSelect={handleHelpfulSelection}
+                onRelatedPress={onRelatedPress}
+                styles={styles}
+                theme={theme}
+              />
             );
           })}
         </View>

@@ -7,9 +7,18 @@ import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/Liquid
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {Checkbox} from '@/shared/components/common/Checkbox/Checkbox';
 import {useTheme} from '@/hooks';
-import {Images} from '@/assets/images';
 import {LegalContentRenderer} from '../components/LegalContentRenderer';
 import {TERMS_SECTIONS} from '../data/termsData';
+
+if (__DEV__) {
+  try {
+    console.debug('TermsAndConditionsScreen: TERMS_SECTIONS typeof', typeof TERMS_SECTIONS, 'isArray', Array.isArray(TERMS_SECTIONS), 'len', Array.isArray(TERMS_SECTIONS) ? TERMS_SECTIONS.length : 'N/A');
+  } catch (err) {
+    // consume
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const _err = err;
+  }
+}
 import type {HomeStackParamList} from '@/navigation/types';
 
 type TermsScreenProps = NativeStackScreenProps<HomeStackParamList, 'TermsAndConditions'>;
@@ -34,8 +43,6 @@ export const TermsAndConditionsScreen: React.FC<TermsScreenProps> = ({
         title="Terms & Conditions"
         showBackButton
         onBack={() => navigation.goBack()}
-        rightIcon={Images.accountShareIcon}
-        onRightPress={() => {}}
       />
 
       <ScrollView
@@ -50,8 +57,10 @@ export const TermsAndConditionsScreen: React.FC<TermsScreenProps> = ({
           style={styles.withdrawalCard}
           fallbackStyle={styles.withdrawalCardFallback}>
           <View style={styles.formHeader}>
-            <Text style={styles.formTitle}>Withdrawal Form</Text>
-            <Text style={styles.formSubtitle}>
+            <Text style={styles.formTitle} numberOfLines={1} ellipsizeMode="tail">
+              Withdrawal Form
+            </Text>
+            <Text style={styles.formSubtitle} numberOfLines={2} ellipsizeMode="tail">
               Fill the form for Withdrawal
             </Text>
           </View>
@@ -59,7 +68,6 @@ export const TermsAndConditionsScreen: React.FC<TermsScreenProps> = ({
           <View style={styles.formFields}>
             <Input
               label="User Full Name"
-              placeholder="Full name"
               value={withdrawalForm.fullName}
               onChangeText={value =>
                 setWithdrawalForm(prev => ({...prev, fullName: value}))
@@ -67,7 +75,6 @@ export const TermsAndConditionsScreen: React.FC<TermsScreenProps> = ({
             />
             <Input
               label="Email Address"
-              placeholder="Email"
               keyboardType="email-address"
               value={withdrawalForm.email}
               onChangeText={value =>
@@ -76,7 +83,6 @@ export const TermsAndConditionsScreen: React.FC<TermsScreenProps> = ({
             />
             <Input
               label="User Address"
-              placeholder="Address"
               multiline
               numberOfLines={3}
               textAlignVertical="top"
@@ -87,8 +93,7 @@ export const TermsAndConditionsScreen: React.FC<TermsScreenProps> = ({
               }
             />
             <Input
-              label="Signature"
-              placeholder="Type your name"
+              label="Signature (Type Full Name)"
               value={withdrawalForm.signature}
               onChangeText={value =>
                 setWithdrawalForm(prev => ({...prev, signature: value}))
@@ -102,6 +107,7 @@ export const TermsAndConditionsScreen: React.FC<TermsScreenProps> = ({
               setWithdrawalForm(prev => ({...prev, consent: value}))
             }
             label="I/We hereby withdraw the contract concluded by me/us (*) for the purchase of the following goods (*)/the provision of the following service (*)"
+            labelStyle={styles.checkboxLabel}
           />
 
           <LiquidGlassButton
@@ -116,9 +122,9 @@ export const TermsAndConditionsScreen: React.FC<TermsScreenProps> = ({
           />
 
           <Text style={styles.formFooter}>
-            Form will be submitted to DuneXploration UG (haftungsbeschränkt), Am
-            Finther Weg 7, 55127 Mainz, Germany, email address:
-            security@yosemitecrew.com
+            <Text style={styles.formFooterInline}>Form will be submitted to </Text>
+            <Text style={styles.formFooterInlineBold}>DuneXploration UG (haftungsbeschränkt), Am Finther Weg 7, 55127 Mainz, Germany, email address: </Text>
+            <Text style={styles.formFooterEmail} accessibilityRole="link">security@yosemitecrew.com</Text>
           </Text>
         </LiquidGlassCard>
       </ScrollView>
@@ -137,6 +143,7 @@ const createStyles = (theme: any) =>
     },
     contentContainer: {
       paddingHorizontal: theme.spacing['5'],
+      paddingTop: theme.spacing['3'],
       paddingBottom: theme.spacing['10'],
       gap: theme.spacing['4'],
     },
@@ -153,12 +160,29 @@ const createStyles = (theme: any) =>
       gap: theme.spacing['1'],
     },
     formTitle: {
-      ...theme.typography.h5,
-      color: theme.colors.secondary,
+      // Subtitle Bold 14
+      fontFamily: theme.typography.subtitleBold14?.fontFamily || theme.typography.SATOSHI_BOLD,
+      fontSize: theme.typography.subtitleBold14?.fontSize || 14,
+      lineHeight: theme.typography.subtitleBold14?.lineHeight || 14 * 1.2,
+      fontWeight: theme.typography.subtitleBold14?.fontWeight || '700',
+      color: theme.colors.text,
+      overflow: 'hidden',
     },
     formSubtitle: {
-      ...theme.typography.bodySmall,
-      color: theme.colors.textSecondary,
+      // Subtitle Regular 14 with 2-line clamp equivalent (handled via numberOfLines in JSX)
+      fontFamily: theme.typography.subtitleRegular14?.fontFamily || theme.typography.SATOSHI_REGULAR,
+      fontSize: theme.typography.subtitleRegular14?.fontSize || 14,
+      lineHeight: theme.typography.subtitleRegular14?.lineHeight || 14 * 1.2,
+      fontWeight: theme.typography.subtitleRegular14?.fontWeight || '400',
+      color: theme.colors.text,
+      overflow: 'hidden',
+    },
+    checkboxLabel: {
+      fontFamily: theme.typography.subtitleRegular14?.fontFamily || theme.typography.SATOSHI_REGULAR,
+      fontSize: theme.typography.subtitleRegular14?.fontSize || 14,
+      lineHeight: theme.typography.subtitleRegular14?.lineHeight || 14 * 1.2,
+      fontWeight: theme.typography.subtitleRegular14?.fontWeight || '400',
+      color: theme.colors.text,
     },
     formFields: {
       gap: theme.spacing['3'],
@@ -169,6 +193,30 @@ const createStyles = (theme: any) =>
     formFooter: {
       ...theme.typography.caption,
       color: theme.colors.textSecondary,
+      textAlign: 'center',
+    },
+    formFooterInline: {
+      fontFamily: theme.typography.subtitleRegular14?.fontFamily || theme.typography.SATOSHI_REGULAR,
+      fontSize: theme.typography.subtitleRegular14?.fontSize || 14,
+      lineHeight: theme.typography.subtitleRegular14?.lineHeight || 14 * 1.2,
+      fontWeight: theme.typography.subtitleRegular14?.fontWeight || '400',
+      color: theme.colors.text,
+      textAlign: 'center',
+    },
+    formFooterInlineBold: {
+      fontFamily: theme.typography.subtitleRegular14?.fontFamily || theme.typography.SATOSHI_BOLD,
+      fontSize: theme.typography.subtitleRegular14?.fontSize || 14,
+      lineHeight: theme.typography.subtitleRegular14?.lineHeight || 14 * 1.2,
+      fontWeight: '700',
+      color: theme.colors.text,
+      textAlign: 'center',
+    },
+    formFooterEmail: {
+      fontFamily: theme.typography.subtitleRegular14?.fontFamily || theme.typography.SATOSHI_BOLD,
+      fontSize: theme.typography.subtitleRegular14?.fontSize || 14,
+      lineHeight: theme.typography.subtitleRegular14?.lineHeight || 14 * 1.2,
+      color: theme.colors.text,
+      textDecorationLine: 'underline',
       textAlign: 'center',
     },
     glassButtonDark: {
