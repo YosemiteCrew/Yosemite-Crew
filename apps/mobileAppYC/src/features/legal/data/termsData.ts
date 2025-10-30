@@ -8,7 +8,7 @@ export type {
   TextSegment,
 } from './legalContentTypes';
 
-import {seg, b, p, oli, ol} from './legalContentHelpers';
+import {seg, b} from './legalContentHelpers';
 import {
   createContactSection,
   COMPANY_NAME,
@@ -18,6 +18,11 @@ import {
   createDefinition,
   createSubsectionHeader,
   createSubsection,
+  createIntroParagraph,
+  createBoldHeader,
+  createMultiSegmentParagraph,
+  createBulletList,
+  createRomanList,
 } from './sharedLegalSections';
 
 export const TERMS_SECTIONS: LegalSection[] = [
@@ -25,36 +30,17 @@ export const TERMS_SECTIONS: LegalSection[] = [
     id: 'scope',
     title: '1. Scope and Applicability',
     blocks: [
-      p(
-        b('1.1.'),
-        seg(' '),
-        seg(`${COMPANY_NAME}, ${COMPANY_FULL_ADDRESS} ("DuneXploration" or "we/us/our") provides a Mobile App for Pet Owners/Companion Owners that is accessible via app stores for supported mobile devices.`)
-      ),
-      p(
-        b('1.2.'),
-        seg(
-          ' These Terms of Use (“Terms” or “Agreement”) guide the legal relationships between DuneXploration and the Pet Owners/Companion Owners.',
-        ),
-      ),
-      p(
-        b('1.3.'),
-        seg(
-          ' DuneXploration rejects any and all terms and conditions of Pet Owners/Companion Owners. Only these Terms apply to the respective contractual relationships with DuneXploration.',
-        ),
-      ),
-      p(
-        b('1.4.'),
-        seg(
-          ' In the event of a conflict between these Terms and an individual agreement between DuneXploration and a Pet Owner/Companion Owner, the individual agreement shall prevail, unless explicitly provided otherwise in these Terms.',
-        ),
-      ),
+      createNumberedParagraph('1.1.', seg(' '), seg(`${COMPANY_NAME}, ${COMPANY_FULL_ADDRESS} ("DuneXploration" or "we/us/our") provides a Mobile App for Pet Owners/Companion Owners that is accessible via app stores for supported mobile devices.`)),
+      createNumberedParagraph('1.2.', seg(' These Terms of Use ("Terms" or "Agreement") guide the legal relationships between DuneXploration and the Pet Owners/Companion Owners.')),
+      createNumberedParagraph('1.3.', seg(' DuneXploration rejects any and all terms and conditions of Pet Owners/Companion Owners. Only these Terms apply to the respective contractual relationships with DuneXploration.')),
+      createNumberedParagraph('1.4.', seg(' In the event of a conflict between these Terms and an individual agreement between DuneXploration and a Pet Owner/Companion Owner, the individual agreement shall prevail, unless explicitly provided otherwise in these Terms.')),
     ],
   },
   {
     id: 'definitions',
     title: '2. Definitions',
     blocks: [
-      p(seg('In addition to terms defined elsewhere in this Agreement, the following terms have the following meanings:')),
+      createIntroParagraph('In addition to terms defined elsewhere in this Agreement, the following terms have the following meanings:'),
       createDefinition('2.1.', 'Account', 'means the personal Account provided to the Pet Owner/Companion Owner after the User\'s registration.'),
       createDefinition('2.2.', 'Pet Professionals/Pet Businesses', 'means e.g. veterinarians, breeders, groomers or boarding services who can interact with Pet Owners/Companion Owners and offer their services in the Mobile App.'),
       createDefinition('2.3.', 'Consumer', 'means every natural person who enters into a legal transaction for the purposes that predominantly are outside his trade, business or profession (Sec. 13 BGB German Civil Law Code).'),
@@ -85,18 +71,15 @@ export const TERMS_SECTIONS: LegalSection[] = [
       createSubsectionHeader('4.1.', 'General Features'),
       createNumberedParagraph('4.1.1.', seg(' The Mobile App provides various functions to support the daily care and health management of pets.')),
       createNumberedParagraph('4.1.2.', seg(' In the Mobile App, the Pet Owner/Companion Owner can (among other things)')),
-      ol(
-        oli('•', 'Create pet profiles,'),
-        oli(
-          '•',
-          'Add details of their Pet Professionals/Pet Businesses (veterinarians, breeders, groomers or boarding services),',
-        ),
-        oli('•', 'Book appointments with the Pet Professionals/Pet Businesses,'),
-        oli('•', 'Purchase services of the Pet Professionals/Pet Businesses,'),
-        oli('•', 'Share pet duties with a partner,'),
-        oli('•', 'Add and track expenses,'),
-        oli('•', 'Add medical information about their pet, and'),
-        oli('•', 'Access articles and blog posts on relevant matters.'),
+      createBulletList(
+        'Create pet profiles,',
+        'Add details of their Pet Professionals/Pet Businesses (veterinarians, breeders, groomers or boarding services),',
+        'Book appointments with the Pet Professionals/Pet Businesses,',
+        'Purchase services of the Pet Professionals/Pet Businesses,',
+        'Share pet duties with a partner,',
+        'Add and track expenses,',
+        'Add medical information about their pet, and',
+        'Access articles and blog posts on relevant matters.'
       ),
       createNumberedParagraph('4.1.3.', seg(' All services rendered by the Pet Professionals/Pet Businesses (such as booking appointments, providing emergency services or diabetes assessments) rely on a separate contractual relationship with the Pet Professionals/Pet Businesses. DuneXploration is not part of this contractual relationship.')),
       createSubsection('4.2.', 'Contact Vet/ Practice'),
@@ -105,19 +88,13 @@ export const TERMS_SECTIONS: LegalSection[] = [
       createSubsection('4.3.', 'Appointment Booking Service'),
       createNumberedParagraph('4.3.1.', seg(' The Pet Owner/Companion Owner can make an appointment with a registered Pet Professionals/Pet Businesses, provided that the selected time is shown as available. Each appointment is sent to the Pet Professionals/Pet Businesses in real time. The Pet Professionals/Pet Businesses might reschedule the appointment if necessary or delete it from their schedule in accordance with legal requirements. In this case, the Pet Owner/Companion Owner will be notified immediately (e.g., by email or push notification).')),
       createNumberedParagraph('4.3.2.', seg(' The Pet Owner/Companion Owner can also')),
-      ol(
-        oli('(i)', ' manage the appointments (cancel, reschedule),'),
-        oli(
-          '(ii)',
-          ' share concerns or documents to prepare for an appointment,',
-        ),
-        oli('(iii)', ' view the history of their appointments,'),
-        oli('(iv)', ' view prescribed treatments or medications,'),
-        oli(
-          '(v)',
-          ' communicate with the Pet Professionals/Pet Businesses after the appointment via an in-app chat, and',
-        ),
-        oli('(vi)', ' share feedback.'),
+      createRomanList(
+        ' manage the appointments (cancel, reschedule),',
+        ' share concerns or documents to prepare for an appointment,',
+        ' view the history of their appointments,',
+        ' view prescribed treatments or medications,',
+        ' communicate with the Pet Professionals/Pet Businesses after the appointment via an in-app chat, and',
+        ' share feedback.'
       ),
       createNumberedParagraph('4.3.3.', seg(' The Pet Owner/Companion Owner undertakes to provide all necessary information requested for the booking and performance of the selected service.')),
       createNumberedParagraph('4.3.4.', seg(" It is the Pet Owner/Companion Owner's responsibility to carry out all the checks they deem necessary or appropriate before making an appointment with a Pet Professionals/Pet Businesses.")),
@@ -144,11 +121,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
     id: 'paid-services',
     title: '5. Paid Services',
     blocks: [
-      p(
-        seg(
-          'Pet Owners/Companion Owners may book Paid Services via the Mobile App with Pet Professionals/Pet Businesses. The respective contract is concluded between the Pet Owner/Companion Owner and the selected Pet Professionals/Pet Businesses. DuneXploration merely facilitates the conclusion of the agreement on behalf of the Pet Professionals/Pet Businesses and is not a party to this contractual relationship.',
-        ),
-      ),
+      createIntroParagraph('Pet Owners/Companion Owners may book Paid Services via the Mobile App with Pet Professionals/Pet Businesses. The respective contract is concluded between the Pet Owner/Companion Owner and the selected Pet Professionals/Pet Businesses. DuneXploration merely facilitates the conclusion of the agreement on behalf of the Pet Professionals/Pet Businesses and is not a party to this contractual relationship.'),
       createSubsection('5.1.', 'Booking of a Paid Service.'),
       createNumberedParagraph('5.1.1.', seg(' The presentation of the Paid Service in the Mobile App does not constitute a legally binding offer by the Pet Professionals/Pet Businesses. Only by selecting the desired Paid Service, the payment method and by clicking "Pay now", the Pet Owner/Companion Owner submits a legally binding offer to conclude a contract with the selected Pet Professionals/Pet Businesses. The Pet Owner/Companion Owner will then immediately receive confirmation or rejection of the offer. If the offer is confirmed and thereby accepted, the contract is concluded.')),
       createNumberedParagraph('5.1.2.', seg(' The Paid Service might be subject to separate terms of the Pet Professionals/Pet Businesses.')),
@@ -170,12 +143,10 @@ export const TERMS_SECTIONS: LegalSection[] = [
     id: 'withdrawal-policy',
     title: '7. Right of Withdrawal Policy',
     blocks: [
-      p(
-        seg(
-          'If the Pet Owner/Companion Owner acts as Consumer, the Pet Owner/Companion Owner has a fourteen-day right of withdrawal. Regarding this right of withdrawal, please refer to the ',
-        ),
+      createMultiSegmentParagraph(
+        seg('If the Pet Owner/Companion Owner acts as Consumer, the Pet Owner/Companion Owner has a fourteen-day right of withdrawal. Regarding this right of withdrawal, please refer to the '),
         b('Addendum 1'),
-        seg('.'),
+        seg('.')
       ),
     ],
   },
@@ -183,11 +154,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
     id: 'reviews-moderation',
     title: '8. Reviews and Moderation',
     blocks: [
-      p(
-        seg(
-          'After a Pet Owner/Companion Owner has used the services of a Pet Professionals/Pet Businesses the Pet Owner/Companion Owner can rate the Pet Professionals/Pet Businesses on a scale from zero to five stars and also write a review of the Pet Professionals/Pet Businesses. The following rules apply to these reviews:',
-        ),
-      ),
+      createIntroParagraph('After a Pet Owner/Companion Owner has used the services of a Pet Professionals/Pet Businesses the Pet Owner/Companion Owner can rate the Pet Professionals/Pet Businesses on a scale from zero to five stars and also write a review of the Pet Professionals/Pet Businesses. The following rules apply to these reviews:'),
       createSubsectionHeader('8.1.', 'Illegal Content:'),
       createNumberedParagraph('8.1.1.', seg(' Pet Owners/Companion Owners may only submit truthful ratings and reviews that reflect their own experience. The reviews must be written in appropriate and respectful language. Illegal content is therefore prohibited, including anything that violates laws, other legal provisions, these Terms, or the rights of natural or legal persons.')),
       createNumberedParagraph('8.1.2.', seg(' Specifically the following violations are therefore prohibited: insults, hate speech, defamation and slander, and other false statements, violations of the right to privacy and intimacy, threats, and, of course, violations of copyright or other property.')),
@@ -279,44 +246,16 @@ export const TERMS_SECTIONS: LegalSection[] = [
     id: 'addendum', // This is the old Addendum 1, now Section 16
     title: 'Addendum 1: Right of Withdrawal',
     blocks: [
-      p(b('Right of Withdrawal')),
-      p(
-        seg(
-          'You have the right to withdraw from this contract within 14 days without giving any reason.',
-        ),
-      ),
-      p(
-        seg(
-          'The withdrawal period is 14 days from the day of the conclusion of the contract.',
-        ),
-      ),
-      p(
-        seg(
-          `In order to exercise your right of withdrawal, you must inform us (${COMPANY_NAME}, ${COMPANY_FULL_ADDRESS}, ${SECURITY_EMAIL}) by means of a clear declaration (e.g. a letter sent by post or e-mail) of your decision to withdraw from this contract. For this purpose, you may use the enclosed sample withdrawal form, which, however, is not mandatory.`
-        ),
-      ),
-      p(
-        seg(
-          'In order to comply with the withdrawal period, it is sufficient that you send the notification of the exercise of the right of withdrawal before the expiry of the withdrawal period.',
-        ),
-      ),
-      p(b('Consequences of the Withdrawal')),
-      p(
-        seg(
-          'If you withdraw this contract, we shall reimburse you all payments we have received from you, including delivery costs (with the exception of additional costs resulting from the fact that you have chosen a type of delivery other than the most favorable standard delivery offered by us), without undue delay and no later than within fourteen days from the day on which we received the notification of your revocation of this contract. For this repayment, we will use the same means of payment that you used for the original transaction, unless expressly agreed otherwise with you; in no case will you be charged any fees because of this repayment.',
-        ),
-      ),
-      p(
-        seg(
-          'If you have requested that the services begin before the end of the withdrawal period, you shall pay us a reasonable amount corresponding to the proportion of the services already provided up to the point in time at which you notify us of the exercise of the right of withdrawal with regard to this contract compared to the total scope of the services provided for in the contract.',
-        ),
-      ),
-      p(b('Other Information')),
-      p(
-        seg(
-          'Your right to revoke the contract exists independently of any warranty claims in the event of material defects. If there is a defect covered by warranty, you are entitled to demand supplementary performance, to withdraw from the contract or to reduce the purchase price within the framework of the statutory provisions.',
-        ),
-      ),
+      createBoldHeader('Right of Withdrawal'),
+      createIntroParagraph('You have the right to withdraw from this contract within 14 days without giving any reason.'),
+      createIntroParagraph('The withdrawal period is 14 days from the day of the conclusion of the contract.'),
+      createIntroParagraph(`In order to exercise your right of withdrawal, you must inform us (${COMPANY_NAME}, ${COMPANY_FULL_ADDRESS}, ${SECURITY_EMAIL}) by means of a clear declaration (e.g. a letter sent by post or e-mail) of your decision to withdraw from this contract. For this purpose, you may use the enclosed sample withdrawal form, which, however, is not mandatory.`),
+      createIntroParagraph('In order to comply with the withdrawal period, it is sufficient that you send the notification of the exercise of the right of withdrawal before the expiry of the withdrawal period.'),
+      createBoldHeader('Consequences of the Withdrawal'),
+      createIntroParagraph('If you withdraw this contract, we shall reimburse you all payments we have received from you, including delivery costs (with the exception of additional costs resulting from the fact that you have chosen a type of delivery other than the most favorable standard delivery offered by us), without undue delay and no later than within fourteen days from the day on which we received the notification of your revocation of this contract. For this repayment, we will use the same means of payment that you used for the original transaction, unless expressly agreed otherwise with you; in no case will you be charged any fees because of this repayment.'),
+      createIntroParagraph('If you have requested that the services begin before the end of the withdrawal period, you shall pay us a reasonable amount corresponding to the proportion of the services already provided up to the point in time at which you notify us of the exercise of the right of withdrawal with regard to this contract compared to the total scope of the services provided for in the contract.'),
+      createBoldHeader('Other Information'),
+      createIntroParagraph('Your right to revoke the contract exists independently of any warranty claims in the event of material defects. If there is a defect covered by warranty, you are entitled to demand supplementary performance, to withdraw from the contract or to reduce the purchase price within the framework of the statutory provisions.'),
     ],
   },
 ];

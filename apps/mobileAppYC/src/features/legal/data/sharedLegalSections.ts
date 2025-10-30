@@ -7,6 +7,7 @@ export const COMPANY_ADDRESS = 'Am Finther Weg 7\n55127 Mainz';
 export const COMPANY_FULL_ADDRESS = 'Am Finther Weg 7, 55127 Mainz, Germany';
 export const SECURITY_EMAIL = 'security@yosemitecrew.com';
 
+
 // Common controller section
 export const createControllerSection = (): LegalSection => ({
   id: 'controller-dpo',
@@ -247,3 +248,26 @@ export const createSubsectionHeader = (number: string, title: string): Paragraph
 // Factory for creating subsection with bold title
 export const createSubsection = (number: string, title: string): ParagraphBlock =>
   p(b(number), seg(` ${title}`));
+
+// Factory for creating intro/description paragraphs
+export const createIntroParagraph = (text: string): ParagraphBlock =>
+  p(seg(text));
+
+// Factory for creating bold header paragraph
+export const createBoldHeader = (text: string): ParagraphBlock =>
+  p(b(text));
+
+// Factory for creating multi-segment paragraph
+export const createMultiSegmentParagraph = (...segments: TextSegment[]): ParagraphBlock =>
+  p(...segments);
+
+// Factory for creating simple ordered lists with bullet points
+export const createBulletList = (...items: string[]): OrderedListBlock =>
+  ol(...items.map(item => oli('•', item)));
+
+// Factory for creating numbered ordered lists (i, ii, iii, etc.)
+export const createRomanList = (...items: string[]): OrderedListBlock =>
+  ol(...items.map((item, index) => {
+    const romanNumerals = ['(i)', '(ii)', '(iii)', '(iv)', '(v)', '(vi)', '(vii)', '(viii)', '(ix)', '(x)'];
+    return oli(romanNumerals[index] || `(${index + 1})`, item);
+  }));
