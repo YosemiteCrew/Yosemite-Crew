@@ -44,6 +44,10 @@ export const Images = {
   privacyIcon: require('./account/privacyIcon.png'),
   contactIcon: require('./account/contactIcon.png'),
   deleteIconRed: require('./account/deleteIconRed.png'),
+  accountMailIcon: require('./icons/emailIcon.png'),
+  accountBellIcon: require('./icons/notificationIcon.png'),
+  accountShareIcon: require('./icons/shareIcon.png'),
+  accountInfoIcon: require('./documents/documentIcon.png'),
 
   //companion onboarding
   cat: require('./addCompanion/cat.png'),
@@ -136,7 +140,10 @@ export const Images = {
   websiteIcon: require('./icons/websiteIcon.png'), 
     specialityIcon: require('./appointment/specialityIcon.png'), 
 
-    successPayment: require('./appointment/successPayment.png'),
+  successPayment: require('./appointment/successPayment.png'),
+
+  // Support & Help
+  contactHero: require('./support/contactHero.png'),
 } as const;
 
 export type ImageKeys = keyof typeof Images;
