@@ -75,20 +75,21 @@ jest.mock(
   },
 );
 
-const mockOnSelect = jest.fn();
+
 
 const renderComponent = (
   selectedFrequency: MedicationFrequency | null = null,
 ) => {
   const ref = React.createRef<MedicationFrequencyBottomSheetRef>();
+  const innerMockOnSelect = jest.fn();
   render(
     <MedicationFrequencyBottomSheet
       ref={ref}
       selectedFrequency={selectedFrequency}
-      onSelect={mockOnSelect}
+      onSelect={innerMockOnSelect}
     />,
   );
-  return {ref, mockOnSelect};
+  return {ref, mockOnSelect: innerMockOnSelect};
 };
 
 describe('MedicationFrequencyBottomSheet', () => {

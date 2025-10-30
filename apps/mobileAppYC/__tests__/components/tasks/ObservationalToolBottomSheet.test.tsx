@@ -75,22 +75,21 @@ jest.mock(
   },
 );
 
-const mockOnSelect = jest.fn();
-
 const renderComponent = (props: {
   selectedTool?: ObservationalTool | null;
   companionType: string;
 }) => {
   const ref = React.createRef<ObservationalToolBottomSheetRef>();
+  const innerMockOnSelect = jest.fn();
   render(
     <ObservationalToolBottomSheet
       ref={ref}
       selectedTool={props.selectedTool}
       companionType={props.companionType as 'cat' | 'dog' | 'horse'}
-      onSelect={mockOnSelect}
+      onSelect={innerMockOnSelect}
     />,
   );
-  return {ref, mockOnSelect};
+  return {ref, mockOnSelect: innerMockOnSelect};
 };
 
 describe('ObservationalToolBottomSheet', () => {
