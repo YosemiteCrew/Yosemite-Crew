@@ -11,68 +11,143 @@ export interface FAQEntry {
   relatedIds?: string[];
 }
 
+// Category definitions
 export const FAQ_CATEGORIES: FAQCategory[] = [
   {id: 'all', label: 'All'},
+  {id: 'getting-started', label: 'Getting Started'},
+  {id: 'account', label: 'Account & Profile'},
+  {id: 'companions', label: 'Companion Profiles'},
   {id: 'appointments', label: 'Appointments'},
-  {id: 'using-app', label: 'Using the App'},
+  {id: 'tasks', label: 'Tasks & Health'},
   {id: 'documents', label: 'Documents'},
-  {id: 'vaccinations', label: 'Vaccinations'},
-  {id: 'privacy', label: 'Privacy'},
+  {id: 'expenses', label: 'Expenses & Payments'},
+  {id: 'privacy', label: 'Privacy & Security'},
+  {id: 'technical', label: 'Technical Issues'},
+  {id: 'support', label: 'Support & Help'},
 ];
 
-export const FAQ_ENTRIES: FAQEntry[] = [
-  {
-    id: 'schedule-appointments',
-    question: 'How do I schedule a vet appointment for my pet?',
-    answer:
-      "Navigate to the 'Appointments' section, select your preferred vet, and choose an available time slot.",
-    categoryIds: ['appointments', 'using-app'],
-    relatedIds: [
-      'remote-consultation',
-      'share-profile',
-      'update-health-records',
-    ],
-  },
-  {
-    id: 'track-vaccinations',
-    question: "Can I track my pet's vaccination history in the app?",
-    answer:
-      'Yes. Upload vaccination records under Documents → Vaccinations to keep everything organised.',
-    categoryIds: ['vaccinations', 'documents'],
-    relatedIds: ['share-profile', 'document-sharing'],
-  },
-  {
-    id: 'remote-consultation',
-    question:
-      'How do I connect with a veterinarian for a remote consultation?',
-    answer:
-      'Book a virtual visit from the Appointments tab and select “Remote Consultation” as the appointment type.',
-    categoryIds: ['appointments'],
-    relatedIds: ['schedule-appointments'],
-  },
-  {
-    id: 'update-health-records',
-    question:
-      "What should I do if I forget to update my pet's health records?",
-    answer:
-      'Head to Documents → Health and upload the missing files. You can add notes to highlight what changed.',
-    categoryIds: ['documents'],
-    relatedIds: ['document-sharing'],
-  },
-  {
-    id: 'share-profile',
-    question: "How do I share my pet's profile with another caregiver?",
-    answer:
-      "Open the pet profile, tap 'Share Profile', and invite the caregiver using their email address.",
-    categoryIds: ['using-app', 'documents'],
-    relatedIds: ['schedule-appointments'],
-  },
-  {
-    id: 'document-sharing',
-    question: 'Can veterinarians view documents I upload?',
-    answer:
-      'Documents shared with a veterinarian remain visible to them as long as the appointment thread stays active.',
-    categoryIds: ['documents', 'privacy'],
-    relatedIds: ['update-health-records'],
-  },
+// Compact FAQ data structure [id, question, answer, categories, related]
+type FAQData = [string, string, string, string, string?];
+
+const FAQ_DATA: FAQData[] = [
+  // GETTING STARTED
+  ['what-is-yosemite-crew', 'What is Yosemite Crew?', 'Yosemite Crew is a comprehensive pet care management mobile app that helps you manage your companion\'s health, appointments, documents, tasks, and expenses all in one place. You can book appointments with veterinarians, breeders, groomers, and other pet professionals directly through the app.', 'getting-started', 'how-to-sign-up,what-features-available,is-app-free'],
+  ['how-to-sign-up', 'How do I sign up for Yosemite Crew?', 'Download the Yosemite Crew app from the App Store or Google Play Store. You can sign up using your email address, or use Google, Facebook, or Apple login. You must be at least 18 years old to create an account.', 'getting-started,account', 'what-is-yosemite-crew,forgot-password,change-login-method'],
+  ['what-features-available', 'What features does the app offer?', 'The app offers: companion profile management, appointment booking with pet professionals, task and medication tracking, document storage and organization, expense tracking, in-app chat with veterinarians, pain assessment tools, chronic condition management, and calendar integration.', 'getting-started', 'what-is-yosemite-crew,how-to-add-companion,how-to-book-appointment'],
+  ['is-app-free', 'Is the app free to use?', 'Yes, downloading and using the Yosemite Crew mobile app is completely free. However, services provided by pet professionals (such as consultations, treatments, and assessments) may have associated fees that are paid directly to the service provider.', 'getting-started,expenses', 'what-is-yosemite-crew,how-payment-works,view-expenses'],
+  ['supported-animals', 'What types of companions does the app support?', 'The app supports dogs, cats, and horses. You can create profiles for multiple companions and manage all their care needs in one place.', 'getting-started,companions', 'how-to-add-companion,manage-multiple-companions'],
+  ['first-steps', 'What should I do after signing up?', 'After signing up: 1) Complete your account profile, 2) Add your first companion with their basic information, 3) Explore the Home dashboard to see available features, 4) Browse pet professionals in your area, and 5) Consider uploading any existing medical documents.', 'getting-started', 'how-to-add-companion,how-to-upload-document,how-to-book-appointment'],
+
+  // ACCOUNT & PROFILE
+  ['forgot-password', 'How do I log in if I forgot my credentials?', 'Yosemite Crew uses OTP (One-Time Password) based login - no passwords required! Simply tap "Send OTP" on the sign-in screen and enter your registered email address. You\'ll receive a 4-digit one-time password via email that you can use to log in. You can also use Google, Facebook, or Apple login.', 'account,technical', 'how-to-sign-up,login-issues,account-locked'],
+  ['change-password', 'Do I need to manage passwords?', 'No! Yosemite Crew uses passwordless authentication. You can log in using OTP (one-time passwords sent to your email) or social login (Google, Facebook, Apple). This means you never have to remember or change passwords - every login is secure and simple.', 'account', 'forgot-password,account-security'],
+  ['update-profile', 'How do I update my profile information?', 'Tap the Account icon from the Home tab, then select "Edit Profile". You can update your name, email address, phone number, and address. Make sure to save your changes before exiting.', 'account', 'change-password,delete-account'],
+  ['change-login-method', 'Can I switch from email login to social login?', 'Currently, the login method you choose during sign-up is permanent. If you need to switch, you would need to create a new account with the preferred login method. Contact support if you need help migrating your data.', 'account,technical', 'how-to-sign-up,delete-account'],
+  ['delete-account', 'How do I delete my account?', 'Go to Account settings from the Home tab, scroll down to "Account Management", and tap "Delete Account". This action is permanent and will remove all your data, including companion profiles, documents, and appointment history.', 'account,privacy', 'data-stored,data-protection'],
+  ['account-locked', 'Why is my account locked?', 'Accounts may be locked due to repeated failed login attempts or violation of our Terms of Use. If you believe your account was locked in error, please contact our support team through the "Contact Us" feature.', 'account,technical', 'forgot-password,contact-support'],
+
+  // COMPANION PROFILES
+  ['how-to-add-companion', 'How do I add a companion (pet) to my profile?', 'From the Home screen, tap the "Add Companion" button or the "+" icon. Enter your companion\'s basic information including name, species (dog, cat, or horse), breed, date of birth, gender, and optionally add a photo.', 'companions', 'edit-companion-profile,manage-multiple-companions,add-companion-photo'],
+  ['edit-companion-profile', 'How do I edit my companion\'s information?', 'Go to your companion\'s profile from the Home screen, tap the three-dot menu or "Edit" button, then select "Edit Profile". You can update their information, health details, and medical information.', 'companions', 'how-to-add-companion,add-medical-info,delete-companion'],
+  ['manage-multiple-companions', 'Can I manage multiple companions in the app?', 'Yes! You can add and manage multiple companions. Switch between them using the companion selector on the Home screen. Each companion has their own separate profile, documents, tasks, and appointment history.', 'companions', 'how-to-add-companion,switch-companions,share-companion-access'],
+  ['switch-companions', 'How do I switch between different companions?', 'On the Home screen, tap the companion selector at the top to view all your companions. Select the one you want to manage. The app will update to show that companion\'s specific information across all tabs.', 'companions', 'manage-multiple-companions,companion-specific-data'],
+  ['add-companion-photo', 'How do I add or change my companion\'s photo?', 'Open your companion\'s profile, tap on the photo placeholder or existing photo, then choose to take a new photo or select one from your device\'s gallery.', 'companions', 'how-to-add-companion,edit-companion-profile'],
+  ['add-medical-info', 'What medical information can I add to my companion\'s profile?', 'You can add chronic conditions (like diabetes, epilepsy, pain), allergies, current medications, vaccination history, spay/neuter status, insurance information, and microchip details. This helps veterinarians provide better care.', 'companions,tasks', 'edit-companion-profile,upload-vaccination-record,create-medication-task'],
+  ['share-companion-access', 'Can I share access to my companion\'s profile with family members?', 'Yes, you can share companion duties with a partner. Open the companion\'s profile, select "Share Access", and invite another user by email. They\'ll be able to view and manage the companion\'s information.', 'companions,account', 'manage-multiple-companions,companion-specific-data'],
+  ['delete-companion', 'Can I delete a companion profile?', 'Yes, you can delete a companion profile from the Edit Profile screen. This will permanently remove all associated data including documents, tasks, and appointment history. This action cannot be undone.', 'companions', 'edit-companion-profile,data-stored'],
+
+  // APPOINTMENTS
+  ['how-to-book-appointment', 'How do I book an appointment with a veterinarian?', 'Go to the Appointments tab, tap "Browse Businesses" to find pet professionals near you. Select a business, choose a service and available time slot, then complete the booking form with your companion\'s information.', 'appointments', 'browse-pet-professionals,appointment-types,reschedule-appointment'],
+  ['browse-pet-professionals', 'How do I find pet professionals in my area?', 'From the Appointments tab or Home screen, tap "Browse Businesses". You can filter by category (veterinary hospitals, groomers, breeders, pet centers, boarders) and view their profiles, services, and availability.', 'appointments', 'how-to-book-appointment,view-business-profile,appointment-types'],
+  ['appointment-types', 'What types of appointments can I book?', 'You can book regular consultations, emergency visits, remote/virtual consultations, grooming sessions, breeding services, boarding, and specialized assessments (like diabetes evaluation). Available services depend on the pet professional.', 'appointments', 'how-to-book-appointment,remote-consultation,emergency-appointment'],
+  ['remote-consultation', 'Can I have a virtual consultation with a veterinarian?', 'Yes, some veterinarians offer remote consultations. When booking an appointment, look for "Remote Consultation" as an appointment type. You can communicate via the in-app chat feature and share photos or videos.', 'appointments', 'appointment-types,chat-with-vet,share-documents-with-vet'],
+  ['view-business-profile', 'How can I learn more about a pet professional before booking?', 'Tap on any business to view their full profile including services offered, specializations, consultation fees, business hours, location, and reviews from other pet owners.', 'appointments', 'browse-pet-professionals,read-reviews,how-to-book-appointment'],
+  ['reschedule-appointment', 'How do I reschedule or cancel an appointment?', 'Go to My Appointments, select the appointment you want to change, then tap "Reschedule" or "Cancel". Note that cancellation policies vary by provider and late cancellations may incur fees.', 'appointments', 'view-appointments,appointment-cancellation-policy'],
+  ['view-appointments', 'Where can I see my upcoming and past appointments?', 'Go to the Appointments tab to see all your appointments. You can filter by upcoming, past, or cancelled appointments. Tap any appointment to view full details.', 'appointments', 'reschedule-appointment,appointment-reminders'],
+  ['appointment-reminders', 'Will I receive reminders for my appointments?', 'Yes, you\'ll receive push notifications before your scheduled appointments. You can customize reminder settings in your Account preferences.', 'appointments,technical', 'view-appointments,notification-settings'],
+  ['chat-with-vet', 'How do I communicate with a veterinarian through the app?', 'After booking an appointment, go to the appointment details and tap "Chat". You can send messages, photos, and videos about your companion\'s condition. The chat remains active after your appointment for follow-ups.', 'appointments', 'remote-consultation,share-documents-with-vet,view-appointments'],
+  ['emergency-appointment', 'Can I book emergency appointments?', 'Yes, use the "Contact Vet" or "Emergency" option to send an urgent message to veterinarians. While the app facilitates contact, for true emergencies, please call your veterinarian directly or visit an emergency clinic.', 'appointments', 'appointment-types,chat-with-vet'],
+  ['share-documents-with-vet', 'Can I share medical documents with my veterinarian during an appointment?', 'Yes, during a chat or consultation, you can share documents from your Documents tab or upload new ones directly. Documents shared remain visible to the veterinarian as long as the appointment thread is active.', 'appointments,documents', 'chat-with-vet,how-to-upload-document,document-privacy'],
+  ['appointment-cancellation-policy', 'What is the cancellation policy for appointments?', 'Cancellation policies are set by individual pet professionals. Please inform them in advance if you cannot attend. Failure to show up may result in fees. Check the business profile for their specific policy.', 'appointments', 'reschedule-appointment,view-business-profile'],
+  ['read-reviews', 'Can I read reviews of pet professionals?', 'Yes, each business profile displays ratings and reviews from other pet owners. You can filter and read detailed feedback to help you make informed decisions.', 'appointments', 'view-business-profile,write-review'],
+  ['write-review', 'How do I leave a review for a pet professional?', 'After your appointment, you\'ll receive a prompt to leave a review. You can also go to My Appointments, select the completed appointment, and tap "Write Review". Rate the service with stars and add optional comments.', 'appointments', 'read-reviews,view-appointments'],
+
+  // TASKS & HEALTH
+  ['what-are-tasks', 'What are tasks and how do I use them?', 'Tasks help you track and manage your companion\'s care routine. You can create health tasks (medications, vet visits), hygiene tasks (grooming, bathing), dietary tasks (feeding schedules), and custom tasks with reminders.', 'tasks', 'create-task,task-categories,set-task-reminder'],
+  ['create-task', 'How do I create a new task?', 'Go to the Tasks tab, tap the "+" or "Add Task" button, select the task category (Health, Hygiene, Dietary, or Custom), then fill in the details including title, date, time, and optional notes.', 'tasks', 'what-are-tasks,create-medication-task,set-task-reminder'],
+  ['task-categories', 'What types of tasks can I create?', 'You can create: Health tasks (medications, vet visits, vaccinations), Hygiene tasks (grooming, nail trimming, bathing), Dietary tasks (feeding times, special diets), and Custom tasks for any other care needs.', 'tasks', 'what-are-tasks,create-task,view-tasks'],
+  ['create-medication-task', 'How do I track medications?', 'Create a Health task, select "Medication" as the type, then enter the medication name, dosage, frequency, and schedule. You can set recurring reminders and mark doses as completed.', 'tasks', 'create-task,set-task-reminder,track-chronic-conditions'],
+  ['set-task-reminder', 'Can I set reminders for tasks?', 'Yes, when creating or editing a task, enable reminders and choose your preferred notification time. You can set one-time or recurring reminders for daily, weekly, or custom schedules.', 'tasks', 'create-task,notification-settings,edit-task'],
+  ['view-tasks', 'Where can I see all my tasks?', 'The Tasks tab shows all your tasks organized by category. You can also see upcoming tasks on the Home dashboard. Filter by completed, pending, or overdue tasks.', 'tasks', 'what-are-tasks,complete-task,task-categories'],
+  ['complete-task', 'How do I mark a task as complete?', 'Tap on the task from your task list or home screen, then tap the "Mark as Complete" or checkmark button. Completed tasks are moved to your history.', 'tasks', 'view-tasks,edit-task,delete-task'],
+  ['edit-task', 'Can I edit or delete a task?', 'Yes, tap on any task to view details, then select "Edit" to modify it or "Delete" to remove it. Deleting a task also removes all associated reminders.', 'tasks', 'complete-task,create-task'],
+  ['pain-assessment', 'What are the pain assessment tools?', 'The app includes validated pain scales: Feline Grimace Scale for cats, Canine Acute Pain Scale for dogs, and Equine Grimace Scale for horses. These help you assess and monitor your companion\'s pain levels objectively.', 'tasks', 'use-pain-assessment,track-chronic-conditions,share-pain-data'],
+  ['use-pain-assessment', 'How do I use the pain assessment tools?', 'Access the Observational Tool from the Tasks tab and complete the assessment by answering questions about your companion\'s behavior and appearance. After finishing the assessment, you can create an appointment request to share the results with your veterinarian for review and recommendations.', 'tasks', 'pain-assessment,share-pain-data,track-chronic-conditions'],
+  ['track-chronic-conditions', 'How do I manage chronic conditions like diabetes or epilepsy?', 'Add the condition to your companion\'s medical information in their profile. Then create recurring Health tasks to track symptoms, medications, and monitoring parameters. Use the pain assessment and observational tools for regular check-ins.', 'tasks,companions', 'add-medical-info,create-medication-task,pain-assessment'],
+  ['share-pain-data', 'Can I share pain assessment data with my veterinarian?', 'Yes! After completing a pain assessment or observational tool, you can create an appointment request directly from the results screen. This sends the assessment data to your veterinarian for their review and recommendations.', 'tasks,appointments', 'use-pain-assessment,how-to-book-appointment,track-chronic-conditions'],
+
+  // DOCUMENTS
+  ['how-to-upload-document', 'How do I upload documents?', 'Go to the Documents tab, tap the "+" or "Add Document" button, select the document category, then choose to take a photo or upload from your device. Add a title and optional notes before saving.', 'documents', 'document-categories,edit-document,organize-documents'],
+  ['document-categories', 'What types of documents can I store?', 'You can organize documents into categories: Medical Records, Vaccinations, Lab Results, Insurance, Prescriptions, Invoices, and Custom categories. This helps keep everything organized and easy to find.', 'documents', 'how-to-upload-document,organize-documents'],
+  ['upload-vaccination-record', 'How do I add vaccination records?', 'Go to Documents, tap "Add Document", select "Vaccinations" as the category, then upload a photo or PDF of the vaccination certificate. Add details like vaccine name and date for easy reference.', 'documents', 'document-categories,how-to-upload-document,view-documents'],
+  ['organize-documents', 'How do I organize my documents?', 'Documents are automatically organized by category. You can also add custom tags, rename documents, and use the search function to quickly find specific files.', 'documents', 'document-categories,search-documents,edit-document'],
+  ['view-documents', 'How do I view my uploaded documents?', 'Go to the Documents tab to see all your documents organized by category. Tap on any document to view it in full screen. You can zoom, download, or share from the preview screen.', 'documents', 'how-to-upload-document,download-document,share-document'],
+  ['edit-document', 'Can I edit or delete documents?', 'Yes, tap on a document to open it, then use the menu to edit details (title, category, notes) or delete it. Note: deleting a document is permanent and removes it from both your account and any shared threads.', 'documents', 'how-to-upload-document,document-deleted-permanently'],
+  ['search-documents', 'How do I search for specific documents?', 'Use the search bar at the top of the Documents tab. You can search by document title, category, date, or tags. Filter results by category for more precise searches.', 'documents', 'organize-documents,view-documents'],
+  ['download-document', 'Can I download documents to my device?', 'Yes, open any document in preview mode and tap the download icon. The document will be saved to your device\'s downloads folder or gallery, depending on the file type.', 'documents', 'view-documents,backup-documents'],
+  ['share-document', 'How do I share documents with others?', 'Open the document, tap the share icon, then choose to share with a veterinarian via the app or use your device\'s share options to send via email, messaging, or other apps.', 'documents', 'view-documents,share-documents-with-vet'],
+  ['document-privacy', 'Who can see my uploaded documents?', 'Your documents are private by default. Only you and anyone you explicitly share access with can view them. When shared with a veterinarian during an appointment, they can access them through that appointment thread.', 'documents,privacy', 'share-documents-with-vet,data-protection,share-companion-access'],
+  ['document-deleted-permanently', 'What happens when I delete a document?', 'Deleted documents are permanently removed from your account and any appointment threads where they were shared. Veterinarians may retain copies for their own records as required by law. This action cannot be undone.', 'documents,privacy', 'edit-document,backup-documents'],
+  ['backup-documents', 'Does the app automatically backup my documents?', 'The app stores your documents securely in the cloud, but we recommend keeping separate backups of important documents on your device or cloud storage. Use the download feature to create local copies.', 'documents,technical', 'download-document,data-stored'],
+
+  // EXPENSES & PAYMENTS
+  ['track-expenses', 'How do I track expenses?', 'Expenses from appointments booked through the app are automatically added. You can also manually add external expenses by going to the Expenses section from the Home tab and tapping "Add Expense".', 'expenses', 'view-expenses,add-manual-expense,expense-categories'],
+  ['view-expenses', 'Where can I see all my companion-related expenses?', 'Access the Expenses section from the Home tab. You\'ll see a summary of total expenses, broken down by companion, category, and time period. Filter by in-app or external expenses.', 'expenses', 'track-expenses,yearly-spending,expense-reports'],
+  ['add-manual-expense', 'Can I add expenses that weren\'t booked through the app?', 'Yes, tap "Add Expense" in the Expenses section, select the companion, enter the amount, category (medical, food, grooming, etc.), date, and optional notes or receipt photo.', 'expenses', 'track-expenses,expense-categories'],
+  ['expense-categories', 'What expense categories are available?', 'Common categories include: Veterinary Care, Medications, Food, Grooming, Training, Boarding, Insurance, Supplies, and Other. You can filter and view totals by category.', 'expenses', 'track-expenses,view-expenses'],
+  ['how-payment-works', 'How do I pay for services booked through the app?', 'After an appointment, you\'ll receive a payment invoice. You can pay pet businesses directly through the app using Stripe - simply enter your payment details and complete the transaction securely. All payments go directly to the pet professional.', 'expenses,appointments', 'view-invoice,payment-methods,is-app-free'],
+  ['view-invoice', 'Where can I view my invoices?', 'Go to My Appointments, select the completed appointment, and tap "View Invoice". You can also find invoices in the Expenses section and in the Documents tab if they were saved there.', 'expenses,appointments', 'how-payment-works,download-invoice'],
+  ['payment-methods', 'What payment methods are supported?', 'Payments are processed securely through Stripe integration. You can pay pet businesses directly through the app using credit/debit cards or other Stripe-supported payment methods. All transactions are secure and encrypted.', 'expenses', 'how-payment-works,payment-security'],
+  ['payment-security', 'Is my payment information secure?', 'Yes! All payments are processed through Stripe, an industry-leading secure payment platform. Yosemite Crew does not store your payment card details. Stripe uses bank-level security and encryption to protect your payment information.', 'expenses,privacy', 'payment-methods,data-protection'],
+  ['yearly-spending', 'Can I see my total yearly spending per companion?', 'Yes, the Home dashboard displays your yearly spend for each companion. You can also access detailed breakdowns in the Expenses section with filters by date range, category, and companion.', 'expenses', 'view-expenses,expense-reports'],
+  ['expense-reports', 'Can I export expense reports?', 'Currently, you can view and screenshot your expense summaries. Future updates may include PDF export functionality. For now, use the download feature on individual invoices and receipts.', 'expenses', 'view-expenses,download-invoice'],
+  ['download-invoice', 'Can I download invoices for my records?', 'Yes, open any invoice from the Expenses section or appointment details, then tap the download or share icon to save it to your device or send it to your email.', 'expenses,documents', 'view-invoice,download-document'],
+
+  // PRIVACY & SECURITY
+  ['data-stored', 'What personal data does the app collect?', 'We collect: account information (name, email, phone), companion profiles, health records you upload, appointment history, chat messages, and usage data. For complete details, see our Privacy Policy in the app.', 'privacy', 'data-protection,who-sees-data,delete-account'],
+  ['data-protection', 'How is my data protected?', 'Your data is encrypted in transit and at rest, stored on secure servers, and protected by industry-standard security measures. We comply with GDPR and process data in accordance with German law.', 'privacy', 'data-stored,account-security,gdpr-rights'],
+  ['who-sees-data', 'Who can see my personal information?', 'Your data is private by default. Only you, people you grant access to, and pet professionals you book appointments with can see relevant information. We do not sell your data to third parties.', 'privacy', 'data-stored,document-privacy,data-protection'],
+  ['gdpr-rights', 'What are my data protection rights?', 'Under GDPR, you have rights to: access your data, request corrections, request deletion, object to processing, data portability, and withdraw consent. Contact us through the app to exercise these rights.', 'privacy', 'data-stored,delete-account,contact-support'],
+  ['account-security', 'How can I keep my account secure?', 'Use a strong, unique password, never share your login credentials, log out on shared devices, enable app security features, and contact support immediately if you notice suspicious activity.', 'privacy,account', 'change-password,data-protection,account-locked'],
+  ['third-party-sharing', 'Do you share data with third parties?', 'We only share data with service providers necessary to operate the app (hosting, authentication) and pet professionals you book with. We comply with GDPR and use standard contractual clauses for data transfers.', 'privacy', 'who-sees-data,data-protection'],
+  ['data-retention', 'How long do you keep my data?', 'Active account data is retained while your account is active. After account deletion, most data is removed within 30 days, though some records may be retained longer for legal compliance. See our Privacy Policy for specifics.', 'privacy', 'delete-account,data-stored,gdpr-rights'],
+
+  // TECHNICAL ISSUES
+  ['app-not-loading', 'The app is not loading or crashing. What should I do?', 'Try these steps: 1) Close and restart the app, 2) Check your internet connection, 3) Update to the latest app version, 4) Restart your device, 5) If the problem persists, contact support with details about the error.', 'technical', 'update-app,slow-performance,contact-support'],
+  ['login-issues', 'I can\'t log in to my account.', 'First, verify you\'re using the correct email address. Request a new OTP by tapping "Send OTP" - check your email for the 4-digit code. If using social login (Google, Facebook, Apple), ensure you\'re connected to that service. Still stuck? Contact support.', 'technical,account', 'forgot-password,account-locked,contact-support'],
+  ['notification-settings', 'How do I manage notifications?', 'Go to Account settings, select "Notifications", then customize which alerts you want to receive (appointments, tasks, messages, etc.). You can also manage permissions in your device settings.', 'technical,account', 'appointment-reminders,set-task-reminder'],
+  ['update-app', 'How do I update the app?', 'Go to the App Store (iOS) or Google Play Store (Android), search for "Yosemite Crew", and tap "Update" if available. Enable automatic updates in your device settings to always have the latest version.', 'technical', 'app-not-loading,new-features'],
+  ['slow-performance', 'The app is running slowly. How can I fix this?', 'Try: clearing the app cache in settings, ensuring you have a stable internet connection, closing other apps running in the background, freeing up device storage space, and updating to the latest app version.', 'technical', 'app-not-loading,update-app'],
+  ['upload-failed', 'My document/photo upload failed. What should I do?', 'Check your internet connection, ensure the file size isn\'t too large (max 10MB), verify the file format is supported (JPEG, PNG, PDF), and try again. If it still fails, try uploading a different file or contact support.', 'technical,documents', 'how-to-upload-document,slow-performance'],
+  ['sync-issues', 'My data is not syncing across devices.', 'Ensure you\'re logged into the same account on both devices, check your internet connection, force-close and restart the app, and verify you\'re using the latest app version on both devices.', 'technical', 'app-not-loading,update-app'],
+  ['calendar-integration', 'How do I sync tasks with my device calendar?', 'Calendar integration is available in the Task Management screen. When creating or editing a task, you can add it directly to your Google Calendar or iCloud calendar. Grant the necessary permissions when prompted, and your tasks with due dates will automatically appear in your calendar.', 'technical,tasks', 'set-task-reminder,create-task,notification-settings'],
+
+  // SUPPORT & HELP
+  ['contact-support', 'How do I contact customer support?', 'Tap the mail icon on the FAQ screen or go to Account → Contact Us. Fill out the form with your question or issue, and our support team will respond via email typically within 24-48 hours.', 'support', 'report-bug,feature-request'],
+  ['report-bug', 'How do I report a bug or technical issue?', 'Use the Contact Us form and select "Technical Issue" as the category. Describe the problem in detail, including what you were doing when it occurred, your device type, and app version. Screenshots are helpful.', 'support,technical', 'contact-support,app-not-loading'],
+  ['feature-request', 'Can I suggest new features?', 'Yes! We welcome feedback. Use the Contact Us form and select "Feature Request". Tell us what you\'d like to see and how it would improve your experience. We review all suggestions.', 'support', 'contact-support,new-features'],
+  ['new-features', 'How do I learn about new features?', 'Check the app store listing for update notes, follow us on social media (Instagram, TikTok, LinkedIn), or watch for in-app announcements when you update. Major features are highlighted on first launch after an update.', 'support', 'update-app,feature-request'],
+  ['provide-feedback', 'How can I provide feedback about the app?', 'We\'d love to hear from you! Use the Contact Us form, leave a review in the App Store or Google Play, or follow and message us on social media. Your feedback helps us improve.', 'support', 'contact-support,feature-request,write-review'],
+  ['supported-countries', 'Is the app available in my country?', 'Yes! Yosemite Crew is available globally and supports multiple currencies. You can use the app anywhere in the world. To book appointments through the app, pet businesses need to have our PMS (Practice Management System) integrated. If your preferred veterinarian or pet professional doesn\'t have our system yet, you can invite them through the app and we\'ll help get them onboarded.', 'support,getting-started', 'browse-pet-professionals,how-to-book-appointment'],
+  ['companion-specific-data', 'Why is data separated by companion?', 'Each companion has their own profile, documents, tasks, appointments, and expense tracking to keep everything organized. This makes it easy to manage multiple companions and share specific information with veterinarians.', 'companions,support', 'manage-multiple-companions,switch-companions'],
+  ['delete-task', 'Can I delete a task?', 'Yes, open the task details and tap "Delete". This will permanently remove the task and any associated reminders. Completed tasks can also be deleted from your history.', 'tasks', 'edit-task,complete-task'],
 ];
+
+// Convert compact data to full FAQ entries
+export const FAQ_ENTRIES: FAQEntry[] = FAQ_DATA.map(([id, question, answer, categories, related]) => ({
+  id,
+  question,
+  answer,
+  categoryIds: categories.split(','),
+  relatedIds: related ? related.split(',') : undefined,
+}));
