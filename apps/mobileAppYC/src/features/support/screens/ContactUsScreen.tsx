@@ -107,12 +107,15 @@ const isValidUrl = (value: string): boolean => {
   if (!value) {
     return false;
   }
-  if (typeof URL.canParse === 'function') {
-    return URL.canParse(value);
+  const urlConstructor = URL as unknown as {
+    canParse?: (input: string, base?: string) => boolean;
+  };
+  if (typeof urlConstructor.canParse === 'function') {
+    return urlConstructor.canParse(value);
   }
   try {
-    new URL(value);
-    return true;
+    const parsedUrl = new URL(value);
+    return Boolean(parsedUrl);
   } catch {
     return false;
   }
