@@ -204,7 +204,7 @@ describe('ContactusPage', () => {
         fireEvent.change(screen.getByLabelText('Full Name'), { target: { value: 'Sam Smith' } });
         fireEvent.change(screen.getByLabelText('Enter Email Address'), { target: { value: 'sam.smith@example.com' } });
         fireEvent.change(screen.getAllByPlaceholderText('Your Message')[0], {  target: { value: 'DSAR request.' } });
-        fireEvent.click(screen.getByLabelText('The person, or the parent / guardian of the person'));
+        fireEvent.click(screen.getByLabelText('The person, or the parent / guardian of the person, whose name appears above'));
         fireEvent.change(screen.getByTestId('dynamic-select'), { target: { value: 'west' } });
         fireEvent.click(screen.getByLabelText('Access your personal information'));
 
@@ -234,7 +234,7 @@ describe('ContactusPage', () => {
         fireEvent.change(screen.getByLabelText('Full Name'), { target: { value: 'Sam Smith' } });
         fireEvent.change(screen.getByLabelText('Enter Email Address'), { target: { value: 'sam.smith@example.com' } });
         fireEvent.change(screen.getAllByPlaceholderText('Your Message')[0], { target: { value: 'DSAR request.' } });
-        fireEvent.click(screen.getByLabelText('The person, or the parent / guardian of the person.'));
+        fireEvent.click(screen.getByLabelText('The person, or the parent / guardian of the person, whose name appears above'));
         fireEvent.change(screen.getByTestId('dynamic-select'), { target: { value: 'west' } });
         fireEvent.click(screen.getByLabelText('Access your personal information'));
 

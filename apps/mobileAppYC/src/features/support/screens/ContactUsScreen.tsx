@@ -791,8 +791,6 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
         title="Contact us"
         showBackButton
         onBack={() => navigation.goBack()}
-        rightIcon={Images.accountBellIcon}
-        onRightPress={() => {}}
       />
 
       <KeyboardAvoidingView

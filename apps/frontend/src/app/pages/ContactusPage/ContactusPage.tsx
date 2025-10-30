@@ -35,7 +35,7 @@ const ContactusPage = () => {
   // Subrequest options for Data Service Access Request
   const [subselectedRequest, setSubselectedRequest] = useState("");
   const subrequestOptions = [
-    "The person, or the parent / guardian of the person",
+    "The person, or the parent / guardian of the person, whose name appears above",
     "An agent authorized by the consumer to make this request on their behalf",
   ];
 
