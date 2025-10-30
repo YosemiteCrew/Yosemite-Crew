@@ -57,7 +57,7 @@ export const PaymentSuccessScreen: React.FC = () => {
             <Text style={styles.detailLabel}>Invoice</Text>
             <TouchableOpacity style={styles.downloadInvoiceTouchable}>
               <Text style={[styles.detailValue, styles.link]}>Download Invoice </Text>
-              <Image source={Images.downloadInvoiceIcon} style={styles.downloadInvoiceIcon} />
+              <Image source={Images.downloadInvoice} style={styles.downloadInvoiceIcon} />
             </TouchableOpacity>
           </View>
           <View style={styles.detailRow}>

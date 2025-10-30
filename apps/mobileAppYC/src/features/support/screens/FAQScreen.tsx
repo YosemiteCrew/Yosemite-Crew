@@ -16,6 +16,7 @@ import {Header} from '@/shared/components/common';
 import {PillSelector} from '@/shared/components/common/PillSelector/PillSelector';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
+import {SearchBar} from '@/shared/components/common/SearchBar/SearchBar';
 import {useTheme} from '@/hooks';
 import {FAQ_CATEGORIES, FAQ_ENTRIES, type FAQEntry} from '../data/faqData';
 import {Images} from '@/assets/images';
@@ -134,6 +135,7 @@ export const FAQScreen: React.FC<FAQScreenProps> = ({navigation}) => {
     FAQ_ENTRIES[0]?.id ?? null,
   );
   const [helpfulState, setHelpfulState] = React.useState<HelpfulState>({});
+  const [searchQuery, setSearchQuery] = React.useState<string>('');
 
   const categoryOptions = React.useMemo(
     () => FAQ_CATEGORIES.map(category => ({id: category.id, label: category.label})),
@@ -141,13 +143,27 @@ export const FAQScreen: React.FC<FAQScreenProps> = ({navigation}) => {
   );
 
   const filteredFaqs = React.useMemo(() => {
-    if (selectedCategory === 'all') {
-      return FAQ_ENTRIES;
+    let faqs = FAQ_ENTRIES;
+
+    // Filter by category
+    if (selectedCategory !== 'all') {
+      faqs = faqs.filter(entry =>
+        entry.categoryIds.includes(selectedCategory),
+      );
     }
-    return FAQ_ENTRIES.filter(entry =>
-      entry.categoryIds.includes(selectedCategory),
-    );
-  }, [selectedCategory]);
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      faqs = faqs.filter(entry => {
+        const questionMatch = entry.question.toLowerCase().includes(query);
+        const answerMatch = entry.answer.toLowerCase().includes(query);
+        return questionMatch || answerMatch;
+      });
+    }
+
+    return faqs;
+  }, [selectedCategory, searchQuery]);
 
   const relatedLookup = React.useMemo(() => {
     const map = new Map<string, FAQEntry>();
@@ -177,8 +193,23 @@ export const FAQScreen: React.FC<FAQScreenProps> = ({navigation}) => {
     setExpandedFaqId(id);
     if (!isInFiltered) {
       setSelectedCategory('all');
+      setSearchQuery('');
     }
   }, []);
+
+  const handleCategoryChange = React.useCallback((categoryId: string) => {
+    setSelectedCategory(categoryId);
+    // Optionally clear search when changing categories
+    // setSearchQuery('');
+  }, []);
+
+  const handleSearchChange = React.useCallback((text: string) => {
+    setSearchQuery(text);
+    // If user is searching, show all categories
+    if (text.trim() && selectedCategory !== 'all') {
+      setSelectedCategory('all');
+    }
+  }, [selectedCategory]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -194,36 +225,59 @@ export const FAQScreen: React.FC<FAQScreenProps> = ({navigation}) => {
         style={styles.container}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}>
+        <SearchBar
+          mode="input"
+          placeholder="Search FAQs..."
+          value={searchQuery}
+          onChangeText={handleSearchChange}
+          containerStyle={styles.searchContainer}
+        />
+
         <PillSelector
           options={categoryOptions}
           selectedId={selectedCategory}
-          onSelect={setSelectedCategory}
+          onSelect={handleCategoryChange}
           containerStyle={styles.pillContainer}
         />
 
         <View style={styles.faqList}>
-          {filteredFaqs.map(faq => {
-            const isExpanded = expandedFaqId === faq.id;
-            const relatedEntries: FAQEntry[] = (faq.relatedIds ?? [])
-              .map(id => relatedLookup.get(id))
-              .filter(Boolean) as FAQEntry[];
-            const helpfulSelection = helpfulState[faq.id] ?? null;
+          {filteredFaqs.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>
+                {searchQuery.trim()
+                  ? `No FAQs found for "${searchQuery}"`
+                  : 'No FAQs available in this category'}
+              </Text>
+              {Boolean(searchQuery.trim()) && (
+                <Text style={styles.emptyStateSubtext}>
+                  Try searching with different keywords or browse by category
+                </Text>
+              )}
+            </View>
+          ) : (
+            filteredFaqs.map(faq => {
+              const isExpanded = expandedFaqId === faq.id;
+              const relatedEntries: FAQEntry[] = (faq.relatedIds ?? [])
+                .map(id => relatedLookup.get(id))
+                .filter(Boolean) as FAQEntry[];
+              const helpfulSelection = helpfulState[faq.id] ?? null;
 
-            return (
-              <FAQCard
-                key={faq.id}
-                faq={faq}
-                isExpanded={isExpanded}
-                relatedEntries={relatedEntries}
-                helpfulSelection={helpfulSelection}
-                onToggle={handleToggle}
-                onHelpfulSelect={handleHelpfulSelection}
-                onRelatedPress={onRelatedPress}
-                styles={styles}
-                theme={theme}
-              />
-            );
-          })}
+              return (
+                <FAQCard
+                  key={faq.id}
+                  faq={faq}
+                  isExpanded={isExpanded}
+                  relatedEntries={relatedEntries}
+                  helpfulSelection={helpfulSelection}
+                  onToggle={handleToggle}
+                  onHelpfulSelect={handleHelpfulSelection}
+                  onRelatedPress={onRelatedPress}
+                  styles={styles}
+                  theme={theme}
+                />
+              );
+            })
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -245,11 +299,38 @@ const createStyles = (theme: any) =>
       paddingTop: theme.spacing['3'],
       gap: theme.spacing['4'],
     },
+    searchContainer: {
+      marginBottom: theme.spacing['4'],
+    },
     pillContainer: {
       marginBottom: theme.spacing['3'],
     },
     faqList: {
       gap: theme.spacing['4'],
+    },
+    emptyState: {
+      paddingVertical: theme.spacing['8'],
+      paddingHorizontal: theme.spacing['6'],
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    emptyStateText: {
+      fontFamily: theme.typography.paragraphBold.fontFamily,
+      fontSize: 16,
+      fontWeight: theme.typography.paragraphBold.fontWeight,
+      lineHeight: 22,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+      marginBottom: theme.spacing['2'],
+    },
+    emptyStateSubtext: {
+      fontFamily: theme.typography.paragraph.fontFamily,
+      fontSize: 14,
+      fontWeight: theme.typography.paragraph.fontWeight,
+      lineHeight: 20,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+      opacity: 0.7,
     },
     faqCard: {
       gap: theme.spacing['3'],
