@@ -12,6 +12,21 @@ import {
   createDataSubjectRightsSection,
   createObjectionSection,
   createObligationProvideData,
+  createSocialMediaSection,
+  createWebRecipientsList,
+  createGoogleOnlyRecipient,
+  createBookingRecipientsList,
+  createHealthRecipientsList,
+  createReviewRecipientsList,
+  createActiveAccountStorageWithRetention,
+  createConversationStorage,
+  createInquiryStorage,
+  createReviewStorage,
+  createBookingStorage,
+  createHealthStorage,
+  createJointResponsibilityStorage,
+  createEstablishmentBasis,
+  createConsentBasis,
 } from './sharedLegalSections';
 
 export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
@@ -107,21 +122,12 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
         )
       ),
       p(b('Recipients:')),
-      ol(
-        oli('•', ' Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855, Luxemburg.'),
-        oli('•', ' Google Cloud EMEA Ltd., 70 Sir John Rogerson’s Quay, Dublin 2, Ireland.'),
-        oli('•', ' MongoDB Inc., 3 Shelbourne Building, Crampton Avenue Ballsbridge, Dublin 4, Ireland.')
-      ),
+      createWebRecipientsList(),
       p(
         b('Legal basis: '),
         seg('Establishment of the user relationship, Art. 6 para. 1 lit. b) GDPR. By providing voluntary profile information, you consent to the processing of this data, Art. 6 para. 1 lit. a) GDPR.')
       ),
-      p(
-        b('Storage period: '),
-        seg(
-          'The data will generally be processed for as long as you maintain your account with us. After termination of the account, your data will be deleted unless the deletion of individual data or documents is prevented by statutory retention obligations.'
-        )
-      ),
+      createActiveAccountStorageWithRetention(),
     ],
   },
 
@@ -158,7 +164,7 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
       createRecipientsList(),
       p(b('Recipients:'), seg(' Selected clients.')),
       createContractBasis(),
-      p(b('Storage period: '), seg('We store the data until the conversation or account is deleted unless the deletion of individual data or documents is prevented by statutory retention obligations.')),
+      createConversationStorage(),
     ],
   },
 
@@ -188,7 +194,7 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
       ),
       p(b('Categories of data: '), seg('IP address, time and date of access, browser type and version, operating system.')),
       p(b('Recipients:')),
-      ol(oli('•', ' Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Ireland.')),
+      createGoogleOnlyRecipient(),
       createLegitimateInterestBasis(),
       createLogStoragePeriod(),
     ],
@@ -212,13 +218,8 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
         oli('•', ' Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855, Luxemburg.'),
         oli('•', ' Your identity provider, if you use the log-in of a third party service (we support Meta, Google or Apple).')
       ),
-      p(b('Legal basis: '), seg('Establishment of the user relationship, Art. 6 para. 1 lit. b) GDPR.')),
-      p(
-        b('Storage period: '),
-        seg(
-          'The data will generally be processed for as long as you maintain your account with us. After termination of the account, your data will be deleted unless the deletion of individual data or documents is prevented by statutory retention obligations.'
-        )
-      ),
+      createEstablishmentBasis(),
+      createActiveAccountStorageWithRetention(),
     ],
   },
 
@@ -252,16 +253,9 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
         )
       ),
       p(b('Recipients:')),
-      ol(
-        oli('•', ' Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Ireland.'),
-        oli('•', ' MongoDB Inc., 3 Shelbourne Building, Crampton Avenue Ballsbridge, Dublin 4, Ireland.'),
-        oli('•', ' Selected veterinarians.')
-      ),
+      createBookingRecipientsList('Selected veterinarians.'),
       createContractBasis(),
-      p(
-        b('Storage period: '),
-        seg('The data collected as part of the booking will be deleted after the expiry of the applicable statutory retention obligations (6 years according to HGB, 10 years according to AO).')
-      ),
+      createBookingStorage(),
     ],
   },
 
@@ -277,13 +271,9 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
       ),
       p(b('Categories of data: '), seg('Messages, attachments (photos, videos), pet-related context (e.g. symptoms, recent treatments), metadata (timestamps, sender/ recipient).')),
       p(b('Recipients:')),
-      ol(
-        oli('•', ' Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Ireland.'),
-        oli('•', ' MongoDB Inc., 3 Shelbourne Building, Crampton Avenue Ballsbridge, Dublin 4, Ireland.'),
-        oli('•', ' Selected veterinarians.')
-      ),
+      createBookingRecipientsList('Selected veterinarians.'),
       createContractBasis(),
-      p(b('Storage period: '), seg('We store the data until the conversation or account is deleted unless the deletion of individual data or documents is prevented by statutory retention obligations.')),
+      createConversationStorage(),
     ],
   },
 
@@ -299,13 +289,9 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
       ),
       p(b('Categories of data: '), seg('Rating (in the form of stars), review text, name, timestamp.')),
       p(b('Recipients:')),
-      ol(
-        oli('•', ' Any user of the PMS — including the pet service provider selected by the user — can view the review.'),
-        oli('•', ' Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855, Luxemburg.'),
-        oli('•', ' MongoDB Inc., 3 Shelbourne Building, Crampton Avenue Ballsbridge, Dublin 4, Ireland.')
-      ),
-      p(b('Legal basis: '), seg('Voluntary consent to publish review (Art. 6 para 1 lit. a GDPR).')),
-      p(b('Storage period: '), seg('We store the data until the review is manually removed by the user or deleted due to inactivity or policy violations.')),
+      createReviewRecipientsList(),
+      createConsentBasis(),
+      createReviewStorage(),
     ],
   },
 
@@ -333,13 +319,9 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
       ),
       p(b('Categories of data: '), seg("Pet's medical records (vaccinations, prescriptions, diagnoses), daily health logs, notes on behaviour or pain, exercise schedules, reminders, task lists.")),
       p(b('Recipients:')),
-      ol(
-        oli('•', ' Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855, Luxemburg.'),
-        oli('•', ' MongoDB Inc., 3 Shelbourne Building, Crampton Avenue Ballsbridge, Dublin 4, Ireland.'),
-        oli('•', ' Pet service provider selected by the user.')
-      ),
+      createHealthRecipientsList(),
       p(b('Legal basis: '), seg('The legitimate interest in pursuing the aforementioned purposes (Art. 6 para. 1 lit. f. GDPR).')),
-      p(b('Storage period: '), seg('As long as the pet profile exists and data is not manually deleted. Full deletion occurs with account removal or upon user request.')),
+      createHealthStorage(),
     ],
   },
 
@@ -360,7 +342,7 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
         b('Legal basis: '),
         seg('Contract fulfillment and pre-contractual inquiries (Art. 6 para. 1 lit. b. GDPR); legitimate interests (Art. 6 para. 1 lit. f. GDPR) in the processing of communication.')
       ),
-      p(b('Storage period: '), seg('The data will generally be processed for as long as it is necessary to process the inquiry.')),
+      createInquiryStorage(),
     ],
   },
 
@@ -376,65 +358,53 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
     ],
   },
 
-  {
-    id: 'social-linkedin',
-    title: '4.1. LinkedIn',
-    blocks: [
-      p(seg('Our website can be accessed at: '), u('https://de.linkedin.com/company/yosemitecrew')),
-      p(seg('The network is operated by: LinkedIn Ireland Unlimited Company, Wilton Place, Dublin 2, Ireland.')),
-      p(seg('Privacy policy of the network: '), u('www.linkedin.com/legal/privacy-policy')),
-    ],
-  },
+  createSocialMediaSection(
+    'social-linkedin',
+    '4.1. LinkedIn',
+    'https://de.linkedin.com/company/yosemitecrew',
+    'LinkedIn Ireland Unlimited Company, Wilton Place, Dublin 2, Ireland.',
+    'www.linkedin.com/legal/privacy-policy'
+  ),
 
-  {
-    id: 'social-tiktok',
-    title: '4.2. Tik-Tok',
-    blocks: [
-      p(seg('Our website can be accessed at: '), u('https://www.tiktok.com/@yosemitecrew')),
-      p(seg('The network is operated by: TikTok Technology Limited, 10 Earlsfort Terrace, Dublin, D02 T380, Ireland.')),
-      p(seg('Privacy policy of the network: '), u('https://www.tiktok.com/legal/page/eea/privacy-policy/de')),
-    ],
-  },
+  createSocialMediaSection(
+    'social-tiktok',
+    '4.2. Tik-Tok',
+    'https://www.tiktok.com/@yosemitecrew',
+    'TikTok Technology Limited, 10 Earlsfort Terrace, Dublin, D02 T380, Ireland.',
+    'https://www.tiktok.com/legal/page/eea/privacy-policy/de'
+  ),
 
-  {
-    id: 'social-instagram',
-    title: '4.3. Instagram',
-    blocks: [
-      p(seg('Our website can be accessed at: '), u('https://www.instagram.com/yosemite_crew')),
-      p(seg('The network is operated by: Meta Platforms Ireland Limited, 4 Grand Canal Square, Dublin 2, Ireland.')),
-      p(seg('Privacy policy of the network: '), u('https://privacycenter.instagram.com/')),
-    ],
-  },
+  createSocialMediaSection(
+    'social-instagram',
+    '4.3. Instagram',
+    'https://www.instagram.com/yosemite_crew',
+    'Meta Platforms Ireland Limited, 4 Grand Canal Square, Dublin 2, Ireland.',
+    'https://privacycenter.instagram.com/'
+  ),
 
-  {
-    id: 'social-x',
-    title: '4.4. X.com',
-    blocks: [
-      p(seg('Our website can be accessed at: '), u('https://x.com/yosemitecrew')),
-      p(seg('The network is operated by: X Internet Unlimited Company, One Cumberland Place, Fenian Street, Dublin 2, D02 AX07 Ireland.')),
-      p(seg('Privacy policy of the network: '), u('https://x.com/de/privacy')),
-    ],
-  },
+  createSocialMediaSection(
+    'social-x',
+    '4.4. X.com',
+    'https://x.com/yosemitecrew',
+    'X Internet Unlimited Company, One Cumberland Place, Fenian Street, Dublin 2, D02 AX07 Ireland.',
+    'https://x.com/de/privacy'
+  ),
 
-  {
-    id: 'social-discord',
-    title: '4.5. Discord',
-    blocks: [
-      p(seg('Our website can be accessed at: '), u('https://discord.gg/YVzMa9j7BK')),
-      p(seg('The network is operated by: Discord Netherlands BV,  Schiphol Boulevard 195, 1118 BG Schiphol, Netherlands.')),
-      p(seg('Privacy policy of the network: '), u('https://discord.com/privacy')),
-    ],
-  },
+  createSocialMediaSection(
+    'social-discord',
+    '4.5. Discord',
+    'https://discord.gg/YVzMa9j7BK',
+    'Discord Netherlands BV,  Schiphol Boulevard 195, 1118 BG Schiphol, Netherlands.',
+    'https://discord.com/privacy'
+  ),
 
-  {
-    id: 'social-github',
-    title: '4.6. GitHub',
-    blocks: [
-      p(seg('Our website can be accessed at: '), u('https://github.com/YosemiteCrew/Yosemite-Crew')),
-      p(seg('The network is operated by: GitHub B.V Prins Bernhardplein 200, Amsterdam 1097JB, Netherlands.')),
-      p(seg('Privacy policy of the network: '), u('https://docs.github.com/de/site-policy/privacy-policies/github-general-privacy-statement')),
-    ],
-  },
+  createSocialMediaSection(
+    'social-github',
+    '4.6. GitHub',
+    'https://github.com/YosemiteCrew/Yosemite-Crew',
+    'GitHub B.V Prins Bernhardplein 200, Amsterdam 1097JB, Netherlands.',
+    'https://docs.github.com/de/site-policy/privacy-policies/github-general-privacy-statement'
+  ),
 
   {
     id: 'social-joint',
@@ -453,7 +423,7 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
       p(seg('Further information on this data processing by Discord can be found in the joint controller agreement at:\n'), u('https://discord.com/terms/local-laws')),
       p(seg('Further information on this data processing by Github can be found in the joint controller agreement at:\n'), u('https://github.com/customer-terms/github-data-protection-agreement')),
       p(b('Legal basis: '), seg('Processing is carried out on the basis of our legitimate interest (Art. 6 (1) (f) GDPR). The interest lies in the respective purpose.')),
-      p(b('Storage period: '), seg('We do not store any personal data ourselves within the scope of joint responsibility. With regard to contact requests outside the network, the above information on establishing contact applies accordingly.')),
+      createJointResponsibilityStorage(),
     ],
   },
 

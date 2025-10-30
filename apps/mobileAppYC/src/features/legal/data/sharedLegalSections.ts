@@ -1,5 +1,11 @@
-import type {LegalSection, OrderedListBlock, ParagraphBlock} from './legalContentTypes';
+import type {LegalSection, OrderedListBlock, ParagraphBlock, TextSegment} from './legalContentTypes';
 import {p, seg, b, u, ol, oli} from './legalContentHelpers';
+
+// Common company information
+export const COMPANY_NAME = 'DuneXploration UG (haftungsbeschränkt)';
+export const COMPANY_ADDRESS = 'Am Finther Weg 7\n55127 Mainz';
+export const COMPANY_FULL_ADDRESS = 'Am Finther Weg 7, 55127 Mainz, Germany';
+export const SECURITY_EMAIL = 'security@yosemitecrew.com';
 
 // Common controller section
 export const createControllerSection = (): LegalSection => ({
@@ -8,10 +14,10 @@ export const createControllerSection = (): LegalSection => ({
   blocks: [
     p(
       b('The Controller is:\n'),
-      seg('DuneXploration UG (haftungsbeschränkt)\nAm Finther Weg 7\n55127 Mainz\n'),
-      u('security@yosemitecrew.com')
+      seg(`${COMPANY_NAME}\n${COMPANY_ADDRESS}\n`),
+      u(SECURITY_EMAIL)
     ),
-    p(b('\nOur data protection officer can be contacted at:\n'), seg('Email: '), u('security@yosemitecrew.com')),
+    p(b('\nOur data protection officer can be contacted at:\n'), seg('Email: '), u(SECURITY_EMAIL)),
   ],
 });
 
@@ -117,3 +123,111 @@ export const createObligationProvideData = (): LegalSection => ({
   title: '10. Obligation to provide data',
   blocks: [p(seg('You are not contractually or legally obliged to provide us with personal data. However, without the data you provide, we are unable to offer you our services.'))],
 });
+
+// Social media section factory
+export const createSocialMediaSection = (
+  id: string,
+  title: string,
+  websiteUrl: string,
+  operatorInfo: string,
+  privacyUrl: string
+): LegalSection => ({
+  id,
+  title,
+  blocks: [
+    p(seg('Our website can be accessed at: '), u(websiteUrl)),
+    p(seg(`The network is operated by: ${operatorInfo}`)),
+    p(seg('Privacy policy of the network: '), u(privacyUrl)),
+  ],
+});
+
+// Common company intro for Terms
+export const createCompanyIntro = (...additionalSegments: TextSegment[]): ParagraphBlock =>
+  p(seg(`${COMPANY_NAME}, ${COMPANY_FULL_ADDRESS} ("DuneXploration" or "we/us/our")`), ...additionalSegments);
+
+// Legal basis factory functions
+export const createConsentBasis = (customText?: string): ParagraphBlock =>
+  p(
+    b('Legal basis: '),
+    seg(customText || 'Voluntary consent to publish review (Art. 6 para 1 lit. a GDPR).')
+  );
+
+export const createEstablishmentBasis = (customText?: string): ParagraphBlock =>
+  p(
+    b('Legal basis: '),
+    seg(customText || 'Establishment of the user relationship, Art. 6 para. 1 lit. b) GDPR.')
+  );
+
+// Recipient list variations
+export const createWebRecipientsList = (): OrderedListBlock =>
+  ol(
+    oli('•', ' Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855, Luxemburg.'),
+    oli('•', ' Google Cloud EMEA Ltd., 70 Sir John Rogerson\'s Quay, Dublin 2, Ireland.'),
+    oli('•', ' MongoDB Inc., 3 Shelbourne Building, Crampton Avenue Ballsbridge, Dublin 4, Ireland.')
+  );
+
+export const createGoogleOnlyRecipient = (): OrderedListBlock =>
+  ol(oli('•', ' Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Ireland.'));
+
+export const createBookingRecipientsList = (additionalRecipient?: string): OrderedListBlock =>
+  ol(
+    oli('•', ' Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Ireland.'),
+    oli('•', ' MongoDB Inc., 3 Shelbourne Building, Crampton Avenue Ballsbridge, Dublin 4, Ireland.'),
+    ...(additionalRecipient ? [oli('•', ` ${additionalRecipient}`)] : [])
+  );
+
+export const createHealthRecipientsList = (): OrderedListBlock =>
+  ol(
+    oli('•', ' Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855, Luxemburg.'),
+    oli('•', ' MongoDB Inc., 3 Shelbourne Building, Crampton Avenue Ballsbridge, Dublin 4, Ireland.'),
+    oli('•', ' Pet service provider selected by the user.')
+  );
+
+export const createReviewRecipientsList = (): OrderedListBlock =>
+  ol(
+    oli('•', ' Any user of the PMS — including the pet service provider selected by the user — can view the review.'),
+    oli('•', ' Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855, Luxemburg.'),
+    oli('•', ' MongoDB Inc., 3 Shelbourne Building, Crampton Avenue Ballsbridge, Dublin 4, Ireland.')
+  );
+
+// Storage period variations
+export const createActiveAccountStorageWithRetention = (): ParagraphBlock =>
+  p(
+    b('Storage period: '),
+    seg(
+      'The data will generally be processed for as long as you maintain your account with us. After termination of the account, your data will be deleted unless the deletion of individual data or documents is prevented by statutory retention obligations.'
+    )
+  );
+
+export const createConversationStorage = (): ParagraphBlock =>
+  p(
+    b('Storage period: '),
+    seg('We store the data until the conversation or account is deleted unless the deletion of individual data or documents is prevented by statutory retention obligations.')
+  );
+
+export const createInquiryStorage = (): ParagraphBlock =>
+  p(b('Storage period: '), seg('The data will generally be processed for as long as it is necessary to process the inquiry.'));
+
+export const createReviewStorage = (): ParagraphBlock =>
+  p(
+    b('Storage period: '),
+    seg('We store the data until the review is manually removed by the user or deleted due to inactivity or policy violations.')
+  );
+
+export const createBookingStorage = (): ParagraphBlock =>
+  p(
+    b('Storage period: '),
+    seg('The data collected as part of the booking will be deleted after the expiry of the applicable statutory retention obligations (6 years according to HGB, 10 years according to AO).')
+  );
+
+export const createHealthStorage = (): ParagraphBlock =>
+  p(
+    b('Storage period: '),
+    seg('As long as the pet profile exists and data is not manually deleted. Full deletion occurs with account removal or upon user request.')
+  );
+
+export const createJointResponsibilityStorage = (): ParagraphBlock =>
+  p(
+    b('Storage period: '),
+    seg('We do not store any personal data ourselves within the scope of joint responsibility. With regard to contact requests outside the network, the above information on establishing contact applies accordingly.')
+  );

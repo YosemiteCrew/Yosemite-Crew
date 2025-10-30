@@ -9,7 +9,12 @@ export type {
 } from './legalContentTypes';
 
 import {seg, b, p, oli, ol} from './legalContentHelpers';
-import {createContactSection} from './sharedLegalSections';
+import {
+  createContactSection,
+  COMPANY_NAME,
+  COMPANY_FULL_ADDRESS,
+  SECURITY_EMAIL,
+} from './sharedLegalSections';
 
 export const TERMS_SECTIONS: LegalSection[] = [
   {
@@ -18,9 +23,8 @@ export const TERMS_SECTIONS: LegalSection[] = [
     blocks: [
       p(
         b('1.1.'),
-        seg(
-          ' DuneXploration UG (haftungsbeschränkt), Am Finther Weg 7, 55127 Mainz, Germany (“DuneXploration” or “we/us/our”) provides a Mobile App for Pet Owners/Companion Owners that is accessible via app stores for supported mobile devices.',
-        ),
+        seg(' '),
+        seg(`${COMPANY_NAME}, ${COMPANY_FULL_ADDRESS} ("DuneXploration" or "we/us/our") provides a Mobile App for Pet Owners/Companion Owners that is accessible via app stores for supported mobile devices.`)
       ),
       p(
         b('1.2.'),
@@ -683,7 +687,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
       ),
       p(
         seg(
-          'In order to exercise your right of withdrawal, you must inform us (DuneXploration UG (haftungsbeschränkt), Am Finther Weg 7, 55127 Mainz, Germany, security@yosemitecrew.com) by means of a clear declaration (e.g. a letter sent by post or e-mail) of your decision to withdraw from this contract. For this purpose, you may use the enclosed sample withdrawal form, which, however, is not mandatory.',
+          `In order to exercise your right of withdrawal, you must inform us (${COMPANY_NAME}, ${COMPANY_FULL_ADDRESS}, ${SECURITY_EMAIL}) by means of a clear declaration (e.g. a letter sent by post or e-mail) of your decision to withdraw from this contract. For this purpose, you may use the enclosed sample withdrawal form, which, however, is not mandatory.`
         ),
       ),
       p(
