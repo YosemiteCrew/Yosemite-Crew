@@ -55,8 +55,9 @@ export const PaymentSuccessScreen: React.FC = () => {
           </View>
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Invoice</Text>
-            <TouchableOpacity>
-              <Text style={[styles.detailValue, styles.link]}>Download Invoice 📥</Text>
+            <TouchableOpacity style={styles.downloadInvoiceTouchable}>
+              <Text style={[styles.detailValue, styles.link]}>Download Invoice </Text>
+              <Image source={Images.downloadInvoiceIcon} style={styles.downloadInvoiceIcon} />
             </TouchableOpacity>
           </View>
           <View style={styles.detailRow}>
@@ -139,6 +140,15 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   link: {
     color: theme.colors.primary,
+  },
+  downloadInvoiceTouchable: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  downloadInvoiceIcon: {
+    width: 16,
+    height: 16,
+    marginLeft: 4,
   },
   buttonContainer: {
     width: '100%',
