@@ -209,8 +209,6 @@ If you encounter any issues, please refer to the official documentation first:
 
 The following are known bugs that are expected to be resolved in future releases of React Native or related library dependencies.
 
-  - **Issue 985: Android Fast Refresh not working reliably in Monorepo**
-      - Link: [https://github.com/YosemiteCrew/Yosemite-Crew/issues/985](https://github.com/YosemiteCrew/Yosemite-Crew/issues/985)
   - **Issue 1053: iOS/Android Build Issue with Library Compatibility**
       - Link: [https://github.com/YosemiteCrew/Yosemite-Crew/issues/1053](https://github.com/YosemiteCrew/Yosemite-Crew/issues/1053)
 
