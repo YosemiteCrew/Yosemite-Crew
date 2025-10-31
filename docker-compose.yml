@@ -1,25 +1,35 @@
-
 services:
-  website:
-    build:
-      context: .
-      dockerfile: apps/website/Dockerfile
-    ports:
-      - "5173:5173"
-    depends_on:
-      - api
-    networks:
-      - app-network
-
-  api:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
+  frontend:
+    image: node:20-alpine
+    working_dir: /app/apps/frontend
     ports:
       - "3000:3000"
-    networks:
-      - app-network
+    volumes:
+      - .:/app
+    command: sh -c "corepack enable && pnpm install && pnpm run dev --port 3000"
+    depends_on:
+      - backend
 
-networks:
-  app-network:
-    driver: bridge
+  backend:
+    image: node:20-alpine  
+    working_dir: /app/apps/backend
+    ports:
+      - "4000:4000"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/yosemitecrew
+      - PORT=4000
+    volumes:
+      - .:/app
+    command: sh -c "corepack enable && pnpm install && pnpm run dev"
+    depends_on:
+      - mongodb
+
+  mongodb:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+volumes:
+  mongo-data:
