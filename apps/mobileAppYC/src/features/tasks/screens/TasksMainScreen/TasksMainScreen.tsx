@@ -238,6 +238,9 @@ export const TasksMainScreen: React.FC = () => {
     dispatch(markTaskStatus({taskId, status: 'completed'}));
   };
 
+  const handleStartObservationalTool = (taskId: string) => {
+    navigation.navigate('ObservationalTool', {taskId});
+  };
 
   const getItemLayout = useCallback((_: any, index: number) => {
     const itemLength = 70.5; 
@@ -297,6 +300,12 @@ export const TasksMainScreen: React.FC = () => {
       name: authUser?.firstName || 'User',
     } : undefined;
 
+    const isObservationalToolTask =
+      task?.category === 'health' &&
+      task.details &&
+      'taskType' in task.details &&
+      task.details.taskType === 'take-observational-tool';
+
     return (
       <View key={category} style={styles.categorySection}>
         <View style={styles.categoryHeader}>
@@ -325,6 +334,9 @@ export const TasksMainScreen: React.FC = () => {
             onPressView={() => handleViewTask(task.id)}
             onPressEdit={() => handleEditTask(task.id)}
             onPressComplete={() => handleCompleteTask(task.id)}
+            onPressTakeObservationalTool={
+              isObservationalToolTask ? () => handleStartObservationalTool(task.id) : undefined
+            }
             showEditAction
             showCompleteButton={task.status === 'pending'}
             category={task.category}

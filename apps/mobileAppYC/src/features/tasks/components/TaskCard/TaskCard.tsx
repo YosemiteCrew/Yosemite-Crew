@@ -28,6 +28,7 @@ export interface TaskCardProps {
   onPressView?: () => void;
   onPressEdit?: () => void;
   onPressComplete?: () => void;
+  onPressTakeObservationalTool?: () => void;
   showEditAction?: boolean;
   showCompleteButton?: boolean;
   completeButtonVariant?: 'primary' | 'success' | 'secondary' | 'liquid-glass';
@@ -51,6 +52,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   onPressView,
   onPressEdit,
   onPressComplete,
+  onPressTakeObservationalTool,
   showEditAction = true,
   showCompleteButton = false,
   completeButtonVariant = 'primary',
@@ -89,6 +91,12 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   }, [time]);
 
   const isCompleted = status === 'completed';
+  const isObservationalToolTask =
+    category === 'health' && details?.taskType === 'take-observational-tool';
+  const handleCompletePress =
+    isObservationalToolTask && onPressTakeObservationalTool
+      ? onPressTakeObservationalTool
+      : onPressComplete;
 
   const renderTaskDetails = () => {
     if (!details) return null;
@@ -190,12 +198,12 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           </View>
         </View>
 
-        {showCompleteButton && !isCompleted && (
+        {showCompleteButton && !isCompleted && handleCompletePress && (
           <>
             {completeButtonVariant === 'liquid-glass' ? (
               <LiquidGlassButton
                 title={completeButtonLabel}
-                onPress={onPressComplete!}
+                onPress={handleCompletePress}
                 tintColor={theme.colors.secondary}
                 shadowIntensity="medium"
                 height={48}
@@ -206,7 +214,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             ) : (
               <CardActionButton
                 label={completeButtonLabel}
-                onPress={onPressComplete!}
+                onPress={handleCompletePress}
                 variant={completeButtonVariant}
               />
             )}
