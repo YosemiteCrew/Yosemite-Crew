@@ -178,6 +178,22 @@ describe('TaskCard', () => {
       expect(onPressComplete).toHaveBeenCalledTimes(1);
     });
 
+    it('calls onPressTakeObservationalTool when observational tool task is completed', () => {
+      const onPressTakeObservationalTool = jest.fn();
+      const onPressComplete = jest.fn();
+      renderComponent({
+        showCompleteButton: true,
+        status: 'pending',
+        category: 'health',
+        details: {taskType: 'take-observational-tool'},
+        onPressTakeObservationalTool,
+        onPressComplete,
+      });
+      fireEvent.press(screen.getByTestId('mock-action-button'));
+      expect(onPressTakeObservationalTool).toHaveBeenCalledTimes(1);
+      expect(onPressComplete).not.toHaveBeenCalled();
+    });
+
     it('passes onPressEdit to the SwipeableActionCard', () => {
       const {onPressEdit} = renderComponent();
       const swipeCard = screen.getByTestId('mock-swipe-card');
