@@ -5,6 +5,7 @@ import {
   View,
   Text,
   StyleSheet,
+  TextStyle,
 } from 'react-native';
 import { useTheme } from '@/hooks';
 
@@ -13,6 +14,7 @@ interface CheckboxProps {
   onValueChange: (value: boolean) => void;
   label?: string;
   error?: string;
+  labelStyle?: TextStyle;
 }
 
 export const Checkbox: React.FC<CheckboxProps> = ({
@@ -20,6 +22,7 @@ export const Checkbox: React.FC<CheckboxProps> = ({
   onValueChange,
   label,
   error,
+  labelStyle,
 }) => {
   const { theme } = useTheme();
   const styles = createStyles(theme);
@@ -43,7 +46,7 @@ export const Checkbox: React.FC<CheckboxProps> = ({
           )}
         </View>
         {label && (
-          <Text style={styles.label}>{label}</Text>
+          <Text style={[styles.label, labelStyle]}>{label}</Text>
         )}
       </TouchableOpacity>
       {error && (
@@ -59,8 +62,8 @@ const createStyles = (theme: any) =>
       marginBottom: 8,
     },
     checkboxContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
+  flexDirection: 'row',
+  alignItems: 'flex-start',
     },
     checkbox: {
       width: 20,
@@ -85,7 +88,11 @@ const createStyles = (theme: any) =>
       fontWeight: 'bold',
     },
     label: {
-      ...theme.typography.body,
+      // Use Satoshi 14 regular as requested
+      fontFamily: theme.typography.subtitleRegular14?.fontFamily || theme.typography.SATOSHI_REGULAR,
+      fontSize: theme.typography.subtitleRegular14?.fontSize || 14,
+      lineHeight: theme.typography.subtitleRegular14?.lineHeight || 14 * 1.2,
+      fontWeight: theme.typography.subtitleRegular14?.fontWeight || '400',
       color: theme.colors.text,
       flex: 1,
     },

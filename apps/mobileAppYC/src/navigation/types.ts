@@ -22,6 +22,10 @@ export type AuthStackScreenProps<T extends keyof AuthStackParamList> =
 export type HomeStackParamList = {
   Home: undefined;
   Account: undefined;
+  FAQ: undefined;
+  ContactUs: undefined;
+  TermsAndConditions: undefined;
+  PrivacyPolicy: undefined;
   AddCompanion: undefined;
   ProfileOverview: { companionId: string };
   EditCompanionOverview: { companionId: string };
