@@ -9,6 +9,7 @@ import {useRoute, useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
 import {SafeArea} from '@/shared/components/common';
+import {createSelectBusinessesByCategory} from '@/features/appointments/selectors';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -18,7 +19,8 @@ export const BusinessesListScreen: React.FC = () => {
   const route = useRoute<any>();
   const navigation = useNavigation<Nav>();
   const {category} = route.params as {category: 'hospital' | 'groomer' | 'breeder' | 'pet_center' | 'boarder'};
-  const businesses = useSelector((s: RootState) => s.businesses.businesses.filter(b => b.category === category));
+  const selectBusinessesByCategory = useMemo(() => createSelectBusinessesByCategory(), []);
+  const businesses = useSelector((state: RootState) => selectBusinessesByCategory(state, category));
 
   useEffect(() => {
     if (
