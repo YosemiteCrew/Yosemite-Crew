@@ -5,6 +5,7 @@ import {
   Text,
   ViewStyle,
   TextStyle,
+  StyleProp,
   ActivityIndicator,
   PlatformColor,
   Platform,
@@ -248,8 +249,8 @@ interface GlassButtonProps {
   size?: 'small' | 'medium' | 'large';
   disabled?: boolean;
   loading?: boolean;
-  style?: ViewStyle;
-  textStyle?: TextStyle;
+  style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
   glassEffect?: 'clear' | 'regular' | 'none';
   interactive?: boolean;
   tintColor?: string;

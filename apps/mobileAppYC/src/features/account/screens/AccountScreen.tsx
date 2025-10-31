@@ -179,7 +179,9 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
         id: 'faqs',
         label: 'FAQs',
         icon: Images.faqIcon,
-        onPress: () => {},
+        onPress: () => {
+          navigation.navigate('FAQ');
+        },
       },
       {
         id: 'about',
@@ -193,19 +195,25 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
         id: 'terms',
         label: 'Terms and Conditions',
         icon: Images.tncIcon,
-        onPress: () => {},
+        onPress: () => {
+          navigation.navigate('TermsAndConditions');
+        },
       },
       {
         id: 'privacy',
         label: 'Privacy Policy',
         icon: Images.privacyIcon,
-        onPress: () => {},
+        onPress: () => {
+          navigation.navigate('PrivacyPolicy');
+        },
       },
       {
         id: 'contact',
         label: 'Contact us',
         icon: Images.contactIcon,
-        onPress: () => {},
+        onPress: () => {
+          navigation.navigate('ContactUs');
+        },
       },
       {
         id: 'delete',
@@ -215,7 +223,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
         onPress: handleDeletePress,
       },
     ],
-    [handleDeletePress],
+    [handleDeletePress, navigation],
   );
 
   return (

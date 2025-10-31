@@ -9,6 +9,10 @@ import {ProfileOverviewScreen} from '@/features/companion/screens/ProfileOvervie
 import { CompanionOverviewScreen } from '@/features/companion/screens/CompanionOverviewScreen';
 import { EditParentScreen } from '@/features/account/screens/EditParentScreen';
 import {ExpenseStackNavigator} from './ExpenseStackNavigator';
+import {FAQScreen} from '@/features/support/screens/FAQScreen';
+import {ContactUsScreen} from '@/features/support/screens/ContactUsScreen';
+import {TermsAndConditionsScreen} from '@/features/legal/screens/TermsAndConditionsScreen';
+import {PrivacyPolicyScreen} from '@/features/legal/screens/PrivacyPolicyScreen';
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();
 
@@ -35,6 +39,26 @@ export const HomeStackNavigator: React.FC = () => {
       <Stack.Screen
         name="Account"
         component={AccountScreen}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="FAQ"
+        component={FAQScreen}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="ContactUs"
+        component={ContactUsScreen}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="TermsAndConditions"
+        component={TermsAndConditionsScreen}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="PrivacyPolicy"
+        component={PrivacyPolicyScreen}
         options={{headerShown: false}}
       />
       <Stack.Screen

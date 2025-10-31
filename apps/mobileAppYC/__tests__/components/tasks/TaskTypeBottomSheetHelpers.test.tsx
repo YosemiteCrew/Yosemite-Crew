@@ -182,16 +182,16 @@ describe('TaskTypeBottomSheet/helpers', () => {
 
   describe('buildCategorySections', () => {
     const flattened = flattenTaskOptions(mockTaskOptions);
-    const sections = buildCategorySections(flattened);
+    const sectionsLocal = buildCategorySections(flattened);
 
     it('should create a section for each root category with children (or custom)', () => {
-      expect(sections).toHaveLength(4);
-      const ids = sections.map(s => s.category.id);
+      expect(sectionsLocal).toHaveLength(4);
+      const ids = sectionsLocal.map(s => s.category.id);
       expect(ids).toEqual(['health', 'hygiene', 'dietary', 'custom']);
     });
 
     it('should correctly structure the "custom" single section', () => {
-      const customSection = sections.find(s => s.category.id === 'custom');
+      const customSection = sectionsLocal.find(s => s.category.id === 'custom');
       expect(customSection).toEqual({
         type: 'single',
         category: catCustom,
@@ -199,7 +199,7 @@ describe('TaskTypeBottomSheet/helpers', () => {
     });
 
     it('should correctly structure a 2-level hierarchy (Hygiene)', () => {
-      const hygieneSection = sections.find(s => s.category.id === 'hygiene');
+      const hygieneSection = sectionsLocal.find(s => s.category.id === 'hygiene');
 
       // FIX: Add truthy check
       expect(hygieneSection).toBeTruthy();
@@ -208,7 +208,7 @@ describe('TaskTypeBottomSheet/helpers', () => {
     });
 
     it('should correctly structure a 3-level hierarchy (Dietary)', () => {
-      const dietarySection = sections.find(s => s.category.id === 'dietary');
+      const dietarySection = sectionsLocal.find(s => s.category.id === 'dietary');
 
       // FIX: Add truthy check
       expect(dietarySection).toBeTruthy();
@@ -217,7 +217,7 @@ describe('TaskTypeBottomSheet/helpers', () => {
     });
 
     it('should correctly structure a 4-level hierarchy (Health)', () => {
-      const healthSection = sections.find(s => s.category.id === 'health');
+      const healthSection = sectionsLocal.find(s => s.category.id === 'health');
 
       // FIX: Add truthy check
       expect(healthSection).toBeTruthy();
