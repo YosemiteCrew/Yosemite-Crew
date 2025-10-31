@@ -5,6 +5,7 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
 import {useSelector} from 'react-redux';
 import {SafeArea, Input, TouchableInput} from '@/shared/components/common';
+import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {Header} from '@/shared/components/common/Header/Header';
 import {DocumentAttachmentsSection} from '@/features/documents/components/DocumentAttachmentsSection';
 import {ViewField, ViewTouchField} from './components/ViewField';
@@ -177,6 +178,19 @@ export const TaskViewScreen: React.FC = () => {
         style={styles.container}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}>
+        {isObservationalTool && (
+          <View style={styles.otCtaContainer}>
+            <LiquidGlassButton
+              title={isCompleted ? 'View Observational Tool' : 'Take Observational Tool'}
+              onPress={() => navigation.navigate('ObservationalTool', {taskId: task.id})}
+              height={52}
+              borderRadius={16}
+              tintColor={theme.colors.secondary}
+              shadowIntensity="medium"
+            />
+          </View>
+        )}
+
         {/* Companion */}
         <ViewField
           label="Companion"
@@ -526,6 +540,9 @@ const createStyles = (theme: any) => {
     contentContainer: {
       paddingHorizontal: theme.spacing[4],
       paddingBlock: theme.spacing[4],
+    },
+    otCtaContainer: {
+      marginBottom: theme.spacing[4],
     },
     ...formStyles,
     // Input and Label styles - matching DocumentForm
