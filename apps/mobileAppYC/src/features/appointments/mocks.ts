@@ -43,6 +43,18 @@ export const mockBusinesses: VetBusiness[] = [
     description: 'Bathing, Hair Trimming, Ear Cleaning, Paw Pad Care, Specialty Shampoos, Eye Cleaning, De-shedding.',
   },
   {
+    id: 'biz_pawpet',
+    name: 'Paw Pet Health Clinic',
+    category: 'hospital',
+    address: 'SFAM Building 30 square D Road San Francisco',
+    distanceMi: 4.2,
+    rating: 4.4,
+    openHours: 'Mon - Sat, 9 AM - 7 PM',
+    photo: Images.sampleHospital5,
+    description:
+      'Pain management programs, orthopedic consultations, post-operative care, rehabilitation and wellness coaching for companion animals.',
+  },
+  {
     id: 'biz_bay_corgis',
     name: 'Bay Area Corgis',
     category: 'breeder',
@@ -77,6 +89,17 @@ export const mockEmployees: VetEmployee[] = [
     avatar: Images.doc2,
     rating: 4.9,
   },
+  {
+    id: 'emp_olivia',
+    businessId: 'biz_pawpet',
+    name: 'Dr. Olivia Hernandez',
+    title: 'DVM, DACVAA',
+    specialization: 'Pain Management & Rehabilitation',
+    experienceYears: 9,
+    consultationFee: 180,
+    avatar: Images.doc3,
+    rating: 4.8,
+  },
 ];
 
 // Helper to create a YYYY-MM-DD string for today
@@ -101,6 +124,13 @@ export const mockAvailability: EmployeeAvailability[] = [
     employeeId: 'emp_emily',
     slotsByDate: {
       [todayISO()]: ['09:30', '12:30', '16:00'],
+    },
+  },
+  {
+    businessId: 'biz_pawpet',
+    employeeId: 'emp_olivia',
+    slotsByDate: {
+      [todayISO()]: ['10:15', '13:45', '17:30'],
     },
   },
 ];

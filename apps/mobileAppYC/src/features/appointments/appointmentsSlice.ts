@@ -94,6 +94,14 @@ const appointmentsSlice = createSlice({
       state.invoices = [...other, ...invoices];
       state.hydratedCompanions[companionId] = true;
     },
+    upsertInvoice: (state, action: PayloadAction<Invoice>) => {
+      const idx = state.invoices.findIndex(inv => inv.id === action.payload.id);
+      if (idx >= 0) {
+        state.invoices[idx] = action.payload;
+      } else {
+        state.invoices.push(action.payload);
+      }
+    },
   },
   extraReducers: builder => {
     builder
@@ -145,5 +153,5 @@ const appointmentsSlice = createSlice({
   },
 });
 
-export const {injectMockAppointments} = appointmentsSlice.actions;
+export const {injectMockAppointments, upsertInvoice} = appointmentsSlice.actions;
 export default appointmentsSlice.reducer;
