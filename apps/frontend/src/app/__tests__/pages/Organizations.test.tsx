@@ -51,9 +51,9 @@ describe("<Organizations />", () => {
 
   it("renders heading and Create button", () => {
     render(<ProtectedOrganizations />);
-    expect(screen.getByText("Organizations")).toBeInTheDocument();
+    expect(screen.getByText("Overview")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /create new organization/i })
+      screen.getByRole("button", { name: /create organization/i })
     ).toBeInTheDocument();
   });
 
