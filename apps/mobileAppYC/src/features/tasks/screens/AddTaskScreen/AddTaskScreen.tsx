@@ -50,6 +50,7 @@ export const AddTaskScreen: React.FC = () => {
     uploadSheetRef,
     handleRemoveFile,
     openSheet,
+    openTaskSheet,
   } = hookData;
 
   const handleSave = async () => {
@@ -97,7 +98,10 @@ export const AddTaskScreen: React.FC = () => {
           taskTypeSelection={taskTypeSelection}
           showTaskTypeSelector
           taskTypeSelectorProps={{
-            onPress: () => taskTypeSheetRef.current?.open(),
+            onPress: () => {
+              openTaskSheet('task-type');
+              taskTypeSheetRef.current?.open();
+            },
             value: taskTypeSelection
               ? buildTaskTypeBreadcrumb(
                   taskTypeSelection.category,
@@ -126,12 +130,11 @@ export const AddTaskScreen: React.FC = () => {
       {/* Date Pickers & Bottom Sheets */}
       <TaskFormSheets
         {...getTaskFormSheetProps(hookData)}
-        formData={formData}
-        updateField={updateField}
-        companionType={companionType}
-        openSheet={openSheet}
-        uploadSheetRef={uploadSheetRef}
-        taskTypeSheetRef={taskTypeSheetRef}
+    formData={formData}
+    updateField={updateField}
+    companionType={companionType}
+    uploadSheetRef={uploadSheetRef}
+    taskTypeSheetRef={taskTypeSheetRef}
         onDiscard={() => navigation.goBack()}
         taskTypeSheetProps={{
           selectedTaskType: taskTypeSelection,

@@ -126,13 +126,16 @@ describe('authSlice', () => {
         error: 'Some error',
       };
 
+      const now = Date.now();
+      const dateNowSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
       const nextState = authReducer(authenticatedState, setUnauthenticated());
+      dateNowSpy.mockRestore();
 
       expect(nextState.status).toBe('unauthenticated');
       expect(nextState.user).toBeNull();
       expect(nextState.provider).toBeNull();
       expect(nextState.sessionExpiry).toBeNull();
-      expect(nextState.lastRefresh).toBeCloseTo(Date.now(), -2);
+      expect(nextState.lastRefresh).toBe(now);
       expect(nextState.isRefreshing).toBe(false);
       expect(nextState.error).toBeNull();
       expect(nextState.initialized).toBe(true);

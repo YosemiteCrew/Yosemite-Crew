@@ -15,10 +15,11 @@ export interface DosageBottomSheetRef {
 interface DosageBottomSheetProps {
   dosages: DosageSchedule[];
   onSave: (dosages: DosageSchedule[]) => void;
+  onSheetChange?: (index: number) => void;
 }
 
 export const DosageBottomSheet = forwardRef<DosageBottomSheetRef, DosageBottomSheetProps>(
-  ({dosages, onSave}, ref) => {
+  ({dosages, onSave, onSheetChange}, ref) => {
     const {theme} = useTheme();
     const styles = useMemo(() => createStyles(theme), [theme]);
     const bottomSheetRef = useRef<ConfirmActionBottomSheetRef>(null);
@@ -135,6 +136,7 @@ export const DosageBottomSheet = forwardRef<DosageBottomSheetRef, DosageBottomSh
       ref={bottomSheetRef}
       title="Dosage"
       snapPoints={['80%']}
+      onSheetChange={onSheetChange}
       primaryButton={{
         label: "Save",
         onPress: handleSave,
