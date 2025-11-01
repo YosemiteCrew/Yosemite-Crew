@@ -5,9 +5,10 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
 import {useSelector} from 'react-redux';
 import {SafeArea, Input, TouchableInput} from '@/shared/components/common';
-import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {Header} from '@/shared/components/common/Header/Header';
+import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {DocumentAttachmentsSection} from '@/features/documents/components/DocumentAttachmentsSection';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {ViewField, ViewTouchField} from './components/ViewField';
 import {ViewDateTimeRow} from './components/ViewDateTimeRow';
 import {useTheme} from '@/hooks';
@@ -179,16 +180,31 @@ export const TaskViewScreen: React.FC = () => {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}>
         {isObservationalTool && (
-          <View style={styles.otCtaContainer}>
-            <LiquidGlassButton
-              title={isCompleted ? 'View Observational Tool' : 'Take Observational Tool'}
-              onPress={() => navigation.navigate('ObservationalTool', {taskId: task.id})}
-              height={52}
-              borderRadius={16}
-              tintColor={theme.colors.secondary}
-              shadowIntensity="medium"
-            />
-          </View>
+          <LiquidGlassCard
+            glassEffect="regular"
+            interactive
+            style={styles.otCtaContainer}
+            fallbackStyle={styles.otCtaFallback}>
+            <Text style={styles.otCtaTitle}>
+              {isCompleted ? 'Observational tool completed' : 'Time for an observational tool !'}
+            </Text>
+            <Text style={styles.otCtaSubtitle}>
+              {isCompleted
+                ? 'Review what was captured during the last observation.'
+                : 'Complete the observational tool to log the latest insights of your companion.'}
+            </Text>
+            <View style={styles.otCtaButtonWrapper}>
+              <LiquidGlassButton
+                title={isCompleted ? 'View' : 'Start Now'}
+                onPress={() => navigation.navigate('ObservationalTool', {taskId: task.id})}
+                glassEffect="clear"
+                borderRadius="lg"
+                tintColor={theme.colors.secondary}
+                style={styles.otCtaButton}
+                textStyle={styles.otCtaButtonText}
+              />
+            </View>
+          </LiquidGlassCard>
         )}
 
         {/* Companion */}
@@ -542,7 +558,31 @@ const createStyles = (theme: any) => {
       paddingBlock: theme.spacing[4],
     },
     otCtaContainer: {
-      marginBottom: theme.spacing[4],
+      marginBottom: theme.spacing[6],
+      gap: theme.spacing[3],
+    },
+    otCtaFallback: {
+      borderRadius: theme.borderRadius.lg,
+      backgroundColor: theme.colors.white,
+    },
+    otCtaTitle: {
+      ...theme.typography.titleMedium,
+      color: theme.colors.secondary,
+    },
+    otCtaSubtitle: {
+      ...theme.typography.bodySmall,
+      color: theme.colors.textSecondary,
+    },
+    otCtaButtonWrapper: {
+      alignSelf: 'flex-start',
+    },
+    otCtaButton: {
+      alignSelf: 'flex-start',
+    },
+    otCtaButtonText: {
+      ...theme.typography.buttonH6Clash19,
+      color: theme.colors.white,
+      textAlign: 'center',
     },
     ...formStyles,
     // Input and Label styles - matching DocumentForm
