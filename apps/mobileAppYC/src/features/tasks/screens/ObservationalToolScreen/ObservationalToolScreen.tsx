@@ -486,6 +486,7 @@ export const ObservationalToolScreen: React.FC = () => {
           height={56}
           borderRadius={16}
           tintColor={theme.colors.secondary}
+          textStyle={styles.nextText}
           shadowIntensity="medium"
           disabled={!isStepCompleted}
           style={styles.stepActionButtonRow}
@@ -665,6 +666,7 @@ export const ObservationalToolScreen: React.FC = () => {
           height={56}
           borderRadius={16}
           tintColor={theme.colors.secondary}
+          textStyle={styles.nextText}
           shadowIntensity="medium"
           disabled={showProviders && providerEntries.length === 0}
         />
@@ -787,6 +789,9 @@ const createStyles = (theme: any) =>
       letterSpacing: -0.2,
       color: '#000',
       textAlign: 'left',
+    },
+    nextText:{
+  color: theme.colors.white,
     },
     toggleRow: {
       flexDirection: 'row',
