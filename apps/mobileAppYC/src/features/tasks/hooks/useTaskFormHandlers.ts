@@ -15,6 +15,8 @@ interface UseTaskFormHandlersProps {
   setShowTimePicker: (value: boolean) => void;
   setShowStartDatePicker: (value: boolean) => void;
   setShowEndDatePicker: (value: boolean) => void;
+  openTaskSheet: (sheet: string) => void;
+  closeTaskSheet: () => void;
 }
 
 export const useTaskFormHandlers = ({
@@ -32,27 +34,52 @@ export const useTaskFormHandlers = ({
   setShowTimePicker,
   setShowStartDatePicker,
   setShowEndDatePicker,
+  openTaskSheet,
+  closeTaskSheet,
 }: UseTaskFormHandlersProps) => {
   const handleBack = useCallback(() => {
     if (hasUnsavedChanges) {
+      openTaskSheet('discard-task');
       discardSheetRef.current?.open();
     } else {
       navigation.goBack();
     }
-  }, [hasUnsavedChanges, discardSheetRef, navigation]);
+  }, [hasUnsavedChanges, discardSheetRef, navigation, openTaskSheet]);
 
   const sheetHandlers = {
-    onOpenMedicationTypeSheet: () => medicationTypeSheetRef.current?.open(),
-    onOpenDosageSheet: () => dosageSheetRef.current?.open(),
-    onOpenMedicationFrequencySheet: () => medicationFrequencySheetRef.current?.open(),
+    onOpenMedicationTypeSheet: () => {
+      openTaskSheet('medication-type');
+      medicationTypeSheetRef.current?.open();
+    },
+    onOpenDosageSheet: () => {
+      openTaskSheet('dosage');
+      dosageSheetRef.current?.open();
+    },
+    onOpenMedicationFrequencySheet: () => {
+      openTaskSheet('medication-frequency');
+      medicationFrequencySheetRef.current?.open();
+    },
     onOpenStartDatePicker: () => setShowStartDatePicker(true),
     onOpenEndDatePicker: () => setShowEndDatePicker(true),
-    onOpenObservationalToolSheet: () => observationalToolSheetRef.current?.open(),
+    onOpenObservationalToolSheet: () => {
+      openTaskSheet('observational-tool');
+      observationalToolSheetRef.current?.open();
+    },
     onOpenDatePicker: () => setShowDatePicker(true),
     onOpenTimePicker: () => setShowTimePicker(true),
-    onOpenTaskFrequencySheet: () => taskFrequencySheetRef.current?.open(),
-    onOpenAssignTaskSheet: () => assignTaskSheetRef.current?.open(),
-    onOpenCalendarSyncSheet: () => calendarSyncSheetRef.current?.open(),
+    onOpenTaskFrequencySheet: () => {
+      openTaskSheet('task-frequency');
+      taskFrequencySheetRef.current?.open();
+    },
+    onOpenAssignTaskSheet: () => {
+      openTaskSheet('assign-task');
+      assignTaskSheetRef.current?.open();
+    },
+    onOpenCalendarSyncSheet: () => {
+      openTaskSheet('calendar-sync');
+      calendarSyncSheetRef.current?.open();
+    },
+    closeTaskSheet,
   };
 
   return {

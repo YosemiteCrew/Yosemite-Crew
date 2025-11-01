@@ -40,6 +40,7 @@ interface GenericSelectBottomSheetProps {
   customContent?: React.ReactNode;
   mode?: 'select' | 'confirm'; // 'select' = auto-close on select, 'confirm' = show save/cancel buttons
   maxListHeight?: number;
+  onSheetChange?: (index: number) => void;
 }
 
 export const GenericSelectBottomSheet = forwardRef<
@@ -59,6 +60,7 @@ export const GenericSelectBottomSheet = forwardRef<
   customContent,
   mode = 'confirm',
   maxListHeight = 400,
+  onSheetChange,
 }, ref) => {
   const { theme } = useTheme();
   const bottomSheetRef = useRef<BottomSheetRef>(null);
@@ -154,6 +156,7 @@ export const GenericSelectBottomSheet = forwardRef<
       onChange={index => {
         // Gorhom BottomSheet returns -1 when fully closed
         setIsSheetVisible(index !== -1);
+        onSheetChange?.(index);
       }}
       enablePanDownToClose
       enableDynamicSizing={false}

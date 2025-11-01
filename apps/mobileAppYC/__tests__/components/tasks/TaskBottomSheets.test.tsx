@@ -79,6 +79,7 @@ describe('TaskBottomSheets', () => {
   const mockUpdateField = jest.fn();
   const mockHandlers: TaskBottomSheetHandlers = {
     closeSheet: jest.fn(),
+    closeTaskSheet: jest.fn(),
     handleTakePhoto: jest.fn(),
     handleChooseFromGallery: jest.fn(),
     handleUploadFromDrive: jest.fn(),
@@ -200,7 +201,6 @@ describe('TaskBottomSheets', () => {
   });
 
   it('renders TaskTypeBottomSheet when taskTypeSheetProps are provided', () => {
-    // FIX: Create a full TaskTypeSelection object as expected by the prop
     const mockTaskTypeSelection: TaskTypeSelection = {
       category: 'health',
       taskType: 'give-medication',
@@ -208,7 +208,7 @@ describe('TaskBottomSheets', () => {
     };
 
     const taskTypeSheetProps: TaskTypeSheetProps = {
-      selectedTaskType: mockTaskTypeSelection, // Pass the object
+      selectedTaskType: mockTaskTypeSelection,
       onSelect: jest.fn(),
     };
 
@@ -217,12 +217,14 @@ describe('TaskBottomSheets', () => {
     expect(MockTaskTypeBottomSheet).toHaveBeenCalledTimes(1);
     const actualProps = MockTaskTypeBottomSheet.mock.calls[0][0];
 
-    // Check against the object
-    expect(actualProps).toMatchObject({
-      selectedTaskType: mockTaskTypeSelection,
-      onSelect: taskTypeSheetProps.onSelect,
-      companionType: 'dog',
-    });
+    expect(actualProps.selectedTaskType).toEqual(mockTaskTypeSelection);
+    expect(typeof actualProps.onSelect).toBe('function');
+
+    actualProps.onSelect(mockTaskTypeSelection);
+    expect(taskTypeSheetProps.onSelect).toHaveBeenCalledWith(
+      mockTaskTypeSelection,
+    );
+    expect(mockHandlers.closeTaskSheet).toHaveBeenCalledTimes(1);
   });
 
   it('passes correct props and handles updateField for MedicationTypeBottomSheet', () => {
@@ -358,8 +360,9 @@ describe('TaskBottomSheets', () => {
     renderComponent();
     expect(MockDeleteDocumentBottomSheet).toHaveBeenCalledTimes(1); // This was a typo in your last file, fixed
     const actualProps = MockDiscardChangesBottomSheet.mock.calls[0][0];
-    expect(actualProps).toMatchObject({onDiscard: mockHandlers.onDiscard});
+    expect(typeof actualProps.onDiscard).toBe('function');
     actualProps.onDiscard();
+    expect(mockHandlers.closeTaskSheet).toHaveBeenCalledTimes(1);
     expect(mockHandlers.onDiscard).toHaveBeenCalledTimes(1);
   });
 });

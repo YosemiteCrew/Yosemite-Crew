@@ -215,8 +215,7 @@ const CustomBottomSheet = forwardRef<BottomSheetRef, CustomBottomSheetProps>(
         topInset={topInset}
         bottomInset={bottomInset}
         onChange={onChange}
-        onAnimate={onAnimate}
-      >
+        onAnimate={onAnimate}>
         {renderContent()}
       </BottomSheet>
     );

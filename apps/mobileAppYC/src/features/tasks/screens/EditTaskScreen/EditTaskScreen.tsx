@@ -149,13 +149,12 @@ export const EditTaskScreen: React.FC = () => {
       {/* Date Pickers & Bottom Sheets */}
       <TaskFormSheets
         {...getTaskFormSheetProps(hookData)}
-        formData={formData}
-        updateField={updateField}
-        companionType={companionType}
-        openSheet={openSheet}
-        uploadSheetRef={uploadSheetRef}
-        onDiscard={() => navigation.goBack()}
-      />
+    formData={formData}
+    updateField={updateField}
+    companionType={companionType}
+    uploadSheetRef={uploadSheetRef}
+    onDiscard={() => navigation.goBack()}
+  />
 
       <DeleteDocumentBottomSheet
         ref={hookData.deleteSheetRef}

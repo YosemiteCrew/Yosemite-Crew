@@ -12,6 +12,7 @@ export interface CalendarSyncBottomSheetRef {
 interface CalendarSyncBottomSheetProps {
   selectedProvider?: 'google' | 'icloud' | null;
   onSelect: (provider: 'google' | 'icloud') => void;
+  onSheetChange?: (index: number) => void;
 }
 
 type CalendarProvider = {
@@ -24,7 +25,7 @@ type CalendarProvider = {
 export const CalendarSyncBottomSheet = forwardRef<
   CalendarSyncBottomSheetRef,
   CalendarSyncBottomSheetProps
->(({selectedProvider, onSelect}, ref) => {
+>(({selectedProvider, onSelect, onSheetChange}, ref) => {
   const {theme} = useTheme();
   const bottomSheetRef = useRef<any>(null);
 
@@ -143,6 +144,7 @@ export const CalendarSyncBottomSheet = forwardRef<
       renderItem={renderProviderItem}
       snapPoints={['30%', '40%']}
       emptyMessage="No calendar providers available"
+      onSheetChange={onSheetChange}
     />
   );
 });

@@ -42,5 +42,5 @@ export interface TaskTypeBottomSheetRef {
 export interface TaskTypeBottomSheetProps {
   selectedTaskType?: TaskTypeSelection | null;
   onSelect: (selection: TaskTypeSelection) => void;
-  companionType?: 'cat' | 'dog' | 'horse';
+  onSheetChange?: (index: number) => void;
 }

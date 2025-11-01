@@ -14,6 +14,10 @@ export const InfoBottomSheet = forwardRef<InfoBottomSheetRef, {
 }>(({title, message, cta = 'Close', onCta}, ref) => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const [isSheetVisible, setIsSheetVisible] = React.useState(false);
+  const handleSheetChange = React.useCallback((index: number) => {
+    setIsSheetVisible(index !== -1);
+  }, []);
   return (
     <CustomBottomSheet
       ref={ref}
@@ -21,11 +25,12 @@ export const InfoBottomSheet = forwardRef<InfoBottomSheetRef, {
       snapPoints={["40%","60%"]}
       enablePanDownToClose
       enableDynamicSizing={false}
-      enableBackdrop
+      enableBackdrop={isSheetVisible}
       backdropOpacity={0.5}
       backdropAppearsOnIndex={0}
       backdropDisappearsOnIndex={-1}
       backdropPressBehavior="close"
+      onChange={handleSheetChange}
     >
       <View style={styles.container}>
         <Text style={styles.title}>{title}</Text>

@@ -1,4 +1,4 @@
-import React, {forwardRef, useRef, useMemo, useImperativeHandle, useCallback} from 'react';
+import React, {forwardRef, useRef, useMemo, useImperativeHandle, useCallback, useState} from 'react';
 import {View, Text, StyleSheet, TouchableOpacity, FlatList} from 'react-native';
 import CustomBottomSheet from '@/shared/components/common/BottomSheet/BottomSheet';
 import type {BottomSheetRef} from '@/shared/components/common/BottomSheet/BottomSheet';
@@ -17,15 +17,22 @@ import {flattenTaskOptions, buildCategorySections, buildSelectionFromOption} fro
 import {taskTypeOptions} from './taskOptions';
 
 export const TaskTypeBottomSheet = forwardRef<TaskTypeBottomSheetRef, TaskTypeBottomSheetProps>(
-  ({onSelect}, ref) => {
+  ({onSelect, onSheetChange}, ref) => {
     const {theme} = useTheme();
     const styles = useMemo(() => createStyles(theme), [theme]);
     const bottomSheetRef = useRef<BottomSheetRef>(null);
+    const [isSheetVisible, setIsSheetVisible] = useState(false);
 
     // Expose ref methods
     useImperativeHandle(ref, () => ({
-      open: () => bottomSheetRef.current?.expand(),
-      close: () => bottomSheetRef.current?.close(),
+      open: () => {
+        setIsSheetVisible(true);
+        bottomSheetRef.current?.expand();
+      },
+      close: () => {
+        setIsSheetVisible(false);
+        bottomSheetRef.current?.close();
+      },
     }));
 
     // Flatten all task options recursively
@@ -46,6 +53,7 @@ export const TaskTypeBottomSheet = forwardRef<TaskTypeBottomSheetRef, TaskTypeBo
     const handleTaskSelect = useCallback((option: TaskTypeOption, ancestors: TaskTypeOption[]) => {
       const selection = buildSelectionFromOption(option, ancestors);
       onSelect(selection);
+      setIsSheetVisible(false);
       bottomSheetRef.current?.close();
     }, [onSelect]);
 
@@ -116,8 +124,14 @@ export const TaskTypeBottomSheet = forwardRef<TaskTypeBottomSheetRef, TaskTypeBo
     }, [handleTaskSelect, renderSubcategory, styles.customPillWrapper, styles.pillButton, styles.pillButtonText, styles.categorySection, styles.categoryHeader]);
 
     const handleClose = () => {
+      setIsSheetVisible(false);
       bottomSheetRef.current?.close();
     };
+
+    const handleSheetChange = useCallback((index: number) => {
+      setIsSheetVisible(index !== -1);
+      onSheetChange?.(index);
+    }, [onSheetChange]);
 
     return (
       <CustomBottomSheet
@@ -129,12 +143,13 @@ export const TaskTypeBottomSheet = forwardRef<TaskTypeBottomSheetRef, TaskTypeBo
         enableContentPanningGesture={false}
         enableHandlePanningGesture
         enableOverDrag={false}
-        enableBackdrop
+        enableBackdrop={isSheetVisible}
         backdropOpacity={0.5}
         backdropDisappearsOnIndex={-1}
         contentType="view"
         backgroundStyle={styles.bottomSheetBackground}
-        handleIndicatorStyle={styles.bottomSheetHandle}>
+        handleIndicatorStyle={styles.bottomSheetHandle}
+        onChange={handleSheetChange}>
         <View style={styles.container}>
           <BottomSheetHeader
             title="Select Task Type"

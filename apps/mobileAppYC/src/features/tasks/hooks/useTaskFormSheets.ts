@@ -1,4 +1,5 @@
-import {useRef} from 'react';
+import {useEffect, useRef} from 'react';
+import {useBottomSheetBackHandler} from '@/hooks';
 
 interface UseTaskFormSheetsReturn {
   taskTypeSheetRef: React.RefObject<any>;
@@ -10,7 +11,8 @@ interface UseTaskFormSheetsReturn {
   calendarSyncSheetRef: React.RefObject<any>;
   observationalToolSheetRef: React.RefObject<any>;
   discardSheetRef: React.RefObject<any>;
-  deleteSheetRef: React.RefObject<any>;
+  openTaskSheet: (sheet: string) => void;
+  closeTaskSheet: () => void;
 }
 
 export const useTaskFormSheets = (): UseTaskFormSheetsReturn => {
@@ -23,7 +25,20 @@ export const useTaskFormSheets = (): UseTaskFormSheetsReturn => {
   const calendarSyncSheetRef = useRef<any>(null);
   const observationalToolSheetRef = useRef<any>(null);
   const discardSheetRef = useRef<any>(null);
-  const deleteSheetRef = useRef<any>(null);
+
+  const {registerSheet, openSheet, closeSheet} = useBottomSheetBackHandler();
+
+  useEffect(() => {
+    registerSheet('task-type', taskTypeSheetRef);
+    registerSheet('medication-type', medicationTypeSheetRef);
+    registerSheet('dosage', dosageSheetRef);
+    registerSheet('medication-frequency', medicationFrequencySheetRef);
+    registerSheet('task-frequency', taskFrequencySheetRef);
+    registerSheet('assign-task', assignTaskSheetRef);
+    registerSheet('calendar-sync', calendarSyncSheetRef);
+    registerSheet('observational-tool', observationalToolSheetRef);
+    registerSheet('discard-task', discardSheetRef);
+  }, [registerSheet]);
 
   return {
     taskTypeSheetRef,
@@ -35,6 +50,7 @@ export const useTaskFormSheets = (): UseTaskFormSheetsReturn => {
     calendarSyncSheetRef,
     observationalToolSheetRef,
     discardSheetRef,
-    deleteSheetRef,
+    openTaskSheet: openSheet,
+    closeTaskSheet: closeSheet,
   };
 };

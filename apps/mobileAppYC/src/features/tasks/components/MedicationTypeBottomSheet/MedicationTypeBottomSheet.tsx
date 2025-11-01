@@ -11,6 +11,7 @@ export interface MedicationTypeBottomSheetRef {
 interface MedicationTypeBottomSheetProps {
   selectedType?: MedicationType | null;
   onSelect: (type: MedicationType) => void;
+  onSheetChange?: (index: number) => void;
 }
 
 const medicationTypes: MedicationType[] = [
@@ -28,7 +29,7 @@ const medicationTypes: MedicationType[] = [
 export const MedicationTypeBottomSheet = forwardRef<
   MedicationTypeBottomSheetRef,
   MedicationTypeBottomSheetProps
->(({selectedType, onSelect}, ref) => {
+>(({selectedType, onSelect, onSheetChange}, ref) => {
   const bottomSheetRef = useRef<any>(null);
 
   const medicationItems: SelectItem[] = useMemo(() =>
@@ -69,6 +70,7 @@ export const MedicationTypeBottomSheet = forwardRef<
       mode="select"
       snapPoints={['65%', '75%']}
       emptyMessage="No medication types available"
+      onSheetChange={onSheetChange}
     />
   );
 });
