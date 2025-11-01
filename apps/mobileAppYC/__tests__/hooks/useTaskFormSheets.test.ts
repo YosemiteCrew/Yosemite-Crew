@@ -20,7 +20,8 @@ describe('useTaskFormSheets', () => {
     expect(refs.calendarSyncSheetRef.current).toBeNull();
     expect(refs.observationalToolSheetRef.current).toBeNull();
     expect(refs.discardSheetRef.current).toBeNull();
-    expect(refs.deleteSheetRef.current).toBeNull();
+    expect(typeof refs.openTaskSheet).toBe('function');
+    expect(typeof refs.closeTaskSheet).toBe('function');
   });
 
   it('should return an object with all expected ref keys', () => {
@@ -37,7 +38,8 @@ describe('useTaskFormSheets', () => {
       'calendarSyncSheetRef',
       'observationalToolSheetRef',
       'discardSheetRef',
-      'deleteSheetRef',
+      'openTaskSheet',
+      'closeTaskSheet',
     ];
 
     // Verify all keys exist on the returned object

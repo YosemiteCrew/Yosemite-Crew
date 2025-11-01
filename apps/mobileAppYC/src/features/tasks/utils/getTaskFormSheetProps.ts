@@ -17,6 +17,7 @@ export const getTaskFormSheetProps = (hookData: any) => ({
   handleUploadFromDrive: hookData.handleUploadFromDrive,
   confirmDeleteFile: hookData.confirmDeleteFile,
   closeSheet: hookData.closeSheet,
+  closeTaskSheet: hookData.closeTaskSheet,
   medicationTypeSheetRef: hookData.medicationTypeSheetRef,
   dosageSheetRef: hookData.dosageSheetRef,
   medicationFrequencySheetRef: hookData.medicationFrequencySheetRef,

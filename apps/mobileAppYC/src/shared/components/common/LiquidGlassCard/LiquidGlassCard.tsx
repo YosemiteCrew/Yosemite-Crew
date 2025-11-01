@@ -14,6 +14,8 @@ import {useTheme} from '@/hooks';
 
 const LIGHT_CARD_TINT = 'rgba(255, 255, 255, 0.65)';
 const DARK_CARD_TINT = 'rgba(28, 28, 30, 0.55)';
+// Set to true to fall back to static styling on iOS if native glass misbehaves.
+const LOCK_IOS_GLASS_APPEARANCE = false;
 
 interface LiquidGlassCardProps {
   children: React.ReactNode;
@@ -41,6 +43,10 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
   fallbackStyle,
 }) => {
   const {theme, isDark} = useTheme();
+  const clipStyles = React.useMemo(
+    () => StyleSheet.create({clip: {overflow: 'hidden'}}),
+    [],
+  );
 
   const resolvedTintColor = React.useMemo(() => {
     if (tintColor) {
@@ -56,35 +62,92 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
     return isDark ? 'dark' : 'light';
   }, [colorScheme, isDark]);
 
+  const defaultBackgroundColor = isDark
+    ? 'rgba(28, 28, 30, 0.72)'
+    : 'rgba(255,255,255,0.9)';
+  const defaultBorderColor = isDark
+    ? 'rgba(255,255,255,0.08)'
+    : 'rgba(0,0,0,0.05)';
+  const defaultBorderWidth = 1;
+
   const baseStyle: ViewStyle = {
     padding: theme.spacing[padding],
     borderRadius: theme.borderRadius[borderRadius],
     ...theme.shadows[shadow],
-    backgroundColor: isDark ? 'rgba(28, 28, 30, 0.72)' : 'rgba(255,255,255,0.9)',
-    borderWidth: 1,
-    borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
     overflow: 'hidden',
   };
 
-  const isIosGlass = Platform.OS === 'ios' && isLiquidGlassSupported;
+  const mergedStyleOverrides = React.useMemo(
+    () => StyleSheet.flatten([fallbackStyle, style]),
+    [fallbackStyle, style],
+  ) as ViewStyle | undefined;
 
-  // iOS glass style (LiquidGlass)
-  const iosGlassStyle = StyleSheet.flatten([
-    baseStyle,
-    style,
-  ]);
+  const overlayBackgroundColor =
+    (mergedStyleOverrides?.backgroundColor as string | undefined) ??
+    tintColor ??
+    resolvedTintColor ??
+    defaultBackgroundColor;
+  const overlayBorderColor =
+    (mergedStyleOverrides?.borderColor as string | undefined) ??
+    defaultBorderColor;
+  const overlayBorderWidth =
+    mergedStyleOverrides?.borderWidth ?? defaultBorderWidth;
 
-  // Android / fallback style
-  const androidFallbackStyle = StyleSheet.flatten([
+  const overlayShapeStyle = React.useMemo(() => {
+    const shape: ViewStyle = {};
+    const baseRadius =
+      typeof mergedStyleOverrides?.borderRadius === 'number'
+        ? mergedStyleOverrides.borderRadius
+        : theme.borderRadius[borderRadius];
+
+    if (typeof baseRadius === 'number') {
+      shape.borderRadius = baseRadius;
+    }
+
+    const radiusKeys = [
+      'borderTopLeftRadius',
+      'borderTopRightRadius',
+      'borderBottomLeftRadius',
+      'borderBottomRightRadius',
+    ] as const;
+    for (const key of radiusKeys) {
+      const value = mergedStyleOverrides?.[key];
+      if (typeof value === 'number') {
+        shape[key] = value;
+      }
+    }
+
+    return shape;
+  }, [borderRadius, mergedStyleOverrides, theme.borderRadius]);
+
+  const fallbackViewStyle = StyleSheet.flatten([
     baseStyle,
+    overlayShapeStyle,
     {
-      backgroundColor: isDark ? 'rgba(24, 24, 26, 0.85)' : 'rgba(255,255,255,0.95)',
+      backgroundColor: overlayBackgroundColor,
+      borderColor: overlayBorderColor,
+      borderWidth: overlayBorderWidth,
     },
     fallbackStyle,
     style,
   ]);
 
-  if (isIosGlass) {
+  const useNativeGlass =
+    Platform.OS === 'ios' && isLiquidGlassSupported && !LOCK_IOS_GLASS_APPEARANCE;
+
+  if (useNativeGlass) {
+    const iosGlassStyle = StyleSheet.flatten([
+      baseStyle,
+      overlayShapeStyle,
+      fallbackStyle,
+      style,
+      {
+        backgroundColor: 'transparent',
+        borderColor: 'transparent',
+        borderWidth: 0,
+      },
+    ]);
+
     return (
       <LiquidGlassView
         style={iosGlassStyle}
@@ -92,10 +155,23 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
         effect={glassEffect}
         tintColor={resolvedTintColor}
         colorScheme={resolvedColorScheme}>
+        <View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFillObject,
+            overlayShapeStyle,
+            {
+              backgroundColor: overlayBackgroundColor,
+              borderColor: overlayBorderColor,
+              borderWidth: overlayBorderWidth,
+            },
+            clipStyles.clip,
+          ]}
+        />
         {children}
       </LiquidGlassView>
     );
   }
 
-  return <View style={androidFallbackStyle}>{children}</View>;
+  return <View style={fallbackViewStyle}>{children}</View>;
 };

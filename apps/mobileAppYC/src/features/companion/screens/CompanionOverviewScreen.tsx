@@ -12,7 +12,7 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 
 import {useDispatch, useSelector} from 'react-redux';
-import type {AppDispatch} from '@/app/store';
+import type {AppDispatch, RootState} from '@/app/store';
 
 import {Header} from '@/shared/components/common/Header/Header';
 import {useTheme} from '@/hooks';
@@ -20,10 +20,7 @@ import {capitalize, displayNeutered, displayInsured, displayOrigin} from '@/shar
 import {createFormScreenStyles} from '@/shared/utils/formScreenStyles';
 import {Separator, RowButton} from '@/shared/components/common/FormRowComponents';
 
-import {
-  selectSelectedCompanion,
-  selectCompanionLoading,
-} from '@/features/companion/selectors';
+import {selectCompanionLoading, selectSelectedCompanion} from '@/features/companion/selectors';
 
 import type {HomeStackParamList} from '@/navigation/types';
 
@@ -80,7 +77,7 @@ import type {
   Breed,
   Companion
 } from '@/features/companion/types';
-import {updateCompanionProfile} from '@/features/companion';
+import {setSelectedCompanion, updateCompanionProfile} from '@/features/companion';
 
 // Props
 export type CompanionOverviewScreenProps = NativeStackScreenProps<
@@ -90,13 +87,47 @@ export type CompanionOverviewScreenProps = NativeStackScreenProps<
 
 export const CompanionOverviewScreen: React.FC<
   CompanionOverviewScreenProps
-> = ({navigation}) => {
+> = ({navigation, route}) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const dispatch = useDispatch<AppDispatch>();
 
-  const companion = useSelector(selectSelectedCompanion);
+  const allCompanions = useSelector((state: RootState) => state.companion.companions);
   const isLoading = useSelector(selectCompanionLoading);
+  const selectedCompanionFromState = useSelector(selectSelectedCompanion);
+  const selectedCompanionId = selectedCompanionFromState?.id ?? null;
+
+  const routeParams = (route.params ?? {}) as Partial<HomeStackParamList['EditCompanionOverview']>;
+  const routeCompanionId = routeParams.companionId;
+
+  const resolvedCompanionId = useMemo(() => {
+    if (routeCompanionId) {
+      return routeCompanionId;
+    }
+    if (selectedCompanionId) {
+      return selectedCompanionId;
+    }
+    return allCompanions[0]?.id ?? null;
+  }, [routeCompanionId, selectedCompanionId, allCompanions]);
+
+  const companion = useMemo(
+    () => {
+      if (resolvedCompanionId) {
+        const found = allCompanions.find(c => c.id === resolvedCompanionId);
+        if (found) {
+          return found;
+        }
+      }
+      return selectedCompanionFromState ?? allCompanions[0] ?? null;
+    },
+    [allCompanions, resolvedCompanionId, selectedCompanionFromState],
+  );
+
+  useEffect(() => {
+    if (resolvedCompanionId) {
+      dispatch(setSelectedCompanion(resolvedCompanionId));
+    }
+  }, [resolvedCompanionId, dispatch]);
 
   // Local UI state
   const [showDobPicker, setShowDobPicker] = useState(false);
@@ -121,7 +152,7 @@ export const CompanionOverviewScreen: React.FC<
     if (navigation.canGoBack()) navigation.goBack();
   }, [navigation]);
 
-  const safeCompanion = companion as Companion;
+  const safeCompanion: Companion | null = companion ?? null;
 
   const applyPatch = useCallback(
     async (patch: Partial<Companion>) => {
@@ -133,7 +164,7 @@ export const CompanionOverviewScreen: React.FC<
           ...safeCompanion,
           ...patch,
           updatedAt: new Date().toISOString(),
-        } as Companion;
+        };
 
         await dispatch(
           updateCompanionProfile({

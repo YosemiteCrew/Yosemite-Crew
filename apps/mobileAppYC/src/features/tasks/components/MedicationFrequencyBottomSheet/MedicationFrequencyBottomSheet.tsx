@@ -11,6 +11,7 @@ export interface MedicationFrequencyBottomSheetRef {
 interface MedicationFrequencyBottomSheetProps {
   selectedFrequency?: MedicationFrequency | null;
   onSelect: (frequency: MedicationFrequency) => void;
+  onSheetChange?: (index: number) => void;
 }
 
 const frequencies: MedicationFrequency[] = ['once', 'daily', 'weekly', 'monthly'];
@@ -18,7 +19,7 @@ const frequencies: MedicationFrequency[] = ['once', 'daily', 'weekly', 'monthly'
 export const MedicationFrequencyBottomSheet = forwardRef<
   MedicationFrequencyBottomSheetRef,
   MedicationFrequencyBottomSheetProps
->(({selectedFrequency, onSelect}, ref) => {
+>(({selectedFrequency, onSelect, onSheetChange}, ref) => {
   const bottomSheetRef = useRef<any>(null);
 
   const frequencyItems: SelectItem[] = useMemo(() =>
@@ -59,6 +60,7 @@ export const MedicationFrequencyBottomSheet = forwardRef<
       mode="select"
       snapPoints={['50%', '65%']}
       emptyMessage="No frequencies available"
+      onSheetChange={onSheetChange}
     />
   );
 });
