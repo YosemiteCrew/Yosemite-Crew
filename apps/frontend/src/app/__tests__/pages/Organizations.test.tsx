@@ -53,7 +53,7 @@ describe("<Organizations />", () => {
     render(<ProtectedOrganizations />);
     expect(screen.getByText("Overview")).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: /create organization/i })
+      screen.getByRole("link", { name: /create organisation/i })
     ).toBeInTheDocument();
   });
 
