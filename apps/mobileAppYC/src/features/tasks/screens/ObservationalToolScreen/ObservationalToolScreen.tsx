@@ -219,9 +219,37 @@ export const ObservationalToolScreen: React.FC = () => {
     discardSheetRef.current?.open();
   };
 
+  // Access parent tab navigator early for typed navigation between tabs
+  const tabNavigation = navigation.getParent<NavigationProp<TabParamList>>();
+
+  const handleSafeExit = useCallback(() => {
+    // If OT was opened as the first (only) route inside the Tasks stack
+    // (e.g., launched directly from Home), reset the Tasks stack to TasksMain
+    // BEFORE leaving the tab so the next visit to Tasks is not stuck on OT.
+    const state = navigation.getState() as any;
+    const isFirstInTaskStack = state?.routes && state.routes.length <= 1;
+
+    if (isFirstInTaskStack) {
+      navigation.reset({index: 0, routes: [{name: 'TasksMain'}]});
+      // And move back to Home tab explicitly
+      tabNavigation?.navigate('HomeStack', {screen: 'Home'} as any);
+      return;
+    }
+
+    // Normal in-stack back if there is history within Tasks stack
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+
+    // Fallback: ensure Tasks stack points to TasksMain
+    navigation.reset({index: 0, routes: [{name: 'TasksMain'}]});
+    tabNavigation?.navigate('Tasks', {screen: 'TasksMain'});
+  }, [navigation, tabNavigation]);
+
   const handleDiscardChanges = useCallback(() => {
-    navigation.goBack();
-  }, [navigation]);
+    handleSafeExit();
+  }, [handleSafeExit]);
 
   const handleStepBack = () => {
     if (stage !== 'form') {
@@ -279,7 +307,7 @@ export const ObservationalToolScreen: React.FC = () => {
     setStage('form');
   };
 
-  const tabNavigation = navigation.getParent<NavigationProp<TabParamList>>();
+  // moved above to avoid use-before-declare in callbacks
 
   const resolvedProvider = useMemo<ObservationalToolProviderPricing | null>(() => {
     if (showProviders && providerEntries.length === 0) {
@@ -752,10 +780,8 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.lightBlueBackground,
     },
     initialFallbackText: {
-      ...theme.typography.titleMedium,
+      ...theme.typography.h3,
       color: theme.colors.secondary,
-      fontSize: 32,
-      fontWeight: '600',
     },
     introTitle: {
       fontFamily: theme.typography.paragraph18Bold.fontFamily,
@@ -944,10 +970,8 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.lightBlueBackground,
     },
     stepHeroFallbackText: {
-      ...theme.typography.titleMedium,
+      ...theme.typography.h3,
       color: theme.colors.secondary,
-      fontSize: 28,
-      fontWeight: '600',
     },
     stepHeading: {
       fontFamily: theme.typography.h6Clash.fontFamily,
