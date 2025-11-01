@@ -219,7 +219,6 @@ describe('socialAuth', () => {
     });
 
     // Ensure iOS platform
-    const RN = require('react-native');
     RN.Platform.OS = 'ios';
 
     let signInWithSocialProvider: any;
@@ -297,7 +296,6 @@ describe('socialAuth', () => {
 
   it('iOS Apple sign-in throws when identityToken missing', async () => {
     const {appleAuth} = require('@invertase/react-native-apple-authentication');
-    const RN = require('react-native');
     RN.Platform.OS = 'ios';
     appleAuth.performRequest.mockResolvedValueOnce({ identityToken: null });
 
@@ -351,7 +349,6 @@ describe('socialAuth', () => {
 
   it('maps Apple specific auth errors to friendly messages', async () => {
     const {appleAuth} = require('@invertase/react-native-apple-authentication');
-    const RN = require('react-native');
     RN.Platform.OS = 'ios';
 
     const cases = [
@@ -404,7 +401,6 @@ describe('socialAuth', () => {
       id_token: 'android-apple-token',
       user: { name: { firstName: 'Ada', lastName: 'Lovelace' }, email: 'ada@apple.example' },
     });
-    const RN = require('react-native');
     RN.Platform.OS = 'android';
 
     let signInWithSocialProvider: any;
@@ -426,7 +422,6 @@ describe('socialAuth', () => {
   it('throws on Android Apple sign-in when id_token missing', async () => {
     const {appleAuthAndroid} = require('@invertase/react-native-apple-authentication');
     (appleAuthAndroid.signIn as jest.Mock).mockResolvedValueOnce({ id_token: undefined });
-    const RN = require('react-native');
     RN.Platform.OS = 'android';
 
     let signInWithSocialProvider: any;
