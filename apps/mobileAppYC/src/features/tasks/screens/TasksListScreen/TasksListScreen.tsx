@@ -56,6 +56,10 @@ export const TasksListScreen: React.FC = () => {
     dispatch(markTaskStatus({taskId, status: 'completed'}));
   };
 
+  const handleStartObservationalTool = (taskId: string) => {
+    navigation.navigate('ObservationalTool', {taskId});
+  };
+
   const renderTask = ({item}: {item: Task}) => {
     const companion = companions.find(c => c.id === item.companionId);
 
@@ -66,6 +70,12 @@ export const TasksListScreen: React.FC = () => {
       avatar: authUser?.profilePicture,
       name: authUser?.firstName || 'User',
     } : undefined;
+
+    const isObservationalToolTask =
+      item.category === 'health' &&
+      item.details &&
+      'taskType' in item.details &&
+      item.details.taskType === 'take-observational-tool';
 
     return (
       <TaskCard
@@ -82,6 +92,9 @@ export const TasksListScreen: React.FC = () => {
         onPressView={() => handleViewTask(item.id)}
         onPressEdit={() => handleEditTask(item.id)}
         onPressComplete={() => handleCompleteTask(item.id)}
+        onPressTakeObservationalTool={
+          isObservationalToolTask ? () => handleStartObservationalTool(item.id) : undefined
+        }
         showEditAction={item.status !== 'completed'}
         showCompleteButton={item.status === 'pending'}
         category={item.category}

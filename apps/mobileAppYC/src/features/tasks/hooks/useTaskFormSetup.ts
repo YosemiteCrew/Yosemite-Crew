@@ -12,7 +12,7 @@ export const useTaskFormSetup = () => {
   const {uploadSheetRef, deleteSheetRef: formDeleteSheetRef} = refs;
 
   const taskFormSheets = useTaskFormSheets();
-  const {deleteSheetRef: taskDeleteSheetRef, ...otherTaskSheets} = taskFormSheets;
+  const {openTaskSheet, closeTaskSheet, ...taskSheetRefs} = taskFormSheets;
 
   const fileOperations = useFileOperations({
     files: formData.attachments as any,
@@ -26,10 +26,12 @@ export const useTaskFormSetup = () => {
   return {
     ...taskFormState,
     uploadSheetRef,
-    deleteSheetRef: taskDeleteSheetRef,
-    ...otherTaskSheets,
+    deleteSheetRef: formDeleteSheetRef,
+    ...taskSheetRefs,
     ...fileOperations,
     openSheet,
     closeSheet,
+    openTaskSheet,
+    closeTaskSheet,
   };
 };

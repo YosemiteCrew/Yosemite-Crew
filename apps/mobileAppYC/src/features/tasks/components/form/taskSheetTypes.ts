@@ -20,6 +20,7 @@ export interface TaskBottomSheetHandlers {
   handleUploadFromDrive: () => void;
   confirmDeleteFile: () => void;
   closeSheet: () => void;
+  closeTaskSheet: () => void;
   onDiscard: () => void;
 }
 
@@ -27,4 +28,3 @@ export interface TaskTypeSheetProps {
   selectedTaskType: TaskTypeSelection | null;
   onSelect: (selection: TaskTypeSelection) => void;
 }
-

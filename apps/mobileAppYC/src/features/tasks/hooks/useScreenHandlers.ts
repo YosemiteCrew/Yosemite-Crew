@@ -37,6 +37,8 @@ export const useScreenHandlers = ({
     setShowTimePicker: formSetup.setShowTimePicker,
     setShowStartDatePicker: formSetup.setShowStartDatePicker,
     setShowEndDatePicker: formSetup.setShowEndDatePicker,
+    openTaskSheet: formSetup.openTaskSheet,
+    closeTaskSheet: formSetup.closeTaskSheet,
   });
 
   return {

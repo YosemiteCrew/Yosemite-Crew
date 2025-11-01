@@ -4,6 +4,7 @@ import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {BottomTabScreenProps} from '@react-navigation/bottom-tabs';
 import type {AuthStackParamList} from './AuthNavigator';
 import type {TaskCategory} from '@/features/tasks/types';
+import type {ObservationalToolBookingContext} from '@/features/observationalTools/types';
 
 // Root Stack Navigator - Add Onboarding
 export type RootStackParamList = {
@@ -47,7 +48,12 @@ export type AppointmentStackParamList = {
   MyAppointments: { resetKey?: number } | undefined;
   BrowseBusinesses: undefined;
   BusinessDetails: { businessId: string };
-  BookingForm: { businessId: string; employeeId?: string; appointmentType?: string };
+  BookingForm: {
+    businessId: string;
+    employeeId?: string;
+    appointmentType?: string;
+    otContext?: ObservationalToolBookingContext;
+  };
   ViewAppointment: { appointmentId: string };
   PaymentInvoice: { appointmentId: string; companionId?: string };
   PaymentSuccess: { appointmentId: string; companionId?: string };
