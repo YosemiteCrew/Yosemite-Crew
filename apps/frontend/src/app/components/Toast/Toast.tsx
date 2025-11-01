@@ -3,6 +3,8 @@ import { Button, Container } from "react-bootstrap";
 
 import { Icon } from "@iconify/react/dist/iconify.js";
 
+import "./Toast.css"
+
 type ErrorTostProps = {
   message?: string;
   iconElement?: React.ReactNode;

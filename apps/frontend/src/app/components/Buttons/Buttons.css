@@ -13,6 +13,7 @@
   letter-spacing: -0.46px;
   transition: all 0.3s ease;
   padding: 16px 32px;
+  max-height: 60px;
 }
 .primary-button {
   background: var(--black-bg);

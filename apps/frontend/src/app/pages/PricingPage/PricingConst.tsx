@@ -19,14 +19,14 @@ export const getPlanConfig = ({
   self: {
     ranges: [
       {
-        label: "Numbers of Appointment",
+        label: "Numbers of appointments",
         value: appointments,
         setter: setAppointments,
         min: 0,
         max: 2000,
       },
       {
-        label: "Number of Obervational Tools",
+        label: "Number of obervational tools",
         value: assessments,
         setter: setAssessments,
         min: 0,
@@ -39,14 +39,14 @@ export const getPlanConfig = ({
   custom: {
     ranges: [
       {
-        label: "Numbers of Appointment",
+        label: "Numbers of appointments",
         value: appointments,
         setter: setAppointments,
         min: 0,
         max: 2000,
       },
       {
-        label: "Number of Obervational Tools",
+        label: "Number of obervational tools",
         value: assessments,
         setter: setAssessments,
         min: 0,

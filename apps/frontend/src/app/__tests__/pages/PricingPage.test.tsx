@@ -45,18 +45,18 @@ describe('PricingPage Component', () => {
 
   test('renders major headings and pricing cards correctly', () => {
     expect(screen.getByRole('heading', { name: /transparent pricing/i })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /hosting plan comparison/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /comparison of hosting plans/i })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /key features/i })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /pricing calculator/i })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /self-hosting \(free plan\)/i, level: 4 })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /free plan/i, level: 4 })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Pay-as-you-go', level: 4 })).toBeInTheDocument()
   })
 
   test('calculator defaults to Free plan and shows correct price', () => {
-    const freePlanToggle = screen.getByRole('radio', { name: /self-hosting/i })
+    const freePlanToggle = screen.getByRole('radio', { name: /free plan/i })
     expect(freePlanToggle).toBeChecked()
 
-    const estimatedBilling = screen.getByText('Estimated Billing').parentElement!
+    const estimatedBilling = screen.getByText('Price Cap').parentElement!
     const priceHeading = within(estimatedBilling).getByRole('heading', { level: 2 })
     expect(priceHeading).toHaveTextContent('$0')
   })
@@ -77,7 +77,7 @@ describe('PricingPage Component', () => {
 
     const expectedPrice = getPlanConfig(planConfig).custom.calculatePrice()
 
-    const estimatedBilling = screen.getByText('Estimated Billing').parentElement!
+    const estimatedBilling = screen.getByText('Price Cap').parentElement!
     const priceHeading = within(estimatedBilling).getByRole('heading', { level: 2 })
     expect(priceHeading).toHaveTextContent(`$${expectedPrice}`)
   })
@@ -100,7 +100,7 @@ describe('PricingPage Component', () => {
 
     const newPrice = getPlanConfig(planConfig).custom.calculatePrice()
 
-    const estimatedBilling = screen.getByText('Estimated Billing').parentElement!
+    const estimatedBilling = screen.getByText('Price Cap').parentElement!
     const priceHeading = within(estimatedBilling).getByRole('heading', { level: 2 })
     expect(priceHeading).toHaveTextContent(`$${newPrice}`)
   })
@@ -137,7 +137,7 @@ describe('NeedHelp Component', () => {
     render(<PricingPage />)
     expect(screen.getByRole('heading', { name: /need help\? we’re all ears!/i })).toBeInTheDocument()
 
-    const getInTouchLink = screen.getByRole('link', { name: /get in touch/i })
+    const getInTouchLink = screen.getByRole('link', { name: /contact support/i })
     expect(getInTouchLink).toHaveAttribute('href', '/contact')
   })
 })

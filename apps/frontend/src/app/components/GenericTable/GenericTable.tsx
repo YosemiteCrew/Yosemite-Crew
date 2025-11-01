@@ -56,7 +56,7 @@ const GenericTable = <T extends object>({
         <tbody>
           {paginatedData.length > 0 &&
             paginatedData?.map((row: any, index: any) => (
-              <tr key={row}>
+              <tr key={row+index}>
                 {columns.map((col) => (
                   <td
                     key={String(col.key)}

@@ -1,29 +1,32 @@
+.FaqSection{
+  max-width: 960px;
+  width: 100%;
+  margin: 0 auto;
+}
 .FaqSection .FaqData {
   display: flex;
   flex-direction: column;
   gap: 30px;
+  min-width: 100%;
 }
 .FaqSection .FaqData .faqhead h2 {
-  font-size: 40px;
+  font-size: 48px;
   line-height: 120%;
   margin: 0;
   font-family: var(--grotesk-font);
   text-align: center;
   color: var(--black-text);
 }
-.FaqSection .FaqData .faqhead h2 span {
-  color: var(--black-grey-Text);
-}
 
 .FAQ_Accordion {
   display: flex;
   flex-direction: column;
   gap: 30px;
-  padding: 50px 50px;
+  padding: 0px 0px;
 }
 .Faq_accordion_item {
   box-shadow: 0px 5px 16px 0px #080f340f;
-  border-radius: 32px !important;
+  border-radius: 16px !important;
   height: 100%;
 }
 .FaQ_Header {
@@ -45,8 +48,9 @@
   color: var(--black-text) !important;
 }
 .Faq_button {
-  border-radius: 32px !important;
+  border-radius: 16px !important;
   outline: none !important;
+  padding: 40px;
 }
 .accordion-button:focus {
   box-shadow: none !important;
@@ -54,9 +58,10 @@
 .accordion-button:not(.collapsed) {
   background-color: transparent !important;
   box-shadow: none !important;
+  padding: 40px 20px 0px 40px;
 }
 .Faq_accordion_item:has(.accordion-button:not(.collapsed)) {
-  border: 2px solid var(--blue-text) !important;
+  border: 1px solid var(--blue-text) !important;
   box-shadow: 0px 6px 16px 0px #247aed26;
 }
 .FaQ_Header:has(.accordion-button:not(.collapsed)) {
@@ -77,6 +82,9 @@
   transform: rotate(-0deg) !important;
 }
 
+.FAQ_Accordion .accordion-body {
+  padding: 15px 80px 40px 40px;
+}
 .FAQ_Accordion .accordion-body p {
   font-family: var(--satoshi-font);
   font-size: 18px;
@@ -84,31 +92,40 @@
   line-height: 21.6px;
   letter-spacing: -0.02em;
   color: var(--black-text);
+  margin: 0;
+}
+
+@media screen and (max-width: 1280px) {
+  .FaqSection .FaqData .faqhead h2 {
+    font-size: 33px;
+  }
+  .FaQ_Header button {
+    font-size: 19px;
+  }
 }
 
 @media screen and (max-width: 768px) {
-  .FaqSection .FaqData {
-    gap: 40px;
-  }
-  .FAQ_Accordion {
-    padding: 0px 0px;
-  }
-}
-
-@media screen and (max-width: 578px) {
-  .FaQ_Header {
-    min-height: 100px;
-  }
   .FaqSection .FaqData .faqhead h2 {
-    font-size: 28px;
+    font-size: 23px;
+  }
+  .Faq_button {
+    padding: 0px 16px;
+  }
+  .accordion-button:not(.collapsed) {
+    padding: 20px 10px 0px 16px;
+  }
+  .FAQ_Accordion .accordion-body {
+    padding: 5px 48px 20px 16px;
   }
   .FaQ_Header button {
     font-size: 16px;
+    line-height: 120%;
   }
   .FAQ_Accordion .accordion-body p {
     font-size: 13px;
+    line-height: 120%;
   }
-  .FAQ_Accordion .accordion-body {
-    padding: 10px 20px;
+  .FAQ_Accordion {
+    padding: 0px 0px;
   }
 }

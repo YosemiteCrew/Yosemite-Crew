@@ -78,7 +78,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     return new Promise((resolve, reject) => {
       userPool.signUp(email, password, attributeList, [], (err, result) => {
         if (err) {
-          reject(err);
+          reject(err instanceof Error ? err : new Error(String(err)));
         } else {
           resolve(result);
         }
@@ -116,7 +116,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     return new Promise((resolve, reject) => {
       cognitoUser.resendConfirmationCode((err, result) => {
         if (err) {
-          reject(err);
+          reject(err instanceof Error ? err : new Error(String(err)));
         } else {
           resolve(result);
         }
@@ -244,7 +244,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
           console.log(data);
           resolve(data);
         },
-        onFailure: (err) => reject(err),
+        onFailure: (err) =>
+          reject(err instanceof Error ? err : new Error(String(err))),
       });
     });
   },
@@ -260,7 +261,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       const cognitoUser = new CognitoUser(userData);
       cognitoUser.confirmPassword(code, newPassword, {
         onSuccess: () => resolve("success"),
-        onFailure: (err) => reject(err),
+        onFailure: (err) =>
+          reject(err instanceof Error ? err : new Error(String(err))),
       });
     });
   },

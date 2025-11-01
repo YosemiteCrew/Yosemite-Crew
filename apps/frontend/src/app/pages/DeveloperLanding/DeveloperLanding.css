@@ -1,5 +1,26 @@
+.Container {
+  padding: 80px 80px;
+  max-width: 1560px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+@media screen and (max-width: 1280px) {
+  .Container {
+    padding: 32px 48px;
+  }
+}
+@media screen and (max-width: 768px) {
+  .Container {
+    padding: 16px 16px;
+  }
+}
+
 .DevlpHeroSec {
-  padding: 100px 0px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .DevlpHeroData {
   display: grid;
@@ -9,12 +30,13 @@
 .DevlpHeroData .LeftDevBanr {
   display: flex;
   flex-direction: column;
-  gap: 48px;
-  max-width: 550px;
+  gap: 20px;
+  max-width: 600px;
+  padding-right: 50px;
 }
 .LeftDevBanr .devbanrtext h2 {
   font-family: var(--grotesk-font);
-  font-size: 57px;
+  font-size: 48px;
   font-weight: 500;
   line-height: 120%;
   color: var(--black-text);
@@ -36,11 +58,56 @@
   width: 100%;
   height: auto;
 }
-
+@media screen and (max-width: 1280px) {
+  .LeftDevBanr .devbanrtext h2 {
+    font-size: 33px;
+  }
+  .LeftDevBanr .devbanrtext p {
+    font-size: 18px;
+  }
+}
+@media screen and (max-width: 1024px) {
+  .DevlpHeroData .LeftDevBanr {
+    max-width: 100%;
+    padding-right: 0px;
+    align-items: center;
+  }
+  .DevlpHeroData {
+    grid-template-columns: 1fr;
+    grid-gap: 32px;
+  }
+  .LeftDevBanr .devbanrtext h2 {
+    text-align: center;
+  }
+  .LeftDevBanr .devbanrtext p {
+    text-align: center;
+  }
+}
+@media screen and (max-width: 768px) {
+  .DevlpHeroData {
+    grid-gap: 16px;
+  }
+  .LeftDevBanr .devbanrtext h2 {
+    font-size: 23px;
+  }
+  .LeftDevBanr .devbanrtext p {
+    font-size: 13px;
+  }
+}
 /* DevlYousmiteSec */
 
 .DevlYousmiteSec {
-  padding: 100px 0px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.DevlYousmiteSecData {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
 }
 .YousmiteCrew {
   text-align: center;
@@ -48,17 +115,9 @@
   flex-direction: column;
   gap: 16px;
 }
-.YousmiteCrew p {
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 120%;
-  color: var(--black-text);
-  font-family: var(--satoshi-font);
-  margin: 0;
-}
 .YousmiteCrew h4 {
   font-family: var(--grotesk-font);
-  font-size: 40px;
+  font-size: 48px;
   font-weight: 500;
   line-height: 120%;
   color: var(--black-text);
@@ -68,8 +127,9 @@
   display: flex;
   flex-wrap: wrap;
   gap: 20px;
-  padding: 50px 0px;
   position: relative;
+  width: 100%;
+  justify-content: center;
 }
 .DevYousmiteBoxed::after {
   position: absolute;
@@ -84,8 +144,8 @@
 }
 .DevCrewBox {
   background: var(--lightgrey);
-  padding: 32px 28px;
-  border-radius: 28px;
+  padding: 32px 16px;
+  border-radius: 16px;
   overflow: hidden;
 }
 .crewText {
@@ -95,14 +155,14 @@
 }
 .crewText h3 {
   font-family: var(--grotesk-font);
-  font-size: 30px;
+  font-size: 33px;
   font-weight: 500;
   line-height: 120%;
   color: var(--black-text);
   margin: 0;
 }
 .crewText p {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 400;
   line-height: 120%;
   color: var(--black-text);
@@ -110,8 +170,8 @@
   margin: 0;
 }
 .crewbox1 {
-  width: 305px;
-  height: 279px;
+  width: 300px;
+  height: 300px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -123,77 +183,204 @@
   bottom: 0;
 }
 .crewbox2 {
-  width: 522px;
-  height: 283px;
+  width: 553px;
+  height: 300px;
   display: flex;
-  align-items: center;
-  gap: 32px;
+  gap: 16px;
 }
 .crewbox3 {
-  width: 413px;
-  height: 283px;
+  width: 383px;
+  height: 300px;
   display: flex;
-  align-items: center;
-  position: relative;
 }
 .crewbox3 .crewText {
   width: 220px;
 }
-.crewbox3 img {
-  position: absolute;
-  right: 0;
-}
 .crewbox4 {
-  width: 522px;
-  height: 287px;
+  width: 530px;
+  height: 282px;
   display: flex;
   flex-direction: column;
   justify-content: space-around;
 }
 .crewbox5 {
-  width: 413px;
-  height: 287px;
+  width: 427px;
+  height: 282px;
   display: flex;
   flex-direction: column;
   justify-content: space-around;
   align-items: end;
 }
 .crewbox6 {
-  width: 305px;
-  height: 286px;
+  width: 282px;
+  height: 282px;
   display: flex;
   position: relative;
 }
 .crewbox6 .crewText {
-  width: 180px;
+  width: 220px;
 }
 .crewbox6 img {
   position: absolute;
   right: 0;
   bottom: 0px;
 }
+@media screen and (max-width: 1280px) {
+  .YousmiteCrew h4 {
+    font-size: 33px;
+  }
+  .DevYousmiteBoxed::after {
+    top: 35%;
+    left: 50%;
+    transform: translate(-50%, -55%);
+  }
+  .DevYousmiteBoxed {
+    max-width: 650px;
+    gap: 10px;
+  }
+  .crewText h3 {
+    font-size: 23px;
+  }
+  .crewText p {
+    font-size: 13px;
+  }
+  .crewbox1 {
+    height: 220px;
+    width: 220px;
+  }
+  .crewbox2 {
+    height: 220px;
+    width: 400px;
+  }
+  .crewbox3 {
+    height: 280px;
+    width: 360px;
+    flex-direction: column-reverse;
+  }
+  .crewbox4 {
+    height: 280px;
+    width: 260px;
+  }
+  .crewbox5 {
+    height: 280px;
+    width: 360px;
+  }
+  .crewbox6 {
+    height: 280px;
+    width: 260px;
+  }
+}
+@media screen and (max-width: 768px) {
+  .DevlYousmiteSecData {
+    gap: 16px;
+  }
+  .DevCrewBox {
+    padding: 16px 8px;
+  }
+  .YousmiteCrew h4 {
+    font-size: 23px;
+  }
+  .DevYousmiteBoxed::after {
+    height: 100px;
+    width: 100px;
+    top: 35%;
+    left: 50%;
+    transform: translate(-50%, -55%);
+  }
+  .DevYousmiteBoxed {
+    max-width: 350px;
+    gap: 5px;
+  }
+  .crewText {
+    gap: 0px;
+  }
+  .crewText h3 {
+    font-size: 14px;
+  }
+  .crewText p {
+    font-size: 8px;
+  }
+  .crewbox1 {
+    height: 132px;
+    width: 132px;
+    justify-content: start;
+  }
+  .crewbox1 img {
+    width: 73px;
+    height: 55px;
+    right: 30px;
+  }
+  .crewbox2 {
+    height: 132px;
+    width: 182px;
+    gap: 8px;
+  }
+  .crewbox2 img {
+    height: 48px;
+    width: 48px;
+  }
+  .crewbox3 {
+    height: 134px;
+    width: 180px;
+    flex-direction: column-reverse;
+    justify-content: start;
+  }
+  .crewbox3 .crewText {
+    width: 100%;
+  }
+  .crewbox3 img {
+    width: 50px;
+    height: 50px;
+  }
+  .crewbox4 {
+    height: 134px;
+    width: 134px;
+  }
+  .crewbox4 img {
+    height: 50px;
+    width: 50px;
+  }
+  .crewbox5 {
+    height: 134px;
+    width: 180px;
+  }
+  .crewbox5 img {
+    height: 54px;
+    width: 54px;
+  }
+  .crewbox6 {
+    height: 134px;
+    width: 134px;
+  }
+  .crewbox6 img {
+    height: 50px;
+    width: 69px;
+  }
+}
 
 /* DevlpToolSec */
 
 .DevlpToolSec {
-  padding: 100px 0px 0px 0px;
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--lightblue);
+}
+.DevlpToolData {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 .TopResorchTool {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
-.leftResorch p {
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 120%;
-  color: var(--black-text);
-  font-family: var(--satoshi-font);
-}
 .leftResorch h2 {
   font-family: var(--grotesk-font);
-  font-size: 40px;
+  font-size: 48px;
   font-weight: 500;
   line-height: 120%;
   color: var(--black-text);
@@ -203,43 +390,71 @@
 .RytResorch p {
   max-width: 478px;
   font-size: 18px;
-  font-weight: 400;
+  font-weight: 700;
   line-height: 120%;
   color: var(--black-text);
   font-family: var(--satoshi-font);
   margin: 0;
 }
-.BottomResorchTool {
-  padding: 50px 0px;
+@media screen and (max-width: 1280px) {
+  .leftResorch h2 {
+    font-size: 33px;
+  }
+  .RytResorch p {
+    font-size: 15px;
+  }
+}
+@media screen and (max-width: 768px) {
+  .TopResorchTool {
+    flex-direction: column;
+  }
+  .leftResorch h2 {
+    font-size: 23px;
+    width: 100%;
+    max-width: 100%;
+    text-align: center;
+  }
+  .RytResorch p {
+    font-size: 13px;
+    width: 100%;
+    max-width: 100%;
+    text-align: center;
+  }
 }
 
 /* SimpleStepSec */
 
 .SimpleStepSec {
-  padding: 200px 0px 100px 0px;
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.SimpleStepSec::before {
+.SimpleStepSec::after {
   content: " ";
   position: absolute;
-  background: var(--background-StepAfter) no-repeat;
+  background: url("https://d2il6osz49gpup.cloudfront.net/Images/devlins.png")
+    no-repeat;
   background-size: 100% 100%;
-  width: 100%;
-  left: 0px;
-  top: 0;
-  height: 147px;
+  width: 744px;
+  left: -100px;
+  top: 250px;
+  height: 744px;
+  z-index: -1;
 }
 .StepsData {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  width: 100%;
+  padding: 40px 0px;
 }
 .leftSimpleStep {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 25px;
+  gap: 24px;
+  max-width: 410px;
 }
-.leftSimpleStep p,
 .DevPriceHead p {
   font-size: 15px;
   font-weight: 700;
@@ -256,7 +471,6 @@
   letter-spacing: -0.02em;
   color: var(--black-text);
   margin: 0;
-  max-width: 616px;
 }
 
 .RytSimpleStep {
@@ -266,7 +480,11 @@
 }
 .Stepitems {
   display: flex;
-  gap: 40px;
+  gap: 20px;
+}
+.Stepitems img {
+  object-fit: cover;
+  object-position: top;
 }
 .Stepitems .Stepstext {
   display: flex;
@@ -275,7 +493,7 @@
 }
 .Stepitems .Stepstext h4 {
   font-family: var(--grotesk-font);
-  font-size: 30px;
+  font-size: 33px;
   font-weight: 500;
   line-height: 28.6px;
   letter-spacing: -0.02em;
@@ -283,12 +501,83 @@
   margin: 0;
 }
 .Stepitems .Stepstext p {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 400;
   line-height: 16.6px;
   letter-spacing: -0.02em;
   color: var(--black-text);
   margin: 0;
+}
+@media screen and (max-width: 1280px) {
+  .leftSimpleStep {
+    max-width: 100%;
+    align-items: center;
+    gap: 16px;
+  }
+  .leftSimpleStep h2 {
+    font-size: 33px;
+    text-align: center;
+  }
+  .leftSimpleStep a {
+    width: 230px !important;
+  }
+  .StepsData {
+    grid-template-columns: 1fr;
+    gap: 32px;
+    padding: 0px 0px;
+  }
+  .RytSimpleStep {
+    padding: 40px 40px;
+  }
+  .Stepitems .Stepstext h4 {
+    font-size: 28px;
+  }
+  .Stepitems .Stepstext p {
+    font-size: 15px;
+  }
+  .SimpleStepSec::after {
+    width: 544px;
+    left: -100px;
+    top: 400px;
+    height: 544px;
+  }
+}
+@media screen and (max-width: 768px) {
+  .leftSimpleStep {
+    max-width: 100%;
+    align-items: center;
+    gap: 8px;
+  }
+  .leftSimpleStep h2 {
+    font-size: 23px;
+    text-align: center;
+  }
+  .leftSimpleStep a {
+    width: 230px !important;
+  }
+  .StepsData {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .RytSimpleStep {
+    padding: 20px 20px 40px 20px;
+  }
+  .Stepitems .Stepstext h4 {
+    font-size: 19px;
+  }
+  .Stepitems .Stepstext p {
+    font-size: 11px;
+  }
+  .Stepitems:nth-child(1) img,
+  .Stepitems:nth-child(2) img {
+    height: 86px;
+  }
+  .SimpleStepSec::after {
+    width: 344px;
+    left: -100px;
+    top: 300px;
+    height: 344px;
+  }
 }
 
 /* DevlpPricingSec */

@@ -28,7 +28,7 @@ import { useRouter } from "next/navigation";
 import { LoadScript, Autocomplete } from "@react-google-maps/api";
 import Image from "next/image";
 
-import { FormInput } from "@/app/pages/Sign/SignUp";
+import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import DynamicSelect from "@/app/components/DynamicSelect/DynamicSelect";
 import { getData, postData } from "@/app/services/axios";
 import ProfileProgressbar from "@/app/components/ProfileProgressbar/ProfileProgressbar";

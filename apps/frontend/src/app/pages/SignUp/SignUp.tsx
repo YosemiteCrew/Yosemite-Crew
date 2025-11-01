@@ -1,16 +1,18 @@
 "use client";
 import React, { useState } from "react";
 import { Button, Col, Container, Form, Row } from "react-bootstrap";
-import Image from "next/image";
 import Link from "next/link";
 import { GoCheckCircleFill } from "react-icons/go";
 import { Icon } from "@iconify/react/dist/iconify.js";
 
-import { useErrorTost } from "@/app/components/Toast";
+import { useErrorTost } from "@/app/components/Toast/Toast";
 import { useAuthStore } from "@/app/stores/authStore";
 import OtpModal from "@/app/components/OtpModal/OtpModal";
 
-import "./Sign.css";
+import FormInputPass from "@/app/components/Inputs/FormInputPass/FormInputPass";
+import FormInput from "@/app/components/Inputs/FormInput/FormInput";
+
+import "./SignUp.css";
 
 const SignUp = () => {
   const { showErrorTost, ErrorTostPopup } = useErrorTost();
@@ -345,127 +347,4 @@ const MainBtn = ({
 };
 // MainBtnProps Ended
 
-// FormInputProps started
-type FormInputProps = {
-  intype: string;
-  inname?: string;
-  value: string;
-  inlabel: string;
-  readonly?: boolean;
-  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onBlur?: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  error?: string;
-};
-const FormInput = ({
-  intype,
-  inname,
-  inlabel,
-  value,
-  onChange,
-  onBlur,
-  readonly,
-  error,
-}: Readonly<FormInputProps>) => {
-  const [isFocused, setIsFocused] = useState(false);
-
-  return (
-    <div className="w-100">
-      <div
-        className={`SignInput floating-input ${isFocused || value ? "focused" : ""}`}
-      >
-        <input
-          type={intype}
-          name={inname}
-          id={inname}
-          value={value ?? ""}
-          onChange={onChange}
-          autoComplete="off"
-          readOnly={readonly}
-          required
-          placeholder=" "
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          className={error ? "is-invalid" : ""}
-        />
-        <label htmlFor={inname}>{inlabel}</label>
-      </div>
-      {/* Show error as bottom red text only for input validation */}
-      {error && (
-        <div className="Errors">
-          <Icon icon="mdi:error" width="16" height="16" />
-          {error}
-        </div>
-      )}
-    </div>
-  );
-};
-// FormInputProps Ended
-
-// FormInputPassProps started
-type FormInputPassProps = {
-  intype: string;
-  inname: string;
-  value: string;
-  inlabel: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  inPlaceHolder?: string;
-};
-const FormInputPass = ({
-  intype,
-  inname,
-  inlabel,
-  value,
-  onChange,
-  error,
-  inPlaceHolder,
-}: FormInputPassProps & { error?: string }) => {
-  const [showPassword, setShowPassword] = useState(false);
-  const [isFocused, setIsFocused] = useState(false);
-
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
-  };
-
-  return (
-    <div className="w-100">
-      <div
-        className={`SignPassInput floating-input ${isFocused || value ? "focused" : ""}`}
-      >
-        <input
-          type={showPassword ? "text" : intype}
-          name={inname}
-          id={inname}
-          value={value ?? ""}
-          autoComplete="new-password"
-          onChange={onChange}
-          required
-          placeholder={isFocused ? inPlaceHolder : ""}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          className={error ? "is-invalid" : ""}
-        />
-        <label htmlFor={inname}>{inlabel}</label>
-        <Button type="button" onClick={togglePasswordVisibility} tabIndex={-1}>
-          <Image
-            aria-hidden
-            src="https://d2il6osz49gpup.cloudfront.net/Images/eyes.png"
-            alt="eyes"
-            width={24}
-            height={24}
-          />
-        </Button>
-      </div>
-
-      {/* Show error as bottom red text only for input validation */}
-      {error && (
-        <div className="Errors">
-          <Icon icon="mdi:error" width="16" height="16" />
-          {error}
-        </div>
-      )}
-    </div>
-  );
-};
-// FormInputPassProps Ended
-
-export { FormInput, FormInputPass, MainBtn };
+export { MainBtn };
