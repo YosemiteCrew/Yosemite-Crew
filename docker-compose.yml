@@ -7,8 +7,6 @@ services:
     volumes:
       - .:/app
     command: sh -c "corepack enable && pnpm install && pnpm run dev --port 3000"
-    depends_on:
-      - backend
 
   backend:
     image: node:20-alpine  
@@ -22,7 +20,8 @@ services:
       - .:/app
     command: sh -c "corepack enable && pnpm install && pnpm run dev"
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
 
   mongodb:
     image: mongo:7
@@ -30,6 +29,12 @@ services:
       - "27017:27017"
     volumes:
       - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
 volumes:
   mongo-data:
