@@ -1,0 +1,41 @@
+.sidebar {
+  width: 260px;
+  padding: 24px 16px;
+  flex-direction: column;
+  gap: 16px;
+  display: flex;
+  height: 100%;
+  overflow: scroll;
+
+  border-radius: 16px;
+  border: 1px solid var(--yc-upated-black-6, #eaeaea);
+  background: var(--yc-updated-white, #fff);
+  box-shadow: 0 0 16px 0 rgba(0, 0, 0, 0.08);
+}
+.route {
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid var(--lightgrey);
+  color: var(--notibg);
+  font-family: var(--grotesk-font);
+  font-size: 19px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 120%;
+  letter-spacing: -0.38px;
+  transition: 0.3s;
+}
+.route-active {
+  color: var(--blue-text);
+  background-color: var(--lightblue) !important;
+  border: 1px solid var(--blue-text);
+}
+.route:hover {
+  background-color: var(--lightgrey);
+}
+
+@media screen and (max-width: 1024px) {
+  .sidebar {
+    display: none;
+  }
+}

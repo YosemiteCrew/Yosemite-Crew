@@ -1,0 +1,32 @@
+.create-org-wrapper {
+  padding: 40px 80px 80px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+.create-org-title {
+  color: var(--black-text);
+  font-family: var(--grotesk-font);
+  font-size: 33px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 120%;
+  letter-spacing: -0.66px;
+}
+
+@media screen and (max-width: 1024px) {
+  .create-org-wrapper {
+    padding: 40px 48px;
+    gap: 32px;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .create-org-wrapper {
+    padding: 24px 16px;
+    gap: 24px;
+  }
+  .create-org-title {
+    font-size: 23px;
+  }
+}

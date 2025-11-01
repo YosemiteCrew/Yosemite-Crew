@@ -1,3 +1,4 @@
+import React from 'react';
 import "@testing-library/jest-dom";
 
 globalThis.HTMLElement.prototype.scrollIntoView = jest.fn();
@@ -55,3 +56,14 @@ afterAll(() => {
   (console.warn as jest.Mock).mockRestore?.();
   (console.error as jest.Mock).mockRestore?.();
 });
+
+const IconComponentMock = (props: any) =>
+  React.createElement('span', { 'data-testid': 'icon', ...props });
+
+jest.mock('@iconify/react', () => ({
+  Icon: IconComponentMock,
+}));
+
+jest.mock('@iconify/react/dist/iconify.js', () => ({
+  Icon: IconComponentMock,
+}));

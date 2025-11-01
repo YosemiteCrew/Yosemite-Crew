@@ -1,0 +1,58 @@
+.steps-container {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+.step {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.step-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.step-heading {
+  color: #a09f9f;
+  font-family: var(--grotesk-font);
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 100%;
+  letter-spacing: -0.32px;
+}
+.step-logo {
+  height: 40px;
+  width: 40px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #a09f9f;
+}
+.step-dash {
+  width: 48px;
+  height: 2px;
+  border-radius: 2px;
+  background: #a09f9f;
+}
+.activestep {
+  color: var(--black-text);
+}
+.activestepbackground {
+  background: var(--black-bg);
+}
+
+@media screen and (max-width: 768px) {
+  .step-logo {
+    height: 24px;
+    width: 24px;
+  }
+  .step-logo svg {
+    height: 12px;
+    width: 12px;
+  }
+}

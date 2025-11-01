@@ -1,53 +1,34 @@
 "use client";
 import React from "react";
-import { Container } from "react-bootstrap";
-import { Icon } from "@iconify/react/dist/iconify.js";
 import Image from "next/image";
 
-import { FillBtn, UnFillBtn } from "@/app/pages/HomePage/HomePage";
 import LaunchGrowTab from "@/app/components/LaunchGrowTab/LaunchGrowTab";
 import Footer from "@/app/components/Footer/Footer";
 
 import "./DeveloperLanding.css";
+import { Primary } from "@/app/components/Buttons";
 
 const DeveloperLanding = () => {
   return (
     <>
       <section className="DevlpHeroSec">
-        <Container>
+        <div className="Container">
           <div className="DevlpHeroData">
             <div className="LeftDevBanr">
               <div className="devbanrtext">
                 <h2>
-                  Build, customize, and launch powerful apps for the veterinary
-                  ecosystem
+                  Build, customise, and launch powerful apps for the animal
+                  health ecosystem
                 </h2>
                 <p>
                   {" "}
-                  Transform pet healthcare with your ideas. Yosemite Crew
-                  provides you with the tools, APIs, and flexibility to create
-                  custom applications tailored to veterinary needs.
+                  Transform animal care with your ideas. Yosemite Crew offers
+                  tools and APIs to build custom apps for pet businesses,
+                  including AI scribe and voice calls
                 </p>
               </div>
               <div className="DevbanrBtn">
-                <FillBtn
-                  icon={
-                    <Icon
-                      icon="solar:settings-minimalistic-bold"
-                      width="20"
-                      height="20"
-                    />
-                  }
-                  text="Explore Dev Tools"
-                  href=""
-                />
-                <UnFillBtn
-                  href="#"
-                  icon={
-                    <Icon icon="solar:bill-check-bold" width="24" height="24" />
-                  }
-                  text="Learn more"
-                />
+                <Primary href="/developers" text="Developer portal" />
               </div>
             </div>
             <div className="RytDevBanr ">
@@ -60,116 +41,116 @@ const DeveloperLanding = () => {
               />
             </div>
           </div>
-        </Container>
+        </div>
       </section>
 
       <section className="DevlYousmiteSec">
-        <Container>
-          <div className="YousmiteCrew">
-            <p>Why Yosemite Crew?</p>
-            <h4>Why Developers Choose Yosemite Crew</h4>
+        <div className="Container">
+          <div className="DevlYousmiteSecData">
+            <div className="YousmiteCrew">
+              <h4>Why developers choose Yosemite Crew</h4>
+            </div>
+            <div className="DevYousmiteBoxed">
+              <div className="DevCrewBox crewbox1">
+                <div className="crewText">
+                  <h3>Flexibilty</h3>
+                  <p>
+                    Create custom solutions for pet businesses, adapting to any
+                    need.
+                  </p>
+                </div>
+                <Image
+                  src="https://d2il6osz49gpup.cloudfront.net/Images/devchose1.png"
+                  alt="devchose1"
+                  width={200}
+                  height={140}
+                />
+              </div>
+              <div className="DevCrewBox crewbox2">
+                <Image
+                  src="https://d2il6osz49gpup.cloudfront.net/Images/devchose2.png"
+                  alt="devchose2"
+                  width={140}
+                  height={140}
+                />
+                <div className="crewText">
+                  <h3>Seamless integrations</h3>
+                  <p>
+                    Easily integrate with existing healthcare systems and
+                    third-party tools to enhance app functionality.
+                  </p>
+                </div>
+              </div>
+              <div className="DevCrewBox crewbox3">
+                <div className="crewText">
+                  <h3>Open source</h3>
+                  <p>
+                    Developer-friendly API pricing based on an open source
+                    framework under the GPL V3 license
+                  </p>
+                </div>
+                <Image
+                  src="https://d2il6osz49gpup.cloudfront.net/Images/devchose3.png"
+                  alt="devchose3"
+                  width={140}
+                  height={140}
+                />
+              </div>
+              <div className="DevCrewBox crewbox4">
+                <Image
+                  src="https://d2il6osz49gpup.cloudfront.net/Images/devchose4.png"
+                  alt="devchose4"
+                  width={102}
+                  height={102}
+                />
+                <div className="crewText">
+                  <h3>Scalability</h3>
+                  <p>
+                    Build apps that seamlessly grow as your user base and
+                    features expand.
+                  </p>
+                </div>
+              </div>
+              <div className="DevCrewBox crewbox5">
+                <Image
+                  src="https://d2il6osz49gpup.cloudfront.net/Images/devchose5.png"
+                  alt="devchose5"
+                  width={92}
+                  height={92}
+                />
+                <div className="crewText">
+                  <h3>Comprehensive tools</h3>
+                  <p>
+                    Access a wide range of APIs, SDKs, and pre-built templates
+                    that simplify development.
+                  </p>
+                </div>
+              </div>
+              <div className="DevCrewBox crewbox6">
+                <div className="crewText">
+                  <h3>Secure data handling</h3>
+                  <p>
+                    Built with industry-leading security protocols, ensuring
+                    sensitive healthcare data is always protected.
+                  </p>
+                </div>
+                <Image
+                  src="https://d2il6osz49gpup.cloudfront.net/Images/devchose6.png"
+                  alt="devchose6"
+                  width={129}
+                  height={100}
+                />
+              </div>
+            </div>
           </div>
-          <div className="DevYousmiteBoxed">
-            <div className="DevCrewBox crewbox1">
-              <div className="crewText">
-                <h3>Flexibilty</h3>
-                <p>
-                  Create custom solutions for both pet owners and vet
-                  businesses, adapting to any need.
-                </p>
-              </div>
-              <Image
-                src="https://d2il6osz49gpup.cloudfront.net/Images/devchose1.png"
-                alt="devchose1"
-                width={200}
-                height={140}
-              />
-            </div>
-            <div className="DevCrewBox crewbox2">
-              <Image
-                src="https://d2il6osz49gpup.cloudfront.net/Images/devchose2.png"
-                alt="devchose2"
-                width={120}
-                height={120}
-              />
-              <div className="crewText">
-                <h3>Seamless Integrations</h3>
-                <p>
-                  Easily integrate with existing healthcare systems and
-                  third-party tools to enhance app functionality.
-                </p>
-              </div>
-            </div>
-            <div className="DevCrewBox crewbox3">
-              <div className="crewText">
-                <h3>Open Source</h3>
-                <p>
-                  Choose between self-hosting or a flexible pay-as-you-go option
-                  without long-term commitments.
-                </p>
-              </div>
-              <Image
-                src="https://d2il6osz49gpup.cloudfront.net/Images/devchose3.png"
-                alt="devchose3"
-                width={184}
-                height={184}
-              />
-            </div>
-            <div className="DevCrewBox crewbox4">
-              <Image
-                src="https://d2il6osz49gpup.cloudfront.net/Images/devchose4.png"
-                alt="devchose4"
-                width={102}
-                height={102}
-              />
-              <div className="crewText">
-                <h3>Scalability</h3>
-                <p>
-                  Build apps that seamlessly grow as your user base and features
-                  expand.
-                </p>
-              </div>
-            </div>
-            <div className="DevCrewBox crewbox5">
-              <Image
-                src="https://d2il6osz49gpup.cloudfront.net/Images/devchose5.png"
-                alt="devchose5"
-                width={92}
-                height={92}
-              />
-              <div className="crewText">
-                <h3>Comprehensive Tools</h3>
-                <p>
-                  Access a wide range of APIs, SDKs, and pre-built templates
-                  that simplify development.
-                </p>
-              </div>
-            </div>
-            <div className="DevCrewBox crewbox6">
-              <div className="crewText">
-                <h3>Secure Data Handling</h3>
-                <p>
-                  Built with industry-leading security protocols, ensuring
-                  sensitive pet healthcare data is always protected.
-                </p>
-              </div>
-              <Image
-                src="https://d2il6osz49gpup.cloudfront.net/Images/devchose6.png"
-                alt="devchose6"
-                width={129}
-                height={100}
-              />
-            </div>
-          </div>
-        </Container>
+        </div>
       </section>
 
       <section className="DevlpToolSec">
-        <Container>
+        <div className="Container">
           <div className="DevlpToolData">
             <div className="TopResorchTool">
               <div className="leftResorch">
-                <p>Developer Tools and Resources</p>
                 <h2>Everything You Need to Build and Launch</h2>
               </div>
               <div className="RytResorch">
@@ -185,22 +166,15 @@ const DeveloperLanding = () => {
               <LaunchGrowTab />
             </div>
           </div>
-        </Container>
+        </div>
       </section>
 
       <section className="SimpleStepSec">
-        <Container>
+        <div className="Container">
           <div className="StepsData">
             <div className="leftSimpleStep">
-              <p>How it works</p>
-              <h2>Get Started in Three Simple Steps</h2>
-              <FillBtn
-                icon={
-                  <Icon icon="solar:bill-check-bold" width="20" height="20" />
-                }
-                text="Sign up to Build"
-                href="#"
-              />
+              <h2>Get started in three simple steps</h2>
+              <Primary href="/developers" text="Developer portal" style={{ width: "100%" }} />
             </div>
             <div className="RytSimpleStep">
               <div className="Stepitems">
@@ -208,7 +182,7 @@ const DeveloperLanding = () => {
                   src="https://d2il6osz49gpup.cloudfront.net/Images/devstep1.png"
                   alt="devstep1"
                   width={48}
-                  height={164}
+                  height={114}
                 />
                 <div className="Stepstext">
                   <h4>Sign up</h4>
@@ -220,7 +194,7 @@ const DeveloperLanding = () => {
                   src="https://d2il6osz49gpup.cloudfront.net/Images/devstep2.png"
                   alt="devstep2"
                   width={48}
-                  height={164}
+                  height={114}
                 />
                 <div className="Stepstext">
                   <h4>Explore</h4>
@@ -241,10 +215,10 @@ const DeveloperLanding = () => {
               </div>
             </div>
           </div>
-        </Container>
+        </div>
       </section>
 
-      <section className="DevlpPricingSec">
+      {/* <section className="DevlpPricingSec">
         <Container>
           <div className="DevPriceHead">
             <p>Pricing</p>
@@ -271,9 +245,9 @@ const DeveloperLanding = () => {
             </div>
           </div>
         </Container>
-      </section>
+      </section> */}
 
-      <section className="DevlpBuildSec">
+      {/* <section className="DevlpBuildSec">
         <Container>
           <div className="ReadyBuildData">
             <div className="leftBuild">
@@ -303,7 +277,7 @@ const DeveloperLanding = () => {
             </div>
           </div>
         </Container>
-      </section>
+      </section> */}
 
       <Footer />
     </>

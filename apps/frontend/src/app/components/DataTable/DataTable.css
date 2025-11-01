@@ -3,6 +3,19 @@
   flex-direction: column;
   gap: 24px;
 }
+.card-list {
+  display: none;
+}
+@media screen and (max-width: 768px) {
+  .table-list {
+    display: none;
+  }
+  .card-list {
+    display: flex;
+    gap: 16px;
+    flex-direction: column;
+  }
+}
 .table-footerBtn {
   display: flex;
   align-items: center;
@@ -424,42 +437,6 @@
   border-radius: 8px;
 }
 
-.Procedureselect button {
-  width: 100%;
-  border: 1px solid #37223cb2;
-  min-height: 48px;
-  border-radius: 12px;
-  outline: none;
-  background: transparent !important;
-  color: var(--black-text) !important;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.Procedureselect button h6 {
-  font-family: var(--grotesk-font);
-  font-weight: 400;
-  font-size: 15px;
-  line-height: 120%;
-  white-space: nowrap;
-  max-width: 180px;
-  text-overflow: ellipsis;
-  overflow: hidden;
-}
-.prcedureInput {
-  border: 1px solid #37223cb2 !important;
-  min-height: 48px !important;
-  border-radius: 12px !important;
-  outline: none !important;
-  background: transparent !important;
-  color: var(--black-text) !important;
-  font-family: var(--grotesk-font);
-  font-weight: 400 !important;
-  font-size: 15px !important;
-  line-height: 120% !important;
-  text-align: center;
-}
-
 /* All Apointment table Started  */
 
 .TableTopTexed {
@@ -559,13 +536,14 @@
 }
 
 .InviteDetails {
-  color: var(--yc-updated, #302f2e);
+  color: var(--yc-upated-contrat1, #247aed);
   font-family: var(--satoshi-font);
   font-size: 15px;
   font-style: normal;
   font-weight: 700;
   line-height: 24px; /* 160% */
   letter-spacing: -0.3px;
+  cursor: pointer;
 }
 .InviteTime {
   color: var(--yc-updated, #302f2e);
@@ -608,7 +586,7 @@
   background: var(--pendingbg, #fef3e9);
   color: var(--pendingtext, #f68523);
   font-family: var(--satoshi-font);
-  font-size: 13px;
+  font-size: 15px;
   font-style: normal;
   font-weight: 700;
   line-height: 120%; /* 18px */
@@ -624,14 +602,11 @@
 
 .action-btn {
   display: flex;
-  min-width: 80px;
-  width: fit-content;
-  padding: 10px 16px;
   justify-content: center;
   align-items: center;
-  gap: 4px;
-  border-radius: 28px;
-  border: 1.5px solid var(--Color-Palette-Jet-jet-500, #302f2e);
+  border-radius: 50%;
+  height: 40px;
+  width: 40px;
   cursor: pointer;
 }
 

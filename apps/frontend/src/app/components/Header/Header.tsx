@@ -2,7 +2,6 @@
 import React from "react";
 import { usePathname } from "next/navigation";
 
-import { useAuthStore } from "@/app/stores/authStore";
 import GuestHeader from "./GuestHeader/GuestHeader";
 import UserHeader from "./UserHeader/UserHeader";
 
@@ -12,17 +11,19 @@ const publicRoutes = new Set([
   "/",
   "/signin",
   "/signup",
+  "/forgot-password",
   "/about",
-  "/pms",
+  "/application",
+  "/book-demo",
   "/contact",
   "/developers",
-  "/application",
+  "/pms",
   "/pricing",
-  "/forgot-password",
+  "/privacy-policy",
+  "/terms-and-conditions",
 ]);
 
 const Header = () => {
-  const { user } = useAuthStore();
   const pathname = usePathname();
 
   if (publicRoutes.has(pathname)) {
@@ -35,7 +36,7 @@ const Header = () => {
 
   return (
     <header className="header">
-      {user ? <UserHeader /> : <GuestHeader />}
+      <UserHeader />
     </header>
   );
 };
