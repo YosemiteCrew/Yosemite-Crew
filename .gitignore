@@ -110,8 +110,7 @@ yarn-error.log
 .metro-health-check*
 
 # testing
-/coverage
-apps/backend/coverage
+**/coverage/
 
 # Yarn
 .yarn/*
