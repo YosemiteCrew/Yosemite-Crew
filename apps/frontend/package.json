@@ -23,7 +23,7 @@
     "@types/lodash": "^4.17.20",
     "amazon-cognito-identity-js": "^6.3.15",
     "aos": "^2.3.4",
-    "axios": "^1.11.0",
+    "axios": "^1.12.0",
     "bootstrap": "^5.3.3",
     "chart.js": "^4.4.8",
     "classnames": "^2.5.1",
@@ -48,7 +48,7 @@
     "slick-carousel": "^1.8.1",
     "socket.io-client": "^4.8.1",
     "sweetalert2": "^11.22.4",
-    "validator": "^13.15.0",
+    "validator": "^13.15.20",
     "zustand": "^5.0.6"
   },
   "devDependencies": {
