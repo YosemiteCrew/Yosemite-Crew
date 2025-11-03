@@ -1,0 +1,66 @@
+.invite-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 12px;
+  gap: 12px;
+  border-radius: 16px;
+  border: 1px solid var(--lightgrey);
+  background: #fffefe;
+  box-shadow: 0 0 4px 0 rgba(0, 0, 0, 0.08);
+  width: 100%;
+  min-width: 300px;
+}
+.invite-card-title {
+  color: var(--blue-text);
+  font-family: var(--satoshi-font);
+  font-size: 18px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 120%;
+  letter-spacing: -0.36px;
+}
+.invite-card-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.invite-card-item-label {
+  color: var(--black-grey);
+  font-family: var(--satoshi-font);
+  font-size: 15px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 120%;
+  letter-spacing: -0.3px;
+}
+.invite-card-item-value {
+  color: var(--black-text);
+  font-family: var(--satoshi-font);
+  font-size: 15px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 120%;
+  letter-spacing: -0.3px;
+}
+.invite-card-actions {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+}
+.invite-card-action {
+  padding: 14px 20px;
+  flex: 1 0 0;
+  border-radius: 16px;
+  border: 1px solid var(--black-text);
+  background: #fffefe;
+  text-align: center;
+  color: var(--black-text);
+  font-family: var(--grotesk-font);
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 120%;
+  letter-spacing: -0.16px;
+}

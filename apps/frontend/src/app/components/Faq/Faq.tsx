@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { Container } from "react-bootstrap";
 
 import "./Faq.css";
 
@@ -41,42 +40,38 @@ const Faq = () => {
 
   return (
     <section className="FaqSection">
-      <Container>
-        <div className="FaqData">
-          <div className="faqhead">
-            <h2>
-              Frequently Asked <span>Questions</span>
-            </h2>
-          </div>
+      <div className="FaqData">
+        <div className="faqhead">
+          <h2>Frequently asked questions</h2>
+        </div>
 
-          <div className="accordion FAQ_Accordion" id="accordionExample">
-            {items.map((item) => (
-              <div className="accordion-item Faq_accordion_item" key={item.id}>
-                <h5 className="accordion-header FaQ_Header">
-                  <button
-                    className={`accordion-button Faq_button ${openItem === item.id ? "" : "collapsed"}`}
-                    type="button"
-                    onClick={() => toggleAccordion(item.id)}
-                    aria-expanded={openItem === item.id}
-                    aria-controls={item.id}
-                  >
-                    {item.title}
-                  </button>
-                </h5>
-                <div
-                  id={item.id}
-                  className={`accordion-collapse collapse ${openItem === item.id ? "show" : ""}`}
-                  data-bs-parent="#accordionExample"
+        <div className="accordion FAQ_Accordion" id="accordionExample">
+          {items.map((item) => (
+            <div className="accordion-item Faq_accordion_item" key={item.id}>
+              <h5 className="accordion-header FaQ_Header">
+                <button
+                  className={`accordion-button Faq_button ${openItem === item.id ? "" : "collapsed"}`}
+                  type="button"
+                  onClick={() => toggleAccordion(item.id)}
+                  aria-expanded={openItem === item.id}
+                  aria-controls={item.id}
                 >
-                  <div className="accordion-body">
-                    <p>{item.content}</p>
-                  </div>
+                  {item.title}
+                </button>
+              </h5>
+              <div
+                id={item.id}
+                className={`accordion-collapse collapse ${openItem === item.id ? "show" : ""}`}
+                data-bs-parent="#accordionExample"
+              >
+                <div className="accordion-body">
+                  <p>{item.content}</p>
                 </div>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
-      </Container>
+      </div>
     </section>
   );
 };

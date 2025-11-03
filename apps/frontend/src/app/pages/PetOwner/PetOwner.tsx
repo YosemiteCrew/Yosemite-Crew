@@ -1,5 +1,4 @@
 import React from "react";
-import { Container } from "react-bootstrap";
 import Image from "next/image";
 import Link from "next/link";
 import { Icon } from "@iconify/react/dist/iconify.js";
@@ -14,27 +13,36 @@ const PetOwner = () => {
       <div className="DownlodeBody">
         {/* DownlodeSec */}
         <section className="DownlodeSec">
-          <Container>
+          <div className="PwtOwnerContainer">
             <div className="Downlode_Data">
               <div className="downlodetext">
-                <h1>
-                  Your Pet’s Health, <br /> <span>in Your Hands</span>
-                </h1>
+                <h1>Your companion’s health, in your hands</h1>
                 <p>
-                  Manage your pet’s health, schedule vet appointments, set
-                  reminders, and more—all in one app.
+                  Manage your companion’s health records, hygiene, dietary
+                  plans, and schedule vet appointments - all in one app that
+                  connects you with groomers, boarders, sitters, vets, and
+                  clinics for dogs, cats, or horses.
                 </p>
-                <PetDownBtn />
+                <PetDownBtn launched={true} />
               </div>
+              <Image
+                alt="Pet owner app"
+                height={500}
+                width={400}
+                objectFit="contain"
+                src={
+                  "https://d2il6osz49gpup.cloudfront.net/pet-parent/petparent.png"
+                }
+              ></Image>
             </div>
-          </Container>
+          </div>
         </section>
 
         <section className="PetToolkitSec">
-          <Container>
+          <div className="PwtOwnerContainer">
             <div className="ToolkitData">
               <div className="ToolkitHead">
-                <h2>Your Pet’s All-in-One Toolkit</h2>
+                <h2>Your companion’s all-in-one Toolkit</h2>
               </div>
               <div className="ToolkitCard">
                 <div className="CardToolItem">
@@ -43,19 +51,19 @@ const PetOwner = () => {
                     width="150"
                     height="150"
                   />
-                  <h6>Book and Manage Vet Appointments</h6>
+                  <h6>Book and manage appointments</h6>
                 </div>
                 <div className="CardToolItem">
                   <Icon icon="solar:library-bold" width="150" height="150" />
-                  <h6>Access Medical Records Anytime</h6>
+                  <h6>Access documents anytime</h6>
                 </div>
                 <div className="CardToolItem">
                   <Icon icon="solar:health-bold" width="150" height="150" />
-                  <h6>Wellness Management</h6>
+                  <h6>Wellness management</h6>
                 </div>
                 <div className="CardToolItem">
                   <Icon icon="solar:bolt-bold" width="150" height="150" />
-                  <h6>Medication and Health Monitoring</h6>
+                  <h6>Medication and health monitoring</h6>
                 </div>
                 <div className="CardToolItem">
                   <Icon
@@ -63,15 +71,15 @@ const PetOwner = () => {
                     width="150"
                     height="150"
                   />
-                  <h6>Medication and Health Monitoring</h6>
+                  <h6>Hygiene maintenance and dietary plans</h6>
                 </div>
               </div>
             </div>
-          </Container>
+          </div>
         </section>
 
         {/* Paws Sec  */}
-        <section className="PawsPraisesSec">
+        {/* <section className="PawsPraisesSec">
           <div className="PawsHead">
             <h2>Paws & Praises</h2>
           </div>
@@ -104,43 +112,41 @@ const PetOwner = () => {
               />
             </div>
           </div>
-        </section>
+        </section> */}
 
         {/* Glimps Sec  */}
         <section className="GlimpseSec">
-          <Container>
+          <div className="PwtOwnerContainer">
             <div className="GlimsData">
               <div className="GlimpsHead">
-                <h2>A Glimpse of Paw-sibilities</h2>
+                <h2>Glimpse of paw-sibilities</h2>
               </div>
               <div className="GlimpsImage">
                 <Image
                   aria-hidden
-                  src="https://d2il6osz49gpup.cloudfront.net/Images/glimpsimg.png"
+                  src="https://d2il6osz49gpup.cloudfront.net/pet-parent/pawsibilities.png"
                   alt="glimpsimg"
                   width={1291}
                   height={917}
                 />
               </div>
             </div>
-          </Container>
+          </div>
         </section>
 
         {/* Pet App Sec  */}
         <section className="PetAppSec">
-          <Container>
+          <div className="PwtOwnerContainer">
             <div className="PetAppData">
               <div className="LftpetApp">
                 <div className="PetAppText">
-                  <h2>
-                    The Only Pet App <br /> <span>You’ll Ever Need</span>
-                  </h2>
+                  <h2>The only companion app you’ll ever need</h2>
                   <p>
-                    Download Yosemite Crew App today and take the first step
-                    towards better health for your furry friends.
+                    Download Yosemite Crew app today and take the first step
+                    towards better health for your companions.
                   </p>
                 </div>
-                <PetDownBtn />
+                <PetDownBtn launched={true} />
               </div>
               <div className="RytpetApp">
                 <Image
@@ -152,7 +158,7 @@ const PetOwner = () => {
                 />
               </div>
             </div>
-          </Container>
+          </div>
         </section>
       </div>
 
@@ -186,17 +192,17 @@ const PetDownBtn = ({ launched = false }: Readonly<PetDownBtnProps>) => {
     <div className="PetAppBtn">
       <Link href="#">
         <Icon icon="basil:apple-solid" width="29" height="29" />
-        <span>
+        <div>
           <p>Download on the</p>
           <h6>App Store</h6>
-        </span>
+        </div>
       </Link>
       <Link href="#">
         <Icon icon="ion:logo-google-playstore" width="29" height="29" />
-        <span>
+        <div>
           <p>Get it on</p>
           <h6>Google Play</h6>
-        </span>
+        </div>
       </Link>
     </div>
   );

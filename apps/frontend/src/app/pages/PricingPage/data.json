@@ -3,22 +3,28 @@
     {
       "id": 1,
       "icon": "solar:star-bold",
-      "title": "Self-Hosting <span>(Free Plan)</span>",
+      "title": "Self-hosting (free Plan)",
       "description": "Perfect for new or small practices exploring digital management on your own",
       "price": "$0",
-      "subText": "<p>Free under <strong>2 Active Users</strong></p>",
+      "subText": "<p>(Free under 2 Active Users)</p>",
       "highlight": false,
-      "label": "self"
+      "label": "self",
+      "color": "var(--blue-text)",
+      "bgColor": "var(--light-blue)",
+      "iconColor": "var(--blue-text)"
     },
     {
       "id": 2,
       "icon": "ph:money-wavy-fill",
       "title": "Pay-as-you-go",
       "description": "Flexible growth for practices that need to scale on demand.",
-      "price": "Custom Pricing",
-      "subText": "<p>Seats up to <strong>10 Users</strong>, max <strong>200 Appointments</strong> and <strong>500 Assessments</strong></p>",
+      "price": "Custom pricing",
+      "subText": "<p>(Seats up to 10 Users, max 200 Appointments and 500 Assessments)</p>",
       "highlight": true,
-      "label": "custom"
+      "label": "custom",
+      "color": "var(--black-text)",
+      "bgColor": "var(--whitebg)",
+      "iconColor": "var(--black-grey)"
     }
   ],
   "planFeatures": [
@@ -75,36 +81,38 @@
   ],
   "featuresData": [
     {
-      "title": "Clinical & Medical Management",
-      "items": ["Appointments", "Observational Tools", "Medical Records"]
-    },
-    {
-      "title": "Appointments & Scheduling",
-      "items": ["Scheduler", "Online Booking"]
-    },
-    {
-      "title": "Communication & Messaging",
+      "title": "Operations",
       "items": [
-        "Internal Chats",
-        "2-Way Messaging",
-        "Targeted Messages & Newsletters"
+        "Appointments",
+        "Documents",
+        "Medical Records",
+        "Scheduler",
+        "Inventory management",
+        "Task management",
+        "Observational tools",
+        "Wellness management",
+        "Forms"
       ]
     },
     {
-      "title": "Task & Workflow Management",
-      "items": ["User Tasks", "Admin Triggers"]
+      "title": "Organisation",
+      "items": ["Department/Specialty", "Team management"]
+    },
+    {
+      "title": "Communication",
+      "items": [
+        "Internal chats",
+        "Pet parent app (only for pay-as-you go plan)",
+        "2-Way Messaging"
+      ]
     },
     {
       "title": "Finance Management",
       "items": [
         "Financial Reporting & Analytics",
-        "Inventory Management",
-        "Payment Processing"
+        "Billing & Invoices",
+        "Payment Processing via stripe"
       ]
-    },
-    {
-      "title": "Customisation and Compliance",
-      "items": ["Mobile App", "Advanced API Access"]
     }
   ]
 }

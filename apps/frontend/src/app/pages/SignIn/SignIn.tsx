@@ -2,13 +2,16 @@
 import Link from "next/link";
 import React, { useState } from "react";
 import { Form } from "react-bootstrap";
-import { GoCheckCircleFill } from "react-icons/go";
 import { Icon } from "@iconify/react/dist/iconify.js";
 
-import { FormInput, FormInputPass, MainBtn } from "./SignUp";
-import { useErrorTost } from "@/app/components/Toast";
+import FormInputPass from "@/app/components/Inputs/FormInputPass/FormInputPass";
+import FormInput from "@/app/components/Inputs/FormInput/FormInput";
+import { useErrorTost } from "@/app/components/Toast/Toast";
 import { useAuthStore } from "@/app/stores/authStore";
 import OtpModal from "@/app/components/OtpModal/OtpModal";
+import { Primary } from "@/app/components/Buttons";
+
+import "./SignIn.css";
 
 const SignIn = () => {
   const { signIn, resendCode } = useAuthStore();
@@ -82,55 +85,43 @@ const SignIn = () => {
       }
     }
   };
-
+  
   return (
     <section className="SignInSec">
       {ErrorTostPopup}
-      <div className="leftSignIn"></div>
       <div className="RightSignIn">
-        <div className="SignIninner">
-          <Form onSubmit={handleSignIn}>
-            <div className="TopSignInner">
-              <h2>
-                Sign in <span>to your account</span>{" "}
-              </h2>
-              <FormInput
-                intype="email"
-                inname="email"
-                value={email}
-                inlabel="Email Address"
-                onChange={(e) => setEmail(e.target.value)}
-                error={inputErrors.email}
-              />
-
-              <FormInputPass
-                inPlaceHolder="Enter your password"
-                intype="password"
-                inname="password"
-                value={password}
-                inlabel="Password"
-                onChange={(e) => setPassword(e.target.value)}
-                error={inputErrors.pError}
-              />
-
-              <div className="forgtbtn">
-                <Link href="/forgot-password">Forgot Password?</Link>
-              </div>
+        <Form onSubmit={handleSignIn}>
+          <div className="TopSignInner">
+            <h2>Sign in to your account</h2>
+            <FormInput
+              intype="email"
+              inname="email"
+              value={email}
+              inlabel="Email"
+              onChange={(e) => setEmail(e.target.value)}
+              error={inputErrors.email}
+            />
+            <FormInputPass
+              inPlaceHolder="Enter your password"
+              intype="password"
+              inname="password"
+              value={password}
+              inlabel="Password"
+              onChange={(e) => setPassword(e.target.value)}
+              error={inputErrors.pError}
+            />
+            <div className="forgtbtn">
+              <Link href="/forgot-password">Forgot password?</Link>
             </div>
-            <div className="Signbtn">
-              <MainBtn
-                btnicon={<GoCheckCircleFill />}
-                btnname="Sign in"
-                iconPosition="left"
-                onClick={handleSignIn}
-              />
-              <h6>
-                {" "}
-                Don’t have an account? <Link href="/signup">Sign up.</Link>
-              </h6>
-            </div>
-          </Form>
-        </div>
+          </div>
+          <div className="Signbtn">
+            <Primary text="Sign in" onClick={handleSignIn} href="#" />
+            <h6>
+              {" "}
+              Don&apos;t have an account? <Link href="/signup">Sign up</Link>
+            </h6>
+          </div>
+        </Form>
       </div>
       <OtpModal
         email={email}
