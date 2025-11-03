@@ -1,8 +1,5 @@
-import React, {forwardRef, useImperativeHandle, useRef, useMemo} from 'react';
-import {View, Text, StyleSheet, TouchableOpacity, Image} from 'react-native';
+import React, {forwardRef, useImperativeHandle, useRef} from 'react';
 import {ConfirmActionBottomSheet, ConfirmActionBottomSheetRef} from '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet';
-import {useTheme} from '@/hooks';
-import {Images} from '@/assets/images';
 
 export interface DiscardChangesBottomSheetRef {
   open: () => void;
@@ -13,15 +10,12 @@ interface DiscardChangesBottomSheetProps {
   onDiscard: () => void;
   onKeepEditing?: () => void;
   onSheetChange?: (index: number) => void;
-  showCloseIcon?: boolean;
 }
 
 export const DiscardChangesBottomSheet = forwardRef<
   DiscardChangesBottomSheetRef,
   DiscardChangesBottomSheetProps
->(({onDiscard, onKeepEditing, onSheetChange, showCloseIcon = false}, ref) => {
-  const {theme} = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+>(({onDiscard, onKeepEditing, onSheetChange}, ref) => {
   const bottomSheetRef = useRef<ConfirmActionBottomSheetRef>(null);
 
   useImperativeHandle(ref, () => ({
@@ -39,76 +33,23 @@ export const DiscardChangesBottomSheet = forwardRef<
     onKeepEditing?.();
   };
 
-  const handleClose = () => {
-    bottomSheetRef.current?.close();
-    onDiscard?.();
-  };
-
   return (
     <ConfirmActionBottomSheet
       ref={bottomSheetRef}
       title="Discard changes?"
-      snapPoints={['250%']}
+      message="You have unsaved changes. Are you sure you want to discard them?"
       primaryButton={{
-        label: "Discard",
+        label: 'Discard',
         onPress: handleDiscard,
       }}
       secondaryButton={{
-        label: "Keep editing",
+        label: 'Keep editing',
         onPress: handleKeepEditing,
       }}
       onSheetChange={onSheetChange}
-      containerStyle={styles.headerContainer}>
-      <View style={styles.headerRow}>
-        {showCloseIcon && (
-          <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-            <Image source={Images.crossIcon} style={styles.closeIcon} />
-          </TouchableOpacity>
-        )}
-      </View>
-      <View style={styles.content}>
-        <Text style={styles.message}>
-          You have unsaved changes. Are you sure you want to discard them?
-        </Text>
-      </View>
-    </ConfirmActionBottomSheet>
+      snapPoints={['35%']}
+    />
   );
 });
-
-const createStyles = (theme: any) =>
-  StyleSheet.create({
-    headerContainer: {
-      gap: 0,
-    },
-    headerRow: {
-      flexDirection: 'row',
-      justifyContent: 'flex-end',
-      paddingHorizontal: theme.spacing[4],
-      paddingTop: theme.spacing[2],
-      marginBottom: theme.spacing[2],
-    },
-    closeButton: {
-      width: 32,
-      height: 32,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    closeIcon: {
-      width: 20,
-      height: 20,
-      resizeMode: 'contain',
-      tintColor: theme.colors.secondary,
-    },
-    content: {
-      paddingHorizontal: theme.spacing[4],
-      paddingVertical: theme.spacing[2],
-    },
-    message: {
-      ...theme.typography.bodyMedium,
-      color: theme.colors.textSecondary,
-      textAlign: 'center',
-      lineHeight: 22,
-    },
-  });
 
 export default DiscardChangesBottomSheet;

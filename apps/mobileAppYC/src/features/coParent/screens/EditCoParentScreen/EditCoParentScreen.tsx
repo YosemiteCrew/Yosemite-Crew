@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useState, useMemo} from 'react';
 import {
   View,
   StyleSheet,
@@ -7,13 +7,14 @@ import {
   Text,
   Switch,
   ActivityIndicator,
+  Alert,
+  Image as RNImage,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux';
 import type {AppDispatch} from '@/app/store';
 import {useTheme} from '@/hooks';
-import {Alert, Image as RNImage} from 'react-native';
 import {Header} from '@/shared/components/common/Header/Header';
 import {Images} from '@/assets/images';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
@@ -30,13 +31,15 @@ import type {CoParentStackParamList} from '@/navigation/types';
 import type {CoParent, CoParentPermissions} from '../../types';
 import DeleteCoParentBottomSheet from '../../components/DeleteCoParentBottomSheet/DeleteCoParentBottomSheet';
 import {MOCK_CO_PARENTS} from '../../mockData';
+import {createCommonCoParentStyles} from '../../styles/commonStyles';
 
 type Props = NativeStackScreenProps<CoParentStackParamList, 'EditCoParent'>;
 
 export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
   const {coParentId} = route.params;
   const {theme} = useTheme();
-  const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const commonStyles = useMemo(() => createCommonCoParentStyles(theme), [theme]);
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const dispatch = useDispatch<AppDispatch>();
 
   const coParent = useSelector(state => selectCoParentById(coParentId)(state as any));
@@ -49,18 +52,17 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
   const [selectedCompanionId, setSelectedCompanionId] = useState<string | null>(globalSelectedCompanionId);
   const [permissionsByCompanion, setPermissionsByCompanion] = useState<Record<string, CoParentPermissions>>({});
   const deleteSheetRef = React.useRef<any>(null);
-  const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
 
   useEffect(() => {
     // Mock: Find from mock data if not in Redux
-    if (!coParent) {
+    if (coParent) {
+      setPermissions(coParent.permissions);
+    } else {
       const found = MOCK_CO_PARENTS.find(cp => cp.id === coParentId);
       if (found) {
         setMockCoParent(found);
         setPermissions(found.permissions);
       }
-    } else {
-      setPermissions(coParent.permissions);
     }
   }, [coParent, coParentId]);
 
@@ -68,22 +70,22 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
   useEffect(() => {
     if (selectedCompanionId && permissionsByCompanion[selectedCompanionId]) {
       setPermissions(permissionsByCompanion[selectedCompanionId]);
-    } else if (permissions && selectedCompanionId) {
+    } else if (permissions && selectedCompanionId && !permissionsByCompanion[selectedCompanionId]) {
       // Initialize permissions for newly selected companion
       setPermissionsByCompanion(prev => ({
         ...prev,
         [selectedCompanionId]: permissions,
       }));
     }
-  }, [selectedCompanionId]);
+  }, [selectedCompanionId, permissions, permissionsByCompanion]);
 
   const currentCoParent = coParent || mockCoParent;
 
   if (!currentCoParent || !permissions) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={commonStyles.container}>
         <Header title="Co-Parent Permissions" showBackButton onBack={() => navigation.goBack()} />
-        <View style={styles.centerContent}>
+        <View style={commonStyles.centerContent}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
       </SafeAreaView>
@@ -131,14 +133,12 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
   };
 
   const handleDeletePress = () => {
-    setIsDeleteSheetOpen(true);
     deleteSheetRef.current?.open();
   };
 
   const handleDeleteConfirm = async () => {
     try {
       await dispatch(deleteCoParent(coParentId)).unwrap();
-      setIsDeleteSheetOpen(false);
       navigation.goBack();
     } catch (error) {
       console.error('Failed to delete:', error);
@@ -149,7 +149,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
   const displayName = `${currentCoParent.firstName} ${currentCoParent.lastName}`.trim();
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={commonStyles.container}>
       <Header
         title="Co-Parent permissions"
         showBackButton
@@ -343,8 +343,8 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
           <LiquidGlassButton
             title={loading ? 'Saving...' : 'Save Permissions'}
             onPress={handleSavePermissions}
-            style={styles.button}
-            textStyle={styles.buttonText}
+            style={commonStyles.button}
+            textStyle={commonStyles.buttonText}
             tintColor={theme.colors.secondary}
             shadowIntensity="medium"
             forceBorder
@@ -361,7 +361,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
         ref={deleteSheetRef}
         coParentName={displayName}
         onDelete={handleDeleteConfirm}
-        onCancel={() => setIsDeleteSheetOpen(false)}
+        onCancel={() => deleteSheetRef.current?.close()}
       />
     </SafeAreaView>
   );
@@ -369,10 +369,6 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
     content: {
       paddingHorizontal: theme.spacing[4],
       paddingBottom: theme.spacing[24],
@@ -493,27 +489,6 @@ const createStyles = (theme: any) =>
     },
     saveButton: {
       marginTop: theme.spacing[4],
-    },
-    button: {
-      width: '100%',
-      backgroundColor: theme.colors.secondary,
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      shadowColor: '#000000',
-      shadowOffset: {width: 0, height: 8},
-      shadowOpacity: 0.15,
-      shadowRadius: 12,
-      elevation: 4,
-    },
-    buttonText: {
-      color: theme.colors.white,
-      ...theme.typography.titleMedium,
-    },
-    centerContent: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
     },
   });
 

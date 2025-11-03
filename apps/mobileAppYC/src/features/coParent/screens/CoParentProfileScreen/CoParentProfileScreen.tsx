@@ -1,4 +1,4 @@
-import React, {useEffect} from 'react';
+import React, {useEffect, useState, useMemo} from 'react';
 import {
   View,
   StyleSheet,
@@ -6,13 +6,13 @@ import {
   Image,
   Text,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux';
 import type {AppDispatch} from '@/app/store';
 import {useTheme} from '@/hooks';
-import {Alert} from 'react-native';
 import {Header} from '@/shared/components/common/Header/Header';
 import {Images} from '@/assets/images';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
@@ -22,24 +22,37 @@ import {addCoParent} from '../../index';
 import type {CoParentStackParamList} from '@/navigation/types';
 import type {CoParent} from '../../types';
 import {MOCK_SEARCHABLE_CO_PARENTS} from '../../mockData';
-import {useState} from 'react';
 import AddCoParentBottomSheet from '../../components/AddCoParentBottomSheet/AddCoParentBottomSheet';
 import CoParentInviteBottomSheet from '../../components/CoParentInviteBottomSheet/CoParentInviteBottomSheet';
+import {useCoParentInviteFlow} from '../../hooks/useCoParentInviteFlow';
+import {createCommonCoParentStyles} from '../../styles/commonStyles';
 
 type Props = NativeStackScreenProps<CoParentStackParamList, 'CoParentProfile'>;
 
 export const CoParentProfileScreen: React.FC<Props> = ({route, navigation}) => {
   const {coParentId} = route.params;
   const {theme} = useTheme();
-  const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const commonStyles = useMemo(() => createCommonCoParentStyles(theme), [theme]);
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const dispatch = useDispatch<AppDispatch>();
 
   const [coParent, setCoParent] = useState<CoParent | null>(null);
   const [loading, setLoading] = useState(true);
   const [sendingInvite, setSendingInvite] = useState(false);
   const authUser = useSelector(selectAuthUser);
-  const addCoParentSheetRef = React.useRef<any>(null);
-  const coParentInviteSheetRef = React.useRef<any>(null);
+
+  const {
+    addCoParentSheetRef,
+    coParentInviteSheetRef,
+    handleAddCoParentClose,
+    handleInviteAccept,
+    handleInviteDecline,
+  } = useCoParentInviteFlow({
+    onInviteComplete: () => {
+      navigation.goBack();
+      navigation.goBack();
+    },
+  });
 
   useEffect(() => {
     // Mock: Find co-parent from searchable data
@@ -81,25 +94,11 @@ export const CoParentProfileScreen: React.FC<Props> = ({route, navigation}) => {
     }
   };
 
-  const handleAddCoParentClose = () => {
-    addCoParentSheetRef.current?.close();
-    setTimeout(() => {
-      coParentInviteSheetRef.current?.open();
-    }, 300);
-  };
-
-  const handleInviteAccept = () => {
-    coParentInviteSheetRef.current?.close();
-    // Navigate back twice to return to ProfileOverviewScreen
-    navigation.goBack();
-    navigation.goBack();
-  };
-
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={commonStyles.container}>
         <Header title="Profile" showBackButton onBack={handleBack} />
-        <View style={styles.centerContent}>
+        <View style={commonStyles.centerContent}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
       </SafeAreaView>
@@ -108,9 +107,9 @@ export const CoParentProfileScreen: React.FC<Props> = ({route, navigation}) => {
 
   if (!coParent) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={commonStyles.container}>
         <Header title="Profile" showBackButton onBack={handleBack} />
-        <View style={styles.centerContent}>
+        <View style={commonStyles.centerContent}>
           <Text style={styles.errorText}>Co-Parent not found</Text>
         </View>
       </SafeAreaView>
@@ -120,7 +119,7 @@ export const CoParentProfileScreen: React.FC<Props> = ({route, navigation}) => {
   const displayName = `${coParent.firstName} ${coParent.lastName}`.trim();
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={commonStyles.container}>
       <Header title="Profile" showBackButton onBack={handleBack} />
 
       <ScrollView
@@ -214,8 +213,8 @@ export const CoParentProfileScreen: React.FC<Props> = ({route, navigation}) => {
           <LiquidGlassButton
             title={sendingInvite ? 'Sending...' : 'Send invite'}
             onPress={handleSendInvite}
-            style={styles.button}
-            textStyle={styles.buttonText}
+            style={commonStyles.button}
+            textStyle={commonStyles.buttonText}
             tintColor={theme.colors.secondary}
             shadowIntensity="medium"
             forceBorder
@@ -243,12 +242,7 @@ export const CoParentProfileScreen: React.FC<Props> = ({route, navigation}) => {
         companionName={coParent.companions[0]?.companionName || 'Companion'}
         companionProfileImage={coParent.companions[0]?.profileImage}
         onAccept={handleInviteAccept}
-        onDecline={() => {
-          coParentInviteSheetRef.current?.close();
-          // Navigate back twice to return to ProfileOverviewScreen
-          navigation.goBack();
-          navigation.goBack();
-        }}
+        onDecline={handleInviteDecline}
       />
     </SafeAreaView>
   );
@@ -256,10 +250,6 @@ export const CoParentProfileScreen: React.FC<Props> = ({route, navigation}) => {
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
     content: {
       paddingBottom: theme.spacing[10],
     },
@@ -379,27 +369,6 @@ const createStyles = (theme: any) =>
       paddingHorizontal: theme.spacing[5],
       marginTop: theme.spacing[4],
       marginBottom: theme.spacing[4],
-    },
-    button: {
-      width: '100%',
-      backgroundColor: theme.colors.secondary,
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      shadowColor: '#000000',
-      shadowOffset: {width: 0, height: 8},
-      shadowOpacity: 0.15,
-      shadowRadius: 12,
-      elevation: 4,
-    },
-    buttonText: {
-      color: theme.colors.white,
-      ...theme.typography.titleMedium,
-    },
-    centerContent: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
     },
     errorText: {
       ...theme.typography.body,
