@@ -11,7 +11,13 @@ import {
 import type {FirebaseAuthTypes} from '@react-native-firebase/auth';
 import {GoogleSignin, statusCodes as GoogleStatusCodes} from '@react-native-google-signin/google-signin';
 import {appleAuth,appleAuthAndroid} from '@invertase/react-native-apple-authentication';
-import {LoginManager, AccessToken, Settings} from 'react-native-fbsdk-next';
+import {
+  LoginManager,
+  AccessToken,
+  Settings,
+  AuthenticationToken,
+} from 'react-native-fbsdk-next';
+import {sha256} from 'js-sha256';
 import {PASSWORDLESS_AUTH_CONFIG} from '@/config/variables';
 import {
   bootstrapProfile,
@@ -120,6 +126,42 @@ const performFacebookSignIn = async (): Promise<{
   userCredential: FirebaseAuthTypes.UserCredential;
 }> => {
   LoginManager.logOut();
+
+  if (Platform.OS === 'ios') {
+    const rawNonce = uuid();
+    const hashedNonce = sha256(rawNonce);
+
+    const loginResult = await LoginManager.logInWithPermissions(
+      ['public_profile', 'email'],
+      'limited',
+      hashedNonce,
+    );
+
+    if (loginResult.isCancelled) {
+      const e = new Error('Facebook sign-in cancelled');
+      (e as any).code = 'auth/cancelled';
+      throw e;
+    }
+
+    const tokenResult = await AuthenticationToken.getAuthenticationTokenIOS();
+    const authenticationToken = tokenResult?.authenticationToken;
+
+    if (!authenticationToken) {
+      throw new Error(
+        'Facebook sign-in failed. Missing authentication token from Facebook.',
+      );
+    }
+
+    const facebookCredential = FacebookAuthProvider.credential(
+      authenticationToken,
+      rawNonce,
+    );
+    const auth = getAuth();
+    const userCredential = await signInWithCredential(auth, facebookCredential);
+
+    return {userCredential};
+  }
+
   const loginResult = await LoginManager.logInWithPermissions([
     'public_profile',
     'email',

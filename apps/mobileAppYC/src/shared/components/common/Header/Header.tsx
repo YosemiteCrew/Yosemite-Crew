@@ -60,7 +60,6 @@ const createStyles = (theme: any) =>
       paddingHorizontal: theme.spacing?.['5'] || 20,
       paddingTop: Platform.OS === 'ios' ? theme.spacing?.['2'] || 8 : theme.spacing?.['5'] || 20,
       paddingBottom: theme.spacing?.['2'] || 8,
-      backgroundColor: theme.colors.background,
     },
     iconButton: {
       width: 32,

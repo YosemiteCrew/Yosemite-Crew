@@ -37,7 +37,7 @@ const mockHandleChooseFromGallery = jest.fn();
 const mockHandleUploadFromDrive = jest.fn();
 const mockConfirmDeleteFile = jest.fn();
 const mockCloseSheet = jest.fn();
-const mockOpenSheet = jest.fn();
+const mockCloseTaskSheet = jest.fn();
 const mockOnDiscard = jest.fn();
 
 const mockFormData = {title: 'Test Task'} as TaskFormData;
@@ -80,7 +80,7 @@ const defaultProps: React.ComponentProps<typeof TaskFormSheets> = {
   handleUploadFromDrive: mockHandleUploadFromDrive,
   confirmDeleteFile: mockConfirmDeleteFile,
   closeSheet: mockCloseSheet,
-  openSheet: mockOpenSheet,
+  closeTaskSheet: mockCloseTaskSheet,
   onDiscard: mockOnDiscard,
   taskTypeSheetProps: mockTaskTypeSheetProps,
   ...mockRefs,
@@ -145,8 +145,7 @@ describe('TaskFormSheets', () => {
     expect(props.refs.taskTypeSheetRef).toBe(mockRefs.taskTypeSheetRef);
     expect(props.refs.dosageSheetRef).toBe(mockRefs.dosageSheetRef);
     expect(props.refs.discardSheetRef).toBe(mockRefs.discardSheetRef);
-    // FIX: The component's ...refs spread incorrectly captures 'openSheet', so 12 keys are received.
-    expect(Object.keys(props.refs).length).toBe(12);
+    expect(Object.keys(props.refs).length).toBe(11);
   });
 
   it('correctly packages handlers into a single handlers prop', () => {
@@ -164,6 +163,7 @@ describe('TaskFormSheets', () => {
     );
     expect(props.handlers.confirmDeleteFile).toBe(mockConfirmDeleteFile);
     expect(props.handlers.closeSheet).toBe(mockCloseSheet);
+    expect(props.handlers.closeTaskSheet).toBe(mockCloseTaskSheet);
     expect(props.handlers.onDiscard).toBe(mockOnDiscard);
   });
 

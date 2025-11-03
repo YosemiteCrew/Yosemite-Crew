@@ -11,6 +11,7 @@ export interface TaskFrequencyBottomSheetRef {
 interface TaskFrequencyBottomSheetProps {
   selectedFrequency?: TaskFrequency | null;
   onSelect: (frequency: TaskFrequency) => void;
+  onSheetChange?: (index: number) => void;
 }
 
 const frequencies: TaskFrequency[] = ['once', 'daily', 'every-day', 'weekly', 'monthly'];
@@ -18,7 +19,7 @@ const frequencies: TaskFrequency[] = ['once', 'daily', 'every-day', 'weekly', 'm
 export const TaskFrequencyBottomSheet = forwardRef<
   TaskFrequencyBottomSheetRef,
   TaskFrequencyBottomSheetProps
->(({selectedFrequency, onSelect}, ref) => {
+>(({selectedFrequency, onSelect, onSheetChange}, ref) => {
   const bottomSheetRef = useRef<any>(null);
 
   const frequencyItems: SelectItem[] = useMemo(() =>
@@ -59,6 +60,7 @@ export const TaskFrequencyBottomSheet = forwardRef<
       mode="select"
       snapPoints={['50%', '65%']}
       emptyMessage="No frequencies available"
+      onSheetChange={onSheetChange}
     />
   );
 });

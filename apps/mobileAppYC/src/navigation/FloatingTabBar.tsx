@@ -1,6 +1,11 @@
 import React from 'react';
 import {BottomTabBarProps} from '@react-navigation/bottom-tabs';
 import {
+  getFocusedRouteNameFromRoute,
+  type NavigationState,
+  type PartialState,
+} from '@react-navigation/native';
+import {
   Image,
   Platform,
   StyleSheet,
@@ -23,6 +28,13 @@ const ICON_MAP: Record<
   Tasks: {label: 'Tasks', iconKey: 'tasks'},
 };
 
+const ROOT_ROUTE_MAP: Record<string, string> = {
+  HomeStack: 'Home',
+  Appointments: 'MyAppointments',
+  Documents: 'DocumentsMain',
+  Tasks: 'TasksMain',
+};
+
 export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
   const {state, navigation} = props;
   const {theme} = useTheme();
@@ -33,17 +45,32 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
   // Calculate if tab bar should be hidden based on nested navigation
   const shouldHideTabBar = (() => {
     const focusedRoute = state.routes[state.index];
-
-    // Check if we're in a nested stack navigator (like HomeStack)
-    if (focusedRoute?.state && 'index' in focusedRoute.state) {
-      const nestedIndex = focusedRoute.state.index ?? 0;
-
-      // Hide tab bar only when nested index > 0 (not on first screen of stack)
-      // Home screen is at index 0, Account screen is at index 1
-      return nestedIndex > 0;
+    if (!focusedRoute) {
+      return false;
     }
 
-    return false;
+    const rootScreenName = ROOT_ROUTE_MAP[focusedRoute.name];
+    if (!rootScreenName) {
+      return false;
+    }
+
+    const nestedState = focusedRoute.state as
+      | NavigationState
+      | PartialState<NavigationState>
+      | undefined;
+    const nestedStateIndex = nestedState?.index ?? 0;
+    const nestedRouteName =
+      getFocusedRouteNameFromRoute(focusedRoute) ??
+      nestedState?.routeNames?.[nestedStateIndex] ??
+      (typeof focusedRoute.params === 'object'
+        ? (focusedRoute.params as {screen?: string})?.screen
+        : undefined);
+
+    if (!nestedRouteName) {
+      return false;
+    }
+
+    return nestedRouteName !== rootScreenName;
   })();
 
   if (shouldHideTabBar) {

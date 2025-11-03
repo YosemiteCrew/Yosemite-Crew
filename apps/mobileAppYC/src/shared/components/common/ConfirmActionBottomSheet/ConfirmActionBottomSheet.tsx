@@ -48,6 +48,7 @@ interface ConfirmActionBottomSheetProps {
   titleStyle?: StyleProp<TextStyle>;
   messageStyle?: StyleProp<TextStyle>;
   buttonContainerStyle?: StyleProp<ViewStyle>;
+  onSheetChange?: (index: number) => void;
 }
 
 export const ConfirmActionBottomSheet = forwardRef<
@@ -68,6 +69,7 @@ export const ConfirmActionBottomSheet = forwardRef<
       titleStyle,
       messageStyle,
       buttonContainerStyle,
+      onSheetChange,
     },
     ref,
   ) => {
@@ -83,6 +85,7 @@ export const ConfirmActionBottomSheet = forwardRef<
         bottomSheetRef.current?.snapToIndex(0);
       },
       close: () => {
+        setIsSheetVisible(false);
         bottomSheetRef.current?.close();
       },
     }));
@@ -134,6 +137,7 @@ export const ConfirmActionBottomSheet = forwardRef<
         initialIndex={initialIndex}
         onChange={index => {
           setIsSheetVisible(index !== -1);
+          onSheetChange?.(index);
         }}
         enablePanDownToClose
         enableBackdrop={isSheetVisible}

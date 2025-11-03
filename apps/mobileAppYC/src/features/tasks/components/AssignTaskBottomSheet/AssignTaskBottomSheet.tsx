@@ -13,12 +13,13 @@ export interface AssignTaskBottomSheetRef {
 interface AssignTaskBottomSheetProps {
   selectedUserId?: string | null;
   onSelect: (userId: string) => void;
+  onSheetChange?: (index: number) => void;
 }
 
 export const AssignTaskBottomSheet = forwardRef<
   AssignTaskBottomSheetRef,
   AssignTaskBottomSheetProps
->(({selectedUserId, onSelect}, ref) => {
+>(({selectedUserId, onSelect, onSheetChange}, ref) => {
   const {theme} = useTheme();
   const bottomSheetRef = useRef<any>(null);
   const currentUser = useSelector(selectAuthUser);
@@ -137,6 +138,7 @@ export const AssignTaskBottomSheet = forwardRef<
       renderItem={renderUserItem}
       snapPoints={['25%', '35%']}
       emptyMessage="No users available"
+      onSheetChange={onSheetChange}
     />
   );
 });

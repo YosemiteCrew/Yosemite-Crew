@@ -62,15 +62,18 @@ export const AvatarGroup: React.FC<AvatarGroupProps> = ({
   const getUniqueKey = (avatar: any, index: number) => {
     if (isAvatarConfig(avatar)) {
       if (avatar.source && typeof avatar.source === 'object' && 'uri' in avatar.source && typeof avatar.source.uri === 'string') {
-        return avatar.source.uri;
+        return `${avatar.source.uri}-${index}`;
       }
-      return avatar.placeholder || `config-${index}`;
+      if (avatar.placeholder) {
+        return `${avatar.placeholder}-${index}`;
+      }
+      return `config-${index}`;
     }
     if (typeof avatar === 'object' && avatar && 'uri' in avatar && typeof avatar.uri === 'string') {
-      return avatar.uri;
+      return `${avatar.uri}-${index}`;
     }
     if (typeof avatar === 'number') {
-      return `require-${avatar}`;
+      return `require-${avatar}-${index}`;
     }
     return `avatar-${index}`;
   };

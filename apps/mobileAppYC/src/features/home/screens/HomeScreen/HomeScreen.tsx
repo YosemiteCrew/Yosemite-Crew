@@ -41,6 +41,7 @@ import {
   selectHasHydratedCompanion as selectHasHydratedTasksCompanion,
   markTaskStatus,
 } from '@/features/tasks';
+import type {ObservationalToolTaskDetails} from '@/features/tasks/types';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Home'>;
 
@@ -208,6 +209,15 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     [dispatch],
   );
 
+  const handleStartObservationalTool = React.useCallback(() => {
+    if (!nextUpcomingTask) {
+      return;
+    }
+    navigation
+      .getParent<NavigationProp<TabParamList>>()
+      ?.navigate('Tasks', {screen: 'ObservationalTool', params: {taskId: nextUpcomingTask.id}});
+  }, [navigation, nextUpcomingTask]);
+
   const navigateToTasksCategory = React.useCallback(
     (category: TaskStackParamList['TasksList']['category']) => {
       if (!selectedCompanionIdRedux && companions.length > 0) {
@@ -244,7 +254,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         avatar: authUser?.profilePicture,
         name: authUser?.firstName || 'User',
       } : undefined;
-
       return (
         <TaskCard
           key={nextUpcomingTask.id}
@@ -267,6 +276,12 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
           hideSwipeActions={false}
           onPressView={handleViewTask}
           onPressComplete={() => handleCompleteTask(nextUpcomingTask.id)}
+          onPressTakeObservationalTool={
+            nextUpcomingTask.category === 'health' &&
+            isObservationalToolDetails(nextUpcomingTask.details)
+              ? handleStartObservationalTool
+              : undefined
+          }
         />
       );
     }
@@ -656,3 +671,11 @@ const createStyles = (theme: any) =>
       textAlign: 'center',
     },
   });
+const isObservationalToolDetails = (
+  details: unknown,
+): details is ObservationalToolTaskDetails => {
+  if (details && typeof details === 'object' && 'taskType' in details) {
+    return (details as {taskType?: string}).taskType === 'take-observational-tool';
+  }
+  return false;
+};

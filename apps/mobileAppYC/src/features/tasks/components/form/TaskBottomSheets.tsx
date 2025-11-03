@@ -39,58 +39,96 @@ export const TaskBottomSheets: React.FC<TaskBottomSheetsProps> = ({
     handler();
     handlers.closeSheet();
   };
+
+  const handleSheetChange = (index: number) => {
+    if (index === -1) {
+      handlers.closeTaskSheet();
+    }
+  };
+
   return (
     <>
       {taskTypeSheetProps && refs.taskTypeSheetRef && (
         <TaskTypeBottomSheet
           ref={refs.taskTypeSheetRef}
           selectedTaskType={taskTypeSheetProps.selectedTaskType}
-          onSelect={taskTypeSheetProps.onSelect}
-          companionType={companionType as any}
+          onSelect={selection => {
+            taskTypeSheetProps.onSelect(selection);
+            handlers.closeTaskSheet();
+          }}
+          onSheetChange={handleSheetChange}
         />
       )}
 
       <MedicationTypeBottomSheet
         ref={refs.medicationTypeSheetRef}
         selectedType={formData.medicineType}
-        onSelect={type => updateField('medicineType', type)}
+        onSelect={type => {
+          updateField('medicineType', type);
+          handlers.closeTaskSheet();
+        }}
+        onSheetChange={handleSheetChange}
       />
 
       <DosageBottomSheet
         ref={refs.dosageSheetRef}
         dosages={formData.dosages}
-        onSave={dosages => updateField('dosages', dosages)}
+        onSave={dosages => {
+          updateField('dosages', dosages);
+          handlers.closeTaskSheet();
+        }}
+        onSheetChange={handleSheetChange}
       />
 
       <MedicationFrequencyBottomSheet
         ref={refs.medicationFrequencySheetRef}
         selectedFrequency={formData.medicationFrequency}
-        onSelect={frequency => updateField('medicationFrequency', frequency)}
+        onSelect={frequency => {
+          updateField('medicationFrequency', frequency);
+          handlers.closeTaskSheet();
+        }}
+        onSheetChange={handleSheetChange}
       />
 
       <TaskFrequencyBottomSheet
         ref={refs.taskFrequencySheetRef}
         selectedFrequency={formData.frequency}
-        onSelect={frequency => updateField('frequency', frequency)}
+        onSelect={frequency => {
+          updateField('frequency', frequency);
+          handlers.closeTaskSheet();
+        }}
+        onSheetChange={handleSheetChange}
       />
 
       <AssignTaskBottomSheet
         ref={refs.assignTaskSheetRef}
         selectedUserId={formData.assignedTo}
-        onSelect={userId => updateField('assignedTo', userId)}
+        onSelect={userId => {
+          updateField('assignedTo', userId);
+          handlers.closeTaskSheet();
+        }}
+        onSheetChange={handleSheetChange}
       />
 
       <CalendarSyncBottomSheet
         ref={refs.calendarSyncSheetRef}
         selectedProvider={formData.calendarProvider}
-        onSelect={provider => updateField('calendarProvider', provider)}
+        onSelect={provider => {
+          updateField('calendarProvider', provider);
+          handlers.closeTaskSheet();
+        }}
+        onSheetChange={handleSheetChange}
       />
 
       <ObservationalToolBottomSheet
         ref={refs.observationalToolSheetRef}
         selectedTool={formData.observationalTool}
-        onSelect={tool => updateField('observationalTool', tool)}
+        onSelect={tool => {
+          updateField('observationalTool', tool);
+          handlers.closeTaskSheet();
+        }}
         companionType={companionType as any}
+        onSheetChange={handleSheetChange}
       />
 
       <UploadDocumentBottomSheet
@@ -112,7 +150,12 @@ export const TaskBottomSheets: React.FC<TaskBottomSheetsProps> = ({
 
       <DiscardChangesBottomSheet
         ref={refs.discardSheetRef}
-        onDiscard={handlers.onDiscard}
+        onDiscard={() => {
+          handlers.closeTaskSheet();
+          handlers.onDiscard();
+        }}
+        onKeepEditing={handlers.closeTaskSheet}
+        onSheetChange={handleSheetChange}
       />
     </>
   );

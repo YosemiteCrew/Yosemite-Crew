@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
-import {useSelector} from 'react-redux'; // Import useSelector
+import {useDispatch, useSelector} from 'react-redux'; // Import useSelector
 
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {selectAuthUser} from '@/features/auth/selectors';
@@ -21,7 +21,8 @@ import {Images} from '@/assets/images';
 import {useTheme} from '@/hooks';
 import {useAuth} from '@/features/auth/context/AuthContext';
 import {HomeStackParamList} from '@/navigation/types';
-import {selectCompanions} from '@/features/companion';
+import {selectCompanions, setSelectedCompanion} from '@/features/companion';
+import type {AppDispatch} from '@/app/store';
 import type {Companion} from '@/features/companion/types';
 import DeleteAccountBottomSheet, {
   type DeleteAccountBottomSheetRef,
@@ -52,6 +53,7 @@ type MenuItem = {
 export const AccountScreen: React.FC<Props> = ({navigation}) => {
   const {theme} = useTheme();
   const {logout} = useAuth();
+  const dispatch = useDispatch<AppDispatch>();
   const authUser = useSelector(selectAuthUser);
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const deleteSheetRef = React.useRef<DeleteAccountBottomSheetRef>(null);
@@ -179,7 +181,9 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
         id: 'faqs',
         label: 'FAQs',
         icon: Images.faqIcon,
-        onPress: () => {},
+        onPress: () => {
+          navigation.navigate('FAQ');
+        },
       },
       {
         id: 'about',
@@ -193,19 +197,25 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
         id: 'terms',
         label: 'Terms and Conditions',
         icon: Images.tncIcon,
-        onPress: () => {},
+        onPress: () => {
+          navigation.navigate('TermsAndConditions');
+        },
       },
       {
         id: 'privacy',
         label: 'Privacy Policy',
         icon: Images.privacyIcon,
-        onPress: () => {},
+        onPress: () => {
+          navigation.navigate('PrivacyPolicy');
+        },
       },
       {
         id: 'contact',
         label: 'Contact us',
         icon: Images.contactIcon,
-        onPress: () => {},
+        onPress: () => {
+          navigation.navigate('ContactUs');
+        },
       },
       {
         id: 'delete',
@@ -215,7 +225,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
         onPress: handleDeletePress,
       },
     ],
-    [handleDeletePress],
+    [handleDeletePress, navigation],
   );
 
   return (
@@ -287,6 +297,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
                       });
                       // e.g., navigation.navigate('EditUserProfile');
                     } else {
+                      dispatch(setSelectedCompanion(profile.id));
                       // Navigate to Companion Profile Overview
                       navigation.navigate('ProfileOverview', {
                         companionId: profile.id,

@@ -7,7 +7,7 @@ import {SearchBar} from '@/shared/components/common/SearchBar/SearchBar';
 import {useTheme} from '@/hooks';
 import type {AppDispatch, RootState} from '@/app/store';
 import {fetchBusinesses, fetchAvailability} from '@/features/appointments/businessesSlice';
-import {selectBusinessesByCategory} from '@/features/appointments/selectors';
+import {createSelectBusinessesByCategory} from '@/features/appointments/selectors';
 import type {BusinessCategory, VetBusiness} from '@/features/appointments/types';
 import {useNavigation} from '@react-navigation/native';
 import CalendarMonthStrip from '@/features/appointments/components/CalendarMonthStrip/CalendarMonthStrip';
@@ -35,7 +35,8 @@ export const BrowseBusinessesScreen: React.FC = () => {
   const [category, setCategory] = useState<BusinessCategory | undefined>(undefined);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [query, setQuery] = useState('');
-  const businesses = useSelector(selectBusinessesByCategory(category));
+  const selectBusinessesByCategory = useMemo(() => createSelectBusinessesByCategory(), []);
+  const businesses = useSelector((state: RootState) => selectBusinessesByCategory(state, category));
   const availability = useSelector((s: RootState) => s.businesses.availability);
 
   useEffect(() => {

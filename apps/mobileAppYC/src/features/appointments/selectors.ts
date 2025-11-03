@@ -4,6 +4,8 @@ import type {BusinessCategory} from './types';
 
 const selectAppointments = (state: RootState) => state.appointments.items;
 const selectCompanionParam = (_: RootState, companionId: string | null) => companionId;
+const selectBusinesses = (state: RootState) => state.businesses.businesses;
+const selectBusinessCategoryParam = (_: RootState, category?: BusinessCategory) => category;
 
 export const createSelectAppointmentsByCompanion = () =>
   createSelector([selectAppointments, selectCompanionParam], (items, companionId) =>
@@ -22,14 +24,13 @@ export const createSelectPastAppointments = () => {
   return createSelector(base, appointments => appointments.filter(a => a.status === 'completed' || a.status === 'canceled'));
 };
 
-export const selectBusinessesByCategory =
-  (category?: BusinessCategory) => (state: RootState) => {
-    if (category === undefined || category === null) {
-      return state.businesses.businesses;
+export const createSelectBusinessesByCategory = () =>
+  createSelector([selectBusinesses, selectBusinessCategoryParam], (businesses, category) => {
+    if (!category) {
+      return businesses;
     }
-
-    return state.businesses.businesses.filter(b => b.category === category);
-  };
+    return businesses.filter(b => b.category === category);
+  });
 
 export const selectEmployeesForBusiness = (businessId: string) => (state: RootState) =>
   state.businesses.employees.filter(e => e.businessId === businessId);
