@@ -182,6 +182,12 @@ downloadInvoice: require('./icons/downloadInvoice.png'),
   equineNostrilModerate: require('./observationalTools/equine-nostril-moderate.png'),
   equineNostrilObvious: require('./observationalTools/equine-nostril-obvious.png'),
 
+
+  //co-parent
+  coparentEmpty: require('./coParent/emptyParent.png'),
+   heroImage: require('./coParent/heroImage.png'),
+   bgCoParent: require('./coParent/bgCoParent.png'),
+  
   // Support & Help
   contactHero: require('./support/contactHero.png'),
 } as const;

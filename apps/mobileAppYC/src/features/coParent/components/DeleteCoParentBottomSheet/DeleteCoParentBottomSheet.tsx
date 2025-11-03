@@ -1,61 +1,60 @@
-import React, {forwardRef, useImperativeHandle, useRef, useMemo} from 'react';
-import {View, Text, StyleSheet, TouchableOpacity, Image} from 'react-native';
+import React, {forwardRef, useMemo} from 'react';
+import {StyleSheet, View, Text, TouchableOpacity, Image} from 'react-native';
 import {ConfirmActionBottomSheet, ConfirmActionBottomSheetRef} from '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 
-export interface DiscardChangesBottomSheetRef {
+export interface DeleteCoParentBottomSheetRef {
   open: () => void;
   close: () => void;
 }
 
-interface DiscardChangesBottomSheetProps {
-  onDiscard: () => void;
-  onKeepEditing?: () => void;
+interface DeleteCoParentBottomSheetProps {
+  coParentName?: string;
+  onDelete?: () => void;
+  onCancel?: () => void;
   onSheetChange?: (index: number) => void;
   showCloseIcon?: boolean;
 }
 
-export const DiscardChangesBottomSheet = forwardRef<
-  DiscardChangesBottomSheetRef,
-  DiscardChangesBottomSheetProps
->(({onDiscard, onKeepEditing, onSheetChange, showCloseIcon = false}, ref) => {
+export const DeleteCoParentBottomSheet = forwardRef<
+  DeleteCoParentBottomSheetRef,
+  DeleteCoParentBottomSheetProps
+>(({coParentName = 'Pika', onDelete, onCancel, onSheetChange, showCloseIcon = false}, ref) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const bottomSheetRef = useRef<ConfirmActionBottomSheetRef>(null);
+  const bottomSheetRef = React.useRef<ConfirmActionBottomSheetRef>(null);
 
-  useImperativeHandle(ref, () => ({
+  React.useImperativeHandle(ref, () => ({
     open: () => bottomSheetRef.current?.open(),
     close: () => bottomSheetRef.current?.close(),
   }));
 
-  const handleDiscard = () => {
+  const handleDelete = () => {
     bottomSheetRef.current?.close();
-    onDiscard();
-  };
-
-  const handleKeepEditing = () => {
-    bottomSheetRef.current?.close();
-    onKeepEditing?.();
+    onDelete?.();
   };
 
   const handleClose = () => {
     bottomSheetRef.current?.close();
-    onDiscard?.();
+    onCancel?.();
   };
 
   return (
     <ConfirmActionBottomSheet
       ref={bottomSheetRef}
-      title="Discard changes?"
-      snapPoints={['250%']}
+      title="Delete Co-Parent?"
+      snapPoints={['35%']}
       primaryButton={{
-        label: "Discard",
-        onPress: handleDiscard,
+        label: 'Delete',
+        onPress: handleDelete,
       }}
       secondaryButton={{
-        label: "Keep editing",
-        onPress: handleKeepEditing,
+        label: 'Cancel',
+        onPress: () => {
+          bottomSheetRef.current?.close();
+          onCancel?.();
+        },
       }}
       onSheetChange={onSheetChange}
       containerStyle={styles.headerContainer}>
@@ -68,7 +67,7 @@ export const DiscardChangesBottomSheet = forwardRef<
       </View>
       <View style={styles.content}>
         <Text style={styles.message}>
-          You have unsaved changes. Are you sure you want to discard them?
+          Are you sure you want to delete {coParentName} as co-parent?
         </Text>
       </View>
     </ConfirmActionBottomSheet>
@@ -111,4 +110,4 @@ const createStyles = (theme: any) =>
     },
   });
 
-export default DiscardChangesBottomSheet;
+export default DeleteCoParentBottomSheet;

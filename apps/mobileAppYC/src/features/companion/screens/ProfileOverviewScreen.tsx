@@ -175,6 +175,9 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
     if (sectionId === 'custom_tasks') {
       navigateToTasks('custom');
     }
+    if (sectionId === 'co_parent') {
+      navigation.navigate('CoParents');
+    }
     // Add logic for other sections here
   };
 

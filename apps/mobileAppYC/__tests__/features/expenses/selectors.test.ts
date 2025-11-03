@@ -109,6 +109,12 @@ const mockRootState: RootState = {
     loading: false,
     error: null,
   },
+  coParent: {
+    coParents: [],
+    loading: false,
+    error: null,
+    selectedCoParentId: null,
+  },
   _persist: { version: -1, rehydrated: true },
 };
 

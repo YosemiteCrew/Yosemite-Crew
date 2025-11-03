@@ -32,6 +32,17 @@ export type HomeStackParamList = {
   EditCompanionOverview: { companionId: string };
   EditParentOverview:{ companionId: string };
   ExpensesStack: NavigatorScreenParams<ExpenseStackParamList>;
+  CoParents: undefined;
+  AddCoParent: undefined;
+  EditCoParent: { coParentId: string };
+  CoParentProfile: { coParentId: string };
+};
+
+export type CoParentStackParamList = {
+  CoParents: undefined;
+  AddCoParent: undefined;
+  EditCoParent: { coParentId: string };
+  CoParentProfile: { coParentId: string };
 };
 
 export type DocumentStackParamList = {

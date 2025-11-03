@@ -276,6 +276,12 @@ const baseState: RootState = {
     loading: false,
     error: null,
   },
+  coParent: {
+    coParents: [],
+    loading: false,
+    error: null,
+    selectedCoParentId: null,
+  },
   _persist: {
     version: 0,
     rehydrated: true,

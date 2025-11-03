@@ -75,6 +75,12 @@ const createMockState = (authState: Partial<AuthState>): RootState => ({
   tasks: createMockTasksState(),
   appointments: createMockAppointmentsState(),
   businesses: createMockBusinessesState(),
+  coParent: {
+    coParents: [],
+    loading: false,
+    error: null,
+    selectedCoParentId: null,
+  },
   _persist: {
     version: 2,
     rehydrated: true,
