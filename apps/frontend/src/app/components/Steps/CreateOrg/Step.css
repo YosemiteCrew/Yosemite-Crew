@@ -1,0 +1,188 @@
+.step-container {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  border-radius: 32px;
+  border: 1px solid var(--lightgrey);
+}
+.step-title {
+  color: var(--black-text);
+  font-family: var(--grotesk-font);
+  font-size: 23px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 120%;
+  letter-spacing: -0.46px;
+}
+
+.step-logo-container {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.step-logo-upload {
+  height: 100px;
+  width: 100px;
+  border-radius: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--blue-text);
+  position: relative;
+}
+.step-logo-title {
+  color: var(--black-text);
+  font-family: var(--grotesk-font);
+  font-size: 23px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 120%;
+  letter-spacing: -0.46px;
+}
+.remove-icon {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  cursor: pointer;
+  border: none;
+  background: #fff;
+}
+@media screen and (max-width: 1024px) {
+  .step-logo-upload {
+    height: 80px;
+    width: 80px;
+  }
+  .step-logo-preview {
+    height: 80px !important;
+    width: 80px !important;
+  }
+}
+@media screen and (max-width: 768px) {
+  .step-logo-upload {
+    height: 60px;
+    width: 60px;
+  }
+  .step-logo-upload svg {
+    height: 30px;
+    width: 30px;
+  }
+  .step-logo-preview {
+    height: 60px !important;
+    width: 60px !important;
+  }
+  .step-logo-title {
+    font-size: 19px;
+  }
+  .remove-icon {
+    top: -10px;
+    right: -10px;
+  }
+  .remove-icon svg{
+    width: 14px;
+    height: 14px;
+  }
+}
+
+.step-type {
+  flex-direction: column;
+  display: flex;
+  gap: 16px;
+}
+.step-type-title {
+  color: var(--black-text);
+  font-family: var(--grotesk-font);
+  font-size: 23px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 120%;
+  letter-spacing: -0.46px;
+}
+.step-type-options {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.step-type-option {
+  height: 48px;
+  padding: 0 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--black-text);
+  text-align: center;
+  font-family: var(--satoshi-font);
+  font-size: 18px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 120%;
+  letter-spacing: -0.36px;
+  border-radius: 12px;
+  border: 1px solid var(--black-bg);
+  cursor: pointer;
+  background: var(--whitebg);
+}
+.activetype {
+  border: 1px solid var(--blue-text);
+  background: var(--light-blue);
+  color: var(--blue-text);
+}
+.step-type-desc {
+  color: var(--notibg);
+  font-family: var(--satoshi-font);
+  font-size: 15px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 24px;
+  letter-spacing: -0.3px;
+}
+.step-type-desc-span {
+  color: var(--blue-text);
+}
+@media screen and (max-width: 768px) {
+  .step-type-title {
+    font-size: 19px;
+  }
+  .step-type-option {
+    height: 36px;
+    font-size: 15px;
+    padding: 0 16px;
+  }
+}
+
+.step-inputs {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-direction: column;
+}
+.step-two-input {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 100%;
+  gap: 16px;
+}
+@media screen and (max-width: 768px) {
+  .step-two-input  {
+    grid-template-columns: 1fr;
+  }
+}
+
+.step-buttons {
+  display: flex;
+  align-self: center;
+  justify-content: space-between;
+  width: 100%;
+}
+@media screen and (max-width: 500px) {
+  .step-buttons  {
+    flex-direction: column-reverse;
+    gap: 16px;
+  }
+  .step-buttons a{
+    width: 100% !important;
+  }
+}

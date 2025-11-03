@@ -2,7 +2,7 @@
 import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-import SignUp from "@/app/pages/Sign/SignUp";
+import SignUp from "@/app/pages/SignUp/SignUp";
 import { useAuthStore } from "@/app/stores/authStore";
 
 function Page() {

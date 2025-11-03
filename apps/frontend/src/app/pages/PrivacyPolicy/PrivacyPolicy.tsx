@@ -865,7 +865,7 @@ const PrivacyPolicy = () => {
                 <p>
                   Further information on this data processing by Instagram can
                   be found in the joint controller agreement at:{" "}
-                  <Link href="https://www.facebook.com/legal/terms/information_about_page_insights_data">
+                  <Link style={{ wordWrap: "break-word" }} href="https://www.facebook.com/legal/terms/information_about_page_insights_data">
                     {" "}
                     https://www.facebook.com/legal/terms/information_about_page_insights_data
                   </Link>

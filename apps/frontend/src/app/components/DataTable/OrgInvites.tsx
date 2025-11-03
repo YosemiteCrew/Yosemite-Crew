@@ -6,6 +6,7 @@ import { IoIosCloseCircle } from "react-icons/io";
 import GenericTable from "@/app/components/GenericTable/GenericTable";
 
 import "./DataTable.css";
+import InviteCard from "../Cards/InviteCard/InviteCard";
 
 type Column<T> = {
   label: string;
@@ -15,16 +16,21 @@ type Column<T> = {
 };
 
 type InviteProps = {
-  details: string;
-  time: string;
-  expires: string;
+  name: string;
+  type: string;
+  role: string;
 };
 
 const demoData: InviteProps[] = [
   {
-    details: "Invite Details 1",
-    time: "10:00 AM",
-    expires: "2023-12-31",
+    name: "Paws & Tails Health Club",
+    type: "Hospital",
+    role: "Vet",
+  },
+  {
+    name: "Paws & Tails Health Club",
+    type: "Hospital",
+    role: "Nurse",
   },
 ];
 
@@ -33,42 +39,40 @@ const OrgInvites = (invites: any) => {
 
   const columns: Column<InviteProps>[] = [
     {
-      label: "Details",
-      key: "details",
-      width: "45%",
+      label: "Name",
+      key: "name",
+      width: "30%",
       render: (item: InviteProps) => (
-        <div className="InviteDetails">{item.details}</div>
+        <div className="InviteDetails">{item.name}</div>
       ),
     },
     {
-      label: "Time",
-      key: "time",
-      width: "15%",
+      label: "Type",
+      key: "type",
+      width: "25%",
       render: (item: InviteProps) => (
-        <div className="InviteTime">{item.time}</div>
+        <div className="InviteTime">{item.type}</div>
       ),
     },
     {
-      label: "Expires",
-      key: "expires",
-      width: "15%",
+      label: "Role",
+      key: "role",
+      width: "25%",
       render: (item: InviteProps) => (
-        <div className="InviteExpires">{item.expires}</div>
+        <div className="InviteExpires">{item.role}</div>
       ),
     },
     {
       label: "Actions",
       key: "actions",
-      width: "25%",
+      width: "20%",
       render: (item: InviteProps) => (
         <div className="action-btn-col">
-          <div className="action-btn">
-            <div className="action-btn-text">Accept</div>
-            <FaCheckCircle size={14} />
+          <div className="action-btn" style={{ background: "#E6F4EF" }}>
+            <FaCheckCircle size={22} color="#54B492" />
           </div>
-          <div className="action-btn">
-            <div className="action-btn-text">Decline</div>
-            <IoIosCloseCircle size={14} />
+          <div className="action-btn" style={{ background: "#FDEBEA" }}>
+            <IoIosCloseCircle size={24} color="#EA3729" />
           </div>
         </div>
       ),
@@ -77,13 +81,20 @@ const OrgInvites = (invites: any) => {
 
   return (
     <div className="table-wrapper">
-      <GenericTable
-        data={data}
-        columns={columns}
-        bordered={false}
-        pageSize={3}
-        pagination
-      />
+      <div className="table-list">
+        <GenericTable
+          data={data}
+          columns={columns}
+          bordered={false}
+          pageSize={3}
+          pagination
+        />
+      </div>
+      <div className="card-list">
+        {demoData.map((invite, index) => (
+          <InviteCard key={invite.name + index} invite={invite} />
+        ))}
+      </div>
     </div>
   );
 };

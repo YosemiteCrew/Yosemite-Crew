@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen, act, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { ErrorTost, useErrorTost } from "../../components/Toast";
+import { ErrorTost, useErrorTost } from "../../components/Toast/Toast";
 
 jest.mock("@iconify/react/dist/iconify.js", () => ({
   Icon: (props: { icon: string }) => (
