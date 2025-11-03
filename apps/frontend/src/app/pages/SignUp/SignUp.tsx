@@ -134,9 +134,9 @@ const SignUp = () => {
 
   return (
     <section className="MainSignUpSec">
-      <Container>
-        <Row>
-          <Col md={6}>
+    
+        <Row className="MainSignUpRow">
+          <Col md={6}  className="MainSignCol">
             <div className="BuildEveryone">
               <div className="SignBuildText">
                 <h2>Built for Everyone, from Day One.</h2>
@@ -191,7 +191,7 @@ const SignUp = () => {
             </div>
           </Col>
 
-          <Col md={6}>
+          <Col md={6} className="MainSignCol">
             <div className="SignUpFormDiv">
               <Form onSubmit={handleSignUp} method="post">
                 <div className="TopSignUp">
@@ -309,7 +309,6 @@ const SignUp = () => {
             </div>
           </Col>
         </Row>
-      </Container>
       <OtpModal
         email={email}
         password={password}
