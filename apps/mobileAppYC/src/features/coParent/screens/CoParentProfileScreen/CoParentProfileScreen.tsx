@@ -26,6 +26,7 @@ import AddCoParentBottomSheet from '../../components/AddCoParentBottomSheet/AddC
 import CoParentInviteBottomSheet from '../../components/CoParentInviteBottomSheet/CoParentInviteBottomSheet';
 import {useCoParentInviteFlow} from '../../hooks/useCoParentInviteFlow';
 import {createCommonCoParentStyles} from '../../styles/commonStyles';
+import {selectCompanions} from '@/features/companion';
 
 type Props = NativeStackScreenProps<CoParentStackParamList, 'CoParentProfile'>;
 
@@ -40,6 +41,7 @@ export const CoParentProfileScreen: React.FC<Props> = ({route, navigation}) => {
   const [loading, setLoading] = useState(true);
   const [sendingInvite, setSendingInvite] = useState(false);
   const authUser = useSelector(selectAuthUser);
+  const companions = useSelector(selectCompanions);
 
   const {
     addCoParentSheetRef,
@@ -239,8 +241,8 @@ export const CoParentProfileScreen: React.FC<Props> = ({route, navigation}) => {
         ref={coParentInviteSheetRef}
         coParentName={coParent.firstName}
         coParentProfileImage={coParent.profilePicture}
-        companionName={coParent.companions[0]?.companionName || 'Companion'}
-        companionProfileImage={coParent.companions[0]?.profileImage}
+        companionName={companions[0]?.name || 'Companion'}
+        companionProfileImage={companions[0]?.profileImage || undefined}
         onAccept={handleInviteAccept}
         onDecline={handleInviteDecline}
       />
