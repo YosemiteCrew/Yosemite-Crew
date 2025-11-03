@@ -21,7 +21,7 @@ export const fetchCoParents = createAsyncThunk(
       const locallyAdded = currentCoParents.filter((cp: CoParent) => cp.status === 'pending');
       const merged = [
         ...mockCoParents,
-        ...locallyAdded.filter((local: CoParent) => !mockCoParents.find(mock => mock.id === local.id))
+        ...locallyAdded.filter((local: CoParent) => !mockCoParents.some(mock => mock.id === local.id))
       ];
 
       return merged;
@@ -122,7 +122,7 @@ export const deleteCoParent = createAsyncThunk(
       // Check if co-parent exists in current state first (for locally added co-parents)
       const state = getState() as any;
       const currentCoParents = state.coParent?.coParents || [];
-      const coParentInState = currentCoParents.find(cp => cp.id === coParentId);
+      const coParentInState = currentCoParents.find((cp: CoParent) => cp.id === coParentId);
 
       // Fall back to mock data
       const coParent = coParentInState || MOCK_CO_PARENTS.find(cp => cp.id === coParentId);

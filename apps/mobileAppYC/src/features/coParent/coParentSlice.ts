@@ -1,5 +1,5 @@
 import {createSlice, PayloadAction} from '@reduxjs/toolkit';
-import type {CoParentState, CoParent, CoParentPermissions} from './types';
+import type {CoParentState} from './types';
 import {
   fetchCoParents,
   addCoParent,
@@ -91,7 +91,7 @@ export const coParentSlice = createSlice({
       });
 
     // Search CoParents
-    builder.addCase(searchCoParentsByEmail.fulfilled, (state, action) => {
+    builder.addCase(searchCoParentsByEmail.fulfilled, () => {
       // This is just for returning search results, doesn't modify state
     });
   },

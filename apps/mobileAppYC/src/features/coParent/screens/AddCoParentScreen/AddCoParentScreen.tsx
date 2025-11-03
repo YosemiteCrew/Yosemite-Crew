@@ -1,4 +1,4 @@
-import React, {useState, useRef, useCallback, useMemo} from 'react';
+import React, {useState, useCallback, useMemo} from 'react';
 import {
   View,
   StyleSheet,
@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
@@ -27,7 +28,7 @@ import type {CoParentStackParamList} from '@/navigation/types';
 import type {CoParent} from '../../types';
 import AddCoParentBottomSheet from '../../components/AddCoParentBottomSheet/AddCoParentBottomSheet';
 import CoParentInviteBottomSheet from '../../components/CoParentInviteBottomSheet/CoParentInviteBottomSheet';
-import {Alert} from 'react-native';
+import {useCoParentInviteFlow} from '../../hooks/useCoParentInviteFlow';
 
 type Props = NativeStackScreenProps<CoParentStackParamList, 'AddCoParent'>;
 
@@ -46,14 +47,12 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<CoParent[]>([]);
   const [searching, setSearching] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<CoParent | null>(null);
 
   const {
     control,
     handleSubmit,
     formState: {errors, isSubmitting},
     reset,
-    clearErrors,
   } = useForm<InviteFormData>({
     defaultValues: {
       candidateName: '',
@@ -63,8 +62,15 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
     mode: 'onChange',
   });
 
-  const addCoParentSheetRef = useRef<any>(null);
-  const coParentInviteSheetRef = useRef<any>(null);
+  const {
+    addCoParentSheetRef,
+    coParentInviteSheetRef,
+    handleAddCoParentClose,
+    handleInviteAccept,
+    handleInviteDecline,
+  } = useCoParentInviteFlow({
+    onInviteComplete: () => navigation.goBack(),
+  });
 
   const handleSearch = useCallback(async (query: string) => {
     setSearchQuery(query);
@@ -85,46 +91,28 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
   }, [dispatch]);
 
   const handleSelectUser = useCallback((user: CoParent) => {
-    setSelectedUser(user);
     navigation.navigate('CoParentProfile', {coParentId: user.id});
   }, [navigation]);
 
-  const handleSendInvite = useCallback(
-    handleSubmit(async (data: InviteFormData) => {
-      try {
-        await dispatch(
-          addCoParent({
-            userId: authUser?.id || '',
-            inviteRequest: data,
-          }),
-        ).unwrap();
+  const handleSendInvite = useCallback(async (data: InviteFormData) => {
+    try {
+      await dispatch(
+        addCoParent({
+          userId: authUser?.id || '',
+          inviteRequest: data,
+        }),
+      ).unwrap();
 
-        // Show added co-parent bottom sheet
-        addCoParentSheetRef.current?.open();
+      // Show added co-parent bottom sheet
+      addCoParentSheetRef.current?.open();
 
-        // Reset form
-        reset();
-      } catch (error) {
-        console.error('Failed to add co-parent:', error);
-        Alert.alert('Error', 'Failed to send invite');
-      }
-    }),
-    [dispatch, authUser?.id, handleSubmit, reset],
-  );
-
-  const handleAddCoParentClose = useCallback(() => {
-    addCoParentSheetRef.current?.close();
-    // Open invite bottom sheet
-    setTimeout(() => {
-      coParentInviteSheetRef.current?.open();
-    }, 300);
-  }, []);
-
-  const handleInviteAccept = useCallback(() => {
-    coParentInviteSheetRef.current?.close();
-    // Navigate back to return to previous screen
-    navigation.goBack();
-  }, [navigation]);
+      // Reset form
+      reset();
+    } catch (error) {
+      console.error('Failed to add co-parent:', error);
+      Alert.alert('Error', 'Failed to send invite');
+    }
+  }, [dispatch, authUser?.id, reset, addCoParentSheetRef]);
 
   const handleBack = useCallback(() => {
     if (navigation.canGoBack()) {
@@ -208,7 +196,7 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
                   rules={{
                     required: 'Email address is required',
                     pattern: {
-                      value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                      value: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
                       message: 'Please enter a valid email address',
                     },
                   }}
@@ -250,7 +238,7 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
               <View style={styles.saveButton}>
                 <LiquidGlassButton
                   title={isSubmitting ? 'Sending...' : 'Send invite'}
-                  onPress={handleSendInvite}
+                  onPress={handleSubmit(handleSendInvite)}
                   disabled={isSubmitting}
                   style={styles.button}
                   textStyle={styles.buttonText}
@@ -311,11 +299,7 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
       <CoParentInviteBottomSheet
         ref={coParentInviteSheetRef}
         onAccept={handleInviteAccept}
-        onDecline={() => {
-          coParentInviteSheetRef.current?.close();
-          // Navigate back to return to previous screen
-          navigation.goBack();
-        }}
+        onDecline={handleInviteDecline}
       />
     </SafeAreaView>
   );
