@@ -1,18 +1,15 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { Button, Container } from "react-bootstrap";
-import { useRouter } from "next/navigation";
 
 import ProtectedRoute from "@/app/components/ProtectedRoute";
 import { getData } from "@/app/services/axios";
-import { HeadText } from "../CompleteProfile/CompleteProfile";
+import { Primary } from "@/app/components/Buttons";
 import OrgInvites from "../../components/DataTable/OrgInvites";
 import OrganizationList from "../../components/DataTable/OrganizationList";
 
 import "./Organizations.css";
 
 const Organizations = () => {
-  const router = useRouter();
   const [orgs, setOrgs] = useState<any[]>([]);
   const [invites, setInvites] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,26 +40,20 @@ const Organizations = () => {
 
   return (
     <div className="OperationsWrapper">
-      <Container>
-        <div className="TitleContainer">
-          <HeadText blktext="Organizations" Spntext="" />
-          <div className="ComptBtn">
-            <Button onClick={() => router.push("/complete-profile")}>
-              Create New Organization
-            </Button>
-          </div>
-        </div>
+      <div className="TitleContainer">
+        <h2>Overview</h2>
+        <Primary href="/create-org" text="Create organisation" />
+      </div>
 
-        <div className="OrgaizationsList">
-          <div className="InviteTitle">Existing Organisations</div>
-          {!loading && <OrganizationList orgs={orgs} />}
-        </div>
+      <div className="OrgaizationsList">
+        <div className="InviteTitle">Existing organisations</div>
+        {!loading && <OrganizationList orgs={orgs} />}
+      </div>
 
-        <div className="InvitesWrapper">
-          <div className="InviteTitle">New Invites</div>
-          {!loading && <OrgInvites invites={invites} />}
-        </div>
-      </Container>
+      <div className="InvitesWrapper">
+        <div className="InviteTitle">Invites</div>
+        {!loading && <OrgInvites invites={invites} />}
+      </div>
     </div>
   );
 };

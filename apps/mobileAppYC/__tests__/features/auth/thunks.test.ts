@@ -12,11 +12,11 @@ import {
   __resetAuthListenersForTesting,
 } from '@/features/auth/thunks';
 import * as sessionManager from '@/features/auth/sessionManager';
-import * as passwordlessAuth from '@/services/auth/passwordlessAuth';
+import * as passwordlessAuth from '@/features/auth/services/passwordlessAuth';
 import type {User, AuthTokens, NormalizedAuthTokens} from '@/features/auth/types';
 
 jest.mock('@/features/auth/sessionManager');
-jest.mock('@/services/auth/passwordlessAuth');
+jest.mock('@/features/auth/services/passwordlessAuth');
 jest.mock('@react-native-firebase/auth', () => ({
   getAuth: jest.fn(() => ({
     currentUser: null,

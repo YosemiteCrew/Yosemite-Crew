@@ -77,5 +77,5 @@ yarn-error.log
 
 # amplify
 .amplify
-amplify_outputs*
 amplifyconfiguration*
+apps/mobileAppYC/amplify_outputs.json

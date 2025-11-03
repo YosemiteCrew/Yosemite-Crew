@@ -193,7 +193,7 @@ const config: Config = {
 
   // An array of regexp pattern strings that are matched against all source file paths, matched files will skip transformation
   transformIgnorePatterns: [
-    "/node_modules/(?!(@iconify/react)/)",
+    String.raw`/node_modules/(?!((\.pnpm/)?@iconify[^/]*\/))`,
     String.raw`^.+\.module\.(css|sass|scss)$`,
   ],
 

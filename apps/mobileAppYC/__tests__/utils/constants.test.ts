@@ -6,7 +6,7 @@ import {
   isValidEmail,
   isValidPhone,
   isValidPassword,
-} from '@/utils/constants';
+} from '@/shared/constants/constants';
 
 describe('constants', () => {
   describe('STORAGE_KEYS', () => {

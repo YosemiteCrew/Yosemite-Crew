@@ -1,4 +1,4 @@
-import {deriveHomeGreetingName} from '@/screens/home/HomeScreen/HomeScreen';
+import {deriveHomeGreetingName} from '@/features/home/screens/HomeScreen/HomeScreen';
 
 describe('deriveHomeGreetingName', () => {
   it('uses trimmed name when provided', () => {

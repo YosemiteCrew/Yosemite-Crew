@@ -43,23 +43,16 @@ describe("DeveloperLanding Page", () => {
   it("renders the main hero section with correct heading, paragraph, buttons, and image", () => {
     expect(
       screen.getByRole("heading", {
-        name: /Build, customize, and launch powerful apps/i,
+        name: /Build, customise, and launch powerful apps for the animal health ecosystem/i,
       })
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Transform pet healthcare with your ideas./i)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /Explore Dev Tools/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /Learn more/i })
+      screen.getByText(/Transform animal care with your ideas./i)
     ).toBeInTheDocument();
     expect(screen.getByAltText("devlogin")).toBeInTheDocument();
   });
 
   it("renders the 'Why Yosemite Crew?' section with all content", () => {
-    expect(screen.getByText(/Why Yosemite Crew?/i)).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /Why Developers Choose Yosemite Crew/i })
     ).toBeInTheDocument();
@@ -91,11 +84,11 @@ describe("DeveloperLanding Page", () => {
 
   it("renders the 'Get Started' section with three steps", () => {
     expect(
-      screen.getByRole("heading", { name: /Get Started in Three Simple Steps/i })
+      screen.getByRole("heading", { name: /Get Started in three simple steps/i })
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /Sign up to Build/i })
-    ).toBeInTheDocument();
+
+    const links = screen.getAllByRole('link', { name: /Developer portal/i });
+    expect(links.length).toBeGreaterThan(0);
 
     expect(
       screen.getByRole("heading", { name: /^Sign up$/i, level: 4 })
@@ -115,30 +108,6 @@ describe("DeveloperLanding Page", () => {
       screen.getByRole("heading", { name: /^Build$/i, level: 4 })
     ).toBeInTheDocument();
     expect(screen.getByText(/Develop, test, and deploy your app/i)).toBeInTheDocument();
-  });
-
-  it("renders the pricing section with all options", () => {
-    expect(
-      screen.getByRole("heading", {
-        name: /Transparent Pricing That Fits Your Needs/i,
-      })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: /Pay-As-You-Go/i })
-    ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Free Option/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /No Lock-In/i })).toBeInTheDocument();
-  });
-
-  it("renders the 'Ready to Build' call-to-action section", () => {
-    expect(screen.getByText(/Ready to Build?/i)).toBeInTheDocument();
-    expect(
-      screen.getByText(/Join a growing community of developers/i)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /Sign Up as a Developer/i })
-    ).toBeInTheDocument();
-    expect(screen.getByAltText("devlpbuild")).toBeInTheDocument();
   });
 
   it("renders the footer", () => {

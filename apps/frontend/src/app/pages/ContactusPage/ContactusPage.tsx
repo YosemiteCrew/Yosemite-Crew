@@ -1,16 +1,17 @@
 "use client";
 import React, { useCallback, useEffect, useState } from "react";
-import { Button, Container } from "react-bootstrap";
+import { Button } from "react-bootstrap";
 import { toFhirSupportTicket } from "@yosemite-crew/fhir";
 import { CreateSupportTicket, TicketCategory } from "@yosemite-crew/types";
 import Link from "next/link";
 import { isEmail } from "validator";
 
 import Footer from "@/app/components/Footer/Footer";
-import { FormInput } from "@/app/pages/Sign/SignUp";
+import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import DynamicSelect from "@/app/components/DynamicSelect/DynamicSelect";
 import { postData } from "@/app/services/axios";
 import { useOldAuthStore } from "@/app/stores/oldAuthStore";
+import Image from "next/image";
 
 import "./ContactusPage.css";
 
@@ -61,13 +62,44 @@ const ContactusPage = () => {
     label: string;
   };
   const areaOptions: Option[] = [
-    { value: "south", label: "South Zone" },
-    { value: "east", label: "East Zone" },
-    { value: "west", label: "West Zone" },
-    { value: "central", label: "Central Zone" },
-    { value: "urban", label: "Urban Area" },
-    { value: "rural", label: "Rural Area" },
-    { value: "coastal", label: "Coastal Area" },
+    {
+      value: "EU GDPR (General Data Protection Regulation)",
+      label: "EU GDPR (General Data Protection Regulation)",
+    },
+    {
+      value: "UK GDPR / Data Protection Act 2018",
+      label: "UK GDPR / Data Protection Act 2018",
+    },
+    {
+      value: "CCPA / CPRA (California Consumer Privacy Act)",
+      label: "CCPA / CPRA (California Consumer Privacy Act)",
+    },
+    {
+      value: "LGPD (Brazilian General Data Protection Law)",
+      label: "LGPD (Brazilian General Data Protection Law)",
+    },
+    {
+      value:
+        "PIPEDA (Personal Information Protection and Electronic Documents Act, Canada)",
+      label:
+        "PIPEDA (Personal Information Protection and Electronic Documents Act, Canada)",
+    },
+    {
+      value: "POPIA (Protection of Personal Information Act, South Africa)",
+      label: "POPIA (Protection of Personal Information Act, South Africa)",
+    },
+    {
+      value: "PDPA (Personal Data Protection Act, Singapore)",
+      label: "PDPA (Personal Data Protection Act, Singapore)",
+    },
+    {
+      value: "PIPL (Personal Information Protection Law, China)",
+      label: "PIPL (Personal Information Protection Law, China)",
+    },
+    {
+      value: "Privacy Act 1988 (Australia)",
+      label: "Privacy Act 1988 (Australia)",
+    }
   ];
 
   // Confirm checklist (multiple selections)
@@ -75,6 +107,7 @@ const ContactusPage = () => {
   // Complaint specific fields
   const [complaintLink, setComplaintLink] = useState<string>("");
   const [complaintImage, setComplaintImage] = useState<File | null>(null);
+  console.log(complaintImage);
   const confirmOptions = [
     "Under penalty of perjury, I declare all the above information to be true and accurate.",
     "I understand that the deletion or restriction of my personal data is irreversible and may result in the termination of services with Yosemite Crew.",
@@ -173,16 +206,21 @@ const ContactusPage = () => {
   return (
     <>
       <section className="ContactUsPageSec">
-        <Container>
+        <div className="ContactWrapper">
           <div className="ContactUsData">
             <div className="LeftContactUs">
-              {/* <BackBtn href="" icon="solar:round-alt-arrow-left-outline" backtext="Back to Dashboard"/> */}
               <div className="conttexted">
                 <span>Contact us</span>
-                <h2>
-                  Need Help? <br /> We’re All Ears!
-                </h2>
+                <h2>Need Help? We’re All Ears!</h2>
               </div>
+              <Image
+                alt="Contact Image"
+                src={
+                  "https://d2il6osz49gpup.cloudfront.net/contactus-page/Contact.png"
+                }
+                height={586}
+                width={600}
+              />
             </div>
 
             <div className="RightContactUs">
@@ -340,7 +378,7 @@ const ContactusPage = () => {
 
               {selectedQueryType === "Complaint" && (
                 <div className="DataServiceAccessFields">
-                  <div className="SetSubmitted">
+                  <div className="SetSubmitted" style={{ gap: "16px" }}>
                     <p>You are submitting this complaint as</p>
                     {subrequestOptions.map((option) => (
                       <label key={option}>
@@ -398,16 +436,20 @@ const ContactusPage = () => {
                         id="complaintImage"
                         type="file"
                         accept="image/*"
+                        aria-label="Upload Image"
                         onChange={(e) =>
                           setComplaintImage(e.target.files?.[0] || null)
                         }
                       />
                       <label htmlFor="complaintImage" className="UploadInner">
-                        <span className="UploadText">
-                          {complaintImage
-                            ? complaintImage.name
-                            : "Upload Image"}
-                        </span>
+                        <Image
+                          src={
+                            "https://d2il6osz49gpup.cloudfront.net/contactus-page/upload.png"
+                          }
+                          alt="Upload Icon"
+                          height={40}
+                          width={40}
+                        />
                       </label>
                     </div>
                   </div>
@@ -483,17 +525,15 @@ const ContactusPage = () => {
               )}
             </div>
           </div>
-        </Container>
+        </div>
       </section>
 
       <section className="ContactInfoSec">
-        <Container>
+        <div className="ContactWrapper">
           <div className="ContactInfoData">
             <div className="LeftContInfo">
               <span>Contact Info</span>
-              <h2>
-                We are happy to <br /> assist you
-              </h2>
+              <h2>We are happy to assist you</h2>
             </div>
             <div className="ContactInfoDetail">
               <div className="LeftDetails">
@@ -519,7 +559,7 @@ const ContactusPage = () => {
               </div>
             </div>
           </div>
-        </Container>
+        </div>
       </section>
 
       <Footer />

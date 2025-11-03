@@ -36,7 +36,7 @@ describe("AboutUs Page", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /For Pet Businesses,Pet parents, and Developers/i,
+        name: /For pet businesses, pet parents, and developers/i,
       }),
     ).toBeInTheDocument();
   });
@@ -46,10 +46,10 @@ describe("AboutUs Page", () => {
       screen.getByRole("heading", { name: "About Us" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Why Do We exist?" }),
+      screen.getByRole("heading", { name: "Why do we exist?" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Our Mission" }),
+      screen.getByRole("heading", { name: "Our mission" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Our USP" }),
@@ -58,7 +58,7 @@ describe("AboutUs Page", () => {
 
   it("should render the 'Our Story' section correctly", () => {
     expect(
-      screen.getByRole("heading", { name: "Our Story" }),
+      screen.getByRole("heading", { name: "Our story" }),
     ).toBeInTheDocument();
     expect(screen.getByAltText("aboutstory")).toBeInTheDocument();
     expect(

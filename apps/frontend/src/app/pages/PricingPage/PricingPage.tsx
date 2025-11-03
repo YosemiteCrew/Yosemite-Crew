@@ -13,10 +13,10 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { getPlanConfig } from "@/app/pages/PricingPage/PricingConst";
-import { FillBtn } from "@/app/pages/HomePage/HomePage";
 import Faq from "@/app/components/Faq/Faq";
 import Footer from "@/app/components/Footer/Footer";
 import { pricingPlans, planFeatures, featuresData } from "./data.json";
+import { Primary } from "@/app/components/Buttons";
 
 import "./PricingPage.css";
 
@@ -59,11 +59,7 @@ const PricingPage = () => {
               <div className="PriceBackdiv">
                 {/* <Link href="/"><Icon icon="solar:round-arrow-left-bold" width="24" height="24" /></Link> */}
                 <div className="PricinhHeadquote">
-                  <h2>
-                    {" "}
-                    Transparent pricing,{" "}
-                    <span className="highlight">no hidden fees</span>
-                  </h2>
+                  <h2>Transparent pricing, no hidden fees</h2>
                   <p>
                     Choose a pricing plan that fits your preferred hosting
                     option whether you go for our fully managed cloud hosting or
@@ -74,46 +70,56 @@ const PricingPage = () => {
               <div className="PricingCardDiv">
                 {pricingPlans.map((plan) => (
                   <div key={plan.id} className="PricingcardItem">
-                    <Card className="pricing-card">
+                    <Card
+                      className="pricing-card"
+                      style={{
+                        background: plan.bgColor,
+                        borderColor: plan.color,
+                      }}
+                    >
                       <Card.Body>
                         <div className="pricing-top">
                           <Icon
                             icon={plan.icon}
                             width="60"
                             height="60"
-                            color="#247AED"
+                            color={plan.iconColor}
                             className="pricing-card-icon"
                           />
                           <h4
+                            style={{ color: plan.color }}
                             dangerouslySetInnerHTML={{ __html: plan.title }}
                           />
-                          <p>{plan.description}</p>
+                          <p style={{ color: plan.color }}>
+                            {plan.description}
+                          </p>
                         </div>
                         <div className="pricing-bottom">
-                          <h3>{plan.price}</h3>
-                          <p
-                            dangerouslySetInnerHTML={{ __html: plan.subText }}
-                          />
-                        </div>
-                        <div className="pricingbtndiv">
-                          <FillBtn
-                            style={{ height: "48px", minHeight: "48px" }}
-                            icon={
-                              <Icon
-                                icon="solar:bolt-bold"
-                                width="20"
-                                height="20"
-                              />
-                            }
-                            onClick={() => {
-                              setPlan(plan.label as "self" | "custom");
-                              const el =
-                                document.getElementById("pricing-info-div");
-                              if (el) el.scrollIntoView({ behavior: "smooth" });
-                            }}
-                            text="Get Started"
-                            href="#pricing-info-div"
-                          />
+                          <div className="pricing-info">
+                            <h3 style={{ color: plan.color }}>{plan.price}</h3>
+                            <p
+                              style={{ color: plan.color }}
+                              dangerouslySetInnerHTML={{ __html: plan.subText }}
+                            />
+                          </div>
+                          <div className="pricingbtndiv">
+                            <Primary
+                              style={{
+                                width: "142px",
+                                height: "48px",
+                                minHeight: "48px",
+                              }}
+                              text="Get Started"
+                              href="#pricing-info-div"
+                              onClick={() => {
+                                setPlan(plan.label as "self" | "custom");
+                                const el =
+                                  document.getElementById("pricing-info-div");
+                                if (el)
+                                  el.scrollIntoView({ behavior: "smooth" });
+                              }}
+                            />
+                          </div>
                         </div>
                       </Card.Body>
                     </Card>
@@ -124,9 +130,7 @@ const PricingPage = () => {
 
             <div className="PricingHostingPlans">
               <div className="HostingHead">
-                <h2>
-                  <span>Hosting Plan</span> Comparison
-                </h2>
+                <h2>Comparison of hosting plans</h2>
                 <p>
                   Explore the key differences between our cloud-hosted and
                   self-hosted plans. Choose the one that best fits your
@@ -134,13 +138,11 @@ const PricingPage = () => {
                 </p>
               </div>
               <div className="hosting-table-wrapper">
-                <Table responsive className="hosting-table">
+                <Table className="hosting-table">
                   <thead>
                     <tr>
                       <th>Features</th>
-                      <th className="highlight">
-                        Self-Hosting <span>(Free Plan)</span>
-                      </th>
+                      <th className="highlight">Self-hosting (free plan)</th>
                       <th className="highlight">Pay-as-you-go</th>
                     </tr>
                   </thead>
@@ -159,9 +161,7 @@ const PricingPage = () => {
 
             <div className="PricingKeyFeature">
               <div className="HostingHead">
-                <h2>
-                  <span>Key</span> Features
-                </h2>
+                <h2>Key features</h2>
                 <p>
                   No matter which hosting option you choose, you&apos;ll always
                   get access to our full suite of essential features designed to
@@ -192,9 +192,14 @@ const PricingPage = () => {
               </div>
             </div>
 
+            <div className="EnterPlanDiv">
+              <h4>Enterprise plan</h4>
+              <h4>Coming soon</h4>
+            </div>
+
             <div className="PricingCalculatorDiv" id="pricing-info-div">
               <div className="pricingHeading">
-                <h2>Pricing Calculator</h2>
+                <h2>Pricing calculator</h2>
               </div>
 
               <div className="CalculatorTabDiv">
@@ -211,11 +216,8 @@ const PricingPage = () => {
                     value="self"
                   >
                     <div className="planText">
-                      <h2>Free</h2>
-                      <h5>
-                        {" "}
-                        Self-Hosting <span>(Free Plan)</span>{" "}
-                      </h5>
+                      <h2>$0</h2>
+                      <h5>Free plan</h5>
                     </div>
                   </ToggleButton>
                   <ToggleButton
@@ -272,22 +274,20 @@ const PricingPage = () => {
                   <div className="pricebox">
                     <div className="pricetext">
                       <h2>${currentPlan.calculatePrice()}</h2>
-                      <h5>Estimated Billing</h5>
+                      <h5>Price Cap</h5>
+                      <p>
+                        This is the maximum price you will pay, even if you go
+                        over your limit.
+                      </p>
                     </div>
                     <Link
                       href={plan === "self" ? "/developerslanding" : "/signup"}
                     >
-                      <Icon icon="solar:bolt-bold" width="20" height="20" /> Get
-                      Started
+                      Get started
                     </Link>
                   </div>
                 </div>
               </div>
-            </div>
-
-            <div className="EnterPlanDiv">
-              <h4>Enterprise Plan</h4>
-              <h4>Coming Soon</h4>
             </div>
 
             <Faq />
@@ -317,19 +317,7 @@ const NeedHealp = () => {
           </p>
         </div>
         <div className="helpbtn">
-          <Link href="/contact">
-            <Icon icon="solar:chat-round-like-bold" width="18" height="18" />{" "}
-            Get in Touch
-          </Link>
-        </div>
-        <div className="need-help-mobile-dog-wrapper">
-          <Image
-            className="need-help-mobile-dog"
-            src="https://d2il6osz49gpup.cloudfront.net/Images/doghelp.png"
-            alt="Dog"
-            height={300}
-            width={450}
-          />
+          <Link href="/contact">Contact support</Link>
         </div>
       </div>
     </div>

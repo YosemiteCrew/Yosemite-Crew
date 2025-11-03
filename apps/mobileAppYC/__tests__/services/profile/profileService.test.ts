@@ -3,7 +3,7 @@ import {
   bootstrapProfile,
   ProfileStatusRequest,
   BootstrapProfileRequest,
-} from '@/services/profile/profileService';
+} from '@/features/profile/services/profileService';
 
 // Mock the config
 jest.mock('@/config/variables', () => ({
@@ -62,7 +62,7 @@ describe('profileService', () => {
         PENDING_PROFILE_UPDATED_EVENT: 'pendingProfileUpdated',
       }));
 
-      const {fetchProfileStatus: fetchProfileStatusNoUrl} = require('@/services/profile/profileService');
+      const {fetchProfileStatus: fetchProfileStatusNoUrl} = require('@/features/profile/services/profileService');
 
       const result = await fetchProfileStatusNoUrl(mockRequest);
 
@@ -254,7 +254,7 @@ describe('profileService', () => {
         PENDING_PROFILE_UPDATED_EVENT: 'pendingProfileUpdated',
       }));
 
-      const {bootstrapProfile: bootstrapProfileNoUrl} = require('@/services/profile/profileService');
+      const {bootstrapProfile: bootstrapProfileNoUrl} = require('@/features/profile/services/profileService');
 
       const result = await bootstrapProfileNoUrl(mockRequest);
 

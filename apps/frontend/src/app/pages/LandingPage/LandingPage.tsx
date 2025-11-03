@@ -51,8 +51,6 @@ const LandingPage = () => {
               onSelect={handleSelect}
               controls={true}
               indicators={true}
-              // interval={3000}
-
               nextIcon={
                 <span className="custom-arrow">
                   <Icon

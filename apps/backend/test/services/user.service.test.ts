@@ -1,6 +1,6 @@
 import type { UserDocument } from "../../src/models/user";
 import UserModel from "../../src/models/user";
-import { UserService, UserServiceError } from "../../src/services/user.service";
+import { UserService } from "../../src/services/user.service";
 
 jest.mock("../../src/models/user", () => ({
   __esModule: true,
@@ -23,6 +23,7 @@ describe("UserService", () => {
   describe("create", () => {
     it("persists a sanitized user when no duplicate exists", async () => {
       mockedUserModel.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+
       const createdDocument = {
         userId: "user-1",
         email: "test@example.com",
@@ -56,6 +57,7 @@ describe("UserService", () => {
 
     it("defaults isActive to true when not provided", async () => {
       mockedUserModel.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+
       const createdDocument = {
         userId: "user-2",
         email: "user2@example.com",

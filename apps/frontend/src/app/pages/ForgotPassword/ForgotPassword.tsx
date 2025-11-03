@@ -2,16 +2,17 @@
 import React, { useState } from "react";
 import { AxiosError } from "axios";
 import { Form } from "react-bootstrap";
-import { GoCheckCircleFill } from "react-icons/go";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@iconify/react/dist/iconify.js";
 
-import { useErrorTost } from "@/app/components/Toast";
+import { useErrorTost } from "@/app/components/Toast/Toast";
 import { useAuthStore } from "@/app/stores/authStore";
-import { FormInput, FormInputPass, MainBtn } from "@/app/pages/Sign/SignUp";
+import FormInputPass from "@/app/components/Inputs/FormInputPass/FormInputPass";
+import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 
-import "../Sign/Sign.css";
+import "./ForgotPassword.css";
+import { Primary, Secondary } from "@/app/components/Buttons";
 
 const ForgotPassword = () => {
   const router = useRouter();
@@ -261,13 +262,12 @@ const ForgotPassword = () => {
   return (
     <section className="SignInSec">
       {ErrorTostPopup}
-      <div className="leftSignIn"></div>
       <div className="RightSignIn">
         {!showVerifyCode && !showNewPassword && (
           <div className="SignIninner">
             <div className="ForgetHead">
               <h2>
-                Forgot <span>password?</span>{" "}
+                Forgot password?
               </h2>
               <p>
                 {" "}
@@ -283,11 +283,10 @@ const ForgotPassword = () => {
                 inlabel="Email Address"
                 onChange={(e) => setEmail(e.target.value)}
               />
-              <MainBtn
-                btnicon={<GoCheckCircleFill />}
-                btnname="Send Code"
-                onClick={handleOtp}
-              />
+              <div className="SignButtons">
+                <Primary href="#" onClick={handleOtp} text="Send code" />
+                <Secondary href="/signin" text="Back" />
+              </div>
             </Form>
           </div>
         )}
@@ -296,7 +295,7 @@ const ForgotPassword = () => {
           <div className="SignIninner">
             <div className="ForgetHead">
               <h2>
-                Verify <span>Code</span>{" "}
+                Verify code
               </h2>
               <p>
                 {" "}
@@ -305,7 +304,7 @@ const ForgotPassword = () => {
               </p>
             </div>
 
-            <Form style={{ marginBottom: "40px" }}>
+            <Form style={{ marginBottom: "0px" }}>
               <div className="verifyInput">
                 {otp.map((digit, index) => (
                   <Form.Control
@@ -321,12 +320,12 @@ const ForgotPassword = () => {
               </div>
             </Form>
 
-            <div className="Signbtn">
-              <MainBtn
-                btnicon={<GoCheckCircleFill />}
-                btnname="Change Password"
-                iconPosition="left"
-                onClick={handleVerifyOtp}
+            <div className="SignButtons">
+              <Primary href="#" onClick={handleVerifyOtp} text="Verify code" />
+              <Secondary
+                href="#"
+                text="Back"
+                onClick={() => setShowVerifyCode(false)}
               />
               <h6>
                 {" "}
@@ -344,7 +343,7 @@ const ForgotPassword = () => {
             <Form>
               <div className="TopSignInner">
                 <h2>
-                  Set <span>new password</span>{" "}
+                  Set new password
                 </h2>
                 <FormInputPass
                   intype="password"
@@ -363,12 +362,16 @@ const ForgotPassword = () => {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                 />
               </div>
-              <div className="Signbtn">
-                <MainBtn
-                  btnicon={<GoCheckCircleFill />}
-                  btnname="Reset Password"
-                  iconPosition="left"
+              <div className="SignButtons">
+                <Primary
+                  href="#"
                   onClick={handlePasswordChange}
+                  text="Reset password"
+                />
+                <Secondary
+                  href="#"
+                  text="Back"
+                  onClick={() => setShowNewPassword(false)}
                 />
               </div>
             </Form>

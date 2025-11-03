@@ -27,7 +27,7 @@ describe("TeamSlide Component", () => {
     it("should render all team member images with correct alt text", () => {
         render(<TeamSlide />);
 
-        const teamMembers = ["Surbhi", "Ankit", "Panvi", "Anna", "Suryansh"];
+        const teamMembers = ["Surbhi", "Ankit", "Harshvardhan", "Anna", "Suryansh"];
 
         for (const name of teamMembers) {
             const image = screen.getByAltText(name);
@@ -40,12 +40,12 @@ describe("TeamSlide Component", () => {
 
         const surbhiImage = screen.getByAltText("Surbhi");
         expect(surbhiImage).toHaveAttribute(
-            'src', "https://d2il6osz49gpup.cloudfront.net/Images/team1.png"
+            'src', "https://d2il6osz49gpup.cloudfront.net/aboutus-page/surbhi.png"
         );
 
         const ankitImage = screen.getByAltText("Ankit");
         expect(ankitImage).toHaveAttribute(
-            'src', "https://d2il6osz49gpup.cloudfront.net/Images/team2.png"
+            'src', "https://d2il6osz49gpup.cloudfront.net/aboutus-page/ankit.png"
         );
     });
 });

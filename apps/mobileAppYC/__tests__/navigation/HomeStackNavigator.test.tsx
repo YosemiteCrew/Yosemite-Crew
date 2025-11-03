@@ -6,11 +6,11 @@ import {Provider} from 'react-redux';
 import {store} from '@/app/store';
 
 // Mock screens
-jest.mock('@/screens/home/HomeScreen/HomeScreen', () => ({
+jest.mock('@/features/home/screens/HomeScreen/HomeScreen', () => ({
   HomeScreen: () => null,
 }));
 
-jest.mock('@/screens/account/AccountScreen', () => ({
+jest.mock('@/features/account/screens/AccountScreen', () => ({
   AccountScreen: () => null,
 }));
 
