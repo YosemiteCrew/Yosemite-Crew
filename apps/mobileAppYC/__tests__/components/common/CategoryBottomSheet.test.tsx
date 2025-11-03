@@ -1,233 +1,274 @@
 import React from 'react';
-import {render, fireEvent} from '@testing-library/react-native';
-import {Button} from '@/shared/components/common/Button/Button';
-import {useTheme} from '@/hooks';
+import {render, fireEvent, act} from '@testing-library/react-native';
+import {
+  CategoryBottomSheet,
+  type CategoryBottomSheetRef,
+} from '@/shared/components/common/CategoryBottomSheet/CategoryBottomSheet';
+import type {SelectItem} from '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
 
 // --- Mocks ---
 
-// 1. Mock useTheme
-const mockTheme = {
-  borderRadius: {
-    base: 8,
-  },
-  spacing: {
-    '2': 4,
-    '3': 8,
-    '4': 12,
-    '6': 16,
-  },
-  colors: {
-    primary: 'mock-primary',
-    secondary: 'mock-secondary',
-    surface: 'mock-surface',
-    textSecondary: 'mock-text-secondary',
-    transparent: 'transparent',
-  },
-  typography: {
-    button: {fontSize: 16, fontWeight: '600'},
-    buttonSmall: {fontSize: 14, fontWeight: '500'},
-  },
-};
+// This is the main mock we'll use to spy on the props passed to GenericSelectBottomSheet
+const mockGenericSelectBottomSheet = jest.fn();
 
-jest.mock('@/hooks', () => ({
-  useTheme: jest.fn(() => ({
-    theme: mockTheme,
-  })),
-}));
+// Mock functions for the internal BottomSheet ref
+const mockOpen = jest.fn();
+const mockClose = jest.fn();
 
-// 2. Mock react-native
-jest.mock('react-native', () => {
-  const React = require('react');
-  const RN = jest.requireActual('react-native');
+// Mock the child GenericSelectBottomSheet
+jest.mock(
+  '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet',
+  () => {
+    // Dependencies must be required *inside* the mock factory
+    const React = require('react');
+    const {View} = require('react-native');
 
-  const createMockComponent = (name: string, testID?: string) =>
-    React.forwardRef((props: any, ref: any) =>
-      React.createElement(name, {
-        ...props,
-        ref,
-        testID: props.testID || testID,
+    return {
+      GenericSelectBottomSheet: React.forwardRef((props: any, ref: any) => {
+        // Expose mock methods for useImperativeHandle
+        React.useImperativeHandle(ref, () => ({
+          open: mockOpen,
+          close: mockClose,
+        }));
+
+        // Call our spy function with the received props
+        mockGenericSelectBottomSheet(props);
+
+        // Render a placeholder we can interact with
+        return (
+          <View
+            testID="mock-generic-bottom-sheet"
+            // Helper to simulate the onSave prop being called
+            save={(item: any) => props.onSave(item)}
+          />
+        );
       }),
-    );
-
-  const MockTouchableOpacity = React.forwardRef((props: any, ref: any) => {
-    const {onPress, disabled, ...rest} = props;
-    const handlePress = () => {
-      if (!disabled) {
-        onPress?.();
-      }
     };
-    return React.createElement('TouchableOpacity', {
-      ...rest,
-      ref,
-      onPress: handlePress,
-      disabled: disabled,
-      testID: props.testID || 'mock-touchable-opacity',
-    });
-  });
+  },
+);
 
-  return {
-    TouchableOpacity: MockTouchableOpacity,
-    Text: createMockComponent('Text', 'mock-text'),
-    View: createMockComponent('View'),
-    ActivityIndicator: createMockComponent(
-      'ActivityIndicator',
-      'mock-activity-indicator',
-    ),
-    StyleSheet: {
-      create: (styles: any) => styles,
-      flatten: (styles: any) => styles,
-      absoluteFillObject: RN.StyleSheet.absoluteFillObject,
-      hairlineWidth: RN.StyleSheet.hairlineWidth,
-    },
-    Platform: RN.Platform,
-    PixelRatio: RN.PixelRatio,
-  };
-});
+// --- Test Setup ---
 
-// --- Tests ---
+const mockCategories: SelectItem[] = [
+  {id: 'admin', label: 'Admin'},
+  {id: 'health', label: 'Health'},
+  {id: 'hygiene-maintenance', label: 'Hygiene maintenance'},
+  {id: 'dietary-plans', label: 'Dietary plans'},
+  {id: 'others', label: 'Others'},
+];
 
-describe('Button', () => {
-  const mockOnPress = jest.fn();
+describe('CategoryBottomSheet', () => {
+  const mockOnSave = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (useTheme as jest.Mock).mockReturnValue({theme: mockTheme});
   });
 
-  it('renders the title', () => {
-    const {getByText} = render(
-      <Button title="Click Me" onPress={mockOnPress} />,
+  it('passes static props and all categories to GenericSelectBottomSheet', () => {
+    render(<CategoryBottomSheet selectedCategory={null} onSave={mockOnSave} />);
+
+    expect(mockGenericSelectBottomSheet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Select Category',
+        items: mockCategories,
+        hasSearch: false,
+        emptyMessage: 'No categories available',
+        mode: 'select',
+        snapPoints: ['40%', '40%'],
+        maxListHeight: 250,
+      }),
     );
-    expect(getByText('Click Me')).toBeTruthy();
   });
 
-  it('calls onPress when pressed', () => {
+  it('correctly maps selectedCategory to selectedItem on initial render', () => {
+    render(
+      <CategoryBottomSheet selectedCategory="health" onSave={mockOnSave} />,
+    );
+
+    expect(mockGenericSelectBottomSheet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selectedItem: mockCategories.find(c => c.id === 'health'),
+      }),
+    );
+  });
+
+  it('passes selectedItem as null if selectedCategory is null', () => {
+    render(<CategoryBottomSheet selectedCategory={null} onSave={mockOnSave} />);
+
+    expect(mockGenericSelectBottomSheet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selectedItem: null,
+      }),
+    );
+  });
+
+  it('passes selectedItem as null if selectedCategory is invalid', () => {
+    render(
+      <CategoryBottomSheet selectedCategory="invalid-id" onSave={mockOnSave} />,
+    );
+
+    expect(mockGenericSelectBottomSheet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selectedItem: null,
+      }),
+    );
+  });
+
+  it('calls onSave with the item id when an item is saved', () => {
     const {getByTestId} = render(
-      <Button title="Click Me" onPress={mockOnPress} />,
+      <CategoryBottomSheet selectedCategory={null} onSave={mockOnSave} />,
     );
-    fireEvent.press(getByTestId('mock-touchable-opacity'));
-    expect(mockOnPress).toHaveBeenCalledTimes(1);
+
+    const childSheet = getByTestId('mock-generic-bottom-sheet');
+    const selectedItem = mockCategories[0]; // 'admin'
+
+    // Wrap state update in act()
+    act(() => {
+      fireEvent(childSheet, 'save', selectedItem);
+    });
+
+    // Expect our component's onSave to be called with just the ID
+    expect(mockOnSave).toHaveBeenCalledWith('admin');
   });
 
-  it('disables the button and does not call onPress when disabled={true}', () => {
+  it('calls onSave with null when null is saved', () => {
     const {getByTestId} = render(
-      <Button title="Disabled" onPress={mockOnPress} disabled={true} />,
+      <CategoryBottomSheet selectedCategory="admin" onSave={mockOnSave} />,
     );
-    const button = getByTestId('mock-touchable-opacity');
-    fireEvent.press(button);
-    expect(mockOnPress).not.toHaveBeenCalled();
-    expect(button.props.disabled).toBe(true);
+
+    const childSheet = getByTestId('mock-generic-bottom-sheet');
+    // Wrap state update in act()
+    act(() => {
+      fireEvent(childSheet, 'save', null);
+    });
+
+    expect(mockOnSave).toHaveBeenCalledWith(null);
   });
 
-  it('disables the button and does not call onPress when loading={true}', () => {
-    const {getByTestId, getByText} = render(
-      <Button title="Loading" onPress={mockOnPress} loading={true} />,
-    );
-    const button = getByTestId('mock-touchable-opacity');
-    const indicator = getByTestId('mock-activity-indicator');
-    fireEvent.press(button);
-    expect(mockOnPress).not.toHaveBeenCalled();
-    expect(button.props.disabled).toBe(true);
-    expect(indicator).toBeTruthy();
-    expect(getByText('Loading')).toBeTruthy();
-  });
-
-  it('does not show ActivityIndicator when not loading', () => {
-    const {queryByTestId} = render(
-      <Button title="Click Me" onPress={mockOnPress} loading={false} />,
-    );
-    expect(queryByTestId('mock-activity-indicator')).toBeNull();
-  });
-
-  it('passes correct indicator color for "primary" variant', () => {
-    const {getByTestId} = render(
-      <Button
-        title="Loading"
-        onPress={mockOnPress}
-        loading={true}
-        variant="primary"
+  it('exposes an open method via its ref', () => {
+    const ref = React.createRef<CategoryBottomSheetRef>();
+    render(
+      <CategoryBottomSheet
+        selectedCategory={null}
+        onSave={mockOnSave}
+        ref={ref}
       />,
     );
-    expect(getByTestId('mock-activity-indicator').props.color).toBe(
-      mockTheme.colors.surface,
-    );
+
+    // Wrap state update in act()
+    act(() => {
+      ref.current?.open();
+    });
+    expect(mockOpen).toHaveBeenCalledTimes(1);
   });
 
-  it('passes correct indicator color for "secondary" variant', () => {
+  it('exposes a close method via its ref', () => {
+    const ref = React.createRef<CategoryBottomSheetRef>();
+    render(
+      <CategoryBottomSheet
+        selectedCategory={null}
+        onSave={mockOnSave}
+        ref={ref}
+      />,
+    );
+
+    act(() => {
+      ref.current?.close();
+    });
+    expect(mockClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('resets internal state to the prop value when open is called', () => {
+    const ref = React.createRef<CategoryBottomSheetRef>();
+    // 1. Initial render with "admin"
     const {getByTestId} = render(
-      <Button
-        title="Loading"
-        onPress={mockOnPress}
-        loading={true}
-        variant="secondary"
+      <CategoryBottomSheet
+        selectedCategory="admin"
+        onSave={mockOnSave}
+        ref={ref}
       />,
     );
-    expect(getByTestId('mock-activity-indicator').props.color).toBe(
-      mockTheme.colors.surface,
+
+    // Check initial state
+    expect(mockGenericSelectBottomSheet).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        selectedItem: mockCategories.find(c => c.id === 'admin'),
+      }),
     );
+
+    // 2. Simulate user selecting "health"
+    const childSheet = getByTestId('mock-generic-bottom-sheet');
+    act(() => {
+      fireEvent(
+        childSheet,
+        'save',
+        mockCategories.find(c => c.id === 'health'),
+      );
+    });
+
+    // Check internal state is now "health"
+    expect(mockGenericSelectBottomSheet).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        selectedItem: mockCategories.find(c => c.id === 'health'),
+      }),
+    );
+    expect(mockOnSave).toHaveBeenLastCalledWith('health');
+
+    // 3. Call open() - this should reset the state back to the original prop ("admin")
+    act(() => {
+      ref.current?.open();
+    });
+
+    // Check that state was reset
+    expect(mockGenericSelectBottomSheet).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        selectedItem: mockCategories.find(c => c.id === 'admin'),
+      }),
+    );
+    expect(mockOpen).toHaveBeenCalledTimes(1);
   });
 
-  it('passes correct indicator color for "outline" variant', () => {
+  it('resets internal state to null when open is called and prop is null', () => {
+    const ref = React.createRef<CategoryBottomSheetRef>();
+    // 1. Initial render with null
     const {getByTestId} = render(
-      <Button
-        title="Loading"
-        onPress={mockOnPress}
-        loading={true}
-        variant="outline"
+      <CategoryBottomSheet
+        selectedCategory={null}
+        onSave={mockOnSave}
+        ref={ref}
       />,
     );
-    expect(getByTestId('mock-activity-indicator').props.color).toBe(
-      mockTheme.colors.primary,
-    );
-  });
 
-  it('passes correct indicator color for "ghost" variant', () => {
-    const {getByTestId} = render(
-      <Button
-        title="Loading"
-        onPress={mockOnPress}
-        loading={true}
-        variant="ghost"
-      />,
+    expect(mockGenericSelectBottomSheet).toHaveBeenLastCalledWith(
+      expect.objectContaining({selectedItem: null}),
     );
-    expect(getByTestId('mock-activity-indicator').props.color).toBe(
-      mockTheme.colors.primary,
-    );
-  });
 
-  // NEW TEST FOR 100% BRANCH COVERAGE
-  it('applies correct disabled text color for "outline" variant', () => {
-    const {getByText} = render(
-      <Button
-        title="Disabled Outline"
-        onPress={mockOnPress}
-        variant="outline"
-        disabled={true}
-      />,
-    );
-    const text = getByText('Disabled Outline');
-    expect(text.props.style[0].color).toBe(mockTheme.colors.textSecondary);
-  });
+    // 2. Simulate user selecting "health"
+    const childSheet = getByTestId('mock-generic-bottom-sheet');
+    act(() => {
+      fireEvent(
+        childSheet,
+        'save',
+        mockCategories.find(c => c.id === 'health'),
+      );
+    });
 
-  it('applies custom style to TouchableOpacity', () => {
-    const customStyle = {margin: 100};
-    const {getByTestId} = render(
-      <Button title="Custom" onPress={mockOnPress} style={customStyle} />,
+    expect(mockGenericSelectBottomSheet).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        selectedItem: mockCategories.find(c => c.id === 'health'),
+      }),
     );
-    const button = getByTestId('mock-touchable-opacity');
-    expect(button.props.style).toEqual(expect.arrayContaining([customStyle]));
-  });
+    expect(mockOnSave).toHaveBeenLastCalledWith('health');
 
-  it('applies custom textStyle to Text', () => {
-    const customTextStyle = {fontSize: 99};
-    const {getByText} = render(
-      <Button
-        title="Custom"
-        onPress={mockOnPress}
-        textStyle={customTextStyle}
-      />,
+    // 3. Call open() - this should reset the state back to the original prop (null)
+    act(() => {
+      ref.current?.open();
+    });
+
+    // Check that state was reset to null
+    expect(mockGenericSelectBottomSheet).toHaveBeenLastCalledWith(
+      expect.objectContaining({selectedItem: null}),
     );
-    const text = getByText('Custom');
-    expect(text.props.style).toEqual(expect.arrayContaining([customTextStyle]));
+    expect(mockOpen).toHaveBeenCalledTimes(1);
   });
 });
