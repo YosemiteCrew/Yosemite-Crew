@@ -34,6 +34,7 @@ export const Images = {
   viewIconSlide: require('./icons/viewIconSlide.png'),
   closeIcon: require('./icons/crossIcon.png'),
 downloadInvoice: require('./icons/downloadInvoice.png'),
+ phone: require('./icons/phone.png'),
   // Account
   logoutIcon: require('./account/logoutIcon.png'),
   blackEdit: require('./account/blackEdit.png'),
