@@ -5,11 +5,13 @@ import {
   Text,
   ViewStyle,
   TextStyle,
+  StyleProp,
   ActivityIndicator,
   PlatformColor,
   Platform,
   DimensionValue,
   View,
+  StyleSheet,
 } from 'react-native';
 import {
   LiquidGlassView,
@@ -19,7 +21,8 @@ import {useTheme} from '@/hooks';
 
 const LIGHT_GLASS_TINT = 'rgba(255, 255, 255, 0.65)';
 const DARK_GLASS_TINT = 'rgba(28, 28, 30, 0.55)';
-
+// Set to true to fall back to static styling on iOS if native glass misbehaves.
+const LOCK_IOS_GLASS_APPEARANCE = false;
 const SHADOW_MAP = {
   light: {shadowOpacity: 0.1, shadowRadius: 4, elevation: 1},
   medium: {shadowOpacity: 0.15, shadowRadius: 8, elevation: 3},
@@ -63,16 +66,36 @@ const isWhiteOrLightColor = (color?: string): boolean => {
     return true;
   }
 
-  if (!color.startsWith('#')) {
-    return false;
+  // Handle rgba() strings
+  if (normalized.startsWith('rgba(')) {
+    try {
+      const parts = normalized
+        .replace('rgba(', '')
+        .replace(')', '')
+        .split(',')
+        .map(Number);
+      const [r, g, b] = parts;
+      if ([r, g, b].some(v => Number.isNaN(v))) return false;
+      const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      return lum > 0.9;
+    } catch {
+      return false;
+    }
   }
 
-  const hex = color.slice(1);
-  const r = Number.parseInt(hex.substring(0, 2), 16);
-  const g = Number.parseInt(hex.substring(2, 4), 16);
-  const b = Number.parseInt(hex.substring(4, 6), 16);
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.9;
+  // Handle hex colors
+  if (color.startsWith('#')) {
+    const hex = color.slice(1);
+    if (hex.length >= 6) {
+      const r = Number.parseInt(hex.substring(0, 2), 16);
+      const g = Number.parseInt(hex.substring(2, 4), 16);
+      const b = Number.parseInt(hex.substring(4, 6), 16);
+      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      return luminance > 0.9;
+    }
+  }
+
+  return false;
 };
 
 const buildShadowStyle = (intensity: GlassButtonProps['shadowIntensity']) => {
@@ -121,9 +144,15 @@ const buildFallbackSurfaceStyle = ({
   borderColor?: string;
   isLightTint: boolean;
 }): ViewStyle => {
-  const backgroundColor =
-    tintColor ??
-    (isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 1)');
+  // For white-ish buttons, use pure white (not translucent)
+  let backgroundColor: string;
+  if (isWhiteOrLightColor(tintColor)) {
+    backgroundColor = '#FFFFFF';
+  } else if (tintColor) {
+    backgroundColor = tintColor;
+  } else {
+    backgroundColor = isDark ? 'rgba(255, 255, 255, 0.1)' : '#FFFFFF';
+  }
 
   let computedBorderColor = borderColor;
 
@@ -248,8 +277,8 @@ interface GlassButtonProps {
   size?: 'small' | 'medium' | 'large';
   disabled?: boolean;
   loading?: boolean;
-  style?: ViewStyle;
-  textStyle?: TextStyle;
+  style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
   glassEffect?: 'clear' | 'regular' | 'none';
   interactive?: boolean;
   tintColor?: string;
@@ -295,6 +324,8 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
   shadowIntensity = 'light',
 }) => {
   const {theme, isDark} = useTheme();
+  const useNativeGlass =
+    Platform.OS === 'ios' && isLiquidGlassSupported && !LOCK_IOS_GLASS_APPEARANCE;
   const resolvedTintColor = React.useMemo(() => {
     if (tintColor) {
       return tintColor;
@@ -344,7 +375,7 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
   );
 
   const surfaceStyle = React.useMemo(() => {
-    if (isLiquidGlassSupported) {
+    if (useNativeGlass) {
       return buildGlassSurfaceStyle({
         borderColor,
         isLightTint,
@@ -362,10 +393,11 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
   }, [
     borderColor,
     forceBorder,
-    isDark,
     isLightTint,
     resolvedTintColor,
     shadowIntensity,
+    useNativeGlass,
+    isDark,
   ]);
 
   const buttonStyle = React.useMemo(
@@ -377,7 +409,80 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
     [baseButtonStyle, sizeStyle, surfaceStyle],
   );
 
-  const useIosGlass = Platform.OS === 'ios' && isLiquidGlassSupported;
+  const flattenedIosOverrides = React.useMemo(
+    () =>
+      (useNativeGlass
+        ? (StyleSheet.flatten(style) as ViewStyle | undefined)
+        : undefined),
+    [style, useNativeGlass],
+  );
+
+  const iosOverlayShapeStyle = React.useMemo(() => {
+    if (!useNativeGlass) {
+      return undefined;
+    }
+
+    const overrides = flattenedIosOverrides;
+    const shape: ViewStyle = {};
+    const baseRadius =
+      typeof overrides?.borderRadius === 'number'
+        ? overrides.borderRadius
+        : borderRadiusValue;
+
+    if (typeof baseRadius === 'number') {
+      shape.borderRadius = baseRadius;
+    }
+
+    const radiusKeys = [
+      'borderTopLeftRadius',
+      'borderTopRightRadius',
+      'borderBottomLeftRadius',
+      'borderBottomRightRadius',
+    ] as const;
+    for (const key of radiusKeys) {
+      const value = overrides?.[key];
+      if (typeof value === 'number') {
+        shape[key] = value;
+      }
+    }
+
+    return shape;
+  }, [borderRadiusValue, flattenedIosOverrides, useNativeGlass]);
+
+  const iosOverlayBackground = React.useMemo(() => {
+    if (!useNativeGlass) {
+      return undefined;
+    }
+
+    const fromStyle = flattenedIosOverrides?.backgroundColor as string | undefined;
+    if (isWhiteOrLightColor(fromStyle)) {
+      return '#FFFFFF';
+    }
+    if (isWhiteOrLightColor(tintColor)) {
+      return '#FFFFFF';
+    }
+    if (isWhiteOrLightColor(resolvedTintColor)) {
+      return '#FFFFFF';
+    }
+    return fromStyle ?? resolvedTintColor;
+  }, [flattenedIosOverrides, resolvedTintColor, tintColor, useNativeGlass]);
+
+  // Slightly extend overlay to avoid a hairline gap near rounded corners
+  const iosOverlayFill = React.useMemo(() => {
+    const inset = StyleSheet.hairlineWidth;
+    return {
+      position: 'absolute' as const,
+      top: -inset,
+      left: -inset,
+      right: -inset,
+      bottom: -inset,
+    };
+  }, []);
+
+  const clipStyles = React.useMemo(
+    () => StyleSheet.create({clip: {overflow: 'hidden'}}),
+    [],
+  );
 
   const textColor = React.useMemo(
     () =>
@@ -386,9 +491,9 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
         tintColor: resolvedTintColor,
         isDark,
         themeColors: theme.colors,
-        useIosGlass,
+        useIosGlass: useNativeGlass,
       }),
-    [disabled, resolvedTintColor, isDark, theme.colors, useIosGlass],
+    [disabled, resolvedTintColor, isDark, theme.colors, useNativeGlass],
   );
 
   const buttonTextStyle = React.useMemo<TextStyle>(
@@ -412,9 +517,9 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
         tintColor: resolvedTintColor,
         isDark,
         themeColors: theme.colors,
-        useIosGlass,
+        useIosGlass: useNativeGlass,
       }),
-    [isDark, theme.colors, resolvedTintColor, useIosGlass],
+    [isDark, theme.colors, resolvedTintColor, useNativeGlass],
   );
 
   const getButtonContent = () => {
@@ -454,14 +559,23 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
   const buttonContent = getButtonContent();
 
   // Use LiquidGlassView when supported
-  if (Platform.OS === 'ios' && isLiquidGlassSupported) {
+  if (useNativeGlass) {
     return (
       <LiquidGlassView
-        style={[buttonStyle, style]}
+        style={[buttonStyle, style, {backgroundColor: 'transparent'}]}
         interactive={interactive && !disabled && !loading}
         effect={glassEffect}
         tintColor={resolvedTintColor}
         colorScheme={resolvedColorScheme}>
+        <View
+          pointerEvents="none"
+          style={[
+            iosOverlayFill,
+            iosOverlayShapeStyle,
+            { backgroundColor: iosOverlayBackground ?? resolvedTintColor },
+            clipStyles.clip,
+          ]}
+        />
         <TouchableOpacity
           style={{
             width: '100%',

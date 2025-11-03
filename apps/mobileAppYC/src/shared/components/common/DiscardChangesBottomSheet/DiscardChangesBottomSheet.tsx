@@ -11,12 +11,13 @@ export interface DiscardChangesBottomSheetRef {
 interface DiscardChangesBottomSheetProps {
   onDiscard: () => void;
   onKeepEditing?: () => void;
+  onSheetChange?: (index: number) => void;
 }
 
 export const DiscardChangesBottomSheet = forwardRef<
   DiscardChangesBottomSheetRef,
   DiscardChangesBottomSheetProps
->(({onDiscard, onKeepEditing}, ref) => {
+>(({onDiscard, onKeepEditing, onSheetChange}, ref) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const bottomSheetRef = useRef<ConfirmActionBottomSheetRef>(null);
@@ -48,7 +49,8 @@ export const DiscardChangesBottomSheet = forwardRef<
       secondaryButton={{
         label: "Keep editing",
         onPress: handleKeepEditing,
-      }}>
+      }}
+      onSheetChange={onSheetChange}>
       <View style={styles.content}>
         <Text style={styles.message}>
           You have unsaved changes. Are you sure you want to discard them?

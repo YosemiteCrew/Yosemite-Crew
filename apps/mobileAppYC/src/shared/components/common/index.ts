@@ -18,6 +18,7 @@ export { SubcategoryAccordion } from './SubcategoryAccordion/SubcategoryAccordio
 export { CategoryBottomSheet } from './CategoryBottomSheet/CategoryBottomSheet';
 export { SubcategoryBottomSheet } from './SubcategoryBottomSheet/SubcategoryBottomSheet';
 export { VisitTypeBottomSheet } from './VisitTypeBottomSheet/VisitTypeBottomSheet';
+export { PillSelector } from './PillSelector/PillSelector';
 export type { TileSelectorOption } from './TileSelector/TileSelector';
 export type { BreedBottomSheetRef } from './BreedBottomSheet/BreedBottomSheet';
 export type { BloodGroupBottomSheetRef } from './BloodGroupBottomSheet/BloodGroupBottomSheet';
@@ -28,3 +29,4 @@ export type { CompanionBase } from './CompanionSelector/CompanionSelector';
 export type { DocumentCardProps } from './DocumentCard/DocumentCard';
 export type { CategoryTileProps } from './CategoryTile/CategoryTile';
 export type { SubcategoryAccordionProps } from './SubcategoryAccordion/SubcategoryAccordion';
+export type { PillOption } from './PillSelector/PillSelector';

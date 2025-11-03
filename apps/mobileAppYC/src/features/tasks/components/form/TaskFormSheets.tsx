@@ -29,7 +29,7 @@ interface TaskFormSheetsProps extends TaskSheetRefs {
   handleUploadFromDrive: () => void;
   confirmDeleteFile: () => void;
   closeSheet: () => void;
-  openSheet: (sheet: string) => void;
+  closeTaskSheet: () => void;
 
   // Navigation
   onDiscard: () => void;
@@ -61,6 +61,7 @@ export const TaskFormSheets: React.FC<TaskFormSheetsProps> = (props) => {
     handleUploadFromDrive,
     confirmDeleteFile,
     closeSheet,
+    closeTaskSheet,
     onDiscard,
     taskTypeSheetProps,
     ...refs
@@ -95,6 +96,7 @@ export const TaskFormSheets: React.FC<TaskFormSheetsProps> = (props) => {
           handleUploadFromDrive,
           confirmDeleteFile,
           closeSheet,
+          closeTaskSheet,
           onDiscard,
         }}
         {...(taskTypeSheetProps && {taskTypeSheetProps})}

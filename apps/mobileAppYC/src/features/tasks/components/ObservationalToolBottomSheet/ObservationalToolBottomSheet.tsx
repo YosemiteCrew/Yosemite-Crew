@@ -12,12 +12,13 @@ interface ObservationalToolBottomSheetProps {
   selectedTool?: ObservationalTool | null;
   onSelect: (tool: ObservationalTool) => void;
   companionType: 'cat' | 'dog' | 'horse';
+  onSheetChange?: (index: number) => void;
 }
 
 export const ObservationalToolBottomSheet = forwardRef<
   ObservationalToolBottomSheetRef,
   ObservationalToolBottomSheetProps
->(({selectedTool, onSelect, companionType}, ref) => {
+>(({selectedTool, onSelect, companionType, onSheetChange}, ref) => {
   const bottomSheetRef = useRef<any>(null);
 
   useImperativeHandle(ref, () => ({
@@ -67,6 +68,7 @@ export const ObservationalToolBottomSheet = forwardRef<
       mode="select"
       snapPoints={['25%', '35%']}
       emptyMessage="No observational tools available for this companion"
+      onSheetChange={onSheetChange}
     />
   );
 });

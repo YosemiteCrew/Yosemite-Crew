@@ -8,14 +8,18 @@ import {useTheme, useFormBottomSheets, useFileOperations} from '@/hooks';
 import type {RootState, AppDispatch} from '@/app/store';
 import {setSelectedCompanion} from '@/features/companion';
 import {selectAvailabilityFor} from '@/features/appointments/selectors';
-import {createAppointment} from '@/features/appointments/appointmentsSlice';
+import {createAppointment, upsertInvoice} from '@/features/appointments/appointmentsSlice';
 import InfoBottomSheet, {type InfoBottomSheetRef} from '@/features/appointments/components/InfoBottomSheet/InfoBottomSheet';
 import {UploadDocumentBottomSheet} from '@/shared/components/common/UploadDocumentBottomSheet/UploadDocumentBottomSheet';
 import {DeleteDocumentBottomSheet} from '@/shared/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
 import {AppointmentFormContent} from '@/features/appointments/components/AppointmentFormContent';
-import {useNavigation, useRoute} from '@react-navigation/native';
+import {
+  useNavigation,
+  useRoute,
+  type RouteProp,
+  type NavigationProp,
+} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import type {NavigationProp} from '@react-navigation/native';
 import type {AppointmentStackParamList, TabParamList} from '@/navigation/types';
 import type {DocumentFile} from '@/features/documents/types';
 import {
@@ -24,20 +28,18 @@ import {
   getSlotsForDate,
 } from '@/features/appointments/utils/availability';
 import {formatDateToISODate, parseISODate} from '@/shared/utils/dateHelpers';
+import {Images} from '@/assets/images';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
+type Route = RouteProp<AppointmentStackParamList, 'BookingForm'>;
 
 export const BookingFormScreen: React.FC = () => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation<Nav>();
-  const route = useRoute<any>();
-  const {businessId, employeeId, appointmentType} = route.params as {
-    businessId: string;
-    employeeId?: string;
-    appointmentType?: string;
-  };
+  const route = useRoute<Route>();
+  const {businessId, employeeId, appointmentType, otContext} = route.params;
   const companions = useSelector((s: RootState) => s.companion.companions);
   const selectedCompanionId = useSelector((s: RootState) => s.companion.selectedCompanionId);
   const availability = useSelector(selectAvailabilityFor(businessId, employeeId || 'emp_brown'));
@@ -116,7 +118,48 @@ export const BookingFormScreen: React.FC = () => {
       concern,
       emergency,
     }));
-    if ('payload' in action) {
+    if (createAppointment.fulfilled.match(action)) {
+      const created = action.payload;
+
+      if (otContext) {
+        const companion = companions.find(c => c.id === created.companionId);
+        const evaluationFee = otContext.provider.evaluationFee;
+        const appointmentFee = otContext.provider.appointmentFee;
+        const subtotal = evaluationFee + appointmentFee;
+        dispatch(
+          upsertInvoice({
+            id: `inv_${created.id}`,
+            appointmentId: created.id,
+            items: [
+              {
+                description: `${otContext.provider.businessId === businessId ? 'Observation tool evaluation' : 'Evaluation fee'}`,
+                rate: evaluationFee,
+                lineTotal: evaluationFee,
+                qty: 1,
+              },
+              {
+                description: 'Clinic appointment fee',
+                rate: appointmentFee,
+                lineTotal: appointmentFee,
+                qty: 1,
+              },
+            ],
+            subtotal,
+            total: subtotal,
+            invoiceNumber: `OBS-${created.id.slice(-6).toUpperCase()}`,
+            invoiceDate: new Date().toISOString(),
+            billedToName: companion ? `${companion.name}'s guardian` : undefined,
+            image: Images.sampleInvoice,
+          }),
+        );
+
+        navigation.replace('PaymentInvoice', {
+          appointmentId: created.id,
+          companionId: created.companionId,
+        });
+        return;
+      }
+
       // Show confirmation bottom sheet, then go to MyAppointments
       bookedSheetRef.current?.expand?.();
       setTimeout(() => {

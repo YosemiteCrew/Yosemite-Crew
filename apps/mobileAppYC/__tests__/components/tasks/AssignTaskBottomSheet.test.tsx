@@ -24,9 +24,9 @@ jest.mock('react-native/Libraries/Image/Image', () => {
 });
 
 jest.mock('react-native/Libraries/Components/ScrollView/ScrollView', () => {
-  const React = require('react');
+  const ReactModule = require('react');
   const MockView = require('react-native').View;
-  return React.forwardRef((props: any, ref: any) => (
+  return ReactModule.forwardRef((props: any, ref: any) => (
     <MockView {...props} ref={ref}>
       {props.children}
     </MockView>
@@ -65,12 +65,12 @@ const mockSheetRef = {
 jest.mock(
   '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet',
   () => {
-    const React = require('react');
+    const ReactModule = require('react');
     const MockView = require('react-native').View;
 
-    const MockGenericSelectBottomSheet = React.forwardRef(
+    const MockGenericSelectBottomSheet = ReactModule.forwardRef(
       (props: any, ref: any) => {
-        React.useImperativeHandle(ref, () => ({
+        ReactModule.useImperativeHandle(ref, () => ({
           open: mockSheetRef.current.open,
           close: mockSheetRef.current.close,
         }));

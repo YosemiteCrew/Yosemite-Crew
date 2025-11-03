@@ -33,7 +33,7 @@ export const Images = {
   editIconSlide: require('./icons/editIconSlide.png'),
   viewIconSlide: require('./icons/viewIconSlide.png'),
   closeIcon: require('./icons/crossIcon.png'),
-
+downloadInvoice: require('./icons/downloadInvoice.png'),
   // Account
   logoutIcon: require('./account/logoutIcon.png'),
   blackEdit: require('./account/blackEdit.png'),
@@ -44,6 +44,10 @@ export const Images = {
   privacyIcon: require('./account/privacyIcon.png'),
   contactIcon: require('./account/contactIcon.png'),
   deleteIconRed: require('./account/deleteIconRed.png'),
+  accountMailIcon: require('./icons/emailIcon.png'),
+  accountBellIcon: require('./icons/notificationIcon.png'),
+  accountShareIcon: require('./icons/shareIcon.png'),
+  accountInfoIcon: require('./documents/documentIcon.png'),
 
   //companion onboarding
   cat: require('./addCompanion/cat.png'),
@@ -136,7 +140,50 @@ export const Images = {
   websiteIcon: require('./icons/websiteIcon.png'), 
     specialityIcon: require('./appointment/specialityIcon.png'), 
 
-    successPayment: require('./appointment/successPayment.png'),
+  successPayment: require('./appointment/successPayment.png'),
+
+
+//Observational Tools
+  otFelineHero: require('./addCompanion/cat.png'),
+  otCanineHero: require('./addCompanion/dog.png'),
+  otEquineHero: require('./addCompanion/equine.png'),
+  otNoProviders: require('./observationalTools/no-providers.png'),
+  felineEarForward: require('./observationalTools/feline-ear-forward.png'),
+  felineEarApart: require('./observationalTools/feline-ear-apart.png'),
+  felineEarOutwards: require('./observationalTools/feline-ear-outwards.png'),
+  felineOrbitalOpened: require('./observationalTools/feline-orbital-opened.png'),
+  felineOrbitalPartial: require('./observationalTools/feline-orbital-partial.png'),
+  felineOrbitalSquint: require('./observationalTools/feline-orbital-squint.png'),
+  felineMuzzleRelaxed: require('./observationalTools/feline-muzzle-relaxed.png'),
+  felineMuzzleMild: require('./observationalTools/feline-muzzle-mild.png'),
+  felineMuzzleTense: require('./observationalTools/feline-muzzle-tense.png'),
+  felineWhiskerLoose: require('./observationalTools/feline-whisker-loose.png'),
+  felineWhiskerStraight: require('./observationalTools/feline-whisker-straight.png'),
+  felineWhiskerForward: require('./observationalTools/feline-whisker-forward.png'),
+  felineHeadAbove: require('./observationalTools/feline-head-above.png'),
+  felineHeadAligned: require('./observationalTools/feline-head-aligned.png'),
+  felineHeadBelow: require('./observationalTools/feline-head-below.png'),
+  equineEarNotPresent: require('./observationalTools/equine-ear-not-present.png'),
+  equineEarModerate: require('./observationalTools/equine-ear-moderate.png'),
+  equineEarObvious: require('./observationalTools/equine-ear-obvious.png'),
+  equineOrbitalNotPresent: require('./observationalTools/equine-orbital-not-present.png'),
+  equineOrbitalModerate: require('./observationalTools/equine-orbital-moderate.png'),
+  equineOrbitalObvious: require('./observationalTools/equine-orbital-obvious.png'),
+  equineEyeNotPresent: require('./observationalTools/equine-eye-not-present.png'),
+  equineEyeModerate: require('./observationalTools/equine-eye-moderate.png'),
+  equineEyeObvious: require('./observationalTools/equine-eye-obvious.png'),
+  equineChewingNotPresent: require('./observationalTools/equine-chewing-not-present.png'),
+  equineChewingModerate: require('./observationalTools/equine-chewing-moderate.png'),
+  equineChewingObvious: require('./observationalTools/equine-chewing-obvious.png'),
+  equineMouthNotPresent: require('./observationalTools/equine-mouth-not-present.png'),
+  equineMouthModerate: require('./observationalTools/equine-mouth-moderate.png'),
+  equineMouthObvious: require('./observationalTools/equine-mouth-obvious.png'),
+  equineNostrilNotPresent: require('./observationalTools/equine-nostril-not-present.png'),
+  equineNostrilModerate: require('./observationalTools/equine-nostril-moderate.png'),
+  equineNostrilObvious: require('./observationalTools/equine-nostril-obvious.png'),
+
+  // Support & Help
+  contactHero: require('./support/contactHero.png'),
 } as const;
 
 export type ImageKeys = keyof typeof Images;

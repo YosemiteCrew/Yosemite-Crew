@@ -89,6 +89,12 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
     [allCompanions, companionId],
   );
 
+  useEffect(() => {
+    if (companionId) {
+      dispatch(setSelectedCompanion(companionId));
+    }
+  }, [companionId, dispatch]);
+
   // Helper to show error alerts
   const showErrorAlert = React.useCallback((title: string, message: string) => {
     Alert.alert(title, message, [{text: 'OK'}]);
