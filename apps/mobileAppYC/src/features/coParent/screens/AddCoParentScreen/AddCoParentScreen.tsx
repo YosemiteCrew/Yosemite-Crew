@@ -47,6 +47,13 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<CoParent[]>([]);
   const [searching, setSearching] = useState(false);
+  const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
+  // Separate state for submitted data (for bottom sheet display)
+  const [submittedData, setSubmittedData] = useState<InviteFormData>({
+    candidateName: '',
+    email: '',
+    phoneNumber: '',
+  });
 
   const {
     control,
@@ -103,6 +110,13 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
         }),
       ).unwrap();
 
+      // Store submitted data for bottom sheet display
+      setSubmittedData({
+        candidateName: data.candidateName,
+        email: data.email,
+        phoneNumber: data.phoneNumber,
+      });
+
       // Show added co-parent bottom sheet
       addCoParentSheetRef.current?.open();
 
@@ -119,6 +133,11 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
       navigation.goBack();
     }
   }, [navigation]);
+
+  const handleSheetChange = useCallback((index: number) => {
+    // index -1 means sheet is closed, >= 0 means sheet is open
+    setIsBottomSheetOpen(index >= 0);
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -256,7 +275,7 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
         </View>
 
         {/* Search Loading Indicator - Absolutely Positioned Overlay */}
-        {searching && (
+        {searching && !isBottomSheetOpen && (
           <View style={styles.absoluteSearchLoadingContainer}>
             <View style={styles.searchLoadingContainer}>
               <ActivityIndicator color={theme.colors.primary} />
@@ -265,7 +284,7 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
         )}
 
         {/* Search Dropdown Results - Absolutely Positioned Overlay */}
-        {searchQuery.length >= 3 && searchResults.length > 0 && !searching && (
+        {searchQuery.length >= 3 && searchResults.length > 0 && !searching && !isBottomSheetOpen && (
           <View style={styles.absoluteSearchDropdownContainer}>
             <View style={styles.searchDropdownContainer}>
               {searchResults.map(item => (
@@ -293,13 +312,20 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
 
       <AddCoParentBottomSheet
         ref={addCoParentSheetRef}
+        coParentEmail={submittedData.email}
+        coParentPhone={submittedData.phoneNumber}
+        coParentName={submittedData.candidateName}
         onConfirm={handleAddCoParentClose}
+        onSheetChange={handleSheetChange}
       />
 
       <CoParentInviteBottomSheet
         ref={coParentInviteSheetRef}
+        coParentName={submittedData.candidateName}
+        companionName="Companion"
         onAccept={handleInviteAccept}
         onDecline={handleInviteDecline}
+        onSheetChange={handleSheetChange}
       />
     </SafeAreaView>
   );
@@ -318,7 +344,6 @@ const createStyles = (theme: any) =>
       paddingHorizontal: theme.spacing[4],
       paddingVertical: theme.spacing[4],
       backgroundColor: theme.colors.background,
-      zIndex: 10,
     },
     scrollContent: {
       paddingHorizontal: theme.spacing[4],
@@ -336,14 +361,12 @@ const createStyles = (theme: any) =>
       top: 70,
       left: theme.spacing[4],
       right: theme.spacing[4],
-      zIndex: 30,
     },
     absoluteSearchDropdownContainer: {
       position: 'absolute',
       top: 70,
       left: theme.spacing[4],
       right: theme.spacing[4],
-      zIndex: 30,
       maxHeight: 300,
     },
     searchDropdownContainer: {
@@ -358,7 +381,6 @@ const createStyles = (theme: any) =>
       shadowOpacity: 0.15,
       shadowRadius: 8,
       elevation: 8,
-      zIndex: 20,
     },
     searchLoadingContainer: {
       paddingVertical: theme.spacing[3],

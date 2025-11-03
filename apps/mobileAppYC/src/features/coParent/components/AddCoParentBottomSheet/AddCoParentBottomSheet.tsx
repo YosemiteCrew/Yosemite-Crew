@@ -19,7 +19,7 @@ interface AddCoParentBottomSheetProps {
 export const AddCoParentBottomSheet = forwardRef<
   AddCoParentBottomSheetRef,
   AddCoParentBottomSheetProps
->(({coParentEmail = 'pikaam@gmail.com', coParentPhone = '4XXXXXXX7', coParentName = 'Pika', onConfirm, onSheetChange}, ref) => {
+>(({coParentEmail, coParentPhone, coParentName, onConfirm, onSheetChange}, ref) => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const bottomSheetRef = React.useRef<ConfirmActionBottomSheetRef>(null);
@@ -34,6 +34,28 @@ export const AddCoParentBottomSheet = forwardRef<
     onConfirm?.();
   };
 
+  const renderMessage = () => {
+    return (
+      <Text style={styles.messageText}>
+        We have sent a request to{' '}
+        {coParentName && <Text style={styles.highlightText}>{coParentName}</Text>}
+        {coParentEmail && (
+          <>
+            {' at '}
+            <Text style={styles.highlightText}>{coParentEmail}</Text>
+          </>
+        )}
+        {coParentPhone && (
+          <>
+            {', mobile number '}
+            <Text style={styles.highlightText}>{coParentPhone}</Text>
+          </>
+        )}
+        {' as a co-parent.'}
+      </Text>
+    );
+  };
+
   return (
     <ConfirmActionBottomSheet
       ref={bottomSheetRef}
@@ -46,9 +68,7 @@ export const AddCoParentBottomSheet = forwardRef<
       onSheetChange={onSheetChange}
       containerStyle={styles.container}>
       <View style={styles.messageContainer}>
-        <Text style={styles.messageText}>
-          We have sent a request to <Text style={styles.highlightText}>{coParentName}</Text> at <Text style={styles.highlightText}>{coParentEmail}</Text>, mobile number <Text style={styles.highlightText}>{coParentPhone}</Text> as a co-parent.
-        </Text>
+        {renderMessage()}
       </View>
     </ConfirmActionBottomSheet>
   );

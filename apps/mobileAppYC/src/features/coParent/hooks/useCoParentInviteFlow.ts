@@ -1,12 +1,14 @@
 import {useRef, useCallback} from 'react';
+import type {AddCoParentBottomSheetRef} from '../components/AddCoParentBottomSheet/AddCoParentBottomSheet';
+import type {CoParentInviteBottomSheetRef} from '../components/CoParentInviteBottomSheet/CoParentInviteBottomSheet';
 
 interface UseCoParentInviteFlowProps {
   onInviteComplete?: () => void;
 }
 
 export const useCoParentInviteFlow = ({onInviteComplete}: UseCoParentInviteFlowProps = {}) => {
-  const addCoParentSheetRef = useRef<any>(null);
-  const coParentInviteSheetRef = useRef<any>(null);
+  const addCoParentSheetRef = useRef<AddCoParentBottomSheetRef>(null);
+  const coParentInviteSheetRef = useRef<CoParentInviteBottomSheetRef>(null);
 
   const openAddCoParentSheet = useCallback(() => {
     addCoParentSheetRef.current?.open();

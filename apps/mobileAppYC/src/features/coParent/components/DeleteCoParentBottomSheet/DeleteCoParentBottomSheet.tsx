@@ -16,7 +16,7 @@ interface DeleteCoParentBottomSheetProps {
 export const DeleteCoParentBottomSheet = forwardRef<
   DeleteCoParentBottomSheetRef,
   DeleteCoParentBottomSheetProps
->(({coParentName = 'Pika', onDelete, onCancel, onSheetChange}, ref) => {
+>(({coParentName, onDelete, onCancel, onSheetChange}, ref) => {
   const bottomSheetRef = useRef<ConfirmActionBottomSheetRef>(null);
 
   useImperativeHandle(ref, () => ({

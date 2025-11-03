@@ -29,7 +29,7 @@ import {
 import {selectCompanions, selectSelectedCompanionId} from '@/features/companion';
 import type {CoParentStackParamList} from '@/navigation/types';
 import type {CoParent, CoParentPermissions} from '../../types';
-import DeleteCoParentBottomSheet from '../../components/DeleteCoParentBottomSheet/DeleteCoParentBottomSheet';
+import DeleteCoParentBottomSheet, {type DeleteCoParentBottomSheetRef} from '../../components/DeleteCoParentBottomSheet/DeleteCoParentBottomSheet';
 import {MOCK_CO_PARENTS} from '../../mockData';
 import {createCommonCoParentStyles} from '../../styles/commonStyles';
 
@@ -51,7 +51,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
   const [permissions, setPermissions] = useState<CoParentPermissions | null>(null);
   const [selectedCompanionId, setSelectedCompanionId] = useState<string | null>(globalSelectedCompanionId);
   const [permissionsByCompanion, setPermissionsByCompanion] = useState<Record<string, CoParentPermissions>>({});
-  const deleteSheetRef = React.useRef<any>(null);
+  const deleteSheetRef = React.useRef<DeleteCoParentBottomSheetRef>(null);
 
   useEffect(() => {
     // Mock: Find from mock data if not in Redux

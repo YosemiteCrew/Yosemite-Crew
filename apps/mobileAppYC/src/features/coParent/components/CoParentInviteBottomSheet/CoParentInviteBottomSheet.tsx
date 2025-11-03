@@ -23,7 +23,7 @@ interface CoParentInviteBottomSheetProps {
 export const CoParentInviteBottomSheet = forwardRef<
   CoParentInviteBottomSheetRef,
   CoParentInviteBottomSheetProps
->(({coParentName = 'Pika', coParentProfileImage, companionName = 'Kizie', companionProfileImage, onAccept, onDecline, onSheetChange}, ref) => {
+>(({coParentName, coParentProfileImage, companionName, companionProfileImage, onAccept, onDecline, onSheetChange}, ref) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const bottomSheetRef = React.useRef<ConfirmActionBottomSheetRef>(null);
@@ -36,14 +36,14 @@ export const CoParentInviteBottomSheet = forwardRef<
     if (coParentProfileImage) {
       avatarList.push({uri: coParentProfileImage});
     } else {
-      avatarList.push({placeholder: coParentName.charAt(0).toUpperCase()});
+      avatarList.push({placeholder: coParentName?.charAt(0).toUpperCase() || 'C'});
     }
 
     // Companion avatar
     if (companionProfileImage) {
       avatarList.push({uri: companionProfileImage});
     } else {
-      avatarList.push({placeholder: companionName.charAt(0).toUpperCase()});
+      avatarList.push({placeholder: companionName?.charAt(0).toUpperCase() || 'C'});
     }
 
     return avatarList;
