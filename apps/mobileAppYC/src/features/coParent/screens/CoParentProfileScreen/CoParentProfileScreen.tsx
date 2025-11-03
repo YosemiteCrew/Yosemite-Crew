@@ -306,7 +306,7 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing[5],
     },
     sectionTitle: {
-      ...theme.typography.h5,
+      ...theme.typography.paragraphBold,
       color: theme.colors.secondary,
       marginBottom: theme.spacing[3],
     },
@@ -326,13 +326,13 @@ const createStyles = (theme: any) =>
       paddingVertical: theme.spacing[2],
     },
     detailLabel: {
-      ...theme.typography.body,
+      ...theme.typography.pillSubtitleBold15,
       color: theme.colors.textSecondary,
       flex: 1,
     },
     detailValue: {
-      ...theme.typography.body,
-      color: theme.colors.secondary,
+      ...theme.typography.pillSubtitleBold15,
+      color: theme.colors.placeholder,
       flex: 1,
       textAlign: 'right',
     },
@@ -368,11 +368,11 @@ const createStyles = (theme: any) =>
       flex: 1,
     },
     companionName: {
-      ...theme.typography.h4,
+      ...theme.typography.h4Alt,
       color: theme.colors.secondary,
     },
     companionBreed: {
-      ...theme.typography.caption,
+      ...theme.typography.subtitleRegular14,
       color: theme.colors.textSecondary,
     },
     sendButtonContainer: {
@@ -394,7 +394,7 @@ const createStyles = (theme: any) =>
     },
     buttonText: {
       color: theme.colors.white,
-      ...theme.typography.paragraphBold,
+      ...theme.typography.titleMedium,
     },
     centerContent: {
       flex: 1,

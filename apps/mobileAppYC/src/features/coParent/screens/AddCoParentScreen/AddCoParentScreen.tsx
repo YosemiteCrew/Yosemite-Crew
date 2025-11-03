@@ -169,7 +169,7 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
             {/* Invite Description - always show */}
             <View style={styles.inviteDescriptionContainer}>
               <Text style={styles.inviteDescriptionText}>
-                Seems like your friend is not a fan of this app. No worries, Yosemite Crew can send a request on your behalf!
+                Seems like your friend is not a fan of this app.{'\n'}No worries, Yosemite Crew can send a request on your behalf!
               </Text>
             </View>
 
@@ -332,7 +332,7 @@ const createStyles = (theme: any) =>
     },
     searchBarContainer: {
       paddingHorizontal: theme.spacing[4],
-      paddingVertical: theme.spacing[2],
+      paddingVertical: theme.spacing[4],
       backgroundColor: theme.colors.background,
       zIndex: 10,
     },
@@ -343,7 +343,7 @@ const createStyles = (theme: any) =>
     },
     heroImage: {
       width: '100%',
-      height: 200,
+      height: 220,
       resizeMode: 'contain',
       marginVertical: theme.spacing[4],
     },
@@ -394,7 +394,7 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: theme.spacing[3],
-      paddingVertical: theme.spacing[2],
+      paddingVertical: theme.spacing[3],
       gap: theme.spacing[3],
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border,
@@ -415,37 +415,37 @@ const createStyles = (theme: any) =>
       flex: 1,
     },
     resultName: {
-      ...theme.typography.h4,
+      ...theme.typography.titleSmall,
       color: theme.colors.secondary,
       marginBottom: theme.spacing[1],
     },
     resultEmail: {
-      ...theme.typography.caption,
+      ...theme.typography.bodyExtraSmall,
       color: theme.colors.textSecondary,
     },
     dividerContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginVertical: theme.spacing[4],
       gap: theme.spacing[2],
+      marginInline:40
     },
     dividerLine: {
       flex: 1,
       height: 1,
-      backgroundColor: theme.colors.border,
+      backgroundColor: theme.colors.text,
     },
     dividerText: {
-      ...theme.typography.body,
-      color: theme.colors.textSecondary,
+      ...theme.typography.h4Alt,
+      color: theme.colors.text,
     },
     inviteDescriptionContainer: {
       marginVertical: theme.spacing[3],
     },
     inviteDescriptionText: {
-      ...theme.typography.body,
-      color: theme.colors.textSecondary,
-      textAlign: 'center',
-      lineHeight: 22,
+      ...theme.typography.inputLabel,
+      color: theme.colors.text,
+      lineHeight: 20,
+      paddingInline: 10,
     },
     formContainer: {
       gap: theme.spacing[4],
@@ -457,7 +457,7 @@ const createStyles = (theme: any) =>
       marginBottom: 0,
     },
     saveButton: {
-      marginTop: theme.spacing[6],
+      marginTop: theme.spacing[5],
     },
     button: {
       width: '100%',
@@ -473,7 +473,7 @@ const createStyles = (theme: any) =>
     },
     buttonText: {
       color: theme.colors.white,
-      ...theme.typography.paragraphBold,
+      ...theme.typography.titleMedium,
     },
     centerContent: {
       justifyContent: 'center',

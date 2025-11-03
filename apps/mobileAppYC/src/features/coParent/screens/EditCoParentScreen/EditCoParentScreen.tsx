@@ -188,20 +188,15 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
               </View>
               {currentCoParent.phoneNumber && (
                 <View style={styles.contactRow}>
-                  <RNImage source={Images.notificationIcon} style={styles.contactIcon} />
+                  <RNImage source={Images.phone} style={styles.contactIcon} />
                   <Text style={styles.profilePhone}>{currentCoParent.phoneNumber}</Text>
                 </View>
               )}
             </View>
           </View>
         </LiquidGlassCard>
-
-        {/* Select Companion Heading */}
-        <View style={styles.selectCompanionHeader}>
-          <Text style={styles.selectCompanionTitle}>Select companion</Text>
-        </View>
-
-        {/* First Note - About turning on permissions */}
+        
+  {/* First Note - About turning on permissions */}
         <View style={styles.noteContainer}>
           <Text style={styles.noteText}>
             <Text style={styles.noteLabel}>Note: </Text>
@@ -211,6 +206,13 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
           </Text>
         </View>
 
+        {/* Select Companion Heading */}
+        <View style={styles.selectCompanionHeader}>
+          <Text style={styles.selectCompanionTitle}>Select companion</Text>
+        </View>
+
+      
+
         {/* Companion Selector */}
         {companions.length > 0 && (
           <CompanionSelector
@@ -218,7 +220,6 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
             selectedCompanionId={selectedCompanionId}
             onSelect={handleCompanionSelect}
             showAddButton={false}
-            containerStyle={styles.companionSelector}
           />
         )}
 
@@ -395,13 +396,13 @@ const createStyles = (theme: any) =>
       gap: theme.spacing[3],
     },
     profileAvatar: {
-      width: 80,
-      height: 80,
+      width: 70,
+      height: 70,
       borderRadius: 40,
     },
     profileAvatarInitials: {
-      width: 80,
-      height: 80,
+      width: 70,
+      height: 70,
       borderRadius: 40,
       backgroundColor: theme.colors.lightBlueBackground,
       justifyContent: 'center',
@@ -417,8 +418,8 @@ const createStyles = (theme: any) =>
       flex: 1,
     },
     profileName: {
-      ...theme.typography.h4,
-      color: theme.colors.secondary,
+      ...theme.typography.titleLarge,
+      color: theme.colors.text,
       marginBottom: theme.spacing[2],
     },
     contactRow: {
@@ -430,30 +431,28 @@ const createStyles = (theme: any) =>
     contactIcon: {
       width: 16,
       height: 16,
-      tintColor: theme.colors.textSecondary,
+      tintColor: theme.colors.text,
     },
     profileEmail: {
-      ...theme.typography.caption,
-      color: theme.colors.textSecondary,
+      ...theme.typography.inputLabel,
+      color: theme.colors.text,
     },
     profilePhone: {
-      ...theme.typography.caption,
-      color: theme.colors.textSecondary,
+      ...theme.typography.inputLabel,
+      color: theme.colors.text,
     },
     selectCompanionHeader: {
       marginTop: theme.spacing[4],
       marginBottom: theme.spacing[3],
     },
     selectCompanionTitle: {
-      ...theme.typography.h5,
+      ...theme.typography.titleLarge,
       color: theme.colors.secondary,
-    },
-    companionSelector: {
-      marginBottom: theme.spacing[4],
+            paddingHorizontal: theme.spacing[4],
     },
     noteContainer: {
-      marginBottom: theme.spacing[6],
-      paddingHorizontal: theme.spacing[2],
+      marginTop: theme.spacing[6],
+           paddingHorizontal: theme.spacing[4],
     },
     noteText: {
       ...theme.typography.labelXsBold,
@@ -466,7 +465,8 @@ const createStyles = (theme: any) =>
       color: theme.colors.placeholder,
     },
     sectionContainer: {
-      gap: theme.spacing[3],
+      gap: theme.spacing[4],
+      paddingBlock: theme.spacing[6],
     },
     sectionTitle: {
       ...theme.typography.h5,
@@ -474,6 +474,7 @@ const createStyles = (theme: any) =>
     },
     permissionsHeader: {
       gap: theme.spacing[2],
+
     },
     permissionRow: {
       flexDirection: 'row',
@@ -482,7 +483,7 @@ const createStyles = (theme: any) =>
       paddingVertical: theme.spacing[3],
     },
     permissionLabel: {
-      ...theme.typography.body,
+      ...theme.typography.inputLabel,
       color: theme.colors.secondary,
       flex: 1,
     },
@@ -507,7 +508,7 @@ const createStyles = (theme: any) =>
     },
     buttonText: {
       color: theme.colors.white,
-      ...theme.typography.paragraphBold,
+      ...theme.typography.titleMedium,
     },
     centerContent: {
       flex: 1,

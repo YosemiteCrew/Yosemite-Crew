@@ -60,9 +60,11 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
         />
         <View style={styles.emptyContainer}>
           <Image source={Images.coparentEmpty} style={styles.illustration} />
-          <Text style={styles.emptyTitle}>Looks like your friends are busy!</Text>
+          <Text style={styles.emptyTitle}>
+            Looks like your friends{'\n'}are busy!
+          </Text>
           <Text style={styles.emptySubtitle}>
-            No worries we can still ask them to play with your furry friends
+            No worries we can still ask them{'\n'}to play with your furry friends
           </Text>
         </View>
       </SafeAreaView>
@@ -110,7 +112,7 @@ const createStyles = (theme: any) =>
     },
     content: {
       paddingHorizontal: theme.spacing[4],
-      paddingVertical: theme.spacing[3],
+      paddingVertical: theme.spacing[6],
       paddingBottom: theme.spacing[10],
     },
     emptyContainer: {
@@ -126,14 +128,14 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing[6],
     },
     emptyTitle: {
-      ...theme.typography.h3,
+      ...theme.typography.businessSectionTitle20,
       color: theme.colors.secondary,
       textAlign: 'center',
       marginBottom: theme.spacing[3],
     },
     emptySubtitle: {
-      ...theme.typography.paragraph,
-      color: theme.colors.textSecondary,
+      ...theme.typography.subtitleRegular14,
+      color: theme.colors.secondary,
       textAlign: 'center',
     },
     centerContent: {

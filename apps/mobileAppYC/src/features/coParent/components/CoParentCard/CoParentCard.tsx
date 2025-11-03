@@ -88,7 +88,6 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: theme.spacing[3],
-      paddingVertical: theme.spacing[1],
       paddingHorizontal: theme.spacing[1],
     },
     avatarContainer: {
@@ -117,19 +116,17 @@ const createStyles = (theme: any) =>
       gap: theme.spacing[1],
     },
     name: {
-      ...theme.typography.h6Clash,
+      ...theme.typography.businessSectionTitle20,
       color: theme.colors.secondary,
       overflow: 'hidden',
       textOverflow: 'ellipsis',
     },
     meta: {
-      ...theme.typography.captionBoldSatoshi,
-      color: theme.colors.textSecondary,
+      ...theme.typography.subtitleBold14,
+      color: theme.colors.secondary,
     },
     divider: {
-      height: 1,
-      backgroundColor: theme.colors.borderMuted,
-      marginTop: theme.spacing[3],
+      marginTop: theme.spacing[1],
     },
   });
 
