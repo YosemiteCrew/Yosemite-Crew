@@ -92,4 +92,3 @@ const createStyles = (theme: any) =>
     },
   });
 
-export default UserProfileHeader;

@@ -1,71 +1,19 @@
 import React, {useCallback, useMemo} from 'react';
-import {View, StyleSheet, Text, Alert, Dimensions} from 'react-native';
+import {View, StyleSheet, Text, Dimensions} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
-import {useDispatch, useSelector} from 'react-redux';
-import type {AppDispatch} from '@/app/store';
+import {useSelector} from 'react-redux';
 import {useTheme} from '@/hooks';
 import {Header} from '@/shared/components/common/Header/Header';
-import {
-  searchBusinessByQRCode,
-  selectLinkedBusinessesLoading,
-} from '../index';
+import {selectLinkedBusinessesLoading} from '../index';
 import type {LinkedBusinessStackParamList} from '@/navigation/types';
 
 type Props = NativeStackScreenProps<LinkedBusinessStackParamList, 'QRScanner'>;
 
 export const QRScannerScreen: React.FC<Props> = ({route, navigation}) => {
-  const {companionId, companionName, companionBreed, companionImage, category} =
-    route.params;
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const dispatch = useDispatch<AppDispatch>();
   useSelector(selectLinkedBusinessesLoading);
-
-  // QR Scanner handler - will be integrated with react-native-vision-camera in production
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleQRScanned = useCallback(
-    async (data: string) => {
-      try {
-        // Extract PMSBusinessCode from QR data
-        const pmsBusinessCode = data.includes('PMS_')
-          ? data.match(/PMS_\w+_\d+/)?.[0] || data
-          : data;
-
-        console.log('[QRScanner] Scanned code:', pmsBusinessCode);
-
-        const business = await dispatch(
-          searchBusinessByQRCode(pmsBusinessCode),
-        ).unwrap();
-
-        // Navigate to business add screen
-        navigation.navigate('BusinessAdd', {
-          companionId,
-          companionName,
-          companionBreed,
-          companionImage,
-          category,
-          businessId: business.businessId || business.id,
-          businessName: business.name,
-          businessAddress: business.address,
-          phone: business.phone,
-          email: business.email,
-          photo: business.photo,
-          isPMSRecord: business.isPMSRecord,
-          rating: business.rating,
-          distance: business.distance,
-          placeId: business.id,
-        });
-      } catch (error) {
-        console.error('[QRScanner] Failed to process QR code:', error);
-        Alert.alert(
-          'Invalid QR Code',
-          'The scanned QR code does not match any known business. Please try again.',
-        );
-      }
-    },
-    [dispatch, navigation, companionId, companionName, companionBreed, companionImage, category],
-  );
 
   const handleBack = useCallback(() => {
     if (navigation.canGoBack()) {

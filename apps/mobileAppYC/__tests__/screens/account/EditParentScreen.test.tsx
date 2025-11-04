@@ -262,6 +262,23 @@ jest.mock('@/shared/components/common/ProfileImagePicker/ProfileImagePicker', ()
   };
 });
 
+// User Profile Header
+jest.mock('@/features/account/components/UserProfileHeader', () => {
+  const {View: MockView, Text: MockText} = require('react-native');
+  return {
+    UserProfileHeader: jest.fn((props: any) => (
+      <MockView testID="mock-user-profile-header">
+        <MockText>{props.firstName} {props.lastName}</MockText>
+        <MockView
+          testID="mock-image-picker"
+          {...props}
+          onPress={() => props.onImageSelected('new-uri')}
+        />
+      </MockView>
+    )),
+  };
+});
+
 // Utils
 jest.mock('@/shared/utils/formScreenStyles', () => ({
   createFormScreenStyles: jest.fn(() => ({
