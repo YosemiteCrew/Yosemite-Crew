@@ -25,6 +25,7 @@ export interface PlaceDetails {
   latitude?: number;
   longitude?: number;
   formattedAddress?: string;
+  photo?: string;
 }
 
 class MissingApiKeyError extends Error {
@@ -141,6 +142,7 @@ export const fetchPlaceDetails = async (placeId: string): Promise<PlaceDetails> 
           'addressComponents',
           'location',
           'displayName',
+          'photos',
         ]),
       },
     },
@@ -177,6 +179,10 @@ export const fetchPlaceDetails = async (placeId: string): Promise<PlaceDetails> 
 
   const addressLine = addressLineParts.join(' ').replaceAll(/\s+/g, ' ').trim();
 
+  // Extract first photo URL if available
+  const photos = Array.isArray(payload?.photos) ? payload.photos : [];
+  const photoUri = photos.length > 0 ? photos[0]?.name : undefined;
+
   return {
     addressLine: addressLine || formattedAddress,
     city: locality,
@@ -186,6 +192,7 @@ export const fetchPlaceDetails = async (placeId: string): Promise<PlaceDetails> 
     latitude: payload?.location?.latitude,
     longitude: payload?.location?.longitude,
     formattedAddress,
+    photo: photoUri,
   };
 };
 

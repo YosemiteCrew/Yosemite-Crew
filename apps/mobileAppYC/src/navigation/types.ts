@@ -32,10 +32,41 @@ export type HomeStackParamList = {
   EditCompanionOverview: { companionId: string };
   EditParentOverview:{ companionId: string };
   ExpensesStack: NavigatorScreenParams<ExpenseStackParamList>;
+  LinkedBusinesses: NavigatorScreenParams<LinkedBusinessStackParamList>;
   CoParents: undefined;
   AddCoParent: undefined;
   EditCoParent: { coParentId: string };
   CoParentProfile: { coParentId: string };
+};
+
+export type LinkedBusinessStackParamList = {
+  BusinessSearch: {
+    companionId: string;
+    companionName: string;
+    companionBreed?: string;
+    companionImage?: string;
+    category: 'hospital' | 'boarder' | 'breeder' | 'groomer';
+  };
+  BusinessDetails: {
+    companionId: string;
+    companionName: string;
+    companionBreed?: string;
+    companionImage?: string;
+    category: 'hospital' | 'boarder' | 'breeder' | 'groomer';
+    businessId: string;
+    businessName: string;
+    businessAddress: string;
+    isPMSRecord: boolean;
+    rating?: number;
+    distance?: number;
+  };
+  QRScanner: {
+    companionId: string;
+    companionName: string;
+    companionBreed?: string;
+    companionImage?: string;
+    category: 'hospital' | 'boarder' | 'breeder' | 'groomer';
+  };
 };
 
 export type CoParentStackParamList = {
