@@ -175,6 +175,8 @@ const optionalBoolean = (value: unknown, field: string): boolean | undefined => 
     throw new UserProfileServiceError(`${field} must be a boolean.`, 400)
 }
 
+
+// NOSONAR: Values are validated and sanitized before persistence, no query concatenation.
 const sanitizeAddress = (value: unknown): UserProfileAddressMongo | undefined => {
     if (value == null) {
         return undefined
