@@ -43,15 +43,6 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
     companionName,
   } = route.params;
 
-  console.log('[BusinessAddScreen] Received params:', {
-    businessName,
-    businessAddress,
-    photo,
-    photoType: typeof photo,
-    isPMSRecord,
-    placeId,
-  });
-
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const dispatch = useDispatch<AppDispatch>();
@@ -65,9 +56,23 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
   const [detailedPhone, setDetailedPhone] = useState<string | undefined>(phone);
   const [detailedWebsite, setDetailedWebsite] = useState<string | undefined>(email);
 
-  // Fetch detailed business information for non-PMS businesses when screen loads
+  // Log params only when they change, not on every render
   useEffect(() => {
-    if (!isPMSRecord && placeId && !detailedPhoto && !detailedPhone && !detailedWebsite) {
+    console.log('[BusinessAddScreen] Received params:', {
+      businessName,
+      businessAddress,
+      photo,
+      photoType: typeof photo,
+      isPMSRecord,
+      placeId,
+    });
+  }, [businessName, businessAddress, photo, isPMSRecord, placeId]);
+
+  // Fetch detailed business information for non-PMS businesses when screen loads
+  // IMPORTANT: Only depend on placeId and isPMSRecord to prevent infinite loops
+  // Do NOT include detailedPhoto/Phone/Website in dependencies - they cause re-fetches when state updates
+  useEffect(() => {
+    if (!isPMSRecord && placeId) {
       setFetchingDetails(true);
       dispatch(fetchBusinessDetails(placeId))
         .unwrap()
@@ -91,7 +96,7 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
           setFetchingDetails(false);
         });
     }
-  }, [isPMSRecord, placeId, dispatch, detailedPhoto, detailedPhone, detailedWebsite]);
+  }, [isPMSRecord, placeId, dispatch]);
 
   const handleAddBusiness = useCallback(async () => {
     try {
@@ -284,7 +289,7 @@ const createStyles = (theme: any) =>
       textAlign: 'left',
     },
     statusText: {
-      ...theme.typography.bodySmall,
+      ...theme.typography.captionBoldSatoshi,
       color: theme.colors.text,
       textAlign: 'center',
       lineHeight: 20,

@@ -94,7 +94,6 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
       gap: theme.spacing[4],
-      marginBottom: theme.spacing[4],
     },
     containerFallback: {
       borderRadius: theme.borderRadius.lg,
@@ -102,23 +101,23 @@ const createStyles = (theme: any) =>
     },
     content: {
       gap: theme.spacing[4],
-      paddingHorizontal: theme.spacing[5],
+      paddingHorizontal: theme.spacing[3],
       paddingBottom: theme.spacing[5],
       paddingTop: theme.spacing[4],
     },
     title: {
-      ...theme.typography.h5,
+      ...theme.typography.h4Alt,
       color: theme.colors.text,
     },
     description: {
-      ...theme.typography.body,
+      ...theme.typography.labelXsBold,
       color: theme.colors.textSecondary,
       lineHeight: 20,
     },
     detailsContainer: {
       backgroundColor: theme.colors.background,
       borderRadius: theme.borderRadius.md,
-      padding: theme.spacing[3],
+      paddingBlock: theme.spacing[3],
       gap: theme.spacing[2],
     },
     detailRow: {
@@ -127,11 +126,11 @@ const createStyles = (theme: any) =>
       alignItems: 'center',
     },
     label: {
-      ...theme.typography.labelSmBold,
+      ...theme.typography.bodyExtraSmall,
       color: theme.colors.textSecondary,
     },
     value: {
-      ...theme.typography.labelSmBold,
+      ...theme.typography.captionBoldSatoshi,
       color: theme.colors.text,
     },
     buttonContainer: {
@@ -144,12 +143,12 @@ const createStyles = (theme: any) =>
       flex: 1,
     },
     declineButtonText: {
-      ...theme.typography.buttonH6Clash19,
+      ...theme.typography.titleSmall,
       textAlign: 'center',
       color: theme.colors.secondary,
     },
     acceptButtonText: {
-      ...theme.typography.buttonH6Clash19,
+      ...theme.typography.titleSmall,
       textAlign: 'center',
       color: theme.colors.white,
     },
