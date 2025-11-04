@@ -63,6 +63,37 @@ const ensureApiKey = () => {
 
 const buildFieldMask = (fields: string[]) => fields.join(',');
 
+const fetchPlacePayload = async (placeId: string, fields: string[]) => {
+  const apiKey = ensureApiKey();
+  if (!placeId) {
+    throw new Error('A valid placeId is required to fetch place details.');
+  }
+
+  const response = await fetch(
+    `${GOOGLE_PLACES_BASE_URL}/places/${encodeURIComponent(placeId)}?languageCode=en`,
+    {
+      method: 'GET',
+      headers: {
+        'X-Goog-Api-Key': apiKey,
+        'X-Goog-FieldMask': buildFieldMask(fields),
+      },
+    },
+  );
+
+  if (!response.ok) {
+    const message = await response.text().catch(() => '');
+    throw new Error(message || 'Failed to fetch place details from Google Places.');
+  }
+
+  const payload = await response.json().catch(() => ({}));
+  return {payload, apiKey};
+};
+
+const buildPhotoUrl = (photoName?: string | null, apiKey?: string) =>
+  photoName && apiKey
+    ? `${GOOGLE_PLACES_BASE_URL}/${photoName}/media?key=${apiKey}&max_height_px=400&max_width_px=400`
+    : undefined;
+
 const normalizeSuggestion = (raw: any): PlaceSuggestion | null => {
   const placePrediction = raw?.placePrediction;
   const placeId: string | undefined = placePrediction?.placeId;
@@ -144,34 +175,13 @@ export const fetchPlaceSuggestions = async ({
 };
 
 export const fetchPlaceDetails = async (placeId: string): Promise<PlaceDetails> => {
-  const apiKey = ensureApiKey();
-  if (!placeId) {
-    throw new Error('A valid placeId is required to fetch place details.');
-  }
-
-  const response = await fetch(
-    `${GOOGLE_PLACES_BASE_URL}/places/${encodeURIComponent(placeId)}?languageCode=en`,
-    {
-      method: 'GET',
-      headers: {
-        'X-Goog-Api-Key': apiKey,
-        'X-Goog-FieldMask': buildFieldMask([
-          'formattedAddress',
-          'addressComponents',
-          'location',
-          'displayName',
-          'photos',
-        ]),
-      },
-    },
-  );
-
-  if (!response.ok) {
-    const message = await response.text().catch(() => '');
-    throw new Error(message || 'Failed to fetch place details from Google Places.');
-  }
-
-  const payload = await response.json().catch(() => ({}));
+  const {payload} = await fetchPlacePayload(placeId, [
+    'formattedAddress',
+    'addressComponents',
+    'location',
+    'displayName',
+    'photos',
+  ]);
   const addressComponents = Array.isArray(payload?.addressComponents)
     ? payload.addressComponents
     : [];
@@ -214,47 +224,18 @@ export const fetchPlaceDetails = async (placeId: string): Promise<PlaceDetails> 
  * Includes photo, phone number, and website from Google Places
  */
 export const fetchBusinessPlaceDetails = async (placeId: string): Promise<PlaceDetails> => {
-  const apiKey = ensureApiKey();
-  if (!placeId) {
-    throw new Error('A valid placeId is required to fetch place details.');
-  }
-
-  const response = await fetch(
-    `${GOOGLE_PLACES_BASE_URL}/places/${encodeURIComponent(placeId)}?languageCode=en`,
-    {
-      method: 'GET',
-      headers: {
-        'X-Goog-Api-Key': apiKey,
-        'X-Goog-FieldMask': buildFieldMask([
-          'photos',
-          'nationalPhoneNumber',
-          'internationalPhoneNumber',
-          'websiteUri',
-        ]),
-      },
-    },
-  );
-
-  if (!response.ok) {
-    const message = await response.text().catch(() => '');
-    throw new Error(message || 'Failed to fetch business details from Google Places.');
-  }
-
-  const payload = await response.json().catch(() => ({}));
+  const {payload, apiKey} = await fetchPlacePayload(placeId, [
+    'photos',
+    'nationalPhoneNumber',
+    'internationalPhoneNumber',
+    'websiteUri',
+  ]);
 
   // Extract first photo URL from Google Places API response
   // The photos array contains objects with 'name' field that is the photo resource name
   // We need to construct the proper photo URL using the name
   const photos = Array.isArray(payload?.photos) ? payload.photos : [];
-  let photoUrl: string | undefined;
-
-  if (photos.length > 0) {
-    const photoName = photos[0]?.name;
-    if (photoName) {
-      // Construct the proper photo URL with media endpoint
-      photoUrl = `${GOOGLE_PLACES_BASE_URL}/${photoName}/media?key=${apiKey}&max_height_px=400&max_width_px=400`;
-    }
-  }
+  const photoUrl = buildPhotoUrl(photos[0]?.name, apiKey);
 
   // Get phone number and website
   const phoneNumber = payload?.nationalPhoneNumber || payload?.internationalPhoneNumber;

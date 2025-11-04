@@ -1,14 +1,5 @@
 import React, {useState, useCallback, useMemo, useRef, useEffect} from 'react';
-import {
-  View,
-  ScrollView,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  Text,
-  TouchableOpacity,
-  Alert,
-} from 'react-native';
+import {View, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, Text, Alert} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useFocusEffect} from '@react-navigation/native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
@@ -30,6 +21,7 @@ import type {LinkedBusiness} from '../types';
 import {CompanionProfileImage} from '../components/CompanionProfileImage';
 import {InviteCard} from '../components/InviteCard';
 import LocationService from '@/shared/services/LocationService';
+import {SearchDropdownOverlay} from '@/shared/components/common/SearchDropdownOverlay/SearchDropdownOverlay';
 
 type Props = NativeStackScreenProps<LinkedBusinessStackParamList, 'BusinessSearch'>;
 
@@ -322,33 +314,15 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
           </ScrollView>
         </View>
 
-        {/* Search Dropdown Overlay - Shows above keyboard */}
-        {searchQuery.length >= 2 && searchResults.length > 0 && !searching && (
-          <View style={styles.absoluteSearchDropdownContainer}>
-            <ScrollView
-              style={styles.searchDropdownContainer}
-              scrollEnabled={searchResults.length > 5}
-              showsVerticalScrollIndicator={true}
-              nestedScrollEnabled={true}>
-              {searchResults.map(item => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={styles.searchResultItem}
-                  onPress={() => handleSelectBusiness(item)}>
-                  <View style={styles.resultAvatar}>
-                    <Text style={styles.resultAvatarText}>
-                      {item.name.charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
-                  <View style={styles.resultInfo}>
-                    <Text style={styles.resultName}>{item.name}</Text>
-                    <Text style={styles.resultEmail}>{item.address}</Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
+        <SearchDropdownOverlay
+          visible={searchQuery.length >= 2 && searchResults.length > 0 && !searching}
+          items={searchResults}
+          keyExtractor={item => item.id}
+          onPress={handleSelectBusiness}
+          title={item => item.name}
+          subtitle={item => item.address}
+          initials={item => item.name}
+        />
       </KeyboardAvoidingView>
 
       <DeleteBusinessBottomSheet
@@ -405,60 +379,6 @@ const createStyles = (theme: any) =>
     },
     emptyText: {
       ...theme.typography.body,
-      color: theme.colors.textSecondary,
-    },
-    absoluteSearchDropdownContainer: {
-      position: 'absolute',
-      top: 70,
-      left: theme.spacing[4],
-      right: theme.spacing[4],
-      maxHeight: 300,
-      zIndex: 100,
-    },
-    searchDropdownContainer: {
-      backgroundColor: theme.colors.white,
-      borderRadius: theme.borderRadius.lg,
-      overflow: 'hidden',
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      maxHeight: 300,
-      shadowColor: '#000000',
-      shadowOffset: {width: 0, height: 4},
-      shadowOpacity: 0.15,
-      shadowRadius: 8,
-      elevation: 8,
-    },
-    searchResultItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: theme.spacing[3],
-      paddingVertical: theme.spacing[3],
-      gap: theme.spacing[3],
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border,
-    },
-    resultAvatar: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      backgroundColor: theme.colors.lightBlueBackground,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    resultAvatarText: {
-      ...theme.typography.h4,
-      color: theme.colors.secondary,
-    },
-    resultInfo: {
-      flex: 1,
-    },
-    resultName: {
-      ...theme.typography.titleSmall,
-      color: theme.colors.secondary,
-      marginBottom: theme.spacing[1],
-    },
-    resultEmail: {
-      ...theme.typography.bodyExtraSmall,
       color: theme.colors.textSecondary,
     },
   });
