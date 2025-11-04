@@ -16,6 +16,7 @@ import CustomBottomSheet, {
   type BottomSheetRef,
 } from '@/shared/components/common/BottomSheet/BottomSheet';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
+import {BottomSheetHeader} from '@/shared/components/common/BottomSheetHeader/BottomSheetHeader';
 import {useTheme} from '@/hooks';
 
 export interface ConfirmActionBottomSheetRef {
@@ -45,7 +46,6 @@ interface ConfirmActionBottomSheetProps {
   snapPoints?: Array<string | number>;
   initialIndex?: number;
   containerStyle?: StyleProp<ViewStyle>;
-  titleStyle?: StyleProp<TextStyle>;
   messageStyle?: StyleProp<TextStyle>;
   buttonContainerStyle?: StyleProp<ViewStyle>;
   onSheetChange?: (index: number) => void;
@@ -66,7 +66,6 @@ export const ConfirmActionBottomSheet = forwardRef<
       snapPoints = ['35%'],
       initialIndex = -1,
       containerStyle,
-      titleStyle,
       messageStyle,
       buttonContainerStyle,
       onSheetChange,
@@ -89,6 +88,10 @@ export const ConfirmActionBottomSheet = forwardRef<
         bottomSheetRef.current?.close();
       },
     }));
+
+    const handleClose = () => {
+      bottomSheetRef.current?.close();
+    };
 
     const renderButton = (
       config: ConfirmButtonConfig,
@@ -151,7 +154,11 @@ export const ConfirmActionBottomSheet = forwardRef<
         handleIndicatorStyle={styles.bottomSheetHandle}
         contentType="view">
         <View style={[styles.container, containerStyle]}>
-          <Text style={[styles.title, titleStyle]}>{title}</Text>
+          <BottomSheetHeader
+            title={title}
+            onClose={handleClose}
+            theme={theme}
+          />
           {message ? (
             <Text
               style={[
@@ -198,15 +205,11 @@ const createStyles = (theme: any) =>
     container: {
       gap: theme.spacing['4'],
       paddingHorizontal: theme.spacing['5'],
-      paddingVertical: theme.spacing['6'],
-    },
-    title: {
-      ...theme.typography.h5Clash23,
-      color: theme.colors.secondary,
-      textAlign: 'center',
+      paddingBottom: theme.spacing['12'],
     },
     message: {
-      ...theme.typography.paragraph18Bold,
+      ...theme.typography.titleMedium,
+            paddingBottom: theme.spacing['5'],
       color: theme.colors.secondary,
     },
     buttonRow: {

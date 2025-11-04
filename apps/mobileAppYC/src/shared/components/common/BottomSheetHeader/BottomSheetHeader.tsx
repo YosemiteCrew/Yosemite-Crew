@@ -46,23 +46,27 @@ const createStyles = (theme: any) =>
       alignItems: 'center',
       paddingVertical: theme.spacing['4'],
       position: 'relative',
+      minHeight: theme.spacing['12'],
     },
     titleContainer: {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      paddingRight: theme.spacing['8'],
+      paddingHorizontal: theme.spacing['10'],
     },
     title: {
       ...theme.typography.h3,
       color: theme.colors.text,
       textAlign: 'center',
       lineHeight: theme.typography.h3.fontSize * 1.3,
+      maxWidth: '100%',
     },
     closeButton: {
       position: 'absolute',
       right: 0,
+      top: theme.spacing['4'],
       padding: theme.spacing['2'],
+      zIndex: 10,
     },
     closeIcon: {
       width: theme.spacing['6'],
