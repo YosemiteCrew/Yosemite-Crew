@@ -1,0 +1,141 @@
+.availability-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+}
+.availability-day {
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.availability-check-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 200px;
+}
+.availability-check-title {
+  color: var(--black-text);
+  font-family: var(--satoshi-font);
+  font-size: 19px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 120%;
+  letter-spacing: -0.36px;
+}
+.availability-intervals {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.availability-interval {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.availability-interval-time {
+  position: relative;
+  width: 100px;
+}
+.availability-interval-time-title {
+  background: var(--whitebg);
+  border-radius: 8px;
+  border: 0.5px solid var(--black-text);
+  padding: 10px 14px;
+  outline: none;
+  width: 100%;
+  text-align: left;
+}
+.availability-interval-dropdown {
+  max-height: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 10;
+  background: var(--whitebg);
+  border-radius: 8px;
+  border: 0.5px solid var(--black-text);
+  position: absolute;
+  top: 50px;
+  left: 0px;
+  overflow-y: scroll;
+  width: 100px;
+  padding: 10px 0px;
+}
+.availability-interval-dropdown-item {
+  padding: 2px 20px 2px 10px;
+  border: none;
+  outline: none;
+  text-align: left;
+  background: var(--whitebg);
+}
+.availability-interval-buttons {
+  border: none;
+  outline: none;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.availability-dublicate {
+  position: relative;
+  height: 45px;
+  display: flex;
+  align-items: center;
+}
+.availability-dublicate-icon {
+  cursor: pointer;
+}
+.availability-dublicate-dropdown {
+  max-height: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 10;
+  background: var(--whitebg);
+  border-radius: 8px;
+  border: 0.5px solid var(--black-text);
+  position: absolute;
+  top: 40px;
+  left: 0px;
+  overflow-y: scroll;
+  width: 140px;
+  padding: 10px 0px;
+}
+.availability-dublicate-dropdown-item {
+  padding: 2px 20px 2px 10px;
+  border: none;
+  outline: none;
+  text-align: left;
+  background: var(--whitebg);
+}
+.availability-dublicate-dropdown-item-label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  cursor: pointer;
+}
+.availability-dublicate-dropdown-item-check {
+  height: 16px !important;
+  width: 16px !important;
+  border-width: 0px 2px 2px 0px;
+}
+.availability-dublicate-dropdown-button {
+  padding: 10px 20px 0px 10px;
+  border: none;
+  outline: none;
+  text-align: center;
+  background: var(--whitebg);
+  border-top: 1px solid #eaeaea;
+  font-weight: 700;
+}
+
+@media screen and (max-width: 640px) {
+  .availability-day {
+    gap: 12px;
+  }
+}
