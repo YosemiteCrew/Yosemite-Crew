@@ -1,0 +1,464 @@
+import UserProfileModel from "../../src/models/user-profile";
+import { UserProfileService, UserProfileServiceError } from "../../src/services/user-profile.service";
+import { BaseAvailabilityService } from "../../src/services/base-availability.service";
+
+jest.mock("../../src/models/user-profile", () => ({
+  __esModule: true,
+  default: {
+    findOne: jest.fn(),
+    create: jest.fn(),
+    findOneAndUpdate: jest.fn(),
+  },
+}));
+
+jest.mock("../../src/services/base-availability.service", () => {
+  const actual = jest.requireActual("../../src/services/base-availability.service");
+  return {
+    ...actual,
+    BaseAvailabilityService: {
+      create: jest.fn(),
+      update: jest.fn(),
+      getByUserId: jest.fn(),
+    },
+  };
+});
+
+const mockedModel = UserProfileModel as unknown as {
+  findOne: jest.Mock;
+  create: jest.Mock;
+  findOneAndUpdate: jest.Mock;
+};
+
+const mockedAvailabilityService = BaseAvailabilityService as unknown as {
+  create: jest.Mock;
+  update: jest.Mock;
+  getByUserId: jest.Mock;
+};
+
+describe("UserProfileService", () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+  });
+
+  describe("create", () => {
+    it("creates profile when none exists", async () => {
+      mockedModel.findOne.mockResolvedValueOnce(null);
+
+      const createdAt = new Date("2024-01-01T00:00:00.000Z");
+      const updatedAt = new Date("2024-01-02T00:00:00.000Z");
+
+      const docData = {
+        _id: "profile-id",
+        userId: "user-1",
+        personalDetails: {
+          gender: "MALE",
+          employmentType: "FULL_TIME",
+          phoneNumber: "+1234567890",
+          address: {
+            addressLine: "221B Baker Street",
+            city: "London",
+            state: "Greater London",
+            postalCode: "NW1 6XE",
+            country: "UK",
+          },
+        },
+        professionalDetails: {
+          medicalLicenseNumber: "LIC-123",
+          specialization: "Dermatology",
+          qualification: "BVetMed",
+        },
+        status: "DRAFT" as const,
+      };
+
+      const document = {
+        ...docData,
+        toObject: () => ({ ...docData }),
+        createdAt,
+        updatedAt,
+        save: jest
+          .fn()
+          .mockImplementation(function (this: any) {
+            docData.status = this.status;
+            return Promise.resolve();
+          }),
+      } as any;
+
+      mockedModel.create.mockResolvedValueOnce(document);
+      mockedAvailabilityService.create.mockResolvedValueOnce([
+        {
+          _id: "avail-1",
+          userId: "user-1",
+          dayOfWeek: "MONDAY",
+          slots: [{ startTime: "09:00", endTime: "17:00", isAvailable: true }],
+        },
+      ]);
+
+      const result = await UserProfileService.create({
+        userId: "user-1",
+        personalDetails: {
+          gender: "MALE",
+          employmentType: "FULL_TIME",
+          phoneNumber: "+1234567890",
+          address: {
+            addressLine: "221B Baker Street",
+            city: "London",
+            state: "Greater London",
+            postalCode: "NW1 6XE",
+            country: "UK",
+          },
+        },
+        professionalDetails: {
+          medicalLicenseNumber: "LIC-123",
+          specialization: "Dermatology",
+          qualification: "BVetMed",
+        },
+        baseAvailability: [
+          {
+            dayOfWeek: "MONDAY",
+            slots: [{ startTime: "09:00", endTime: "17:00", isAvailable: true }],
+          },
+        ],
+      });
+
+      expect(mockedModel.findOne).toHaveBeenCalledWith(
+        { userId: "user-1" },
+        null,
+        { sanitizeFilter: true }
+      );
+      expect(mockedModel.create).toHaveBeenCalledWith({
+        userId: "user-1",
+        personalDetails: {
+          gender: "MALE",
+          employmentType: "FULL_TIME",
+          phoneNumber: "+1234567890",
+          address: {
+            addressLine: "221B Baker Street",
+            city: "London",
+            state: "Greater London",
+            postalCode: "NW1 6XE",
+            country: "UK",
+          },
+        },
+        professionalDetails: {
+          medicalLicenseNumber: "LIC-123",
+          specialization: "Dermatology",
+          qualification: "BVetMed",
+        },
+      });
+      expect(mockedAvailabilityService.create).toHaveBeenCalledWith({
+        userId: "user-1",
+        availability: [
+          {
+            dayOfWeek: "MONDAY",
+            slots: [{ startTime: "09:00", endTime: "17:00", isAvailable: true }],
+          },
+        ],
+      });
+      expect(document.save).toHaveBeenCalled();
+      expect(result).toEqual({
+        _id: "profile-id",
+        userId: "user-1",
+        personalDetails: {
+          gender: "MALE",
+          employmentType: "FULL_TIME",
+          phoneNumber: "+1234567890",
+          address: {
+            addressLine: "221B Baker Street",
+            city: "London",
+            state: "Greater London",
+            postalCode: "NW1 6XE",
+            country: "UK",
+          },
+        },
+        professionalDetails: {
+          medicalLicenseNumber: "LIC-123",
+          specialization: "Dermatology",
+          qualification: "BVetMed",
+        },
+        status: "COMPLETED",
+        createdAt,
+        updatedAt,
+      });
+    });
+
+    it("throws when profile already exists", async () => {
+      mockedModel.findOne.mockResolvedValueOnce({});
+
+      await expect(
+        UserProfileService.create({
+          userId: "user-1",
+          baseAvailability: [],
+        })
+      ).rejects.toMatchObject({
+        message: "Profile already exists for this user.",
+        statusCode: 409,
+      });
+    });
+
+    it("validates payload", async () => {
+      await expect(
+        UserProfileService.create({ userId: "", baseAvailability: [] })
+      ).rejects.toBeInstanceOf(UserProfileServiceError);
+    });
+
+    it("requires base availability", async () => {
+      await expect(
+        UserProfileService.create({
+          userId: "user-1",
+          personalDetails: {},
+          professionalDetails: {},
+        } as any)
+      ).rejects.toBeInstanceOf(UserProfileServiceError);
+    });
+  });
+
+  describe("update", () => {
+    it("updates existing profile", async () => {
+      const updatedAt = new Date("2024-03-01T00:00:00.000Z");
+
+      const updateDocData = {
+        _id: "profile-id",
+        userId: "user-1",
+        professionalDetails: {
+          medicalLicenseNumber: "LIC-123",
+          specialization: "Oncology",
+          qualification: "MVSc",
+        },
+        personalDetails: {
+          gender: "FEMALE",
+          employmentType: "FULL_TIME",
+          phoneNumber: "+1234567890",
+          address: {
+            addressLine: "221B Baker Street",
+            city: "London",
+            state: "Greater London",
+            postalCode: "NW1 6XE",
+            country: "UK",
+          },
+        },
+        status: "DRAFT" as const,
+      };
+
+      const document = {
+        ...updateDocData,
+        toObject: () => ({ ...updateDocData }),
+        createdAt: new Date("2024-02-01T00:00:00.000Z"),
+        updatedAt,
+        save: jest
+          .fn()
+          .mockImplementation(function (this: any) {
+            updateDocData.status = this.status;
+            return Promise.resolve();
+          }),
+      } as any;
+
+      mockedModel.findOneAndUpdate.mockResolvedValueOnce(document);
+      mockedAvailabilityService.update.mockResolvedValueOnce([
+        {
+          _id: "avail-1",
+          userId: "user-1",
+          dayOfWeek: "TUESDAY",
+          slots: [{ startTime: "10:00", endTime: "18:00", isAvailable: true }],
+        },
+      ]);
+
+      const result = await UserProfileService.update("user-1", {
+        professionalDetails: {
+          medicalLicenseNumber: "LIC-123",
+          specialization: "Oncology",
+          qualification: "MVSc",
+        },
+        baseAvailability: [
+          {
+            dayOfWeek: "TUESDAY",
+            slots: [{ startTime: "10:00", endTime: "18:00", isAvailable: true }],
+          },
+        ],
+      });
+
+      expect(mockedModel.findOneAndUpdate).toHaveBeenCalledWith(
+        { userId: "user-1" },
+        {
+          $set: {
+            professionalDetails: {
+              medicalLicenseNumber: "LIC-123",
+              specialization: "Oncology",
+              qualification: "MVSc",
+            },
+          },
+        },
+        { new: true, sanitizeFilter: true }
+      );
+      expect(mockedAvailabilityService.update).toHaveBeenCalledWith("user-1", {
+        availability: [
+          {
+            dayOfWeek: "TUESDAY",
+            slots: [{ startTime: "10:00", endTime: "18:00", isAvailable: true }],
+          },
+        ],
+      });
+      expect(document.save).toHaveBeenCalled();
+      expect(result).toEqual({
+        _id: "profile-id",
+        userId: "user-1",
+        professionalDetails: {
+          medicalLicenseNumber: "LIC-123",
+          specialization: "Oncology",
+          qualification: "MVSc",
+        },
+        personalDetails: {
+          gender: "FEMALE",
+          employmentType: "FULL_TIME",
+          phoneNumber: "+1234567890",
+          address: {
+            addressLine: "221B Baker Street",
+            city: "London",
+            state: "Greater London",
+            postalCode: "NW1 6XE",
+            country: "UK",
+          },
+        },
+        status: "COMPLETED",
+        createdAt: new Date("2024-02-01T00:00:00.000Z"),
+        updatedAt,
+      });
+    });
+
+    it("returns null when profile missing", async () => {
+      mockedModel.findOneAndUpdate.mockResolvedValueOnce(null);
+
+      const result = await UserProfileService.update("user-1", {
+        personalDetails: { gender: "FEMALE" },
+        baseAvailability: [
+          {
+            dayOfWeek: "MONDAY",
+            slots: [{ startTime: "09:00", endTime: "10:00", isAvailable: true }],
+          },
+        ],
+      });
+
+      expect(result).toBeNull();
+    });
+
+    it("requires updatable fields", async () => {
+      await expect(
+        UserProfileService.update("user-1", {})
+      ).rejects.toMatchObject({
+        message: "No updatable fields provided.",
+        statusCode: 400,
+      });
+    });
+  });
+
+  describe("getByUserId", () => {
+    it("returns profile when found", async () => {
+      const createdAt = new Date("2024-01-01T00:00:00.000Z");
+      const getDocData = {
+        _id: "profile-id",
+        userId: "user-1",
+        personalDetails: {},
+        status: "DRAFT" as const,
+      };
+
+      const document = {
+        ...getDocData,
+        toObject: () => ({ ...getDocData }),
+        createdAt,
+        updatedAt: createdAt,
+        save: jest
+          .fn()
+          .mockImplementation(function (this: any) {
+            getDocData.status = this.status;
+            return Promise.resolve();
+          }),
+      } as any;
+
+      mockedModel.findOne.mockResolvedValueOnce(document);
+      mockedAvailabilityService.getByUserId.mockResolvedValueOnce([
+        {
+          _id: "avail-1",
+          userId: "user-1",
+          dayOfWeek: "MONDAY",
+          slots: [{ startTime: "09:00", endTime: "17:00", isAvailable: false }],
+        },
+      ]);
+
+      const result = await UserProfileService.getByUserId("user-1");
+
+      expect(mockedAvailabilityService.getByUserId).toHaveBeenCalledWith("user-1");
+      expect(result).toEqual({
+        _id: "profile-id",
+        userId: "user-1",
+        personalDetails: {},
+        status: "DRAFT",
+        createdAt,
+        updatedAt: createdAt,
+      });
+    });
+
+    it("uses existing availability when only profile fields update", async () => {
+      const updateOnlyData = {
+        _id: "profile-id",
+        userId: "user-1",
+        personalDetails: {
+          gender: "MALE",
+          employmentType: "FULL_TIME",
+          phoneNumber: "+1234567890",
+          address: {
+            addressLine: "221B Baker Street",
+            city: "London",
+            state: "Greater London",
+            postalCode: "NW1 6XE",
+            country: "UK",
+          },
+        },
+        professionalDetails: {
+          medicalLicenseNumber: "LIC-123",
+          specialization: "Derm",
+          qualification: "MVSc",
+        },
+        status: "DRAFT" as const,
+      };
+
+      const document = {
+        ...updateOnlyData,
+        toObject: () => ({ ...updateOnlyData }),
+        createdAt: new Date("2024-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2024-01-01T00:00:00.000Z"),
+        save: jest
+          .fn()
+          .mockImplementation(function (this: any) {
+            updateOnlyData.status = this.status;
+            return Promise.resolve();
+          }),
+      } as any;
+
+      mockedModel.findOneAndUpdate.mockResolvedValueOnce(document);
+      mockedAvailabilityService.getByUserId.mockResolvedValueOnce([
+        {
+          _id: "avail-1",
+          userId: "user-1",
+          dayOfWeek: "MONDAY",
+          slots: [{ startTime: "09:00", endTime: "17:00", isAvailable: true }],
+        },
+      ]);
+
+      const result = await UserProfileService.update("user-1", {
+        personalDetails: { gender: "MALE" },
+      });
+
+      expect(mockedAvailabilityService.getByUserId).toHaveBeenCalledWith("user-1");
+      expect(result).not.toBeNull();
+      expect((result as NonNullable<typeof result>).status).toBe("COMPLETED");
+      expect(document.save).toHaveBeenCalled();
+    });
+
+    it("returns null when missing", async () => {
+      mockedModel.findOne.mockResolvedValueOnce(null);
+
+      const result = await UserProfileService.getByUserId("user-2");
+
+      expect(result).toBeNull();
+    });
+  });
+});
