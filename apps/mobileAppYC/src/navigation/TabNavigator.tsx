@@ -21,13 +21,14 @@ const createTabPressListener = (navigation: any, route: any) => ({
     const state = navigation.getState();
     const tabRoute = state.routes.find((r: any) => r.name === route.name);
     const nestedState = tabRoute && 'state' in tabRoute ? tabRoute.state : null;
-    if (nestedState?.type === 'stack' && nestedState.routes.length > 1) {
+
+    // If the nested stack has more than 1 route, pop to the top
+    if (nestedState?.type === 'stack' && nestedState.routes && nestedState.routes.length > 1) {
       e.preventDefault();
-      navigation.dispatch({
-        ...StackActions.popToTop(),
-        target: nestedState.key,
-      });
-      navigation.navigate(route.name);
+      // Pop to top of the nested stack
+      navigation.dispatch(
+        StackActions.popToTop()
+      );
     }
   },
 });
