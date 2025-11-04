@@ -8,7 +8,7 @@ import {
 } from '@/features/expenses/thunks';
 import type {RootState} from '@/app/store';
 
-jest.mock('@/utils/helpers', () => ({
+jest.mock('@/shared/utils/helpers', () => ({
   generateId: jest.fn(() => 'mock-id-123'),
 }));
 

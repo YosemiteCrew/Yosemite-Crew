@@ -1,24 +1,12 @@
 .pricingSection {
-  padding: 80px 0px;
+  padding: 32px 0px;
   position: relative;
   z-index: 1;
-}
-.pricingSection::after {
-  content: " ";
-  position: absolute;
-  right: 0;
-  top: 0;
-  background: url("https://d2il6osz49gpup.cloudfront.net/Images/pricingafter.png")
-    no-repeat;
-  background-size: cover;
-  width: 100%;
-  height: 1440px;
-  z-index: -1;
 }
 .pricingSection .PricingData {
   display: flex;
   flex-direction: column;
-  gap: 80px;
+  gap: 64px;
 }
 /* PricingPage-header Started  */
 
@@ -26,7 +14,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 80px;
+  gap: 40px;
 }
 .PricingPage-header .PriceBackdiv {
   display: flex;
@@ -41,49 +29,46 @@
 .PricingPage-header .PricinhHeadquote {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 6px;
   align-items: center;
-  max-width: 658px;
   text-align: center;
 }
 .PricingPage-header .PricinhHeadquote h2 {
   font-family: var(--grotesk-font);
   font-weight: 500;
-  font-size: 40px;
+  font-size: 48px;
   line-height: 120%;
   margin: 0;
   color: var(--black-text);
 }
-.PricingPage-header .PricinhHeadquote h2 span {
-  color: var(--black-grey-Text);
-}
 .PricingPage-header .PricinhHeadquote p {
   font-family: var(--satoshi-font);
   font-weight: 400;
-  font-size: 18px;
-  line-height: 120%;
+  font-size: 15px;
+  line-height: 160%;
+  max-width: 500px;
   margin: 0;
   color: var(--black-text);
 }
 
 .PricingCardDiv {
   display: flex;
-  gap: 40px;
+  gap: 30px;
   justify-content: center;
 }
 .PricingCardDiv .PricingcardItem .pricing-card {
   max-width: 300px;
   border-radius: 20px;
-  min-height: 418px;
+  min-height: 400px;
   background: var(--light-blue);
   border: 1px solid var(--blue-text);
-  box-shadow: 4px 4px 18px -5px #55413414;
+  box-shadow: 4px 4px 18px -5px rgba(85, 65, 52, 0.08);
 }
 .PricingCardDiv .PricingcardItem .pricing-card .card-body {
   display: flex;
   flex-direction: column;
-  gap: 32px;
-  justify-content: center;
+  gap: 16px;
+  justify-content: space-between;
 }
 .PricingCardDiv .PricingcardItem .pricing-card .card-body .pricingbtndiv {
   max-width: 169px;
@@ -114,18 +99,27 @@
   .PricingcardItem
   .pricing-card
   .card-body
+  .pricing-bottom
+  .pricing-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  text-align: center;
+  margin: 0 auto;
+  gap: 8px;
+}
+.PricingCardDiv
+  .PricingcardItem
+  .pricing-card
+  .card-body
   :is(.pricing-top h4, .pricing-bottom h3) {
   margin: 0;
   font-family: var(--grotesk-font);
-  color: var(--black-text);
   font-weight: 500;
   font-size: 28px;
   line-height: 120%;
-}
-.PricingCardDiv .PricingcardItem .pricing-card .card-body .pricing-top h4 span {
-  font-family: var(--satoshi-font);
-  font-weight: 700;
-  font-size: 18px;
+  max-width: 200px;
 }
 .PricingCardDiv
   .PricingcardItem
@@ -136,46 +130,51 @@
   font-weight: 400;
   font-size: 15px;
   margin: 0;
-  color: var(--black-text);
   line-height: 24px;
 }
 .PricingCardDiv .PricingcardItem .pricing-card .card-body .pricing-bottom {
-  gap: 4px;
+  gap: 16px;
 }
-.PricingCardDiv .PricingcardItem .pricing-card .card-body .pricing-bottom h3 {
-  color: var(--blue-text);
-}
-@media screen and (max-width: 768px) {
-  .PricingCardDiv {
-    gap: 10px;
-  }
-}
-@media screen and (max-width: 578px) {
-  .pricingSection {
-    padding: 50px 0px;
-  }
+@media screen and (max-width: 1280px) {
   .pricingSection .PricingData {
-    gap: 50px;
-  }
-  .PricingPage-header {
-    gap: 32px;
-  }
-  .PricingPage-header .PricinhHeadquote h2 {
-    font-size: 28px;
-  }
-  .PricingPage-header .PricinhHeadquote p {
-    font-size: 15px;
-  }
-  .PricingCardDiv {
-    gap: 5px;
+    gap: 40px;
   }
   .PricingCardDiv .PricingcardItem .pricing-card {
-    min-height: auto;
+    min-height: 350px;
   }
-  .PricingCardDiv .PricingcardItem .pricing-card .card-body {
-    padding: 20px 5px;
-    gap: 18px;
-    justify-content: flex-start;
+  .PricingPage-header .PricinhHeadquote h2 {
+    font-size: 33px;
+  }
+  .PricingCardDiv
+    .PricingcardItem
+    .pricing-card
+    .card-body
+    :is(.pricing-top h4, .pricing-bottom h3) {
+    font-size: 23px;
+    max-width: 100%;
+  }
+}
+@media screen and (max-width: 768px) {
+  .pricingSection {
+    padding: 20px 0px;
+  }
+  .PricingPage-header {
+    gap: 16px;
+  }
+  .PricingCardDiv {
+    gap: 16px;
+    flex-direction: column;
+  }
+  .PricingCardDiv .PricingcardItem .pricing-card {
+    min-height: 280px;
+    max-width: 350px;
+  }
+  .PricingPage-header .PricinhHeadquote h2 {
+    font-size: 23px;
+  }
+  .PricingPage-header .PricinhHeadquote p {
+    font-size: 13px;
+    line-height: 110%;
   }
   .PricingCardDiv
     .PricingcardItem
@@ -183,34 +182,21 @@
     .card-body
     :is(.pricing-top h4, .pricing-bottom h3) {
     font-size: 16px;
-  }
-  .PricingCardDiv
-    .PricingcardItem
-    .pricing-card
-    .card-body
-    .pricing-top
-    h4
-    span {
-    font-size: 16px;
+    max-width: 100%;
   }
   .PricingCardDiv
     .PricingcardItem
     .pricing-card
     .card-body
     :is(.pricing-top p, .pricing-bottom p) {
-    font-size: 12px;
-    line-height: 16px;
+    font-size: 11px;
+    line-height: 100%;
   }
-  .pricing-card-icon {
-    height: 36px;
-    width: 36px;
-  }
-  .PricingCardDiv .PricingcardItem .pricing-card .card-body .pricingbtndiv {
-    max-width: 150px;
-  }
-  .PricingCardDiv .PricingcardItem .pricing-card .card-body .pricingbtndiv a {
-    font-size: 16px;
-    min-width: 150px;
+}
+@media screen and (max-width: 500px) {
+  .PricingCardDiv .PricingcardItem .pricing-card {
+    min-height: 280px;
+    max-width: 270px;
   }
 }
 
@@ -219,17 +205,15 @@
 /* Pricing Hosting Plan Started  */
 
 .PricingHostingPlans {
-  box-shadow: 4px 4px 18px -5px #55413414;
-  border: 1px solid var(--lightgrey);
   border-radius: 24px;
   background: var(--whitebg);
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 28px;
   padding-top: 32px;
 }
 .HostingHead {
-  max-width: 658px;
   margin: 0 auto;
   text-align: center;
   display: flex;
@@ -241,11 +225,8 @@
   font-family: var(--grotesk-font);
   color: var(--black-text);
   font-weight: 500;
-  font-size: 40px;
+  font-size: 48px;
   line-height: 120%;
-}
-.HostingHead h2 span {
-  color: var(--black-grey-Text);
 }
 .HostingHead p {
   margin: 0;
@@ -254,36 +235,39 @@
   font-weight: 400;
   font-size: 18px;
   line-height: 120%;
+  max-width: 600px;
 }
 
 .hosting-table-wrapper {
   overflow: hidden;
-  box-shadow: 0px 6px 20px rgba(0, 0, 0, 0.05);
+  border-radius: 16px;
+  border: 1px solid var(--lightgrey);
+  max-width: 960px;
 }
 .hosting-table-wrapper .hosting-table {
   margin: 0;
   background: transparent;
+  width: 100%;
 }
 .hosting-table-wrapper .hosting-table thead tr th {
-  height: 50px;
-  background-color: var(--blue-text);
+  height: 60px;
+  width: 320px;
+  background-color: #9ac2f7;
   font-family: var(--satoshi-font);
-  color: var(--white-text);
+  color: var(--black-text);
   font-weight: 700;
-  font-size: 20px;
+  font-size: 18px;
   line-height: 120%;
   text-align: center;
   padding: 12px 24px;
   vertical-align: middle;
 }
-.hosting-table-wrapper .hosting-table thead tr th span {
-  font-size: 15px;
+.hosting-table-wrapper .hosting-table thead tr th:nth-child(2) {
+  background-color: #bbd6f9;
 }
-.hosting-table-wrapper .hosting-table thead tr th:first-child {
+.hosting-table-wrapper .hosting-table thead tr th:nth-child(1) {
   background-color: var(--lightgrey);
-  color: var(--black-text);
   text-align: left;
-  min-width: 506px;
 }
 .hosting-table-wrapper .hosting-table tbody tr {
   border-bottom: 1px solid var(--lightgrey);
@@ -292,7 +276,8 @@
   border-bottom: 1px solid transparent;
 }
 .hosting-table-wrapper .hosting-table tbody tr td {
-  height: 70px;
+  height: 60px;
+  width: 320px;
   font-family: var(--satoshi-font);
   color: var(--black-text);
   font-weight: 700;
@@ -313,35 +298,39 @@
   background-color: #bbd6f980;
 }
 
-@media screen and (max-width: 1024px) {
-  .hosting-table-wrapper .hosting-table thead tr th:first-child {
-    background-color: var(--lightgrey);
-    color: var(--black-text);
-    text-align: left;
-    min-width: 100%;
+@media screen and (max-width: 1280px) {
+  .HostingHead h2 {
+    font-size: 33px;
+  }
+  .hosting-table-wrapper .hosting-table thead tr th:nth-child(2) {
+    padding: 12px 0px;
+  }
+  .hosting-table-wrapper .hosting-table thead tr th:nth-child(3) {
+    padding: 12px 0px;
   }
 }
-@media screen and (max-width: 578px) {
+@media screen and (max-width: 768px) {
   .HostingHead h2 {
-    font-size: 28px;
+    font-size: 23px;
   }
   .HostingHead p {
-    font-size: 15px;
+    font-size: 13px;
   }
   .hosting-table-wrapper .hosting-table thead tr th {
-    min-height: 60px;
-    height: auto;
-    font-size: 14px;
-    padding: 16px 8px;
-  }
-  .hosting-table-wrapper .hosting-table thead tr th span {
-    font-size: 14px;
+    font-size: 13px;
   }
   .hosting-table-wrapper .hosting-table tbody tr td {
-    min-height: 60px;
-    height: auto;
-    font-size: 11px;
-    padding: 16px 8px;
+    font-size: 13px;
+  }
+  .hosting-table-wrapper .hosting-table tbody tr td:nth-of-type(1) {
+    text-align: center;
+    padding: 12px 5px;
+  }
+  .hosting-table-wrapper .hosting-table tbody tr td:nth-of-type(2) {
+    padding: 12px 5px;
+  }
+  .hosting-table-wrapper .hosting-table tbody tr td:nth-of-type(3) {
+    padding: 12px 5px;
   }
 }
 
@@ -353,14 +342,17 @@
   display: flex;
   flex-direction: column;
   gap: 32px;
-  max-width: 846px;
+  max-width: 960px;
   margin: 0 auto;
+  width: 100%;
 }
 .FeatureData {
   display: flex;
   flex-direction: column;
   gap: 12px;
   width: 100%;
+  border: 1px solid var(--lightgrey);
+  border-radius: 16px;
 }
 .fethed {
   height: 60px;
@@ -419,7 +411,7 @@
   font-family: var(--grotesk-font);
   color: var(--black-text);
   font-weight: 500;
-  font-size: 40px;
+  font-size: 48px;
   line-height: 120%;
 }
 .CalculatorTabDiv {
@@ -439,7 +431,7 @@
   padding: 24px 16px;
   min-width: 350px;
   min-height: 130px;
-  border-radius: 24px !important;
+  border-radius: 16px !important;
   background-color: transparent;
   display: flex;
   align-items: center;
@@ -447,6 +439,7 @@
 }
 .CalculatorTabDiv .PricingPlan .planbtn.active {
   border: 2px solid var(--blue-text);
+  background: #eaf3ff;
 }
 .CalculatorTabDiv .PricingPlan input[type="radio"] {
   display: none;
@@ -468,11 +461,6 @@
 }
 .CalculatorTabDiv .PricingPlan .planbtn .planText h5 {
   font-size: 23px;
-}
-.CalculatorTabDiv .PricingPlan .planbtn .planText h5 span {
-  font-size: 18px;
-  font-weight: 400;
-  font-family: var(--satoshi-font);
 }
 .CalculatorTabDiv .PricingPlan .planbtn.active :is(.planText h2, .planText h5) {
   color: var(--blue-text);
@@ -514,7 +502,7 @@
   min-height: 40px;
   min-width: 135px;
   border: 1px solid var(--pinkborder);
-  border-radius: 36px;
+  border-radius: 16px;
   font-weight: 700;
   font-family: var(--satoshi-font);
   color: var(--blue-text);
@@ -528,11 +516,11 @@
   flex-direction: column;
   min-width: 278px;
   min-height: 368px;
-  border-radius: 24px;
+  border-radius: 16px;
   padding: 0px 16px;
   box-shadow: 4px 4px 18px -5px #55413414;
   background: var(--blue-text);
-  gap: 37px;
+  gap: 32px;
 }
 .RytPriceInfo .pricebox .pricetext {
   display: flex;
@@ -557,10 +545,21 @@
   font-family: var(--grotesk-font);
   color: var(--white-text);
 }
+.RytPriceInfo .pricebox .pricetext p {
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 120%;
+  margin: 0;
+  font-family: var(--grotesk-font);
+  color: var(--white-text);
+  text-align: center;
+  max-width: 230px;
+}
 .RytPriceInfo .pricebox a {
   background: var(--black-bg);
   min-height: 48px;
-  border-radius: 28px;
+  width: 200px;
+  border-radius: 16px;
   padding: 14px 24px;
   display: flex;
   align-items: center;
@@ -629,58 +628,45 @@
   box-shadow: 4px 4px 18px -5px #55413433 !important;
 }
 
-@media screen and (max-width: 1024px) {
-  .CalculatorTabDiv .PricingPlan .planbtn {
-    padding: 24px 40px;
-    min-width: auto;
-    min-height: auto;
-  }
-  .CalculatorTabDiv .PricingPlan .planbtn :is(.planText h2, .planText h5) {
-    font-size: 36px;
-  }
-  .CalculatorTabDiv .PricingPlan .planbtn .planText h5 {
-    font-size: 20px;
-  }
-  .CalculatorTabDiv .PricingPlan .planbtn .planText h5 span {
-    font-size: 16px;
-  }
-}
-@media screen and (max-width: 768px) {
-  .CalculatorTabDiv .PricingPlan .planbtn {
-    padding: 16px 40px;
-    min-width: auto;
-    min-height: auto;
-  }
-  .PricingInfoDiv {
-    flex-direction: column;
-  }
-}
-@media screen and (max-width: 578px) {
+@media screen and (max-width: 1268px) {
   .PricingCalculatorDiv {
-    gap: 24px;
-    padding: 24px 12px;
+    gap: 16px;
   }
   .CalculatorTabDiv .PricingPlan .planbtn {
-    padding: 12px 30px;
-    min-width: auto;
-    min-height: auto;
-  }
-  .pricingHeading h2 {
-    font-size: 28px;
+    padding: 12px;
+    min-width: 260px;
+    min-height: 90px;
   }
   .CalculatorTabDiv .PricingPlan .planbtn :is(.planText h2, .planText h5) {
-    font-size: 19px;
-  }
-  .CalculatorTabDiv .PricingPlan .planbtn .planText h5 {
-    font-size: 13px;
-  }
-  .CalculatorTabDiv .PricingPlan .planbtn .planText h5 span {
-    font-size: 13px;
-    min-height: 40px;
-    min-width: 135px;
+    font-size: 28px;
   }
   .PricingInfoDiv .leftPriceInfo .pricingscrolldiv .scrolltext h5 {
     font-size: 19px;
+  }
+  .CalculatorTabDiv .PricingPlan .planbtn .planText h5 {
+    font-size: 19px;
+  }
+  .pricingHeading h2 {
+    font-size: 33px;
+  }
+}
+@media screen and (max-width: 768px) {
+  .PricingInfoDiv {
+    flex-direction: column;
+  }
+  .CalculatorTabDiv .PricingPlan .planbtn {
+    min-width: 150px;
+    min-height: 70px;
+  }
+  .pricingHeading h2 {
+    font-size: 23px;
+  }
+
+  .CalculatorTabDiv .PricingPlan .planbtn :is(.planText h2, .planText h5) {
+    font-size: 19px;
+  }
+  .CalculatorTabDiv .PricingPlan .planbtn .planText h5 {
+    font-size: 14px;
   }
   .PricingInfoDiv .leftPriceInfo .pricingscrolldiv .scrolltext span {
     min-height: 40px;
@@ -691,7 +677,20 @@
   }
   .RytPriceInfo .pricebox {
     min-width: 278px;
-    min-height: 350px;
+    min-height: 200px;
+  }
+  .RytPriceInfo .pricebox .pricetext h2 {
+    font-size: 23px;
+  }
+  .RytPriceInfo .pricebox .pricetext h5 {
+    font-size: 14px;
+  }
+  .RytPriceInfo .pricebox .pricetext p {
+    font-size: 11px;
+    max-width: 230px;
+  }
+  .PricingCalculatorDiv {
+    padding: 24px 12px;
   }
 }
 
@@ -702,10 +701,13 @@
   align-items: center;
   justify-content: space-between;
   box-shadow: 4px 4px 18px -5px #55413414;
-  padding: 0px 16px;
+  padding: 0px 48px;
   min-height: 80px;
-  border-radius: 24px;
+  border-radius: 16px;
   background: var(--light-blue);
+  max-width: 960px;
+  width: 100%;
+  margin: 0px auto;
 }
 
 .EnterPlanDiv h4 {
@@ -717,7 +719,11 @@
   color: var(--blue-text);
 }
 
-@media screen and (max-width: 578px) {
+@media screen and (max-width: 768px) {
+  .EnterPlanDiv {
+    height: 50px;
+    padding: 0px 16px;
+  }
   .EnterPlanDiv h4 {
     font-size: 19px;
   }
@@ -727,6 +733,7 @@
 
 .NeedHelpDiv {
   position: relative;
+  padding-bottom: 20px;
 }
 .Needhelpitem {
   background-color: var(--black-bg);
@@ -736,8 +743,11 @@
   flex-direction: column;
   gap: 32px;
   min-height: 214px;
+  max-width: 960px;
+  width: 100%;
   justify-content: space-between;
   position: relative;
+  margin: 0 auto;
 }
 .Needhelpitem::after {
   position: absolute;
@@ -757,7 +767,7 @@
 }
 .helpText h3 {
   font-family: var(--grotesk-font);
-  font-size: 33px;
+  font-size: 28px;
   font-weight: 500;
   line-height: 39.6px;
   letter-spacing: -0.02em;
@@ -766,12 +776,13 @@
 }
 .helpText p {
   font-family: var(--satoshi-font);
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 400;
   line-height: 21.6px;
   letter-spacing: -0.02em;
   color: var(--white-text);
   margin: 0;
+  max-width: 300px;
 }
 .helpbtn a {
   display: flex;
@@ -779,7 +790,7 @@
   gap: 6px;
   background-color: var(--blue-text);
   border: none;
-  border-radius: 28px;
+  border-radius: 16px;
   padding: 14px 24px;
   font-size: 18px;
   font-weight: 500;
@@ -793,12 +804,6 @@
     color: var(--black-text);
   }
 }
-
-@media screen and (min-width: 768px) {
-  .need-help-mobile-dog {
-    display: none;
-  }
-}
 @media screen and (max-width: 1024px) {
   .Needhelpitem::after {
     right: -50px;
@@ -809,39 +814,44 @@
   }
 }
 @media screen and (max-width: 768px) {
-  .Needhelpitem::after {
-    display: none;
-  }
-}
-@media screen and (max-width: 578px) {
-  .Needhelpitem::after {
-    display: none;
-  }
-  .need-help-mobile-dog-wrapper {
-    display: flex;
-    justify-content: center;
-  }
-  .need-help-mobile-dog {
-    width: 300px;
-    height: 200px;
-    background-size: cover;
-  }
   .Needhelpitem {
-    gap: 20px;
-    padding: 16px 16px;
-  }
-  .helpText {
-    gap: 3px;
+    padding: 16px;
   }
   .helpText h3 {
-    font-size: 19px;
+    font-size: 20px;
   }
   .helpText p {
-    font-size: 13px;
-    line-height: 15px;
+    font-size: 16px;
+  }
+  .Needhelpitem::after {
+    right: 0px;
+    bottom: 0px;
+    width: 300px;
+    height: 250px;
+    background-size: cover;
+  }
+}
+@media screen and (max-width: 500px) {
+  .Needhelpitem {
+    gap: 16px;
+    min-height: 140px;
   }
   .helpbtn a {
-    padding: 10px 16px;
+    padding: 10px 14px;
+  }
+  .helpText h3 {
     font-size: 16px;
+  }
+  .helpText p {
+    font-size: 11px;
+    max-width: 150px;
+    line-height: 120%;
+  }
+  .Needhelpitem::after {
+    right: -20px;
+    bottom: 0px;
+    width: 200px;
+    height: 150px;
+    background-size: cover;
   }
 }

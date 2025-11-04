@@ -1,5 +1,5 @@
 .HeroSection {
-  min-height: 100vh;
+  max-height: 965px;
   padding: 0px;
   display: flex;
   align-items: center;
@@ -12,7 +12,6 @@
   align-items: center;
 }
 
-
 .LeftHeroSection {
   height: 100%;
   display: flex;
@@ -22,6 +21,7 @@
   gap: 20px;
   padding: 32px 80px;
   width: 50%;
+  margin-bottom: 100px;
 }
 .LeftHeroText {
   display: flex;
@@ -31,6 +31,7 @@
 .LeftHeroText h2 {
   font-weight: 500;
   font-size: 57px;
+  max-width: 560px;
   font-family: var(--grotesk-font);
   line-height: 120%;
   margin: 0;
@@ -50,7 +51,6 @@
   gap: 20px;
 }
 
-
 .RightHeroSection {
   width: 50%;
   height: 100%;
@@ -62,7 +62,6 @@
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 20px;
   height: 100%;
 }
 .LandingCarouselDiv img {
@@ -72,7 +71,7 @@
 }
 .carousel-text h4 {
   font-weight: 500;
-  font-size: 24px;
+  font-size: 28px;
   font-family: var(--grotesk-font);
   line-height: 120%;
   margin: 0;
@@ -132,9 +131,8 @@
   font-weight: 500;
   color: #1a2130;
   padding: 20px;
-  padding: 15px 10px 10px 0;
-  min-height: 170px;
-  background: var(--whitebg);
+  min-height: 200px;
+  background: var(--lightblue);
 }
 .carousel-caption {
   position: static !important;
@@ -155,12 +153,16 @@
 @media screen and (max-width: 1280px) {
   .LeftHeroSection {
     padding: 32px 48px;
+    margin-bottom: 0px;
   }
   .LeftHeroText h2 {
     font-size: 40px;
   }
 }
 @media screen and (max-width: 1024px) {
+  .HeroSection {
+    max-height: 1500px;
+  }
   .HeroContainer {
     flex-direction: column;
   }
@@ -174,6 +176,7 @@
   .LeftHeroText h2 {
     font-size: 40px;
     text-align: center;
+    max-width: 100%;
   }
   .LeftHeroText p {
     text-align: center;
@@ -184,6 +187,12 @@
 }
 
 @media screen and (max-width: 768px) {
+  .carousel-text {
+    min-height: 150px;
+  }
+  .carousel-text h4 {
+    font-size: 19px;
+  }
   .LeftHeroSection {
     padding: 24px 16px;
   }

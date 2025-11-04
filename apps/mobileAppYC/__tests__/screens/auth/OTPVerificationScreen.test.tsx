@@ -1,9 +1,9 @@
 import React from 'react';
 import {render, fireEvent, waitFor, act} from '@testing-library/react-native';
 import {DeviceEventEmitter, View as MockView} from 'react-native';
-import {OTPVerificationScreen} from '@/screens/auth/OTPVerificationScreen';
-import * as passwordlessAuth from '@/services/auth/passwordlessAuth';
-import {useAuth} from '@/contexts/AuthContext';
+import {OTPVerificationScreen} from '@/features/auth/screens/OTPVerificationScreen';
+import * as passwordlessAuth from '@/features/auth/services/passwordlessAuth';
+import {useAuth} from '@/features/auth/context/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   PENDING_PROFILE_STORAGE_KEY,
@@ -36,13 +36,13 @@ jest.mock('react-native/Libraries/Image/Image', () => ({
   },
 }));
 
-jest.mock('@/services/auth/passwordlessAuth', () => ({
+jest.mock('@/features/auth/services/passwordlessAuth', () => ({
   completePasswordlessSignIn: jest.fn(),
   formatAuthError: jest.fn(error => error.message || String(error)),
   requestPasswordlessEmailCode: jest.fn(),
 }));
 
-jest.mock('@/hooks/useTheme', () => ({
+jest.mock('@/shared/hooks/useTheme', () => ({
   useTheme: jest.fn(() => ({
     theme: {
       colors: {
@@ -63,14 +63,14 @@ jest.mock('@/hooks/useTheme', () => ({
   })),
 }));
 
-jest.mock('@/contexts/AuthContext', () => ({
+jest.mock('@/features/auth/context/AuthContext', () => ({
   useAuth: jest.fn(() => ({
     login: jest.fn(),
     logout: jest.fn(),
   })),
 }));
 
-jest.mock('@/components/common', () => {
+jest.mock('@/shared/components/common', () => {
   const {TouchableOpacity, Text, TextInput, View} =
     jest.requireActual('react-native');
   const MockSafeArea = ({children, ...props}: {children: React.ReactNode}) => (
@@ -95,11 +95,11 @@ jest.mock('@/components/common', () => {
   };
 });
 
-jest.mock('@/components/common/LiquidGlassButton/LiquidGlassButton', () => {
-  const React = require('react');
+jest.mock('@/shared/components/common/LiquidGlassButton/LiquidGlassButton', () => {
+  const ReactModule = require('react');
   const {TouchableOpacity, Text} = jest.requireActual('react-native');
 
-  const MockButton = React.forwardRef(
+  const MockButton = ReactModule.forwardRef(
     ({onPress, title, disabled, loading}: any, ref: any) => (
       <TouchableOpacity
         ref={ref}

@@ -14,7 +14,7 @@ import {
   validatecompanionType,
   validatecompanionAge,
   validatecompanionWeight,
-} from '@/utils/validation';
+} from '@/shared/utils/validation';
 
 describe('validation', () => {
   describe('validateEmail', () => {

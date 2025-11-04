@@ -281,7 +281,7 @@ jest.mock('aws-amplify/auth', () => ({
 }));
 
 // Mock our social auth setup to a no-op
-jest.mock('@/services/auth/socialAuth', () => ({
+jest.mock('@/features/auth/services/socialAuth', () => ({
   configureSocialProviders: jest.fn(),
 }));
 
@@ -362,7 +362,7 @@ jest.mock('react-native-localize', () => ({
 }));
 
 // Mock the custom splash to avoid animated internals
-jest.mock('@/components/common/customSplashScreen/customSplash', () => {
+jest.mock('@/shared/components/common/customSplashScreen/customSplash', () => {
   const React = require('react');
   return {
     __esModule: true,

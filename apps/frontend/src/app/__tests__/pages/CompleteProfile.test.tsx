@@ -10,7 +10,7 @@ HTMLFormElement.prototype.requestSubmit ??= function (this: HTMLFormElement) {
   this.submit();
 };
 
-jest.mock("@/app/pages/Sign/SignUp", () => ({
+jest.mock("@/app/pages/SignUp/SignUp", () => ({
   __esModule: true,
   FormInput: jest.fn(
     ({

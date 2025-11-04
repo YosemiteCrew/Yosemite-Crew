@@ -91,7 +91,7 @@
 :root {
   --black-text: #302f2e;
   --black-bg: #302f2e;
-  --black-hover: #1A1A19;
+  --black-hover: #1a1a19;
   --darkblackbg: #141413;
   --blck: #333333;
   --lightblack: #312943;
@@ -159,12 +159,30 @@ body {
 body {
   background-color: var(--whitebg) !important;
 }
+
 .bodywrapper {
   padding-top: 80px;
+  flex: 1;
+}
+.sidebarwrapper {
+  display: flex;
+  height: calc(100vh - 80px);
+  padding-top: 80px;
+  flex: 1;
+}
+.sidebarbodywrapper {
+  flex: 1;
 }
 @media screen and (min-width: 1024px) {
   .bodywrapper {
     padding-top: 0px;
+  }
+  .sidebarwrapper {
+    padding-top: 0px;
+    overflow: hidden;
+  }
+  .sidebarbodywrapper {
+    overflow-y: scroll;
   }
 }
 a {
@@ -195,7 +213,7 @@ p {
   color: var(--white-text) !important;
   font-weight: 500 !important;
   font-size: 23px !important;
-  line-height: 120% !important;
+  line-height: 120%;
   font-family: var(--grotesk-font) !important;
 }
 .BlackButton:hover {

@@ -37,6 +37,16 @@ const GuestHeader = () => {
     }, 400);
   };
 
+  const checkRoute = () => {
+    const routes = new Set([
+      "/signin",
+      "/signup",
+      "/organizations",
+      "/forgot-password",
+    ]);
+    return !routes.has(pathname);
+  };
+
   return (
     <div className="header-container">
       <Link href="/" className="logo">
@@ -93,25 +103,20 @@ const GuestHeader = () => {
                 )}
               </div>
             ))}
-            {pathname !== "/signup" && pathname !== "/signin" && user ? (
-              <button
-                type="button"
-                onClick={() => handleClick("/organizations")}
-                className="HeaderSign-mobile"
-                aria-label="Sign Up"
-              >
-                Go to app
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => handleClick("/signup")}
-                className="HeaderSign-mobile"
-                aria-label="Sign Up"
-              >
-                Sign up
-              </button>
-            )}
+            {checkRoute() &&
+              (user ? (
+                <Primary
+                  href="/organizations"
+                  text="Go to app"
+                  style={{ maxHeight: "60px" }}
+                />
+              ) : (
+                <Primary
+                  href="/signup"
+                  text="Sign up"
+                  style={{ maxHeight: "60px" }}
+                />
+              ))}
           </motion.div>
         )}
       </AnimatePresence>
@@ -133,21 +138,24 @@ const GuestHeader = () => {
         </motion.div>
       </button>
 
-      <div className="navmenu-button">
-        {pathname !== "/signup" && pathname !== "/signin" && user ? (
-          <Primary
-            href="/organizations"
-            text="Go to app"
-            style={{ width: "160px", maxHeight: "60px" }}
-          />
+      {checkRoute() &&
+        (user ? (
+          <div className="navmenu-button">
+            <Primary
+              href="/organizations"
+              text="Go to app"
+              style={{ width: "160px", maxHeight: "60px" }}
+            />
+          </div>
         ) : (
-          <Primary
-            href="/signup"
-            text="Sign up"
-            style={{ width: "160px", maxHeight: "60px" }}
-          />
-        )}
-      </div>
+          <div className="navmenu-button">
+            <Primary
+              href="/signup"
+              text="Sign up"
+              style={{ width: "160px", maxHeight: "60px" }}
+            />
+          </div>
+        ))}
     </div>
   );
 };

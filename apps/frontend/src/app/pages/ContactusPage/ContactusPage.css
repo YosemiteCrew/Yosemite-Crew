@@ -1,17 +1,43 @@
+.ContactWrapper {
+  padding: 24px 80px;
+  max-width: 1560px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+@media screen and (max-width: 1280px) {
+  .ContactWrapper {
+    padding: 24px 48px;
+  }
+}
+@media screen and (max-width: 768px) {
+  .ContactWrapper {
+    padding: 24px 16px;
+  }
+}
+
 .ContactUsPageSec {
-  padding: 80px 0px;
-  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
 }
 .ContactUsData {
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
   justify-content: space-between;
+  width: 100%;
 }
 .ContactUsData .LeftContactUs {
   display: flex;
   flex-direction: column;
-  gap: 60px;
-  min-width: 522px;
+  width: 45%;
+  justify-content: space-between;
+}
+.ContactUsData .LeftContactUs img {
+  object-fit: cover;
+  width: 100%;
+  height: auto;
 }
 .ContactUsData .LeftContactUs .conttexted {
   display: flex;
@@ -19,35 +45,35 @@
   gap: 16px;
 }
 .ContactUsData .LeftContactUs .conttexted span {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 28px;
+  font-weight: 500;
   line-height: 120%;
   margin: 0;
   color: var(--blue-text);
   font-family: var(--satoshi-font);
 }
 .ContactUsData .LeftContactUs .conttexted h2 {
-  font-size: 57px;
+  font-size: 48px;
   font-weight: 500;
   line-height: 120%;
   margin: 0;
   font-family: var(--grotesk-font);
+  max-width: 350px;
 }
 .ContactUsData .RightContactUs {
-  box-shadow: 0px 0px 8px 0px #47382714;
-  border: 1px solid var(--greytext);
+  box-shadow: 0px 0px 16px 0px rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--whitebg);
   background: var(--whitebg);
-  padding: 64px 40px;
-  border-radius: 28px;
-  max-width: 630px;
-  width: 100%;
+  padding: 32px;
+  border-radius: 16px;
+  width: 45%;
   display: flex;
   flex-direction: column;
-  gap: 36px;
+  gap: 20px;
 }
 .ContactUsData .RightContactUs .QueryText h3 {
   margin: 0;
-  font-size: 33px;
+  font-size: 48px;
   font-weight: 500;
   line-height: 120%;
   font-family: var(--grotesk-font);
@@ -68,9 +94,9 @@
 }
 .ContactUsData .RightContactUs .QueryTypeRadioGroup label {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   align-items: center;
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 500;
   color: var(--black-text);
   font-family: var(--grotesk-font);
@@ -78,22 +104,22 @@
 .ContactUsData .RightContactUs .QueryDetailsFields {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 .ContactUsData .RightContactUs .QueryDetailsFields label {
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 500;
   color: var(--black-text);
   line-height: 120%;
   font-family: var(--grotesk-font);
 }
 .ContactUsData .RightContactUs .QueryDetailsFields textarea {
-  border: 1px solid var(--pinkborder) !important;
-  padding: 12px 10px !important;
+  border: 1px solid var(--notibg) !important;
+  padding: 12px 16px !important;
   border-radius: 16px !important;
   min-height: 114px !important;
   outline: none !important;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 500;
   color: var(--black-text);
   line-height: 120%;
@@ -110,25 +136,26 @@
 .ContactUsData .RightContactUs .DataServiceAccessFields {
   display: flex;
   flex-direction: column;
-  gap: 36px;
+  gap: 20px;
 }
 .ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 8px;
+  padding: 8px 0px;
 }
 .ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted p {
   margin: 0;
   font-family: var(--grotesk-font);
   font-weight: 500;
-  font-size: 19px;
+  font-size: 18px;
   line-height: 120%;
 }
 .ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted label {
   display: grid;
   grid-template-columns: auto 1fr;
   grid-gap: 10px;
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 400;
   line-height: 120%;
   font-family: var(--satoshi-font);
@@ -139,7 +166,7 @@
   .DataServiceAccessFields
   .SetSubmitted
   label:has(input:checked) {
-  font-weight: 700;
+  font-weight: 500;
 }
 
 /* Upload styles for complaint image */
@@ -190,11 +217,13 @@
   min-height: 337px;
   display: flex;
   align-items: center;
+  justify-content: center;
 }
 .ContactInfoData {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  width: 100%;
 }
 .LeftContInfo {
   display: flex;
@@ -203,8 +232,8 @@
 }
 .LeftContInfo span,
 .ContactUsData .LeftContactUs span {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 28px;
+  font-weight: 500;
   line-height: 120%;
   font-family: var(--satoshi-font);
   color: var(--blue-text);
@@ -215,6 +244,7 @@
   margin: 0;
   font-weight: 500;
   color: var(--black-text);
+  max-width: 336px;
 }
 .ContactInfoDetail {
   display: flex;
@@ -267,7 +297,7 @@
 }
 .SendBtn {
   min-height: 60px;
-  border-radius: 36px;
+  border-radius: 16px;
   padding: 16px 32px;
   display: flex;
   align-items: center;
@@ -292,89 +322,114 @@
    ========================================================================== */
 
 /* For Tablets and smaller devices (992px and below) */
-@media (max-width: 992px) {
-  .ContactUsData {
-    flex-direction: column;
-    gap: 40px;
-  }
+
+@media (max-width: 1280px) {
   .ContactUsData .LeftContactUs {
-    min-width: 100%;
-    gap: 20px;
-    text-align: center;
+    width: 48%;
   }
   .ContactUsData .RightContactUs {
-    max-width: 100%;
+    width: 48%;
+    padding: 24px 20px;
   }
-  .ContactInfoData {
-    flex-direction: column;
-    gap: 40px;
-    text-align: center;
+  .ContactUsData .LeftContactUs .conttexted span {
+    font-size: 19px;
+  }
+  .ContactUsData .LeftContactUs .conttexted h2 {
+    font-size: 33px;
+    max-width: 250px;
+  }
+  .ContactUsData .RightContactUs .QueryText h3 {
+    font-size: 33px;
+  }
+  .ContactUsData .RightContactUs .QueryTypeRadioGroup label {
+    font-size: 15px;
+  }
+  .ContactUsData .RightContactUs .QueryDetailsFields label {
+    font-size: 15px;
+  }
+  .ContactUsData .RightContactUs .QueryDetailsFields textarea {
+    font-size: 15px;
+  }
+  .ContactUsData .RightContactUs .QueryDetailsFields textarea::placeholder {
+    font-size: 15px;
+  }
+  .ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted p {
+    font-size: 15px;
+  }
+  .ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted label {
+    font-size: 15px;
+    grid-template-columns: 20px 1fr;
+  }
+  .SendBtn {
+    font-size: 19px;
+    min-height: 48px;
+  }
+  .LeftContInfo span,
+  .ContactUsData .LeftContactUs span {
+    font-size: 19px;
+  }
+  .LeftContInfo h2 {
+    font-size: 33px;
+    max-width: 237px;
   }
   .ContactInfoDetail {
-    gap: 40px;
-    width: 100%;
-    justify-content: center;
-  }
-  .ContactInfoDetail .LeftDetails .detailitem h4::after {
-    left: 50%;
-    transform: translateX(-50%);
+    display: flex;
+    gap: 20px;
   }
 }
 
 /* For Mobile devices (768px and below) */
 @media (max-width: 768px) {
-  .ContactUsPageSec {
-    padding: 40px 0px;
+  .ContactUsData {
+    flex-direction: column;
+    gap: 14px;
   }
-  .ContactUsData .LeftContactUs .conttexted h2 {
-    font-size: 42px;
+  .ContactUsData .LeftContactUs {
+    width: 100%;
+    padding: 20px 0px;
   }
   .ContactUsData .RightContactUs {
-    padding: 32px 20px;
-    gap: 24px;
-  }
-  .ContactUsData .RightContactUs .QueryText h3 {
-    font-size: 28px;
-  }
-  .ContactInfoDetail {
-    flex-direction: column;
-    align-items: center;
-  }
-  .ContactInfoDetail .LeftDetails {
     width: 100%;
-    max-width: 300px;
+    padding: 24px 16px;
   }
-  .ContactInfoDetail .LeftDetails .detailTexed p {
+  .ContactUsData .LeftContactUs .conttexted span {
+    font-size: 16px;
+  }
+  .ContactUsData .LeftContactUs .conttexted h2 {
+    font-size: 23px;
     max-width: 100%;
   }
-  .LeftContInfo h2 {
-    font-size: 36px;
+  .ContactUsData .RightContactUs .QueryText h3 {
+    font-size: 23px;
   }
-
-  /* THIS IS THE FIX: HIDE THE DECORATIVE PAW IN THE FOOTER ON MOBILE */
-  footer::after {
-    display: none;
+  .LeftContInfo span,
+  .ContactUsData .LeftContactUs span {
+    font-size: 16px;
+  }
+  .LeftContInfo h2 {
+    font-size: 23px;
+  }
+  .ContactInfoDetail .LeftDetails .detailitem h4 {
+    font-size: 15px;
+  }
+  .ContactInfoDetail .LeftDetails .detailTexed a {
+    font-size: 13px;
+  }
+  .ContactInfoDetail .LeftDetails .detailTexed p {
+    font-size: 13px;
   }
 }
 
-/* For Small Mobile devices (576px and below) */
-@media (max-width: 576px) {
-  .ContactUsData .LeftContactUs .conttexted h2 {
-    font-size: 32px;
+@media (max-width: 640px) {
+  .ContactInfoData {
+    flex-direction: column;
+    gap: 40px;
   }
-  .ContactUsData .RightContactUs .QueryText h3 {
-    font-size: 24px;
+  .ContactInfoDetail {
+    width: 100%;
+    justify-content: space-between;
   }
-  .ContactUsData .RightContactUs .QueryTypeRadioGroup label {
-    font-size: 16px;
-  }
-  .ContactUsData .RightContactUs .DataServiceAccessFields .SetSubmitted label {
-    grid-template-columns: 20px 1fr;
-    /* Give checkbox more space */
-    font-size: 14px;
-  }
-  .SendBtn {
-    font-size: 18px;
-    min-height: 50px;
+  .ContactInfoSec {
+    min-height: 360px;
   }
 }

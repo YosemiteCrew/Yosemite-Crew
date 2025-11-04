@@ -1,10 +1,10 @@
 "use client";
 import React, { useState } from "react";
-import { AiFillMinusCircle } from "react-icons/ai";
 
 import GenericTable from "@/app/components/GenericTable/GenericTable";
 
 import "./DataTable.css";
+import OrgCard from "../Cards/OrgCard/OrgCard";
 
 type Column<T> = {
   label: string;
@@ -14,18 +14,38 @@ type Column<T> = {
 };
 
 type InviteProps = {
-  details: string;
-  plan: string;
+  name: string;
+  type: string;
   role: string;
-  status?: string;
+  status: string;
+  color: string;
+  bgcolor: string;
 };
 
 const demoData: InviteProps[] = [
   {
-    details: "Organizations Details 1",
-    plan: "Paid",
+    name: "Paws & Tails Health Club",
+    type: "Hospital",
     role: "Owner",
-    status: "Verification Pending",
+    status: "Pending",
+    color: "#f68523",
+    bgcolor: "#fef3e9",
+  },
+  {
+    name: "Paws & Tails Health Club",
+    type: "Clinic",
+    role: "Owner",
+    status: "Active",
+    color: "#54B492",
+    bgcolor: "#E6F4EF",
+  },
+  {
+    name: "Paws & Tails Health Club",
+    type: "Clinic",
+    role: "Owner",
+    status: "Active",
+    color: "#54B492",
+    bgcolor: "#E6F4EF",
   },
 ];
 
@@ -34,40 +54,39 @@ const OrganizationList = (orgs: any) => {
 
   const columns: Column<InviteProps>[] = [
     {
-      label: "Details",
-      key: "details",
-      width: "45%",
+      label: "Name",
+      key: "name",
+      width: "30%",
       render: (item: InviteProps) => (
-        <div className="OrgListDetailsCol">
-          <div className="OrgListDetails">{item.details}</div>
-          <div className="OrgStatus">{item.status}</div>
-        </div>
+        <div className="OrgListDetails">{item.name}</div>
       ),
     },
     {
-      label: "Plan",
-      key: "plan",
-      width: "15%",
+      label: "Type",
+      key: "type",
+      width: "25%",
       render: (item: InviteProps) => (
-        <div className="InviteTime">{item.plan}</div>
+        <div className="InviteTime">{item.type}</div>
       ),
     },
     {
       label: "Role",
       key: "role",
-      width: "15%",
+      width: "25%",
       render: (item: InviteProps) => (
         <div className="InviteExpires">{item.role}</div>
       ),
     },
     {
-      label: "Actions",
-      key: "actions",
-      width: "25%",
+      label: "Status",
+      key: "status",
+      width: "20%",
       render: (item: InviteProps) => (
-        <div className="action-btn">
-          <div className="action-btn-text">Leave</div>
-          <AiFillMinusCircle size={14} />
+        <div
+          className="OrgStatus"
+          style={{ color: item.color, background: item.bgcolor }}
+        >
+          {item.status}
         </div>
       ),
     },
@@ -75,13 +94,20 @@ const OrganizationList = (orgs: any) => {
 
   return (
     <div className="table-wrapper">
-      <GenericTable
-        data={data}
-        columns={columns}
-        bordered={false}
-        pageSize={3}
-        pagination
-      />
+      <div className="table-list">
+        <GenericTable
+          data={data}
+          columns={columns}
+          bordered={false}
+          pageSize={3}
+          pagination
+        />
+      </div>
+      <div className="card-list">
+        {demoData.map((org, index) => (
+          <OrgCard key={org.name + index} org={org} />
+        ))}
+      </div>
     </div>
   );
 };

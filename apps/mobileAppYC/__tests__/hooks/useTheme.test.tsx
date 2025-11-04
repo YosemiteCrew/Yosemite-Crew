@@ -2,7 +2,7 @@ import React from 'react';
 import TestRenderer from 'react-test-renderer';
 import {Provider} from 'react-redux';
 import {store} from '@/app/store';
-import {useTheme} from '@/hooks/useTheme';
+import {useTheme} from '@/shared/hooks/useTheme';
 
 const Probe: React.FC<{onRead: (v: ReturnType<typeof useTheme>) => void}> = ({onRead}) => {
   const theme = useTheme();
