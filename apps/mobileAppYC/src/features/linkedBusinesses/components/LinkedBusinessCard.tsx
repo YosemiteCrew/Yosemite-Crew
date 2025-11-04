@@ -77,15 +77,25 @@ export const LinkedBusinessCard: React.FC<LinkedBusinessCardProps> = ({
           </View>
         </View>
       </View>
-      <TouchableOpacity
-        style={styles.deleteButton}
-        onPress={handleDelete}
-        hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
-        <Image
-          source={Images.deleteIconRed}
-          style={styles.deleteIcon}
-        />
-      </TouchableOpacity>
+      <View style={styles.actionButtons}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
+          <Image
+            source={Images.locationIcon}
+            style={styles.actionIcon}
+          />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={handleDelete}
+          hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
+          <Image
+            source={Images.deleteIconRed}
+            style={styles.actionIcon}
+          />
+        </TouchableOpacity>
+      </View>
     </TouchableOpacity>
   );
 };
@@ -147,14 +157,23 @@ const createStyles = (theme: any) =>
       ...theme.typography.bodyExtraSmall,
       color: theme.colors.textSecondary,
     },
-    deleteButton: {
-      padding: theme.spacing[3],
+    actionButtons: {
+      flexDirection: 'column',
+      justifyContent: 'space-around',
+      alignItems: 'center',
+      paddingHorizontal: theme.spacing[2],
+      paddingVertical: theme.spacing[3],
+      gap: theme.spacing[2],
+    },
+    actionButton: {
+      padding: theme.spacing[2],
       justifyContent: 'center',
       alignItems: 'center',
     },
-    deleteIcon: {
+    actionIcon: {
       width: 20,
       height: 20,
       resizeMode: 'contain',
+      tintColor: theme.colors.secondary,
     },
   });

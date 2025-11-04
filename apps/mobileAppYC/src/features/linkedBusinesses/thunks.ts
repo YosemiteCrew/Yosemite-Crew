@@ -99,8 +99,17 @@ export const searchBusinessesByLocation = createAsyncThunk(
       }
 
       return results;
-    } catch (error) {
+    } catch (error: any) {
       console.error('[BusinessSearch] Google Places API error:', error);
+
+      // Check if it's a quota exceeded error
+      const isQuotaError = error?.message?.includes('RESOURCE_EXHAUSTED') ||
+                          error?.message?.includes('Quota exceeded');
+
+      if (isQuotaError) {
+        console.warn('[BusinessSearch] Google Places quota exceeded, using mock results');
+      }
+
       // Fallback to mock results if Google Places fails
       return [
         {
