@@ -1,14 +1,23 @@
 import React, { useState } from "react";
-import { daysOfWeek, timeIndex, timeOptions, DEFAULT_INTERVAL } from "./utils";
+import {
+  daysOfWeek,
+  timeIndex,
+  timeOptions,
+  DEFAULT_INTERVAL,
+  AvailabilityState,
+  TimeOption,
+  Interval,
+  SetAvailability,
+} from "./utils";
 import TimeSlot from "./TimeSlot";
 import { FaCirclePlus, FaCircleMinus } from "react-icons/fa6";
 import Dublicate from "./Dublicate";
 
 import "./Availability.css";
 
-const Availability = () => {
-  const [availability, setAvailability] = useState(
-    daysOfWeek.reduce((acc, day): any => {
+const Availability: React.FC = () => {
+  const [availability, setAvailability] = useState<AvailabilityState>(
+    daysOfWeek.reduce<AvailabilityState>((acc, day) => {
       const isWeekday =
         day === "Monday" ||
         day === "Tuesday" ||
@@ -23,15 +32,15 @@ const Availability = () => {
     }, {})
   );
 
-  const toggleDay = (day: any) => {
-    setAvailability((prev: any) => ({
+  const toggleDay = (day: string) => {
+    setAvailability((prev: AvailabilityState) => ({
       ...prev,
       [day]: { ...prev[day], enabled: !prev[day].enabled },
     }));
   };
 
-  const addInterval = (day: any) => {
-    setAvailability((prev: any) => ({
+  const addInterval = (day: string) => {
+    setAvailability((prev: AvailabilityState) => ({
       ...prev,
       [day]: {
         ...prev[day],
@@ -40,12 +49,10 @@ const Availability = () => {
     }));
   };
 
-  const deleteInterval = (day: any, index: any) => {
-    setAvailability((prev: any) => {
+  const deleteInterval = (day: string, index: number) => {
+    setAvailability((prev: AvailabilityState) => {
       if (index === 0) return prev;
-      const updated = prev[day].intervals.filter(
-        (_: any, i: any) => i !== index
-      );
+      const updated = prev[day].intervals.filter((_, i) => i !== index);
       return {
         ...prev,
         [day]: {
@@ -56,7 +63,7 @@ const Availability = () => {
     });
   };
 
-  const getEndOptions = (startValue: any) => {
+  const getEndOptions = (startValue: string): TimeOption[] => {
     if (!startValue) return timeOptions;
     const startIdx = timeIndex.get(startValue) ?? -1;
     return timeOptions.filter((_, idx) => idx > startIdx);
@@ -64,7 +71,7 @@ const Availability = () => {
 
   return (
     <div className="availability-container">
-      {daysOfWeek.map((day, dayIndex) => (
+      {daysOfWeek.map((day: string, dayIndex: number) => (
         <div key={day} className="availability-day">
           <label className="availability-check-label">
             <input
@@ -78,58 +85,56 @@ const Availability = () => {
 
           {availability[day].enabled && (
             <div className="availability-intervals">
-              {availability[day].intervals.map((interval: any, i: any) => {
-                const endOptions = getEndOptions(interval.start);
-                return (
-                  <div
-                    key={i + interval.start}
-                    className="availability-interval"
-                  >
-                    <TimeSlot
-                      interval={interval}
-                      timeOptions={timeOptions}
-                      setAvailability={setAvailability}
-                      day={day}
-                      intervalIndex={i}
-                      field="start"
-                    />
-                    <TimeSlot
-                      interval={interval}
-                      timeOptions={endOptions}
-                      setAvailability={setAvailability}
-                      day={day}
-                      intervalIndex={i}
-                      field="end"
-                    />
-                    {i === 0 ? (
-                      <button
-                        onClick={() => addInterval(day)}
-                        className="availability-interval-buttons"
-                        title="Add interval"
-                      >
-                        <FaCirclePlus color="#000" size={20} />
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => deleteInterval(day, i)}
-                        className="availability-interval-buttons"
-                        title="Delete interval"
-                      >
-                        <FaCircleMinus color="#000" size={20} />
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
+              {availability[day].intervals.map(
+                (interval: Interval, i: number) => {
+                  const endOptions = getEndOptions(interval.start);
+                  return (
+                    <div
+                      key={i + interval.start}
+                      className="availability-interval"
+                    >
+                      <TimeSlot
+                        interval={interval}
+                        timeOptions={timeOptions}
+                        setAvailability={setAvailability as SetAvailability}
+                        day={day}
+                        intervalIndex={i}
+                        field="start"
+                      />
+                      <TimeSlot
+                        interval={interval}
+                        timeOptions={endOptions}
+                        setAvailability={setAvailability as SetAvailability}
+                        day={day}
+                        intervalIndex={i}
+                        field="end"
+                      />
+                      {i === 0 ? (
+                        <button
+                          onClick={() => addInterval(day)}
+                          className="availability-interval-buttons"
+                          title="Add interval"
+                        >
+                          <FaCirclePlus color="#000" size={20} />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => deleteInterval(day, i)}
+                          className="availability-interval-buttons"
+                          title="Delete interval"
+                        >
+                          <FaCircleMinus color="#000" size={20} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                }
+              )}
             </div>
           )}
 
           {availability[day].enabled && (
-            <Dublicate
-              setAvailability={setAvailability}
-              day={day}
-              dayIndex={dayIndex}
-            />
+            <Dublicate setAvailability={setAvailability} day={day} />
           )}
         </div>
       ))}

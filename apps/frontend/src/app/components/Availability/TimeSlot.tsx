@@ -1,23 +1,40 @@
 import React, { useEffect, useRef, useState } from "react";
-import { getTimeLabelFromValue, timeIndex } from "./utils";
+import {
+  AvailabilityState,
+  getTimeLabelFromValue,
+  Interval,
+  timeIndex,
+  TimeOption,
+} from "./utils";
 
 import "./Availability.css";
 
-const TimeSlot = ({
+type Field = keyof Interval;
+
+interface TimeSlotProps {
+  interval: Interval;
+  timeOptions: TimeOption[];
+  setAvailability: React.Dispatch<React.SetStateAction<AvailabilityState>>;
+  day: string;
+  intervalIndex: number;
+  field: Field;
+}
+
+const TimeSlot: React.FC<TimeSlotProps> = ({
   interval,
   timeOptions,
   setAvailability,
   day,
   intervalIndex,
-  field
-}: any) => {
-  const [open, setOpen] = useState(false);
+  field,
+}) => {
+  const [open, setOpen] = useState<boolean>(false);
   const availabilityContainerRef = useRef<HTMLDivElement>(null);
 
-  const handleTimeChange = (value: any) => {
-    setAvailability((prev: any) => {
+  const handleTimeChange = (value: string) => {
+    setAvailability((prev: AvailabilityState) => {
       const updated = [...prev[day].intervals];
-      const interval = { ...updated[intervalIndex], [field]: value };
+      const interval: Interval = { ...updated[intervalIndex], [field]: value };
 
       // Reset end if start becomes later than current end
       const startIdx = timeIndex.get(interval.start) ?? -1;
@@ -29,7 +46,7 @@ const TimeSlot = ({
       updated[intervalIndex] = interval;
       return { ...prev, [day]: { ...prev[day], intervals: updated } };
     });
-    setOpen(false)
+    setOpen(false);
   };
 
   useEffect(() => {
@@ -57,13 +74,11 @@ const TimeSlot = ({
       </button>
       {open && (
         <div className="availability-interval-dropdown">
-          {timeOptions.map((opt: any) => (
+          {timeOptions.map((opt: TimeOption) => (
             <button
               key={opt.value}
               className="availability-interval-dropdown-item"
-              onClick={() =>
-                handleTimeChange(opt.value)
-              }
+              onClick={() => handleTimeChange(opt.value)}
             >
               {opt.label}
             </button>

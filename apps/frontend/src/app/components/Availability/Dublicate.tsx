@@ -1,21 +1,38 @@
 import React, { useState } from "react";
-import { daysOfWeek, DEFAULT_INTERVAL } from "./utils";
+import {
+  AvailabilityState,
+  daysOfWeek,
+  DEFAULT_INTERVAL,
+  Interval,
+  SetAvailability,
+} from "./utils";
 import { IoCopy } from "react-icons/io5";
 
 import "./Availability.css";
 
-const Dublicate = ({ setAvailability, day }: any) => {
-  const [copyTargets, setCopyTargets] = useState<any>(
-    daysOfWeek.map((acc: any, i) => ({
+type DublicateProps = {
+  setAvailability: SetAvailability;
+  day: string;
+};
+
+type CopyTarget = {
+  name: string;
+  active: boolean;
+  disable: boolean;
+};
+
+const Dublicate: React.FC<DublicateProps> = ({ setAvailability, day }) => {
+  const [copyTargets, setCopyTargets] = useState<CopyTarget[]>(
+    daysOfWeek.map((acc) => ({
       name: acc,
       active: false,
       disable: day === acc,
     }))
   );
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState<boolean>(false);
 
   const handleSelect = (dayName: string) => {
-    setCopyTargets((prev: any[]) =>
+    setCopyTargets((prev: CopyTarget[]) =>
       prev.map((item) =>
         item.name === dayName ? { ...item, active: !item.active } : item
       )
@@ -24,20 +41,20 @@ const Dublicate = ({ setAvailability, day }: any) => {
 
   const handleApply = () => {
     const selectedTargets = copyTargets
-      .filter((t: any) => t.active && !t.disable)
-      .map((t: any) => t.name);
+      .filter((t) => t.active && !t.disable)
+      .map((t) => t.name);
 
     if (selectedTargets.length === 0) {
       setOpen(false);
       return;
     }
-    setAvailability((prev: any) => {
-      const fromIntervals = prev[day]?.intervals ?? [];
-      const clone = fromIntervals.map((iv: any) => ({
+    setAvailability((prev) => {
+      const fromIntervals: Interval[] = prev[day]?.intervals ?? [];
+      const clone: Interval[] = fromIntervals.map((iv) => ({
         start: iv.start,
         end: iv.end,
       }));
-      const next: any = { ...prev };
+      const next: AvailabilityState = { ...prev };
       for (const toDay of selectedTargets) {
         next[toDay] = {
           ...next[toDay],
@@ -48,9 +65,7 @@ const Dublicate = ({ setAvailability, day }: any) => {
       return next;
     });
     setOpen(false);
-    setCopyTargets((prev: any[]) =>
-      prev.map((item) => ({ ...item, active: false }))
-    );
+    setCopyTargets((prev) => prev.map((item) => ({ ...item, active: false })));
   };
 
   return (
@@ -70,15 +85,16 @@ const Dublicate = ({ setAvailability, day }: any) => {
               onClick={() => handleSelect(d)}
             >
               <label
-                htmlFor="availability-dublicate-dropdown-item-check"
+                htmlFor={`availability-duplicate-${d}-check`}
                 className="availability-dublicate-dropdown-item-label"
               >
                 <input
-                  id="availability-dublicate-dropdown-item-check"
+                  id={`availability-duplicate-${d}-check`}
                   type="checkbox"
                   checked={copyTargets[i].active}
                   disabled={copyTargets[i].disable}
                   className="availability-dublicate-dropdown-item-check"
+                  readOnly
                 />
                 <span>{d}</span>
               </label>
