@@ -62,7 +62,26 @@ export const TabNavigator: React.FC = () => {
         component={DocumentStackNavigator}
         options={{headerShown: false}}
       />
-      <Tab.Screen name="Tasks" component={TaskStackNavigator} options={{headerShown: false}} />
+      <Tab.Screen
+        name="Tasks"
+        component={TaskStackNavigator}
+        options={{headerShown: false}}
+        listeners={({navigation, route}) => ({
+          tabPress: e => {
+            const state = navigation.getState();
+            const tabRoute = state.routes.find(r => r.name === route.name);
+            const nestedState = tabRoute && 'state' in tabRoute ? (tabRoute.state as any) : null;
+            if (nestedState?.type === 'stack' && nestedState.routes.length > 1) {
+              e.preventDefault();
+              navigation.dispatch({
+                ...StackActions.popToTop(),
+                target: nestedState.key,
+              });
+              navigation.navigate(route.name as any);
+            }
+          },
+        })}
+      />
     </Tab.Navigator>
   );
 };
