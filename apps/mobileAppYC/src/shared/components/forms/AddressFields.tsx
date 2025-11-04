@@ -2,6 +2,7 @@ import React, {useMemo} from 'react';
 import {
   ActivityIndicator,
   Platform,
+  ScrollView,
   StyleProp,
   StyleSheet,
   Text,
@@ -71,7 +72,10 @@ export const AddressFields: React.FC<AddressFieldsProps> = ({
             );
           } else if (addressSuggestions.length > 0) {
             content = (
-              <View style={styles.suggestionList}>
+              <ScrollView
+                style={styles.suggestionList}
+                scrollEnabled={addressSuggestions.length > 3}
+                showsVerticalScrollIndicator={true}>
                 {addressSuggestions.map((item, index) => (
                   <TouchableOpacity
                     key={item.placeId}
@@ -86,7 +90,7 @@ export const AddressFields: React.FC<AddressFieldsProps> = ({
                     ) : null}
                   </TouchableOpacity>
                 ))}
-              </View>
+              </ScrollView>
             );
           } else {
             content = (
@@ -174,6 +178,7 @@ const createStyles = (theme: any) =>
     },
     suggestionList: {
       maxHeight: 200,
+      flex: 0,
     },
     suggestionItem: {
       paddingVertical: theme.spacing['2'],

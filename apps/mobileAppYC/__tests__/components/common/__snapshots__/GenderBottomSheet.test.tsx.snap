@@ -22,6 +22,7 @@ exports[`GenderBottomSheet matches snapshot 1`] = `
           "alignItems": "center",
           "flexDirection": "row",
           "justifyContent": "center",
+          "minHeight": undefined,
           "paddingVertical": 16,
           "position": "relative",
         }
@@ -33,7 +34,7 @@ exports[`GenderBottomSheet matches snapshot 1`] = `
             "alignItems": "center",
             "flex": 1,
             "justifyContent": "center",
-            "paddingRight": 32,
+            "paddingHorizontal": undefined,
           }
         }
       >
@@ -44,6 +45,7 @@ exports[`GenderBottomSheet matches snapshot 1`] = `
               "fontSize": 26,
               "fontWeight": "500",
               "lineHeight": 33.800000000000004,
+              "maxWidth": "100%",
               "textAlign": "center",
             }
           }
