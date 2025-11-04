@@ -29,6 +29,7 @@ import type {LinkedBusinessStackParamList} from '@/navigation/types';
 import type {LinkedBusiness} from '../types';
 import {CompanionProfileImage} from '../components/CompanionProfileImage';
 import {InviteCard} from '../components/InviteCard';
+import LocationService from '@/shared/services/LocationService';
 
 type Props = NativeStackScreenProps<LinkedBusinessStackParamList, 'BusinessSearch'>;
 
@@ -44,7 +45,26 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
   const [searching, setSearching] = useState(false);
   const [selectedBusinessForDelete, setSelectedBusinessForDelete] = useState<LinkedBusiness | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [userLocation, setUserLocation] = useState<{latitude: number; longitude: number} | null>(null);
   const deleteBottomSheetRef = useRef<DeleteBusinessBottomSheetRef>(null);
+
+  // Get user's location on screen mount
+  useEffect(() => {
+    const getUserLocation = async () => {
+      try {
+        const location = await LocationService.getCurrentPosition();
+        setUserLocation({
+          latitude: location.latitude,
+          longitude: location.longitude,
+        });
+        console.log('[BusinessSearch] User location obtained:', location.latitude, location.longitude);
+      } catch (error) {
+        console.log('[BusinessSearch] Failed to get user location, proceeding without location bias:', error);
+        // Proceed without location - it's optional for search
+      }
+    };
+    getUserLocation();
+  }, []);
 
   // Log mount/navigation only when params change, not on every render
   useEffect(() => {
@@ -127,7 +147,7 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
           const result = await dispatch(
             searchBusinessesByLocation({
               query,
-              location: null, // TODO: Pass user's actual location when available
+              location: userLocation,
             }),
           ).unwrap();
           setSearchResults(result);
