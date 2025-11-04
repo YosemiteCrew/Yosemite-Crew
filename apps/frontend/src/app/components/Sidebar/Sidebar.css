@@ -10,7 +10,7 @@
   border-radius: 16px;
   border: 1px solid var(--yc-upated-black-6, #eaeaea);
   background: var(--yc-updated-white, #fff);
-  box-shadow: 0 0 16px 0 rgba(0, 0, 0, 0.08);
+  box-shadow: 0 0 8px 0 rgba(0, 0, 0, 0.08);
 }
 .route {
   padding: 12px;

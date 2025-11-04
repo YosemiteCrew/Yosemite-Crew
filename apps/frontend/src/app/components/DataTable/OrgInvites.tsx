@@ -7,6 +7,7 @@ import GenericTable from "@/app/components/GenericTable/GenericTable";
 
 import "./DataTable.css";
 import InviteCard from "../Cards/InviteCard/InviteCard";
+import Link from "next/link";
 
 type Column<T> = {
   label: string;
@@ -68,9 +69,9 @@ const OrgInvites = (invites: any) => {
       width: "20%",
       render: (item: InviteProps) => (
         <div className="action-btn-col">
-          <div className="action-btn" style={{ background: "#E6F4EF" }}>
+          <Link href={"/team-onboarding"} className="action-btn" style={{ background: "#E6F4EF" }}>
             <FaCheckCircle size={22} color="#54B492" />
-          </div>
+          </Link>
           <div className="action-btn" style={{ background: "#FDEBEA" }}>
             <IoIosCloseCircle size={24} color="#EA3729" />
           </div>

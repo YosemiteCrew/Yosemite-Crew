@@ -1,0 +1,103 @@
+.service-search {
+  display: flex;
+  width: 100%;
+  height: 48px;
+  padding: 10px 24px 10px 56px;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  align-self: stretch;
+  border-bottom: 1px solid #eaeaea;
+  position: relative;
+}
+.service-search-input {
+  width: 100%;
+  border: none;
+  color: var(--black-text);
+  font-family: var(--satoshi-font);
+  font-size: 18px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 120%;
+  letter-spacing: -0.36px;
+  outline: none;
+}
+.service-search-icon {
+  position: absolute;
+  left: 24px;
+}
+.service-search-dropdown {
+  position: absolute;
+  top: 48px;
+  left: 0px;
+  width: 100%;
+  max-height: 180px;
+  overflow-y: scroll;
+  z-index: 10;
+  background: #fff;
+  border: 1px solid #747473;
+  border-radius: 0px 0px 16px 16px;
+}
+.service-search-speciality {
+  display: flex;
+  height: 48px;
+  padding: 10px 24px;
+  align-items: center;
+  gap: 12px;
+  align-self: stretch;
+  border-bottom: 1px solid #eaeaea;
+  cursor: pointer;
+}
+.service-search-add {
+  border: none;
+  outline: none;
+  height: 60px;
+  padding: 10px 24px;
+  cursor: pointer;
+  width: 100%;
+  background: var(--whitebg);
+}
+.service-search-speciality-title {
+  color: var(--black-text);
+  font-family: var(--satoshi-font);
+  font-size: 18px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 120%;
+  letter-spacing: -0.36px;
+}
+.service-search-speciality-check {
+  height: 16px !important;
+  width: 16px !important;
+  font-weight: 300 !important;
+}
+.service-search-speciality-check:checked::after {
+  border-width: 0px 2px 2px 0px !important;
+}
+.services-container-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0px 0px 16px 16px;
+  border: 1px solid #eaeaea;
+  height: 100px;
+  width: 100%;
+  color: var(--black-text);
+  font-family: var(--satoshi-font);
+  font-size: 18px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 120%;
+  letter-spacing: -0.36px;
+}
+@media screen and (max-width: 768px) {
+  .service-search {
+    height: 48px;
+    width: 300px;
+  }
+}
+@media screen and (max-width: 350px) {
+  .service-search {
+    width: 100%;
+  }
+}
