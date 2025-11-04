@@ -81,6 +81,11 @@ const createMockState = (authState: Partial<AuthState>): RootState => ({
     error: null,
     selectedCoParentId: null,
   },
+  linkedBusinesses: {
+    linkedBusinesses: [],
+    loading: false,
+    error: null,
+  },
   _persist: {
     version: 2,
     rehydrated: true,

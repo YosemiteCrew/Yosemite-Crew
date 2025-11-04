@@ -47,7 +47,7 @@ export type LinkedBusinessStackParamList = {
     companionImage?: string;
     category: 'hospital' | 'boarder' | 'breeder' | 'groomer';
   };
-  BusinessDetails: {
+  BusinessAdd: {
     companionId: string;
     companionName: string;
     companionBreed?: string;
@@ -56,9 +56,13 @@ export type LinkedBusinessStackParamList = {
     businessId: string;
     businessName: string;
     businessAddress: string;
+    phone?: string;
+    email?: string;
+    photo?: any;
     isPMSRecord: boolean;
     rating?: number;
     distance?: number;
+    placeId: string;
   };
   QRScanner: {
     companionId: string;

@@ -15,6 +15,7 @@ export const Images = {
   googleTab: require('./icons/googleTab.png'),
   appleTab: require('./icons/appleTab.png'),
   facebookTab: require('./icons/facebookTab.png'),
+  getDirection: require('./icons/getDirection.png'),
   cameraIcon: require('./icons/camera.png'),
   dropdownIcon: require('./icons/dropdown.png'),
   calendarIcon: require('./icons/calendar.png'),

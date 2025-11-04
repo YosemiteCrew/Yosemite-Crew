@@ -38,8 +38,8 @@ export const QRScannerScreen: React.FC<Props> = ({route, navigation}) => {
           searchBusinessByQRCode(pmsBusinessCode),
         ).unwrap();
 
-        // Navigate to business details
-        navigation.navigate('BusinessDetails', {
+        // Navigate to business add screen
+        navigation.navigate('BusinessAdd', {
           companionId,
           companionName,
           companionBreed,
@@ -48,9 +48,13 @@ export const QRScannerScreen: React.FC<Props> = ({route, navigation}) => {
           businessId: business.businessId || business.id,
           businessName: business.name,
           businessAddress: business.address,
+          phone: business.phone,
+          email: business.email,
+          photo: business.photo,
           isPMSRecord: business.isPMSRecord,
           rating: business.rating,
           distance: business.distance,
+          placeId: business.id,
         });
       } catch (error) {
         console.error('[QRScanner] Failed to process QR code:', error);

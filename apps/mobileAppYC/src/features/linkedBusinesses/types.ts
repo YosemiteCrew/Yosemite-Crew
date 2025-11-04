@@ -5,6 +5,8 @@ export interface LinkedBusiness {
   businessName: string;
   category: 'hospital' | 'boarder' | 'breeder' | 'groomer';
   address?: string;
+  phone?: string;
+  email?: string;
   distance?: number;
   rating?: number;
   photo?: any;
@@ -34,6 +36,8 @@ export interface BusinessSearchResult {
   name: string;
   address: string;
   photo?: any;
+  phone?: string;
+  email?: string;
   isPMSRecord: boolean;
   businessId?: string;
   rating?: number;

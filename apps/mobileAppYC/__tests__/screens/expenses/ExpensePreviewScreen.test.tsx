@@ -231,6 +231,11 @@ describe('ExpensePreviewScreen', () => {
         error: null,
         selectedCoParentId: null,
       },
+      linkedBusinesses: {
+        linkedBusinesses: [],
+        loading: false,
+        error: null,
+      },
       _persist: {
         version: 0,
         rehydrated: true,

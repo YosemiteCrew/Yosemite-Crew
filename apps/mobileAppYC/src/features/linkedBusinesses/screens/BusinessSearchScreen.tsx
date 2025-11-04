@@ -1,4 +1,4 @@
-import React, {useState, useCallback, useMemo} from 'react';
+import React, {useState, useCallback, useMemo, useRef} from 'react';
 import {
   View,
   ScrollView,
@@ -10,22 +10,23 @@ import {
   Alert,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
+import {useFocusEffect} from '@react-navigation/native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux';
-import type {AppDispatch, RootState} from '@/app/store';
+import type {AppDispatch} from '@/app/store';
 import {useTheme} from '@/hooks';
 import {Header} from '@/shared/components/common/Header/Header';
 import {SearchBar} from '@/shared/components/common/SearchBar/SearchBar';
 import {
   searchBusinessesByLocation,
-  selectLinkedBusinessesByCompanion,
+  selectLinkedBusinesses,
   deleteLinkedBusiness,
-  addLinkedBusiness,
+  DeleteBusinessBottomSheet,
+  type DeleteBusinessBottomSheetRef,
 } from '../index';
 import {LinkedBusinessCard} from '../components/LinkedBusinessCard';
 import type {LinkedBusinessStackParamList} from '@/navigation/types';
-import {AddBusinessBottomSheet, type AddBusinessBottomSheetRef} from '../components/AddBusinessBottomSheet';
-import {NotifyBusinessBottomSheet, type NotifyBusinessBottomSheetRef} from '../components/NotifyBusinessBottomSheet';
+import type {LinkedBusiness} from '../types';
 import {CompanionProfileImage} from '../components/CompanionProfileImage';
 import {InviteCard} from '../components/InviteCard';
 
@@ -41,18 +42,37 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
-  const [selectedBusiness, setSelectedBusiness] = useState<any>(null);
-  const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
+  const [selectedBusinessForDelete, setSelectedBusinessForDelete] = useState<LinkedBusiness | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const deleteBottomSheetRef = useRef<DeleteBusinessBottomSheetRef>(null);
+
+  console.log('[BusinessSearch] Screen mounted with companionId:', companionId, 'category:', category);
+
+  // Reset search state when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('[BusinessSearch] Screen focused - resetting search state');
+      setSearchQuery('');
+      setSearchResults([]);
+      setSelectedBusinessForDelete(null);
+      return () => {
+        // Optional: cleanup when screen loses focus
+      };
+    }, []),
+  );
 
   // Get linked businesses for this companion and category
-  const linkedBusinesses = useSelector((state: RootState) => {
-    const selectByCompanion = selectLinkedBusinessesByCompanion(companionId);
-    const all = selectByCompanion(state);
-    return all.filter(b => b.category === category);
-  });
+  // Use selector to get all linked businesses, then filter locally
+  const allLinkedBusinesses = useSelector(selectLinkedBusinesses);
+  const linkedBusinesses = useMemo(() => {
+    const filtered = allLinkedBusinesses.filter(
+      b => b.companionId === companionId && b.category === category,
+    );
+    console.log('[BusinessSearch] Redux state all businesses:', allLinkedBusinesses.map(b => ({id: b.id, companionId: b.companionId, category: b.category})));
+    console.log('[BusinessSearch] Filtered for companion:', companionId, 'category:', category, 'result:', filtered.length);
+    return filtered;
+  }, [allLinkedBusinesses, companionId, category]);
 
-  const addBusinessSheetRef = React.useRef<AddBusinessBottomSheetRef>(null);
-  const notifyBusinessSheetRef = React.useRef<NotifyBusinessBottomSheetRef>(null);
 
   const handleSearch = useCallback(
     async (query: string) => {
@@ -62,64 +82,116 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
         return;
       }
 
-      setSearching(true);
-      try {
-        const result = await dispatch(
-          searchBusinessesByLocation({query, location: null}),
-        ).unwrap();
-        setSearchResults(result);
-      } catch (error) {
-        console.error('Search failed:', error);
-        setSearchResults([]);
-      } finally {
-        setSearching(false);
-      }
+      // Debounce search to avoid repeated calls
+      // Increased to 1200ms for quota efficiency (prevents accidental multiple searches)
+      const timer = setTimeout(async () => {
+        setSearching(true);
+        try {
+          const result = await dispatch(
+            searchBusinessesByLocation({
+              query,
+              location: null, // TODO: Pass user's actual location when available
+            }),
+          ).unwrap();
+          setSearchResults(result);
+          console.log('[BusinessSearch] Search completed with', result.length, 'results. Using caching to prevent re-fetches.');
+        } catch (error: any) {
+          // Log error but don't show to user - use fallback results instead
+          const isQuotaError = error?.message?.includes('RESOURCE_EXHAUSTED') ||
+                              error?.message?.includes('Quota exceeded');
+          if (isQuotaError) {
+            console.warn('[BusinessSearch] Quota exceeded, using fallback results');
+          } else {
+            console.error('Search failed:', error);
+          }
+          // Keep previous results instead of clearing
+          // This allows graceful degradation
+        } finally {
+          setSearching(false);
+        }
+      }, 1200); // Increased from 800ms to 1200ms to prevent accidental re-searches
+
+      return () => clearTimeout(timer);
     },
     [dispatch],
   );
 
   const handleSelectBusiness = useCallback(
     (business: any) => {
-      setSelectedBusiness(business);
-      addBusinessSheetRef.current?.open();
+      // Check if there's an existing linked business with the same name to get the photo
+      const existingBusiness = linkedBusinesses.find(
+        b => b.businessName.toLowerCase() === business.name.toLowerCase(),
+      );
+      // Use existing business data if available (includes photo, phone, email)
+      const photoToUse = business.photo || existingBusiness?.photo;
+      const phoneToUse = business.phone || existingBusiness?.phone;
+      const emailToUse = business.email || existingBusiness?.email;
+
+      console.log('[BusinessSearch] Selected business:', {
+        name: business.name,
+        businessId: business.businessId,
+        placeId: business.id,
+        photo: photoToUse,
+        phone: phoneToUse,
+        email: emailToUse,
+        isPMSRecord: business.isPMSRecord,
+      });
+
+      navigation.navigate('BusinessAdd', {
+        companionId,
+        companionName,
+        companionBreed,
+        companionImage,
+        category,
+        businessId: business.businessId,
+        businessName: business.name,
+        businessAddress: business.address,
+        phone: phoneToUse,
+        email: emailToUse,
+        photo: photoToUse,
+        isPMSRecord: business.isPMSRecord,
+        rating: business.rating,
+        distance: business.distance,
+        placeId: business.id,
+      } as any);
     },
-    [],
+    [navigation, companionId, companionName, companionBreed, companionImage, category, linkedBusinesses],
   );
 
-  const handleAddBusiness = useCallback(async () => {
-    if (!selectedBusiness) return;
-    try {
-      await dispatch(
-        addLinkedBusiness({
-          companionId,
-          businessId: selectedBusiness.businessId,
-          businessName: selectedBusiness.name,
-          category: category as any,
-        }),
-      ).unwrap();
 
-      addBusinessSheetRef.current?.close();
-      // Show notification bottom sheet
-      notifyBusinessSheetRef.current?.open();
-    } catch (error) {
-      console.error('Failed to add business:', error);
-      Alert.alert('Error', 'Failed to add business. Please try again.');
-    }
-  }, [dispatch, selectedBusiness, companionId, category]);
-
-  const handleNotifyClose = useCallback(() => {
-    notifyBusinessSheetRef.current?.close();
-    setSearchQuery('');
-    setSearchResults([]);
-    setSelectedBusiness(null);
+  const handleDeletePressFromCard = useCallback((business: LinkedBusiness) => {
+    console.log('[BusinessSearch] Delete pressed for:', business.id, business.businessName);
+    setSelectedBusinessForDelete(business);
+    deleteBottomSheetRef.current?.open(business.businessName);
   }, []);
 
-  const handleDeleteBusiness = useCallback(
-    (id: string) => {
-      dispatch(deleteLinkedBusiness(id));
-    },
-    [dispatch],
-  );
+  const handleConfirmDelete = useCallback(async () => {
+    if (!selectedBusinessForDelete) return;
+
+    try {
+      setDeleteLoading(true);
+      console.log('[BusinessSearch] ===== DELETE START =====');
+      console.log('[BusinessSearch] Business ID to delete:', selectedBusinessForDelete.id);
+
+      console.log('[BusinessSearch] Dispatching delete...');
+      const result = await dispatch(deleteLinkedBusiness(selectedBusinessForDelete.id)).unwrap();
+      console.log('[BusinessSearch] Delete returned:', result);
+      console.log('[BusinessSearch] Successfully deleted business:', selectedBusinessForDelete.id);
+      console.log('[BusinessSearch] ===== DELETE END =====');
+
+      setSelectedBusinessForDelete(null);
+    } catch (error) {
+      console.error('[BusinessSearch] Failed to delete business:', error);
+      Alert.alert('Error', 'Failed to delete business. Please try again.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  }, [dispatch, selectedBusinessForDelete]);
+
+  const handleCancelDelete = useCallback(() => {
+    console.log('[BusinessSearch] Delete cancelled');
+    setSelectedBusinessForDelete(null);
+  }, []);
 
   const handleBack = useCallback(() => {
     if (navigation.canGoBack()) {
@@ -127,9 +199,6 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
     }
   }, [navigation]);
 
-  const handleSheetChange = useCallback((index: number) => {
-    setIsBottomSheetOpen(index >= 0);
-  }, []);
 
   const categoryTitle = category.charAt(0).toUpperCase() + category.slice(1);
 
@@ -147,7 +216,6 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
               mode="input"
               value={searchQuery}
               onChangeText={handleSearch}
-              autoFocus
             />
           </View>
 
@@ -155,29 +223,25 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled">
-            {/* Companion Profile Header */}
-            {!searchQuery && (
-              <CompanionProfileImage
-                name={companionName}
-                breedName={companionBreed}
-                profileImage={companionImage}
-              />
-            )}
+            {/* Companion Profile Header - Always visible */}
+            <CompanionProfileImage
+              name={companionName}
+              breedName={companionBreed}
+              profileImage={companionImage}
+            />
 
             {/* Mock Invite Section - Always Show */}
-            {!searchQuery && (
-              <InviteCard
-                businessName="San Francisco Pet Health Center"
-                parentName="Sky Brown"
-                companionName={companionName}
-                email="skybrown@gmail.com"
-                phone="+91-9546284920"
-                onAccept={() => {}}
-                onDecline={() => {}}
-              />
-            )}
+            <InviteCard
+              businessName="San Francisco Pet Health Center"
+              parentName="Sky Brown"
+              companionName={companionName}
+              email="skybrown@gmail.com"
+              phone="+91-9546284920"
+              onAccept={() => {}}
+              onDecline={() => {}}
+            />
 
-            {/* Linked Businesses Section */}
+            {/* Linked Businesses Section - Always visible */}
             {linkedBusinesses.length > 0 && (
               <View style={styles.linkedSection}>
                 <Text style={styles.sectionTitle}>
@@ -187,13 +251,13 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
                   <LinkedBusinessCard
                     key={business.id}
                     business={business}
-                    onDelete={handleDeleteBusiness}
+                    onDeletePress={handleDeletePressFromCard}
                   />
                 ))}
               </View>
             )}
 
-            {!searchQuery && linkedBusinesses.length === 0 && (
+            {linkedBusinesses.length === 0 && (
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyText}>
                   No linked {categoryTitle.toLowerCase()}s yet
@@ -204,9 +268,13 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
         </View>
 
         {/* Search Dropdown Overlay - Shows above keyboard */}
-        {searchQuery.length >= 2 && searchResults.length > 0 && !searching && !isBottomSheetOpen && (
+        {searchQuery.length >= 2 && searchResults.length > 0 && !searching && (
           <View style={styles.absoluteSearchDropdownContainer}>
-            <View style={styles.searchDropdownContainer}>
+            <ScrollView
+              style={styles.searchDropdownContainer}
+              scrollEnabled={searchResults.length > 5}
+              showsVerticalScrollIndicator={true}
+              nestedScrollEnabled={true}>
               {searchResults.map(item => (
                 <TouchableOpacity
                   key={item.id}
@@ -223,27 +291,16 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
                   </View>
                 </TouchableOpacity>
               ))}
-            </View>
+            </ScrollView>
           </View>
         )}
       </KeyboardAvoidingView>
 
-      {/* Add Business Bottom Sheet */}
-      <AddBusinessBottomSheet
-        ref={addBusinessSheetRef}
-        businessName={selectedBusiness?.name}
-        businessAddress={selectedBusiness?.address}
-        onConfirm={handleAddBusiness}
-        onSheetChange={handleSheetChange}
-      />
-
-      {/* Notify Business Bottom Sheet */}
-      <NotifyBusinessBottomSheet
-        ref={notifyBusinessSheetRef}
-        businessName={selectedBusiness?.name}
-        companionName={companionName}
-        onConfirm={handleNotifyClose}
-        onSheetChange={handleSheetChange}
+      <DeleteBusinessBottomSheet
+        ref={deleteBottomSheetRef}
+        onDelete={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+        loading={deleteLoading}
       />
     </SafeAreaView>
   );

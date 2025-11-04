@@ -9,6 +9,7 @@ import {ProfileOverviewScreen} from '@/features/companion/screens/ProfileOvervie
 import { CompanionOverviewScreen } from '@/features/companion/screens/CompanionOverviewScreen';
 import { EditParentScreen } from '@/features/account/screens/EditParentScreen';
 import {ExpenseStackNavigator} from './ExpenseStackNavigator';
+import {LinkedBusinessesStackNavigator} from './LinkedBusinessesStackNavigator';
 import {FAQScreen} from '@/features/support/screens/FAQScreen';
 import {ContactUsScreen} from '@/features/support/screens/ContactUsScreen';
 import {TermsAndConditionsScreen} from '@/features/legal/screens/TermsAndConditionsScreen';
@@ -90,6 +91,11 @@ export const HomeStackNavigator: React.FC = () => {
       <Stack.Screen
         name="ExpensesStack"
         component={ExpenseStackNavigator}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="LinkedBusinesses"
+        component={LinkedBusinessesStackNavigator}
         options={{headerShown: false}}
       />
       <Stack.Screen
