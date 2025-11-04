@@ -157,6 +157,30 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         screen: 'DocumentsMain',
       });
     }
+    if (sectionId === 'hospital') {
+      navigation.navigate('LinkedBusinesses', {
+        screen: 'BusinessSearch',
+        params: {companionId, companionName: companion?.name || '', companionBreed: companion?.breed?.breedName, companionImage: companion?.profileImage, category: 'hospital'},
+      } as any);
+    }
+    if (sectionId === 'boarder') {
+      navigation.navigate('LinkedBusinesses', {
+        screen: 'BusinessSearch',
+        params: {companionId, companionName: companion?.name || '', companionBreed: companion?.breed?.breedName, companionImage: companion?.profileImage, category: 'boarder'},
+      } as any);
+    }
+    if (sectionId === 'breeder') {
+      navigation.navigate('LinkedBusinesses', {
+        screen: 'BusinessSearch',
+        params: {companionId, companionName: companion?.name || '', companionBreed: companion?.breed?.breedName, companionImage: companion?.profileImage, category: 'breeder'},
+      } as any);
+    }
+    if (sectionId === 'groomer') {
+      navigation.navigate('LinkedBusinesses', {
+        screen: 'BusinessSearch',
+        params: {companionId, companionName: companion?.name || '', companionBreed: companion?.breed?.breedName, companionImage: companion?.profileImage, category: 'groomer'},
+      } as any);
+    }
     if (sectionId === 'expense') {
       dispatch(setSelectedCompanion(companionId));
       navigation.navigate('ExpensesStack', {
