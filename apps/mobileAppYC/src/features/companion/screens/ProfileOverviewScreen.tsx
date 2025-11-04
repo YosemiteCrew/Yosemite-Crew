@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
-import {NavigationProp} from '@react-navigation/native';
+import {NavigationProp, useFocusEffect, StackActions, CommonActions} from '@react-navigation/native';
 import {useTheme} from '@/hooks';
 import {Header} from '@/shared/components/common/Header/Header';
 import {Images} from '@/assets/images';
@@ -94,6 +94,32 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
       dispatch(setSelectedCompanion(companionId));
     }
   }, [companionId, dispatch]);
+
+  // When returning to this screen, reset the Tasks tab stack to its root
+  useFocusEffect(
+    React.useCallback(() => {
+      const tabNavigation = navigation.getParent<NavigationProp<TabParamList>>();
+      try {
+        const tabState = tabNavigation?.getState();
+        const tasksRoute: any = tabState?.routes?.find(r => r.name === 'Tasks');
+        const nestedState = tasksRoute?.state;
+        const targetKey = nestedState?.key; // key of the nested Tasks stack
+        if (targetKey) {
+          // Hard reset the nested Tasks stack to ensure TasksMain is the root
+          tabNavigation?.dispatch({
+            ...CommonActions.reset({
+              index: 0,
+              routes: [{name: 'TasksMain' as never}],
+            }),
+            target: targetKey as string,
+          } as any);
+        }
+      } catch {
+        // no-op: if state isn't available yet, nothing to reset
+      }
+      return undefined;
+    }, [navigation])
+  );
 
   // Helper to show error alerts
   const showErrorAlert = React.useCallback((title: string, message: string) => {

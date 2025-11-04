@@ -93,7 +93,12 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
         });
 
         if (!isFocused && !event.defaultPrevented) {
-          navigation.navigate(route.name);
+          const rootScreen = ROOT_ROUTE_MAP[route.name];
+          if (rootScreen) {
+            navigation.navigate(route.name as never, {screen: rootScreen} as never);
+          } else {
+            navigation.navigate(route.name);
+          }
         }
       };
 
