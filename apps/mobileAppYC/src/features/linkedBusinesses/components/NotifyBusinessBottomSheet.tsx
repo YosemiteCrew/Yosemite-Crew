@@ -1,7 +1,9 @@
 import React, {forwardRef} from 'react';
-import {View, StyleSheet, Text} from 'react-native';
-import {ConfirmActionBottomSheet, ConfirmActionBottomSheetRef} from '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet';
+import {View, StyleSheet} from 'react-native';
+import {ConfirmActionBottomSheet} from '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet';
 import {useTheme} from '@/hooks';
+import {BottomSheetMessage} from '@/shared/components/common/BottomSheetMessage/BottomSheetMessage';
+import {useConfirmActionSheetRef} from '@/shared/hooks/useConfirmActionSheetRef';
 
 export interface NotifyBusinessBottomSheetRef {
   open: () => void;
@@ -19,37 +21,11 @@ export const NotifyBusinessBottomSheet = forwardRef<NotifyBusinessBottomSheetRef
   ({businessName, companionName, onConfirm, onSheetChange}, ref) => {
     const {theme} = useTheme();
     const styles = React.useMemo(() => createStyles(theme), [theme]);
-    const bottomSheetRef = React.useRef<ConfirmActionBottomSheetRef>(null);
-
-    React.useImperativeHandle(ref, () => ({
-      open: () => bottomSheetRef.current?.open(),
-      close: () => bottomSheetRef.current?.close(),
-    }));
-
-    const handleConfirm = () => {
-      bottomSheetRef.current?.close();
-      onConfirm?.();
-    };
-
-    const renderMessage = () => {
-      return (
-        <Text style={styles.messageText}>
-          Yosemite Crew have sent an Invite to{' '}
-          {businessName && <Text style={styles.highlightText}>{businessName}</Text>}
-          {companionName && (
-            <>
-              {'. You\'ll get an in-app notification once they have joined Yosemite Crew and confirmed '}
-              <Text style={styles.highlightText}>{companionName}</Text>
-              {' as a client.'}
-            </>
-          )}
-        </Text>
-      );
-    };
+    const {sheetRef, handleConfirm} = useConfirmActionSheetRef(ref, onConfirm);
 
     return (
       <ConfirmActionBottomSheet
-        ref={bottomSheetRef}
+        ref={sheetRef}
         title="Notified!"
         snapPoints={['45%']}
         primaryButton={{
@@ -58,8 +34,22 @@ export const NotifyBusinessBottomSheet = forwardRef<NotifyBusinessBottomSheetRef
         }}
         onSheetChange={onSheetChange}
         containerStyle={styles.container}>
-        <View style={styles.messageContainer}>
-          {renderMessage()}
+        <View>
+          <BottomSheetMessage>
+            Yosemite Crew have sent an Invite to{' '}
+            {businessName ? (
+              <BottomSheetMessage.Highlight>{businessName}</BottomSheetMessage.Highlight>
+            ) : null}
+            {companionName ? (
+              <>
+                {". You'll get an in-app notification once they have joined Yosemite Crew and confirmed "}
+                <BottomSheetMessage.Highlight>
+                  {companionName}
+                </BottomSheetMessage.Highlight>
+                {' as a client.'}
+              </>
+            ) : null}
+          </BottomSheetMessage>
         </View>
       </ConfirmActionBottomSheet>
     );
@@ -72,20 +62,6 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
       gap: theme.spacing[4],
-    },
-    messageContainer: {
-      paddingHorizontal: theme.spacing[2],
-      marginBottom: theme.spacing[2],
-    },
-    messageText: {
-      ...theme.typography.body,
-      color: theme.colors.textSecondary,
-      textAlign: 'center',
-      lineHeight: 22,
-    },
-    highlightText: {
-      color: theme.colors.secondary,
-      fontWeight: '600',
     },
   });
 
