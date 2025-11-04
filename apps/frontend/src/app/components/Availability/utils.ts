@@ -1,4 +1,19 @@
-export const generateTimeOptions = () => {
+export interface TimeOption {
+  value: string;
+  label: string;
+}
+export interface Interval {
+  start: string;
+  end: string;
+}
+export interface DayAvailability {
+  enabled: boolean;
+  intervals: Interval[];
+}
+export type AvailabilityState = Record<string, DayAvailability>;
+export type SetAvailability = React.Dispatch<React.SetStateAction<AvailabilityState>>;
+
+export const generateTimeOptions = (): TimeOption[] => {
   const options = [];
   for (let hour = 0; hour < 24; hour++) {
     for (let min = 0; min < 60; min += 15) {
@@ -16,13 +31,13 @@ export const generateTimeOptions = () => {
   return options;
 };
 
-export const timeOptions = generateTimeOptions();
+export const timeOptions: TimeOption[] = generateTimeOptions();
 
-export const timeIndex = new Map(
+export const timeIndex: Map<string, number> = new Map(
   timeOptions.map((opt, idx) => [opt.value, idx])
 );
 
-export const getTimeLabelFromValue = (value: string) => {
+export const getTimeLabelFromValue = (value: string): string => {
   const match = timeOptions.find((e) => e.value === value);
   return match ? match.label : value;
 };
@@ -35,6 +50,6 @@ export const daysOfWeek = [
   "Thursday",
   "Friday",
   "Saturday",
-];
+] as const;
 
-export const DEFAULT_INTERVAL = { start: "09:00", end: "17:00" };
+export const DEFAULT_INTERVAL: Interval = { start: "09:00", end: "17:00" };
