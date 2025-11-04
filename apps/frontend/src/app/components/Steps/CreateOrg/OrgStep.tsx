@@ -67,9 +67,9 @@ const OrgStep = ({ nextStep, formData, setFormData }: any) => {
 
     setFormDataErrors(errors);
 
-    // if (Object.keys(errors).length > 0) {
-    //   return;
-    // }
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
 
     nextStep();
   };
