@@ -30,9 +30,9 @@ const ProfessionalStep = ({
     if (!formData.qualification)
       errors.qualification = "Qualification is required";
     setFormDataErrors(errors);
-    // if (Object.keys(errors).length > 0) {
-    //   return;
-    // }
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
     nextStep();
   };
 

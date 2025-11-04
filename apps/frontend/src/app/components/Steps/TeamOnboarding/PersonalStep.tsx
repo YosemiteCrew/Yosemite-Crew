@@ -93,9 +93,9 @@ const PersonalStep = ({ nextStep, formData, setFormData }: any) => {
     if (!formData.state) errors.state = "State is required";
     if (!formData.postalCode) errors.postalCode = "PostalCode is required";
     setFormDataErrors(errors);
-    // if (Object.keys(errors).length > 0) {
-    //   return;
-    // }
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
     nextStep();
   };
 
