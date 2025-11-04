@@ -85,7 +85,7 @@ const SignIn = () => {
       }
     }
   };
-  
+
   return (
     <section className="SignInSec">
       {ErrorTostPopup}
@@ -115,7 +115,12 @@ const SignIn = () => {
             </div>
           </div>
           <div className="Signbtn">
-            <Primary text="Sign in" onClick={handleSignIn} href="#" />
+            <Primary
+              text="Sign in"
+              onClick={handleSignIn}
+              href="#"
+              style={{ width: "100%" }}
+            />
             <h6>
               {" "}
               Don&apos;t have an account? <Link href="/signup">Sign up</Link>

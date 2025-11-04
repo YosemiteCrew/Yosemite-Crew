@@ -1,10 +1,10 @@
-.create-org-wrapper {
+.create-profile-wrapper {
   padding: 40px 80px 80px 40px;
   display: flex;
   flex-direction: column;
   gap: 40px;
 }
-.create-org-title {
+.create-profile-title {
   color: var(--black-text);
   font-family: var(--grotesk-font);
   font-size: 33px;
@@ -15,18 +15,18 @@
 }
 
 @media screen and (max-width: 1024px) {
-  .create-org-wrapper {
+  .create-profile-wrapper {
     padding: 40px 48px;
     gap: 32px;
   }
 }
 
 @media screen and (max-width: 768px) {
-  .create-org-wrapper {
+  .create-profile-wrapper {
     padding: 24px 16px;
     gap: 24px;
   }
-  .create-org-title {
+  .create-profile-title {
     font-size: 23px;
   }
 }

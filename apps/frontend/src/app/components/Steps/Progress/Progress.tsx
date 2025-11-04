@@ -1,27 +1,10 @@
 import React from "react";
-import { HiShoppingBag } from "react-icons/hi2";
-import { IoLocationSharp } from "react-icons/io5";
-import { FaSuitcaseMedical } from "react-icons/fa6";
 import classNames from "classnames";
+import { ProgressProps } from "../types";
 
-import "./CreateOrgProgress.css";
+import "./Progress.css";
 
-const steps = [
-  {
-    title: "Organisation",
-    logo: <HiShoppingBag color="#fff" size={20} />,
-  },
-  {
-    title: "Address",
-    logo: <IoLocationSharp color="#fff" size={20} />,
-  },
-  {
-    title: "Specialties",
-    logo: <FaSuitcaseMedical color="#fff" size={18} />,
-  },
-];
-
-const CreateOrgSteps = ({ activeStep }: any) => {
+const Progress: React.FC<ProgressProps> = ({ activeStep, steps }) => {
   return (
     <div className="steps-container">
       {steps.map((step, index) => (
@@ -55,4 +38,4 @@ const CreateOrgSteps = ({ activeStep }: any) => {
   );
 };
 
-export default CreateOrgSteps;
+export default Progress;

@@ -2,9 +2,9 @@ import React, { useEffect, useRef, useState } from "react";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import countries from "../../../utils/countryList.json";
 
-import "./OrgSearch.css";
+import "./GoogleSearchDropDown.css";
 
-type OrgSearchProps = {
+type GoogleSearchDropDownProps = {
   intype: string;
   inname?: string;
   value: string;
@@ -14,6 +14,7 @@ type OrgSearchProps = {
   onBlur?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   error?: string;
   setFormData?: any;
+  onlyAddress?: boolean;
 };
 
 type PlaceDetails = {
@@ -29,7 +30,7 @@ type PlaceDetails = {
   }>;
 };
 
-const OrgSearch = ({
+const GoogleSearchDropDown = ({
   intype,
   inname,
   inlabel,
@@ -39,7 +40,8 @@ const OrgSearch = ({
   readonly,
   error,
   setFormData,
-}: Readonly<OrgSearchProps>) => {
+  onlyAddress = false,
+}: Readonly<GoogleSearchDropDownProps>) => {
   const [isFocused, setIsFocused] = useState(false);
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -227,20 +229,30 @@ const OrgSearch = ({
       getAddr(comps, "administrative_area_level_1");
     const postalCode = getAddr(comps, "postal_code");
     const area = pickArea(comps);
-    console.log(postalCode)
-
-    setFormData((prev: any) => ({
-      ...prev,
-      name,
-      country: combinedCountry,
-      number: phone,
-      website,
-      address,
-      area,
-      city,
-      state,
-      postalCode,
-    }));
+    console.log(postalCode);
+    if (onlyAddress) {
+      setFormData((prev: any) => ({
+        ...prev,
+        address,
+        area,
+        city,
+        state,
+        postalCode,
+      }));
+    } else {
+      setFormData((prev: any) => ({
+        ...prev,
+        name,
+        country: combinedCountry,
+        number: phone,
+        website,
+        address,
+        area,
+        city,
+        state,
+        postalCode,
+      }));
+    }
   };
 
   const onFocus = () => {
@@ -316,4 +328,4 @@ const OrgSearch = ({
   );
 };
 
-export default OrgSearch;
+export default GoogleSearchDropDown;
