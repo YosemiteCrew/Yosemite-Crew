@@ -3,10 +3,10 @@ import {
   View,
   ScrollView,
   StyleSheet,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Text,
+  TouchableOpacity,
   Alert,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -18,12 +18,10 @@ import {Header} from '@/shared/components/common/Header/Header';
 import {SearchBar} from '@/shared/components/common/SearchBar/SearchBar';
 import {
   searchBusinessesByLocation,
-  selectLinkedBusinessesLoading,
   selectLinkedBusinessesByCompanion,
   deleteLinkedBusiness,
   addLinkedBusiness,
 } from '../index';
-import {BusinessSearchResult} from '../components/BusinessSearchResult';
 import {LinkedBusinessCard} from '../components/LinkedBusinessCard';
 import type {LinkedBusinessStackParamList} from '@/navigation/types';
 import {AddBusinessBottomSheet, type AddBusinessBottomSheetRef} from '../components/AddBusinessBottomSheet';
@@ -39,12 +37,12 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const dispatch = useDispatch<AppDispatch>();
-  const loading = useSelector(selectLinkedBusinessesLoading);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
   const [selectedBusiness, setSelectedBusiness] = useState<any>(null);
+  const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
 
   // Get linked businesses for this companion and category
   const linkedBusinesses = useSelector((state: RootState) => {
@@ -129,8 +127,8 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
     }
   }, [navigation]);
 
-  const handleSheetChange = useCallback((_index: number) => {
-    // Unused but required by bottom sheet component
+  const handleSheetChange = useCallback((index: number) => {
+    setIsBottomSheetOpen(index >= 0);
   }, []);
 
   const categoryTitle = category.charAt(0).toUpperCase() + category.slice(1);
@@ -179,24 +177,6 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
               />
             )}
 
-            {/* Search Results */}
-            {searching || loading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={theme.colors.primary} />
-              </View>
-            ) : searchResults.length > 0 && searchQuery ? (
-              <View style={styles.resultsContainer}>
-                <Text style={styles.sectionTitle}>Search results</Text>
-                {searchResults.map(result => (
-                  <BusinessSearchResult
-                    key={result.id}
-                    business={result}
-                    onPress={() => handleSelectBusiness(result)}
-                  />
-                ))}
-              </View>
-            ) : null}
-
             {/* Linked Businesses Section */}
             {linkedBusinesses.length > 0 && (
               <View style={styles.linkedSection}>
@@ -222,6 +202,30 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
             )}
           </ScrollView>
         </View>
+
+        {/* Search Dropdown Overlay - Shows above keyboard */}
+        {searchQuery.length >= 2 && searchResults.length > 0 && !searching && !isBottomSheetOpen && (
+          <View style={styles.absoluteSearchDropdownContainer}>
+            <View style={styles.searchDropdownContainer}>
+              {searchResults.map(item => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.searchResultItem}
+                  onPress={() => handleSelectBusiness(item)}>
+                  <View style={styles.resultAvatar}>
+                    <Text style={styles.resultAvatarText}>
+                      {item.name.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={styles.resultInfo}>
+                    <Text style={styles.resultName}>{item.name}</Text>
+                    <Text style={styles.resultEmail}>{item.address}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
       </KeyboardAvoidingView>
 
       {/* Add Business Bottom Sheet */}
@@ -290,6 +294,60 @@ const createStyles = (theme: any) =>
     },
     emptyText: {
       ...theme.typography.body,
+      color: theme.colors.textSecondary,
+    },
+    absoluteSearchDropdownContainer: {
+      position: 'absolute',
+      top: 70,
+      left: theme.spacing[4],
+      right: theme.spacing[4],
+      maxHeight: 300,
+      zIndex: 100,
+    },
+    searchDropdownContainer: {
+      backgroundColor: theme.colors.white,
+      borderRadius: theme.borderRadius.lg,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      maxHeight: 300,
+      shadowColor: '#000000',
+      shadowOffset: {width: 0, height: 4},
+      shadowOpacity: 0.15,
+      shadowRadius: 8,
+      elevation: 8,
+    },
+    searchResultItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: theme.spacing[3],
+      paddingVertical: theme.spacing[3],
+      gap: theme.spacing[3],
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+    },
+    resultAvatar: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: theme.colors.lightBlueBackground,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    resultAvatarText: {
+      ...theme.typography.h4,
+      color: theme.colors.secondary,
+    },
+    resultInfo: {
+      flex: 1,
+    },
+    resultName: {
+      ...theme.typography.titleSmall,
+      color: theme.colors.secondary,
+      marginBottom: theme.spacing[1],
+    },
+    resultEmail: {
+      ...theme.typography.bodyExtraSmall,
       color: theme.colors.textSecondary,
     },
   });
