@@ -168,7 +168,7 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
         }
       }, 800); // Industry-standard debounce for search inputs
     },
-    [dispatch],
+    [dispatch, userLocation],
   );
 
   const handleSelectBusiness = useCallback(
