@@ -9,6 +9,14 @@ import {TaskStackNavigator} from './TaskStackNavigator';
 import {FloatingTabBar} from './FloatingTabBar';
 import {useTheme} from '../hooks';
 import {StackActions} from '@react-navigation/native';
+type NestedNavState = {
+  key?: string;
+  index?: number;
+  routes: Array<{ name: string }>;
+};
+
+const isNestedState = (s: unknown): s is NestedNavState =>
+  !!s && typeof s === 'object' && Array.isArray((s as any).routes);
 
 const Tab = createBottomTabNavigator<TabParamList>();
 
@@ -16,22 +24,25 @@ const renderFloatingTabBar = (props: BottomTabBarProps) => (
   <FloatingTabBar {...props} />
 );
 
-const createTabPressListener = (navigation: any, route: any) => ({
+const createTabPressListener = (
+  navigation: any,
+  route: { name: keyof TabParamList }
+) => ({
   tabPress: (e: any) => {
     const state = navigation.getState();
     const tabRoute = state.routes.find((r: any) => r.name === route.name);
     const nestedState = tabRoute && 'state' in tabRoute ? tabRoute.state : null;
 
     // If the nested stack has more than 1 route, pop to the top
-    if (nestedState && Array.isArray((nestedState as any).routes) && (nestedState as any).routes.length > 1) {
+    if (isNestedState(nestedState) && nestedState.routes.length > 1) {
       e.preventDefault();
       // Pop to top of the nested stack (target that stack specifically)
-      const targetKey = (nestedState as any).key as string | undefined;
+      const targetKey = nestedState.key;
       if (targetKey) {
         navigation.dispatch({
           ...StackActions.popToTop(),
           target: targetKey,
-        } as any);
+        });
       } else {
         navigation.dispatch(
           StackActions.popToTop()
@@ -42,15 +53,14 @@ const createTabPressListener = (navigation: any, route: any) => ({
 
     // If nested stack has exactly 1 route but it's not the initial screen,
     // navigate to the known initial route for that tab.
-    if (nestedState && Array.isArray((nestedState as any).routes) && (nestedState as any).routes.length === 1) {
-      const ns: any = nestedState as any;
-      const currentRouteName = ns.routes[ns.index || 0]?.name;
+    if (isNestedState(nestedState) && nestedState.routes.length === 1) {
+      const currentRouteName = nestedState.routes[nestedState.index || 0]?.name;
       // Map of tab name -> initial screen name of its stack
-      const initialByTab: Record<string, string> = {
+      const initialByTab: Partial<Record<keyof TabParamList, string>> = {
         Tasks: 'TasksMain',
         Appointments: 'MyAppointments',
       };
-      const expectedInitial = initialByTab[route.name as keyof typeof initialByTab];
+      const expectedInitial = initialByTab[route.name];
       if (expectedInitial && currentRouteName && currentRouteName !== expectedInitial) {
         e.preventDefault();
         navigation.navigate(route.name, {screen: expectedInitial});

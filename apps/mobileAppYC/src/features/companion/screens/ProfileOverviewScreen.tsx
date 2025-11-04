@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
-import {NavigationProp, useFocusEffect, StackActions, CommonActions} from '@react-navigation/native';
+import {NavigationProp, useFocusEffect, CommonActions} from '@react-navigation/native';
 import {useTheme} from '@/hooks';
 import {Header} from '@/shared/components/common/Header/Header';
 import {Images} from '@/assets/images';
@@ -109,10 +109,10 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
           tabNavigation?.dispatch({
             ...CommonActions.reset({
               index: 0,
-              routes: [{name: 'TasksMain' as never}],
+              routes: [{name: 'TasksMain'}],
             }),
             target: targetKey as string,
-          } as any);
+          });
         }
       } catch {
         // no-op: if state isn't available yet, nothing to reset
