@@ -16,6 +16,22 @@ const renderFloatingTabBar = (props: BottomTabBarProps) => (
   <FloatingTabBar {...props} />
 );
 
+const createTabPressListener = (navigation: any, route: any) => ({
+  tabPress: (e: any) => {
+    const state = navigation.getState();
+    const tabRoute = state.routes.find((r: any) => r.name === route.name);
+    const nestedState = tabRoute && 'state' in tabRoute ? tabRoute.state : null;
+    if (nestedState?.type === 'stack' && nestedState.routes.length > 1) {
+      e.preventDefault();
+      navigation.dispatch({
+        ...StackActions.popToTop(),
+        target: nestedState.key,
+      });
+      navigation.navigate(route.name);
+    }
+  },
+});
+
 export const TabNavigator: React.FC = () => {
   const {theme} = useTheme();
 
@@ -41,21 +57,7 @@ export const TabNavigator: React.FC = () => {
         name="Appointments"
         component={AppointmentStackNavigator}
         options={{headerShown: false}}
-        listeners={({navigation, route}) => ({
-          tabPress: e => {
-            const state = navigation.getState();
-            const tabRoute = state.routes.find(r => r.name === route.name);
-            const nestedState = tabRoute && 'state' in tabRoute ? (tabRoute.state as any) : null;
-            if (nestedState?.type === 'stack' && nestedState.routes.length > 1) {
-              e.preventDefault();
-              navigation.dispatch({
-                ...StackActions.popToTop(),
-                target: nestedState.key,
-              });
-              navigation.navigate(route.name as any);
-            }
-          },
-        })}
+        listeners={({navigation, route}) => createTabPressListener(navigation, route)}
       />
       <Tab.Screen
         name="Documents"
@@ -66,21 +68,7 @@ export const TabNavigator: React.FC = () => {
         name="Tasks"
         component={TaskStackNavigator}
         options={{headerShown: false}}
-        listeners={({navigation, route}) => ({
-          tabPress: e => {
-            const state = navigation.getState();
-            const tabRoute = state.routes.find(r => r.name === route.name);
-            const nestedState = tabRoute && 'state' in tabRoute ? (tabRoute.state as any) : null;
-            if (nestedState?.type === 'stack' && nestedState.routes.length > 1) {
-              e.preventDefault();
-              navigation.dispatch({
-                ...StackActions.popToTop(),
-                target: nestedState.key,
-              });
-              navigation.navigate(route.name as any);
-            }
-          },
-        })}
+        listeners={({navigation, route}) => createTabPressListener(navigation, route)}
       />
     </Tab.Navigator>
   );
