@@ -2,7 +2,7 @@ import React from 'react';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {useTheme} from '@/hooks';
 import {BusinessSearchScreen} from '@/features/linkedBusinesses/screens/BusinessSearchScreen';
-import {BusinessDetailsScreen} from '@/features/linkedBusinesses/screens/BusinessDetailsScreen';
+import {BusinessAddScreen} from '@/features/linkedBusinesses/screens/BusinessAddScreen';
 import {QRScannerScreen} from '@/features/linkedBusinesses/screens/QRScannerScreen';
 import type {LinkedBusinessStackParamList} from './types';
 
@@ -29,8 +29,8 @@ export const LinkedBusinessesStackNavigator: React.FC = () => {
         options={{headerShown: false}}
       />
       <Stack.Screen
-        name="BusinessDetails"
-        component={BusinessDetailsScreen}
+        name="BusinessAdd"
+        component={BusinessAddScreen}
         options={{headerShown: false}}
       />
       <Stack.Screen

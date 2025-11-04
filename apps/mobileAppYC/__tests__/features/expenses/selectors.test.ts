@@ -115,6 +115,11 @@ const mockRootState: RootState = {
     error: null,
     selectedCoParentId: null,
   },
+  linkedBusinesses: {
+    linkedBusinesses: [],
+    loading: false,
+    error: null,
+  },
   _persist: { version: -1, rehydrated: true },
 };
 

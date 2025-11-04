@@ -25,6 +25,18 @@ export const linkedBusinessesSlice = createSlice({
     clearError(state) {
       state.error = null;
     },
+    initializeMockData(_state) {
+      // Reserved for future mock data initialization if needed
+      // Currently not used - businesses are added via addLinkedBusiness action
+    },
+    resetLinkedBusinesses(state) {
+      // Reset to initial state (clears all linked businesses)
+      // Used on logout and when user switches accounts
+      state.linkedBusinesses = [];
+      state.loading = false;
+      state.error = null;
+      state.selectedCategory = undefined;
+    },
   },
   extraReducers: builder => {
     // Search businesses
@@ -36,7 +48,7 @@ export const linkedBusinessesSlice = createSlice({
       .addCase(searchBusinessesByLocation.fulfilled, state => {
         state.loading = false;
       })
-      .addCase(searchBusinessesByLocation.rejected, (state, _action) => {
+      .addCase(searchBusinessesByLocation.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message ?? 'Failed to search businesses';
       });
@@ -50,7 +62,7 @@ export const linkedBusinessesSlice = createSlice({
       .addCase(searchBusinessByQRCode.fulfilled, state => {
         state.loading = false;
       })
-      .addCase(searchBusinessByQRCode.rejected, (state, _action) => {
+      .addCase(searchBusinessByQRCode.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message ?? 'Failed to scan QR code';
       });
@@ -121,5 +133,5 @@ export const linkedBusinessesSlice = createSlice({
   },
 });
 
-export const {setSelectedCategory, clearError} = linkedBusinessesSlice.actions;
+export const {setSelectedCategory, clearError, initializeMockData, resetLinkedBusinesses} = linkedBusinessesSlice.actions;
 export default linkedBusinessesSlice.reducer;

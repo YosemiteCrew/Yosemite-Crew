@@ -5,7 +5,7 @@ import {Images} from '@/assets/images';
 import {resolveImageSource} from '@/shared/utils/resolveImageSource';
 
 export interface VetBusinessCardProps {
-  photo?: ImageSourcePropType | number;
+  photo?: ImageSourcePropType | number | string;
   name: string;
   openHours?: string;
   address?: string;
@@ -39,7 +39,8 @@ export const VetBusinessCard: React.FC<VetBusinessCardProps> = ({
   return (
     <View style={[styles.card, style]}>
       <Image source={imageSource} style={styles.photo} resizeMode="cover" defaultSource={Images.hospitalIcon} />
-      <View style={styles.infoContainer}>
+      <View style={styles.contentPadding}>
+        <View style={styles.infoContainer}>
         <Text style={styles.name} numberOfLines={2}>{name}</Text>
 
         {openHours && <Text style={styles.openHours}>{openHours}</Text>}
@@ -76,7 +77,9 @@ export const VetBusinessCard: React.FC<VetBusinessCardProps> = ({
         {website && (
           <View style={styles.websiteRow}>
             <Image source={Images.websiteIcon} style={styles.metaIcon} />
-            <Text style={styles.websiteText}>{website}</Text>
+            <Text style={styles.websiteText} numberOfLines={1}>
+              {website}
+            </Text>
           </View>
         )}
 
@@ -88,6 +91,7 @@ export const VetBusinessCard: React.FC<VetBusinessCardProps> = ({
             <Text style={styles.ctaText}>{cta}</Text>
           </TouchableOpacity>
         )}
+        </View>
       </View>
     </View>
   );
@@ -100,7 +104,6 @@ const createStyles = (theme: any) =>
       borderWidth: 1,
       borderColor: theme.colors.border,
       borderRadius: 16,
-      padding: theme.spacing[3],
       backgroundColor: theme.colors.cardBackground,
       overflow: 'hidden',
     },
@@ -108,8 +111,11 @@ const createStyles = (theme: any) =>
       width: '100%',
       height: 160,
       borderRadius: 12,
-      marginBottom: theme.spacing[3],
       backgroundColor: theme.colors.border + '20',
+    },
+    contentPadding: {
+      paddingHorizontal: theme.spacing[4],
+      paddingVertical: theme.spacing[3],
     },
     infoContainer: {
       gap: 3,
@@ -118,6 +124,7 @@ const createStyles = (theme: any) =>
       ...theme.typography.h6Clash,
       color: '#302F2E',
       marginBottom: 3,
+      lineHeight: 22,
     },
     openHours: {
       ...theme.typography.subtitleBold14,
@@ -129,7 +136,7 @@ const createStyles = (theme: any) =>
       alignItems: 'center',
       gap: theme.spacing[2],
       marginBottom: 3,
-      flexWrap: 'nowrap',
+      flexWrap: 'wrap',
     },
     metaItem: {
       flexDirection: 'row',
@@ -149,23 +156,26 @@ const createStyles = (theme: any) =>
     addressRow: {
       flexDirection: 'row',
       alignItems: 'flex-start',
-      gap: theme.spacing[1],
+      gap: theme.spacing[2],
       marginBottom: 3,
     },
     addressText: {
       ...theme.typography.subtitleBold14,
       color: '#302F2E',
       flex: 1,
+      lineHeight: 20,
     },
     websiteRow: {
       flexDirection: 'row',
-      alignItems: 'center',
-      gap: theme.spacing[1],
+      alignItems: 'flex-start',
+      gap: theme.spacing[2],
       marginBottom: 3,
     },
     websiteText: {
       ...theme.typography.subtitleBold14,
       color: '#302F2E',
+      flex: 1,
+      lineHeight: 20,
     },
     meta: {
       ...theme.typography.body14,
@@ -173,7 +183,12 @@ const createStyles = (theme: any) =>
     },
     cta: {
       marginTop: theme.spacing[2],
+      marginHorizontal: -theme.spacing[4],
+      marginBottom: -theme.spacing[3],
+      marginLeft: -theme.spacing[4],
+      marginRight: -theme.spacing[4],
       paddingVertical: 12,
+      paddingHorizontal: theme.spacing[4],
       alignItems: 'center',
       borderRadius: 12,
       borderWidth: 1,

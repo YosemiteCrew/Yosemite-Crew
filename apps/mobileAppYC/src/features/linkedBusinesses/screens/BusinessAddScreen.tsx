@@ -1,10 +1,9 @@
-import React, {useMemo, useCallback} from 'react';
+import React, {useMemo, useCallback, useState, useEffect} from 'react';
 import {
   View,
   ScrollView,
   StyleSheet,
   Text,
-  Image,
   Alert,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -19,24 +18,39 @@ import {VetBusinessCard} from '@/features/appointments/components/VetBusinessCar
 import {
   addLinkedBusiness,
   selectLinkedBusinessesLoading,
+  fetchBusinessDetails,
 } from '../index';
 import type {LinkedBusinessStackParamList} from '@/navigation/types';
 import {AddBusinessBottomSheet, type AddBusinessBottomSheetRef} from '../components/AddBusinessBottomSheet';
 import {NotifyBusinessBottomSheet, type NotifyBusinessBottomSheetRef} from '../components/NotifyBusinessBottomSheet';
 
-type Props = NativeStackScreenProps<LinkedBusinessStackParamList, 'BusinessDetails'>;
+type Props = NativeStackScreenProps<LinkedBusinessStackParamList, 'BusinessAdd'>;
 
-export const BusinessDetailsScreen: React.FC<Props> = ({route, navigation}) => {
+export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
   const {
     companionId,
     category,
     businessId,
     businessName,
     businessAddress,
+    phone,
+    email,
     isPMSRecord,
     rating,
     distance,
+    photo,
+    placeId,
+    companionName,
   } = route.params;
+
+  console.log('[BusinessAddScreen] Received params:', {
+    businessName,
+    businessAddress,
+    photo,
+    photoType: typeof photo,
+    isPMSRecord,
+    placeId,
+  });
 
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -46,6 +60,39 @@ export const BusinessDetailsScreen: React.FC<Props> = ({route, navigation}) => {
   const addBusinessSheetRef = React.useRef<AddBusinessBottomSheetRef>(null);
   const notifyBusinessSheetRef = React.useRef<NotifyBusinessBottomSheetRef>(null);
 
+  const [fetchingDetails, setFetchingDetails] = useState(false);
+  const [detailedPhoto, setDetailedPhoto] = useState<string | undefined>(photo);
+  const [detailedPhone, setDetailedPhone] = useState<string | undefined>(phone);
+  const [detailedWebsite, setDetailedWebsite] = useState<string | undefined>(email);
+
+  // Fetch detailed business information for non-PMS businesses when screen loads
+  useEffect(() => {
+    if (!isPMSRecord && placeId && !detailedPhoto && !detailedPhone && !detailedWebsite) {
+      setFetchingDetails(true);
+      dispatch(fetchBusinessDetails(placeId))
+        .unwrap()
+        .then(result => {
+          console.log('[BusinessAddScreen] Fetched details:', result);
+          if (result.photoUrl) {
+            setDetailedPhoto(result.photoUrl);
+          }
+          if (result.phoneNumber) {
+            setDetailedPhone(result.phoneNumber);
+          }
+          if (result.website) {
+            setDetailedWebsite(result.website);
+          }
+        })
+        .catch(error => {
+          console.warn('[BusinessAddScreen] Failed to fetch details:', error);
+          // Continue without detailed info - graceful degradation
+        })
+        .finally(() => {
+          setFetchingDetails(false);
+        });
+    }
+  }, [isPMSRecord, placeId, dispatch, detailedPhoto, detailedPhone, detailedWebsite]);
+
   const handleAddBusiness = useCallback(async () => {
     try {
       await dispatch(
@@ -54,6 +101,12 @@ export const BusinessDetailsScreen: React.FC<Props> = ({route, navigation}) => {
           businessId,
           businessName,
           category: category as any,
+          address: businessAddress,
+          phone: detailedPhone || phone,
+          email: detailedWebsite || email,
+          distance,
+          rating,
+          photo: detailedPhoto || photo,
         }),
       ).unwrap();
 
@@ -63,7 +116,7 @@ export const BusinessDetailsScreen: React.FC<Props> = ({route, navigation}) => {
       console.error('Failed to add business:', error);
       Alert.alert('Error', 'Failed to add business. Please try again.');
     }
-  }, [dispatch, companionId, businessId, businessName, category]);
+  }, [dispatch, companionId, businessId, businessName, category, businessAddress, phone, email, distance, rating, photo, detailedPhone, detailedWebsite, detailedPhoto]);
 
   const handleAddBusinessClose = useCallback(() => {
     addBusinessSheetRef.current?.close();
@@ -82,54 +135,60 @@ export const BusinessDetailsScreen: React.FC<Props> = ({route, navigation}) => {
     }
   }, [navigation]);
 
+  const handleNotifyPress = useCallback(() => {
+    notifyBusinessSheetRef.current?.open();
+  }, []);
+
   return (
     <SafeAreaView style={styles.container}>
-      <Header title="Business Details" showBackButton onBack={handleBack} />
+      <Header title="Add Business" showBackButton onBack={handleBack} />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
         {/* Business Card */}
         <VetBusinessCard
+          photo={detailedPhoto}
           name={businessName}
           address={businessAddress}
           distance={distance ? `${distance}mi` : undefined}
           rating={rating ? `${rating}` : undefined}
+          website={detailedWebsite}
           cta=""
         />
 
-        {/* PMS Status */}
+        {/* PMS Status Card */}
         <LiquidGlassCard
-          glassEffect="clear"
+          glassEffect="regular"
+          interactive
           style={styles.statusCard}
           fallbackStyle={styles.statusCardFallback}>
           <View style={styles.statusContent}>
             {isPMSRecord ? (
-              <>
-                <Image
-                  source={require('@/assets/images/account/rightArrow.png')}
-                  style={styles.statusIcon}
-                />
+              <View style={styles.statusRow}>
+                <Text style={styles.statusEmojiLeft}>🎉</Text>
                 <Text style={styles.statusText}>
                   We are happy to inform you that this organisation is part of Yosemite Crew PMS
                 </Text>
-              </>
+                <Text style={styles.statusEmojiRight}>✅</Text>
+              </View>
             ) : (
-              <>
-                <Text style={styles.statusEmoji}>😔</Text>
+              <View style={styles.statusRow}>
+                <Text style={styles.statusEmojiLeft}>😔</Text>
                 <Text style={styles.statusText}>
                   We are sorry to inform you, this organisation is not a part of Yosemite Crew
                   PMS. We will soon notify you, when the organisation is available on this
                   platform.
                 </Text>
-              </>
+                <Text style={styles.statusEmojiRight}>🔔</Text>
+              </View>
             )}
           </View>
         </LiquidGlassCard>
 
-        {/* Add Button */}
-        {isPMSRecord && (
-          <View style={styles.buttonContainer}>
+        {/* Add Button or Notify Button */}
+        <View style={styles.buttonContainer}>
+          {isPMSRecord ? (
             <LiquidGlassButton
               title={loading ? 'Adding...' : 'Add'}
               onPress={handleAddBusiness}
@@ -142,8 +201,20 @@ export const BusinessDetailsScreen: React.FC<Props> = ({route, navigation}) => {
               borderColor={theme.colors.borderMuted}
               loading={loading}
             />
-          </View>
-        )}
+          ) : (
+            <LiquidGlassButton
+              title="Notify Business"
+              onPress={handleNotifyPress}
+              disabled={fetchingDetails}
+              height={56}
+              borderRadius={16}
+              tintColor={theme.colors.secondary}
+              shadowIntensity="medium"
+              forceBorder
+              borderColor={theme.colors.borderMuted}
+            />
+          )}
+        </View>
       </ScrollView>
 
       {/* Add Business Bottom Sheet */}
@@ -158,7 +229,7 @@ export const BusinessDetailsScreen: React.FC<Props> = ({route, navigation}) => {
       <NotifyBusinessBottomSheet
         ref={notifyBusinessSheetRef}
         businessName={businessName}
-        companionName="your pet"
+        companionName={companionName}
         onConfirm={handleNotifyClose}
       />
     </SafeAreaView>
@@ -175,39 +246,49 @@ const createStyles = (theme: any) =>
       paddingHorizontal: theme.spacing[4],
       paddingVertical: theme.spacing[4],
       paddingBottom: theme.spacing[24],
+      gap: theme.spacing[4],
     },
     statusCard: {
-      borderRadius: theme.borderRadius.md,
+      borderRadius: theme.borderRadius.lg,
       paddingHorizontal: theme.spacing[4],
       paddingVertical: theme.spacing[4],
-      marginVertical: theme.spacing[4],
-      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+      backgroundColor: theme.colors.cardBackground,
       borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.2)',
+      borderColor: theme.colors.border,
+      overflow: 'hidden',
     },
     statusCardFallback: {
-      borderRadius: theme.borderRadius.md,
+      borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.cardBackground,
-      borderColor: theme.colors.borderMuted,
+      borderColor: theme.colors.border,
       borderWidth: 1,
     },
     statusContent: {
       alignItems: 'center',
       gap: theme.spacing[3],
     },
-    statusIcon: {
-      width: 40,
-      height: 40,
-      resizeMode: 'contain',
+    statusRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: theme.spacing[2],
     },
-    statusEmoji: {
-      fontSize: 40,
+    statusEmojiLeft: {
+      fontSize: 32,
+      flex: 0.12,
+      textAlign: 'right',
+    },
+    statusEmojiRight: {
+      fontSize: 32,
+      flex: 0.12,
+      textAlign: 'left',
     },
     statusText: {
       ...theme.typography.bodySmall,
       color: theme.colors.text,
       textAlign: 'center',
       lineHeight: 20,
+      flex: 0.76,
     },
     buttonContainer: {
       marginTop: theme.spacing[6],

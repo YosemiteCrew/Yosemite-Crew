@@ -1,4 +1,4 @@
-import React, {useMemo} from 'react';
+import React, {useMemo, useCallback} from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Linking,
 } from 'react-native';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
@@ -13,82 +14,103 @@ import type {LinkedBusiness} from '../types';
 
 interface LinkedBusinessCardProps {
   business: LinkedBusiness;
-  onDelete: (id: string) => void;
+  _onDelete?: (id: string) => void;
   onPress?: () => void;
+  onDeletePress?: (business: LinkedBusiness) => void;
 }
 
 export const LinkedBusinessCard: React.FC<LinkedBusinessCardProps> = ({
   business,
-  onDelete,
+  _onDelete,
   onPress,
+  onDeletePress,
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
-  const handleDelete = () => {
-    Alert.alert(
-      'Delete Business',
-      `Are you sure you want to remove ${business.businessName}?`,
-      [
-        {text: 'Cancel', style: 'cancel'},
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => onDelete(business.id),
-        },
-      ],
-    );
-  };
+  const handleDeletePress = useCallback(() => {
+    console.log('[LinkedBusinessCard] Delete button pressed for:', business.id, business.businessName);
+    if (onDeletePress) {
+      onDeletePress(business);
+    }
+  }, [business, onDeletePress]);
+
+  const handleGetDirections = useCallback(() => {
+    if (!business.address) {
+      Alert.alert('No Address', 'Address not available for this business.');
+      return;
+    }
+    // Open maps with the business address
+    const encodedAddress = encodeURIComponent(business.address);
+    const mapsUrl = `maps://maps.google.com/?q=${encodedAddress}`;
+    const appleMapsUrl = `maps://?address=${encodedAddress}`;
+
+    Linking.canOpenURL(mapsUrl)
+      .then(supported => {
+        if (supported) {
+          return Linking.openURL(mapsUrl);
+        }
+        return Linking.openURL(appleMapsUrl);
+      })
+      .catch(() => {
+        // Fallback to web version
+        Linking.openURL(`https://maps.google.com/?q=${encodedAddress}`);
+      });
+  }, [business.address]);
 
   return (
-    <TouchableOpacity
-      style={styles.container}
-      activeOpacity={0.8}
-      onPress={onPress}>
-      <View style={styles.content}>
-        <Image
-          source={business.photo || Images.sampleHospital1}
-          style={styles.image}
-        />
-        <View style={styles.info}>
-          <Text style={styles.name} numberOfLines={1}>
-            {business.businessName}
-          </Text>
-          <Text style={styles.address} numberOfLines={2}>
-            {business.address || 'Address not available'}
-          </Text>
-          <View style={styles.footer}>
-            {business.distance && (
-              <View style={styles.ratingContainer}>
-                <Image source={Images.distanceIcon} style={styles.icon} />
-                <Text style={styles.ratingText}>
-                  {business.distance}mi
-                </Text>
-              </View>
-            )}
-            {business.rating && (
-              <View style={styles.ratingContainer}>
-                <Image source={Images.starIcon} style={styles.icon} />
-                <Text style={styles.ratingText}>
-                  {business.rating}
-                </Text>
-              </View>
-            )}
+    <View style={styles.container}>
+      <TouchableOpacity
+        style={styles.cardContent}
+        activeOpacity={0.8}
+        onPress={onPress}
+        disabled={!onPress}>
+        <View style={styles.content}>
+          <Image
+            source={business.photo || Images.sampleHospital1}
+            style={styles.image}
+          />
+          <View style={styles.info}>
+            <Text style={styles.name} numberOfLines={1}>
+              {business.businessName}
+            </Text>
+            <Text style={styles.address} numberOfLines={2}>
+              {business.address || 'Address not available'}
+            </Text>
+            <View style={styles.footer}>
+              {business.distance && (
+                <View style={styles.ratingContainer}>
+                  <Image source={Images.distanceIcon} style={styles.icon} />
+                  <Text style={styles.ratingText}>
+                    {business.distance}mi
+                  </Text>
+                </View>
+              )}
+              {business.rating && (
+                <View style={styles.ratingContainer}>
+                  <Image source={Images.starIcon} style={styles.icon} />
+                  <Text style={styles.ratingText}>
+                    {business.rating}
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
       <View style={styles.actionButtons}>
         <TouchableOpacity
           style={styles.actionButton}
+          onPress={handleGetDirections}
           hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
           <Image
-            source={Images.locationIcon}
+            source={Images.getDirection}
             style={styles.actionIcon}
           />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.actionButton}
-          onPress={handleDelete}
+          onPress={handleDeletePress}
           hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
           <Image
             source={Images.deleteIconRed}
@@ -96,7 +118,7 @@ export const LinkedBusinessCard: React.FC<LinkedBusinessCardProps> = ({
           />
         </TouchableOpacity>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 };
 
@@ -111,6 +133,10 @@ const createStyles = (theme: any) =>
       borderWidth: 1,
       borderColor: theme.colors.borderMuted,
       ...theme.shadows.sm,
+    },
+    cardContent: {
+      flex: 1,
+      flexDirection: 'row',
     },
     content: {
       flex: 1,
@@ -151,7 +177,6 @@ const createStyles = (theme: any) =>
       width: 14,
       height: 14,
       resizeMode: 'contain',
-      tintColor: theme.colors.textSecondary,
     },
     ratingText: {
       ...theme.typography.bodyExtraSmall,
@@ -174,6 +199,5 @@ const createStyles = (theme: any) =>
       width: 20,
       height: 20,
       resizeMode: 'contain',
-      tintColor: theme.colors.secondary,
     },
   });
