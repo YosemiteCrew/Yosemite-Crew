@@ -7,9 +7,7 @@ import {
 import {useTheme} from '@/hooks';
 import {Text} from 'react-native';
 
-// --- Mocks ---
 
-// 1. Mock useTheme
 const mockTheme = {
   colors: {
     surface: 'mock-surface',
@@ -41,7 +39,6 @@ jest.mock('@/hooks', () => ({
   })),
 }));
 
-// 2. Mock Child Components
 const mockBottomSheet = jest.fn();
 const mockSnapToIndex = jest.fn();
 const mockClose = jest.fn();

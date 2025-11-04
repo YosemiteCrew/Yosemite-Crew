@@ -6,12 +6,9 @@ import {
 } from '@/shared/components/common/CountryBottomSheet/CountryBottomSheet';
 import type {SelectItem} from '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet.tsx';
 
-// --- Mocks ---
 
-// Spy on the props passed to the child component
 const mockGenericSelectBottomSheet = jest.fn();
 
-// Mock functions for the internal BottomSheet ref
 const mockOpen = jest.fn();
 const mockClose = jest.fn();
 
@@ -23,20 +20,16 @@ jest.mock(
 
     return {
       GenericSelectBottomSheet: React.forwardRef((props: any, ref: any) => {
-        // Expose mock methods for useImperativeHandle
         React.useImperativeHandle(ref, () => ({
           open: mockOpen,
           close: mockClose,
         }));
 
-        // Call our spy function with the received props
         mockGenericSelectBottomSheet(props);
 
-        // Render a placeholder we can interact with
         return (
           <View
             testID="mock-generic-bottom-sheet"
-            // Helper to simulate the onSave prop being called
             save={(item: any) => props.onSave(item)}
           />
         );
@@ -45,7 +38,6 @@ jest.mock(
   },
 );
 
-// --- Test Setup ---
 
 const mockCountries = [
   {name: 'United States', code: 'US', flag: '🇺🇸', dial_code: '+1'},
@@ -103,7 +95,7 @@ describe('CountryBottomSheet', () => {
     render(
       <CountryBottomSheet
         countries={mockCountries}
-        selectedCountry={mockCountries[0]} // Select 'United States'
+        selectedCountry={mockCountries[0]}
         onSave={mockOnSave}
       />,
     );
@@ -141,13 +133,12 @@ describe('CountryBottomSheet', () => {
     );
 
     const childSheet = getByTestId('mock-generic-bottom-sheet');
-    const selectedItem = expectedCountryItems[1]; // 'India' as a SelectItem
+    const selectedItem = expectedCountryItems[1];
 
     act(() => {
       fireEvent(childSheet, 'save', selectedItem);
     });
 
-    // Expect the parent onSave to be called with the *original* Country object
     expect(mockOnSave).toHaveBeenCalledWith(mockCountries[1]);
   });
 
@@ -185,7 +176,6 @@ describe('CountryBottomSheet', () => {
       fireEvent(childSheet, 'save', invalidItem);
     });
 
-    // The component logic should find no match and return null
     expect(mockOnSave).toHaveBeenCalledWith(null);
   });
 
