@@ -1,0 +1,97 @@
+.SignInput textarea {
+  width: 100%;
+  height: 100%;
+  padding: 10px 24px;
+  border-radius: 16px;
+  min-height: 60px;
+  border: 1px solid var(--notibg) !important;
+  color: var(--lightblack);
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 120%;
+  font-family: var(--satoshi-font);
+  background-color: transparent;
+  outline: var(--black-text);
+}
+.SignInput textarea::placeholder {
+  opacity: 60%;
+}
+.floating-input {
+  position: relative;
+  margin-bottom: 0;
+}
+.floating-input textarea {
+  transition: border-color 0.2s;
+}
+.floating-input label {
+  position: absolute;
+  left: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--black-text);
+  font-size: 18px;
+  font-family: var(--satoshi-font);
+  opacity: 60%;
+  font-weight: 400;
+  pointer-events: none;
+  background: transparent;
+  transition:
+    top 0.2s,
+    font-size 0.2s,
+    color 0.2s,
+    background 0.2s,
+    padding 0.2s;
+  padding: 0 4px;
+}
+
+.floating-input.focused textarea,
+.floating-input textarea:focus {
+  border-color: var(--blue-text) !important;
+}
+
+.floating-input.focused label,
+.floating-input textarea:focus + label {
+  top: 2px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--blue-text);
+  background: var(--whitebg);
+  padding: 0 4px;
+  opacity: 100%;
+}
+
+.floating-input textarea:not(:placeholder-shown):not(:focus) + label,
+.floating-input.focused label {
+  top: 2px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--blue-text);
+  background: var(--whitebg);
+  padding: 0 4px;
+}
+
+.Errors {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0px 16px;
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 120%;
+  font-family: var(--satoshi-font);
+  color: var(--delete);
+  margin-top: 6px;
+}
+
+@media (max-width: 1280px) {
+  .SignInput textarea {
+    font-size: 15px;
+    min-height: 48px;
+  }
+  .SignInput textarea::placeholder {
+    font-size: 15px;
+  }
+  .floating-input label {
+    font-size: 15px;
+  }
+}

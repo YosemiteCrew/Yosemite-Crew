@@ -1,12 +1,12 @@
-.step-container {
+.team-container {
   padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 32px;
   border-radius: 32px;
   border: 1px solid var(--lightgrey);
 }
-.step-title {
+.team-title {
   color: var(--black-text);
   font-family: var(--grotesk-font);
   font-size: 23px;
@@ -16,12 +16,12 @@
   letter-spacing: -0.46px;
 }
 
-.step-logo-container {
+.team-logo-container {
   display: flex;
   align-items: center;
   gap: 20px;
 }
-.step-logo-upload {
+.team-logo-upload {
   height: 100px;
   width: 100px;
   border-radius: 50px;
@@ -31,7 +31,7 @@
   border: 1px solid var(--blue-text);
   position: relative;
 }
-.step-logo-title {
+.team-logo-title {
   color: var(--black-text);
   font-family: var(--grotesk-font);
   font-size: 23px;
@@ -40,7 +40,7 @@
   line-height: 120%;
   letter-spacing: -0.46px;
 }
-.remove-icon {
+.team-remove-icon {
   position: absolute;
   top: -8px;
   right: -8px;
@@ -49,64 +49,77 @@
   background: #fff;
 }
 @media screen and (max-width: 1024px) {
-  .step-logo-upload {
+  .team-logo-upload {
     height: 80px;
     width: 80px;
   }
-  .step-logo-preview {
+  .team-logo-preview {
     height: 80px !important;
     width: 80px !important;
   }
 }
 @media screen and (max-width: 768px) {
-  .step-logo-upload {
+  .team-logo-container {
+    gap: 10px;
+  }
+  .team-logo-upload {
     height: 60px;
     width: 60px;
   }
-  .step-logo-upload svg {
+  .team-logo-upload svg {
     height: 30px;
     width: 30px;
   }
-  .step-logo-preview {
+  .team-logo-preview {
     height: 60px !important;
     width: 60px !important;
   }
-  .step-logo-title {
+  .team-logo-title {
     font-size: 19px;
   }
-  .remove-icon {
+  .team-remove-icon {
     top: -10px;
     right: -10px;
   }
-  .remove-icon svg {
+  .team-remove-icon svg {
     width: 14px;
     height: 14px;
   }
 }
-
-.step-type {
-  flex-direction: column;
-  display: flex;
-  gap: 16px;
+@media screen and (max-width: 350px) {
+  .team-logo-title {
+    max-width: 150px;
+  }
 }
-.step-type-title {
+
+.team-type {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+.team-type-title {
   color: var(--black-text);
   font-family: var(--grotesk-font);
-  font-size: 23px;
+  font-size: 18px;
   font-style: normal;
   font-weight: 500;
   line-height: 120%;
   letter-spacing: -0.46px;
 }
-.step-type-options {
+.team-type-options {
   display: flex;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+  flex: 1;
+  justify-content: flex-start;
 }
-.step-type-option {
+.team-type-option {
   height: 48px;
-  padding: 0 20px;
+  padding: 0 0px;
+  width: calc(33% - 8px);
+  max-width: 200px;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -123,99 +136,80 @@
   cursor: pointer;
   background: var(--whitebg);
 }
-.activetype {
+.activeGendertype {
   border: 1px solid var(--blue-text);
   background: var(--light-blue);
   color: var(--blue-text);
 }
-.step-type-desc {
-  color: var(--notibg);
-  font-family: var(--satoshi-font);
-  font-size: 15px;
-  font-style: normal;
-  font-weight: 700;
-  line-height: 24px;
-  letter-spacing: -0.3px;
-}
-.step-type-desc-span {
-  color: var(--blue-text);
-}
 @media screen and (max-width: 768px) {
-  .step-type-title {
+  .team-type-title {
     font-size: 19px;
   }
-  .step-type-option {
+  .team-type-option {
     height: 36px;
     font-size: 15px;
     padding: 0 16px;
   }
 }
-
-.step-inputs {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  flex-direction: column;
-}
-.step-two-input {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  width: 100%;
-  gap: 16px;
-}
-@media screen and (max-width: 768px) {
-  .step-two-input {
-    grid-template-columns: 1fr;
+@media screen and (max-width: 550px) {
+  .team-type {
+    flex-direction: column;
+    align-items: start;
+    max-height: fit-content;
+  }
+  .team-type-options {
+    justify-content: flex-start;
+  }
+  .team-type-option {
+    min-width: 100px;
   }
 }
 
-.step-buttons {
+.team-buttons {
   display: flex;
   align-self: center;
   justify-content: space-between;
   width: 100%;
 }
 @media screen and (max-width: 500px) {
-  .step-buttons {
+  .team-buttons {
     flex-direction: column-reverse;
     gap: 16px;
   }
-  .step-buttons a {
+  .team-buttons a {
     width: 100% !important;
   }
 }
 
-.step-title-container {
+.team-address-container {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.specialities-container {
-  display: flex;
-  flex-direction: column;
   width: 100%;
+  justify-content: center;
   gap: 24px;
+  flex-direction: column;
 }
-.specilities-container-empty {
+.team-personal-container {
   display: flex;
+  width: 100%;
   align-items: center;
   justify-content: center;
-  border-radius: 16px;
-  border: 1px solid #eaeaea;
-  height: 200px;
-  color: var(--black-text);
-  font-family: var(--satoshi-font);
-  font-size: 18px;
-  font-style: normal;
-  font-weight: 400;
-  line-height: 120%;
-  letter-spacing: -0.36px;
+  gap: 16px;
+  flex-direction: column;
+}
+.team-personal-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 100%;
+  gap: 16px;
 }
 @media screen and (max-width: 768px) {
-  .step-title-container {
-    flex-wrap: wrap;
-    gap: 16px;
+  .team-personal-two {
+    grid-template-columns: 1fr;
   }
+}
+.team-seperator {
+  width: 100%;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--lightgrey);
 }

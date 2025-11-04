@@ -1,0 +1,519 @@
+[
+  {
+    "name": "General Practice",
+    "key": "general practice",
+    "active": false,
+    "services": [
+      {
+        "name": "General Check-up",
+        "active": false,
+        "duration": 20,
+        "price": 50
+      },
+      {
+        "name": "Vaccination & Booster Shots",
+        "active": false,
+        "duration": 15,
+        "price": 40
+      },
+      {
+        "name": "Health Certificate",
+        "active": false,
+        "duration": 20,
+        "price": 45
+      },
+      {
+        "name": "Puppy / Kitten Wellness Visit",
+        "active": false,
+        "duration": 30,
+        "price": 60
+      },
+      {
+        "name": "Senior Pet Wellness Exam",
+        "active": false,
+        "duration": 30,
+        "price": 65
+      },
+      {
+        "name": "Follow-up Consultation",
+        "active": false,
+        "duration": 15,
+        "price": 35
+      }
+    ]
+  },
+  {
+    "name": "Surgery",
+    "key": "surgery",
+    "active": false,
+    "services": [
+      {
+        "name": "Spay / Neuter",
+        "active": false,
+        "duration": 60,
+        "price": 150
+      },
+      {
+        "name": "Soft Tissue Surgery",
+        "active": false,
+        "duration": 90,
+        "price": 250
+      },
+      {
+        "name": "Orthopedic Surgery",
+        "active": false,
+        "duration": 120,
+        "price": 400
+      },
+      {
+        "name": "Wound or Abscess Treatment",
+        "active": false,
+        "duration": 45,
+        "price": 100
+      },
+      {
+        "name": "Mass / Lump Removal",
+        "active": false,
+        "duration": 60,
+        "price": 180
+      },
+      {
+        "name": "Foreign Body Removal",
+        "active": false,
+        "duration": 90,
+        "price": 300
+      }
+    ]
+  },
+  {
+    "name": "Internal Medicine",
+    "key": "internal medicine",
+    "active": false,
+    "services": [
+      {
+        "name": "Digestive Issues & Vomiting",
+        "active": false,
+        "duration": 30,
+        "price": 70
+      },
+      {
+        "name": "Kidney & Urinary Problems",
+        "active": false,
+        "duration": 30,
+        "price": 75
+      },
+      {
+        "name": "Liver Disease Management",
+        "active": false,
+        "duration": 30,
+        "price": 80
+      },
+      {
+        "name": "Endocrine Disorders (Diabetes / Thyroid)",
+        "active": false,
+        "duration": 30,
+        "price": 85
+      },
+      {
+        "name": "Respiratory & Lung Issues",
+        "active": false,
+        "duration": 30,
+        "price": 75
+      },
+      {
+        "name": "Chronic Illness Management",
+        "active": false,
+        "duration": 30,
+        "price": 85
+      }
+    ]
+  },
+  {
+    "name": "Dermatology",
+    "key": "dermatology",
+    "active": false,
+    "services": [
+      {
+        "name": "Skin Allergy Testing",
+        "active": false,
+        "duration": 30,
+        "price": 80
+      },
+      {
+        "name": "Ear Infections",
+        "active": false,
+        "duration": 20,
+        "price": 60
+      },
+      {
+        "name": "Hair Loss / Itching Evaluation",
+        "active": false,
+        "duration": 25,
+        "price": 65
+      },
+      {
+        "name": "Flea & Parasite Control",
+        "active": false,
+        "duration": 15,
+        "price": 40
+      },
+      {
+        "name": "Rash or Hot Spot Treatment",
+        "active": false,
+        "duration": 20,
+        "price": 55
+      }
+    ]
+  },
+  {
+    "name": "Dentistry",
+    "key": "dentistry",
+    "active": false,
+    "services": [
+      {
+        "name": "Dental Cleaning & Scaling",
+        "active": false,
+        "duration": 60,
+        "price": 150
+      },
+      {
+        "name": "Tooth Extraction",
+        "active": false,
+        "duration": 45,
+        "price": 120
+      },
+      { "name": "Oral X-Rays", "active": false, "duration": 30, "price": 80 },
+      {
+        "name": "Gum Disease Treatment",
+        "active": false,
+        "duration": 40,
+        "price": 100
+      },
+      {
+        "name": "Bad Breath Evaluation",
+        "active": false,
+        "duration": 20,
+        "price": 50
+      }
+    ]
+  },
+  {
+    "name": "Radiology / Diagnostic Imaging",
+    "key": "radiology",
+    "active": false,
+    "services": [
+      { "name": "X-Ray", "active": false, "duration": 20, "price": 75 },
+      { "name": "Ultrasound", "active": false, "duration": 30, "price": 120 },
+      {
+        "name": "CT / MRI Referral",
+        "active": false,
+        "duration": 45,
+        "price": 350
+      },
+      {
+        "name": "Pregnancy Scan",
+        "active": false,
+        "duration": 20,
+        "price": 70
+      },
+      {
+        "name": "Contrast Studies",
+        "active": false,
+        "duration": 45,
+        "price": 150
+      }
+    ]
+  },
+  {
+    "name": "Emergency & Critical Care",
+    "key": "emergency",
+    "active": false,
+    "services": [
+      {
+        "name": "Emergency Consultation",
+        "active": false,
+        "duration": 30,
+        "price": 100
+      },
+      {
+        "name": "Accident / Trauma Care",
+        "active": false,
+        "duration": 60,
+        "price": 200
+      },
+      {
+        "name": "Poisoning or Toxin Ingestion",
+        "active": false,
+        "duration": 60,
+        "price": 180
+      },
+      {
+        "name": "Seizure / Collapse Management",
+        "active": false,
+        "duration": 60,
+        "price": 200
+      },
+      {
+        "name": "Severe Bleeding or Shock",
+        "active": false,
+        "duration": 60,
+        "price": 220
+      }
+    ]
+  },
+  {
+    "name": "Anesthesiology & Pain Management",
+    "key": "pain management",
+    "active": false,
+    "services": [
+      {
+        "name": "Pre-Surgical Anesthesia",
+        "active": false,
+        "duration": 30,
+        "price": 90
+      },
+      {
+        "name": "Sedation for Imaging / Dentistry",
+        "active": false,
+        "duration": 30,
+        "price": 80
+      },
+      {
+        "name": "Pain Assessment & Therapy",
+        "active": false,
+        "duration": 20,
+        "price": 60
+      },
+      {
+        "name": "Post-Operative Pain Control",
+        "active": false,
+        "duration": 15,
+        "price": 50
+      },
+      {
+        "name": "Chronic Pain / Arthritis Care",
+        "active": false,
+        "duration": 25,
+        "price": 70
+      }
+    ]
+  },
+  {
+    "name": "Reproduction / Theriogenology",
+    "key": "theriogenology",
+    "active": false,
+    "services": [
+      {
+        "name": "Breeding Consultation",
+        "active": false,
+        "duration": 30,
+        "price": 75
+      },
+      {
+        "name": "Pregnancy Check / Ultrasound",
+        "active": false,
+        "duration": 25,
+        "price": 65
+      },
+      {
+        "name": "Artificial Insemination",
+        "active": false,
+        "duration": 45,
+        "price": 150
+      },
+      {
+        "name": "Fertility Testing",
+        "active": false,
+        "duration": 30,
+        "price": 100
+      },
+      { "name": "Neonatal Care", "active": false, "duration": 30, "price": 85 }
+    ]
+  },
+  {
+    "name": "Ophthalmology",
+    "key": "ophthalmology",
+    "active": false,
+    "services": [
+      {
+        "name": "Eye Examination",
+        "active": false,
+        "duration": 20,
+        "price": 60
+      },
+      {
+        "name": "Red Eye / Discharge Evaluation",
+        "active": false,
+        "duration": 20,
+        "price": 55
+      },
+      {
+        "name": "Cataract Screening",
+        "active": false,
+        "duration": 30,
+        "price": 90
+      },
+      {
+        "name": "Glaucoma Testing",
+        "active": false,
+        "duration": 25,
+        "price": 80
+      },
+      {
+        "name": "Corneal Injury Treatment",
+        "active": false,
+        "duration": 30,
+        "price": 100
+      }
+    ]
+  },
+  {
+    "name": "Cardiology",
+    "key": "cardiology",
+    "active": false,
+    "services": [
+      {
+        "name": "Heart Check-up",
+        "active": false,
+        "duration": 20,
+        "price": 70
+      },
+      {
+        "name": "Heart Murmur Evaluation",
+        "active": false,
+        "duration": 25,
+        "price": 90
+      },
+      {
+        "name": "ECG / Echocardiogram",
+        "active": false,
+        "duration": 30,
+        "price": 120
+      },
+      {
+        "name": "Blood Pressure Measurement",
+        "active": false,
+        "duration": 15,
+        "price": 50
+      },
+      {
+        "name": "Congestive Heart Failure Management",
+        "active": false,
+        "duration": 30,
+        "price": 130
+      }
+    ]
+  },
+  {
+    "name": "Behavior & Training",
+    "key": "training",
+    "active": false,
+    "services": [
+      {
+        "name": "Behavior Consultation",
+        "active": false,
+        "duration": 30,
+        "price": 80
+      },
+      {
+        "name": "Puppy Socialization",
+        "active": false,
+        "duration": 45,
+        "price": 70
+      },
+      {
+        "name": "Anxiety / Aggression Management",
+        "active": false,
+        "duration": 45,
+        "price": 90
+      },
+      {
+        "name": "Obedience Training",
+        "active": false,
+        "duration": 60,
+        "price": 100
+      },
+      {
+        "name": "House-Training Issues",
+        "active": false,
+        "duration": 30,
+        "price": 60
+      }
+    ]
+  },
+  {
+    "name": "Nutrition & Dietetics",
+    "key": "nutrition",
+    "active": false,
+    "services": [
+      {
+        "name": "Diet Consultation",
+        "active": false,
+        "duration": 20,
+        "price": 50
+      },
+      {
+        "name": "Weight Management Plan",
+        "active": false,
+        "duration": 25,
+        "price": 60
+      },
+      {
+        "name": "Prescription Diet Setup",
+        "active": false,
+        "duration": 15,
+        "price": 45
+      },
+      {
+        "name": "Food Allergy Evaluation",
+        "active": false,
+        "duration": 25,
+        "price": 55
+      },
+      {
+        "name": "Feeding Guidelines",
+        "active": false,
+        "duration": 15,
+        "price": 40
+      }
+    ]
+  },
+  {
+    "name": "Preventive / Wellness Medicine",
+    "key": "wellness medicine",
+    "active": false,
+    "services": [
+      {
+        "name": "Annual Health Check-up",
+        "active": false,
+        "duration": 20,
+        "price": 50
+      },
+      {
+        "name": "Vaccinations & Boosters",
+        "active": false,
+        "duration": 15,
+        "price": 40
+      },
+      {
+        "name": "Parasite Prevention",
+        "active": false,
+        "duration": 15,
+        "price": 35
+      },
+      { "name": "Microchipping", "active": false, "duration": 15, "price": 30 },
+      {
+        "name": "Wellness Blood Work",
+        "active": false,
+        "duration": 25,
+        "price": 70
+      },
+      {
+        "name": "Travel / Health Certification",
+        "active": false,
+        "duration": 20,
+        "price": 45
+      }
+    ]
+  }
+]

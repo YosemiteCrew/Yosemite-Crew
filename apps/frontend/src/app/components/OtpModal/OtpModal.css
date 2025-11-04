@@ -129,3 +129,37 @@
   gap: 4px;
   justify-content: center;
 }
+
+.verifyInput {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.verifyInput input {
+  width: 60px;
+  height: 80px;
+  background: transparent;
+  border: 1px solid var(--greyborder);
+  border-radius: 12px;
+  text-align: center;
+  font-family: var(--grotesk-font);
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 120%;
+  color: var(--black-text);
+}
+
+@media screen and (max-width: 768px) {
+  .verifyInput input {
+    width: 50px;
+    height: 70px;
+  }
+}
+
+@media screen and (max-width: 500px) {
+  .verifyInput input {
+    width: 40px;
+    height: 55px;
+  }
+}
