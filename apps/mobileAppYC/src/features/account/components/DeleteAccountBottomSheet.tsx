@@ -100,7 +100,6 @@ export const DeleteAccountBottomSheet = forwardRef<
       message="Are you sure you want to delete your account?"
       messageAlign="left"
       containerStyle={styles.container}
-      titleStyle={styles.title}
       messageStyle={styles.subtitle}
       buttonContainerStyle={styles.actionsRow}
       secondaryButton={{
