@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import logger from '../../utils/logger'
-import { UserService, UserServiceError, type CreateUserPayload } from '../../services/user.service'
+import { UserService, UserServiceError } from '../../services/user.service'
+import { User } from '@yosemite-crew/types'
 
 type CreateUserRequest = Request<Record<string, string | undefined>, unknown, unknown>
 type GetUserRequest = Request<{ id: string }>
@@ -15,7 +16,7 @@ export const UserController = {
                 return
             }
 
-            const user = await UserService.create(requestBody as CreateUserPayload)
+            const user = await UserService.create(requestBody as User)
             res.status(201).json(user)
         } catch (error: unknown) {
             if (error instanceof UserServiceError) {

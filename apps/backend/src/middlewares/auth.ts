@@ -37,7 +37,7 @@ const getKey = (header: JwtHeader, callback: SigningKeyCallback) => {
       const signingKey = key.getPublicKey();
       callback(null, signingKey);
     },
-    (err) => {
+    (err : Error) => {
       logger.error("Failed to fetch signing key from JWKS", err);
       callback(err);
     },
@@ -93,7 +93,7 @@ export const authorizeCognito = async (req: Request, res: Response, next: NextFu
   try {
     const authHeader = req.headers.authorization;
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    if (!authHeader?.startsWith("Bearer ")) {
       res.status(401).json({ message: "Authorization header missing or invalid" });
       return;
     }
