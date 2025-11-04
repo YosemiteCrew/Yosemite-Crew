@@ -104,7 +104,7 @@ export const TabNavigator: React.FC = () => {
       <Tab.Screen
         name="Tasks"
         component={TaskStackNavigator}
-        options={{headerShown: false, unmountOnBlur: true}}
+        options={{headerShown: false, popToTopOnBlur: true}}
         listeners={({navigation, route}) => createTabPressListener(navigation, route)}
       />
     </Tab.Navigator>
