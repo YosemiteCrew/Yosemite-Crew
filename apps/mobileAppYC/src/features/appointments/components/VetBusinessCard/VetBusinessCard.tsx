@@ -109,7 +109,7 @@ const createStyles = (theme: any) =>
     },
     photo: {
       width: '100%',
-      height: 160,
+      height: 230,
       borderRadius: 12,
       backgroundColor: theme.colors.border + '20',
     },
@@ -123,19 +123,19 @@ const createStyles = (theme: any) =>
     name: {
       ...theme.typography.h6Clash,
       color: '#302F2E',
-      marginBottom: 3,
+      marginBottom: 15,
       lineHeight: 22,
     },
     openHours: {
       ...theme.typography.subtitleBold14,
       color: '#302f2e9a',
-      marginBottom: 3,
+      marginBottom: 15,
     },
     metaRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: theme.spacing[2],
-      marginBottom: 3,
+      marginBottom: 15,
       flexWrap: 'wrap',
     },
     metaItem: {
@@ -157,25 +157,23 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       alignItems: 'flex-start',
       gap: theme.spacing[2],
-      marginBottom: 3,
+      marginBottom: 15,
     },
     addressText: {
-      ...theme.typography.subtitleBold14,
+      ...theme.typography.inputLabel,
       color: '#302F2E',
       flex: 1,
-      lineHeight: 20,
     },
     websiteRow: {
       flexDirection: 'row',
       alignItems: 'flex-start',
       gap: theme.spacing[2],
-      marginBottom: 3,
+      marginBottom: 15,
     },
     websiteText: {
-      ...theme.typography.subtitleBold14,
+      ...theme.typography.inputLabel,
       color: '#302F2E',
       flex: 1,
-      lineHeight: 20,
     },
     meta: {
       ...theme.typography.body14,

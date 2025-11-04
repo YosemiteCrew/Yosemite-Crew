@@ -155,7 +155,7 @@ const createStyles = (theme: any) =>
       justifyContent: 'space-between',
     },
     name: {
-      ...theme.typography.titleSmall,
+      ...theme.typography.titleMedium,
       color: theme.colors.text,
       marginBottom: theme.spacing[1],
     },
