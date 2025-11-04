@@ -10,7 +10,7 @@ import type {LinkedBusinessStackParamList} from '@/navigation/types';
 
 type Props = NativeStackScreenProps<LinkedBusinessStackParamList, 'QRScanner'>;
 
-export const QRScannerScreen: React.FC<Props> = ({route, navigation}) => {
+export const QRScannerScreen: React.FC<Props> = ({route: _route, navigation}) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   useSelector(selectLinkedBusinessesLoading);
