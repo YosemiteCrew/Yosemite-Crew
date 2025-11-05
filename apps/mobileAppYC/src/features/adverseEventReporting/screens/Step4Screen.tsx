@@ -210,6 +210,7 @@ const createStyles = (theme: any) =>
     sectionTitle: {
       ...theme.typography.labelMdBold,
       color: theme.colors.secondary,
+      marginHorizontal: theme.spacing[2],
     },
     infoCard: {
       borderRadius: theme.borderRadius.lg,
@@ -233,6 +234,7 @@ const createStyles = (theme: any) =>
     editIcon: {
       width: 20,
       height: 20,
+      marginHorizontal: theme.spacing[2],
       resizeMode: 'contain',
     },
     emptyContainer: {
