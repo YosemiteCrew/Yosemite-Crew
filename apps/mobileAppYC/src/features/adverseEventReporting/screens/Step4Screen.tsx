@@ -196,8 +196,10 @@ const createStyles = (theme: any) =>
       paddingBottom: theme.spacing[24],
     },
     stepTitle: {
-      ...theme.typography.labelMdBold,
-      color: theme.colors.textSecondary,
+      // Satoshi 12 Bold, line-height 12, centered, Jet-400
+      ...theme.typography.subtitleBold12,
+      lineHeight: 12,
+      color: theme.colors.placeholder,
       marginBottom: theme.spacing[4],
       textAlign: 'center',
     },
@@ -208,7 +210,7 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing[4],
     },
     sectionTitle: {
-      ...theme.typography.labelMdBold,
+      ...theme.typography.h6Clash,
       color: theme.colors.secondary,
       marginHorizontal: theme.spacing[2],
     },
@@ -255,7 +257,8 @@ const createStyles = (theme: any) =>
       borderRadius: theme.borderRadius.lg,
     },
     buttonText: {
-      color: theme.colors.white,
-      ...theme.typography.paragraphBold,
+      ...theme.typography.cta,
+      color: theme.colors.background,
+      textAlign: 'center',
     },
   });

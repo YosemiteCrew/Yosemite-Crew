@@ -1,45 +1,110 @@
-import React, { useState, useMemo } from 'react';
-import {
-  View,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  Image,
-} from 'react-native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useTheme } from '@/hooks';
-import { SafeArea } from '@/shared/components/common';
-import { Header } from '@/shared/components/common/Header/Header';
-import { Input } from '@/shared/components/common';
+import React, {useMemo, useRef, useState} from 'react';
+import {View, ScrollView, StyleSheet, Text, Image} from 'react-native';
+import {NativeStackScreenProps} from '@react-navigation/native-stack';
+import {useTheme} from '@/hooks';
+import {SafeArea} from '@/shared/components/common';
+import {Header} from '@/shared/components/common/Header/Header';
+import {Input} from '@/shared/components/common';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
-import { SimpleDatePicker, formatDateForDisplay } from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
-import { TouchableInput } from '@/shared/components/common/TouchableInput/TouchableInput';
-import { Images } from '@/assets/images';
-import type { AdverseEventStackParamList } from '@/navigation/types';
+import {
+  SimpleDatePicker,
+  formatDateForDisplay,
+} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {TouchableInput} from '@/shared/components/common/TouchableInput/TouchableInput';
+import {Images} from '@/assets/images';
+import type {AdverseEventStackParamList} from '@/navigation/types';
+import {Checkbox} from '@/shared/components/common/Checkbox/Checkbox';
+import {DocumentAttachmentsSection} from '@/features/documents/components/DocumentAttachmentsSection';
+import {
+  UploadDocumentBottomSheet,
+  type UploadDocumentBottomSheetRef,
+} from '@/shared/components/common/UploadDocumentBottomSheet/UploadDocumentBottomSheet';
+import {
+  DeleteDocumentBottomSheet,
+  type DeleteDocumentBottomSheetRef,
+} from '@/shared/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
+import {useBottomSheetBackHandler} from '@/shared/hooks/useBottomSheetBackHandler';
+import {useFileOperations} from '@/shared/hooks/useFileOperations';
+import {
+  CountryBottomSheet,
+  type CountryBottomSheetRef,
+} from '@/shared/components/common/CountryBottomSheet/CountryBottomSheet';
+import COUNTRIES from '@/shared/utils/countryList.json';
+import {
+  AdministrationMethodBottomSheet,
+  type AdministrationMethodBottomSheetRef,
+} from '@/shared/components/common/AdministrationMethodBottomSheet/AdministrationMethodBottomSheet';
+import type {DocumentFile} from '@/features/documents/types';
 
 type Props = NativeStackScreenProps<AdverseEventStackParamList, 'Step5'>;
 
-export const Step5Screen: React.FC<Props> = ({ navigation }) => {
-  const { theme } = useTheme();
+export const Step5Screen: React.FC<Props> = ({navigation}) => {
+  const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   const [formData, setFormData] = useState({
     productName: '',
     brandName: '',
-    manufacturingPlace: '',
+    manufacturingCountry: null as null | {
+      name: string;
+      code: string;
+      flag: string;
+      dial_code: string;
+    },
     batchNumber: '',
     frequencyUsed: '',
     quantityUsed: '',
     quantityUnit: 'tablet' as 'tablet' | 'liquid',
-    administrationMethod: 'on the skin',
+    administrationMethod: null as
+      | null
+      | 'none'
+      | 'by mouth'
+      | 'on the skin'
+      | 'subcutaneous injection'
+      | 'intramuscular injection'
+      | 'into the ear'
+      | 'into the eye'
+      | 'other',
     reasonToUseProduct: '',
     petConditionBefore: '',
     petConditionAfter: '',
     eventDate: new Date(),
+    files: [] as DocumentFile[],
   });
 
   const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // Bottom sheet management (same open/close + back handling pattern)
+  const {registerSheet, openSheet, closeSheet} = useBottomSheetBackHandler();
+  const countrySheetRef = useRef<CountryBottomSheetRef>(null);
+  const adminSheetRef = useRef<AdministrationMethodBottomSheetRef>(null);
+  const uploadSheetRef = useRef<UploadDocumentBottomSheetRef>(null);
+  const deleteSheetRef = useRef<DeleteDocumentBottomSheetRef>(null);
+
+  // Register sheets
+  React.useEffect(() => {
+    registerSheet('country', countrySheetRef as any);
+    registerSheet('admin', adminSheetRef as any);
+    registerSheet('upload', uploadSheetRef as any);
+    registerSheet('delete', deleteSheetRef as any);
+  }, [registerSheet]);
+
+  // File operations (reuse same handlers as Documents flow)
+  const {
+    fileToDelete,
+    handleTakePhoto,
+    handleChooseFromGallery,
+    handleUploadFromDrive,
+    handleRemoveFile,
+    confirmDeleteFile,
+  } = useFileOperations<DocumentFile>({
+    files: formData.files,
+    setFiles: files => setFormData(prev => ({...prev, files})),
+    clearError: () => undefined,
+    openSheet,
+    closeSheet,
+    deleteSheetRef,
+  });
 
   const handleSubmit = () => {
     navigation.navigate('ThankYou');
@@ -54,43 +119,49 @@ export const Step5Screen: React.FC<Props> = ({ navigation }) => {
       />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+        showsVerticalScrollIndicator={false}>
         <Text style={styles.stepTitle}>Step 5 of 5</Text>
         <Text style={styles.sectionTitle}>Product Information</Text>
 
         <Input
           label="Product name"
           value={formData.productName}
-          onChangeText={text => setFormData({ ...formData, productName: text })}
+          onChangeText={text => setFormData({...formData, productName: text})}
           containerStyle={styles.input}
         />
 
         <Input
           label="Brand name"
           value={formData.brandName}
-          onChangeText={text => setFormData({ ...formData, brandName: text })}
+          onChangeText={text => setFormData({...formData, brandName: text})}
           containerStyle={styles.input}
         />
 
-        <Input
-          label="Manufacturing place"
-          value={formData.manufacturingPlace}
-          onChangeText={text => setFormData({ ...formData, manufacturingPlace: text })}
+        <TouchableInput
+          label="Manufacturing country"
+          value={formData.manufacturingCountry?.name ?? ''}
+          placeholder="Select country"
+          onPress={() => {
+            openSheet('country');
+            countrySheetRef.current?.open();
+          }}
+          rightComponent={
+            <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
+          }
           containerStyle={styles.input}
         />
 
         <Input
           label="Batch number"
           value={formData.batchNumber}
-          onChangeText={text => setFormData({ ...formData, batchNumber: text })}
+          onChangeText={text => setFormData({...formData, batchNumber: text})}
           containerStyle={styles.input}
         />
 
         <Input
           label="Number of times product used"
           value={formData.frequencyUsed}
-          onChangeText={text => setFormData({ ...formData, frequencyUsed: text })}
+          onChangeText={text => setFormData({...formData, frequencyUsed: text})}
           keyboardType="numeric"
           containerStyle={styles.input}
         />
@@ -98,34 +169,50 @@ export const Step5Screen: React.FC<Props> = ({ navigation }) => {
         <Input
           label="Quantity used"
           value={formData.quantityUsed}
-          onChangeText={text => setFormData({ ...formData, quantityUsed: text })}
+          onChangeText={text => setFormData({...formData, quantityUsed: text})}
           containerStyle={styles.input}
         />
 
         <View style={styles.checkboxRow}>
-          <View style={styles.checkbox}>
-            <View style={[styles.checkboxInner, formData.quantityUnit === 'tablet' && styles.checked]} />
-          </View>
-          <Text style={styles.checkboxLabel}>Tablet - Piece</Text>
-
-          <View style={[styles.checkbox, { marginLeft: theme.spacing[4] }]}>
-            <View style={[styles.checkboxInner, formData.quantityUnit === 'liquid' && styles.checked]} />
-          </View>
-          <Text style={styles.checkboxLabel}>Liquid - ML</Text>
+          <Checkbox
+            value={formData.quantityUnit === 'tablet'}
+            onValueChange={val =>
+              val && setFormData(prev => ({...prev, quantityUnit: 'tablet'}))
+            }
+            label="Tablet - Piece"
+            labelStyle={styles.checkboxLabelInline}
+          />
+          <View style={{width: theme.spacing[4]}} />
+          <Checkbox
+            value={formData.quantityUnit === 'liquid'}
+            onValueChange={val =>
+              val && setFormData(prev => ({...prev, quantityUnit: 'liquid'}))
+            }
+            label="Liquid - ML"
+            labelStyle={styles.checkboxLabelInline}
+          />
         </View>
 
-        <Input
+        <TouchableInput
           label="How was the product administered?"
-          value={formData.administrationMethod}
-          editable={false}
+          value={formData.administrationMethod ?? ''}
+          placeholder="How was the product administered?"
+          onPress={() => {
+            openSheet('admin');
+            adminSheetRef.current?.open();
+          }}
+          rightComponent={
+            <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
+          }
           containerStyle={styles.input}
-          icon={<Image source={Images.dropdownIcon} style={styles.dropdownIcon} />}
         />
 
         <Input
           label="Reason to use the product."
           value={formData.reasonToUseProduct}
-          onChangeText={text => setFormData({ ...formData, reasonToUseProduct: text })}
+          onChangeText={text =>
+            setFormData({...formData, reasonToUseProduct: text})
+          }
           multiline
           containerStyle={styles.input}
         />
@@ -133,7 +220,9 @@ export const Step5Screen: React.FC<Props> = ({ navigation }) => {
         <Input
           label="Pet condition before drug"
           value={formData.petConditionBefore}
-          onChangeText={text => setFormData({ ...formData, petConditionBefore: text })}
+          onChangeText={text =>
+            setFormData({...formData, petConditionBefore: text})
+          }
           multiline
           containerStyle={styles.input}
         />
@@ -141,27 +230,36 @@ export const Step5Screen: React.FC<Props> = ({ navigation }) => {
         <Input
           label="Pet condition after drug"
           value={formData.petConditionAfter}
-          onChangeText={text => setFormData({ ...formData, petConditionAfter: text })}
+          onChangeText={text =>
+            setFormData({...formData, petConditionAfter: text})
+          }
           multiline
           containerStyle={styles.input}
         />
 
         <View style={styles.uploadSection}>
-          <Text style={styles.uploadLabel}>Please add image of the product used.</Text>
-          <TouchableOpacity
-            style={styles.uploadButton}
-            onPress={() => console.log('Upload image')}
-          >
-            <Image source={Images.uploadIcon} style={styles.uploadIcon} />
-            <Text style={styles.uploadText}>Upload image</Text>
-          </TouchableOpacity>
+          <Text style={styles.uploadLabel}>
+            Please add image of the product used.
+          </Text>
+          <DocumentAttachmentsSection
+            files={formData.files}
+            onAddPress={() => {
+              openSheet('upload');
+              uploadSheetRef.current?.open();
+            }}
+            onRequestRemove={file => handleRemoveFile(file.id)}
+            emptyTitle="Upload image"
+            emptySubtitle={'Only PNG, JPEG, PDF\nmax size 5 MB'}
+          />
         </View>
 
         <TouchableInput
           label="Event date"
           value={formatDateForDisplay(formData.eventDate)}
           onPress={() => setShowDatePicker(true)}
-          rightComponent={<Image source={Images.calendarIcon} style={styles.calendarIcon} />}
+          rightComponent={
+            <Image source={Images.calendarIcon} style={styles.calendarIcon} />
+          }
           containerStyle={styles.input}
         />
 
@@ -186,13 +284,58 @@ export const Step5Screen: React.FC<Props> = ({ navigation }) => {
       <SimpleDatePicker
         value={formData.eventDate}
         onDateChange={date => {
-          setFormData({ ...formData, eventDate: date });
+          setFormData({...formData, eventDate: date});
           setShowDatePicker(false);
         }}
         show={showDatePicker}
         onDismiss={() => setShowDatePicker(false)}
         maximumDate={new Date()}
         mode="date"
+      />
+
+      <CountryBottomSheet
+        ref={countrySheetRef}
+        countries={COUNTRIES as any}
+        selectedCountry={formData.manufacturingCountry as any}
+        onSave={country => {
+          setFormData(prev => ({...prev, manufacturingCountry: country}));
+          closeSheet();
+        }}
+      />
+
+      <AdministrationMethodBottomSheet
+        ref={adminSheetRef}
+        selectedMethod={formData.administrationMethod}
+        onSave={method => {
+          setFormData(prev => ({...prev, administrationMethod: method}));
+          closeSheet();
+        }}
+      />
+
+      <UploadDocumentBottomSheet
+        ref={uploadSheetRef}
+        onTakePhoto={() => {
+          handleTakePhoto();
+          closeSheet();
+        }}
+        onChooseGallery={() => {
+          handleChooseFromGallery();
+          closeSheet();
+        }}
+        onUploadDrive={() => {
+          handleUploadFromDrive();
+          closeSheet();
+        }}
+      />
+
+      <DeleteDocumentBottomSheet
+        ref={deleteSheetRef}
+        documentTitle={
+          fileToDelete
+            ? formData.files.find(f => f.id === fileToDelete)?.name
+            : 'this file'
+        }
+        onDelete={confirmDeleteFile}
       />
     </SafeArea>
   );
@@ -206,13 +349,15 @@ const createStyles = (theme: any) =>
       paddingBottom: theme.spacing[24],
     },
     stepTitle: {
-      ...theme.typography.labelMdBold,
-      color: theme.colors.textSecondary,
+      // Satoshi 12 Bold, 100% line-height, centered, Jet-400
+      ...theme.typography.subtitleBold12,
+      lineHeight: 12,
+      color: theme.colors.placeholder,
       marginBottom: theme.spacing[4],
       textAlign: 'center',
     },
     sectionTitle: {
-      ...theme.typography.labelMdBold,
+      ...theme.typography.h6Clash,
       color: theme.colors.secondary,
       marginBottom: theme.spacing[4],
     },
@@ -222,30 +367,18 @@ const createStyles = (theme: any) =>
     checkboxRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: theme.spacing[4],
-    },
-    checkbox: {
-      width: 20,
-      height: 20,
-      borderRadius: 4,
-      borderWidth: 2,
-      borderColor: theme.colors.borderMuted,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: theme.spacing[2],
-    },
-    checkboxInner: {
-      width: 12,
-      height: 12,
-      borderRadius: 2,
-      backgroundColor: 'transparent',
-    },
-    checked: {
-      backgroundColor: theme.colors.primary,
+      paddingLeft: 10,
+      marginBottom: theme.spacing[2],
+      marginTop: theme.spacing[1],
     },
     checkboxLabel: {
       ...theme.typography.body,
       color: theme.colors.secondary,
+    },
+    checkboxLabelInline: {
+      ...theme.typography.body,
+      color: theme.colors.secondary,
+      flex: 0,
     },
     dropdownIcon: {
       width: 20,
@@ -256,8 +389,10 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing[6],
     },
     uploadLabel: {
-      ...theme.typography.labelMdBold,
+      // Satoshi 14 Bold, 120% line-height
+      ...theme.typography.subtitleBold14,
       color: theme.colors.secondary,
+      opacity: 1,
       marginBottom: theme.spacing[3],
     },
     uploadButton: {
@@ -294,7 +429,8 @@ const createStyles = (theme: any) =>
       borderRadius: theme.borderRadius.lg,
     },
     buttonText: {
-      color: theme.colors.white,
-      ...theme.typography.paragraphBold,
+      ...theme.typography.cta,
+      color: theme.colors.background,
+      textAlign: 'center',
     },
   });

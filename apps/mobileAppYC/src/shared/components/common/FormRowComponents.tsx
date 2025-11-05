@@ -62,13 +62,14 @@ const createStyles = (theme: any) =>
       marginVertical: theme.spacing[1],
     },
     rowButtonLabel: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.secondary,
+      ...theme.typography.pillSubtitleBold15,
+      color: theme.colors.textSecondary,
       flex: 1,
     },
     rowButtonValue: {
-      ...theme.typography.bodySmall,
-      color: theme.colors.textSecondary,
+      // Satoshi 15 Bold, 160% line-height, -0.3 letter spacing
+      ...theme.typography.pillSubtitleBold15,
+      color: theme.colors.placeholder,
       marginRight: theme.spacing[3],
       flexShrink: 1,
       flex: 1,
