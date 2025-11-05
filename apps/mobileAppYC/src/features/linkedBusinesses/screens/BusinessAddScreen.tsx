@@ -5,12 +5,14 @@ import {
   StyleSheet,
   Text,
   Alert,
+  Image,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux';
 import type {AppDispatch} from '@/app/store';
 import {useTheme} from '@/hooks';
+import {Images} from '@/assets/images';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
@@ -175,7 +177,11 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
                 <Text style={styles.statusText}>
                   We are happy to inform you that this organisation is part of Yosemite Crew PMS
                 </Text>
-                <Text style={styles.statusEmojiRight}>✅</Text>
+   <Image
+                  source={Images.yosemiteLogo}
+                  style={styles.logoImage}
+                  resizeMode="contain"
+                />
               </View>
             ) : (
               <View style={styles.statusRow}>
@@ -185,7 +191,7 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
                   PMS. We will soon notify you, when the organisation is available on this
                   platform.
                 </Text>
-                <Text style={styles.statusEmojiRight}>🔔</Text>
+            <Text style={styles.statusEmojiRight}>🔔</Text>
               </View>
             )}
           </View>
@@ -294,6 +300,10 @@ const createStyles = (theme: any) =>
       textAlign: 'center',
       lineHeight: 20,
       flex: 0.76,
+    },
+    logoImage: {
+      width: 52,
+      height: 52,
     },
     buttonContainer: {
       marginTop: theme.spacing[6],
