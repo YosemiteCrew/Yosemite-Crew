@@ -8,7 +8,6 @@
   align-items: center;
   justify-content: center;
   position: relative;
-  /* padding: 100px 0px 100px 0px; */
 }
 
 .MainSignUpRow {
@@ -42,7 +41,6 @@
 
 .BuildEveryone .BuildCloud {
   width: 100%;
-  /* max-width: 400px; */
   display: flex;
   flex-direction: column;
   gap: 36px;
@@ -139,6 +137,11 @@
   border: none;
   padding: 0;
   z-index: 2;
+}
+
+.Headingtext h2 {
+  font-family: var(--grotesk-font);
+  color: var(--black-text);
 }
 
 /* Toggle */
@@ -370,7 +373,6 @@
 
   .BuildEveryone .SignBuildText h2 {
     font-size: 57px;
-    letter-spacing: -2px;
   }
 
   .BuildEveryone .BuildCloud .CloudItems .CloudText h4 {
@@ -378,6 +380,7 @@
     font-size: 18px;
   }
   .BuildEveryone .BuildCloud .CloudItems .CloudText p {
+    margin-right: 1px;
     font-weight: 400;
     font-size: 18px;
   }
@@ -395,10 +398,10 @@
 @media (min-width: 1400px) {
   .MainSignUpRow {
     max-width: 1400px;
-    margin:  80px;
+    margin: 80px;
   }
 
   .MainSignCol {
-    width: 45%;
+    width: 46%;
   }
 }
