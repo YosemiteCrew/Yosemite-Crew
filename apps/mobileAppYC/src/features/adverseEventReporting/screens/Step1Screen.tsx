@@ -66,12 +66,14 @@ export const Step1Screen: React.FC<Props> = ({ navigation }) => {
 
         <Text style={styles.descriptionText}>To report a potential side effect, unexpected reaction, or any other concern following the use of a YosemiteCrew Animal Health product, please fill out the following form as completely and accurately as possible.</Text>
 
-        <CompanionSelector
+        <View style={styles.companionSelector}>
+          <CompanionSelector
           companions={companions}
           selectedCompanionId={selectedCompanionId}
           onSelect={setSelectedCompanionId}
           showAddButton={false}
-        />
+          />
+        </View>
 
         <View style={styles.radioSection}>
           <Text style={styles.sectionTitle}>Who is reporting the concern?</Text>
@@ -98,11 +100,16 @@ export const Step1Screen: React.FC<Props> = ({ navigation }) => {
         </View>
 
         <View style={styles.checkboxSection}>
-          <Checkbox
-            value={agreeToTerms}
-            onValueChange={setAgreeToTerms}
-            label="I agree to Yosemite Crew's terms and conditions and privacy policy"
-          />
+          <Text style={styles.beforeProceed}>Before you proceed</Text>
+          <View style={styles.consentRow}>
+            <Checkbox
+              value={agreeToTerms}
+              onValueChange={setAgreeToTerms}
+            />
+            <Text style={styles.consentText}>
+              I agree to Yosemite Crew’s <Text style={styles.consentLink}>terms and conditions</Text> and <Text style={styles.consentLink}>privacy policy</Text>
+            </Text>
+          </View>
         </View>
 
         <View style={styles.buttonContainer}>
@@ -135,41 +142,47 @@ const createStyles = (theme: any) =>
       paddingBottom: theme.spacing[24],
     },
     stepTitle: {
-      ...theme.typography.labelMdBold,
-      color: theme.colors.textSecondary,
-      marginBottom: theme.spacing[2],
+      // Satoshi 12 Bold, 100% line-height, centered
+      ...theme.typography.subtitleBold12,
+      lineHeight: 12,
+      color: theme.colors.placeholder,
+      marginBottom: theme.spacing[4],
       textAlign: 'center',
     },
     heroImage: {
       width: '100%',
       height: 200,
       resizeMode: 'contain',
-      marginBottom: theme.spacing[4],
+      marginBottom: theme.spacing[6],
     },
     title: {
-      ...theme.typography.labelMdBold,
+      ...theme.typography.h4Alt,
       color: theme.colors.secondary,
       marginBottom: theme.spacing[2],
       textAlign: 'center',
+            paddingHorizontal: theme.spacing[16],
     },
     subtitle: {
-      ...theme.typography.bodySmallTight,
-      color: theme.colors.textSecondary,
-      marginBottom: theme.spacing[4],
+      ...theme.typography.subtitleBold14,
+      color: theme.colors.placeholder,
+      marginBottom: theme.spacing[6],
       textAlign: 'center',
+      paddingHorizontal: theme.spacing[6],
     },
     descriptionText: {
-      ...theme.typography.bodySmallTight,
-      color: theme.colors.secondary,
+      ...theme.typography.businessTitle16,
+      color: theme.colors.text,
       marginBottom: theme.spacing[6],
-      lineHeight: 22,
+
+    },
+    companionSelector: {
+      marginBottom: theme.spacing[6],
     },
     radioSection: {
-      marginVertical: theme.spacing[6],
-      marginBottom: theme.spacing[4],
+      marginBottom: theme.spacing[6],
     },
     sectionTitle: {
-      ...theme.typography.labelMdBold,
+      ...theme.typography.businessTitle16,
       color: theme.colors.secondary,
       marginBottom: theme.spacing[3],
     },
@@ -197,10 +210,32 @@ const createStyles = (theme: any) =>
     radioLabel: {
       ...theme.typography.body,
       color: theme.colors.secondary,
+
     },
     checkboxSection: {
-      marginVertical: theme.spacing[6],
-      marginBottom: theme.spacing[4],
+      marginBottom: theme.spacing[6],
+      gap: theme.spacing[2],
+    },
+    beforeProceed: {
+      // Satoshi 15 bold, 120%, -0.3 letter spacing
+      ...theme.typography.pillSubtitleBold15,
+      lineHeight: 18,
+      color: theme.colors.secondary,
+        marginBottom: theme.spacing[2],
+    },
+    consentRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+    },
+    consentText: {
+      ...theme.typography.paragraph,
+      color: theme.colors.textSecondary,
+      marginLeft: 8,
+
+    },
+    consentLink: {
+      ...theme.typography.paragraphBold,
+      color: theme.colors.textTertiary,
     },
     buttonContainer: {
       marginTop: theme.spacing[4],
@@ -218,7 +253,8 @@ const createStyles = (theme: any) =>
       elevation: 4,
     },
     buttonText: {
-      color: theme.colors.white,
-      ...theme.typography.paragraphBold,
+      ...theme.typography.cta,
+      color: theme.colors.background,
+      textAlign: 'center',
     },
   });

@@ -21,7 +21,7 @@ const generalInfoSections = [
   {
     id: 'general-info-label',
     title:'',
-    align: 'center' as const,
+    align: 'left' as const,
     blocks: [
       {
         type: 'paragraph' as const,
@@ -297,16 +297,18 @@ const createStyles = (theme: any) =>
       paddingBottom: theme.spacing[24],
     },
     generalInfoLabel: {
-      ...theme.typography.labelMdBold,
-      color: theme.colors.textSecondary,
+      // Satoshi 12 Bold, 100% line-height, centered
+      ...theme.typography.subtitleBold12,
+      lineHeight: 12,
+      color: theme.colors.placeholder,
       marginBottom: theme.spacing[4],
       textAlign: 'center',
     },
     heroImage: {
       width: '100%',
-      height: 200,
+      height: 250,
       resizeMode: 'contain',
-      marginBottom: theme.spacing[6],
+marginTop: -theme.spacing[6],
     },
     contentWrapper: {
       marginBottom: theme.spacing[6],
@@ -327,7 +329,8 @@ const createStyles = (theme: any) =>
       elevation: 4,
     },
     buttonText: {
-      color: theme.colors.white,
-      ...theme.typography.paragraphBold,
+      ...theme.typography.cta,
+      color: theme.colors.background,
+      textAlign: 'center',
     },
   });

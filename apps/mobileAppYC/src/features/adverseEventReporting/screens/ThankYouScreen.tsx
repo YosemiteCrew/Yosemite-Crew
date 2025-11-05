@@ -58,7 +58,7 @@ export const ThankYouScreen: React.FC<Props> = ({ navigation }) => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Image source={Images.catEmergency} style={styles.heroImage} />
+        <Image source={Images.adverse3} style={styles.heroImage} />
 
         <Text style={styles.title}>Thank you for reaching out to us</Text>
         <Text style={styles.subtitle}>
@@ -71,6 +71,7 @@ export const ThankYouScreen: React.FC<Props> = ({ navigation }) => {
             value={agreeToBeContacted}
             onValueChange={setAgreeToBeContacted}
             label="I agree to be contacted"
+            labelStyle={styles.checkboxLabel}
           />
         </View>
 
@@ -126,31 +127,40 @@ const createStyles = (theme: any) =>
       paddingBottom: theme.spacing[24],
     },
     heroImage: {
-      width: 160,
-      height: 160,
+      width: 220,
+      height: 220,
       resizeMode: 'contain',
       alignSelf: 'center',
-      marginBottom: theme.spacing[6],
+      marginBottom: theme.spacing[2],
     },
     title: {
-      ...theme.typography.titleLarge,
-      color: theme.colors.secondary,
-      textAlign: 'center',
+      // Clash Grotesk 20/24, 500, -0.2
+      ...theme.typography.businessSectionTitle20,
+      color: '#302F2E',
       marginBottom: theme.spacing[3],
-      lineHeight: 28,
     },
     subtitle: {
-      ...theme.typography.bodySmallTight,
-      color: theme.colors.textSecondary,
-      textAlign: 'center',
+      // Satoshi 15 Bold, 120%
+      ...theme.typography.pillSubtitleBold15,
+      color: '#302F2E',
       marginBottom: theme.spacing[6],
-      lineHeight: 22,
+      lineHeight: 18,
+      letterSpacing: -0.3,
     },
     checkboxSection: {
-      marginBottom: theme.spacing[6],
+      // Increased space before buttons group
+      marginBottom: theme.spacing[8],
+    },
+    checkboxLabel: {
+      // Satoshi 15 Bold, 120%
+      ...theme.typography.pillSubtitleBold15,
+      color: '#302F2E',
+      lineHeight: 18,
+      letterSpacing: -0.3,
     },
     actionsContainer: {
-      gap: theme.spacing[4],
+      // Slightly larger gap between buttons
+      gap: theme.spacing[5],
     },
     button: {
       width: '100%',
@@ -165,8 +175,11 @@ const createStyles = (theme: any) =>
       elevation: 4,
     },
     buttonText: {
-      color: theme.colors.white,
-      ...theme.typography.paragraphBold,
+      // CTA Clash Grotesk 18/18, 500, -0.18, white
+      ...theme.typography.h6Clash,
+      color: '#FFFEFE',
+      lineHeight: 18,
+      letterSpacing: -0.18,
       textAlign: 'center',
     },
     lightButton: {
@@ -174,8 +187,11 @@ const createStyles = (theme: any) =>
       borderColor: theme.colors.borderMuted,
     },
     lightButtonText: {
-      color: theme.colors.secondary,
-      ...theme.typography.paragraphBold,
+      // CTA Clash Grotesk 18/18, 500, -0.18, Jet-500
+      ...theme.typography.h6Clash,
+      color: '#302F2E',
+      lineHeight: 18,
+      letterSpacing: -0.18,
       textAlign: 'center',
     },
     phoneAction: {
@@ -192,10 +208,13 @@ const createStyles = (theme: any) =>
       width: 20,
       height: 20,
       resizeMode: 'contain',
-      tintColor: theme.colors.primary,
     },
     phoneText: {
-      ...theme.typography.labelMdBold,
-      color: theme.colors.primary,
+      // CTA Clash Grotesk 18/18, 500, -0.18, Jet-500
+      ...theme.typography.h6Clash,
+      color: '#302F2E',
+      lineHeight: 18,
+      letterSpacing: -0.18,
+      textAlign: 'center',
     },
   });

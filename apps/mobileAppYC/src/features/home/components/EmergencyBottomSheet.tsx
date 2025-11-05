@@ -76,6 +76,11 @@ export const EmergencyBottomSheet = forwardRef<EmergencyBottomSheetRef, Emergenc
       },
     }));
 
+    const handleClose = () => {
+      setIsSheetVisible(false);
+      bottomSheetRef.current?.close();
+    };
+
     const handleOptionPress = (optionId: 'call-vet' | 'adverse-event') => {
       if (optionId === 'call-vet' && onCallVet) {
         onCallVet();
@@ -127,7 +132,7 @@ export const EmergencyBottomSheet = forwardRef<EmergencyBottomSheetRef, Emergenc
                   </View>
                   <View style={styles.optionTextContainer}>
                     <Text style={styles.optionTitle}>{option.title}</Text>
-                    <Text numberOfLines={2} style={styles.optionSubtitle}>{option.subtitle}</Text>
+                    <Text style={styles.optionSubtitle}>{option.subtitle}</Text>
                     {option.note && (
                       <Text style={styles.optionNote}>{option.note}</Text>
                     )}
@@ -161,6 +166,9 @@ export const EmergencyBottomSheet = forwardRef<EmergencyBottomSheetRef, Emergenc
         backgroundStyle={styles.bottomSheetBackground}
         handleIndicatorStyle={styles.bottomSheetHandle}>
         <View style={styles.container}>
+          <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
+            <Image source={Images.crossIcon} style={styles.closeIcon} resizeMode="contain" />
+          </TouchableOpacity>
           {canShowOptions ? renderOptions() : renderEmptyState()}
         </View>
       </CustomBottomSheet>
@@ -193,20 +201,18 @@ const createStyles = (theme: any) =>
       width: 160,
       height: 160,
       resizeMode: 'contain',
-      marginBottom: theme.spacing[4],
     },
     titleText: {
-      ...theme.typography.labelMdBold,
+      ...theme.typography.h4Alt,
       color: theme.colors.secondary,
       textAlign: 'center',
       marginBottom: theme.spacing[2],
     },
     subtitleText: {
-      ...theme.typography.bodySmallTight,
+      ...theme.typography.subtitleRegular14,
       color: theme.colors.textSecondary,
       textAlign: 'center',
       marginBottom: theme.spacing[4],
-      lineHeight: 22,
     },
     optionsContainer: {
       width: '100%',
@@ -238,7 +244,7 @@ const createStyles = (theme: any) =>
     optionContent: {
       padding: theme.spacing[4],
       flexDirection: 'row',
-      alignItems: 'flex-start',
+      alignItems: 'center',
       gap: theme.spacing[3],
       flex: 1,
     },
@@ -258,24 +264,26 @@ const createStyles = (theme: any) =>
     optionTextContainer: {
       flex: 1,
       justifyContent: 'center',
-      gap: theme.spacing[1],
+      gap: theme.spacing[2],
     },
     optionTitle: {
-      ...theme.typography.titleMedium,
+      ...theme.typography.h6Clash,
       color: theme.colors.secondary,
       textAlign: 'left',
     },
     optionSubtitle: {
-      ...theme.typography.bodyExtraSmall,
+      ...theme.typography.tabLabel,
+      fontSize: 11,
+      lineHeight: 11 * 1.2,
       color: theme.colors.textSecondary,
       textAlign: 'left',
     },
     optionNote: {
-      ...theme.typography.bodyExtraSmall,
-      color: theme.colors.textSecondary,
-      textAlign: 'left',
+      ...theme.typography.tabLabel,
       fontSize: 11,
-      fontStyle: 'italic',
+      lineHeight: 11 * 1.2,
+      color: theme.colors.text,
+      textAlign: 'left',
     },
     emptyStateContainer: {
       width: '100%',
@@ -283,8 +291,19 @@ const createStyles = (theme: any) =>
       paddingVertical: theme.spacing[8],
     },
     emptyStateText: {
-      ...theme.typography.titleMedium,
-      color: theme.colors.secondary,
+      ...theme.typography.subtitleRegular14,
+      color: theme.colors.textSecondary,
       textAlign: 'center',
+    },
+    closeButton: {
+      position: 'absolute',
+      right: theme.spacing['5'],
+      top: theme.spacing['4'],
+      padding: theme.spacing['2'],
+      zIndex: 10,
+    },
+    closeIcon: {
+      width: theme.spacing['6'],
+      height: theme.spacing['6'],
     },
   });

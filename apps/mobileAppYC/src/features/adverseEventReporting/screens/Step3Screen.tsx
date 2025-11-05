@@ -87,13 +87,15 @@ const createStyles = (theme: any) =>
       paddingBottom: theme.spacing[24],
     },
     stepTitle: {
-      ...theme.typography.labelMdBold,
-      color: theme.colors.textSecondary,
+      // Satoshi 12 Bold, 100% line-height, centered, Jet-400
+      ...theme.typography.subtitleBold12,
+      lineHeight: 12,
+      color: theme.colors.placeholder,
       marginBottom: theme.spacing[4],
       textAlign: 'center',
     },
     title: {
-      ...theme.typography.labelMdBold,
+      ...theme.typography.h6Clash,
       color: theme.colors.secondary,
       marginBottom: theme.spacing[4],
     },
