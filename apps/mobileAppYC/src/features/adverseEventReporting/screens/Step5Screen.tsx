@@ -1,7 +1,7 @@
-import React, {useMemo, useRef, useState} from 'react';
+import React, {useMemo, useState} from 'react';
 import {View, StyleSheet, Text, Image} from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
-import {useTheme} from '@/hooks';
+import {useTheme, useFormBottomSheets} from '@/hooks';
 import {Input} from '@/shared/components/common';
 import AERLayout from '@/features/adverseEventReporting/components/AERLayout';
 import {
@@ -14,31 +14,25 @@ import type {AdverseEventStackParamList} from '@/navigation/types';
 import {Checkbox} from '@/shared/components/common/Checkbox/Checkbox';
 import {DocumentAttachmentsSection} from '@/features/documents/components/DocumentAttachmentsSection';
 import {
-  UploadDocumentBottomSheet,
   type UploadDocumentBottomSheetRef,
 } from '@/shared/components/common/UploadDocumentBottomSheet/UploadDocumentBottomSheet';
 import {
-  DeleteDocumentBottomSheet,
   type DeleteDocumentBottomSheetRef,
 } from '@/shared/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
-import {useBottomSheetBackHandler} from '@/shared/hooks/useBottomSheetBackHandler';
+import UploadDeleteSheets from '@/shared/components/common/UploadDeleteSheets/UploadDeleteSheets';
 import {useFileOperations} from '@/shared/hooks/useFileOperations';
-import {
-  CountryBottomSheet,
-  type CountryBottomSheetRef,
-} from '@/shared/components/common/CountryBottomSheet/CountryBottomSheet';
+import {CountryBottomSheet, type CountryBottomSheetRef} from '@/shared/components/common/CountryBottomSheet/CountryBottomSheet';
 import COUNTRIES from '@/shared/utils/countryList.json';
-import {
-  AdministrationMethodBottomSheet,
-  type AdministrationMethodBottomSheetRef,
-} from '@/shared/components/common/AdministrationMethodBottomSheet/AdministrationMethodBottomSheet';
+import {AdministrationMethodBottomSheet, type AdministrationMethodBottomSheetRef} from '@/shared/components/common/AdministrationMethodBottomSheet/AdministrationMethodBottomSheet';
 import type {DocumentFile} from '@/features/documents/types';
+import {createCommonFormStyles} from '@/shared/styles/commonFormStyles';
 
 type Props = NativeStackScreenProps<AdverseEventStackParamList, 'Step5'>;
 
 export const Step5Screen: React.FC<Props> = ({navigation}) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const common = useMemo(() => createCommonFormStyles(theme), [theme]);
 
   const [formData, setFormData] = useState({
     productName: '',
@@ -72,19 +66,18 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
 
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  // Bottom sheet management (same open/close + back handling pattern)
-  const {registerSheet, openSheet, closeSheet} = useBottomSheetBackHandler();
-  const countrySheetRef = useRef<CountryBottomSheetRef>(null);
-  const adminSheetRef = useRef<AdministrationMethodBottomSheetRef>(null);
-  const uploadSheetRef = useRef<UploadDocumentBottomSheetRef>(null);
-  const deleteSheetRef = useRef<DeleteDocumentBottomSheetRef>(null);
+  const {refs, openSheet, closeSheet, registerSheet} = useFormBottomSheets();
+  const {uploadSheetRef, deleteSheetRef} = refs as unknown as {
+    uploadSheetRef: React.RefObject<UploadDocumentBottomSheetRef>;
+    deleteSheetRef: React.RefObject<DeleteDocumentBottomSheetRef>;
+  };
+  // These two sheets are local to AER step and are not part of generic form sheets
+  const countrySheetRef = React.useRef<CountryBottomSheetRef>(null);
+  const adminSheetRef = React.useRef<AdministrationMethodBottomSheetRef>(null);
 
-  // Register sheets
   React.useEffect(() => {
     registerSheet('country', countrySheetRef as any);
     registerSheet('admin', adminSheetRef as any);
-    registerSheet('upload', uploadSheetRef as any);
-    registerSheet('delete', deleteSheetRef as any);
   }, [registerSheet]);
 
   // File operations (reuse same handlers as Documents flow)
@@ -139,9 +132,7 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
             openSheet('country');
             countrySheetRef.current?.open();
           }}
-          rightComponent={
-            <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
-          }
+          rightComponent={<Image source={Images.dropdownIcon} style={common.dropdownIcon} />}
           containerStyle={styles.input}
         />
 
@@ -195,9 +186,7 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
             openSheet('admin');
             adminSheetRef.current?.open();
           }}
-          rightComponent={
-            <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
-          }
+          rightComponent={<Image source={Images.dropdownIcon} style={common.dropdownIcon} />}
           containerStyle={styles.input}
         />
 
@@ -251,9 +240,7 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
           label="Event date"
           value={formatDateForDisplay(formData.eventDate)}
           onPress={() => setShowDatePicker(true)}
-          rightComponent={
-            <Image source={Images.calendarIcon} style={styles.calendarIcon} />
-          }
+          rightComponent={<Image source={Images.calendarIcon} style={common.calendarIcon} />}
           containerStyle={styles.input}
         />
 
@@ -290,30 +277,16 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
         }}
       />
 
-      <UploadDocumentBottomSheet
-        ref={uploadSheetRef}
-        onTakePhoto={() => {
-          handleTakePhoto();
-          closeSheet();
-        }}
-        onChooseGallery={() => {
-          handleChooseFromGallery();
-          closeSheet();
-        }}
-        onUploadDrive={() => {
-          handleUploadFromDrive();
-          closeSheet();
-        }}
-      />
-
-      <DeleteDocumentBottomSheet
-        ref={deleteSheetRef}
-        documentTitle={
-          fileToDelete
-            ? formData.files.find(f => f.id === fileToDelete)?.name
-            : 'this file'
-        }
-        onDelete={confirmDeleteFile}
+      <UploadDeleteSheets
+        uploadSheetRef={uploadSheetRef}
+        deleteSheetRef={deleteSheetRef}
+        files={formData.files}
+        fileToDelete={fileToDelete as any}
+        onTakePhoto={handleTakePhoto}
+        onChooseGallery={handleChooseFromGallery}
+        onUploadDrive={handleUploadFromDrive}
+        onConfirmDelete={confirmDeleteFile}
+        closeSheet={closeSheet}
       />
     </>
   );
@@ -345,11 +318,6 @@ const createStyles = (theme: any) =>
       color: theme.colors.secondary,
       flex: 0,
     },
-    dropdownIcon: {
-      width: 20,
-      height: 20,
-      resizeMode: 'contain',
-    },
     uploadSection: {
       marginBottom: theme.spacing[6],
     },
@@ -380,9 +348,5 @@ const createStyles = (theme: any) =>
       ...theme.typography.labelMdBold,
       color: theme.colors.primary,
     },
-    calendarIcon: {
-      width: theme.spacing[5],
-      height: theme.spacing[5],
-      tintColor: theme.colors.textSecondary,
-    },
+    // icon styles moved to shared createCommonFormStyles
   });
