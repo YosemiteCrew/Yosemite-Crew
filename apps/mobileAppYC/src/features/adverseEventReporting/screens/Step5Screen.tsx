@@ -209,6 +209,7 @@ const createStyles = (theme: any) =>
       ...theme.typography.labelMdBold,
       color: theme.colors.textSecondary,
       marginBottom: theme.spacing[4],
+      textAlign: 'center',
     },
     sectionTitle: {
       ...theme.typography.labelMdBold,

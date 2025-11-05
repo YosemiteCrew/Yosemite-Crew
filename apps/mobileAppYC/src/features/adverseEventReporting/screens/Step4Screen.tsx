@@ -15,25 +15,12 @@ import { SafeArea } from '@/shared/components/common';
 import { Header } from '@/shared/components/common/Header/Header';
 import { LiquidGlassCard } from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
+import { Separator, RowButton } from '@/shared/components/common/FormRowComponents';
 import { Images } from '@/assets/images';
 import { capitalize } from '@/shared/utils/commonHelpers';
 import type { AdverseEventStackParamList } from '@/navigation/types';
 
 type Props = NativeStackScreenProps<AdverseEventStackParamList, 'Step4'>;
-
-const InfoRow: React.FC<{ label: string; value: string }> = ({ label, value }) => {
-  const { theme } = useTheme();
-  return (
-    <View style={{ marginBottom: theme.spacing[3] }}>
-      <Text style={{ ...theme.typography.labelSmall, color: theme.colors.textSecondary }}>
-        {label}
-      </Text>
-      <Text style={{ ...theme.typography.body, color: theme.colors.secondary }}>
-        {value || '—'}
-      </Text>
-    </View>
-  );
-};
 
 export const Step4Screen: React.FC<Props> = ({ navigation }) => {
   const { theme } = useTheme();
@@ -77,6 +64,13 @@ export const Step4Screen: React.FC<Props> = ({ navigation }) => {
       >
         <Text style={styles.stepTitle}>Step 4 of 5</Text>
 
+        <View style={styles.headerRow}>
+          <Text style={styles.sectionTitle}>Companion Information</Text>
+          <TouchableOpacity onPress={handleEdit}>
+            <Image source={Images.blackEdit} style={styles.editIcon} />
+          </TouchableOpacity>
+        </View>
+
         <LiquidGlassCard
           glassEffect="clear"
           interactive
@@ -84,35 +78,92 @@ export const Step4Screen: React.FC<Props> = ({ navigation }) => {
           fallbackStyle={styles.infoCardFallback}
         >
           <View style={styles.cardContent}>
-            <View style={styles.headerRow}>
-              <Text style={styles.cardTitle}>Companion Information</Text>
-              <TouchableOpacity onPress={handleEdit}>
-                <Image source={Images.blackEdit} style={styles.editIcon} />
-              </TouchableOpacity>
-            </View>
+            <RowButton
+              label="Name"
+              value={selectedCompanion.name}
+              onPress={handleEdit}
+            />
+            <Separator />
 
-            <InfoRow label="Name" value={selectedCompanion.name} />
-            <InfoRow label="Breed" value={selectedCompanion.breed?.breedName ?? ''} />
-            <InfoRow
+            <RowButton
+              label="Breed"
+              value={selectedCompanion.breed?.breedName ?? ''}
+              onPress={handleEdit}
+            />
+            <Separator />
+
+            <RowButton
               label="Date of birth"
               value={
                 selectedCompanion.dateOfBirth
                   ? new Date(selectedCompanion.dateOfBirth).toLocaleDateString()
                   : ''
               }
+              onPress={handleEdit}
             />
-            <InfoRow label="Gender" value={capitalize(selectedCompanion.gender ?? '')} />
-            <InfoRow
+            <Separator />
+
+            <RowButton
+              label="Gender"
+              value={capitalize(selectedCompanion.gender ?? '')}
+              onPress={handleEdit}
+            />
+            <Separator />
+
+            <RowButton
               label="Current weight"
               value={selectedCompanion.currentWeight ? `${selectedCompanion.currentWeight} kg` : ''}
+              onPress={handleEdit}
             />
-            <InfoRow label="Color" value={selectedCompanion.color ?? ''} />
-            <InfoRow label="Allergies" value={selectedCompanion.allergies ?? ''} />
-            <InfoRow label="Neutered status" value={capitalize(selectedCompanion.neuteredStatus ?? '')} />
-            <InfoRow label="Blood group" value={selectedCompanion.bloodGroup ?? ''} />
-            <InfoRow label="Microchip number" value={selectedCompanion.microchipNumber ?? ''} />
-            <InfoRow label="Passport number" value={selectedCompanion.passportNumber ?? ''} />
-            <InfoRow label="Insurance status" value={capitalize(selectedCompanion.insuredStatus ?? '')} />
+            <Separator />
+
+            <RowButton
+              label="Color"
+              value={selectedCompanion.color ?? ''}
+              onPress={handleEdit}
+            />
+            <Separator />
+
+            <RowButton
+              label="Allergies"
+              value={selectedCompanion.allergies ?? ''}
+              onPress={handleEdit}
+            />
+            <Separator />
+
+            <RowButton
+              label="Neutered status"
+              value={capitalize(selectedCompanion.neuteredStatus ?? '')}
+              onPress={handleEdit}
+            />
+            <Separator />
+
+            <RowButton
+              label="Blood group"
+              value={selectedCompanion.bloodGroup ?? ''}
+              onPress={handleEdit}
+            />
+            <Separator />
+
+            <RowButton
+              label="Microchip number"
+              value={selectedCompanion.microchipNumber ?? ''}
+              onPress={handleEdit}
+            />
+            <Separator />
+
+            <RowButton
+              label="Passport number"
+              value={selectedCompanion.passportNumber ?? ''}
+              onPress={handleEdit}
+            />
+            <Separator />
+
+            <RowButton
+              label="Insurance status"
+              value={capitalize(selectedCompanion.insuredStatus ?? '')}
+              onPress={handleEdit}
+            />
           </View>
         </LiquidGlassCard>
 
@@ -145,23 +196,10 @@ const createStyles = (theme: any) =>
       paddingBottom: theme.spacing[24],
     },
     stepTitle: {
-      ...theme.typography.bodySmallTight,
+      ...theme.typography.labelMdBold,
       color: theme.colors.textSecondary,
       marginBottom: theme.spacing[4],
-    },
-    infoCard: {
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      backgroundColor: theme.colors.cardBackground,
-      marginBottom: theme.spacing[6],
-    },
-    infoCardFallback: {
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.cardBackground,
-    },
-    cardContent: {
-      padding: theme.spacing[4],
+      textAlign: 'center',
     },
     headerRow: {
       flexDirection: 'row',
@@ -169,9 +207,28 @@ const createStyles = (theme: any) =>
       alignItems: 'center',
       marginBottom: theme.spacing[4],
     },
-    cardTitle: {
-      ...theme.typography.titleMedium,
+    sectionTitle: {
+      ...theme.typography.labelMdBold,
       color: theme.colors.secondary,
+    },
+    infoCard: {
+      borderRadius: theme.borderRadius.lg,
+      borderWidth: 1,
+      borderColor: theme.colors.borderMuted,
+      backgroundColor: theme.colors.cardBackground,
+      marginBottom: theme.spacing[6],
+      shadowColor: '#000000',
+      shadowOffset: {width: 0, height: 2},
+      shadowOpacity: 0.08,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    infoCardFallback: {
+      borderRadius: theme.borderRadius.lg,
+      backgroundColor: theme.colors.cardBackground,
+    },
+    cardContent: {
+      paddingVertical: 0,
     },
     editIcon: {
       width: 20,

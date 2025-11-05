@@ -4,8 +4,8 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   FlatList,
+  TouchableOpacity,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTheme } from '@/hooks';
@@ -14,7 +14,7 @@ import type { RootState } from '@/app/store';
 import { SafeArea } from '@/shared/components/common';
 import { Header } from '@/shared/components/common/Header/Header';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
-import { LiquidGlassCard } from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
+import { LinkedBusinessCard } from '@/features/linkedBusinesses/components/LinkedBusinessCard';
 import type { AdverseEventStackParamList } from '@/navigation/types';
 
 type Props = NativeStackScreenProps<AdverseEventStackParamList, 'Step3'>;
@@ -56,28 +56,19 @@ export const Step3Screen: React.FC<Props> = ({ navigation }) => {
             <TouchableOpacity
               onPress={() => setSelectedBusinessId(item.id)}
               activeOpacity={0.85}
+              disabled={false}
             >
-              <LiquidGlassCard
-                glassEffect="clear"
-                interactive
+              <View
                 style={[
-                  styles.businessCard,
-                  selectedBusinessId === item.id && styles.businessCardSelected,
+                  styles.businessCardWrapper,
+                  selectedBusinessId === item.id && styles.businessCardWrapperSelected,
                 ]}
-                fallbackStyle={styles.businessCardFallback}
               >
-                <View style={styles.cardContent}>
-                  <Text style={styles.businessName}>{item.businessName}</Text>
-                  <Text style={styles.businessAddress}>
-                    {item.address || 'Address not available'}
-                  </Text>
-                  {selectedBusinessId === item.id && (
-                    <View style={styles.checkmark}>
-                      <Text style={styles.checkmarkText}>✓</Text>
-                    </View>
-                  )}
-                </View>
-              </LiquidGlassCard>
+                <LinkedBusinessCard
+                  business={item}
+                  onPress={() => setSelectedBusinessId(item.id)}
+                />
+              </View>
             </TouchableOpacity>
           )}
           contentContainerStyle={styles.listContent}
@@ -116,6 +107,7 @@ const createStyles = (theme: any) =>
       ...theme.typography.labelMdBold,
       color: theme.colors.textSecondary,
       marginBottom: theme.spacing[4],
+      textAlign: 'center',
     },
     title: {
       ...theme.typography.labelMdBold,
@@ -125,56 +117,13 @@ const createStyles = (theme: any) =>
     listContent: {
       marginBottom: theme.spacing[6],
     },
-    businessCard: {
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      backgroundColor: theme.colors.cardBackground,
-      marginBottom: theme.spacing[4],
-      minHeight: 100,
-      shadowColor: '#000000',
-      shadowOffset: {width: 0, height: 2},
-      shadowOpacity: 0.08,
-      shadowRadius: 4,
-      elevation: 2,
+    businessCardWrapper: {
+      borderRadius: theme.borderRadius.md,
+      overflow: 'hidden',
     },
-    businessCardSelected: {
+    businessCardWrapperSelected: {
+      borderWidth: 2,
       borderColor: theme.colors.primary,
-      backgroundColor: theme.colors.surface,
-    },
-    businessCardFallback: {
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.cardBackground,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-    },
-    cardContent: {
-      padding: theme.spacing[4],
-    },
-    businessName: {
-      ...theme.typography.labelMdBold,
-      color: theme.colors.secondary,
-      marginBottom: theme.spacing[2],
-    },
-    businessAddress: {
-      ...theme.typography.bodySmallTight,
-      color: theme.colors.textSecondary,
-    },
-    checkmark: {
-      width: 24,
-      height: 24,
-      borderRadius: 12,
-      backgroundColor: theme.colors.primary,
-      justifyContent: 'center',
-      alignItems: 'center',
-      position: 'absolute',
-      top: theme.spacing[3],
-      right: theme.spacing[3],
-    },
-    checkmarkText: {
-      color: theme.colors.white,
-      fontSize: 14,
-      fontWeight: 'bold',
     },
     buttonContainer: {
       marginTop: theme.spacing[4],
