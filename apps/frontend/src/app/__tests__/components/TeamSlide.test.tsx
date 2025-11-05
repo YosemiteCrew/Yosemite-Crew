@@ -14,15 +14,6 @@ jest.mock("next/image", () => {
     };
 });
 
-
-jest.mock("react-slick", () => {
-    const MockSlider = ({ children }: { children: React.ReactNode }) => (
-        <div data-testid="mock-slider">{children}</div>
-    );
-    MockSlider.displayName = 'MockSlider';
-    return MockSlider;
-});
-
 describe("TeamSlide Component", () => {
     it("should render all team member images with correct alt text", () => {
         render(<TeamSlide />);

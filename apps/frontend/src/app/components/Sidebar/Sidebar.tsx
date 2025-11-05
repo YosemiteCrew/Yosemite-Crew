@@ -1,14 +1,15 @@
 import React from "react";
-
-import "./Sidebar.css";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+
 import { useAuthStore } from "@/app/stores/authStore";
+
+import "./Sidebar.css";
 
 const routes = [
   {
     name: "Dashboard",
-    href: "#",
+    href: "/dashboard",
   },
   {
     name: "Organisation",
