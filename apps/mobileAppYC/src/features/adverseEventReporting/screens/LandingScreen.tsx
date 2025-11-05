@@ -1,17 +1,9 @@
 import React, { useMemo } from 'react';
-import {
-  View,
-  ScrollView,
-  StyleSheet,
-  Image,
-  Text,
-} from 'react-native';
+import { View, StyleSheet, Image } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTheme } from '@/hooks';
 import { Images } from '@/assets/images';
-import { SafeArea } from '@/shared/components/common';
-import { Header } from '@/shared/components/common/Header/Header';
-import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
+import AERLayout from '@/features/adverseEventReporting/components/AERLayout';
 import LegalContentRenderer from '@/features/legal/components/LegalContentRenderer';
 import type { AdverseEventStackParamList } from '@/navigation/types';
 
@@ -254,83 +246,28 @@ export const LandingScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <SafeArea>
-      <Header title="Adverse event reporting" showBackButton onBack={() => navigation.goBack()} />
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.generalInfoLabel}>General information</Text>
-
-        <Image source={Images.adverse1} style={styles.heroImage} />
-
-        <View style={styles.contentWrapper}>
-          <LegalContentRenderer sections={generalInfoSections} />
-        </View>
-
-        <View style={styles.buttonContainer}>
-          <LiquidGlassButton
-            title="Start"
-            onPress={handleStartReporting}
-            glassEffect="clear"
-            interactive
-            borderRadius="lg"
-            forceBorder
-            borderColor={theme.colors.borderMuted}
-            height={56}
-            style={styles.button}
-            textStyle={styles.buttonText}
-            tintColor={theme.colors.secondary}
-            shadowIntensity="medium"
-          />
-        </View>
-      </ScrollView>
-    </SafeArea>
+    <AERLayout
+      stepLabel="General information"
+      onBack={() => navigation.goBack()}
+      bottomButton={{ title: 'Start', onPress: handleStartReporting }}
+    >
+      <Image source={Images.adverse1} style={styles.heroImage} />
+      <View style={styles.contentWrapper}>
+        <LegalContentRenderer sections={generalInfoSections} />
+      </View>
+    </AERLayout>
   );
 };
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    scrollContent: {
-      paddingHorizontal: theme.spacing[4],
-      paddingTop: theme.spacing[4],
-      paddingBottom: theme.spacing[24],
-    },
-    generalInfoLabel: {
-      // Satoshi 12 Bold, 100% line-height, centered
-      ...theme.typography.subtitleBold12,
-      lineHeight: 12,
-      color: theme.colors.placeholder,
-      marginBottom: theme.spacing[4],
-      textAlign: 'center',
-    },
     heroImage: {
       width: '100%',
       height: 250,
       resizeMode: 'contain',
-marginTop: -theme.spacing[6],
+      marginTop: -theme.spacing[6],
     },
     contentWrapper: {
       marginBottom: theme.spacing[6],
-    },
-    buttonContainer: {
-      marginBottom: theme.spacing[4],
-    },
-    button: {
-      width: '100%',
-      backgroundColor: theme.colors.secondary,
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      shadowColor: '#000000',
-      shadowOffset: {width: 0, height: 8},
-      shadowOpacity: 0.15,
-      shadowRadius: 12,
-      elevation: 4,
-    },
-    buttonText: {
-      ...theme.typography.cta,
-      color: theme.colors.background,
-      textAlign: 'center',
     },
   });

@@ -1,20 +1,11 @@
 import React, { useMemo } from 'react';
-import {
-  View,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  Image,
-} from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity, Image } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTheme } from '@/hooks';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/app/store';
-import { SafeArea } from '@/shared/components/common';
-import { Header } from '@/shared/components/common/Header/Header';
+import AERLayout from '@/features/adverseEventReporting/components/AERLayout';
 import { LiquidGlassCard } from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
-import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import { Separator, RowButton } from '@/shared/components/common/FormRowComponents';
 import { Images } from '@/assets/images';
 import { capitalize } from '@/shared/utils/commonHelpers';
@@ -42,167 +33,128 @@ export const Step4Screen: React.FC<Props> = ({ navigation }) => {
 
   if (!selectedCompanion) {
     return (
-      <SafeArea>
-        <Header title="Adverse event reporting" showBackButton onBack={() => navigation.goBack()} />
+      <AERLayout stepLabel="Step 4 of 5" onBack={() => navigation.goBack()}>
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>Companion not found</Text>
         </View>
-      </SafeArea>
+      </AERLayout>
     );
   }
 
   return (
-    <SafeArea>
-      <Header
-        title="Adverse event reporting"
-        showBackButton
-        onBack={() => navigation.goBack()}
-      />
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+    <AERLayout
+      stepLabel="Step 4 of 5"
+      onBack={() => navigation.goBack()}
+      bottomButton={{ title: 'Next', onPress: () => navigation.navigate('Step5') }}
+    >
+      <View style={styles.headerRow}>
+        <Text style={styles.sectionTitle}>Companion Information</Text>
+        <TouchableOpacity onPress={handleEdit}>
+          <Image source={Images.blackEdit} style={styles.editIcon} />
+        </TouchableOpacity>
+      </View>
+
+      <LiquidGlassCard
+        glassEffect="clear"
+        interactive
+        style={styles.infoCard}
+        fallbackStyle={styles.infoCardFallback}
       >
-        <Text style={styles.stepTitle}>Step 4 of 5</Text>
+        <View style={styles.cardContent}>
+          <RowButton
+            label="Name"
+            value={selectedCompanion.name}
+            onPress={handleEdit}
+          />
+          <Separator />
 
-        <View style={styles.headerRow}>
-          <Text style={styles.sectionTitle}>Companion Information</Text>
-          <TouchableOpacity onPress={handleEdit}>
-            <Image source={Images.blackEdit} style={styles.editIcon} />
-          </TouchableOpacity>
-        </View>
+          <RowButton
+            label="Breed"
+            value={selectedCompanion.breed?.breedName ?? ''}
+            onPress={handleEdit}
+          />
+          <Separator />
 
-        <LiquidGlassCard
-          glassEffect="clear"
-          interactive
-          style={styles.infoCard}
-          fallbackStyle={styles.infoCardFallback}
-        >
-          <View style={styles.cardContent}>
-            <RowButton
-              label="Name"
-              value={selectedCompanion.name}
-              onPress={handleEdit}
-            />
-            <Separator />
+          <RowButton
+            label="Date of birth"
+            value={
+              selectedCompanion.dateOfBirth
+                ? new Date(selectedCompanion.dateOfBirth).toLocaleDateString()
+                : ''
+            }
+            onPress={handleEdit}
+          />
+          <Separator />
 
-            <RowButton
-              label="Breed"
-              value={selectedCompanion.breed?.breedName ?? ''}
-              onPress={handleEdit}
-            />
-            <Separator />
+          <RowButton
+            label="Gender"
+            value={capitalize(selectedCompanion.gender ?? '')}
+            onPress={handleEdit}
+          />
+          <Separator />
 
-            <RowButton
-              label="Date of birth"
-              value={
-                selectedCompanion.dateOfBirth
-                  ? new Date(selectedCompanion.dateOfBirth).toLocaleDateString()
-                  : ''
-              }
-              onPress={handleEdit}
-            />
-            <Separator />
+          <RowButton
+            label="Current weight"
+            value={selectedCompanion.currentWeight ? `${selectedCompanion.currentWeight} kg` : ''}
+            onPress={handleEdit}
+          />
+          <Separator />
 
-            <RowButton
-              label="Gender"
-              value={capitalize(selectedCompanion.gender ?? '')}
-              onPress={handleEdit}
-            />
-            <Separator />
+          <RowButton
+            label="Color"
+            value={selectedCompanion.color ?? ''}
+            onPress={handleEdit}
+          />
+          <Separator />
 
-            <RowButton
-              label="Current weight"
-              value={selectedCompanion.currentWeight ? `${selectedCompanion.currentWeight} kg` : ''}
-              onPress={handleEdit}
-            />
-            <Separator />
+          <RowButton
+            label="Allergies"
+            value={selectedCompanion.allergies ?? ''}
+            onPress={handleEdit}
+          />
+          <Separator />
 
-            <RowButton
-              label="Color"
-              value={selectedCompanion.color ?? ''}
-              onPress={handleEdit}
-            />
-            <Separator />
+          <RowButton
+            label="Neutered status"
+            value={capitalize(selectedCompanion.neuteredStatus ?? '')}
+            onPress={handleEdit}
+          />
+          <Separator />
 
-            <RowButton
-              label="Allergies"
-              value={selectedCompanion.allergies ?? ''}
-              onPress={handleEdit}
-            />
-            <Separator />
+          <RowButton
+            label="Blood group"
+            value={selectedCompanion.bloodGroup ?? ''}
+            onPress={handleEdit}
+          />
+          <Separator />
 
-            <RowButton
-              label="Neutered status"
-              value={capitalize(selectedCompanion.neuteredStatus ?? '')}
-              onPress={handleEdit}
-            />
-            <Separator />
+          <RowButton
+            label="Microchip number"
+            value={selectedCompanion.microchipNumber ?? ''}
+            onPress={handleEdit}
+          />
+          <Separator />
 
-            <RowButton
-              label="Blood group"
-              value={selectedCompanion.bloodGroup ?? ''}
-              onPress={handleEdit}
-            />
-            <Separator />
+          <RowButton
+            label="Passport number"
+            value={selectedCompanion.passportNumber ?? ''}
+            onPress={handleEdit}
+          />
+          <Separator />
 
-            <RowButton
-              label="Microchip number"
-              value={selectedCompanion.microchipNumber ?? ''}
-              onPress={handleEdit}
-            />
-            <Separator />
-
-            <RowButton
-              label="Passport number"
-              value={selectedCompanion.passportNumber ?? ''}
-              onPress={handleEdit}
-            />
-            <Separator />
-
-            <RowButton
-              label="Insurance status"
-              value={capitalize(selectedCompanion.insuredStatus ?? '')}
-              onPress={handleEdit}
-            />
-          </View>
-        </LiquidGlassCard>
-
-        <View style={styles.buttonContainer}>
-          <LiquidGlassButton
-            title="Next"
-            onPress={() => navigation.navigate('Step5')}
-            glassEffect="clear"
-            interactive
-            borderRadius="lg"
-            forceBorder
-            borderColor={theme.colors.borderMuted}
-            height={56}
-            style={styles.button}
-            textStyle={styles.buttonText}
-            tintColor={theme.colors.secondary}
-            shadowIntensity="medium"
+          <RowButton
+            label="Insurance status"
+            value={capitalize(selectedCompanion.insuredStatus ?? '')}
+            onPress={handleEdit}
           />
         </View>
-      </ScrollView>
-    </SafeArea>
+      </LiquidGlassCard>
+    </AERLayout>
   );
 };
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    scrollContent: {
-      paddingHorizontal: theme.spacing[4],
-      paddingTop: theme.spacing[4],
-      paddingBottom: theme.spacing[24],
-    },
-    stepTitle: {
-      // Satoshi 12 Bold, line-height 12, centered, Jet-400
-      ...theme.typography.subtitleBold12,
-      lineHeight: 12,
-      color: theme.colors.placeholder,
-      marginBottom: theme.spacing[4],
-      textAlign: 'center',
-    },
     headerRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -247,18 +199,5 @@ const createStyles = (theme: any) =>
     emptyText: {
       ...theme.typography.titleMedium,
       color: theme.colors.secondary,
-    },
-    buttonContainer: {
-      marginTop: theme.spacing[4],
-    },
-    button: {
-      width: '100%',
-      backgroundColor: theme.colors.secondary,
-      borderRadius: theme.borderRadius.lg,
-    },
-    buttonText: {
-      ...theme.typography.cta,
-      color: theme.colors.background,
-      textAlign: 'center',
     },
   });
