@@ -15,24 +15,11 @@ import { SafeArea } from '@/shared/components/common';
 import { Header } from '@/shared/components/common/Header/Header';
 import { LiquidGlassCard } from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
+import { Separator, RowButton } from '@/shared/components/common/FormRowComponents';
 import { Images } from '@/assets/images';
 import type { AdverseEventStackParamList } from '@/navigation/types';
 
 type Props = NativeStackScreenProps<AdverseEventStackParamList, 'Step2'>;
-
-const InfoRow: React.FC<{ label: string; value: string }> = ({ label, value }) => {
-  const { theme } = useTheme();
-  return (
-    <View style={{ marginBottom: theme.spacing[3] }}>
-      <Text style={{ ...theme.typography.labelSmall, color: theme.colors.textSecondary }}>
-        {label}
-      </Text>
-      <Text style={{ ...theme.typography.body, color: theme.colors.secondary }}>
-        {value || '—'}
-      </Text>
-    </View>
-  );
-};
 
 export const Step2Screen: React.FC<Props> = ({ navigation }) => {
   const { theme } = useTheme();
@@ -59,6 +46,13 @@ export const Step2Screen: React.FC<Props> = ({ navigation }) => {
       >
         <Text style={styles.stepTitle}>Step 2 of 5</Text>
 
+        <View style={styles.headerRow}>
+          <Text style={styles.sectionTitle}>Parent Information</Text>
+          <TouchableOpacity onPress={handleEdit}>
+            <Image source={Images.blackEdit} style={styles.editIcon} />
+          </TouchableOpacity>
+        </View>
+
         <LiquidGlassCard
           glassEffect="clear"
           interactive
@@ -66,31 +60,85 @@ export const Step2Screen: React.FC<Props> = ({ navigation }) => {
           fallbackStyle={styles.infoCardFallback}
         >
           <View style={styles.cardContent}>
-            <View style={styles.headerRow}>
-              <Text style={styles.cardTitle}>Parent Information</Text>
-              <TouchableOpacity onPress={handleEdit}>
-                <Image source={Images.blackEdit} style={styles.editIcon} />
-              </TouchableOpacity>
-            </View>
+            <RowButton
+              label="First name"
+              value={authUser?.firstName ?? ''}
+              onPress={handleEdit}
+            />
+            <Separator />
 
-            <InfoRow label="First name" value={authUser?.firstName ?? ''} />
-            <InfoRow label="Last name" value={authUser?.lastName ?? ''} />
-            <InfoRow label="Phone number" value={authUser?.phone ?? ''} />
-            <InfoRow label="Email address" value={authUser?.email ?? ''} />
-            <InfoRow label="Currency" value={authUser?.currency ?? 'USD'} />
-            <InfoRow
+            <RowButton
+              label="Last name"
+              value={authUser?.lastName ?? ''}
+              onPress={handleEdit}
+            />
+            <Separator />
+
+            <RowButton
+              label="Phone number"
+              value={authUser?.phone ?? ''}
+              onPress={handleEdit}
+            />
+            <Separator />
+
+            <RowButton
+              label="Email address"
+              value={authUser?.email ?? ''}
+              onPress={handleEdit}
+            />
+            <Separator />
+
+            <RowButton
+              label="Currency"
+              value={authUser?.currency ?? 'USD'}
+              onPress={handleEdit}
+            />
+            <Separator />
+
+            <RowButton
               label="Date of birth"
               value={
                 authUser?.dateOfBirth
                   ? new Date(authUser.dateOfBirth).toLocaleDateString()
                   : ''
               }
+              onPress={handleEdit}
             />
-            <InfoRow label="Address" value={authUser?.address?.addressLine ?? ''} />
-            <InfoRow label="City" value={authUser?.address?.city ?? ''} />
-            <InfoRow label="State/Province" value={authUser?.address?.stateProvince ?? ''} />
-            <InfoRow label="Postal code" value={authUser?.address?.postalCode ?? ''} />
-            <InfoRow label="Country" value={authUser?.address?.country ?? ''} />
+            <Separator />
+
+            <RowButton
+              label="Address"
+              value={authUser?.address?.addressLine ?? ''}
+              onPress={handleEdit}
+            />
+            <Separator />
+
+            <RowButton
+              label="City"
+              value={authUser?.address?.city ?? ''}
+              onPress={handleEdit}
+            />
+            <Separator />
+
+            <RowButton
+              label="State/Province"
+              value={authUser?.address?.stateProvince ?? ''}
+              onPress={handleEdit}
+            />
+            <Separator />
+
+            <RowButton
+              label="Postal code"
+              value={authUser?.address?.postalCode ?? ''}
+              onPress={handleEdit}
+            />
+            <Separator />
+
+            <RowButton
+              label="Country"
+              value={authUser?.address?.country ?? ''}
+              onPress={handleEdit}
+            />
           </View>
         </LiquidGlassCard>
 
@@ -126,6 +174,17 @@ const createStyles = (theme: any) =>
       ...theme.typography.labelMdBold,
       color: theme.colors.textSecondary,
       marginBottom: theme.spacing[4],
+      textAlign: 'center',
+    },
+    headerRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: theme.spacing[4],
+    },
+    sectionTitle: {
+      ...theme.typography.labelMdBold,
+      color: theme.colors.secondary,
     },
     infoCard: {
       borderRadius: theme.borderRadius.lg,
@@ -144,17 +203,7 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.cardBackground,
     },
     cardContent: {
-      padding: theme.spacing[4],
-    },
-    headerRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: theme.spacing[4],
-    },
-    cardTitle: {
-      ...theme.typography.labelMdBold,
-      color: theme.colors.secondary,
+      paddingVertical: 0,
     },
     editIcon: {
       width: 20,

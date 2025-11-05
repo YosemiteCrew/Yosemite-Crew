@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   ScrollView,
@@ -15,6 +15,7 @@ import { SafeArea } from '@/shared/components/common';
 import { Header } from '@/shared/components/common/Header/Header';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import { CompanionSelector } from '@/shared/components/common/CompanionSelector/CompanionSelector';
+import { Checkbox } from '@/shared/components/common/Checkbox/Checkbox';
 import type { RootState } from '@/app/store';
 import type { AdverseEventStackParamList } from '@/navigation/types';
 
@@ -24,10 +25,18 @@ export const Step1Screen: React.FC<Props> = ({ navigation }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const companions = useSelector((state: RootState) => state.companion.companions);
+  const globalSelectedCompanionId = useSelector((state: RootState) => state.companion.selectedCompanionId);
 
   const [selectedCompanionId, setSelectedCompanionId] = useState<string | null>(null);
   const [reporterType, setReporterType] = useState<'parent' | 'guardian'>('parent');
   const [agreeToTerms, setAgreeToTerms] = useState(false);
+
+  // Set the globally selected companion as default when component mounts
+  useEffect(() => {
+    if (globalSelectedCompanionId && !selectedCompanionId) {
+      setSelectedCompanionId(globalSelectedCompanionId);
+    }
+  }, [globalSelectedCompanionId, selectedCompanionId]);
 
   const handleNext = () => {
     if (!selectedCompanionId || !agreeToTerms) {
@@ -52,6 +61,11 @@ export const Step1Screen: React.FC<Props> = ({ navigation }) => {
         <Text style={styles.stepTitle}>Step 1 of 5</Text>
         <Image source={Images.adverse2} style={styles.heroImage} />
 
+        <Text style={styles.title}>Veterinary product adverse events</Text>
+        <Text style={styles.subtitle}>Notify the manufacturer about any issues or concerns you experienced with a pharmaceutical product used for your pet.</Text>
+
+        <Text style={styles.descriptionText}>To report a potential side effect, unexpected reaction, or any other concern following the use of a YosemiteCrew Animal Health product, please fill out the following form as completely and accurately as possible.</Text>
+
         <CompanionSelector
           companions={companions}
           selectedCompanionId={selectedCompanionId}
@@ -66,7 +80,9 @@ export const Step1Screen: React.FC<Props> = ({ navigation }) => {
             style={styles.radioOption}
             onPress={() => setReporterType('parent')}
           >
-            <View style={[styles.radio, reporterType === 'parent' && styles.radioSelected]} />
+            <View style={styles.radioOuter}>
+              {reporterType === 'parent' && <View style={styles.radioInner} />}
+            </View>
             <Text style={styles.radioLabel}>The parent</Text>
           </TouchableOpacity>
 
@@ -74,23 +90,19 @@ export const Step1Screen: React.FC<Props> = ({ navigation }) => {
             style={styles.radioOption}
             onPress={() => setReporterType('guardian')}
           >
-            <View style={[styles.radio, reporterType === 'guardian' && styles.radioSelected]} />
+            <View style={styles.radioOuter}>
+              {reporterType === 'guardian' && <View style={styles.radioInner} />}
+            </View>
             <Text style={styles.radioLabel}>The guardian (Co-Parent)</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.checkboxSection}>
-          <TouchableOpacity
-            style={styles.checkboxRow}
-            onPress={() => setAgreeToTerms(!agreeToTerms)}
-          >
-            <View style={[styles.checkbox, agreeToTerms && styles.checkboxChecked]}>
-              {agreeToTerms && <Text style={styles.checkmark}>✓</Text>}
-            </View>
-            <Text style={styles.checkboxLabel}>
-              I agree to Yosemite Crew's terms and conditions and privacy policy
-            </Text>
-          </TouchableOpacity>
+          <Checkbox
+            value={agreeToTerms}
+            onValueChange={setAgreeToTerms}
+            label="I agree to Yosemite Crew's terms and conditions and privacy policy"
+          />
         </View>
 
         <View style={styles.buttonContainer}>
@@ -126,12 +138,31 @@ const createStyles = (theme: any) =>
       ...theme.typography.labelMdBold,
       color: theme.colors.textSecondary,
       marginBottom: theme.spacing[2],
+      textAlign: 'center',
     },
     heroImage: {
       width: '100%',
-      height: 150,
+      height: 200,
       resizeMode: 'contain',
+      marginBottom: theme.spacing[4],
+    },
+    title: {
+      ...theme.typography.labelMdBold,
+      color: theme.colors.secondary,
+      marginBottom: theme.spacing[2],
+      textAlign: 'center',
+    },
+    subtitle: {
+      ...theme.typography.bodySmallTight,
+      color: theme.colors.textSecondary,
+      marginBottom: theme.spacing[4],
+      textAlign: 'center',
+    },
+    descriptionText: {
+      ...theme.typography.bodySmallTight,
+      color: theme.colors.secondary,
       marginBottom: theme.spacing[6],
+      lineHeight: 22,
     },
     radioSection: {
       marginVertical: theme.spacing[6],
@@ -147,16 +178,20 @@ const createStyles = (theme: any) =>
       alignItems: 'center',
       marginBottom: theme.spacing[4],
     },
-    radio: {
+    radioOuter: {
       width: 20,
       height: 20,
       borderRadius: 10,
       borderWidth: 2,
       borderColor: theme.colors.borderMuted,
       marginRight: theme.spacing[3],
+      justifyContent: 'center',
+      alignItems: 'center',
     },
-    radioSelected: {
-      borderColor: theme.colors.primary,
+    radioInner: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
       backgroundColor: theme.colors.primary,
     },
     radioLabel: {
@@ -166,36 +201,6 @@ const createStyles = (theme: any) =>
     checkboxSection: {
       marginVertical: theme.spacing[6],
       marginBottom: theme.spacing[4],
-    },
-    checkboxRow: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-    },
-    checkbox: {
-      width: 20,
-      height: 20,
-      borderRadius: 4,
-      borderWidth: 2,
-      borderColor: theme.colors.borderMuted,
-      marginRight: theme.spacing[2],
-      marginTop: theme.spacing[1],
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    checkboxChecked: {
-      borderColor: theme.colors.primary,
-      backgroundColor: theme.colors.primary,
-    },
-    checkmark: {
-      color: theme.colors.white,
-      fontSize: 14,
-      fontWeight: 'bold',
-    },
-    checkboxLabel: {
-      ...theme.typography.bodySmallTight,
-      color: theme.colors.secondary,
-      flex: 1,
-      lineHeight: 22,
     },
     buttonContainer: {
       marginTop: theme.spacing[4],

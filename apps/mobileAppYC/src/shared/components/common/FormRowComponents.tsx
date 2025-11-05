@@ -59,6 +59,7 @@ const createStyles = (theme: any) =>
       alignItems: 'center',
       paddingVertical: theme.spacing[3],
       paddingHorizontal: theme.spacing[3],
+      marginVertical: theme.spacing[1],
     },
     rowButtonLabel: {
       ...theme.typography.paragraphBold,
@@ -87,6 +88,6 @@ const createStyles = (theme: any) =>
     separator: {
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: theme.colors.borderSeperator,
-      marginLeft: 16,
+      marginHorizontal: theme.spacing[3],
     },
   });
