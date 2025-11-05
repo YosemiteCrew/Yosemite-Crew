@@ -21,7 +21,7 @@ const publicRoutes = new Set([
   "/pms",
   "/pricing",
   "/privacy-policy",
-  "/terms-and-conditions"
+  "/terms-and-conditions",
 ]);
 
 const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
@@ -29,10 +29,7 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
 
   useEffect(() => {
-    const initSession = async () => {
-      await checkSession();
-    };
-    initSession();
+    checkSession();
   }, [checkSession]);
 
   return (

@@ -1,5 +1,5 @@
 .OperationsWrapper {
-  padding: 40px 40px;
+  padding: 40px 80px 80px 40px;
   display: flex;
   flex-direction: column;
   gap: 40px;

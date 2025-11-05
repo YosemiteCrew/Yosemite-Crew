@@ -1,5 +1,5 @@
 "use client";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { Button } from "react-bootstrap";
 import { toFhirSupportTicket } from "@yosemite-crew/fhir";
 import { CreateSupportTicket, TicketCategory } from "@yosemite-crew/types";
@@ -10,14 +10,11 @@ import Footer from "@/app/components/Footer/Footer";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
 import DynamicSelect from "@/app/components/DynamicSelect/DynamicSelect";
 import { postData } from "@/app/services/axios";
-import { useOldAuthStore } from "@/app/stores/oldAuthStore";
 import Image from "next/image";
 
 import "./ContactusPage.css";
 
 const ContactusPage = () => {
-  //emails
-  const { email: activeEmail, userType, isVerified } = useOldAuthStore();
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState<string>("");
   const [phone, setPhone] = useState<string>("");
@@ -99,7 +96,7 @@ const ContactusPage = () => {
     {
       value: "Privacy Act 1988 (Australia)",
       label: "Privacy Act 1988 (Australia)",
-    }
+    },
   ];
 
   // Confirm checklist (multiple selections)
@@ -176,8 +173,8 @@ const ContactusPage = () => {
       category: selectedQueryType,
       platform: "Web Form",
       // assignedTo:area,
-      userType: userType ? "Registered" : "Guest",
-      userStatus: isVerified ? "Active" : "Pending",
+      userType: "Guest",
+      userStatus: "Pending",
       createdBy: "Professional",
     };
     const fhirData = toFhirSupportTicket(obj);
@@ -197,12 +194,7 @@ const ContactusPage = () => {
     selectedQueryType,
     area,
     selectedRequest,
-    userType,
-    isVerified,
   ]);
-  useEffect(() => {
-    setEmail(activeEmail ?? "");
-  }, [activeEmail]);
   return (
     <>
       <section className="ContactUsPageSec">
