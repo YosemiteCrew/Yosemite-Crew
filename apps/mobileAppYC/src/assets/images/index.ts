@@ -15,6 +15,7 @@ export const Images = {
   googleTab: require('./icons/googleTab.png'),
   appleTab: require('./icons/appleTab.png'),
   facebookTab: require('./icons/facebookTab.png'),
+  getDirection: require('./icons/getDirection.png'),
   cameraIcon: require('./icons/camera.png'),
   dropdownIcon: require('./icons/dropdown.png'),
   calendarIcon: require('./icons/calendar.png'),
@@ -34,6 +35,7 @@ export const Images = {
   viewIconSlide: require('./icons/viewIconSlide.png'),
   closeIcon: require('./icons/crossIcon.png'),
 downloadInvoice: require('./icons/downloadInvoice.png'),
+ phone: require('./icons/phone.png'),
   // Account
   logoutIcon: require('./account/logoutIcon.png'),
   blackEdit: require('./account/blackEdit.png'),
@@ -182,6 +184,12 @@ downloadInvoice: require('./icons/downloadInvoice.png'),
   equineNostrilModerate: require('./observationalTools/equine-nostril-moderate.png'),
   equineNostrilObvious: require('./observationalTools/equine-nostril-obvious.png'),
 
+
+  //co-parent
+  coparentEmpty: require('./coParent/emptyParent.png'),
+   heroImage: require('./coParent/heroImage.png'),
+   bgCoParent: require('./coParent/bgCoParent.png'),
+  
   // Support & Help
   contactHero: require('./support/contactHero.png'),
 } as const;

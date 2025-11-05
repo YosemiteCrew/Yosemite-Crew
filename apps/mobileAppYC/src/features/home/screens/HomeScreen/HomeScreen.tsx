@@ -26,6 +26,7 @@ import {
   setSelectedCompanion,
   fetchCompanions,
 } from '@/features/companion';
+import {initializeMockData} from '@/features/linkedBusinesses';
 import {selectAuthUser} from '@/features/auth/selectors';
 import {AppointmentCard} from '@/shared/components/common/AppointmentCard/AppointmentCard';
 import {TaskCard} from '@/features/tasks/components/TaskCard/TaskCard';
@@ -99,6 +100,8 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     const loadCompanionsAndSelectDefault = async () => {
       if (user?.id) {
         await dispatch(fetchCompanions(user.id));
+        // Initialize mock linked business data for testing
+        dispatch(initializeMockData());
       }
     };
 

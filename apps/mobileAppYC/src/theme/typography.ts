@@ -288,6 +288,7 @@ export const typography = {
   },
   subtitleBold14: {
     fontFamily: fonts.SATOSHI_BOLD,
+    opacity: 0.6,
     fontSize: 14,
     lineHeight: 14 * 1.2,
     fontWeight: fontWeights.bold,

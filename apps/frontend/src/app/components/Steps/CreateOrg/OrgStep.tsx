@@ -4,10 +4,10 @@ import { FiMinusCircle } from "react-icons/fi";
 import classNames from "classnames";
 import FormInput from "../../Inputs/FormInput/FormInput";
 import CountryDropdown from "../../Inputs/CountryDropdown/CountryDropdown";
+import GoogleSearchDropDown from "../../Inputs/GoogleSearchDropDown/GoogleSearchDropDown";
 import { Primary, Secondary } from "../../Buttons";
 
 import "./Step.css";
-import OrgSearch from "../../Inputs/OrgSearch/OrgSearch";
 
 const businessTypes = [
   {
@@ -137,7 +137,7 @@ const OrgStep = ({ nextStep, formData, setFormData }: any) => {
       </div>
 
       <div className="step-inputs">
-        <OrgSearch
+        <GoogleSearchDropDown
           intype="text"
           inname="name"
           value={formData.name}

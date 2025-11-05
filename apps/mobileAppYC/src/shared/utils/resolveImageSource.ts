@@ -1,7 +1,7 @@
 import {Images} from '@/assets/images';
 import type {ImageSourcePropType} from 'react-native';
 
-export const resolveImageSource = (source?: ImageSourcePropType | number): ImageSourcePropType => {
+export const resolveImageSource = (source?: ImageSourcePropType | number | string): ImageSourcePropType => {
   if (typeof source === 'number') {
     return source;
   }
