@@ -1,17 +1,12 @@
 import validator from 'validator'
 import UserModel, { type UserDocument, type UserMongo } from '../models/user'
+import { User } from '@yosemite-crew/types'
 
 export class UserServiceError extends Error {
     constructor(message: string, public readonly statusCode: number) {
         super(message)
         this.name = 'UserServiceError'
     }
-}
-
-export type CreateUserPayload = {
-    id: unknown
-    email: unknown
-    isActive?: unknown
 }
 
 const forbidQueryOperators = (input: string, field: string) => {
@@ -62,9 +57,11 @@ const toBoolean = (value: unknown, field: string): boolean => {
     throw new UserServiceError(`${field} must be a boolean.`, 400)
 }
 
-const sanitizeUserAttributes = (payload: CreateUserPayload): UserMongo => {
+const sanitizeUserAttributes = (payload: User): UserMongo => {
     const userId = requireSafeIdentifier(payload.id, 'User id')
     const email = requireString(payload.email, 'Email')
+    const firstName = requireString(payload.firstName, 'First name')
+    const lastName = requireString(payload.lastName, 'Last name')
 
     if (!validator.isEmail(email)) {
         throw new UserServiceError('Invalid email address.', 400)
@@ -74,6 +71,8 @@ const sanitizeUserAttributes = (payload: CreateUserPayload): UserMongo => {
 
     return {
         userId,
+        firstName,
+        lastName,
         email: email.toLowerCase(),
         isActive,
     }
@@ -81,22 +80,26 @@ const sanitizeUserAttributes = (payload: CreateUserPayload): UserMongo => {
 
 type UserDomain = {
     id: string
+    firstName: string
+    lastName: string
     email: string
     isActive: boolean
 }
 
 const toUserDomain = (document: UserDocument): UserDomain => {
-    const { userId, email, isActive } = document
+    const { userId, email, firstName, lastName, isActive } = document
 
     return {
         id: userId,
+        firstName,
+        lastName,
         email,
         isActive,
     }
 }
 
 export const UserService = {
-    async create(payload: CreateUserPayload): Promise<UserDomain> {
+    async create(payload: User): Promise<UserDomain> {
         const attributes = sanitizeUserAttributes(payload)
 
         const existingById = await UserModel.findOne(
@@ -122,6 +125,8 @@ export const UserService = {
         const document = await UserModel.create({
             userId: attributes.userId,
             email: attributes.email,
+            firstName: payload.firstName,
+            lastName: payload.lastName,
             isActive: attributes.isActive,
         })
 
