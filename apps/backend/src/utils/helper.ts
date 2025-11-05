@@ -1,4 +1,4 @@
-import { handleMultipleFileUpload, deleteFromS3 } from "../middelwares/upload"
+import { handleMultipleFileUpload, deleteFromS3 } from "../middlewares/upload"
 import { S3 } from "aws-sdk";
 import crypto from "node:crypto";
 interface UploadedFile {
