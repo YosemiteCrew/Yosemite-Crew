@@ -20,10 +20,10 @@ import {SubcategoryBottomSheet} from '@/shared/components/common/SubcategoryBott
 import {VisitTypeBottomSheet} from '@/shared/components/common/VisitTypeBottomSheet/VisitTypeBottomSheet';
 import {TouchableInput} from '@/shared/components/common/TouchableInput/TouchableInput';
 import PrimaryActionButton from '@/shared/components/common/PrimaryActionButton/PrimaryActionButton';
-import {UploadDocumentBottomSheet} from '@/shared/components/common/UploadDocumentBottomSheet/UploadDocumentBottomSheet';
-import {DeleteDocumentBottomSheet} from '@/shared/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
+import UploadDeleteSheets from '@/shared/components/common/UploadDeleteSheets/UploadDeleteSheets';
 import {DocumentAttachmentsSection} from '@/features/documents/components/DocumentAttachmentsSection';
 import {useTheme, useFormBottomSheets, useFileOperations} from '@/hooks';
+import {createCommonFormStyles} from '@/shared/styles/commonFormStyles';
 import {formatLabel} from '@/shared/utils/helpers';
 import {Images} from '@/assets/images';
 import type {DocumentFile} from '@/features/documents/types';
@@ -78,6 +78,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const common = useMemo(() => createCommonFormStyles(theme), [theme]);
 
   const [showDatePicker, setShowDatePicker] = React.useState(false);
 
@@ -152,9 +153,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
               editable={false}
               pointerEvents="none"
               containerStyle={styles.input}
-              icon={
-                <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
-              }
+              icon={<Image source={Images.dropdownIcon} style={common.dropdownIcon} />}
             />
           </TouchableOpacity>
           {errors.category ? (
@@ -177,9 +176,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
               editable={false}
               pointerEvents="none"
               containerStyle={styles.input}
-              icon={
-                <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
-              }
+              icon={<Image source={Images.dropdownIcon} style={common.dropdownIcon} />}
             />
           </TouchableOpacity>
           {errors.subcategory ? (
@@ -197,9 +194,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
             editable={false}
             pointerEvents="none"
             containerStyle={styles.input}
-            icon={
-              <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
-            }
+            icon={<Image source={Images.dropdownIcon} style={common.dropdownIcon} />}
           />
         </TouchableOpacity>
 
@@ -249,10 +244,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
               placeholder="Select issue date"
               onPress={() => setShowDatePicker(true)}
               rightComponent={
-                <Image
-                  source={Images.calendarIcon}
-                  style={styles.calendarIcon}
-                />
+                <Image source={Images.calendarIcon} style={common.calendarIcon} />
               }
               containerStyle={styles.inputContainer}
             />
@@ -314,30 +306,16 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
         }}
       />
 
-      <UploadDocumentBottomSheet
-        ref={uploadSheetRef}
-        onTakePhoto={() => {
-          handleTakePhoto();
-          closeSheet();
-        }}
-        onChooseGallery={() => {
-          handleChooseFromGallery();
-          closeSheet();
-        }}
-        onUploadDrive={() => {
-          handleUploadFromDrive();
-          closeSheet();
-        }}
-      />
-
-      <DeleteDocumentBottomSheet
-        ref={deleteSheetRef}
-        documentTitle={
-          fileToDelete
-            ? formData.files.find(f => f.id === fileToDelete)?.name
-            : 'this file'
-        }
-        onDelete={confirmDeleteFile}
+      <UploadDeleteSheets
+        uploadSheetRef={uploadSheetRef}
+        deleteSheetRef={deleteSheetRef}
+        files={formData.files}
+        fileToDelete={fileToDelete as any}
+        onTakePhoto={handleTakePhoto}
+        onChooseGallery={handleChooseFromGallery}
+        onUploadDrive={handleUploadFromDrive}
+        onConfirmDelete={confirmDeleteFile}
+        closeSheet={closeSheet}
       />
     </>
   );
@@ -360,12 +338,6 @@ const createStyles = (theme: any) =>
     input: {
       marginBottom: theme.spacing[4],
     },
-    dropdownIcon: {
-      width: 20,
-      height: 20,
-      resizeMode: 'contain',
-      tintColor: theme.colors.textSecondary,
-    },
     dateSection: {
       marginBottom: theme.spacing[4],
     },
@@ -385,11 +357,6 @@ const createStyles = (theme: any) =>
     buttonText: {
       color: theme.colors.white,
       ...theme.typography.paragraphBold,
-    },
-    calendarIcon: {
-      width: theme.spacing[5],
-      height: theme.spacing[5],
-      tintColor: theme.colors.textSecondary,
     },
     inputContainer: {
       marginBottom: 0,
