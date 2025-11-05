@@ -24,7 +24,9 @@ export const ThankYouScreen: React.FC<Props> = ({ navigation }) => {
   const [agreeToBeContacted, setAgreeToBeContacted] = useState(true);
 
   const handleBack = () => {
-    navigation.getParent<any>()?.navigate('HomeStack');
+    // Reset the AdverseEvent stack and navigate back to Home
+    // This pops all screens from the AdverseEvent stack and goes back to Home
+    navigation.navigate('Home' as never);
   };
 
   const handleSendToManufacturer = () => {
