@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Text,
   FlatList,
-  TouchableOpacity,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTheme } from '@/hooks';
@@ -53,23 +52,18 @@ export const Step3Screen: React.FC<Props> = ({ navigation }) => {
           scrollEnabled={false}
           keyExtractor={item => item.id}
           renderItem={({ item }) => (
-            <TouchableOpacity
-              onPress={() => setSelectedBusinessId(item.id)}
-              activeOpacity={0.85}
-              disabled={false}
+            <View
+              style={[
+                styles.businessCardWrapper,
+                selectedBusinessId === item.id && styles.businessCardWrapperSelected,
+              ]}
             >
-              <View
-                style={[
-                  styles.businessCardWrapper,
-                  selectedBusinessId === item.id && styles.businessCardWrapperSelected,
-                ]}
-              >
-                <LinkedBusinessCard
-                  business={item}
-                  onPress={() => setSelectedBusinessId(item.id)}
-                />
-              </View>
-            </TouchableOpacity>
+              <LinkedBusinessCard
+                business={item}
+                onPress={() => setSelectedBusinessId(item.id)}
+              />
+              <View style={styles.hideActionButtons} pointerEvents="none" />
+            </View>
           )}
           contentContainerStyle={styles.listContent}
         />
@@ -118,12 +112,21 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing[6],
     },
     businessCardWrapper: {
-      borderRadius: theme.borderRadius.md,
-      overflow: 'hidden',
+      marginBottom: theme.spacing[3],
+      position: 'relative',
     },
     businessCardWrapperSelected: {
       borderWidth: 2,
       borderColor: theme.colors.primary,
+      borderRadius: theme.borderRadius.md,
+    },
+    hideActionButtons: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      width: 100,
+      height: '100%',
+      backgroundColor: theme.colors.cardBackground,
     },
     buttonContainer: {
       marginTop: theme.spacing[4],
