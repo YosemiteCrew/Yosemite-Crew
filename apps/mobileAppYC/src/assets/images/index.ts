@@ -190,6 +190,16 @@ downloadInvoice: require('./icons/downloadInvoice.png'),
    heroImage: require('./coParent/heroImage.png'),
    bgCoParent: require('./coParent/bgCoParent.png'),
   
+
+   //emergency
+adverse1: require('./emergency/adverse1.png'),
+adverse2: require('./emergency/adverse2.png'),
+adverse3: require('./emergency/adverse3.png'),
+catEmergency: require('./emergency/catEmergency.png'),
+medicalCap: require('./emergency/medicalCap.png'),
+pill: require('./emergency/pill.png'),
+
+
   // Support & Help
   contactHero: require('./support/contactHero.png'),
 } as const;

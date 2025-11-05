@@ -1,5 +1,7 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
+import {useNavigation} from '@react-navigation/native';
+import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {RootStackParamList} from './types';
 import {AuthNavigator} from './AuthNavigator';
@@ -8,6 +10,8 @@ import {TabNavigator} from './TabNavigator';
 import {OnboardingScreen} from '@/features/onboarding/screens/OnboardingScreen';
 import {useAuth} from '@/features/auth/context/AuthContext';
 import {Loading} from '@/shared/components/common';
+import {EmergencyProvider, useEmergency} from '@/features/home/context/EmergencyContext';
+import {EmergencyBottomSheet} from '@/features/home/components/EmergencyBottomSheet';
 
 import {DeviceEventEmitter} from 'react-native';
 import { PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT } from '@/config/variables';
@@ -147,8 +151,54 @@ const checkOnboardingStatus = async () => {
   }
 
   return (
-    <Stack.Navigator screenOptions={{headerShown: false}}>
-      {screenToRender}
-    </Stack.Navigator>
+    <EmergencyProvider>
+      <Stack.Navigator screenOptions={{headerShown: false}}>
+        {screenToRender}
+      </Stack.Navigator>
+      <AppNavigatorEmergencySheet />
+    </EmergencyProvider>
+  );
+}
+
+const AppNavigatorEmergencySheet: React.FC = () => {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const emergencySheetRef = React.useRef<any>(null);
+  const {setEmergencySheetRef} = useEmergency();
+
+  React.useEffect(() => {
+    if (emergencySheetRef.current) {
+      setEmergencySheetRef(emergencySheetRef);
+    }
+  }, [setEmergencySheetRef]);
+
+  const handleCallVet = React.useCallback(() => {
+    console.log('[AppNavigator] Call vet clicked');
+    // TODO: Implement actual call vet functionality
+  }, []);
+
+  const handleAdverseEvent = React.useCallback(() => {
+    console.log('[AppNavigator] Adverse event clicked - navigating to AdverseEvent');
+    try {
+      // Navigate to Main tab, then to HomeStack, then to AdverseEvent
+      (navigation as any).navigate('Main', {
+        screen: 'HomeStack',
+        params: {
+          screen: 'AdverseEvent',
+          params: {
+            screen: 'Landing',
+          },
+        },
+      });
+    } catch (error) {
+      console.error('[AppNavigator] Navigation error:', error);
+    }
+  }, [navigation]);
+
+  return (
+    <EmergencyBottomSheet
+      ref={emergencySheetRef}
+      onCallVet={handleCallVet}
+      onAdverseEvent={handleAdverseEvent}
+    />
   );
 }

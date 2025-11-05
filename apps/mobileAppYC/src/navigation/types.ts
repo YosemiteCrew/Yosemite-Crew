@@ -33,6 +33,7 @@ export type HomeStackParamList = {
   EditParentOverview:{ companionId: string };
   ExpensesStack: NavigatorScreenParams<ExpenseStackParamList>;
   LinkedBusinesses: NavigatorScreenParams<LinkedBusinessStackParamList>;
+  AdverseEvent: NavigatorScreenParams<AdverseEventStackParamList>;
   CoParents: undefined;
   AddCoParent: undefined;
   EditCoParent: { coParentId: string };
@@ -125,6 +126,16 @@ export type TaskStackParamList = {
   TaskView: { taskId: string; source?: 'home' | 'tasks' };
   EditTask: { taskId: string; source?: 'home' | 'tasks' };
   ObservationalTool: { taskId: string };
+};
+
+export type AdverseEventStackParamList = {
+  Landing: undefined;
+  Step1: undefined;
+  Step2: undefined;
+  Step3: undefined;
+  Step4: undefined;
+  Step5: undefined;
+  ThankYou: undefined;
 };
 
 // Tab Navigator

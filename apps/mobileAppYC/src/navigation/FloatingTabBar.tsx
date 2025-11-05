@@ -33,6 +33,7 @@ const ROOT_ROUTE_MAP: Record<string, string> = {
   Appointments: 'MyAppointments',
   Documents: 'DocumentsMain',
   Tasks: 'TasksMain',
+  AdverseEvent: 'Landing',
 };
 
 export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
@@ -168,6 +169,7 @@ const createStyles = (theme: any) =>
       left: 24,
       right: 24,
       bottom: 16,
+      zIndex: 10,
     },
     bar: {
       flexDirection: 'row',
