@@ -91,9 +91,9 @@ export const EmergencyBottomSheet = forwardRef<EmergencyBottomSheetRef, Emergenc
     };
 
     const renderEmptyState = () => {
-      const message = !hasCompanion
-        ? 'Please add a companion to use this feature.'
-        : 'Please add a linked hospital to use this feature.';
+      const message = hasCompanion
+        ? 'Please add a linked hospital to use this feature.'
+        : 'Please add a companion to use this feature.';
 
       return (
         <View style={styles.emptyStateContainer}>

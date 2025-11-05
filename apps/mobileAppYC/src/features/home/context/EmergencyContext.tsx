@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useRef, useCallback, useMemo } from 'react';
 import { EmergencyBottomSheetRef } from '@/features/home/components/EmergencyBottomSheet';
 
 interface EmergencyContextType {
@@ -29,12 +29,12 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     emergencySheetRef.current = ref.current;
   }, []);
 
-  const value: EmergencyContextType = {
+  const value: EmergencyContextType = useMemo(() => ({
     emergencySheetRef,
     openEmergencySheet,
     closeEmergencySheet,
     setEmergencySheetRef,
-  };
+  }), [openEmergencySheet, closeEmergencySheet, setEmergencySheetRef]);
 
   return (
     <EmergencyContext.Provider value={value}>
