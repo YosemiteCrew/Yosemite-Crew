@@ -329,7 +329,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   };
 
   return (
-    <>
       <SafeAreaView style={styles.container}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -476,7 +475,6 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         </View>
         </ScrollView>
       </SafeAreaView>
-    </>
   );
 };
 

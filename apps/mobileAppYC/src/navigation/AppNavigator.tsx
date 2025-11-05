@@ -1,7 +1,6 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {createNativeStackNavigator} from '@react-navigation/native-stack';
+import {createNativeStackNavigator, NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useNavigation} from '@react-navigation/native';
-import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {RootStackParamList} from './types';
 import {AuthNavigator} from './AuthNavigator';
@@ -173,7 +172,6 @@ const AppNavigatorEmergencySheet: React.FC = () => {
 
   const handleCallVet = React.useCallback(() => {
     console.log('[AppNavigator] Call vet clicked');
-    // TODO: Implement actual call vet functionality
   }, []);
 
   const handleAdverseEvent = React.useCallback(() => {

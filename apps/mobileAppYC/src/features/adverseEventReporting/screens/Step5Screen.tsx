@@ -2,9 +2,8 @@ import React, {useMemo, useRef, useState} from 'react';
 import {View, ScrollView, StyleSheet, Text, Image} from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useTheme} from '@/hooks';
-import {SafeArea} from '@/shared/components/common';
+import {SafeArea, Input} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
-import {Input} from '@/shared/components/common';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {
   SimpleDatePicker,

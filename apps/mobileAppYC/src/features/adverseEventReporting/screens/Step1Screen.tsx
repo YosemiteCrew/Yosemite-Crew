@@ -215,6 +215,8 @@ const createStyles = (theme: any) =>
     checkboxSection: {
       marginBottom: theme.spacing[6],
       gap: theme.spacing[2],
+      // Ensure long consent text doesn't touch screen edge
+      paddingRight: theme.spacing[8],
     },
     beforeProceed: {
       // Satoshi 15 bold, 120%, -0.3 letter spacing
@@ -226,12 +228,17 @@ const createStyles = (theme: any) =>
     consentRow: {
       flexDirection: 'row',
       alignItems: 'flex-start',
+      // Keep checkbox and text on the same row; allow text to wrap
+      flexWrap: 'nowrap',
+      width: '100%',
     },
     consentText: {
       ...theme.typography.paragraph,
       color: theme.colors.textSecondary,
       marginLeft: 8,
-
+      flex: 1,
+      // Add comfortable space from the right screen edge
+      paddingRight: theme.spacing[6],
     },
     consentLink: {
       ...theme.typography.paragraphBold,
