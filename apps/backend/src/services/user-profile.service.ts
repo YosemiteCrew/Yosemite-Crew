@@ -61,6 +61,16 @@ const requireUserId = (value: unknown): string => {
     return identifier
 }
 
+const requireOrganizationId = (value: unknown): string => {
+    const identifier = requireString(value, 'Organization id')
+
+    if (!/^[A-Za-z0-9_.-]{1,64}$/.test(identifier)) {
+        throw new UserProfileServiceError('Invalid organization id format.', 400)
+    }
+
+    return identifier
+}
+
 const optionalString = (value: unknown, field: string): string | undefined => {
     if (value == null) {
         return undefined
@@ -420,6 +430,7 @@ const buildDomainProfile = (
     const profile: UserProfileType = {
         _id: id,
         userId: raw.userId,
+        organizationId: raw.organizationId,
         personalDetails: personalDetails,
         professionalDetails: professionalDetails,
         status: options?.statusOverride ?? raw.status ?? 'DRAFT',
@@ -432,6 +443,7 @@ const buildDomainProfile = (
 
 export type CreateUserProfilePayload = {
     userId: unknown
+    organizationId: unknown
     personalDetails?: unknown
     professionalDetails?: unknown
     baseAvailability: unknown
@@ -455,6 +467,7 @@ const sanitizeCreatePayload = (
 
     const profile = pruneUndefined({
         userId: requireUserId(payload.userId),
+        organizationId: requireOrganizationId(payload.organizationId),
         personalDetails,
         professionalDetails,
     })
@@ -494,10 +507,14 @@ export const UserProfileService = {
     async create(payload: CreateUserProfilePayload): Promise<UserProfileType> {
         const { profile: attributes, baseAvailability } = sanitizeCreatePayload(payload)
 
-        const existing = await UserProfileModel.findOne({ userId: attributes.userId }, null, { sanitizeFilter: true })
+        const existing = await UserProfileModel.findOne(
+            { userId: attributes.userId, organizationId: attributes.organizationId },
+            null,
+            { sanitizeFilter: true }
+        )
 
         if (existing) {
-            throw new UserProfileServiceError('Profile already exists for this user.', 409)
+            throw new UserProfileServiceError('Profile already exists for this user in this organization.', 409)
         }
 
         const document = await UserProfileModel.create(attributes)
@@ -524,18 +541,27 @@ export const UserProfileService = {
         return buildDomainProfile(document, { statusOverride: status })
     },
 
-    async update(userId: unknown, payload: UpdateUserProfilePayload): Promise<UserProfileType | null> {
+    async update(
+        userId: unknown,
+        organizationId: unknown,
+        payload: UpdateUserProfilePayload
+    ): Promise<UserProfileType | null> {
         const identifier = requireUserId(userId)
+        const organizationIdentifier = requireOrganizationId(organizationId)
         const { attributes, baseAvailability } = sanitizeUpdatePayload(payload)
 
         const document =
             Object.keys(attributes).length > 0
                 ? await UserProfileModel.findOneAndUpdate(
-                      { userId: identifier },
+                      { userId: identifier, organizationId: organizationIdentifier },
                       { $set: attributes },
                       { new: true, sanitizeFilter: true }
                   )
-                : await UserProfileModel.findOne({ userId: identifier }, null, { sanitizeFilter: true })
+                : await UserProfileModel.findOne(
+                      { userId: identifier, organizationId: organizationIdentifier },
+                      null,
+                      { sanitizeFilter: true }
+                  )
 
         if (!document) {
             return null
@@ -564,10 +590,15 @@ export const UserProfileService = {
         return buildDomainProfile(document, { statusOverride: status })
     },
 
-    async getByUserId(userId: unknown): Promise<UserProfileType | null> {
+    async getByUserId(userId: unknown, organizationId: unknown): Promise<UserProfileType | null> {
         const identifier = requireUserId(userId)
+        const organizationIdentifier = requireOrganizationId(organizationId)
 
-        const document = await UserProfileModel.findOne({ userId: identifier }, null, { sanitizeFilter: true })
+        const document = await UserProfileModel.findOne(
+            { userId: identifier, organizationId: organizationIdentifier },
+            null,
+            { sanitizeFilter: true }
+        )
 
         if (!document) {
             return null

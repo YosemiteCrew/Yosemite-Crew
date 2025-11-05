@@ -50,6 +50,7 @@ describe("UserProfileService", () => {
       const docData = {
         _id: "profile-id",
         userId: "user-1",
+        organizationId: "org-1",
         personalDetails: {
           gender: "MALE",
           employmentType: "FULL_TIME",
@@ -95,6 +96,7 @@ describe("UserProfileService", () => {
 
       const result = await UserProfileService.create({
         userId: "user-1",
+        organizationId: "org-1",
         personalDetails: {
           gender: "MALE",
           employmentType: "FULL_TIME",
@@ -121,12 +123,13 @@ describe("UserProfileService", () => {
       });
 
       expect(mockedModel.findOne).toHaveBeenCalledWith(
-        { userId: "user-1" },
+        { userId: "user-1", organizationId: "org-1" },
         null,
         { sanitizeFilter: true }
       );
       expect(mockedModel.create).toHaveBeenCalledWith({
         userId: "user-1",
+        organizationId: "org-1",
         personalDetails: {
           gender: "MALE",
           employmentType: "FULL_TIME",
@@ -158,6 +161,7 @@ describe("UserProfileService", () => {
       expect(result).toEqual({
         _id: "profile-id",
         userId: "user-1",
+        organizationId: "org-1",
         personalDetails: {
           gender: "MALE",
           employmentType: "FULL_TIME",
@@ -187,17 +191,18 @@ describe("UserProfileService", () => {
       await expect(
         UserProfileService.create({
           userId: "user-1",
+          organizationId: "org-1",
           baseAvailability: [],
         })
       ).rejects.toMatchObject({
-        message: "Profile already exists for this user.",
+        message: "Profile already exists for this user in this organization.",
         statusCode: 409,
       });
     });
 
     it("validates payload", async () => {
       await expect(
-        UserProfileService.create({ userId: "", baseAvailability: [] })
+        UserProfileService.create({ userId: "", organizationId: "org-1", baseAvailability: [] })
       ).rejects.toBeInstanceOf(UserProfileServiceError);
     });
 
@@ -205,6 +210,7 @@ describe("UserProfileService", () => {
       await expect(
         UserProfileService.create({
           userId: "user-1",
+          organizationId: "org-1",
           personalDetails: {},
           professionalDetails: {},
         } as any)
@@ -219,6 +225,7 @@ describe("UserProfileService", () => {
       const updateDocData = {
         _id: "profile-id",
         userId: "user-1",
+        organizationId: "org-1",
         professionalDetails: {
           medicalLicenseNumber: "LIC-123",
           specialization: "Oncology",
@@ -262,7 +269,7 @@ describe("UserProfileService", () => {
         },
       ]);
 
-      const result = await UserProfileService.update("user-1", {
+      const result = await UserProfileService.update("user-1", "org-1", {
         professionalDetails: {
           medicalLicenseNumber: "LIC-123",
           specialization: "Oncology",
@@ -277,7 +284,7 @@ describe("UserProfileService", () => {
       });
 
       expect(mockedModel.findOneAndUpdate).toHaveBeenCalledWith(
-        { userId: "user-1" },
+        { userId: "user-1", organizationId: "org-1" },
         {
           $set: {
             professionalDetails: {
@@ -301,6 +308,7 @@ describe("UserProfileService", () => {
       expect(result).toEqual({
         _id: "profile-id",
         userId: "user-1",
+        organizationId: "org-1",
         professionalDetails: {
           medicalLicenseNumber: "LIC-123",
           specialization: "Oncology",
@@ -327,7 +335,7 @@ describe("UserProfileService", () => {
     it("returns null when profile missing", async () => {
       mockedModel.findOneAndUpdate.mockResolvedValueOnce(null);
 
-      const result = await UserProfileService.update("user-1", {
+      const result = await UserProfileService.update("user-1", "org-1", {
         personalDetails: { gender: "FEMALE" },
         baseAvailability: [
           {
@@ -342,7 +350,7 @@ describe("UserProfileService", () => {
 
     it("requires updatable fields", async () => {
       await expect(
-        UserProfileService.update("user-1", {})
+        UserProfileService.update("user-1", "org-1", {})
       ).rejects.toMatchObject({
         message: "No updatable fields provided.",
         statusCode: 400,
@@ -356,6 +364,7 @@ describe("UserProfileService", () => {
       const getDocData = {
         _id: "profile-id",
         userId: "user-1",
+        organizationId: "org-1",
         personalDetails: {},
         status: "DRAFT" as const,
       };
@@ -383,12 +392,18 @@ describe("UserProfileService", () => {
         },
       ]);
 
-      const result = await UserProfileService.getByUserId("user-1");
+      const result = await UserProfileService.getByUserId("user-1", "org-1");
 
+      expect(mockedModel.findOne).toHaveBeenCalledWith(
+        { userId: "user-1", organizationId: "org-1" },
+        null,
+        { sanitizeFilter: true }
+      );
       expect(mockedAvailabilityService.getByUserId).toHaveBeenCalledWith("user-1");
       expect(result).toEqual({
         _id: "profile-id",
         userId: "user-1",
+        organizationId: "org-1",
         personalDetails: {},
         status: "DRAFT",
         createdAt,
@@ -400,6 +415,7 @@ describe("UserProfileService", () => {
       const updateOnlyData = {
         _id: "profile-id",
         userId: "user-1",
+        organizationId: "org-1",
         personalDetails: {
           gender: "MALE",
           employmentType: "FULL_TIME",
@@ -443,7 +459,7 @@ describe("UserProfileService", () => {
         },
       ]);
 
-      const result = await UserProfileService.update("user-1", {
+      const result = await UserProfileService.update("user-1", "org-1", {
         personalDetails: { gender: "MALE" },
       });
 
@@ -456,7 +472,7 @@ describe("UserProfileService", () => {
     it("returns null when missing", async () => {
       mockedModel.findOne.mockResolvedValueOnce(null);
 
-      const result = await UserProfileService.getByUserId("user-2");
+      const result = await UserProfileService.getByUserId("user-2", "org-1");
 
       expect(result).toBeNull();
     });

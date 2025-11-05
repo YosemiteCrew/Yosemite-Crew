@@ -8,8 +8,8 @@ import {
 } from '../../services/user-profile.service'
 
 type CreateUserProfileRequest = Request<Record<string, never>, unknown, unknown>
-type UpdateUserProfileRequest = Request<{ userId: string }, unknown, unknown>
-type GetUserProfileRequest = Request<{ userId: string }>
+type UpdateUserProfileRequest = Request<{ organizationId: string; userId: string }, unknown, unknown>
+type GetUserProfileRequest = Request<{ organizationId: string; userId: string }>
 
 function ensurePlainObjectBody(body: unknown): asserts body is Record<string, unknown> {
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
@@ -43,6 +43,7 @@ export const UserProfileController = {
 
             const profile = await UserProfileService.update(
                 req.params.userId,
+                req.params.organizationId,
                 requestBody as UpdateUserProfilePayload
             )
 
@@ -65,7 +66,7 @@ export const UserProfileController = {
 
     getByUserId: async (req: GetUserProfileRequest, res: Response) => {
         try {
-            const profile = await UserProfileService.getByUserId(req.params.userId)
+            const profile = await UserProfileService.getByUserId(req.params.userId, req.params.organizationId)
 
             if (!profile) {
                 res.status(404).json({ message: 'User profile not found.' })
