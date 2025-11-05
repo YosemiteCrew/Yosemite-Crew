@@ -4,7 +4,7 @@ import { UserProfileController } from '../controllers/web/user-profile.controlle
 const router = Router()
 
 router.post('/', UserProfileController.create)
-router.put('/:userId', UserProfileController.update)
-router.get('/:userId', UserProfileController.getByUserId)
+router.put('/:organizationId/:userId', UserProfileController.update)
+router.get('/:organizationId/:userId', UserProfileController.getByUserId)
 
 export default router

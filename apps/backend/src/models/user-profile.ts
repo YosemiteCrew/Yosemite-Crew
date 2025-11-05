@@ -1,4 +1,5 @@
 import { Schema, model, type HydratedDocument } from 'mongoose'
+import type { UserProfile as UserProfileType } from '@yosemite-crew/types'
 
 export interface UserProfileAddressMongo {
     addressLine?: string
@@ -36,13 +37,9 @@ export interface UserProfileProfessionalDetailsMongo {
     documents?: UserProfileDocumentMongo[]
 }
 
-export interface UserProfileMongo {
-    userId: string
+export type UserProfileMongo = Omit<UserProfileType, '_id' | 'personalDetails' | 'professionalDetails'> & {
     personalDetails?: UserProfilePersonalDetailsMongo
     professionalDetails?: UserProfileProfessionalDetailsMongo
-    status?: 'DRAFT' | 'COMPLETED'
-    createdAt?: Date
-    updatedAt?: Date
 }
 
 const AddressSchema = new Schema<UserProfileAddressMongo>(
@@ -95,7 +92,8 @@ const ProfessionalDetailsSchema = new Schema<UserProfileProfessionalDetailsMongo
 
 const UserProfileSchema = new Schema<UserProfileMongo>(
     {
-        userId: { type: String, required: true, unique: true, trim: true },
+        userId: { type: String, required: true, trim: true },
+        organizationId: { type: String, required: true, trim: true },
         personalDetails: { type: PersonalDetailsSchema },
         professionalDetails: { type: ProfessionalDetailsSchema },
         status: { type: String, enum: ['DRAFT', 'COMPLETED'], default: 'DRAFT', trim: true },
@@ -104,6 +102,8 @@ const UserProfileSchema = new Schema<UserProfileMongo>(
         timestamps: true,
     }
 )
+
+UserProfileSchema.index({ userId: 1, organizationId: 1 }, { unique: true })
 
 export type UserProfileDocument = HydratedDocument<UserProfileMongo>
 
