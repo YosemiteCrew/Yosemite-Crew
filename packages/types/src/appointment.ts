@@ -1,8 +1,10 @@
 export type AppointmentStatus =
-  | 'BOOKED'
-  | 'CANCELLED'
+  | 'REQUESTED'
+  | 'UPCOMING'
+  | 'CHEKED_IN'
+  | 'IN_PROGRESS'
   | 'COMPLETED'
-  | 'NO_SHOW';
+  | 'CANCELLED';
 
 export type Appointment = {
   _id?: string;
