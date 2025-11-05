@@ -1,0 +1,103 @@
+.dashboard-profile-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  gap: 16px;
+}
+.dashboard-profile-text {
+  color: var(--black-grey);
+  font-family: var(--satoshi-font);
+  font-size: 15px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 120%;
+  letter-spacing: -0.3px;
+}
+.dashboard-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.dashboard-profile-heading {
+  color: var(--black-text);
+  font-family: var(--grotesk-font);
+  font-size: 33px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 120%;
+  letter-spacing: -0.96px;
+}
+.dashboard-profile-note {
+  color: var(--notibg);
+  font-family: var(--satoshi-font);
+  font-size: 18px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 120%;
+  letter-spacing: -0.36px;
+  max-width: 600px;
+}
+.dashboard-profile-note span {
+  color: var(--blue-text);
+}
+.dashboard-status {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.dashboard-verify,
+.dashboard-verify-mobile {
+  display: flex;
+  height: 60px;
+  padding: 12px 16px;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  border-radius: 16px;
+  background: var(--pendingbg);
+  cursor: pointer;
+}
+.dashboard-verify span,
+.dashboard-verify-mobile span {
+  color: var(--pendingtext);
+  text-align: center;
+  font-family: var(--satoshi-font);
+  font-size: 18px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 120%;
+  letter-spacing: -0.36px;
+}
+.dashboard-verify-mobile {
+  display: none;
+}
+@media screen and (max-width: 768px) {
+  .dashboard-profile-container {
+    gap: 8px;
+  }
+  .dashboard-profile-heading {
+    font-size: 33px;
+  }
+  .dashboard-profile-text {
+    font-size: 13px;
+  }
+  .dashboard-profile-note {
+    font-size: 13px;
+  }
+  .dashboard-verify,
+  .dashboard-verify-mobile {
+    height: 48px;
+  }
+}
+@media screen and (max-width: 500px) {
+  .dashboard-verify {
+    display: none;
+  }
+  .dashboard-verify-mobile {
+    display: flex;
+  }
+}

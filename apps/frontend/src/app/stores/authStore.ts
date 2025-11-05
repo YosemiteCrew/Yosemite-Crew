@@ -20,8 +20,11 @@ if (poolData.UserPoolId && poolData.ClientId) {
   userPool = new CognitoUserPool(poolData);
 }
 
+type Status = "idle" | "checking" | "authenticated" | "unauthenticated";
+
 type AuthStore = {
   user: CognitoUser | null;
+  status: Status;
   session: CognitoUserSession | null;
   loading: boolean;
   error: string | null;
@@ -58,6 +61,7 @@ type AuthStore = {
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
   user: null,
+  status: "idle",
   session: null,
   loading: false,
   error: null,
@@ -127,7 +131,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     if (!userPool) {
       throw new Error("UserPool is not initialized");
     }
-    set({ loading: true, error: null });
+    set({ loading: true, error: null, status: "checking" });
     const authenticationDetails = new AuthenticationDetails({
       Username: email,
       Password: password,
@@ -149,6 +153,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
             loading: false,
             error: null,
             role,
+            status: "authenticated",
           });
           resolve(session);
         },
@@ -159,6 +164,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
             user: null,
             session: null,
             role: null,
+            status: "unauthenticated",
           });
           reject(err instanceof Error ? err : new Error(String(err)));
         },
@@ -169,7 +175,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     if (!userPool) {
       throw new Error("UserPool is not initialized");
     }
-    set({ loading: true, error: null });
+    set({ loading: true, error: null, status: "checking" });
 
     return new Promise((resolve, reject) => {
       const cognitoUser = userPool.getCurrentUser();
@@ -178,6 +184,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
           user: null,
           session: null,
           loading: false,
+          status: "unauthenticated",
         });
         return resolve(null);
       }
@@ -189,6 +196,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
               session: null,
               loading: false,
               error: err?.message || null,
+              status: "unauthenticated",
             });
             return resolve(null);
           }
@@ -196,6 +204,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
           const role = idTokenPayload["custom:role"] || "";
           set({
             user: cognitoUser,
+            status: "authenticated",
             session,
             loading: false,
             error: null,
@@ -208,26 +217,39 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
   signout: () => {
     const user = get().user;
-    if (user) {
-      user.getSession(
-        (err: Error | null, session: CognitoUserSession | null) => {
-          if (err || !session?.isValid()) {
-            set({ user: null, session: null });
-            return;
-          }
-          user.globalSignOut({
-            onSuccess: () => {
-              set({ user: null, session: null });
-            },
-            onFailure: (err: Error | null) => {
-              set({ user: null, session: null });
-            },
+    set({
+      status: "unauthenticated",
+      user: null,
+      session: null,
+      role: null,
+      error: null,
+    });
+    if (!user) return;
+    user.getSession((err: Error | null, session: CognitoUserSession | null) => {
+      if (err || !session?.isValid()) return;
+      user.globalSignOut({
+        onSuccess: () => {
+          set({
+            user: null,
+            session: null,
+            role: null,
+            error: null,
+            loading: false,
+            status: "unauthenticated",
           });
-        }
-      );
-    } else {
-      set({ user: null, session: null });
-    }
+        },
+        onFailure: (err: Error | null) => {
+          set({
+            user: null,
+            session: null,
+            role: null,
+            error: null,
+            loading: false,
+            status: "unauthenticated",
+          });
+        },
+      });
+    });
   },
   forgotPassword: async (email: string) => {
     if (!userPool) {
