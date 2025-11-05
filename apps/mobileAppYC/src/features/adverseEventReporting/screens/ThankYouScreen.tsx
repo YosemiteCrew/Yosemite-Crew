@@ -4,13 +4,15 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   Image,
+  TouchableOpacity,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTheme } from '@/hooks';
 import { Images } from '@/assets/images';
 import { SafeArea } from '@/shared/components/common';
+import { Header } from '@/shared/components/common/Header/Header';
+import { Checkbox } from '@/shared/components/common/Checkbox/Checkbox';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import type { AdverseEventStackParamList } from '@/navigation/types';
 
@@ -21,35 +23,35 @@ export const ThankYouScreen: React.FC<Props> = ({ navigation }) => {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [agreeToBeContacted, setAgreeToBeContacted] = useState(true);
 
+  const handleBack = () => {
+    navigation.getParent<any>()?.navigate('HomeStack');
+  };
+
   const handleSendToManufacturer = () => {
     console.log('[ThankYou] Send to manufacturer');
     // Mock API call
-    navigation.getParent<any>()?.goBack();
+    handleBack();
   };
 
   const handleSendToHospital = () => {
     console.log('[ThankYou] Send to hospital');
     // Mock API call
-    navigation.getParent<any>()?.goBack();
+    handleBack();
   };
 
   const handleCallAuthority = () => {
     console.log('[ThankYou] Call authority');
     // Mock API call
-    navigation.getParent<any>()?.goBack();
+    handleBack();
   };
 
   return (
     <SafeArea>
-      <View style={styles.headerContainer}>
-        <Text style={styles.headerTitle}>Adverse event reporting</Text>
-        <TouchableOpacity
-          onPress={() => navigation.getParent<any>()?.goBack()}
-          style={styles.closeButton}
-        >
-          <Text style={styles.closeButtonText}>✕</Text>
-        </TouchableOpacity>
-      </View>
+      <Header
+        title="Adverse event reporting"
+        showBackButton
+        onBack={handleBack}
+      />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -63,15 +65,11 @@ export const ThankYouScreen: React.FC<Props> = ({ navigation }) => {
         </Text>
 
         <View style={styles.checkboxSection}>
-          <TouchableOpacity
-            style={styles.checkboxRow}
-            onPress={() => setAgreeToBeContacted(!agreeToBeContacted)}
-          >
-            <View style={[styles.checkbox, agreeToBeContacted && styles.checkboxChecked]}>
-              {agreeToBeContacted && <Text style={styles.checkmark}>✓</Text>}
-            </View>
-            <Text style={styles.checkboxLabel}>I agree to be contacted</Text>
-          </TouchableOpacity>
+          <Checkbox
+            value={agreeToBeContacted}
+            onValueChange={setAgreeToBeContacted}
+            label="I agree to be contacted"
+          />
         </View>
 
         <View style={styles.actionsContainer}>
@@ -120,29 +118,6 @@ export const ThankYouScreen: React.FC<Props> = ({ navigation }) => {
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    headerContainer: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingHorizontal: theme.spacing[4],
-      paddingVertical: theme.spacing[3],
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.borderMuted,
-    },
-    headerTitle: {
-      ...theme.typography.labelMdBold,
-      color: theme.colors.secondary,
-    },
-    closeButton: {
-      padding: theme.spacing[2],
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    closeButtonText: {
-      fontSize: 24,
-      color: theme.colors.textSecondary,
-      fontWeight: '300',
-    },
     scrollContent: {
       paddingHorizontal: theme.spacing[4],
       paddingTop: theme.spacing[6],
@@ -171,36 +146,6 @@ const createStyles = (theme: any) =>
     },
     checkboxSection: {
       marginBottom: theme.spacing[6],
-      paddingHorizontal: theme.spacing[2],
-    },
-    checkboxRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    checkbox: {
-      width: 20,
-      height: 20,
-      borderRadius: 4,
-      borderWidth: 2,
-      borderColor: theme.colors.borderMuted,
-      marginRight: theme.spacing[3],
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    checkboxChecked: {
-      borderColor: theme.colors.primary,
-      backgroundColor: theme.colors.primary,
-    },
-    checkmark: {
-      color: theme.colors.white,
-      fontSize: 14,
-      fontWeight: 'bold',
-    },
-    checkboxLabel: {
-      ...theme.typography.bodySmallTight,
-      color: theme.colors.secondary,
-      flex: 1,
-      lineHeight: 22,
     },
     actionsContainer: {
       gap: theme.spacing[4],

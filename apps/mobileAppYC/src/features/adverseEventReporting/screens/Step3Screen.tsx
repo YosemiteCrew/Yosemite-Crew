@@ -1,31 +1,27 @@
-import React, { useState, useMemo } from 'react';
-import {
-  View,
-  ScrollView,
-  StyleSheet,
-  Text,
-  FlatList,
-} from 'react-native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useTheme } from '@/hooks';
-import { useSelector } from 'react-redux';
-import type { RootState } from '@/app/store';
-import { SafeArea } from '@/shared/components/common';
-import { Header } from '@/shared/components/common/Header/Header';
+import React, {useState, useMemo} from 'react';
+import {View, ScrollView, StyleSheet, Text, FlatList} from 'react-native';
+import {NativeStackScreenProps} from '@react-navigation/native-stack';
+import {useTheme} from '@/hooks';
+import {useSelector} from 'react-redux';
+import type {RootState} from '@/app/store';
+import {SafeArea} from '@/shared/components/common';
+import {Header} from '@/shared/components/common/Header/Header';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
-import { LinkedBusinessCard } from '@/features/linkedBusinesses/components/LinkedBusinessCard';
-import type { AdverseEventStackParamList } from '@/navigation/types';
+import {LinkedBusinessCard} from '@/features/linkedBusinesses/components/LinkedBusinessCard';
+import type {AdverseEventStackParamList} from '@/navigation/types';
 
 type Props = NativeStackScreenProps<AdverseEventStackParamList, 'Step3'>;
 
-export const Step3Screen: React.FC<Props> = ({ navigation }) => {
-  const { theme } = useTheme();
+export const Step3Screen: React.FC<Props> = ({navigation}) => {
+  const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const linkedBusinesses = useSelector(
-    (state: RootState) => state.linkedBusinesses.linkedBusinesses
+    (state: RootState) => state.linkedBusinesses.linkedBusinesses,
   );
 
-  const [selectedBusinessId, setSelectedBusinessId] = useState<string | null>(null);
+  const [selectedBusinessId, setSelectedBusinessId] = useState<string | null>(
+    null,
+  );
 
   const handleNext = () => {
     if (selectedBusinessId) {
@@ -42,8 +38,7 @@ export const Step3Screen: React.FC<Props> = ({ navigation }) => {
       />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+        showsVerticalScrollIndicator={false}>
         <Text style={styles.stepTitle}>Step 3 of 5</Text>
         <Text style={styles.title}>Select Linked Hospital</Text>
 
@@ -51,19 +46,13 @@ export const Step3Screen: React.FC<Props> = ({ navigation }) => {
           data={linkedBusinesses}
           scrollEnabled={false}
           keyExtractor={item => item.id}
-          renderItem={({ item }) => (
-            <View
-              style={[
-                styles.businessCardWrapper,
-                selectedBusinessId === item.id && styles.businessCardWrapperSelected,
-              ]}
-            >
-              <LinkedBusinessCard
-                business={item}
-                onPress={() => setSelectedBusinessId(item.id)}
-              />
-              <View style={styles.hideActionButtons} pointerEvents="none" />
-            </View>
+          renderItem={({item}) => (
+            <LinkedBusinessCard
+              business={item}
+              onPress={() => setSelectedBusinessId(item.id)}
+              showActionButtons={false}
+              showBorder={selectedBusinessId === item.id}
+            />
           )}
           contentContainerStyle={styles.listContent}
         />
@@ -110,23 +99,6 @@ const createStyles = (theme: any) =>
     },
     listContent: {
       marginBottom: theme.spacing[6],
-    },
-    businessCardWrapper: {
-      marginBottom: theme.spacing[3],
-      position: 'relative',
-    },
-    businessCardWrapperSelected: {
-      borderWidth: 2,
-      borderColor: theme.colors.primary,
-      borderRadius: theme.borderRadius.md,
-    },
-    hideActionButtons: {
-      position: 'absolute',
-      top: 0,
-      right: 0,
-      width: 100,
-      height: '100%',
-      backgroundColor: theme.colors.cardBackground,
     },
     buttonContainer: {
       marginTop: theme.spacing[4],
