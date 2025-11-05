@@ -7,11 +7,26 @@ export {
   fromUserOrganizationRequestDTO,
   toUserOrganizationResponseDTO,
 } from "./dto/user-organization.dto";
+export {
+  toUserResponseDTO,
+} from "./dto/user.dto";
 export type { InventoryType } from "./Inventory/InventoryType";
+export type {
+  DayOfWeek,
+  AvailabilitySlot,
+  UserAvailability,
+} from "./baseAvailability";
 
 export { toFHIRUserOrganization } from "./userOrganization";
 export { toFHIRRelatedPerson } from "./parent";
 export { toFHIROrganization } from "./organization";
+export { toFHIRPractitioner } from "./user";
+export type { User } from "./user";
+export type { UserProfile } from "./userProfile";
+export type {
+  UserResponseDTO,
+  ToUserResponseDTOParams,
+} from "./dto/user.dto";
 export type { Parent } from "./parent";
 export type {
   OrganizationRequestDTO,
