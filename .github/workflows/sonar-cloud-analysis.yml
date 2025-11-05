@@ -6,13 +6,15 @@ on:
       - dev
   schedule:
     - cron: '0 4 * * *'
-  pull_request:
+  pull_request_target:
     branches:
       - main
       - dev
     types: [opened, synchronize, reopened]
 
-permissions: read-all
+permissions:
+  contents: read
+  pull-requests: write
 
 jobs:
 
@@ -30,10 +32,14 @@ jobs:
         with:
           projectBaseDir: apps/frontend
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed to get PR information, if any
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_FRONTEND }}
+          SONAR_SCANNER_OPTS: >
+            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
+            -Dsonar.pullrequest.branch=${{ github.head_ref }}
+            -Dsonar.pullrequest.base=${{ github.base_ref }}
 
-  #job for analysing APIs
+  #job for analysing Backend
   sonarqube-api:
     name: SonarQube
     runs-on: ubuntu-latest
@@ -46,8 +52,12 @@ jobs:
         with:
           projectBaseDir: apps/backend
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed to get PR information, if any
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_API }}
+          SONAR_SCANNER_OPTS: >
+            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
+            -Dsonar.pullrequest.branch=${{ github.head_ref }}
+            -Dsonar.pullrequest.base=${{ github.base_ref }}
 
   #job for analysing MobileApp
   sonarqube-mobile:
@@ -62,5 +72,9 @@ jobs:
         with:
           projectBaseDir: apps/mobileAppYC
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed to get PR information, if any
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_MOBILE }}
+          SONAR_SCANNER_OPTS: >
+            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
+            -Dsonar.pullrequest.branch=${{ github.head_ref }}
+            -Dsonar.pullrequest.base=${{ github.base_ref }}
