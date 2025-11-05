@@ -4,6 +4,8 @@ export interface UserMongo {
     userId: string
     email: string
     isActive: boolean
+    firstName: string
+    lastName: string
 }
 
 const UserSchema = new Schema<UserMongo>(
@@ -11,6 +13,8 @@ const UserSchema = new Schema<UserMongo>(
         userId: { type: String, required: true, unique: true, trim: true },
         email: { type: String, required: true, unique: true, trim: true, lowercase: true },
         isActive: { type: Boolean, default: true },
+        firstName: { type: String, trim: true },
+        lastName: { type: String, trim: true },
     },
     {
         timestamps: true,
