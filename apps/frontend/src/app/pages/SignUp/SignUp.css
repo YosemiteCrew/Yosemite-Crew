@@ -313,3 +313,42 @@
   color: var(--delete);
   margin-top: 6px;
 }
+
+.Headingtext h3 {
+  font-family: var(--grotesk-font);
+  font-size: 33px;
+  font-weight: 500;
+  line-height: 120%;
+  letter-spacing: -0.02em;
+  color: var(--black-text);
+  margin: 0;
+}
+.Headingtext h3 span {
+  color: var(--black-grey);
+}
+
+.BlackButton {
+  background: var(--black-text) !important;
+  padding: 16px 32px !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-radius: 28px !important;
+  min-height: 60px;
+  width: 100%;
+  border: 1px solid var(--black-text) !important;
+  color: var(--white-text) !important;
+  font-weight: 500 !important;
+  font-size: 23px !important;
+  line-height: 120%;
+  font-family: var(--grotesk-font) !important;
+}
+.BlackButton:hover {
+  background: transparent !important;
+  color: var(--black-text) !important;
+  border: 1px solid var(--black-text) !important;
+}
+.BlackButton svg {
+  font-size: 24px;
+}

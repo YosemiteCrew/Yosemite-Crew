@@ -1,21 +1,13 @@
-"use client";
-import React, { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import React, { Suspense } from "react";
 
 import SignIn from "@/app/pages/SignIn/SignIn";
-import { useAuthStore } from "@/app/stores/authStore";
 
 function Page() {
-  const router = useRouter();
-  const { user } = useAuthStore();
-
-  useEffect(() => {
-    if (user) {
-      router.push("/organizations");
-    }
-  }, [user, router]);
-
-  return <SignIn />;
+  return (
+    <Suspense fallback={<div></div>}>
+      <SignIn />;
+    </Suspense>
+  );
 }
 
 export default Page;

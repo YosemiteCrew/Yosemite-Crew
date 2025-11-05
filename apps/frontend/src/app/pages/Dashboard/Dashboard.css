@@ -1,0 +1,28 @@
+.dashboard-container {
+  padding: 40px 80px 80px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 80px;
+}
+@media screen and (max-width: 1024px) {
+  .dashboard-container {
+    padding: 40px 48px;
+    gap: 32px;
+  }
+}
+@media screen and (max-width: 768px) {
+  .dashboard-container {
+    padding: 24px 16px;
+  }
+}
+.dashboard-stats-two{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+@media screen and (max-width: 768px) {
+  .dashboard-stats-two {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+}

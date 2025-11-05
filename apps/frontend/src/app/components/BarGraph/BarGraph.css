@@ -1,53 +1,53 @@
 /* DonutCardDiv Started */
-.DonutCardDiv{
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+.DonutCardDiv {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
-.DonutCardDiv h6{
-    font-family: var(--grotesk-font);
-    font-weight: 500;
-    font-size: 23px;
-    line-height: 120%;
-    margin: 0;
-    color: var(--black-text);
+.DonutCardDiv h6 {
+  font-family: var(--grotesk-font);
+  font-weight: 500;
+  font-size: 23px;
+  line-height: 120%;
+  margin: 0;
+  color: var(--black-text);
 }
-.DonutCardDiv .DonutCard{
-    min-height: 228px;
-    box-shadow: 0px 0px 8px 0px #47382714;
-    border: 1px solid var(--lightgrey);
-    background: var(--whitebg);
-    border-radius: 24px;
-    padding: 20px;
-    flex-direction: column;
-    justify-content: space-between;
+.DonutCardDiv .DonutCard {
+  min-height: 228px;
+  box-shadow: 0px 0px 8px 0px #47382714;
+  border: 1px solid var(--lightgrey);
+  background: var(--whitebg);
+  border-radius: 24px;
+  padding: 20px;
+  flex-direction: column;
+  justify-content: space-between;
 }
-.DonutCardDiv .DonutCard .WeekTexed p{
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin: 0;
-    color: var(--black-text);
-    font-family: var(--grotesk-font);
-    font-weight: 500;
-    font-size: 19px;
-    line-height: 120%;
+.DonutCardDiv .DonutCard .WeekTexed p {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+  color: var(--black-text);
+  font-family: var(--grotesk-font);
+  font-weight: 500;
+  font-size: 19px;
+  line-height: 120%;
 }
-.DonutCardDiv .DonutCard .WeekTexed p span{
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+.DonutCardDiv .DonutCard .WeekTexed p span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
-.WeekDonutDiv{
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+.WeekDonutDiv {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 .WeekDonutDiv .donut-placeholder {
   width: 132px;
   height: 132px;
   border-radius: 50%;
-  border: 20px solid #EAEAEA;
+  border: 20px solid #eaeaea;
   position: relative;
 }
 .WeekDonutDiv .WeekReports {
@@ -55,19 +55,19 @@
   flex-direction: column;
   gap: 8px;
 }
-.WeekDonutDiv .WeekReports .WeekReportsItem{
+.WeekDonutDiv .WeekReports .WeekReportsItem {
   display: flex;
   justify-content: space-between;
   gap: 23px;
   align-items: center;
 }
-.WeekDonutDiv .WeekReports .WeekReportsItem p{
-    margin: 0;
-    color: var(--black-text);
-    font-family: var(--grotesk-font);
-    font-weight: 500;
-    font-size: 14px;
-    line-height: 100%;
+.WeekDonutDiv .WeekReports .WeekReportsItem p {
+  margin: 0;
+  color: var(--black-text);
+  font-family: var(--grotesk-font);
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 100%;
 }
 .WeekDonutDiv .WeekReports .WeekReportsItem p .dot {
   height: 10px;
@@ -79,10 +79,9 @@
 }
 /* DonutCardDiv Ended  */
 
-
 /* DepartChartWrapper Started  */
-.DepartChartWrapper{
-  box-shadow: 0px 0px 30px 0px #4738271A;
+.DepartChartWrapper {
+  box-shadow: 0px 0px 30px 0px #4738271a;
   background: var(--whitebg);
   border: 1px solid var(--lightgrey);
   border-radius: 24px;
@@ -90,10 +89,9 @@
 }
 /* DepartChartWrapper Ended  */
 
-
 /* AppointmentChartWrapper Started  */
-.AppointmentChartWrapper{
-  box-shadow: 0px 0px 30px 0px #4738271A;
+.AppointmentChartWrapper {
+  box-shadow: 0px 0px 30px 0px #4738271a;
   background: var(--whitebg);
   border: 1px solid var(--lightgrey);
   border-radius: 24px;
@@ -112,14 +110,36 @@
 }
 /* AppointmentChartWrapper Ended  */
 
-
 /* Chart card Started */
 .chart-card {
-  box-shadow: 0px 0px 30px 0px #4738271A;
   background: var(--whitebg);
   border: 1px solid var(--lightgrey);
-  border-radius: 24px;
-  padding: 24px;
+  padding: 16px;
+  border-radius: 16px;
+  box-shadow: 0 0 8px -3px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.chart-card-labels {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 25px;
+  width: 100%;
+}
+.chart-card-label {
+  display: flex;
+  gap: 6px;
+}
+.chart-card-label span:nth-child(2) {
+  color: var(--black-text);
+  font-family: var(--satoshi-font);
+  font-size: 15px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 120%;
+  letter-spacing: -0.3px;
 }
 .bargraph-chart-container {
   padding: 8px 0 0 0;
@@ -128,7 +148,7 @@
   position: absolute;
   right: 32px;
   top: 100px;
-  background: #302F2E;
+  background: #302f2e;
   color: #ffffff;
   border: none;
   border-radius: 20px;
@@ -152,10 +172,9 @@
 }
 /* Chart card Ended */
 
-
 /* SpecialitesAppoint Started  */
-.SpeclAppotChartWrapper{
-  box-shadow: 0px 0px 30px 0px #4738271A;
+.SpeclAppotChartWrapper {
+  box-shadow: 0px 0px 30px 0px #4738271a;
   background: var(--whitebg);
   border: 1px solid var(--lightgrey);
   border-radius: 24px;
