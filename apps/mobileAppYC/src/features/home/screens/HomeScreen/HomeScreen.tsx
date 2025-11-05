@@ -362,7 +362,10 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
               onPress={handleEmergencyPress}>
               <Image source={Images.emergencyIcon} style={styles.actionImage} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionIcon} activeOpacity={0.85}>
+            <TouchableOpacity
+              style={styles.actionIcon}
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate('Notifications')}>
               <Image
                 source={Images.notificationIcon}
                 style={styles.actionImage}

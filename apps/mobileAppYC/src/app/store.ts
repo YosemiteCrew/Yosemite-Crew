@@ -52,12 +52,13 @@ import appointmentsReducer from '@/features/appointments/appointmentsSlice';
 import businessesReducer from '@/features/appointments/businessesSlice';
 import {coParentReducer} from '@/features/coParent';
 import {linkedBusinessesReducer} from '@/features/linkedBusinesses';
+import {notificationReducer} from '@/features/notifications';
 
 const persistConfig = {
   key: 'root',
-  version: 3,
+  version: 4,
   storage: storageForPersist,
-  whitelist: ['auth', 'theme', 'documents', 'companion', 'expenses', 'tasks', 'appointments', 'businesses', 'coParent', 'linkedBusinesses'],
+  whitelist: ['auth', 'theme', 'documents', 'companion', 'expenses', 'tasks', 'appointments', 'businesses', 'coParent', 'linkedBusinesses', 'notifications'],
   migrate: (state: any) => {
     console.log('[Redux Persist] Migrating state from version', state?._persist?.version);
     // Handle migration from version 1 to 2
@@ -78,6 +79,22 @@ const persistConfig = {
         };
       }
     }
+    // Handle migration from version 3 to 4
+    if (state?._persist?.version === 3) {
+      console.log('[Redux Persist] Migrating from v3 to v4 - adding notifications state');
+      // Initialize notifications state if not present
+      if (!state.notifications) {
+        state.notifications = {
+          items: [],
+          loading: false,
+          error: null,
+          unreadCount: 0,
+          hydratedCompanions: {},
+          filter: 'all',
+          sortBy: 'newest',
+        };
+      }
+    }
     return Promise.resolve(state);
   },
 };
@@ -93,6 +110,7 @@ const rootReducer = combineReducers({
   businesses: businessesReducer,
   coParent: coParentReducer,
   linkedBusinesses: linkedBusinessesReducer,
+  notifications: notificationReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

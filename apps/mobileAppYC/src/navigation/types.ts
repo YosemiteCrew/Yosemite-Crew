@@ -28,6 +28,7 @@ export type HomeStackParamList = {
   TermsAndConditions: undefined;
   PrivacyPolicy: undefined;
   AddCompanion: undefined;
+  Notifications: undefined;
   ProfileOverview: { companionId: string };
   EditCompanionOverview: { companionId: string };
   EditParentOverview:{ companionId: string };
