@@ -1,10 +1,9 @@
 import React, {useMemo, useRef, useState} from 'react';
-import {View, ScrollView, StyleSheet, Text, Image} from 'react-native';
+import {View, StyleSheet, Text, Image} from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useTheme} from '@/hooks';
-import {SafeArea, Input} from '@/shared/components/common';
-import {Header} from '@/shared/components/common/Header/Header';
-import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
+import {Input} from '@/shared/components/common';
+import AERLayout from '@/features/adverseEventReporting/components/AERLayout';
 import {
   SimpleDatePicker,
   formatDateForDisplay,
@@ -110,17 +109,13 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
   };
 
   return (
-    <SafeArea>
-      <Header
-        title="Adverse event reporting"
-        showBackButton
-        onBack={() => navigation.goBack()}
-      />
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}>
-        <Text style={styles.stepTitle}>Step 5 of 5</Text>
-        <Text style={styles.sectionTitle}>Product Information</Text>
+    <>
+    <AERLayout
+      stepLabel="Step 5 of 5"
+      onBack={() => navigation.goBack()}
+      bottomButton={{ title: 'Next', onPress: handleSubmit }}
+    >
+      <Text style={styles.sectionTitle}>Product Information</Text>
 
         <Input
           label="Product name"
@@ -262,23 +257,7 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
           containerStyle={styles.input}
         />
 
-        <View style={styles.buttonContainer}>
-          <LiquidGlassButton
-            title="Next"
-            onPress={handleSubmit}
-            glassEffect="clear"
-            interactive
-            borderRadius="lg"
-            forceBorder
-            borderColor={theme.colors.borderMuted}
-            height={56}
-            style={styles.button}
-            textStyle={styles.buttonText}
-            tintColor={theme.colors.secondary}
-            shadowIntensity="medium"
-          />
-        </View>
-      </ScrollView>
+    </AERLayout>
 
       <SimpleDatePicker
         value={formData.eventDate}
@@ -336,25 +315,12 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
         }
         onDelete={confirmDeleteFile}
       />
-    </SafeArea>
+    </>
   );
 };
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    scrollContent: {
-      paddingHorizontal: theme.spacing[4],
-      paddingTop: theme.spacing[4],
-      paddingBottom: theme.spacing[24],
-    },
-    stepTitle: {
-      // Satoshi 12 Bold, 100% line-height, centered, Jet-400
-      ...theme.typography.subtitleBold12,
-      lineHeight: 12,
-      color: theme.colors.placeholder,
-      marginBottom: theme.spacing[4],
-      textAlign: 'center',
-    },
     sectionTitle: {
       ...theme.typography.h6Clash,
       color: theme.colors.secondary,
@@ -418,18 +384,5 @@ const createStyles = (theme: any) =>
       width: theme.spacing[5],
       height: theme.spacing[5],
       tintColor: theme.colors.textSecondary,
-    },
-    buttonContainer: {
-      marginTop: theme.spacing[4],
-    },
-    button: {
-      width: '100%',
-      backgroundColor: theme.colors.secondary,
-      borderRadius: theme.borderRadius.lg,
-    },
-    buttonText: {
-      ...theme.typography.cta,
-      color: theme.colors.background,
-      textAlign: 'center',
     },
   });

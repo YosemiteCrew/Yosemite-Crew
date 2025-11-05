@@ -1,19 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import {
-  View,
-  ScrollView,
-  StyleSheet,
-  Image,
-  TouchableOpacity,
-  Text,
-} from 'react-native';
+import { View, StyleSheet, Image, TouchableOpacity, Text } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTheme } from '@/hooks';
 import { useSelector } from 'react-redux';
 import { Images } from '@/assets/images';
-import { SafeArea } from '@/shared/components/common';
-import { Header } from '@/shared/components/common/Header/Header';
-import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
+import AERLayout from '@/features/adverseEventReporting/components/AERLayout';
 import { CompanionSelector } from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import { Checkbox } from '@/shared/components/common/Checkbox/Checkbox';
 import type { RootState } from '@/app/store';
@@ -48,107 +39,69 @@ export const Step1Screen: React.FC<Props> = ({ navigation }) => {
   const isFormValid = selectedCompanionId && agreeToTerms;
 
   return (
-    <SafeArea>
-      <Header
-        title="Adverse event reporting"
-        showBackButton
-        onBack={() => navigation.goBack()}
-      />
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.stepTitle}>Step 1 of 5</Text>
-        <Image source={Images.adverse2} style={styles.heroImage} />
+    <AERLayout
+      stepLabel="Step 1 of 5"
+      onBack={() => navigation.goBack()}
+      bottomButton={{ title: 'Next', onPress: handleNext, disabled: !isFormValid }}
+    >
+      <Image source={Images.adverse2} style={styles.heroImage} />
 
-        <Text style={styles.title}>Veterinary product adverse events</Text>
-        <Text style={styles.subtitle}>Notify the manufacturer about any issues or concerns you experienced with a pharmaceutical product used for your pet.</Text>
+      <Text style={styles.title}>Veterinary product adverse events</Text>
+      <Text style={styles.subtitle}>Notify the manufacturer about any issues or concerns you experienced with a pharmaceutical product used for your pet.</Text>
 
-        <Text style={styles.descriptionText}>To report a potential side effect, unexpected reaction, or any other concern following the use of a YosemiteCrew Animal Health product, please fill out the following form as completely and accurately as possible.</Text>
+      <Text style={styles.descriptionText}>To report a potential side effect, unexpected reaction, or any other concern following the use of a YosemiteCrew Animal Health product, please fill out the following form as completely and accurately as possible.</Text>
 
-        <View style={styles.companionSelector}>
-          <CompanionSelector
+      <View style={styles.companionSelector}>
+        <CompanionSelector
           companions={companions}
           selectedCompanionId={selectedCompanionId}
           onSelect={setSelectedCompanionId}
           showAddButton={false}
-          />
-        </View>
+        />
+      </View>
 
-        <View style={styles.radioSection}>
-          <Text style={styles.sectionTitle}>Who is reporting the concern?</Text>
+      <View style={styles.radioSection}>
+        <Text style={styles.sectionTitle}>Who is reporting the concern?</Text>
 
-          <TouchableOpacity
-            style={styles.radioOption}
-            onPress={() => setReporterType('parent')}
-          >
-            <View style={styles.radioOuter}>
-              {reporterType === 'parent' && <View style={styles.radioInner} />}
-            </View>
-            <Text style={styles.radioLabel}>The parent</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.radioOption}
-            onPress={() => setReporterType('guardian')}
-          >
-            <View style={styles.radioOuter}>
-              {reporterType === 'guardian' && <View style={styles.radioInner} />}
-            </View>
-            <Text style={styles.radioLabel}>The guardian (Co-Parent)</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.checkboxSection}>
-          <Text style={styles.beforeProceed}>Before you proceed</Text>
-          <View style={styles.consentRow}>
-            <Checkbox
-              value={agreeToTerms}
-              onValueChange={setAgreeToTerms}
-            />
-            <Text style={styles.consentText}>
-              I agree to Yosemite Crew’s <Text style={styles.consentLink}>terms and conditions</Text> and <Text style={styles.consentLink}>privacy policy</Text>
-            </Text>
+        <TouchableOpacity
+          style={styles.radioOption}
+          onPress={() => setReporterType('parent')}
+        >
+          <View style={styles.radioOuter}>
+            {reporterType === 'parent' && <View style={styles.radioInner} />}
           </View>
-        </View>
+          <Text style={styles.radioLabel}>The parent</Text>
+        </TouchableOpacity>
 
-        <View style={styles.buttonContainer}>
-          <LiquidGlassButton
-            title="Next"
-            onPress={handleNext}
-            disabled={!isFormValid}
-            glassEffect="clear"
-            interactive
-            borderRadius="lg"
-            forceBorder
-            borderColor={theme.colors.borderMuted}
-            height={56}
-            style={styles.button}
-            textStyle={styles.buttonText}
-            tintColor={theme.colors.secondary}
-            shadowIntensity="medium"
+        <TouchableOpacity
+          style={styles.radioOption}
+          onPress={() => setReporterType('guardian')}
+        >
+          <View style={styles.radioOuter}>
+            {reporterType === 'guardian' && <View style={styles.radioInner} />}
+          </View>
+          <Text style={styles.radioLabel}>The guardian (Co-Parent)</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.checkboxSection}>
+        <Text style={styles.beforeProceed}>Before you proceed</Text>
+        <View style={styles.consentRow}>
+          <Checkbox
+            value={agreeToTerms}
+            onValueChange={setAgreeToTerms}
           />
+          <Text style={styles.consentText}>
+            I agree to Yosemite Crew’s <Text style={styles.consentLink}>terms and conditions</Text> and <Text style={styles.consentLink}>privacy policy</Text>
+          </Text>
         </View>
-      </ScrollView>
-    </SafeArea>
+      </View>
+    </AERLayout>
   );
 };
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    scrollContent: {
-      paddingHorizontal: theme.spacing[4],
-      paddingTop: theme.spacing[4],
-      paddingBottom: theme.spacing[24],
-    },
-    stepTitle: {
-      // Satoshi 12 Bold, 100% line-height, centered
-      ...theme.typography.subtitleBold12,
-      lineHeight: 12,
-      color: theme.colors.placeholder,
-      marginBottom: theme.spacing[4],
-      textAlign: 'center',
-    },
     heroImage: {
       width: '100%',
       height: 200,
@@ -243,25 +196,5 @@ const createStyles = (theme: any) =>
     consentLink: {
       ...theme.typography.paragraphBold,
       color: theme.colors.textTertiary,
-    },
-    buttonContainer: {
-      marginTop: theme.spacing[4],
-    },
-    button: {
-      width: '100%',
-      backgroundColor: theme.colors.secondary,
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      shadowColor: '#000000',
-      shadowOffset: {width: 0, height: 8},
-      shadowOpacity: 0.15,
-      shadowRadius: 12,
-      elevation: 4,
-    },
-    buttonText: {
-      ...theme.typography.cta,
-      color: theme.colors.background,
-      textAlign: 'center',
     },
   });

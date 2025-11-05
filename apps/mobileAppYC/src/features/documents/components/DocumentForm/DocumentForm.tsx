@@ -19,7 +19,7 @@ import {CategoryBottomSheet} from '@/shared/components/common/CategoryBottomShee
 import {SubcategoryBottomSheet} from '@/shared/components/common/SubcategoryBottomSheet/SubcategoryBottomSheet';
 import {VisitTypeBottomSheet} from '@/shared/components/common/VisitTypeBottomSheet/VisitTypeBottomSheet';
 import {TouchableInput} from '@/shared/components/common/TouchableInput/TouchableInput';
-import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
+import PrimaryActionButton from '@/shared/components/common/PrimaryActionButton/PrimaryActionButton';
 import {UploadDocumentBottomSheet} from '@/shared/components/common/UploadDocumentBottomSheet/UploadDocumentBottomSheet';
 import {DeleteDocumentBottomSheet} from '@/shared/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
 import {DocumentAttachmentsSection} from '@/features/documents/components/DocumentAttachmentsSection';
@@ -267,17 +267,10 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
         />
 
         <View style={styles.saveButton}>
-          <LiquidGlassButton
+          <PrimaryActionButton
             title={loading ? 'Saving...' : saveButtonText}
             onPress={onSave}
-            style={styles.button}
             textStyle={styles.buttonText}
-            tintColor={theme.colors.secondary}
-            shadowIntensity="medium"
-            forceBorder
-            borderColor={theme.colors.borderMuted}
-            height={56}
-            borderRadius={16}
             loading={loading}
             disabled={loading}
           />
@@ -388,18 +381,6 @@ const createStyles = (theme: any) =>
     },
     saveButton: {
       marginTop: theme.spacing[4],
-    },
-    button: {
-      width: '100%',
-      backgroundColor: theme.colors.secondary,
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      shadowColor: '#000000',
-      shadowOffset: {width: 0, height: 8},
-      shadowOpacity: 0.15,
-      shadowRadius: 12,
-      elevation: 4,
     },
     buttonText: {
       color: theme.colors.white,
