@@ -19,6 +19,7 @@ import {AddCoParentScreen} from '@/features/coParent/screens/AddCoParentScreen/A
 import {EditCoParentScreen} from '@/features/coParent/screens/EditCoParentScreen/EditCoParentScreen';
 import {CoParentProfileScreen} from '@/features/coParent/screens/CoParentProfileScreen/CoParentProfileScreen';
 import {AdverseEventStackNavigator} from './AdverseEventStackNavigator';
+import {NotificationsScreen} from '@/features/notifications';
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();
 
@@ -70,6 +71,11 @@ export const HomeStackNavigator: React.FC = () => {
       <Stack.Screen
         name="AddCompanion"
         component={AddCompanionScreen}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="Notifications"
+        component={NotificationsScreen}
         options={{headerShown: false}}
       />
         <Stack.Screen

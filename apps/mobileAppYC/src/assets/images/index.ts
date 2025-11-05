@@ -201,6 +201,13 @@ medicalCap: require('./emergency/medicalCap.png'),
 pill: require('./emergency/pill.png'),
 
 
+//notification
+bellIcon: require('./icons/notificationIcon.png'),
+chatIcon: require('./icons/chatIcon.png'),
+alertIcon: require('./icons/alertIcon.png'),
+calendarIconNotification: require('./icons/calendar.png'),
+syringeIcon: require('./icons/syringeIcon.png'),
+
   // Support & Help
   contactHero: require('./support/contactHero.png'),
 } as const;
