@@ -43,6 +43,7 @@ import {
   markTaskStatus,
 } from '@/features/tasks';
 import type {ObservationalToolTaskDetails} from '@/features/tasks/types';
+import {useEmergency} from '@/features/home/context/EmergencyContext';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Home'>;
 
@@ -71,6 +72,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const authUser = useSelector(selectAuthUser);
   const dispatch = useDispatch<AppDispatch>();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const {openEmergencySheet} = useEmergency();
 
   const companions = useSelector(selectCompanions);
   const selectedCompanionIdRedux = useSelector(selectSelectedCompanionId);
@@ -244,6 +246,11 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     [navigation],
   );
 
+  const handleEmergencyPress = React.useCallback(() => {
+    openEmergencySheet();
+  }, [openEmergencySheet]);
+
+
   const handleViewTask = React.useCallback(() => {
     if (nextUpcomingTask && selectedCompanionIdRedux) {
       navigateToTaskView(nextUpcomingTask.id);
@@ -322,10 +329,11 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}>
+    <>
+      <SafeAreaView style={styles.container}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
           <TouchableOpacity
             style={styles.profileButton}
@@ -352,14 +360,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
             <TouchableOpacity
               style={styles.actionIcon}
               activeOpacity={0.85}
-              onPress={() => {
-                const tabNavigation =
-                  navigation.getParent<NavigationProp<TabParamList>>();
-                tabNavigation?.navigate('Appointments', {
-                  screen: 'MyAppointments',
-                  params: {resetKey: Date.now()},
-                } as any);
-              }}>
+              onPress={handleEmergencyPress}>
               <Image source={Images.emergencyIcon} style={styles.actionImage} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionIcon} activeOpacity={0.85}>
@@ -473,8 +474,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
             </View>
           </LiquidGlassCard>
         </View>
-      </ScrollView>
-    </SafeAreaView>
+        </ScrollView>
+      </SafeAreaView>
+    </>
   );
 };
 
