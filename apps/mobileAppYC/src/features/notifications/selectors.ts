@@ -72,28 +72,18 @@ export const selectFilteredAndSortedNotifications = createSelector(
       filtered = notifications.filter(n => n.category === filter);
     }
 
-    // Sort
-    const sorted = [...filtered];
-    switch (sortBy) {
-      case 'newest':
-        sorted.sort(
-          (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
-        );
-        break;
-      case 'oldest':
-        sorted.sort(
-          (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
-        );
-        break;
-      case 'priority':
-        const priorityOrder = {urgent: 0, high: 1, medium: 2, low: 3};
-        sorted.sort(
-          (a, b) =>
-            priorityOrder[a.priority] - priorityOrder[b.priority] ||
-            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
-        );
-        break;
+    // Status filter: 'new' => only unread, 'seen' => only read
+    const statusMode = sortBy === 'seen' ? 'seen' : 'new';
+    if (statusMode === 'new') {
+      filtered = filtered.filter(n => n.status === 'unread');
+    } else if (statusMode === 'seen') {
+      filtered = filtered.filter(n => n.status === 'read');
     }
+
+    // Sort by most recent within the filtered set
+    const sorted = [...filtered].sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+    );
 
     return sorted;
   },
@@ -117,28 +107,18 @@ export const selectSortedNotificationsForCompanion = (companionId: string | null
       selectNotificationSortBy,
     ],
     (notifications, sortBy) => {
-      const sorted = [...notifications];
-      switch (sortBy) {
-        case 'newest':
-          sorted.sort(
-            (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
-          );
-          break;
-        case 'oldest':
-          sorted.sort(
-            (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
-          );
-          break;
-        case 'priority':
-          const priorityOrder = {urgent: 0, high: 1, medium: 2, low: 3};
-          sorted.sort(
-            (a, b) =>
-              priorityOrder[a.priority] - priorityOrder[b.priority] ||
-              new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
-          );
-          break;
+      let filtered = notifications;
+      const statusMode = sortBy === 'seen' ? 'seen' : 'new';
+      // Apply status filter based on tab
+      if (statusMode === 'new') {
+        filtered = filtered.filter(n => n.status === 'unread');
+      } else if (statusMode === 'seen') {
+        filtered = filtered.filter(n => n.status === 'read');
       }
-      return sorted;
+
+      return [...filtered].sort(
+        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+      );
     },
   );
 
@@ -175,9 +155,9 @@ export const selectNotificationsGroupedByCategory = createSelector(
       payment: [],
     };
 
-    notifications.forEach(notification => {
+    for (const notification of notifications) {
       grouped[notification.category].push(notification);
-    });
+    }
 
     return grouped;
   },

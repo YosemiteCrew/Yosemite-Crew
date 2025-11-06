@@ -38,7 +38,7 @@ export interface NotificationsState {
   hydratedCompanions: Record<string, boolean>;
   lastFetchTimestamp?: number;
   filter: NotificationCategory;
-  sortBy: 'newest' | 'oldest' | 'priority';
+  sortBy: 'new' | 'seen';
 }
 
 export interface CreateNotificationPayload {

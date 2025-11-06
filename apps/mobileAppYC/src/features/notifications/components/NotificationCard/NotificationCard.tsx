@@ -13,6 +13,7 @@ import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import type {Notification} from '../../types';
+import {fonts} from '@/theme/typography';
 
 interface NotificationCardProps {
   notification: Notification;
@@ -20,7 +21,7 @@ interface NotificationCardProps {
   onPress?: () => void;
   onDismiss?: () => void;
   onArchive?: () => void;
-  showActions?: boolean;
+  swipeEnabled?: boolean;
 }
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -32,7 +33,7 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
   onPress,
   onDismiss,
   onArchive,
-  showActions = true,
+  swipeEnabled = true,
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -42,16 +43,18 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
 
   const panResponder = React.useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponder: () => !!swipeEnabled,
       onMoveShouldSetPanResponder: (evt, gestureState) => {
+        if (!swipeEnabled) return false;
         const {dx} = gestureState;
         return Math.abs(dx) > 5;
       },
       onPanResponderGrant: () => {
-        setIsDragging(true);
+        if (swipeEnabled) setIsDragging(true);
       },
       onPanResponderMove: Animated.event([null, {dx: pan.x}], {useNativeDriver: false}),
       onPanResponderRelease: (evt, gestureState) => {
+        if (!swipeEnabled) return;
         const {dx} = gestureState;
 
         if (dx < -SWIPE_THRESHOLD) {
@@ -100,21 +103,6 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
     return date.toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
   }, []);
 
-  const getPriorityColor = useCallback(() => {
-    switch (notification.priority) {
-      case 'urgent':
-        return theme.colors.error;
-      case 'high':
-        return theme.colors.warning;
-      case 'medium':
-        return theme.colors.primary;
-      case 'low':
-        return theme.colors.textSecondary;
-      default:
-        return theme.colors.primary;
-    }
-  }, [notification.priority, theme.colors]);
-
   const getIconFromImages = useCallback((iconKey: string) => {
     try {
       return Images[iconKey as keyof typeof Images];
@@ -131,32 +119,20 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
 
   return (
     <Animated.View style={[styles.container, animatedStyle]} {...panResponder.panHandlers}>
-      {/* Background action indicators */}
-      <View style={styles.dismissBackgroundLeft}>
-        <Text style={styles.actionText}>Dismiss</Text>
-      </View>
-      <View style={styles.archiveBackgroundRight}>
-        <Text style={styles.actionText}>Archive</Text>
-      </View>
-
       <TouchableOpacity
-        activeOpacity={0.8}
+        activeOpacity={0.85}
         onPress={onPress}
         disabled={isDragging}
-        style={{flex: 1}}>
+        style={styles.pressable}>
         <LiquidGlassCard
-          glassEffect="clear"
-          interactive
-          shadow={notification.status === 'unread' ? 'md' : 'sm'}
+          glassEffect="none"
+          interactive={false}
+          shadow="none"
           style={styles.card}
           fallbackStyle={styles.cardFallback}>
           <View style={styles.content}>
             {/* Icon */}
-            <View
-              style={[
-                styles.iconContainer,
-                {borderColor: getPriorityColor(), opacity: isDragging ? 0.7 : 1},
-              ]}>
+            <View style={[styles.iconContainer, isDragging && styles.iconContainerDragging]}> 
               <Image
                 source={getIconFromImages(notification.icon)}
                 style={styles.icon}
@@ -166,42 +142,23 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
 
             {/* Main content */}
             <View style={styles.mainContent}>
-              <View style={styles.titleRow}>
-                <Text
-                  style={[
-                    styles.title,
-                    notification.status === 'unread' && styles.titleUnread,
-                  ]}
-                  numberOfLines={2}>
-                  {notification.title}
-                </Text>
-
-                {notification.status === 'unread' && (
-                  <View style={[styles.unreadDot, {backgroundColor: getPriorityColor()}]} />
-                )}
-              </View>
-
-              <Text style={styles.description} numberOfLines={2}>
-                {notification.description}
+              <Text style={styles.title} numberOfLines={2}>
+                {notification.title}
               </Text>
-
+              {!!notification.description && (
+                <Text style={styles.description} numberOfLines={2}>
+                  {notification.description}
+                </Text>
+              )}
               <View style={styles.footer}>
                 <Text style={styles.time}>{formatTime(notification.timestamp)}</Text>
-                {notification.category !== 'all' && (
-                  <View style={styles.categoryBadge}>
-                    <Text style={styles.categoryText}>{notification.category}</Text>
-                  </View>
-                )}
               </View>
             </View>
 
             {/* Avatar */}
             <View style={styles.avatarContainer}>
               {notification.avatarUrl && companion?.profileImage ? (
-                <Image
-                  source={{uri: companion.profileImage}}
-                  style={styles.avatar}
-                />
+                <Image source={{uri: companion.profileImage}} style={styles.avatar} />
               ) : (
                 <View style={[styles.avatar, styles.avatarFallback]}>
                   <Text style={styles.avatarText}>{avatarInitial}</Text>
@@ -211,44 +168,6 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
           </View>
         </LiquidGlassCard>
       </TouchableOpacity>
-
-      {/* Action buttons */}
-      {showActions && !isDragging && (
-        <View style={styles.actionButtonsContainer}>
-          {notification.status === 'unread' && (
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => {
-                Animated.spring(pan, {
-                  toValue: {x: 0, y: 0},
-                  useNativeDriver: false,
-                }).start();
-                onDismiss?.();
-              }}>
-              <Image
-                source={Images.checkIcon}
-                style={styles.actionButtonIcon}
-                resizeMode="contain"
-              />
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => {
-              Animated.spring(pan, {
-                toValue: {x: 0, y: 0},
-                useNativeDriver: false,
-              }).start();
-              onArchive?.();
-            }}>
-            <Image
-              source={Images.crossIcon}
-              style={styles.actionButtonIcon}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
-        </View>
-      )}
     </Animated.View>
   );
 };
@@ -260,39 +179,10 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing[3],
       overflow: 'hidden',
     },
-    dismissBackgroundLeft: {
-      position: 'absolute',
-      left: 0,
-      top: 0,
-      bottom: 0,
-      width: '25%',
-      backgroundColor: theme.colors.success,
-      justifyContent: 'center',
-      alignItems: 'flex-start',
-      paddingLeft: theme.spacing[3],
-      zIndex: -1,
-    },
-    archiveBackgroundRight: {
-      position: 'absolute',
-      right: 0,
-      top: 0,
-      bottom: 0,
-      width: '25%',
-      backgroundColor: theme.colors.warning,
-      justifyContent: 'center',
-      alignItems: 'flex-end',
-      paddingRight: theme.spacing[3],
-      zIndex: -1,
-    },
-    actionText: {
-      ...theme.typography.labelSmallBold,
-      color: theme.colors.white,
-      textAlign: 'center',
-    },
     card: {
       borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
+      borderColor: theme.colors.border,
       backgroundColor: theme.colors.cardBackground,
       padding: theme.spacing[3],
       overflow: 'hidden',
@@ -300,79 +190,59 @@ const createStyles = (theme: any) =>
     cardFallback: {
       borderRadius: theme.borderRadius.lg,
       backgroundColor: theme.colors.cardBackground,
-      borderColor: theme.colors.borderMuted,
+      borderColor: theme.colors.border,
     },
     content: {
       flexDirection: 'row',
       alignItems: 'flex-start',
       gap: theme.spacing[3],
     },
+    pressable: {
+      flex: 1,
+    },
     iconContainer: {
-      width: 48,
-      height: 48,
-      borderRadius: 12,
-      backgroundColor: theme.colors.secondary,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: '#EAEAEA',
       justifyContent: 'center',
       alignItems: 'center',
-      borderWidth: 2,
       flexShrink: 0,
+    },
+    iconContainerDragging: {
+      opacity: 0.7,
     },
     icon: {
       width: 24,
       height: 24,
-      tintColor: theme.colors.white,
     },
     mainContent: {
       flex: 1,
-      gap: theme.spacing[1.5],
-    },
-    titleRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: theme.spacing[2],
+      gap: theme.spacing[1],
     },
     title: {
-      ...theme.typography.labelMediumBold,
-      color: theme.colors.text,
+      ...theme.typography.titleSmall,
+      color: '#302F2E',
       flex: 1,
     },
-    titleUnread: {
-      ...theme.typography.titleSmall,
-      color: theme.colors.secondary,
-      fontWeight: '700',
-    },
-    unreadDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      flexShrink: 0,
-    },
     description: {
-      ...theme.typography.bodySmall,
-      color: theme.colors.textSecondary,
-      lineHeight: 16,
+      ...theme.typography.bodyExtraSmall,
+      color: '#595958',
+      lineHeight: 15.6,
+      overflow: 'hidden',
     },
     footer: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[2],
+      justifyContent: 'flex-start',
       marginTop: theme.spacing[1],
     },
     time: {
-      ...theme.typography.labelXsRegular,
-      color: theme.colors.textSecondary,
-    },
-    categoryBadge: {
-      paddingHorizontal: theme.spacing[2],
-      paddingVertical: 2,
-      borderRadius: 4,
-      backgroundColor: theme.colors.primaryTint,
-    },
-    categoryText: {
-      ...theme.typography.labelXs,
-      color: theme.colors.primary,
-      textTransform: 'capitalize',
+      fontFamily: fonts.SATOSHI_BOLD,
+      fontSize: 11,
+      lineHeight: 13.2,
+      fontWeight: '700',
+      color: '#747473',
     },
     avatarContainer: {
       flexShrink: 0,
@@ -385,35 +255,12 @@ const createStyles = (theme: any) =>
       borderColor: theme.colors.border,
     },
     avatarFallback: {
-      backgroundColor: theme.colors.primary,
+      backgroundColor: '#EAEAEA',
       justifyContent: 'center',
       alignItems: 'center',
     },
     avatarText: {
       ...theme.typography.labelSmallBold,
-      color: theme.colors.onPrimary,
-    },
-    actionButtonsContainer: {
-      position: 'absolute',
-      right: theme.spacing[3],
-      top: 0,
-      bottom: 0,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: theme.spacing[2],
-      zIndex: 10,
-    },
-    actionButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: theme.colors.secondary,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    actionButtonIcon: {
-      width: 16,
-      height: 16,
-      tintColor: theme.colors.white,
+      color: theme.colors.text,
     },
   });

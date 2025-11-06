@@ -93,7 +93,7 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
 
 
   // Use a ref to manage debounce timer
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Track last search query to prevent duplicate API calls
   const lastSearchQueryRef = useRef<string>('');
 

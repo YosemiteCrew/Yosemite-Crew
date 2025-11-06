@@ -91,7 +91,7 @@ const persistConfig = {
           unreadCount: 0,
           hydratedCompanions: {},
           filter: 'all',
-          sortBy: 'newest',
+          sortBy: 'new',
         };
       }
     }
