@@ -18,7 +18,7 @@ const initialState: NotificationsState = {
   hydratedCompanions: {},
   lastFetchTimestamp: undefined,
   filter: 'all',
-  sortBy: 'newest',
+  sortBy: 'new',
 };
 
 export const notificationSlice = createSlice({
@@ -28,7 +28,7 @@ export const notificationSlice = createSlice({
     setNotificationFilter(state, action: PayloadAction<NotificationCategory>) {
       state.filter = action.payload;
     },
-    setSortBy(state, action: PayloadAction<'newest' | 'oldest' | 'priority'>) {
+    setSortBy(state, action: PayloadAction<'new' | 'seen'>) {
       state.sortBy = action.payload;
     },
     clearNotificationError(state) {
@@ -94,7 +94,7 @@ export const notificationSlice = createSlice({
       })
       .addCase(markNotificationAsRead.fulfilled, (state, action) => {
         const notification = state.items.find(n => n.id === action.payload.notificationId);
-        if (notification && notification.status === 'unread') {
+        if (notification?.status === 'unread') {
           notification.status = 'read';
           state.unreadCount = Math.max(0, state.unreadCount - 1);
         }
@@ -108,11 +108,11 @@ export const notificationSlice = createSlice({
         state.error = null;
       })
       .addCase(markAllNotificationsAsRead.fulfilled, state => {
-        state.items.forEach(notification => {
+        for (const notification of state.items) {
           if (notification.status === 'unread') {
             notification.status = 'read';
           }
-        });
+        }
         state.unreadCount = 0;
       })
       .addCase(markAllNotificationsAsRead.rejected, (state, action) => {

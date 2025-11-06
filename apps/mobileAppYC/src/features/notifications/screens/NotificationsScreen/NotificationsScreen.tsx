@@ -9,6 +9,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
+import {useNavigation} from '@react-navigation/native';
 import {useDispatch, useSelector} from 'react-redux';
 import {useTheme} from '@/hooks';
 import {Header} from '@/shared/components/common/Header/Header';
@@ -19,17 +20,9 @@ import {
   selectUnreadCount,
   selectNotificationFilter,
   selectNotificationSortBy,
-  selectSortedNotificationsForCompanion,
   selectUnreadCountByCategory,
 } from '../../selectors';
-import {
-  fetchNotificationsForCompanion,
-  markNotificationAsRead,
-  deleteNotification,
-  archiveNotification,
-  markAllNotificationsAsRead,
-  clearAllNotifications,
-} from '../../thunks';
+import {markNotificationAsRead, archiveNotification} from '../../thunks';
 import {
   setNotificationFilter,
   setSortBy,
@@ -37,8 +30,7 @@ import {
 } from '../../notificationSlice';
 import {NotificationCard} from '../../components/NotificationCard/NotificationCard';
 import {NotificationFilterPills} from '../../components/NotificationFilterPills/NotificationFilterPills';
-import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
-import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
+// Removed Clear All button for minimal UI
 import {mockNotifications} from '../../data/mockNotifications';
 import type {Notification, NotificationCategory} from '../../types';
 
@@ -46,6 +38,7 @@ export const NotificationsScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const navigation = useNavigation();
 
   // Redux selectors
   const notifications = useSelector(selectDisplayNotifications);
@@ -54,6 +47,18 @@ export const NotificationsScreen: React.FC = () => {
   const sortBy = useSelector(selectNotificationSortBy);
   const loading = useSelector((state: RootState) => state.notifications.loading);
   const companions = useSelector((state: RootState) => state.companion.companions);
+  // Unread counts per category (avoid hooks in nested functions)
+  const unreadCounts = {
+    all: unreadCount,
+    messages: useSelector(selectUnreadCountByCategory('messages')),
+    appointments: useSelector(selectUnreadCountByCategory('appointments')),
+    tasks: useSelector(selectUnreadCountByCategory('tasks')),
+    documents: useSelector(selectUnreadCountByCategory('documents')),
+    health: useSelector(selectUnreadCountByCategory('health')),
+    dietary: useSelector(selectUnreadCountByCategory('dietary')),
+    hygiene: useSelector(selectUnreadCountByCategory('hygiene')),
+    payment: useSelector(selectUnreadCountByCategory('payment')),
+  } as const;
 
   const [refreshing, setRefreshing] = React.useState(false);
 
@@ -81,26 +86,82 @@ export const NotificationsScreen: React.FC = () => {
     [dispatch],
   );
 
-  // Handle sort change
+  // Handle status sort toggle (New vs Seen)
   const handleSortChange = useCallback(
-    (selectedSort: 'newest' | 'oldest' | 'priority') => {
+    (selectedSort: 'new' | 'seen') => {
       dispatch(setSortBy(selectedSort));
     },
     [dispatch],
   );
 
-  // Handle notification tap
+  // Handle notification tap (navigate by deepLink/relatedType)
   const handleNotificationPress = useCallback(
     (notification: Notification) => {
       if (notification.status === 'unread') {
         dispatch(markNotificationAsRead({notificationId: notification.id}));
       }
-      // TODO: Handle deep linking based on notification.deepLink
+
+      const deepLink = notification.deepLink;
+      const relatedType = notification.relatedType;
+      const relatedId = notification.relatedId;
+
+      // Attempt deep-link based navigation
+      try {
+        if (deepLink && typeof deepLink === 'string') {
+          if (deepLink.startsWith('/tasks/') && relatedId) {
+            (navigation as any).navigate('Tasks', {
+              screen: 'TaskView',
+              params: {taskId: relatedId},
+            });
+            return;
+          }
+          if (deepLink.startsWith('/appointments/') && relatedId) {
+            (navigation as any).navigate('Appointments', {
+              screen: 'ViewAppointment',
+              params: {appointmentId: relatedId},
+            });
+            return;
+          }
+          if (deepLink.startsWith('/documents/') && relatedId) {
+            (navigation as any).navigate('Documents', {
+              screen: 'DocumentPreview',
+              params: {documentId: relatedId},
+            });
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('[Notifications] Deep link navigation failed', e);
+      }
+
+      // Fallback based on relatedType
+      try {
+        if (relatedType && relatedId) {
+          if (relatedType === 'task') {
+            (navigation as any).navigate('Tasks', {
+              screen: 'TaskView',
+              params: {taskId: relatedId},
+            });
+          } else if (relatedType === 'appointment') {
+            (navigation as any).navigate('Appointments', {
+              screen: 'ViewAppointment',
+              params: {appointmentId: relatedId},
+            });
+          } else if (relatedType === 'document') {
+            (navigation as any).navigate('Documents', {
+              screen: 'DocumentPreview',
+              params: {documentId: relatedId},
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('[Notifications] relatedType navigation failed', e);
+      }
     },
-    [dispatch],
+    [dispatch, navigation],
   );
 
-  // Handle dismiss (mark as read)
+  // Handle dismiss: mark as read so item moves to Seen tab
   const handleDismiss = useCallback(
     (notificationId: string) => {
       dispatch(markNotificationAsRead({notificationId}));
@@ -116,15 +177,7 @@ export const NotificationsScreen: React.FC = () => {
     [dispatch],
   );
 
-  // Handle mark all as read
-  const handleMarkAllAsRead = useCallback(() => {
-    dispatch(markAllNotificationsAsRead({}));
-  }, [dispatch]);
-
-  // Handle clear all
-  const handleClearAll = useCallback(() => {
-    dispatch(clearAllNotifications());
-  }, [dispatch]);
+  // Clear All removed by design
 
   // Get companion by ID
   const getCompanionById = useCallback(
@@ -147,7 +200,10 @@ export const NotificationsScreen: React.FC = () => {
 
   // Render notification item
   const renderNotificationItem = ({item}: {item: Notification}) => {
-    const companion = getCompanionById(item.companionId);
+    const comp = getCompanionById(item.companionId);
+    const companion = comp
+      ? {name: comp.name, profileImage: comp.profileImage ?? undefined}
+      : undefined;
     return (
       <NotificationCard
         notification={item}
@@ -155,104 +211,45 @@ export const NotificationsScreen: React.FC = () => {
         onPress={() => handleNotificationPress(item)}
         onDismiss={() => handleDismiss(item.id)}
         onArchive={() => handleArchive(item.id)}
-        showActions
+        swipeEnabled={sortBy === 'new'}
       />
     );
   };
 
-  // Render header
-  const renderHeaderComponent = () => (
-    <>
-      <View style={styles.headerContent}>
-        <View style={styles.titleSection}>
-          <Text style={styles.mainTitle}>Notifications</Text>
-          {unreadCount > 0 && (
-            <View style={styles.unreadBadge}>
-              <Text style={styles.unreadBadgeText}>
-                {unreadCount > 99 ? '99+' : unreadCount}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {unreadCount > 0 && (
-          <TouchableOpacity onPress={handleMarkAllAsRead} activeOpacity={0.7}>
-            <Text style={styles.markAllText}>Mark all as read</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Filter Pills */}
-      <NotificationFilterPills
-        selectedFilter={filter}
-        onFilterChange={handleFilterChange}
-        unreadCounts={
-          {
-            all: unreadCount,
-            messages: useSelector(selectUnreadCountByCategory('messages')),
-            appointments: useSelector(selectUnreadCountByCategory('appointments')),
-            tasks: useSelector(selectUnreadCountByCategory('tasks')),
-            documents: useSelector(selectUnreadCountByCategory('documents')),
-            health: useSelector(selectUnreadCountByCategory('health')),
-            dietary: useSelector(selectUnreadCountByCategory('dietary')),
-            hygiene: useSelector(selectUnreadCountByCategory('hygiene')),
-            payment: useSelector(selectUnreadCountByCategory('payment')),
-          } as any
-        }
-      />
-
-      {/* Sort options */}
-      <View style={styles.sortContainer}>
-        <Text style={styles.sortLabel}>Sort by:</Text>
-        <View style={styles.sortButtons}>
-          {(['newest', 'oldest', 'priority'] as const).map(option => (
-            <TouchableOpacity
-              key={option}
-              onPress={() => handleSortChange(option)}
-              style={[
-                styles.sortButton,
-                sortBy === option && styles.sortButtonActive,
-              ]}>
-              <Text
-                style={[
-                  styles.sortButtonText,
-                  sortBy === option && styles.sortButtonTextActive,
-                ]}>
-                {option.charAt(0).toUpperCase() + option.slice(1)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
-      {/* Clear all button */}
-      {notifications.length > 0 && (
-        <View style={styles.actionBar}>
-          <LiquidGlassButton
-            title="Clear All"
-            onPress={handleClearAll}
-            height={40}
-            borderRadius={10}
-            tintColor={theme.colors.error}
-            forceBorder
-            borderColor={theme.colors.error}
-            textStyle={styles.clearButtonText}
-            shadowIntensity="none"
-            style={styles.clearButton}
-          />
-        </View>
-      )}
-    </>
-  );
-
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.container} edges={['top','bottom']}>
       <Header
         title="Notifications"
-        showBackButton={false}
-        rightIcon={Images.addIconDark}
-        onRightPress={handleMarkAllAsRead}
+        showBackButton
+        onBack={() => (navigation as any).goBack?.()}
       />
+
+      {/* Header content placed above FlatList to preserve internal scroll state */}
+      <View style={styles.headerContent}>
+        <View style={styles.filtersWrapper}>
+          <NotificationFilterPills
+            selectedFilter={filter}
+            onFilterChange={handleFilterChange}
+            unreadCounts={unreadCounts as any}
+          />
+        </View>
+
+        <View style={styles.segmentContainer}>
+          <View style={styles.segmentInner}>
+            {(['new', 'seen'] as const).map(option => (
+              <TouchableOpacity
+                key={option}
+                onPress={() => handleSortChange(option)}
+                activeOpacity={0.9}
+                style={[styles.segmentItem, sortBy === option && styles.segmentItemActive]}>
+                <Text style={[styles.segmentText, sortBy === option && styles.segmentTextActive]}>
+                  {option === 'new' ? 'New' : 'Seen'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </View>
 
       <FlatList
         style={styles.list}
@@ -260,7 +257,6 @@ export const NotificationsScreen: React.FC = () => {
         data={notifications}
         renderItem={renderNotificationItem}
         keyExtractor={item => item.id}
-        ListHeaderComponent={renderHeaderComponent}
         ListEmptyComponent={renderEmptyState}
         refreshControl={
           <RefreshControl
@@ -292,80 +288,51 @@ const createStyles = (theme: any) =>
       gap: theme.spacing[3],
     },
     headerContent: {
-      marginBottom: theme.spacing[4],
-    },
-    titleSection: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
       marginBottom: theme.spacing[2],
+      paddingHorizontal: theme.spacing[4],
     },
-    mainTitle: {
-      ...theme.typography.h2,
-      color: theme.colors.secondary,
-    },
-    unreadBadge: {
-      minWidth: 28,
-      height: 28,
-      borderRadius: 14,
-      backgroundColor: theme.colors.error,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingHorizontal: theme.spacing[1.5],
-    },
-    unreadBadgeText: {
-      ...theme.typography.labelSmallBold,
-      color: theme.colors.white,
-      fontSize: 11,
-    },
-    markAllText: {
-      ...theme.typography.labelSmallBold,
-      color: theme.colors.primary,
-      textDecorationLine: 'underline',
-    },
-    sortContainer: {
+    filtersWrapper: {
+      marginTop: theme.spacing[4],
       marginBottom: theme.spacing[3],
-      gap: theme.spacing[2],
     },
-    sortLabel: {
-      ...theme.typography.labelSmall,
-      color: theme.colors.textSecondary,
-    },
-    sortButtons: {
-      flexDirection: 'row',
-      gap: theme.spacing[2],
-    },
-    sortButton: {
-      paddingHorizontal: theme.spacing[3],
-      paddingVertical: theme.spacing[1.5],
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      backgroundColor: theme.colors.cardBackground,
-    },
-    sortButtonActive: {
-      backgroundColor: theme.colors.primaryTint,
-      borderColor: theme.colors.primary,
-    },
-    sortButtonText: {
-      ...theme.typography.labelSmall,
-      color: theme.colors.textSecondary,
-    },
-    sortButtonTextActive: {
-      color: theme.colors.primary,
-      fontWeight: '600',
-    },
-    actionBar: {
+    segmentContainer: {
       marginTop: theme.spacing[2],
-      marginBottom: theme.spacing[2],
+      marginBottom: theme.spacing[3],
+      // horizontal padding inherited from headerContent
     },
-    clearButton: {
-      alignSelf: 'flex-start',
+    segmentInner: {
+      flexDirection: 'row',
+      backgroundColor: '#EAEAEA',
+      borderRadius: 12,
+      padding: 4,
+      borderColor: theme.colors.border,
+      borderWidth: 1,
     },
-    clearButtonText: {
-      ...theme.typography.labelSmallBold,
-      color: theme.colors.error,
+    segmentItem: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: 8,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
+    segmentItemActive: {
+      backgroundColor: theme.colors.cardBackground,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      shadowColor: '#000',
+      shadowOpacity: 0.04,
+      shadowRadius: 4,
+      shadowOffset: {width: 0, height: 1},
+    },
+    segmentText: {
+      ...theme.typography.labelSmall,
+      color: theme.colors.textSecondary,
+    },
+    segmentTextActive: {
+      color: theme.colors.text,
+      fontWeight: '700',
+    },
+    // Clear All styles removed
     emptyContainer: {
       flex: 1,
       justifyContent: 'center',

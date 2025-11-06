@@ -1,9 +1,5 @@
 import {createAsyncThunk} from '@reduxjs/toolkit';
-import type {
-  Notification,
-  NotificationsState,
-  CreateNotificationPayload,
-} from './types';
+import type {Notification, CreateNotificationPayload} from './types';
 
 // Simulate network delay
 const mockDelay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -14,13 +10,13 @@ const mockDelay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms)
 export const fetchNotificationsForCompanion = createAsyncThunk<
   {companionId: string; notifications: Notification[]},
   {companionId: string},
-  {rejectWithValue: string}
+  {rejectValue: string}
 >(
   'notifications/fetchForCompanion',
   async ({companionId}, {rejectWithValue}) => {
     try {
       await mockDelay(300);
-      // TODO: Replace with actual API call
+      // NOTE: Replace with actual API call when backend is ready
       // const response = await notificationService.fetchForCompanion(companionId);
       // return {companionId, notifications: response};
 
@@ -42,13 +38,13 @@ export const fetchNotificationsForCompanion = createAsyncThunk<
 export const createNotification = createAsyncThunk<
   Notification,
   CreateNotificationPayload,
-  {rejectWithValue: string}
+  {rejectValue: string}
 >(
   'notifications/create',
   async (payload, {rejectWithValue}) => {
     try {
       await mockDelay(300);
-      // TODO: Replace with actual API call
+      // NOTE: Replace with actual API call when backend is ready
       // const response = await notificationService.create(payload);
       // return response;
 
@@ -84,13 +80,13 @@ export const createNotification = createAsyncThunk<
 export const markNotificationAsRead = createAsyncThunk<
   {notificationId: string},
   {notificationId: string},
-  {rejectWithValue: string}
+  {rejectValue: string}
 >(
   'notifications/markAsRead',
   async ({notificationId}, {rejectWithValue}) => {
     try {
       await mockDelay(200);
-      // TODO: Replace with actual API call
+      // NOTE: Replace with actual API call when backend is ready
       // await notificationService.markAsRead(notificationId);
       return {notificationId};
     } catch (error) {
@@ -107,13 +103,13 @@ export const markNotificationAsRead = createAsyncThunk<
 export const markAllNotificationsAsRead = createAsyncThunk<
   {companionId: string},
   {companionId: string},
-  {rejectWithValue: string}
+  {rejectValue: string}
 >(
   'notifications/markAllAsRead',
   async ({companionId}, {rejectWithValue}) => {
     try {
       await mockDelay(300);
-      // TODO: Replace with actual API call
+      // NOTE: Replace with actual API call when backend is ready
       // await notificationService.markAllAsRead(companionId);
       return {companionId};
     } catch (error) {
@@ -130,13 +126,13 @@ export const markAllNotificationsAsRead = createAsyncThunk<
 export const deleteNotification = createAsyncThunk<
   {notificationId: string},
   {notificationId: string},
-  {rejectWithValue: string}
+  {rejectValue: string}
 >(
   'notifications/delete',
   async ({notificationId}, {rejectWithValue}) => {
     try {
       await mockDelay(200);
-      // TODO: Replace with actual API call
+      // NOTE: Replace with actual API call when backend is ready
       // await notificationService.delete(notificationId);
       return {notificationId};
     } catch (error) {
@@ -153,13 +149,13 @@ export const deleteNotification = createAsyncThunk<
 export const archiveNotification = createAsyncThunk<
   {notificationId: string},
   {notificationId: string},
-  {rejectWithValue: string}
+  {rejectValue: string}
 >(
   'notifications/archive',
   async ({notificationId}, {rejectWithValue}) => {
     try {
       await mockDelay(200);
-      // TODO: Replace with actual API call
+      // NOTE: Replace with actual API call when backend is ready
       // await notificationService.archive(notificationId);
       return {notificationId};
     } catch (error) {
@@ -176,13 +172,13 @@ export const archiveNotification = createAsyncThunk<
 export const clearAllNotifications = createAsyncThunk<
   void,
   void,
-  {rejectWithValue: string}
+  {rejectValue: string}
 >(
   'notifications/clearAll',
   async (_, {rejectWithValue}) => {
     try {
       await mockDelay(400);
-      // TODO: Replace with actual API call
+      // NOTE: Replace with actual API call when backend is ready
       // await notificationService.clearAll();
     } catch (error) {
       return rejectWithValue(

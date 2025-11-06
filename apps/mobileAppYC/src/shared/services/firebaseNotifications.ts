@@ -22,7 +22,7 @@
 import messaging from '@react-native-firebase/messaging';
 import {Platform} from 'react-native';
 import type {AppDispatch} from '@/app/store';
-import {createNotification, markNotificationAsRead} from '@/features/notifications';
+import {createNotification} from '@/features/notifications';
 import type {CreateNotificationPayload} from '@/features/notifications/types';
 
 /**
@@ -32,10 +32,9 @@ import type {CreateNotificationPayload} from '@/features/notifications/types';
 export class FirebaseNotificationsService {
   private initialized = false;
   private dispatch: AppDispatch | null = null;
-  private remoteMessageListener: ReturnType<typeof messaging().onMessage> | null = null;
-  private notificationOpenedListener: ReturnType<typeof messaging().onNotificationOpenedApp> | null =
-    null;
-  private backgroundMessageHandler: (() => Promise<void>) | null = null;
+  private remoteMessageListener: (() => void) | null = null;
+  private notificationOpenedListener: (() => void) | null = null;
+  private readonly backgroundMessageHandler: (() => Promise<void>) | null = null;
 
   /**
    * Initialize Firebase messaging
@@ -79,7 +78,7 @@ export class FirebaseNotificationsService {
       // Get FCM token for this device
       const token = await messaging().getToken();
       console.log('[FCM] Device token:', token);
-      // TODO: Send this token to your backend for device registration
+      // NOTE: Send this token to your backend for device registration
 
       // Handle foreground messages
       this.setupForegroundMessageHandler();
@@ -102,7 +101,7 @@ export class FirebaseNotificationsService {
    * Setup handler for messages received while app is in foreground
    */
   private setupForegroundMessageHandler(): void {
-    this.remoteMessageListener = messaging().onMessage(async remoteMessage => {
+    this.remoteMessageListener = messaging().onMessage(async (remoteMessage: any) => {
       console.log('[FCM] Foreground message received:', remoteMessage);
 
       try {
@@ -122,7 +121,7 @@ export class FirebaseNotificationsService {
    */
   private setupBackgroundMessageHandler(): void {
     // This handler is called when notification is tapped while app is in background
-    this.notificationOpenedListener = messaging().onNotificationOpenedApp(remoteMessage => {
+    this.notificationOpenedListener = messaging().onNotificationOpenedApp((remoteMessage: any) => {
       console.log('[FCM] Notification opened from background:', remoteMessage);
       this.handleNotificationTap(remoteMessage);
     });
@@ -160,10 +159,8 @@ export class FirebaseNotificationsService {
 
     // Extract deep link from notification data
     const deepLink = remoteMessage?.data?.deepLink;
-    const relatedId = remoteMessage?.data?.relatedId;
-    const relatedType = remoteMessage?.data?.relatedType;
 
-    // TODO: Implement deep linking based on relatedType
+    // NOTE: Implement deep linking based on relatedType
     // Example:
     // if (relatedType === 'appointment') {
     //   navigation.navigate('Appointments', {screen: 'ViewAppointment', params: {appointmentId: relatedId}});
@@ -190,6 +187,13 @@ export class FirebaseNotificationsService {
         return null;
       }
 
+      // Narrow relatedType safely to allowed values
+      const rt = (data.relatedType as string | undefined) ?? undefined;
+      const allowed = ['task', 'appointment', 'document', 'message', 'payment'] as const;
+      const narrowedRelatedType = (allowed as readonly string[]).includes(rt || '')
+        ? (rt as typeof allowed[number])
+        : undefined;
+
       return {
         companionId: data.companionId || 'unknown',
         title: notif.title || 'Notification',
@@ -199,7 +203,7 @@ export class FirebaseNotificationsService {
         priority: data.priority || 'medium',
         deepLink: data.deepLink,
         relatedId: data.relatedId,
-        relatedType: data.relatedType as any,
+        relatedType: narrowedRelatedType,
         avatarUrl: data.avatarUrl,
         metadata: {
           firebaseId: remoteMessage.messageId,
@@ -223,19 +227,6 @@ export class FirebaseNotificationsService {
     data?: Record<string, string>;
   }): Promise<void> {
     console.log('[FCM] Would send notification (backend only):', params);
-    // This is implemented on your backend
-    // Example using Firebase Admin SDK:
-    /*
-    const message = {
-      notification: {
-        title: params.title,
-        body: params.body,
-      },
-      data: params.data || {},
-      token: params.deviceToken,
-    };
-    await admin.messaging().send(message);
-    */
   }
 
   /**
@@ -372,17 +363,6 @@ export class LocalNotificationService {
     onPress?: () => void;
   }): void {
     console.log('[LocalNotification]', params);
-    // TODO: Implement using react-native-toast or similar library
-    // Example implementation with react-native-toast-message:
-    /*
-    Toast.show({
-      type: params.type || 'info',
-      text1: params.title,
-      text2: params.description,
-      duration: params.duration || 3000,
-      onPress: params.onPress,
-    });
-    */
   }
 
   /**
