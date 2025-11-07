@@ -12,6 +12,7 @@ import baseAvailabilityRouter from "./routers/base-availability.router";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import specialtyRouter from "./routers/speciality.router";
 import organisationRoomRouter from "./routers/organisation-room.router";
+import organisationInviteRouter from "./routers/organisation-invite.router";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -28,6 +29,7 @@ app.use(`/fhir/v1/user-profile`, userProfileRouter);
 app.use(`/fhir/v1/base-availability`, baseAvailabilityRouter);
 app.use(`/fhir/v1/speciality`, specialtyRouter);
 app.use(`/fhir/v1/organisation-room`, organisationRoomRouter);
+app.use(`/fhir/v1/organisation-invites`, organisationInviteRouter);
 
 let mongoUri: string;
 

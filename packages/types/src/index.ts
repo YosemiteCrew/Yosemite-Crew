@@ -148,3 +148,5 @@ export type {
   OperatingHourType,
   VetNameType,
 } from "./complete-vet-profile/complete-vet-profile";
+
+export type { OrganisationInvite, InviteStatus } from "./organisationInvite";
