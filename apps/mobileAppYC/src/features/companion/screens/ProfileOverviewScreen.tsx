@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
-import {NavigationProp} from '@react-navigation/native';
+import {NavigationProp, useFocusEffect, CommonActions} from '@react-navigation/native';
 import {useTheme} from '@/hooks';
 import {Header} from '@/shared/components/common/Header/Header';
 import {Images} from '@/assets/images';
@@ -95,6 +95,32 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
     }
   }, [companionId, dispatch]);
 
+  // When returning to this screen, reset the Tasks tab stack to its root
+  useFocusEffect(
+    React.useCallback(() => {
+      const tabNavigation = navigation.getParent<NavigationProp<TabParamList>>();
+      try {
+        const tabState = tabNavigation?.getState();
+        const tasksRoute: any = tabState?.routes?.find(r => r.name === 'Tasks');
+        const nestedState = tasksRoute?.state;
+        const targetKey = nestedState?.key; // key of the nested Tasks stack
+        if (targetKey) {
+          // Hard reset the nested Tasks stack to ensure TasksMain is the root
+          tabNavigation?.dispatch({
+            ...CommonActions.reset({
+              index: 0,
+              routes: [{name: 'TasksMain'}],
+            }),
+            target: targetKey as string,
+          });
+        }
+      } catch {
+        // no-op: if state isn't available yet, nothing to reset
+      }
+      return undefined;
+    }, [navigation])
+  );
+
   // Helper to show error alerts
   const showErrorAlert = React.useCallback((title: string, message: string) => {
     Alert.alert(title, message, [{text: 'OK'}]);
@@ -145,64 +171,59 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   };
 
   const handleSectionPress = (sectionId: string) => {
-    if (sectionId === 'overview') {
-      navigation.navigate('EditCompanionOverview', {companionId});
-    }
-    if (sectionId === 'parent') {
-      navigation.navigate('EditParentOverview', {companionId});
-    }
-    if (sectionId === 'documents') {
-      dispatch(setSelectedCompanion(companionId));
-      navigation.getParent()?.navigate('Documents', {
-        screen: 'DocumentsMain',
-      });
-    }
-    if (sectionId === 'hospital') {
+    const navigateToLinkedBusiness = (
+      category: 'hospital' | 'boarder' | 'breeder' | 'groomer',
+    ) =>
       navigation.navigate('LinkedBusinesses', {
         screen: 'BusinessSearch',
-        params: {companionId, companionName: companion?.name || '', companionBreed: companion?.breed?.breedName, companionImage: companion?.profileImage, category: 'hospital'},
+        params: {
+          companionId,
+          companionName: companion?.name || '',
+          companionBreed: companion?.breed?.breedName,
+          companionImage: companion?.profileImage,
+          category,
+        },
       } as any);
+
+    switch (sectionId) {
+      case 'overview':
+        navigation.navigate('EditCompanionOverview', {companionId});
+        break;
+      case 'parent':
+        navigation.navigate('EditParentOverview', {companionId});
+        break;
+      case 'documents':
+        dispatch(setSelectedCompanion(companionId));
+        navigation.getParent()?.navigate('Documents', {screen: 'DocumentsMain'});
+        break;
+      case 'hospital':
+      case 'boarder':
+      case 'breeder':
+      case 'groomer':
+        navigateToLinkedBusiness(sectionId);
+        break;
+      case 'expense':
+        dispatch(setSelectedCompanion(companionId));
+        navigation.navigate('ExpensesStack', {screen: 'ExpensesMain'});
+        break;
+      case 'health_tasks':
+        navigateToTasks('health');
+        break;
+      case 'hygiene_tasks':
+        navigateToTasks('hygiene');
+        break;
+      case 'dietary_plan':
+        navigateToTasks('dietary');
+        break;
+      case 'custom_tasks':
+        navigateToTasks('custom');
+        break;
+      case 'co_parent':
+        navigation.navigate('CoParents');
+        break;
+      default:
+        break;
     }
-    if (sectionId === 'boarder') {
-      navigation.navigate('LinkedBusinesses', {
-        screen: 'BusinessSearch',
-        params: {companionId, companionName: companion?.name || '', companionBreed: companion?.breed?.breedName, companionImage: companion?.profileImage, category: 'boarder'},
-      } as any);
-    }
-    if (sectionId === 'breeder') {
-      navigation.navigate('LinkedBusinesses', {
-        screen: 'BusinessSearch',
-        params: {companionId, companionName: companion?.name || '', companionBreed: companion?.breed?.breedName, companionImage: companion?.profileImage, category: 'breeder'},
-      } as any);
-    }
-    if (sectionId === 'groomer') {
-      navigation.navigate('LinkedBusinesses', {
-        screen: 'BusinessSearch',
-        params: {companionId, companionName: companion?.name || '', companionBreed: companion?.breed?.breedName, companionImage: companion?.profileImage, category: 'groomer'},
-      } as any);
-    }
-    if (sectionId === 'expense') {
-      dispatch(setSelectedCompanion(companionId));
-      navigation.navigate('ExpensesStack', {
-        screen: 'ExpensesMain',
-      });
-    }
-    if (sectionId === 'health_tasks') {
-      navigateToTasks('health');
-    }
-    if (sectionId === 'hygiene_tasks') {
-      navigateToTasks('hygiene');
-    }
-    if (sectionId === 'dietary_plan') {
-      navigateToTasks('dietary');
-    }
-    if (sectionId === 'custom_tasks') {
-      navigateToTasks('custom');
-    }
-    if (sectionId === 'co_parent') {
-      navigation.navigate('CoParents');
-    }
-    // Add logic for other sections here
   };
 
   const handleBackPress = () => {

@@ -178,6 +178,7 @@ export const EditAppointmentScreen: React.FC = () => {
               borderRadius={16}
               tintColor={theme.colors.secondary}
               shadowIntensity="medium"
+              textStyle={styles.confirmPrimaryButtonText}
             />
           }
         />
@@ -229,6 +230,11 @@ const createStyles = (theme: any) =>
       padding: theme.spacing[4],
       paddingBottom: theme.spacing[24],
       gap: theme.spacing[4],
+    },
+    confirmPrimaryButtonText: {
+      ...theme.typography.button,
+      color: theme.colors.white,
+      textAlign: 'center',
     },
   });
 

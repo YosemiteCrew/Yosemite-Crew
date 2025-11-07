@@ -106,6 +106,7 @@ export const ViewAppointmentScreen: React.FC = () => {
               borderRadius={16}
               tintColor={theme.colors.secondary}
               shadowIntensity="medium"
+              textStyle={styles.confirmPrimaryButtonText}
             />
           )}
           {apt.status === 'approved' && (
@@ -116,6 +117,7 @@ export const ViewAppointmentScreen: React.FC = () => {
               borderRadius={16}
               tintColor={theme.colors.secondary}
               shadowIntensity="medium"
+              textStyle={styles.confirmPrimaryButtonText}
             />
           )}
           {apt.status === 'paid' && (
@@ -124,8 +126,11 @@ export const ViewAppointmentScreen: React.FC = () => {
               onPress={() => dispatch(updateAppointmentStatus({appointmentId, status: 'completed'}))}
               height={56}
               borderRadius={16}
+              glassEffect="clear"
+              interactive
               tintColor={theme.colors.secondary}
               shadowIntensity="medium"
+              textStyle={styles.confirmPrimaryButtonText}
             />
           )}
 
@@ -137,11 +142,13 @@ export const ViewAppointmentScreen: React.FC = () => {
                   onPress={() => navigation.navigate('EditAppointment', {appointmentId})}
                   height={56}
                   borderRadius={16}
-                  tintColor="rgba(255,255,255,0.95)"
+                  glassEffect="clear"
+                  tintColor={theme.colors.surface}
                   forceBorder
-                  borderColor={theme.colors.border}
+                  borderColor={theme.colors.secondary}
                   textStyle={styles.secondaryButtonText}
-                  shadowIntensity="none"
+                  shadowIntensity="medium"
+                  interactive
                 />
               )}
               <LiquidGlassButton
@@ -149,11 +156,13 @@ export const ViewAppointmentScreen: React.FC = () => {
                 onPress={() => navigation.navigate('EditAppointment', {appointmentId, mode: 'reschedule'})}
                 height={56}
                 borderRadius={16}
-                tintColor="rgba(255,255,255,0.95)"
+                glassEffect="clear"
+                tintColor={theme.colors.surface}
                 forceBorder
-                borderColor={theme.colors.border}
+                borderColor={theme.colors.secondary}
                 textStyle={styles.secondaryButtonText}
-                shadowIntensity="none"
+                shadowIntensity="medium"
+                interactive
               />
               <LiquidGlassButton
                 title="Cancel Appointment"
@@ -273,13 +282,20 @@ const createStyles = (theme: any) => StyleSheet.create({
     gap: theme.spacing[3],
     marginTop: theme.spacing[2],
   },
+  confirmPrimaryButtonText: {
+    ...theme.typography.button,
+    color: theme.colors.white,
+    textAlign: 'center',
+  },
   secondaryButtonText: {
     ...theme.typography.titleSmall,
     color: theme.colors.secondary,
+    textAlign: 'center',
   },
   alertButtonText: {
     ...theme.typography.titleSmall,
     color: '#EF4444',
+    textAlign: 'center',
   },
 });
 
