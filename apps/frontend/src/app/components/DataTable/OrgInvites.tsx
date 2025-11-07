@@ -35,7 +35,7 @@ const demoData: InviteProps[] = [
   },
 ];
 
-const OrgInvites = (invites: any) => {
+const OrgInvites = ({invites}: any) => {
   const [data] = useState<InviteProps[]>(demoData);
 
   const columns: Column<InviteProps>[] = [

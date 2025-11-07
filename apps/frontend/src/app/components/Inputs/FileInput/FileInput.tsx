@@ -10,6 +10,7 @@ const FileInput = () => {
         type="file"
         style={{ display: "none" }}
         id="file-professioal-upload"
+        aria-label="Upload documents (optional)"
       />
       <label htmlFor="file-professioal-upload" className="file-input-label">
         <RiUploadCloud2Fill color="#000" size={40} />

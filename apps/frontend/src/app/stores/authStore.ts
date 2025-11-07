@@ -32,7 +32,8 @@ type AuthStore = {
   signUp: (
     email: string,
     password: string,
-    businessType: string
+    firstName: string,
+    lastName: string
   ) => Promise<ISignUpResult | undefined>;
   confirmSignUp: (
     email: string,
@@ -67,17 +68,17 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   error: null,
   role: null,
 
-  signUp: async (email, password, businessType) => {
+  signUp: async (email, password, firstName, lastName) => {
     if (!userPool) {
       throw new Error("UserPool is not initialized");
     }
     const attributeList = [
       new CognitoUserAttribute({ Name: "email", Value: email }),
       new CognitoUserAttribute({
-        Name: "custom:businessType",
-        Value: businessType,
+        Name: "given_name",
+        Value: firstName,
       }),
-      new CognitoUserAttribute({ Name: "custom:role", Value: "owner" }),
+      new CognitoUserAttribute({ Name: "family_name", Value: lastName }),
     ];
     return new Promise((resolve, reject) => {
       userPool.signUp(email, password, attributeList, [], (err, result) => {

@@ -7,6 +7,8 @@ import AppointmentStat from "@/app/components/Stats/AppointmentStat";
 import RevenueStat from "@/app/components/Stats/RevenueStat";
 import AppointmentLeadersStat from "@/app/components/Stats/AppointmentLeadersStat";
 import RevenueLeadersStat from "@/app/components/Stats/RevenueLeadersStat";
+import AppointmentTask from "@/app/components/Summary/AppointmentTask";
+import Availability from "@/app/components/Summary/Availability";
 
 import "./Dashboard.css";
 
@@ -24,6 +26,8 @@ const Dashboard = () => {
         <AppointmentLeadersStat />
         <RevenueLeadersStat />
       </div>
+      <AppointmentTask />
+      <Availability />
     </div>
   );
 };
