@@ -39,6 +39,7 @@ Object.defineProperty(globalThis, "IntersectionObserver", {
 });
 
 beforeAll(() => {
+  window.scrollTo = jest.fn();
   // Silence noisy logs but keep them visible locally by toggling with an env flag if you want
   jest.spyOn(console, 'log').mockImplementation(() => {});
 

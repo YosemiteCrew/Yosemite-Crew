@@ -75,6 +75,7 @@ const Dublicate: React.FC<DublicateProps> = ({ setAvailability, day }) => {
         size={20}
         className="availability-dublicate-icon"
         onClick={() => setOpen((e) => !e)}
+        aria-label="dublicate-button"
       />
       {open && (
         <div className="availability-dublicate-dropdown">
