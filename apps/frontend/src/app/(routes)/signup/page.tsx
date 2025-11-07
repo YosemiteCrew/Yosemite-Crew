@@ -11,7 +11,7 @@ function Page() {
 
   useEffect(() => {
     if (user) {
-      router.push("/organizations");
+      router.push("/create-org");
     }
   }, [user, router]);
 
