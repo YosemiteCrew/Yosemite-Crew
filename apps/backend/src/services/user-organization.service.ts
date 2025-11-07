@@ -3,6 +3,7 @@ import UserOrganizationModel, {
     type UserOrganizationDocument,
     type UserOrganizationMongo,
 } from '../models/user-organization'
+import OrganizationModel, { type OrganizationMongo } from '../models/organization'
 import {
     fromUserOrganizationRequestDTO,
     toUserOrganizationResponseDTO,
@@ -20,6 +21,27 @@ export class UserOrganizationServiceError extends Error {
         this.name = 'UserOrganizationServiceError'
     }
 }
+
+const ORGANIZATION_ROLE_MAP: Record<OrganizationMongo['type'], readonly string[]> = {
+    HOSPITAL: ['Owner', 'Vet', 'Vet Technician', 'Vet Assistant', 'Receptionist'],
+    BREEDER: ['Owner', 'Breeding Supervisor', 'Breeding Assistant', 'Receptionist'],
+    GROOMER: ['Owner', 'Grooming Supervisor', 'Groomer', 'Receptionist'],
+    BOARDER: ['Owner', 'Boarding Supervisor', 'Boarding Attendant', 'Receptionist'],
+} as const
+
+const normalizeRoleCode = (value: string): string => value.trim().toLowerCase()
+
+const ORGANIZATION_ROLE_LOOKUP = Object.entries(ORGANIZATION_ROLE_MAP).reduce<
+    Record<OrganizationMongo['type'], Set<string>>
+>((acc, [type, roles]) => {
+    acc[type as OrganizationMongo['type']] = new Set(roles.map((role) => normalizeRoleCode(role)))
+    return acc
+}, {
+    HOSPITAL: new Set(),
+    BREEDER: new Set(),
+    GROOMER: new Set(),
+    BOARDER: new Set(),
+})
 
 const pruneUndefined = <T>(value: T): T => {
     if (Array.isArray(value)) {
@@ -113,6 +135,66 @@ const ensureSafeIdentifier = (value: unknown): string | undefined => {
     return identifier
 }
 
+const extractOrganizationIdentifier = (reference: string): string => {
+    const trimmed = reference.trim()
+
+    if (!trimmed) {
+        throw new UserOrganizationServiceError('Organization reference cannot be empty.', 400)
+    }
+
+    const segments = trimmed.split('/').filter(Boolean)
+
+    if (!segments.length) {
+        throw new UserOrganizationServiceError('Invalid organization reference format.', 400)
+    }
+
+    const lastSegment = segments.at(-1)
+
+    if (!lastSegment || lastSegment.toLowerCase() === 'organization') {
+        throw new UserOrganizationServiceError('Invalid organization reference format.', 400)
+    }
+
+    return lastSegment
+}
+
+const buildOrganizationLookupQuery = (reference: string) => {
+    const identifier = extractOrganizationIdentifier(reference)
+    const queries: Array<Record<string, string>> = []
+
+    if (Types.ObjectId.isValid(identifier)) {
+        queries.push({ _id: identifier })
+    }
+
+    if (/^[A-Za-z0-9\-.]{1,64}$/.test(identifier)) {
+        queries.push({ fhirId: identifier })
+    }
+
+    if (!queries.length) {
+        throw new UserOrganizationServiceError('Invalid organization reference format.', 400)
+    }
+
+    return queries.length === 1 ? queries[0] : { $or: queries }
+}
+
+const ensureRoleSupportedForOrganization = async (organizationReference: string, roleCode: string) => {
+    const query = buildOrganizationLookupQuery(organizationReference)
+    const organization = await OrganizationModel.findOne(query).setOptions({ sanitizeFilter: true })
+
+    if (!organization) {
+        throw new UserOrganizationServiceError('Referenced organization not found.', 404)
+    }
+
+    const allowedRoles = ORGANIZATION_ROLE_LOOKUP[organization.type] ?? new Set<string>()
+    const normalizedRoleCode = normalizeRoleCode(roleCode)
+
+    if (!allowedRoles.has(normalizedRoleCode)) {
+        throw new UserOrganizationServiceError(
+            `Role "${roleCode}" is not allowed for ${organization.type.toLowerCase()} organizations.`,
+            400
+        )
+    }
+}
+
 const sanitizeUserOrganizationAttributes = (
     dto: UserOrganizationDTOAttributes
 ): UserOrganizationMongo => {
@@ -148,7 +230,7 @@ const buildUserOrganizationDomain = (document: UserOrganizationDocument): UserOr
 }
 
 const createPersistableFromFHIR = (payload: UserOrganizationFHIRPayload) => {
-    if (!payload || payload.resourceType !== 'PractitionerRole') {
+    if (payload?.resourceType !== 'PractitionerRole') {
         throw new UserOrganizationServiceError(
             'Invalid payload. Expected FHIR PractitionerRole resource.',
             400
@@ -240,6 +322,7 @@ const buildReferenceLookups = (id: unknown): ReferenceLookup[] => {
 export const UserOrganizationService = {
     async upsert(payload: UserOrganizationFHIRPayload) {
         const { persistable } = createPersistableFromFHIR(payload)
+        await ensureRoleSupportedForOrganization(persistable.organizationReference, persistable.roleCode)
 
         const id = ensureSafeIdentifier(payload.id ?? persistable.fhirId)
         let document: UserOrganizationDocument | null = null
@@ -285,6 +368,7 @@ export const UserOrganizationService = {
 
     async create(payload: UserOrganizationFHIRPayload) {
         const { persistable } = createPersistableFromFHIR(payload)
+        await ensureRoleSupportedForOrganization(persistable.organizationReference, persistable.roleCode)
 
         const document = await UserOrganizationModel.create(persistable)
         const mapping = buildUserOrganizationDomain(document)
@@ -346,6 +430,7 @@ export const UserOrganizationService = {
 
     async update(id: string, payload: UserOrganizationFHIRPayload) {
         const { persistable } = createPersistableFromFHIR(payload)
+        await ensureRoleSupportedForOrganization(persistable.organizationReference, persistable.roleCode)
 
         const document = await UserOrganizationModel.findOneAndUpdate(
             resolveStrictIdQuery(id, 'identifier'),
@@ -360,4 +445,17 @@ export const UserOrganizationService = {
         const mapping = buildUserOrganizationDomain(document)
         return toUserOrganizationResponseDTO(mapping)
     },
+
+    async createUserOrganizationMapping(userOrganisation: UserOrganization){
+        const document = await UserOrganizationModel.create(userOrganisation)
+        if (!document) {
+            throw new UserOrganizationServiceError('Unable to create user-organization mapping.', 500)
+        }
+    },
+    
+    async deleteAllByOrganizationId(organisationId: string) {
+        const orgId = requireSafeString(organisationId, 'Organization Identifier')
+
+        await UserOrganizationModel.deleteMany({ organizationReference: orgId }).exec()
+    }, 
 }
