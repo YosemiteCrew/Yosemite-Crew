@@ -3,7 +3,8 @@
  */
 
 import { AppRegistry } from 'react-native';
-import messaging from '@react-native-firebase/messaging';
+import { getApp } from '@react-native-firebase/app';
+import { getMessaging, setBackgroundMessageHandler } from '@react-native-firebase/messaging';
 import notifee from '@notifee/react-native';
 import App from './App';
 import { name as appName } from './app.json';
@@ -12,7 +13,9 @@ import {
   handleNotificationBackgroundEvent,
 } from './src/shared/services/firebaseNotifications';
 
-messaging().setBackgroundMessageHandler(handleBackgroundRemoteMessage);
+const messagingInstance = getMessaging(getApp());
+
+setBackgroundMessageHandler(messagingInstance, handleBackgroundRemoteMessage);
 notifee.onBackgroundEvent(handleNotificationBackgroundEvent);
 
 AppRegistry.registerComponent(appName, () => App);

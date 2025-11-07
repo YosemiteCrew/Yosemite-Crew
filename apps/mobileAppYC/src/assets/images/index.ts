@@ -113,6 +113,8 @@ downloadInvoice: require('./icons/downloadInvoice.png'),
   doc2: require('./appointment/doc2.png'),
   doc3: require('./appointment/doc3.png'),
   sampleInvoice: require('./appointment/sampleInvoice.png'),
+  starOutline: require('./appointment/starOutline.png'),
+  starSolid: require('./appointment/starSolid.png'),
 
   navigation: {
     home: {
