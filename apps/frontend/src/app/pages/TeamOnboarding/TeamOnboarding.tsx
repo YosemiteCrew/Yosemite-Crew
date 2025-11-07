@@ -30,8 +30,10 @@ const TeamSteps: StepContent[] = [
 const TeamOnboarding = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [formData, setFormData] = useState({
-    name: "",
+    firstName: "",
+    lastName: "",
     dob: "",
+    gender: "male",
     country: "",
     number: "",
     address: "",

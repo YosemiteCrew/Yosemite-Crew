@@ -3,7 +3,7 @@
   background: var(--whitebg) !important;
   border: 1px solid var(--lightgrey) !important;
   border-radius: 24px !important;
-  padding: 24px !important;
+  padding: 24px 20px !important;
   vertical-align: middle !important;
   margin: 0 !important;
   width: 100%;
@@ -12,7 +12,7 @@
 }
 .TableDiv thead tr th,
 .TableDiv tbody tr td {
-  padding: 16px 18px;
+  padding: 12px 12px;
   vertical-align: middle;
   border-bottom: 1px solid var(--lightgrey);
 }
@@ -83,4 +83,14 @@
 }
 .custom-pagination p span {
   font-weight: 700;
+}
+
+@media screen and (max-width: 1440px) {
+  .TableDiv {
+    padding: 14px 10px !important;
+  }
+  .TableDiv thead tr th,
+  .TableDiv tbody tr td {
+    padding: 8px 8px !important;
+  }
 }
