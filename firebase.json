@@ -1,0 +1,11 @@
+{
+  "react-native": {
+    "messaging_android_notification_channel_id": "yc_general_notifications",
+    "messaging_ios_foreground_presentation_options": [
+      "badge",
+      "sound",
+      "list",
+      "banner"
+    ]
+  }
+}

@@ -21,6 +21,8 @@ const initialState: NotificationsState = {
   sortBy: 'new',
 };
 
+export const notificationsInitialState = initialState;
+
 export const notificationSlice = createSlice({
   name: 'notifications',
   initialState,

@@ -27,6 +27,64 @@ import {AdministrationMethodBottomSheet, type AdministrationMethodBottomSheetRef
 import type {DocumentFile} from '@/features/documents/types';
 import {createCommonFormStyles} from '@/shared/styles/commonFormStyles';
 
+type Step5FormData = {
+  productName: string;
+  brandName: string;
+  manufacturingCountry: null | {
+    name: string;
+    code: string;
+    flag: string;
+    dial_code: string;
+  };
+  batchNumber: string;
+  frequencyUsed: string;
+  quantityUsed: string;
+  quantityUnit: 'tablet' | 'liquid';
+  administrationMethod:
+    | null
+    | 'none'
+    | 'by mouth'
+    | 'on the skin'
+    | 'subcutaneous injection'
+    | 'intramuscular injection'
+    | 'into the ear'
+    | 'into the eye'
+    | 'other';
+  reasonToUseProduct: string;
+  petConditionBefore: string;
+  petConditionAfter: string;
+  eventDate: Date;
+  files: DocumentFile[];
+};
+
+type Step5FormErrors = {
+  productName: string;
+  brandName: string;
+  manufacturingCountry: string;
+  batchNumber: string;
+  frequencyUsed: string;
+  quantityUsed: string;
+  administrationMethod: string;
+  reasonToUseProduct: string;
+  petConditionBefore: string;
+  petConditionAfter: string;
+  files: string;
+};
+
+const createInitialErrors = (): Step5FormErrors => ({
+  productName: '',
+  brandName: '',
+  manufacturingCountry: '',
+  batchNumber: '',
+  frequencyUsed: '',
+  quantityUsed: '',
+  administrationMethod: '',
+  reasonToUseProduct: '',
+  petConditionBefore: '',
+  petConditionAfter: '',
+  files: '',
+});
+
 type Props = NativeStackScreenProps<AdverseEventStackParamList, 'Step5'>;
 
 export const Step5Screen: React.FC<Props> = ({navigation}) => {
@@ -34,35 +92,24 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const common = useMemo(() => createCommonFormStyles(theme), [theme]);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<Step5FormData>({
     productName: '',
     brandName: '',
-    manufacturingCountry: null as null | {
-      name: string;
-      code: string;
-      flag: string;
-      dial_code: string;
-    },
+    manufacturingCountry: null,
     batchNumber: '',
     frequencyUsed: '',
     quantityUsed: '',
-    quantityUnit: 'tablet' as 'tablet' | 'liquid',
-    administrationMethod: null as
-      | null
-      | 'none'
-      | 'by mouth'
-      | 'on the skin'
-      | 'subcutaneous injection'
-      | 'intramuscular injection'
-      | 'into the ear'
-      | 'into the eye'
-      | 'other',
+    quantityUnit: 'tablet',
+    administrationMethod: null,
     reasonToUseProduct: '',
     petConditionBefore: '',
     petConditionAfter: '',
     eventDate: new Date(),
-    files: [] as DocumentFile[],
+    files: [],
   });
+  const [formErrors, setFormErrors] = useState<Step5FormErrors>(() =>
+    createInitialErrors(),
+  );
 
   const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -81,6 +128,102 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
   }, [registerSheet]);
 
   // File operations (reuse same handlers as Documents flow)
+  const clearFieldError = (field: keyof Step5FormErrors) => {
+    setFormErrors(prev => {
+      if (!prev[field]) {
+        return prev;
+      }
+      return {...prev, [field]: ''};
+    });
+  };
+
+  const validateForm = () => {
+    const nextErrors = createInitialErrors();
+    let hasError = false;
+
+    const ensureText = (
+      value: string,
+      field: keyof Step5FormErrors,
+      message: string,
+    ) => {
+      if (!value.trim()) {
+        nextErrors[field] = message;
+        hasError = true;
+      }
+    };
+
+    const ensurePositiveNumber = (
+      value: string,
+      field: keyof Step5FormErrors,
+      emptyMessage: string,
+    ) => {
+      if (!value.trim()) {
+        nextErrors[field] = emptyMessage;
+        hasError = true;
+        return;
+      }
+
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed) || parsed <= 0) {
+        nextErrors[field] = 'Enter a value greater than 0';
+        hasError = true;
+      }
+    };
+
+    ensureText(
+      formData.productName,
+      'productName',
+      'Product name is required',
+    );
+    ensureText(formData.brandName, 'brandName', 'Brand name is required');
+
+    if (!formData.manufacturingCountry) {
+      nextErrors.manufacturingCountry = 'Select Manufacturing Country';
+      hasError = true;
+    }
+
+    ensureText(formData.batchNumber, 'batchNumber', 'Batch number is required');
+    ensurePositiveNumber(
+      formData.frequencyUsed,
+      'frequencyUsed',
+      'Enter how often the product was used',
+    );
+    ensurePositiveNumber(
+      formData.quantityUsed,
+      'quantityUsed',
+      'Enter the quantity used',
+    );
+
+    if (!formData.administrationMethod) {
+      nextErrors.administrationMethod = 'Select how the product was administered';
+      hasError = true;
+    }
+
+    ensureText(
+      formData.reasonToUseProduct,
+      'reasonToUseProduct',
+      'Tell us why the product was used',
+    );
+    ensureText(
+      formData.petConditionBefore,
+      'petConditionBefore',
+      'Describe the pet condition before usage',
+    );
+    ensureText(
+      formData.petConditionAfter,
+      'petConditionAfter',
+      'Describe the pet condition after usage',
+    );
+
+    if (formData.files.length === 0) {
+      nextErrors.files = 'Upload at least one product image';
+      hasError = true;
+    }
+
+    setFormErrors(nextErrors);
+    return !hasError;
+  };
+
   const {
     fileToDelete,
     handleTakePhoto,
@@ -90,14 +233,20 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
     confirmDeleteFile,
   } = useFileOperations<DocumentFile>({
     files: formData.files,
-    setFiles: files => setFormData(prev => ({...prev, files})),
-    clearError: () => undefined,
+    setFiles: files => {
+      setFormData(prev => ({...prev, files}));
+      clearFieldError('files');
+    },
+    clearError: () => clearFieldError('files'),
     openSheet,
     closeSheet,
     deleteSheetRef,
   });
 
   const handleSubmit = () => {
+    if (!validateForm()) {
+      return;
+    }
     navigation.navigate('ThankYou');
   };
 
@@ -113,15 +262,23 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
         <Input
           label="Product name"
           value={formData.productName}
-          onChangeText={text => setFormData({...formData, productName: text})}
+          onChangeText={text => {
+            setFormData(prev => ({...prev, productName: text}));
+            clearFieldError('productName');
+          }}
           containerStyle={styles.input}
+          error={formErrors.productName}
         />
 
         <Input
           label="Brand name"
           value={formData.brandName}
-          onChangeText={text => setFormData({...formData, brandName: text})}
+          onChangeText={text => {
+            setFormData(prev => ({...prev, brandName: text}));
+            clearFieldError('brandName');
+          }}
           containerStyle={styles.input}
+          error={formErrors.brandName}
         />
 
         <TouchableInput
@@ -134,28 +291,41 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
           }}
           rightComponent={<Image source={Images.dropdownIcon} style={common.dropdownIcon} />}
           containerStyle={styles.input}
+          error={formErrors.manufacturingCountry}
         />
 
         <Input
           label="Batch number"
           value={formData.batchNumber}
-          onChangeText={text => setFormData({...formData, batchNumber: text})}
+          onChangeText={text => {
+            setFormData(prev => ({...prev, batchNumber: text}));
+            clearFieldError('batchNumber');
+          }}
           containerStyle={styles.input}
+          error={formErrors.batchNumber}
         />
 
         <Input
           label="Number of times product used"
           value={formData.frequencyUsed}
-          onChangeText={text => setFormData({...formData, frequencyUsed: text})}
+          onChangeText={text => {
+            setFormData(prev => ({...prev, frequencyUsed: text}));
+            clearFieldError('frequencyUsed');
+          }}
           keyboardType="numeric"
           containerStyle={styles.input}
+          error={formErrors.frequencyUsed}
         />
 
         <Input
           label="Quantity used"
           value={formData.quantityUsed}
-          onChangeText={text => setFormData({...formData, quantityUsed: text})}
+          onChangeText={text => {
+            setFormData(prev => ({...prev, quantityUsed: text}));
+            clearFieldError('quantityUsed');
+          }}
           containerStyle={styles.input}
+          error={formErrors.quantityUsed}
         />
 
         <View style={styles.checkboxRow}>
@@ -188,36 +358,43 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
           }}
           rightComponent={<Image source={Images.dropdownIcon} style={common.dropdownIcon} />}
           containerStyle={styles.input}
+          error={formErrors.administrationMethod}
         />
 
         <Input
           label="Reason to use the product."
           value={formData.reasonToUseProduct}
-          onChangeText={text =>
-            setFormData({...formData, reasonToUseProduct: text})
-          }
+          onChangeText={text => {
+            setFormData(prev => ({...prev, reasonToUseProduct: text}));
+            clearFieldError('reasonToUseProduct');
+          }}
           multiline
           containerStyle={styles.input}
+          error={formErrors.reasonToUseProduct}
         />
 
         <Input
           label="Pet condition before drug"
           value={formData.petConditionBefore}
-          onChangeText={text =>
-            setFormData({...formData, petConditionBefore: text})
-          }
+          onChangeText={text => {
+            setFormData(prev => ({...prev, petConditionBefore: text}));
+            clearFieldError('petConditionBefore');
+          }}
           multiline
           containerStyle={styles.input}
+          error={formErrors.petConditionBefore}
         />
 
         <Input
           label="Pet condition after drug"
           value={formData.petConditionAfter}
-          onChangeText={text =>
-            setFormData({...formData, petConditionAfter: text})
-          }
+          onChangeText={text => {
+            setFormData(prev => ({...prev, petConditionAfter: text}));
+            clearFieldError('petConditionAfter');
+          }}
           multiline
           containerStyle={styles.input}
+          error={formErrors.petConditionAfter}
         />
 
         <View style={styles.uploadSection}>
@@ -227,12 +404,14 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
           <DocumentAttachmentsSection
             files={formData.files}
             onAddPress={() => {
+              clearFieldError('files');
               openSheet('upload');
               uploadSheetRef.current?.open();
             }}
             onRequestRemove={file => handleRemoveFile(file.id)}
             emptyTitle="Upload image"
             emptySubtitle={'Only PNG, JPEG, PDF\nmax size 5 MB'}
+            error={formErrors.files}
           />
         </View>
 
@@ -249,7 +428,7 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
       <SimpleDatePicker
         value={formData.eventDate}
         onDateChange={date => {
-          setFormData({...formData, eventDate: date});
+          setFormData(prev => ({...prev, eventDate: date}));
           setShowDatePicker(false);
         }}
         show={showDatePicker}
@@ -264,6 +443,7 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
         selectedCountry={formData.manufacturingCountry as any}
         onSave={country => {
           setFormData(prev => ({...prev, manufacturingCountry: country}));
+          clearFieldError('manufacturingCountry');
           closeSheet();
         }}
       />
@@ -273,6 +453,7 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
         selectedMethod={formData.administrationMethod}
         onSave={method => {
           setFormData(prev => ({...prev, administrationMethod: method}));
+          clearFieldError('administrationMethod');
           closeSheet();
         }}
       />

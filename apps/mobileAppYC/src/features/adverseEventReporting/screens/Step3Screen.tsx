@@ -20,10 +20,21 @@ export const Step3Screen: React.FC<Props> = ({navigation}) => {
   const [selectedBusinessId, setSelectedBusinessId] = useState<string | null>(
     null,
   );
+  const [error, setError] = useState('');
 
   const handleNext = () => {
-    if (selectedBusinessId) {
-      navigation.navigate('Step4');
+    if (!selectedBusinessId) {
+      setError('Select a hospital to continue');
+      return;
+    }
+
+    navigation.navigate('Step4');
+  };
+
+  const handleBusinessSelect = (id: string) => {
+    setSelectedBusinessId(id);
+    if (error) {
+      setError('');
     }
   };
 
@@ -31,7 +42,11 @@ export const Step3Screen: React.FC<Props> = ({navigation}) => {
     <AERLayout
       stepLabel="Step 3 of 5"
       onBack={() => navigation.goBack()}
-      bottomButton={{ title: 'Next', onPress: handleNext, disabled: !selectedBusinessId, textStyleOverride: styles.buttonText }}
+      bottomButton={{
+        title: 'Next',
+        onPress: handleNext,
+        textStyleOverride: styles.buttonText,
+      }}
     >
       <Text style={styles.title}>Select Linked Hospital</Text>
 
@@ -42,13 +57,14 @@ export const Step3Screen: React.FC<Props> = ({navigation}) => {
         renderItem={({item}) => (
           <LinkedBusinessCard
             business={item}
-            onPress={() => setSelectedBusinessId(item.id)}
+            onPress={() => handleBusinessSelect(item.id)}
             showActionButtons={false}
             showBorder={selectedBusinessId === item.id}
           />
         )}
         contentContainerStyle={styles.listContent}
       />
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
     </AERLayout>
   );
 };
@@ -66,5 +82,11 @@ const createStyles = (theme: any) =>
     buttonText: {
       color: theme.colors.white,
       ...theme.typography.paragraphBold,
+    },
+    errorText: {
+      ...theme.typography.labelXsBold,
+      color: theme.colors.error,
+      marginTop: theme.spacing[1],
+      marginLeft: theme.spacing[1],
     },
   });

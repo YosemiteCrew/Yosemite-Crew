@@ -204,9 +204,11 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
               title={loading ? 'Adding...' : 'Add'}
               onPress={handleAddBusiness}
               disabled={loading}
+              glassEffect="clear"
               height={56}
               borderRadius={16}
               tintColor={theme.colors.secondary}
+              textStyle={styles.buttonText}
               shadowIntensity="medium"
               forceBorder
               borderColor={theme.colors.borderMuted}
@@ -217,9 +219,11 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
               title="Notify Business"
               onPress={handleNotifyPress}
               disabled={fetchingDetails}
+              glassEffect="clear"
               height={56}
               borderRadius={16}
               tintColor={theme.colors.secondary}
+              textStyle={styles.buttonText}
               shadowIntensity="medium"
               forceBorder
               borderColor={theme.colors.borderMuted}
@@ -308,5 +312,9 @@ const createStyles = (theme: any) =>
     buttonContainer: {
       marginTop: theme.spacing[6],
       marginBottom: theme.spacing[4],
+    },
+    buttonText: {
+      ...theme.typography.cta,
+      color: theme.colors.white,
     },
   });

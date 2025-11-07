@@ -21,6 +21,7 @@ export const Step1Screen: React.FC<Props> = ({ navigation }) => {
   const [selectedCompanionId, setSelectedCompanionId] = useState<string | null>(null);
   const [reporterType, setReporterType] = useState<'parent' | 'guardian'>('parent');
   const [agreeToTerms, setAgreeToTerms] = useState(false);
+  const [termsError, setTermsError] = useState('');
 
   // Set the globally selected companion as default when component mounts
   useEffect(() => {
@@ -30,19 +31,33 @@ export const Step1Screen: React.FC<Props> = ({ navigation }) => {
   }, [globalSelectedCompanionId, selectedCompanionId]);
 
   const handleNext = () => {
-    if (!selectedCompanionId || !agreeToTerms) {
+    if (!selectedCompanionId) {
+      return;
+    }
+
+    if (!agreeToTerms) {
+      setTermsError('Accept the terms to continue');
       return;
     }
     navigation.navigate('Step2');
   };
 
-  const isFormValid = selectedCompanionId && agreeToTerms;
+  const isCompanionSelected = !!selectedCompanionId;
+  const handleToggleTerms = () => {
+    setAgreeToTerms(prev => {
+      const nextValue = !prev;
+      if (nextValue && termsError) {
+        setTermsError('');
+      }
+      return nextValue;
+    });
+  };
 
   return (
     <AERLayout
       stepLabel="Step 1 of 5"
       onBack={() => navigation.goBack()}
-      bottomButton={{ title: 'Next', onPress: handleNext, disabled: !isFormValid }}
+      bottomButton={{ title: 'Next', onPress: handleNext, disabled: !isCompanionSelected }}
     >
       <Image source={Images.adverse2} style={styles.heroImage} />
 
@@ -86,15 +101,24 @@ export const Step1Screen: React.FC<Props> = ({ navigation }) => {
 
       <View style={styles.checkboxSection}>
         <Text style={styles.beforeProceed}>Before you proceed</Text>
-        <View style={styles.consentRow}>
+        <TouchableOpacity
+          style={styles.consentRow}
+          activeOpacity={0.9}
+          onPress={handleToggleTerms}
+          accessibilityRole="checkbox"
+          accessibilityState={{checked: agreeToTerms}}
+        >
           <Checkbox
             value={agreeToTerms}
-            onValueChange={setAgreeToTerms}
+            onValueChange={() => {
+              handleToggleTerms();
+            }}
           />
           <Text style={styles.consentText}>
             I agree to Yosemite Crew’s <Text style={styles.consentLink}>terms and conditions</Text> and <Text style={styles.consentLink}>privacy policy</Text>
           </Text>
-        </View>
+        </TouchableOpacity>
+        {termsError ? <Text style={styles.errorText}>{termsError}</Text> : null}
       </View>
     </AERLayout>
   );
@@ -196,5 +220,10 @@ const createStyles = (theme: any) =>
     consentLink: {
       ...theme.typography.paragraphBold,
       color: theme.colors.textTertiary,
+    },
+    errorText: {
+      ...theme.typography.labelXsBold,
+      color: theme.colors.error,
+      marginLeft: theme.spacing[1],
     },
   });

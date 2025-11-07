@@ -208,6 +208,7 @@ alertIcon: require('./icons/alertIcon.png'),
 calendarIconNotification: require('./icons/calendar.png'),
 syringeIcon: require('./icons/syringeIcon.png'),
 
+emptyNotifications: require('./notification/emptyNotifications.png'),
   // Support & Help
   contactHero: require('./support/contactHero.png'),
 } as const;

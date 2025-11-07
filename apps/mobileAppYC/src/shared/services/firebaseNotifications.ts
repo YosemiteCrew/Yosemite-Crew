@@ -1,415 +1,562 @@
-/**
- * Firebase Cloud Messaging Service
- * Handles push notifications and in-app notifications
- *
- * SETUP REQUIRED:
- * 1. Install firebase messaging:
- *    npm install @react-native-firebase/messaging
- *
- * 2. Update your google-services.json (Android) with Cloud Messaging API enabled
- *
- * 3. Configure APNs certificate in Firebase Console for iOS
- *
- * 4. Add these permissions to AndroidManifest.xml:
- *    <uses-permission android:name="com.google.android.c2dm.permission.RECEIVE" />
- *    <uses-permission android:name="android.permission.WAKE_LOCK" />
- *
- * 5. Add these to ios/Podfile:
- *    platform :ios, '11.0'  # Minimum required for FCM
- *    pod 'Firebase/Messaging'
- */
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import messaging from '@react-native-firebase/messaging';
-import {Platform} from 'react-native';
+import notifee, {
+  AndroidImportance,
+  AndroidVisibility,
+  AuthorizationStatus,
+  EventType,
+  TimeUnit,
+  TriggerType,
+  type Event,
+} from '@notifee/react-native';
 import type {AppDispatch} from '@/app/store';
-import {createNotification} from '@/features/notifications';
-import type {CreateNotificationPayload} from '@/features/notifications/types';
+import {createNotification, addNotificationToList} from '@/features/notifications';
+import type {
+  CreateNotificationPayload,
+  NotificationCategory,
+  NotificationPriority,
+} from '@/features/notifications/types';
+import {PermissionsAndroid, Platform} from 'react-native';
+
+const ANDROID_CHANNEL_ID = 'yc_general_notifications';
+const ANDROID_CHANNEL_NAME = 'Yosemite Crew';
+const PENDING_INTENT_STORAGE_KEY = '@yc/pending-notification-intent';
+const DEFAULT_FALLBACK_COMPANION_ID = 'default-companion';
+
+type DataRecord = Record<string, string>;
+type RemoteMessage = {
+  messageId?: string;
+  data?: Record<string, unknown> | null;
+  notification?: {
+    title?: string;
+    body?: string;
+  };
+};
+
+export type NotificationNavigationIntent = {
+  root?: 'Main' | 'Auth' | 'Onboarding';
+  tab?: 'HomeStack' | 'Appointments' | 'Documents' | 'Tasks';
+  stackScreen?: string;
+  params?: Record<string, unknown>;
+  deepLink?: string;
+};
+
+type InitializeOptions = {
+  dispatch: AppDispatch;
+  onNavigate: (intent: NotificationNavigationIntent) => void;
+  /**
+   * Optional callback anytime a fresh FCM token is generated.
+   * Useful for syncing to backend device registry.
+   */
+  onTokenUpdate?: (token: string) => Promise<void> | void;
+};
+
+let listenersConfigured = false;
+let cachedDispatch: AppDispatch | null = null;
+let navigationHandler: ((intent: NotificationNavigationIntent) => void) | null = null;
 
 /**
- * Firebase Notifications Service
- * Handles all push notification functionality
+ * Initializes Firebase Cloud Messaging + Notifee orchestration.
+ * Should be called once after Redux store and navigation are ready.
  */
-export class FirebaseNotificationsService {
-  private initialized = false;
-  private dispatch: AppDispatch | null = null;
-  private remoteMessageListener: (() => void) | null = null;
-  private notificationOpenedListener: (() => void) | null = null;
-  private readonly backgroundMessageHandler: (() => Promise<void>) | null = null;
+export async function initializeNotifications(options: InitializeOptions): Promise<void> {
+  if (listenersConfigured && cachedDispatch) {
+    navigationHandler = options.onNavigate;
+    cachedDispatch = options.dispatch;
+    return;
+  }
 
-  /**
-   * Initialize Firebase messaging
-   * Call this in your app's main App component or after auth is established
-   */
-  async initialize(dispatch: AppDispatch): Promise<void> {
-    if (this.initialized) {
-      console.log('[FCM] Already initialized');
-      return;
-    }
+  cachedDispatch = options.dispatch;
+  navigationHandler = options.onNavigate;
 
-    this.dispatch = dispatch;
+  await ensurePermissions();
+  await messaging().registerDeviceForRemoteMessages();
+  await messaging().setAutoInitEnabled(true);
+  await ensureAndroidChannel();
 
-    try {
-      console.log('[FCM] Initializing Firebase Cloud Messaging');
-
-      // Request user permission (iOS only requires explicit permission, Android is automatic)
-      if (Platform.OS === 'ios') {
-        const authStatus = await messaging().requestUserPermission({
-          alert: true,
-          badge: true,
-          sound: true,
-          provisional: false,
-        });
-
-        const enabled =
-          authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-          authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-
-        console.log('[FCM] iOS notification permission:', {
-          status: authStatus,
-          enabled,
-        });
-
-        if (!enabled) {
-          console.warn('[FCM] iOS notification permission denied');
-          return;
-        }
-      }
-
-      // Get FCM token for this device
-      const token = await messaging().getToken();
-      console.log('[FCM] Device token:', token);
-      // NOTE: Send this token to your backend for device registration
-
-      // Handle foreground messages
-      this.setupForegroundMessageHandler();
-
-      // Handle notification opened while app was in background
-      this.setupBackgroundMessageHandler();
-
-      // Handle initial notification if app was opened from notification
-      this.handleInitialNotification();
-
-      this.initialized = true;
-      console.log('[FCM] Initialization complete');
-    } catch (error) {
-      console.error('[FCM] Initialization failed:', error);
+  let initialToken: string | null = null;
+  try {
+    initialToken = await messaging().getToken();
+  } catch (error) {
+    if (Platform.OS === 'ios') {
+      console.warn(
+        '[Notifications] Skipping initial FCM token fetch until APNs token is available (run on a physical device to enable push).',
+        error,
+      );
+    } else {
       throw error;
     }
   }
 
-  /**
-   * Setup handler for messages received while app is in foreground
-   */
-  private setupForegroundMessageHandler(): void {
-    this.remoteMessageListener = messaging().onMessage(async (remoteMessage: any) => {
-      console.log('[FCM] Foreground message received:', remoteMessage);
-
-      try {
-        // Convert Firebase message to app notification
-        const notification = this.convertFirebaseToNotification(remoteMessage);
-        if (this.dispatch && notification) {
-          this.dispatch(createNotification(notification) as any);
-        }
-      } catch (error) {
-        console.error('[FCM] Error handling foreground message:', error);
-      }
-    });
+  if (initialToken && options.onTokenUpdate) {
+    await options.onTokenUpdate(initialToken);
   }
 
-  /**
-   * Setup handler for messages received while app is in background or terminated
-   */
-  private setupBackgroundMessageHandler(): void {
-    // This handler is called when notification is tapped while app is in background
-    this.notificationOpenedListener = messaging().onNotificationOpenedApp((remoteMessage: any) => {
-      console.log('[FCM] Notification opened from background:', remoteMessage);
-      this.handleNotificationTap(remoteMessage);
-    });
-  }
+  messaging().onTokenRefresh(async (newToken: string) => {
+    if (options.onTokenUpdate) {
+      await options.onTokenUpdate(newToken);
+    }
+  });
 
-  /**
-   * Handle initial notification if app was opened from killed state
-   */
-  private async handleInitialNotification(): Promise<void> {
-    try {
-      const remoteMessage = await messaging().getInitialNotification();
-      if (remoteMessage) {
-        console.log('[FCM] Initial notification (app killed):', remoteMessage);
-        this.handleNotificationTap(remoteMessage);
-      }
-    } catch (error) {
-      console.error('[FCM] Error getting initial notification:', error);
+  messaging().onMessage(async (remoteMessage: RemoteMessage) => {
+    await handleRemoteMessage(remoteMessage, {source: 'foreground'});
+  });
+
+  notifee.onForegroundEvent(async event => {
+    await handleNotifeeEvent(event);
+  });
+
+  await flushPendingNavigationIntent();
+
+  const initialNotifee = await notifee.getInitialNotification();
+  if (initialNotifee?.notification?.data) {
+    processNavigationIntentFromData(normalizeDataRecord(initialNotifee.notification.data));
+  } else {
+    const initialMessaging = await messaging().getInitialNotification();
+    if (initialMessaging?.data) {
+      processNavigationIntentFromData(normalizeDataRecord(initialMessaging.data));
     }
   }
 
-  /**
-   * Set handler for messages received in background (Android only)
-   * Must be set outside React component
-   */
-  static setBackgroundMessageHandler(handler: (message: any) => Promise<void>): void {
-    messaging().setBackgroundMessageHandler(handler);
-  }
+  listenersConfigured = true;
+}
 
-  /**
-   * Handle notification tap/click
-   * Used for navigation and opening related screens
-   */
-  private handleNotificationTap(remoteMessage: any): void {
-    console.log('[FCM] Notification tap handled');
+export function areNotificationsInitialized(): boolean {
+  return listenersConfigured;
+}
 
-    // Extract deep link from notification data
-    const deepLink = remoteMessage?.data?.deepLink;
+/**
+ * Background handler registered from native entry (index.js).
+ */
+export async function handleBackgroundRemoteMessage(
+  remoteMessage: RemoteMessage,
+): Promise<void> {
+  await handleRemoteMessage(remoteMessage, {source: 'background'});
+}
 
-    // NOTE: Implement deep linking based on relatedType
-    // Example:
-    // if (relatedType === 'appointment') {
-    //   navigation.navigate('Appointments', {screen: 'ViewAppointment', params: {appointmentId: relatedId}});
-    // } else if (relatedType === 'task') {
-    //   navigation.navigate('Tasks', {screen: 'TaskView', params: {taskId: relatedId}});
-    // }
+/**
+ * Notifee background event handler registered from native entry (index.js).
+ */
+export async function handleNotificationBackgroundEvent(event: Event): Promise<void> {
+  const {type, detail} = event;
 
-    if (deepLink) {
-      console.log('[FCM] Would navigate to deeplink:', deepLink);
+  if (type === EventType.ACTION_PRESS && detail.pressAction?.id) {
+    if (detail.pressAction.id === 'mark-as-read' && detail.notification?.id) {
+      await notifee.cancelNotification(detail.notification.id);
     }
   }
 
-  /**
-   * Convert Firebase RemoteMessage to app Notification format
-   */
-  private convertFirebaseToNotification(
-    remoteMessage: any,
-  ): CreateNotificationPayload | null {
-    try {
-      const {notification: notif, data} = remoteMessage;
-
-      if (!notif || !data) {
-        console.warn('[FCM] Message missing notification or data', remoteMessage);
-        return null;
-      }
-
-      // Narrow relatedType safely to allowed values
-      const rt = (data.relatedType as string | undefined) ?? undefined;
-      const allowed = ['task', 'appointment', 'document', 'message', 'payment'] as const;
-      const narrowedRelatedType = (allowed as readonly string[]).includes(rt || '')
-        ? (rt as typeof allowed[number])
-        : undefined;
-
-      return {
-        companionId: data.companionId || 'unknown',
-        title: notif.title || 'Notification',
-        description: notif.body || '',
-        category: data.category || 'all',
-        icon: data.icon || 'notificationIcon',
-        priority: data.priority || 'medium',
-        deepLink: data.deepLink,
-        relatedId: data.relatedId,
-        relatedType: narrowedRelatedType,
-        avatarUrl: data.avatarUrl,
-        metadata: {
-          firebaseId: remoteMessage.messageId,
-          timestamp: data.timestamp,
-        },
-      };
-    } catch (error) {
-      console.error('[FCM] Error converting Firebase message:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Send notification to FCM (from backend)
-   * This is called by your backend API
-   */
-  static async sendNotificationFromBackend(params: {
-    deviceToken: string;
-    title: string;
-    body: string;
-    data?: Record<string, string>;
-  }): Promise<void> {
-    console.log('[FCM] Would send notification (backend only):', params);
-  }
-
-  /**
-   * Subscribe to topic for broadcast notifications
-   * Useful for notifications sent to all users
-   */
-  async subscribeToTopic(topic: string): Promise<void> {
-    try {
-      await messaging().subscribeToTopic(topic);
-      console.log('[FCM] Subscribed to topic:', topic);
-    } catch (error) {
-      console.error('[FCM] Error subscribing to topic:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Unsubscribe from topic
-   */
-  async unsubscribeFromTopic(topic: string): Promise<void> {
-    try {
-      await messaging().unsubscribeFromTopic(topic);
-      console.log('[FCM] Unsubscribed from topic:', topic);
-    } catch (error) {
-      console.error('[FCM] Error unsubscribing from topic:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get FCM token for device registration
-   */
-  async getToken(): Promise<string | null> {
-    try {
-      const token = await messaging().getToken();
-      console.log('[FCM] Token retrieved:', token);
-      return token;
-    } catch (error) {
-      console.error('[FCM] Error getting FCM token:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Delete FCM token (useful on logout)
-   */
-  async deleteToken(): Promise<void> {
-    try {
-      await messaging().deleteToken();
-      console.log('[FCM] Token deleted');
-    } catch (error) {
-      console.error('[FCM] Error deleting token:', error);
-    }
-  }
-
-  /**
-   * Check if notifications are enabled
-   */
-  async isNotificationsEnabled(): Promise<boolean> {
-    try {
-      if (Platform.OS === 'ios') {
-        const status = await messaging().hasPermission();
-        return (
-          status === messaging.AuthorizationStatus.AUTHORIZED ||
-          status === messaging.AuthorizationStatus.PROVISIONAL
-        );
-      }
-      return true; // Android always has permissions after system grants
-    } catch (error) {
-      console.error('[FCM] Error checking notification permission:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Request notification permissions (iOS)
-   */
-  async requestPermissions(): Promise<void> {
-    try {
-      if (Platform.OS === 'ios') {
-        const authStatus = await messaging().requestUserPermission({
-          alert: true,
-          badge: true,
-          sound: true,
-        });
-        const enabled =
-          authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-          authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-        console.log('[FCM] Permission request result:', {enabled, authStatus});
-      }
-    } catch (error) {
-      console.error('[FCM] Error requesting permissions:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Cleanup listeners
-   * Call this in your app's cleanup/logout flow
-   */
-  cleanup(): void {
-    if (this.remoteMessageListener) {
-      this.remoteMessageListener();
-      this.remoteMessageListener = null;
-    }
-    if (this.notificationOpenedListener) {
-      this.notificationOpenedListener();
-      this.notificationOpenedListener = null;
-    }
-    this.initialized = false;
-    this.dispatch = null;
-    console.log('[FCM] Cleanup complete');
+  if (
+    type === EventType.PRESS &&
+    detail.notification?.data &&
+    Object.keys(detail.notification.data).length > 0
+  ) {
+    await storePendingNavigationIntent(normalizeDataRecord(detail.notification.data));
   }
 }
 
-// Singleton instance
-export const firebaseNotificationsService = new FirebaseNotificationsService();
+async function ensurePermissions(): Promise<void> {
+  if (Platform.OS === 'android' && Platform.Version >= 33) {
+    const hasPermission = await PermissionsAndroid.check(
+      PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+    );
+    if (!hasPermission) {
+      await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
+    }
+  }
+
+  const settings = await notifee.getNotificationSettings();
+
+  if (
+    settings.authorizationStatus === AuthorizationStatus.NOT_DETERMINED ||
+    settings.authorizationStatus === AuthorizationStatus.DENIED
+  ) {
+    await notifee.requestPermission({
+      alert: true,
+      badge: true,
+      sound: true,
+      announcement: true,
+    });
+  }
+}
+
+async function ensureAndroidChannel(): Promise<void> {
+  if (Platform.OS !== 'android') {
+    return;
+  }
+
+  const existing = await notifee.getChannel(ANDROID_CHANNEL_ID);
+  if (existing) {
+    return;
+  }
+
+  await notifee.createChannel({
+    id: ANDROID_CHANNEL_ID,
+    name: ANDROID_CHANNEL_NAME,
+    badge: true,
+    importance: AndroidImportance.HIGH,
+    lights: true,
+    vibration: true,
+    visibility: AndroidVisibility.PUBLIC,
+  });
+}
+
+async function handleRemoteMessage(
+  remoteMessage: RemoteMessage,
+  context: {source: 'foreground' | 'background'},
+): Promise<void> {
+  const notificationPayload = convertToNotificationPayload(remoteMessage);
+  const data = normalizeDataRecord(remoteMessage.data);
+
+  if (notificationPayload && cachedDispatch) {
+    try {
+      await (cachedDispatch(createNotification(notificationPayload) as any) as Promise<unknown>);
+    } catch (error) {
+      console.error('[firebaseNotifications] Failed to create notification', error);
+      cachedDispatch(
+        addNotificationToList({
+          id: data.notificationId || `notif_${Date.now()}`,
+          companionId: notificationPayload.companionId,
+          title: notificationPayload.title,
+          description: notificationPayload.description,
+          category: notificationPayload.category,
+          icon: notificationPayload.icon,
+          avatarUrl: notificationPayload.avatarUrl,
+          timestamp: new Date().toISOString(),
+          status: 'unread',
+          priority: notificationPayload.priority ?? 'medium',
+          deepLink: notificationPayload.deepLink,
+          relatedId: notificationPayload.relatedId,
+          relatedType: notificationPayload.relatedType,
+          metadata: notificationPayload.metadata,
+        }),
+      );
+    }
+  }
+
+  await presentNotifeeNotification(remoteMessage);
+
+  if (context.source === 'background' && remoteMessage.data) {
+    await storePendingNavigationIntent(normalizeDataRecord(remoteMessage.data));
+  }
+}
+
+async function presentNotifeeNotification(
+  remoteMessage: RemoteMessage,
+): Promise<void> {
+  const notification = remoteMessage.notification;
+  const data = normalizeDataRecord(remoteMessage.data);
+
+  const title = notification?.title ?? data.title ?? 'Yosemite Crew';
+  const body = notification?.body ?? data.body ?? '';
+
+  await notifee.displayNotification({
+    id: remoteMessage.messageId,
+    title,
+    body,
+    data,
+    android: {
+      channelId: ANDROID_CHANNEL_ID,
+      pressAction: {
+        id: 'default',
+      },
+      smallIcon: data.smallIcon,
+      largeIcon: data.largeIcon,
+      importance: AndroidImportance.HIGH,
+      visibility: AndroidVisibility.PUBLIC,
+    },
+    ios: {
+      foregroundPresentationOptions: {
+        alert: true,
+        badge: true,
+        sound: true,
+        banner: true,
+        list: true,
+      },
+      categoryId: data.categoryId,
+    },
+  });
+}
+
+async function handleNotifeeEvent(event: Event): Promise<void> {
+  const {type, detail} = event;
+
+  switch (type) {
+    case EventType.PRESS:
+      if (detail.notification?.data) {
+        processNavigationIntentFromData(normalizeDataRecord(detail.notification.data));
+      }
+      if (detail.notification?.id) {
+        await notifee.cancelNotification(detail.notification.id);
+      }
+      break;
+    case EventType.DISMISSED:
+      if (detail.notification?.id) {
+        await notifee.cancelNotification(detail.notification.id);
+      }
+      break;
+    case EventType.ACTION_PRESS:
+      if (detail.pressAction?.id === 'mark-as-read' && detail.notification?.data) {
+        processNavigationIntentFromData(normalizeDataRecord(detail.notification.data));
+      }
+      break;
+    default:
+      break;
+  }
+}
+
+function processNavigationIntentFromData(data: DataRecord): void {
+  if (!navigationHandler) {
+    storePendingNavigationIntent(data).catch(error => {
+      console.warn('[Notifications] Failed to store navigation intent for later processing', error);
+    });
+    return;
+  }
+
+  const intent = buildNavigationIntent(data);
+  if (intent) {
+    navigationHandler(intent);
+  }
+}
+
+function convertToNotificationPayload(remoteMessage: RemoteMessage): CreateNotificationPayload | null {
+  const data = normalizeDataRecord(remoteMessage.data);
+  const notification = remoteMessage.notification;
+
+  const category = normalizeCategory(data.category);
+  const priority = normalizePriority(data.priority);
+  const companionId = data.companionId || data.ownerId || DEFAULT_FALLBACK_COMPANION_ID;
+
+  if (!notification?.title && !data.title) {
+    return null;
+  }
+
+  return {
+    companionId,
+    title: notification?.title ?? data.title ?? 'Notification',
+    description: notification?.body ?? data.body ?? '',
+    category,
+    icon: data.icon || 'notificationIcon',
+    avatarUrl: data.avatarUrl,
+    priority,
+    deepLink: data.deepLink,
+    relatedId: data.relatedId,
+    relatedType: normalizeRelatedType(data.relatedType),
+    metadata: {
+      firebaseMessageId: remoteMessage.messageId,
+      sentAt: data.timestamp,
+      ...extractMetadata(data),
+    },
+  };
+}
+
+function normalizeCategory(value?: string): NotificationCategory {
+  const allowed: NotificationCategory[] = [
+    'all',
+    'messages',
+    'appointments',
+    'tasks',
+    'documents',
+    'health',
+    'dietary',
+    'hygiene',
+    'payment',
+  ];
+
+  if (value && (allowed as string[]).includes(value)) {
+    return value as NotificationCategory;
+  }
+
+  return 'all';
+}
+
+function normalizePriority(value?: string): NotificationPriority | undefined {
+  const allowed: NotificationPriority[] = ['low', 'medium', 'high', 'urgent'];
+  if (value && (allowed as string[]).includes(value)) {
+    return value as NotificationPriority;
+  }
+  return undefined;
+}
+
+function normalizeRelatedType(value?: string): CreateNotificationPayload['relatedType'] {
+  const allowed = ['task', 'appointment', 'document', 'message', 'payment'] as const;
+  if (value && (allowed as readonly string[]).includes(value)) {
+    return value as CreateNotificationPayload['relatedType'];
+  }
+  return undefined;
+}
+
+function extractMetadata(data: DataRecord): Record<string, string | undefined> {
+  const keys = ['navigationId', 'tab', 'screen', 'params', 'trackingId'];
+  const aggregated: Record<string, string | undefined> = {};
+  for (const key of keys) {
+    if (data[key]) {
+      aggregated[key] = data[key];
+    }
+  }
+  return aggregated;
+}
+
+async function storePendingNavigationIntent(data: DataRecord): Promise<void> {
+  try {
+    await AsyncStorage.setItem(PENDING_INTENT_STORAGE_KEY, JSON.stringify(data));
+  } catch (error) {
+    console.warn('[Notifications] Failed to persist navigation intent', error);
+  }
+}
+
+async function flushPendingNavigationIntent(): Promise<void> {
+  try {
+    const stored = await AsyncStorage.getItem(PENDING_INTENT_STORAGE_KEY);
+    if (!stored) {
+      return;
+    }
+    await AsyncStorage.removeItem(PENDING_INTENT_STORAGE_KEY);
+
+    const parsed = JSON.parse(stored) as DataRecord;
+    processNavigationIntentFromData(parsed);
+  } catch (error) {
+    console.warn('[Notifications] Failed to read stored navigation intent', error);
+  }
+}
+
+function buildNavigationIntent(data: DataRecord): NotificationNavigationIntent | null {
+  const deepLink = data.deepLink ?? data.deeplink ?? data.url;
+  const navigationId = data.navigationId;
+  const root = (data.root as NotificationNavigationIntent['root']) ?? 'Main';
+  const tab = data.tab as NotificationNavigationIntent['tab'];
+  const screen = data.screen ?? mapNavigationIdToScreen(navigationId)?.screen;
+  const inferredTab = tab ?? mapNavigationIdToScreen(navigationId)?.tab;
+
+  let params: Record<string, unknown> | undefined;
+  if (data.params) {
+    try {
+      params = JSON.parse(data.params);
+    } catch {
+      params = {value: data.params};
+    }
+  }
+
+  if (deepLink) {
+    return {deepLink, params};
+  }
+
+  if (!screen && !inferredTab) {
+    return null;
+  }
+
+  return {
+    root,
+    tab: inferredTab,
+    stackScreen: screen ?? 'Home',
+    params,
+  };
+}
+
+type NavigationRouteDescriptor = {
+  tab: NotificationNavigationIntent['tab'];
+  screen: string;
+};
+
+const NAVIGATION_LOOKUP: Record<string, NavigationRouteDescriptor> = {
+  notifications: {tab: 'HomeStack', screen: 'Notifications'},
+  tasks: {tab: 'Tasks', screen: 'TasksMain'},
+  task_detail: {tab: 'Tasks', screen: 'TaskView'},
+  appointments: {tab: 'Appointments', screen: 'MyAppointments'},
+  documents: {tab: 'Documents', screen: 'DocumentsMain'},
+  home: {tab: 'HomeStack', screen: 'Home'},
+};
+
+function mapNavigationIdToScreen(
+  navigationId?: string,
+): NavigationRouteDescriptor | undefined {
+  if (!navigationId) {
+    return undefined;
+  }
+  return NAVIGATION_LOOKUP[navigationId];
+}
 
 /**
- * LOCAL NOTIFICATION SERVICE
- * For showing in-app notifications (banners, toasts)
- * Can be combined with Firebase for local testing
+ * Trigger a local scheduled reminder using Notifee.
+ * Can be used for quick testing without backend.
  */
-export class LocalNotificationService {
-  /**
-   * Show a local in-app notification
-   * This can be triggered from Redux actions or Firebase messages
-   */
-  static showLocalNotification(params: {
-    title: string;
-    description: string;
-    type?: 'info' | 'success' | 'warning' | 'error';
-    duration?: number; // milliseconds
-    onPress?: () => void;
-  }): void {
-    console.log('[LocalNotification]', params);
+export async function scheduleLocalReminder(
+  title: string,
+  body: string,
+  inMinutes: number,
+  data: DataRecord = {},
+): Promise<string> {
+  await ensureAndroidChannel();
+
+  const trigger = {
+    type: TriggerType.TIMESTAMP,
+    timestamp: Date.now() + inMinutes * 60 * 1000,
+    repeatFrequency: undefined,
+    timeUnit: TimeUnit.MINUTES,
+  } as const;
+
+  return notifee.createTriggerNotification(
+    {
+      title,
+      body,
+      data,
+      android: {
+        channelId: ANDROID_CHANNEL_ID,
+        pressAction: {id: 'default'},
+      },
+    },
+    trigger,
+  );
+}
+
+/**
+ * Cancels all displayed notifications & removes any scheduled triggers.
+ */
+export async function clearAllSystemNotifications(): Promise<void> {
+  await notifee.cancelAllNotifications();
+  await notifee.cancelDisplayedNotifications();
+}
+
+/**
+ * Access current device token; requires initializeNotifications to have run.
+ */
+export async function getCurrentFcmToken(): Promise<string | null> {
+  try {
+    await messaging().registerDeviceForRemoteMessages();
+    return await messaging().getToken();
+  } catch (error) {
+    console.warn('[Notifications] Unable to fetch FCM token', error);
+    return null;
+  }
+}
+
+function normalizeDataRecord(
+  input?: Record<string, unknown> | null,
+): DataRecord {
+  if (!input) {
+    return {};
   }
 
-  /**
-   * Show local success notification
-   */
-  static showSuccess(title: string, description?: string): void {
-    this.showLocalNotification({
-      title,
-      description: description || '',
-      type: 'success',
-      duration: 3000,
-    });
+  const normalized: DataRecord = {};
+  for (const [key, value] of Object.entries(input)) {
+    normalized[key] = coerceToString(value);
   }
+  return normalized;
+}
 
-  /**
-   * Show local error notification
-   */
-  static showError(title: string, description?: string): void {
-    this.showLocalNotification({
-      title,
-      description: description || '',
-      type: 'error',
-      duration: 4000,
-    });
+function coerceToString(value: unknown): string {
+  if (typeof value === 'string') {
+    return value;
   }
-
-  /**
-   * Show local warning notification
-   */
-  static showWarning(title: string, description?: string): void {
-    this.showLocalNotification({
-      title,
-      description: description || '',
-      type: 'warning',
-      duration: 3000,
-    });
+  if (value == null) {
+    return '';
   }
-
-  /**
-   * Show local info notification
-   */
-  static showInfo(title: string, description?: string): void {
-    this.showLocalNotification({
-      title,
-      description: description || '',
-      type: 'info',
-      duration: 3000,
-    });
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return '[unserializable]';
   }
 }
