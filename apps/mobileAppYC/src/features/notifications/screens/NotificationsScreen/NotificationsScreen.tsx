@@ -34,6 +34,32 @@ import {NotificationFilterPills} from '../../components/NotificationFilterPills/
 import {mockNotifications} from '../../data/mockNotifications';
 import type {Notification, NotificationCategory} from '../../types';
 
+const NAVIGATION_TARGETS = {
+  task: {
+    stack: 'Tasks',
+    screen: 'TaskView',
+    param: 'taskId',
+  },
+  appointment: {
+    stack: 'Appointments',
+    screen: 'ViewAppointment',
+    param: 'appointmentId',
+  },
+  document: {
+    stack: 'Documents',
+    screen: 'DocumentPreview',
+    param: 'documentId',
+  },
+} as const;
+
+type NavigationTarget = keyof typeof NAVIGATION_TARGETS;
+
+const DEEP_LINK_TARGETS: Array<{prefix: string; type: NavigationTarget}> = [
+  {prefix: '/tasks/', type: 'task'},
+  {prefix: '/appointments/', type: 'appointment'},
+  {prefix: '/documents/', type: 'document'},
+];
+
 export const NotificationsScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const {theme} = useTheme();
@@ -94,6 +120,65 @@ export const NotificationsScreen: React.FC = () => {
     [dispatch],
   );
 
+  const navigateToRelatedEntity = useCallback(
+    (type: NavigationTarget, relatedId: string) => {
+      const config = NAVIGATION_TARGETS[type];
+      (navigation as any).navigate(config.stack, {
+        screen: config.screen,
+        params: {[config.param]: relatedId},
+      });
+    },
+    [navigation],
+  );
+
+  const tryNavigateByDeepLink = useCallback(
+    (deepLink?: string | null, relatedId?: string | null) => {
+      if (!deepLink || typeof deepLink !== 'string' || !relatedId) {
+        return false;
+      }
+
+      try {
+        const match = DEEP_LINK_TARGETS.find(target =>
+          deepLink.startsWith(target.prefix),
+        );
+        if (match) {
+          navigateToRelatedEntity(match.type, relatedId);
+          return true;
+        }
+      } catch (error) {
+        console.warn('[Notifications] Deep link navigation failed', error);
+      }
+
+      return false;
+    },
+    [navigateToRelatedEntity],
+  );
+
+  const tryNavigateByRelatedType = useCallback(
+    (
+      relatedType?: Notification['relatedType'],
+      relatedId?: string | null,
+    ) => {
+      if (!relatedType || !relatedId) {
+        return false;
+      }
+
+      if (!Object.hasOwn(NAVIGATION_TARGETS, relatedType)) {
+        return false;
+      }
+
+      try {
+        navigateToRelatedEntity(relatedType as NavigationTarget, relatedId);
+        return true;
+      } catch (error) {
+        console.warn('[Notifications] relatedType navigation failed', error);
+      }
+
+      return false;
+    },
+    [navigateToRelatedEntity],
+  );
+
   // Handle notification tap (navigate by deepLink/relatedType)
   const handleNotificationPress = useCallback(
     (notification: Notification) => {
@@ -101,64 +186,16 @@ export const NotificationsScreen: React.FC = () => {
         dispatch(markNotificationAsRead({notificationId: notification.id}));
       }
 
-      const deepLink = notification.deepLink;
-      const relatedType = notification.relatedType;
-      const relatedId = notification.relatedId;
+      const didNavigateByDeepLink = tryNavigateByDeepLink(
+        notification.deepLink,
+        notification.relatedId,
+      );
 
-      // Attempt deep-link based navigation
-      try {
-        if (deepLink && typeof deepLink === 'string') {
-          if (deepLink.startsWith('/tasks/') && relatedId) {
-            (navigation as any).navigate('Tasks', {
-              screen: 'TaskView',
-              params: {taskId: relatedId},
-            });
-            return;
-          }
-          if (deepLink.startsWith('/appointments/') && relatedId) {
-            (navigation as any).navigate('Appointments', {
-              screen: 'ViewAppointment',
-              params: {appointmentId: relatedId},
-            });
-            return;
-          }
-          if (deepLink.startsWith('/documents/') && relatedId) {
-            (navigation as any).navigate('Documents', {
-              screen: 'DocumentPreview',
-              params: {documentId: relatedId},
-            });
-            return;
-          }
-        }
-      } catch (e) {
-        console.warn('[Notifications] Deep link navigation failed', e);
-      }
-
-      // Fallback based on relatedType
-      try {
-        if (relatedType && relatedId) {
-          if (relatedType === 'task') {
-            (navigation as any).navigate('Tasks', {
-              screen: 'TaskView',
-              params: {taskId: relatedId},
-            });
-          } else if (relatedType === 'appointment') {
-            (navigation as any).navigate('Appointments', {
-              screen: 'ViewAppointment',
-              params: {appointmentId: relatedId},
-            });
-          } else if (relatedType === 'document') {
-            (navigation as any).navigate('Documents', {
-              screen: 'DocumentPreview',
-              params: {documentId: relatedId},
-            });
-          }
-        }
-      } catch (e) {
-        console.warn('[Notifications] relatedType navigation failed', e);
+      if (!didNavigateByDeepLink) {
+        tryNavigateByRelatedType(notification.relatedType, notification.relatedId);
       }
     },
-    [dispatch, navigation],
+    [dispatch, tryNavigateByDeepLink, tryNavigateByRelatedType],
   );
 
   // Handle dismiss: mark as read so item moves to Seen tab
@@ -190,10 +227,11 @@ export const NotificationsScreen: React.FC = () => {
   // Render empty state
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
-      <Image source={Images.notificationIcon} style={styles.emptyIcon} />
-      <Text style={styles.emptyTitle}>No notifications yet</Text>
+      <Image source={Images.emptyNotifications} style={styles.emptyImage} />
+      <Text style={styles.emptyTitle}>Nothing in the box!</Text>
       <Text style={styles.emptySubtitle}>
-        You'll see notifications here when something important happens
+        Your notification box is empty right now.{'\n'}
+        Sit, stay, and we’ll fetch updates soon.
       </Text>
     </View>
   );
@@ -340,23 +378,22 @@ const createStyles = (theme: any) =>
       paddingHorizontal: theme.spacing[4],
       minHeight: 300,
     },
-    emptyIcon: {
-      width: 80,
-      height: 80,
+    emptyImage: {
+      height: 160,
+      width: 160,
+      resizeMode: 'contain',
       marginBottom: theme.spacing[4],
-      tintColor: theme.colors.textSecondary,
-      opacity: 0.5,
     },
     emptyTitle: {
-      ...theme.typography.titleLarge,
-      color: theme.colors.secondary,
+      ...theme.typography.businessSectionTitle20,
+      color: theme.colors.text,
       marginBottom: theme.spacing[2],
       textAlign: 'center',
     },
     emptySubtitle: {
-      ...theme.typography.bodySmall,
-      color: theme.colors.textSecondary,
+      ...theme.typography.subtitleRegular14,
+      color: theme.colors.secondary,
       textAlign: 'center',
-      lineHeight: 20,
+      lineHeight: 14 * 1.2,
     },
   });

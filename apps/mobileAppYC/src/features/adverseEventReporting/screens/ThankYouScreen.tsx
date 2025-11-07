@@ -21,7 +21,8 @@ type Props = NativeStackScreenProps<AdverseEventStackParamList, 'ThankYou'>;
 export const ThankYouScreen: React.FC<Props> = ({ navigation }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const [agreeToBeContacted, setAgreeToBeContacted] = useState(true);
+  const [agreeToBeContacted, setAgreeToBeContacted] = useState(false);
+  const [contactError, setContactError] = useState('');
 
   const handleBack = () => {
     // Reset the AdverseEvent stack and navigate back to Home
@@ -29,22 +30,36 @@ export const ThankYouScreen: React.FC<Props> = ({ navigation }) => {
     navigation.navigate('Home' as never);
   };
 
+  const requireContactConsent = (action: () => void) => {
+    if (!agreeToBeContacted) {
+      setContactError('Select the checkbox to continue');
+      return;
+    }
+    if (contactError) {
+      setContactError('');
+    }
+    action();
+  };
+
   const handleSendToManufacturer = () => {
-    console.log('[ThankYou] Send to manufacturer');
-    // Mock API call
-    handleBack();
+    requireContactConsent(() => {
+      console.log('[ThankYou] Send to manufacturer');
+      handleBack();
+    });
   };
 
   const handleSendToHospital = () => {
-    console.log('[ThankYou] Send to hospital');
-    // Mock API call
-    handleBack();
+    requireContactConsent(() => {
+      console.log('[ThankYou] Send to hospital');
+      handleBack();
+    });
   };
 
   const handleCallAuthority = () => {
-    console.log('[ThankYou] Call authority');
-    // Mock API call
-    handleBack();
+    requireContactConsent(() => {
+      console.log('[ThankYou] Call authority');
+      handleBack();
+    });
   };
 
   return (
@@ -69,10 +84,16 @@ export const ThankYouScreen: React.FC<Props> = ({ navigation }) => {
         <View style={styles.checkboxSection}>
           <Checkbox
             value={agreeToBeContacted}
-            onValueChange={setAgreeToBeContacted}
-            label="I agree to be contacted"
+            onValueChange={value => {
+              setAgreeToBeContacted(value);
+              if (value && contactError) {
+                setContactError('');
+              }
+            }}
+            label="I agree to be contacted by Drug Manufacturer, Hospital, or Regulatory Authority if needed."
             labelStyle={styles.checkboxLabel}
           />
+          {contactError ? <Text style={styles.errorText}>{contactError}</Text> : null}
         </View>
 
         <View style={styles.actionsContainer}>
@@ -138,6 +159,7 @@ const createStyles = (theme: any) =>
       ...theme.typography.businessSectionTitle20,
       color: '#302F2E',
       marginBottom: theme.spacing[3],
+      alignSelf: 'center',
     },
     subtitle: {
       // Satoshi 15 Bold, 120%
@@ -157,6 +179,12 @@ const createStyles = (theme: any) =>
       color: '#302F2E',
       lineHeight: 18,
       letterSpacing: -0.3,
+    },
+    errorText: {
+      ...theme.typography.labelXsBold,
+      color: theme.colors.error,
+      marginTop: theme.spacing[2],
+      marginLeft: theme.spacing[1],
     },
     actionsContainer: {
       // Slightly larger gap between buttons
@@ -198,11 +226,11 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: theme.spacing[4],
+      paddingVertical: theme.spacing[8],
       gap: theme.spacing[3],
       borderTopWidth: 1,
       borderTopColor: theme.colors.borderMuted,
-      marginTop: theme.spacing[4],
+      marginTop: theme.spacing[2],
     },
     phoneIcon: {
       width: 20,

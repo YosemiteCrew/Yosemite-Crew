@@ -1,21 +1,31 @@
 import {createSelector} from '@reduxjs/toolkit';
 import type {RootState} from '@/app/store';
 import type {NotificationCategory} from './types';
+import {notificationsInitialState} from './notificationSlice';
+
+const getNotificationsState = (state: RootState) =>
+  state.notifications ?? notificationsInitialState;
 
 // Base selectors
-export const selectNotificationsState = (state: RootState) => state.notifications;
+export const selectNotificationsState = getNotificationsState;
 
-export const selectAllNotifications = (state: RootState) => state.notifications.items;
+export const selectAllNotifications = (state: RootState) =>
+  getNotificationsState(state).items;
 
-export const selectNotificationsLoading = (state: RootState) => state.notifications.loading;
+export const selectNotificationsLoading = (state: RootState) =>
+  getNotificationsState(state).loading;
 
-export const selectNotificationsError = (state: RootState) => state.notifications.error;
+export const selectNotificationsError = (state: RootState) =>
+  getNotificationsState(state).error;
 
-export const selectUnreadCount = (state: RootState) => state.notifications.unreadCount;
+export const selectUnreadCount = (state: RootState) =>
+  getNotificationsState(state).unreadCount;
 
-export const selectNotificationFilter = (state: RootState) => state.notifications.filter;
+export const selectNotificationFilter = (state: RootState) =>
+  getNotificationsState(state).filter;
 
-export const selectNotificationSortBy = (state: RootState) => state.notifications.sortBy;
+export const selectNotificationSortBy = (state: RootState) =>
+  getNotificationsState(state).sortBy;
 
 export const selectHasHydratedCompanion = (companionId: string | null) =>
   createSelector(
@@ -24,7 +34,7 @@ export const selectHasHydratedCompanion = (companionId: string | null) =>
   );
 
 export const selectLastFetchTimestamp = (state: RootState) =>
-  state.notifications.lastFetchTimestamp;
+  getNotificationsState(state).lastFetchTimestamp;
 
 // Notifications by companion
 export const selectNotificationsForCompanion = (companionId: string | null) =>

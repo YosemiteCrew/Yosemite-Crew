@@ -44,6 +44,7 @@ import {
 } from '@/features/tasks';
 import type {ObservationalToolTaskDetails} from '@/features/tasks/types';
 import {useEmergency} from '@/features/home/context/EmergencyContext';
+import {selectUnreadCount} from '@/features/notifications/selectors';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Home'>;
 
@@ -88,10 +89,12 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const nextUpcomingTask = useSelector(
     selectNextUpcomingTask(selectedCompanionIdRedux ?? null),
   );
+  const unreadNotifications = useSelector(selectUnreadCount);
   const userCurrencyCode = authUser?.currency ?? 'USD';
 
   const [hasUpcomingAppointments, setHasUpcomingAppointments] =
     React.useState(true);
+  const hasUnreadNotifications = unreadNotifications > 0;
 
   const {resolvedName: firstName, displayName} = deriveHomeGreetingName(
     authUser?.firstName,
@@ -366,10 +369,15 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
               style={styles.actionIcon}
               activeOpacity={0.85}
               onPress={() => navigation.navigate('Notifications')}>
-              <Image
-                source={Images.notificationIcon}
-                style={styles.actionImage}
-              />
+              <View style={styles.notificationIconWrapper}>
+                <Image
+                  source={Images.notificationIcon}
+                  style={styles.actionImage}
+                />
+                {hasUnreadNotifications ? (
+                  <View style={styles.notificationDot} />
+                ) : null}
+              </View>
             </TouchableOpacity>
           </View>
         </View>
@@ -543,6 +551,22 @@ const createStyles = (theme: any) =>
       width: 25,
       height: 25,
       resizeMode: 'contain',
+    },
+    notificationIconWrapper: {
+      position: 'relative',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    notificationDot: {
+      position: 'absolute',
+      top:2,
+      right: 0,
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: theme.colors.error,
+      borderWidth: 1,
+      borderColor: theme.colors.cardBackground,
     },
     heroTouchable: {
       alignSelf: 'flex-start',
