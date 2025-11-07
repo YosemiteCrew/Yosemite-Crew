@@ -1,7 +1,9 @@
 import React, {forwardRef} from 'react';
-import {View, StyleSheet, Text} from 'react-native';
-import {ConfirmActionBottomSheet, ConfirmActionBottomSheetRef} from '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet';
+import {View, StyleSheet} from 'react-native';
+import {ConfirmActionBottomSheet} from '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet';
 import {useTheme} from '@/hooks';
+import {BottomSheetMessage} from '@/shared/components/common/BottomSheetMessage/BottomSheetMessage';
+import {useConfirmActionSheetRef} from '@/shared/hooks/useConfirmActionSheetRef';
 
 export interface AddBusinessBottomSheetRef {
   open: () => void;
@@ -19,36 +21,11 @@ export const AddBusinessBottomSheet = forwardRef<AddBusinessBottomSheetRef, AddB
   ({businessName, businessAddress, onConfirm, onSheetChange}, ref) => {
     const {theme} = useTheme();
     const styles = React.useMemo(() => createStyles(theme), [theme]);
-    const bottomSheetRef = React.useRef<ConfirmActionBottomSheetRef>(null);
-
-    React.useImperativeHandle(ref, () => ({
-      open: () => bottomSheetRef.current?.open(),
-      close: () => bottomSheetRef.current?.close(),
-    }));
-
-    const handleConfirm = () => {
-      bottomSheetRef.current?.close();
-      onConfirm?.();
-    };
-
-    const renderMessage = () => {
-      return (
-        <Text style={styles.messageText}>
-          We invited {businessName && <Text style={styles.highlightText}>{businessName}</Text>}
-          {businessAddress && (
-            <>
-              {' at '}
-              <Text style={styles.highlightText}>{businessAddress}</Text>
-            </>
-          )}
-          {' to accept your profile.'}
-        </Text>
-      );
-    };
+    const {sheetRef, handleConfirm} = useConfirmActionSheetRef(ref, onConfirm);
 
     return (
       <ConfirmActionBottomSheet
-        ref={bottomSheetRef}
+        ref={sheetRef}
         title="Business Added"
         snapPoints={['45%']}
         primaryButton={{
@@ -57,8 +34,21 @@ export const AddBusinessBottomSheet = forwardRef<AddBusinessBottomSheetRef, AddB
         }}
         onSheetChange={onSheetChange}
         containerStyle={styles.container}>
-        <View style={styles.messageContainer}>
-          {renderMessage()}
+        <View>
+          <BottomSheetMessage>
+            We invited {businessName ? (
+              <BottomSheetMessage.Highlight>{businessName}</BottomSheetMessage.Highlight>
+            ) : null}
+            {businessAddress ? (
+              <>
+                {' at '}
+                <BottomSheetMessage.Highlight>
+                  {businessAddress}
+                </BottomSheetMessage.Highlight>
+              </>
+            ) : null}
+            {' to accept your profile.'}
+          </BottomSheetMessage>
         </View>
       </ConfirmActionBottomSheet>
     );
@@ -71,20 +61,6 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
       gap: theme.spacing[4],
-    },
-    messageContainer: {
-      paddingHorizontal: theme.spacing[2],
-      marginBottom: theme.spacing[2],
-    },
-    messageText: {
-      ...theme.typography.body,
-      color: theme.colors.textSecondary,
-      textAlign: 'center',
-      lineHeight: 22,
-    },
-    highlightText: {
-      color: theme.colors.secondary,
-      fontWeight: '600',
     },
   });
 

@@ -83,6 +83,8 @@ export const BusinessDetailsScreen: React.FC = () => {
             height={56}
             borderRadius={16}
             tintColor={theme.colors.secondary}
+            textStyle={styles.buttonText}
+            glassEffect="clear"
             shadowIntensity="none"
             forceBorder
             borderColor="rgba(255, 255, 255, 0.35)"
@@ -108,6 +110,10 @@ const createStyles = (theme: any) => StyleSheet.create({
   footer: {
     marginTop: theme.spacing[2],
     marginBottom: theme.spacing[4],
+  },
+  buttonText: {
+    ...theme.typography.cta,
+    color: theme.colors.white,
   },
 });
 

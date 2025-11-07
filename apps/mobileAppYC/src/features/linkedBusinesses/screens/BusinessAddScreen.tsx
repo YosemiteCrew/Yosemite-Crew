@@ -5,12 +5,14 @@ import {
   StyleSheet,
   Text,
   Alert,
+  Image,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux';
 import type {AppDispatch} from '@/app/store';
 import {useTheme} from '@/hooks';
+import {Images} from '@/assets/images';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
@@ -175,7 +177,11 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
                 <Text style={styles.statusText}>
                   We are happy to inform you that this organisation is part of Yosemite Crew PMS
                 </Text>
-                <Text style={styles.statusEmojiRight}>✅</Text>
+   <Image
+                  source={Images.yosemiteLogo}
+                  style={styles.logoImage}
+                  resizeMode="contain"
+                />
               </View>
             ) : (
               <View style={styles.statusRow}>
@@ -185,7 +191,7 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
                   PMS. We will soon notify you, when the organisation is available on this
                   platform.
                 </Text>
-                <Text style={styles.statusEmojiRight}>🔔</Text>
+            <Text style={styles.statusEmojiRight}>🔔</Text>
               </View>
             )}
           </View>
@@ -198,9 +204,11 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
               title={loading ? 'Adding...' : 'Add'}
               onPress={handleAddBusiness}
               disabled={loading}
+              glassEffect="clear"
               height={56}
               borderRadius={16}
               tintColor={theme.colors.secondary}
+              textStyle={styles.buttonText}
               shadowIntensity="medium"
               forceBorder
               borderColor={theme.colors.borderMuted}
@@ -211,9 +219,11 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
               title="Notify Business"
               onPress={handleNotifyPress}
               disabled={fetchingDetails}
+              glassEffect="clear"
               height={56}
               borderRadius={16}
               tintColor={theme.colors.secondary}
+              textStyle={styles.buttonText}
               shadowIntensity="medium"
               forceBorder
               borderColor={theme.colors.borderMuted}
@@ -295,8 +305,16 @@ const createStyles = (theme: any) =>
       lineHeight: 20,
       flex: 0.76,
     },
+    logoImage: {
+      width: 52,
+      height: 52,
+    },
     buttonContainer: {
       marginTop: theme.spacing[6],
       marginBottom: theme.spacing[4],
+    },
+    buttonText: {
+      ...theme.typography.cta,
+      color: theme.colors.white,
     },
   });
