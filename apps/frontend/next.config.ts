@@ -11,12 +11,17 @@ const nextConfig: NextConfig = {
     ],
   },
   outputFileTracingExcludes: {
-    "/*": ["**/.pnpm/**", "**/node_modules/.pnpm/**", "**/.turbo/**"],
+    "apps/frontend/**": [
+      "**/.pnpm/**",
+      "**/node_modules/.pnpm/**",
+      "**/.turbo/**",
+    ],
   },
   experimental: {
     webpackMemoryOptimizations: true,
     serverSourceMaps: false,
   },
+  productionBrowserSourceMaps: false,
 };
 
 export default nextConfig;

@@ -41,7 +41,7 @@ describe("page (Sign Up route)", () => {
     useAuthStoreMock.mockReturnValue({ user: { id: "123" } } as any);
 
     render(<Page />);
-    expect(pushMock).toHaveBeenCalledWith("/organizations");
+    expect(pushMock).toHaveBeenCalledWith("/create-org");
     expect(screen.getByTestId("signup-mock")).toBeInTheDocument();
   });
 
