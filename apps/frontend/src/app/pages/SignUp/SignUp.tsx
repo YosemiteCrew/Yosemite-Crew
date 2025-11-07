@@ -18,7 +18,8 @@ const SignUp = () => {
   const { showErrorTost, ErrorTostPopup } = useErrorTost();
   const { signUp } = useAuthStore();
 
-  const [selectedType, setSelectedType] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -29,41 +30,35 @@ const SignUp = () => {
 
   const [inputErrors, setInputErrors] = useState<{
     confirmPError?: string;
+    firstName?: string;
+    lastName?: string;
     email?: string;
     pError?: string;
-    selectedType?: string;
     subscribe?: string;
     agree?: string;
   }>({});
 
-  const businessTypes = [
-    { key: "veterinaryBusiness", value: "Veterinary Business" },
-    { key: "breedingFacility", value: "Breeding Facility" },
-    { key: "petSitter", value: "Pet Sitter" },
-    { key: "groomerShop", value: "Groomer Shop" },
-  ];
-
-  const handleSelectType = (type: React.SetStateAction<string>) => {
-    setSelectedType(type);
-  };
-
   const validateSignUpInputs = (
+    firstName: string,
+    lastName: string,
     email: string,
     password: string,
     confirmPassword: string,
-    selectedType: string,
     subscribe: boolean,
     agree: boolean
   ) => {
     const errors: {
+      firstName?: string;
+      lastName?: string;
       email?: string;
       pError?: string;
       confirmPError?: string;
-      selectedType?: string;
       subscribe?: string;
       agree?: string;
     } = {};
 
+    if (!firstName) errors.firstName = "First name is required";
+    if (!lastName) errors.lastName = "Last name is required";
     if (!email) errors.email = "Email is required";
     if (password) {
       const strongPasswordRegex =
@@ -78,7 +73,6 @@ const SignUp = () => {
     if (!confirmPassword) errors.confirmPError = "Confirm Password is required";
     if (password && confirmPassword && password !== confirmPassword)
       errors.confirmPError = "Passwords do not match";
-    if (!selectedType) errors.selectedType = "Please select your business type";
     if (!subscribe)
       errors.subscribe =
         "Please check the Newsletter and Promotional emails box";
@@ -90,10 +84,11 @@ const SignUp = () => {
   const handleSignUp = async (e: { preventDefault: () => void }) => {
     e.preventDefault();
     const errors = validateSignUpInputs(
+      firstName,
+      lastName,
       email,
       password,
       confirmPassword,
-      selectedType,
       subscribe,
       agree
     );
@@ -105,7 +100,7 @@ const SignUp = () => {
     }
 
     try {
-      const result = await signUp(email, password, selectedType);
+      const result = await signUp(email, password, firstName, lastName);
 
       if (result) {
         if (globalThis.window) {
@@ -200,10 +195,26 @@ const SignUp = () => {
 
                 <div className="SignFormItems">
                   <FormInput
+                    intype="text"
+                    inname="first name"
+                    value={firstName}
+                    inlabel="First name"
+                    onChange={(e) => setFirstName(e.target.value)}
+                    error={inputErrors.firstName}
+                  />
+                  <FormInput
+                    intype="text"
+                    inname="last name"
+                    value={lastName}
+                    inlabel="Last name"
+                    onChange={(e) => setLastName(e.target.value)}
+                    error={inputErrors.lastName}
+                  />
+                  <FormInput
                     intype="email"
                     inname="email"
                     value={email}
-                    inlabel="Enter email address"
+                    inlabel="Enter email"
                     onChange={(e) => setEmail(e.target.value)}
                     error={inputErrors.email}
                   />
@@ -223,30 +234,6 @@ const SignUp = () => {
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     error={inputErrors.confirmPError}
                   />
-                </div>
-                <div className="business-type-container">
-                  <p>Select your business type</p>
-                  <div className="button-group">
-                    <ul>
-                      {businessTypes.map(({ key, value }) => (
-                        <button
-                          key={key}
-                          type="button"
-                          className={`business-button ${selectedType === key ? "selected" : ""}`}
-                          onClick={() => handleSelectType(key)}
-                        >
-                          {value}
-                        </button>
-                      ))}
-                    </ul>
-                    {/* Show error for business type */}
-                    {inputErrors.selectedType && (
-                      <div className="Errors">
-                        <Icon icon="mdi:error" width="16" height="16" />
-                        {inputErrors.selectedType}
-                      </div>
-                    )}
-                  </div>
                 </div>
               </div>
 
@@ -276,7 +263,13 @@ const SignUp = () => {
                 )}
                 <Form.Check
                   type="checkbox"
-                  label="Sign me up for newsletter and promotional emails"
+                  label={
+                    <>
+                      Sign me up for{" "}
+                      <span className="policylink">newsletter</span> and{" "}
+                      <span className="policylink">promotional emails</span>
+                    </>
+                  }
                   onChange={(e) => setSubscribe(e.target.checked)}
                 />
                 {/* Show error for newsletter */}
