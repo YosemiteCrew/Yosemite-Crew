@@ -32,10 +32,6 @@ jest.mock("../../components/DataTable/OrgInvites", () => ({
   ),
 }));
 
-jest.mock("@/app/pages/CompleteProfile/CompleteProfile", () => ({
-  HeadText: ({ blktext }: { blktext: string }) => <h1>{blktext}</h1>,
-}));
-
 const mockGetData = getData as jest.MockedFunction<typeof getData>;
 
 describe("<Organizations />", () => {
