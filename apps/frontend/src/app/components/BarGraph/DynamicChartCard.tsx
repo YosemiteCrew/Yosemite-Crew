@@ -9,14 +9,19 @@ import {
   XAxis,
   YAxis,
   Tooltip,
+  CartesianGrid,
 } from "recharts";
-import { Card } from "react-bootstrap";
+
+import "./BarGraph.css";
+import { LayoutType } from "recharts/types/util/types";
 
 type ChartProps = {
   data: any[];
   type?: "bar" | "line";
   keys: { name: string; color: string }[];
   yTickFormatter?: (value: number) => string;
+  layout?: LayoutType;
+  hideKeys?: boolean;
 };
 
 const DynamicChartCard: React.FC<ChartProps> = ({
@@ -24,6 +29,8 @@ const DynamicChartCard: React.FC<ChartProps> = ({
   type = "bar",
   keys,
   yTickFormatter,
+  layout,
+  hideKeys = false,
 }) => {
   const renderChart = () => {
     if (type === "line") {
@@ -47,10 +54,25 @@ const DynamicChartCard: React.FC<ChartProps> = ({
     }
 
     return (
-      <BarChart data={data}>
+      <BarChart
+        data={data}
+        layout={layout}
+        style={{
+          height: "100%",
+          maxHeight: "100%",
+          width: "100%",
+          maxWidth: "100%",
+        }}
+        margin={{
+          top: 0,
+          right: 0,
+          left: -30,
+          bottom: 0,
+        }}
+      >
+        <CartesianGrid strokeDasharray="4 4" vertical={false} />
         <XAxis dataKey="month" />
         <YAxis tickFormatter={yTickFormatter} />
-        <Tooltip />
         {keys.map((key) => (
           <Bar key={key.name} dataKey={key.name} fill={key.color} stackId="a" />
         ))}
@@ -59,27 +81,33 @@ const DynamicChartCard: React.FC<ChartProps> = ({
   };
 
   return (
-    <Card className="p-3 shadow-sm chart-card">
-      <div className="d-flex gap-3 ms-2 mb-2">
-        {keys.map((key) => (
-          <span key={key.name} className="d-flex align-items-center gap-1">
-            <span
-              style={{
-                width: "10px",
-                height: "10px",
-                backgroundColor: key.color,
-                borderRadius: "50%",
-                display: "inline-block",
-              }}
-            />
-            <span>{key.name}</span>
-          </span>
-        ))}
-      </div>
-      <ResponsiveContainer width="100%" height={250}>
+    <div className="chart-card">
+      {!hideKeys && (
+        <div className="chart-card-labels">
+          {keys.map((key) => (
+            <span key={key.name} className="chart-card-label">
+              <span
+                style={{
+                  width: "16px",
+                  height: "16px",
+                  backgroundColor: key.color,
+                  borderRadius: "50%",
+                  display: "inline-block",
+                }}
+              />
+              <span>{key.name}</span>
+            </span>
+          ))}
+        </div>
+      )}
+      <ResponsiveContainer
+        width="100%"
+        height={300}
+        className={"chard-card-container"}
+      >
         {renderChart()}
       </ResponsiveContainer>
-    </Card>
+    </div>
   );
 };
 
