@@ -87,6 +87,7 @@ export type AuthenticatedRequest<
   TLocals extends Record<string, unknown> = Record<string, unknown>,
 > = Request<TParams, TResBody, TReqBody, TLocals> & {
   auth?: CognitoJwtPayload;
+  userId?: string;
 };
 
 export const authorizeCognito = async (req: Request, res: Response, next: NextFunction) => {
@@ -102,6 +103,7 @@ export const authorizeCognito = async (req: Request, res: Response, next: NextFu
     const payload = await verifyToken(token);
 
     (req as AuthenticatedRequest).auth = payload;
+    (req as AuthenticatedRequest).userId = payload.sub;
 
     next();
   } catch (error) {
