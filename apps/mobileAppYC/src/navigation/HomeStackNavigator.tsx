@@ -18,6 +18,8 @@ import {CoParentsScreen} from '@/features/coParent/screens/CoParentsScreen/CoPar
 import {AddCoParentScreen} from '@/features/coParent/screens/AddCoParentScreen/AddCoParentScreen';
 import {EditCoParentScreen} from '@/features/coParent/screens/EditCoParentScreen/EditCoParentScreen';
 import {CoParentProfileScreen} from '@/features/coParent/screens/CoParentProfileScreen/CoParentProfileScreen';
+import {AdverseEventStackNavigator} from './AdverseEventStackNavigator';
+import {NotificationsScreen} from '@/features/notifications';
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();
 
@@ -71,6 +73,11 @@ export const HomeStackNavigator: React.FC = () => {
         component={AddCompanionScreen}
         options={{headerShown: false}}
       />
+      <Stack.Screen
+        name="Notifications"
+        component={NotificationsScreen}
+        options={{headerShown: false}}
+      />
         <Stack.Screen
         name="ProfileOverview"
         component={ProfileOverviewScreen}
@@ -96,6 +103,11 @@ export const HomeStackNavigator: React.FC = () => {
       <Stack.Screen
         name="LinkedBusinesses"
         component={LinkedBusinessesStackNavigator}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="AdverseEvent"
+        component={AdverseEventStackNavigator}
         options={{headerShown: false}}
       />
       <Stack.Screen

@@ -17,6 +17,8 @@ interface LinkedBusinessCardProps {
   _onDelete?: (id: string) => void;
   onPress?: () => void;
   onDeletePress?: (business: LinkedBusiness) => void;
+  showActionButtons?: boolean;
+  showBorder?: boolean;
 }
 
 export const LinkedBusinessCard: React.FC<LinkedBusinessCardProps> = ({
@@ -24,6 +26,8 @@ export const LinkedBusinessCard: React.FC<LinkedBusinessCardProps> = ({
   _onDelete,
   onPress,
   onDeletePress,
+  showActionButtons = true,
+  showBorder = false,
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -59,7 +63,7 @@ export const LinkedBusinessCard: React.FC<LinkedBusinessCardProps> = ({
   }, [business.address]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, showBorder && styles.containerWithBorder]}>
       <TouchableOpacity
         style={styles.cardContent}
         activeOpacity={0.8}
@@ -98,26 +102,28 @@ export const LinkedBusinessCard: React.FC<LinkedBusinessCardProps> = ({
           </View>
         </View>
       </TouchableOpacity>
-      <View style={styles.actionButtons}>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={handleGetDirections}
-          hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
-          <Image
-            source={Images.getDirection}
-            style={styles.actionIcon}
-          />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={handleDeletePress}
-          hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
-          <Image
-            source={Images.deleteIconRed}
-            style={styles.actionIcon}
-          />
-        </TouchableOpacity>
-      </View>
+      {showActionButtons && (
+        <View style={styles.actionButtons}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={handleGetDirections}
+            hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
+            <Image
+              source={Images.getDirection}
+              style={styles.actionIcon}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={handleDeletePress}
+            hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
+            <Image
+              source={Images.deleteIconRed}
+              style={styles.actionIcon}
+            />
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 };
@@ -133,6 +139,10 @@ const createStyles = (theme: any) =>
       borderWidth: 1,
       borderColor: theme.colors.borderMuted,
       ...theme.shadows.sm,
+    },
+    containerWithBorder: {
+      borderWidth: 2,
+      borderColor: theme.colors.primary,
     },
     cardContent: {
       flex: 1,

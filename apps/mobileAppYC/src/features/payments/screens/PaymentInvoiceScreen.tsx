@@ -124,17 +124,19 @@ export const PaymentInvoiceScreen: React.FC = () => {
             borderRadius={16}
             tintColor={theme.colors.secondary}
             shadowIntensity="medium"
+            textStyle={styles.confirmPrimaryButtonText}
           />
           <LiquidGlassButton
             title="Pay later"
             onPress={() => navigation.goBack()}
             height={56}
             borderRadius={16}
-            tintColor="rgba(255,255,255,0.95)"
+            glassEffect="clear"
+            tintColor={theme.colors.surface}
             forceBorder
-            borderColor={theme.colors.border}
+            borderColor={theme.colors.secondary}
             textStyle={styles.payLaterText}
-            shadowIntensity="none"
+            shadowIntensity="medium"
           />
         </View>
       </ScrollView>
@@ -230,9 +232,15 @@ const createStyles = (theme: any) => StyleSheet.create({
     gap: theme.spacing[3],
     marginTop: theme.spacing[2],
   },
+  confirmPrimaryButtonText: {
+    ...theme.typography.button,
+    color: theme.colors.white,
+    textAlign: 'center',
+  },
   payLaterText: {
     ...theme.typography.titleSmall,
     color: theme.colors.secondary,
+    textAlign: 'center',
   },
 });
 

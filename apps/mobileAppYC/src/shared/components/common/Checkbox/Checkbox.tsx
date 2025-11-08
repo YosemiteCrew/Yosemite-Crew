@@ -6,6 +6,7 @@ import {
   Text,
   StyleSheet,
   TextStyle,
+  StyleProp,
 } from 'react-native';
 import { useTheme } from '@/hooks';
 
@@ -14,7 +15,7 @@ interface CheckboxProps {
   onValueChange: (value: boolean) => void;
   label?: string;
   error?: string;
-  labelStyle?: TextStyle;
+  labelStyle?: StyleProp<TextStyle>;
 }
 
 export const Checkbox: React.FC<CheckboxProps> = ({
@@ -46,7 +47,7 @@ export const Checkbox: React.FC<CheckboxProps> = ({
           )}
         </View>
         {label && (
-          <Text style={[styles.label, labelStyle]}>{label}</Text>
+          <Text style={[styles.label, labelStyle as any]}>{label}</Text>
         )}
       </TouchableOpacity>
       {error && (

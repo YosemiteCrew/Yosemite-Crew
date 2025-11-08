@@ -41,5 +41,6 @@ export const useFormBottomSheets = () => {
     },
     openSheet,
     closeSheet,
+    registerSheet,
   };
 };

@@ -1,16 +1,5 @@
 import React, {useState, useCallback, useMemo} from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Image,
-  Text,
-  TouchableOpacity,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-} from 'react-native';
+import {View, StyleSheet, ScrollView, Image, Text, ActivityIndicator, KeyboardAvoidingView, Platform, Alert} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux';
@@ -29,6 +18,7 @@ import type {CoParent} from '../../types';
 import AddCoParentBottomSheet from '../../components/AddCoParentBottomSheet/AddCoParentBottomSheet';
 import CoParentInviteBottomSheet from '../../components/CoParentInviteBottomSheet/CoParentInviteBottomSheet';
 import {useCoParentInviteFlow} from '../../hooks/useCoParentInviteFlow';
+import {SearchDropdownOverlay} from '@/shared/components/common/SearchDropdownOverlay/SearchDropdownOverlay';
 
 type Props = NativeStackScreenProps<CoParentStackParamList, 'AddCoParent'>;
 
@@ -283,31 +273,15 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
           </View>
         )}
 
-        {/* Search Dropdown Results - Absolutely Positioned Overlay */}
-        {searchQuery.length >= 3 && searchResults.length > 0 && !searching && !isBottomSheetOpen && (
-          <View style={styles.absoluteSearchDropdownContainer}>
-            <View style={styles.searchDropdownContainer}>
-              {searchResults.map(item => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={styles.searchResultItem}
-                  onPress={() => handleSelectUser(item)}>
-                  <View style={styles.resultAvatar}>
-                    <Text style={styles.resultAvatarText}>
-                      {item.firstName.charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
-                  <View style={styles.resultInfo}>
-                    <Text style={styles.resultName}>
-                      {item.firstName} {item.lastName}
-                    </Text>
-                    <Text style={styles.resultEmail}>{item.email}</Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
+        <SearchDropdownOverlay
+          visible={searchQuery.length >= 3 && searchResults.length > 0 && !searching && !isBottomSheetOpen}
+          items={searchResults}
+          keyExtractor={item => item.id}
+          onPress={handleSelectUser}
+          title={item => `${item.firstName} ${item.lastName}`}
+          subtitle={item => item.email}
+          initials={item => item.firstName}
+        />
       </KeyboardAvoidingView>
 
       <AddCoParentBottomSheet
@@ -362,26 +336,6 @@ const createStyles = (theme: any) =>
       left: theme.spacing[4],
       right: theme.spacing[4],
     },
-    absoluteSearchDropdownContainer: {
-      position: 'absolute',
-      top: 70,
-      left: theme.spacing[4],
-      right: theme.spacing[4],
-      maxHeight: 300,
-    },
-    searchDropdownContainer: {
-      backgroundColor: theme.colors.white,
-      borderRadius: theme.borderRadius.lg,
-      overflow: 'hidden',
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      maxHeight: 300,
-      shadowColor: '#000000',
-      shadowOffset: {width: 0, height: 4},
-      shadowOpacity: 0.15,
-      shadowRadius: 8,
-      elevation: 8,
-    },
     searchLoadingContainer: {
       paddingVertical: theme.spacing[3],
       justifyContent: 'center',
@@ -395,39 +349,6 @@ const createStyles = (theme: any) =>
       shadowOpacity: 0.15,
       shadowRadius: 8,
       elevation: 8,
-    },
-    searchResultItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: theme.spacing[3],
-      paddingVertical: theme.spacing[3],
-      gap: theme.spacing[3],
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border,
-    },
-    resultAvatar: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      backgroundColor: theme.colors.lightBlueBackground,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    resultAvatarText: {
-      ...theme.typography.h4,
-      color: theme.colors.secondary,
-    },
-    resultInfo: {
-      flex: 1,
-    },
-    resultName: {
-      ...theme.typography.titleSmall,
-      color: theme.colors.secondary,
-      marginBottom: theme.spacing[1],
-    },
-    resultEmail: {
-      ...theme.typography.bodyExtraSmall,
-      color: theme.colors.textSecondary,
     },
     dividerContainer: {
       flexDirection: 'row',
