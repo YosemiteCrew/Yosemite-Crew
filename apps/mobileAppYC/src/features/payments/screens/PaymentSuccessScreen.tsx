@@ -77,6 +77,7 @@ export const PaymentSuccessScreen: React.FC = () => {
             borderRadius={16}
             tintColor={theme.colors.secondary}
             shadowIntensity="medium"
+            textStyle={styles.confirmPrimaryButtonText}
           />
         </View>
       </View>
@@ -154,6 +155,11 @@ const createStyles = (theme: any) => StyleSheet.create({
     width: '100%',
     maxWidth: 400,
     marginTop: theme.spacing[4],
+  },
+  confirmPrimaryButtonText: {
+    ...theme.typography.button,
+    color: theme.colors.white,
+    textAlign: 'center',
   },
 });
 
