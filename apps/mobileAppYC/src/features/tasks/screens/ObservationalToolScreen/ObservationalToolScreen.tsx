@@ -355,7 +355,7 @@ export const ObservationalToolScreen: React.FC = () => {
       dispatch(setSelectedCompanion(companion.id));
     }
 
-    const appointmentType = `Observational Tool - ${definition.name}`;
+    const appointmentType = 'Observational Tool';
     const otContext: ObservationalToolBookingContext = {
       toolId: details.toolType,
       provider: resolvedProvider,
@@ -366,6 +366,9 @@ export const ObservationalToolScreen: React.FC = () => {
       screen: 'BookingForm',
       params: {
         businessId: resolvedProvider.businessId,
+        serviceId: details.toolType,
+        serviceName: definition.name,
+        serviceSpecialty: 'Observational Tool',
         employeeId: resolvedProvider.employeeId ?? providerPricing[0]?.employeeId,
         appointmentType,
         otContext,

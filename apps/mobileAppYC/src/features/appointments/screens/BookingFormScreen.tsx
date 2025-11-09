@@ -7,7 +7,7 @@ import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/Li
 import {useTheme, useFormBottomSheets, useFileOperations} from '@/hooks';
 import type {RootState, AppDispatch} from '@/app/store';
 import {setSelectedCompanion} from '@/features/companion';
-import {selectAvailabilityFor} from '@/features/appointments/selectors';
+import {selectAvailabilityFor, selectServiceById} from '@/features/appointments/selectors';
 import {createAppointment, upsertInvoice} from '@/features/appointments/appointmentsSlice';
 import InfoBottomSheet, {type InfoBottomSheetRef} from '@/features/appointments/components/InfoBottomSheet/InfoBottomSheet';
 import {UploadDocumentBottomSheet} from '@/shared/components/common/UploadDocumentBottomSheet/UploadDocumentBottomSheet';
@@ -39,12 +39,28 @@ export const BookingFormScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
-  const {businessId, employeeId, appointmentType, otContext} = route.params;
+  const {
+    businessId,
+    serviceId,
+    serviceName: presetServiceName,
+    serviceSpecialty,
+    employeeId: presetEmployeeId,
+    appointmentType,
+    otContext,
+  } = route.params;
   const companions = useSelector((s: RootState) => s.companion.companions);
   const selectedCompanionId = useSelector((s: RootState) => s.companion.selectedCompanionId);
-  const availability = useSelector(selectAvailabilityFor(businessId, employeeId || 'emp_brown'));
+  const selectedService = useSelector(selectServiceById(serviceId ?? null));
+  const availabilitySelector = React.useMemo(
+    () =>
+      selectAvailabilityFor(businessId, {
+        serviceId: selectedService?.id ?? serviceId,
+        employeeId: selectedService?.defaultEmployeeId ?? presetEmployeeId ?? null,
+      }),
+    [businessId, presetEmployeeId, selectedService?.defaultEmployeeId, selectedService?.id, serviceId],
+  );
+  const availability = useSelector(availabilitySelector);
   const business = useSelector((s: RootState) => s.businesses.businesses.find(b => b.id === businessId));
-  const employee = useSelector((s: RootState) => s.businesses.employees.find(e => e.id === (employeeId || 'emp_brown')));
   const bookedSheetRef = React.useRef<InfoBottomSheetRef>(null);
 
   const todayISO = useMemo(() => formatDateToISODate(new Date()), []);
@@ -55,7 +71,30 @@ export const BookingFormScreen: React.FC = () => {
   const [date, setDate] = useState<string>(firstAvailableDate);
   const [dateObj, setDateObj] = useState<Date>(parseISODate(firstAvailableDate));
   const [time, setTime] = useState<string | null>(null);
-  const [type, setType] = useState<string>(appointmentType ?? 'General Checkup');
+  const presetServiceLabel = useMemo(() => {
+    if (otContext) {
+      return selectedService?.name ?? presetServiceName ?? 'Observational Tool';
+    }
+    return selectedService?.name ?? presetServiceName ?? null;
+  }, [otContext, presetServiceName, selectedService?.name]);
+
+  const presetSpecialtyLabel = useMemo(() => {
+    if (serviceSpecialty) {
+      return serviceSpecialty;
+    }
+    if (selectedService?.specialty) {
+      return selectedService.specialty;
+    }
+    if (appointmentType) {
+      return appointmentType;
+    }
+    if (otContext) {
+      return 'Observational Tool';
+    }
+    return null;
+  }, [appointmentType, otContext, selectedService?.specialty, serviceSpecialty]);
+
+  const [type, setType] = useState<string>(presetSpecialtyLabel ?? 'General Checkup');
   const [concern, setConcern] = useState('');
   const [emergency, setEmergency] = useState(false);
   const [agreeBusiness, setAgreeBusiness] = useState(false);
@@ -90,28 +129,31 @@ export const BookingFormScreen: React.FC = () => {
     deleteSheetRef,
   });
 
-  const typeLocked = Boolean(appointmentType);
+  const typeLocked = Boolean(presetSpecialtyLabel);
   React.useEffect(() => {
-    if (typeLocked && appointmentType && type !== appointmentType) {
-      setType(appointmentType);
+    if (presetSpecialtyLabel && type !== presetSpecialtyLabel) {
+      setType(presetSpecialtyLabel);
     }
-  }, [typeLocked, appointmentType, type]);
+  }, [presetSpecialtyLabel, type]);
   React.useEffect(() => {
     if (type !== 'Emergency' && emergency) {
       setEmergency(false);
     }
   }, [type, emergency]);
 
-  const valid = !!(selectedCompanionId && date && time && agreeApp && agreeBusiness);
+  const selectedServiceName = (selectedService?.name ?? presetServiceName ?? presetServiceLabel ?? '')?.trim() || null;
+  const valid = !!(selectedCompanionId && date && time && agreeApp && agreeBusiness && selectedServiceName);
 
   const handleBook = async () => {
-    if (!valid || !time || !selectedCompanionId) {
+    if (!valid || !time || !selectedCompanionId || !selectedServiceName) {
       return;
     }
     const action = await dispatch(createAppointment({
       companionId: selectedCompanionId,
       businessId,
-      employeeId: employeeId || 'emp_brown',
+      serviceId: selectedService?.id ?? serviceId ?? (otContext ? otContext.toolId : null),
+      serviceName: selectedServiceName,
+      employeeId: null,
       date,
       time,
       type,
@@ -203,14 +245,19 @@ export const BookingFormScreen: React.FC = () => {
               }
             },
           }}
-          employeeCard={
-            employee
+          serviceCard={
+            selectedServiceName
               ? {
-                  title: employee.name,
-                  subtitlePrimary: employee.specialization,
-                  subtitleSecondary: employee.title,
-                  image: employee.avatar,
-                  onEdit: () => navigation.goBack(),
+                  title: selectedService?.name ?? selectedServiceName,
+                  subtitlePrimary:
+                    selectedService?.description ??
+                    (otContext ? 'Observational tool assessment' : undefined),
+                  subtitleSecondary: undefined,
+                  badgeText: selectedService?.basePrice ? `$${selectedService.basePrice}` : null,
+                  image: undefined,
+                  showAvatar: false,
+                  onEdit: otContext ? undefined : () => navigation.goBack(),
+                  interactive: !otContext,
                 }
               : undefined
           }

@@ -98,6 +98,9 @@ export type AppointmentStackParamList = {
   BusinessDetails: { businessId: string };
   BookingForm: {
     businessId: string;
+    serviceId?: string;
+    serviceName?: string;
+    serviceSpecialty?: string;
     employeeId?: string;
     appointmentType?: string;
     otContext?: ObservationalToolBookingContext;

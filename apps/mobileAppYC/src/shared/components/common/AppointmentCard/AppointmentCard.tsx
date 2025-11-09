@@ -1,5 +1,5 @@
 import React, {useMemo} from 'react';
-import {View, Text, Image, StyleSheet} from 'react-native';
+import {View, Text, Image, StyleSheet, TouchableOpacity} from 'react-native';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {SwipeableGlassCard} from '@/shared/components/common/SwipeableGlassCard/SwipeableGlassCard';
 import {useTheme} from '@/hooks';
@@ -18,6 +18,7 @@ export const AppointmentCard = ({
   showActions = true,
   footer,
   onViewDetails,
+  onPress,
 }: {
   doctorName: string;
   specialization: string;
@@ -31,6 +32,7 @@ export const AppointmentCard = ({
   showActions?: boolean;
   footer?: React.ReactNode;
   onViewDetails?: () => void;
+  onPress?: () => void;
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -39,11 +41,15 @@ export const AppointmentCard = ({
     onViewDetails?.();
   };
 
+  const handlePress = () => {
+    onPress?.();
+  };
+
   return (
     <SwipeableGlassCard
       actionIcon={Images.viewIconSlide}
       onAction={handleViewPress}
-      onPress={onViewDetails}
+      onPress={handlePress}
       actionBackgroundColor={theme.colors.success}
       containerStyle={styles.container}
       cardProps={{
@@ -60,68 +66,75 @@ export const AppointmentCard = ({
         mass: 0.8,
       }}
       enableHorizontalSwipeOnly={true}>
-      {/* Top Row: Avatar and Text Block */}
-      <View style={styles.topRow}>
-        <Image source={avatar} style={styles.avatar} />
-        <View style={styles.textBlock}>
-          <Text style={styles.name}>{doctorName}</Text>
-          <Text style={styles.sub}>{specialization}</Text>
-          <Text style={styles.sub}>{hospital}</Text>
-          <Text style={styles.date}>{dateTime}</Text>
-        </View>
-      </View>
-
-      {/* Note Container - NEW LOCATION */}
-      {note && (
-        <View style={styles.noteContainer}>
-          <Text style={styles.note}>
-            <Text style={styles.noteLabel}>Note: </Text>
-            {note}
-          </Text>
-        </View>
-      )}
-
-      {/* Buttons */}
-      {showActions && (
-        <View style={styles.buttonContainer}>
-          <LiquidGlassButton
-            title="Get directions"
-            onPress={onGetDirections ?? (() => {})}
-            tintColor={theme.colors.secondary}
-            shadowIntensity="medium"
-            textStyle={styles.directionsButtonText}
-            height={48}
-            borderRadius={12}
-          />
-          <View style={styles.inlineButtons}>
-            <LiquidGlassButton
-              title="Chat"
-              onPress={onChat ?? (() => {})}
-              style={styles.actionButton}
-              textStyle={styles.actionButtonText}
-              tintColor={theme.colors.white}
-              shadowIntensity="light"
-              forceBorder
-              borderColor="#302F2E"
-              height={52}
-              borderRadius={16}
-            />
-            <LiquidGlassButton
-              title="Check in"
-              onPress={onCheckIn ?? (() => {})}
-              style={styles.actionButton}
-              textStyle={styles.actionButtonText}
-              tintColor={theme.colors.white}
-              shadowIntensity="light"
-              forceBorder
-              borderColor="#302F2E"
-              height={52}
-              borderRadius={16}
-            />
+      <TouchableOpacity
+        activeOpacity={onPress ? 0.85 : 1}
+        onPress={handlePress}
+        disabled={!onPress}
+        style={styles.touchWrapper}
+      >
+        {/* Top Row: Avatar and Text Block */}
+        <View style={styles.topRow}>
+          <Image source={avatar} style={styles.avatar} />
+          <View style={styles.textBlock}>
+            <Text style={styles.name}>{doctorName}</Text>
+            <Text style={styles.sub}>{specialization}</Text>
+            <Text style={styles.sub}>{hospital}</Text>
+            <Text style={styles.date}>{dateTime}</Text>
           </View>
         </View>
-      )}
-      {footer ? <View style={styles.footer}>{footer}</View> : null}
+
+        {/* Note Container - NEW LOCATION */}
+        {note && (
+          <View style={styles.noteContainer}>
+            <Text style={styles.note}>
+              <Text style={styles.noteLabel}>Note: </Text>
+              {note}
+            </Text>
+          </View>
+        )}
+
+        {/* Buttons */}
+        {showActions && (
+          <View style={styles.buttonContainer}>
+            <LiquidGlassButton
+              title="Get directions"
+              onPress={onGetDirections ?? (() => {})}
+              tintColor={theme.colors.secondary}
+              shadowIntensity="medium"
+              textStyle={styles.directionsButtonText}
+              height={48}
+              borderRadius={12}
+            />
+            <View style={styles.inlineButtons}>
+              <LiquidGlassButton
+                title="Chat"
+                onPress={onChat ?? (() => {})}
+                style={styles.actionButton}
+                textStyle={styles.actionButtonText}
+                tintColor={theme.colors.white}
+                shadowIntensity="light"
+                forceBorder
+                borderColor="#302F2E"
+                height={52}
+                borderRadius={16}
+              />
+              <LiquidGlassButton
+                title="Check in"
+                onPress={onCheckIn ?? (() => {})}
+                style={styles.actionButton}
+                textStyle={styles.actionButtonText}
+                tintColor={theme.colors.white}
+                shadowIntensity="light"
+                forceBorder
+                borderColor="#302F2E"
+                height={52}
+                borderRadius={16}
+              />
+            </View>
+          </View>
+        )}
+        {footer ? <View style={styles.footer}>{footer}</View> : null}
+      </TouchableOpacity>
     </SwipeableGlassCard>
   );
 };
@@ -199,4 +212,7 @@ const createStyles = (theme: any) =>
       gap: theme.spacing[3],
     },
     footer: {marginTop: theme.spacing[2]},
+    touchWrapper: {
+      flex: 1,
+    },
   });
