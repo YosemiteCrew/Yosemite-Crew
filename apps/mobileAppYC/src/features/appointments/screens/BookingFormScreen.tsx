@@ -194,12 +194,6 @@ export const BookingFormScreen: React.FC = () => {
             image: Images.sampleInvoice,
           }),
         );
-
-        navigation.replace('PaymentInvoice', {
-          appointmentId: created.id,
-          companionId: created.companionId,
-        });
-        return;
       }
 
       // Show confirmation bottom sheet, then go to MyAppointments

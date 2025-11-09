@@ -98,15 +98,13 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const unreadNotifications = useSelector(selectUnreadCount);
   const userCurrencyCode = authUser?.currency ?? 'USD';
 
-  const hasAppointmentsHydrated = useSelector(
-    (s: RootState) =>
-      selectedCompanionIdRedux
-        ? s.appointments.hydratedCompanions[selectedCompanionIdRedux]
-        : false,
-  );
-  const businesses = useSelector((s: RootState) => s.businesses.businesses);
-  const employees = useSelector((s: RootState) => s.businesses.employees);
-  const services = useSelector((s: RootState) => s.businesses.services);
+  const hasAppointmentsHydrated = useSelector((s: RootState) => {
+    if (!selectedCompanionIdRedux) return false;
+    return s.appointments?.hydratedCompanions?.[selectedCompanionIdRedux] ?? false;
+  });
+  const businesses = useSelector((s: RootState) => s.businesses?.businesses ?? []);
+  const employees = useSelector((s: RootState) => s.businesses?.employees ?? []);
+  const services = useSelector((s: RootState) => s.businesses?.services ?? []);
   const businessMap = React.useMemo(() => new Map(businesses.map(b => [b.id, b])), [businesses]);
   const employeeMap = React.useMemo(() => new Map(employees.map(e => [e.id, e])), [employees]);
   const serviceMap = React.useMemo(() => new Map(services.map(s => [s.id, s])), [services]);
@@ -205,17 +203,32 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     return (charSum % 5) + 1;
   }, []);
 
-  const renderEmptyStateTile = (title: string, subtitle: string, key: string) => (
-    <LiquidGlassCard
-      key={key}
-      glassEffect="clear"
-      interactive
-      style={styles.infoTile}
-      fallbackStyle={styles.tileFallback}>
-      <Text style={styles.tileTitle}>{title}</Text>
-      <Text style={styles.tileSubtitle}>{subtitle}</Text>
-    </LiquidGlassCard>
-  );
+  const renderEmptyStateTile = (
+    title: string,
+    subtitle: string,
+    key: string,
+    onPress?: () => void,
+  ) => {
+    const content = (
+      <LiquidGlassCard
+        key={key}
+        glassEffect="clear"
+        interactive
+        style={styles.infoTile}
+        fallbackStyle={styles.tileFallback}>
+        <Text style={styles.tileTitle}>{title}</Text>
+        <Text style={styles.tileSubtitle}>{subtitle}</Text>
+      </LiquidGlassCard>
+    );
+    if (!onPress) {
+      return content;
+    }
+    return (
+      <TouchableOpacity activeOpacity={0.85} onPress={onPress} testID={`${key}-empty-tile`}>
+        {content}
+      </TouchableOpacity>
+    );
+  };
 
   const handleCompleteTask = React.useCallback(
     async (taskId: string) => {
@@ -277,19 +290,22 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   }, [navigateToTaskView, nextUpcomingTask, selectedCompanionIdRedux]);
 
   const formatAppointmentDateTime = React.useCallback((dateStr: string, timeStr?: string | null) => {
-    const date = new Date(`${dateStr}T${timeStr ?? '00:00'}`);
+    const timeComponent = timeStr ?? '00:00';
+    const date = new Date(`${dateStr}T${timeComponent}`);
     if (Number.isNaN(date.getTime())) {
-      return `${dateStr}${timeStr ? ` • ${timeStr}` : ''}`;
+      return timeStr ? `${dateStr} • ${timeStr}` : dateStr;
     }
     const formattedDate = date.toLocaleDateString('en-US', {day: 'numeric', month: 'short'});
     const formattedTime = timeStr
-      ? new Date(`1970-01-01T${timeStr}`).toLocaleTimeString('en-US', {
+      ? new Date(`1970-01-01T${timeComponent}`).toLocaleTimeString('en-US', {
           hour: 'numeric',
           minute: '2-digit',
         })
       : null;
     return formattedTime ? `${formattedDate} • ${formattedTime}` : formattedDate;
   }, []);
+
+  const [showFallbackAppointmentCard, setShowFallbackAppointmentCard] = React.useState(true);
 
   const nextUpcomingAppointment = React.useMemo(() => {
     if (!upcomingAppointments.length) {
@@ -425,13 +441,47 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
               handleCheckInAppointment(nextUpcomingAppointment.id);
             }
           }}
+          testIDs={{
+            container: 'appointment-card-container',
+            directions: 'appointment-directions',
+            chat: 'appointment-chat',
+            checkIn: 'appointment-checkin',
+          }}
         />
       );
     }
+
+    if (showFallbackAppointmentCard) {
+      return (
+        <AppointmentCard
+          key="fallback-appointment-card"
+          doctorName="Dr. Emily Johnson"
+          specialization="Cardiology"
+          hospital="SMPC Cardiac hospital"
+          dateTime="20 Aug • 4:00 PM"
+          note="Check in is only allowed if you arrive 5 minutes early at location"
+          avatar={Images.cat}
+          showActions
+          onPress={() => handleViewAppointment('fallback')}
+          onViewDetails={() => handleViewAppointment('fallback')}
+          onGetDirections={() => openMapsToAddress('San Francisco, CA')}
+          onChat={() => handleChatAppointment('fallback')}
+          onCheckIn={() => setShowFallbackAppointmentCard(false)}
+          testIDs={{
+            container: 'appointment-card-container',
+            directions: 'appointment-directions',
+            chat: 'appointment-chat',
+            checkIn: 'appointment-checkin',
+          }}
+        />
+      );
+    }
+
     return renderEmptyStateTile(
       'No upcoming appointments',
       'Book an appointment to see it here.',
       'appointments',
+      () => setShowFallbackAppointmentCard(true),
     );
   };
 

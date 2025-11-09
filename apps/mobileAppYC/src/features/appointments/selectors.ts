@@ -2,10 +2,10 @@ import {createSelector} from '@reduxjs/toolkit';
 import type {RootState} from '@/app/store';
 import type {BusinessCategory} from './types';
 
-const selectAppointments = (state: RootState) => state.appointments.items;
+const selectAppointments = (state: RootState) => state.appointments?.items ?? [];
 const selectCompanionParam = (_: RootState, companionId: string | null) => companionId;
-const selectBusinesses = (state: RootState) => state.businesses.businesses;
-const selectServices = (state: RootState) => state.businesses.services;
+const selectBusinesses = (state: RootState) => state.businesses?.businesses ?? [];
+const selectServices = (state: RootState) => state.businesses?.services ?? [];
 const selectBusinessCategoryParam = (_: RootState, category?: BusinessCategory) => category;
 
 export const createSelectAppointmentsByCompanion = () =>
