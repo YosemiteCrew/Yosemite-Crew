@@ -38,6 +38,7 @@ export const MyAppointmentsScreen: React.FC = () => {
   const past = useSelector((state: RootState) => pastSelector(state, selectedCompanionId ?? null));
   const businesses = useSelector((s: RS) => s.businesses.businesses);
   const employees = useSelector((s: RS) => s.businesses.employees);
+  const services = useSelector((s: RS) => s.businesses.services);
   const [filter, setFilter] = React.useState<BusinessFilter>('all');
 
   useEffect(() => {
@@ -54,6 +55,7 @@ export const MyAppointmentsScreen: React.FC = () => {
 
   const businessMap = React.useMemo(() => new Map(businesses.map(b => [b.id, b])), [businesses]);
   const employeeMap = React.useMemo(() => new Map(employees.map(e => [e.id, e])), [employees]);
+  const serviceMap = React.useMemo(() => new Map(services.map(s => [s.id, s])), [services]);
 
   const formatDate = React.useCallback(
     (iso: string) =>
@@ -96,9 +98,16 @@ export const MyAppointmentsScreen: React.FC = () => {
 
   const handleAdd = () => navigation.navigate('BrowseBusinesses');
 
-  const handleApprove = (appointmentId: string, companionId: string) => {
-    dispatch(updateAppointmentStatus({appointmentId, status: 'approved'}));
-    navigation.navigate('PaymentInvoice', {appointmentId, companionId});
+  const handleApprove = (appointment: (typeof filteredUpcoming)[number]) => {
+    if (!appointment) return;
+    const service = serviceMap.get(appointment.serviceId ?? '');
+    const fallbackEmployeeId =
+      service?.defaultEmployeeId ??
+      (appointment.employeeId ? employeeMap.get(appointment.employeeId)?.id ?? null : null) ??
+      employees.find(e => e.businessId === appointment.businessId)?.id ??
+      null;
+    dispatch(updateAppointmentStatus({appointmentId: appointment.id, status: 'approved', employeeId: fallbackEmployeeId ?? undefined}));
+    navigation.navigate('PaymentInvoice', {appointmentId: appointment.id, companionId: appointment.companionId});
   };
 
   const sections = React.useMemo(
@@ -123,24 +132,41 @@ export const MyAppointmentsScreen: React.FC = () => {
     if (!item) {
       return null;
     }
-    const emp = employeeMap.get(item.employeeId);
+    const emp = employeeMap.get(item.employeeId ?? '');
+    const service = serviceMap.get(item.serviceId ?? '');
     const biz = businessMap.get(item.businessId);
     const formattedDate = formatDate(item.date);
+    const hasAssignedVet = Boolean(emp);
+    const avatarSource = hasAssignedVet ? emp?.avatar : Images.cat;
+    const cardTitle = hasAssignedVet
+      ? emp?.name ?? 'Assigned vet'
+      : service?.name ?? item.serviceName ?? 'Service request';
+    const servicePriceText = service?.basePrice ? `$${service.basePrice}` : null;
+    const serviceSubtitle = [service?.specialty ?? item.type ?? 'Awaiting vet assignment', servicePriceText]
+      .filter(Boolean)
+      .join(' • ');
+    const cardSubtitle = hasAssignedVet ? emp?.specialization ?? '' : serviceSubtitle;
+    let assignmentNote: string | undefined;
+    if (!hasAssignedVet) {
+      assignmentNote = 'A vet will be assigned once the clinic approves your request.';
+    } else if (item.status === 'paid') {
+      assignmentNote = 'Note: Check in is only allowed if you arrive 5 minutes early at location.';
+    }
     if (section.key === 'upcoming') {
       let footer: React.ReactNode;
 
       if (item.status === 'requested') {
         footer = (
-          <View style={styles.upcomingFooter}>
-            <View style={styles.statusBadgePending}>
-              <Text style={styles.statusBadgeText}>Pending confirmation</Text>
-            </View>
-            <LiquidGlassButton
-              title="Approve (mock)"
-              onPress={() => handleApprove(item.id, item.companionId)}
-              height={44}
-              borderRadius={12}
-              tintColor="rgba(255,255,255,0.95)"
+            <View style={styles.upcomingFooter}>
+              <View style={styles.statusBadgePending}>
+                <Text style={styles.statusBadgeText}>Pending confirmation</Text>
+              </View>
+              <LiquidGlassButton
+                title="Approve (mock)"
+                onPress={() => handleApprove(item)}
+                height={44}
+                borderRadius={12}
+                tintColor="rgba(255,255,255,0.95)"
               forceBorder
               borderColor={theme.colors.border}
               textStyle={styles.secondaryActionText}
@@ -169,14 +195,15 @@ export const MyAppointmentsScreen: React.FC = () => {
       return (
         <View style={styles.cardWrapper}>
           <AppointmentCard
-            doctorName={emp?.name || 'Doctor'}
-            specialization={emp?.specialization || ''}
+            doctorName={cardTitle}
+            specialization={cardSubtitle}
             hospital={biz?.name || ''}
             dateTime={`${formattedDate} - ${item.time}`}
-            avatar={emp?.avatar || Images.cat}
-            note={item.status === 'paid' ? 'Note: Check in is only allowed if you arrive 5 minutes early at location.' : undefined}
-            showActions={item.status === 'paid'}
+            avatar={avatarSource || Images.cat}
+            note={assignmentNote}
+            showActions={item.status === 'paid' && hasAssignedVet}
             onViewDetails={() => navigation.navigate('ViewAppointment', {appointmentId: item.id})}
+            onPress={() => navigation.navigate('ViewAppointment', {appointmentId: item.id})}
             onGetDirections={() => {
               if (biz?.address) openMapsToAddress(biz.address);
             }}
@@ -191,13 +218,14 @@ export const MyAppointmentsScreen: React.FC = () => {
     return (
       <View style={styles.cardWrapper}>
         <AppointmentCard
-          doctorName={emp?.name || 'Doctor'}
-          specialization={emp?.specialization || ''}
+          doctorName={cardTitle}
+          specialization={cardSubtitle}
           hospital={biz?.name || ''}
           dateTime={`${formattedDate} - ${item.time}`}
-          avatar={emp?.avatar || Images.cat}
+          avatar={avatarSource || Images.cat}
           showActions={false}
           onViewDetails={() => navigation.navigate('ViewAppointment', {appointmentId: item.id})}
+           onPress={() => navigation.navigate('ViewAppointment', {appointmentId: item.id})}
           footer={
             <View style={styles.pastFooter}>
               <View style={styles.pastStatusWrapper}>
@@ -347,7 +375,6 @@ const createStyles = (theme: any) =>
     reviewButtonText: {...theme.typography.paragraphBold, color: theme.colors.white},
     upcomingFooter: {
       gap: theme.spacing[2],
-      marginTop: theme.spacing[3],
     },
     footerButton: {
       alignSelf: 'flex-start',

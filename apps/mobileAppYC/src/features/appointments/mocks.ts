@@ -2,6 +2,7 @@ import {Images} from '@/assets/images';
 import type {
   VetBusiness,
   VetEmployee,
+  VetService,
   EmployeeAvailability,
   Appointment,
   Invoice,
@@ -102,6 +103,58 @@ export const mockEmployees: VetEmployee[] = [
   },
 ];
 
+export const mockServices: VetService[] = [
+  {
+    id: 'svc_internal_consult',
+    businessId: 'biz_sfamc',
+    specialty: 'Internal Medicine',
+    name: 'Internal Medicine Consultation',
+    description: 'Comprehensive diagnostic review and treatment planning for internal conditions.',
+    basePrice: 185,
+    icon: Images.hospitalIcon,
+    defaultEmployeeId: 'emp_brown',
+  },
+  {
+    id: 'svc_oncology_followup',
+    businessId: 'biz_sfamc',
+    specialty: 'Oncology',
+    name: 'Oncology Follow-up',
+    description: 'Post-treatment monitoring including imaging and oncology review.',
+    basePrice: 220,
+    icon: Images.hospitalIcon,
+    defaultEmployeeId: 'emp_emily',
+  },
+  {
+    id: 'svc_cardiology_eval',
+    businessId: 'biz_sfamc',
+    specialty: 'Cardiology',
+    name: 'Cardiology Evaluation',
+    description: 'Advanced cardiology work-up, ECG review, and treatment recommendations.',
+    basePrice: 210,
+    icon: Images.hospitalIcon,
+    defaultEmployeeId: 'emp_emily',
+  },
+  {
+    id: 'svc_rehab_program',
+    businessId: 'biz_pawpet',
+    specialty: 'Pain Management & Rehab',
+    name: 'Rehab Program Intake',
+    description: 'Custom rehabilitation plan with mobility assessment and therapy plan.',
+    basePrice: 165,
+    icon: Images.hospitalIcon,
+    defaultEmployeeId: 'emp_olivia',
+  },
+  {
+    id: 'svc_groom_spa',
+    businessId: 'biz_tender_groom',
+    specialty: 'Grooming',
+    name: 'Signature Groom & Spa',
+    description: 'Bath, trim, ear cleaning, paw care, and finishing spray.',
+    basePrice: 95,
+    icon: Images.groomingIcon,
+  },
+];
+
 // Helper to create a YYYY-MM-DD string for today
 const todayISO = () => {
   const d = new Date();
@@ -115,6 +168,8 @@ export const mockAvailability: EmployeeAvailability[] = [
   {
     businessId: 'biz_sfamc',
     employeeId: 'emp_brown',
+    serviceId: 'svc_internal_consult',
+    label: 'Internal medicine consults',
     slotsByDate: {
       [todayISO()]: ['10:00', '11:00', '13:00', '15:00', '18:00'],
     },
@@ -122,6 +177,8 @@ export const mockAvailability: EmployeeAvailability[] = [
   {
     businessId: 'biz_sfamc',
     employeeId: 'emp_emily',
+    serviceId: 'svc_cardiology_eval',
+    label: 'Cardiology evaluations',
     slotsByDate: {
       [todayISO()]: ['09:30', '12:30', '16:00'],
     },
@@ -129,8 +186,18 @@ export const mockAvailability: EmployeeAvailability[] = [
   {
     businessId: 'biz_pawpet',
     employeeId: 'emp_olivia',
+    serviceId: 'svc_rehab_program',
+    label: 'Rehab intake',
     slotsByDate: {
       [todayISO()]: ['10:15', '13:45', '17:30'],
+    },
+  },
+  {
+    businessId: 'biz_tender_groom',
+    serviceId: 'svc_groom_spa',
+    label: 'Grooming sessions',
+    slotsByDate: {
+      [todayISO()]: ['09:00', '11:30', '14:00'],
     },
   },
 ];
@@ -140,10 +207,12 @@ export const mockAppointments = (companionId: string): Appointment[] => [
     id: 'apt_demo_1',
     companionId,
     businessId: 'biz_sfamc',
-    employeeId: 'emp_emily',
+    serviceId: 'svc_internal_consult',
+    serviceName: 'Internal Medicine Consultation',
+    employeeId: null,
     date: todayISO(),
     time: '16:00',
-    type: 'General Checkup',
+    type: 'Internal Medicine Consultation',
     status: 'requested',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

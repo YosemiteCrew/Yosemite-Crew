@@ -15,7 +15,7 @@ import {useRoute, useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
 import type {DocumentFile} from '@/features/documents/types';
-import {selectAvailabilityFor} from '@/features/appointments/selectors';
+import {selectAvailabilityFor, selectServiceById} from '@/features/appointments/selectors';
 import {updateAppointmentStatus} from '@/features/appointments/appointmentsSlice';
 import {
   getFirstAvailableDate,
@@ -33,7 +33,16 @@ export const EditAppointmentScreen: React.FC = () => {
   const route = useRoute<any>();
   const {appointmentId, mode} = route.params as {appointmentId: string; mode?: 'reschedule'};
   const apt = useSelector((s: RootState) => s.appointments.items.find(a => a.id === appointmentId));
-  const availability = useSelector(selectAvailabilityFor(apt?.businessId || '', apt?.employeeId || ''));
+  const service = useSelector(selectServiceById(apt?.serviceId ?? null));
+  const availabilitySelector = React.useMemo(
+    () =>
+      selectAvailabilityFor(apt?.businessId || '', {
+        serviceId: apt?.serviceId,
+        employeeId: apt?.employeeId ?? service?.defaultEmployeeId ?? null,
+      }),
+    [apt?.businessId, apt?.employeeId, apt?.serviceId, service?.defaultEmployeeId],
+  );
+  const availability = useSelector(availabilitySelector);
   const business = useSelector((s: RootState) => s.businesses.businesses.find(b => b.id === apt?.businessId));
   const employee = useSelector((s: RootState) => s.businesses.employees.find(e => e.id === apt?.employeeId));
   const companions = useSelector((s: RootState) => s.companion.companions);
@@ -119,6 +128,19 @@ export const EditAppointmentScreen: React.FC = () => {
             image: business?.photo,
             onEdit: () => navigation.goBack(),
           }}
+          serviceCard={
+            (service || apt.serviceName)
+              ? {
+                  title: service?.name ?? apt.serviceName ?? 'Requested service',
+                  subtitlePrimary: service?.description,
+                  subtitleSecondary: undefined,
+                  badgeText: service?.basePrice ? `$${service.basePrice}` : null,
+                  image: undefined,
+                  showAvatar: false,
+                  interactive: false,
+                }
+              : undefined
+          }
           employeeCard={
             employee
               ? {
