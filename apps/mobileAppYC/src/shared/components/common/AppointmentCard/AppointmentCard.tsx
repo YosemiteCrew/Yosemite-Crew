@@ -19,6 +19,7 @@ export const AppointmentCard = ({
   footer,
   onViewDetails,
   onPress,
+  testIDs,
 }: {
   doctorName: string;
   specialization: string;
@@ -33,6 +34,12 @@ export const AppointmentCard = ({
   footer?: React.ReactNode;
   onViewDetails?: () => void;
   onPress?: () => void;
+  testIDs?: {
+    container?: string;
+    directions?: string;
+    chat?: string;
+    checkIn?: string;
+  };
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -71,6 +78,7 @@ export const AppointmentCard = ({
         onPress={handlePress}
         disabled={!onPress}
         style={styles.touchWrapper}
+        testID={testIDs?.container}
       >
         {/* Top Row: Avatar and Text Block */}
         <View style={styles.topRow}>
@@ -96,6 +104,7 @@ export const AppointmentCard = ({
         {/* Buttons */}
         {showActions && (
           <View style={styles.buttonContainer}>
+          <View testID={testIDs?.directions}>
             <LiquidGlassButton
               title="Get directions"
               onPress={onGetDirections ?? (() => {})}
@@ -105,7 +114,9 @@ export const AppointmentCard = ({
               height={48}
               borderRadius={12}
             />
-            <View style={styles.inlineButtons}>
+          </View>
+          <View style={styles.inlineButtons}>
+            <View style={styles.actionButtonWrapper} testID={testIDs?.chat}>
               <LiquidGlassButton
                 title="Chat"
                 onPress={onChat ?? (() => {})}
@@ -118,6 +129,8 @@ export const AppointmentCard = ({
                 height={52}
                 borderRadius={16}
               />
+            </View>
+            <View style={styles.actionButtonWrapper} testID={testIDs?.checkIn}>
               <LiquidGlassButton
                 title="Check in"
                 onPress={onCheckIn ?? (() => {})}
@@ -132,6 +145,7 @@ export const AppointmentCard = ({
               />
             </View>
           </View>
+        </View>
         )}
         {footer ? <View style={styles.footer}>{footer}</View> : null}
       </TouchableOpacity>
@@ -210,6 +224,9 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       justifyContent: 'space-between',
       gap: theme.spacing[3],
+    },
+    actionButtonWrapper: {
+      flex: 1,
     },
     footer: {marginTop: theme.spacing[2]},
     touchWrapper: {
