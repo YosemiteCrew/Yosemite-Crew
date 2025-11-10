@@ -4,15 +4,12 @@ import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 
-interface Employee {
+interface Service {
   id: string;
   name: string;
-  title: string;
-  specialization: string;
-  experienceYears?: number;
-  consultationFee?: number;
-  avatar?: any;
-  rating?: number;
+  description?: string;
+  basePrice?: number;
+  icon?: any;
 }
 
 interface SpecialtyAccordionProps {
@@ -20,23 +17,19 @@ interface SpecialtyAccordionProps {
   icon?: any;
   specialties: {
     name: string;
-    doctorCount: number;
-    employees: Employee[];
+    serviceCount: number;
+    services: Service[];
   }[];
-  onSelectVet: (employeeId: string) => void;
+  onSelectService: (serviceId: string, specialtyName: string) => void;
 }
 
 interface SpecialtyItemProps {
-  specialty: {
-    name: string;
-    doctorCount: number;
-    employees: Employee[];
-  };
+  specialty: SpecialtyAccordionProps['specialties'][number];
   defaultExpanded?: boolean;
-  onSelectVet: (employeeId: string) => void;
+  onSelectService: (serviceId: string, specialtyName: string) => void;
 }
 
-const SpecialtyItem: React.FC<SpecialtyItemProps> = ({specialty, onSelectVet, defaultExpanded = false}) => {
+const SpecialtyItem: React.FC<SpecialtyItemProps> = ({specialty, onSelectService, defaultExpanded = false}) => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const [expanded, setExpanded] = useState(defaultExpanded);
@@ -67,7 +60,7 @@ const SpecialtyItem: React.FC<SpecialtyItemProps> = ({specialty, onSelectVet, de
         <View style={styles.specialtyHeaderContent}>
           <Text style={styles.specialtyName}>{specialty.name}</Text>
           <Text style={styles.doctorCount}>
-            {specialty.doctorCount} Doctor{specialty.doctorCount === 1 ? '' : 's'}
+            {specialty.serviceCount} Service{specialty.serviceCount === 1 ? '' : 's'}
           </Text>
         </View>
         <Animated.Image
@@ -80,49 +73,25 @@ const SpecialtyItem: React.FC<SpecialtyItemProps> = ({specialty, onSelectVet, de
       </TouchableOpacity>
 
       {expanded && (
-        <View style={styles.employeesList}>
-          {specialty.employees.map(emp => (
-            <View key={emp.id} style={styles.employeeCard}>
-              {/* Top section: Avatar and basic info */}
-              <View style={styles.employeeHeader}>
-                <View style={styles.avatarColumn}>
-                  <Image
-                    source={emp.avatar || Images.cat}
-                    style={styles.employeeAvatar}
-                    resizeMode="cover"
-                  />
-                  {emp.rating && (
-                    <View style={styles.ratingContainer}>
-                      <Image source={Images.starIcon} style={styles.ratingIcon} />
-                      <Text style={styles.ratingText}>{emp.rating}</Text>
-                    </View>
-                  )}
-                </View>
-                <View style={styles.employeeBasicInfo}>
-                  <Text style={styles.employeeName}>{emp.name}</Text>
-                  <Text style={styles.employeeSpecialization}>
-                    {emp.specialization}
-                  </Text>
-                  <Text style={styles.employeeTitle}>{emp.title}</Text>
-                  <View style={styles.detailStack}>
-                    {emp.experienceYears !== undefined && (
-                      <Text style={styles.detailLine}>
-                        Experience: <Text style={styles.detailValue}>{emp.experienceYears} yrs</Text>
-                      </Text>
-                    )}
-                    {emp.consultationFee !== undefined && (
-                      <Text style={styles.detailLine}>
-                        Consultation fee: <Text style={styles.detailValue}>${emp.consultationFee}</Text>
-                      </Text>
-                    )}
+        <View style={styles.servicesList}>
+          {specialty.services.map(service => (
+            <View key={service.id} style={styles.serviceCard}>
+              <View style={styles.serviceTopRow}>
+                <Text style={styles.serviceName} numberOfLines={1} ellipsizeMode="tail">
+                  {service.name}
+                </Text>
+                {service.basePrice ? (
+                  <View style={styles.priceChip}>
+                    <Text style={styles.priceChipText}>${service.basePrice}</Text>
                   </View>
-                </View>
+                ) : null}
               </View>
-
-              {/* Bottom section: Select Vet button */}
+              {service.description ? (
+                <Text style={styles.serviceDescription}>{service.description}</Text>
+              ) : null}
               <LiquidGlassButton
-                title="Select Vet"
-                onPress={() => onSelectVet(emp.id)}
+                title="Select service"
+                onPress={() => onSelectService(service.id, specialty.name)}
                 height={44}
                 borderRadius={12}
                 style={styles.selectButton}
@@ -144,27 +113,25 @@ export const SpecialtyAccordion: React.FC<SpecialtyAccordionProps> = ({
   title,
   icon,
   specialties,
-  onSelectVet,
+  onSelectService,
 }) => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
 
   return (
     <View style={styles.container}>
-      {/* Parent Header */}
       <View style={styles.parentHeader}>
         {icon && <Image source={icon} style={styles.parentIcon} />}
         <Text style={styles.parentTitle}>{title}</Text>
       </View>
 
-      {/* Specialty Items */}
       <View style={styles.specialtiesList}>
         {specialties.map((specialty, index) => (
           <SpecialtyItem
             key={`${specialty.name}-${index}`}
             specialty={specialty}
             defaultExpanded={index === 0}
-            onSelectVet={onSelectVet}
+            onSelectService={onSelectService}
           />
         ))}
       </View>
@@ -231,74 +198,46 @@ const createStyles = (theme: any) =>
       height: 20,
       tintColor: theme.colors.textSecondary,
     },
-    employeesList: {
+    servicesList: {
       padding: theme.spacing[3],
       paddingTop: 0,
       gap: theme.spacing[3],
     },
-    employeeCard: {
+    serviceCard: {
       backgroundColor: theme.colors.white,
       borderRadius: 12,
-      padding: theme.spacing[3],
+      padding: theme.spacing[5],
       borderWidth: 1,
       borderColor: theme.colors.border,
-      gap: theme.spacing[2],
+      gap: theme.spacing[1.75],
     },
-    employeeHeader: {
+    serviceTopRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing[3],
+      justifyContent: 'space-between',
+      gap: theme.spacing[2],
+      marginBottom: theme.spacing[2],
     },
-    avatarColumn: {
-      alignItems: 'center',
-      gap: theme.spacing[1],
-    },
-    employeeAvatar: {
-      width: 68,
-      height: 68,
-      borderRadius: 34,
-    },
-    employeeBasicInfo: {
-      flex: 1,
-      justifyContent: 'center',
-      gap: theme.spacing[1],
-    },
-    employeeName: {
+    serviceName: {
       ...theme.typography.h6Clash,
       color: '#090A0A',
+      flex: 1,
     },
-    employeeSpecialization: {
+    serviceDescription: {
       ...theme.typography.subtitleBold14,
       color: '#302f2e9a',
+      marginTop: theme.spacing[1],
+            marginBottom: theme.spacing[3],
     },
-    employeeTitle: {
-      ...theme.typography.subtitleBold14,
-      color: '#302f2e9a',
+    priceChip: {
+      paddingHorizontal: theme.spacing[2],
+      paddingVertical: theme.spacing[1],
+      borderRadius: 999,
+      backgroundColor: theme.colors.primaryTint,
     },
-    ratingContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: theme.spacing[1],
-    },
-    ratingIcon: {
-      width: 16,
-      height: 16,
-      resizeMode: 'contain',
-    },
-    ratingText: {
+    priceChipText: {
       ...theme.typography.subtitleBold12,
-      color: '#302F2E',
-    },
-    detailStack: {
-      gap: theme.spacing[1.25],
-    },
-    detailLine: {
-      ...theme.typography.subtitleBold12,
-      color: '#302f2e9a',
-    },
-    detailValue: {
-      ...theme.typography.subtitleBold12,
-      color: '#302F2E',
+      color: theme.colors.primary,
     },
     selectButton: {
       width: '100%',

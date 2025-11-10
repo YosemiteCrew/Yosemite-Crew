@@ -56,7 +56,7 @@ import {notificationReducer} from '@/features/notifications';
 
 const persistConfig = {
   key: 'root',
-  version: 4,
+  version: 5,
   storage: storageForPersist,
   whitelist: ['auth', 'theme', 'documents', 'companion', 'expenses', 'tasks', 'appointments', 'businesses', 'coParent', 'linkedBusinesses', 'notifications'],
   migrate: (state: any) => {
@@ -93,6 +93,13 @@ const persistConfig = {
           filter: 'all',
           sortBy: 'new',
         };
+      }
+    }
+    // Handle migration from version 4 to 5
+    if (state?._persist?.version === 4) {
+      console.log('[Redux Persist] Migrating from v4 to v5 - initializing service catalog');
+      if (state.businesses) {
+        state.businesses.services = state.businesses.services ?? [];
       }
     }
     return Promise.resolve(state);

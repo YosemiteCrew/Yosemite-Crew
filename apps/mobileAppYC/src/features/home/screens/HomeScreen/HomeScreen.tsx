@@ -19,7 +19,7 @@ import {SearchBar, YearlySpendCard} from '@/shared/components/common';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import {useDispatch, useSelector} from 'react-redux';
-import type {AppDispatch} from '@/app/store';
+import type {AppDispatch, RootState} from '@/app/store';
 import {
   selectCompanions,
   selectSelectedCompanionId,
@@ -42,9 +42,15 @@ import {
   selectHasHydratedCompanion as selectHasHydratedTasksCompanion,
   markTaskStatus,
 } from '@/features/tasks';
+import {
+  fetchAppointmentsForCompanion,
+  updateAppointmentStatus,
+} from '@/features/appointments/appointmentsSlice';
+import {createSelectUpcomingAppointments} from '@/features/appointments/selectors';
 import type {ObservationalToolTaskDetails} from '@/features/tasks/types';
 import {useEmergency} from '@/features/home/context/EmergencyContext';
 import {selectUnreadCount} from '@/features/notifications/selectors';
+import {openMapsToAddress} from '@/shared/utils/openMaps';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Home'>;
 
@@ -92,8 +98,20 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const unreadNotifications = useSelector(selectUnreadCount);
   const userCurrencyCode = authUser?.currency ?? 'USD';
 
-  const [hasUpcomingAppointments, setHasUpcomingAppointments] =
-    React.useState(true);
+  const hasAppointmentsHydrated = useSelector((s: RootState) => {
+    if (!selectedCompanionIdRedux) return false;
+    return s.appointments?.hydratedCompanions?.[selectedCompanionIdRedux] ?? false;
+  });
+  const businesses = useSelector((s: RootState) => s.businesses?.businesses ?? []);
+  const employees = useSelector((s: RootState) => s.businesses?.employees ?? []);
+  const services = useSelector((s: RootState) => s.businesses?.services ?? []);
+  const businessMap = React.useMemo(() => new Map(businesses.map(b => [b.id, b])), [businesses]);
+  const employeeMap = React.useMemo(() => new Map(employees.map(e => [e.id, e])), [employees]);
+  const serviceMap = React.useMemo(() => new Map(services.map(s => [s.id, s])), [services]);
+  const upcomingAppointmentsSelector = React.useMemo(() => createSelectUpcomingAppointments(), []);
+  const upcomingAppointments = useSelector((state: RootState) =>
+    upcomingAppointmentsSelector(state, selectedCompanionIdRedux ?? null),
+  );
   const hasUnreadNotifications = unreadNotifications > 0;
 
   const {resolvedName: firstName, displayName} = deriveHomeGreetingName(
@@ -135,6 +153,12 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       dispatch(fetchTasksForCompanion({companionId: selectedCompanionIdRedux}));
     }
   }, [dispatch, hasTasksHydrated, selectedCompanionIdRedux]);
+
+  React.useEffect(() => {
+    if (selectedCompanionIdRedux && !hasAppointmentsHydrated) {
+      dispatch(fetchAppointmentsForCompanion({companionId: selectedCompanionIdRedux}));
+    }
+  }, [dispatch, hasAppointmentsHydrated, selectedCompanionIdRedux]);
 
   const previousCurrencyRef = React.useRef(userCurrencyCode);
 
@@ -183,12 +207,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     title: string,
     subtitle: string,
     key: string,
-  ) => (
-    <TouchableOpacity
-      // When tapping the empty state tile, we allow adding the card back (simulating adding new data)
-      onPress={() => {
-        if (key === 'appointments') setHasUpcomingAppointments(true);
-      }}>
+    onPress?: () => void,
+  ) => {
+    const content = (
       <LiquidGlassCard
         key={key}
         glassEffect="clear"
@@ -198,8 +219,16 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         <Text style={styles.tileTitle}>{title}</Text>
         <Text style={styles.tileSubtitle}>{subtitle}</Text>
       </LiquidGlassCard>
-    </TouchableOpacity>
-  );
+    );
+    if (!onPress) {
+      return content;
+    }
+    return (
+      <TouchableOpacity activeOpacity={0.85} onPress={onPress} testID={`${key}-empty-tile`}>
+        {content}
+      </TouchableOpacity>
+    );
+  };
 
   const handleCompleteTask = React.useCallback(
     async (taskId: string) => {
@@ -260,6 +289,63 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     }
   }, [navigateToTaskView, nextUpcomingTask, selectedCompanionIdRedux]);
 
+  const formatAppointmentDateTime = React.useCallback((dateStr: string, timeStr?: string | null) => {
+    const timeComponent = timeStr ?? '00:00';
+    const date = new Date(`${dateStr}T${timeComponent}`);
+    if (Number.isNaN(date.getTime())) {
+      return timeStr ? `${dateStr} • ${timeStr}` : dateStr;
+    }
+    const formattedDate = date.toLocaleDateString('en-US', {day: 'numeric', month: 'short'});
+    const formattedTime = timeStr
+      ? new Date(`1970-01-01T${timeComponent}`).toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+        })
+      : null;
+    return formattedTime ? `${formattedDate} • ${formattedTime}` : formattedDate;
+  }, []);
+
+  const [showFallbackAppointmentCard, setShowFallbackAppointmentCard] = React.useState(true);
+
+  const nextUpcomingAppointment = React.useMemo(() => {
+    if (!upcomingAppointments.length) {
+      return null;
+    }
+    const sorted = [...upcomingAppointments].sort((a, b) => {
+      const dateA = new Date(`${a.date}T${a.time ?? '00:00'}`).getTime();
+      const dateB = new Date(`${b.date}T${b.time ?? '00:00'}`).getTime();
+      return dateA - dateB;
+    });
+    return sorted[0] ?? null;
+  }, [upcomingAppointments]);
+
+  const handleViewAppointment = React.useCallback(
+    (appointmentId: string) => {
+      navigation.getParent<NavigationProp<TabParamList>>()?.navigate('Appointments', {
+        screen: 'ViewAppointment',
+        params: {appointmentId},
+      });
+    },
+    [navigation],
+  );
+
+  const handleChatAppointment = React.useCallback(
+    (appointmentId: string) => {
+      navigation.getParent<NavigationProp<TabParamList>>()?.navigate('Appointments', {
+        screen: 'Chat',
+        params: {appointmentId},
+      });
+    },
+    [navigation],
+  );
+
+  const handleCheckInAppointment = React.useCallback(
+    (appointmentId: string) => {
+      dispatch(updateAppointmentStatus({appointmentId, status: 'completed'}));
+    },
+    [dispatch],
+  );
+
   const renderUpcomingTasks = () => {
     if (nextUpcomingTask && selectedCompanion) {
       // Get assigned user's profile image and name
@@ -306,28 +392,96 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   };
 
   const renderUpcomingAppointments = () => {
-    if (hasUpcomingAppointments) {
+    if (nextUpcomingAppointment) {
+      const biz = businessMap.get(nextUpcomingAppointment.businessId);
+      const service = serviceMap.get(nextUpcomingAppointment.serviceId ?? '');
+      const emp = employeeMap.get(nextUpcomingAppointment.employeeId ?? '');
+      const hasAssignedVet = Boolean(emp);
+      const avatarSource = hasAssignedVet ? emp?.avatar : Images.cat;
+      const cardTitle = hasAssignedVet
+        ? emp?.name ?? 'Assigned vet'
+        : service?.name ?? nextUpcomingAppointment.serviceName ?? 'Service request';
+      const servicePriceText = service?.basePrice ? `$${service.basePrice}` : null;
+      const serviceSubtitle = [
+        service?.specialty ?? nextUpcomingAppointment.type ?? 'Awaiting vet assignment',
+        servicePriceText,
+      ]
+        .filter(Boolean)
+        .join(' • ');
+      const cardSubtitle = hasAssignedVet ? emp?.specialization ?? '' : serviceSubtitle;
+      let assignmentNote: string | undefined;
+      if (!hasAssignedVet) {
+        assignmentNote = 'A vet will be assigned once the clinic approves your request.';
+      } else if (nextUpcomingAppointment.status === 'paid') {
+        assignmentNote = 'Note: Check in is only allowed if you arrive 5 minutes early at location.';
+      }
+      const formattedDate = formatAppointmentDateTime(nextUpcomingAppointment.date, nextUpcomingAppointment.time);
+      const canCheckIn = nextUpcomingAppointment.status === 'paid' && hasAssignedVet;
+
       return (
         <AppointmentCard
-          key="appointment-card"
-          doctorName="Dr. Emily Johnson"
-          specialization="Cardiology"
-          hospital="SMPC Cardiac hospital"
-          dateTime="20 Aug - 4:00PM"
-          note="Check in is only allowed if you arrive 5 minutes early at location"
-          avatar={Images.cat}
-          onViewDetails={() => console.log('View appointment')}
-          onGetDirections={() => console.log('Get directions')}
-          onChat={() => console.log('Chat')}
-          // Hide the card when check in is pressed
-          onCheckIn={() => setHasUpcomingAppointments(false)}
+          key={nextUpcomingAppointment.id}
+          doctorName={cardTitle}
+          specialization={cardSubtitle}
+          hospital={biz?.name || ''}
+          dateTime={formattedDate}
+          note={assignmentNote}
+          avatar={avatarSource}
+          showActions={canCheckIn}
+          onPress={() => handleViewAppointment(nextUpcomingAppointment.id)}
+          onViewDetails={() => handleViewAppointment(nextUpcomingAppointment.id)}
+          onGetDirections={() => {
+            if (biz?.address) {
+              openMapsToAddress(biz.address);
+            }
+          }}
+          onChat={() => handleChatAppointment(nextUpcomingAppointment.id)}
+          onCheckIn={() => {
+            if (canCheckIn) {
+              handleCheckInAppointment(nextUpcomingAppointment.id);
+            }
+          }}
+          testIDs={{
+            container: 'appointment-card-container',
+            directions: 'appointment-directions',
+            chat: 'appointment-chat',
+            checkIn: 'appointment-checkin',
+          }}
         />
       );
     }
+
+    if (showFallbackAppointmentCard) {
+      return (
+        <AppointmentCard
+          key="fallback-appointment-card"
+          doctorName="Dr. Emily Johnson"
+          specialization="Cardiology"
+          hospital="SMPC Cardiac hospital"
+          dateTime="20 Aug • 4:00 PM"
+          note="Check in is only allowed if you arrive 5 minutes early at location"
+          avatar={Images.cat}
+          showActions
+          onPress={() => handleViewAppointment('fallback')}
+          onViewDetails={() => handleViewAppointment('fallback')}
+          onGetDirections={() => openMapsToAddress('San Francisco, CA')}
+          onChat={() => handleChatAppointment('fallback')}
+          onCheckIn={() => setShowFallbackAppointmentCard(false)}
+          testIDs={{
+            container: 'appointment-card-container',
+            directions: 'appointment-directions',
+            chat: 'appointment-chat',
+            checkIn: 'appointment-checkin',
+          }}
+        />
+      );
+    }
+
     return renderEmptyStateTile(
       'No upcoming appointments',
-      'Add a companion to start managing their appointments',
+      'Book an appointment to see it here.',
       'appointments',
+      () => setShowFallbackAppointmentCard(true),
     );
   };
 
