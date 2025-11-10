@@ -403,9 +403,18 @@ importers:
       '@reduxjs/toolkit':
         specifier: ^2.6.1
         version: 2.9.0(react-redux@9.2.0)(react@19.1.0)
+      '@yosemite-crew/fhirtypes':
+        specifier: workspace:*
+        version: link:../../packages/fhirtypes
+      '@yosemite-crew/types':
+        specifier: workspace:*
+        version: link:../../packages/types
       aws-amplify:
         specifier: ^6.15.6
         version: 6.15.6
+      axios:
+        specifier: ^1.7.9
+        version: 1.13.2
       date-fns:
         specifier: ^4.1.0
         version: 4.1.0
@@ -19682,7 +19691,7 @@ packages:
       pretty-format: 29.7.0
       slash: 3.0.0
       strip-json-comments: 3.1.1
-      ts-node: 10.9.2(@types/node@20.19.13)(typescript@5.8.3)
+      ts-node: 10.9.2(@types/node@22.18.1)(typescript@5.0.4)
     transitivePeerDependencies:
       - babel-plugin-macros
       - supports-color

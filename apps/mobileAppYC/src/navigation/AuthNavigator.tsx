@@ -5,6 +5,7 @@ import { SignUpScreen } from '@/features/auth/screens/SignUpScreen';
 import { OTPVerificationScreen } from '@/features/auth/screens/OTPVerificationScreen';
 import { CreateAccountScreen } from '@/features/auth/screens/CreateAccountScreen';
 import type {AuthTokens} from '@/features/auth/context/AuthContext';
+import type {ParentProfileSummary} from '@/features/profile/services/profileService';
 
 // Type definitions for the Auth Stack
 export type AuthStackParamList = {
@@ -20,7 +21,7 @@ export type AuthStackParamList = {
   CreateAccount: {
     email: string;
     userId: string;
-    profileToken: string;
+    profileToken?: string;
     tokens: AuthTokens;
     initialAttributes?: {
       firstName?: string;
@@ -28,7 +29,16 @@ export type AuthStackParamList = {
       phone?: string;
       dateOfBirth?: string;
       profilePicture?: string;
+      address?: {
+        addressLine?: string;
+        city?: string;
+        stateProvince?: string;
+        postalCode?: string;
+        country?: string;
+      };
     };
+    hasRemoteProfile?: boolean;
+    existingParentProfile?: ParentProfileSummary | null;
     showOtpSuccess?: boolean;
   };
 };

@@ -7,13 +7,14 @@ import {AuthNavigator} from './AuthNavigator';
 import type {AuthStackParamList} from './AuthNavigator';
 import {TabNavigator} from './TabNavigator';
 import {OnboardingScreen} from '@/features/onboarding/screens/OnboardingScreen';
-import {useAuth} from '@/features/auth/context/AuthContext';
+import {useAuth, type AuthTokens} from '@/features/auth/context/AuthContext';
 import {Loading} from '@/shared/components/common';
 import {EmergencyProvider, useEmergency} from '@/features/home/context/EmergencyContext';
 import {EmergencyBottomSheet} from '@/features/home/components/EmergencyBottomSheet';
 
 import {DeviceEventEmitter} from 'react-native';
 import { PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT } from '@/config/variables';
+import {loadStoredTokens} from '@/features/auth/services/tokenStorage';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const ONBOARDING_COMPLETED_KEY = '@onboarding_completed';
@@ -32,6 +33,20 @@ export const AppNavigator: React.FC = () => {
     try {
       if (!user) {
         console.log('[AppNavigator] No user found, profile incomplete');
+        return false;
+      }
+
+      if (user.profileCompleted === true) {
+        console.log('[AppNavigator] Backend profile flag indicates complete', {
+          userId: user.id,
+        });
+        return true;
+      }
+
+      if (user.profileCompleted === false) {
+        console.log('[AppNavigator] Backend profile flag indicates incomplete', {
+          userId: user.id,
+        });
         return false;
       }
 
@@ -70,14 +85,73 @@ export const AppNavigator: React.FC = () => {
     }
   }, []);
 
+useEffect(() => {
+  loadPendingProfile();
+  const subscription = DeviceEventEmitter.addListener(
+    PENDING_PROFILE_UPDATED_EVENT,
+    loadPendingProfile,
+  );
+  return () => subscription.remove();
+}, [loadPendingProfile]);
+
   useEffect(() => {
-    loadPendingProfile();
-    const subscription = DeviceEventEmitter.addListener(
-      PENDING_PROFILE_UPDATED_EVENT,
-      loadPendingProfile,
-    );
-    return () => subscription.remove();
-  }, [loadPendingProfile]);
+    if (pendingProfile || !isLoggedIn || isProfileComplete || !user) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const seedPendingProfile = async () => {
+      try {
+        const storedTokens = await loadStoredTokens();
+        if (!storedTokens) {
+          console.warn('[AppNavigator] No stored tokens available to resume pending profile.');
+          return;
+        }
+
+        const authTokens: AuthTokens = {
+          idToken: storedTokens.idToken,
+          accessToken: storedTokens.accessToken,
+          refreshToken: storedTokens.refreshToken,
+          provider: storedTokens.provider ?? 'amplify',
+          userId: storedTokens.userId ?? user.id,
+          expiresAt: storedTokens.expiresAt,
+        };
+
+        const payload: AuthStackParamList['CreateAccount'] = {
+          email: user.email,
+          userId: user.id,
+          profileToken: user.profileToken,
+          tokens: authTokens,
+          initialAttributes: {
+            firstName: user.firstName,
+            lastName: user.lastName,
+            phone: user.phone,
+            dateOfBirth: user.dateOfBirth,
+            profilePicture: user.profilePicture,
+            address: user.address,
+          },
+          hasRemoteProfile: true,
+        };
+
+        await AsyncStorage.setItem(
+          PENDING_PROFILE_STORAGE_KEY,
+          JSON.stringify(payload),
+        );
+        if (!cancelled) {
+          DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT, payload);
+        }
+      } catch (error) {
+        console.warn('[AppNavigator] Failed to seed pending profile for incomplete account', error);
+      }
+    };
+
+    seedPendingProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pendingProfile, isLoggedIn, isProfileComplete, user]);
 
 const checkOnboardingStatus = async () => {
     try {

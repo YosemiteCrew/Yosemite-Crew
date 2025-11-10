@@ -19,12 +19,9 @@ import {
 } from 'react-native-fbsdk-next';
 import {sha256} from 'js-sha256';
 import {PASSWORDLESS_AUTH_CONFIG} from '@/config/variables';
-import {
-  bootstrapProfile,
-  fetchProfileStatus,
-  type ProfileStatus,
-} from '@/features/profile/services/profileService';
+import {fetchProfileStatus, type ProfileStatus} from '@/features/profile/services/profileService';
 import type {User, AuthTokens} from '@/features/auth/context/AuthContext';
+import {mergeUserWithParentProfile} from '@/features/auth/utils/parentProfileMapper';
 
 export type SocialProvider = 'google' | 'facebook' | 'apple';
 
@@ -376,45 +373,11 @@ const resolveCredential = async (
 
 const ensureProfile = async (
   tokens: Pick<AuthTokens, 'accessToken' | 'userId'>,
-  userDetails: {
-    email?: string;
-    firstName?: string;
-    lastName?: string;
-    provider: SocialProvider;
-    avatarUrl?: string;
-  },
-): Promise<ProfileStatus> => {
-  const profileStatus = await fetchProfileStatus({
+): Promise<ProfileStatus> =>
+  fetchProfileStatus({
     accessToken: tokens.accessToken,
     userId: tokens.userId ?? '',
-    email: userDetails.email ?? '',
   });
-
-  if (!profileStatus.exists) {
-    const bootstrapResult = await bootstrapProfile({
-      accessToken: tokens.accessToken,
-      userId: tokens.userId ?? '',
-      email: userDetails.email ?? '',
-      provider: userDetails.provider,
-      firstName: userDetails.firstName,
-      lastName: userDetails.lastName,
-      displayName: [userDetails.firstName, userDetails.lastName]
-        .filter(Boolean)
-        .join(' ') || undefined,
-      avatarUrl: userDetails.avatarUrl,
-    });
-
-    if (bootstrapResult.profileToken) {
-      return {
-        exists: false,
-        profileToken: bootstrapResult.profileToken,
-        source: 'remote',
-      };
-    }
-  }
-
-  return profileStatus;
-};
 
 export const configureSocialProviders = () => {
   if (providersConfigured) {
@@ -463,21 +426,23 @@ export const signInWithSocialProvider = async (
     const tokens = await buildTokens(firebaseUser);
     const resolvedDetails = resolveDisplayInfo(firebaseUser, provider, metadata);
 
-    const profile = await ensureProfile(
-      {
-        accessToken: tokens.accessToken,
-        userId: tokens.userId,
-      },
-      resolvedDetails,
-    );
+    const profile = await ensureProfile({
+      accessToken: tokens.accessToken,
+      userId: tokens.userId,
+    });
 
-    const user: User = {
+    const baseUser: User = {
       id: firebaseUser.uid,
       email: resolvedDetails.email ?? '',
       firstName: resolvedDetails.firstName ?? undefined,
       lastName: resolvedDetails.lastName ?? undefined,
       profilePicture: resolvedDetails.avatarUrl ?? undefined,
       profileToken: profile.profileToken,
+    };
+    const userWithProfile = mergeUserWithParentProfile(baseUser, profile.parent);
+    const user: User = {
+      ...userWithProfile,
+      profileCompleted: profile.isComplete ?? userWithProfile.profileCompleted,
     };
 
     const completeTokens: AuthTokens = {
@@ -495,6 +460,8 @@ export const signInWithSocialProvider = async (
         firstName: user.firstName,
         lastName: user.lastName,
         profilePicture: user.profilePicture,
+        phone: user.phone,
+        dateOfBirth: user.dateOfBirth,
       },
     };
   } catch (error: any) {
