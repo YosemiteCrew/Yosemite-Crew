@@ -5,6 +5,16 @@ import {
     OrganizationServiceError,
     type OrganizationFHIRPayload,
 } from '../../services/organization.service'
+import { AuthenticatedRequest } from '../../middlewares/auth'
+
+const resolveUserIdFromRequest = (req: Request): string | undefined => {
+    const authRequest = req as AuthenticatedRequest
+    const headerUserId = req.headers['x-user-id']
+    if (headerUserId && typeof headerUserId === 'string') {
+        return headerUserId
+    }
+    return authRequest.userId
+}
 
 export const OrganizationController = {
     onboardBusiness: async (req: Request, res: Response) => {
@@ -15,8 +25,8 @@ export const OrganizationController = {
                 res.status(400).json({ message: 'Invalid payload. Expected FHIR Organization resource.' })
                 return
             }
-
-            const { response, created } = await OrganizationService.upsert(payload)
+            const userId = resolveUserIdFromRequest(req)
+            const { response, created } = await OrganizationService.upsert(payload, userId)
             res.status(created ? 201 : 200).json(response)
         } catch (error) {
             if (error instanceof OrganizationServiceError) {

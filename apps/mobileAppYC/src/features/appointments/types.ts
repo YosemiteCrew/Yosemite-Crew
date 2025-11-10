@@ -26,13 +26,26 @@ export interface VetEmployee {
   rating?: number;
 }
 
+export interface VetService {
+  id: string;
+  businessId: string;
+  specialty: string;
+  name: string;
+  description?: string;
+  basePrice?: number;
+  icon?: any; // Image source
+  defaultEmployeeId?: string;
+}
+
 export interface AvailabilityMap {
   [dateISO: string]: string[]; // e.g., { '2025-08-20': ['10:00','11:30'] }
 }
 
 export interface EmployeeAvailability {
   businessId: string;
-  employeeId: string;
+  employeeId?: string | null;
+  serviceId?: string | null;
+  label?: string;
   slotsByDate: AvailabilityMap;
 }
 
@@ -49,7 +62,9 @@ export interface Appointment {
   id: string;
   companionId: string;
   businessId: string;
-  employeeId: string;
+  serviceId?: string | null;
+  serviceName?: string | null;
+  employeeId?: string | null;
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
   type: string;
@@ -90,6 +105,7 @@ export interface AppointmentsState {
 export interface BusinessesState {
   businesses: VetBusiness[];
   employees: VetEmployee[];
+  services: VetService[];
   availability: EmployeeAvailability[];
   loading: boolean;
   error: string | null;

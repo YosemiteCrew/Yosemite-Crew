@@ -23,7 +23,8 @@ static_frameworks = [
   'GoogleDataTransport',
   'nanopb',
   'FirebaseABTesting',
-  'FirebaseAuth'
+  'FirebaseAuth',
+  'FirebaseMessaging'
 ]
 
 pre_install do |installer|
@@ -58,6 +59,7 @@ target 'mobileAppYC' do
   pod 'FirebaseCore'
   pod 'FirebaseCoreExtension'
   pod 'FirebaseCoreInternal'
+  pod 'Firebase/Messaging'
   pod 'GoogleUtilities'
   pod 'RecaptchaInterop'
   pod 'nanopb'

@@ -1,11 +1,6 @@
-import React, {useMemo} from 'react';
-import {Image, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
-import {
-  ProfileImagePicker,
-  type ProfileImagePickerRef,
-} from '@/shared/components/common/ProfileImagePicker/ProfileImagePicker';
-import {useTheme} from '@/hooks';
-import {Images} from '@/assets/images';
+import React from 'react';
+import {type ProfileImagePickerRef} from '@/shared/components/common/ProfileImagePicker/ProfileImagePicker';
+import {ProfileHeader} from '@/shared/components/common/ProfileHeader/ProfileHeader';
 
 export interface UserProfileHeaderProps {
   firstName: string;
@@ -26,69 +21,19 @@ export const UserProfileHeader: React.FC<UserProfileHeaderProps> = ({
   size = 100,
   showCameraButton = true,
 }) => {
-  const {theme} = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
-
-  const fullName = `${firstName} ${lastName}`.trim();
-  const fallbackInitial = (firstName?.charAt(0) || lastName?.charAt(0) || 'U').toUpperCase();
+  const fullName = `${firstName} ${lastName}`.trim() || 'User Profile';
+  const fallbackInitial = (firstName?.charAt(0) || lastName?.charAt(0) || 'U')
+    .toUpperCase();
 
   return (
-    <View style={styles.profileHeader}>
-      <View style={styles.avatarContainer}>
-        <ProfileImagePicker
-          ref={pickerRef}
-          imageUri={profileImage ?? undefined}
-          onImageSelected={onImageSelected}
-          size={size}
-          pressable={false}
-          fallbackText={fallbackInitial}
-        />
-        {showCameraButton ? (
-          <TouchableOpacity
-            style={styles.cameraIconContainer}
-            onPress={() => pickerRef.current?.triggerPicker()}>
-            <Image source={Images.cameraIcon} style={styles.cameraIcon} />
-          </TouchableOpacity>
-        ) : null}
-      </View>
-      <Text style={styles.profileName}>{fullName || 'User Profile'}</Text>
-    </View>
+    <ProfileHeader
+      title={fullName}
+      profileImage={profileImage}
+      pickerRef={pickerRef}
+      onImageSelected={onImageSelected}
+      size={size}
+      showCameraButton={showCameraButton}
+      fallbackInitial={fallbackInitial}
+    />
   );
 };
-
-const createStyles = (theme: any) =>
-  StyleSheet.create({
-    profileHeader: {
-      alignItems: 'center',
-      marginBottom: theme.spacing[6],
-    },
-    avatarContainer: {
-      position: 'relative',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    cameraIconContainer: {
-      position: 'absolute',
-      bottom: 0,
-      right: 0,
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: theme.colors.secondary,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 2,
-      borderColor: theme.colors.white,
-    },
-    cameraIcon: {
-      width: 18,
-      height: 18,
-      tintColor: theme.colors.white,
-    },
-    profileName: {
-      ...theme.typography.h4,
-      color: theme.colors.secondary,
-      marginTop: theme.spacing['4'],
-    },
-  });
-

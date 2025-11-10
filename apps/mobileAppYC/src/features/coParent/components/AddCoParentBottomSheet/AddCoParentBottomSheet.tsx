@@ -1,7 +1,9 @@
 import React, {forwardRef} from 'react';
-import {View, StyleSheet, Text} from 'react-native';
-import {ConfirmActionBottomSheet, ConfirmActionBottomSheetRef} from '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet';
+import {View, StyleSheet} from 'react-native';
+import {ConfirmActionBottomSheet} from '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet';
 import {useTheme} from '@/hooks';
+import {BottomSheetMessage} from '@/shared/components/common/BottomSheetMessage/BottomSheetMessage';
+import {useConfirmActionSheetRef} from '@/shared/hooks/useConfirmActionSheetRef';
 
 export interface AddCoParentBottomSheetRef {
   open: () => void;
@@ -22,43 +24,11 @@ export const AddCoParentBottomSheet = forwardRef<
 >(({coParentEmail, coParentPhone, coParentName, onConfirm, onSheetChange}, ref) => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
-  const bottomSheetRef = React.useRef<ConfirmActionBottomSheetRef>(null);
-
-  React.useImperativeHandle(ref, () => ({
-    open: () => bottomSheetRef.current?.open(),
-    close: () => bottomSheetRef.current?.close(),
-  }));
-
-  const handleConfirm = () => {
-    bottomSheetRef.current?.close();
-    onConfirm?.();
-  };
-
-  const renderMessage = () => {
-    return (
-      <Text style={styles.messageText}>
-        We have sent a request to{' '}
-        {coParentName && <Text style={styles.highlightText}>{coParentName}</Text>}
-        {coParentEmail && (
-          <>
-            {' at '}
-            <Text style={styles.highlightText}>{coParentEmail}</Text>
-          </>
-        )}
-        {coParentPhone && (
-          <>
-            {', mobile number '}
-            <Text style={styles.highlightText}>{coParentPhone}</Text>
-          </>
-        )}
-        {' as a co-parent.'}
-      </Text>
-    );
-  };
+  const {sheetRef, handleConfirm} = useConfirmActionSheetRef(ref, onConfirm);
 
   return (
     <ConfirmActionBottomSheet
-      ref={bottomSheetRef}
+      ref={sheetRef}
       title="Added co-parent"
       snapPoints={['45%']}
       primaryButton={{
@@ -67,8 +37,26 @@ export const AddCoParentBottomSheet = forwardRef<
       }}
       onSheetChange={onSheetChange}
       containerStyle={styles.container}>
-      <View style={styles.messageContainer}>
-        {renderMessage()}
+      <View>
+        <BottomSheetMessage>
+          We have sent a request to{' '}
+          {coParentName ? (
+            <BottomSheetMessage.Highlight>{coParentName}</BottomSheetMessage.Highlight>
+          ) : null}
+          {coParentEmail ? (
+            <>
+              {' at '}
+              <BottomSheetMessage.Highlight>{coParentEmail}</BottomSheetMessage.Highlight>
+            </>
+          ) : null}
+          {coParentPhone ? (
+            <>
+              {', mobile number '}
+              <BottomSheetMessage.Highlight>{coParentPhone}</BottomSheetMessage.Highlight>
+            </>
+          ) : null}
+          {' as a co-parent.'}
+        </BottomSheetMessage>
       </View>
     </ConfirmActionBottomSheet>
   );
@@ -78,20 +66,6 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
       gap: theme.spacing[4],
-    },
-    messageContainer: {
-      paddingHorizontal: theme.spacing[2],
-      marginBottom: theme.spacing[2],
-    },
-    messageText: {
-      ...theme.typography.body,
-      color: theme.colors.textSecondary,
-      textAlign: 'center',
-      lineHeight: 22,
-    },
-    highlightText: {
-      color: theme.colors.secondary,
-      fontWeight: '600',
     },
   });
 

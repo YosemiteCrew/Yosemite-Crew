@@ -188,22 +188,24 @@ export const TaskViewScreen: React.FC = () => {
             <Text style={styles.otCtaTitle}>
               {isCompleted ? 'Observational tool completed' : 'Time for an observational tool !'}
             </Text>
-            <Text style={styles.otCtaSubtitle}>
-              {isCompleted
-                ? 'Review what was captured during the last observation.'
-                : 'Complete the observational tool to log the latest insights of your companion.'}
-            </Text>
-            <View style={styles.otCtaButtonWrapper}>
-              <LiquidGlassButton
-                title={isCompleted ? 'View' : 'Start Now'}
-                onPress={() => navigation.navigate('ObservationalTool', {taskId: task.id})}
-                glassEffect="clear"
-                borderRadius="lg"
-                tintColor={theme.colors.secondary}
-                style={styles.otCtaButton}
-                textStyle={styles.otCtaButtonText}
-              />
-            </View>
+            {!isCompleted && (
+              <Text style={styles.otCtaSubtitle}>
+                Complete the observational tool to log the latest insights of your companion.
+              </Text>
+            )}
+            {!isCompleted && (
+              <View style={styles.otCtaButtonWrapper}>
+                <LiquidGlassButton
+                  title="Start Now"
+                  onPress={() => navigation.navigate('ObservationalTool', {taskId: task.id})}
+                  glassEffect="clear"
+                  borderRadius="lg"
+                  tintColor={theme.colors.secondary}
+                  style={styles.otCtaButton}
+                  textStyle={styles.otCtaButtonText}
+                />
+              </View>
+            )}
           </LiquidGlassCard>
         )}
 

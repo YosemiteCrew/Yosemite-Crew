@@ -114,6 +114,8 @@ dependencies {
     implementation("com.facebook.react:react-android")
     implementation 'com.facebook.android:facebook-android-sdk:latest.release'
     implementation project(':react-native-fbsdk-next')
+    implementation platform('com.google.firebase:firebase-bom:33.4.0')
+    implementation 'com.google.firebase:firebase-messaging'
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
