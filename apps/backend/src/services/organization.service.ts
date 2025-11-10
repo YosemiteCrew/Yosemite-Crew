@@ -3,7 +3,7 @@ import OrganizationModel, {
     type OrganizationDocument,
     type OrganizationMongo,
 } from '../models/organization'
-import UserOrganizationModel from 'src/models/user-organization'
+import UserOrganizationModel from '../models/user-organization'
 import {
     fromOrganizationRequestDTO,
     toOrganizationResponseDTO,
