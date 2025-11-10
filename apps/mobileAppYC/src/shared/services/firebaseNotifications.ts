@@ -1,5 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import messaging from '@react-native-firebase/messaging';
+import {getApp} from '@react-native-firebase/app';
+import {
+  getInitialNotification as getMessagingInitialNotification,
+  getMessaging,
+  getToken as getMessagingToken,
+  isDeviceRegisteredForRemoteMessages,
+  onMessage as onMessagingMessage,
+  onTokenRefresh as onMessagingTokenRefresh,
+  registerDeviceForRemoteMessages,
+  setAutoInitEnabled as setMessagingAutoInitEnabled,
+} from '@react-native-firebase/messaging';
+import type {FirebaseMessagingTypes} from '@react-native-firebase/messaging';
 import notifee, {
   AndroidImportance,
   AndroidVisibility,
@@ -18,20 +29,15 @@ import type {
 } from '@/features/notifications/types';
 import {PermissionsAndroid, Platform} from 'react-native';
 
+const messagingInstance = getMessaging(getApp());
+
 const ANDROID_CHANNEL_ID = 'yc_general_notifications';
 const ANDROID_CHANNEL_NAME = 'Yosemite Crew';
 const PENDING_INTENT_STORAGE_KEY = '@yc/pending-notification-intent';
 const DEFAULT_FALLBACK_COMPANION_ID = 'default-companion';
 
 type DataRecord = Record<string, string>;
-type RemoteMessage = {
-  messageId?: string;
-  data?: Record<string, unknown> | null;
-  notification?: {
-    title?: string;
-    body?: string;
-  };
-};
+type RemoteMessage = FirebaseMessagingTypes.RemoteMessage;
 
 export type NotificationNavigationIntent = {
   root?: 'Main' | 'Auth' | 'Onboarding';
@@ -54,6 +60,9 @@ type InitializeOptions = {
 let listenersConfigured = false;
 let cachedDispatch: AppDispatch | null = null;
 let navigationHandler: ((intent: NotificationNavigationIntent) => void) | null = null;
+type AndroidNotificationConfig = NonNullable<
+  Parameters<typeof notifee.displayNotification>[0]['android']
+>;
 
 /**
  * Initializes Firebase Cloud Messaging + Notifee orchestration.
@@ -70,13 +79,13 @@ export async function initializeNotifications(options: InitializeOptions): Promi
   navigationHandler = options.onNavigate;
 
   await ensurePermissions();
-  await messaging().registerDeviceForRemoteMessages();
-  await messaging().setAutoInitEnabled(true);
+  await ensureDeviceRegistration();
+  await setMessagingAutoInitEnabled(messagingInstance, true);
   await ensureAndroidChannel();
 
   let initialToken: string | null = null;
   try {
-    initialToken = await messaging().getToken();
+    initialToken = await getMessagingToken(messagingInstance);
   } catch (error) {
     if (Platform.OS === 'ios') {
       console.warn(
@@ -92,13 +101,13 @@ export async function initializeNotifications(options: InitializeOptions): Promi
     await options.onTokenUpdate(initialToken);
   }
 
-  messaging().onTokenRefresh(async (newToken: string) => {
+  onMessagingTokenRefresh(messagingInstance, async (newToken: string) => {
     if (options.onTokenUpdate) {
       await options.onTokenUpdate(newToken);
     }
   });
 
-  messaging().onMessage(async (remoteMessage: RemoteMessage) => {
+  onMessagingMessage(messagingInstance, async (remoteMessage: RemoteMessage) => {
     await handleRemoteMessage(remoteMessage, {source: 'foreground'});
   });
 
@@ -112,7 +121,7 @@ export async function initializeNotifications(options: InitializeOptions): Promi
   if (initialNotifee?.notification?.data) {
     processNavigationIntentFromData(normalizeDataRecord(initialNotifee.notification.data));
   } else {
-    const initialMessaging = await messaging().getInitialNotification();
+    const initialMessaging = await getMessagingInitialNotification(messagingInstance);
     if (initialMessaging?.data) {
       processNavigationIntentFromData(normalizeDataRecord(initialMessaging.data));
     }
@@ -234,37 +243,51 @@ async function handleRemoteMessage(
     }
   }
 
-  await presentNotifeeNotification(remoteMessage);
+  const hasNativeNotificationPayload = Boolean(remoteMessage.notification);
+  const shouldPresentNotifee =
+    context.source === 'foreground' || !hasNativeNotificationPayload;
+
+  if (shouldPresentNotifee) {
+    await presentNotifeeNotification(remoteMessage);
+  }
 
   if (context.source === 'background' && remoteMessage.data) {
     await storePendingNavigationIntent(normalizeDataRecord(remoteMessage.data));
   }
 }
 
-async function presentNotifeeNotification(
-  remoteMessage: RemoteMessage,
-): Promise<void> {
+async function presentNotifeeNotification(remoteMessage: RemoteMessage): Promise<void> {
   const notification = remoteMessage.notification;
   const data = normalizeDataRecord(remoteMessage.data);
 
   const title = notification?.title ?? data.title ?? 'Yosemite Crew';
   const body = notification?.body ?? data.body ?? '';
+  const imageUrl = notification?.android?.imageUrl || data.largeIcon;
+  const smallIcon = normalizeAndroidIconResource(data.smallIcon) ?? 'ic_launcher';
+  const largeIcon = normalizeAndroidIconResource(imageUrl ?? data.largeIcon);
+
+  const androidConfig: AndroidNotificationConfig = {
+    channelId: ANDROID_CHANNEL_ID,
+    pressAction: {
+      id: 'default',
+    },
+    smallIcon,
+    importance: AndroidImportance.HIGH,
+    visibility: AndroidVisibility.PUBLIC,
+  };
+
+  if (largeIcon) {
+    androidConfig.largeIcon = largeIcon;
+  }
+
+  const notificationId = remoteMessage.messageId || `local_${Date.now()}`;
 
   await notifee.displayNotification({
-    id: remoteMessage.messageId,
+    id: notificationId,
     title,
     body,
     data,
-    android: {
-      channelId: ANDROID_CHANNEL_ID,
-      pressAction: {
-        id: 'default',
-      },
-      smallIcon: data.smallIcon,
-      largeIcon: data.largeIcon,
-      importance: AndroidImportance.HIGH,
-      visibility: AndroidVisibility.PUBLIC,
-    },
+    android: androidConfig,
     ios: {
       foregroundPresentationOptions: {
         alert: true,
@@ -383,6 +406,29 @@ function normalizeRelatedType(value?: string): CreateNotificationPayload['relate
   if (value && (allowed as readonly string[]).includes(value)) {
     return value as CreateNotificationPayload['relatedType'];
   }
+  return undefined;
+}
+
+function normalizeAndroidIconResource(value?: string): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const lower = trimmed.toLowerCase();
+
+  if (lower.startsWith('http://') || lower.startsWith('https://') || lower.startsWith('file://')) {
+    return trimmed;
+  }
+
+  if (/^[a-z0-9_]+$/.test(lower)) {
+    return lower;
+  }
+
   return undefined;
 }
 
@@ -522,11 +568,21 @@ export async function clearAllSystemNotifications(): Promise<void> {
  */
 export async function getCurrentFcmToken(): Promise<string | null> {
   try {
-    await messaging().registerDeviceForRemoteMessages();
-    return await messaging().getToken();
+    await ensureDeviceRegistration();
+    return await getMessagingToken(messagingInstance);
   } catch (error) {
     console.warn('[Notifications] Unable to fetch FCM token', error);
     return null;
+  }
+}
+
+async function ensureDeviceRegistration(): Promise<void> {
+  if (Platform.OS !== 'ios') {
+    return;
+  }
+
+  if (!isDeviceRegisteredForRemoteMessages(messagingInstance)) {
+    await registerDeviceForRemoteMessages(messagingInstance);
   }
 }
 

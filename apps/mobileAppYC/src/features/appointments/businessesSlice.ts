@@ -1,12 +1,12 @@
 import {createSlice, createAsyncThunk} from '@reduxjs/toolkit';
 import type {BusinessesState} from './types';
-import {mockBusinesses, mockEmployees, mockAvailability} from './mocks';
+import {mockBusinesses, mockEmployees, mockServices, mockAvailability} from './mocks';
 
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 export const fetchBusinesses = createAsyncThunk('businesses/fetch', async () => {
   await delay(200);
-  return {businesses: mockBusinesses, employees: mockEmployees};
+  return {businesses: mockBusinesses, employees: mockEmployees, services: mockServices};
 });
 
 export const fetchAvailability = createAsyncThunk('businesses/availability', async () => {
@@ -17,6 +17,7 @@ export const fetchAvailability = createAsyncThunk('businesses/availability', asy
 const initialState: BusinessesState = {
   businesses: [],
   employees: [],
+  services: [],
   availability: [],
   loading: false,
   error: null,
@@ -36,6 +37,7 @@ const businessesSlice = createSlice({
         state.loading = false;
         state.businesses = action.payload.businesses;
         state.employees = action.payload.employees;
+        state.services = action.payload.services;
       })
       .addCase(fetchBusinesses.rejected, (state, action) => {
         state.loading = false;
@@ -48,4 +50,3 @@ const businessesSlice = createSlice({
 });
 
 export default businessesSlice.reducer;
-
