@@ -1,5 +1,14 @@
 import { Schema, model, type HydratedDocument } from 'mongoose'
 
+export type DayOfWeek =
+  | 'MONDAY'
+  | 'TUESDAY'
+  | 'WEDNESDAY'
+  | 'THURSDAY'
+  | 'FRIDAY'
+  | 'SATURDAY'
+  | 'SUNDAY';
+
 export interface AvailabilitySlotMongo {
     startTime: string
     endTime: string
@@ -8,7 +17,8 @@ export interface AvailabilitySlotMongo {
 
 export interface BaseAvailabilityMongo {
     userId: string
-    dayOfWeek: 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY'
+    organisationId?: string
+    dayOfWeek: DayOfWeek
     slots: AvailabilitySlotMongo[]
     createdAt?: Date
     updatedAt?: Date
@@ -26,11 +36,8 @@ const AvailabilitySlotSchema = new Schema<AvailabilitySlotMongo>(
 const BaseAvailabilitySchema = new Schema<BaseAvailabilityMongo>(
     {
         userId: { type: String, required: true, trim: true, index: true },
-        dayOfWeek: {
-            type: String,
-            required: true,
-            enum: ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'],
-        },
+        organisationId: { type: String, required: true },
+        dayOfWeek: { type: String, required: true},
         slots: { type: [AvailabilitySlotSchema], default: [] },
     },
     {
@@ -38,7 +45,7 @@ const BaseAvailabilitySchema = new Schema<BaseAvailabilityMongo>(
     }
 )
 
-BaseAvailabilitySchema.index({ userId: 1, dayOfWeek: 1 }, { unique: true })
+BaseAvailabilitySchema.index({ userId: 1, organisationId: 1, dayOfWeek: 1 }, { unique: true })
 
 export type BaseAvailabilityDocument = HydratedDocument<BaseAvailabilityMongo>
 

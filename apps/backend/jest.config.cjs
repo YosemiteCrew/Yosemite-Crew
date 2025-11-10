@@ -16,7 +16,8 @@ module.exports = {
     }
   },
   moduleNameMapper: {
-    "^@yosemite-crew/(.*)$": "<rootDir>/../../packages/$1/src"
+    "^@yosemite-crew/(.*)$": "<rootDir>/../../packages/$1/src",
+    "^src/(.*)$": "<rootDir>/src/$1"
   },
   transform: {
     "^.+\\.tsx?$": ["ts-jest", { tsconfig: "<rootDir>/tsconfig.json" }]
