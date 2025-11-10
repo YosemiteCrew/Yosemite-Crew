@@ -13,7 +13,7 @@ import {
 import {AuthError} from 'aws-amplify/auth';
 import {
   fetchProfileStatus,
-  type ProfileStatusSource,
+  type ProfileStatus,
 } from '@/features/profile/services/profileService';
 
 export type PasswordlessSignInRequestResult = {
@@ -33,11 +33,7 @@ export type PasswordlessSignInCompletion = {
     userId?: string;
     provider: 'amplify';
   };
-  profile: {
-    exists: boolean;
-    profileToken: string;
-    source: ProfileStatusSource;
-  };
+  profile: ProfileStatus;
 };
 
 const secureRandomInt = (max: number): number => {
@@ -254,7 +250,6 @@ export const completePasswordlessSignIn = async (
   const profile = await fetchProfileStatus({
     accessToken,
     userId: authUser.userId,
-    email: attributes.email ?? authUser.username,
   });
 
   return {
