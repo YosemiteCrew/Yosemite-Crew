@@ -25,28 +25,12 @@ const GenderTypes = [
   },
 ];
 
-const EmploymentTypes = [
-  {
-    name: "Full time",
-    key: "fulltime",
-  },
-  {
-    name: "Part time",
-    key: "parttime",
-  },
-  {
-    name: "Contract",
-    key: "contract",
-  },
-];
-
 const PersonalStep = ({ nextStep, formData, setFormData }: any) => {
   const [image, setImage] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  const [genderType, setGenderType] = useState(GenderTypes[0].key);
-  const [employmentType, setEmploymentType] = useState(EmploymentTypes[0].key);
   const [formDataErrors, setFormDataErrors] = useState<{
-    name?: string;
+    firstName?: string;
+    lastName?: string;
     dob?: string;
     country?: string;
     number?: string;
@@ -73,7 +57,8 @@ const PersonalStep = ({ nextStep, formData, setFormData }: any) => {
   const handleNext = () => {
     console.log(image);
     const errors: {
-      name?: string;
+      firstName?: string;
+      lastName?: string;
       country?: string;
       number?: string;
       dob?: string;
@@ -83,7 +68,8 @@ const PersonalStep = ({ nextStep, formData, setFormData }: any) => {
       state?: string;
       postalCode?: string;
     } = {};
-    if (!formData.name) errors.name = "Name is required";
+    if (!formData.firstName) errors.firstName = "First name is required";
+    if (!formData.lastName) errors.lastName = "Last name is required";
     if (!formData.country) errors.country = "Country is required";
     if (!formData.number) errors.number = "Number is required";
     if (!formData.dob) errors.dob = "DOB is required";
@@ -144,20 +130,48 @@ const PersonalStep = ({ nextStep, formData, setFormData }: any) => {
         <div className="team-personal-two">
           <FormInput
             intype="text"
-            inname="name"
-            value={formData.name}
-            inlabel="Full name"
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            error={formDataErrors.name}
+            inname="first name"
+            value={formData.firstName}
+            inlabel="First name"
+            onChange={(e) =>
+              setFormData({ ...formData, firstName: e.target.value })
+            }
+            error={formDataErrors.firstName}
           />
           <FormInput
             intype="text"
-            inname="dob"
-            value={formData.dob}
-            inlabel="Date of birth"
-            onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-            error={formDataErrors.dob}
+            inname="last name"
+            value={formData.lastName}
+            inlabel="Last name"
+            onChange={(e) =>
+              setFormData({ ...formData, lastName: e.target.value })
+            }
+            error={formDataErrors.lastName}
           />
+        </div>
+        <FormInput
+          intype="text"
+          inname="dob"
+          value={formData.dob}
+          inlabel="Date of birth"
+          onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+          error={formDataErrors.dob}
+        />
+        <div className="team-type">
+          <div className="team-type-title">Gender</div>
+          <div className="team-type-options">
+            {GenderTypes.map((type) => (
+              <button
+                key={type.name}
+                className={classNames("team-type-option", {
+                  activeGendertype: formData.gender === type.key,
+                })}
+                onClick={() => setFormData({ ...formData, gender: type.key })}
+              >
+                {type.name}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="team-personal-two">
           <CountryDropdown
@@ -176,41 +190,6 @@ const PersonalStep = ({ nextStep, formData, setFormData }: any) => {
             }
             error={formDataErrors.number}
           />
-        </div>
-
-        <div className="team-personal-two">
-          <div className="team-type">
-            <div className="team-type-title">Gender</div>
-            <div className="team-type-options">
-              {GenderTypes.map((type) => (
-                <button
-                  key={type.name}
-                  className={classNames("team-type-option", {
-                    activeGendertype: genderType === type.key,
-                  })}
-                  onClick={() => setGenderType(type.key)}
-                >
-                  {type.name}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="team-type">
-            <div className="team-type-title">Employment type</div>
-            <div className="team-type-options">
-              {EmploymentTypes.map((type) => (
-                <button
-                  key={type.name}
-                  className={classNames("team-type-option", {
-                    activeGendertype: employmentType === type.key,
-                  })}
-                  onClick={() => setEmploymentType(type.key)}
-                >
-                  {type.name}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
 

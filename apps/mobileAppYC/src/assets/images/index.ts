@@ -7,6 +7,7 @@ export const Images = {
   catLaptop: require('./auth/cat-laptop.png'),
 
   // Icons
+  yosemiteLogo: require('./icons/yosemiteLogo.png'),
   backIcon: require('./icons/back.png'),
   emailIcon: require('./icons/emailIcon.png'),
   facebookIcon: require('./icons/facebookIcon.png'),
@@ -112,6 +113,8 @@ downloadInvoice: require('./icons/downloadInvoice.png'),
   doc2: require('./appointment/doc2.png'),
   doc3: require('./appointment/doc3.png'),
   sampleInvoice: require('./appointment/sampleInvoice.png'),
+  starOutline: require('./appointment/starOutline.png'),
+  starSolid: require('./appointment/starSolid.png'),
 
   navigation: {
     home: {
@@ -190,6 +193,24 @@ downloadInvoice: require('./icons/downloadInvoice.png'),
    heroImage: require('./coParent/heroImage.png'),
    bgCoParent: require('./coParent/bgCoParent.png'),
   
+
+   //emergency
+adverse1: require('./emergency/adverse1.png'),
+adverse2: require('./emergency/adverse2.png'),
+adverse3: require('./emergency/adverse3.png'),
+catEmergency: require('./emergency/catEmergency.png'),
+medicalCap: require('./emergency/medicalCap.png'),
+pill: require('./emergency/pill.png'),
+
+
+//notification
+bellIcon: require('./icons/notificationIcon.png'),
+chatIcon: require('./icons/chatIcon.png'),
+alertIcon: require('./icons/alertIcon.png'),
+calendarIconNotification: require('./icons/calendar.png'),
+syringeIcon: require('./icons/syringeIcon.png'),
+
+emptyNotifications: require('./notification/emptyNotifications.png'),
   // Support & Help
   contactHero: require('./support/contactHero.png'),
 } as const;

@@ -3674,7 +3674,7 @@ const TermsAndConditions = () => {
                 <h5 className="clauseHeader">
                   Clause 8 Data protection safeguards
                 </h5>
-                <p className="clauseParagraph">
+                <div className="clauseParagraph">
                   The data exporter warrants that it has used reasonable efforts
                   to determine that the data importer is able, through the
                   implementation of appropriate technical and organisational
@@ -4377,7 +4377,7 @@ const TermsAndConditions = () => {
                   all information necessary to demonstrate compliance with its
                   obligations under these Clauses and allow for and contribute
                   to audits.
-                </p>
+                </div>
               </div>
               <div className="clauseContainer">
                 <h5 className="clauseHeader">Clause 9 Use of sub-processors</h5>
@@ -5137,7 +5137,7 @@ const TermsAndConditions = () => {
               </div>
               <div className="clauseContainer">
                 <h5 className="clauseHeader">Clause 17 Governing law</h5>
-                <p className="clauseParagraph">
+                <div className="clauseParagraph">
                   <strong className="subClauseTitle">
                     MODULE ONE: Transfer controller to controller
                   </strong>
@@ -5174,13 +5174,13 @@ const TermsAndConditions = () => {
                     allowing for third-party beneficiary rights. The Parties
                     agree that this shall be the law of Germany.
                   </p>
-                </p>
+                </div>
               </div>
               <div className="clauseContainer">
                 <h5 className="clauseHeader">
                   Clause 18 Choice of forum and jurisdiction
                 </h5>
-                <p className="clauseParagraph">
+                <div className="clauseParagraph">
                   <strong className="subClauseTitle">
                     MODULE ONE: Transfer controller to controller
                   </strong>
@@ -5338,7 +5338,7 @@ const TermsAndConditions = () => {
                       reports by independent oversight bodies.
                     </li>
                   </ol>
-                </p>
+                </div>
               </div>
             </div>
           </div>

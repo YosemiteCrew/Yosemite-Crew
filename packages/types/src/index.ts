@@ -19,7 +19,12 @@ export type {
 
 export { toFHIRUserOrganization } from "./userOrganization";
 export { toFHIRRelatedPerson } from "./parent";
-export { toFHIROrganization } from "./organization";
+export {
+  toFHIROrganisation,
+  fromFHIROrganisation,
+  toFHIROrganization,
+  fromFHIROrganization,
+} from "./organization";
 export { toFHIRPractitioner } from "./user";
 export type { User } from "./user";
 export type { UserProfile } from "./userProfile";
@@ -37,6 +42,24 @@ export {
   fromOrganizationRequestDTO,
   toOrganizationResponseDTO,
 } from "./dto/organization.dto";
+export type {
+  SpecialityRequestDTO,
+  SpecialityResponseDTO,
+  SpecialityDTOAttributes,
+} from "./dto/speciality.dto";
+export {
+  fromSpecialityRequestDTO,
+  toSpecialityResponseDTO,
+} from "./dto/speciality.dto";
+export type {
+  OrganisationRoomRequestDTO,
+  OrganisationRoomResponseDTO,
+  OrganisationRoomDTOAttributes,
+} from "./dto/organisation-room.dto";
+export {
+  fromOrganisationRoomRequestDTO,
+  toOrganisationRoomResponseDTO,
+} from "./dto/organisation-room.dto";
 export type {
   AddressRequestDTO,
   AddressResponseDTO,
@@ -67,11 +90,20 @@ export type {
 } from "./companion";
 export { toFHIRCompanion } from "./companion";
 
-export type { Organization, ToFHIROrganizationOptions } from "./organization";
+export type { Organization, Organisation, ToFHIROrganizationOptions } from "./organization";
+export type { OrganisationRoom } from "./organisationRoom";
+export {
+  toFHIROrganisationRoom,
+  fromFHIROrganisationRoom,
+  toFHIROrganizationRoom,
+  fromFHIROrganizationRoom,
+} from "./organisationRoom";
 export type {
   UserOrganization,
   ToFHIRUserOrganizationOptions,
 } from "./userOrganization";
+export type { Speciality } from "./speciality";
+export { toFHIRSpeciality, fromFHIRSpeciality } from "./speciality";
 
 export type {
   AdminDepartmentItem,
@@ -116,3 +148,5 @@ export type {
   OperatingHourType,
   VetNameType,
 } from "./complete-vet-profile/complete-vet-profile";
+
+export type { OrganisationInvite, InviteStatus } from "./organisationInvite";

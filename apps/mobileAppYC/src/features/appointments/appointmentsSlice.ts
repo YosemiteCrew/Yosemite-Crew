@@ -46,12 +46,12 @@ export const createAppointment = createAsyncThunk(
 export const updateAppointmentStatus = createAsyncThunk(
   'appointments/updateStatus',
   async (
-    {appointmentId, status}: {appointmentId: string; status: AppointmentStatus},
+    {appointmentId, status, employeeId}: {appointmentId: string; status: AppointmentStatus; employeeId?: string | null},
     {rejectWithValue},
   ) => {
     try {
       await delay(250);
-      return {appointmentId, status};
+      return {appointmentId, status, employeeId: employeeId ?? null};
     } catch (error) {
       return rejectWithValue(toErrorMessage(error, 'Unable to update appointment'));
     }
@@ -135,10 +135,13 @@ const appointmentsSlice = createSlice({
         state.error = (action.payload as string) ?? 'Unable to create appointment';
       })
       .addCase(updateAppointmentStatus.fulfilled, (state, action) => {
-        const {appointmentId, status} = action.payload as any;
+        const {appointmentId, status, employeeId} = action.payload as any;
         const apt = state.items.find(a => a.id === appointmentId);
         if (apt) {
           apt.status = status;
+          if (employeeId !== undefined && employeeId !== null) {
+            apt.employeeId = employeeId;
+          }
           apt.updatedAt = new Date().toISOString();
         }
       })

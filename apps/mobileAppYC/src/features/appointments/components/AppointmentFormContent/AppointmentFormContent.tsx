@@ -18,6 +18,8 @@ type SummaryCardConfig = {
   image?: any;
   onEdit?: () => void;
   interactive?: boolean;
+  showAvatar?: boolean;
+  badgeText?: string | null;
 };
 
 export type AppointmentAgreement = {
@@ -29,6 +31,7 @@ export type AppointmentAgreement = {
 
 export interface AppointmentFormContentProps {
   businessCard?: SummaryCardConfig;
+  serviceCard?: SummaryCardConfig;
   employeeCard?: SummaryCardConfig;
   companions: CompanionBase[];
   selectedCompanionId: string | null;
@@ -61,6 +64,7 @@ export interface AppointmentFormContentProps {
 
 export const AppointmentFormContent: React.FC<AppointmentFormContentProps> = ({
   businessCard,
+  serviceCard,
   employeeCard,
   companions,
   selectedCompanionId,
@@ -114,6 +118,22 @@ export const AppointmentFormContent: React.FC<AppointmentFormContentProps> = ({
           image={businessCard.image}
           onEdit={businessCard.onEdit}
           interactive={businessCard.interactive}
+          showAvatar={businessCard.showAvatar}
+          badgeText={businessCard.badgeText ?? null}
+          style={styles.summaryCard}
+        />
+      )}
+
+      {serviceCard && (
+        <BookingSummaryCard
+          title={serviceCard.title}
+          subtitlePrimary={serviceCard.subtitlePrimary ?? undefined}
+          subtitleSecondary={serviceCard.subtitleSecondary ?? undefined}
+          image={serviceCard.image}
+          onEdit={serviceCard.onEdit}
+          interactive={serviceCard.interactive}
+          showAvatar={serviceCard.showAvatar}
+          badgeText={serviceCard.badgeText ?? null}
           style={styles.summaryCard}
         />
       )}
@@ -126,6 +146,8 @@ export const AppointmentFormContent: React.FC<AppointmentFormContentProps> = ({
           image={employeeCard.image}
           onEdit={employeeCard.onEdit}
           interactive={employeeCard.interactive}
+          showAvatar={employeeCard.showAvatar}
+          badgeText={employeeCard.badgeText ?? null}
           style={styles.summaryCard}
         />
       )}
@@ -150,11 +172,11 @@ export const AppointmentFormContent: React.FC<AppointmentFormContentProps> = ({
       )}
 
       <Input
-        label="Appointment Type"
+        label="Selected specialty"
         value={appointmentType}
         onChangeText={allowTypeEdit ? onTypeChange : undefined}
         editable={allowTypeEdit}
-        placeholder="General Checkup"
+        placeholder="Select a specialty"
         containerStyle={styles.inputContainer}
       />
 
@@ -201,19 +223,18 @@ export const AppointmentFormContent: React.FC<AppointmentFormContentProps> = ({
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      gap: theme.spacing[4],
+      gap: theme.spacing[3],
     },
     summaryCard: {
-      marginBottom: theme.spacing[3],
+      marginBottom: theme.spacing[1],
     },
     sectionTitle: {
       ...theme.typography.titleMedium,
       color: theme.colors.secondary,
-      marginBottom: theme.spacing[2],
-      marginTop: theme.spacing[2],
+      marginTop: theme.spacing[1],
     },
     inputContainer: {
-      marginBottom: theme.spacing[3],
+      marginTop: theme.spacing[3],
     },
     multilineInput: {
       minHeight: 100,

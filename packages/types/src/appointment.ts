@@ -7,15 +7,36 @@ export type AppointmentStatus =
   | 'CANCELLED';
 
 export type Appointment = {
-  _id?: string;
-  userId: string;              // Vet or practitioner being booked
+  id: string;
+  companion : {
+    id: string;
+    name: string;
+    species: string;  
+    breed: string;
+    parent: {
+      id: string;
+      name: string;
+    };
+  }
+  lead: {
+    id: string;
+    name: string;
+  }                           // Vet or practitioner being booked
+  supportStaff: {
+    id: string;
+    name: string;
+  }[]
+  room: {
+    id: string;
+    name: string;
+  }
   organisationId: string;      // Org / clinic
-  companionId: string;         // pet's id
-  petOwnerId: string;          // Owner making booking
-  startTime: Date;             // Booking start timestamp
+  appointmentDate: Date;       // Date of the appointment
+  timeSlot: string;            // Time Slot for the appointment
+  durationMinutes: number;     // Duration in minutes
   endTime: Date;               // Booking end timestamp
   status: AppointmentStatus;
-  notes?: string;              // Optional
+  concern?: string;            // Reason for the appointment
   createdAt?: Date;
   updatedAt?: Date;
 };

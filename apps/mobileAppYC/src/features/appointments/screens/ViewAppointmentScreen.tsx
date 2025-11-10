@@ -11,7 +11,7 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
 import {updateAppointmentStatus} from '@/features/appointments/appointmentsSlice';
 import RescheduledInfoSheet from '@/features/appointments/components/InfoBottomSheet/RescheduledInfoSheet';
-import {BookingSummaryCard} from '@/features/appointments/components/BookingSummaryCard';
+import {SummaryCards} from '@/features/appointments/components/SummaryCards/SummaryCards';
 import {CancelAppointmentBottomSheet, type CancelAppointmentBottomSheetRef} from '@/features/appointments/components/CancelAppointmentBottomSheet';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
@@ -25,7 +25,11 @@ export const ViewAppointmentScreen: React.FC = () => {
   const {appointmentId} = route.params as {appointmentId: string};
   const apt = useSelector((s: RootState) => s.appointments.items.find(a => a.id === appointmentId));
   const business = useSelector((s: RootState) => s.businesses.businesses.find(b => b.id === apt?.businessId));
-  const employee = useSelector((s: RootState) => s.businesses.employees.find(e => e.id === apt?.employeeId));
+  const service = useSelector((s: RootState) =>
+    apt?.serviceId ? s.businesses.services.find(svc => svc.id === apt.serviceId) : null,
+  );
+  const employees = useSelector((s: RootState) => s.businesses.employees);
+  const employee = useSelector((s: RootState) => s.businesses.employees.find(e => e.id === (apt?.employeeId ?? '')));
   const companion = useSelector((s: RootState) => s.companion.companions.find(c => c.id === apt?.companionId));
   const cancelSheetRef = React.useRef<CancelAppointmentBottomSheetRef>(null);
   const rescheduledRef = React.useRef<any>(null);
@@ -61,34 +65,20 @@ export const ViewAppointmentScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* Business & Employee Cards */}
-        {business && (
-          <BookingSummaryCard
-            title={business.name}
-            subtitlePrimary={business.address}
-            subtitleSecondary={business.description}
-            image={business.photo}
-            interactive={false}
-            style={styles.summaryCard}
-          />
-        )}
-
-        {employee && (
-          <BookingSummaryCard
-            title={employee.name}
-            subtitlePrimary={employee.specialization}
-            subtitleSecondary={employee.title}
-            image={employee.avatar}
-            interactive={false}
-            style={styles.summaryCard}
-          />
-        )}
+        <SummaryCards
+          business={business}
+          service={service}
+          serviceName={apt.serviceName}
+          employee={employee}
+          cardStyle={styles.summaryCard}
+        />
 
         {/* Appointment Details Card */}
         <View style={styles.detailsCard}>
           <Text style={styles.sectionTitle}>Appointment Details</Text>
           <DetailRow label="Date & Time" value={`${new Date(apt.date).toLocaleDateString()} • ${apt.time}`} />
           <DetailRow label="Type" value={apt.type} />
+          <DetailRow label="Service" value={service?.name ?? apt.serviceName ?? '—'} />
           {companion && <DetailRow label="Companion" value={companion.name} />}
           {apt.concern && <DetailRow label="Concern" value={apt.concern} multiline />}
         </View>
@@ -99,13 +89,23 @@ export const ViewAppointmentScreen: React.FC = () => {
             <LiquidGlassButton
               title="Approve (Mock)"
               onPress={() => {
-                dispatch(updateAppointmentStatus({appointmentId, status: 'approved'}));
+                const assignedEmployeeId =
+                  service?.defaultEmployeeId ??
+                  apt.employeeId ??
+                  employees.find(e => e.businessId === apt.businessId)?.id ??
+                  null;
+                dispatch(updateAppointmentStatus({
+                  appointmentId,
+                  status: 'approved',
+                  employeeId: assignedEmployeeId ?? undefined,
+                }));
                 navigation.navigate('PaymentInvoice', {appointmentId, companionId: apt.companionId});
               }}
               height={56}
               borderRadius={16}
               tintColor={theme.colors.secondary}
               shadowIntensity="medium"
+              textStyle={styles.confirmPrimaryButtonText}
             />
           )}
           {apt.status === 'approved' && (
@@ -116,6 +116,7 @@ export const ViewAppointmentScreen: React.FC = () => {
               borderRadius={16}
               tintColor={theme.colors.secondary}
               shadowIntensity="medium"
+              textStyle={styles.confirmPrimaryButtonText}
             />
           )}
           {apt.status === 'paid' && (
@@ -124,8 +125,11 @@ export const ViewAppointmentScreen: React.FC = () => {
               onPress={() => dispatch(updateAppointmentStatus({appointmentId, status: 'completed'}))}
               height={56}
               borderRadius={16}
+              glassEffect="clear"
+              interactive
               tintColor={theme.colors.secondary}
               shadowIntensity="medium"
+              textStyle={styles.confirmPrimaryButtonText}
             />
           )}
 
@@ -137,11 +141,13 @@ export const ViewAppointmentScreen: React.FC = () => {
                   onPress={() => navigation.navigate('EditAppointment', {appointmentId})}
                   height={56}
                   borderRadius={16}
-                  tintColor="rgba(255,255,255,0.95)"
+                  glassEffect="clear"
+                  tintColor={theme.colors.surface}
                   forceBorder
-                  borderColor={theme.colors.border}
+                  borderColor={theme.colors.secondary}
                   textStyle={styles.secondaryButtonText}
-                  shadowIntensity="none"
+                  shadowIntensity="medium"
+                  interactive
                 />
               )}
               <LiquidGlassButton
@@ -149,11 +155,13 @@ export const ViewAppointmentScreen: React.FC = () => {
                 onPress={() => navigation.navigate('EditAppointment', {appointmentId, mode: 'reschedule'})}
                 height={56}
                 borderRadius={16}
-                tintColor="rgba(255,255,255,0.95)"
+                glassEffect="clear"
+                tintColor={theme.colors.surface}
                 forceBorder
-                borderColor={theme.colors.border}
+                borderColor={theme.colors.secondary}
                 textStyle={styles.secondaryButtonText}
-                shadowIntensity="none"
+                shadowIntensity="medium"
+                interactive
               />
               <LiquidGlassButton
                 title="Cancel Appointment"
@@ -229,7 +237,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   container: {
     padding: theme.spacing[4],
     paddingBottom: theme.spacing[24],
-    gap: theme.spacing[4],
+    gap: theme.spacing[2],
   },
   statusCard: {
     borderRadius: theme.borderRadius.lg,
@@ -237,6 +245,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.cardBackground,
     padding: theme.spacing[4],
+    marginBottom: theme.spacing[3],
     gap: theme.spacing[2],
   },
   statusLabel: {
@@ -273,13 +282,20 @@ const createStyles = (theme: any) => StyleSheet.create({
     gap: theme.spacing[3],
     marginTop: theme.spacing[2],
   },
+  confirmPrimaryButtonText: {
+    ...theme.typography.button,
+    color: theme.colors.white,
+    textAlign: 'center',
+  },
   secondaryButtonText: {
     ...theme.typography.titleSmall,
     color: theme.colors.secondary,
+    textAlign: 'center',
   },
   alertButtonText: {
     ...theme.typography.titleSmall,
     color: '#EF4444',
+    textAlign: 'center',
   },
 });
 

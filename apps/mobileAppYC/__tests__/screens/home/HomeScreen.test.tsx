@@ -17,6 +17,17 @@ import {View as MockView} from 'react-native';
 
 jest.useFakeTimers();
 
+// Mock EmergencyContext to avoid requiring the provider in tests
+jest.mock('@/features/home/context/EmergencyContext', () => ({
+  __esModule: true,
+  useEmergency: () => ({
+    emergencySheetRef: { current: null },
+    openEmergencySheet: jest.fn(),
+    closeEmergencySheet: jest.fn(),
+    setEmergencySheetRef: jest.fn(),
+  }),
+}));
+
 const mockTheme = {
   colors: {
     background: '#FFF',

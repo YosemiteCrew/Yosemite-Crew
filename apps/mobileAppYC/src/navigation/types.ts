@@ -28,11 +28,13 @@ export type HomeStackParamList = {
   TermsAndConditions: undefined;
   PrivacyPolicy: undefined;
   AddCompanion: undefined;
+  Notifications: undefined;
   ProfileOverview: { companionId: string };
   EditCompanionOverview: { companionId: string };
   EditParentOverview:{ companionId: string };
   ExpensesStack: NavigatorScreenParams<ExpenseStackParamList>;
   LinkedBusinesses: NavigatorScreenParams<LinkedBusinessStackParamList>;
+  AdverseEvent: NavigatorScreenParams<AdverseEventStackParamList>;
   CoParents: undefined;
   AddCoParent: undefined;
   EditCoParent: { coParentId: string };
@@ -96,6 +98,9 @@ export type AppointmentStackParamList = {
   BusinessDetails: { businessId: string };
   BookingForm: {
     businessId: string;
+    serviceId?: string;
+    serviceName?: string;
+    serviceSpecialty?: string;
     employeeId?: string;
     appointmentType?: string;
     otContext?: ObservationalToolBookingContext;
@@ -125,6 +130,16 @@ export type TaskStackParamList = {
   TaskView: { taskId: string; source?: 'home' | 'tasks' };
   EditTask: { taskId: string; source?: 'home' | 'tasks' };
   ObservationalTool: { taskId: string };
+};
+
+export type AdverseEventStackParamList = {
+  Landing: undefined;
+  Step1: undefined;
+  Step2: undefined;
+  Step3: undefined;
+  Step4: undefined;
+  Step5: undefined;
+  ThankYou: undefined;
 };
 
 // Tab Navigator
