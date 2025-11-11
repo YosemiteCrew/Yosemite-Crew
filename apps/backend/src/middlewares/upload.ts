@@ -19,8 +19,13 @@ const s3 = new AWS.S3({
   region: process.env.AWS_REGION,
 });
 
-const BUCKET = process.env.AWS_S3_BUCKET_NAME;
-if (!BUCKET) throw new Error('AWS_S3_BUCKET_NAME is not defined.');
+const getBucketName = (): string => {
+  const bucket = process.env.AWS_S3_BUCKET_NAME;
+  if (!bucket) {
+    throw new Error('AWS_S3_BUCKET_NAME is not defined.');
+  }
+  return bucket;
+};
 
 // Utility functions
 
@@ -36,6 +41,18 @@ const mimeTypeToExtension = (mimeType: string): string => {
     default:
       return '';
   }
+};
+
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : 'Unknown error';
+
+const getErrorCode = (error: unknown): string | undefined => {
+  if (typeof error === 'object' && error !== null && 'code' in error) {
+    const code = (error as { code?: string | number }).code;
+    return code == null ? undefined : String(code);
+  }
+
+  return undefined;
 };
 
 const buildS3Key = (
@@ -65,8 +82,9 @@ async function uploadToS3(
   fileContent: Buffer | Uint8Array | Blob | string,
   mimeType: string
 ) {
+  const bucket = getBucketName();
   const params: AWS.S3.PutObjectRequest = {
-    Bucket: BUCKET!,
+    Bucket: bucket,
     Key: fileName,
     Body: fileContent,
     ContentType: mimeType,
@@ -76,9 +94,9 @@ async function uploadToS3(
   try {
     const data = await s3.upload(params).promise();
     return { location: data.Location, key: fileName };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Error uploading file to S3:', err);
-    throw new Error(`S3 upload failed: ${err.message}`);
+    throw new Error(`S3 upload failed: ${getErrorMessage(err)}`);
   }
 }
 
@@ -90,7 +108,7 @@ async function uploadBufferAsFile(
 ): Promise<FileUploadResult> {
     const { folderName, mimeType, originalName } = options
 
-    if (!isAllowedMimeType) {
+    if (!isAllowedMimeType(mimeType)) {
         throw new Error('Unsupported file type.');
     }
 
@@ -119,9 +137,10 @@ async function generatePresignedUrl(
   type: 'temp' | 'user' | 'org' | 'custom',
   idOrFolder?: string
 ) {
+  const bucket = getBucketName();
   const key = buildS3Key(type, idOrFolder, mimeType);
   const params = {
-    Bucket: BUCKET!,
+    Bucket: bucket,
     Key: key,
     ContentType: mimeType,
     Expires: 60, // 1 minute validity
@@ -130,45 +149,47 @@ async function generatePresignedUrl(
   try {
     const url = await s3.getSignedUrlPromise('putObject', params);
     return { url, key };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Error generating presigned URL:', err);
-    throw new Error(`Failed to generate presigned URL: ${err.message}`);
+    throw new Error(`Failed to generate presigned URL: ${getErrorMessage(err)}`);
   }
 }
 
 // Move File within S3
 
 async function moveFile(fromKey: string, toKey: string) {
+  const bucket = getBucketName();
   try {
     await s3
       .copyObject({
-        Bucket: BUCKET!,
-        CopySource: `${BUCKET}/${fromKey}`,
+        Bucket: bucket,
+        CopySource: `${bucket}/${fromKey}`,
         Key: toKey,
       })
       .promise();
 
     await s3
       .deleteObject({
-        Bucket: BUCKET!,
+        Bucket: bucket,
         Key: fromKey,
       })
       .promise();
 
-    return `https://${BUCKET}.s3.amazonaws.com/${toKey}`;
-  } catch (err: any) {
+    return `https://${bucket}.s3.amazonaws.com/${toKey}`;
+  } catch (err: unknown) {
     console.error('Error moving file:', err);
-    throw new Error(`Failed to move file: ${err.message}`);
+    throw new Error(`Failed to move file: ${getErrorMessage(err)}`);
   }
 }
 
 // Delete File from S3
 
 async function deleteFromS3(s3Key: string) {
+  const bucket = getBucketName();
   try {
     await s3
       .deleteObject({
-        Bucket: BUCKET!,
+        Bucket: bucket,
         Key: s3Key,
       })
       .promise();
@@ -217,9 +238,10 @@ async function handleMultipleFileUpload(files: UploadedFile[], folderName = 'upl
 
 async function setupLifecyclePolicy(daysToKeep = 2) {
   const ruleName = 'AutoDeleteTempUploads';
+  const bucket = getBucketName();
 
   try {
-    const currentConfig = await s3.getBucketLifecycleConfiguration({ Bucket: BUCKET! }).promise();
+    const currentConfig = await s3.getBucketLifecycleConfiguration({ Bucket: bucket }).promise();
 
     // Check if rule already exists
     const existingRule = currentConfig.Rules?.find((r) => r.ID === ruleName);
@@ -240,18 +262,18 @@ async function setupLifecyclePolicy(daysToKeep = 2) {
 
     await s3
       .putBucketLifecycleConfiguration({
-        Bucket: BUCKET!,
+        Bucket: bucket,
         LifecycleConfiguration: { Rules: updatedRules },
       })
       .promise();
 
     console.log(`Lifecycle rule added ✅: Delete temp/ files after ${daysToKeep} days`);
-  } catch (err: any) {
+  } catch (err: unknown) {
     // If no existing lifecycle config found, create a new one
-    if (err.code === 'NoSuchLifecycleConfiguration') {
+    if (getErrorCode(err) === 'NoSuchLifecycleConfiguration') {
       await s3
         .putBucketLifecycleConfiguration({
-          Bucket: BUCKET!,
+          Bucket: bucket,
           LifecycleConfiguration: {
             Rules: [
               {
@@ -267,7 +289,7 @@ async function setupLifecyclePolicy(daysToKeep = 2) {
       console.log(`Lifecycle configuration created ✅: temp/ auto-delete after ${daysToKeep} days`);
     } else {
       console.error('Error setting lifecycle policy:', err);
-      throw new Error(`Failed to set lifecycle policy: ${err.message}`);
+      throw new Error(`Failed to set lifecycle policy: ${getErrorMessage(err)}`);
     }
   }
 }
