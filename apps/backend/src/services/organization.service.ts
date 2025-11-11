@@ -17,9 +17,15 @@ import { UserOrganizationService } from './user-organization.service'
 import { SpecialityService } from './speciality.service'
 import { OrganisationRoomService } from './organisation-room.service'
 
-const REGISTRATION_NUMBER_EXTENSION_URL = 'http://example.org/fhir/StructureDefinition/registrationNumber'
-const REGISTRATION_IDENTIFIER_SYSTEM = 'http://example.org/fhir/NamingSystem/organisation-registration'
+const TAX_ID_EXTENSION_URL = 'http://example.org/fhir/StructureDefinition/taxId'
+const TAX_IDENTIFIER_SYSTEM = 'http://example.org/fhir/NamingSystem/organisation-tax-id'
 const IMAGE_EXTENSION_URL = 'http://example.org/fhir/StructureDefinition/organisation-image'
+const HEALTH_SAFETY_CERT_EXTENSION_URL =
+    'http://example.org/fhir/StructureDefinition/healthAndSafetyCertificationNumber'
+const ANIMAL_WELFARE_CERT_EXTENSION_URL =
+    'http://example.org/fhir/StructureDefinition/animalWelfareComplianceCertificationNumber'
+const FIRE_EMERGENCY_CERT_EXTENSION_URL =
+    'http://example.org/fhir/StructureDefinition/fireAndEmergencyCertificationNumber'
 const ORGANIZATION_TYPES = new Set<Organisation['type']>(['HOSPITAL', 'BREEDER', 'BOARDER', 'GROOMER'])
 
 type ExtensionLike = {
@@ -49,15 +55,15 @@ const findExtensionValue = (extensions: ExtensionLike[] | undefined, url: string
     return extension?.valueString ?? extension?.valueUrl
 }
 
-const extractRegistrationNumber = (organization: OrganizationFHIRPayload): string | undefined => {
-    const fromExtension = findExtensionValue(organization.extension, REGISTRATION_NUMBER_EXTENSION_URL)
+const extractTaxId = (organization: OrganizationFHIRPayload): string | undefined => {
+    const fromExtension = findExtensionValue(organization.extension, TAX_ID_EXTENSION_URL)
 
     if (fromExtension) {
         return fromExtension
     }
 
     const identifierMatch = organization.identifier?.find(
-        (item) => item?.system === REGISTRATION_IDENTIFIER_SYSTEM && typeof item?.value === 'string'
+        (item) => item?.system === TAX_IDENTIFIER_SYSTEM && typeof item?.value === 'string'
     )
 
     if (identifierMatch?.value) {
@@ -69,6 +75,9 @@ const extractRegistrationNumber = (organization: OrganizationFHIRPayload): strin
 
 const extractImageUrl = (organization: OrganizationFHIRPayload): string | undefined =>
     findExtensionValue(organization.extension, IMAGE_EXTENSION_URL)
+
+const extractCertificateValue = (organization: OrganizationFHIRPayload, url: string): string | undefined =>
+    findExtensionValue(organization.extension, url)
 
 const sanitizeTypeCoding = (
     typeCoding: ToFHIROrganizationOptions['typeCoding'] | undefined
@@ -266,12 +275,15 @@ const sanitizeAddress = (address: OrganizationDTOAttributes['address']): Organiz
 const sanitizeBusinessAttributes = (
     dto: OrganizationDTOAttributes,
     extras: {
-        registrationNo?: string
+        taxId?: string
         imageURL?: string
+        healthAndSafetyCertNo?: string
+        animalWelfareComplianceCertNo?: string
+        fireAndEmergencyCertNo?: string
     }
 ): OrganizationMongo => {
     const name = requireSafeString(dto.name, 'Organization name')
-    const registrationNo = requireSafeString(extras.registrationNo ?? dto.registrationNo, 'Registration number')
+    const taxId = requireSafeString(extras.taxId ?? dto.taxId, 'Tax ID')
     const imageURL = optionalSafeString(dto.imageURL ?? extras.imageURL, 'Image URL')
     const typeCoding = sanitizeTypeCoding(dto.typeCoding)
     const website = optionalSafeString(dto.website, 'Website')
@@ -279,11 +291,23 @@ const sanitizeBusinessAttributes = (
     const phoneNo = requireSafeString(dto.phoneNo, 'Phone number')
     const type = requireOrganizationType(dto.type)
     const address = sanitizeAddress(dto.address)
+    const healthAndSafetyCertNo = optionalSafeString(
+        dto.healthAndSafetyCertNo ?? extras.healthAndSafetyCertNo,
+        'Health & Safety certification number'
+    )
+    const animalWelfareComplianceCertNo = optionalSafeString(
+        dto.animalWelfareComplianceCertNo ?? extras.animalWelfareComplianceCertNo,
+        'Animal welfare compliance certification number'
+    )
+    const fireAndEmergencyCertNo = optionalSafeString(
+        dto.fireAndEmergencyCertNo ?? extras.fireAndEmergencyCertNo,
+        'Fire & emergency certification number'
+    )
 
     return {
         fhirId: ensureSafeIdentifier(dto.id),
         name,
-        registrationNo,
+        taxId,
         DUNSNumber,
         imageURL,
         type,
@@ -293,6 +317,9 @@ const sanitizeBusinessAttributes = (
         isVerified: Boolean(dto.isVerified),
         isActive: Boolean(dto.isActive),
         typeCoding,
+        healthAndSafetyCertNo,
+        animalWelfareComplianceCertNo,
+        fireAndEmergencyCertNo,
     }
 }
 
@@ -307,7 +334,7 @@ const buildFHIRResponse = (
     const organisation: Organisation = {
         _id: rest.fhirId ?? document._id,
         name: rest.name,
-        registrationNo: rest.registrationNo ?? '',
+        taxId: rest.taxId ?? '',
         DUNSNumber: rest.DUNSNumber,
         imageURL: rest.imageURL,
         type: coerceOrganizationType(rest.type),
@@ -324,6 +351,9 @@ const buildFHIRResponse = (
         },
         isVerified: Boolean(rest.isVerified),
         isActive: Boolean(rest.isActive),
+        healthAndSafetyCertNo: rest.healthAndSafetyCertNo,
+        animalWelfareComplianceCertNo: rest.animalWelfareComplianceCertNo,
+        fireAndEmergencyCertNo: rest.fireAndEmergencyCertNo,
     }
 
     const responseOptions = options ?? (typeCoding ? { typeCoding } : undefined)
@@ -344,9 +374,18 @@ const resolveIdQuery = (id: unknown) => {
 const createPersistableFromFHIR = (payload: OrganizationFHIRPayload) => {
     const attributes = fromOrganizationRequestDTO(payload)
 
-    const registrationNo = extractRegistrationNumber(payload)
+    const taxId = extractTaxId(payload)
     const imageURL = extractImageUrl(payload)
-    const sanitized = sanitizeBusinessAttributes(attributes, { registrationNo, imageURL })
+    const healthAndSafetyCertNo = extractCertificateValue(payload, HEALTH_SAFETY_CERT_EXTENSION_URL)
+    const animalWelfareComplianceCertNo = extractCertificateValue(payload, ANIMAL_WELFARE_CERT_EXTENSION_URL)
+    const fireAndEmergencyCertNo = extractCertificateValue(payload, FIRE_EMERGENCY_CERT_EXTENSION_URL)
+    const sanitized = sanitizeBusinessAttributes(attributes, {
+        taxId,
+        imageURL,
+        healthAndSafetyCertNo,
+        animalWelfareComplianceCertNo,
+        fireAndEmergencyCertNo,
+    })
     const persistable = pruneUndefined(sanitized)
 
     return { persistable, typeCoding: sanitized.typeCoding, attributes }
@@ -436,4 +475,32 @@ export const OrganizationService = {
 
         return buildFHIRResponse(document, typeCoding ? { typeCoding } : undefined)
     },
+
+    async upadtePofileVerificationStatus(id: string, isVerified: boolean) {
+        const document = await OrganizationModel.findOneAndUpdate(
+            resolveIdQuery(id),
+            { $set: { isVerified } },
+            { new: true, sanitizeFilter: true }
+        )
+
+        if (!document) {
+            return null
+        }
+
+        return buildFHIRResponse(document)
+    },
+
+    async updateProfilePhotoUrl(id: string, imageURL: string) {
+        const document = await OrganizationModel.findOneAndUpdate(
+            resolveIdQuery(id),
+            { $set: { imageURL } },
+            { new: true, sanitizeFilter: true }
+        )
+
+        if (!document) {
+            return null
+        }
+
+        return buildFHIRResponse(document)
+    }
 }

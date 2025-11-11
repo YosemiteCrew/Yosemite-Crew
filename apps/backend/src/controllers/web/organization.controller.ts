@@ -6,6 +6,7 @@ import {
     type OrganizationFHIRPayload,
 } from '../../services/organization.service'
 import { AuthenticatedRequest } from '../../middlewares/auth'
+import { generatePresignedUrl } from 'src/middlewares/upload'
 
 const resolveUserIdFromRequest = (req: Request): string | undefined => {
     const authRequest = req as AuthenticatedRequest
@@ -19,6 +20,7 @@ const resolveUserIdFromRequest = (req: Request): string | undefined => {
 export const OrganizationController = {
     onboardBusiness: async (req: Request, res: Response) => {
         try {
+            
             const payload = req.body as OrganizationFHIRPayload | undefined
 
             if (!payload || payload.resourceType !== 'Organization') {
@@ -26,7 +28,9 @@ export const OrganizationController = {
                 return
             }
             const userId = resolveUserIdFromRequest(req)
+
             const { response, created } = await OrganizationService.upsert(payload, userId)
+
             res.status(created ? 201 : 200).json(response)
         } catch (error) {
             if (error instanceof OrganizationServiceError) {
@@ -132,5 +136,22 @@ export const OrganizationController = {
             logger.error('Failed to update business', error)
             res.status(500).json({ message: 'Unable to update business.' })
         }
-    }
+    },
+
+    getLogoUploadUrl: async (req: Request, res: Response) => {
+        try {
+            const { mimeType } = req.body
+
+            if (!mimeType || typeof mimeType !== 'string') {
+                res.status(400).json({ message: 'MIME type is required in the request body.' })
+                return
+            }
+
+            const { url, key } = await generatePresignedUrl(mimeType, 'temp')
+            res.status(200).json({ uploadUrl: url, s3Key: key })
+        } catch (error) {
+            logger.error('Failed to generate logo upload URL', error)
+            res.status(500).json({ message: 'Unable to generate logo upload URL.' })
+        }
+    },
 }

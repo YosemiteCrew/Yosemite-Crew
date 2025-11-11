@@ -17,7 +17,7 @@ const AddressSchema = new Schema(
 export interface OrganizationMongo {
     fhirId?: string
     name: string
-    registrationNo: string
+    taxId: string
     DUNSNumber?: string
     imageURL?: string
     type: 'HOSPITAL' | 'BREEDER' | 'BOARDER' | 'GROOMER'
@@ -35,13 +35,16 @@ export interface OrganizationMongo {
     isVerified: boolean
     isActive: boolean
     typeCoding?: ToFHIROrganizationOptions['typeCoding']
+    healthAndSafetyCertNo?: string
+    animalWelfareComplianceCertNo?: string
+    fireAndEmergencyCertNo?: string
 }
 
 const OrganizationSchema = new Schema<OrganizationMongo>(
     {
         fhirId: { type: String },
         name: { type: String, required: true },
-        registrationNo: { type: String, required: true },
+        taxId: { type: String, required: true },
         DUNSNumber: { type: String },
         imageURL: { type: String },
         type: {
@@ -54,6 +57,9 @@ const OrganizationSchema = new Schema<OrganizationMongo>(
         address: { type: AddressSchema, required: true },
         isVerified: { type: Boolean, default: false },
         isActive: { type: Boolean, default: true },
+        healthAndSafetyCertNo: { type: String },
+        animalWelfareComplianceCertNo: { type: String },
+        fireAndEmergencyCertNo: { type: String },
         typeCoding: {
             system: { type: String },
             code: { type: String },
