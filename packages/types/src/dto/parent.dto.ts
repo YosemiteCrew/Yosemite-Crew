@@ -98,12 +98,13 @@ type ParentDTOAttributes = {
   address?: AddressDTOAttributes;
   phoneNumber?: Parent["phoneNumber"];
   profileImageUrl?: Parent["profileImageUrl"];
+  dateOfBirth?: Parent["birthDate"];
 };
 
 export const fromParentRequestDTO = (
   dto: ParentRequestDTO
 ): ParentDTOAttributes => {
-  const { id, name, telecom, photo, extension, address } = dto;
+  const { id, name, telecom, photo, extension, address, birthDate } = dto;
 
   const { firstName, lastName } = parseName(name?.[0]);
 
@@ -115,6 +116,7 @@ export const fromParentRequestDTO = (
     address: extractAddress(address),
     phoneNumber: extractPhoneNumber(telecom),
     profileImageUrl: extractPhotoUrl(photo),
+    dateOfBirth: birthDate ? new Date(birthDate) : undefined,
   };
 };
 
