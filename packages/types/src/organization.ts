@@ -7,7 +7,6 @@ type StringableId = { toString(): string }
 export interface Organisation {
     _id?: string | StringableId
     name: string
-    registrationNo: string
     DUNSNumber?: string
     imageURL?: string
     type: 'HOSPITAL' | 'BREEDER' | 'BOARDER' | 'GROOMER'
@@ -16,6 +15,10 @@ export interface Organisation {
     address: Address
     isVerified: boolean
     isActive: boolean
+    taxId: string
+    healthAndSafetyCertNo?: string
+    animalWelfareComplianceCertNo?: string
+    fireAndEmergencyCertNo?: string
 }
 
 export type Organization = Organisation
@@ -27,10 +30,17 @@ export type ToFHIROrganizationOptions = {
     }
 }
 
-const REGISTRATION_IDENTIFIER_SYSTEM = 'http://example.org/fhir/NamingSystem/organisation-registration'
-const DUNS_IDENTIFIER_SYSTEM = 'urn:oid:2.16.840.1.113883.4.13'
+const TAX_IDENTIFIER_SYSTEM = 'http://example.org/fhir/NamingSystem/organisation-tax-id'
+const DUNS_IDENTIFIER_SYSTEM = 'http://terminology.hl7.org/NamingSystem/DUNSNumber'
 const IMAGE_EXTENSION_URL = 'http://example.org/fhir/StructureDefinition/organisation-image'
 const IS_VERIFIED_EXTENSION_URL = 'http://example.org/fhir/StructureDefinition/isVerified'
+const TAX_ID_EXTENSION_URL = 'http://example.org/fhir/StructureDefinition/taxId'
+const HEALTH_SAFETY_CERT_EXTENSION_URL =
+    'http://example.org/fhir/StructureDefinition/healthAndSafetyCertificationNumber'
+const ANIMAL_WELFARE_CERT_EXTENSION_URL =
+    'http://example.org/fhir/StructureDefinition/animalWelfareComplianceCertificationNumber'
+const FIRE_EMERGENCY_CERT_EXTENSION_URL =
+    'http://example.org/fhir/StructureDefinition/fireAndEmergencyCertificationNumber'
 const TYPE_SYSTEM = 'http://example.org/fhir/CodeSystem/organisation-type'
 
 const ORGANISATION_TYPE_CODING_MAP: Record<Organisation['type'], { code: string; display: string }> = {
@@ -67,10 +77,10 @@ const toStringId = (id?: string | StringableId): string | undefined => {
 const buildIdentifiers = (organisation: Organisation): NonNullable<FHIROrganization['identifier']> | undefined => {
     const identifiers: NonNullable<FHIROrganization['identifier']> = []
 
-    if (organisation.registrationNo) {
+    if (organisation.taxId) {
         identifiers.push({
-            system: REGISTRATION_IDENTIFIER_SYSTEM,
-            value: organisation.registrationNo,
+            system: TAX_IDENTIFIER_SYSTEM,
+            value: organisation.taxId,
             use: 'official',
         })
     }
@@ -108,6 +118,13 @@ const buildTelecom = (organisation: Organisation): NonNullable<FHIROrganization[
 const buildExtensions = (organisation: Organisation): FHIROrganization['extension'] => {
     const extensions: NonNullable<FHIROrganization['extension']> = []
 
+    if (organisation.taxId) {
+        extensions.push({
+            url: TAX_ID_EXTENSION_URL,
+            valueString: organisation.taxId,
+        })
+    }
+
     extensions.push({
         url: IS_VERIFIED_EXTENSION_URL,
         valueBoolean: organisation.isVerified,
@@ -117,6 +134,27 @@ const buildExtensions = (organisation: Organisation): FHIROrganization['extensio
         extensions.push({
             url: IMAGE_EXTENSION_URL,
             valueUrl: organisation.imageURL,
+        })
+    }
+
+    if (organisation.healthAndSafetyCertNo) {
+        extensions.push({
+            url: HEALTH_SAFETY_CERT_EXTENSION_URL,
+            valueString: organisation.healthAndSafetyCertNo,
+        })
+    }
+
+    if (organisation.animalWelfareComplianceCertNo) {
+        extensions.push({
+            url: ANIMAL_WELFARE_CERT_EXTENSION_URL,
+            valueString: organisation.animalWelfareComplianceCertNo,
+        })
+    }
+
+    if (organisation.fireAndEmergencyCertNo) {
+        extensions.push({
+            url: FIRE_EMERGENCY_CERT_EXTENSION_URL,
+            valueString: organisation.fireAndEmergencyCertNo,
         })
     }
 
@@ -188,6 +226,9 @@ const extractIsVerified = (extensions: FHIROrganization['extension']): boolean =
 const extractImageUrl = (extensions: FHIROrganization['extension']): string | undefined =>
     extensions?.find((extension) => extension.url === IMAGE_EXTENSION_URL)?.valueUrl
 
+const extractStringExtension = (extensions: FHIROrganization['extension'], url: string): string | undefined =>
+    extensions?.find((extension) => extension.url === url)?.valueString
+
 const extractType = (resource: FHIROrganization): Organisation['type'] => {
     const coding = resource.type?.[0]?.coding?.[0]
 
@@ -212,7 +253,7 @@ export const fromFHIROrganisation = (resource: FHIROrganization): Organisation =
     return {
         _id: resource.id,
         name: resource.name ?? '',
-        registrationNo: findIdentifierValue(resource.identifier, REGISTRATION_IDENTIFIER_SYSTEM) ?? '',
+        taxId: findIdentifierValue(resource.identifier, TAX_IDENTIFIER_SYSTEM) ?? '',
         DUNSNumber: findIdentifierValue(resource.identifier, DUNS_IDENTIFIER_SYSTEM),
         imageURL: extractImageUrl(extensions),
         type: extractType(resource),
@@ -221,6 +262,9 @@ export const fromFHIROrganisation = (resource: FHIROrganization): Organisation =
         address: fromFHIRAddress(resource.address?.[0]),
         isVerified: extractIsVerified(extensions),
         isActive: resource.active ?? false,
+        healthAndSafetyCertNo: extractStringExtension(extensions, HEALTH_SAFETY_CERT_EXTENSION_URL),
+        animalWelfareComplianceCertNo: extractStringExtension(extensions, ANIMAL_WELFARE_CERT_EXTENSION_URL),
+        fireAndEmergencyCertNo: extractStringExtension(extensions, FIRE_EMERGENCY_CERT_EXTENSION_URL),
     }
 }
 
