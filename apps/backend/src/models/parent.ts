@@ -29,6 +29,7 @@ export interface ParentMongo {
     }
     phoneNumber?: string
     profileImageUrl?: string
+    birthDate?: Date
 }
 
 const ParentSchema = new Schema<ParentMongo>(
@@ -40,6 +41,7 @@ const ParentSchema = new Schema<ParentMongo>(
         address: { type: AddressSchema, required: true },
         phoneNumber: { type: String },
         profileImageUrl: { type: String },
+        birthDate: { type: Date },
     },
     {
         timestamps: true,

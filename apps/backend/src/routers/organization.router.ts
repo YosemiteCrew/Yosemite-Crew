@@ -13,5 +13,6 @@ router.put("/:id",authorizeCognito, OrganizationController.updateBusinessById)
 router.get("/:organizationId/specality", authorizeCognito, SpecialityController.getAllByOrganizationId)
 router.post("/:organisationId/invites", authorizeCognito, OrganisationInviteController.createInvite)
 router.get("/:organisationId/invites", authorizeCognito, OrganisationInviteController.listOrganisationInvites)
+router.post("/logo/presigned-url", authorizeCognito, OrganizationController.getLogoUploadUrl)
 
 export default router
