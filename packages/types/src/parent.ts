@@ -12,7 +12,7 @@ export interface Parent {
     age: number;
     address: Address;
     phoneNumber?: string;
-    birthDate?: string;
+    birthDate?: Date;
     profileImageUrl?: string;
     isProfileComplete?: boolean;
 }
@@ -68,7 +68,9 @@ export function toFHIRRelatedPerson(parent: Parent): RelatedPerson {
         });
     }
 
-    const birthDate = parent.birthDate || undefined;
+    const birthDate = parent.birthDate
+        ? parent.birthDate.toISOString().split("T")[0]
+        : undefined;
 
     return {
         resourceType: "RelatedPerson",

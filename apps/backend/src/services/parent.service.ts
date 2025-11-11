@@ -135,6 +135,7 @@ const sanitizeParentAttributes = (dto: ParentDTOAttributesType): ParentMongo => 
         address,
         phoneNumber: optionalSafeString(dto.phoneNumber, 'Parent phone number'),
         profileImageUrl: optionalSafeString(dto.profileImageUrl, 'Parent profile image URL'),
+        birthDate: dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined,
     }
 }
 
@@ -180,6 +181,7 @@ const buildParentDomain = (document: ParentDocument): Parent => {
         address,
         phoneNumber: rest.phoneNumber,
         profileImageUrl: rest.profileImageUrl,
+        birthDate: rest.birthDate,
     }
 
     parent.isProfileComplete = determineProfileCompletion(parent)
@@ -188,7 +190,7 @@ const buildParentDomain = (document: ParentDocument): Parent => {
 }
 
 const createPersistableFromFHIR = (payload: ParentRequestDTO) => {
-    if (!payload || payload.resourceType !== 'RelatedPerson') {
+    if (payload?.resourceType !== 'RelatedPerson') {
         throw new ParentServiceError('Invalid payload. Expected FHIR RelatedPerson resource.', 400)
     }
 
