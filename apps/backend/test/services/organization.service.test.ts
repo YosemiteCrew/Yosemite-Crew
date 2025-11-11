@@ -43,8 +43,21 @@ const createMockDoc = (overrides: Partial<Organization> = {}) => {
     const base = {
         _id: new Types.ObjectId(),
         name: "Test Clinic",
-        type: "VET",
+        type: "HOSPITAL" as Organization["type"],
         phoneNo: "123-456-7890",
+        taxId: "TAX-001",
+        address: {
+            addressLine: "123 Test St",
+            city: "Test City",
+            state: "Test State",
+            country: "Test Country",
+            postalCode: "12345",
+        },
+        isVerified: true,
+        isActive: true,
+        healthAndSafetyCertNo: "HS-001",
+        animalWelfareComplianceCertNo: "AW-001",
+        fireAndEmergencyCertNo: "FE-001",
         ...overrides,
     };
     return {
@@ -55,6 +68,16 @@ const createMockDoc = (overrides: Partial<Organization> = {}) => {
                 name: this.name,
                 type: this.type,
                 phoneNo: this.phoneNo,
+                taxId: this.taxId,
+                address: this.address,
+                isVerified: this.isVerified,
+                isActive: this.isActive,
+                healthAndSafetyCertNo: this.healthAndSafetyCertNo,
+                animalWelfareComplianceCertNo: this.animalWelfareComplianceCertNo,
+                fireAndEmergencyCertNo: this.fireAndEmergencyCertNo,
+                DUNSNumber: this.DUNSNumber,
+                website: this.website,
+                imageURL: this.imageURL,
             };
         },
     } as unknown as OrganizationDocument;
@@ -67,6 +90,12 @@ describe("OrganizationService", () => {
         resourceType: "Organization" as const,
         name: "Test Vet Clinic",
         phoneNo: "123-456-7890",
+        identifier: [
+            {
+                system: "http://example.org/fhir/NamingSystem/organisation-tax-id",
+                value: "TAX123",
+            },
+        ],
         type: [
             {
                 coding: [
@@ -90,8 +119,20 @@ describe("OrganizationService", () => {
         telecom: [{ system: "phone" as const, value: "123-456-7890" }],
         extension: [
             {
-                url: "http://example.org/fhir/StructureDefinition/registrationNumber",
-                valueString: "REG123",
+                url: "http://example.org/fhir/StructureDefinition/taxId",
+                valueString: "TAX123",
+            },
+            {
+                url: "http://example.org/fhir/StructureDefinition/healthAndSafetyCertificationNumber",
+                valueString: "HS-909",
+            },
+            {
+                url: "http://example.org/fhir/StructureDefinition/animalWelfareComplianceCertificationNumber",
+                valueString: "AW-909",
+            },
+            {
+                url: "http://example.org/fhir/StructureDefinition/fireAndEmergencyCertificationNumber",
+                valueString: "FE-909",
             },
         ],
     };
@@ -149,16 +190,16 @@ describe("OrganizationService", () => {
             });
         });
 
-        it("uses identifier as registration number when registration extension missing", async () => {
+        it("uses identifier as tax ID when tax extension missing", async () => {
             mockedOrganizationModel.findOneAndUpdate.mockResolvedValueOnce(null);
             const createdDoc = createMockDoc({ name: "Clinic X" });
             mockedOrganizationModel.create.mockResolvedValueOnce(createdDoc);
 
-            const payload = { ...mockFHIROrganization, extension: [], identifier: [{ value: "REG-ABC-123" }] } as any;
+            const payload = { ...mockFHIROrganization, extension: [], identifier: [{ value: "TAX-ABC-123" }] } as any;
             const result = await OrganizationService.upsert(payload);
 
             expect(result.created).toBe(true);
-            expect(mockedOrganizationModel.create.mock.calls[0][0].registrationNo).toBe("REG-ABC-123");
+            expect(mockedOrganizationModel.create.mock.calls[0][0].taxId).toBe("TAX-ABC-123");
         });
 
         it("ignores incomplete typeCoding (missing system or code)", async () => {

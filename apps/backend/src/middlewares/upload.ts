@@ -1,4 +1,4 @@
-// middlewares/upload.js
+// helpers/upload.ts
 import AWS from 'aws-sdk';
 import path from 'node:path';
 import sanitizeFilename from 'sanitize-filename';
@@ -12,106 +12,77 @@ interface UploadedFile {
 
 const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'application/pdf']);
 const isAllowedMimeType = (mimeType: string) => ALLOWED_MIME_TYPES.has(mimeType);
-// Configure AWS S3
+
 const s3 = new AWS.S3({
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    region: process.env.AWS_REGION
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION,
 });
 
-// Function to upload to S3
-async function uploadToS3(
-    fileName: string,
-    fileContent: Buffer | Uint8Array | Blob | string,
-    mimeType: string
-) {
-    const bucketName = process.env.AWS_S3_BUCKET_NAME;
+const BUCKET = process.env.AWS_S3_BUCKET_NAME;
+if (!BUCKET) throw new Error('AWS_S3_BUCKET_NAME is not defined.');
 
-    if (!bucketName) {
-        throw new Error('AWS_S3_BUCKET_NAME is not defined in environment variables.');
-    }
-    const params: AWS.S3.PutObjectRequest = {
-        Bucket: bucketName,
-        Key: `${fileName}`,
-        Body: fileContent,
-        ContentType: mimeType,
-        ContentDisposition: 'inline',
-    };
-
-     try {
-        const data = await s3.upload(params).promise();
-        return {
-            location: data.Location,
-            key: fileName,
-        };
-        } catch (err: unknown) {
-        if (err instanceof Error) {
-            throw new Error('Error uploading file to S3: ' + err.message);
-        }
-        throw new Error('Unknown error uploading file to S3');
-        }
-}
-
-// Handle single file upload to S3
-type FileUploadResult = {
-    url: string
-    key: string
-    originalname: string
-    mimetype: string
-}
-
-async function handleFileUpload(file: UploadedFile, folderName: string): Promise<FileUploadResult> {
-    try {
-        if (!file) {
-            throw new Error('No file uploaded.');
-        }
-
-        if (!isAllowedMimeType(file.mimetype)) {
-            throw new Error('Unsupported file type.');
-        }
-
-        const safeFileName = sanitizeFilename(file.name) || 'file';
-        const fileExtension = path.extname(safeFileName);
-        const fileName = `${folderName}/${uuidv4()}${fileExtension}`;
-
-        const fileContent = file.data; // file.data should be a Buffer
-        const mimeType = file.mimetype;
-
-        const { location, key } = await uploadToS3(fileName, fileContent, mimeType);
-
-        return {
-            url: location,
-            key,
-            originalname: file.name,
-            mimetype: file.mimetype,
-        };
-        
-    
-    } catch (err) {
-        console.error('Error uploading file to S3:', err);
-        throw err;
-    }
-}
-
-// Handle multiple files upload to S3
-async function handleMultipleFileUpload(files: UploadedFile[], folderName = "Images") {
-    const uploadPromises = files.map((file) => handleFileUpload(file, folderName));
-    return Promise.all(uploadPromises);
-}
+// Utility functions
 
 const mimeTypeToExtension = (mimeType: string): string => {
-    switch (mimeType) {
-        case 'image/jpeg':
-        case 'image/jpg':
-            return '.jpg';
-        case 'image/png':
-            return '.png';
-        case 'application/pdf':
-            return '.pdf';
-        default:
-            return '';
-    }
+  switch (mimeType) {
+    case 'image/jpeg':
+    case 'image/jpg':
+      return '.jpg';
+    case 'image/png':
+      return '.png';
+    case 'application/pdf':
+      return '.pdf';
+    default:
+      return '';
+  }
+};
+
+const buildS3Key = (
+  type: 'temp' | 'user' | 'org' | 'custom',
+  idOrFolder?: string,
+  mimeType?: string
+): string => {
+  const ext = mimeType ? mimeTypeToExtension(mimeType) : '';
+  switch (type) {
+    case 'temp':
+      return `temp/uploads/${uuidv4()}${ext}`;
+    case 'user':
+      return `users/${idOrFolder}/profile${ext}`;
+    case 'org':
+      return `orgs/${idOrFolder}/logo${ext}`;
+    case 'custom':
+      return `${idOrFolder}/${uuidv4()}${ext}`;
+    default:
+      throw new Error('Invalid upload type');
+  }
+};
+
+// Direct Upload Handlers
+
+async function uploadToS3(
+  fileName: string,
+  fileContent: Buffer | Uint8Array | Blob | string,
+  mimeType: string
+) {
+  const params: AWS.S3.PutObjectRequest = {
+    Bucket: BUCKET!,
+    Key: fileName,
+    Body: fileContent,
+    ContentType: mimeType,
+    ContentDisposition: 'inline',
+  };
+
+  try {
+    const data = await s3.upload(params).promise();
+    return { location: data.Location, key: fileName };
+  } catch (err: any) {
+    console.error('Error uploading file to S3:', err);
+    throw new Error(`S3 upload failed: ${err.message}`);
+  }
 }
+
+// Upload bufferd files to S3
 
 async function uploadBufferAsFile(
     buffer: Buffer,
@@ -141,24 +112,178 @@ async function uploadBufferAsFile(
     }
 }
 
-async function deleteFromS3(s3Key: string) {
-    const bucketName = process.env.AWS_S3_BUCKET_NAME;
+// Presigned URL Generation
 
-    if (!bucketName) {
-        throw new Error('AWS_S3_BUCKET_NAME is not defined in environment variables.');
-    }
+async function generatePresignedUrl(
+  mimeType: string,
+  type: 'temp' | 'user' | 'org' | 'custom',
+  idOrFolder?: string
+) {
+  const key = buildS3Key(type, idOrFolder, mimeType);
+  const params = {
+    Bucket: BUCKET!,
+    Key: key,
+    ContentType: mimeType,
+    Expires: 60, // 1 minute validity
+  };
 
-    const deleteParams = {
-        Bucket: bucketName,
-        Key: s3Key,
-      };
-      try {
-        const headObject = await s3.headObject(deleteParams).promise();
-        return headObject;
-      } catch (error) {
-        console.error("S3 File Not Found:", error);
-      }
+  try {
+    const url = await s3.getSignedUrlPromise('putObject', params);
+    return { url, key };
+  } catch (err: any) {
+    console.error('Error generating presigned URL:', err);
+    throw new Error(`Failed to generate presigned URL: ${err.message}`);
+  }
 }
 
-export { handleFileUpload, handleMultipleFileUpload, uploadBufferAsFile, deleteFromS3 };
-export type { FileUploadResult };
+// Move File within S3
+
+async function moveFile(fromKey: string, toKey: string) {
+  try {
+    await s3
+      .copyObject({
+        Bucket: BUCKET!,
+        CopySource: `${BUCKET}/${fromKey}`,
+        Key: toKey,
+      })
+      .promise();
+
+    await s3
+      .deleteObject({
+        Bucket: BUCKET!,
+        Key: fromKey,
+      })
+      .promise();
+
+    return `https://${BUCKET}.s3.amazonaws.com/${toKey}`;
+  } catch (err: any) {
+    console.error('Error moving file:', err);
+    throw new Error(`Failed to move file: ${err.message}`);
+  }
+}
+
+// Delete File from S3
+
+async function deleteFromS3(s3Key: string) {
+  try {
+    await s3
+      .deleteObject({
+        Bucket: BUCKET!,
+        Key: s3Key,
+      })
+      .promise();
+  } catch (error) {
+    console.error('Error deleting S3 object:', error);
+    throw error;
+  }
+}
+
+// File Upload Handler
+
+type FileUploadResult = {
+  url: string;
+  key: string;
+  originalname: string;
+  mimetype: string;
+};
+
+async function handleFileUpload(
+  file: UploadedFile,
+  folderName: string
+): Promise<FileUploadResult> {
+  if (!file) throw new Error('No file uploaded.');
+  if (!isAllowedMimeType(file.mimetype)) throw new Error('Unsupported file type.');
+
+  const safeFileName = sanitizeFilename(file.name) || 'file';
+  const fileExtension = path.extname(safeFileName) || mimeTypeToExtension(file.mimetype);
+  const fileName = `${folderName}/${uuidv4()}${fileExtension}`;
+
+  const { location, key } = await uploadToS3(fileName, file.data, file.mimetype);
+
+  return {
+    url: location,
+    key,
+    originalname: file.name,
+    mimetype: file.mimetype,
+  };
+}
+
+async function handleMultipleFileUpload(files: UploadedFile[], folderName = 'uploads') {
+  const uploads = files.map((f) => handleFileUpload(f, folderName));
+  return Promise.all(uploads);
+}
+
+// Lifecycle 
+
+async function setupLifecyclePolicy(daysToKeep = 2) {
+  const ruleName = 'AutoDeleteTempUploads';
+
+  try {
+    const currentConfig = await s3.getBucketLifecycleConfiguration({ Bucket: BUCKET! }).promise();
+
+    // Check if rule already exists
+    const existingRule = currentConfig.Rules?.find((r) => r.ID === ruleName);
+    if (existingRule) {
+      console.log(`Lifecycle rule "${ruleName}" already exists ✅`);
+      return;
+    }
+
+    // Add new rule
+    const newRule: AWS.S3.LifecycleRule = {
+      ID: ruleName,
+      Prefix: 'temp/', // applies to everything under temp/
+      Status: 'Enabled',
+      Expiration: { Days: daysToKeep },
+    };
+
+    const updatedRules = [...(currentConfig.Rules || []), newRule];
+
+    await s3
+      .putBucketLifecycleConfiguration({
+        Bucket: BUCKET!,
+        LifecycleConfiguration: { Rules: updatedRules },
+      })
+      .promise();
+
+    console.log(`Lifecycle rule added ✅: Delete temp/ files after ${daysToKeep} days`);
+  } catch (err: any) {
+    // If no existing lifecycle config found, create a new one
+    if (err.code === 'NoSuchLifecycleConfiguration') {
+      await s3
+        .putBucketLifecycleConfiguration({
+          Bucket: BUCKET!,
+          LifecycleConfiguration: {
+            Rules: [
+              {
+                ID: ruleName,
+                Prefix: 'temp/',
+                Status: 'Enabled',
+                Expiration: { Days: daysToKeep },
+              },
+            ],
+          },
+        })
+        .promise();
+      console.log(`Lifecycle configuration created ✅: temp/ auto-delete after ${daysToKeep} days`);
+    } else {
+      console.error('Error setting lifecycle policy:', err);
+      throw new Error(`Failed to set lifecycle policy: ${err.message}`);
+    }
+  }
+}
+
+// Exports
+
+export {
+  handleFileUpload,
+  handleMultipleFileUpload,
+  uploadToS3,
+  uploadBufferAsFile,
+  generatePresignedUrl,
+  moveFile,
+  deleteFromS3,
+  buildS3Key,
+  mimeTypeToExtension,
+  setupLifecyclePolicy
+};
+export type { FileUploadResult, UploadedFile };
