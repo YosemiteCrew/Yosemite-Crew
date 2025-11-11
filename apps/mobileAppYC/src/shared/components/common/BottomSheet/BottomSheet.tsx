@@ -19,55 +19,56 @@ export type BottomSheetRef = BottomSheetMethods;
 export interface CustomBottomSheetProps {
   // Required props
   children: React.ReactNode;
-  
+
   // Snap configuration
   snapPoints?: (string | number)[];
   initialIndex?: number;
-  
+
   // Behavior
   enablePanDownToClose?: boolean;
   enableDynamicSizing?: boolean;
   enableOverDrag?: boolean;
   enableContentPanningGesture?: boolean;
   enableHandlePanningGesture?: boolean;
-  
+
   // Styling
   style?: ViewStyle;
   backgroundStyle?: ViewStyle;
   handleStyle?: ViewStyle;
   handleIndicatorStyle?: ViewStyle;
-  
+  zIndex?: number;
+
   // Backdrop
   enableBackdrop?: boolean;
   backdropOpacity?: number;
   backdropAppearsOnIndex?: number;
   backdropDisappearsOnIndex?: number;
   backdropPressBehavior?: 'none' | 'close' | 'collapse' | number;
-  
+
   // Footer
   footerComponent?: React.FC<BottomSheetFooterProps>;
-  
+
   // Handle
   handleComponent?: React.FC<BottomSheetHandleProps>;
   customHandle?: boolean;
-  
+
   // Keyboard
   keyboardBehavior?: 'extend' | 'fillParent' | 'interactive';
   keyboardBlurBehavior?: 'none' | 'restore';
   android_keyboardInputMode?: 'adjustPan' | 'adjustResize';
-  
+
   // Insets
   topInset?: number;
   bottomInset?: number;
-  
+
   // Content type
   contentType?: 'view' | 'scrollView' | 'flatList';
-  
+
   // FlatList specific props (when contentType is 'flatList')
   flatListData?: readonly any[];
   flatListRenderItem?: ({ item, index }: { item: any; index: number }) => React.ReactElement;
   flatListKeyExtractor?: (item: any, index: number) => string;
-  
+
   // Callbacks
   onChange?: (index: number) => void;
   onAnimate?: (fromIndex: number, toIndex: number) => void;
@@ -89,6 +90,7 @@ const CustomBottomSheet = forwardRef<BottomSheetRef, CustomBottomSheetProps>(
       backgroundStyle,
       handleStyle,
       handleIndicatorStyle,
+      zIndex,
       enableBackdrop = false,
       backdropOpacity = 0.5,
       backdropAppearsOnIndex = 1,
@@ -204,7 +206,7 @@ const CustomBottomSheet = forwardRef<BottomSheetRef, CustomBottomSheetProps>(
         enableOverDrag={enableOverDrag}
         enableContentPanningGesture={enableContentPanningGesture}
         enableHandlePanningGesture={enableHandlePanningGesture}
-        style={style}
+        style={[style, { zIndex: zIndex ?? 1 }]}
         backgroundStyle={backgroundStyle}
         backdropComponent={enableBackdrop ? renderBackdrop : undefined}
         handleComponent={renderHandle}

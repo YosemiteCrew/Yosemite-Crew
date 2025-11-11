@@ -1,25 +1,6 @@
 import { Schema, model, HydratedDocument } from 'mongoose'
 import type { ToFHIROrganizationOptions } from '@yosemite-crew/types'
 
-const ServiceSchema = new Schema(
-    {
-        name: { type: String },
-        description: { type: String },
-        estimatedCost: { type: Number },
-        availability: { type: String },
-        respnonseTime: { type: String },
-    },
-    { _id: false }
-)
-
-const DepartmentSchema = new Schema(
-    {
-        name: { type: String },
-        services: { type: [ServiceSchema], default: undefined },
-    },
-    { _id: false }
-)
-
 const AddressSchema = new Schema(
     {
         addressLine: { type: String },
@@ -36,13 +17,13 @@ const AddressSchema = new Schema(
 export interface OrganizationMongo {
     fhirId?: string
     name: string
-    registrationNo?: string
+    taxId: string
+    DUNSNumber?: string
     imageURL?: string
-    type?: string
-    phoneNo?: string
+    type: 'HOSPITAL' | 'BREEDER' | 'BOARDER' | 'GROOMER'
+    phoneNo: string
     website?: string
-    country?: string
-    address?: {
+    address: {
         addressLine?: string
         country?: string
         city?: string
@@ -51,33 +32,34 @@ export interface OrganizationMongo {
         latitude?: number
         longitude?: number
     }
-    departments?: Array<{
-        name?: string
-        services?: Array<{
-            name?: string
-            description?: string
-            estimatedCost?: number
-            availability?: string
-            respnonseTime?: string
-        }>
-    }>
-    isVerified?: boolean
+    isVerified: boolean
+    isActive: boolean
     typeCoding?: ToFHIROrganizationOptions['typeCoding']
+    healthAndSafetyCertNo?: string
+    animalWelfareComplianceCertNo?: string
+    fireAndEmergencyCertNo?: string
 }
 
 const OrganizationSchema = new Schema<OrganizationMongo>(
     {
         fhirId: { type: String },
         name: { type: String, required: true },
-        registrationNo: { type: String },
+        taxId: { type: String, required: true },
+        DUNSNumber: { type: String },
         imageURL: { type: String },
-        type: { type: String },
-        phoneNo: { type: String },
+        type: {
+            type: String,
+            enum: ['HOSPITAL', 'BREEDER', 'BOARDER', 'GROOMER'],
+            required: true,
+        },
+        phoneNo: { type: String, required: true },
         website: { type: String },
-        country: { type: String },
-        address: { type: AddressSchema },
-        departments: { type: [DepartmentSchema], default: undefined },
+        address: { type: AddressSchema, required: true },
         isVerified: { type: Boolean, default: false },
+        isActive: { type: Boolean, default: true },
+        healthAndSafetyCertNo: { type: String },
+        animalWelfareComplianceCertNo: { type: String },
+        fireAndEmergencyCertNo: { type: String },
         typeCoding: {
             system: { type: String },
             code: { type: String },

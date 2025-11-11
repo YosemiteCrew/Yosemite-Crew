@@ -1,8 +1,9 @@
 "use client";
 import Link from "next/link";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Form } from "react-bootstrap";
 import { Icon } from "@iconify/react/dist/iconify.js";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import FormInputPass from "@/app/components/Inputs/FormInputPass/FormInputPass";
 import FormInput from "@/app/components/Inputs/FormInput/FormInput";
@@ -17,6 +18,11 @@ const SignIn = () => {
   const { signIn, resendCode } = useAuthStore();
   const { showErrorTost, ErrorTostPopup } = useErrorTost();
 
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const next = searchParams.get("next");
+  const { user, status } = useAuthStore();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [inputErrors, setInputErrors] = useState<{
@@ -25,6 +31,12 @@ const SignIn = () => {
   }>({});
 
   const [showVerifyModal, setShowVerifyModal] = useState(false);
+
+  useEffect(() => {
+    if (status === "authenticated" && user) {
+      router.replace(next || "/organizations");
+    }
+  }, [status, user, next, router]);
 
   const handleCodeResendonError = async () => {
     try {
@@ -85,7 +97,7 @@ const SignIn = () => {
       }
     }
   };
-  
+
   return (
     <section className="SignInSec">
       {ErrorTostPopup}
@@ -115,7 +127,12 @@ const SignIn = () => {
             </div>
           </div>
           <div className="Signbtn">
-            <Primary text="Sign in" onClick={handleSignIn} href="#" />
+            <Primary
+              text="Sign in"
+              onClick={handleSignIn}
+              href="#"
+              style={{ width: "100%" }}
+            />
             <h6>
               {" "}
               Don&apos;t have an account? <Link href="/signup">Sign up</Link>

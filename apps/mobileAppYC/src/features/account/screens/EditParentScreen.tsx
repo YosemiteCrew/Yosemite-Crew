@@ -50,8 +50,9 @@ import {
   formatDateForDisplay,
 } from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
 
-// Profile Image Picker
-import {ProfileImagePicker} from '@/shared/components/common/ProfileImagePicker/ProfileImagePicker';
+// Profile Image Picker Header
+import {UserProfileHeader} from '@/features/account/components/UserProfileHeader';
+import type {ProfileImagePickerRef} from '@/shared/components/common/ProfileImagePicker/ProfileImagePicker';
 
 // Types
 import type {User} from '@/features/auth/types';
@@ -80,6 +81,9 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
   const currencySheetRef = useRef<CurrencyBottomSheetRef>(null);
   const addressSheetRef = useRef<AddressBottomSheetRef>(null);
   const phoneSheetRef = useRef<CountryMobileBottomSheetRef>(null);
+
+  // Profile image picker ref
+  const profileImagePickerRef = useRef<ProfileImagePickerRef | null>(null);
 
   // Track which bottom sheet is open
   const [openBottomSheet, setOpenBottomSheet] = useState<'currency' | 'address' | 'phone' | null>(null);
@@ -188,14 +192,16 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
-        {/* Header block */}
-        <View style={styles.profileHeader}>
-          <ProfileImagePicker
-            imageUri={safeUser.profilePicture}
-            onImageSelected={handleProfileImageChange}
-            size={100} // Decreased size
-          />
-        </View>
+        {/* Header block with profile image picker */}
+        <UserProfileHeader
+          firstName={safeUser.firstName ?? ''}
+          lastName={safeUser.lastName ?? ''}
+          profileImage={safeUser.profilePicture}
+          pickerRef={profileImagePickerRef}
+          onImageSelected={handleProfileImageChange}
+          size={100}
+          showCameraButton
+        />
 
         {/* Card with rows */}
         <LiquidGlassCard
@@ -380,18 +386,4 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
 const createStyles = (theme: any) =>
   StyleSheet.create({
     ...createFormScreenStyles(theme),
-    profileHeader: {
-      alignItems: 'center',
-      marginVertical: theme.spacing[6],
-    },
-    profileName: {
-      ...theme.typography.h4Alt,
-      color: theme.colors.secondary,
-      marginTop: theme.spacing[4],
-    },
-    profileEmail: {
-      ...theme.typography.bodySmall,
-      color: theme.colors.textSecondary,
-      marginTop: theme.spacing[1],
-    },
   });

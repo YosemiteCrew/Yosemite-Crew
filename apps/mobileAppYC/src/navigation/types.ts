@@ -28,10 +28,58 @@ export type HomeStackParamList = {
   TermsAndConditions: undefined;
   PrivacyPolicy: undefined;
   AddCompanion: undefined;
+  Notifications: undefined;
   ProfileOverview: { companionId: string };
   EditCompanionOverview: { companionId: string };
   EditParentOverview:{ companionId: string };
   ExpensesStack: NavigatorScreenParams<ExpenseStackParamList>;
+  LinkedBusinesses: NavigatorScreenParams<LinkedBusinessStackParamList>;
+  AdverseEvent: NavigatorScreenParams<AdverseEventStackParamList>;
+  CoParents: undefined;
+  AddCoParent: undefined;
+  EditCoParent: { coParentId: string };
+  CoParentProfile: { coParentId: string };
+};
+
+export type LinkedBusinessStackParamList = {
+  BusinessSearch: {
+    companionId: string;
+    companionName: string;
+    companionBreed?: string;
+    companionImage?: string;
+    category: 'hospital' | 'boarder' | 'breeder' | 'groomer';
+  };
+  BusinessAdd: {
+    companionId: string;
+    companionName: string;
+    companionBreed?: string;
+    companionImage?: string;
+    category: 'hospital' | 'boarder' | 'breeder' | 'groomer';
+    businessId: string;
+    businessName: string;
+    businessAddress: string;
+    phone?: string;
+    email?: string;
+    photo?: any;
+    isPMSRecord: boolean;
+    rating?: number;
+    distance?: number;
+    placeId: string;
+  };
+  QRScanner: {
+    companionId: string;
+    companionName: string;
+    companionBreed?: string;
+    companionImage?: string;
+    category: 'hospital' | 'boarder' | 'breeder' | 'groomer';
+  };
+};
+
+export type CoParentStackParamList = {
+  CoParents: undefined;
+  AddCoParent: undefined;
+  EditCoParent: { coParentId: string };
+  CoParentProfile: { coParentId: string };
 };
 
 export type DocumentStackParamList = {
@@ -50,6 +98,9 @@ export type AppointmentStackParamList = {
   BusinessDetails: { businessId: string };
   BookingForm: {
     businessId: string;
+    serviceId?: string;
+    serviceName?: string;
+    serviceSpecialty?: string;
     employeeId?: string;
     appointmentType?: string;
     otContext?: ObservationalToolBookingContext;
@@ -79,6 +130,16 @@ export type TaskStackParamList = {
   TaskView: { taskId: string; source?: 'home' | 'tasks' };
   EditTask: { taskId: string; source?: 'home' | 'tasks' };
   ObservationalTool: { taskId: string };
+};
+
+export type AdverseEventStackParamList = {
+  Landing: undefined;
+  Step1: undefined;
+  Step2: undefined;
+  Step3: undefined;
+  Step4: undefined;
+  Step5: undefined;
+  ThankYou: undefined;
 };
 
 // Tab Navigator

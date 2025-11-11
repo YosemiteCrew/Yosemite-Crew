@@ -49,7 +49,7 @@ const demoData: InviteProps[] = [
   },
 ];
 
-const OrganizationList = (orgs: any) => {
+const OrganizationList = ({org}: any) => {
   const [data] = useState<InviteProps[]>(demoData);
 
   const columns: Column<InviteProps>[] = [

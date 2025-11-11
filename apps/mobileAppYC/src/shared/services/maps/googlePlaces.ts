@@ -25,6 +25,25 @@ export interface PlaceDetails {
   latitude?: number;
   longitude?: number;
   formattedAddress?: string;
+  photoUrl?: string | null;
+  phoneNumber?: string | null;
+  website?: string | null;
+}
+
+export interface BusinessSearchResult {
+  id: string;
+  name: string;
+  address: string;
+  primaryType?: string;
+  types?: string[];
+}
+
+export interface FetchBusinessSearchParams {
+  query: string;
+  location?: {
+    latitude: number;
+    longitude: number;
+  } | null;
 }
 
 class MissingApiKeyError extends Error {
@@ -43,6 +62,37 @@ const ensureApiKey = () => {
 };
 
 const buildFieldMask = (fields: string[]) => fields.join(',');
+
+const fetchPlacePayload = async (placeId: string, fields: string[]) => {
+  const apiKey = ensureApiKey();
+  if (!placeId) {
+    throw new Error('A valid placeId is required to fetch place details.');
+  }
+
+  const response = await fetch(
+    `${GOOGLE_PLACES_BASE_URL}/places/${encodeURIComponent(placeId)}?languageCode=en`,
+    {
+      method: 'GET',
+      headers: {
+        'X-Goog-Api-Key': apiKey,
+        'X-Goog-FieldMask': buildFieldMask(fields),
+      },
+    },
+  );
+
+  if (!response.ok) {
+    const message = await response.text().catch(() => '');
+    throw new Error(message || 'Failed to fetch place details from Google Places.');
+  }
+
+  const payload = await response.json().catch(() => ({}));
+  return {payload, apiKey};
+};
+
+const buildPhotoUrl = (photoName?: string | null, apiKey?: string) =>
+  photoName && apiKey
+    ? `${GOOGLE_PLACES_BASE_URL}/${photoName}/media?key=${apiKey}&max_height_px=400&max_width_px=400`
+    : undefined;
 
 const normalizeSuggestion = (raw: any): PlaceSuggestion | null => {
   const placePrediction = raw?.placePrediction;
@@ -125,33 +175,13 @@ export const fetchPlaceSuggestions = async ({
 };
 
 export const fetchPlaceDetails = async (placeId: string): Promise<PlaceDetails> => {
-  const apiKey = ensureApiKey();
-  if (!placeId) {
-    throw new Error('A valid placeId is required to fetch place details.');
-  }
-
-  const response = await fetch(
-    `${GOOGLE_PLACES_BASE_URL}/places/${encodeURIComponent(placeId)}?languageCode=en`,
-    {
-      method: 'GET',
-      headers: {
-        'X-Goog-Api-Key': apiKey,
-        'X-Goog-FieldMask': buildFieldMask([
-          'formattedAddress',
-          'addressComponents',
-          'location',
-          'displayName',
-        ]),
-      },
-    },
-  );
-
-  if (!response.ok) {
-    const message = await response.text().catch(() => '');
-    throw new Error(message || 'Failed to fetch place details from Google Places.');
-  }
-
-  const payload = await response.json().catch(() => ({}));
+  const {payload} = await fetchPlacePayload(placeId, [
+    'formattedAddress',
+    'addressComponents',
+    'location',
+    'displayName',
+    'photos',
+  ]);
   const addressComponents = Array.isArray(payload?.addressComponents)
     ? payload.addressComponents
     : [];
@@ -187,6 +217,101 @@ export const fetchPlaceDetails = async (placeId: string): Promise<PlaceDetails> 
     longitude: payload?.location?.longitude,
     formattedAddress,
   };
+};
+
+/**
+ * Fetch detailed business information for linked businesses
+ * Includes photo, phone number, and website from Google Places
+ */
+export const fetchBusinessPlaceDetails = async (placeId: string): Promise<PlaceDetails> => {
+  const {payload, apiKey} = await fetchPlacePayload(placeId, [
+    'photos',
+    'nationalPhoneNumber',
+    'internationalPhoneNumber',
+    'websiteUri',
+  ]);
+
+  // Extract first photo URL from Google Places API response
+  // The photos array contains objects with 'name' field that is the photo resource name
+  // We need to construct the proper photo URL using the name
+  const photos = Array.isArray(payload?.photos) ? payload.photos : [];
+  const photoUrl = buildPhotoUrl(photos[0]?.name, apiKey);
+
+  // Get phone number and website
+  const phoneNumber = payload?.nationalPhoneNumber || payload?.internationalPhoneNumber;
+  const website = payload?.websiteUri;
+
+  return {
+    photoUrl,
+    phoneNumber,
+    website,
+    formattedAddress: undefined,
+  };
+};
+
+/**
+ * Fetch businesses using Text Search (New) API
+ * Used for searching actual businesses (hospitals, groomers, breeders, boarders, etc.)
+ * Returns actual business results, not address suggestions
+ */
+export const fetchBusinessesBySearch = async ({
+  query,
+  location,
+}: FetchBusinessSearchParams): Promise<BusinessSearchResult[]> => {
+  const apiKey = ensureApiKey();
+
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) {
+    return [];
+  }
+
+  const response = await fetch(`${GOOGLE_PLACES_BASE_URL}/places:searchText`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': apiKey,
+      'X-Goog-FieldMask': buildFieldMask([
+        'places.id',
+        'places.displayName',
+        'places.formattedAddress',
+        'places.primaryTypeDisplayName',
+        'places.types',
+      ]),
+    },
+    body: JSON.stringify({
+      textQuery: trimmedQuery,
+      maxResultCount: 10,
+      locationBias: location
+        ? {
+            circle: {
+              center: {
+                latitude: location.latitude,
+                longitude: location.longitude,
+              },
+              radius: 5000, // 5km radius for better business discovery
+            },
+          }
+        : undefined,
+    }),
+  });
+
+  if (!response.ok) {
+    const message = await response.text().catch(() => '');
+    throw new Error(
+      message || 'Failed to fetch business results from Google Places.',
+    );
+  }
+
+  const payload = await response.json().catch(() => ({}));
+  const places = Array.isArray(payload?.places) ? (payload.places as any[]) : [];
+
+  return places.map((place: any) => ({
+    id: place.id,
+    name: place.displayName?.text || '',
+    address: place.formattedAddress || '',
+    primaryType: place.primaryTypeDisplayName?.text || '',
+    types: place.types || [],
+  }));
 };
 
 export {MissingApiKeyError};

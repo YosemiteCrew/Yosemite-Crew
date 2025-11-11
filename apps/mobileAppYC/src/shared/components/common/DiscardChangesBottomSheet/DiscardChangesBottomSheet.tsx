@@ -1,7 +1,5 @@
-import React, {forwardRef, useImperativeHandle, useRef, useMemo} from 'react';
-import {View, Text, StyleSheet} from 'react-native';
+import React, {forwardRef, useImperativeHandle, useRef} from 'react';
 import {ConfirmActionBottomSheet, ConfirmActionBottomSheetRef} from '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet';
-import {useTheme} from '@/hooks';
 
 export interface DiscardChangesBottomSheetRef {
   open: () => void;
@@ -18,8 +16,6 @@ export const DiscardChangesBottomSheet = forwardRef<
   DiscardChangesBottomSheetRef,
   DiscardChangesBottomSheetProps
 >(({onDiscard, onKeepEditing, onSheetChange}, ref) => {
-  const {theme} = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
   const bottomSheetRef = useRef<ConfirmActionBottomSheetRef>(null);
 
   useImperativeHandle(ref, () => ({
@@ -41,37 +37,19 @@ export const DiscardChangesBottomSheet = forwardRef<
     <ConfirmActionBottomSheet
       ref={bottomSheetRef}
       title="Discard changes?"
-      snapPoints={['250%']}
+      message="You have unsaved changes. Are you sure you want to discard them?"
       primaryButton={{
-        label: "Discard",
+        label: 'Discard',
         onPress: handleDiscard,
       }}
       secondaryButton={{
-        label: "Keep editing",
+        label: 'Keep editing',
         onPress: handleKeepEditing,
       }}
-      onSheetChange={onSheetChange}>
-      <View style={styles.content}>
-        <Text style={styles.message}>
-          You have unsaved changes. Are you sure you want to discard them?
-        </Text>
-      </View>
-    </ConfirmActionBottomSheet>
+      onSheetChange={onSheetChange}
+      snapPoints={['35%']}
+    />
   );
 });
-
-const createStyles = (theme: any) =>
-  StyleSheet.create({
-    content: {
-      paddingHorizontal: theme.spacing[4],
-      paddingVertical: theme.spacing[2],
-    },
-    message: {
-      ...theme.typography.bodyMedium,
-      color: theme.colors.textSecondary,
-      textAlign: 'center',
-      lineHeight: 22,
-    },
-  });
 
 export default DiscardChangesBottomSheet;

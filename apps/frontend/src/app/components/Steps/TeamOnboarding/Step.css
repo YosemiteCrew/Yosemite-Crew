@@ -1,0 +1,214 @@
+.team-container {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  border-radius: 32px;
+  border: 1px solid var(--lightgrey);
+}
+.team-title {
+  color: var(--black-text);
+  font-family: var(--grotesk-font);
+  font-size: 23px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 120%;
+  letter-spacing: -0.46px;
+}
+
+.team-logo-container {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.team-logo-upload {
+  height: 100px;
+  width: 100px;
+  border-radius: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--blue-text);
+  position: relative;
+}
+.team-logo-title {
+  color: var(--black-text);
+  font-family: var(--grotesk-font);
+  font-size: 23px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 120%;
+  letter-spacing: -0.46px;
+}
+.team-remove-icon {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  cursor: pointer;
+  border: none;
+  background: #fff;
+}
+@media screen and (max-width: 1024px) {
+  .team-logo-upload {
+    height: 80px;
+    width: 80px;
+  }
+  .team-logo-preview {
+    height: 80px !important;
+    width: 80px !important;
+  }
+}
+@media screen and (max-width: 768px) {
+  .team-logo-container {
+    gap: 10px;
+  }
+  .team-logo-upload {
+    height: 60px;
+    width: 60px;
+  }
+  .team-logo-upload svg {
+    height: 30px;
+    width: 30px;
+  }
+  .team-logo-preview {
+    height: 60px !important;
+    width: 60px !important;
+  }
+  .team-logo-title {
+    font-size: 19px;
+  }
+  .team-remove-icon {
+    top: -10px;
+    right: -10px;
+  }
+  .team-remove-icon svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+@media screen and (max-width: 350px) {
+  .team-logo-title {
+    max-width: 150px;
+  }
+}
+
+.team-type {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+.team-type-title {
+  color: var(--black-text);
+  font-family: var(--grotesk-font);
+  font-size: 18px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 120%;
+  letter-spacing: -0.46px;
+}
+.team-type-options {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex: 1;
+  justify-content: flex-start;
+}
+.team-type-option {
+  height: 48px;
+  padding: 0 0px;
+  width: calc(33% - 8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--black-text);
+  text-align: center;
+  font-family: var(--satoshi-font);
+  font-size: 18px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 120%;
+  letter-spacing: -0.36px;
+  border-radius: 12px;
+  border: 1px solid var(--black-bg);
+  cursor: pointer;
+  background: var(--whitebg);
+}
+.activeGendertype {
+  border: 1px solid var(--blue-text);
+  background: var(--light-blue);
+  color: var(--blue-text);
+}
+@media screen and (max-width: 768px) {
+  .team-type-title {
+    font-size: 19px;
+  }
+  .team-type-option {
+    height: 36px;
+    font-size: 15px;
+    padding: 0 16px;
+  }
+}
+@media screen and (max-width: 550px) {
+  .team-type {
+    flex-direction: column;
+    align-items: start;
+    max-height: fit-content;
+  }
+  .team-type-options {
+    justify-content: flex-start;
+  }
+  .team-type-option {
+    min-width: 100px;
+  }
+}
+
+.team-buttons {
+  display: flex;
+  align-self: center;
+  justify-content: space-between;
+  width: 100%;
+}
+@media screen and (max-width: 500px) {
+  .team-buttons {
+    flex-direction: column-reverse;
+    gap: 16px;
+  }
+  .team-buttons a {
+    width: 100% !important;
+  }
+}
+
+.team-address-container {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  gap: 24px;
+  flex-direction: column;
+}
+.team-personal-container {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-direction: column;
+}
+.team-personal-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 100%;
+  gap: 16px;
+}
+@media screen and (max-width: 768px) {
+  .team-personal-two {
+    grid-template-columns: 1fr;
+  }
+}
+.team-seperator {
+  width: 100%;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--lightgrey);
+}

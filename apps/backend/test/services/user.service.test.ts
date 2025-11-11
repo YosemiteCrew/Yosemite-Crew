@@ -26,6 +26,8 @@ describe("UserService", () => {
 
       const createdDocument = {
         userId: "user-1",
+        firstName: "Test",
+        lastName: "User",
         email: "test@example.com",
         isActive: false,
       } as unknown as UserDocument;
@@ -33,6 +35,8 @@ describe("UserService", () => {
 
       const result = await UserService.create({
         id: " user-1 ",
+        firstName: "Test",
+        lastName: "User",
         email: "Test@Example.com ",
         isActive: false,
       });
@@ -45,11 +49,15 @@ describe("UserService", () => {
       });
       expect(mockedUserModel.create).toHaveBeenCalledWith({
         userId: "user-1",
+        firstName: "Test",
+        lastName: "User",
         email: "test@example.com",
         isActive: false,
       });
       expect(result).toEqual({
         id: "user-1",
+        firstName: "Test",
+        lastName: "User",
         email: "test@example.com",
         isActive: false,
       });
@@ -60,6 +68,8 @@ describe("UserService", () => {
 
       const createdDocument = {
         userId: "user-2",
+        firstName: "User",
+        lastName: "Two",
         email: "user2@example.com",
         isActive: true,
       } as unknown as UserDocument;
@@ -67,11 +77,16 @@ describe("UserService", () => {
 
       await UserService.create({
         id: "user-2",
+        firstName: "User",
+        lastName: "Two",
         email: "user2@example.com",
+        isActive: undefined as unknown as boolean,
       });
 
       expect(mockedUserModel.create).toHaveBeenCalledWith({
         userId: "user-2",
+        firstName: "User",
+        lastName: "Two",
         email: "user2@example.com",
         isActive: true,
       });
@@ -79,7 +94,14 @@ describe("UserService", () => {
 
     it("throws when email is invalid", async () => {
       await expect(
-        UserService.create({ id: "user-3", email: "not-an-email" })
+        UserService.create(
+          { id: "user-3", 
+            email: "not-an-email",
+            firstName: "First",
+            lastName: "Last",
+            isActive: true,
+          }
+        )
       ).rejects.toMatchObject({
         message: "Invalid email address.",
         statusCode: 400,
@@ -90,7 +112,14 @@ describe("UserService", () => {
       mockedUserModel.findOne.mockResolvedValueOnce({} as UserDocument);
 
       await expect(
-        UserService.create({ id: "user-1", email: "user@example.com" })
+        UserService.create(
+          { id: "user-1", 
+            email: "user@example.com",
+            firstName: "First",
+            lastName: "Last",
+            isActive: true,
+          }
+        )
       ).rejects.toMatchObject({
         message: "User with the same id or email already exists.",
         statusCode: 409,
@@ -110,6 +139,8 @@ describe("UserService", () => {
     it("returns domain user when document exists", async () => {
       const document = {
         userId: "user-4",
+        firstName: "User",
+        lastName: "Four",
         email: "user4@example.com",
         isActive: true,
       } as unknown as UserDocument;
@@ -119,6 +150,8 @@ describe("UserService", () => {
 
       expect(result).toEqual({
         id: "user-4",
+        firstName: "User",
+        lastName: "Four",
         email: "user4@example.com",
         isActive: true,
       });

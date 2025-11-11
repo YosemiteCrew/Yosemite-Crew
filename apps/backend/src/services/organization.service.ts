@@ -3,27 +3,35 @@ import OrganizationModel, {
     type OrganizationDocument,
     type OrganizationMongo,
 } from '../models/organization'
+import UserOrganizationModel from '../models/user-organization'
 import {
     fromOrganizationRequestDTO,
     toOrganizationResponseDTO,
     type OrganizationRequestDTO,
     type OrganizationDTOAttributes,
-    type Organization,
+    type Organisation,
     type ToFHIROrganizationOptions,
+    UserOrganization,
 } from '@yosemite-crew/types'
+import { UserOrganizationService } from './user-organization.service'
+import { SpecialityService } from './speciality.service'
+import { OrganisationRoomService } from './organisation-room.service'
 
-const REGISTRATION_NUMBER_EXTENSION_URL = 'http://example.org/fhir/StructureDefinition/registrationNumber'
-const IMAGE_EXTENSION_URL = 'http://example.org/fhir/StructureDefinition/image'
-const ORGANIZATION_TYPES = new Set<NonNullable<Organization["type"]>>([
-  "Veterinary Business",
-  "Groomer Shop",
-  "Breeding Facility",
-  "Pet Sitter",
-]);
+const TAX_ID_EXTENSION_URL = 'http://example.org/fhir/StructureDefinition/taxId'
+const TAX_IDENTIFIER_SYSTEM = 'http://example.org/fhir/NamingSystem/organisation-tax-id'
+const IMAGE_EXTENSION_URL = 'http://example.org/fhir/StructureDefinition/organisation-image'
+const HEALTH_SAFETY_CERT_EXTENSION_URL =
+    'http://example.org/fhir/StructureDefinition/healthAndSafetyCertificationNumber'
+const ANIMAL_WELFARE_CERT_EXTENSION_URL =
+    'http://example.org/fhir/StructureDefinition/animalWelfareComplianceCertificationNumber'
+const FIRE_EMERGENCY_CERT_EXTENSION_URL =
+    'http://example.org/fhir/StructureDefinition/fireAndEmergencyCertificationNumber'
+const ORGANIZATION_TYPES = new Set<Organisation['type']>(['HOSPITAL', 'BREEDER', 'BOARDER', 'GROOMER'])
 
 type ExtensionLike = {
     url?: string
     valueString?: string
+    valueUrl?: string
 }
 
 type ExtensionContainer = {
@@ -32,7 +40,7 @@ type ExtensionContainer = {
 
 export type OrganizationFHIRPayload = OrganizationRequestDTO &
     ExtensionContainer & {
-        identifier?: Array<{ value?: string }>
+        identifier?: Array<{ value?: string; system?: string }>
     }
 
 export class OrganizationServiceError extends Error {
@@ -42,14 +50,24 @@ export class OrganizationServiceError extends Error {
     }
 }
 
-const findExtensionValue = (extensions: ExtensionLike[] | undefined, url: string): string | undefined =>
-    extensions?.find((item) => item.url === url)?.valueString
+const findExtensionValue = (extensions: ExtensionLike[] | undefined, url: string): string | undefined => {
+    const extension = extensions?.find((item) => item.url === url)
+    return extension?.valueString ?? extension?.valueUrl
+}
 
-const extractRegistrationNumber = (organization: OrganizationFHIRPayload): string | undefined => {
-    const fromExtension = findExtensionValue(organization.extension, REGISTRATION_NUMBER_EXTENSION_URL)
+const extractTaxId = (organization: OrganizationFHIRPayload): string | undefined => {
+    const fromExtension = findExtensionValue(organization.extension, TAX_ID_EXTENSION_URL)
 
     if (fromExtension) {
         return fromExtension
+    }
+
+    const identifierMatch = organization.identifier?.find(
+        (item) => item?.system === TAX_IDENTIFIER_SYSTEM && typeof item?.value === 'string'
+    )
+
+    if (identifierMatch?.value) {
+        return identifierMatch.value
     }
 
     return organization.identifier?.find((item) => typeof item?.value === 'string')?.value
@@ -57,6 +75,9 @@ const extractRegistrationNumber = (organization: OrganizationFHIRPayload): strin
 
 const extractImageUrl = (organization: OrganizationFHIRPayload): string | undefined =>
     findExtensionValue(organization.extension, IMAGE_EXTENSION_URL)
+
+const extractCertificateValue = (organization: OrganizationFHIRPayload, url: string): string | undefined =>
+    findExtensionValue(organization.extension, url)
 
 const sanitizeTypeCoding = (
     typeCoding: ToFHIROrganizationOptions['typeCoding'] | undefined
@@ -154,6 +175,26 @@ const optionalSafeString = (value: unknown, fieldName: string): string | undefin
     return trimmed
 }
 
+const optionalNumber = (value: unknown, fieldName: string): number | undefined => {
+    if (value == null) {
+        return undefined
+    }
+
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        return value
+    }
+
+    if (typeof value === 'string') {
+        const parsed = Number(value)
+
+        if (!Number.isNaN(parsed)) {
+            return parsed
+        }
+    }
+
+    throw new OrganizationServiceError(`${fieldName} must be a valid number.`, 400)
+}
+
 const ensureSafeIdentifier = (value: unknown): string | undefined => {
     const identifier = optionalSafeString(value, 'Identifier')
 
@@ -168,55 +209,117 @@ const ensureSafeIdentifier = (value: unknown): string | undefined => {
     return identifier
 }
 
+const requireOrganizationType = (value: unknown): Organisation['type'] => {
+    if (typeof value !== 'string') {
+        throw new OrganizationServiceError('Organization type must be a string.', 400)
+    }
+
+    const normalized = value.trim().toUpperCase()
+
+    if (!normalized) {
+        throw new OrganizationServiceError('Organization type cannot be empty.', 400)
+    }
+
+    if (!ORGANIZATION_TYPES.has(normalized as Organisation['type'])) {
+        throw new OrganizationServiceError('Invalid organization type.', 400)
+    }
+
+    return normalized as Organisation['type']
+}
+
+const coerceOrganizationType = (value: unknown): Organisation['type'] => {
+    if (typeof value === 'string') {
+        const normalized = value.trim().toUpperCase()
+
+        if (ORGANIZATION_TYPES.has(normalized as Organisation['type'])) {
+            return normalized as Organisation['type']
+        }
+    }
+
+    return 'HOSPITAL'
+}
+
+const hasAddressValues = (address: OrganizationMongo['address']): boolean =>
+    Boolean(
+        address.addressLine ||
+            address.city ||
+            address.state ||
+            address.postalCode ||
+            address.country ||
+            address.latitude !== undefined ||
+            address.longitude !== undefined
+    )
+
+const sanitizeAddress = (address: OrganizationDTOAttributes['address']): OrganizationMongo['address'] => {
+    if (!address) {
+        throw new OrganizationServiceError('Organization address is required.', 400)
+    }
+
+    const sanitized = {
+        addressLine: optionalSafeString(address.addressLine, 'Address line'),
+        country: optionalSafeString(address.country, 'Address country'),
+        city: optionalSafeString(address.city, 'Address city'),
+        state: optionalSafeString(address.state, 'Address state'),
+        postalCode: optionalSafeString(address.postalCode, 'Postal code'),
+        latitude: optionalNumber(address.latitude, 'Address latitude'),
+        longitude: optionalNumber(address.longitude, 'Address longitude'),
+    }
+
+    if (!hasAddressValues(sanitized)) {
+        throw new OrganizationServiceError('Organization address must include at least one value.', 400)
+    }
+
+    return sanitized
+}
+
 const sanitizeBusinessAttributes = (
     dto: OrganizationDTOAttributes,
     extras: {
-        registrationNo?: string
+        taxId?: string
         imageURL?: string
+        healthAndSafetyCertNo?: string
+        animalWelfareComplianceCertNo?: string
+        fireAndEmergencyCertNo?: string
     }
 ): OrganizationMongo => {
     const name = requireSafeString(dto.name, 'Organization name')
-    const registrationNo = optionalSafeString(extras.registrationNo, 'Registration number')
-    const imageURL = optionalSafeString(extras.imageURL, 'Image URL')
+    const taxId = requireSafeString(extras.taxId ?? dto.taxId, 'Tax ID')
+    const imageURL = optionalSafeString(dto.imageURL ?? extras.imageURL, 'Image URL')
     const typeCoding = sanitizeTypeCoding(dto.typeCoding)
-    const typeCode = typeCoding?.code
-
-    const departments = dto.departments?.length
-        ? dto.departments.map((department) => ({
-              name: optionalSafeString(department?.name, 'Department name'),
-              services: department?.services?.map((service) => ({
-                  name: optionalSafeString(service?.name, 'Service name'),
-                  description: optionalSafeString(service?.description, 'Service description'),
-                  estimatedCost: service?.estimatedCost,
-                  availability: service?.availability,
-                  respnonseTime: service?.respnonseTime,
-              })),
-          }))
-        : undefined
+    const website = optionalSafeString(dto.website, 'Website')
+    const DUNSNumber = optionalSafeString(dto.DUNSNumber, 'DUNS number')
+    const phoneNo = requireSafeString(dto.phoneNo, 'Phone number')
+    const type = requireOrganizationType(dto.type)
+    const address = sanitizeAddress(dto.address)
+    const healthAndSafetyCertNo = optionalSafeString(
+        dto.healthAndSafetyCertNo ?? extras.healthAndSafetyCertNo,
+        'Health & Safety certification number'
+    )
+    const animalWelfareComplianceCertNo = optionalSafeString(
+        dto.animalWelfareComplianceCertNo ?? extras.animalWelfareComplianceCertNo,
+        'Animal welfare compliance certification number'
+    )
+    const fireAndEmergencyCertNo = optionalSafeString(
+        dto.fireAndEmergencyCertNo ?? extras.fireAndEmergencyCertNo,
+        'Fire & emergency certification number'
+    )
 
     return {
         fhirId: ensureSafeIdentifier(dto.id),
         name,
-        registrationNo,
+        taxId,
+        DUNSNumber,
         imageURL,
-        type: typeCode,
-        phoneNo: optionalSafeString(dto.phoneNo, 'Phone number'),
-        website: optionalSafeString(dto.website, 'Website'),
-        country: optionalSafeString(dto.address?.country, 'Country'),
-        address: dto.address
-            ? {
-                  addressLine: optionalSafeString(dto.address.addressLine, 'Address line'),
-                  country: optionalSafeString(dto.address.country, 'Address country'),
-                  city: optionalSafeString(dto.address.city, 'Address city'),
-                  state: optionalSafeString(dto.address.state, 'Address state'),
-                  postalCode: optionalSafeString(dto.address.postalCode, 'Postal code'),
-                  latitude: dto.address.latitude,
-                  longitude: dto.address.longitude,
-              }
-            : undefined,
-        departments,
-        isVerified: dto.isVerified,
+        type,
+        phoneNo,
+        website,
+        address,
+        isVerified: Boolean(dto.isVerified),
+        isActive: Boolean(dto.isActive),
         typeCoding,
+        healthAndSafetyCertNo,
+        animalWelfareComplianceCertNo,
+        fireAndEmergencyCertNo,
     }
 }
 
@@ -224,43 +327,38 @@ const buildFHIRResponse = (
     document: OrganizationDocument,
     options?: ToFHIROrganizationOptions
 ): ReturnType<typeof toOrganizationResponseDTO> => {
-    const { typeCoding, fhirId, ...rest } = document.toObject({ virtuals: false }) as OrganizationMongo & {
+    const { typeCoding, ...rest } = document.toObject({ virtuals: false }) as OrganizationMongo & {
         _id: Types.ObjectId
     }
 
-    const address = rest.address
-        ? {
-              addressLine: rest.address.addressLine,
-              country: rest.address.country,
-              city: rest.address.city,
-              state: rest.address.state,
-              postalCode: rest.address.postalCode,
-              latitude: rest.address.latitude,
-              longitude: rest.address.longitude,
-          }
-        : undefined
-
-    const organizationType = ORGANIZATION_TYPES.has(rest.type as NonNullable<Organization['type']>)
-        ? (rest.type as NonNullable<Organization['type']>)
-        : undefined
-
-    const businessInput: Organization = {
-        id: fhirId ?? document._id.toString(),
-        _id: document._id,
-        fhirId,
+    const organisation: Organisation = {
+        _id: rest.fhirId ?? document._id,
         name: rest.name,
-        registrationNo: rest.registrationNo,
+        taxId: rest.taxId ?? '',
+        DUNSNumber: rest.DUNSNumber,
         imageURL: rest.imageURL,
-        type: organizationType,
-        phoneNo: rest.phoneNo,
+        type: coerceOrganizationType(rest.type),
+        phoneNo: rest.phoneNo ?? '',
         website: rest.website,
-        country: rest.country,
-        address,
-        departments: rest.departments,
-        isVerified: rest.isVerified,
+        address: {
+            addressLine: rest.address?.addressLine,
+            country: rest.address?.country,
+            city: rest.address?.city,
+            state: rest.address?.state,
+            postalCode: rest.address?.postalCode,
+            latitude: rest.address?.latitude,
+            longitude: rest.address?.longitude,
+        },
+        isVerified: Boolean(rest.isVerified),
+        isActive: Boolean(rest.isActive),
+        healthAndSafetyCertNo: rest.healthAndSafetyCertNo,
+        animalWelfareComplianceCertNo: rest.animalWelfareComplianceCertNo,
+        fireAndEmergencyCertNo: rest.fireAndEmergencyCertNo,
     }
 
-    return toOrganizationResponseDTO(businessInput, options ?? (typeCoding ? { typeCoding } : undefined))
+    const responseOptions = options ?? (typeCoding ? { typeCoding } : undefined)
+
+    return toOrganizationResponseDTO(organisation, responseOptions)
 }
 
 const resolveIdQuery = (id: unknown) => {
@@ -276,16 +374,25 @@ const resolveIdQuery = (id: unknown) => {
 const createPersistableFromFHIR = (payload: OrganizationFHIRPayload) => {
     const attributes = fromOrganizationRequestDTO(payload)
 
-    const registrationNo = extractRegistrationNumber(payload)
+    const taxId = extractTaxId(payload)
     const imageURL = extractImageUrl(payload)
-    const sanitized = sanitizeBusinessAttributes(attributes, { registrationNo, imageURL })
+    const healthAndSafetyCertNo = extractCertificateValue(payload, HEALTH_SAFETY_CERT_EXTENSION_URL)
+    const animalWelfareComplianceCertNo = extractCertificateValue(payload, ANIMAL_WELFARE_CERT_EXTENSION_URL)
+    const fireAndEmergencyCertNo = extractCertificateValue(payload, FIRE_EMERGENCY_CERT_EXTENSION_URL)
+    const sanitized = sanitizeBusinessAttributes(attributes, {
+        taxId,
+        imageURL,
+        healthAndSafetyCertNo,
+        animalWelfareComplianceCertNo,
+        fireAndEmergencyCertNo,
+    })
     const persistable = pruneUndefined(sanitized)
 
     return { persistable, typeCoding: sanitized.typeCoding, attributes }
 }
 
 export const OrganizationService = {
-    async upsert(payload: OrganizationFHIRPayload) {
+    async upsert(payload: OrganizationFHIRPayload, userId?: string) {
         const { persistable, typeCoding, attributes } = createPersistableFromFHIR(payload)
 
         const identifier = ensureSafeIdentifier(attributes.id) ?? ensureSafeIdentifier(payload.id)
@@ -311,6 +418,17 @@ export const OrganizationService = {
         if (!document) {
             document = await OrganizationModel.create(persistable)
             created = true
+
+            // Link organization to user if userId is provided
+            if (userId) {
+                const userOrg: UserOrganization = {
+                    practitionerReference: userId,
+                    organizationReference: document._id.toString(),
+                    roleCode: 'Owner',
+                    active: true,
+                }
+                await UserOrganizationModel.create(userOrg)
+            }                   
         }
 
         const response = buildFHIRResponse(document, typeCoding ? { typeCoding } : undefined)
@@ -335,6 +453,11 @@ export const OrganizationService = {
 
     async deleteById(id: string) {
         const result = await OrganizationModel.findOneAndDelete(resolveIdQuery(id), { sanitizeFilter: true })
+        if (result) {
+            await UserOrganizationService.deleteAllByOrganizationId(id)
+            await SpecialityService.deleteAllByOrganizationId(id)
+            await OrganisationRoomService.deleteAllByOrganizationId(id)
+        }
         return Boolean(result)
     },
 
@@ -352,4 +475,32 @@ export const OrganizationService = {
 
         return buildFHIRResponse(document, typeCoding ? { typeCoding } : undefined)
     },
+
+    async upadtePofileVerificationStatus(id: string, isVerified: boolean) {
+        const document = await OrganizationModel.findOneAndUpdate(
+            resolveIdQuery(id),
+            { $set: { isVerified } },
+            { new: true, sanitizeFilter: true }
+        )
+
+        if (!document) {
+            return null
+        }
+
+        return buildFHIRResponse(document)
+    },
+
+    async updateProfilePhotoUrl(id: string, imageURL: string) {
+        const document = await OrganizationModel.findOneAndUpdate(
+            resolveIdQuery(id),
+            { $set: { imageURL } },
+            { new: true, sanitizeFilter: true }
+        )
+
+        if (!document) {
+            return null
+        }
+
+        return buildFHIRResponse(document)
+    }
 }

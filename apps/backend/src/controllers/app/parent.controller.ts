@@ -3,7 +3,7 @@ import type { UploadedFile as ExpressUploadedFile, FileArray } from 'express-fil
 import logger from '../../utils/logger'
 import { ParentService, ParentServiceError } from '../../services/parent.service'
 import type { ParentRequestDTO } from '@yosemite-crew/types'
-import { handleFileUpload, uploadBufferAsFile, type FileUploadResult } from '../../middelwares/upload'
+import { handleFileUpload, uploadBufferAsFile, type FileUploadResult } from '../../middlewares/upload'
 
 const PROFILE_IMAGE_FIELD = 'profileImage'
 const STORAGE_KEY_EXTENSION_URL = 'http://example.org/fhir/StructureDefinition/storage-key'
