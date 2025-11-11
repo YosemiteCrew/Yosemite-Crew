@@ -17,16 +17,24 @@ const resolveUserIdFromRequest = (req: Request): string | undefined => {
     return authRequest.userId
 }
 
+const isOrganizationPayload = (payload: unknown): payload is OrganizationFHIRPayload =>
+    Boolean(
+        payload &&
+            typeof payload === 'object' &&
+            (payload as { resourceType?: string }).resourceType === 'Organization'
+    )
+
 export const OrganizationController = {
     onboardBusiness: async (req: Request, res: Response) => {
         try {
-            
-            const payload = req.body as OrganizationFHIRPayload | undefined
+            const rawPayload: unknown = req.body
 
-            if (!payload || payload.resourceType !== 'Organization') {
+            if (!isOrganizationPayload(rawPayload)) {
                 res.status(400).json({ message: 'Invalid payload. Expected FHIR Organization resource.' })
                 return
             }
+
+            const payload = rawPayload
             const userId = resolveUserIdFromRequest(req)
 
             const { response, created } = await OrganizationService.upsert(payload, userId)
@@ -109,17 +117,18 @@ export const OrganizationController = {
     updateBusinessById: async (req: Request, res: Response) => {
         try {
             const { id } = req.params
-            const payload = req.body as OrganizationFHIRPayload | undefined
+            const rawPayload: unknown = req.body
             
             if (!id) {
                 res.status(400).json({ message: 'Business ID is required.' })
                 return
             }
-            if (!payload || payload.resourceType !== 'Organization') {
+            if (!isOrganizationPayload(rawPayload)) {
                 res.status(400).json({ message: 'Invalid payload. Expected FHIR Organization resource.' })
                 return
             }
             
+            const payload = rawPayload
             const resource = await OrganizationService.update(id, payload)
 
             if (!resource) {
@@ -140,9 +149,13 @@ export const OrganizationController = {
 
     getLogoUploadUrl: async (req: Request, res: Response) => {
         try {
-            const { mimeType } = req.body
+            const rawBody: unknown = req.body
+            const mimeType =
+                typeof rawBody === 'object' && rawBody !== null && 'mimeType' in rawBody
+                    ? (rawBody as { mimeType?: unknown }).mimeType
+                    : undefined
 
-            if (!mimeType || typeof mimeType !== 'string') {
+            if (typeof mimeType !== 'string' || !mimeType) {
                 res.status(400).json({ message: 'MIME type is required in the request body.' })
                 return
             }

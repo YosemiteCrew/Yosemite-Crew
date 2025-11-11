@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 import helpers from "../../src/utils/helper";
 
 describe("helpers utilities", () => {
@@ -58,7 +58,7 @@ describe("helpers utilities", () => {
   });
 
   it("generates a password satisfying Cognito requirements", () => {
-    jest.spyOn(global.Math, "random").mockReturnValue(0.25);
+    jest.spyOn(globalThis.Math, "random").mockReturnValue(0.25);
     jest.spyOn(crypto, "randomBytes").mockImplementation((size: number) => {
       return Buffer.alloc(size, 10);
     });
