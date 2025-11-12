@@ -23,7 +23,7 @@ export interface OrganizationMongo {
     type: 'HOSPITAL' | 'BREEDER' | 'BOARDER' | 'GROOMER'
     phoneNo: string
     website?: string
-    address: {
+    address?: {
         addressLine?: string
         country?: string
         city?: string
@@ -32,8 +32,8 @@ export interface OrganizationMongo {
         latitude?: number
         longitude?: number
     }
-    isVerified: boolean
-    isActive: boolean
+    isVerified?: boolean
+    isActive?: boolean
     typeCoding?: ToFHIROrganizationOptions['typeCoding']
     healthAndSafetyCertNo?: string
     animalWelfareComplianceCertNo?: string
@@ -54,7 +54,7 @@ const OrganizationSchema = new Schema<OrganizationMongo>(
         },
         phoneNo: { type: String, required: true },
         website: { type: String },
-        address: { type: AddressSchema, required: true },
+        address: { type: AddressSchema, required: false },
         isVerified: { type: Boolean, default: false },
         isActive: { type: Boolean, default: true },
         healthAndSafetyCertNo: { type: String },

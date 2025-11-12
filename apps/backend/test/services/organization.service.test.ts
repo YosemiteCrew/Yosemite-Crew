@@ -246,6 +246,24 @@ describe("OrganizationService", () => {
             expect(createArg.address).not.toHaveProperty("country");
         });
 
+        it("accepts payloads without address, isVerified, or isActive", async () => {
+            mockedOrganizationModel.findOneAndUpdate.mockResolvedValueOnce(null);
+            const createdDoc = createMockDoc({ address: undefined, isVerified: undefined, isActive: undefined });
+            mockedOrganizationModel.create.mockResolvedValueOnce(createdDoc);
+
+            const payload = { ...mockFHIROrganization } as any;
+            delete payload.address;
+            delete payload.active;
+
+            const result = await OrganizationService.upsert(payload);
+
+            expect(result.created).toBe(true);
+            const createArg = mockedOrganizationModel.create.mock.calls[0][0];
+            expect(createArg.address).toBeUndefined();
+            expect(createArg.isVerified).toBeFalsy();
+            expect(createArg.isActive).toBeFalsy();
+        });
+
         it("throws when organization name contains invalid character $", async () => {
             await expect(
                 OrganizationService.upsert({ ...mockFHIROrganization, name: "Bad$Name" } as any)
