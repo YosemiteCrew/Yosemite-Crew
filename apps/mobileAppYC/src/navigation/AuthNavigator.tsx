@@ -5,7 +5,7 @@ import { SignUpScreen } from '@/features/auth/screens/SignUpScreen';
 import { OTPVerificationScreen } from '@/features/auth/screens/OTPVerificationScreen';
 import { CreateAccountScreen } from '@/features/auth/screens/CreateAccountScreen';
 import type {AuthTokens} from '@/features/auth/context/AuthContext';
-import type {ParentProfileSummary} from '@/features/profile/services/profileService';
+import type {ParentProfileSummary} from '@/features/account/services/profileService';
 
 // Type definitions for the Auth Stack
 export type AuthStackParamList = {

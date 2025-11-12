@@ -1,5 +1,5 @@
 import type {User} from '@/features/auth/types';
-import type {ParentProfileSummary} from '@/features/profile/services/profileService';
+import type {ParentProfileSummary} from '@/features/account/services/profileService';
 
 const mapAddress = (
   address?: ParentProfileSummary['address'],

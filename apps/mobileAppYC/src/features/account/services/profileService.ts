@@ -43,7 +43,6 @@ export interface ParentProfileUpsertPayload {
   lastName?: string;
   phoneNumber: string;
   dateOfBirth: string;
-  profileImageUrl?: string | null;
   address: {
     addressLine: string;
     city: string;
@@ -54,6 +53,12 @@ export interface ParentProfileUpsertPayload {
     longitude?: number;
   };
   isProfileComplete?: boolean;
+  photo?: {
+    contentType: string;
+    title?: string;
+    data: string;
+  };
+  existingPhotoUrl?: string | null;
 }
 
 export type ParentProfileUpsertResult = ParentProfileSummary;
@@ -168,8 +173,8 @@ const buildParentDomain = (payload: ParentProfileUpsertPayload): Parent => {
       longitude: payload.address.longitude,
     },
     phoneNumber: payload.phoneNumber,
-    birthDate: payload.dateOfBirth,
-    profileImageUrl: payload.profileImageUrl ?? undefined,
+    birthDate: new Date(payload.dateOfBirth),
+    profileImageUrl: payload.existingPhotoUrl ?? undefined,
     isProfileComplete: payload.isProfileComplete ?? true,
   };
 };
@@ -181,6 +186,23 @@ const submitParentProfile = async (
 ): Promise<ParentProfileUpsertResult> => {
   const parentDomain = buildParentDomain(payload);
   const body: ParentRequestDTO = toParentResponseDTO(parentDomain);
+  body.birthDate = payload.dateOfBirth;
+
+  if (payload.photo) {
+    body.photo = [
+      {
+        contentType: payload.photo.contentType,
+        title: payload.photo.title,
+        data: payload.photo.data,
+      },
+    ];
+  } else if (payload.existingPhotoUrl) {
+    body.photo = [
+      {
+        url: payload.existingPhotoUrl,
+      },
+    ];
+  }
 
   const endpoint =
     method === 'post'

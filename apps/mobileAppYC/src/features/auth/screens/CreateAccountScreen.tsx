@@ -40,7 +40,7 @@ import {
   createParentProfile,
   updateParentProfile,
   type ParentProfileUpsertPayload,
-} from '@/features/profile/services/profileService';
+} from '@/features/account/services/profileService';
 import {mergeUserWithParentProfile} from '@/features/auth/utils/parentProfileMapper';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import type {AuthStackParamList} from '@/navigation/AuthNavigator';
@@ -48,6 +48,7 @@ import {PENDING_PROFILE_STORAGE_KEY, PENDING_PROFILE_UPDATED_EVENT} from '@/conf
 import LocationService from '@/shared/services/LocationService';
 import type {PlaceSuggestion} from '@/shared/services/maps/googlePlaces';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {preparePhotoPayload} from '@/features/account/utils/profilePhoto';
 
 // Removed direct provider-specific signout; use global logout from AuthContext
 
@@ -639,13 +640,20 @@ const handleGoBack = useCallback(async () => {
         throw new Error('Date of birth is required.');
       }
 
+      const {photo: photoAttachment, existingPhotoUrl} = await preparePhotoPayload({
+        imageUri: combinedData.profileImage,
+        existingRemoteUrl:
+          profileToken ??
+          existingParentProfile?.profileImageUrl ??
+          null,
+      });
+
       const parentPayload: ParentProfileUpsertPayload = {
         userId,
         firstName: combinedData.firstName.trim(),
         lastName: combinedData.lastName?.trim(),
         phoneNumber: combinedData.fullMobileNumber,
         dateOfBirth: birthDateIso,
-        profileImageUrl: combinedData.profileImage,
         address: {
           addressLine: combinedData.address,
           stateProvince: combinedData.stateProvince,
@@ -656,6 +664,8 @@ const handleGoBack = useCallback(async () => {
           longitude: location?.longitude,
         },
         isProfileComplete: true,
+        photo: photoAttachment,
+        existingPhotoUrl: existingPhotoUrl ?? null,
       };
 
       const parentSummary = await submitParentProfile(parentPayload);
