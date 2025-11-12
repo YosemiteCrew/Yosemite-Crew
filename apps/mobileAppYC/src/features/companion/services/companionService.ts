@@ -82,7 +82,7 @@ const ensureDateOfBirth = (value: string | Date | null | undefined): Date => {
 
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) {
-    throw new Error('Invalid companion date of birth.');
+    throw new TypeError('Invalid companion date of birth.');
   }
   return date;
 };

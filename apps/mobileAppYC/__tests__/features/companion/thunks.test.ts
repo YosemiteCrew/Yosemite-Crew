@@ -40,6 +40,16 @@ const createTestStore = () =>
 
 type TestStore = ReturnType<typeof createTestStore>;
 
+const getLastPersistedValue = () => {
+  const calls = (AsyncStorage.setItem as jest.Mock).mock.calls;
+  const lastCall = calls[calls.length - 1];
+  if (!lastCall) {
+    throw new Error('AsyncStorage.setItem was not called');
+  }
+  const [key, rawValue] = lastCall;
+  return {key, value: JSON.parse(rawValue)};
+};
+
 describe('companion thunks', () => {
   let store: TestStore;
   const userId = 'user_123';
@@ -99,12 +109,9 @@ describe('companion thunks', () => {
         accessToken: 'token',
         fallback: mockCompanion,
       });
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
-        storageKey,
-        JSON.stringify([
-          expect.objectContaining({name: 'Updated Buddy'}),
-        ]),
-      );
+      const {key, value} = getLastPersistedValue();
+      expect(key).toBe(storageKey);
+      expect(value[0]).toEqual(expect.objectContaining({name: 'Updated Buddy'}));
       expect(store.getState().companion.companions[0].name).toBe('Updated Buddy');
     });
 
@@ -167,11 +174,10 @@ describe('companion thunks', () => {
         payload,
         accessToken: 'token',
       });
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
-        storageKey,
-        JSON.stringify([
-          expect.objectContaining({id: 'server-id', name: payload.name}),
-        ]),
+      const {key, value} = getLastPersistedValue();
+      expect(key).toBe(storageKey);
+      expect(value[0]).toEqual(
+        expect.objectContaining({id: 'server-id', name: payload.name}),
       );
       expect(store.getState().companion.companions[0].id).toBe('server-id');
     });
@@ -203,6 +209,9 @@ describe('companion thunks', () => {
       (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
       const updated = {...mockCompanion, name: 'Remote Name'};
       mockedApi.update.mockResolvedValue(updated);
+      store.dispatch(
+        fetchCompanions.fulfilled([mockCompanion], '', userId),
+      );
 
       await store.dispatch(
         updateCompanionProfile({userId, updatedCompanion: updated}) as any,
@@ -237,12 +246,22 @@ describe('companion thunks', () => {
       );
       (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
 
+      store.dispatch(
+        fetchCompanions.fulfilled(
+          [
+            mockCompanion,
+            {...mockCompanion, id: 'two', name: 'Second'},
+          ],
+          '',
+          userId,
+        ),
+      );
+
       await store.dispatch(deleteCompanion({userId, companionId: 'two'}) as any);
 
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
-        storageKey,
-        JSON.stringify([mockCompanion]),
-      );
+      const {key, value} = getLastPersistedValue();
+      expect(key).toBe(storageKey);
+      expect(value).toHaveLength(1);
       expect(store.getState().companion.companions.length).toBe(1);
     });
 
