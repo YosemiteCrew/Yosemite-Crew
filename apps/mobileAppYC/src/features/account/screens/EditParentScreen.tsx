@@ -130,12 +130,11 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
         !nextUser.firstName ||
         !nextUser.phone ||
         !nextUser.dateOfBirth ||
-        !nextUser.address ||
-        !nextUser.address.addressLine ||
-        !nextUser.address.city ||
-        !nextUser.address.stateProvince ||
-        !nextUser.address.postalCode ||
-        !nextUser.address.country
+        !nextUser.address?.addressLine ||
+        !nextUser.address?.city ||
+        !nextUser.address?.stateProvince ||
+        !nextUser.address?.postalCode ||
+        !nextUser.address?.country
       ) {
         console.warn('[EditParent] Missing required fields for parent update; skipping remote sync.');
         return;
@@ -208,9 +207,9 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
       }
 
       const mergedAddress =
-        patch.address !== undefined
-          ? {...(safeUser.address ?? {}), ...patch.address}
-          : safeUser.address;
+        patch.address === undefined
+          ? safeUser.address
+          : {...safeUser.address, ...patch.address};
 
       const nextUser: User = {
         ...safeUser,

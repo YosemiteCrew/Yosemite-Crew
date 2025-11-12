@@ -1,6 +1,6 @@
 /* istanbul ignore file -- mock handlers for document upload UI */
 import {Alert} from 'react-native';
-import {useCallback} from 'react';
+import {useCallback, useEffect, useRef} from 'react';
 import RNFS from 'react-native-fs';
 import {
   launchCamera,
@@ -105,7 +105,7 @@ const sanitizeFileName = (name?: string | null, fallbackExtension?: string) => {
   if (safeName) {
     return safeName;
   }
-  const extension = fallbackExtension && fallbackExtension.startsWith('.')
+  const extension = fallbackExtension?.startsWith('.')
     ? fallbackExtension
     : '';
   return `document-${Date.now()}${extension}`;
@@ -123,7 +123,7 @@ const inferMimeType = (type?: string | null, name?: string | null) => {
 };
 
 const isImageMimeType = (mime?: string | null) =>
-  Boolean(mime && mime.startsWith('image/'));
+  Boolean(mime?.startsWith('image/'));
 
 const isDocumentMimeType = (mime?: string | null) =>
   Boolean(mime && ALLOWED_DOCUMENT_MIME_TYPES.includes(mime));
@@ -133,6 +133,81 @@ const formatLimitLabel = (bytes: number) =>
 
 const normalizeFileUri = (uri: string) =>
   uri.startsWith('file://') ? uri.replace('file://', '') : uri;
+
+const filterValidPickerResults = (pickerResults: DocumentPickerResponse[]) => {
+  return pickerResults.filter(file => {
+    if (file.error) {
+      console.warn('[useDocumentFileHandlers] Picker error', file.error);
+      return false;
+    }
+    return true;
+  });
+};
+
+const createPendingEntry = <T extends DocumentFile>(file: DocumentPickerResponse): T => {
+  const placeholderId = generateId();
+  const mimeType = getEffectiveMimeType(file);
+  const fallbackExtension = getFallbackExtension(file, mimeType);
+  return {
+    id: placeholderId,
+    uri: '',
+    name: sanitizeFileName(file.name, fallbackExtension),
+    type: mimeType,
+    size: file.size ?? 0,
+    status: 'pending',
+  } as T;
+};
+
+const prepareFilesForCopy = (validResults: DocumentPickerResponse[]) => {
+  return validResults.map(file => {
+    const extension = getFileExtension(file.name);
+    const virtualMime = resolveVirtualMime(file);
+    return {
+      uri: file.uri,
+      fileName: sanitizeFileName(
+        file.name,
+        extension ?? (virtualMime?.startsWith('image/') ? '.jpg' : '.pdf'),
+      ),
+      ...(virtualMime ? {convertVirtualFileToType: virtualMime} : {}),
+    };
+  });
+};
+
+const processCopyResult = async <T extends DocumentFile>(
+  file: DocumentPickerResponse,
+  copyResult: any,
+  placeholderId: string | undefined,
+  maxFileSizeInBytes: number,
+  selectedMode: FileUploadMode,
+  replaceFileById: (id: string, file: T | null) => void,
+  showUnreadableFileAlert: () => void,
+) => {
+  if (!copyResult || copyResult.status === 'error') {
+    console.warn(
+      '[useDocumentFileHandlers] Failed to copy file',
+      copyResult?.copyError,
+    );
+    showUnreadableFileAlert();
+    if (placeholderId) {
+      replaceFileById(placeholderId, null);
+    }
+    return;
+  }
+
+  const built = await buildDocumentFileFromPicker<T>(
+    file,
+    copyResult.localUri,
+    maxFileSizeInBytes,
+    selectedMode,
+    placeholderId,
+  );
+
+  if (built) {
+    replaceFileById(placeholderId ?? built.id, built);
+  } else if (placeholderId) {
+    replaceFileById(placeholderId, null);
+  }
+};
 
 const resolveVirtualMime = (file: DocumentPickerResponse) => {
   if (!file.isVirtual || !file.convertibleToMimeTypes?.length) {
@@ -200,13 +275,28 @@ const showFileTooLargeAlert = (maxBytes: number) => {
   );
 };
 
+const getEffectiveMimeType = (file: DocumentPickerResponse) =>
+  resolveVirtualMime(file) ?? inferMimeType(file.type, file.name);
+
+const getFallbackExtension = (
+  file: DocumentPickerResponse,
+  mime: string,
+) => {
+  const extension = getFileExtension(file.name);
+  if (extension) {
+    return extension;
+  }
+  return mime.startsWith('image/') ? '.jpg' : '.pdf';
+};
+
 const buildDocumentFileFromPicker = async <T extends DocumentFile>(
   file: DocumentPickerResponse,
   localUri: string,
   maxBytes: number,
   mode: FileUploadMode,
+  overrideId?: string,
 ): Promise<T | null> => {
-  const mimeType = inferMimeType(file.type, file.name);
+  const mimeType = getEffectiveMimeType(file);
   const isImage = isImageMimeType(mimeType);
   const isDocument = isDocumentMimeType(mimeType);
   if (
@@ -235,11 +325,12 @@ const buildDocumentFileFromPicker = async <T extends DocumentFile>(
   );
 
   return {
-    id: generateId(),
+    id: overrideId ?? generateId(),
     uri: localUri,
     name: safeName,
     type: mimeType,
     size,
+    status: 'ready',
   } as T;
 };
 
@@ -247,6 +338,7 @@ const buildDocumentFileFromAsset = async <T extends DocumentFile>(
   asset: Asset,
   maxBytes: number,
   mode: FileUploadMode,
+  overrideId?: string,
 ): Promise<T | null> => {
   if (!asset.uri) {
     showUnreadableFileAlert();
@@ -291,11 +383,12 @@ const buildDocumentFileFromAsset = async <T extends DocumentFile>(
   );
 
   return {
-    id: generateId(),
+    id: overrideId ?? generateId(),
     uri: asset.uri,
     name: safeName,
     type: mimeType,
     size,
+    status: 'ready',
   } as T;
 };
 
@@ -328,16 +421,52 @@ export const useDocumentFileHandlers = <T extends DocumentFile>({
 }: UseDocumentFileHandlersParams<T>) => {
   const selectedMode: FileUploadMode = options?.mode ?? 'mixed';
   const maxFileSizeInBytes = options?.maxFileSizeInBytes ?? MAX_FILE_SIZE;
+  const filesRef = useRef(files);
+
+  useEffect(() => {
+    filesRef.current = files;
+  }, [files]);
+
+  const commitFiles = useCallback(
+    (nextFiles: T[]) => {
+      filesRef.current = nextFiles;
+      setFiles(nextFiles);
+    },
+    [setFiles],
+  );
 
   const appendFiles = useCallback(
     (newFiles: T[]) => {
       if (!newFiles.length) {
         return;
       }
-      setFiles([...files, ...newFiles]);
+      const next = [...filesRef.current, ...newFiles];
+      commitFiles(next);
       clearError?.();
     },
-    [files, setFiles, clearError],
+    [commitFiles, clearError],
+  );
+
+  const replaceFileById = useCallback(
+    (fileId: string, nextFile: T | null) => {
+      const current = filesRef.current;
+      const next = nextFile
+        ? current.map(file => (file.id === fileId ? nextFile : file))
+        : current.filter(file => file.id !== fileId);
+      commitFiles(next);
+    },
+    [commitFiles],
+  );
+
+  const removeFilesByIds = useCallback(
+    (ids: string[]) => {
+      if (!ids.length) {
+        return;
+      }
+      const next = filesRef.current.filter(file => !ids.includes(file.id));
+      commitFiles(next);
+    },
+    [commitFiles],
   );
 
   const handleTakePhoto = useCallback(async () => {
@@ -404,6 +533,8 @@ export const useDocumentFileHandlers = <T extends DocumentFile>({
       return;
     }
 
+    let pendingEntries: T[] = [];
+
     try {
       const pickerResults = await pick({
         allowMultiSelection: true,
@@ -416,69 +547,56 @@ export const useDocumentFileHandlers = <T extends DocumentFile>({
         return;
       }
 
-      const validResults = pickerResults.filter(file => {
-        if (file.error) {
-          console.warn('[useDocumentFileHandlers] Picker error', file.error);
-          showUnreadableFileAlert();
-          return false;
-        }
-        return true;
-      });
+      const validResults = filterValidPickerResults(pickerResults);
+      if (validResults.some(file => file.error)) {
+        showUnreadableFileAlert();
+      }
 
       if (!validResults.length) {
         return;
       }
 
-      const filesToCopy = validResults.map(file => {
-        const extension = getFileExtension(file.name);
-        const virtualMime = resolveVirtualMime(file);
-        return {
-          uri: file.uri,
-          fileName: sanitizeFileName(
-            file.name,
-            extension ?? (virtualMime?.startsWith('image/') ? '.jpg' : '.pdf'),
-          ),
-          ...(virtualMime ? {convertVirtualFileToType: virtualMime} : {}),
-        };
-      });
+      pendingEntries = validResults.map(file => createPendingEntry<T>(file));
+
+      if (pendingEntries.length) {
+        const next = [...filesRef.current, ...pendingEntries];
+        commitFiles(next);
+        clearError?.();
+      }
+
+      const filesToCopy = prepareFilesForCopy(validResults);
 
       const copyResults = await keepLocalCopy({
         files: filesToCopy as any,
         destination: 'documentDirectory',
       });
 
-      const processedFiles: T[] = [];
-
       for (let index = 0; index < validResults.length; index += 1) {
-        const file = validResults[index];
-        const copyResult = copyResults[index];
-
-        if (!copyResult || copyResult.status === 'error') {
-          console.warn(
-            '[useDocumentFileHandlers] Failed to copy file',
-            copyResult?.copyError,
-          );
-          showUnreadableFileAlert();
-          continue;
-        }
-
-        const built = await buildDocumentFileFromPicker<T>(
-          file,
-          copyResult.localUri,
+        await processCopyResult<T>(
+          validResults[index],
+          copyResults[index],
+          pendingEntries[index]?.id,
           maxFileSizeInBytes,
           selectedMode,
+          replaceFileById,
+          showUnreadableFileAlert,
         );
-        if (built) {
-          processedFiles.push(built);
-        }
       }
-
-      appendFiles(processedFiles);
     } catch (error) {
       console.warn('[useDocumentFileHandlers] Picker exception', error);
+      if (pendingEntries.length) {
+        removeFilesByIds(pendingEntries.map(file => file.id));
+      }
       handlePickerException(error);
     }
-  }, [appendFiles, maxFileSizeInBytes, selectedMode]);
+  }, [
+    clearError,
+    commitFiles,
+    maxFileSizeInBytes,
+    removeFilesByIds,
+    replaceFileById,
+    selectedMode,
+  ]);
 
   return {
     handleTakePhoto,

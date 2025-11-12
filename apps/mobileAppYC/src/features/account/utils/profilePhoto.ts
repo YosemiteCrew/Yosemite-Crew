@@ -22,7 +22,7 @@ const inferContentType = (path: string): string => {
 
 const extractFileTitle = (path: string, fallback: string = 'parent-profile') => {
   const segments = path.split(/[/\\]/);
-  const last = segments[segments.length - 1];
+  const last = segments.at(-1);
   return last && last.trim().length > 0 ? last : `${fallback}.jpg`;
 };
 
