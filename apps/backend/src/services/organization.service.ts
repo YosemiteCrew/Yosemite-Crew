@@ -241,18 +241,20 @@ const coerceOrganizationType = (value: unknown): Organisation['type'] => {
 
 const hasAddressValues = (address: OrganizationMongo['address']): boolean =>
     Boolean(
-        address.addressLine ||
-            address.city ||
-            address.state ||
-            address.postalCode ||
-            address.country ||
-            address.latitude !== undefined ||
-            address.longitude !== undefined
+        address?.addressLine ||
+            address?.city ||
+            address?.state ||
+            address?.postalCode ||
+            address?.country ||
+            address?.latitude !== undefined ||
+            address?.longitude !== undefined
     )
 
-const sanitizeAddress = (address: OrganizationDTOAttributes['address']): OrganizationMongo['address'] => {
+const sanitizeAddress = (
+    address: OrganizationDTOAttributes['address']
+): OrganizationMongo['address'] | undefined => {
     if (!address) {
-        throw new OrganizationServiceError('Organization address is required.', 400)
+        return undefined
     }
 
     const sanitized = {
@@ -266,7 +268,7 @@ const sanitizeAddress = (address: OrganizationDTOAttributes['address']): Organiz
     }
 
     if (!hasAddressValues(sanitized)) {
-        throw new OrganizationServiceError('Organization address must include at least one value.', 400)
+        return undefined
     }
 
     return sanitized
@@ -314,8 +316,8 @@ const sanitizeBusinessAttributes = (
         phoneNo,
         website,
         address,
-        isVerified: Boolean(dto.isVerified),
-        isActive: Boolean(dto.isActive),
+        isVerified: dto.isVerified === undefined ? undefined : Boolean(dto.isVerified),
+        isActive: dto.isActive === undefined ? undefined : Boolean(dto.isActive),
         typeCoding,
         healthAndSafetyCertNo,
         animalWelfareComplianceCertNo,
@@ -340,17 +342,19 @@ const buildFHIRResponse = (
         type: coerceOrganizationType(rest.type),
         phoneNo: rest.phoneNo ?? '',
         website: rest.website,
-        address: {
-            addressLine: rest.address?.addressLine,
-            country: rest.address?.country,
-            city: rest.address?.city,
-            state: rest.address?.state,
-            postalCode: rest.address?.postalCode,
-            latitude: rest.address?.latitude,
-            longitude: rest.address?.longitude,
-        },
-        isVerified: Boolean(rest.isVerified),
-        isActive: Boolean(rest.isActive),
+        address: rest.address
+            ? {
+                  addressLine: rest.address.addressLine,
+                  country: rest.address.country,
+                  city: rest.address.city,
+                  state: rest.address.state,
+                  postalCode: rest.address.postalCode,
+                  latitude: rest.address.latitude,
+                  longitude: rest.address.longitude,
+              }
+            : undefined,
+        isVerified: rest.isVerified,
+        isActive: rest.isActive,
         healthAndSafetyCertNo: rest.healthAndSafetyCertNo,
         animalWelfareComplianceCertNo: rest.animalWelfareComplianceCertNo,
         fireAndEmergencyCertNo: rest.fireAndEmergencyCertNo,
