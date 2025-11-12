@@ -11,7 +11,7 @@ import {
   storeTokens,
   type StoredAuthTokens,
 } from '@/features/auth/services/tokenStorage';
-import {fetchProfileStatus, type ParentProfileSummary} from '@/features/profile/services/profileService';
+import {fetchProfileStatus, type ParentProfileSummary} from '@/features/account/services/profileService';
 import {mergeUserWithParentProfile} from '@/features/auth/utils/parentProfileMapper';
 
 import type {AuthProvider, NormalizedAuthTokens, User} from './types';

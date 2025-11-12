@@ -61,11 +61,14 @@ describe('useFileOperations', () => {
     renderHook(() => useFileOperations(defaultProps));
 
     expect(mockedUseDocumentFileHandlers).toHaveBeenCalledTimes(1);
-    expect(mockedUseDocumentFileHandlers).toHaveBeenCalledWith({
-      files: initialFiles,
-      setFiles: mockSetFiles,
-      clearError: mockClearError,
-    });
+    expect(mockedUseDocumentFileHandlers).toHaveBeenCalledWith(
+      expect.objectContaining({
+        files: initialFiles,
+        setFiles: mockSetFiles,
+        clearError: mockClearError,
+        options: undefined,
+      }),
+    );
   });
 
   it('should return handlers from useDocumentFileHandlers', () => {

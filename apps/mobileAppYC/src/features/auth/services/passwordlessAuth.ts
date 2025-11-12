@@ -14,7 +14,7 @@ import {AuthError} from 'aws-amplify/auth';
 import {
   fetchProfileStatus,
   type ProfileStatus,
-} from '@/features/profile/services/profileService';
+} from '@/features/account/services/profileService';
 
 export type PasswordlessSignInRequestResult = {
   destination: string;

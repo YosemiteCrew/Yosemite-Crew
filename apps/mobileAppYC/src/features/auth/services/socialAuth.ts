@@ -19,7 +19,7 @@ import {
 } from 'react-native-fbsdk-next';
 import {sha256} from 'js-sha256';
 import {PASSWORDLESS_AUTH_CONFIG} from '@/config/variables';
-import {fetchProfileStatus, type ProfileStatus} from '@/features/profile/services/profileService';
+import {fetchProfileStatus, type ProfileStatus} from '@/features/account/services/profileService';
 import type {User, AuthTokens} from '@/features/auth/context/AuthContext';
 import {mergeUserWithParentProfile} from '@/features/auth/utils/parentProfileMapper';
 
