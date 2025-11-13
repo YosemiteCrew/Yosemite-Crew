@@ -110,6 +110,13 @@ export type AppointmentStackParamList = {
   PaymentSuccess: { appointmentId: string; companionId?: string };
   Review: { appointmentId: string };
   Chat: { appointmentId: string };
+  ChatChannel: {
+    appointmentId: string;
+    vetId: string;
+    appointmentTime: string;
+    doctorName: string;
+    petName?: string;
+  };
   EditAppointment: { appointmentId: string; mode?: 'reschedule' };
   BusinessesList: { category: 'hospital' | 'groomer' | 'breeder' | 'pet_center' | 'boarder' };
 };

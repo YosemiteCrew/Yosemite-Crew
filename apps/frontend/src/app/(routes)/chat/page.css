@@ -1,0 +1,38 @@
+/* Chat Page - Let Stream Chat handle all styling and layout */
+
+.chat-page {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.chat-page > * {
+  flex: 1;
+  overflow: hidden;
+  height: 100%;
+  width: 100%;
+}
+
+/* Mobile - remove fixed positioning and adjust for navbar */
+@media (max-width: 768px) {
+  .chat-page {
+    position: relative;
+    width: 100%;
+    height: calc(100vh - 80px);
+  }
+}
+
+@media (min-width: 1024px) {
+  .chat-page {
+    position: relative;
+    width: 100%;
+    height: calc(100vh - 80px);
+  }
+}
