@@ -202,22 +202,7 @@ export const mockAvailability: EmployeeAvailability[] = [
   },
 ];
 
-export const mockAppointments = (companionId: string): Appointment[] => [
-  {
-    id: 'apt_demo_1',
-    companionId,
-    businessId: 'biz_sfamc',
-    serviceId: 'svc_internal_consult',
-    serviceName: 'Internal Medicine Consultation',
-    employeeId: null,
-    date: todayISO(),
-    time: '16:00',
-    type: 'Internal Medicine Consultation',
-    status: 'requested',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
+export const mockAppointments = (_companionId: string): Appointment[] => [];
 
 export const mockInvoices: Invoice[] = [
   {

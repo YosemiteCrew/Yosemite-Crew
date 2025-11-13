@@ -1,17 +1,27 @@
-const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config');
+// apps/mobileAppYC/metro.config.js
 const path = require('path');
+const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config');
 
-/**
- * Metro configuration
- * <https://reactnative.dev/docs/metro>
- *
- * @type {import('metro-config').MetroConfig}
- */
-const config = {
-  resolver: {
-    unstable_enableSymlinks: true, // this enable the use of Symlinks
+const projectRoot = __dirname;
+const workspaceRoot = path.resolve(projectRoot, '..', '..');
+
+const extraNodeModules = new Proxy(
+  {},
+  {
+    get: (_target, name) => path.join(projectRoot, 'node_modules', name),
   },
-  // this specifies the folder where are located the node_modules for the project
-  watchFolders: [path.join(__dirname, '..', '..')],
-};
-module.exports = mergeConfig(getDefaultConfig(__dirname), config);
+);
+
+module.exports = mergeConfig(getDefaultConfig(projectRoot), {
+  projectRoot,
+  watchFolders: [workspaceRoot],
+  resolver: {
+    extraNodeModules,
+    disableHierarchicalLookup: true,
+    nodeModulesPaths: [
+      path.join(projectRoot, 'node_modules'),
+      path.join(workspaceRoot, 'node_modules'),
+    ],
+    unstable_enableSymlinks: true,
+  },
+});
