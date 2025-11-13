@@ -102,7 +102,7 @@ export const connectStreamUser = async (
  * Call this when user logs out
  */
 export const disconnectStreamUser = async (): Promise<void> => {
-  if (chatClient && chatClient.userID) {
+  if (chatClient?.userID) {
     try {
       console.log('[Stream] Disconnecting user:', chatClient.userID);
       await chatClient.disconnectUser();
@@ -261,7 +261,7 @@ export const endChatChannel = async (channelId: string): Promise<void> => {
  * @returns boolean - True if client is connected
  */
 export const isClientConnected = (): boolean => {
-  return chatClient !== null && chatClient.userID !== undefined;
+  return chatClient?.userID !== undefined;
 };
 
 /**
