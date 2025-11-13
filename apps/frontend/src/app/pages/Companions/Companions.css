@@ -1,0 +1,32 @@
+.companion-container {
+  padding: 40px 80px 80px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 80px;
+}
+@media screen and (max-width: 1024px) {
+  .companion-container {
+    padding: 40px 48px;
+    gap: 32px;
+  }
+}
+@media screen and (max-width: 768px) {
+  .companion-container {
+    padding: 24px 16px;
+  }
+}
+
+.companion-heading {
+  color: var(--black-text);
+  font-family: var(--grotesk-font);
+  font-size: 33px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 120%;
+  letter-spacing: -0.96px;
+}
+@media screen and (max-width: 768px) {
+  .companion-heading {
+    font-size: 33px;
+  }
+}

@@ -90,7 +90,7 @@ export const AppointmentFormContent: React.FC<AppointmentFormContentProps> = ({
   files,
   onAddDocuments,
   onRequestRemoveFile,
-  attachmentsEmptySubtitle = 'Only DOC, PDF, PNG, JPEG formats with max size 20 MB',
+  attachmentsEmptySubtitle = 'Only DOC, PDF, PNG, JPEG formats with max size 5 MB',
   agreements,
   actions,
 }) => {

@@ -51,7 +51,10 @@ describe("SpecialityCard", () => {
     const deleteButton =
       container.querySelector<HTMLButtonElement>(".speciality-delete");
     expect(deleteButton).toBeInTheDocument();
-    fireEvent.click(deleteButton!);
+    if (!deleteButton) {
+      throw new Error("Delete button not found in Speciality Card");
+    }
+    fireEvent.click(deleteButton);
     expect(setSpecialities).toHaveBeenCalled();
   });
 });

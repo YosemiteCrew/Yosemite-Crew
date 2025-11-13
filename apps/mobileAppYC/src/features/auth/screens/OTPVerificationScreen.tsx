@@ -23,6 +23,7 @@ import {
   formatAuthError,
   requestPasswordlessEmailCode,
 } from '@/features/auth/services/passwordlessAuth';
+import {mergeUserWithParentProfile} from '@/features/auth/utils/parentProfileMapper';
 import {useAuth, type User} from '@/features/auth/context/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -86,9 +87,10 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
     }
   };
 
-  const buildUserPayload = (
-    completion: Awaited<ReturnType<typeof completePasswordlessSignIn>>,
-  ): User => ({
+const buildUserPayload = (
+  completion: Awaited<ReturnType<typeof completePasswordlessSignIn>>,
+): User => {
+  const baseUser: User = {
     id: completion.user.userId,
     email: completion.attributes.email ?? completion.user.username,
     firstName: completion.attributes.given_name,
@@ -97,7 +99,11 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
     dateOfBirth: completion.attributes.birthdate,
     profilePicture: completion.attributes.picture,
     profileToken: completion.profile.profileToken,
-  });
+    profileCompleted: completion.profile.isComplete,
+  };
+
+  return mergeUserWithParentProfile(baseUser, completion.profile.parent);
+};
 
   const verifyOtpCode = async (code: string) => {
     if (code.length !== OTP_LENGTH) {
@@ -113,7 +119,7 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
       const userPayload = buildUserPayload(completion);
       const tokens = completion.tokens;
 
-      if (completion.profile.exists) {
+      if (completion.profile.isComplete) {
         await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
         DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
         await login(userPayload, tokens);
@@ -128,7 +134,11 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
             lastName: userPayload.lastName,
             phone: userPayload.phone,
             dateOfBirth: userPayload.dateOfBirth,
+            profilePicture: userPayload.profilePicture,
+            address: userPayload.address,
           },
+          hasRemoteProfile: completion.profile.exists,
+          existingParentProfile: completion.profile.parent ?? null,
           showOtpSuccess: true,
         };
         await AsyncStorage.setItem(

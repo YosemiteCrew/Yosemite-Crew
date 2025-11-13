@@ -16,9 +16,9 @@ const PetOwner = () => {
           <div className="PwtOwnerContainer">
             <div className="Downlode_Data">
               <div className="downlodetext">
-                <h1>Your companion’s health, in your hands</h1>
+                <h1>Your companion&rsquo;s health, in your hands</h1>
                 <p>
-                  Manage your companion’s health records, hygiene, dietary
+                  Manage your companion&rsquo;s health records, hygiene, dietary
                   plans, and schedule vet appointments - all in one app that
                   connects you with groomers, boarders, sitters, vets, and
                   clinics for dogs, cats, or horses.
@@ -42,7 +42,7 @@ const PetOwner = () => {
           <div className="PwtOwnerContainer">
             <div className="ToolkitData">
               <div className="ToolkitHead">
-                <h2>Your companion’s all-in-one Toolkit</h2>
+                <h2>Your companion&rsquo;s all-in-one Toolkit</h2>
               </div>
               <div className="ToolkitCard">
                 <div className="CardToolItem">
@@ -79,40 +79,46 @@ const PetOwner = () => {
         </section>
 
         {/* Paws Sec  */}
-        {/* <section className="PawsPraisesSec">
-          <div className="PawsHead">
-            <h2>Paws & Praises</h2>
+        <section className="PawsPraisesSec">
+          <div className="flex flex-col gap-4 md:gap-8! xl:gap-12! w-full">
+            <div className="PawsHead">
+              <h2>Paws & praises from parents</h2>
+            </div>
+            <div className="w-full flex flex-col gap-6 md:gap-10 xl:gap-16">
+              <div className="flex items-center justify-center bg-[#EAF3FF] w-full -rotate-2 BrownDiv">
+                <div className="flex gap-2 xl:gap-4 flex-col py-2! md:py-4! pl-16! pr-4! sm:pl-0! sm:pr-0! sm:max-w-[400px] md:max-w-[600px] xl:max-w-[1000px]">
+                  <div className="font-grotesk text-black-text text-[16px] md:text-[23px] xl:text-[32px] font-medium">
+                    This app has been a game-changer! I never forget my dog&rsquo;s
+                    meds anymore
+                  </div>
+                  <div className="font-grotesk text-grey-noti text-[13px] md:text-[16px] xl:text-[28px] font-medium text-right">
+                    ~ Germaine, Dog parent
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center justify-center bg-[#EAF3FF] w-full rotate-2 PurpleDiv">
+                <div className="flex gap-2 xl:gap-4 flex-col py-2! md:py-4! px-10! sm:px-0! sm:max-w-[400px] md:max-w-[600px] xl:max-w-[1000px]">
+                  <div className="font-grotesk text-black-text text-[16px] md:text-[23px] xl:text-[32px] font-medium">
+                    Scheduling vet visits has never been this easy. Love it!
+                  </div>
+                  <div className="font-grotesk text-grey-noti text-[13px] md:text-[16px] xl:text-[28px] font-medium text-right">
+                    ~ Maria, Dog parent
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center justify-center bg-[#EAF3FF] w-full -rotate-2 GreenDiv">
+                <div className="flex gap-2 xl:gap-4 flex-col py-2! md:py-4! px-10! sm:px-0! sm:max-w-[400px] md:max-w-[600px] xl:max-w-[1000px]">
+                  <div className="font-grotesk text-black-text text-[16px] md:text-[23px] xl:text-[32px] font-medium">
+                    Finally, a pet app that understands what we need
+                  </div>
+                  <div className="font-grotesk text-grey-noti text-[13px] md:text-[16px] xl:text-[28px] font-medium text-right">
+                    ~ Joan, Dog parent
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="PawsPrasData">
-            <div className="BrownDiv">
-              <Image
-                aria-hidden
-                src="https://d2il6osz49gpup.cloudfront.net/Images/Paws1.png"
-                alt="Paws1"
-                width={1516}
-                height={294}
-              />
-            </div>
-            <div className="PurpleDiv">
-              <Image
-                aria-hidden
-                src="https://d2il6osz49gpup.cloudfront.net/Images/Paws2.png"
-                alt="Paws2"
-                width={1516}
-                height={234}
-              />
-            </div>
-            <div className="GreenDiv">
-              <Image
-                aria-hidden
-                src="https://d2il6osz49gpup.cloudfront.net/Images/Paws3.png"
-                alt="Paws3"
-                width={1516}
-                height={246}
-              />
-            </div>
-          </div>
-        </section> */}
+        </section>
 
         {/* Glimps Sec  */}
         <section className="GlimpseSec">
@@ -140,7 +146,7 @@ const PetOwner = () => {
             <div className="PetAppData">
               <div className="LftpetApp">
                 <div className="PetAppText">
-                  <h2>The only companion app you’ll ever need</h2>
+                  <h2>The only companion app you&rsquo;ll ever need</h2>
                   <p>
                     Download Yosemite Crew app today and take the first step
                     towards better health for your companions.

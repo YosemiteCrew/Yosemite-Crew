@@ -17,7 +17,7 @@
   border-bottom: 1px solid var(--lightgrey);
 }
 .TableDiv tbody tr:hover {
-  background: var(--popupbg) !important;
+  background: #eaeaea !important;
 }
 .TableDiv thead tr th {
   color: var(--black-text);

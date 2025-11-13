@@ -6,7 +6,7 @@ import { Icon } from "@iconify/react";
 
 import Footer from "@/app/components/Footer/Footer";
 import LandingCard from "./LandingCard/LandingCard";
-import { Primary, Secondary } from "@/app/components/Buttons";
+import { Primary } from "@/app/components/Buttons";
 import { InfoCards, SlidesData } from "./data";
 
 import "./LandingPage.css";
@@ -26,7 +26,7 @@ const LandingPage = () => {
             <div className="LeftHeroText">
               <h2>Open Source Operating System for Animal Health</h2>
               <p>
-                Designed for veterinarians, pet owners, and developers to
+                Designed for pet businesses, pet owners, and developers to
                 collaborate in improving animal care. Streamline workflows while
                 enhancing health outcomes, all in one unified system
               </p>
@@ -36,11 +36,6 @@ const LandingPage = () => {
                 style={{ width: "211px" }}
                 text="Book demo"
                 href="/book-demo"
-              />
-              <Secondary
-                style={{ width: "211px" }}
-                href="/pms"
-                text="Learn more"
               />
             </div>
           </div>

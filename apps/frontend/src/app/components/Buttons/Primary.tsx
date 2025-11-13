@@ -8,13 +8,20 @@ type ButtonProps = {
   href: string;
   onClick?: (e: FormEvent<Element>) => void;
   style?: React.CSSProperties;
+  classname?: string;
 };
 
-const Primary = ({ text, href, onClick, style }: Readonly<ButtonProps>) => {
+const Primary = ({
+  text,
+  href,
+  onClick,
+  style,
+  classname,
+}: Readonly<ButtonProps>) => {
   return (
     <Link
       href={href}
-      className="primary-button"
+      className={`primary-button ${classname}`}
       onClick={(e) => {
         if (onClick) {
           e.preventDefault();
