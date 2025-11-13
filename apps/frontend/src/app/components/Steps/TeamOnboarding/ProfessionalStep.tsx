@@ -17,7 +17,7 @@ const ProfessionalStep = ({
     qualification?: string;
   }>({});
 
-  const handleNext = () => {
+  const handleNext = async () => {
     const errors: {
       yearsExperience?: string;
       specialisation?: string;
@@ -33,7 +33,21 @@ const ProfessionalStep = ({
     if (Object.keys(errors).length > 0) {
       return;
     }
-    nextStep();
+    try {
+      const payload = {
+        linkedin: formData.linkedin || null,
+        licenseNumber: formData.licenseNumber || null,
+        yearsExperience: formData.yearsExperience,
+        specialisation: formData.specialisation,
+        qualification: formData.qualification,
+        biography: formData.biography || null,
+        cvUrl: formData.cvUrl || null,
+      };
+      console.log(payload)
+      nextStep();
+    } catch (error: any) {
+      console.error("Error updating profile:", error);
+    }
   };
 
   return (

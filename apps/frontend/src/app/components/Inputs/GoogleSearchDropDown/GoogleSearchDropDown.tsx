@@ -28,6 +28,10 @@ type PlaceDetails = {
     shortText?: string;
     types?: string[];
   }>;
+  location?: {
+    latitude: number | null;
+    longitude: number | null;
+  };
 };
 
 const GoogleSearchDropDown = ({
@@ -229,7 +233,8 @@ const GoogleSearchDropDown = ({
       getAddr(comps, "administrative_area_level_1");
     const postalCode = getAddr(comps, "postal_code");
     const area = pickArea(comps);
-    console.log(postalCode);
+    const latitude = details.location?.latitude ?? null;
+    const longitude = details.location?.longitude ?? null;
     if (onlyAddress) {
       setFormData((prev: any) => ({
         ...prev,
@@ -238,6 +243,8 @@ const GoogleSearchDropDown = ({
         city,
         state,
         postalCode,
+        latitude,
+        longitude,
       }));
     } else {
       setFormData((prev: any) => ({
@@ -251,6 +258,8 @@ const GoogleSearchDropDown = ({
         city,
         state,
         postalCode,
+        latitude,
+        longitude,
       }));
     }
   };

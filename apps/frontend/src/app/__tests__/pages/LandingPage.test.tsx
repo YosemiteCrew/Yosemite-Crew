@@ -29,15 +29,10 @@ describe("MainLandingPage Component", () => {
     const bookDemoButton = within(heroSection).getByRole("link", {
       name: /book demo/i,
     });
-    const learnMoreButton = within(heroSection).getByRole("link", {
-      name: /learn more/i,
-    });
 
     expect(bookDemoButton).toBeInTheDocument();
-    expect(learnMoreButton).toBeInTheDocument();
 
     expect(bookDemoButton).toHaveAttribute("href", "/book-demo");
-    expect(learnMoreButton).toHaveAttribute("href", "/pms");
   });
 
   test("renders the initial carousel slide content", () => {
@@ -86,10 +81,9 @@ describe("MainLandingPage Component", () => {
     ).toBeInTheDocument();
 
     const learnMoreLinks = screen.getAllByRole("link", { name: /learn more/i });
-    expect(learnMoreLinks).toHaveLength(5);
+    expect(learnMoreLinks).toHaveLength(4);
 
-    expect(learnMoreLinks[2]).toHaveAttribute("href", "/application");
-    expect(learnMoreLinks[3]).toHaveAttribute("href", "/pricing");
-    expect(learnMoreLinks[4]).toHaveAttribute("href", "/developers");
+    expect(learnMoreLinks[2]).toHaveAttribute("href", "/pricing");
+    expect(learnMoreLinks[3]).toHaveAttribute("href", "/developers");
   });
 });

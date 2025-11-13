@@ -1,117 +1,56 @@
 {
-  "pricingPlans": [
+  "PricingPlans": [
     {
+      "active": true,
       "id": 1,
-      "icon": "solar:star-bold",
-      "title": "Self-hosting (free Plan)",
-      "description": "Perfect for new or small practices exploring digital management on your own",
-      "price": "$0",
-      "subText": "<p>(Free under 2 Active Users)</p>",
-      "highlight": false,
-      "label": "self",
-      "color": "var(--blue-text)",
-      "bgColor": "var(--light-blue)",
-      "iconColor": "var(--blue-text)"
+      "title": "Free plan",
+      "recommended": false,
+      "amount": "$0",
+      "amountLabel": "",
+      "description": "Perfect for new or small practices exploring digital management on your own.",
+      "buttonText": "Get started",
+      "buttonSrc": "/signup",
+      "incldes": [
+        "Free for individual usage",
+        "120 appointment",
+        "200 observational tools",
+        "Yosemite Crew schedular",
+        "Security & compliance integrations (SOC2, ISO 27001, GDPR)"
+      ]
     },
     {
+      "active": true,
       "id": 2,
-      "icon": "ph:money-wavy-fill",
-      "title": "Pay-as-you-go",
+      "title": "Business plan",
+      "recommended": true,
+      "amount": "$12",
+      "amountLabel": "per user / month",
       "description": "Flexible growth for practices that need to scale on demand.",
-      "price": "Custom pricing",
-      "subText": "<p>(Seats up to 10 Users, max 200 Appointments and 500 Assessments)</p>",
-      "highlight": true,
-      "label": "custom",
-      "color": "var(--black-text)",
-      "bgColor": "var(--whitebg)",
-      "iconColor": "var(--black-grey)"
-    }
-  ],
-  "planFeatures": [
-    {
-      "feature": "Setup & Maintenance",
-      "selfHosting": "Managed by Your team",
-      "payAsYouGo": "Managed by us"
-    },
-    {
-      "feature": "Data Storage",
-      "selfHosting": "Dependent on your infrastructure",
-      "payAsYouGo": "Unlimited cloud storage"
-    },
-    {
-      "feature": "Security & Compliance",
-      "selfHosting": "You handle compliance and security",
-      "payAsYouGo": "Fully compliant (SOC2, ISO 27001, GDPR)"
-    },
-    {
-      "feature": "Automatic Updates",
-      "selfHosting": "Manual updates required",
-      "payAsYouGo": "Included"
-    },
-    {
-      "feature": "Backup & Recovery",
-      "selfHosting": "You manage backup and recovery",
-      "payAsYouGo": "Daily automatic backups"
-    },
-    {
-      "feature": "Support",
-      "selfHosting": "Limited support",
-      "payAsYouGo": "24/7 priority support"
-    },
-    {
-      "feature": "Uptime Guarantee",
-      "selfHosting": "Dependent on your infrastructure",
-      "payAsYouGo": "99.99% uptime SLA"
-    },
-    {
-      "feature": "Cost",
-      "selfHosting": "One-time setup cost, ongoing server costs",
-      "payAsYouGo": "Pay as you go"
-    },
-    {
-      "feature": "Scalability",
-      "selfHosting": "Dependent on your infrastructure",
-      "payAsYouGo": "Easily scalable"
-    },
-    {
-      "feature": "Customizations",
-      "selfHosting": "Limited customisation",
-      "payAsYouGo": "Unlimited customisation"
-    }
-  ],
-  "featuresData": [
-    {
-      "title": "Operations",
-      "items": [
-        "Appointments",
-        "Documents",
-        "Medical Records",
-        "Scheduler",
-        "Inventory management",
-        "Task management",
-        "Observational tools",
-        "Wellness management",
-        "Forms"
+      "buttonText": "Get started",
+      "buttonSrc": "/signup",
+      "incldes": [
+        "Unlimited appointments",
+        "Unlimited observational tools",
+        "Yosemite Crew schedular",
+        "Security & compliance integrations (SOC2, ISO 27001, GDPR)"
       ]
     },
     {
-      "title": "Organisation",
-      "items": ["Department/Specialty", "Team management"]
-    },
-    {
-      "title": "Communication",
-      "items": [
-        "Internal chats",
-        "Pet parent app (only for pay-as-you go plan)",
-        "2-Way Messaging"
-      ]
-    },
-    {
-      "title": "Finance Management",
-      "items": [
-        "Financial Reporting & Analytics",
-        "Billing & Invoices",
-        "Payment Processing via stripe"
+      "active": false,
+      "id": 3,
+      "title": "Enterprise plan",
+      "recommended": false,
+      "amount": "Coming soon",
+      "amountLabel": "",
+      "description": "For organisations to operate with scalability, control, and security.",
+      "buttonText": "Notify me",
+      "buttonSrc": "/signup",
+      "incldes": [
+        "Unlimited usage",
+        "Unlimited appointments",
+        "Unlimited observational tools",
+        "Yosemite Crew schedular",
+        "Security & compliance integrations (SOC2, ISO 27001, GDPR)"
       ]
     }
   ]

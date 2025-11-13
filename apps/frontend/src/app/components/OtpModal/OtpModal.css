@@ -5,6 +5,7 @@
   max-width: 595px;
   background: var(--whitebg);
   box-sizing: border-box;
+  margin: 0 auto;
 }
 
 .VerifyModalSec .modal-body {
@@ -220,10 +221,6 @@
     width: 42px;
     height: 55px;
   }
-}
-
-.VerifyModalSec {
-  margin: 0 auto;
 }
 
 .modal.show .modal-dialog {

@@ -30,11 +30,7 @@ const TeamSlide = () => {
     {
       src: "https://d2il6osz49gpup.cloudfront.net/aboutus-page/suryansh.png",
       alt: "Suryansh",
-    },
-    {
-      src: "https://d2il6osz49gpup.cloudfront.net/aboutus-page/chrissy.png",
-      alt: "Chrissy",
-    },
+    }
   ];
 
   return (
