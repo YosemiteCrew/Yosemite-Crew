@@ -61,7 +61,11 @@ describe("GuestHeader", () => {
       .find((el) => el.classList.contains("mobile-menu-item-button"));
     expect(pricingButton).toBeDefined();
 
-    fireEvent.click(pricingButton!);
+    if (!pricingButton) {
+      throw new Error("Pricing button not found in mobile menu");
+    }
+
+    fireEvent.click(pricingButton);
     act(() => {
       jest.advanceTimersByTime(400);
     });

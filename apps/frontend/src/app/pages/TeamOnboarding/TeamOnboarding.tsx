@@ -30,6 +30,7 @@ const TeamSteps: StepContent[] = [
 const TeamOnboarding = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [formData, setFormData] = useState({
+    logoURL: "",
     firstName: "",
     lastName: "",
     dob: "",

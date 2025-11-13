@@ -32,7 +32,11 @@ const CreateOrg = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [specialities, setSpecialities] = useState(Specialities);
   const [formData, setFormData] = useState({
+    logoURL: "",
     name: "",
+    latitude: null,
+    longitude: null,
+    businessType: "Hospital",
     country: "",
     duns: "",
     number: "",

@@ -54,9 +54,9 @@ const GenericTable = <T extends object>({
           </tr>
         </thead>
         <tbody>
-          {paginatedData.length > 0 &&
+          {paginatedData.length > 0 ? (
             paginatedData?.map((row: any, index: any) => (
-              <tr key={row+index}>
+              <tr key={row + index}>
                 {columns.map((col) => (
                   <td
                     key={String(col.key)}
@@ -68,7 +68,16 @@ const GenericTable = <T extends object>({
                   </td>
                 ))}
               </tr>
-            ))}
+            ))
+          ) : (
+            <tr>
+              <td colSpan={columns.length}>
+                <div className="w-full min-h-[120px] flex items-center justify-center">
+                  No data available
+                </div>
+              </td>
+            </tr>
+          )}
         </tbody>
       </Table>
       {pagination && totalPages > 1 && (

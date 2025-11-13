@@ -50,7 +50,7 @@ const GuestHeader = () => {
   return (
     <div className="header-container">
       <Link href="/" className="logo">
-        <Image src={logoUrl} alt="Logo" width={80} height={80} priority />
+        <Image src={logoUrl} alt="Logo" width={90} height={83} priority />
       </Link>
 
       <nav className="navmenu">
