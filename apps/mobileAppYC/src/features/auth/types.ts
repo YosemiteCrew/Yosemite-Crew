@@ -11,6 +11,7 @@ export interface User {
   dateOfBirth?: string;
   profilePicture?: string;
   profileToken?: string;
+  profileCompleted?: boolean;
   currency?: string;
   address?: {
     addressLine?: string;

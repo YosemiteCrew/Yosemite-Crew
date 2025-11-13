@@ -57,6 +57,12 @@ import type {ProfileImagePickerRef} from '@/shared/components/common/ProfileImag
 // Types
 import type {User} from '@/features/auth/types';
 import {updateUserProfile} from '@/features/auth';
+import {loadStoredTokens} from '@/features/auth/services/tokenStorage';
+import {
+  updateParentProfile,
+  type ParentProfileUpsertPayload,
+} from '@/features/account/services/profileService';
+import {preparePhotoPayload} from '@/features/account/utils/profilePhoto';
 
 // Props
 export type EditParentScreenProps = NativeStackScreenProps<
@@ -76,6 +82,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
 
   // Local UI state
   const [showDobPicker, setShowDobPicker] = useState(false);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
 
   // Bottom sheet refs
   const currencySheetRef = useRef<CurrencyBottomSheetRef>(null);
@@ -95,12 +102,125 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
 
   const safeUser = user as User;
 
+  useEffect(() => {
+    let mounted = true;
+    loadStoredTokens()
+      .then(tokens => {
+        if (mounted) {
+          setAccessToken(tokens?.accessToken ?? null);
+        }
+      })
+      .catch(error => {
+        console.warn('[EditParent] Failed to load stored tokens', error);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const syncParentProfile = useCallback(
+    async (nextUser: User) => {
+      if (!accessToken) {
+        console.warn('[EditParent] No access token available; skipping remote sync.');
+        return;
+      }
+
+      if (
+        !nextUser.firstName ||
+        !nextUser.phone ||
+        !nextUser.dateOfBirth ||
+        !nextUser.address?.addressLine ||
+        !nextUser.address?.city ||
+        !nextUser.address?.stateProvince ||
+        !nextUser.address?.postalCode ||
+        !nextUser.address?.country
+      ) {
+        console.warn('[EditParent] Missing required fields for parent update; skipping remote sync.');
+        return;
+      }
+
+      try {
+        const {photo, existingPhotoUrl} = await preparePhotoPayload({
+          imageUri: nextUser.profilePicture ?? null,
+          existingRemoteUrl: nextUser.profileToken ?? null,
+        });
+
+        const payload: ParentProfileUpsertPayload = {
+          userId: nextUser.id,
+          firstName: nextUser.firstName.trim(),
+          lastName: nextUser.lastName?.trim(),
+          phoneNumber: nextUser.phone,
+          dateOfBirth: nextUser.dateOfBirth,
+          address: {
+            addressLine: nextUser.address.addressLine ?? '',
+            stateProvince: nextUser.address.stateProvince ?? '',
+            city: nextUser.address.city ?? '',
+            postalCode: nextUser.address.postalCode ?? '',
+            country: nextUser.address.country ?? '',
+          },
+          isProfileComplete: nextUser.profileCompleted ?? undefined,
+          photo,
+          existingPhotoUrl: existingPhotoUrl ?? null,
+        };
+
+        const summary = await updateParentProfile(payload, accessToken);
+
+        const remotePatch: Partial<User> = {};
+        if (summary.profileImageUrl) {
+          remotePatch.profileToken = summary.profileImageUrl;
+          remotePatch.profilePicture = summary.profileImageUrl;
+        }
+        if (summary.isComplete !== undefined) {
+          remotePatch.profileCompleted = summary.isComplete;
+        }
+        if (summary.birthDate) {
+          remotePatch.dateOfBirth = summary.birthDate;
+        }
+        if (summary.phoneNumber) {
+          remotePatch.phone = summary.phoneNumber;
+        }
+        if (summary.address) {
+          remotePatch.address = {
+            addressLine: summary.address.addressLine,
+            city: summary.address.city,
+            stateProvince: summary.address.state,
+            postalCode: summary.address.postalCode,
+            country: summary.address.country,
+          };
+        }
+
+        if (Object.keys(remotePatch).length > 0) {
+          dispatch(updateUserProfile(remotePatch));
+        }
+      } catch (error) {
+        console.error('[EditParent] Failed to sync parent profile', error);
+      }
+    },
+    [accessToken, dispatch],
+  );
+
   const applyPatch = useCallback(
     (patch: Partial<User>) => {
-      if (!safeUser) return;
+      if (!safeUser) {
+        return;
+      }
+
+      const mergedAddress =
+        patch.address === undefined
+          ? safeUser.address
+          : {...safeUser.address, ...patch.address};
+
+      const nextUser: User = {
+        ...safeUser,
+        ...patch,
+        address: mergedAddress,
+      };
+
       dispatch(updateUserProfile(patch));
+      syncParentProfile(nextUser);
     },
-    [dispatch, safeUser],
+    [dispatch, safeUser, syncParentProfile],
   );
 
   // Parse phone number to separate dial code and local number

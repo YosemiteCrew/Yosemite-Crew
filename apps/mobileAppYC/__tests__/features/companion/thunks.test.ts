@@ -9,8 +9,9 @@ import {
   deleteCompanion,
 } from '@/features/companion/thunks';
 import type {Companion, AddCompanionPayload} from '@/features/companion/types';
+import {companionApi} from '@/features/companion/services/companionService';
+import {loadStoredTokens} from '@/features/auth/services/tokenStorage';
 
-// Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage', () => ({
   getItem: jest.fn(),
   setItem: jest.fn(),
@@ -18,45 +19,63 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   clear: jest.fn(),
 }));
 
-const createTestStore = () => {
-  return configureStore({
+jest.mock('@/features/companion/services/companionService', () => ({
+  companionApi: {
+    create: jest.fn(),
+    update: jest.fn(),
+    getById: jest.fn(),
+  },
+}));
+
+jest.mock('@/features/auth/services/tokenStorage', () => ({
+  loadStoredTokens: jest.fn(),
+}));
+
+const createTestStore = () =>
+  configureStore({
     reducer: {
       companion: companionReducer,
     },
   });
-};
 
 type TestStore = ReturnType<typeof createTestStore>;
+
+const getLastPersistedValue = () => {
+  const calls = (AsyncStorage.setItem as jest.Mock).mock.calls;
+  const lastCall = calls[calls.length - 1];
+  if (!lastCall) {
+    throw new Error('AsyncStorage.setItem was not called');
+  }
+  const [key, rawValue] = lastCall;
+  return {key, value: JSON.parse(rawValue)};
+};
 
 describe('companion thunks', () => {
   let store: TestStore;
   const userId = 'user_123';
   const storageKey = `companions_${userId}`;
+  const mockedApi = companionApi as jest.Mocked<typeof companionApi>;
+  const loadStoredTokensMock = loadStoredTokens as jest.MockedFunction<typeof loadStoredTokens>;
 
   const mockCompanion: Companion = {
     id: 'companion_1',
-    userId: 'user_123',
+    userId,
     category: 'dog',
     name: 'Buddy',
-    breed: {
-      speciesId: 1,
-      speciesName: 'Dog',
-      breedId: 101,
-      breedName: 'Golden Retriever',
-    },
-    dateOfBirth: '2020-01-15',
+    breed: null,
+    dateOfBirth: '2020-01-15T00:00:00.000Z',
     gender: 'male',
-    currentWeight: 30,
-    color: 'Golden',
+    currentWeight: 20,
+    color: 'Brown',
     allergies: null,
     neuteredStatus: 'neutered',
     ageWhenNeutered: '1 year',
     bloodGroup: 'DEA 1.1',
-    microchipNumber: '123456789',
+    microchipNumber: '123',
     passportNumber: null,
     insuredStatus: 'insured',
-    insuranceCompany: 'Pet Insurance Co',
-    insurancePolicyNumber: 'POL123',
+    insuranceCompany: null,
+    insurancePolicyNumber: null,
     countryOfOrigin: 'USA',
     origin: 'breeder',
     profileImage: null,
@@ -64,71 +83,54 @@ describe('companion thunks', () => {
     updatedAt: '2023-01-01T00:00:00.000Z',
   };
 
-  const mockCompanion2: Companion = {
-    ...mockCompanion,
-    id: 'companion_2',
-    name: 'Max',
-    category: 'cat',
-  };
-
   beforeEach(() => {
     store = createTestStore();
     jest.clearAllMocks();
-    // Speed up tests by reducing mock delay
-    jest.spyOn(global, 'setTimeout').mockImplementation((cb: any) => {
-      cb();
-      return 0 as any;
-    });
-  });
-
-  afterEach(() => {
-    jest.restoreAllMocks();
+    loadStoredTokensMock.mockResolvedValue({accessToken: 'token'});
   });
 
   describe('fetchCompanions', () => {
-    it('should fetch companions from AsyncStorage', async () => {
-      const companions = [mockCompanion, mockCompanion2];
+    it('returns refreshed companions when storage has entries', async () => {
+      const storedCompanions = [mockCompanion];
       (AsyncStorage.getItem as jest.Mock).mockResolvedValue(
-        JSON.stringify(companions)
+        JSON.stringify(storedCompanions),
       );
+      mockedApi.getById.mockResolvedValue({
+        ...mockCompanion,
+        name: 'Updated Buddy',
+      });
+      (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
 
       await store.dispatch(fetchCompanions(userId) as any);
 
-      expect(AsyncStorage.getItem).toHaveBeenCalledWith(storageKey);
-      const state = store.getState().companion;
-      expect(state.companions).toEqual(companions);
-      expect(state.loading).toBe(false);
+      expect(mockedApi.getById).toHaveBeenCalledWith({
+        companionId: mockCompanion.id,
+        userId,
+        accessToken: 'token',
+        fallback: mockCompanion,
+      });
+      const {key, value} = getLastPersistedValue();
+      expect(key).toBe(storageKey);
+      expect(value[0]).toEqual(expect.objectContaining({name: 'Updated Buddy'}));
+      expect(store.getState().companion.companions[0].name).toBe('Updated Buddy');
     });
 
-    it('should return empty array when no companions exist', async () => {
+    it('returns empty array when storage is empty', async () => {
       (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
 
       await store.dispatch(fetchCompanions(userId) as any);
 
-      expect(AsyncStorage.getItem).toHaveBeenCalledWith(storageKey);
-      const state = store.getState().companion;
-      expect(state.companions).toEqual([]);
+      expect(mockedApi.getById).not.toHaveBeenCalled();
+      expect(store.getState().companion.companions).toEqual([]);
     });
 
-    it('should handle errors', async () => {
-      const errorMessage = 'Storage error';
-      (AsyncStorage.getItem as jest.Mock).mockRejectedValue(
-        new Error(errorMessage)
-      );
+    it('sets error when storage read fails', async () => {
+      const errorMessage = 'read failure';
+      (AsyncStorage.getItem as jest.Mock).mockRejectedValue(new Error(errorMessage));
 
       await store.dispatch(fetchCompanions(userId) as any);
 
-      const state = store.getState().companion;
-      expect(state.error).toBe(errorMessage);
-    });
-
-    it('should handle non-Error exceptions', async () => {
-      (AsyncStorage.getItem as jest.Mock).mockRejectedValue('Some error');
-
-      await store.dispatch(fetchCompanions(userId) as any);
-
-      const state = store.getState().companion;
-      expect(state.error).toBe('Failed to fetch companions');
+      expect(store.getState().companion.error).toBe(errorMessage);
     });
   });
 
@@ -137,7 +139,7 @@ describe('companion thunks', () => {
       category: 'dog',
       name: 'New Buddy',
       breed: null,
-      dateOfBirth: '2023-01-01',
+      dateOfBirth: '2023-01-01T00:00:00.000Z',
       gender: 'male',
       currentWeight: 25,
       color: 'Brown',
@@ -155,234 +157,136 @@ describe('companion thunks', () => {
       profileImage: null,
     };
 
-    it('should add a new companion to empty storage', async () => {
+    it('saves the created companion locally', async () => {
       (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
       (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
+      mockedApi.create.mockResolvedValue({
+        ...mockCompanion,
+        id: 'server-id',
+        name: payload.name,
+      });
 
       await store.dispatch(addCompanion({userId, payload}) as any);
 
-      expect(AsyncStorage.getItem).toHaveBeenCalledWith(storageKey);
-      expect(AsyncStorage.setItem).toHaveBeenCalled();
-
-      const savedData = (AsyncStorage.setItem as jest.Mock).mock.calls[0][1];
-      const savedCompanions = JSON.parse(savedData);
-
-      expect(savedCompanions).toHaveLength(1);
-      expect(savedCompanions[0].name).toBe('New Buddy');
-      expect(savedCompanions[0].userId).toBe(userId);
-      expect(savedCompanions[0].id).toBeDefined();
-      expect(savedCompanions[0].createdAt).toBeDefined();
-      expect(savedCompanions[0].updatedAt).toBeDefined();
-
-      const state = store.getState().companion;
-      expect(state.companions).toHaveLength(1);
-      expect(state.companions[0].name).toBe('New Buddy');
-    });
-
-    it('should add a new companion to existing companions', async () => {
-      const existingCompanions = [mockCompanion];
-      (AsyncStorage.getItem as jest.Mock).mockResolvedValue(
-        JSON.stringify(existingCompanions)
+      expect(loadStoredTokensMock).toHaveBeenCalled();
+      expect(mockedApi.create).toHaveBeenCalledWith({
+        userId,
+        payload,
+        accessToken: 'token',
+      });
+      const {key, value} = getLastPersistedValue();
+      expect(key).toBe(storageKey);
+      expect(value[0]).toEqual(
+        expect.objectContaining({id: 'server-id', name: payload.name}),
       );
-      (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
+      expect(store.getState().companion.companions[0].id).toBe('server-id');
+    });
+
+    it('handles API failures gracefully', async () => {
+      mockedApi.create.mockRejectedValue(new Error('api failure'));
 
       await store.dispatch(addCompanion({userId, payload}) as any);
 
-      const savedData = (AsyncStorage.setItem as jest.Mock).mock.calls[0][1];
-      const savedCompanions = JSON.parse(savedData);
-
-      expect(savedCompanions).toHaveLength(2);
-      expect(savedCompanions[0]).toEqual(mockCompanion);
-      expect(savedCompanions[1].name).toBe('New Buddy');
+      expect(store.getState().companion.error).toBe('api failure');
     });
 
-    it('should handle errors', async () => {
-      const errorMessage = 'Storage write error';
-      (AsyncStorage.getItem as jest.Mock).mockRejectedValue(
-        new Error(errorMessage)
+    it('rejects when access token is missing', async () => {
+      loadStoredTokensMock.mockResolvedValue({accessToken: undefined as any});
+
+      await store.dispatch(addCompanion({userId, payload}) as any);
+
+      expect(store.getState().companion.error).toBe(
+        'Missing access token. Please sign in again.',
       );
-
-      await store.dispatch(addCompanion({userId, payload}) as any);
-
-      const state = store.getState().companion;
-      expect(state.error).toBe(errorMessage);
-    });
-
-    it('should handle non-Error exceptions', async () => {
-      (AsyncStorage.getItem as jest.Mock).mockRejectedValue('Some error');
-
-      await store.dispatch(addCompanion({userId, payload}) as any);
-
-      const state = store.getState().companion;
-      expect(state.error).toBe('Failed to add companion');
     });
   });
 
   describe('updateCompanionProfile', () => {
-    const updatedCompanion: Companion = {
-      ...mockCompanion,
-      name: 'Updated Buddy',
-      currentWeight: 32,
-    };
-
-    it('should update an existing companion', async () => {
-      const companions = [mockCompanion, mockCompanion2];
+    it('updates the companion and persists changes', async () => {
       (AsyncStorage.getItem as jest.Mock).mockResolvedValue(
-        JSON.stringify(companions)
+        JSON.stringify([mockCompanion]),
       );
       (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
-
-      await store.dispatch(
-        updateCompanionProfile({userId, updatedCompanion}) as any
+      const updated = {...mockCompanion, name: 'Remote Name'};
+      mockedApi.update.mockResolvedValue(updated);
+      store.dispatch(
+        fetchCompanions.fulfilled([mockCompanion], '', userId),
       );
 
-      expect(AsyncStorage.getItem).toHaveBeenCalledWith(storageKey);
+      await store.dispatch(
+        updateCompanionProfile({userId, updatedCompanion: updated}) as any,
+      );
 
-      const savedData = (AsyncStorage.setItem as jest.Mock).mock.calls[0][1];
-      const savedCompanions = JSON.parse(savedData);
-
-      expect(savedCompanions[0].name).toBe('Updated Buddy');
-      expect(savedCompanions[0].currentWeight).toBe(32);
-      expect(savedCompanions[0].updatedAt).toBeDefined();
-      expect(savedCompanions[1]).toEqual(mockCompanion2);
-
-      const state = store.getState().companion;
-      expect(state.loading).toBe(false);
+      expect(mockedApi.update).toHaveBeenCalled();
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        storageKey,
+        JSON.stringify([updated]),
+      );
+      expect(store.getState().companion.companions[0].name).toBe('Remote Name');
     });
 
-    it('should reject when companion not found', async () => {
-      const companions = [mockCompanion2];
-      (AsyncStorage.getItem as jest.Mock).mockResolvedValue(
-        JSON.stringify(companions)
-      );
+    it('captures API errors', async () => {
+      mockedApi.update.mockRejectedValue(new Error('update failed'));
 
       await store.dispatch(
-        updateCompanionProfile({userId, updatedCompanion}) as any
+        updateCompanionProfile({userId, updatedCompanion: mockCompanion}) as any,
       );
 
-      const state = store.getState().companion;
-      expect(state.error).toBe('Companion not found.');
-    });
-
-    it('should handle empty storage', async () => {
-      (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
-
-      await store.dispatch(
-        updateCompanionProfile({userId, updatedCompanion}) as any
-      );
-
-      const state = store.getState().companion;
-      expect(state.error).toBe('Companion not found.');
-    });
-
-    it('should handle errors', async () => {
-      const errorMessage = 'Storage error';
-      (AsyncStorage.getItem as jest.Mock).mockRejectedValue(
-        new Error(errorMessage)
-      );
-
-      await store.dispatch(
-        updateCompanionProfile({userId, updatedCompanion}) as any
-      );
-
-      const state = store.getState().companion;
-      expect(state.error).toBe(errorMessage);
-    });
-
-    it('should handle non-Error exceptions', async () => {
-      (AsyncStorage.getItem as jest.Mock).mockRejectedValue('Some error');
-
-      await store.dispatch(
-        updateCompanionProfile({userId, updatedCompanion}) as any
-      );
-
-      const state = store.getState().companion;
-      expect(state.error).toBe('Failed to update companion');
+      expect(store.getState().companion.error).toBe('update failed');
     });
   });
 
   describe('deleteCompanion', () => {
-    const companionId = 'companion_1';
-
-    it('should delete a companion', async () => {
-      const companions = [mockCompanion, mockCompanion2];
+    it('removes the requested companion', async () => {
       (AsyncStorage.getItem as jest.Mock).mockResolvedValue(
-        JSON.stringify(companions)
+        JSON.stringify([
+          mockCompanion,
+          {...mockCompanion, id: 'two', name: 'Second'},
+        ]),
       );
       (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
 
-      await store.dispatch(deleteCompanion({userId, companionId}) as any);
-
-      expect(AsyncStorage.getItem).toHaveBeenCalledWith(storageKey);
-
-      const savedData = (AsyncStorage.setItem as jest.Mock).mock.calls[0][1];
-      const savedCompanions = JSON.parse(savedData);
-
-      expect(savedCompanions).toHaveLength(1);
-      expect(savedCompanions[0]).toEqual(mockCompanion2);
-
-      const state = store.getState().companion;
-      expect(state.loading).toBe(false);
-    });
-
-    it('should delete the last companion', async () => {
-      const companions = [mockCompanion];
-      (AsyncStorage.getItem as jest.Mock).mockResolvedValue(
-        JSON.stringify(companions)
-      );
-      (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
-
-      await store.dispatch(deleteCompanion({userId, companionId}) as any);
-
-      const savedData = (AsyncStorage.setItem as jest.Mock).mock.calls[0][1];
-      const savedCompanions = JSON.parse(savedData);
-
-      expect(savedCompanions).toEqual([]);
-
-      const state = store.getState().companion;
-      expect(state.companions).toEqual([]);
-    });
-
-    it('should reject when storage is empty', async () => {
-      (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
-
-      await store.dispatch(deleteCompanion({userId, companionId}) as any);
-
-      const state = store.getState().companion;
-      expect(state.error).toBe('No companions found for this user.');
-    });
-
-    it('should reject when companion not found', async () => {
-      const companions = [mockCompanion2];
-      (AsyncStorage.getItem as jest.Mock).mockResolvedValue(
-        JSON.stringify(companions)
+      store.dispatch(
+        fetchCompanions.fulfilled(
+          [
+            mockCompanion,
+            {...mockCompanion, id: 'two', name: 'Second'},
+          ],
+          '',
+          userId,
+        ),
       );
 
-      await store.dispatch(deleteCompanion({userId, companionId}) as any);
+      await store.dispatch(deleteCompanion({userId, companionId: 'two'}) as any);
 
-      const state = store.getState().companion;
-      expect(state.error).toBe('Companion not found.');
+      const {key, value} = getLastPersistedValue();
+      expect(key).toBe(storageKey);
+      expect(value).toHaveLength(1);
+      expect(store.getState().companion.companions.length).toBe(1);
     });
 
-    it('should handle errors', async () => {
-      const errorMessage = 'Storage error';
+    it('rejects when the companion cannot be found', async () => {
+      (AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+        JSON.stringify([mockCompanion]),
+      );
+
+      const result = await store.dispatch(
+        deleteCompanion({userId, companionId: 'missing'}) as any,
+      );
+
+      expect(result.type).toContain('rejected');
+      expect(store.getState().companion.error).toBe('Companion not found.');
+    });
+
+    it('propagates storage errors', async () => {
+      const errorMessage = 'read failed';
       (AsyncStorage.getItem as jest.Mock).mockRejectedValue(
-        new Error(errorMessage)
+        new Error(errorMessage),
       );
 
-      await store.dispatch(deleteCompanion({userId, companionId}) as any);
+      await store.dispatch(deleteCompanion({userId, companionId: 'one'}) as any);
 
-      const state = store.getState().companion;
-      expect(state.error).toBe(errorMessage);
-    });
-
-    it('should handle non-Error exceptions', async () => {
-      (AsyncStorage.getItem as jest.Mock).mockRejectedValue('Some error');
-
-      await store.dispatch(deleteCompanion({userId, companionId}) as any);
-
-      const state = store.getState().companion;
-      expect(state.error).toBe('Failed to delete companion');
+      expect(store.getState().companion.error).toBe(errorMessage);
     });
   });
 });

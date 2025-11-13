@@ -302,12 +302,16 @@ jest.mock('react-native-keychain', () => ({
 }));
 
 // Mock RN Image Picker
-jest.mock('react-native-image-picker', () => ({
-  launchCamera: jest.fn(),
-  launchImageLibrary: jest.fn(),
-  ImagePickerResponse: {},
-  Asset: {},
-  ImageLibraryOptions: {},
+jest.mock('react-native-image-picker', () => {
+  const mockResponse = {assets: []};
+  return {
+    launchCamera: jest.fn(() => Promise.resolve(mockResponse)),
+    launchImageLibrary: jest.fn(() => Promise.resolve(mockResponse)),
+  };
+});
+
+jest.mock('react-native-fs', () => ({
+  stat: jest.fn(() => Promise.resolve({size: 1024})),
 }));
 
 // Mock native-stack navigator to a simple host component

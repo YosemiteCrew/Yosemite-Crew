@@ -1,5 +1,6 @@
 import expensesReducer, {
   clearExpenseError,
+  resetExpensesState,
   injectMockExpenses,
 } from '@/features/expenses/expenseSlice';
 import {
@@ -87,6 +88,19 @@ describe('expensesSlice', () => {
       expect(nextState.items).toEqual(newExpenses);
       expect(nextState.summaries.comp1.total).toBe(150);
       expect(nextState.hydratedCompanions.comp1).toBe(true);
+    });
+
+    it('should handle resetExpensesState', () => {
+      const populatedState: ExpensesState = {
+        items: [mockExpense1],
+        loading: true,
+        error: 'Boom',
+        summaries: {comp1: mockSummary},
+        hydratedCompanions: {comp1: true},
+      };
+
+      const nextState = expensesReducer(populatedState, resetExpensesState());
+      expect(nextState).toEqual(initialState);
     });
   });
 
