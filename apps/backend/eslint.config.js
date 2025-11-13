@@ -8,6 +8,8 @@ export default [
       "eslint.config.js",
       "src/scripts/**",
       "jest.config.cjs",
+      "src/middlewares/**",
+      "src/utils/**",
       "test/**",
       "node_modules/",
       "dist/",

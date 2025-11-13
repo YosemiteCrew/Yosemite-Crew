@@ -1,24 +1,29 @@
 import type { Extension, RelatedPerson } from "@yosemite-crew/fhirtypes"
 import { Address, toFHIRAddress } from "./address.model";
+import { fromAddressRequestDTO } from "./dto/address.dto";
 
-export const PARENT_AGE_EXTENSION_URL = "http://example.org/fhir/StructureDefinition/parent-age";
+export interface Parent {
+    id?: string;
+    firstName: string;
+    lastName?: string;
+    birthDate?: Date;
+    email: string;
+    phoneNumber?: string;
+    address: Address;
+    currency?: string;
+    linkedUserId?: string | null;
+    createdFrom: "pms" | "mobile" | "invited";
+    profileImageUrl?: string;
+    isProfileComplete?: boolean;
+    createdAt?: Date;
+    updatedAt?: Date;
+}
+
 export const PARENT_PROFILE_COMPLETION_EXTENSION_URL =
     "http://example.org/fhir/StructureDefinition/parent-profile-completed";
 
-export interface Parent {
-    _id: string;
-    firstName: string;
-    lastName?: string;
-    age: number;
-    address: Address;
-    phoneNumber?: string;
-    birthDate?: Date;
-    profileImageUrl?: string;
-    isProfileComplete?: boolean;
-}
-
 export function toFHIRRelatedPerson(parent: Parent): RelatedPerson {
-    const id = String(parent._id);
+    const id = parent.id ? String(parent.id) : undefined
 
     const nameText = [parent.firstName, parent.lastName].filter(Boolean).join(" ").trim();
     const name = nameText
@@ -54,13 +59,6 @@ export function toFHIRRelatedPerson(parent: Parent): RelatedPerson {
 
     const extensions: Extension[] = [];
 
-    if (typeof parent.age === "number") {
-        extensions.push({
-            url: PARENT_AGE_EXTENSION_URL,
-            valueInteger: parent.age,
-        });
-    }
-
     if (typeof parent.isProfileComplete === "boolean") {
         extensions.push({
             url: PARENT_PROFILE_COMPLETION_EXTENSION_URL,
@@ -82,4 +80,48 @@ export function toFHIRRelatedPerson(parent: Parent): RelatedPerson {
         birthDate,
         extension: extensions.length ? extensions : undefined,
     };
+}
+
+export function fromFHIRRelatedPerson(resource: RelatedPerson): Parent {
+    const rp = resource
+
+    const officialName = rp.name?.find(n => n.use === "official") ?? rp.name?.[0]
+    const firstName = officialName?.given?.[0] || ""
+    const lastName = officialName?.family
+
+    let email: string = ""
+    let phoneNumber: string | undefined = undefined
+
+    rp.telecom?.forEach(t => {
+        if (t.system === "email" && t.value) email = t.value
+        if (t.system === "phone" && t.value) phoneNumber = t.value
+    })
+
+    const address = rp.address?.[0] ? fromAddressRequestDTO(rp.address[0]) : {}
+
+    const profileImageUrl = rp.photo?.[0]?.url
+
+    let isProfileComplete: boolean | undefined = undefined
+
+    rp.extension?.forEach(ext => {
+        if (ext.url === PARENT_PROFILE_COMPLETION_EXTENSION_URL && typeof ext.valueBoolean === "boolean") {
+            isProfileComplete = ext.valueBoolean
+        }
+    })
+
+    const birthDate = rp.birthDate ? new Date(rp.birthDate) : undefined
+
+    const parent: Parent = {
+        id: rp.id,
+        firstName,
+        lastName,
+        email,
+        phoneNumber,
+        birthDate,
+        address,
+        profileImageUrl,
+        createdFrom: "pms"
+    }
+
+    return parent
 }
