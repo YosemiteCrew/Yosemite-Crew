@@ -4,7 +4,6 @@ import { passwordlessCreateAuthChallenge } from '../functions/passwordlessCreate
 import { passwordlessDefineAuthChallenge } from '../functions/passwordlessDefineAuthChallenge/resource';
 import { passwordlessVerifyAuthChallenge } from '../functions/passwordlessVerifyAuthChallenge/resource';
 import { passwordlessPreSignUp } from '../functions/passwordlessPreSignUp/resource';
-import { passwordlessPostConfirmation } from '../functions/passwordlessPostConfirmation/resource';
 
 export const auth = defineAuth({
   loginWith: {
@@ -20,7 +19,6 @@ export const auth = defineAuth({
     defineAuthChallenge: passwordlessDefineAuthChallenge,
     verifyAuthChallengeResponse: passwordlessVerifyAuthChallenge,
     preSignUp: passwordlessPreSignUp,
-    postConfirmation: passwordlessPostConfirmation,
   },
 });
 

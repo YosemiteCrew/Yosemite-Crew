@@ -1,5 +1,5 @@
 // Mock profile service first
-jest.mock('@/features/profile/services/profileService', () => ({
+jest.mock('@/features/account/services/profileService', () => ({
   fetchProfileStatus: jest.fn(),
 }));
 
@@ -28,7 +28,7 @@ import {
 } from '@/features/auth/services/passwordlessAuth';
 
 const AmplifyAuth = require('aws-amplify/auth');
-const {fetchProfileStatus} = require('@/features/profile/services/profileService');
+const {fetchProfileStatus} = require('@/features/account/services/profileService');
 
 describe('passwordlessAuth', () => {
   beforeEach(() => {
@@ -272,7 +272,6 @@ describe('passwordlessAuth', () => {
       expect(fetchProfileStatus).toHaveBeenCalledWith({
         accessToken: 'mock-access-token',
         userId: 'user-123',
-        email: 'test@example.com',
       });
     });
 
@@ -292,7 +291,6 @@ describe('passwordlessAuth', () => {
       expect(fetchProfileStatus).toHaveBeenCalledWith({
         accessToken: 'mock-access-token',
         userId: 'user-123',
-        email: 'test@example.com',
       });
     });
   });
