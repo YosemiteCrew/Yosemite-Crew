@@ -42,7 +42,7 @@ import OtpModal from "@/app/components/OtpModal/OtpModal";
 
 const defaultProps = {
   email: "test@example.com",
-  password: "test-password",
+  password: "secret",
   showErrorTost: jest.fn(),
   showVerifyModal: true,
   setShowVerifyModal: jest.fn(),
