@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { AvailabilityController } from 'src/controllers/web/availability.controller';
-import authorizeCognito from 'src/middlewares/auth';
+import { authorizeCognito } from 'src/middlewares/auth';
 
 const router = Router();
 

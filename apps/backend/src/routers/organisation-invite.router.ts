@@ -1,7 +1,7 @@
 import { Router } from 'express'
 
 import { OrganisationInviteController } from '../controllers/web/organisation-invite.controller'
-import authorizeCognito from 'src/middlewares/auth'
+import { authorizeCognito } from 'src/middlewares/auth'
 
 const router = Router()
 
